@@ -1,0 +1,26 @@
+[workspace]
+# Using version 2 to avoid unifying features. For more info, read:
+#   https://doc.rust-lang.org/cargo/reference/resolver.html#feature-resolver-version-2
+resolver = "2"
+
+members = ["crates/committer"]
+
+[workspace.package]
+version = "0.1.0-rc.0"
+edition = "2021"
+repository = "https://github.com/starkware-libs/committer/"
+license = "Apache-2.0"
+license-file = "LICENSE"
+
+[workspace.dependencies]
+pretty_assertions = "1.2.1"
+
+[workspace.lints.rust]
+warnings = "deny"
+future-incompatible = "deny"
+nonstandard-style = "deny"
+rust-2018-idioms = "deny"
+unused = "deny"
+
+[workspace.lints.clippy]
+as_conversions = "deny"

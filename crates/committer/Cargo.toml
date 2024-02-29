@@ -1,0 +1,13 @@
+[package]
+name = "committer"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Computes and manages Starknet state."
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true

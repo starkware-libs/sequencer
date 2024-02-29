@@ -4,9 +4,9 @@ on:
   push:
     branches:
       - main
-      - main-v[0-9].**
+      - main-v[0-9]+.**
     tags:
-      - v[0-9].**
+      - v[0-9]+.**
 
   pull_request:
     types:
@@ -15,6 +15,9 @@ on:
       - synchronize
       - auto_merge_enabled
       - edited
+
+  merge_group:
+    types: [checks_requested]
 
 jobs:
   commitlint:

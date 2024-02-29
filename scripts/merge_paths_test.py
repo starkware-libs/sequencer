@@ -4,6 +4,10 @@ from merge_branches import FINAL_BRANCH, MERGE_PATHS_FILE, load_merge_paths
 def test_linear_path():
     merge_paths = load_merge_paths()
 
+    # No feature branches means nothing to test.
+    if len(merge_paths) == 0:
+        return
+
     src_dst_iter = iter(merge_paths.items())
     (oldest_branch, prev_dst_branch) = next(src_dst_iter)
     assert (
