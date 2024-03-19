@@ -1,0 +1,13 @@
+[package]
+name = "committer_cli"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Cli for the committer package."
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true

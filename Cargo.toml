@@ -3,7 +3,7 @@
 #   https://doc.rust-lang.org/cargo/reference/resolver.html#feature-resolver-version-2
 resolver = "2"
 
-members = ["crates/committer"]
+members = ["crates/committer", "crates/committer_cli"]
 
 [workspace.package]
 version = "0.1.0-rc.0"
