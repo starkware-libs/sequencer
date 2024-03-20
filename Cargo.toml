@@ -1,6 +1,19 @@
 [workspace]
-# Using version 2 to avoid unifying features. For more info, read:
-#   https://doc.rust-lang.org/cargo/reference/resolver.html#feature-resolver-version-2
-resolver = "2"  # Specify the resolver version that matches edition 2021
-
+resolver = "2"
 members = ["crates/gateway"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2021"
+repository = "https://github.com/starkware-libs/mempool/"
+license = "Apache-2.0"
+
+[workspace.lints.rust]
+warnings = "deny"
+future-incompatible = "deny"
+nonstandard-style = "deny"
+rust-2018-idioms = "deny"
+unused = "deny"
+
+[workspace.lints.clippy]
+as_conversions = "deny"
