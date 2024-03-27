@@ -6,6 +6,13 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+hyper.workspace = true
+tokio.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+starknet_api.workspace = true
+assert_matches.workspace = true
 
 [lints]
 workspace = true
