@@ -1,10 +1,10 @@
 use crate::hash::types::{HashFunction, HashOutput};
-use crate::patricia_merkle_tree::skeleton_node::SkeletonNode;
+use crate::patricia_merkle_tree::filled_node::NodeData;
 use crate::types::Felt;
 
 pub(crate) trait TreeHashFunction<L: LeafDataTrait, H: HashFunction> {
     /// Computes the hash of given input.
-    async fn compute_node_hash(skeleton_node: SkeletonNode<L>) -> HashOutput;
+    async fn compute_node_hash(node_data: NodeData<L>) -> HashOutput;
 }
 
 // TODO(Amos, 01/05/2024): Implement types for NodeIndex, EdgePath, EdgePathLength

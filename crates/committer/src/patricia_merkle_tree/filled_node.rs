@@ -4,10 +4,16 @@ use crate::patricia_merkle_tree::types::{LeafDataTrait, PathToBottom};
 use crate::{hash::types::HashOutput, types::Felt};
 
 #[allow(dead_code)]
-pub(crate) enum FilledNode<L: LeafDataTrait> {
-    Binary { data: BinaryData, hash: HashOutput },
-    Edge { data: EdgeData, hash: HashOutput },
-    Leaf { data: L, hash: HashOutput },
+pub(crate) struct FilledNode<L: LeafDataTrait> {
+    hash: HashOutput,
+    data: NodeData<L>,
+}
+
+#[allow(dead_code)]
+pub(crate) enum NodeData<L: LeafDataTrait> {
+    Binary(BinaryData),
+    Edge(EdgeData),
+    Leaf(L),
 }
 
 #[allow(dead_code)]
