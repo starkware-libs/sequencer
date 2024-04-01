@@ -2,7 +2,7 @@ use crate::hash::types::{HashFunction, HashOutput};
 use crate::patricia_merkle_tree::skeleton_node::SkeletonNode;
 use crate::types::Felt;
 
-pub(crate) trait TreeHashFunction<L: LeafTrait, H: HashFunction> {
+pub(crate) trait TreeHashFunction<L: LeafDataTrait, H: HashFunction> {
     /// Computes the hash of given input.
     async fn compute_node_hash(skeleton_node: SkeletonNode<L>) -> HashOutput;
 }
@@ -23,7 +23,7 @@ pub(crate) struct PathToBottom {
     pub length: EdgePathLength,
 }
 
-pub(crate) trait LeafTrait {
+pub(crate) trait LeafDataTrait {
     /// Returns true if leaf is empty.
     fn is_empty(&self) -> bool;
 }

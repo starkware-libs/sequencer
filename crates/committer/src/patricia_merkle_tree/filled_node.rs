@@ -1,13 +1,13 @@
 use starknet_api::core::{ClassHash, Nonce};
 
-use crate::patricia_merkle_tree::types::{LeafTrait, PathToBottom};
+use crate::patricia_merkle_tree::types::{LeafDataTrait, PathToBottom};
 use crate::{hash::types::HashOutput, types::Felt};
 
 #[allow(dead_code)]
-pub(crate) enum FilledNode<L: LeafTrait> {
+pub(crate) enum FilledNode<L: LeafDataTrait> {
     Binary { data: BinaryData, hash: HashOutput },
     Edge { data: EdgeData, hash: HashOutput },
-    Leaf(L),
+    Leaf { data: L, hash: HashOutput },
 }
 
 #[allow(dead_code)]
@@ -23,7 +23,7 @@ pub(crate) struct EdgeData {
 }
 
 #[allow(dead_code)]
-pub(crate) enum LeafEnum {
+pub(crate) enum LeafData {
     StorageValue(Felt),
     CompiledClassHash(Felt),
     StateTreeTuple {
