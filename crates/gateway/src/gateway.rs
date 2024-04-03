@@ -1,4 +1,5 @@
 use crate::errors::{GatewayConfigError, GatewayError};
+use crate::GatewayConfig;
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -36,10 +37,6 @@ impl Gateway {
 
         Ok(())
     }
-}
-
-pub struct GatewayConfig {
-    pub bind_address: String,
 }
 
 async fn is_alive() -> impl IntoResponse {
