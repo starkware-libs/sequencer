@@ -1,7 +1,10 @@
-use starknet_api::core::{ClassHash, Nonce};
-
 use crate::patricia_merkle_tree::types::{LeafDataTrait, PathToBottom};
 use crate::{hash::types::HashOutput, types::Felt};
+// TODO(Nimrod, 1/6/2024): Swap to starknet-types-core types once implemented.
+#[allow(dead_code)]
+pub(crate) struct ClassHash(pub Felt);
+#[allow(dead_code)]
+pub(crate) struct Nonce(pub Felt);
 
 #[allow(dead_code)]
 pub(crate) struct FilledNode<L: LeafDataTrait> {
@@ -31,7 +34,7 @@ pub(crate) struct EdgeData {
 #[allow(dead_code)]
 pub(crate) enum LeafData {
     StorageValue(Felt),
-    CompiledClassHash(Felt),
+    CompiledClassHash(ClassHash),
     StateTreeTuple {
         class_hash: ClassHash,
         contract_state_root_hash: Felt,
