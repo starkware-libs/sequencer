@@ -1,23 +1,9 @@
 use crate::gateway::add_transaction;
-use crate::gateway::handle_request;
-use hyper::{body, Body, Request};
+use axum::{body::HttpBody, response::IntoResponse};
 use rstest::rstest;
-use std::fs;
-
-#[tokio::test]
-async fn test_invalid_request() {
-    // Create a sample GET request for an invalid path
-    let request = Request::get("/some_invalid_path")
-        .body(Body::empty())
-        .unwrap();
-    let response = handle_request(request).await.unwrap();
-
-    assert_eq!(response.status(), 404);
-    assert_eq!(
-        String::from_utf8_lossy(&body::to_bytes(response.into_body()).await.unwrap()),
-        "Not found."
-    );
-}
+use starknet_api::external_transaction::ExternalTransaction;
+use std::fs::File;
+use std::io::BufReader;
 
 // TODO(Ayelet): Replace the use of the JSON files with generated instances, then serialize these
 // into JSON for testing.
@@ -30,14 +16,13 @@ async fn test_invalid_request() {
 #[case("./src/json_files_for_testing/invoke_v3.json", "INVOKE")]
 #[tokio::test]
 async fn test_add_transaction(#[case] json_file_path: &str, #[case] expected_response: &str) {
-    let json_str = fs::read_to_string(json_file_path).expect("Failed to read JSON file");
-    let body = Body::from(json_str);
-    let response = add_transaction(body)
-        .await
-        .expect("Failed to process transaction");
-    let bytes = body::to_bytes(response.into_body())
-        .await
-        .expect("Failed to read response body");
-    let body_str = String::from_utf8(bytes.to_vec()).expect("Response body is not valid UTF-8");
-    assert_eq!(body_str, expected_response);
+    let file = File::open(json_file_path).unwrap();
+    let reader = BufReader::new(file);
+    let transaction: ExternalTransaction = serde_json::from_reader(reader).unwrap();
+    let response = add_transaction(transaction.into()).await.into_response();
+    let response_bytes = response.into_body().collect().await.unwrap().to_bytes();
+    assert_eq!(
+        &String::from_utf8(response_bytes.to_vec()).unwrap(),
+        expected_response
+    );
 }

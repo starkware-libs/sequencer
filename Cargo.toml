@@ -20,6 +20,7 @@ as_conversions = "deny"
 
 [workspace.dependencies]
 assert_matches = "1.5.0"
+axum = "0.6.12"
 hyper = "0.13.9"
 rstest = "0.17.0"
 serde = { version = "1.0.193", features = ["derive"] }
