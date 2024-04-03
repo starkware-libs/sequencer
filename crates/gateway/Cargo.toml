@@ -5,14 +5,18 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
+assert_matches.workspace = true
 hyper.workspace = true
-tokio.workspace = true
-thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 starknet_api.workspace = true
-assert_matches.workspace = true
+thiserror.workspace = true
 
-[lints]
-workspace = true
+[dev-dependencies]
+rstest.workspace = true
+tokio.workspace = true
+
