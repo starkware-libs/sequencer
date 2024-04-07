@@ -13,5 +13,5 @@ impl HashOutput {
 
 pub(crate) trait HashFunction {
     /// Computes the hash of given input.
-    async fn compute_hash(i: HashInputPair) -> HashOutput;
+    fn compute_hash(i: HashInputPair) -> HashOutput;
 }

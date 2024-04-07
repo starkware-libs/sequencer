@@ -4,7 +4,7 @@ use crate::types::Felt;
 
 pub(crate) trait TreeHashFunction<L: LeafDataTrait, H: HashFunction> {
     /// Computes the hash of given input.
-    async fn compute_node_hash(node_data: NodeData<L>) -> HashOutput;
+    fn compute_node_hash(node_data: NodeData<L>) -> HashOutput;
 }
 
 // TODO(Amos, 01/05/2024): Implement types for NodeIndex, EdgePath, EdgePathLength
