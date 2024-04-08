@@ -19,3 +19,9 @@ pub enum GatewayConfigError {
     #[error("Server address is not an bind IP address: {0}")]
     InvalidServerBindAddress(String),
 }
+
+#[derive(Debug, Error)]
+#[cfg_attr(test, derive(PartialEq))]
+pub enum TransactionValidatorError {}
+
+pub type TransactionValidatorResult<T> = Result<T, TransactionValidatorError>;
