@@ -15,7 +15,7 @@ pub(crate) struct NodeIndex(pub Felt);
 pub(crate) struct EdgePath(pub Felt);
 
 #[allow(dead_code)]
-pub(crate) struct EdgePathLength(pub u16);
+pub(crate) struct EdgePathLength(pub u8);
 
 #[allow(dead_code)]
 pub(crate) struct PathToBottom {
