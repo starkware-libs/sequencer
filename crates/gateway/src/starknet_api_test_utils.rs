@@ -1,9 +1,10 @@
+use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::external_transaction::{
-    DataAvailabilityMode, ExternalDeclareTransaction, ExternalDeclareTransactionV3,
-    ExternalDeployAccountTransaction, ExternalDeployAccountTransactionV3,
-    ExternalInvokeTransaction, ExternalInvokeTransactionV3, ExternalTransaction,
+    ExternalDeclareTransaction, ExternalDeclareTransactionV3, ExternalDeployAccountTransaction,
+    ExternalDeployAccountTransactionV3, ExternalInvokeTransaction, ExternalInvokeTransactionV3,
+    ExternalTransaction,
 };
-use starknet_api::transaction::{ResourceBounds, ResourceBoundsMapping, TransactionVersion};
+use starknet_api::transaction::{ResourceBounds, ResourceBoundsMapping};
 
 // Utils.
 pub fn create_external_declare_tx_for_testing() -> ExternalTransaction {
@@ -20,8 +21,6 @@ pub fn create_external_declare_tx_for_testing() -> ExternalTransaction {
             fee_data_availability_mode: DataAvailabilityMode::L1,
             paymaster_data: Default::default(),
             account_deployment_data: Default::default(),
-            version: TransactionVersion::THREE,
-            r#type: Default::default(),
         },
     ))
 }
@@ -39,8 +38,6 @@ pub fn create_external_deploy_account_tx_for_testing() -> ExternalTransaction {
             nonce_data_availability_mode: DataAvailabilityMode::L1,
             fee_data_availability_mode: DataAvailabilityMode::L1,
             paymaster_data: Default::default(),
-            version: TransactionVersion::THREE,
-            r#type: Default::default(),
         },
     ))
 }
@@ -57,8 +54,6 @@ pub fn create_external_invoke_tx_for_testing() -> ExternalTransaction {
         fee_data_availability_mode: DataAvailabilityMode::L1,
         paymaster_data: Default::default(),
         account_deployment_data: Default::default(),
-        version: TransactionVersion::THREE,
-        r#type: Default::default(),
     }))
 }
 
