@@ -1,4 +1,4 @@
-use crate::patricia_merkle_tree::types::{LeafDataTrait, PathToBottom};
+use crate::patricia_merkle_tree::types::{EdgeData, LeafDataTrait};
 use crate::{hash::types::HashOutput, types::Felt};
 // TODO(Nimrod, 1/6/2024): Swap to starknet-types-core types once implemented.
 #[allow(dead_code)]
@@ -25,12 +25,6 @@ pub(crate) enum NodeData<L: LeafDataTrait> {
 pub(crate) struct BinaryData {
     left_hash: HashOutput,
     right_hash: HashOutput,
-}
-
-#[allow(dead_code)]
-pub(crate) struct EdgeData {
-    bottom_hash: HashOutput,
-    path_to_bottom: PathToBottom,
 }
 
 #[allow(dead_code)]
