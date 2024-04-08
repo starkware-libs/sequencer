@@ -9,7 +9,6 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-assert_matches.workspace = true
 axum.workspace = true
 hyper.workspace = true
 serde.workspace = true
@@ -18,6 +17,7 @@ starknet_api.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+assert_matches.workspace = true
+pretty_assertions.workspace = true
 rstest.workspace = true
 tokio.workspace = true
-
