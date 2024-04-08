@@ -7,12 +7,14 @@ pub(crate) struct ClassHash(pub Felt);
 pub(crate) struct Nonce(pub Felt);
 
 #[allow(dead_code)]
+/// A node in a Patricia-Merkle tree which was modified during an update.
 pub(crate) struct FilledNode<L: LeafDataTrait> {
     hash: HashOutput,
     data: NodeData<L>,
 }
 
 #[allow(dead_code)]
+// A Patricia-Merkle tree node's data, i.e., the pre-image of its hash.
 pub(crate) enum NodeData<L: LeafDataTrait> {
     Binary(BinaryData),
     Edge(EdgeData),
