@@ -12,11 +12,12 @@ workspace = true
 axum.workspace = true
 clap.workspace = true
 hyper.workspace = true
+papyrus_config.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
-papyrus_config.workspace = true
+tower.workspace = true
 validator.workspace = true
 
 [dev-dependencies]

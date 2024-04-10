@@ -2200,6 +2200,7 @@ dependencies = [
  "starknet_api",
  "thiserror",
  "tokio",
+ "tower",
  "validator",
 ]
 
