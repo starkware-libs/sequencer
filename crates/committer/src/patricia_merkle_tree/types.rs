@@ -15,7 +15,7 @@ pub(crate) trait TreeHashFunction<L: LeafDataTrait, H: HashFunction> {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct NodeIndex(pub Felt);
 
 #[allow(dead_code)]
