@@ -2,6 +2,10 @@ use crate::hash::types::{HashFunction, HashOutput};
 use crate::patricia_merkle_tree::filled_node::NodeData;
 use crate::types::Felt;
 
+#[cfg(test)]
+#[path = "test_utils.rs"]
+mod test_utils;
+
 pub(crate) trait TreeHashFunction<L: LeafDataTrait, H: HashFunction> {
     /// Computes the hash of given node data.
     fn compute_node_hash(node_data: NodeData<L>) -> HashOutput;
