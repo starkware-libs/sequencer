@@ -22,6 +22,9 @@ pub(crate) struct EdgePath(pub Felt);
 pub(crate) struct EdgePathLength(pub u8);
 
 #[allow(dead_code)]
+pub(crate) struct TreeHeight(pub u8);
+
+#[allow(dead_code)]
 pub(crate) struct PathToBottom {
     pub path: EdgePath,
     pub length: EdgePathLength,
