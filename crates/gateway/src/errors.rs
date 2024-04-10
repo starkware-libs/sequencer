@@ -1,3 +1,5 @@
+use starknet_api::transaction::{Resource, ResourceBounds};
+
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -14,6 +16,14 @@ pub enum GatewayError {
 
 #[derive(Debug, Error)]
 #[cfg_attr(test, derive(PartialEq))]
-pub enum TransactionValidatorError {}
+pub enum TransactionValidatorError {
+    #[error("Expected a positive amount of {resource:?}. Got {resource_bounds:?}.")]
+    ZeroFee {
+        resource: Resource,
+        resource_bounds: ResourceBounds,
+    },
+    #[error("The resource bounds mapping is missing a resource {resource:?}.")]
+    MissingResource { resource: Resource },
+}
 
 pub type TransactionValidatorResult<T> = Result<T, TransactionValidatorError>;

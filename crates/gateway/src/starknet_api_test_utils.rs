@@ -7,10 +7,12 @@ use starknet_api::external_transaction::{
 use starknet_api::transaction::{ResourceBounds, ResourceBoundsMapping};
 
 // Utils.
-pub fn create_external_declare_tx_for_testing() -> ExternalTransaction {
+pub fn create_external_declare_tx_for_testing(
+    resource_bounds: ResourceBoundsMapping,
+) -> ExternalTransaction {
     ExternalTransaction::Declare(ExternalDeclareTransaction::V3(
         ExternalDeclareTransactionV3 {
-            resource_bounds: zero_resource_bounds_mapping(),
+            resource_bounds,
             contract_class: Default::default(),
             tip: Default::default(),
             signature: Default::default(),
@@ -25,10 +27,12 @@ pub fn create_external_declare_tx_for_testing() -> ExternalTransaction {
     ))
 }
 
-pub fn create_external_deploy_account_tx_for_testing() -> ExternalTransaction {
+pub fn create_external_deploy_account_tx_for_testing(
+    resource_bounds: ResourceBoundsMapping,
+) -> ExternalTransaction {
     ExternalTransaction::DeployAccount(ExternalDeployAccountTransaction::V3(
         ExternalDeployAccountTransactionV3 {
-            resource_bounds: zero_resource_bounds_mapping(),
+            resource_bounds,
             tip: Default::default(),
             contract_address_salt: Default::default(),
             class_hash: Default::default(),
@@ -42,9 +46,11 @@ pub fn create_external_deploy_account_tx_for_testing() -> ExternalTransaction {
     ))
 }
 
-pub fn create_external_invoke_tx_for_testing() -> ExternalTransaction {
+pub fn create_external_invoke_tx_for_testing(
+    resource_bounds: ResourceBoundsMapping,
+) -> ExternalTransaction {
     ExternalTransaction::Invoke(ExternalInvokeTransaction::V3(ExternalInvokeTransactionV3 {
-        resource_bounds: zero_resource_bounds_mapping(),
+        resource_bounds,
         tip: Default::default(),
         signature: Default::default(),
         nonce: Default::default(),
@@ -66,6 +72,40 @@ pub fn zero_resource_bounds_mapping() -> ResourceBoundsMapping {
         (
             starknet_api::transaction::Resource::L2Gas,
             ResourceBounds::default(),
+        ),
+    ])
+    .expect("Resource bounds mapping has unexpected structure.")
+}
+
+pub fn non_zero_l1_resource_bounds_mapping() -> ResourceBoundsMapping {
+    ResourceBoundsMapping::try_from(vec![
+        (
+            starknet_api::transaction::Resource::L1Gas,
+            ResourceBounds {
+                max_amount: 1,
+                max_price_per_unit: 1,
+            },
+        ),
+        (
+            starknet_api::transaction::Resource::L2Gas,
+            ResourceBounds::default(),
+        ),
+    ])
+    .expect("Resource bounds mapping has unexpected structure.")
+}
+
+pub fn non_zero_l2_resource_bounds_mapping() -> ResourceBoundsMapping {
+    ResourceBoundsMapping::try_from(vec![
+        (
+            starknet_api::transaction::Resource::L1Gas,
+            ResourceBounds::default(),
+        ),
+        (
+            starknet_api::transaction::Resource::L2Gas,
+            ResourceBounds {
+                max_amount: 1,
+                max_price_per_unit: 1,
+            },
         ),
     ])
     .expect("Resource bounds mapping has unexpected structure.")
