@@ -22,6 +22,9 @@ const Configuration = {
     rules: {
         'scope-enum': [2, 'always', [
             'ci',
+            'gateway',
+            'mempool',
+            'mempool_node',
         ]],
     },
     /*
