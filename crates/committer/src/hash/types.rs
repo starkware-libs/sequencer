@@ -22,6 +22,6 @@ pub(crate) struct PedersenHashFunction;
 
 impl HashFunction for PedersenHashFunction {
     fn compute_hash(i: HashInputPair) -> HashOutput {
-        HashOutput(Pedersen::hash(&i.0, &i.1))
+        HashOutput(Pedersen::hash(&i.0.into(), &i.1.into()).into())
     }
 }
