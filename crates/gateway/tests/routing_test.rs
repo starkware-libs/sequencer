@@ -4,19 +4,22 @@ use pretty_assertions::assert_str_eq;
 use rstest::rstest;
 use starknet_gateway::gateway::app;
 use std::fs;
+use std::path::Path;
 use tower::ServiceExt;
+
+const TEST_FILES_FOLDER: &str = "./test/gateway/json_files_for_testing";
 
 // TODO(Ayelet): Replace the use of the JSON files with generated instances, then serialize these
 // into JSON for testing.
 #[rstest]
-#[case("./src/json_files_for_testing/declare_v3.json", "DECLARE")]
-#[case(
-    "./src/json_files_for_testing/deploy_account_v3.json",
+#[case::declare(&Path::new(TEST_FILES_FOLDER).join("declare_v3.json"), "DECLARE")]
+#[case::deploy_account(
+    &Path::new(TEST_FILES_FOLDER).join("deploy_account_v3.json"),
     "DEPLOY_ACCOUNT"
 )]
-#[case("./src/json_files_for_testing/invoke_v3.json", "INVOKE")]
+#[case::invoke(&Path::new(TEST_FILES_FOLDER).join("invoke_v3.json"), "INVOKE")]
 #[tokio::test]
-async fn test_routes(#[case] json_file_path: &str, #[case] expected_response: &str) {
+async fn test_routes(#[case] json_file_path: &Path, #[case] expected_response: &str) {
     let tx_json = fs::read_to_string(json_file_path).unwrap();
     let request = Request::post("/add_transaction")
         .header("content-type", "application/json")
