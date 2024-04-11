@@ -11,7 +11,7 @@ impl From<StarknetTypesFelt> for Felt {
 
 impl From<u128> for Felt {
     fn from(value: u128) -> Self {
-        Self(StarknetTypesFelt::from(value))
+        Self(value.into())
     }
 }
 

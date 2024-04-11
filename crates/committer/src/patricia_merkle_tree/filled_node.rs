@@ -9,7 +9,7 @@ pub(crate) struct Nonce(pub Felt);
 #[allow(dead_code)]
 /// A node in a Patricia-Merkle tree which was modified during an update.
 pub(crate) struct FilledNode<L: LeafDataTrait> {
-    hash: HashOutput,
+    pub(crate) hash: HashOutput,
     data: NodeData<L>,
 }
 

@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Mutex;
 
+use crate::hash::types::HashOutput;
 use crate::patricia_merkle_tree::errors::FilledTreeError;
 use crate::patricia_merkle_tree::filled_node::FilledNode;
-use crate::patricia_merkle_tree::types::LeafDataTrait;
-use crate::patricia_merkle_tree::types::NodeIndex;
+use crate::patricia_merkle_tree::types::{LeafDataTrait, NodeIndex};
 use crate::storage::storage_trait::Storage;
 
 /// Consider a Patricia-Merkle Tree which has been updated with new leaves.
@@ -28,5 +28,12 @@ impl<L: LeafDataTrait> FilledTreeImpl<L> {
     }
     fn get_all_nodes(&self) -> &HashMap<NodeIndex, Mutex<FilledNode<L>>> {
         &self.tree_map
+    }
+
+    fn get_root_hash(&self) -> Result<HashOutput, FilledTreeError> {
+        match self.tree_map.get(&NodeIndex::root_index()) {
+            Some(root_node) => Ok(root_node.lock().expect("Lock poisoned.").hash),
+            None => Err(FilledTreeError::MissingRoot),
+        }
     }
 }

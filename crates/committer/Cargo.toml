@@ -14,5 +14,5 @@ pretty_assertions.workspace = true
 rstest.workspace = true
 
 [dependencies]
+derive_more.workspace = true
 starknet-types-core.workspace = true
-derive_more = "0.99.17"
