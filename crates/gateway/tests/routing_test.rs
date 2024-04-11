@@ -7,7 +7,7 @@ use std::fs;
 use std::path::Path;
 use tower::ServiceExt;
 
-const TEST_FILES_FOLDER: &str = "./test/gateway/json_files_for_testing";
+const TEST_FILES_FOLDER: &str = "./tests/fixtures";
 
 // TODO(Ayelet): Replace the use of the JSON files with generated instances, then serialize these
 // into JSON for testing.
