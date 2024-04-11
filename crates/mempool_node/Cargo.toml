@@ -10,3 +10,4 @@ workspace = true
 
 [dependencies]
 tokio.workspace = true
+async-trait = "0.1.79"
