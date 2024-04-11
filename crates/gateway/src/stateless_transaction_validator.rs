@@ -7,27 +7,27 @@ use starknet_api::transaction::Resource;
 use crate::errors::{TransactionValidatorError, TransactionValidatorResult};
 
 #[cfg(test)]
-#[path = "transaction_validator_test.rs"]
+#[path = "stateless_transaction_validator_test.rs"]
 mod transaction_validator_test;
 
 #[derive(Default)]
-pub struct TransactionValidatorConfig {
+pub struct StatelessTransactionValidatorConfig {
     // If true, validates that the reousrce bounds are not zero.
     pub validate_non_zero_l1_gas_fee: bool,
     pub validate_non_zero_l2_gas_fee: bool,
 }
 
-pub struct TransactionValidator {
-    pub config: TransactionValidatorConfig,
+pub struct StatelessTransactionValidator {
+    pub config: StatelessTransactionValidatorConfig,
 }
 
-impl TransactionValidator {
-    pub fn validate(&self, tx: ExternalTransaction) -> TransactionValidatorResult<()> {
+impl StatelessTransactionValidator {
+    pub fn validate(&self, tx: &ExternalTransaction) -> TransactionValidatorResult<()> {
         // TODO(Arni, 1/5/2024): Add a mechanism that validate the sender address is not blocked.
         // TODO(Arni, 1/5/2024): Validate transaction version.
         // TODO(Arni, 4/4/2024): Validate tx signature and calldata are not too long.
 
-        self.validate_fee(&tx)?;
+        self.validate_fee(tx)?;
 
         Ok(())
     }

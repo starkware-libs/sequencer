@@ -8,25 +8,26 @@ use crate::starknet_api_test_utils::{
     create_external_invoke_tx_for_testing, non_zero_l1_resource_bounds_mapping,
     non_zero_l2_resource_bounds_mapping, zero_resource_bounds_mapping,
 };
-use crate::transaction_validator::{
-    TransactionValidator, TransactionValidatorConfig, TransactionValidatorError,
+use crate::stateless_transaction_validator::{
+    StatelessTransactionValidator, StatelessTransactionValidatorConfig, TransactionValidatorError,
     TransactionValidatorResult,
 };
 
-const VALIDATOR_CONFIG_FOR_TESTING: TransactionValidatorConfig = TransactionValidatorConfig {
-    validate_non_zero_l1_gas_fee: true,
-    validate_non_zero_l2_gas_fee: false,
-};
+const VALIDATOR_CONFIG_FOR_TESTING: StatelessTransactionValidatorConfig =
+    StatelessTransactionValidatorConfig {
+        validate_non_zero_l1_gas_fee: true,
+        validate_non_zero_l2_gas_fee: false,
+    };
 
-const VALIDATOR_CONFIG_FOR_L2_GAS_TESTING: TransactionValidatorConfig =
-    TransactionValidatorConfig {
+const VALIDATOR_CONFIG_FOR_L2_GAS_TESTING: StatelessTransactionValidatorConfig =
+    StatelessTransactionValidatorConfig {
         validate_non_zero_l1_gas_fee: false,
         validate_non_zero_l2_gas_fee: true,
     };
 
 #[rstest]
 #[case::ignore_resource_bounds(
-    TransactionValidatorConfig{
+    StatelessTransactionValidatorConfig{
         validate_non_zero_l1_gas_fee: false,
         validate_non_zero_l2_gas_fee: false,
     },
@@ -78,12 +79,12 @@ const VALIDATOR_CONFIG_FOR_L2_GAS_TESTING: TransactionValidatorConfig =
     Ok(())
 )]
 fn test_transaction_validator(
-    #[case] config: TransactionValidatorConfig,
+    #[case] config: StatelessTransactionValidatorConfig,
     #[case] tx: ExternalTransaction,
     #[case] expected_result: TransactionValidatorResult<()>,
 ) {
-    let tx_validator = TransactionValidator { config };
-    let result = tx_validator.validate(tx);
+    let tx_validator = StatelessTransactionValidator { config };
+    let result = tx_validator.validate(&tx);
 
     assert_eq!(result, expected_result);
 }
