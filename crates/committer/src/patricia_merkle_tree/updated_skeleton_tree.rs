@@ -10,25 +10,21 @@ use crate::patricia_merkle_tree::updated_skeleton_node::UpdatedSkeletonNode;
 /// This trait represents the structure of the subtree which was modified in the update.
 /// It also contains the hashes of the Sibling nodes on the Merkle paths from the updated leaves
 /// to the root.
-pub(crate) trait UpdatedSkeletonTree<L: LeafDataTrait, H: HashFunction, TH: TreeHashFunction<L, H>>
-{
+pub(crate) trait UpdatedSkeletonTree<L: LeafDataTrait> {
     /// Computes and returns the filled tree.
-    fn compute_filled_tree(&self) -> Result<impl FilledTree<L>, UpdatedSkeletonTreeError>;
+    fn compute_filled_tree<H: HashFunction, TH: TreeHashFunction<L, H>>(
+        &self,
+    ) -> Result<impl FilledTree<L>, UpdatedSkeletonTreeError>;
 }
 
 #[allow(dead_code)]
-struct UpdatedSkeletonTreeImpl<L: LeafDataTrait, H: HashFunction, TH: TreeHashFunction<L, H>> {
+struct UpdatedSkeletonTreeImpl<L: LeafDataTrait> {
     skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode<L>>,
-    hash_function: H,
-    tree_hash_function: TH,
 }
 
 #[allow(dead_code)]
-impl<
-        L: LeafDataTrait + std::clone::Clone + std::marker::Sync + std::marker::Send,
-        H: HashFunction + std::marker::Sync,
-        TH: TreeHashFunction<L, H> + std::marker::Sync,
-    > UpdatedSkeletonTreeImpl<L, H, TH>
+impl<L: LeafDataTrait + std::clone::Clone + std::marker::Sync + std::marker::Send>
+    UpdatedSkeletonTreeImpl<L>
 {
     fn get_sk_tree(&self) -> &HashMap<NodeIndex, UpdatedSkeletonNode<L>> {
         &self.skeleton_tree
