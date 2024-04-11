@@ -28,3 +28,4 @@ unused = "deny"
 
 [workspace.lints.clippy]
 as_conversions = "deny"
+unwrap_used = "deny"

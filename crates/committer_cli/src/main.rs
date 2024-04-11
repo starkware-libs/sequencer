@@ -56,7 +56,8 @@ fn main() {
             );
 
             // Business logic to be implemented here.
-            let output = std::fs::read(input_file_name).unwrap();
+            let output = std::fs::read(input_file_name)
+                .unwrap_or_else(|_| panic!("Failed to read input from file '{input_file_name:?}'"));
 
             // Output to file.
             std::fs::write(output_file_name, output).expect("Failed to write output");
