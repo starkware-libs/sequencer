@@ -1,30 +1,24 @@
 use async_trait::async_trait;
+use tokio::sync::Mutex;
 
 pub type AddTransactionCallType = u32;
 pub type AddTransactionReturnType = usize;
 
 #[async_trait]
 pub trait MempoolTrait {
-    async fn add_transaction(&mut self, tx: AddTransactionCallType) -> AddTransactionReturnType;
+    async fn add_transaction(&self, tx: AddTransactionCallType) -> AddTransactionReturnType;
 }
 
 #[derive(Default)]
 pub struct Mempool {
-    transactions: Vec<u32>,
-}
-
-impl Mempool {
-    pub fn new() -> Self {
-        Self {
-            transactions: vec![],
-        }
-    }
+    transactions: Mutex<Vec<u32>>,
 }
 
 #[async_trait]
 impl MempoolTrait for Mempool {
-    async fn add_transaction(&mut self, tx: AddTransactionCallType) -> AddTransactionReturnType {
-        self.transactions.push(tx);
-        self.transactions.len()
+    async fn add_transaction(&self, tx: AddTransactionCallType) -> AddTransactionReturnType {
+        let mut guarded_transactions = self.transactions.lock().await;
+        guarded_transactions.push(tx);
+        guarded_transactions.len()
     }
 }
