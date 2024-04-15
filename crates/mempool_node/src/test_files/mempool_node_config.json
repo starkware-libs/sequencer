@@ -1,0 +1,18 @@
+{
+    "components.gateway_component.execute": {
+        "description": "The component execution flag.",
+        "value": true,
+        "privacy": "Public"
+    },
+    "components.mempool_component.execute": {
+        "description": "The component execution flag.",
+        "value": false,
+        "privacy": "Public"
+    },
+    "gateway_config.bind_address": {
+        "description": "The server bind addres of a gateway.",
+        "value": "0.0.0.0:8080",
+        "privacy": "Public"
+    }
+}
+
