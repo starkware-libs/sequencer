@@ -1,19 +1,23 @@
-use starknet_types_core::felt::Felt as StarknetTypesFelt;
+use starknet_types_core::felt::{Felt as StarknetTypesFelt, FromStrError};
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Default, Hash, derive_more::Add)]
 pub(crate) struct Felt(StarknetTypesFelt);
 
-impl From<StarknetTypesFelt> for Felt {
-    fn from(felt: StarknetTypesFelt) -> Self {
-        Self(felt)
-    }
+#[macro_export]
+macro_rules! impl_from {
+    ($to:ty, $from:ty, $($other_from: ty),+) => {
+        $crate::impl_from!($to, $from);
+        $crate::impl_from!($to $(, $other_from)*);
+    };
+    ($to:ty, $from:ty) => {
+        impl From<$from> for $to {
+            fn from(value: $from) -> Self {
+                Self(value.into())
+            }
+        }
+    };
 }
-
-impl From<u128> for Felt {
-    fn from(value: u128) -> Self {
-        Self(value.into())
-    }
-}
+impl_from!(Felt, StarknetTypesFelt, u128, u8);
 
 impl From<Felt> for StarknetTypesFelt {
     fn from(felt: Felt) -> Self {
@@ -38,5 +42,10 @@ impl Felt {
     /// Raises `self` to the power of `exponent`.
     pub fn pow(&self, exponent: impl Into<u128>) -> Self {
         Self(self.0.pow(exponent.into()))
+    }
+
+    /// Parse a hex-encoded number into `Felt`.
+    pub fn from_hex(hex_string: &str) -> Result<Self, FromStrError> {
+        Ok(StarknetTypesFelt::from_hex(hex_string)?.into())
     }
 }

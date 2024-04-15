@@ -23,8 +23,8 @@ pub(crate) enum NodeData<L: LeafDataTrait> {
 
 #[allow(dead_code)]
 pub(crate) struct BinaryData {
-    left_hash: HashOutput,
-    right_hash: HashOutput,
+    pub(crate) left_hash: HashOutput,
+    pub(crate) right_hash: HashOutput,
 }
 
 #[allow(dead_code)]
