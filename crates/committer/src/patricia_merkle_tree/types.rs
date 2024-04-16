@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::hash::types::{HashFunction, HashInputPair, HashOutput};
+use crate::hash::hash_trait::{HashFunction, HashInputPair, HashOutput};
 use crate::patricia_merkle_tree::filled_node::{BinaryData, LeafData, NodeData};
 use crate::types::Felt;
 

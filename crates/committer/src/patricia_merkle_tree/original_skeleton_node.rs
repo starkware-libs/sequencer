@@ -1,4 +1,4 @@
-use crate::hash::types::HashOutput;
+use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::types::{EdgeData, LeafDataTrait, PathToBottom};
 
 #[allow(dead_code)]

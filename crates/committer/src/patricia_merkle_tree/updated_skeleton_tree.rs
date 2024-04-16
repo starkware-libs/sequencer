@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::hash::types::HashFunction;
+use crate::hash::hash_trait::HashFunction;
 use crate::patricia_merkle_tree::errors::UpdatedSkeletonTreeError;
 use crate::patricia_merkle_tree::filled_tree::FilledTree;
 use crate::patricia_merkle_tree::types::{LeafDataTrait, NodeIndex, TreeHashFunction};

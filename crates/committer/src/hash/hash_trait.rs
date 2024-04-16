@@ -1,5 +1,3 @@
-use starknet_types_core::hash::{Pedersen, StarkHash};
-
 use crate::types::Felt;
 
 #[allow(dead_code)]
@@ -17,12 +15,4 @@ impl HashOutput {
 pub(crate) trait HashFunction {
     /// Computes the hash of given input.
     fn compute_hash(i: HashInputPair) -> HashOutput;
-}
-
-pub(crate) struct PedersenHashFunction;
-
-impl HashFunction for PedersenHashFunction {
-    fn compute_hash(i: HashInputPair) -> HashOutput {
-        HashOutput(Pedersen::hash(&i.0.into(), &i.1.into()).into())
-    }
 }
