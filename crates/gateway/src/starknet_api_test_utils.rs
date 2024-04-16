@@ -63,50 +63,32 @@ pub fn create_external_invoke_tx_for_testing(
     }))
 }
 
+pub const NON_EMPTY_RESOURCE_BOUNDS: ResourceBounds = ResourceBounds {
+    max_amount: 1,
+    max_price_per_unit: 1,
+};
+
+pub fn create_resource_bounds_mapping(
+    l1_resource_bounds: ResourceBounds,
+    l2_resource_bounds: ResourceBounds,
+) -> ResourceBoundsMapping {
+    ResourceBoundsMapping::try_from(vec![
+        (
+            starknet_api::transaction::Resource::L1Gas,
+            l1_resource_bounds,
+        ),
+        (
+            starknet_api::transaction::Resource::L2Gas,
+            l2_resource_bounds,
+        ),
+    ])
+    .expect("Resource bounds mapping has unexpected structure.")
+}
+
 pub fn zero_resource_bounds_mapping() -> ResourceBoundsMapping {
-    ResourceBoundsMapping::try_from(vec![
-        (
-            starknet_api::transaction::Resource::L1Gas,
-            ResourceBounds::default(),
-        ),
-        (
-            starknet_api::transaction::Resource::L2Gas,
-            ResourceBounds::default(),
-        ),
-    ])
-    .expect("Resource bounds mapping has unexpected structure.")
+    create_resource_bounds_mapping(ResourceBounds::default(), ResourceBounds::default())
 }
 
-pub fn non_zero_l1_resource_bounds_mapping() -> ResourceBoundsMapping {
-    ResourceBoundsMapping::try_from(vec![
-        (
-            starknet_api::transaction::Resource::L1Gas,
-            ResourceBounds {
-                max_amount: 1,
-                max_price_per_unit: 1,
-            },
-        ),
-        (
-            starknet_api::transaction::Resource::L2Gas,
-            ResourceBounds::default(),
-        ),
-    ])
-    .expect("Resource bounds mapping has unexpected structure.")
-}
-
-pub fn non_zero_l2_resource_bounds_mapping() -> ResourceBoundsMapping {
-    ResourceBoundsMapping::try_from(vec![
-        (
-            starknet_api::transaction::Resource::L1Gas,
-            ResourceBounds::default(),
-        ),
-        (
-            starknet_api::transaction::Resource::L2Gas,
-            ResourceBounds {
-                max_amount: 1,
-                max_price_per_unit: 1,
-            },
-        ),
-    ])
-    .expect("Resource bounds mapping has unexpected structure.")
+pub fn non_zero_resource_bounds_mapping() -> ResourceBoundsMapping {
+    create_resource_bounds_mapping(NON_EMPTY_RESOURCE_BOUNDS, NON_EMPTY_RESOURCE_BOUNDS)
 }
