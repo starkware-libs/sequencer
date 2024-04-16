@@ -24,6 +24,14 @@ pub enum TransactionValidatorError {
     },
     #[error("The resource bounds mapping is missing a resource {resource:?}.")]
     MissingResource { resource: Resource },
+    #[error(
+        "Calldata length exceeded maximum: length {calldata_length}
+        (allowed length: {max_calldata_length})."
+    )]
+    CalldataTooLong {
+        calldata_length: usize,
+        max_calldata_length: usize,
+    },
 }
 
 pub type TransactionValidatorResult<T> = Result<T, TransactionValidatorError>;

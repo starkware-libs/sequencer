@@ -4,7 +4,7 @@ use starknet_api::external_transaction::{
     ExternalDeployAccountTransactionV3, ExternalInvokeTransaction, ExternalInvokeTransactionV3,
     ExternalTransaction,
 };
-use starknet_api::transaction::{ResourceBounds, ResourceBoundsMapping};
+use starknet_api::transaction::{Calldata, ResourceBounds, ResourceBoundsMapping};
 
 // Utils.
 pub fn create_external_declare_tx_for_testing(
@@ -29,6 +29,7 @@ pub fn create_external_declare_tx_for_testing(
 
 pub fn create_external_deploy_account_tx_for_testing(
     resource_bounds: ResourceBoundsMapping,
+    constructor_calldata: Calldata,
 ) -> ExternalTransaction {
     ExternalTransaction::DeployAccount(ExternalDeployAccountTransaction::V3(
         ExternalDeployAccountTransactionV3 {
@@ -36,7 +37,7 @@ pub fn create_external_deploy_account_tx_for_testing(
             tip: Default::default(),
             contract_address_salt: Default::default(),
             class_hash: Default::default(),
-            constructor_calldata: Default::default(),
+            constructor_calldata,
             nonce: Default::default(),
             signature: Default::default(),
             nonce_data_availability_mode: DataAvailabilityMode::L1,
@@ -48,6 +49,7 @@ pub fn create_external_deploy_account_tx_for_testing(
 
 pub fn create_external_invoke_tx_for_testing(
     resource_bounds: ResourceBoundsMapping,
+    calldata: Calldata,
 ) -> ExternalTransaction {
     ExternalTransaction::Invoke(ExternalInvokeTransaction::V3(ExternalInvokeTransactionV3 {
         resource_bounds,
@@ -55,7 +57,7 @@ pub fn create_external_invoke_tx_for_testing(
         signature: Default::default(),
         nonce: Default::default(),
         sender_address: Default::default(),
-        calldata: Default::default(),
+        calldata,
         nonce_data_availability_mode: DataAvailabilityMode::L1,
         fee_data_availability_mode: DataAvailabilityMode::L1,
         paymaster_data: Default::default(),
