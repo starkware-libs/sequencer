@@ -15,11 +15,11 @@ pub(crate) type OriginalSkeletonTreeResult<T> = Result<T, OriginalSkeletonTreeEr
 /// nodes on the Merkle paths from the updated leaves to the root.
 pub(crate) trait OriginalSkeletonTree<L: LeafDataTrait> {
     fn compute_original_skeleton_tree(
-        storage: impl Storage,
-        leaf_indices: &[NodeIndex],
+        storage: &impl Storage,
+        leaf_indices: [NodeIndex],
         root_hash: HashOutput,
         tree_height: TreeHeight,
-    ) -> OriginalSkeletonTreeResult<Box<Self>>;
+    ) -> OriginalSkeletonTreeResult<impl OriginalSkeletonTree<L>>;
 
     /// Computes and returns updated skeleton tree.
     fn compute_updated_skeleton_tree(

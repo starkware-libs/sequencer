@@ -7,6 +7,7 @@ use crate::patricia_merkle_tree::errors::FilledTreeError;
 use crate::patricia_merkle_tree::filled_node::FilledNode;
 use crate::patricia_merkle_tree::types::{LeafDataTrait, NodeIndex};
 use crate::storage::storage_trait::Storage;
+use crate::storage::storage_trait::StorageKey;
 
 /// Consider a Patricia-Merkle Tree which has been updated with new leaves.
 /// FilledTree consists of all nodes which were modified in the update, including their updated
@@ -14,7 +15,8 @@ use crate::storage::storage_trait::Storage;
 pub(crate) trait FilledTree<L: LeafDataTrait> {
     /// Serializes the tree into storage. Returns hash set of keys of the serialized nodes,
     /// if successful.
-    fn serialize(&self, storage: impl Storage) -> Result<HashSet<&[u8]>, FilledTreeError>;
+    fn serialize(&self, storage: &mut impl Storage)
+        -> Result<HashSet<StorageKey>, FilledTreeError>;
 }
 
 pub(crate) struct FilledTreeImpl<L: LeafDataTrait> {
