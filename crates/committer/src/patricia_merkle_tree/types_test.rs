@@ -1,6 +1,7 @@
 use crate::hash::hash_trait::{HashFunction, HashInputPair, HashOutput};
 use crate::hash::pedersen::PedersenHashFunction;
 use crate::patricia_merkle_tree::filled_node::{BinaryData, NodeData};
+use crate::patricia_merkle_tree::types::EdgeData;
 use crate::patricia_merkle_tree::types::TreeHashFunction;
 use crate::patricia_merkle_tree::types::{
     EdgePath, EdgePathLength, NodeIndex, PathToBottom, TreeHashFunctionImpl,
@@ -39,7 +40,7 @@ fn test_tree_hash_function_impl_binary_node(
     #[case] expected_hash: Felt,
 ) {
     let hash_output = TreeHashFunctionImpl::<PedersenHashFunction>::compute_node_hash(
-        NodeData::Binary(BinaryData {
+        &NodeData::Binary(BinaryData {
             left_hash: HashOutput(left_hash),
             right_hash: HashOutput(right_hash),
         }),
@@ -61,16 +62,15 @@ fn test_tree_hash_function_impl_edge_node(
     #[case] length: u8,
     #[case] expected_hash: Felt,
 ) {
-    use crate::patricia_merkle_tree::types::EdgeData;
-
-    let hash_output =
-        TreeHashFunctionImpl::<PedersenHashFunction>::compute_node_hash(NodeData::Edge(EdgeData {
+    let hash_output = TreeHashFunctionImpl::<PedersenHashFunction>::compute_node_hash(
+        &NodeData::Edge(EdgeData {
             bottom_hash: HashOutput(bottom_hash),
             path_to_bottom: PathToBottom {
                 path: EdgePath(edge_path),
                 length: EdgePathLength(length),
             },
-        }));
+        }),
+    );
     let direct_hash_computation = HashOutput(
         PedersenHashFunction::compute_hash(HashInputPair(bottom_hash, edge_path)).0
             + Felt::from(length),

@@ -10,7 +10,7 @@ pub mod types_test;
 
 pub(crate) trait TreeHashFunction<L: LeafDataTrait, H: HashFunction> {
     /// Computes the hash of given node data.
-    fn compute_node_hash(node_data: NodeData<L>) -> HashOutput;
+    fn compute_node_hash(node_data: &NodeData<L>) -> HashOutput;
 }
 
 pub(crate) struct TreeHashFunctionImpl<H: HashFunction> {
@@ -21,7 +21,7 @@ pub(crate) struct TreeHashFunctionImpl<H: HashFunction> {
 // TODO(Aner, 11/4/25): Implement the function for LeafData::StorageValue and LeafData::StateTreeTuple
 // TODO(Aner, 11/4/24): Verify the correctness of the implementation.
 impl<H: HashFunction> TreeHashFunction<LeafData, H> for TreeHashFunctionImpl<H> {
-    fn compute_node_hash(node_data: NodeData<LeafData>) -> HashOutput {
+    fn compute_node_hash(node_data: &NodeData<LeafData>) -> HashOutput {
         match node_data {
             NodeData::Binary(BinaryData {
                 left_hash,
@@ -65,25 +65,25 @@ impl NodeIndex {
     }
 }
 
-#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct EdgePath(pub Felt);
 
-#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct EdgePathLength(pub u8);
 
 #[allow(dead_code)]
 pub(crate) struct TreeHeight(pub u8);
 
-#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct PathToBottom {
     pub path: EdgePath,
     pub length: EdgePathLength,
 }
 
-#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct EdgeData {
-    bottom_hash: HashOutput,
-    path_to_bottom: PathToBottom,
+    pub(crate) bottom_hash: HashOutput,
+    pub(crate) path_to_bottom: PathToBottom,
 }
 
 pub(crate) trait LeafDataTrait {

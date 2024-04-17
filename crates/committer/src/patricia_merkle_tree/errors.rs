@@ -7,6 +7,7 @@ pub(crate) enum UpdatedSkeletonTreeError {
     MissingNode,
 }
 
+#[derive(Debug)]
 pub(crate) enum FilledTreeError {
     MissingRoot,
 }
