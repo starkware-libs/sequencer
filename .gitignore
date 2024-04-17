@@ -6,3 +6,4 @@ dist
 target
 */.vscode/*
 *.DS_Store
+.vscode/settings.json
