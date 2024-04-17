@@ -17,4 +17,6 @@ rstest.workspace = true
 derive_more.workspace = true
 rayon.workspace = true
 starknet-types-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true

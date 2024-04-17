@@ -1,6 +1,9 @@
+use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::{Felt as StarknetTypesFelt, FromStrError};
 
-#[derive(Eq, PartialEq, Clone, Copy, Debug, Default, Hash, derive_more::Add)]
+#[derive(
+    Eq, PartialEq, Clone, Copy, Debug, Default, Hash, Serialize, Deserialize, derive_more::Add,
+)]
 pub(crate) struct Felt(StarknetTypesFelt);
 
 #[macro_export]
@@ -48,5 +51,9 @@ impl Felt {
     /// Parse a hex-encoded number into `Felt`.
     pub(crate) fn from_hex(hex_string: &str) -> Result<Self, FromStrError> {
         Ok(StarknetTypesFelt::from_hex(hex_string)?.into())
+    }
+
+    pub(crate) fn as_bytes(&self) -> [u8; 32] {
+        self.0.to_bytes_be()
     }
 }

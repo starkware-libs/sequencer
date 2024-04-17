@@ -1,4 +1,5 @@
 // TODO(Amos, 01/04/2024): Add error types.
+
 #[derive(Debug)]
 pub(crate) enum OriginalSkeletonTreeError {}
 
@@ -10,7 +11,8 @@ pub(crate) enum UpdatedSkeletonTreeError {
     NonDroppedPointer(String),
 }
 
-#[derive(Debug)]
+#[derive(thiserror::Error, Debug, derive_more::Display)]
 pub(crate) enum FilledTreeError {
     MissingRoot,
+    SerializeError(#[from] serde_json::Error),
 }
