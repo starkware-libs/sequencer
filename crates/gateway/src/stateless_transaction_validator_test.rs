@@ -55,7 +55,7 @@ const DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: StatelessTransactionValidatorConfig 
 #[case::zero_l1_gas_resource_bounds(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING,
     create_external_invoke_tx_for_testing(zero_resource_bounds_mapping(), calldata![]),
-    Err(TransactionValidatorError::ZeroFee{
+    Err(TransactionValidatorError::ZeroResourceBounds{
         resource: Resource::L1Gas, resource_bounds: ResourceBounds::default()
     })
 )]
@@ -65,7 +65,7 @@ const DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: StatelessTransactionValidatorConfig 
         create_resource_bounds_mapping(NON_EMPTY_RESOURCE_BOUNDS, ResourceBounds::default()),
         calldata![]
     ),
-    Err(TransactionValidatorError::ZeroFee{
+    Err(TransactionValidatorError::ZeroResourceBounds{
         resource: Resource::L2Gas, resource_bounds: ResourceBounds::default()
     })
 )]
@@ -86,7 +86,7 @@ const DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: StatelessTransactionValidatorConfig 
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING,
     create_external_deploy_account_tx_for_testing(
         non_zero_resource_bounds_mapping(),
-        calldata![StarkFelt::from_u128(1),StarkFelt::from_u128(2)],
+        calldata![StarkFelt::from_u128(1), StarkFelt::from_u128(2)],
     ),
     Err(TransactionValidatorError::CalldataTooLong { calldata_length: 2, max_calldata_length: 1 })
 )]
@@ -94,7 +94,7 @@ const DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: StatelessTransactionValidatorConfig 
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING,
     create_external_invoke_tx_for_testing(
         non_zero_resource_bounds_mapping(),
-        calldata![StarkFelt::from_u128(1),StarkFelt::from_u128(2)],
+        calldata![StarkFelt::from_u128(1), StarkFelt::from_u128(2)],
     ),
     Err(TransactionValidatorError::CalldataTooLong { calldata_length: 2, max_calldata_length: 1 })
 )]

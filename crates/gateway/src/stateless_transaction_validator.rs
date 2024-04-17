@@ -28,13 +28,13 @@ impl StatelessTransactionValidator {
         // TODO(Arni, 1/5/2024): Add a mechanism that validate the sender address is not blocked.
         // TODO(Arni, 1/5/2024): Validate transaction version.
 
-        self.validate_fee(tx)?;
+        self.validate_resource_bounds(tx)?;
         self.validate_tx_size(tx)?;
 
         Ok(())
     }
 
-    fn validate_fee(&self, tx: &ExternalTransaction) -> TransactionValidatorResult<()> {
+    fn validate_resource_bounds(&self, tx: &ExternalTransaction) -> TransactionValidatorResult<()> {
         let resource_bounds_mapping = match tx {
             ExternalTransaction::Declare(ExternalDeclareTransaction::V3(tx)) => &tx.resource_bounds,
             ExternalTransaction::DeployAccount(ExternalDeployAccountTransaction::V3(tx)) => {
@@ -44,10 +44,10 @@ impl StatelessTransactionValidator {
         };
 
         if self.config.validate_non_zero_l1_gas_fee {
-            validate_resource_bounds(resource_bounds_mapping, Resource::L1Gas)?;
+            validate_resource_is_non_zero(resource_bounds_mapping, Resource::L1Gas)?;
         }
         if self.config.validate_non_zero_l2_gas_fee {
-            validate_resource_bounds(resource_bounds_mapping, Resource::L2Gas)?;
+            validate_resource_is_non_zero(resource_bounds_mapping, Resource::L2Gas)?;
         }
 
         Ok(())
@@ -70,12 +70,10 @@ impl StatelessTransactionValidator {
                 // Declare transaction has no calldata.
                 return Ok(());
             }
-            ExternalTransaction::DeployAccount(tx) => match tx {
-                ExternalDeployAccountTransaction::V3(tx) => &tx.constructor_calldata,
-            },
-            ExternalTransaction::Invoke(tx) => match tx {
-                ExternalInvokeTransaction::V3(tx) => &tx.calldata,
-            },
+            ExternalTransaction::DeployAccount(ExternalDeployAccountTransaction::V3(tx)) => {
+                &tx.constructor_calldata
+            }
+            ExternalTransaction::Invoke(ExternalInvokeTransaction::V3(tx)) => &tx.calldata,
         };
 
         let calldata_length = calldata.0.len();
@@ -92,13 +90,13 @@ impl StatelessTransactionValidator {
 
 // Utilities.
 
-fn validate_resource_bounds(
+fn validate_resource_is_non_zero(
     resource_bounds_mapping: &ResourceBoundsMapping,
     resource: Resource,
 ) -> TransactionValidatorResult<()> {
     if let Some(resource_bounds) = resource_bounds_mapping.0.get(&resource) {
         if resource_bounds.max_amount == 0 || resource_bounds.max_price_per_unit == 0 {
-            return Err(TransactionValidatorError::ZeroFee {
+            return Err(TransactionValidatorError::ZeroResourceBounds {
                 resource,
                 resource_bounds: *resource_bounds,
             });

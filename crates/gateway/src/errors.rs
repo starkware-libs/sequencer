@@ -18,7 +18,7 @@ pub enum GatewayError {
 #[cfg_attr(test, derive(PartialEq))]
 pub enum TransactionValidatorError {
     #[error("Expected a positive amount of {resource:?}. Got {resource_bounds:?}.")]
-    ZeroFee {
+    ZeroResourceBounds {
         resource: Resource,
         resource_bounds: ResourceBounds,
     },
