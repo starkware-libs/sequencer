@@ -3,8 +3,11 @@
 pub(crate) enum OriginalSkeletonTreeError {}
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub(crate) enum UpdatedSkeletonTreeError {
     MissingNode,
+    PoisonedLock(String),
+    NonDroppedPointer(String),
 }
 
 #[derive(Debug)]
