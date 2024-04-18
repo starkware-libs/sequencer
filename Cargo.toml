@@ -30,7 +30,7 @@ rstest = "0.17.0"
 serde = { version = "1.0.193", features = ["derive"] }
 serde_json = "1.0"
 # TODO(Arni, 1/5/2024): Use a fixed version once the StarkNet API is stable.
-starknet_api = { git = "https://github.com/starkware-libs/starknet-api.git", rev = "016ff6c" }
+starknet_api = { git = "https://github.com/starkware-libs/starknet-api.git", rev = "98153e9" }
 thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
 tower = "0.4.13"
