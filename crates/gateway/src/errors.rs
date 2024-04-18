@@ -16,7 +16,7 @@ pub enum GatewayError {
 
 #[derive(Debug, Error)]
 #[cfg_attr(test, derive(PartialEq))]
-pub enum TransactionValidatorError {
+pub enum StatelessTransactionValidatorError {
     #[error("Expected a positive amount of {resource:?}. Got {resource_bounds:?}.")]
     ZeroResourceBounds {
         resource: Resource,
@@ -34,4 +34,4 @@ pub enum TransactionValidatorError {
     },
 }
 
-pub type TransactionValidatorResult<T> = Result<T, TransactionValidatorError>;
+pub type StatelessTransactionValidatorResult<T> = Result<T, StatelessTransactionValidatorError>;

@@ -4,11 +4,11 @@ use starknet_api::external_transaction::{
 };
 use starknet_api::transaction::{Resource, ResourceBoundsMapping};
 
-use crate::errors::{TransactionValidatorError, TransactionValidatorResult};
+use crate::errors::{StatelessTransactionValidatorError, StatelessTransactionValidatorResult};
 
 #[cfg(test)]
 #[path = "stateless_transaction_validator_test.rs"]
-mod transaction_validator_test;
+mod stateless_transaction_validator_test;
 
 #[derive(Default)]
 pub struct StatelessTransactionValidatorConfig {
@@ -24,7 +24,7 @@ pub struct StatelessTransactionValidator {
 }
 
 impl StatelessTransactionValidator {
-    pub fn validate(&self, tx: &ExternalTransaction) -> TransactionValidatorResult<()> {
+    pub fn validate(&self, tx: &ExternalTransaction) -> StatelessTransactionValidatorResult<()> {
         // TODO(Arni, 1/5/2024): Add a mechanism that validate the sender address is not blocked.
         // TODO(Arni, 1/5/2024): Validate transaction version.
 
@@ -34,7 +34,10 @@ impl StatelessTransactionValidator {
         Ok(())
     }
 
-    fn validate_resource_bounds(&self, tx: &ExternalTransaction) -> TransactionValidatorResult<()> {
+    fn validate_resource_bounds(
+        &self,
+        tx: &ExternalTransaction,
+    ) -> StatelessTransactionValidatorResult<()> {
         let resource_bounds_mapping = match tx {
             ExternalTransaction::Declare(ExternalDeclareTransaction::V3(tx)) => &tx.resource_bounds,
             ExternalTransaction::DeployAccount(ExternalDeployAccountTransaction::V3(tx)) => {
@@ -53,7 +56,10 @@ impl StatelessTransactionValidator {
         Ok(())
     }
 
-    fn validate_tx_size(&self, tx: &ExternalTransaction) -> TransactionValidatorResult<()> {
+    fn validate_tx_size(
+        &self,
+        tx: &ExternalTransaction,
+    ) -> StatelessTransactionValidatorResult<()> {
         self.validate_tx_calldata_size(tx)?;
 
         // TODO(Arni, 4/4/2024): Validate tx signature is not too long.
@@ -64,7 +70,7 @@ impl StatelessTransactionValidator {
     fn validate_tx_calldata_size(
         &self,
         tx: &ExternalTransaction,
-    ) -> TransactionValidatorResult<()> {
+    ) -> StatelessTransactionValidatorResult<()> {
         let calldata = match tx {
             ExternalTransaction::Declare(_) => {
                 // Declare transaction has no calldata.
@@ -78,7 +84,7 @@ impl StatelessTransactionValidator {
 
         let calldata_length = calldata.0.len();
         if calldata_length > self.config.max_calldata_length {
-            return Err(TransactionValidatorError::CalldataTooLong {
+            return Err(StatelessTransactionValidatorError::CalldataTooLong {
                 calldata_length,
                 max_calldata_length: self.config.max_calldata_length,
             });
@@ -93,16 +99,16 @@ impl StatelessTransactionValidator {
 fn validate_resource_is_non_zero(
     resource_bounds_mapping: &ResourceBoundsMapping,
     resource: Resource,
-) -> TransactionValidatorResult<()> {
+) -> StatelessTransactionValidatorResult<()> {
     if let Some(resource_bounds) = resource_bounds_mapping.0.get(&resource) {
         if resource_bounds.max_amount == 0 || resource_bounds.max_price_per_unit == 0 {
-            return Err(TransactionValidatorError::ZeroResourceBounds {
+            return Err(StatelessTransactionValidatorError::ZeroResourceBounds {
                 resource,
                 resource_bounds: *resource_bounds,
             });
         }
     } else {
-        return Err(TransactionValidatorError::MissingResource { resource });
+        return Err(StatelessTransactionValidatorError::MissingResource { resource });
     }
 
     Ok(())

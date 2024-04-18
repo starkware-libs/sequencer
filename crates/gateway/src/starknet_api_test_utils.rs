@@ -7,7 +7,7 @@ use starknet_api::external_transaction::{
 use starknet_api::transaction::{Calldata, ResourceBounds, ResourceBoundsMapping};
 
 // Utils.
-pub fn create_external_declare_tx_for_testing(
+pub fn external_declare_tx_for_testing(
     resource_bounds: ResourceBoundsMapping,
 ) -> ExternalTransaction {
     ExternalTransaction::Declare(ExternalDeclareTransaction::V3(
@@ -27,7 +27,7 @@ pub fn create_external_declare_tx_for_testing(
     ))
 }
 
-pub fn create_external_deploy_account_tx_for_testing(
+pub fn external_deploy_account_tx_for_testing(
     resource_bounds: ResourceBoundsMapping,
     constructor_calldata: Calldata,
 ) -> ExternalTransaction {
@@ -47,7 +47,7 @@ pub fn create_external_deploy_account_tx_for_testing(
     ))
 }
 
-pub fn create_external_invoke_tx_for_testing(
+pub fn external_invoke_tx_for_testing(
     resource_bounds: ResourceBoundsMapping,
     calldata: Calldata,
 ) -> ExternalTransaction {
