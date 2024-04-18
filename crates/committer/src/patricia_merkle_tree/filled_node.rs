@@ -14,6 +14,10 @@ pub(crate) struct ClassHash(pub Felt);
 pub(crate) struct Nonce(pub Felt);
 
 #[allow(dead_code)]
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) struct CompiledClassHash(pub Felt);
+
+#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 /// A node in a Patricia-Merkle tree which was modified during an update.
 pub(crate) struct FilledNode<L: LeafDataTrait> {

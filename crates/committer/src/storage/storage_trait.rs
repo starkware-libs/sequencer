@@ -2,10 +2,11 @@ use std::collections::HashMap;
 
 #[allow(dead_code)]
 #[derive(Debug, Eq, Hash, PartialEq)]
-pub(crate) struct StorageKey(Vec<u8>);
+pub(crate) struct StorageKey(pub(crate) Vec<u8>);
 
 #[allow(dead_code)]
-pub(crate) struct StorageValue(Vec<u8>);
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) struct StorageValue(pub(crate) Vec<u8>);
 
 pub(crate) trait Storage {
     /// Returns value from storage, if it exists.

@@ -43,6 +43,10 @@ impl Felt {
     pub(crate) const TWO: Felt = Felt(StarknetTypesFelt::TWO);
     pub(crate) const THREE: Felt = Felt(StarknetTypesFelt::THREE);
 
+    pub(crate) fn from_bytes_be_slice(bytes: &[u8]) -> Self {
+        Self(StarknetTypesFelt::from_bytes_be_slice(bytes))
+    }
+
     /// Raises `self` to the power of `exponent`.
     pub(crate) fn pow(&self, exponent: impl Into<u128>) -> Self {
         Self(self.0.pow(exponent.into()))

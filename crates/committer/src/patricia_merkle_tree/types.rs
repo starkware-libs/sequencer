@@ -72,6 +72,7 @@ pub(crate) struct EdgePath(pub Felt);
 pub(crate) struct EdgePathLength(pub u8);
 
 #[allow(dead_code)]
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) struct TreeHeight(pub u8);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
