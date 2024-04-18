@@ -56,9 +56,3 @@ pub struct GatewayConfig {
     pub ip: IpAddr,
     pub port: u16,
 }
-
-impl GatewayConfig {
-    pub fn new(ip: IpAddr, port: u16) -> Self {
-        Self { ip, port }
-    }
-}
