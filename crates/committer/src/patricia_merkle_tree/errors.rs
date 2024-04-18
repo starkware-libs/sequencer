@@ -1,9 +1,13 @@
 use thiserror::Error;
 
+use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::errors::StorageError;
 use crate::storage::storage_trait::StorageValue;
 
-// TODO(Amos, 01/04/2024): Add error types.
+use crate::patricia_merkle_tree::filled_node::FilledNode;
+
+use super::types::LeafDataTrait;
+
 #[allow(dead_code)]
 #[derive(Debug, Error)]
 pub(crate) enum OriginalSkeletonTreeError {
@@ -20,8 +24,12 @@ pub(crate) enum OriginalSkeletonTreeError {
 
 #[derive(Debug)]
 #[allow(dead_code)]
-pub(crate) enum UpdatedSkeletonTreeError {
-    MissingNode,
+pub(crate) enum UpdatedSkeletonTreeError<L: LeafDataTrait> {
+    MissingNode(NodeIndex),
+    DoubleUpdate {
+        index: NodeIndex,
+        existing_value: Box<FilledNode<L>>,
+    },
     PoisonedLock(String),
     NonDroppedPointer(String),
 }

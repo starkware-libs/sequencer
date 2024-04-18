@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::sync::Mutex;
 
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::errors::FilledTreeError;
@@ -17,17 +16,16 @@ pub(crate) trait FilledTree<L: LeafDataTrait> {
     /// if successful.
     fn serialize(&self, storage: &mut impl Storage)
         -> Result<HashSet<StorageKey>, FilledTreeError>;
-    fn get_all_nodes(&self) -> &HashMap<NodeIndex, Mutex<FilledNode<L>>>;
+    fn get_all_nodes(&self) -> &HashMap<NodeIndex, FilledNode<L>>;
     fn get_root_hash(&self) -> Result<HashOutput, FilledTreeError>;
 }
 
 pub(crate) struct FilledTreeImpl<L: LeafDataTrait> {
-    tree_map: HashMap<NodeIndex, Mutex<FilledNode<L>>>,
+    tree_map: HashMap<NodeIndex, FilledNode<L>>,
 }
 
-#[allow(dead_code)]
 impl<L: LeafDataTrait> FilledTreeImpl<L> {
-    pub(crate) fn new(tree_map: HashMap<NodeIndex, Mutex<FilledNode<L>>>) -> Self {
+    pub(crate) fn new(tree_map: HashMap<NodeIndex, FilledNode<L>>) -> Self {
         Self { tree_map }
     }
 }
@@ -40,13 +38,13 @@ impl<L: LeafDataTrait> FilledTree<L> for FilledTreeImpl<L> {
         todo!()
     }
 
-    fn get_all_nodes(&self) -> &HashMap<NodeIndex, Mutex<FilledNode<L>>> {
+    fn get_all_nodes(&self) -> &HashMap<NodeIndex, FilledNode<L>> {
         &self.tree_map
     }
 
     fn get_root_hash(&self) -> Result<HashOutput, FilledTreeError> {
         match self.tree_map.get(&NodeIndex::root_index()) {
-            Some(root_node) => Ok(root_node.lock().expect("Lock poisoned.").hash),
+            Some(root_node) => Ok(root_node.hash),
             None => Err(FilledTreeError::MissingRoot),
         }
     }

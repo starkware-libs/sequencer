@@ -31,7 +31,6 @@ pub(crate) struct FilledNode<L: LeafDataTrait> {
     pub(crate) data: NodeData<L>,
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 // A Patricia-Merkle tree node's data, i.e., the pre-image of its hash.
 pub(crate) enum NodeData<L: LeafDataTrait> {
@@ -40,7 +39,7 @@ pub(crate) enum NodeData<L: LeafDataTrait> {
     Leaf(L),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct BinaryData {
     pub(crate) left_hash: HashOutput,
     pub(crate) right_hash: HashOutput,

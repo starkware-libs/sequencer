@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::Mutex;
 
 use crate::hash::hash_trait::HashOutput;
 use crate::hash::pedersen::PedersenHashFunction;
@@ -32,6 +31,10 @@ fn test_filled_tree_sanity() {
         .unwrap();
     assert_eq!(root_hash, HashOutput(Felt::ONE), "Root hash mismatch");
 }
+
+// TODO(Aner, 11/4/25): Add test with sibling nodes.
+// TODO(Aner, 11/4/25): Add test with large patricia merkle tree.
+// TOOD(Aner, 11/4/25): Add test with different leaf types.
 
 #[test]
 /// This test is a small test for testing the root hash computation of the patricia merkle tree.
@@ -161,7 +164,7 @@ fn test_small_filled_tree() {
         create_leaf_entry_for_testing(36, "0x2"),
         create_leaf_entry_for_testing(63, "0x3"),
     ]);
-    assert_eq!(remove_mutexes(filled_tree_map), expected_filled_tree_map);
+    assert_eq!(filled_tree_map, &expected_filled_tree_map);
     assert_eq!(root_hash, expected_root_hash, "Root hash mismatch");
 }
 
@@ -215,15 +218,4 @@ fn create_leaf_entry_for_testing(index: u128, hash: &str) -> (NodeIndex, FilledN
             ))),
         },
     )
-}
-
-fn remove_mutexes(
-    hash_map_in: &HashMap<NodeIndex, Mutex<FilledNode<LeafData>>>,
-) -> HashMap<NodeIndex, FilledNode<LeafData>> {
-    let mut hash_map_out: HashMap<NodeIndex, FilledNode<LeafData>> = HashMap::new();
-    for (key, value) in hash_map_in.iter() {
-        let value = value.lock().unwrap();
-        hash_map_out.insert(*key, value.clone());
-    }
-    hash_map_out
 }
