@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/gateway", "crates/mempool_node"]
+members = ["crates/gateway", "crates/mempool", "crates/mempool_node"]
 
 [workspace.package]
 version = "0.0.0"
@@ -21,15 +21,16 @@ as_conversions = "deny"
 [workspace.dependencies]
 assert_matches = "1.5.0"
 axum = "0.6.12"
-clap = { version = "4.3.10" }
+clap = "4.3.10"
+derive_more = "0.99"
 hyper = "1.2.0"
+papyrus_config = "0.3.0"
 pretty_assertions = "1.4.0"
 rstest = "0.17.0"
 serde = { version = "1.0.193", features = ["derive"] }
 serde_json = "1.0"
 # TODO(Arni, 1/5/2024): Use a fixed version once the StarkNet API is stable.
-starknet_api = { git = "https://github.com/starkware-libs/starknet-api.git", rev = "6b14aaf" }
-papyrus_config = "0.3.0"
+starknet_api = { git = "https://github.com/starkware-libs/starknet-api.git", rev = "016ff6c" }
 thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
 tower = "0.4.13"

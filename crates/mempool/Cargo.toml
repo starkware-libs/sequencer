@@ -1,0 +1,17 @@
+[package]
+name = "starknet_mempool"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+derive_more.workspace = true
+starknet_api.workspace = true
+
+[dev-dependencies]
+assert_matches.workspace = true
+tokio.workspace = true
