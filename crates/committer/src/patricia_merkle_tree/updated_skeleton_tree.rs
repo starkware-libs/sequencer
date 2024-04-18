@@ -92,7 +92,7 @@ impl<L: LeafDataTrait + std::clone::Clone + std::marker::Sync + std::marker::Sen
                 Ok(hash_value)
             }
             UpdatedSkeletonNode::Edge { path_to_bottom } => {
-                let bottom_node_index = NodeIndex::compute_bottom_index(index, *path_to_bottom);
+                let bottom_node_index = NodeIndex::compute_bottom_index(index, path_to_bottom);
                 let bottom_hash = self
                     .compute_filled_tree_rec::<H, TH>(bottom_node_index, Arc::clone(&output_map))?;
                 let data = NodeData::Edge(EdgeData {

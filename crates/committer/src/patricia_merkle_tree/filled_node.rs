@@ -1,10 +1,16 @@
+use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::errors::FilledTreeError;
 use crate::patricia_merkle_tree::filled_tree::FilledTreeResult;
+use crate::patricia_merkle_tree::original_skeleton_tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::serialized_node::{
     LeafCompiledClassToSerialize, SerializeNode, SERIALIZE_HASH_BYTES,
 };
+use crate::patricia_merkle_tree::serialized_node::{BINARY_BYTES, EDGE_BYTES, EDGE_PATH_BYTES};
 use crate::patricia_merkle_tree::types::{EdgeData, LeafDataTrait};
-use crate::{hash::hash_trait::HashOutput, types::Felt};
+use crate::patricia_merkle_tree::types::{EdgePath, EdgePathLength, PathToBottom};
+use crate::storage::storage_trait::{StorageKey, StorageValue};
+use crate::types::Felt;
+
 // TODO(Nimrod, 1/6/2024): Swap to starknet-types-core types once implemented.
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -41,7 +47,7 @@ pub(crate) struct BinaryData {
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum LeafData {
     StorageValue(Felt),
     CompiledClassHash(ClassHash),
@@ -66,6 +72,52 @@ impl LeafDataTrait for LeafData {
                     && class_hash.0 == Felt::ZERO
                     && *contract_state_root_hash == Felt::ZERO
             }
+        }
+    }
+}
+
+#[allow(dead_code)]
+impl FilledNode<LeafData> {
+    /// Deserializes non-leaf nodes; if a serialized leaf node is given, the hash
+    /// is used but the data is ignored.
+    pub(crate) fn deserialize(
+        key: &StorageKey,
+        value: &StorageValue,
+    ) -> OriginalSkeletonTreeResult<Self> {
+        if value.0.len() == BINARY_BYTES {
+            Ok(Self {
+                hash: HashOutput(Felt::from_bytes_be_slice(&key.0)),
+                data: NodeData::Binary(BinaryData {
+                    left_hash: HashOutput(Felt::from_bytes_be_slice(
+                        &value.0[..SERIALIZE_HASH_BYTES],
+                    )),
+                    right_hash: HashOutput(Felt::from_bytes_be_slice(
+                        &value.0[SERIALIZE_HASH_BYTES..],
+                    )),
+                }),
+            })
+        } else if value.0.len() == EDGE_BYTES {
+            return Ok(Self {
+                hash: HashOutput(Felt::from_bytes_be_slice(&key.0)),
+                data: NodeData::Edge(EdgeData {
+                    bottom_hash: HashOutput(Felt::from_bytes_be_slice(
+                        &value.0[..SERIALIZE_HASH_BYTES],
+                    )),
+                    path_to_bottom: PathToBottom {
+                        path: EdgePath(Felt::from_bytes_be_slice(
+                            &value.0[SERIALIZE_HASH_BYTES..SERIALIZE_HASH_BYTES + EDGE_PATH_BYTES],
+                        )),
+                        length: EdgePathLength(value.0[EDGE_BYTES - 1]),
+                    },
+                }),
+            });
+        } else {
+            // TODO(Nimrod, 5/5/2024): See if deserializing leaves data is needed somewhere.
+            return Ok(Self {
+                hash: HashOutput(Felt::from_bytes_be_slice(&key.0)),
+                // Dummy value which will be ignored.
+                data: NodeData::Leaf(LeafData::StorageValue(Felt::ZERO)),
+            });
         }
     }
 }

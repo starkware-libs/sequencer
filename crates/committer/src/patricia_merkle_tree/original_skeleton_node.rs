@@ -2,6 +2,7 @@ use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::types::{EdgeData, LeafDataTrait, PathToBottom};
 
 #[allow(dead_code)]
+#[derive(Debug, PartialEq, Eq)]
 /// A node in the structure of a Patricia-Merkle tree, before the update.
 pub(crate) enum OriginalSkeletonNode<L: LeafDataTrait> {
     Binary,

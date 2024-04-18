@@ -1,3 +1,4 @@
+use crate::types::Felt;
 use std::collections::HashMap;
 
 #[allow(dead_code)]
@@ -5,7 +6,7 @@ use std::collections::HashMap;
 pub(crate) struct StorageKey(pub(crate) Vec<u8>);
 
 #[allow(dead_code)]
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct StorageValue(pub(crate) Vec<u8>);
 
 pub(crate) trait Storage {
@@ -25,4 +26,30 @@ pub(crate) trait Storage {
 
     /// Deletes value from storage and returns its value if it exists. Returns None if not.
     fn delete(&mut self, key: &StorageKey) -> Option<StorageValue>;
+}
+
+pub(crate) enum StoragePrefix {
+    PatriciaNode,
+}
+
+impl StoragePrefix {
+    pub(crate) fn to_bytes(&self) -> &[u8] {
+        match self {
+            Self::PatriciaNode => "patricia_node:".as_bytes(),
+        }
+    }
+}
+
+impl StorageKey {
+    pub(crate) fn with_prefix(&self, prefix: StoragePrefix) -> Self {
+        let mut prefix = prefix.to_bytes().to_vec();
+        prefix.extend(&self.0);
+        StorageKey(prefix)
+    }
+}
+
+impl From<Felt> for StorageKey {
+    fn from(value: Felt) -> Self {
+        StorageKey(value.to_bytes_be().to_vec())
+    }
 }

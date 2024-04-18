@@ -2,7 +2,19 @@ use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::{Felt as StarknetTypesFelt, FromStrError};
 
 #[derive(
-    Eq, PartialEq, Clone, Copy, Debug, Default, Hash, Serialize, Deserialize, derive_more::Add,
+    Eq,
+    PartialEq,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Hash,
+    derive_more::Add,
+    derive_more::Sub,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
 )]
 pub(crate) struct Felt(StarknetTypesFelt);
 
@@ -50,6 +62,22 @@ impl Felt {
     /// Raises `self` to the power of `exponent`.
     pub(crate) fn pow(&self, exponent: impl Into<u128>) -> Self {
         Self(self.0.pow(exponent.into()))
+    }
+
+    pub(crate) fn bits(&self) -> u8 {
+        self.0
+            .bits()
+            .try_into()
+            // Should not fail as it takes less than 252 bits to represent a felt.
+            .expect("Unexpected error occurred when extracting bits of a Felt.")
+    }
+
+    pub(crate) fn times_two_to_the_power(&self, power: u8) -> Self {
+        *self * Felt::TWO.pow(power)
+    }
+
+    pub(crate) fn to_bytes_be(self) -> [u8; 32] {
+        self.0.to_bytes_be()
     }
 
     /// Parse a hex-encoded number into `Felt`.

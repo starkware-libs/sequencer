@@ -27,3 +27,9 @@ impl Storage for MapStorage {
         self.storage.remove(key)
     }
 }
+
+impl From<HashMap<StorageKey, StorageValue>> for MapStorage {
+    fn from(storage: HashMap<StorageKey, StorageValue>) -> Self {
+        Self { storage }
+    }
+}

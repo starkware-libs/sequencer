@@ -21,7 +21,7 @@ fn test_compute_bottom_index(
 ) {
     let bottom_index = NodeIndex::compute_bottom_index(
         NodeIndex(Felt::from(node_index)),
-        PathToBottom {
+        &PathToBottom {
             path: EdgePath(Felt::from(path)),
             length: EdgePathLength(length),
         },
