@@ -3,12 +3,13 @@ use crate::patricia_merkle_tree::errors::FilledTreeError;
 use crate::patricia_merkle_tree::filled_tree::FilledTreeResult;
 use crate::patricia_merkle_tree::original_skeleton_tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::serialized_node::{
-    LeafCompiledClassToSerialize, SerializeNode, SERIALIZE_HASH_BYTES,
+    LeafCompiledClassToSerialize, SerializeNode, COMPLIED_CLASS_PREFIX, INNER_NODE_PREFIX,
+    SERIALIZE_HASH_BYTES, STATE_TREE_LEAF_PREFIX, STORAGE_LEAF_PREFIX,
 };
 use crate::patricia_merkle_tree::serialized_node::{BINARY_BYTES, EDGE_BYTES, EDGE_PATH_BYTES};
 use crate::patricia_merkle_tree::types::{EdgeData, LeafDataTrait};
 use crate::patricia_merkle_tree::types::{EdgePath, EdgePathLength, PathToBottom};
-use crate::storage::storage_trait::{StorageKey, StorageValue};
+use crate::storage::storage_trait::{create_db_key, StorageKey, StorageValue};
 use crate::types::Felt;
 
 // TODO(Nimrod, 1/6/2024): Swap to starknet-types-core types once implemented.
@@ -191,6 +192,31 @@ impl FilledNode<LeafData> {
             }
 
             NodeData::Leaf(leaf_data) => leaf_data.serialize(),
+        }
+    }
+
+    /// Returns the suffix of the filled node, represented by its hash as a byte array.
+    #[allow(dead_code)]
+    pub(crate) fn suffix(&self) -> [u8; SERIALIZE_HASH_BYTES] {
+        self.hash.0.as_bytes()
+    }
+
+    /// Returns the db key of the filled node - [prefix + b":" + suffix].
+    #[allow(dead_code)]
+    pub(crate) fn db_key(&self) -> StorageKey {
+        let suffix = self.suffix();
+
+        match &self.data {
+            NodeData::Binary(_) | NodeData::Edge(_) => create_db_key(INNER_NODE_PREFIX, &suffix),
+            NodeData::Leaf(LeafData::StorageValue(_)) => {
+                create_db_key(STORAGE_LEAF_PREFIX, &suffix)
+            }
+            NodeData::Leaf(LeafData::CompiledClassHash(_)) => {
+                create_db_key(COMPLIED_CLASS_PREFIX, &suffix)
+            }
+            NodeData::Leaf(LeafData::StateTreeTuple { .. }) => {
+                create_db_key(STATE_TREE_LEAF_PREFIX, &suffix)
+            }
         }
     }
 }

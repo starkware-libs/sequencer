@@ -17,6 +17,12 @@ pub(crate) const STORAGE_LEAF_SIZE: usize = SERIALIZE_HASH_BYTES;
 // TODO(Aviv, 17/4/2024): add CompiledClassLeaf size.
 // TODO(Aviv, 17/4/2024): add StateTreeLeaf size.
 
+// Const describe the prefix of the serialized node.
+pub(crate) const STORAGE_LEAF_PREFIX: &[u8; 21] = b"starknet_storage_leaf";
+pub(crate) const STATE_TREE_LEAF_PREFIX: &[u8; 14] = b"contract_state";
+pub(crate) const COMPLIED_CLASS_PREFIX: &[u8; 19] = b"contract_class_leaf";
+pub(crate) const INNER_NODE_PREFIX: &[u8; 13] = b"patricia_node";
+
 /// Enum to describe the serialized node.
 #[allow(dead_code)]
 pub(crate) enum SerializeNode {

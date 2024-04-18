@@ -53,3 +53,8 @@ impl From<Felt> for StorageKey {
         StorageKey(value.to_bytes_be().to_vec())
     }
 }
+
+/// Returns a `StorageKey` from a prefix and a suffix.
+pub(crate) fn create_db_key(prefix: &[u8], suffix: &[u8]) -> StorageKey {
+    StorageKey([prefix.to_vec(), b":".to_vec(), suffix.to_vec()].concat())
+}
