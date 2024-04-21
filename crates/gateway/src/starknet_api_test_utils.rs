@@ -4,18 +4,21 @@ use starknet_api::external_transaction::{
     ExternalDeployAccountTransactionV3, ExternalInvokeTransaction, ExternalInvokeTransactionV3,
     ExternalTransaction,
 };
-use starknet_api::transaction::{Calldata, ResourceBounds, ResourceBoundsMapping};
+use starknet_api::transaction::{
+    Calldata, ResourceBounds, ResourceBoundsMapping, TransactionSignature,
+};
 
 // Utils.
 pub fn external_declare_tx_for_testing(
     resource_bounds: ResourceBoundsMapping,
+    signature: TransactionSignature,
 ) -> ExternalTransaction {
     ExternalTransaction::Declare(ExternalDeclareTransaction::V3(
         ExternalDeclareTransactionV3 {
             resource_bounds,
             contract_class: Default::default(),
             tip: Default::default(),
-            signature: Default::default(),
+            signature,
             nonce: Default::default(),
             compiled_class_hash: Default::default(),
             sender_address: Default::default(),
@@ -30,6 +33,7 @@ pub fn external_declare_tx_for_testing(
 pub fn external_deploy_account_tx_for_testing(
     resource_bounds: ResourceBoundsMapping,
     constructor_calldata: Calldata,
+    signature: TransactionSignature,
 ) -> ExternalTransaction {
     ExternalTransaction::DeployAccount(ExternalDeployAccountTransaction::V3(
         ExternalDeployAccountTransactionV3 {
@@ -39,7 +43,7 @@ pub fn external_deploy_account_tx_for_testing(
             class_hash: Default::default(),
             constructor_calldata,
             nonce: Default::default(),
-            signature: Default::default(),
+            signature,
             nonce_data_availability_mode: DataAvailabilityMode::L1,
             fee_data_availability_mode: DataAvailabilityMode::L1,
             paymaster_data: Default::default(),
@@ -50,11 +54,12 @@ pub fn external_deploy_account_tx_for_testing(
 pub fn external_invoke_tx_for_testing(
     resource_bounds: ResourceBoundsMapping,
     calldata: Calldata,
+    signature: TransactionSignature,
 ) -> ExternalTransaction {
     ExternalTransaction::Invoke(ExternalInvokeTransaction::V3(ExternalInvokeTransactionV3 {
         resource_bounds,
         tip: Default::default(),
-        signature: Default::default(),
+        signature,
         nonce: Default::default(),
         sender_address: Default::default(),
         calldata,

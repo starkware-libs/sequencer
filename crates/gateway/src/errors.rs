@@ -32,6 +32,14 @@ pub enum StatelessTransactionValidatorError {
         calldata_length: usize,
         max_calldata_length: usize,
     },
+    #[error(
+        "Signature length exceeded maximum: length {signature_length}
+        (allowed length: {max_signature_length})."
+    )]
+    SignatureTooLong {
+        signature_length: usize,
+        max_signature_length: usize,
+    },
 }
 
 pub type StatelessTransactionValidatorResult<T> = Result<T, StatelessTransactionValidatorError>;

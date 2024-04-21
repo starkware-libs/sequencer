@@ -17,6 +17,7 @@ pub struct StatelessTransactionValidatorConfig {
     pub validate_non_zero_l2_gas_fee: bool,
 
     pub max_calldata_length: usize,
+    pub max_signature_length: usize,
 }
 
 pub struct StatelessTransactionValidator {
@@ -61,8 +62,7 @@ impl StatelessTransactionValidator {
         tx: &ExternalTransaction,
     ) -> StatelessTransactionValidatorResult<()> {
         self.validate_tx_calldata_size(tx)?;
-
-        // TODO(Arni, 4/4/2024): Validate tx signature is not too long.
+        self.validate_tx_signature_size(tx)?;
 
         Ok(())
     }
@@ -87,6 +87,29 @@ impl StatelessTransactionValidator {
             return Err(StatelessTransactionValidatorError::CalldataTooLong {
                 calldata_length,
                 max_calldata_length: self.config.max_calldata_length,
+            });
+        }
+
+        Ok(())
+    }
+
+    fn validate_tx_signature_size(
+        &self,
+        tx: &ExternalTransaction,
+    ) -> StatelessTransactionValidatorResult<()> {
+        let signature = match tx {
+            ExternalTransaction::Declare(ExternalDeclareTransaction::V3(tx)) => &tx.signature,
+            ExternalTransaction::DeployAccount(ExternalDeployAccountTransaction::V3(tx)) => {
+                &tx.signature
+            }
+            ExternalTransaction::Invoke(ExternalInvokeTransaction::V3(tx)) => &tx.signature,
+        };
+
+        let signature_length = signature.0.len();
+        if signature_length > self.config.max_signature_length {
+            return Err(StatelessTransactionValidatorError::SignatureTooLong {
+                signature_length,
+                max_signature_length: self.config.max_signature_length,
             });
         }
 
