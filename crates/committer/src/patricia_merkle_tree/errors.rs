@@ -4,7 +4,7 @@ use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::errors::StorageError;
 use crate::storage::storage_trait::StorageValue;
 
-use crate::patricia_merkle_tree::filled_node::FilledNode;
+use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 
 use super::types::LeafDataTrait;
 

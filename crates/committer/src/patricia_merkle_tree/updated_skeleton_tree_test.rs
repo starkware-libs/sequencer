@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use crate::hash::hash_trait::HashOutput;
 use crate::hash::pedersen::PedersenHashFunction;
-use crate::patricia_merkle_tree::filled_node::{
+use crate::patricia_merkle_tree::filled_tree::node::{
     BinaryData, ClassHash, FilledNode, LeafData, NodeData,
 };
-use crate::patricia_merkle_tree::filled_tree::FilledTree;
+use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use crate::patricia_merkle_tree::types::{
     EdgeData, EdgePath, EdgePathLength, NodeIndex, PathToBottom, TreeHashFunctionImpl,
 };

@@ -1,5 +1,5 @@
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::filled_node::{ClassHash, CompiledClassHash, Nonce};
+use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
 use crate::patricia_merkle_tree::types::TreeHeight;
 use crate::storage::storage_trait::{StorageKey, StorageValue};
 use crate::types::Felt;
