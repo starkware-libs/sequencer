@@ -70,9 +70,6 @@ impl LeafDataTrait for LeafData {
     }
 }
 
-#[allow(dead_code)]
-impl FilledNode<LeafData> {}
-
 impl LeafData {
     /// Serializes the leaf data into a byte vector.
     /// The serialization is done as follows:

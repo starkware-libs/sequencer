@@ -3,13 +3,15 @@ use crate::patricia_merkle_tree::filled_tree::node::BinaryData;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::filled_tree::node::LeafData;
 use crate::patricia_merkle_tree::filled_tree::node::NodeData;
-use crate::patricia_merkle_tree::original_skeleton_tree::OriginalSkeletonTree;
-use crate::patricia_merkle_tree::original_skeleton_tree::OriginalSkeletonTreeResult;
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::types::EdgeData;
 use crate::patricia_merkle_tree::types::PathToBottom;
 use crate::patricia_merkle_tree::types::TreeHeight;
-use crate::patricia_merkle_tree::updated_skeleton_tree::UpdatedSkeletonTreeImpl;
-use crate::patricia_merkle_tree::{original_skeleton_node::OriginalSkeletonNode, types::NodeIndex};
+use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
+use crate::patricia_merkle_tree::{
+    original_skeleton_tree::node::OriginalSkeletonNode, types::NodeIndex,
+};
 use crate::storage::errors::StorageError;
 use crate::storage::storage_trait::Storage;
 use crate::storage::storage_trait::StorageKey;

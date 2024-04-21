@@ -1,7 +1,7 @@
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::original_skeleton_calc::LeafData;
-use crate::patricia_merkle_tree::original_skeleton_node::OriginalSkeletonNode;
-use crate::patricia_merkle_tree::original_skeleton_tree::OriginalSkeletonTree;
+use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
+use crate::patricia_merkle_tree::original_skeleton_tree::original_skeleton_calc::LeafData;
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::types::{EdgePath, EdgePathLength, NodeIndex, PathToBottom};
 use crate::storage::map_storage::MapStorage;
 use crate::types::Felt;

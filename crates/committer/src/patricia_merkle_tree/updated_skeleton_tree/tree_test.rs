@@ -9,8 +9,8 @@ use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use crate::patricia_merkle_tree::types::{
     EdgeData, EdgePath, EdgePathLength, NodeIndex, PathToBottom, TreeHashFunctionImpl,
 };
-use crate::patricia_merkle_tree::updated_skeleton_node::UpdatedSkeletonNode;
-use crate::patricia_merkle_tree::updated_skeleton_tree::{
+use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
+use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTree, UpdatedSkeletonTreeImpl,
 };
 use crate::types::Felt;
