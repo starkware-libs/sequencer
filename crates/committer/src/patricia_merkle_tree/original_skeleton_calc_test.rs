@@ -1,6 +1,7 @@
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::original_skeleton_calc::LeafData;
 use crate::patricia_merkle_tree::original_skeleton_node::OriginalSkeletonNode;
+use crate::patricia_merkle_tree::original_skeleton_tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::types::{EdgePath, EdgePathLength, NodeIndex, PathToBottom};
 use crate::storage::map_storage::MapStorage;
 use crate::types::Felt;
@@ -12,7 +13,6 @@ use crate::patricia_merkle_tree::types::TreeHeight;
 use crate::storage::storage_trait::{StorageKey, StoragePrefix, StorageValue};
 
 use super::OriginalSkeletonTreeImpl;
-use super::SubTree;
 
 #[rstest]
 // This test assumes for simplicity that hash is addition (i.e hash(a,b) = a + b).
@@ -238,20 +238,17 @@ fn test_fetch_nodes(
     #[case] expected_nodes: HashMap<NodeIndex, OriginalSkeletonNode<LeafData>>,
     #[case] tree_height: TreeHeight,
 ) {
-    let mut skeleton_tree = OriginalSkeletonTreeImpl {
-        nodes: HashMap::new(),
-        leaf_modifications,
-        tree_height,
-    };
-    let mut sorted_leaf_indices: Vec<NodeIndex> =
-        skeleton_tree.leaf_modifications.keys().copied().collect();
+    let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     sorted_leaf_indices.sort();
-    let subtrees = vec![SubTree {
-        sorted_leaf_indices: &sorted_leaf_indices,
-        root_index: NodeIndex::root_index(),
+
+    let skeleton_tree = OriginalSkeletonTreeImpl::create_tree(
+        &storage,
+        &sorted_leaf_indices,
         root_hash,
-    }];
-    assert!(skeleton_tree.fetch_nodes(subtrees, &storage).is_ok());
+        tree_height,
+    )
+    .unwrap();
+
     assert_eq!(&skeleton_tree.nodes, &expected_nodes);
 }
 

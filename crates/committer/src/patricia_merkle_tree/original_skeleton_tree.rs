@@ -14,9 +14,9 @@ pub(crate) type OriginalSkeletonTreeResult<T> = Result<T, OriginalSkeletonTreeEr
 /// update. It also contains the hashes (for edge siblings - also the edge data) of the Sibling
 /// nodes on the Merkle paths from the updated leaves to the root.
 pub(crate) trait OriginalSkeletonTree<L: LeafDataTrait + std::clone::Clone> {
-    fn compute_original_skeleton_tree(
+    fn create_tree(
         storage: &impl Storage,
-        leaf_indices: [NodeIndex],
+        leaf_indices: &[NodeIndex],
         root_hash: HashOutput,
         tree_height: TreeHeight,
     ) -> OriginalSkeletonTreeResult<impl OriginalSkeletonTree<L>>;

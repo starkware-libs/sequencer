@@ -27,7 +27,7 @@ pub(crate) trait UpdatedSkeletonTree<L: LeafDataTrait + std::clone::Clone> {
     ) -> Result<impl FilledTree<L>, UpdatedSkeletonTreeError<L>>;
 }
 
-struct UpdatedSkeletonTreeImpl<L: LeafDataTrait + std::clone::Clone> {
+pub(crate) struct UpdatedSkeletonTreeImpl<L: LeafDataTrait + std::clone::Clone> {
     skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode<L>>,
 }
 

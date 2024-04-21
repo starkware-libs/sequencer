@@ -2,10 +2,12 @@ use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_node::BinaryData;
 use crate::patricia_merkle_tree::filled_node::FilledNode;
 use crate::patricia_merkle_tree::filled_node::NodeData;
+use crate::patricia_merkle_tree::original_skeleton_tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::original_skeleton_tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::types::EdgeData;
 use crate::patricia_merkle_tree::types::PathToBottom;
 use crate::patricia_merkle_tree::types::TreeHeight;
+use crate::patricia_merkle_tree::updated_skeleton_tree::UpdatedSkeletonTreeImpl;
 use crate::patricia_merkle_tree::{
     filled_node::LeafData, original_skeleton_node::OriginalSkeletonNode, types::NodeIndex,
 };
@@ -23,9 +25,7 @@ pub mod original_skeleton_calc_test;
 
 #[allow(dead_code)]
 pub(crate) struct OriginalSkeletonTreeImpl {
-    nodes: HashMap<NodeIndex, OriginalSkeletonNode<LeafData>>,
-    // TODO(Nimrod, 30/4/2024): Remove `leaf_modifications` field.
-    leaf_modifications: HashMap<NodeIndex, LeafData>,
+    pub(crate) nodes: HashMap<NodeIndex, OriginalSkeletonNode<LeafData>>,
     tree_height: TreeHeight,
 }
 
@@ -197,5 +197,32 @@ impl OriginalSkeletonTreeImpl {
             )?)
         }
         Ok(subtrees_roots)
+    }
+}
+impl OriginalSkeletonTree<LeafData> for OriginalSkeletonTreeImpl {
+    fn create_tree(
+        storage: &impl Storage,
+        sorted_leaf_indices: &[NodeIndex],
+        root_hash: HashOutput,
+        tree_height: TreeHeight,
+    ) -> OriginalSkeletonTreeResult<Self> {
+        let main_subtree = SubTree {
+            sorted_leaf_indices,
+            root_index: NodeIndex::root_index(),
+            root_hash,
+        };
+        let mut skeleton_tree = Self {
+            nodes: HashMap::new(),
+            tree_height,
+        };
+        skeleton_tree.fetch_nodes(vec![main_subtree], storage)?;
+        Ok(skeleton_tree)
+    }
+
+    fn compute_updated_skeleton_tree(
+        &self,
+        _index_to_updated_leaf: HashMap<NodeIndex, LeafData>,
+    ) -> OriginalSkeletonTreeResult<UpdatedSkeletonTreeImpl<LeafData>> {
+        todo!()
     }
 }
