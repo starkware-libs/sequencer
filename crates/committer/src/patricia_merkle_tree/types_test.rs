@@ -1,11 +1,10 @@
 use crate::hash::hash_trait::{HashFunction, HashInputPair, HashOutput};
 use crate::hash::pedersen::PedersenHashFunction;
-use crate::patricia_merkle_tree::filled_tree::node::{BinaryData, NodeData};
-use crate::patricia_merkle_tree::types::EdgeData;
-use crate::patricia_merkle_tree::types::TreeHashFunction;
-use crate::patricia_merkle_tree::types::{
-    EdgePath, EdgePathLength, NodeIndex, PathToBottom, TreeHashFunctionImpl,
+use crate::patricia_merkle_tree::node_data::inner_node::{
+    BinaryData, EdgeData, EdgePath, EdgePathLength, NodeData, PathToBottom,
 };
+use crate::patricia_merkle_tree::types::TreeHashFunction;
+use crate::patricia_merkle_tree::types::{NodeIndex, TreeHashFunctionImpl};
 use crate::types::Felt;
 use rstest::rstest;
 #[rstest]

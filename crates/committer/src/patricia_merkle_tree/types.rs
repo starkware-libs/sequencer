@@ -1,7 +1,10 @@
 use std::marker::PhantomData;
 
 use crate::hash::hash_trait::{HashFunction, HashInputPair, HashOutput};
-use crate::patricia_merkle_tree::filled_tree::node::{BinaryData, LeafData, NodeData};
+use crate::patricia_merkle_tree::filled_tree::node::LeafData;
+use crate::patricia_merkle_tree::node_data::inner_node::{
+    BinaryData, EdgeData, NodeData, PathToBottom,
+};
 use crate::types::Felt;
 
 #[cfg(test)]
@@ -68,6 +71,7 @@ impl NodeIndex {
         NodeIndex(Felt::ONE)
     }
 
+    // TODO(Amos, 1/5/2024): Move to EdgePath.
     pub(crate) fn compute_bottom_index(
         index: NodeIndex,
         path_to_bottom: &PathToBottom,
@@ -87,35 +91,11 @@ impl From<u128> for NodeIndex {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub(crate) struct EdgePath(pub Felt);
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub(crate) struct EdgePathLength(pub u8);
-
 #[allow(dead_code)]
 #[derive(Debug, Eq, PartialEq, derive_more::Sub)]
 pub(crate) struct TreeHeight(pub u8);
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub(crate) struct PathToBottom {
-    pub path: EdgePath,
-    pub length: EdgePathLength,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub(crate) struct EdgeData {
-    pub(crate) bottom_hash: HashOutput,
-    pub(crate) path_to_bottom: PathToBottom,
-}
-
 pub(crate) trait LeafDataTrait {
     /// Returns true if leaf is empty.
     fn is_empty(&self) -> bool;
-}
-
-impl PathToBottom {
-    pub(crate) fn bottom_index(&self, root_index: NodeIndex) -> NodeIndex {
-        NodeIndex::compute_bottom_index(root_index, self)
-    }
 }

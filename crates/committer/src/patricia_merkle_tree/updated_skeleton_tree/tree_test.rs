@@ -2,13 +2,12 @@ use std::collections::HashMap;
 
 use crate::hash::hash_trait::HashOutput;
 use crate::hash::pedersen::PedersenHashFunction;
-use crate::patricia_merkle_tree::filled_tree::node::{
-    BinaryData, ClassHash, FilledNode, LeafData, NodeData,
-};
+use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, FilledNode, LeafData};
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
-use crate::patricia_merkle_tree::types::{
-    EdgeData, EdgePath, EdgePathLength, NodeIndex, PathToBottom, TreeHashFunctionImpl,
+use crate::patricia_merkle_tree::node_data::inner_node::{
+    BinaryData, EdgeData, EdgePath, EdgePathLength, NodeData, PathToBottom,
 };
+use crate::patricia_merkle_tree::types::{NodeIndex, TreeHashFunctionImpl};
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTree, UpdatedSkeletonTreeImpl,

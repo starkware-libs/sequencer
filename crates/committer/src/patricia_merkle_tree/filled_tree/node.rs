@@ -3,7 +3,8 @@ use crate::patricia_merkle_tree::errors::FilledTreeError;
 use crate::patricia_merkle_tree::filled_tree::node_serde::{
     LeafCompiledClassToSerialize, SerializeNode,
 };
-use crate::patricia_merkle_tree::types::{EdgeData, LeafDataTrait};
+use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
+use crate::patricia_merkle_tree::types::LeafDataTrait;
 use crate::types::Felt;
 
 // TODO(Nimrod, 1/6/2024): Swap to starknet-types-core types once implemented.
@@ -24,20 +25,6 @@ pub(crate) struct CompiledClassHash(pub Felt);
 pub(crate) struct FilledNode<L: LeafDataTrait> {
     pub(crate) hash: HashOutput,
     pub(crate) data: NodeData<L>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-// A Patricia-Merkle tree node's data, i.e., the pre-image of its hash.
-pub(crate) enum NodeData<L: LeafDataTrait> {
-    Binary(BinaryData),
-    Edge(EdgeData),
-    Leaf(L),
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct BinaryData {
-    pub(crate) left_hash: HashOutput,
-    pub(crate) right_hash: HashOutput,
 }
 
 #[allow(dead_code)]

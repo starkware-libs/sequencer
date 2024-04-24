@@ -1,5 +1,6 @@
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::types::{LeafDataTrait, PathToBottom};
+use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
+use crate::patricia_merkle_tree::types::LeafDataTrait;
 
 #[allow(dead_code)]
 /// A node in the structure of a Patricia-Merkle tree, after the update.
