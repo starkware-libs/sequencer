@@ -1,13 +1,14 @@
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
-use crate::patricia_merkle_tree::filled_tree::tree::FilledTreeResult;
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePath, EdgePathLength, NodeData, PathToBottom,
 };
 use crate::patricia_merkle_tree::node_data::leaf::LeafData;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
+use crate::storage::errors::SerializationError;
+use crate::storage::serde_trait::Serializable;
 use crate::storage::storage_trait::{create_db_key, StorageKey, StoragePrefix, StorageValue};
 use crate::types::Felt;
+use serde::{Deserialize, Serialize};
 
 // Const describe the size of the serialized node.
 pub(crate) const SERIALIZE_HASH_BYTES: usize = 32;
@@ -18,16 +19,30 @@ pub(crate) const EDGE_BYTES: usize = SERIALIZE_HASH_BYTES + EDGE_PATH_BYTES + ED
 #[allow(dead_code)]
 pub(crate) const STORAGE_LEAF_SIZE: usize = SERIALIZE_HASH_BYTES;
 
-// TODO(Aviv, 17/4/2024): add CompiledClassLeaf size.
-// TODO(Aviv, 17/4/2024): add StateTreeLeaf size.
+/// Temporary struct to serialize the leaf CompiledClass.
+/// Required to comply to existing storage layout.
+#[derive(Serialize, Deserialize)]
+pub(crate) struct LeafCompiledClassToSerialize {
+    pub(crate) compiled_class_hash: Felt,
+}
+
+/// Alias for serialization and deserialization results of filled nodes.
+type FilledNodeSerializationResult = Result<StorageValue, SerializationError>;
+type FilledNodeDeserializationResult = Result<FilledNode<LeafData>, SerializationError>;
 
 impl FilledNode<LeafData> {
+    pub(crate) fn suffix(&self) -> [u8; SERIALIZE_HASH_BYTES] {
+        self.hash.0.as_bytes()
+    }
+}
+
+impl Serializable for FilledNode<LeafData> {
     /// This method serializes the filled node into a byte vector, where:
     /// - For binary nodes: Concatenates left and right hashes.
     /// - For edge nodes: Concatenates bottom hash, path, and path length.
     /// - For leaf nodes: use leaf.serialize() method.
     #[allow(dead_code)]
-    pub(crate) fn serialize(&self) -> FilledTreeResult<StorageValue> {
+    fn serialize(&self) -> FilledNodeSerializationResult {
         match &self.data {
             NodeData::Binary(BinaryData {
                 left_hash,
@@ -60,16 +75,9 @@ impl FilledNode<LeafData> {
         }
     }
 
-    /// Returns the suffix of the filled node, represented by its hash as a byte array.
+    /// Returns the db key of the filled node - [prefix + b":" + suffix].
     #[allow(dead_code)]
-    pub(crate) fn suffix(&self) -> [u8; SERIALIZE_HASH_BYTES] {
-        self.hash.0.as_bytes()
-    }
-
-    // TODO(Amos, 1/5/2024): move leaf logic to leaf_serde.
-    /// Returns the db key of the filled node.
-    #[allow(dead_code)]
-    pub(crate) fn db_key(&self) -> StorageKey {
+    fn db_key(&self) -> StorageKey {
         let suffix = self.suffix();
 
         match &self.data {
@@ -90,10 +98,7 @@ impl FilledNode<LeafData> {
 
     /// Deserializes non-leaf nodes; if a serialized leaf node is given, the hash
     /// is used but the data is ignored.
-    pub(crate) fn deserialize(
-        key: &StorageKey,
-        value: &StorageValue,
-    ) -> OriginalSkeletonTreeResult<Self> {
+    fn deserialize(key: &StorageKey, value: &StorageValue) -> FilledNodeDeserializationResult {
         if value.0.len() == BINARY_BYTES {
             Ok(Self {
                 hash: HashOutput(Felt::from_bytes_be_slice(&key.0)),

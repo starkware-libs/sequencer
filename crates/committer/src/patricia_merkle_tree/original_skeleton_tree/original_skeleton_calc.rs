@@ -13,6 +13,7 @@ use crate::patricia_merkle_tree::{
     original_skeleton_tree::node::OriginalSkeletonNode, types::NodeIndex,
 };
 use crate::storage::errors::StorageError;
+use crate::storage::serde_trait::Serializable;
 use crate::storage::storage_trait::create_db_key;
 use crate::storage::storage_trait::Storage;
 use crate::storage::storage_trait::StorageKey;
@@ -20,7 +21,6 @@ use crate::storage::storage_trait::StoragePrefix;
 use crate::types::Felt;
 use bisection::{bisect_left, bisect_right};
 use std::collections::HashMap;
-
 #[cfg(test)]
 #[path = "original_skeleton_calc_test.rs"]
 pub mod original_skeleton_calc_test;

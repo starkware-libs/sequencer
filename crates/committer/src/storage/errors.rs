@@ -1,6 +1,8 @@
 use crate::storage::storage_trait::StorageKey;
-use derive_more::Display;
+use serde_json;
 use thiserror::Error;
+
+use crate::storage::storage_trait::StorageValue;
 
 #[derive(Debug, Error)]
 #[allow(dead_code)]
@@ -9,9 +11,11 @@ pub(crate) enum StorageError {
     MissingKey(StorageKey),
 }
 
-#[derive(thiserror::Error, Debug, Display)]
+#[derive(thiserror::Error, Debug)]
 #[allow(dead_code)]
 pub(crate) enum SerializationError {
-    DeserializeError,
-    SerializeError,
+    #[error("Failed to deserialize the storage value: {0:?}")]
+    DeserializeError(StorageValue),
+    #[error("Serialize error: {0}")]
+    SerializeError(#[from] serde_json::Error),
 }

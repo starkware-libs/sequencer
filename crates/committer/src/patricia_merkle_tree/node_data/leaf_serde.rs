@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::patricia_merkle_tree::errors::FilledTreeError;
+use crate::patricia_merkle_tree::node_data::leaf::LeafData;
+use crate::storage::errors::SerializationError;
+use crate::storage::storage_trait::StorageValue;
+use crate::types::Felt;
 
 /// Temporary struct to serialize the leaf CompiledClass.
 /// Required to comply to existing storage layout.
@@ -8,9 +11,6 @@ use crate::patricia_merkle_tree::errors::FilledTreeError;
 pub(crate) struct LeafCompiledClassToSerialize {
     pub(crate) compiled_class_hash: Felt,
 }
-use crate::patricia_merkle_tree::node_data::leaf::LeafData;
-use crate::storage::storage_trait::StorageValue;
-use crate::types::Felt;
 
 impl LeafData {
     /// Serializes the leaf data into a byte vector.
@@ -18,7 +18,7 @@ impl LeafData {
     /// - For storage values: serializes the value into a 32-byte vector.
     /// - For compiled class hashes or state tree tuples: creates a  json string
     ///   describing the leaf and cast it into a byte vector.
-    pub(crate) fn serialize(&self) -> Result<StorageValue, FilledTreeError> {
+    pub(crate) fn serialize(&self) -> Result<StorageValue, SerializationError> {
         match &self {
             LeafData::StorageValue(value) => Ok(StorageValue(value.as_bytes().to_vec())),
 

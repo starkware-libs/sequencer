@@ -5,7 +5,7 @@ pub(crate) trait Serializable {
     /// Serializes the given value.
     fn serialize(&self) -> Result<StorageValue, SerializationError>;
     /// Deserializes the given value.
-    fn deserialize(key: StorageKey, value: StorageValue) -> Result<Self, SerializationError>
+    fn deserialize(key: &StorageKey, value: &StorageValue) -> Result<Self, SerializationError>
     where
         Self: Sized;
     /// Returns the key used to store self in storage.
