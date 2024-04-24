@@ -88,7 +88,9 @@ jobs:
 
       - name: Get commit hash prefix
         id: commit_prefix
-        run: echo "short_hash=$(echo ${{ github.event.pull_request.head.sha }} | cut -c 1-7)" >> $GITHUB_OUTPUT
+        # Commit hash on pull request event would be the head commit of the branch;
+        # on push event (to main, for example) we should take the commit post-push.
+        run: echo "short_hash=$(if [ ${{ github.event_name }} == 'pull_request' ]; then echo ${{ github.event.pull_request.head.sha }}; else echo ${{ github.event.push.after }}; fi | cut -c 1-7)" >> $GITHUB_OUTPUT
 
       - name: Build CLI binary
         run: cargo build -p committer_cli -r --bin committer_cli --target-dir CLI_TARGET
