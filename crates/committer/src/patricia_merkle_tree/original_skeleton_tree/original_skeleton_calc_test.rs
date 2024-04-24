@@ -43,10 +43,6 @@ use super::OriginalSkeletonTreeImpl;
 
 #[case::simple_tree_of_height_3(
     HashMap::from([
-    create_leaf_entry(8),
-    create_leaf_entry(9),
-    create_leaf_entry(11),
-    create_leaf_entry(15),
     create_binary_entry(8, 9),
     create_edge_entry(11, 1, 1),
     create_binary_entry(17, 13),
@@ -108,11 +104,6 @@ use super::OriginalSkeletonTreeImpl;
 
 #[case::another_simple_tree_of_height_3(
     HashMap::from([
-    create_leaf_entry(10),
-    create_leaf_entry(2),
-    create_leaf_entry(3),
-    create_leaf_entry(4),
-    create_leaf_entry(7),
     create_binary_entry(10, 2),
     create_edge_entry(3, 1, 1),
     create_binary_entry(4, 7),
@@ -175,12 +166,6 @@ use super::OriginalSkeletonTreeImpl;
 ///
 #[case::tree_of_height_4_with_long_edge(
     HashMap::from([
-    create_leaf_entry(11),
-    create_leaf_entry(13),
-    create_leaf_entry(20),
-    create_leaf_entry(5),
-    create_leaf_entry(19),
-    create_leaf_entry(40),
     create_binary_entry(11, 13),
     create_edge_entry(5, 0, 1),
     create_binary_entry(19, 40),
@@ -291,13 +276,6 @@ fn create_modifications(modifications: Vec<(u128, u128)>) -> HashMap<NodeIndex, 
             )
         })
         .collect()
-}
-
-fn create_leaf_entry(val: u8) -> (StorageKey, StorageValue) {
-    (
-        create_patricia_key(val),
-        StorageValue(create_32_bytes_entry(val)),
-    )
 }
 
 fn create_binary_entry(left: u8, right: u8) -> (StorageKey, StorageValue) {

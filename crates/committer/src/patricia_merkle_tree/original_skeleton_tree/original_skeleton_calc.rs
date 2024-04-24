@@ -38,7 +38,7 @@ struct SubTree<'a> {
 
 impl<'a> SubTree<'a> {
     pub(crate) fn get_height(&self, total_tree_height: &TreeHeight) -> TreeHeight {
-        TreeHeight(total_tree_height.0 - self.root_index.0.bits() + 1)
+        TreeHeight(total_tree_height.0 - (self.root_index.0.bits() - 1))
     }
 
     pub(crate) fn split_leaves(
@@ -105,6 +105,10 @@ impl<'a> SubTree<'a> {
             },
         )
     }
+
+    fn is_leaf(&self, total_tree_height: &TreeHeight) -> bool {
+        self.get_height(total_tree_height).0 == 0
+    }
 }
 
 #[allow(dead_code)]
@@ -122,8 +126,11 @@ impl OriginalSkeletonTreeImpl {
             return Ok(());
         }
         let mut next_subtrees = Vec::new();
-        let subtrees_roots =
-            OriginalSkeletonTreeImpl::calculate_subtrees_roots(&subtrees, storage)?;
+        let subtrees_roots = OriginalSkeletonTreeImpl::calculate_subtrees_roots(
+            &subtrees,
+            storage,
+            &self.tree_height,
+        )?;
         for (filled_node, subtree) in subtrees_roots.into_iter().zip(subtrees.iter()) {
             match filled_node.data {
                 // Binary node.
@@ -186,9 +193,18 @@ impl OriginalSkeletonTreeImpl {
     fn calculate_subtrees_roots(
         subtrees: &[SubTree<'_>],
         storage: &impl Storage,
+        total_tree_height: &TreeHeight,
     ) -> OriginalSkeletonTreeResult<Vec<FilledNode<LeafData>>> {
         let mut subtrees_roots = vec![];
         for subtree in subtrees.iter() {
+            if subtree.is_leaf(total_tree_height) {
+                subtrees_roots.push(FilledNode {
+                    hash: subtree.root_hash,
+                    // Dummy value that will be ignored.
+                    data: NodeData::Leaf(LeafData::StorageValue(Felt::ZERO)),
+                });
+                continue;
+            }
             let key =
                 StorageKey::from(subtree.root_hash.0).with_prefix(StoragePrefix::PatriciaNode);
             let val = storage.get(&key).ok_or(StorageError::MissingKey(key))?;
@@ -200,6 +216,7 @@ impl OriginalSkeletonTreeImpl {
         Ok(subtrees_roots)
     }
 }
+
 impl OriginalSkeletonTree<LeafData> for OriginalSkeletonTreeImpl {
     fn create_tree(
         storage: &impl Storage,
