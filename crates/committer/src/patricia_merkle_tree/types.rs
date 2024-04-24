@@ -20,9 +20,10 @@ pub(crate) struct TreeHashFunctionImpl<H: HashFunction> {
     _hash_function: PhantomData<H>,
 }
 
-/// Implementation of TreeHashFunction.
-// TODO(Aner, 11/4/25): Implement the function for LeafData::StorageValue and LeafData::StateTreeTuple
+/// Implementation of TreeHashFunction. The implementation is based on the following reference:
+/// https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/starknet-state/#trie_construction
 // TODO(Aner, 11/4/24): Verify the correctness of the implementation.
+const CONTRACT_STATE_HASH_VERSION: Felt = Felt::ZERO;
 impl<H: HashFunction> TreeHashFunction<LeafData, H> for TreeHashFunctionImpl<H> {
     fn compute_node_hash(node_data: &NodeData<LeafData>) -> HashOutput {
         match node_data {
@@ -36,15 +37,22 @@ impl<H: HashFunction> TreeHashFunction<LeafData, H> for TreeHashFunctionImpl<H> 
             }) => HashOutput(
                 H::compute_hash(HashInputPair(hash_output.0, path.0)).0 + Felt::from(length.0),
             ),
-            NodeData::Leaf(leaf_data) => match leaf_data {
-                LeafData::StorageValue(_) => todo!(),
-                LeafData::CompiledClassHash(compiled_class_hash) => {
-                    HashOutput(compiled_class_hash.0)
-                }
-                LeafData::StateTreeTuple { .. } => {
-                    todo!()
-                }
-            },
+            NodeData::Leaf(LeafData::StorageValue(storage_value)) => HashOutput(*storage_value),
+            NodeData::Leaf(LeafData::CompiledClassHash(compiled_class_hash)) => {
+                HashOutput(compiled_class_hash.0)
+            }
+            NodeData::Leaf(LeafData::StateTreeTuple {
+                class_hash,
+                contract_state_root_hash,
+                nonce,
+            }) => H::compute_hash(HashInputPair(
+                H::compute_hash(HashInputPair(
+                    H::compute_hash(HashInputPair(class_hash.0, *contract_state_root_hash)).0,
+                    nonce.0,
+                ))
+                .0,
+                CONTRACT_STATE_HASH_VERSION,
+            )),
         }
     }
 }
