@@ -13,6 +13,7 @@ use crate::patricia_merkle_tree::{
     original_skeleton_tree::node::OriginalSkeletonNode, types::NodeIndex,
 };
 use crate::storage::errors::StorageError;
+use crate::storage::storage_trait::create_db_key;
 use crate::storage::storage_trait::Storage;
 use crate::storage::storage_trait::StorageKey;
 use crate::storage::storage_trait::StoragePrefix;
@@ -205,8 +206,7 @@ impl OriginalSkeletonTreeImpl {
                 });
                 continue;
             }
-            let key =
-                StorageKey::from(subtree.root_hash.0).with_prefix(StoragePrefix::PatriciaNode);
+            let key = create_db_key(StoragePrefix::InnerNode, &subtree.root_hash.0.as_bytes());
             let val = storage.get(&key).ok_or(StorageError::MissingKey(key))?;
             subtrees_roots.push(FilledNode::deserialize(
                 &StorageKey::from(subtree.root_hash.0),

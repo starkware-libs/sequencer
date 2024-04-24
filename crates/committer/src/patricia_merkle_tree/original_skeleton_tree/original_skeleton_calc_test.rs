@@ -11,7 +11,7 @@ use rstest::rstest;
 use std::collections::HashMap;
 
 use crate::patricia_merkle_tree::types::TreeHeight;
-use crate::storage::storage_trait::{StorageKey, StoragePrefix, StorageValue};
+use crate::storage::storage_trait::{create_db_key, StorageKey, StoragePrefix, StorageValue};
 
 use super::OriginalSkeletonTreeImpl;
 
@@ -245,7 +245,7 @@ fn create_32_bytes_entry(simple_val: u8) -> Vec<u8> {
 }
 
 fn create_patricia_key(val: u8) -> StorageKey {
-    StorageKey(create_32_bytes_entry(val)).with_prefix(StoragePrefix::PatriciaNode)
+    create_db_key(StoragePrefix::InnerNode, &create_32_bytes_entry(val))
 }
 
 fn create_binary_val(left: u8, right: u8) -> StorageValue {

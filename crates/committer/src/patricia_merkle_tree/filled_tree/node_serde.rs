@@ -5,31 +5,21 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePath, EdgePathLength, NodeData, PathToBottom,
 };
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
-use crate::storage::storage_trait::{create_db_key, StorageKey, StorageValue};
+use crate::storage::storage_trait::{create_db_key, StorageKey, StoragePrefix, StorageValue};
 use crate::types::Felt;
 use serde::{Deserialize, Serialize};
 
 // Const describe the size of the serialized node.
 pub(crate) const SERIALIZE_HASH_BYTES: usize = 32;
-#[allow(dead_code)]
 pub(crate) const BINARY_BYTES: usize = 2 * SERIALIZE_HASH_BYTES;
-#[allow(dead_code)]
 pub(crate) const EDGE_LENGTH_BYTES: usize = 1;
-#[allow(dead_code)]
 pub(crate) const EDGE_PATH_BYTES: usize = 32;
-#[allow(dead_code)]
 pub(crate) const EDGE_BYTES: usize = SERIALIZE_HASH_BYTES + EDGE_PATH_BYTES + EDGE_LENGTH_BYTES;
 #[allow(dead_code)]
 pub(crate) const STORAGE_LEAF_SIZE: usize = SERIALIZE_HASH_BYTES;
 
 // TODO(Aviv, 17/4/2024): add CompiledClassLeaf size.
 // TODO(Aviv, 17/4/2024): add StateTreeLeaf size.
-
-// Const describe the prefix of the serialized node.
-pub(crate) const STORAGE_LEAF_PREFIX: &[u8; 21] = b"starknet_storage_leaf";
-pub(crate) const STATE_TREE_LEAF_PREFIX: &[u8; 14] = b"contract_state";
-pub(crate) const COMPLIED_CLASS_PREFIX: &[u8; 19] = b"contract_class_leaf";
-pub(crate) const INNER_NODE_PREFIX: &[u8; 13] = b"patricia_node";
 
 /// Enum to describe the serialized node.
 #[allow(dead_code)]
@@ -93,21 +83,23 @@ impl FilledNode<LeafData> {
         self.hash.0.as_bytes()
     }
 
-    /// Returns the db key of the filled node - [prefix + b":" + suffix].
+    /// Returns the db key of the filled node.
     #[allow(dead_code)]
     pub(crate) fn db_key(&self) -> StorageKey {
         let suffix = self.suffix();
 
         match &self.data {
-            NodeData::Binary(_) | NodeData::Edge(_) => create_db_key(INNER_NODE_PREFIX, &suffix),
+            NodeData::Binary(_) | NodeData::Edge(_) => {
+                create_db_key(StoragePrefix::InnerNode, &suffix)
+            }
             NodeData::Leaf(LeafData::StorageValue(_)) => {
-                create_db_key(STORAGE_LEAF_PREFIX, &suffix)
+                create_db_key(StoragePrefix::StorageLeaf, &suffix)
             }
             NodeData::Leaf(LeafData::CompiledClassHash(_)) => {
-                create_db_key(COMPLIED_CLASS_PREFIX, &suffix)
+                create_db_key(StoragePrefix::CompiledClassLeaf, &suffix)
             }
             NodeData::Leaf(LeafData::StateTreeTuple { .. }) => {
-                create_db_key(STATE_TREE_LEAF_PREFIX, &suffix)
+                create_db_key(StoragePrefix::StateTreeLeaf, &suffix)
             }
         }
     }
