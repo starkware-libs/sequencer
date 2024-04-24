@@ -13,7 +13,7 @@ use crate::patricia_merkle_tree::{
     original_skeleton_tree::node::OriginalSkeletonNode, types::NodeIndex,
 };
 use crate::storage::errors::StorageError;
-use crate::storage::serde_trait::Serializable;
+use crate::storage::serde_trait::Deserializable;
 use crate::storage::storage_trait::create_db_key;
 use crate::storage::storage_trait::Storage;
 use crate::storage::storage_trait::StorageKey;

@@ -4,8 +4,8 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePath, EdgePathLength, NodeData, PathToBottom,
 };
 use crate::patricia_merkle_tree::node_data::leaf::LeafData;
-use crate::storage::errors::SerializationError;
-use crate::storage::serde_trait::Serializable;
+use crate::storage::errors::{DeserializationError, SerializationError};
+use crate::storage::serde_trait::{Deserializable, Serializable};
 use crate::storage::storage_trait::{create_db_key, StorageKey, StoragePrefix, StorageValue};
 use crate::types::Felt;
 use serde::{Deserialize, Serialize};
@@ -28,7 +28,7 @@ pub(crate) struct LeafCompiledClassToSerialize {
 
 /// Alias for serialization and deserialization results of filled nodes.
 type FilledNodeSerializationResult = Result<StorageValue, SerializationError>;
-type FilledNodeDeserializationResult = Result<FilledNode<LeafData>, SerializationError>;
+type FilledNodeDeserializationResult = Result<FilledNode<LeafData>, DeserializationError>;
 
 impl FilledNode<LeafData> {
     pub(crate) fn suffix(&self) -> [u8; SERIALIZE_HASH_BYTES] {
@@ -41,7 +41,6 @@ impl Serializable for FilledNode<LeafData> {
     /// - For binary nodes: Concatenates left and right hashes.
     /// - For edge nodes: Concatenates bottom hash, path, and path length.
     /// - For leaf nodes: use leaf.serialize() method.
-    #[allow(dead_code)]
     fn serialize(&self) -> FilledNodeSerializationResult {
         match &self.data {
             NodeData::Binary(BinaryData {
@@ -76,7 +75,6 @@ impl Serializable for FilledNode<LeafData> {
     }
 
     /// Returns the db key of the filled node - [prefix + b":" + suffix].
-    #[allow(dead_code)]
     fn db_key(&self) -> StorageKey {
         let suffix = self.suffix();
 
@@ -95,7 +93,9 @@ impl Serializable for FilledNode<LeafData> {
             }
         }
     }
+}
 
+impl Deserializable for FilledNode<LeafData> {
     /// Deserializes non-leaf nodes; if a serialized leaf node is given, the hash
     /// is used but the data is ignored.
     fn deserialize(key: &StorageKey, value: &StorageValue) -> FilledNodeDeserializationResult {

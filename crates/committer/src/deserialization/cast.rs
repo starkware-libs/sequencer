@@ -1,4 +1,3 @@
-use crate::deserialization::errors::DeserializationError;
 use crate::deserialization::types::{ContractAddress, ContractState};
 use crate::deserialization::types::{
     Input, RawInput, StarknetStorageKey, StarknetStorageValue, StateDiff,
@@ -6,6 +5,7 @@ use crate::deserialization::types::{
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
 use crate::patricia_merkle_tree::types::TreeHeight;
+use crate::storage::errors::DeserializationError;
 use crate::storage::storage_trait::{StorageKey, StorageValue};
 use crate::types::Felt;
 
