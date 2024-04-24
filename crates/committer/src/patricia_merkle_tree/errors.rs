@@ -1,12 +1,11 @@
 use thiserror::Error;
 
+use crate::patricia_merkle_tree::node_data::leaf::LeafDataTrait;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::errors::StorageError;
 use crate::storage::storage_trait::StorageValue;
 
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
-
-use super::types::LeafDataTrait;
 
 #[allow(dead_code)]
 #[derive(Debug, Error)]

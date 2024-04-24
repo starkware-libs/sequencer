@@ -1,6 +1,6 @@
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgeData, PathToBottom};
-use crate::patricia_merkle_tree::types::LeafDataTrait;
+use crate::patricia_merkle_tree::node_data::leaf::LeafDataTrait;
 
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq)]

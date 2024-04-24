@@ -1,10 +1,10 @@
 use std::marker::PhantomData;
 
 use crate::hash::hash_trait::{HashFunction, HashInputPair, HashOutput};
-use crate::patricia_merkle_tree::filled_tree::node::LeafData;
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, NodeData, PathToBottom,
 };
+use crate::patricia_merkle_tree::node_data::leaf::{LeafData, LeafDataTrait};
 use crate::types::Felt;
 
 #[cfg(test)]
@@ -94,8 +94,3 @@ impl From<u128> for NodeIndex {
 #[allow(dead_code)]
 #[derive(Debug, Eq, PartialEq, derive_more::Sub)]
 pub(crate) struct TreeHeight(pub u8);
-
-pub(crate) trait LeafDataTrait {
-    /// Returns true if leaf is empty.
-    fn is_empty(&self) -> bool;
-}

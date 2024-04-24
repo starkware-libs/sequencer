@@ -1,5 +1,6 @@
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::types::{LeafDataTrait, NodeIndex};
+use crate::patricia_merkle_tree::node_data::leaf::LeafDataTrait;
+use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::types::Felt;
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -4,7 +4,8 @@ use std::collections::HashSet;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::errors::FilledTreeError;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
-use crate::patricia_merkle_tree::types::{LeafDataTrait, NodeIndex};
+use crate::patricia_merkle_tree::node_data::leaf::LeafDataTrait;
+use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::storage_trait::Storage;
 use crate::storage::storage_trait::StorageKey;
 
