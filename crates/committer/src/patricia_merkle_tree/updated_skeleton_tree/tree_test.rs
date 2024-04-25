@@ -15,9 +15,9 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
 };
 use crate::types::Felt;
 
-#[test]
+#[tokio::test(flavor = "multi_thread")]
 /// This test is a sanity test for computing the root hash of the patricia merkle tree with a single node that is a leaf with hash==1.
-fn test_filled_tree_sanity() {
+async fn test_filled_tree_sanity() {
     let mut skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode<LeafData>> = HashMap::new();
     skeleton_tree.insert(
         NodeIndex::root_index(),
@@ -26,6 +26,7 @@ fn test_filled_tree_sanity() {
     let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
     let root_hash = updated_skeleton_tree
         .compute_filled_tree::<PedersenHashFunction, TreeHashFunctionImpl<PedersenHashFunction>>()
+        .await
         .unwrap()
         .get_root_hash()
         .unwrap();
@@ -35,7 +36,7 @@ fn test_filled_tree_sanity() {
 // TODO(Aner, 11/4/25): Add test with large patricia merkle tree.
 // TOOD(Aner, 11/4/25): Add test with different leaf types.
 
-#[test]
+#[tokio::test(flavor = "multi_thread")]
 /// This test is a small test for testing the root hash computation of the patricia merkle tree.
 /// The tree structure & results were computed seperately and tested for regression.
 ///                                i=1: binary
@@ -51,7 +52,7 @@ fn test_filled_tree_sanity() {
 ///                \            /                     \
 ///            i=35: leaf   i=36: leaf               i=63: leaf
 ///                  v=1          v=2                      v=3
-fn test_small_filled_tree() {
+async fn test_small_filled_tree() {
     // Set up the updated skeleton tree.
     let nodes_in_skeleton_tree = [
         create_binary_updated_skeleton_node_for_testing(1),
@@ -72,6 +73,7 @@ fn test_small_filled_tree() {
     // Compute the hash values.
     let filled_tree = updated_skeleton_tree
         .compute_filled_tree::<PedersenHashFunction, TreeHashFunctionImpl<PedersenHashFunction>>()
+        .await
         .unwrap();
     let filled_tree_map = filled_tree.get_all_nodes();
     let root_hash = filled_tree.get_root_hash().unwrap();
@@ -129,7 +131,7 @@ fn test_small_filled_tree() {
     assert_eq!(root_hash, expected_root_hash, "Root hash mismatch");
 }
 
-#[test]
+#[tokio::test(flavor = "multi_thread")]
 /// This test is a small test for testing the root hash computation of the patricia merkle tree
 /// with sibling nodes. The tree structure & results are a partial of test_small_filled_tree.
 ///                   i=1: binary
@@ -145,7 +147,7 @@ fn test_small_filled_tree() {
 ///            \            
 ///         i=35: leaf   
 ///            v=1    
-fn test_small_tree_with_sibling_nodes() {
+async fn test_small_tree_with_sibling_nodes() {
     // Set up the updated skeleton tree.
     let nodes_in_skeleton_tree = [
         create_binary_updated_skeleton_node_for_testing(1),
@@ -170,6 +172,7 @@ fn test_small_tree_with_sibling_nodes() {
     // Compute the hash values.
     let filled_tree = updated_skeleton_tree
         .compute_filled_tree::<PedersenHashFunction, TreeHashFunctionImpl<PedersenHashFunction>>()
+        .await
         .unwrap();
     let filled_tree_map = filled_tree.get_all_nodes();
     let root_hash = filled_tree.get_root_hash().unwrap();

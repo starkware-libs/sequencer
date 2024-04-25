@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use async_recursion::async_recursion;
+
 use crate::hash::hash_trait::{HashFunction, HashOutput};
 use crate::patricia_merkle_tree::errors::UpdatedSkeletonTreeError;
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
@@ -23,7 +25,7 @@ pub mod tree_test;
 /// to the root.
 pub(crate) trait UpdatedSkeletonTree<L: LeafDataTrait + std::clone::Clone> {
     /// Computes and returns the filled tree.
-    fn compute_filled_tree<H: HashFunction, TH: TreeHashFunction<L, H>>(
+    async fn compute_filled_tree<H: HashFunction, TH: TreeHashFunction<L, H>>(
         &self,
     ) -> Result<impl FilledTree<L>, UpdatedSkeletonTreeError<L>>;
 }
@@ -101,7 +103,8 @@ impl<L: LeafDataTrait + std::clone::Clone + std::marker::Sync + std::marker::Sen
         Ok(hash_map_out)
     }
 
-    fn compute_filled_tree_rec<H: HashFunction, TH: TreeHashFunction<L, H>>(
+    #[async_recursion]
+    async fn compute_filled_tree_rec<H: HashFunction, TH: TreeHashFunction<L, H>>(
         &self,
         index: NodeIndex,
         output_map: Arc<HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>>>,
@@ -112,9 +115,9 @@ impl<L: LeafDataTrait + std::clone::Clone + std::marker::Sync + std::marker::Sen
                 let left_index = NodeIndex(index.0 * Felt::TWO);
                 let right_index = NodeIndex(left_index.0 + Felt::ONE);
 
-                let (left_hash, right_hash) = rayon::join(
-                    || self.compute_filled_tree_rec::<H, TH>(left_index, Arc::clone(&output_map)),
-                    || self.compute_filled_tree_rec::<H, TH>(right_index, Arc::clone(&output_map)),
+                let (left_hash, right_hash) = tokio::join!(
+                    self.compute_filled_tree_rec::<H, TH>(left_index, Arc::clone(&output_map)),
+                    self.compute_filled_tree_rec::<H, TH>(right_index, Arc::clone(&output_map)),
                 );
 
                 let data = NodeData::Binary(BinaryData {
@@ -129,7 +132,8 @@ impl<L: LeafDataTrait + std::clone::Clone + std::marker::Sync + std::marker::Sen
             UpdatedSkeletonNode::Edge { path_to_bottom } => {
                 let bottom_node_index = NodeIndex::compute_bottom_index(index, path_to_bottom);
                 let bottom_hash = self
-                    .compute_filled_tree_rec::<H, TH>(bottom_node_index, Arc::clone(&output_map))?;
+                    .compute_filled_tree_rec::<H, TH>(bottom_node_index, Arc::clone(&output_map))
+                    .await?;
                 let data = NodeData::Edge(EdgeData {
                     path_to_bottom: *path_to_bottom,
                     bottom_hash,
@@ -152,7 +156,7 @@ impl<L: LeafDataTrait + std::clone::Clone + std::marker::Sync + std::marker::Sen
 impl<L: LeafDataTrait + std::clone::Clone + std::marker::Sync + std::marker::Send>
     UpdatedSkeletonTree<L> for UpdatedSkeletonTreeImpl<L>
 {
-    fn compute_filled_tree<H: HashFunction, TH: TreeHashFunction<L, H>>(
+    async fn compute_filled_tree<H: HashFunction, TH: TreeHashFunction<L, H>>(
         &self,
     ) -> Result<FilledTreeImpl<L>, UpdatedSkeletonTreeError<L>> {
         // Compute the filled tree in two steps:
@@ -163,7 +167,8 @@ impl<L: LeafDataTrait + std::clone::Clone + std::marker::Sync + std::marker::Sen
         self.compute_filled_tree_rec::<H, TH>(
             NodeIndex::root_index(),
             Arc::clone(&filled_tree_map),
-        )?;
+        )
+        .await?;
 
         // Create and return a new FilledTreeImpl from the hashmap.
         Ok(FilledTreeImpl::new(Self::remove_arc_mutex_and_option(
