@@ -1,5 +1,8 @@
+use crate::tests::python_tests::PythonTest;
 use clap::{Args, Parser, Subcommand};
 use std::path::Path;
+
+pub mod tests;
 
 /// Committer CLI.
 #[derive(Debug, Parser)]
@@ -32,6 +35,15 @@ enum Command {
         #[clap(long)]
         contract_state_hash_version: String,
     },
+    PythonTest {
+        /// Test name.
+        #[clap(long)]
+        test_name: String,
+
+        /// Test inputs as a json.
+        #[clap(long)]
+        inputs: String,
+    },
 }
 
 #[derive(Debug, Args)]
@@ -61,6 +73,20 @@ fn main() {
 
             // Output to file.
             std::fs::write(output_file_name, output).expect("Failed to write output");
+        }
+
+        Command::PythonTest { test_name, inputs } => {
+            // Create PythonTest from test_name.
+            let test = PythonTest::try_from(test_name)
+                .unwrap_or_else(|error| panic!("Failed to create PythonTest: {}", error));
+
+            // Run relevant test.
+            let output = test
+                .run(&inputs)
+                .unwrap_or_else(|error| panic!("Failed to run test: {}", error));
+
+            // Print test's output.
+            print!("{}", output);
         }
     }
 }
