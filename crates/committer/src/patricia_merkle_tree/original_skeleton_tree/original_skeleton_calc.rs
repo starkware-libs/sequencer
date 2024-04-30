@@ -1,3 +1,4 @@
+use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::node_data::inner_node::BinaryData;
@@ -18,7 +19,6 @@ use crate::storage::storage_trait::create_db_key;
 use crate::storage::storage_trait::Storage;
 use crate::storage::storage_trait::StorageKey;
 use crate::storage::storage_trait::StoragePrefix;
-use crate::types::Felt;
 use bisection::{bisect_left, bisect_right};
 use std::collections::HashMap;
 #[cfg(test)]

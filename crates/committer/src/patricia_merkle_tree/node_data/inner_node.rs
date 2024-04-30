@@ -1,7 +1,7 @@
+use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::leaf::LeafDataTrait;
 use crate::patricia_merkle_tree::types::NodeIndex;
-use crate::types::Felt;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 // A Patricia-Merkle tree node's data, i.e., the pre-image of its hash.

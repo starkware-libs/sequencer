@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+use crate::felt::Felt;
 use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 use crate::storage::errors::SerializationError;
 use crate::storage::storage_trait::StorageValue;
-use crate::types::Felt;
 
 /// Temporary struct to serialize the leaf CompiledClass.
 /// Required to comply to existing storage layout.

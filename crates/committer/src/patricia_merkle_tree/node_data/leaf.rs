@@ -1,5 +1,5 @@
+use crate::felt::Felt;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
-use crate::types::Felt;
 
 pub(crate) trait LeafDataTrait {
     /// Returns true if leaf is empty.

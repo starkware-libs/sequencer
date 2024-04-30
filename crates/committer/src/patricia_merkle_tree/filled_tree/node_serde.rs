@@ -1,3 +1,4 @@
+use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::node_data::inner_node::{
@@ -7,7 +8,6 @@ use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 use crate::storage::errors::{DeserializationError, SerializationError};
 use crate::storage::serde_trait::{Deserializable, Serializable};
 use crate::storage::storage_trait::{create_db_key, StorageKey, StoragePrefix, StorageValue};
-use crate::types::Felt;
 use serde::{Deserialize, Serialize};
 
 // Const describe the size of the serialized node.

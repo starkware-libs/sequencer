@@ -1,4 +1,4 @@
-use crate::types::Felt;
+use crate::felt::Felt;
 
 pub(crate) struct HashInputPair(pub Felt, pub Felt);
 

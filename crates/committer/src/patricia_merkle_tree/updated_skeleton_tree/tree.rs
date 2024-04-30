@@ -3,14 +3,15 @@ use std::sync::{Arc, Mutex};
 
 use async_recursion::async_recursion;
 
+use crate::felt::Felt;
 use crate::hash::hash_trait::{HashFunction, HashOutput};
 use crate::patricia_merkle_tree::errors::UpdatedSkeletonTreeError;
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use crate::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
 use crate::patricia_merkle_tree::node_data::leaf::LeafDataTrait;
-use crate::patricia_merkle_tree::types::{NodeIndex, TreeHashFunction};
+use crate::patricia_merkle_tree::types::NodeIndex;
+use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
-use crate::types::Felt;
 
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;

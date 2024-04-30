@@ -1,4 +1,4 @@
-use crate::types::Felt;
+use crate::felt::Felt;
 use std::collections::HashMap;
 
 #[allow(dead_code)]
