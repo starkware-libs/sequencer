@@ -2244,6 +2244,7 @@ dependencies = [
  "assert_matches",
  "derive_more",
  "starknet_api",
+ "thiserror",
  "tokio",
 ]
 
