@@ -5,13 +5,13 @@ use crate::hash::hash_trait::{HashFunction, HashInputPair, HashOutput};
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, NodeData, PathToBottom,
 };
-use crate::patricia_merkle_tree::node_data::leaf::{LeafData, LeafDataTrait};
+use crate::patricia_merkle_tree::node_data::leaf::{LeafData, LeafDataImpl};
 
 #[cfg(test)]
 #[path = "hash_function_test.rs"]
 pub mod hash_function_test;
 
-pub(crate) trait TreeHashFunction<L: LeafDataTrait, H: HashFunction> {
+pub(crate) trait TreeHashFunction<L: LeafData, H: HashFunction> {
     /// Computes the hash of given node data.
     fn compute_node_hash(node_data: &NodeData<L>) -> HashOutput;
 }
@@ -24,8 +24,8 @@ pub(crate) struct TreeHashFunctionImpl<H: HashFunction> {
 /// https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/starknet-state/#trie_construction
 // TODO(Aner, 11/4/24): Verify the correctness of the implementation.
 const CONTRACT_STATE_HASH_VERSION: Felt = Felt::ZERO;
-impl<H: HashFunction> TreeHashFunction<LeafData, H> for TreeHashFunctionImpl<H> {
-    fn compute_node_hash(node_data: &NodeData<LeafData>) -> HashOutput {
+impl<H: HashFunction> TreeHashFunction<LeafDataImpl, H> for TreeHashFunctionImpl<H> {
+    fn compute_node_hash(node_data: &NodeData<LeafDataImpl>) -> HashOutput {
         match node_data {
             NodeData::Binary(BinaryData {
                 left_hash,
@@ -37,11 +37,11 @@ impl<H: HashFunction> TreeHashFunction<LeafData, H> for TreeHashFunctionImpl<H> 
             }) => HashOutput(
                 H::compute_hash(HashInputPair(hash_output.0, path.0)).0 + Felt::from(length.0),
             ),
-            NodeData::Leaf(LeafData::StorageValue(storage_value)) => HashOutput(*storage_value),
-            NodeData::Leaf(LeafData::CompiledClassHash(compiled_class_hash)) => {
+            NodeData::Leaf(LeafDataImpl::StorageValue(storage_value)) => HashOutput(*storage_value),
+            NodeData::Leaf(LeafDataImpl::CompiledClassHash(compiled_class_hash)) => {
                 HashOutput(compiled_class_hash.0)
             }
-            NodeData::Leaf(LeafData::StateTreeTuple {
+            NodeData::Leaf(LeafDataImpl::StateTreeTuple {
                 class_hash,
                 contract_state_root_hash,
                 nonce,

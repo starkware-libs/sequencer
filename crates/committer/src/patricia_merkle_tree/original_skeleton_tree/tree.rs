@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::node_data::leaf::LeafDataTrait;
+use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
@@ -14,7 +14,7 @@ pub(crate) type OriginalSkeletonTreeResult<T> = Result<T, OriginalSkeletonTreeEr
 /// This trait represents the structure of the subtree which will be modified in the
 /// update. It also contains the hashes (for edge siblings - also the edge data) of the Sibling
 /// nodes on the Merkle paths from the updated leaves to the root.
-pub(crate) trait OriginalSkeletonTree<L: LeafDataTrait + std::clone::Clone> {
+pub(crate) trait OriginalSkeletonTree<L: LeafData + std::clone::Clone> {
     fn create_tree(
         storage: &impl Storage,
         leaf_indices: &[NodeIndex],

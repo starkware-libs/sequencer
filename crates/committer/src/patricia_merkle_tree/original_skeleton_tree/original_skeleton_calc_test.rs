@@ -2,7 +2,7 @@ use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
-use crate::patricia_merkle_tree::original_skeleton_tree::original_skeleton_calc::LeafData;
+use crate::patricia_merkle_tree::original_skeleton_tree::original_skeleton_calc::LeafDataImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::map_storage::MapStorage;
@@ -219,9 +219,9 @@ use super::OriginalSkeletonTreeImpl;
 )]
 fn test_fetch_nodes(
     #[case] storage: MapStorage,
-    #[case] leaf_modifications: HashMap<NodeIndex, LeafData>,
+    #[case] leaf_modifications: HashMap<NodeIndex, LeafDataImpl>,
     #[case] root_hash: HashOutput,
-    #[case] expected_nodes: HashMap<NodeIndex, OriginalSkeletonNode<LeafData>>,
+    #[case] expected_nodes: HashMap<NodeIndex, OriginalSkeletonNode<LeafDataImpl>>,
     #[case] tree_height: TreeHeight,
 ) {
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
@@ -267,13 +267,13 @@ fn create_edge_val(hash: u8, path: u8, length: u8) -> StorageValue {
     )
 }
 
-fn create_modifications(modifications: Vec<(u128, u128)>) -> HashMap<NodeIndex, LeafData> {
+fn create_modifications(modifications: Vec<(u128, u128)>) -> HashMap<NodeIndex, LeafDataImpl> {
     modifications
         .into_iter()
         .map(|(idx, val)| {
             (
                 NodeIndex::from(idx),
-                LeafData::StorageValue(Felt::from(val)),
+                LeafDataImpl::StorageValue(Felt::from(val)),
             )
         })
         .collect()

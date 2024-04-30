@@ -1,7 +1,7 @@
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
-use crate::patricia_merkle_tree::node_data::leaf::LeafDataTrait;
+use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 
 // TODO(Nimrod, 1/6/2024): Swap to starknet-types-core types once implemented.
 
@@ -18,7 +18,7 @@ pub(crate) struct CompiledClassHash(pub Felt);
 #[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 /// A node in a Patricia-Merkle tree which was modified during an update.
-pub(crate) struct FilledNode<L: LeafDataTrait> {
+pub(crate) struct FilledNode<L: LeafData> {
     pub(crate) hash: HashOutput,
     pub(crate) data: NodeData<L>,
 }

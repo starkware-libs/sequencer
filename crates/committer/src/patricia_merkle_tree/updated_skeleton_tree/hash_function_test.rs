@@ -6,7 +6,7 @@ use crate::patricia_merkle_tree::filled_tree::node::Nonce;
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePath, EdgePathLength, NodeData, PathToBottom,
 };
-use crate::patricia_merkle_tree::node_data::leaf::LeafData;
+use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use rstest::rstest;
@@ -61,12 +61,12 @@ fn test_tree_hash_function_impl_edge_node(
 }
 
 #[rstest]
-#[case(NodeData::Leaf(LeafData::CompiledClassHash(ClassHash(Felt::from_hex("0xACDC").unwrap()))), Felt::from_hex("0xACDC").unwrap())]
-#[case(NodeData::Leaf(LeafData::StorageValue(Felt::from_hex("0xDEAFBEEF").unwrap())), Felt::from_hex("0xDEAFBEEF").unwrap())]
+#[case(NodeData::Leaf(LeafDataImpl::CompiledClassHash(ClassHash(Felt::from_hex("0xACDC").unwrap()))), Felt::from_hex("0xACDC").unwrap())]
+#[case(NodeData::Leaf(LeafDataImpl::StorageValue(Felt::from_hex("0xDEAFBEEF").unwrap())), Felt::from_hex("0xDEAFBEEF").unwrap())]
 // Random StateTreeTuples and the expected hash results were generated and computed elsewhere.
 #[case(
     NodeData::Leaf(
-        LeafData::StateTreeTuple{
+        LeafDataImpl::StateTreeTuple{
             class_hash: ClassHash(Felt::from_hex("0x150917f3bba17e3c0be685981d6cf8874098a857f354d374688e76eb69f44ab").unwrap()), 
             contract_state_root_hash: Felt::from_hex("0x5d6b3a46ac855f3cea9af60e13cc6c81bf237b901f49f73981a521d4cb6c50c").unwrap(), 
             nonce: Nonce(Felt::from_hex("0x38").unwrap()) 
@@ -76,7 +76,7 @@ fn test_tree_hash_function_impl_edge_node(
 )]
 #[case(
     NodeData::Leaf(
-        LeafData::StateTreeTuple{
+        LeafDataImpl::StateTreeTuple{
             class_hash: ClassHash(Felt::from_hex("0x2c9982b9bd36f16e409c98616e43dbc9e4b47db8a8e8edc3b915bc4dab3c61c").unwrap()), 
             contract_state_root_hash: Felt::from_hex("0x63d7c2a04df01e361238cf4bf07b7cee2e3c5ee58b4ec37cf279aed9ac8d013").unwrap(), 
             nonce: Nonce(Felt::from_hex("0x1b").unwrap()) 
@@ -86,7 +86,7 @@ fn test_tree_hash_function_impl_edge_node(
 )]
 #[case(
     NodeData::Leaf(
-        LeafData::StateTreeTuple{
+        LeafDataImpl::StateTreeTuple{
             class_hash: ClassHash(Felt::from_hex("0x314bd50b446c4e8c3a82b0eb9326e532432fbd925ab7afea236f7f8618848a2").unwrap()), 
             contract_state_root_hash: Felt::from_hex("0x1118159298289b372808e6b008b6bc9d68f5ebc060962ea1331fdc70cf3d047").unwrap(), 
             nonce: Nonce(Felt::from_hex("0x47").unwrap()) 
@@ -95,7 +95,7 @@ fn test_tree_hash_function_impl_edge_node(
     Felt::from_hex("0x1b20bbb35009bf03f86fb092b56a9c44deedbcca6addf8f7640f54a48ba5bbc").unwrap()
 )]
 fn test_tree_hash_function_impl_leaf_node(
-    #[case] node_data: NodeData<LeafData>,
+    #[case] node_data: NodeData<LeafDataImpl>,
     #[case] expected_hash: Felt,
 ) {
     let hash_output = TreeHashFunctionImpl::<PedersenHashFunction>::compute_node_hash(&node_data);

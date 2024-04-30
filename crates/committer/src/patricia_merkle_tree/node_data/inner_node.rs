@@ -1,11 +1,11 @@
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::node_data::leaf::LeafDataTrait;
+use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 use crate::patricia_merkle_tree::types::NodeIndex;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 // A Patricia-Merkle tree node's data, i.e., the pre-image of its hash.
-pub(crate) enum NodeData<L: LeafDataTrait> {
+pub(crate) enum NodeData<L: LeafData> {
     Binary(BinaryData),
     Edge(EdgeData),
     Leaf(L),

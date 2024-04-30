@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::felt::Felt;
-use crate::patricia_merkle_tree::node_data::leaf::LeafData;
+use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use crate::storage::errors::SerializationError;
 use crate::storage::storage_trait::StorageValue;
 
@@ -12,7 +12,7 @@ pub(crate) struct LeafCompiledClassToSerialize {
     pub(crate) compiled_class_hash: Felt,
 }
 
-impl LeafData {
+impl LeafDataImpl {
     /// Serializes the leaf data into a byte vector.
     /// The serialization is done as follows:
     /// - For storage values: serializes the value into a 32-byte vector.
@@ -20,9 +20,9 @@ impl LeafData {
     ///   describing the leaf and cast it into a byte vector.
     pub(crate) fn serialize(&self) -> Result<StorageValue, SerializationError> {
         match &self {
-            LeafData::StorageValue(value) => Ok(StorageValue(value.as_bytes().to_vec())),
+            LeafDataImpl::StorageValue(value) => Ok(StorageValue(value.as_bytes().to_vec())),
 
-            LeafData::CompiledClassHash(class_hash) => {
+            LeafDataImpl::CompiledClassHash(class_hash) => {
                 // Create a temporary object to serialize the leaf into a JSON.
                 let temp_object_to_json = LeafCompiledClassToSerialize {
                     compiled_class_hash: class_hash.0,
@@ -35,7 +35,7 @@ impl LeafData {
                 Ok(StorageValue(json.into_bytes().to_owned()))
             }
 
-            LeafData::StateTreeTuple { .. } => {
+            LeafDataImpl::StateTreeTuple { .. } => {
                 todo!("implement.");
             }
         }

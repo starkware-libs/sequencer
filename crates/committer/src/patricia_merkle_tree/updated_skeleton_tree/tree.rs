@@ -7,7 +7,7 @@ use crate::felt::Felt;
 use crate::hash::hash_trait::{HashFunction, HashOutput};
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use crate::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
-use crate::patricia_merkle_tree::node_data::leaf::LeafDataTrait;
+use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
@@ -24,18 +24,18 @@ pub mod tree_test;
 /// This trait represents the structure of the subtree which was modified in the update.
 /// It also contains the hashes of the Sibling nodes on the Merkle paths from the updated leaves
 /// to the root.
-pub(crate) trait UpdatedSkeletonTree<L: LeafDataTrait + std::clone::Clone> {
+pub(crate) trait UpdatedSkeletonTree<L: LeafData + std::clone::Clone> {
     /// Computes and returns the filled tree.
     async fn compute_filled_tree<H: HashFunction, TH: TreeHashFunction<L, H>>(
         &self,
     ) -> Result<impl FilledTree<L>, UpdatedSkeletonTreeError<L>>;
 }
 
-pub(crate) struct UpdatedSkeletonTreeImpl<L: LeafDataTrait + std::clone::Clone> {
+pub(crate) struct UpdatedSkeletonTreeImpl<L: LeafData + std::clone::Clone> {
     skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode<L>>,
 }
 
-impl<L: LeafDataTrait + std::clone::Clone + std::marker::Sync + std::marker::Send>
+impl<L: LeafData + std::clone::Clone + std::marker::Sync + std::marker::Send>
     UpdatedSkeletonTreeImpl<L>
 {
     fn get_node(
@@ -154,8 +154,8 @@ impl<L: LeafDataTrait + std::clone::Clone + std::marker::Sync + std::marker::Sen
     }
 }
 
-impl<L: LeafDataTrait + std::clone::Clone + std::marker::Sync + std::marker::Send>
-    UpdatedSkeletonTree<L> for UpdatedSkeletonTreeImpl<L>
+impl<L: LeafData + std::clone::Clone + std::marker::Sync + std::marker::Send> UpdatedSkeletonTree<L>
+    for UpdatedSkeletonTreeImpl<L>
 {
     async fn compute_filled_tree<H: HashFunction, TH: TreeHashFunction<L, H>>(
         &self,

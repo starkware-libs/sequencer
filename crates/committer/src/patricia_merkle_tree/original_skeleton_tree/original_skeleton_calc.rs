@@ -5,7 +5,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::BinaryData;
 use crate::patricia_merkle_tree::node_data::inner_node::EdgeData;
 use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
-use crate::patricia_merkle_tree::node_data::leaf::LeafData;
+use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::types::TreeHeight;
@@ -27,7 +27,7 @@ pub mod original_skeleton_calc_test;
 
 #[allow(dead_code)]
 pub(crate) struct OriginalSkeletonTreeImpl {
-    pub(crate) nodes: HashMap<NodeIndex, OriginalSkeletonNode<LeafData>>,
+    pub(crate) nodes: HashMap<NodeIndex, OriginalSkeletonNode<LeafDataImpl>>,
     tree_height: TreeHeight,
 }
 
@@ -195,14 +195,14 @@ impl OriginalSkeletonTreeImpl {
         subtrees: &[SubTree<'_>],
         storage: &impl Storage,
         total_tree_height: &TreeHeight,
-    ) -> OriginalSkeletonTreeResult<Vec<FilledNode<LeafData>>> {
+    ) -> OriginalSkeletonTreeResult<Vec<FilledNode<LeafDataImpl>>> {
         let mut subtrees_roots = vec![];
         for subtree in subtrees.iter() {
             if subtree.is_leaf(total_tree_height) {
                 subtrees_roots.push(FilledNode {
                     hash: subtree.root_hash,
                     // Dummy value that will be ignored.
-                    data: NodeData::Leaf(LeafData::StorageValue(Felt::ZERO)),
+                    data: NodeData::Leaf(LeafDataImpl::StorageValue(Felt::ZERO)),
                 });
                 continue;
             }
@@ -217,7 +217,7 @@ impl OriginalSkeletonTreeImpl {
     }
 }
 
-impl OriginalSkeletonTree<LeafData> for OriginalSkeletonTreeImpl {
+impl OriginalSkeletonTree<LeafDataImpl> for OriginalSkeletonTreeImpl {
     fn create_tree(
         storage: &impl Storage,
         sorted_leaf_indices: &[NodeIndex],
@@ -239,8 +239,8 @@ impl OriginalSkeletonTree<LeafData> for OriginalSkeletonTreeImpl {
 
     fn compute_updated_skeleton_tree(
         &self,
-        _index_to_updated_leaf: HashMap<NodeIndex, LeafData>,
-    ) -> OriginalSkeletonTreeResult<UpdatedSkeletonTreeImpl<LeafData>> {
+        _index_to_updated_leaf: HashMap<NodeIndex, LeafDataImpl>,
+    ) -> OriginalSkeletonTreeResult<UpdatedSkeletonTreeImpl<LeafDataImpl>> {
         todo!()
     }
 }

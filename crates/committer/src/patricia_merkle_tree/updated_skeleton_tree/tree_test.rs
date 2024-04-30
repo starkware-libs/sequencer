@@ -8,7 +8,7 @@ use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePath, EdgePathLength, NodeData, PathToBottom,
 };
-use crate::patricia_merkle_tree::node_data::leaf::LeafData;
+use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
@@ -19,10 +19,10 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
 #[tokio::test(flavor = "multi_thread")]
 /// This test is a sanity test for computing the root hash of the patricia merkle tree with a single node that is a leaf with hash==1.
 async fn test_filled_tree_sanity() {
-    let mut skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode<LeafData>> = HashMap::new();
+    let mut skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode<LeafDataImpl>> = HashMap::new();
     skeleton_tree.insert(
         NodeIndex::root_index(),
-        UpdatedSkeletonNode::Leaf(LeafData::CompiledClassHash(ClassHash(Felt::ONE))),
+        UpdatedSkeletonNode::Leaf(LeafDataImpl::CompiledClassHash(ClassHash(Felt::ONE))),
     );
     let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
     let root_hash = updated_skeleton_tree
@@ -66,7 +66,7 @@ async fn test_small_filled_tree() {
         create_leaf_updated_skeleton_node_for_testing(36, "0x2"),
         create_leaf_updated_skeleton_node_for_testing(63, "0x3"),
     ];
-    let skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode<LeafData>> =
+    let skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode<LeafDataImpl>> =
         nodes_in_skeleton_tree.into_iter().collect();
 
     let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
@@ -165,7 +165,7 @@ async fn test_small_tree_with_sibling_nodes() {
         ),
         create_leaf_updated_skeleton_node_for_testing(35, "0x1"),
     ];
-    let skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode<LeafData>> =
+    let skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode<LeafDataImpl>> =
         nodes_in_skeleton_tree.into_iter().collect();
 
     let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
@@ -219,7 +219,7 @@ async fn test_small_tree_with_sibling_nodes() {
 
 fn create_binary_updated_skeleton_node_for_testing(
     index: u128,
-) -> (NodeIndex, UpdatedSkeletonNode<LeafData>) {
+) -> (NodeIndex, UpdatedSkeletonNode<LeafDataImpl>) {
     (NodeIndex(Felt::from(index)), UpdatedSkeletonNode::Binary)
 }
 
@@ -227,7 +227,7 @@ fn create_path_to_bottom_edge_updated_skeleton_node_for_testing(
     index: u128,
     path: u128,
     length: u8,
-) -> (NodeIndex, UpdatedSkeletonNode<LeafData>) {
+) -> (NodeIndex, UpdatedSkeletonNode<LeafDataImpl>) {
     (
         NodeIndex(Felt::from(index)),
         UpdatedSkeletonNode::Edge {
@@ -242,7 +242,7 @@ fn create_path_to_bottom_edge_updated_skeleton_node_for_testing(
 fn create_sibling_updated_skeleton_node_for_testing(
     index: u128,
     hash: &str,
-) -> (NodeIndex, UpdatedSkeletonNode<LeafData>) {
+) -> (NodeIndex, UpdatedSkeletonNode<LeafDataImpl>) {
     (
         NodeIndex(Felt::from(index)),
         UpdatedSkeletonNode::Sibling(HashOutput(Felt::from_hex(hash).unwrap())),
@@ -252,10 +252,10 @@ fn create_sibling_updated_skeleton_node_for_testing(
 fn create_leaf_updated_skeleton_node_for_testing(
     index: u128,
     value: &str,
-) -> (NodeIndex, UpdatedSkeletonNode<LeafData>) {
+) -> (NodeIndex, UpdatedSkeletonNode<LeafDataImpl>) {
     (
         NodeIndex(Felt::from(index)),
-        UpdatedSkeletonNode::Leaf(LeafData::CompiledClassHash(ClassHash(
+        UpdatedSkeletonNode::Leaf(LeafDataImpl::CompiledClassHash(ClassHash(
             Felt::from_hex(value).unwrap(),
         ))),
     )
@@ -266,7 +266,7 @@ fn create_binary_entry_for_testing(
     hash: &str,
     left_hash: &str,
     right_hash: &str,
-) -> (NodeIndex, FilledNode<LeafData>) {
+) -> (NodeIndex, FilledNode<LeafDataImpl>) {
     (
         NodeIndex(Felt::from(index)),
         FilledNode {
@@ -285,7 +285,7 @@ fn create_edge_entry_for_testing(
     path: u128,
     length: u8,
     bottom_hash: &str,
-) -> (NodeIndex, FilledNode<LeafData>) {
+) -> (NodeIndex, FilledNode<LeafDataImpl>) {
     (
         NodeIndex(Felt::from(index)),
         FilledNode {
@@ -301,12 +301,12 @@ fn create_edge_entry_for_testing(
     )
 }
 
-fn create_leaf_entry_for_testing(index: u128, hash: &str) -> (NodeIndex, FilledNode<LeafData>) {
+fn create_leaf_entry_for_testing(index: u128, hash: &str) -> (NodeIndex, FilledNode<LeafDataImpl>) {
     (
         NodeIndex(Felt::from(index)),
         FilledNode {
             hash: HashOutput(Felt::from_hex(hash).unwrap()),
-            data: NodeData::Leaf(LeafData::CompiledClassHash(ClassHash(
+            data: NodeData::Leaf(LeafDataImpl::CompiledClassHash(ClassHash(
                 Felt::from_hex(hash).unwrap(),
             ))),
         },
