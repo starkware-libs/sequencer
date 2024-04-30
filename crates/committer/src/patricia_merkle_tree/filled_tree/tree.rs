@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::errors::FilledTreeError;
+use crate::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::node_data::leaf::LeafDataTrait;
 use crate::patricia_merkle_tree::types::NodeIndex;

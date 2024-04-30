@@ -1,4 +1,3 @@
-pub mod errors;
 pub mod filled_tree;
 pub mod node_data;
 pub mod original_skeleton_tree;
