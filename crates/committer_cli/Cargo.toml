@@ -14,5 +14,7 @@ pretty_assertions.workspace = true
 
 [dependencies]
 clap.workspace = true
+committer = { path = "../committer" }
+serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

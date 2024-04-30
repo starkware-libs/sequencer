@@ -49,4 +49,4 @@ impl From<u128> for NodeIndex {
 
 #[allow(dead_code)]
 #[derive(Debug, Eq, PartialEq, derive_more::Sub)]
-pub(crate) struct TreeHeight(pub u8);
+pub struct TreeHeight(pub u8);

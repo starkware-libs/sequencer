@@ -6,14 +6,14 @@ use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 // TODO(Nimrod, 1/6/2024): Swap to starknet-types-core types once implemented.
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct ClassHash(pub Felt);
+pub struct ClassHash(pub Felt);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct Nonce(pub Felt);
+pub struct Nonce(pub Felt);
 
 #[allow(dead_code)]
 #[derive(Debug, Eq, PartialEq)]
-pub(crate) struct CompiledClassHash(pub Felt);
+pub struct CompiledClassHash(pub Felt);
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq)]

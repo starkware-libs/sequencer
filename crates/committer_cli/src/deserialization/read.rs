@@ -1,6 +1,7 @@
+use committer::storage::errors::DeserializationError;
+
 use crate::deserialization::types::Input;
 use crate::deserialization::types::RawInput;
-use crate::storage::errors::DeserializationError;
 
 #[cfg(test)]
 #[path = "read_test.rs"]

@@ -1,17 +1,22 @@
+use committer::{
+    felt::Felt,
+    hash::hash_trait::HashOutput,
+    patricia_merkle_tree::{
+        filled_tree::node::{ClassHash, CompiledClassHash, Nonce},
+        types::TreeHeight,
+    },
+    storage::{
+        errors::DeserializationError,
+        storage_trait::{StorageKey, StorageValue},
+    },
+};
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 
+use super::parse_input;
 use crate::deserialization::types::{
     ContractAddress, ContractState, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
 };
-use crate::felt::Felt;
-use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
-use crate::patricia_merkle_tree::types::TreeHeight;
-use crate::storage::errors::DeserializationError;
-use crate::storage::storage_trait::{StorageKey, StorageValue};
-
-use super::parse_input;
 
 #[test]
 fn test_simple_input_parsing() {

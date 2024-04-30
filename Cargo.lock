@@ -215,7 +215,9 @@ name = "committer_cli"
 version = "0.1.0-rc.0"
 dependencies = [
  "clap",
+ "committer",
  "pretty_assertions",
+ "serde",
  "serde_json",
  "thiserror",
 ]

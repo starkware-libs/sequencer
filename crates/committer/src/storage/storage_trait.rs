@@ -3,11 +3,11 @@ use std::collections::HashMap;
 
 #[allow(dead_code)]
 #[derive(Debug, Eq, Hash, PartialEq)]
-pub(crate) struct StorageKey(pub(crate) Vec<u8>);
+pub struct StorageKey(pub Vec<u8>);
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct StorageValue(pub(crate) Vec<u8>);
+pub struct StorageValue(pub Vec<u8>);
 
 pub(crate) trait Storage {
     /// Returns value from storage, if it exists.

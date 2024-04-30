@@ -1,8 +1,8 @@
-use crate::felt::Felt;
-use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
-use crate::patricia_merkle_tree::types::TreeHeight;
-use crate::storage::storage_trait::{StorageKey, StorageValue};
+use committer::felt::Felt;
+use committer::hash::hash_trait::HashOutput;
+use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
+use committer::patricia_merkle_tree::types::TreeHeight;
+use committer::storage::storage_trait::{StorageKey, StorageValue};
 use serde::Deserialize;
 use std::collections::HashMap;
 

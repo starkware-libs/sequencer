@@ -3,7 +3,7 @@ use crate::felt::Felt;
 pub(crate) struct HashInputPair(pub Felt, pub Felt);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub(crate) struct HashOutput(pub Felt);
+pub struct HashOutput(pub Felt);
 
 #[allow(dead_code)]
 impl HashOutput {
