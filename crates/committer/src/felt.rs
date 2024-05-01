@@ -85,7 +85,7 @@ impl Felt {
         Ok(StarknetTypesFelt::from_hex(hex_string)?.into())
     }
 
-    pub(crate) fn as_bytes(&self) -> [u8; 32] {
+    pub fn as_bytes(&self) -> [u8; 32] {
         self.0.to_bytes_be()
     }
 }
