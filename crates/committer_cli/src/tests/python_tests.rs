@@ -2,8 +2,9 @@ use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
 use committer::hash::hash_trait::{HashFunction, HashInputPair};
 use committer::hash::pedersen::PedersenHashFunction;
-use committer::patricia_merkle_tree::filled_tree::node::FilledNode;
-use committer::patricia_merkle_tree::node_data::inner_node::{BinaryData, NodeData};
+use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, FilledNode, Nonce};
+use committer::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
+use committer::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use committer::storage::serde_trait::Serializable;
 use std::collections::HashMap;
 use thiserror;
@@ -14,6 +15,7 @@ pub(crate) enum PythonTest {
     FeltSerialize,
     HashFunction,
     BinarySerialize,
+    NodeKey,
 }
 
 /// Error type for PythonTest enum.
@@ -37,6 +39,7 @@ impl TryFrom<String> for PythonTest {
             "felt_serialize_test" => Ok(Self::FeltSerialize),
             "hash_function_test" => Ok(Self::HashFunction),
             "binary_serialize_test" => Ok(Self::BinarySerialize),
+            "node_db_key_test" => Ok(Self::NodeKey),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -62,6 +65,7 @@ impl PythonTest {
                 let binary_input: HashMap<String, u128> = serde_json::from_str(input)?;
                 Ok(test_binary_serialize_test(binary_input))
             }
+            Self::NodeKey => Ok(test_node_db_key()),
         }
     }
 }
@@ -142,4 +146,82 @@ pub(crate) fn test_binary_serialize_test(binary_input: HashMap<String, u128>) ->
     // Serialize the map to a JSON string and handle serialization errors.
     serde_json::to_string(&map)
         .unwrap_or_else(|error| panic!("Failed to serialize binary fact: {}", error))
+}
+
+/// Creates and serializes storage keys for different node types.
+///
+/// This function generates and serializes storage keys for various node types, including binary nodes,
+/// edge nodes, storage leaf nodes, state tree leaf nodes, and compiled class leaf nodes. The resulting
+/// keys are stored in a `HashMap` and serialized into a JSON string.
+///
+/// # Returns
+///
+/// A JSON string representing the serialized storage keys for different node types.
+///
+pub(crate) fn test_node_db_key() -> String {
+    let zero = Felt::ZERO;
+
+    // Generate keys for different node types.
+    let hash = HashOutput(zero);
+
+    let binary_node_key = FilledNode {
+        data: NodeData::Binary(BinaryData {
+            left_hash: hash,
+            right_hash: hash,
+        }),
+        hash,
+    }
+    .db_key()
+    .0;
+
+    let edge_node_key = FilledNode {
+        data: NodeData::Edge(EdgeData {
+            bottom_hash: hash,
+            path_to_bottom: Default::default(),
+        }),
+        hash,
+    }
+    .db_key()
+    .0;
+
+    let storage_leaf_key = FilledNode {
+        data: NodeData::Leaf(LeafDataImpl::StorageValue(zero)),
+        hash,
+    }
+    .db_key()
+    .0;
+
+    let state_tree_leaf_key = FilledNode {
+        data: NodeData::Leaf(LeafDataImpl::StateTreeTuple {
+            class_hash: ClassHash(zero),
+            contract_state_root_hash: zero,
+            nonce: Nonce(zero),
+        }),
+        hash,
+    }
+    .db_key()
+    .0;
+
+    let compiled_class_leaf_key = FilledNode {
+        data: NodeData::Leaf(LeafDataImpl::CompiledClassHash(ClassHash(zero))),
+        hash,
+    }
+    .db_key()
+    .0;
+
+    // Store keys in a HashMap.
+    let mut map: HashMap<String, Vec<u8>> = HashMap::new();
+
+    map.insert("binary_node_key".to_string(), binary_node_key);
+    map.insert("edge_node_key".to_string(), edge_node_key);
+    map.insert("storage_leaf_key".to_string(), storage_leaf_key);
+    map.insert("state_tree_leaf_key".to_string(), state_tree_leaf_key);
+    map.insert(
+        "compiled_class_leaf_key".to_string(),
+        compiled_class_leaf_key,
+    );
+
+    // Serialize the map to a JSON string and handle serialization errors.
+    serde_json::to_string(&map)
+        .unwrap_or_else(|error| panic!("Failed to serialize storage prefix: {}", error))
 }

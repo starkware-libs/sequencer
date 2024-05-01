@@ -18,21 +18,21 @@ pub struct BinaryData {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub(crate) struct EdgePath(pub Felt);
+pub struct EdgePath(pub Felt);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub(crate) struct EdgePathLength(pub u8);
+pub struct EdgePathLength(pub u8);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub(crate) struct PathToBottom {
+pub struct PathToBottom {
     pub path: EdgePath,
     pub length: EdgePathLength,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct EdgeData {
-    pub(crate) bottom_hash: HashOutput,
-    pub(crate) path_to_bottom: PathToBottom,
+    pub bottom_hash: HashOutput,
+    pub path_to_bottom: PathToBottom,
 }
 
 impl PathToBottom {
