@@ -11,7 +11,7 @@ use papyrus_config::loading::load_and_process_config;
 use papyrus_config::ParamPrivacyInput;
 use papyrus_config::{ConfigError, ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_gateway::GatewayConfig;
+use starknet_gateway::config::GatewayConfig;
 use validator::{Validate, ValidationError};
 
 use crate::version::VERSION_FULL;

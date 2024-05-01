@@ -1,7 +1,12 @@
 {
-    "bind_address": {
-        "description": "IP:PORT of the gateway.",
-        "value": "0.0.0.0:8080",
+    "ip": {
+        "description": "The gateway server ip.",
+        "value": "0.0.0.0",
         "privacy": "Public"
-    }   
+    },
+    "port": {
+        "description": "The gateway server port.",
+        "value": 8080,
+        "privacy": "Public"
+    }
 }

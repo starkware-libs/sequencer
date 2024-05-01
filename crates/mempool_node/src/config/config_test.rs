@@ -1,5 +1,5 @@
 #![allow(unused_imports)]
-use crate::config::node_command;
+use crate::config::{node_command, GatewayConfig};
 use crate::config::{ComponentConfig, ComponentExecutionConfig, MempoolNodeConfig};
 use assert_matches::assert_matches;
 use papyrus_config::dumping::SerializeConfig;
@@ -7,7 +7,6 @@ use papyrus_config::loading::load_and_process_config;
 use papyrus_config::presentation::get_config_presentation;
 use papyrus_config::validators::ParsedValidationErrors;
 use papyrus_config::{SerializationType, SerializedContent, SerializedParam};
-use starknet_gateway::GatewayConfig;
 use std::env::{self, args};
 use std::fs::File;
 use std::ops::IndexMut;
@@ -31,7 +30,8 @@ fn test_valid_config() {
             mempool_component: ComponentExecutionConfig { execute: false },
         },
         gateway_config: GatewayConfig {
-            bind_address: String::from("0.0.0.0:8080"),
+            ip: "0.0.0.0".parse().unwrap(),
+            port: 8080,
         },
     };
     let loaded_config = get_config_file(CONFIG_FILE).unwrap();

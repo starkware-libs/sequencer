@@ -9,9 +9,14 @@
         "value": false,
         "privacy": "Public"
     },
-    "gateway_config.bind_address": {
-        "description": "The server bind addres of a gateway.",
-        "value": "0.0.0.0:8080",
+    "gateway_config.ip": {
+        "description": "The gateway server ip.",
+        "value": "0.0.0.0",
+        "privacy": "Public"
+    },
+    "gateway_config.port": {
+        "description": "The gateway server port.",
+        "value": 8080,
         "privacy": "Public"
     }
 }
