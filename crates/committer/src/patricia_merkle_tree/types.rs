@@ -1,6 +1,8 @@
 use crate::felt::Felt;
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
 
+use ethnum::U256;
+
 #[cfg(test)]
 #[path = "types_test.rs"]
 pub mod types_test;
@@ -19,12 +21,13 @@ pub mod types_test;
     PartialOrd,
     Ord,
 )]
-pub(crate) struct NodeIndex(pub Felt);
+pub(crate) struct NodeIndex(pub U256);
 
 #[allow(dead_code)]
+// Wraps a U256. Maximal possible value is the largest index in a tree of height 251 (2 ^ 252 - 1).
 impl NodeIndex {
     pub(crate) fn root_index() -> NodeIndex {
-        NodeIndex(Felt::ONE)
+        NodeIndex(U256::ONE)
     }
 
     // TODO(Amos, 1/5/2024): Move to EdgePath.
@@ -33,17 +36,41 @@ impl NodeIndex {
         path_to_bottom: &PathToBottom,
     ) -> NodeIndex {
         let PathToBottom { path, length } = path_to_bottom;
-        index.times_two_to_the_power(length.0) + NodeIndex(path.0)
+        (index << length.0) + NodeIndex::from(path.0)
     }
 
-    pub(crate) fn times_two_to_the_power(&self, power: u8) -> Self {
-        NodeIndex(self.0.times_two_to_the_power(power))
+    pub(crate) fn bit_length(&self) -> u8 {
+        (U256::BITS - self.0.leading_zeros())
+            .try_into()
+            .expect("Failed to convert to u8.")
+    }
+}
+
+impl std::ops::Shl<u8> for NodeIndex {
+    type Output = Self;
+
+    fn shl(self, rhs: u8) -> Self::Output {
+        NodeIndex(self.0 << rhs)
+    }
+}
+
+impl std::ops::Shr<u8> for NodeIndex {
+    type Output = Self;
+
+    fn shr(self, rhs: u8) -> Self::Output {
+        NodeIndex(self.0 >> rhs)
     }
 }
 
 impl From<u128> for NodeIndex {
     fn from(value: u128) -> Self {
-        Self(Felt::from(value))
+        Self(U256::from(value))
+    }
+}
+
+impl From<Felt> for NodeIndex {
+    fn from(value: Felt) -> Self {
+        Self(U256::from_be_bytes(value.to_bytes_be()))
     }
 }
 

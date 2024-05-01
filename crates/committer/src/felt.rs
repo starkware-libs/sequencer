@@ -72,10 +72,6 @@ impl Felt {
             .expect("Unexpected error occurred when extracting bits of a Felt.")
     }
 
-    pub(crate) fn times_two_to_the_power(&self, power: u8) -> Self {
-        *self * Felt::TWO.pow(power)
-    }
-
     pub fn to_bytes_be(self) -> [u8; 32] {
         self.0.to_bytes_be()
     }

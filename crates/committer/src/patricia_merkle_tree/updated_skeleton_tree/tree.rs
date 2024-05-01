@@ -1,9 +1,10 @@
+use ethnum::U256;
+
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use async_recursion::async_recursion;
 
-use crate::felt::Felt;
 use crate::hash::hash_trait::{HashFunction, HashOutput};
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use crate::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
@@ -113,8 +114,8 @@ impl<L: LeafData + std::clone::Clone + std::marker::Sync + std::marker::Send>
         let node = self.get_node(index)?;
         match node {
             UpdatedSkeletonNode::Binary => {
-                let left_index = NodeIndex(index.0 * Felt::TWO);
-                let right_index = NodeIndex(left_index.0 + Felt::ONE);
+                let left_index = index * 2;
+                let right_index = left_index + NodeIndex(U256::ONE);
 
                 let (left_hash, right_hash) = tokio::join!(
                     self.compute_filled_tree_rec::<H, TH>(left_index, Arc::clone(&output_map)),

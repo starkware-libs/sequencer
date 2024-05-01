@@ -17,6 +17,7 @@ rstest.workspace = true
 async-recursion.workspace = true
 bisection.workspace = true
 derive_more.workspace = true
+ethnum.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true

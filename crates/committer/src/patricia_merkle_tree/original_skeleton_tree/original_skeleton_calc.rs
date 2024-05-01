@@ -20,6 +20,7 @@ use crate::storage::storage_trait::Storage;
 use crate::storage::storage_trait::StorageKey;
 use crate::storage::storage_trait::StoragePrefix;
 use bisection::{bisect_left, bisect_right};
+use ethnum::U256;
 use std::collections::HashMap;
 #[cfg(test)]
 #[path = "original_skeleton_calc_test.rs"]
@@ -39,7 +40,7 @@ struct SubTree<'a> {
 
 impl<'a> SubTree<'a> {
     pub(crate) fn get_height(&self, total_tree_height: &TreeHeight) -> TreeHeight {
-        TreeHeight(total_tree_height.0 - (self.root_index.0.bits() - 1))
+        TreeHeight(total_tree_height.0 - (self.root_index.bit_length() - 1))
     }
 
     pub(crate) fn split_leaves(
@@ -47,9 +48,8 @@ impl<'a> SubTree<'a> {
         total_tree_height: &TreeHeight,
     ) -> (&'a [NodeIndex], &'a [NodeIndex]) {
         let height = self.get_height(total_tree_height);
-        let leftmost_index_in_right_subtree = ((self.root_index.times_two_to_the_power(1))
-            + NodeIndex(Felt::ONE))
-        .times_two_to_the_power(height.0 - 1);
+        let leftmost_index_in_right_subtree =
+            ((self.root_index << 1) + NodeIndex(U256::ONE)) << (height.0 - 1);
         let mid = bisect_left(self.sorted_leaf_indices, &leftmost_index_in_right_subtree);
         (
             &self.sorted_leaf_indices[..mid],
@@ -70,10 +70,9 @@ impl<'a> SubTree<'a> {
         let bottom_index = path_to_bottom.bottom_index(self.root_index);
         let bottom_height =
             self.get_height(total_tree_height) - TreeHeight(path_to_bottom.length.0);
-        let leftmost_in_subtree = bottom_index.times_two_to_the_power(bottom_height.0);
-        let rightmost_in_subtree = leftmost_in_subtree
-            + (NodeIndex(Felt::ONE).times_two_to_the_power(bottom_height.0))
-            - NodeIndex(Felt::ONE);
+        let leftmost_in_subtree = bottom_index << bottom_height.0;
+        let rightmost_in_subtree =
+            leftmost_in_subtree + (NodeIndex(U256::ONE) << bottom_height.0) - NodeIndex(U256::ONE);
         let bottom_leaves =
             &self.sorted_leaf_indices[bisect_left(self.sorted_leaf_indices, &leftmost_in_subtree)
                 ..bisect_right(self.sorted_leaf_indices, &rightmost_in_subtree)];
@@ -92,7 +91,7 @@ impl<'a> SubTree<'a> {
         total_tree_height: &TreeHeight,
     ) -> (Self, Self) {
         let (left_leaves, right_leaves) = self.split_leaves(total_tree_height);
-        let left_root_index = self.root_index * Felt::TWO;
+        let left_root_index = self.root_index * 2;
         (
             SubTree {
                 sorted_leaf_indices: left_leaves,
@@ -101,7 +100,7 @@ impl<'a> SubTree<'a> {
             },
             SubTree {
                 sorted_leaf_indices: right_leaves,
-                root_index: left_root_index + NodeIndex(Felt::ONE),
+                root_index: left_root_index + NodeIndex(U256::ONE),
                 root_hash: right_hash,
             },
         )

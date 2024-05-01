@@ -15,12 +15,12 @@ fn test_compute_bottom_index(
     #[case] expected: u128,
 ) {
     let bottom_index = NodeIndex::compute_bottom_index(
-        NodeIndex(Felt::from(node_index)),
+        NodeIndex::from(node_index),
         &PathToBottom {
             path: EdgePath(Felt::from(path)),
             length: EdgePathLength(length),
         },
     );
-    let expected = NodeIndex(Felt::from(expected));
+    let expected = NodeIndex::from(expected);
     assert_eq!(bottom_index, expected);
 }
