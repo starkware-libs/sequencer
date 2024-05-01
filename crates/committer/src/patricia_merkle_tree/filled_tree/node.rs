@@ -18,7 +18,7 @@ pub struct CompiledClassHash(pub Felt);
 #[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 /// A node in a Patricia-Merkle tree which was modified during an update.
-pub(crate) struct FilledNode<L: LeafData> {
-    pub(crate) hash: HashOutput,
-    pub(crate) data: NodeData<L>,
+pub struct FilledNode<L: LeafData> {
+    pub hash: HashOutput,
+    pub data: NodeData<L>,
 }

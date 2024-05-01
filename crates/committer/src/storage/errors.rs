@@ -9,7 +9,7 @@ pub(crate) enum StorageError {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub(crate) enum SerializationError {
+pub enum SerializationError {
     #[error("Serialize error: {0}")]
     SerializeError(#[from] serde_json::Error),
 }

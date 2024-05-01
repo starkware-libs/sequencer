@@ -5,16 +5,16 @@ use crate::patricia_merkle_tree::types::NodeIndex;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 // A Patricia-Merkle tree node's data, i.e., the pre-image of its hash.
-pub(crate) enum NodeData<L: LeafData> {
+pub enum NodeData<L: LeafData> {
     Binary(BinaryData),
     Edge(EdgeData),
     Leaf(L),
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct BinaryData {
-    pub(crate) left_hash: HashOutput,
-    pub(crate) right_hash: HashOutput,
+pub struct BinaryData {
+    pub left_hash: HashOutput,
+    pub right_hash: HashOutput,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -30,7 +30,7 @@ pub(crate) struct PathToBottom {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub(crate) struct EdgeData {
+pub struct EdgeData {
     pub(crate) bottom_hash: HashOutput,
     pub(crate) path_to_bottom: PathToBottom,
 }

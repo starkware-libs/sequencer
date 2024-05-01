@@ -50,7 +50,7 @@ impl std::ops::Mul for Felt {
 
 #[allow(dead_code)]
 impl Felt {
-    pub(crate) const ZERO: Felt = Felt(StarknetTypesFelt::ZERO);
+    pub const ZERO: Felt = Felt(StarknetTypesFelt::ZERO);
     pub(crate) const ONE: Felt = Felt(StarknetTypesFelt::ONE);
     pub(crate) const TWO: Felt = Felt(StarknetTypesFelt::TWO);
     pub(crate) const THREE: Felt = Felt(StarknetTypesFelt::THREE);

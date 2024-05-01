@@ -1,14 +1,14 @@
 use crate::felt::Felt;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
 
-pub(crate) trait LeafData {
+pub trait LeafData {
     /// Returns true if leaf is empty.
     fn is_empty(&self) -> bool;
 }
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum LeafDataImpl {
+pub enum LeafDataImpl {
     StorageValue(Felt),
     CompiledClassHash(ClassHash),
     StateTreeTuple {
