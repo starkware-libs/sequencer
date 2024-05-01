@@ -76,7 +76,7 @@ impl Felt {
         *self * Felt::TWO.pow(power)
     }
 
-    pub(crate) fn to_bytes_be(self) -> [u8; 32] {
+    pub fn to_bytes_be(self) -> [u8; 32] {
         self.0.to_bytes_be()
     }
 
