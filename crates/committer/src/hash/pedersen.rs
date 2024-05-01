@@ -2,7 +2,7 @@ use starknet_types_core::hash::{Pedersen, StarkHash};
 
 use crate::hash::hash_trait::{HashFunction, HashInputPair, HashOutput};
 
-pub(crate) struct PedersenHashFunction;
+pub struct PedersenHashFunction;
 
 impl HashFunction for PedersenHashFunction {
     fn compute_hash(i: HashInputPair) -> HashOutput {
