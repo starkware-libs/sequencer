@@ -23,8 +23,8 @@ use bisection::{bisect_left, bisect_right};
 use ethnum::U256;
 use std::collections::HashMap;
 #[cfg(test)]
-#[path = "original_skeleton_calc_test.rs"]
-pub mod original_skeleton_calc_test;
+#[path = "create_tree_test.rs"]
+pub mod create_tree_test;
 
 #[allow(dead_code)]
 pub(crate) struct OriginalSkeletonTreeImpl {

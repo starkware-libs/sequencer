@@ -2,7 +2,7 @@ use crate::tests::python_tests::PythonTest;
 use clap::{Args, Parser, Subcommand};
 use std::path::Path;
 
-pub mod deserialization;
+pub mod parse_input;
 pub mod tests;
 
 /// Committer CLI.

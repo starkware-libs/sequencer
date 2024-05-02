@@ -1,4 +1,4 @@
-use crate::deserialization::types::RawInput;
+use crate::parse_input::types::RawInput;
 use committer::block_committer::types::{
     ContractAddress, ContractState, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
 };

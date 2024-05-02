@@ -19,7 +19,7 @@ use committer::{
 use std::{collections::HashMap, io};
 use thiserror;
 
-use crate::deserialization::read::parse_input;
+use crate::parse_input::read::parse_input;
 
 // Enum representing different Python tests.
 pub(crate) enum PythonTest {
