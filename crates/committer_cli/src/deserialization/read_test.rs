@@ -1,4 +1,7 @@
 use committer::{
+    block_committer::types::{
+        ContractAddress, ContractState, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
+    },
     felt::Felt,
     hash::hash_trait::HashOutput,
     patricia_merkle_tree::{
@@ -14,9 +17,6 @@ use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 
 use super::parse_input;
-use crate::deserialization::types::{
-    ContractAddress, ContractState, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
-};
 
 #[test]
 fn test_simple_input_parsing() {

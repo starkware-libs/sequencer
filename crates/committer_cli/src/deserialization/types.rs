@@ -1,24 +1,6 @@
-use committer::felt::Felt;
-use committer::hash::hash_trait::HashOutput;
-use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
-use committer::patricia_merkle_tree::types::TreeHeight;
-use committer::storage::storage_trait::{StorageKey, StorageValue};
 use serde::Deserialize;
-use std::collections::HashMap;
 
 type RawFelt = [u8; 32];
-
-#[derive(Debug, PartialEq, Eq, Hash)]
-// TODO(Nimrod, 1/6/2024): Swap to starknet-types-core types once implemented.
-pub(crate) struct ContractAddress(pub Felt);
-
-#[derive(Debug, PartialEq, Eq, Hash)]
-// TODO(Nimrod, 1/6/2024): Swap to starknet-types-core types once implemented.
-pub(crate) struct StarknetStorageKey(pub Felt);
-
-#[allow(dead_code)]
-#[derive(Debug, Eq, PartialEq)]
-pub(crate) struct StarknetStorageValue(pub Felt);
 
 #[derive(Deserialize, Debug)]
 #[allow(dead_code)]
@@ -32,14 +14,6 @@ pub(crate) struct RawInput {
     // TODO(Nimrod,20/4/2024): Strong assumption - all trees have same height. How can I get
     // rid of it?
     pub tree_height: u8,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Eq, PartialEq)]
-pub(crate) struct Input {
-    pub storage: HashMap<StorageKey, StorageValue>,
-    pub state_diff: StateDiff,
-    pub tree_height: TreeHeight,
 }
 
 #[derive(Deserialize, Debug)]
@@ -90,23 +64,4 @@ pub(crate) struct RawStateDiff {
     pub storage_updates: Vec<RawStorageUpdates>,
     /// Will be casted to HashMap<Felt, ContractState>.
     pub current_contract_state_leaves: Vec<RawContractStateLeaf>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Eq, PartialEq)]
-pub(crate) struct StateDiff {
-    pub address_to_class_hash: HashMap<ContractAddress, ClassHash>,
-    pub address_to_nonce: HashMap<ContractAddress, Nonce>,
-    pub class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
-    pub current_contract_state_leaves: HashMap<ContractAddress, ContractState>,
-    pub storage_updates:
-        HashMap<ContractAddress, HashMap<StarknetStorageKey, StarknetStorageValue>>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Eq, PartialEq)]
-pub(crate) struct ContractState {
-    pub nonce: Nonce,
-    pub storage_root_hash: HashOutput,
-    pub class_hash: ClassHash,
 }

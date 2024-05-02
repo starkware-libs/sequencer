@@ -1,6 +1,5 @@
-use committer::storage::errors::DeserializationError;
+use committer::{block_committer::types::Input, storage::errors::DeserializationError};
 
-use crate::deserialization::types::Input;
 use crate::deserialization::types::RawInput;
 
 #[cfg(test)]

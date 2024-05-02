@@ -1,3 +1,6 @@
+use committer::block_committer::types::{
+    ContractAddress, ContractState, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
+};
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
 use committer::hash::hash_trait::{HashFunction, HashInputPair};
@@ -16,12 +19,7 @@ use committer::{
 use std::{collections::HashMap, io};
 use thiserror;
 
-use crate::deserialization::{
-    read::parse_input,
-    types::{
-        ContractAddress, ContractState, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
-    },
-};
+use crate::deserialization::read::parse_input;
 
 // Enum representing different Python tests.
 pub(crate) enum PythonTest {

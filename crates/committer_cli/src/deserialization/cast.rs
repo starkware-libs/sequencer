@@ -1,3 +1,7 @@
+use crate::deserialization::types::RawInput;
+use committer::block_committer::types::{
+    ContractAddress, ContractState, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
+};
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
 use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
@@ -5,10 +9,6 @@ use committer::patricia_merkle_tree::types::TreeHeight;
 use committer::storage::errors::DeserializationError;
 use committer::storage::storage_trait::{StorageKey, StorageValue};
 
-use crate::deserialization::types::{ContractAddress, ContractState};
-use crate::deserialization::types::{
-    Input, RawInput, StarknetStorageKey, StarknetStorageValue, StateDiff,
-};
 use std::collections::HashMap;
 
 impl TryFrom<RawInput> for Input {
