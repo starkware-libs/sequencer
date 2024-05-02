@@ -1,13 +1,13 @@
-use crate::gateway::add_transaction;
-use axum::{
-    body::{Bytes, HttpBody},
-    response::{IntoResponse, Response},
-};
+use axum::body::{Bytes, HttpBody};
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use pretty_assertions::assert_str_eq;
 use rstest::rstest;
 use starknet_api::external_transaction::ExternalTransaction;
 use std::fs::File;
 use std::path::Path;
+
+use crate::gateway::add_transaction;
 
 const TEST_FILES_FOLDER: &str = "./tests/fixtures";
 
@@ -26,8 +26,11 @@ async fn test_add_transaction(#[case] json_file_path: &Path, #[case] expected_re
     let tx: ExternalTransaction = serde_json::from_reader(json_file).unwrap();
 
     let response = add_transaction(tx.into()).await.into_response();
-    let response_bytes = &to_bytes(response).await;
 
+    let status_code = response.status();
+    assert_eq!(status_code, StatusCode::OK);
+
+    let response_bytes = &to_bytes(response).await;
     assert_str_eq!(&String::from_utf8_lossy(response_bytes), expected_response);
 }
 

@@ -1,3 +1,5 @@
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use blockifier::{
     blockifier::stateful_validator::StatefulValidatorError,
     transaction::errors::TransactionExecutionError,
@@ -20,6 +22,15 @@ pub enum GatewayError {
     InvalidTransactionFormat(#[from] serde_json::Error),
     #[error("Error while starting the server")]
     ServerStartError(#[from] hyper::Error),
+}
+
+impl IntoResponse for GatewayError {
+    // TODO(Arni, 1/5/2024): Be more fine tuned about the error response. Not all Gateway errors
+    // are internal server errors.
+    fn into_response(self) -> Response {
+        let body = self.to_string();
+        (StatusCode::INTERNAL_SERVER_ERROR, body).into_response()
+    }
 }
 
 #[derive(Debug, Error)]
