@@ -15,9 +15,12 @@ use crate::storage::storage_trait::StorageKey;
 pub(crate) trait FilledTree<L: LeafData> {
     /// Serializes the tree into storage. Returns hash set of keys of the serialized nodes,
     /// if successful.
+    #[allow(dead_code)]
     fn serialize(&self, storage: &mut impl Storage)
         -> Result<HashSet<StorageKey>, FilledTreeError>;
+    #[allow(dead_code)]
     fn get_all_nodes(&self) -> &HashMap<NodeIndex, FilledNode<L>>;
+    #[allow(dead_code)]
     fn get_root_hash(&self) -> Result<HashOutput, FilledTreeError>;
 }
 
@@ -26,6 +29,7 @@ pub(crate) struct FilledTreeImpl<L: LeafData> {
 }
 
 impl<L: LeafData> FilledTreeImpl<L> {
+    #[allow(dead_code)]
     pub(crate) fn new(tree_map: HashMap<NodeIndex, FilledNode<L>>) -> Self {
         Self { tree_map }
     }

@@ -236,6 +236,7 @@ impl OriginalSkeletonTree<LeafDataImpl> for OriginalSkeletonTreeImpl {
         Ok(skeleton_tree)
     }
 
+    #[allow(dead_code)]
     fn compute_updated_skeleton_tree(
         &self,
         _index_to_updated_leaf: HashMap<NodeIndex, LeafDataImpl>,

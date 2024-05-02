@@ -27,6 +27,7 @@ pub mod tree_test;
 /// to the root.
 pub(crate) trait UpdatedSkeletonTree<L: LeafData + std::clone::Clone> {
     /// Computes and returns the filled tree.
+    #[allow(dead_code)]
     async fn compute_filled_tree<H: HashFunction, TH: TreeHashFunction<L, H>>(
         &self,
     ) -> Result<impl FilledTree<L>, UpdatedSkeletonTreeError<L>>;
@@ -106,11 +107,15 @@ impl<L: LeafData + std::clone::Clone + std::marker::Sync + std::marker::Send>
     }
 
     #[async_recursion]
-    async fn compute_filled_tree_rec<H: HashFunction, TH: TreeHashFunction<L, H>>(
+    async fn compute_filled_tree_rec<H, TH>(
         &self,
         index: NodeIndex,
         output_map: Arc<HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>>>,
-    ) -> Result<HashOutput, UpdatedSkeletonTreeError<L>> {
+    ) -> Result<HashOutput, UpdatedSkeletonTreeError<L>>
+    where
+        H: HashFunction,
+        TH: TreeHashFunction<L, H>,
+    {
         let node = self.get_node(index)?;
         match node {
             UpdatedSkeletonNode::Binary => {

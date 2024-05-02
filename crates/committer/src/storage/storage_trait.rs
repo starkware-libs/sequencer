@@ -15,16 +15,20 @@ pub(crate) trait Storage {
 
     /// Sets value in storage. If key already exists, its value is overwritten and the old value is
     /// returned.
+    #[allow(dead_code)]
     fn set(&mut self, key: StorageKey, value: StorageValue) -> Option<StorageValue>;
 
     /// Returns values from storage in same order of given keys. Value is None for keys that do not
     /// exist.
+    #[allow(dead_code)]
     fn mget(&self, keys: &[StorageKey]) -> Vec<Option<&StorageValue>>;
 
     /// Sets values in storage.
+    #[allow(dead_code)]
     fn mset(&mut self, key_to_value: HashMap<StorageKey, StorageValue>);
 
     /// Deletes value from storage and returns its value if it exists. Returns None if not.
+    #[allow(dead_code)]
     fn delete(&mut self, key: &StorageKey) -> Option<StorageValue>;
 }
 
