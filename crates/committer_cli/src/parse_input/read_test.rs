@@ -97,7 +97,10 @@ fn test_simple_input_parsing() {
 
         ]
     ],
-    78
+    78,
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 19],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]
+
 ]
 
 "#;
@@ -254,6 +257,8 @@ fn test_simple_input_parsing() {
     )]);
 
     let expected_tree_height = TreeHeight(78);
+    let expected_global_tree_root_hash = HashOutput(Felt::from(19_u128));
+    let expected_classes_tree_root_hash = HashOutput(Felt::from(256_u128));
     let expected_input = Input {
         storage: expected_storage,
         state_diff: StateDiff {
@@ -264,6 +269,8 @@ fn test_simple_input_parsing() {
             storage_updates: expected_storage_updates,
         },
         tree_height: expected_tree_height,
+        global_tree_root_hash: expected_global_tree_root_hash,
+        classes_tree_root_hash: expected_classes_tree_root_hash,
     };
     assert_eq!(parse_input(input.to_string()).unwrap(), expected_input);
 }
@@ -289,7 +296,9 @@ fn test_input_parsing_with_storage_key_duplicate() {
         [],
         []
     ],
-    78
+    78,
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 222, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 3]
 ]
 
 "#;
@@ -330,7 +339,9 @@ fn test_input_parsing_with_mapping_key_duplicate() {
         [],
         []
     ],
-    78
+    78,
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 144, 0, 0, 0, 0, 0, 0, 0, 0, 5],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 222, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 3]
 ]
 
 "#;
@@ -363,7 +374,10 @@ fn test_input_parsing_with_invalid_tree_size() {
         [],
         []
     ],
-    333
+    333,
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5],
+    [0, 0, 0, 0, 0, 0, 0, 0, 112, 0, 0, 0, 0, 0, 222, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 3]
+
 ]
 
 "#;

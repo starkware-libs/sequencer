@@ -14,6 +14,8 @@ pub(crate) struct RawInput {
     // TODO(Nimrod,20/4/2024): Strong assumption - all trees have same height. How can I get
     // rid of it?
     pub tree_height: u8,
+    pub global_tree_root_hash: RawFelt,
+    pub classes_tree_root_hash: RawFelt,
 }
 
 #[derive(Deserialize, Debug)]
