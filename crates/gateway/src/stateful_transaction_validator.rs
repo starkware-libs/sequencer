@@ -16,6 +16,10 @@ use crate::errors::StatefulTransactionValidatorError;
 use crate::errors::StatefulTransactionValidatorResult;
 use crate::utils::external_tx_to_account_tx;
 
+#[cfg(test)]
+#[path = "stateful_transaction_validator_test.rs"]
+mod stateful_transaction_validator_test;
+
 pub struct StatefulTransactionValidator {
     pub config: StatefulTransactionValidatorConfig,
 }
