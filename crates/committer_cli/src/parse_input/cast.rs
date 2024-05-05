@@ -1,4 +1,4 @@
-use crate::parse_input::types::RawInput;
+use crate::parse_input::raw_input::RawInput;
 use committer::block_committer::input::{
     ContractAddress, ContractState, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
 };
