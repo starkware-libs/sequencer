@@ -13,7 +13,6 @@ async-trait.workspace = true
 clap.workspace = true
 const_format.workspace = true
 starknet_gateway = { path = "../gateway", version = "0.0" }
-hyper.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 starknet_api.workspace = true

@@ -12,7 +12,6 @@ workspace = true
 axum.workspace = true
 blockifier.workspace = true
 clap.workspace = true
-hyper.workspace = true
 papyrus_config.workspace = true
 reqwest.workspace = true
 serde.workspace = true

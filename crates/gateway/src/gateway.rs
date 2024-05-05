@@ -1,4 +1,3 @@
-use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use starknet_api::external_transaction::ExternalTransaction;
@@ -41,7 +40,7 @@ pub fn app() -> Router {
     // `with_state`.
 }
 
-async fn is_alive() -> impl IntoResponse {
+async fn is_alive() -> GatewayResult<String> {
     unimplemented!("Future handling should be implemented here.");
 }
 
