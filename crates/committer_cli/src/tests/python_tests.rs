@@ -1,4 +1,4 @@
-use committer::block_committer::types::{
+use committer::block_committer::input::{
     ContractAddress, ContractState, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
 };
 use committer::felt::Felt;

@@ -1,5 +1,5 @@
 use committer::{
-    block_committer::types::{
+    block_committer::input::{
         ContractAddress, ContractState, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
     },
     felt::Felt,
