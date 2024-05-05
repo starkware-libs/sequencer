@@ -5,17 +5,14 @@ use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
 use committer::hash::hash_trait::{HashFunction, HashInputPair};
 use committer::hash::pedersen::PedersenHashFunction;
+use committer::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, FilledNode, Nonce};
 use committer::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
 use committer::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
+use committer::storage::errors::DeserializationError;
+use committer::storage::map_storage::MapStorage;
 use committer::storage::serde_trait::Serializable;
-use committer::{
-    patricia_merkle_tree::filled_tree::node::CompiledClassHash,
-    storage::{
-        errors::DeserializationError,
-        storage_trait::{StorageKey, StorageValue},
-    },
-};
+use committer::storage::storage_trait::{Storage, StorageKey, StorageValue};
 use std::{collections::HashMap, io};
 use thiserror;
 
@@ -29,6 +26,7 @@ pub(crate) enum PythonTest {
     BinarySerialize,
     InputParsing,
     NodeKey,
+    StorageSerialize,
 }
 
 /// Error type for PythonTest enum.
@@ -58,6 +56,7 @@ impl TryFrom<String> for PythonTest {
             "binary_serialize_test" => Ok(Self::BinarySerialize),
             "input_parsing" => Ok(Self::InputParsing),
             "node_db_key_test" => Ok(Self::NodeKey),
+            "storage_serialize_test" => Ok(Self::StorageSerialize),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -84,6 +83,7 @@ impl PythonTest {
                 Ok(test_binary_serialize_test(binary_input))
             }
             Self::InputParsing => parse_input_test(),
+            Self::StorageSerialize => storage_serialize_test(),
             Self::NodeKey => Ok(test_node_db_key()),
         }
     }
@@ -397,4 +397,21 @@ pub(crate) fn test_node_db_key() -> String {
     // Serialize the map to a JSON string and handle serialization errors.
     serde_json::to_string(&map)
         .unwrap_or_else(|error| panic!("Failed to serialize storage prefix: {}", error))
+}
+
+/// This function storage_serialize_test generates a MapStorage containing StorageKey and StorageValue
+/// pairs for u128 values in the range 0..=1000,
+/// serializes it to a JSON string using Serde,
+/// and returns the serialized JSON string or panics with an error message if serialization fails.
+pub(crate) fn storage_serialize_test() -> Result<String, PythonTestError> {
+    let mut storage = MapStorage {
+        storage: HashMap::new(),
+    };
+    for i in 0..=99_u128 {
+        let key = StorageKey(Felt::from(i).as_bytes().to_vec());
+        let value = StorageValue(Felt::from(i).as_bytes().to_vec());
+        storage.set(key, value);
+    }
+
+    serde_json::to_string(&storage).map_err(PythonTestError::from)
 }

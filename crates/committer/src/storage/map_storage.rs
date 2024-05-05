@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
 use crate::storage::storage_trait::{Storage, StorageKey, StorageValue};
+use serde::Serialize;
 
-pub(crate) struct MapStorage {
-    storage: HashMap<StorageKey, StorageValue>,
+#[derive(Serialize, Debug)]
+pub struct MapStorage {
+    pub storage: HashMap<StorageKey, StorageValue>,
 }
 
 impl Storage for MapStorage {

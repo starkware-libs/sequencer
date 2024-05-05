@@ -1,3 +1,5 @@
+use serde::{Serialize, Serializer};
+
 use crate::felt::Felt;
 use std::collections::HashMap;
 
@@ -6,10 +8,10 @@ use std::collections::HashMap;
 pub struct StorageKey(pub Vec<u8>);
 
 #[allow(dead_code)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct StorageValue(pub Vec<u8>);
 
-pub(crate) trait Storage {
+pub trait Storage {
     /// Returns value from storage, if it exists.
     fn get(&self, key: &StorageKey) -> Option<&StorageValue>;
 
@@ -54,6 +56,20 @@ impl StoragePrefix {
 impl From<Felt> for StorageKey {
     fn from(value: Felt) -> Self {
         StorageKey(value.to_bytes_be().to_vec())
+    }
+}
+
+/// To send storage to Python storage, it is necessary to serialize it.
+impl Serialize for StorageKey {
+    /// Serializes `StorageKey` to hexadecimal string representation.
+    /// Needed since serde's Serialize derive attribute only works on
+    /// HashMaps with String keys.
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // Convert Vec<u8> to hexadecimal string representation and serialize it.
+        serializer.serialize_str(&hex::encode(&self.0))
     }
 }
 
