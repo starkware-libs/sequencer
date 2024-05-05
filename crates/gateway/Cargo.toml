@@ -14,11 +14,13 @@ blockifier.workspace = true
 clap.workspace = true
 hyper.workspace = true
 papyrus_config.workspace = true
+reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
 tower.workspace = true
+url.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
