@@ -49,6 +49,7 @@ impl NodeIndex {
 impl std::ops::Shl<u8> for NodeIndex {
     type Output = Self;
 
+    /// Returns the index of the left descendant (child for rhs=1) of the node.
     fn shl(self, rhs: u8) -> Self::Output {
         NodeIndex(self.0 << rhs)
     }
@@ -57,6 +58,7 @@ impl std::ops::Shl<u8> for NodeIndex {
 impl std::ops::Shr<u8> for NodeIndex {
     type Output = Self;
 
+    /// Returns the index of the ancestor (parent for rhs=1) of the node.
     fn shr(self, rhs: u8) -> Self::Output {
         NodeIndex(self.0 >> rhs)
     }
