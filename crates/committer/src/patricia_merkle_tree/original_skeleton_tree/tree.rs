@@ -21,7 +21,9 @@ pub(crate) trait OriginalSkeletonTree<L: LeafData + std::clone::Clone> {
         leaf_indices: &[NodeIndex],
         root_hash: HashOutput,
         tree_height: TreeHeight,
-    ) -> OriginalSkeletonTreeResult<impl OriginalSkeletonTree<L>>;
+    ) -> OriginalSkeletonTreeResult<Self>
+    where
+        Self: std::marker::Sized;
 
     #[allow(dead_code)]
     /// Computes and returns updated skeleton tree.
