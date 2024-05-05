@@ -99,7 +99,7 @@ impl TryFrom<RawInput> for Input {
                 current_contract_state_leaves,
                 storage_updates,
             },
-            tree_height: TreeHeight(raw_input.tree_height),
+            tree_heights: TreeHeight(raw_input.tree_heights),
             global_tree_root_hash: HashOutput(Felt::from_bytes_be_slice(
                 &raw_input.global_tree_root_hash,
             )),

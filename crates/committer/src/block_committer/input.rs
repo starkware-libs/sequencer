@@ -42,8 +42,10 @@ pub struct ContractState {
 #[derive(Debug, Eq, PartialEq)]
 pub struct Input {
     pub storage: HashMap<StorageKey, StorageValue>,
+    /// All relevant information for the state diff commitment.
     pub state_diff: StateDiff,
-    pub tree_height: TreeHeight,
+    /// Height of class tree, contract tree and storage trees.
+    pub tree_heights: TreeHeight,
     pub global_tree_root_hash: HashOutput,
     pub classes_tree_root_hash: HashOutput,
 }

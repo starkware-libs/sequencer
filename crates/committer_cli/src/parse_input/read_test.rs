@@ -256,7 +256,7 @@ fn test_simple_input_parsing() {
         ]),
     )]);
 
-    let expected_tree_height = TreeHeight(78);
+    let expected_tree_heights = TreeHeight(78);
     let expected_global_tree_root_hash = HashOutput(Felt::from(19_u128));
     let expected_classes_tree_root_hash = HashOutput(Felt::from(256_u128));
     let expected_input = Input {
@@ -268,7 +268,7 @@ fn test_simple_input_parsing() {
             current_contract_state_leaves: expected_current_contract_state_leaves,
             storage_updates: expected_storage_updates,
         },
-        tree_height: expected_tree_height,
+        tree_heights: expected_tree_heights,
         global_tree_root_hash: expected_global_tree_root_hash,
         classes_tree_root_hash: expected_classes_tree_root_hash,
     };
