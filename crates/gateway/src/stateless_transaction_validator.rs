@@ -10,7 +10,7 @@ use crate::utils::ExternalTransactionExt;
 #[path = "stateless_transaction_validator_test.rs"]
 mod stateless_transaction_validator_test;
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct StatelessTransactionValidatorConfig {
     // If true, validates that the resource bounds are not zero.
     pub validate_non_zero_l1_gas_fee: bool,
@@ -20,6 +20,7 @@ pub struct StatelessTransactionValidatorConfig {
     pub max_signature_length: usize,
 }
 
+#[derive(Clone)]
 pub struct StatelessTransactionValidator {
     pub config: StatelessTransactionValidatorConfig,
 }
