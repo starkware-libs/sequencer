@@ -28,6 +28,12 @@ pub struct GetStorageAtParams {
     pub block_id: BlockId,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct GetClassHashAtParams {
+    pub contract_address: ContractAddress,
+    pub block_id: BlockId,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(untagged)]
 pub enum RpcResponse {

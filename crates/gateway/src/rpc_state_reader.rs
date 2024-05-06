@@ -11,8 +11,8 @@ use starknet_api::state::StorageKey;
 use url::Url;
 
 use crate::rpc_objects::{
-    BlockId, GetNonceParams, GetStorageAtParams, RpcResponse, RPC_ERROR_BLOCK_NOT_FOUND,
-    RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND,
+    BlockId, GetClassHashAtParams, GetNonceParams, GetStorageAtParams, RpcResponse,
+    RPC_ERROR_BLOCK_NOT_FOUND, RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND,
 };
 
 pub struct RpcStateReader {
@@ -112,9 +112,16 @@ impl StateReader for RpcStateReader {
         todo!()
     }
 
-    #[allow(unused_variables)]
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
-        todo!()
+        let get_class_hash_at_params = GetClassHashAtParams {
+            contract_address,
+            block_id: BlockId::Number(self.block_number),
+        };
+
+        let result = self.send_rpc_request("starknet_getClassHashAt", get_class_hash_at_params)?;
+        let class_hash: ClassHash = serde_json::from_value(result)
+            .map_err(|_| StateError::StateReadError("Bad rpc result".to_string()))?;
+        Ok(class_hash)
     }
 
     #[allow(unused_variables)]
