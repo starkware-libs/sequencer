@@ -3230,6 +3230,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "derive_more",
+ "rstest",
  "starknet_api",
  "thiserror",
  "tokio",

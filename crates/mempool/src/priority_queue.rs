@@ -1,7 +1,3 @@
-#[cfg(test)]
-#[path = "priority_queue_test.rs"]
-pub mod priority_queue_test;
-
 use starknet_api::{
     internal_transaction::InternalTransaction,
     transaction::{DeclareTransaction, DeployAccountTransaction, InvokeTransaction, Tip},
@@ -15,22 +11,22 @@ use std::{cmp::Ordering, collections::BTreeSet};
 pub struct PriorityQueue(BTreeSet<PQTransaction>);
 
 impl PriorityQueue {
-    pub fn push(&mut self, tx: InternalTransaction) {
+    pub fn _push(&mut self, tx: InternalTransaction) {
         let mempool_tx = PQTransaction(tx);
         self.insert(mempool_tx);
     }
 
-    // Removes and returns the transaction with the highest tip.
-    pub fn pop(&mut self) -> Option<InternalTransaction> {
-        self.pop_last().map(|tx| tx.0)
+    // TODO(gilad): remove collect
+    pub fn pop_last_chunk(&mut self, n_txs: usize) -> Vec<InternalTransaction> {
+        (0..n_txs)
+            .filter_map(|_| self.pop_last().map(|tx| tx.0))
+            .collect()
     }
 }
 
-impl From<Vec<InternalTransaction>> for PriorityQueue {
-    fn from(transactions: Vec<InternalTransaction>) -> Self {
-        PriorityQueue(BTreeSet::from_iter(
-            transactions.into_iter().map(PQTransaction),
-        ))
+impl FromIterator<InternalTransaction> for PriorityQueue {
+    fn from_iter<I: IntoIterator<Item = InternalTransaction>>(iter: I) -> Self {
+        PriorityQueue(BTreeSet::from_iter(iter.into_iter().map(PQTransaction)))
     }
 }
 
