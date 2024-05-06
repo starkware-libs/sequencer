@@ -11,7 +11,7 @@ use std::{cmp::Ordering, collections::BTreeSet};
 pub struct PriorityQueue(BTreeSet<PQTransaction>);
 
 impl PriorityQueue {
-    pub fn _push(&mut self, tx: InternalTransaction) {
+    pub fn push(&mut self, tx: InternalTransaction) {
         let mempool_tx = PQTransaction(tx);
         self.insert(mempool_tx);
     }

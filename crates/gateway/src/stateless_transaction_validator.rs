@@ -4,7 +4,6 @@ use starknet_api::external_transaction::{
 use starknet_api::transaction::{Resource, ResourceBoundsMapping};
 
 use crate::errors::{StatelessTransactionValidatorError, StatelessTransactionValidatorResult};
-use crate::utils::ExternalTransactionExt;
 
 #[cfg(test)]
 #[path = "stateless_transaction_validator_test.rs"]

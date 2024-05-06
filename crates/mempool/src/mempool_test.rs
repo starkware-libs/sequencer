@@ -1,5 +1,6 @@
-use crate::mempool::Mempool;
-use crate::mempool::{AccountState, MempoolInput};
+use crate::mempool::{Account, MempoolInput};
+use crate::{errors::MempoolError, mempool::Mempool, priority_queue::PQTransaction};
+use assert_matches::assert_matches;
 use rstest::rstest;
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::hash::{StarkFelt, StarkHash};
@@ -54,46 +55,46 @@ pub fn create_internal_invoke_tx_for_testing(
 #[case(5)] // Requesting more transactions than are in the queue
 #[case(2)] // Requesting fewer transactions than are in the queue
 fn test_get_txs(#[case] requested_txs: usize) {
-    let account_state1 = AccountState {
-        contract_address: contract_address!("0x0"),
+    let account1 = Account {
+        address: contract_address!("0x0"),
         ..Default::default()
     };
-    let tx_tip_50_contract_address_0 = create_internal_invoke_tx_for_testing(
+    let tx_tip_50_address_0 = create_internal_invoke_tx_for_testing(
         Tip(50),
         TransactionHash(StarkFelt::ONE),
-        account_state1.contract_address,
+        account1.address,
     );
-    let account_state2 = AccountState {
-        contract_address: contract_address!("0x1"),
+    let account2 = Account {
+        address: contract_address!("0x1"),
         ..Default::default()
     };
-    let tx_tip_100_contract_address_1 = create_internal_invoke_tx_for_testing(
+    let tx_tip_100_address_1 = create_internal_invoke_tx_for_testing(
         Tip(100),
         TransactionHash(StarkFelt::TWO),
-        account_state2.contract_address,
+        account2.address,
     );
-    let account_state3 = AccountState {
-        contract_address: contract_address!("0x2"),
+    let account3 = Account {
+        address: contract_address!("0x2"),
         ..Default::default()
     };
-    let tx_tip_10_contract_address_2 = create_internal_invoke_tx_for_testing(
+    let tx_tip_10_address_2 = create_internal_invoke_tx_for_testing(
         Tip(10),
         TransactionHash(StarkFelt::THREE),
-        account_state3.contract_address,
+        account3.address,
     );
 
     let mut mempool = Mempool::new(vec![
         MempoolInput {
-            tx: tx_tip_50_contract_address_0.clone(),
-            account_state: account_state1,
+            tx: tx_tip_50_address_0.clone(),
+            account: account1,
         },
         MempoolInput {
-            tx: tx_tip_100_contract_address_1.clone(),
-            account_state: account_state2,
+            tx: tx_tip_100_address_1.clone(),
+            account: account2,
         },
         MempoolInput {
-            tx: tx_tip_10_contract_address_2.clone(),
-            account_state: account_state3,
+            tx: tx_tip_10_address_2.clone(),
+            account: account3,
         },
     ]);
 
@@ -108,9 +109,9 @@ fn test_get_txs(#[case] requested_txs: usize) {
     }
 
     let sorted_txs = vec![
-        tx_tip_100_contract_address_1,
-        tx_tip_50_contract_address_0,
-        tx_tip_10_contract_address_2,
+        tx_tip_100_address_1,
+        tx_tip_50_address_0,
+        tx_tip_10_address_2,
     ];
 
     let txs = mempool.get_txs(requested_txs).unwrap();
@@ -134,28 +135,103 @@ fn test_get_txs(#[case] requested_txs: usize) {
     expected = "Contract address: ContractAddress(PatriciaKey(StarkFelt(\"0x0000000000000000000000000000000000000000000000000000000000000000\"))) already exists in the mempool. Can't add Invoke(InternalInvokeTransaction"
 )]
 fn test_mempool_initialization_with_duplicate_contract_addresses() {
-    let account_state_duplicate = AccountState {
-        contract_address: contract_address!("0x0"),
+    let account = Account {
+        address: contract_address!("0x0"),
         ..Default::default()
     };
     let tx = create_internal_invoke_tx_for_testing(
         Tip(50),
         TransactionHash(StarkFelt::ONE),
-        account_state_duplicate.contract_address,
+        account.address,
     );
     let same_tx = tx.clone();
 
     let inputs = vec![
-        MempoolInput {
-            tx,
-            account_state: account_state_duplicate.clone(),
-        },
+        MempoolInput { tx, account },
         MempoolInput {
             tx: same_tx,
-            account_state: account_state_duplicate,
+            account,
         },
     ];
 
     // This call should panic because of duplicate contract addresses
     let _mempool = Mempool::new(inputs.into_iter());
+}
+
+#[test]
+fn test_add_tx() {
+    let account1 = Account::default();
+    let tx_tip_50_address_0 = create_internal_invoke_tx_for_testing(
+        Tip(50),
+        TransactionHash(StarkFelt::ONE),
+        account1.address,
+    );
+    let account2 = Account {
+        address: contract_address!("0x1"),
+        ..Default::default()
+    };
+    let tx_tip_100_address_1 = create_internal_invoke_tx_for_testing(
+        Tip(100),
+        TransactionHash(StarkFelt::TWO),
+        account2.address,
+    );
+    let account3 = Account {
+        address: contract_address!("0x2"),
+        ..Default::default()
+    };
+    let tx_tip_80_address_2 = create_internal_invoke_tx_for_testing(
+        Tip(80),
+        TransactionHash(StarkFelt::THREE),
+        account3.address,
+    );
+
+    let mut mempool = Mempool::default();
+    assert!(mempool
+        .add_tx(tx_tip_50_address_0.clone(), account1)
+        .is_ok());
+    assert!(mempool
+        .add_tx(tx_tip_100_address_1.clone(), account2)
+        .is_ok());
+    assert!(mempool
+        .add_tx(tx_tip_80_address_2.clone(), account3)
+        .is_ok());
+
+    assert_eq!(mempool.state.len(), 3);
+    mempool.state.contains_key(&account1.address);
+    mempool.state.contains_key(&account2.address);
+    mempool.state.contains_key(&account3.address);
+
+    assert_eq!(
+        mempool.txs_queue.pop_last().unwrap(),
+        PQTransaction(tx_tip_100_address_1)
+    );
+    assert_eq!(
+        mempool.txs_queue.pop_last().unwrap(),
+        PQTransaction(tx_tip_80_address_2)
+    );
+    assert_eq!(
+        mempool.txs_queue.pop_last().unwrap(),
+        PQTransaction(tx_tip_50_address_0)
+    );
+}
+
+#[test]
+fn test_add_same_tx() {
+    let account = Account::default();
+    let tx = create_internal_invoke_tx_for_testing(
+        Tip(50),
+        TransactionHash(StarkFelt::ONE),
+        contract_address!("0x0"),
+    );
+    let same_tx = tx.clone();
+
+    let mut mempool = Mempool::default();
+
+    assert!(mempool.add_tx(tx, account).is_ok());
+    assert_matches!(
+        mempool.add_tx(same_tx, account),
+        Err(MempoolError::DuplicateTransaction {
+            tx_hash: TransactionHash(StarkFelt::ONE),
+        })
+    );
 }
