@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use starknet_api::state::StorageKey;
 use starknet_api::{block::BlockNumber, core::ContractAddress};
 
 // Starknet Spec error codes:
@@ -18,6 +19,13 @@ pub enum BlockId {
 pub struct GetNonceParams {
     pub block_id: BlockId,
     pub contract_address: ContractAddress,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct GetStorageAtParams {
+    pub contract_address: ContractAddress,
+    pub key: StorageKey,
+    pub block_id: BlockId,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
