@@ -5,13 +5,13 @@ use crate::patricia_merkle_tree::{
     types::TreeHeight,
 };
 use crate::storage::storage_trait::{StorageKey, StorageValue};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 // TODO(Nimrod, 1/6/2024): Swap to starknet-types-core types once implemented.
 pub struct ContractAddress(pub Felt);
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 // TODO(Nimrod, 1/6/2024): Swap to starknet-types-core types once implemented.
 pub struct StarknetStorageKey(pub Felt);
 
@@ -48,4 +48,16 @@ pub struct Input {
     pub tree_heights: TreeHeight,
     pub global_tree_root_hash: HashOutput,
     pub classes_tree_root_hash: HashOutput,
+}
+
+#[allow(dead_code)]
+impl StateDiff {
+    pub(crate) fn accessed_addresses(&self) -> HashSet<&ContractAddress> {
+        HashSet::from_iter(
+            self.address_to_class_hash
+                .keys()
+                .chain(self.address_to_nonce.keys())
+                .chain(self.storage_updates.keys()),
+        )
+    }
 }

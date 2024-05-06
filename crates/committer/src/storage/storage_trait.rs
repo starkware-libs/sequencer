@@ -11,7 +11,7 @@ pub struct StorageKey(pub Vec<u8>);
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct StorageValue(pub Vec<u8>);
 
-pub trait Storage {
+pub trait Storage: From<HashMap<StorageKey, StorageValue>> {
     /// Returns value from storage, if it exists.
     fn get(&self, key: &StorageKey) -> Option<&StorageValue>;
 
