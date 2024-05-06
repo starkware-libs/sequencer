@@ -41,18 +41,20 @@ impl<H: HashFunction> TreeHashFunction<LeafDataImpl, H> for TreeHashFunctionImpl
             NodeData::Leaf(LeafDataImpl::CompiledClassHash(compiled_class_hash)) => {
                 HashOutput(compiled_class_hash.0)
             }
-            NodeData::Leaf(LeafDataImpl::StateTreeTuple {
-                class_hash,
-                contract_state_root_hash,
-                nonce,
-            }) => H::compute_hash(HashInputPair(
+            NodeData::Leaf(LeafDataImpl::ContractState(contract_state)) => {
                 H::compute_hash(HashInputPair(
-                    H::compute_hash(HashInputPair(class_hash.0, *contract_state_root_hash)).0,
-                    nonce.0,
+                    H::compute_hash(HashInputPair(
+                        H::compute_hash(HashInputPair(
+                            contract_state.class_hash.0,
+                            contract_state.storage_root_hash.0,
+                        ))
+                        .0,
+                        contract_state.nonce.0,
+                    ))
+                    .0,
+                    CONTRACT_STATE_HASH_VERSION,
                 ))
-                .0,
-                CONTRACT_STATE_HASH_VERSION,
-            )),
+            }
         }
     }
 }

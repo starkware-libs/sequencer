@@ -1,5 +1,5 @@
 use committer::block_committer::input::{
-    ContractAddress, ContractState, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
+    ContractAddress, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
 };
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
@@ -8,7 +8,7 @@ use committer::hash::pedersen::PedersenHashFunction;
 use committer::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, FilledNode, Nonce};
 use committer::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
-use committer::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
+use committer::patricia_merkle_tree::node_data::leaf::{ContractState, LeafDataImpl};
 use committer::storage::errors::DeserializationError;
 use committer::storage::map_storage::MapStorage;
 use committer::storage::serde_trait::Serializable;
@@ -365,11 +365,11 @@ pub(crate) fn test_node_db_key() -> String {
     .0;
 
     let state_tree_leaf_key = FilledNode {
-        data: NodeData::Leaf(LeafDataImpl::StateTreeTuple {
+        data: NodeData::Leaf(LeafDataImpl::ContractState(ContractState {
             class_hash: ClassHash(zero),
-            contract_state_root_hash: zero,
+            storage_root_hash: HashOutput(zero),
             nonce: Nonce(zero),
-        }),
+        })),
         hash,
     }
     .db_key()

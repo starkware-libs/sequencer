@@ -1,5 +1,6 @@
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
+use crate::patricia_merkle_tree::node_data::leaf::ContractState;
 use crate::patricia_merkle_tree::{
     filled_tree::node::{ClassHash, CompiledClassHash, Nonce},
     types::TreeHeight,
@@ -28,14 +29,6 @@ pub struct StateDiff {
     pub current_contract_state_leaves: HashMap<ContractAddress, ContractState>,
     pub storage_updates:
         HashMap<ContractAddress, HashMap<StarknetStorageKey, StarknetStorageValue>>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Eq, PartialEq)]
-pub struct ContractState {
-    pub nonce: Nonce,
-    pub storage_root_hash: HashOutput,
-    pub class_hash: ClassHash,
 }
 
 #[allow(dead_code)]

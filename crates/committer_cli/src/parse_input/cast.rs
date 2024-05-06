@@ -1,10 +1,11 @@
 use crate::parse_input::raw_input::RawInput;
 use committer::block_committer::input::{
-    ContractAddress, ContractState, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
+    ContractAddress, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
 };
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
 use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
+use committer::patricia_merkle_tree::node_data::leaf::ContractState;
 use committer::patricia_merkle_tree::types::TreeHeight;
 use committer::storage::errors::DeserializationError;
 use committer::storage::storage_trait::{StorageKey, StorageValue};

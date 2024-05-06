@@ -35,7 +35,7 @@ impl LeafDataImpl {
                 Ok(StorageValue(json.into_bytes().to_owned()))
             }
 
-            LeafDataImpl::StateTreeTuple { .. } => {
+            LeafDataImpl::ContractState { .. } => {
                 todo!("implement.");
             }
         }

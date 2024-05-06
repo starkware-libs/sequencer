@@ -1,11 +1,12 @@
 use committer::{
     block_committer::input::{
-        ContractAddress, ContractState, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
+        ContractAddress, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
     },
     felt::Felt,
     hash::hash_trait::HashOutput,
     patricia_merkle_tree::{
         filled_tree::node::{ClassHash, CompiledClassHash, Nonce},
+        node_data::leaf::ContractState,
         types::TreeHeight,
     },
     storage::{

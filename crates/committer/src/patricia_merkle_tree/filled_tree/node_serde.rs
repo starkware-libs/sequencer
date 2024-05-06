@@ -88,7 +88,7 @@ impl Serializable for FilledNode<LeafDataImpl> {
             NodeData::Leaf(LeafDataImpl::CompiledClassHash(_)) => {
                 create_db_key(StoragePrefix::CompiledClassLeaf, &suffix)
             }
-            NodeData::Leaf(LeafDataImpl::StateTreeTuple { .. }) => {
+            NodeData::Leaf(LeafDataImpl::ContractState { .. }) => {
                 create_db_key(StoragePrefix::StateTreeLeaf, &suffix)
             }
         }
