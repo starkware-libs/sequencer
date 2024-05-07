@@ -1,6 +1,8 @@
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength, PathToBottom};
+use crate::patricia_merkle_tree::node_data::inner_node::{
+    EdgeData, EdgePath, EdgePathLength, PathToBottom,
+};
 use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::LeafDataImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
@@ -290,5 +292,23 @@ pub(crate) fn create_leaf_or_binary_sibling_skeleton_node(
     (
         NodeIndex::from(idx),
         OriginalSkeletonNode::LeafOrBinarySibling(HashOutput(Felt::from(hash_output))),
+    )
+}
+
+pub(crate) fn create_edge_sibling_skeleton_node(
+    idx: u128,
+    path: u128,
+    length: u8,
+    hash_output: u128,
+) -> (NodeIndex, OriginalSkeletonNode<LeafDataImpl>) {
+    (
+        NodeIndex::from(idx),
+        OriginalSkeletonNode::EdgeSibling(EdgeData {
+            bottom_hash: HashOutput(Felt::from(hash_output)),
+            path_to_bottom: PathToBottom {
+                path: EdgePath(Felt::from(path)),
+                length: EdgePathLength(length),
+            },
+        }),
     )
 }

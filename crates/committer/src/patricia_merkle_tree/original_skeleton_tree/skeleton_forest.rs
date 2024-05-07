@@ -3,6 +3,8 @@ use crate::block_committer::input::Input;
 use crate::block_committer::input::StarknetStorageKey;
 use crate::block_committer::input::StarknetStorageValue;
 use crate::hash::hash_trait::HashOutput;
+use crate::patricia_merkle_tree::filled_tree::node::ClassHash;
+use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use crate::patricia_merkle_tree::node_data::leaf::ContractState;
 use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
@@ -24,7 +26,8 @@ pub(crate) struct OriginalSkeletonForest<
     L: LeafData + std::clone::Clone,
     T: OriginalSkeletonTree<L>,
 > {
-    // TODO(Nimrod): Add compiled class tree.
+    #[allow(dead_code)]
+    classes_tree: T,
     #[allow(dead_code)]
     global_state_tree: T,
     #[allow(dead_code)]
@@ -33,8 +36,13 @@ pub(crate) struct OriginalSkeletonForest<
 }
 
 impl<L: LeafData + std::clone::Clone, T: OriginalSkeletonTree<L>> OriginalSkeletonForest<L, T> {
-    pub(crate) fn new(global_state_tree: T, contract_states: HashMap<ContractAddress, T>) -> Self {
+    pub(crate) fn new(
+        classes_tree: T,
+        global_state_tree: T,
+        contract_states: HashMap<ContractAddress, T>,
+    ) -> Self {
         Self {
+            classes_tree,
             global_state_tree,
             contract_states,
             leaf_data: PhantomData,
@@ -60,11 +68,20 @@ impl<L: LeafData + std::clone::Clone, T: OriginalSkeletonTree<L>> OriginalSkelet
             &storage,
             input.tree_heights,
         )?;
+        let classes_tree = Self::create_classes_tree(
+            input.state_diff.class_hash_to_compiled_class_hash,
+            input.classes_tree_root_hash,
+            &storage,
+            input.tree_heights,
+        )?;
+
         Ok(OriginalSkeletonForest::new(
+            classes_tree,
             global_state_tree,
             contract_states,
         ))
     }
+
     fn create_global_state_tree<S: Storage>(
         accessed_addresses: &HashSet<&ContractAddress>,
         global_tree_root_hash: HashOutput,
@@ -83,6 +100,7 @@ impl<L: LeafData + std::clone::Clone, T: OriginalSkeletonTree<L>> OriginalSkelet
             tree_height,
         )
     }
+
     fn create_lower_trees_skeleton<S: Storage>(
         accessed_addresses: HashSet<&ContractAddress>,
         current_contract_state_leaves: &HashMap<ContractAddress, ContractState>,
@@ -114,5 +132,24 @@ impl<L: LeafData + std::clone::Clone, T: OriginalSkeletonTree<L>> OriginalSkelet
             contract_states.insert(*address, original_skeleton);
         }
         Ok(contract_states)
+    }
+
+    fn create_classes_tree<S: Storage>(
+        class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
+        classes_tree_root_hash: HashOutput,
+        storage: &S,
+        tree_height: TreeHeight,
+    ) -> OriginalSkeletonTreeResult<T> {
+        let mut sorted_leaf_indices: Vec<NodeIndex> = class_hash_to_compiled_class_hash
+            .keys()
+            .map(|class_hash| NodeIndex::from_class_hash(class_hash, &tree_height))
+            .collect();
+        sorted_leaf_indices.sort();
+        T::create_tree(
+            storage,
+            &sorted_leaf_indices,
+            classes_tree_root_hash,
+            tree_height,
+        )
     }
 }

@@ -7,11 +7,11 @@ use crate::block_committer::input::{
 };
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
+use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
 use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafDataImpl};
 use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::create_tree_test::{
     create_32_bytes_entry, create_binary_entry, create_binary_skeleton_node, create_edge_entry,
-    create_edge_skeleton_node, create_expected_skeleton,
+    create_edge_sibling_skeleton_node, create_edge_skeleton_node, create_expected_skeleton,
     create_leaf_or_binary_sibling_skeleton_node,
 };
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
@@ -22,17 +22,18 @@ use super::OriginalSkeletonForest;
 
 // This test assumes for simplicity that hash is addition (i.e hash(a,b) = a + b).
 ///                                Old forest structure:
-///                                 Global tree:
 ///
-///                                     254
-///                                    /   \
-///                                   154  100
-///                                  /       \   
-///                                 *         98
-///                                /         /  \
-///                               152       44   54
+///                 Global tree:                Classes tree:
 ///
-///                          Modified leaves (full) indices: [9, 11, 13, 14]
+///                     254                            157
+///                    /   \                          /   
+///                   154  100                       156
+///                  /       \                     /     \
+///                 *         98                  80      76
+///                /         /  \                /  \      \
+///               152       44   54             33  47      74
+///
+/// Modified leaves (full) indices: [9, 11, 13, 14]  ##  Modified leaves (full) indices: [8, 14, 15]
 ///
 ///
 ///
@@ -49,15 +50,15 @@ use super::OriginalSkeletonForest;
 ///   Modified leaves (full) indices: [8, 11, 13]  ##  Modified leaves (full) indices: [8, 10, 13]
 ///
 ///                             Expected skeleton forest:
-///                                 Global tree:
+///                 Global tree:                Classes tree:
 ///
-///                                      B
-///                                    /   \
-///                                   E     E
-///                                  /       \   
-///                                 *         B
-///                                /         /  \
-///                               152       NZ   54
+///                    B                                 E
+///                  /   \                              /
+///                 E     E                            B
+///                /       \                         /   \
+///               *         B                       B    ES
+///              /         /  \                    / \    \
+///             152       NZ   54                 NZ  47   NZ
 ///
 ///      Contracts #3, #5, #6:                        Contract #1:
 ///
@@ -90,6 +91,10 @@ use super::OriginalSkeletonForest;
             create_binary_entry(44, 54),
             create_edge_entry(98, 1, 1),
             create_binary_entry(154, 100),
+            create_edge_entry(156, 0, 1),
+            create_binary_entry(80, 76),
+            create_binary_entry(33, 47),
+            create_edge_entry(74, 1, 1),
         ]),
         state_diff: StateDiff {
             storage_updates: create_storage_updates(&[
@@ -98,6 +103,7 @@ use super::OriginalSkeletonForest;
                 (6, &[8, 11, 13]),
                 (1, &[8, 10, 13]),
             ]),
+            class_hash_to_compiled_class_hash: create_class_hash_to_compiled_class_hash(&[(14, 1), (8, 7), (15, 9)]),
             ..Default::default()
         },
         tree_heights: TreeHeight(3),
@@ -108,8 +114,18 @@ use super::OriginalSkeletonForest;
             (1, 55),
         ]),
         global_tree_root_hash: HashOutput(Felt::from(254_u128)),
-        classes_tree_root_hash: HashOutput(Felt::ZERO),
+        classes_tree_root_hash: HashOutput(Felt::from(157_u128)),
     }, OriginalSkeletonForest{
+        classes_tree: create_expected_skeleton(
+            vec![
+                create_edge_skeleton_node(1, 0, 1),
+                create_binary_skeleton_node(2),
+                create_binary_skeleton_node(4),
+                create_edge_sibling_skeleton_node(5, 1, 1, 76),
+                create_leaf_or_binary_sibling_skeleton_node(9, 47)
+            ],
+            3
+        ),
         global_state_tree: create_expected_skeleton(
             vec![
                 create_binary_skeleton_node(1),
@@ -235,6 +251,19 @@ fn create_storage_updates(
                         )
                     })
                     .collect(),
+            )
+        })
+        .collect()
+}
+
+fn create_class_hash_to_compiled_class_hash(
+    map: &[(u128, u128)],
+) -> HashMap<ClassHash, CompiledClassHash> {
+    map.iter()
+        .map(|(class_hash, compiled_class_hash)| {
+            (
+                ClassHash(Felt::from(*class_hash)),
+                CompiledClassHash(Felt::from(*compiled_class_hash)),
             )
         })
         .collect()
