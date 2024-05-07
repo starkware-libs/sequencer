@@ -39,6 +39,7 @@ pub(crate) trait OriginalSkeletonTree<L: LeafData + std::clone::Clone> {
 }
 
 #[allow(dead_code)]
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) struct OriginalSkeletonTreeImpl {
     pub(crate) nodes: HashMap<NodeIndex, OriginalSkeletonNode<LeafDataImpl>>,
     pub(crate) tree_height: TreeHeight,

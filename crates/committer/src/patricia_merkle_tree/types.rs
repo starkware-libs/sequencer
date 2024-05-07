@@ -1,4 +1,4 @@
-use crate::block_committer::input::StarknetStorageKey;
+use crate::block_committer::input::{ContractAddress, StarknetStorageKey};
 use crate::felt::Felt;
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
 
@@ -51,6 +51,13 @@ impl NodeIndex {
         tree_height: &TreeHeight,
     ) -> Self {
         Self(U256::from(1_u8) << tree_height.0) + Self::from(key.0)
+    }
+
+    pub(crate) fn from_contract_address(
+        address: &ContractAddress,
+        tree_height: &TreeHeight,
+    ) -> Self {
+        Self(U256::from(1_u8) << tree_height.0) + Self::from(address.0)
     }
 }
 

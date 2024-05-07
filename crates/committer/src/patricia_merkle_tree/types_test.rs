@@ -1,4 +1,4 @@
-use crate::block_committer::input::StarknetStorageKey;
+use crate::block_committer::input::{ContractAddress, StarknetStorageKey};
 use crate::felt::Felt;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::types::NodeIndex;
@@ -31,19 +31,26 @@ fn test_compute_bottom_index(
 #[case(0, 127, 2_u128.pow(127))]
 #[case(15, 118, 2_u128.pow(118) | 15)]
 #[case(0xDEADBEEF, 60, 2_u128.pow(60) | 0xDEADBEEF)]
-fn test_starknet_storage_key_to_node_index(
+fn test_cast_to_node_index(
     #[case] leaf_index: u128,
     #[case] tree_height: u8,
     #[case] expected_node_index: u128,
+    #[values(true, false)] from_contract_address: bool,
 ) {
     assert!(
         leaf_index < 2_u128.pow(tree_height.into()),
         "Invalid test arguments. The node index must be smaller than the number of nodes."
     );
-    let actual = NodeIndex::from_starknet_storage_key(
-        &StarknetStorageKey(Felt::from(leaf_index)),
-        &TreeHeight(tree_height),
-    );
-
+    let actual = if from_contract_address {
+        NodeIndex::from_contract_address(
+            &ContractAddress(Felt::from(leaf_index)),
+            &TreeHeight(tree_height),
+        )
+    } else {
+        NodeIndex::from_starknet_storage_key(
+            &StarknetStorageKey(Felt::from(leaf_index)),
+            &TreeHeight(tree_height),
+        )
+    };
     assert_eq!(actual, expected_node_index.into());
 }

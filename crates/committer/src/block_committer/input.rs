@@ -21,7 +21,7 @@ pub struct StarknetStorageKey(pub Felt);
 pub struct StarknetStorageValue(pub Felt);
 
 #[allow(dead_code)]
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Default, Eq, PartialEq)]
 pub struct StateDiff {
     pub address_to_class_hash: HashMap<ContractAddress, ClassHash>,
     pub address_to_nonce: HashMap<ContractAddress, Nonce>,

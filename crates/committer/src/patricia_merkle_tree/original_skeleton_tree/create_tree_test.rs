@@ -52,32 +52,18 @@ use super::OriginalSkeletonTreeImpl;
     ]).into(),
     create_modifications(vec![(8, 4), (10, 3), (13, 2)]),
     HashOutput(Felt::from(50_u128)),
-    HashMap::from([
-        (NodeIndex::from(1), OriginalSkeletonNode::Binary),
-        (NodeIndex::from(2), OriginalSkeletonNode::Binary),
-        (NodeIndex::from(3), OriginalSkeletonNode::Edge {
-            path_to_bottom: PathToBottom {
-                path: EdgePath(Felt::from(3_u128)),
-                length: EdgePathLength(2),
-            },
-        }),
-        (NodeIndex::from(4), OriginalSkeletonNode::Binary),
-        (NodeIndex::from(5), OriginalSkeletonNode::Edge {
-            path_to_bottom: PathToBottom {
-                path: EdgePath(Felt::from(1_u128)),
-                length: EdgePathLength(1)
-            }
-        }),
-        (NodeIndex::from(9), OriginalSkeletonNode::LeafOrBinarySibling(
-            HashOutput(Felt::from(9_u128))
-        )),
-        (NodeIndex::from(15), OriginalSkeletonNode::LeafOrBinarySibling(
-            HashOutput(Felt::from(15_u128))
-        )),
-        (NodeIndex::from(11), OriginalSkeletonNode::LeafOrBinarySibling(
-            HashOutput(Felt::from(11_u128))
-        )),
-    ]),
+    create_expected_nodes(
+        vec![
+            create_binary_skeleton_node(1),
+            create_binary_skeleton_node(2),
+            create_edge_skeleton_node(3, 3, 2),
+            create_binary_skeleton_node(4),
+            create_edge_skeleton_node(5, 1, 1),
+            create_leaf_or_binary_sibling_skeleton_node(9, 9),
+            create_leaf_or_binary_sibling_skeleton_node(15, 15),
+            create_leaf_or_binary_sibling_skeleton_node(11, 11)
+        ]
+    ),
     TreeHeight(3)
 )]
 ///                 Old tree structure:
@@ -114,29 +100,17 @@ use super::OriginalSkeletonTreeImpl;
     ]).into(),
     create_modifications(vec![(8, 5), (11, 1), (13, 3)]),
     HashOutput(Felt::from(29_u128)),
-    HashMap::from([
-        (NodeIndex::from(1), OriginalSkeletonNode::Binary),
-        (NodeIndex::from(2), OriginalSkeletonNode::Edge {
-            path_to_bottom: PathToBottom {
-                path: EdgePath(Felt::ZERO),
-                length: EdgePathLength(1)
-            }
-        }),
-        (NodeIndex::from(3), OriginalSkeletonNode::Binary),
-        (NodeIndex::from(4), OriginalSkeletonNode::Binary),
-        (NodeIndex::from(6), OriginalSkeletonNode::Edge {
-            path_to_bottom: PathToBottom {
-                path: EdgePath(Felt::from(1_u128)),
-                length: EdgePathLength(1)
-            }
-        }),
-        (NodeIndex::from(7), OriginalSkeletonNode::LeafOrBinarySibling(
-            HashOutput(Felt::from(11_u128))
-        )),
-        (NodeIndex::from(9), OriginalSkeletonNode::LeafOrBinarySibling(
-            HashOutput(Felt::from(2_u128))
-        ))
-    ]),
+    create_expected_nodes(
+        vec![
+            create_binary_skeleton_node(1),
+            create_edge_skeleton_node(2, 0, 1),
+            create_binary_skeleton_node(3),
+            create_binary_skeleton_node(4),
+            create_edge_skeleton_node(6, 1, 1),
+            create_leaf_or_binary_sibling_skeleton_node(7, 11),
+            create_leaf_or_binary_sibling_skeleton_node(9, 2),
+        ]
+    ),
     TreeHeight(3)
 )]
 ///                  Old tree structure:
@@ -178,43 +152,21 @@ use super::OriginalSkeletonTreeImpl;
     ]).into(),
     create_modifications(vec![(18, 5), (25, 1), (29, 15), (30, 3)]),
     HashOutput(Felt::from(116_u128)),
-    HashMap::from([
-        (NodeIndex::from(1), OriginalSkeletonNode::Binary),
-        (NodeIndex::from(2), OriginalSkeletonNode::Edge {
-            path_to_bottom: PathToBottom {
-                path: EdgePath(Felt::ZERO),
-                length: EdgePathLength(2)
-            }
-        }),
-        (NodeIndex::from(3), OriginalSkeletonNode::Binary),
-        (NodeIndex::from(6), OriginalSkeletonNode::Edge {
-            path_to_bottom: PathToBottom {
-                path: EdgePath(Felt::from(3_u128)),
-                length: EdgePathLength(2)
-            }
-        }),
-        (NodeIndex::from(7), OriginalSkeletonNode::Binary),
-        (NodeIndex::from(8), OriginalSkeletonNode::LeafOrBinarySibling(
-            HashOutput(Felt::from(24_u128))
-        )),
-        (NodeIndex::from(14), OriginalSkeletonNode::Edge {
-            path_to_bottom: PathToBottom {
-                path: EdgePath(Felt::ZERO),
-                length: EdgePathLength(1)
-            }
-        }),
-        (NodeIndex::from(15), OriginalSkeletonNode::Binary),
-        (NodeIndex::from(27), OriginalSkeletonNode::LeafOrBinarySibling(
-            HashOutput(Felt::from(20_u128))
-        )),
-        (NodeIndex::from(28), OriginalSkeletonNode::LeafOrBinarySibling(
-            HashOutput(Felt::from(5_u128))
-        )),
-        (NodeIndex::from(31), OriginalSkeletonNode::LeafOrBinarySibling(
-            HashOutput(Felt::from(40_u128))
-        )),
-
-    ]),
+    create_expected_nodes(
+        vec![
+            create_binary_skeleton_node(1),
+            create_edge_skeleton_node(2, 0, 2),
+            create_binary_skeleton_node(3),
+            create_edge_skeleton_node(6, 3, 2),
+            create_binary_skeleton_node(7),
+            create_leaf_or_binary_sibling_skeleton_node(8, 24),
+            create_edge_skeleton_node(14, 0, 1),
+            create_binary_skeleton_node(15),
+            create_leaf_or_binary_sibling_skeleton_node(27, 20),
+            create_leaf_or_binary_sibling_skeleton_node(28, 5),
+            create_leaf_or_binary_sibling_skeleton_node(31, 40)
+        ]
+    ),
     TreeHeight(4)
 )]
 fn test_fetch_nodes(
@@ -238,7 +190,7 @@ fn test_fetch_nodes(
     assert_eq!(&skeleton_tree.nodes, &expected_nodes);
 }
 
-fn create_32_bytes_entry(simple_val: u8) -> Vec<u8> {
+pub(crate) fn create_32_bytes_entry(simple_val: u8) -> Vec<u8> {
     let mut res = vec![0; 31];
     res.push(simple_val);
     res
@@ -279,16 +231,64 @@ fn create_modifications(modifications: Vec<(u128, u128)>) -> HashMap<NodeIndex, 
         .collect()
 }
 
-fn create_binary_entry(left: u8, right: u8) -> (StorageKey, StorageValue) {
+pub(crate) fn create_binary_entry(left: u8, right: u8) -> (StorageKey, StorageValue) {
     (
         create_patricia_key(left + right),
         create_binary_val(left, right),
     )
 }
 
-fn create_edge_entry(hash: u8, path: u8, length: u8) -> (StorageKey, StorageValue) {
+pub(crate) fn create_edge_entry(hash: u8, path: u8, length: u8) -> (StorageKey, StorageValue) {
     (
         create_patricia_key(hash + path + length),
         create_edge_val(hash, path, length),
+    )
+}
+
+pub(crate) fn create_expected_skeleton(
+    nodes: Vec<(NodeIndex, OriginalSkeletonNode<LeafDataImpl>)>,
+    height: u8,
+) -> OriginalSkeletonTreeImpl {
+    OriginalSkeletonTreeImpl {
+        nodes: nodes.into_iter().collect(),
+        tree_height: TreeHeight(height),
+    }
+}
+
+fn create_expected_nodes(
+    nodes: Vec<(NodeIndex, OriginalSkeletonNode<LeafDataImpl>)>,
+) -> HashMap<NodeIndex, OriginalSkeletonNode<LeafDataImpl>> {
+    nodes.into_iter().collect()
+}
+
+pub(crate) fn create_binary_skeleton_node(
+    idx: u128,
+) -> (NodeIndex, OriginalSkeletonNode<LeafDataImpl>) {
+    (NodeIndex::from(idx), OriginalSkeletonNode::Binary)
+}
+
+pub(crate) fn create_edge_skeleton_node(
+    idx: u128,
+    path: u128,
+    length: u8,
+) -> (NodeIndex, OriginalSkeletonNode<LeafDataImpl>) {
+    (
+        NodeIndex::from(idx),
+        OriginalSkeletonNode::Edge {
+            path_to_bottom: PathToBottom {
+                path: EdgePath(Felt::from(path)),
+                length: EdgePathLength(length),
+            },
+        },
+    )
+}
+
+pub(crate) fn create_leaf_or_binary_sibling_skeleton_node(
+    idx: u128,
+    hash_output: u128,
+) -> (NodeIndex, OriginalSkeletonNode<LeafDataImpl>) {
+    (
+        NodeIndex::from(idx),
+        OriginalSkeletonNode::LeafOrBinarySibling(HashOutput(Felt::from(hash_output))),
     )
 }
