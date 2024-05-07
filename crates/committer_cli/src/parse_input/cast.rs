@@ -97,13 +97,13 @@ impl TryFrom<RawInput> for Input {
                 address_to_class_hash,
                 address_to_nonce,
                 class_hash_to_compiled_class_hash,
-                current_contract_state_leaves,
                 storage_updates,
             },
             tree_heights: TreeHeight(raw_input.tree_heights),
             global_tree_root_hash: HashOutput(Felt::from_bytes_be_slice(
                 &raw_input.global_tree_root_hash,
             )),
+            current_contract_state_leaves,
             classes_tree_root_hash: HashOutput(Felt::from_bytes_be_slice(
                 &raw_input.classes_tree_root_hash,
             )),

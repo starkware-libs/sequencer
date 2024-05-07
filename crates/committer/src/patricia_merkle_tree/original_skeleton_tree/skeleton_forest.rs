@@ -55,7 +55,7 @@ impl<L: LeafData + std::clone::Clone, T: OriginalSkeletonTree<L>> OriginalSkelet
         )?;
         let contract_states = Self::create_lower_trees_skeleton(
             accessed_addresses,
-            &input.state_diff.current_contract_state_leaves,
+            &input.current_contract_state_leaves,
             &input.state_diff.storage_updates,
             &storage,
             input.tree_heights,

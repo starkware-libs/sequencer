@@ -266,10 +266,10 @@ fn test_simple_input_parsing() {
             address_to_class_hash: expected_address_to_class_hash,
             address_to_nonce: expected_address_to_nonce,
             class_hash_to_compiled_class_hash: expected_class_hash_to_compiled_class_hash,
-            current_contract_state_leaves: expected_current_contract_state_leaves,
             storage_updates: expected_storage_updates,
         },
         tree_heights: expected_tree_heights,
+        current_contract_state_leaves: expected_current_contract_state_leaves,
         global_tree_root_hash: expected_global_tree_root_hash,
         classes_tree_root_hash: expected_classes_tree_root_hash,
     };

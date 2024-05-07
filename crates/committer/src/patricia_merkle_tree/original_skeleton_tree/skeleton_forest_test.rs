@@ -92,12 +92,6 @@ use super::OriginalSkeletonForest;
             create_binary_entry(154, 100),
         ]),
         state_diff: StateDiff {
-            current_contract_state_leaves: create_contract_leaves(&[
-                (3, 29),
-                (5, 29),
-                (6, 29),
-                (1, 55),
-            ]),
             storage_updates: create_storage_updates(&[
                 (3, &[8, 11, 13]),
                 (5, &[8, 11, 13]),
@@ -107,6 +101,12 @@ use super::OriginalSkeletonForest;
             ..Default::default()
         },
         tree_heights: TreeHeight(3),
+        current_contract_state_leaves: create_contract_leaves(&[
+            (3, 29),
+            (5, 29),
+            (6, 29),
+            (1, 55),
+        ]),
         global_tree_root_hash: HashOutput(Felt::from(254_u128)),
         classes_tree_root_hash: HashOutput(Felt::ZERO),
     }, OriginalSkeletonForest{

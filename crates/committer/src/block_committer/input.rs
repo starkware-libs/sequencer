@@ -26,7 +26,6 @@ pub struct StateDiff {
     pub address_to_class_hash: HashMap<ContractAddress, ClassHash>,
     pub address_to_nonce: HashMap<ContractAddress, Nonce>,
     pub class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
-    pub current_contract_state_leaves: HashMap<ContractAddress, ContractState>,
     pub storage_updates:
         HashMap<ContractAddress, HashMap<StarknetStorageKey, StarknetStorageValue>>,
 }
@@ -39,6 +38,7 @@ pub struct Input {
     pub state_diff: StateDiff,
     /// Height of class tree, contract tree and storage trees.
     pub tree_heights: TreeHeight,
+    pub current_contract_state_leaves: HashMap<ContractAddress, ContractState>,
     pub global_tree_root_hash: HashOutput,
     pub classes_tree_root_hash: HashOutput,
 }

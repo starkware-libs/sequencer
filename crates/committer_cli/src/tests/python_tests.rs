@@ -179,7 +179,11 @@ pub(crate) fn parse_input_test() -> Result<String, PythonTestError> {
 
 fn create_output_to_python(actual_input: Input) -> String {
     let (storage_keys_hash, storage_values_hash) = hash_storage(&actual_input.storage);
-    let (state_diff_keys_hash, state_diff_values_hash) = hash_state_diff(&actual_input.state_diff);
+    let (state_diff_keys_hash, state_diff_values_hash) =
+        hash_state_diff_and_current_contract_state_leaves(
+            &actual_input.state_diff,
+            &actual_input.current_contract_state_leaves,
+        );
     format!(
         r#"
         {{
@@ -204,7 +208,7 @@ fn create_output_to_python(actual_input: Input) -> String {
             .state_diff
             .class_hash_to_compiled_class_hash
             .len(),
-        actual_input.state_diff.current_contract_state_leaves.len(),
+        actual_input.current_contract_state_leaves.len(),
         actual_input.state_diff.storage_updates.len(),
         actual_input.tree_heights.0,
         actual_input.global_tree_root_hash.0.to_bytes_be(),
@@ -218,7 +222,10 @@ fn create_output_to_python(actual_input: Input) -> String {
 
 /// Calculates the 'hash' of the parsed state diff in order to verify the state diff sent
 /// from python was parsed correctly.
-fn hash_state_diff(state_diff: &StateDiff) -> (Vec<u8>, Vec<u8>) {
+fn hash_state_diff_and_current_contract_state_leaves(
+    state_diff: &StateDiff,
+    current_contract_state_leaves: &HashMap<ContractAddress, ContractState>,
+) -> (Vec<u8>, Vec<u8>) {
     let (address_to_class_hash_keys_hash, address_to_class_hash_values_hash) =
         hash_address_to_class_hash(&state_diff.address_to_class_hash);
     let (address_to_nonce_keys_hash, address_to_nonce_values_hash) =
@@ -230,7 +237,7 @@ fn hash_state_diff(state_diff: &StateDiff) -> (Vec<u8>, Vec<u8>) {
     let (storage_updates_keys_hash, storage_updates_values_hash) =
         hash_storage_updates(&state_diff.storage_updates);
     let (current_contract_states_keys_hash, current_contract_states_values_hash) =
-        hash_current_contract_states(&state_diff.current_contract_state_leaves);
+        hash_current_contract_states(current_contract_state_leaves);
     let mut state_diff_keys_hash = xor_hash(
         &address_to_class_hash_keys_hash,
         &address_to_nonce_keys_hash,
