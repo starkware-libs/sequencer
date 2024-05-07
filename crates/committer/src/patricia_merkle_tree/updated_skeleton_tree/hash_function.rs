@@ -23,7 +23,7 @@ pub(crate) struct TreeHashFunctionImpl<H: HashFunction> {
 /// Implementation of TreeHashFunction. The implementation is based on the following reference:
 /// https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/starknet-state/#trie_construction
 // TODO(Aner, 11/4/24): Verify the correctness of the implementation.
-const CONTRACT_STATE_HASH_VERSION: Felt = Felt::ZERO;
+pub const CONTRACT_STATE_HASH_VERSION: Felt = Felt::ZERO;
 impl<H: HashFunction> TreeHashFunction<LeafDataImpl, H> for TreeHashFunctionImpl<H> {
     fn compute_node_hash(node_data: &NodeData<LeafDataImpl>) -> HashOutput {
         match node_data {

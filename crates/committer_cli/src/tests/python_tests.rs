@@ -9,6 +9,7 @@ use committer::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, FilledNode, Nonce};
 use committer::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
 use committer::patricia_merkle_tree::node_data::leaf::{ContractState, LeafDataImpl};
+use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::CONTRACT_STATE_HASH_VERSION;
 use committer::storage::errors::DeserializationError;
 use committer::storage::map_storage::MapStorage;
 use committer::storage::serde_trait::Serializable;
@@ -27,6 +28,7 @@ pub(crate) enum PythonTest {
     InputParsing,
     NodeKey,
     StorageSerialize,
+    ComparePythonHashConstants,
 }
 
 /// Error type for PythonTest enum.
@@ -57,6 +59,8 @@ impl TryFrom<String> for PythonTest {
             "input_parsing" => Ok(Self::InputParsing),
             "node_db_key_test" => Ok(Self::NodeKey),
             "storage_serialize_test" => Ok(Self::StorageSerialize),
+            "compare_python_hash_constants" => Ok(Self::ComparePythonHashConstants),
+
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -85,6 +89,7 @@ impl PythonTest {
             Self::InputParsing => parse_input_test(),
             Self::StorageSerialize => storage_serialize_test(),
             Self::NodeKey => Ok(test_node_db_key()),
+            Self::ComparePythonHashConstants => Ok(python_hash_constants_compare()),
         }
     }
 }
@@ -414,4 +419,9 @@ pub(crate) fn storage_serialize_test() -> Result<String, PythonTestError> {
     }
 
     serde_json::to_string(&storage).map_err(PythonTestError::from)
+}
+
+fn python_hash_constants_compare() -> String {
+    // TODO(Nimrod, 15/5/2024): Compare contract class leaf version.
+    format!("{:?}", CONTRACT_STATE_HASH_VERSION.to_bytes_be())
 }
