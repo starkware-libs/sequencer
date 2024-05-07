@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use std::fmt::Debug;
+use papyrus_config::dumping::SerializeConfig;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum ComponentStartError {
@@ -7,6 +7,11 @@ pub enum ComponentStartError {
     ComponentConfigError,
     #[error("An internal component error.")]
     InternalComponentError,
+}
+
+/// Interface to create memepool components.
+pub trait ComponentCreator<T: SerializeConfig> {
+    fn create(config: T) -> Self;
 }
 
 /// Interface to start memepool components.
