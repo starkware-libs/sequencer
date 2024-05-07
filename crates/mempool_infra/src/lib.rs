@@ -5,4 +5,7 @@ pub mod network_component;
 mod network_component_test;
 
 #[cfg(test)]
+mod channels_test;
+
+#[cfg(test)]
 mod component_runner_test;
