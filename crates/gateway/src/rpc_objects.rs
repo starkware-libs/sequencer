@@ -7,10 +7,9 @@ use blockifier::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use starknet_api::state::StorageKey;
-use starknet_api::{block::BlockNumber, core::ContractAddress};
 use starknet_api::{
-    block::{BlockHash, BlockTimestamp, GasPrice},
-    core::GlobalRoot,
+    block::{BlockHash, BlockNumber, BlockTimestamp, GasPrice},
+    core::{ContractAddress, GlobalRoot},
     data_availability::L1DataAvailabilityMode,
 };
 
@@ -20,26 +19,15 @@ pub const RPC_ERROR_BLOCK_NOT_FOUND: u16 = 24;
 pub const RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND: u16 = 20;
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize)]
-pub enum Tag {
+pub enum BlockId {
     #[serde(rename = "latest")]
     Latest,
     #[serde(rename = "pending")]
     Pending,
-}
-
-#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
-pub enum BlockHashOrNumber {
     #[serde(rename = "block_hash")]
     Hash(BlockHash),
     #[serde(rename = "block_number")]
     Number(BlockNumber),
-}
-
-#[derive(Copy, Clone, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum BlockId {
-    HashOrNumber(BlockHashOrNumber),
-    Tag(Tag),
 }
 
 #[derive(Serialize, Deserialize)]

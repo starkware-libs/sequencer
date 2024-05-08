@@ -6,34 +6,45 @@ use blockifier::state::state_api::StateResult;
 use reqwest::blocking::Client as BlockingClient;
 use serde::Serialize;
 use serde_json::{json, Value};
+use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::hash::StarkFelt;
 use starknet_api::state::StorageKey;
 use url::Url;
 
-use crate::rpc_objects::BlockHeader;
-use crate::rpc_objects::GetBlockWithTxHashesParams;
 use crate::rpc_objects::{
-    BlockId, GetClassHashAtParams, GetNonceParams, GetStorageAtParams, RpcResponse,
-    RPC_ERROR_BLOCK_NOT_FOUND, RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND,
+    BlockHeader, BlockId, GetBlockWithTxHashesParams, GetClassHashAtParams, GetNonceParams,
+    GetStorageAtParams, RpcResponse, RPC_ERROR_BLOCK_NOT_FOUND,
+    RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND,
 };
 
 pub struct RpcStateReader {
-    pub url: Url,
-    pub json_rpc_version: String,
+    pub config: RpcStateReaderConfig,
     pub block_id: BlockId,
 }
 
 impl RpcStateReader {
+    pub fn from_number(config: &RpcStateReaderConfig, block_number: BlockNumber) -> Self {
+        Self {
+            config: config.clone(),
+            block_id: BlockId::Number(block_number),
+        }
+    }
+    pub fn from_latest(config: &RpcStateReaderConfig) -> Self {
+        Self {
+            config: config.clone(),
+            block_id: BlockId::Latest,
+        }
+    }
     // Note: This function is blocking though it is sending a request to the rpc server and waiting
     // for the response.
-    pub fn send_rpc_request<T: Serialize>(
+    pub fn send_rpc_request(
         &self,
         method: &str,
-        params: T,
+        params: impl Serialize,
     ) -> Result<Value, StateError> {
         let request_body = json!({
-            "jsonrpc": self.json_rpc_version,
+            "jsonrpc": self.config.json_rpc_version,
             "id": 0,
             "method": method,
             "params": json!(params),
@@ -41,7 +52,7 @@ impl RpcStateReader {
 
         let client = BlockingClient::new();
         let response = client
-            .post(self.url.clone())
+            .post(self.config.url.clone())
             .header("Content-Type", "application/json")
             .json(&request_body)
             .send()
@@ -147,4 +158,10 @@ impl BlockifierStateReader for RpcStateReader {
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         todo!()
     }
+}
+
+#[derive(Clone)]
+pub struct RpcStateReaderConfig {
+    pub url: Url,
+    pub json_rpc_version: String,
 }
