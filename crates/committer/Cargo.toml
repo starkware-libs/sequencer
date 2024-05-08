@@ -11,6 +11,7 @@ workspace = true
 
 [dev-dependencies]
 pretty_assertions.workspace = true
+rand.workspace = true
 rstest.workspace = true
 
 [dependencies]
