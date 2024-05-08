@@ -1,7 +1,7 @@
 use crate::mempool::{Account, MempoolInput};
 use crate::{errors::MempoolError, mempool::Mempool, priority_queue::PQTransaction};
 use assert_matches::assert_matches;
-use rstest::rstest;
+use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::hash::{StarkFelt, StarkHash};
 use starknet_api::{contract_address, patricia_key};
@@ -13,6 +13,23 @@ use starknet_api::{
     internal_transaction::{InternalInvokeTransaction, InternalTransaction},
     transaction::{Tip, TransactionHash},
 };
+use starknet_mempool_types::mempool_types::{
+    Gateway2MempoolMessage, Mempool2GatewayMessage, MempoolNetworkComponent,
+};
+use tokio::sync::mpsc::channel;
+
+fn create_for_testing(inputs: impl IntoIterator<Item = MempoolInput>) -> Mempool {
+    let (_, rx_gateway_2_mempool) = channel::<Gateway2MempoolMessage>(1);
+    let (tx_mempool_2_gateway, _) = channel::<Mempool2GatewayMessage>(1);
+    let network = MempoolNetworkComponent::new(tx_mempool_2_gateway, rx_gateway_2_mempool);
+
+    Mempool::new(inputs, network)
+}
+
+#[fixture]
+pub fn mempool() -> Mempool {
+    create_for_testing([])
+}
 
 // TODO(Ayelet): Move to StarkNet API.
 pub fn create_internal_invoke_tx_for_testing(
@@ -83,7 +100,7 @@ fn test_get_txs(#[case] requested_txs: usize) {
         account3.address,
     );
 
-    let mut mempool = Mempool::new(vec![
+    let mut mempool = create_for_testing([
         MempoolInput {
             tx: tx_tip_50_address_0.clone(),
             account: account1,
@@ -155,11 +172,11 @@ fn test_mempool_initialization_with_duplicate_contract_addresses() {
     ];
 
     // This call should panic because of duplicate contract addresses
-    let _mempool = Mempool::new(inputs.into_iter());
+    let _mempool = create_for_testing(inputs.into_iter());
 }
 
-#[test]
-fn test_add_tx() {
+#[rstest]
+fn test_add_tx(mut mempool: Mempool) {
     let account1 = Account::default();
     let tx_tip_50_address_0 = create_internal_invoke_tx_for_testing(
         Tip(50),
@@ -185,7 +202,6 @@ fn test_add_tx() {
         account3.address,
     );
 
-    let mut mempool = Mempool::default();
     assert!(mempool
         .add_tx(tx_tip_50_address_0.clone(), account1)
         .is_ok());
@@ -215,8 +231,8 @@ fn test_add_tx() {
     );
 }
 
-#[test]
-fn test_add_same_tx() {
+#[rstest]
+fn test_add_same_tx(mut mempool: Mempool) {
     let account = Account::default();
     let tx = create_internal_invoke_tx_for_testing(
         Tip(50),
@@ -224,8 +240,6 @@ fn test_add_same_tx() {
         contract_address!("0x0"),
     );
     let same_tx = tx.clone();
-
-    let mut mempool = Mempool::default();
 
     assert!(mempool.add_tx(tx, account).is_ok());
     assert_matches!(

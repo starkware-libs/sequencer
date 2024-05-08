@@ -1,8 +1,6 @@
 use crate::{errors::MempoolError, priority_queue::PriorityQueue};
 use starknet_api::{
-    core::{ContractAddress, Nonce},
-    internal_transaction::InternalTransaction,
-    transaction::TransactionHash,
+    core::ContractAddress, internal_transaction::InternalTransaction, transaction::TransactionHash,
 };
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
@@ -11,23 +9,34 @@ use std::collections::HashMap;
 #[path = "mempool_test.rs"]
 pub mod mempool_test;
 
+use starknet_mempool_types::mempool_types::{
+    Account, AccountState, MempoolInput, MempoolNetworkComponent,
+};
+
 pub type MempoolResult<T> = Result<T, MempoolError>;
 
-#[derive(Default)]
 pub struct Mempool {
     // TODO: add docstring explaining visibility and coupling of the fields.
+    pub network: MempoolNetworkComponent,
     txs_queue: PriorityQueue,
     state: HashMap<ContractAddress, AccountState>,
 }
 
 impl Mempool {
-    pub fn new(inputs: impl IntoIterator<Item = MempoolInput>) -> Self {
-        let mut mempool = Mempool::default();
+    pub fn new(
+        inputs: impl IntoIterator<Item = MempoolInput>,
+        network: MempoolNetworkComponent,
+    ) -> Self {
+        let mut mempool = Mempool {
+            txs_queue: Default::default(),
+            state: Default::default(),
+            network,
+        };
 
         mempool.txs_queue = PriorityQueue::from_iter(inputs.into_iter().map(|input| {
-            let prev_value = mempool.state.insert(
-                input.account.address, input.account.state
-            );
+            // Attempts to insert a key-value pair into the mempool's state. Returns `None` if the
+            // key was not present, otherwise returns the old value while updating the new value.
+            let prev_value = mempool.state.insert(input.account.address, input.account.state);
             // Assert that the contract address does not exist in the mempool's state to ensure that
             // there is only one transaction per contract address.
             assert!(
@@ -81,22 +90,4 @@ impl Mempool {
     ) -> MempoolResult<()> {
         todo!()
     }
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-pub struct AccountState {
-    pub nonce: Nonce,
-    // TODO: add balance field when needed.
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-pub struct Account {
-    pub address: ContractAddress,
-    pub state: AccountState,
-}
-
-#[derive(Debug)]
-pub struct MempoolInput {
-    pub tx: InternalTransaction,
-    pub account: Account,
 }

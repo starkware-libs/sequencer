@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/gateway", "crates/mempool", "crates/mempool_node", "crates/mempool_infra"]
+members = ["crates/gateway", "crates/mempool", "crates/mempool_types", "crates/mempool_node", "crates/mempool_infra"]
 
 [workspace.package]
 version = "0.0.0"
@@ -40,4 +40,3 @@ tokio = { version = "1", features = ["full"] }
 tower = "0.4.13"
 url = "2.5.0"
 validator = "0.12"
-
