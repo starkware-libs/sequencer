@@ -4,7 +4,9 @@ use blockifier::state::errors::StateError;
 use blockifier::state::state_api::StateReader as BlockifierStateReader;
 use blockifier::state::state_api::StateResult;
 use reqwest::blocking::Client as BlockingClient;
+use reqwest::Error as ReqwestError;
 use serde::Serialize;
+use serde_json::Error as SerdeError;
 use serde_json::{json, Value};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
@@ -56,9 +58,7 @@ impl RpcStateReader {
             .header("Content-Type", "application/json")
             .json(&request_body)
             .send()
-            .map_err(|e| {
-                StateError::StateReadError(format!("Rpc request failed with error {:?}", e))
-            })?;
+            .map_err(reqwest_err_to_state_err)?;
 
         if !response.status().is_success() {
             return Err(StateError::StateReadError(format!(
@@ -67,9 +67,9 @@ impl RpcStateReader {
             )));
         }
 
-        let rpc_response: RpcResponse = response.json::<RpcResponse>().map_err(|e| {
-            StateError::StateReadError(format!("Couldn't parse json rpc response {}", e))
-        })?;
+        let rpc_response: RpcResponse = response
+            .json::<RpcResponse>()
+            .map_err(reqwest_err_to_state_err)?;
 
         match rpc_response {
             RpcResponse::Success(rpc_success_response) => Ok(rpc_success_response.result),
@@ -99,9 +99,7 @@ impl RpcStateReader {
         let block_header: BlockHeader = serde_json::from_value(
             self.send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)?,
         )
-        .map_err(|e| {
-            StateError::StateReadError(format!("Couldn't parse block with tx hashes {}", e))
-        })?;
+        .map_err(serde_err_to_state_err)?;
         let block_info = block_header.try_into()?;
         Ok(block_info)
     }
@@ -120,8 +118,7 @@ impl BlockifierStateReader for RpcStateReader {
         };
 
         let result = self.send_rpc_request("starknet_getStorageAt", get_storage_at_params)?;
-        let value: StarkFelt = serde_json::from_value(result)
-            .map_err(|_| StateError::StateReadError("Bad rpc result".to_string()))?;
+        let value: StarkFelt = serde_json::from_value(result).map_err(serde_err_to_state_err)?;
         Ok(value)
     }
 
@@ -132,8 +129,7 @@ impl BlockifierStateReader for RpcStateReader {
         };
 
         let result = self.send_rpc_request("starknet_getNonce", get_nonce_params)?;
-        let nonce: Nonce = serde_json::from_value(result)
-            .map_err(|_| StateError::StateReadError("Bad rpc result".to_string()))?;
+        let nonce: Nonce = serde_json::from_value(result).map_err(serde_err_to_state_err)?;
         Ok(nonce)
     }
 
@@ -149,8 +145,8 @@ impl BlockifierStateReader for RpcStateReader {
         };
 
         let result = self.send_rpc_request("starknet_getClassHashAt", get_class_hash_at_params)?;
-        let class_hash: ClassHash = serde_json::from_value(result)
-            .map_err(|_| StateError::StateReadError("Bad rpc result".to_string()))?;
+        let class_hash: ClassHash =
+            serde_json::from_value(result).map_err(serde_err_to_state_err)?;
         Ok(class_hash)
     }
 
@@ -164,4 +160,17 @@ impl BlockifierStateReader for RpcStateReader {
 pub struct RpcStateReaderConfig {
     pub url: Url,
     pub json_rpc_version: String,
+}
+
+// Converts a serder error to the error type of the state reader.
+fn serde_err_to_state_err(err: SerdeError) -> StateError {
+    StateError::StateReadError(format!("Failed to parse rpc result {:?}", err.to_string()))
+}
+
+// Converts a reqwest error to the error type of the state reader.
+fn reqwest_err_to_state_err(err: ReqwestError) -> StateError {
+    StateError::StateReadError(format!(
+        "Rpc request failed with error {:?}",
+        err.to_string()
+    ))
 }
