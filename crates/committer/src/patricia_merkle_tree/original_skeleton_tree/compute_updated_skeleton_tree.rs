@@ -53,6 +53,7 @@ impl OriginalSkeletonTreeImpl {
         assert_child(*last_leaf);
 
         let child_direction_mask = U256::ONE << (root_height.0 - 1);
-        (first_leaf.0 & child_direction_mask) != (last_leaf.0 & child_direction_mask)
+        (U256::from(first_leaf) & child_direction_mask)
+            != (U256::from(*last_leaf) & child_direction_mask)
     }
 }

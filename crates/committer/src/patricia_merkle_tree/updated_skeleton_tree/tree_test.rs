@@ -21,7 +21,7 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
 async fn test_filled_tree_sanity() {
     let mut skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode<LeafDataImpl>> = HashMap::new();
     skeleton_tree.insert(
-        NodeIndex::root_index(),
+        NodeIndex::ROOT,
         UpdatedSkeletonNode::Leaf(LeafDataImpl::CompiledClassHash(ClassHash(Felt::ONE))),
     );
     let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };

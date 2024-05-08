@@ -48,7 +48,7 @@ impl<L: LeafData> FilledTree<L> for FilledTreeImpl<L> {
     }
 
     fn get_root_hash(&self) -> Result<HashOutput, FilledTreeError> {
-        match self.tree_map.get(&NodeIndex::root_index()) {
+        match self.tree_map.get(&NodeIndex::ROOT) {
             Some(root_node) => Ok(root_node.hash),
             None => Err(FilledTreeError::MissingRoot),
         }

@@ -22,17 +22,17 @@ fn empty_skeleton(height: u8) -> OriginalSkeletonTreeImpl {
 #[case::large_tree_farthest_leaves(
     251,
     1,
-    vec![NodeIndex(U256::ONE << 251),NodeIndex((U256::ONE << 252) - U256::ONE)],
+    vec![NodeIndex::ROOT << 251, NodeIndex::MAX_INDEX],
     true)]
 #[case::large_tree_positive_consecutive_indices_of_different_sides(
     251,
     1,
-    vec![NodeIndex((U256::from(3u8) << 250) - U256::ONE), NodeIndex(U256::from(3u8) << 250)],
+    vec![NodeIndex::new((U256::from(3u8) << 250) - U256::ONE), NodeIndex::new(U256::from(3u8) << 250)],
     true)]
 #[case::large_tree_negative_one_shift_of_positive_case(
     251,
     1,
-    vec![NodeIndex(U256::from(3u8) << 250), NodeIndex((U256::from(3u8) << 250)+ U256::ONE)],
+    vec![NodeIndex::new(U256::from(3u8) << 250), NodeIndex::new((U256::from(3u8) << 250)+ U256::ONE)],
     false)]
 fn test_has_leaves_on_both_sides(
     #[case] tree_height: u8,
@@ -41,7 +41,7 @@ fn test_has_leaves_on_both_sides(
     #[case] expected: bool,
 ) {
     let skeleton_tree = empty_skeleton(tree_height);
-    let root_index = NodeIndex(root_index.into());
+    let root_index = NodeIndex::new(root_index.into());
     assert_eq!(
         skeleton_tree.has_leaves_on_both_sides(&root_index, &leaf_indices),
         expected
@@ -58,6 +58,6 @@ fn test_has_leaves_on_both_sides_assertions(
     #[case] leaf_indices: Vec<NodeIndex>,
 ) {
     let skeleton_tree = empty_skeleton(tree_height);
-    let root_index = NodeIndex(root_index.into());
+    let root_index = NodeIndex::new(root_index.into());
     skeleton_tree.has_leaves_on_both_sides(&root_index, &leaf_indices);
 }

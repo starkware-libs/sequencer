@@ -1,5 +1,3 @@
-use ethnum::U256;
-
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -119,8 +117,8 @@ impl<L: LeafData + std::clone::Clone + std::marker::Sync + std::marker::Send>
         let node = self.get_node(index)?;
         match node {
             UpdatedSkeletonNode::Binary => {
-                let left_index = index * 2;
-                let right_index = left_index + NodeIndex(U256::ONE);
+                let left_index = index * 2.into();
+                let right_index = left_index + NodeIndex::ROOT;
 
                 let (left_hash, right_hash) = tokio::join!(
                     self.compute_filled_tree_rec::<H, TH>(left_index, Arc::clone(&output_map)),
@@ -171,11 +169,8 @@ impl<L: LeafData + std::clone::Clone + std::marker::Sync + std::marker::Send> Up
         //   2. Fill in the hash values.
         let filled_tree_map = Arc::new(self.initialize_with_placeholders());
 
-        self.compute_filled_tree_rec::<H, TH>(
-            NodeIndex::root_index(),
-            Arc::clone(&filled_tree_map),
-        )
-        .await?;
+        self.compute_filled_tree_rec::<H, TH>(NodeIndex::ROOT, Arc::clone(&filled_tree_map))
+            .await?;
 
         // Create and return a new FilledTreeImpl from the hashmap.
         Ok(FilledTreeImpl::new(Self::remove_arc_mutex_and_option(

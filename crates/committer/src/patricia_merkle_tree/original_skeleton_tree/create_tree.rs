@@ -19,7 +19,6 @@ use crate::storage::storage_trait::Storage;
 use crate::storage::storage_trait::StorageKey;
 use crate::storage::storage_trait::StoragePrefix;
 use bisection::{bisect_left, bisect_right};
-use ethnum::U256;
 use std::collections::HashMap;
 #[cfg(test)]
 #[path = "create_tree_test.rs"]
@@ -42,7 +41,7 @@ impl<'a> SubTree<'a> {
     ) -> (&'a [NodeIndex], &'a [NodeIndex]) {
         let height = self.get_height(total_tree_height);
         let leftmost_index_in_right_subtree =
-            ((self.root_index << 1) + NodeIndex(U256::ONE)) << (height.0 - 1);
+            ((self.root_index << 1) + NodeIndex::ROOT) << (height.0 - 1);
         let mid = bisect_left(self.sorted_leaf_indices, &leftmost_index_in_right_subtree);
         (
             &self.sorted_leaf_indices[..mid],
@@ -65,7 +64,7 @@ impl<'a> SubTree<'a> {
             self.get_height(total_tree_height) - TreeHeight(path_to_bottom.length.0);
         let leftmost_in_subtree = bottom_index << bottom_height.0;
         let rightmost_in_subtree =
-            leftmost_in_subtree + (NodeIndex(U256::ONE) << bottom_height.0) - NodeIndex(U256::ONE);
+            leftmost_in_subtree + (NodeIndex::ROOT << bottom_height.0) - NodeIndex::ROOT;
         let bottom_leaves =
             &self.sorted_leaf_indices[bisect_left(self.sorted_leaf_indices, &leftmost_in_subtree)
                 ..bisect_right(self.sorted_leaf_indices, &rightmost_in_subtree)];
@@ -84,7 +83,7 @@ impl<'a> SubTree<'a> {
         total_tree_height: &TreeHeight,
     ) -> (Self, Self) {
         let (left_leaves, right_leaves) = self.split_leaves(total_tree_height);
-        let left_root_index = self.root_index * 2;
+        let left_root_index = self.root_index * 2.into();
         (
             SubTree {
                 sorted_leaf_indices: left_leaves,
@@ -93,7 +92,7 @@ impl<'a> SubTree<'a> {
             },
             SubTree {
                 sorted_leaf_indices: right_leaves,
-                root_index: left_root_index + NodeIndex(U256::ONE),
+                root_index: left_root_index + NodeIndex::ROOT,
                 root_hash: right_hash,
             },
         )
@@ -216,7 +215,7 @@ impl OriginalSkeletonTreeImpl {
     ) -> OriginalSkeletonTreeResult<Self> {
         let main_subtree = SubTree {
             sorted_leaf_indices,
-            root_index: NodeIndex::root_index(),
+            root_index: NodeIndex::ROOT,
             root_hash,
         };
         let mut skeleton_tree = Self {
