@@ -25,7 +25,7 @@ pub struct MempoolInput {
 
 #[derive(Debug)]
 pub enum Gateway2MempoolMessage {
-    AddTx(InternalTransaction, AccountState),
+    AddTx(InternalTransaction, Account),
 }
 
 pub type Mempool2GatewayMessage = ();
