@@ -1,7 +1,8 @@
 use crate::block_committer::input::{ContractAddress, StarknetStorageKey};
 use crate::felt::Felt;
+use crate::patricia_merkle_tree::errors::TypesError;
 use crate::patricia_merkle_tree::filled_tree::node::ClassHash;
-use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
+use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength, PathToBottom};
 
 use ethnum::U256;
 
@@ -84,6 +85,31 @@ impl NodeIndex {
         NodeIndex(lca)
     }
 
+    /// Returns the path from the node to its given descendant.
+    /// Panics if the supposed descendant is not really a descendant.
+    pub(crate) fn get_path_to_descendant(&self, descendant: Self) -> PathToBottom {
+        let descendant_bit_length = descendant.bit_length();
+        let bit_length = self.bit_length();
+        if bit_length > descendant_bit_length {
+            panic!("The descendant is not a really descendant of the node.");
+        };
+
+        let distance = descendant_bit_length - bit_length;
+        let delta = descendant - (*self << distance);
+        if descendant >> distance != *self {
+            panic!("The descendant is not a really descendant of the node.");
+        };
+
+        PathToBottom {
+            path: EdgePath(
+                delta
+                    .try_into()
+                    .expect("Delta of two indices is unexpectedly larger than a Felt."),
+            ),
+            length: EdgePathLength(distance),
+        }
+    }
+
     pub(crate) fn from_starknet_storage_key(
         key: &StarknetStorageKey,
         tree_height: &TreeHeight,
@@ -154,5 +180,21 @@ impl From<u128> for NodeIndex {
 impl From<NodeIndex> for U256 {
     fn from(value: NodeIndex) -> Self {
         value.0
+    }
+}
+
+impl TryFrom<NodeIndex> for Felt {
+    type Error = TypesError<NodeIndex>;
+
+    fn try_from(value: NodeIndex) -> Result<Self, Self::Error> {
+        if value.0 > U256::from_be_bytes(Self::MAX.to_bytes_be()) {
+            return Err(TypesError::ConversionError {
+                from: value,
+                to: "Felt",
+                reason: "NodeIndex is too large",
+            });
+        }
+        let bytes = value.0.to_be_bytes();
+        Ok(Self::from_bytes_be_slice(&bytes))
     }
 }

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use ethnum::U256;
 
+use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
 use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonTreeImpl, OriginalSkeletonTreeResult,
@@ -23,6 +24,23 @@ impl OriginalSkeletonTreeImpl {
 
     fn get_node_height(&self, index: &NodeIndex) -> TreeHeight {
         TreeHeight(self.tree_height.0 - index.bit_length() + 1)
+    }
+
+    #[allow(dead_code)]
+    /// Returns the path from the given root_index to the LCA of the leaves. Assumes the leaves are:
+    /// * Sorted.
+    /// * Descendants of the given index.
+    /// * Non-empty list.
+    fn get_path_to_lca(&self, root_index: &NodeIndex, leaf_indices: &[NodeIndex]) -> PathToBottom {
+        if leaf_indices.is_empty() {
+            panic!("Unexpected empty array.");
+        }
+        let lca = if leaf_indices.len() == 1 {
+            leaf_indices[0]
+        } else {
+            leaf_indices[0].get_lca(leaf_indices.last().expect("Unexpected empty array"))
+        };
+        root_index.get_path_to_descendant(lca)
     }
 
     /// Returns whether a root of a subtree has leaves on both sides. Assumes:

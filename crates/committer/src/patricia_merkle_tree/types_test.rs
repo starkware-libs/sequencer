@@ -94,3 +94,47 @@ fn test_get_lca_big() {
     let right_descendant = random_extension(right_child);
     assert_eq!(left_descendant.get_lca(&right_descendant), lca);
 }
+
+#[rstest]
+#[case(3, 3, 0, 0)]
+#[case(2, 10, 2, 2)]
+#[should_panic]
+#[case(2, 3, 0, 0)]
+#[should_panic]
+#[case(2, 6, 0, 0)]
+#[should_panic]
+#[case(6, 2, 0, 0)]
+fn test_get_path_to_descendant(
+    #[case] root_index: u8,
+    #[case] descendant: u8,
+    #[case] expected_path: u8,
+    #[case] expected_length: u8,
+) {
+    let root_index = NodeIndex(root_index.into());
+    let descendant = NodeIndex(descendant.into());
+    let path_to_bottom = root_index.get_path_to_descendant(descendant);
+    assert_eq!(path_to_bottom.path, EdgePath(Felt::from(expected_path)));
+    assert_eq!(path_to_bottom.length, EdgePathLength(expected_length));
+}
+
+#[rstest]
+fn test_get_path_to_descendant_big() {
+    let root_index = NodeIndex(U256::from(rand::thread_rng().gen::<u128>()));
+    let max_bits = NodeIndex::BITS - 128;
+    let extension: u128 = rand::thread_rng().gen_range(0..1 << max_bits);
+    let extension_index = NodeIndex(U256::from(extension));
+
+    let descendant = (root_index << extension_index.bit_length()) + extension_index;
+    let path_to_bottom = root_index.get_path_to_descendant(descendant);
+    assert_eq!(path_to_bottom.path, EdgePath(Felt::from(extension)));
+    assert_eq!(
+        path_to_bottom.length,
+        EdgePathLength(extension_index.bit_length())
+    );
+}
+
+#[rstest]
+fn test_nodeindex_to_felt_conversion() {
+    let index = NodeIndex::MAX_INDEX;
+    assert!(Felt::try_from(index).is_err());
+}

@@ -54,6 +54,7 @@ impl Felt {
     pub(crate) const ONE: Felt = Felt(StarknetTypesFelt::ONE);
     pub(crate) const TWO: Felt = Felt(StarknetTypesFelt::TWO);
     pub(crate) const THREE: Felt = Felt(StarknetTypesFelt::THREE);
+    pub(crate) const MAX: Felt = Felt(StarknetTypesFelt::MAX);
 
     pub fn from_bytes_be_slice(bytes: &[u8]) -> Self {
         Self(StarknetTypesFelt::from_bytes_be_slice(bytes))
