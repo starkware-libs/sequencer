@@ -20,6 +20,7 @@ serde_json.workspace = true
 starknet_api.workspace = true
 starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
 thiserror.workspace = true
+tokio.workspace = true
 tower.workspace = true
 url.workspace = true
 validator.workspace = true
@@ -28,4 +29,3 @@ validator.workspace = true
 assert_matches.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
-tokio.workspace = true

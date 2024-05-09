@@ -12,11 +12,12 @@ use starknet_api::{
 };
 
 use thiserror::Error;
+use tokio::task::JoinError;
 
 #[derive(Debug, Error)]
 pub enum GatewayError {
-    #[error("Internal server error")]
-    InternalServerError,
+    #[error("Internal server error: {0}")]
+    InternalServerError(#[from] JoinError),
     #[error(transparent)]
     StatelessTransactionValidatorError(#[from] StatelessTransactionValidatorError),
 }

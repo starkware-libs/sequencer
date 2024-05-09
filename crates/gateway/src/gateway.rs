@@ -54,7 +54,7 @@ pub fn app(config: StatelessTransactionValidatorConfig) -> Router {
 
     Router::new()
         .route("/is_alive", get(is_alive))
-        .route("/add_transaction", post(add_transaction))
+        .route("/add_transaction", post(async_add_transaction))
         .with_state(gateway_state)
     // TODO: when we need to configure the router, like adding banned ips, add it here via
     // `with_state`.
@@ -64,9 +64,16 @@ async fn is_alive() -> GatewayResult<String> {
     unimplemented!("Future handling should be implemented here.");
 }
 
-async fn add_transaction(
+async fn async_add_transaction(
     State(gateway_state): State<GatewayState>,
     Json(transaction): Json<ExternalTransaction>,
+) -> GatewayResult<String> {
+    tokio::task::spawn_blocking(move || add_transaction(gateway_state, transaction)).await?
+}
+
+fn add_transaction(
+    gateway_state: GatewayState,
+    transaction: ExternalTransaction,
 ) -> GatewayResult<String> {
     // TODO(Arni, 1/5/2024): Preform congestion control.
 
