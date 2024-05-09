@@ -1,8 +1,10 @@
-use starknet_api::{
-    internal_transaction::InternalTransaction,
-    transaction::{DeclareTransaction, DeployAccountTransaction, InvokeTransaction, Tip},
+use std::cmp::Ordering;
+use std::collections::BTreeSet;
+
+use starknet_api::internal_transaction::InternalTransaction;
+use starknet_api::transaction::{
+    DeclareTransaction, DeployAccountTransaction, InvokeTransaction, Tip,
 };
-use std::{cmp::Ordering, collections::BTreeSet};
 // Assumption: for the MVP only one transaction from the same contract class can be in the mempool
 // at a time. When this changes, saving the transactions themselves on the queu might no longer be
 // appropriate, because we'll also need to stores transactions without indexing them. For example,
@@ -18,9 +20,7 @@ impl PriorityQueue {
 
     // TODO(gilad): remove collect
     pub fn pop_last_chunk(&mut self, n_txs: usize) -> Vec<InternalTransaction> {
-        (0..n_txs)
-            .filter_map(|_| self.pop_last().map(|tx| tx.0))
-            .collect()
+        (0..n_txs).filter_map(|_| self.pop_last().map(|tx| tx.0)).collect()
     }
 }
 

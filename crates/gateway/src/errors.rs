@@ -1,16 +1,11 @@
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use blockifier::blockifier::stateful_validator::StatefulValidatorError;
 use blockifier::state::errors::StateError;
-use blockifier::{
-    blockifier::stateful_validator::StatefulValidatorError,
-    transaction::errors::TransactionExecutionError,
-};
-use starknet_api::{
-    block::BlockNumber,
-    transaction::{Resource, ResourceBounds},
-    StarknetApiError,
-};
-
+use blockifier::transaction::errors::TransactionExecutionError;
+use starknet_api::block::BlockNumber;
+use starknet_api::transaction::{Resource, ResourceBounds};
+use starknet_api::StarknetApiError;
 use thiserror::Error;
 use tokio::task::JoinError;
 
@@ -35,28 +30,19 @@ impl IntoResponse for GatewayError {
 #[cfg_attr(test, derive(PartialEq))]
 pub enum StatelessTransactionValidatorError {
     #[error("Expected a positive amount of {resource:?}. Got {resource_bounds:?}.")]
-    ZeroResourceBounds {
-        resource: Resource,
-        resource_bounds: ResourceBounds,
-    },
+    ZeroResourceBounds { resource: Resource, resource_bounds: ResourceBounds },
     #[error("The resource bounds mapping is missing a resource {resource:?}.")]
     MissingResource { resource: Resource },
     #[error(
         "Calldata length exceeded maximum: length {calldata_length}
         (allowed length: {max_calldata_length})."
     )]
-    CalldataTooLong {
-        calldata_length: usize,
-        max_calldata_length: usize,
-    },
+    CalldataTooLong { calldata_length: usize, max_calldata_length: usize },
     #[error(
         "Signature length exceeded maximum: length {signature_length}
         (allowed length: {max_signature_length})."
     )]
-    SignatureTooLong {
-        signature_length: usize,
-        max_signature_length: usize,
-    },
+    SignatureTooLong { signature_length: usize, max_signature_length: usize },
 }
 
 pub type StatelessTransactionValidatorResult<T> = Result<T, StatelessTransactionValidatorError>;

@@ -1,21 +1,17 @@
 use blockifier::blockifier::block::BlockInfo;
 use blockifier::blockifier::stateful_validator::StatefulValidator as BlockifierStatefulValidator;
 use blockifier::bouncer::BouncerConfig;
-use blockifier::context::BlockContext;
-use blockifier::context::ChainInfo;
+use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::execution::contract_class::ClassInfo;
 use blockifier::state::cached_state::CachedState;
-
 use blockifier::state::state_api::StateReader as BlockifierStateReader;
 use blockifier::versioned_constants::VersionedConstants;
 use starknet_api::core::Nonce;
 use starknet_api::external_transaction::ExternalTransaction;
 use starknet_api::transaction::TransactionHash;
 
-use crate::errors::StatefulTransactionValidatorError;
-use crate::errors::StatefulTransactionValidatorResult;
-use crate::rpc_state_reader::RpcStateReader;
-use crate::rpc_state_reader::RpcStateReaderConfig;
+use crate::errors::{StatefulTransactionValidatorError, StatefulTransactionValidatorResult};
+use crate::rpc_state_reader::{RpcStateReader, RpcStateReaderConfig};
 use crate::utils::external_tx_to_account_tx;
 
 #[cfg(test)]

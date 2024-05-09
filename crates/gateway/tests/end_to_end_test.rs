@@ -1,38 +1,26 @@
-use starknet_api::{
-    core::{ContractAddress, Nonce},
-    data_availability::DataAvailabilityMode,
-    internal_transaction::{InternalInvokeTransaction, InternalTransaction},
-    transaction::{InvokeTransaction, InvokeTransactionV3, ResourceBounds, ResourceBoundsMapping},
-};
-use tokio::{sync::mpsc::channel, task};
-
 use mempool_infra::network_component::CommunicationInterface;
-
+use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_api::internal_transaction::{InternalInvokeTransaction, InternalTransaction};
+use starknet_api::transaction::{
+    InvokeTransaction, InvokeTransactionV3, ResourceBounds, ResourceBoundsMapping,
+};
 use starknet_mempool_types::mempool_types::{
     Account, AccountState, Gateway2MempoolMessage, GatewayNetworkComponent, Mempool2GatewayMessage,
     MempoolNetworkComponent,
 };
+use tokio::sync::mpsc::channel;
+use tokio::task;
 
 pub fn create_default_account() -> Account {
-    Account {
-        address: ContractAddress::default(),
-        state: AccountState {
-            nonce: Nonce::default(),
-        },
-    }
+    Account { address: ContractAddress::default(), state: AccountState { nonce: Nonce::default() } }
 }
 
 pub fn create_internal_tx_for_testing() -> InternalTransaction {
     let tx = InvokeTransactionV3 {
         resource_bounds: ResourceBoundsMapping::try_from(vec![
-            (
-                starknet_api::transaction::Resource::L1Gas,
-                ResourceBounds::default(),
-            ),
-            (
-                starknet_api::transaction::Resource::L2Gas,
-                ResourceBounds::default(),
-            ),
+            (starknet_api::transaction::Resource::L1Gas, ResourceBounds::default()),
+            (starknet_api::transaction::Resource::L2Gas, ResourceBounds::default()),
         ])
         .expect("Resource bounds mapping has unexpected structure."),
         signature: Default::default(),
@@ -76,10 +64,8 @@ async fn test_send_and_receive() {
     .await
     .unwrap();
 
-    let mempool_message = task::spawn(async move { mempool_network.recv().await })
-        .await
-        .unwrap()
-        .unwrap();
+    let mempool_message =
+        task::spawn(async move { mempool_network.recv().await }).await.unwrap().unwrap();
 
     match mempool_message {
         Gateway2MempoolMessage::AddTx(tx, _) => match tx {

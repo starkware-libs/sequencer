@@ -1,9 +1,6 @@
-use starknet_api::{
-    core::{ContractAddress, Nonce},
-    internal_transaction::InternalTransaction,
-};
-
 use mempool_infra::network_component::NetworkComponent;
+use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::internal_transaction::InternalTransaction;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct AccountState {

@@ -1,5 +1,6 @@
 use async_trait::async_trait;
-use tokio::sync::mpsc::{error::SendError, Receiver, Sender};
+use tokio::sync::mpsc::error::SendError;
+use tokio::sync::mpsc::{Receiver, Sender};
 
 #[async_trait]
 pub trait CommunicationInterface<S, R> {

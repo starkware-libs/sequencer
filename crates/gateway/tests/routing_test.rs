@@ -1,11 +1,12 @@
+use std::fs;
+use std::path::Path;
+
 use axum::body::{Body, Bytes, HttpBody};
 use axum::http::{Request, StatusCode};
 use pretty_assertions::assert_str_eq;
 use rstest::rstest;
 use starknet_gateway::gateway::app;
 use starknet_gateway::stateless_transaction_validator::StatelessTransactionValidatorConfig;
-use std::fs;
-use std::path::Path;
 use tower::ServiceExt;
 
 const TEST_FILES_FOLDER: &str = "./tests/fixtures";
@@ -47,10 +48,7 @@ async fn check_request(request: Request<Body>, status_code: StatusCode) -> Bytes
         max_signature_length: 2,
         ..Default::default()
     };
-    let response = app(stateless_transaction_validator_config)
-        .oneshot(request)
-        .await
-        .unwrap();
+    let response = app(stateless_transaction_validator_config).oneshot(request).await.unwrap();
     assert_eq!(response.status(), status_code);
 
     response.into_body().collect().await.unwrap().to_bytes()

@@ -1,3 +1,6 @@
+use std::fs::File;
+use std::path::Path;
+
 use axum::body::{Bytes, HttpBody};
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -5,11 +8,8 @@ use axum::response::{IntoResponse, Response};
 use pretty_assertions::assert_str_eq;
 use rstest::rstest;
 use starknet_api::external_transaction::ExternalTransaction;
-use std::fs::File;
-use std::path::Path;
 
-use crate::gateway::async_add_transaction;
-use crate::gateway::GatewayState;
+use crate::gateway::{async_add_transaction, GatewayState};
 use crate::stateless_transaction_validator::{
     StatelessTransactionValidator, StatelessTransactionValidatorConfig,
 };
@@ -42,10 +42,8 @@ async fn test_add_transaction(#[case] json_file_path: &Path, #[case] expected_re
 
     // Negative flow.
     const TOO_SMALL_SIGNATURE_LENGTH: usize = 0;
-    gateway_state
-        .stateless_transaction_validator
-        .config
-        .max_signature_length = TOO_SMALL_SIGNATURE_LENGTH;
+    gateway_state.stateless_transaction_validator.config.max_signature_length =
+        TOO_SMALL_SIGNATURE_LENGTH;
 
     let response = async_add_transaction(State(gateway_state.clone()), tx.clone().into())
         .await
@@ -59,14 +57,9 @@ async fn test_add_transaction(#[case] json_file_path: &Path, #[case] expected_re
     assert!(String::from_utf8_lossy(response_bytes).starts_with(negative_flow_expected_response));
 
     // Positive flow.
-    gateway_state
-        .stateless_transaction_validator
-        .config
-        .max_signature_length = 2;
+    gateway_state.stateless_transaction_validator.config.max_signature_length = 2;
 
-    let response = async_add_transaction(State(gateway_state), tx.into())
-        .await
-        .into_response();
+    let response = async_add_transaction(State(gateway_state), tx.into()).await.into_response();
 
     let status_code = response.status();
     assert_eq!(status_code, StatusCode::OK);

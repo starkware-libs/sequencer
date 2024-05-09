@@ -1,9 +1,9 @@
-use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use std::net::IpAddr;
 
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use std::net::IpAddr;
+use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 /// The gateway configuration.
@@ -22,21 +22,13 @@ impl SerializeConfig for GatewayConfig {
                 "The gateway server ip.",
                 ParamPrivacyInput::Public,
             ),
-            ser_param(
-                "port",
-                &self.port,
-                "The gateway server port.",
-                ParamPrivacyInput::Public,
-            ),
+            ser_param("port", &self.port, "The gateway server port.", ParamPrivacyInput::Public),
         ])
     }
 }
 
 impl Default for GatewayConfig {
     fn default() -> Self {
-        Self {
-            ip: "0.0.0.0".parse().unwrap(),
-            port: 8080,
-        }
+        Self { ip: "0.0.0.0".parse().unwrap(), port: 8080 }
     }
 }

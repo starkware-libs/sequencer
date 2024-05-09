@@ -44,21 +44,19 @@ fn external_declare_tx_for_testing(
     resource_bounds: ResourceBoundsMapping,
     signature: TransactionSignature,
 ) -> ExternalTransaction {
-    ExternalTransaction::Declare(ExternalDeclareTransaction::V3(
-        ExternalDeclareTransactionV3 {
-            resource_bounds,
-            contract_class: Default::default(),
-            tip: Default::default(),
-            signature,
-            nonce: Default::default(),
-            compiled_class_hash: Default::default(),
-            sender_address: Default::default(),
-            nonce_data_availability_mode: DataAvailabilityMode::L1,
-            fee_data_availability_mode: DataAvailabilityMode::L1,
-            paymaster_data: Default::default(),
-            account_deployment_data: Default::default(),
-        },
-    ))
+    ExternalTransaction::Declare(ExternalDeclareTransaction::V3(ExternalDeclareTransactionV3 {
+        resource_bounds,
+        contract_class: Default::default(),
+        tip: Default::default(),
+        signature,
+        nonce: Default::default(),
+        compiled_class_hash: Default::default(),
+        sender_address: Default::default(),
+        nonce_data_availability_mode: DataAvailabilityMode::L1,
+        fee_data_availability_mode: DataAvailabilityMode::L1,
+        paymaster_data: Default::default(),
+        account_deployment_data: Default::default(),
+    }))
 }
 
 fn external_deploy_account_tx_for_testing(
@@ -119,24 +117,16 @@ pub fn executable_external_invoke_tx_for_testing(
     }))
 }
 
-pub const NON_EMPTY_RESOURCE_BOUNDS: ResourceBounds = ResourceBounds {
-    max_amount: 1,
-    max_price_per_unit: 1,
-};
+pub const NON_EMPTY_RESOURCE_BOUNDS: ResourceBounds =
+    ResourceBounds { max_amount: 1, max_price_per_unit: 1 };
 
 pub fn create_resource_bounds_mapping(
     l1_resource_bounds: ResourceBounds,
     l2_resource_bounds: ResourceBounds,
 ) -> ResourceBoundsMapping {
     ResourceBoundsMapping::try_from(vec![
-        (
-            starknet_api::transaction::Resource::L1Gas,
-            l1_resource_bounds,
-        ),
-        (
-            starknet_api::transaction::Resource::L2Gas,
-            l2_resource_bounds,
-        ),
+        (starknet_api::transaction::Resource::L1Gas, l1_resource_bounds),
+        (starknet_api::transaction::Resource::L2Gas, l2_resource_bounds),
     ])
     .expect("Resource bounds mapping has unexpected structure.")
 }
@@ -158,10 +148,7 @@ pub fn executable_resource_bounds_mapping() -> ResourceBoundsMapping {
                 max_price_per_unit: VALID_L1_GAS_MAX_PRICE_PER_UNIT,
             },
         ),
-        (
-            starknet_api::transaction::Resource::L2Gas,
-            ResourceBounds::default(),
-        ),
+        (starknet_api::transaction::Resource::L2Gas, ResourceBounds::default()),
     ])
     .expect("Resource bounds mapping has unexpected structure.")
 }

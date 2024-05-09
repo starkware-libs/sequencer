@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
-use tokio::sync::mpsc::{Receiver, Sender};
-use tokio::{sync::mpsc::channel, task};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::task;
 
 #[derive(Debug, Copy, Clone)]
 struct InboundA {
@@ -103,11 +103,8 @@ async fn test_send_and_receive() {
     let (tx_b, rx_b) = channel::<InboundB>(5);
     let (tx_c, rx_c) = channel::<InboundC>(5);
 
-    let mut a = TestComponentA {
-        inbound: rx_a,
-        outbound_b: tx_b.clone(),
-        outbound_c: tx_c.clone(),
-    };
+    let mut a =
+        TestComponentA { inbound: rx_a, outbound_b: tx_b.clone(), outbound_c: tx_c.clone() };
     let mut b = TestComponentB { inbound: rx_b };
     let mut c = TestComponentC { inbound: rx_c };
 

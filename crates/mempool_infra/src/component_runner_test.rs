@@ -1,13 +1,13 @@
-use assert_matches::assert_matches;
-use async_trait::async_trait;
-use pretty_assertions::assert_eq;
-use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-use crate::component_runner::{ComponentCreator, ComponentRunner, ComponentStartError};
+use assert_matches::assert_matches;
+use async_trait::async_trait;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
-use papyrus_config::ParamPrivacyInput;
-use papyrus_config::{ParamPath, SerializedParam};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use pretty_assertions::assert_eq;
+use serde::{Deserialize, Serialize};
+
+use crate::component_runner::{ComponentCreator, ComponentRunner, ComponentStartError};
 
 mod test_component_a {
     use super::*;
@@ -50,9 +50,7 @@ mod test_component_a {
     impl ComponentRunner for TestComponentA {
         async fn start(&self) -> Result<(), ComponentStartError> {
             println!("TestComponent1::start(), component: {:#?}", self);
-            self.local_start()
-                .await
-                .map_err(|_err| ComponentStartError::InternalComponentError)
+            self.local_start().await.map_err(|_err| ComponentStartError::InternalComponentError)
         }
     }
 }
