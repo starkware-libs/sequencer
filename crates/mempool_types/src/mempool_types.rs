@@ -21,11 +21,13 @@ pub struct MempoolInput {
 }
 
 #[derive(Debug)]
-pub enum Gateway2MempoolMessage {
+pub enum GatewayToMempoolMessage {
     AddTx(InternalTransaction, Account),
 }
 
-pub type Mempool2GatewayMessage = ();
+pub type MempoolToGatewayMessage = ();
 
-pub type GatewayNetworkComponent = NetworkComponent<Gateway2MempoolMessage, Mempool2GatewayMessage>;
-pub type MempoolNetworkComponent = NetworkComponent<Mempool2GatewayMessage, Gateway2MempoolMessage>;
+pub type GatewayNetworkComponent =
+    NetworkComponent<GatewayToMempoolMessage, MempoolToGatewayMessage>;
+pub type MempoolNetworkComponent =
+    NetworkComponent<MempoolToGatewayMessage, GatewayToMempoolMessage>;

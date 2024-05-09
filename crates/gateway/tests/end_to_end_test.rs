@@ -6,8 +6,8 @@ use starknet_api::transaction::{
     InvokeTransaction, InvokeTransactionV3, ResourceBounds, ResourceBoundsMapping,
 };
 use starknet_mempool_types::mempool_types::{
-    Account, AccountState, Gateway2MempoolMessage, GatewayNetworkComponent, Mempool2GatewayMessage,
-    MempoolNetworkComponent,
+    Account, AccountState, GatewayNetworkComponent, GatewayToMempoolMessage,
+    MempoolNetworkComponent, MempoolToGatewayMessage,
 };
 use tokio::sync::mpsc::channel;
 use tokio::task;
@@ -43,12 +43,13 @@ pub fn create_internal_tx_for_testing() -> InternalTransaction {
 
 #[tokio::test]
 async fn test_send_and_receive() {
-    let (tx_gateway_2_mempool, rx_gateway_2_mempool) = channel::<Gateway2MempoolMessage>(1);
-    let (tx_mempool_2_gateway, rx_mempool_2_gateway) = channel::<Mempool2GatewayMessage>(1);
+    let (tx_gateway_to_mempool, rx_gateway_to_mempool) = channel::<GatewayToMempoolMessage>(1);
+    let (tx_mempool_to_gateway, rx_mempool_to_gateway) = channel::<MempoolToGatewayMessage>(1);
 
-    let gateway_network = GatewayNetworkComponent::new(tx_gateway_2_mempool, rx_mempool_2_gateway);
+    let gateway_network =
+        GatewayNetworkComponent::new(tx_gateway_to_mempool, rx_mempool_to_gateway);
     let mut mempool_network =
-        MempoolNetworkComponent::new(tx_mempool_2_gateway, rx_gateway_2_mempool);
+        MempoolNetworkComponent::new(tx_mempool_to_gateway, rx_gateway_to_mempool);
 
     let internal_tx = create_internal_tx_for_testing();
     let tx_hash = match internal_tx {
@@ -58,8 +59,8 @@ async fn test_send_and_receive() {
     .unwrap();
     let account = create_default_account();
     task::spawn(async move {
-        let gateway_2_mempool = Gateway2MempoolMessage::AddTx(internal_tx, account);
-        gateway_network.send(gateway_2_mempool).await.unwrap();
+        let gateway_to_mempool = GatewayToMempoolMessage::AddTx(internal_tx, account);
+        gateway_network.send(gateway_to_mempool).await.unwrap();
     })
     .await
     .unwrap();
@@ -68,7 +69,7 @@ async fn test_send_and_receive() {
         task::spawn(async move { mempool_network.recv().await }).await.unwrap().unwrap();
 
     match mempool_message {
-        Gateway2MempoolMessage::AddTx(tx, _) => match tx {
+        GatewayToMempoolMessage::AddTx(tx, _) => match tx {
             InternalTransaction::Invoke(invoke_tx) => {
                 assert_eq!(invoke_tx.tx_hash, tx_hash);
             }
