@@ -44,6 +44,8 @@ pub(crate) enum PythonTestError {
     DeserializationTestFailure(#[from] DeserializationError),
     #[error("Failed to read from stdin.")]
     StdinReadError(#[from] io::Error),
+    #[error("None value found in input.")]
+    NoneInputError,
 }
 
 /// Implements conversion from a string to a `PythonTest`.
@@ -67,23 +69,31 @@ impl TryFrom<String> for PythonTest {
 }
 
 impl PythonTest {
+    /// Returns the input string if it's `Some`, or an error if it's `None`.
+    fn non_optional_input(input: Option<&str>) -> Result<&str, PythonTestError> {
+        input.ok_or_else(|| PythonTestError::NoneInputError)
+    }
+
     /// Runs the test with the given arguments.
-    pub(crate) fn run(&self, input: &str) -> Result<String, PythonTestError> {
+    pub(crate) fn run(&self, input: Option<&str>) -> Result<String, PythonTestError> {
         match self {
             Self::ExampleTest => {
-                let example_input: HashMap<String, String> = serde_json::from_str(input)?;
+                let example_input: HashMap<String, String> =
+                    serde_json::from_str(Self::non_optional_input(input)?)?;
                 Ok(example_test(example_input))
             }
             Self::FeltSerialize => {
-                let felt = input.parse::<u128>()?;
+                let felt = Self::non_optional_input(input)?.parse::<u128>()?;
                 Ok(felt_serialize_test(felt))
             }
             Self::HashFunction => {
-                let hash_input: HashMap<String, u128> = serde_json::from_str(input)?;
+                let hash_input: HashMap<String, u128> =
+                    serde_json::from_str(Self::non_optional_input(input)?)?;
                 Ok(test_hash_function(hash_input))
             }
             Self::BinarySerialize => {
-                let binary_input: HashMap<String, u128> = serde_json::from_str(input)?;
+                let binary_input: HashMap<String, u128> =
+                    serde_json::from_str(Self::non_optional_input(input)?)?;
                 Ok(test_binary_serialize_test(binary_input))
             }
             Self::InputParsing => parse_input_test(),

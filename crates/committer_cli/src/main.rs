@@ -43,7 +43,7 @@ enum Command {
 
         /// Test inputs as a json.
         #[clap(long)]
-        inputs: String,
+        inputs: Option<String>,
     },
 }
 
@@ -83,7 +83,7 @@ fn main() {
 
             // Run relevant test.
             let output = test
-                .run(&inputs)
+                .run(inputs.as_deref())
                 .unwrap_or_else(|error| panic!("Failed to run test: {}", error));
 
             // Print test's output.
