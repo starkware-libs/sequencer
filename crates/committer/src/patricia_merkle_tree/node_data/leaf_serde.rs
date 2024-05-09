@@ -20,7 +20,7 @@ impl LeafDataImpl {
     ///   describing the leaf and cast it into a byte vector.
     pub(crate) fn serialize(&self) -> Result<StorageValue, SerializationError> {
         match &self {
-            LeafDataImpl::StorageValue(value) => Ok(StorageValue(value.as_bytes().to_vec())),
+            LeafDataImpl::StorageValue(value) => Ok(StorageValue(value.to_bytes_be().to_vec())),
 
             LeafDataImpl::CompiledClassHash(class_hash) => {
                 // Create a temporary object to serialize the leaf into a JSON.

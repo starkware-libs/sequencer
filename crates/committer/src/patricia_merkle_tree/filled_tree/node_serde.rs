@@ -32,7 +32,7 @@ type FilledNodeDeserializationResult = Result<FilledNode<LeafDataImpl>, Deserial
 
 impl FilledNode<LeafDataImpl> {
     pub(crate) fn suffix(&self) -> [u8; SERIALIZE_HASH_BYTES] {
-        self.hash.0.as_bytes()
+        self.hash.0.to_bytes_be()
     }
 }
 
@@ -48,8 +48,8 @@ impl Serializable for FilledNode<LeafDataImpl> {
                 right_hash,
             }) => {
                 // Serialize left and right hashes to byte arrays.
-                let left: [u8; SERIALIZE_HASH_BYTES] = left_hash.0.as_bytes();
-                let right: [u8; SERIALIZE_HASH_BYTES] = right_hash.0.as_bytes();
+                let left: [u8; SERIALIZE_HASH_BYTES] = left_hash.0.to_bytes_be();
+                let right: [u8; SERIALIZE_HASH_BYTES] = right_hash.0.to_bytes_be();
 
                 // Concatenate left and right hashes.
                 let serialized = [left, right].concat();
@@ -61,8 +61,8 @@ impl Serializable for FilledNode<LeafDataImpl> {
                 path_to_bottom,
             }) => {
                 // Serialize bottom hash, path, and path length to byte arrays.
-                let bottom: [u8; SERIALIZE_HASH_BYTES] = bottom_hash.0.as_bytes();
-                let path: [u8; SERIALIZE_HASH_BYTES] = path_to_bottom.path.0.as_bytes();
+                let bottom: [u8; SERIALIZE_HASH_BYTES] = bottom_hash.0.to_bytes_be();
+                let path: [u8; SERIALIZE_HASH_BYTES] = path_to_bottom.path.0.to_bytes_be();
                 let length: [u8; 1] = path_to_bottom.length.0.to_be_bytes();
 
                 // Concatenate bottom hash, path, and path length.

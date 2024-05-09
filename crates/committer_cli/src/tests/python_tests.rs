@@ -112,7 +112,7 @@ pub(crate) fn example_test(test_args: HashMap<String, String>) -> String {
 
 /// Serializes a Felt into a string.
 pub(crate) fn felt_serialize_test(felt: u128) -> String {
-    let bytes = Felt::from(felt).as_bytes().to_vec();
+    let bytes = Felt::from(felt).to_bytes_be().to_vec();
     serde_json::to_string(&bytes)
         .unwrap_or_else(|error| panic!("Failed to serialize felt: {}", error))
 }
@@ -430,8 +430,8 @@ pub(crate) fn storage_serialize_test() -> Result<String, PythonTestError> {
         storage: HashMap::new(),
     };
     for i in 0..=99_u128 {
-        let key = StorageKey(Felt::from(i).as_bytes().to_vec());
-        let value = StorageValue(Felt::from(i).as_bytes().to_vec());
+        let key = StorageKey(Felt::from(i).to_bytes_be().to_vec());
+        let value = StorageValue(Felt::from(i).to_bytes_be().to_vec());
         storage.set(key, value);
     }
 

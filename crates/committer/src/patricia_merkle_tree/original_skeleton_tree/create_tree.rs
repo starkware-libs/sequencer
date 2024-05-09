@@ -197,7 +197,7 @@ impl OriginalSkeletonTreeImpl {
                 });
                 continue;
             }
-            let key = create_db_key(StoragePrefix::InnerNode, &subtree.root_hash.0.as_bytes());
+            let key = create_db_key(StoragePrefix::InnerNode, &subtree.root_hash.0.to_bytes_be());
             let val = storage.get(&key).ok_or(StorageError::MissingKey(key))?;
             subtrees_roots.push(FilledNode::deserialize(
                 &StorageKey::from(subtree.root_hash.0),

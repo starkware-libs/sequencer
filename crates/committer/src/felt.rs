@@ -80,8 +80,4 @@ impl Felt {
     pub(crate) fn from_hex(hex_string: &str) -> Result<Self, FromStrError> {
         Ok(StarknetTypesFelt::from_hex(hex_string)?.into())
     }
-
-    pub fn as_bytes(&self) -> [u8; 32] {
-        self.0.to_bytes_be()
-    }
 }
