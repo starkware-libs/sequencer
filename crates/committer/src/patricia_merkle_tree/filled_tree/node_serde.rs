@@ -70,7 +70,7 @@ impl Serializable for FilledNode<LeafDataImpl> {
                 Ok(StorageValue(serialized))
             }
 
-            NodeData::Leaf(leaf_data) => leaf_data.serialize(),
+            NodeData::Leaf(leaf_data) => Ok(leaf_data.serialize()),
         }
     }
 

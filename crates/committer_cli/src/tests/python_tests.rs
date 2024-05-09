@@ -7,13 +7,16 @@ use committer::hash::hash_trait::{HashFunction, HashInputPair};
 use committer::hash::pedersen::PedersenHashFunction;
 use committer::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, FilledNode, Nonce};
-use committer::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
+use committer::patricia_merkle_tree::node_data::inner_node::{
+    BinaryData, EdgeData, EdgePath, EdgePathLength, NodeData, PathToBottom,
+};
 use committer::patricia_merkle_tree::node_data::leaf::{ContractState, LeafDataImpl};
 use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::CONTRACT_STATE_HASH_VERSION;
-use committer::storage::errors::DeserializationError;
+use committer::storage::errors::{DeserializationError, SerializationError};
 use committer::storage::map_storage::MapStorage;
 use committer::storage::serde_trait::Serializable;
 use committer::storage::storage_trait::{Storage, StorageKey, StorageValue};
+use std::fmt::Debug;
 use std::{collections::HashMap, io};
 use thiserror;
 
@@ -29,6 +32,7 @@ pub(crate) enum PythonTest {
     NodeKey,
     StorageSerialize,
     ComparePythonHashConstants,
+    StorageNode,
 }
 
 /// Error type for PythonTest enum.
@@ -36,16 +40,22 @@ pub(crate) enum PythonTest {
 pub(crate) enum PythonTestError {
     #[error("Unknown test name: {0}")]
     UnknownTestName(String),
-    #[error("Failed to parse input: {0}")]
+    #[error(transparent)]
     ParseInputError(#[from] serde_json::Error),
-    #[error("Failed to parse integer input: {0}")]
+    #[error(transparent)]
     ParseIntError(#[from] std::num::ParseIntError),
-    #[error("Test failed. {0}")]
+    #[error("{0}")]
+    KeyNotFound(String),
+    #[error(transparent)]
+    InvalidCastError(#[from] std::num::TryFromIntError),
+    #[error(transparent)]
     DeserializationTestFailure(#[from] DeserializationError),
-    #[error("Failed to read from stdin.")]
+    #[error(transparent)]
     StdinReadError(#[from] io::Error),
     #[error("None value found in input.")]
     NoneInputError,
+    #[error(transparent)]
+    SerializationError(#[from] SerializationError),
 }
 
 /// Implements conversion from a string to a `PythonTest`.
@@ -62,7 +72,7 @@ impl TryFrom<String> for PythonTest {
             "node_db_key_test" => Ok(Self::NodeKey),
             "storage_serialize_test" => Ok(Self::StorageSerialize),
             "compare_python_hash_constants" => Ok(Self::ComparePythonHashConstants),
-
+            "storage_node_test" => Ok(Self::StorageNode),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -100,8 +110,25 @@ impl PythonTest {
             Self::StorageSerialize => storage_serialize_test(),
             Self::NodeKey => Ok(test_node_db_key()),
             Self::ComparePythonHashConstants => Ok(python_hash_constants_compare()),
+            Self::StorageNode => {
+                let storage_node_input: HashMap<String, String> =
+                    serde_json::from_str(Self::non_optional_input(input)?)?;
+                test_storage_node(storage_node_input)
+            }
         }
     }
+}
+
+fn get_or_key_not_found<'a, T: Debug>(
+    map: &'a HashMap<String, T>,
+    key: &'a str,
+) -> Result<&'a T, PythonTestError> {
+    map.get(key).ok_or_else(|| {
+        PythonTestError::KeyNotFound(format!(
+            "Failed to get value for key '{}' from {:?}.",
+            key, map
+        ))
+    })
 }
 
 pub(crate) fn example_test(test_args: HashMap<String, String>) -> String {
@@ -435,10 +462,145 @@ pub(crate) fn storage_serialize_test() -> Result<String, PythonTestError> {
         storage.set(key, value);
     }
 
-    serde_json::to_string(&storage).map_err(PythonTestError::from)
+    Ok(serde_json::to_string(&storage)?)
 }
 
 fn python_hash_constants_compare() -> String {
     // TODO(Nimrod, 15/5/2024): Compare contract class leaf version.
     format!("{:?}", CONTRACT_STATE_HASH_VERSION.to_bytes_be())
+}
+
+/// Processes a map containing JSON strings for different node data.
+/// Creates `NodeData` objects for each node type, stores them in a storage, and serializes the map to a JSON string.
+///
+/// # Arguments
+/// * `data` - A map containing JSON strings for different node data:
+///   - `"binary"`: Binary node data.
+///   - `"edge"`: Edge node data.
+///   - `"storage"`: Storage leaf data.
+///   - `"contract_state_leaf"`: Contract state leaf data.
+///   - `"contract_class_leaf"`: Compiled class leaf data.
+///
+/// # Returns
+/// A `Result<String, PythonTestError>` containing a serialized map of all nodes on success, or an error if keys are missing or parsing fails.
+fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTestError> {
+    // Create a storage to store the nodes.
+    let mut rust_fact_storage = MapStorage {
+        storage: HashMap::new(),
+    };
+
+    // Parse the binary node data from the input.
+    let binary_json = get_or_key_not_found(&data, "binary")?;
+    let binary_data: HashMap<String, u128> = serde_json::from_str(binary_json)?;
+
+    // Create a binary node from the parsed data.
+    let binary_rust = FilledNode {
+        data: NodeData::Binary(BinaryData {
+            left_hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "left")?)),
+            right_hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "right")?)),
+        }),
+        hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "hash")?)),
+    };
+
+    // Store the binary node in the storage.
+    rust_fact_storage.set(
+        binary_rust.db_key(),
+        binary_rust.serialize().map_err(PythonTestError::from)?,
+    );
+
+    // Parse the edge node data from the input.
+    let edge_json = get_or_key_not_found(&data, "edge")?;
+    let edge_data: HashMap<String, u128> = serde_json::from_str(edge_json)?;
+
+    // Create an edge node from the parsed data.
+    let edge_rust = FilledNode {
+        data: NodeData::Edge(EdgeData {
+            bottom_hash: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "bottom")?)),
+            path_to_bottom: PathToBottom {
+                path: EdgePath(Felt::from(*get_or_key_not_found(&edge_data, "path")?)),
+                length: EdgePathLength((*get_or_key_not_found(&edge_data, "length")?).try_into()?),
+            },
+        }),
+        hash: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "hash")?)),
+    };
+
+    // Store the edge node in the storage.
+    rust_fact_storage.set(edge_rust.db_key(), edge_rust.serialize()?);
+
+    // Parse the storage leaf data from the input.
+    let storage_leaf_json = get_or_key_not_found(&data, "storage")?;
+    let storage_leaf_data: HashMap<String, u128> = serde_json::from_str(storage_leaf_json)?;
+
+    // Create a storage leaf node from the parsed data.
+    let storage_leaf_rust = FilledNode {
+        data: NodeData::Leaf(LeafDataImpl::StorageValue(Felt::from(
+            *get_or_key_not_found(&storage_leaf_data, "value")?,
+        ))),
+        hash: HashOutput(Felt::from(*get_or_key_not_found(
+            &storage_leaf_data,
+            "hash",
+        )?)),
+    };
+
+    // Store the storage leaf node in the storage.
+    rust_fact_storage.set(storage_leaf_rust.db_key(), storage_leaf_rust.serialize()?);
+
+    // Parse the contract state leaf data from the input.
+    let contract_state_leaf = get_or_key_not_found(&data, "contract_state_leaf")?;
+    let contract_state_leaf_data: HashMap<String, u128> =
+        serde_json::from_str(contract_state_leaf)?;
+
+    // Create a contract state leaf node from the parsed data.
+    let contract_state_leaf_rust = FilledNode {
+        data: NodeData::Leaf(LeafDataImpl::ContractState(ContractState {
+            class_hash: ClassHash(Felt::from(*get_or_key_not_found(
+                &contract_state_leaf_data,
+                "contract_hash",
+            )?)),
+            storage_root_hash: HashOutput(Felt::from(*get_or_key_not_found(
+                &contract_state_leaf_data,
+                "root",
+            )?)),
+            nonce: Nonce(Felt::from(*get_or_key_not_found(
+                &contract_state_leaf_data,
+                "nonce",
+            )?)),
+        })),
+
+        hash: HashOutput(Felt::from(*get_or_key_not_found(
+            &contract_state_leaf_data,
+            "hash",
+        )?)),
+    };
+
+    // Store the contract state leaf node in the storage.
+    rust_fact_storage.set(
+        contract_state_leaf_rust.db_key(),
+        contract_state_leaf_rust.serialize()?,
+    );
+
+    // Parse the compiled class leaf data from the input.
+    let compiled_class_leaf = get_or_key_not_found(&data, "contract_class_leaf")?;
+    let compiled_class_leaf_data: HashMap<String, u128> =
+        serde_json::from_str(compiled_class_leaf)?;
+
+    // Create a compiled class leaf node from the parsed data.
+    let compiled_class_leaf_rust = FilledNode {
+        data: NodeData::Leaf(LeafDataImpl::CompiledClassHash(ClassHash(Felt::from(
+            *get_or_key_not_found(&compiled_class_leaf_data, "compiled_class_hash")?,
+        )))),
+        hash: HashOutput(Felt::from(*get_or_key_not_found(
+            &compiled_class_leaf_data,
+            "hash",
+        )?)),
+    };
+
+    // Store the compiled class leaf node in the storage.
+    rust_fact_storage.set(
+        compiled_class_leaf_rust.db_key(),
+        compiled_class_leaf_rust.serialize()?,
+    );
+
+    // Serialize the storage to a JSON string and handle serialization errors.
+    Ok(serde_json::to_string(&rust_fact_storage)?)
 }

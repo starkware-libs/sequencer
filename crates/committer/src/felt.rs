@@ -81,4 +81,18 @@ impl Felt {
     pub(crate) fn from_hex(hex_string: &str) -> Result<Self, FromStrError> {
         Ok(StarknetTypesFelt::from_hex(hex_string)?.into())
     }
+
+    pub fn to_hex(&self) -> String {
+        self.0.to_hex_string()
+    }
+
+    // Convert to a 64-character hexadecimal string without the "0x" prefix.
+    pub fn to_fixed_hex_string(&self) -> String {
+        // Zero-pad the remaining string
+        self.0
+            .to_fixed_hex_string()
+            .strip_prefix("0x")
+            .unwrap_or("0")
+            .to_string()
+    }
 }

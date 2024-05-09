@@ -1,16 +1,5 @@
-use serde::{Deserialize, Serialize};
-
-use crate::felt::Felt;
-use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
-use crate::storage::errors::SerializationError;
+use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafDataImpl};
 use crate::storage::storage_trait::StorageValue;
-
-/// Temporary struct to serialize the leaf CompiledClass.
-/// Required to comply to existing storage layout.
-#[derive(Serialize, Deserialize)]
-pub(crate) struct LeafCompiledClassToSerialize {
-    pub(crate) compiled_class_hash: Felt,
-}
 
 impl LeafDataImpl {
     /// Serializes the leaf data into a byte vector.
@@ -18,25 +7,29 @@ impl LeafDataImpl {
     /// - For storage values: serializes the value into a 32-byte vector.
     /// - For compiled class hashes or state tree tuples: creates a  json string
     ///   describing the leaf and cast it into a byte vector.
-    pub(crate) fn serialize(&self) -> Result<StorageValue, SerializationError> {
+    pub fn serialize(&self) -> StorageValue {
         match &self {
-            LeafDataImpl::StorageValue(value) => Ok(StorageValue(value.to_bytes_be().to_vec())),
+            LeafDataImpl::StorageValue(value) => StorageValue(value.to_bytes_be().to_vec()),
 
             LeafDataImpl::CompiledClassHash(class_hash) => {
-                // Create a temporary object to serialize the leaf into a JSON.
-                let temp_object_to_json = LeafCompiledClassToSerialize {
-                    compiled_class_hash: class_hash.0,
-                };
-
-                // Serialize the leaf into a JSON.
-                let json = serde_json::to_string(&temp_object_to_json)?;
-
-                // Serialize the json into a byte vector.
-                Ok(StorageValue(json.into_bytes().to_owned()))
+                let json_string =
+                    format!(r#"{{"compiled_class_hash": "{}"}}"#, class_hash.0.to_hex());
+                StorageValue(json_string.into_bytes())
             }
 
-            LeafDataImpl::ContractState { .. } => {
-                todo!("implement.");
+            LeafDataImpl::ContractState(ContractState {
+                class_hash,
+                storage_root_hash,
+                nonce,
+            }) => {
+                // TODO(Aviv, 8/5/2024): Use height from the input.
+                let json_string = format!(
+                    r#"{{"contract_hash": "{}", "storage_commitment_tree": {{"root": "{}", "height": 252}}, "nonce": "{}"}}"#,
+                    class_hash.0.to_fixed_hex_string(),
+                    storage_root_hash.0.to_fixed_hex_string(),
+                    nonce.0.to_hex(),
+                );
+                StorageValue(json_string.into_bytes())
             }
         }
     }
