@@ -23,7 +23,7 @@ impl OriginalSkeletonTreeImpl {
     }
 
     fn get_node_height(&self, index: &NodeIndex) -> TreeHeight {
-        TreeHeight(self.tree_height.0 - index.bit_length() + 1)
+        TreeHeight::new(u8::from(self.tree_height) - index.bit_length() + 1)
     }
 
     #[allow(dead_code)]
@@ -54,7 +54,7 @@ impl OriginalSkeletonTreeImpl {
 
         let root_height = self.get_node_height(root_index);
         let assert_child = |leaf_index: NodeIndex| {
-            if (leaf_index >> root_height.0) != *root_index {
+            if (leaf_index >> root_height.into()) != *root_index {
                 panic!("Leaf is not a descendant of the root.");
             }
         };
@@ -70,7 +70,7 @@ impl OriginalSkeletonTreeImpl {
             .expect("leaf_indices unexpectedly empty.");
         assert_child(*last_leaf);
 
-        let child_direction_mask = U256::ONE << (root_height.0 - 1);
+        let child_direction_mask = U256::ONE << (u8::from(root_height) - 1);
         (U256::from(first_leaf) & child_direction_mask)
             != (U256::from(*last_leaf) & child_direction_mask)
     }

@@ -11,11 +11,25 @@ use ethnum::U256;
 pub mod types_test;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, derive_more::Sub)]
-pub struct TreeHeight(pub u8);
+pub struct TreeHeight(u8);
 
 impl TreeHeight {
     pub const MAX_HEIGHT: u8 = 251;
+
+    pub fn new(height: u8) -> Self {
+        if height > Self::MAX_HEIGHT {
+            panic!("Height {height} is too large.");
+        }
+        Self(height)
+    }
 }
+
+impl From<TreeHeight> for u8 {
+    fn from(value: TreeHeight) -> Self {
+        value.0
+    }
+}
+
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Hash, derive_more::BitAnd, derive_more::Sub, PartialOrd, Ord,
 )]

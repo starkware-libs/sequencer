@@ -257,7 +257,7 @@ fn test_simple_input_parsing() {
         ]),
     )]);
 
-    let expected_tree_heights = TreeHeight(78);
+    let expected_tree_heights = TreeHeight::new(78);
     let expected_global_tree_root_hash = HashOutput(Felt::from(19_u128));
     let expected_classes_tree_root_hash = HashOutput(Felt::from(256_u128));
     let expected_input = Input {

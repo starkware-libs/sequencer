@@ -13,7 +13,7 @@ use crate::patricia_merkle_tree::{
 fn empty_skeleton(height: u8) -> OriginalSkeletonTreeImpl {
     OriginalSkeletonTreeImpl {
         nodes: HashMap::new(),
-        tree_height: TreeHeight(height),
+        tree_height: TreeHeight::new(height),
     }
 }
 

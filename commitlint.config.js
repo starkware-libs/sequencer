@@ -22,7 +22,8 @@ const Configuration = {
     rules: {
         'scope-enum': [2, 'always', [
             'ci',
-            'skeleton'
+            'skeleton',
+            'types'
         ]],
     },
     /*

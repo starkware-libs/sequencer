@@ -220,7 +220,7 @@ fn create_output_to_python(actual_input: Input) -> String {
             .len(),
         actual_input.current_contract_state_leaves.len(),
         actual_input.state_diff.storage_updates.len(),
-        actual_input.tree_heights.0,
+        u8::from(actual_input.tree_heights),
         actual_input.global_tree_root_hash.0.to_bytes_be(),
         actual_input.classes_tree_root_hash.0.to_bytes_be(),
         storage_keys_hash,

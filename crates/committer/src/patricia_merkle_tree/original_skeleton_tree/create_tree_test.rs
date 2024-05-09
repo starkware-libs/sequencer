@@ -66,7 +66,7 @@ use super::OriginalSkeletonTreeImpl;
             create_leaf_or_binary_sibling_skeleton_node(11, 11)
         ]
     ),
-    TreeHeight(3)
+    TreeHeight::new(3)
 )]
 ///                 Old tree structure:
 ///
@@ -113,7 +113,7 @@ use super::OriginalSkeletonTreeImpl;
             create_leaf_or_binary_sibling_skeleton_node(9, 2),
         ]
     ),
-    TreeHeight(3)
+    TreeHeight::new(3)
 )]
 ///                  Old tree structure:
 ///
@@ -169,7 +169,7 @@ use super::OriginalSkeletonTreeImpl;
             create_leaf_or_binary_sibling_skeleton_node(31, 40)
         ]
     ),
-    TreeHeight(4)
+    TreeHeight::new(4)
 )]
 fn test_fetch_nodes(
     #[case] storage: MapStorage,
@@ -253,7 +253,7 @@ pub(crate) fn create_expected_skeleton(
 ) -> OriginalSkeletonTreeImpl {
     OriginalSkeletonTreeImpl {
         nodes: nodes.into_iter().collect(),
-        tree_height: TreeHeight(height),
+        tree_height: TreeHeight::new(height),
     }
 }
 

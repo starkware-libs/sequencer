@@ -32,7 +32,7 @@ struct SubTree<'a> {
 
 impl<'a> SubTree<'a> {
     pub(crate) fn get_height(&self, total_tree_height: &TreeHeight) -> TreeHeight {
-        TreeHeight(total_tree_height.0 - (self.root_index.bit_length() - 1))
+        TreeHeight::new(u8::from(*total_tree_height) - (self.root_index.bit_length() - 1))
     }
 
     pub(crate) fn split_leaves(
@@ -41,7 +41,7 @@ impl<'a> SubTree<'a> {
     ) -> (&'a [NodeIndex], &'a [NodeIndex]) {
         let height = self.get_height(total_tree_height);
         let leftmost_index_in_right_subtree =
-            ((self.root_index << 1) + NodeIndex::ROOT) << (height.0 - 1);
+            ((self.root_index << 1) + NodeIndex::ROOT) << (u8::from(height) - 1);
         let mid = bisect_left(self.sorted_leaf_indices, &leftmost_index_in_right_subtree);
         (
             &self.sorted_leaf_indices[..mid],
@@ -61,10 +61,10 @@ impl<'a> SubTree<'a> {
     ) -> Self {
         let bottom_index = path_to_bottom.bottom_index(self.root_index);
         let bottom_height =
-            self.get_height(total_tree_height) - TreeHeight(path_to_bottom.length.0);
-        let leftmost_in_subtree = bottom_index << bottom_height.0;
+            self.get_height(total_tree_height) - TreeHeight::new(path_to_bottom.length.0);
+        let leftmost_in_subtree = bottom_index << bottom_height.into();
         let rightmost_in_subtree =
-            leftmost_in_subtree + (NodeIndex::ROOT << bottom_height.0) - NodeIndex::ROOT;
+            leftmost_in_subtree + (NodeIndex::ROOT << bottom_height.into()) - NodeIndex::ROOT;
         let bottom_leaves =
             &self.sorted_leaf_indices[bisect_left(self.sorted_leaf_indices, &leftmost_in_subtree)
                 ..bisect_right(self.sorted_leaf_indices, &rightmost_in_subtree)];
@@ -99,7 +99,7 @@ impl<'a> SubTree<'a> {
     }
 
     fn is_leaf(&self, total_tree_height: &TreeHeight) -> bool {
-        self.get_height(total_tree_height).0 == 0
+        u8::from(self.get_height(total_tree_height)) == 0
     }
 }
 

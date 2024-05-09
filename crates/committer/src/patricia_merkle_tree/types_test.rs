@@ -47,12 +47,12 @@ fn test_cast_to_node_index(
     let actual = if from_contract_address {
         NodeIndex::from_contract_address(
             &ContractAddress(Felt::from(leaf_index)),
-            &TreeHeight(tree_height),
+            &TreeHeight::new(tree_height),
         )
     } else {
         NodeIndex::from_starknet_storage_key(
             &StarknetStorageKey(Felt::from(leaf_index)),
-            &TreeHeight(tree_height),
+            &TreeHeight::new(tree_height),
         )
     };
     assert_eq!(actual, expected_node_index.into());

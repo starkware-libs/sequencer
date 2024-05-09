@@ -106,7 +106,7 @@ use super::OriginalSkeletonForest;
             class_hash_to_compiled_class_hash: create_class_hash_to_compiled_class_hash(&[(14, 1), (8, 7), (15, 9)]),
             ..Default::default()
         },
-        tree_heights: TreeHeight(3),
+        tree_heights: TreeHeight::new(3),
         current_contract_state_leaves: create_contract_leaves(&[
             (3, 29),
             (5, 29),

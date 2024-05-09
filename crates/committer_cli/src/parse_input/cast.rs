@@ -99,7 +99,7 @@ impl TryFrom<RawInput> for Input {
                 class_hash_to_compiled_class_hash,
                 storage_updates,
             },
-            tree_heights: TreeHeight(raw_input.tree_heights),
+            tree_heights: TreeHeight::new(raw_input.tree_heights),
             global_tree_root_hash: HashOutput(Felt::from_bytes_be_slice(
                 &raw_input.global_tree_root_hash,
             )),
