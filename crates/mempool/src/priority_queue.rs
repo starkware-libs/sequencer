@@ -1,10 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
 
-use starknet_api::internal_transaction::InternalTransaction;
-use starknet_api::transaction::{
-    DeclareTransaction, DeployAccountTransaction, InvokeTransaction, Tip,
-};
+use starknet_mempool_types::mempool_types::ThinTransaction;
 // Assumption: for the MVP only one transaction from the same contract class can be in the mempool
 // at a time. When this changes, saving the transactions themselves on the queu might no longer be
 // appropriate, because we'll also need to stores transactions without indexing them. For example,
@@ -13,49 +10,30 @@ use starknet_api::transaction::{
 pub struct PriorityQueue(BTreeSet<PQTransaction>);
 
 impl PriorityQueue {
-    pub fn push(&mut self, tx: InternalTransaction) {
+    pub fn push(&mut self, tx: ThinTransaction) {
         let mempool_tx = PQTransaction(tx);
         self.insert(mempool_tx);
     }
 
     // TODO(gilad): remove collect
-    pub fn pop_last_chunk(&mut self, n_txs: usize) -> Vec<InternalTransaction> {
+    pub fn pop_last_chunk(&mut self, n_txs: usize) -> Vec<ThinTransaction> {
         (0..n_txs).filter_map(|_| self.pop_last().map(|tx| tx.0)).collect()
     }
 }
 
-impl FromIterator<InternalTransaction> for PriorityQueue {
-    fn from_iter<I: IntoIterator<Item = InternalTransaction>>(iter: I) -> Self {
+impl FromIterator<ThinTransaction> for PriorityQueue {
+    fn from_iter<I: IntoIterator<Item = ThinTransaction>>(iter: I) -> Self {
         PriorityQueue(BTreeSet::from_iter(iter.into_iter().map(PQTransaction)))
     }
 }
 
 #[derive(Clone, Debug, derive_more::Deref, derive_more::From)]
-pub struct PQTransaction(pub InternalTransaction);
-
-impl PQTransaction {
-    fn tip(&self) -> Tip {
-        match &self.0 {
-            InternalTransaction::Declare(declare_tx) => match &declare_tx.tx {
-                DeclareTransaction::V3(tx_v3) => tx_v3.tip,
-                _ => unimplemented!(),
-            },
-            InternalTransaction::DeployAccount(deploy_account_tx) => match &deploy_account_tx.tx {
-                DeployAccountTransaction::V3(tx_v3) => tx_v3.tip,
-                _ => unimplemented!(),
-            },
-            InternalTransaction::Invoke(invoke_tx) => match &invoke_tx.tx {
-                InvokeTransaction::V3(tx_v3) => tx_v3.tip,
-                _ => unimplemented!(),
-            },
-        }
-    }
-}
+pub struct PQTransaction(pub ThinTransaction);
 
 // Compare transactions based on their tip only, which implies `Eq`, because `tip` is uint.
 impl PartialEq for PQTransaction {
     fn eq(&self, other: &PQTransaction) -> bool {
-        self.tip() == other.tip()
+        self.tip == other.tip
     }
 }
 
@@ -66,7 +44,7 @@ impl Eq for PQTransaction {}
 
 impl Ord for PQTransaction {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.tip().cmp(&other.tip())
+        self.tip.cmp(&other.tip)
     }
 }
 
