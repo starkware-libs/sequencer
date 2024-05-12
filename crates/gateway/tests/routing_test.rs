@@ -1,12 +1,18 @@
 use std::fs;
+use std::net::{IpAddr, Ipv4Addr};
 use std::path::Path;
 
 use axum::body::{Body, Bytes, HttpBody};
 use axum::http::{Request, StatusCode};
 use pretty_assertions::assert_str_eq;
 use rstest::rstest;
-use starknet_gateway::gateway::app;
+use starknet_gateway::config::GatewayNetworkConfig;
+use starknet_gateway::gateway::Gateway;
 use starknet_gateway::stateless_transaction_validator::StatelessTransactionValidatorConfig;
+use starknet_mempool_types::mempool_types::{
+    GatewayNetworkComponent, GatewayToMempoolMessage, MempoolToGatewayMessage,
+};
+use tokio::sync::mpsc::channel;
 use tower::ServiceExt;
 
 const TEST_FILES_FOLDER: &str = "./tests/fixtures";
@@ -43,12 +49,24 @@ async fn test_is_alive() {
 }
 
 async fn check_request(request: Request<Body>, status_code: StatusCode) -> Bytes {
+    let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
+    let port = 3000;
+    let network_config: GatewayNetworkConfig = GatewayNetworkConfig { ip, port };
+
     let stateless_transaction_validator_config = StatelessTransactionValidatorConfig {
         max_calldata_length: 1000,
         max_signature_length: 2,
         ..Default::default()
     };
-    let response = app(stateless_transaction_validator_config).oneshot(request).await.unwrap();
+    let (tx_gateway_to_mempool, _rx_gateway_to_mempool) = channel::<GatewayToMempoolMessage>(1);
+    let (_, rx_mempool_to_gateway) = channel::<MempoolToGatewayMessage>(1);
+
+    let network_component =
+        GatewayNetworkComponent::new(tx_gateway_to_mempool, rx_mempool_to_gateway);
+
+    let gateway =
+        Gateway { network_config, stateless_transaction_validator_config, network_component };
+    let response = gateway.app().oneshot(request).await.unwrap();
     assert_eq!(response.status(), status_code);
 
     response.into_body().collect().await.unwrap().to_bytes()
