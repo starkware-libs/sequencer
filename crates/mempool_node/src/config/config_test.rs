@@ -13,7 +13,8 @@ use papyrus_config::{SerializationType, SerializedContent, SerializedParam};
 use validator::Validate;
 
 use crate::config::{
-    node_command, ComponentConfig, ComponentExecutionConfig, GatewayConfig, MempoolNodeConfig,
+    node_command, ComponentConfig, ComponentExecutionConfig, GatewayNetworkConfig,
+    MempoolNodeConfig,
 };
 
 const TEST_FILES_FOLDER: &str = "./src/test_files";
@@ -32,7 +33,7 @@ fn test_valid_config() {
             gateway_component: ComponentExecutionConfig { execute: true },
             mempool_component: ComponentExecutionConfig { execute: false },
         },
-        gateway_config: GatewayConfig { ip: "0.0.0.0".parse().unwrap(), port: 8080 },
+        gateway_config: GatewayNetworkConfig { ip: "0.0.0.0".parse().unwrap(), port: 8080 },
     };
     let loaded_config = get_config_file(CONFIG_FILE).unwrap();
 

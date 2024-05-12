@@ -6,7 +6,7 @@ use axum::{Json, Router};
 use starknet_api::external_transaction::ExternalTransaction;
 use starknet_mempool_types::mempool_types::GatewayNetworkComponent;
 
-use crate::config::GatewayConfig;
+use crate::config::GatewayNetworkConfig;
 use crate::errors::GatewayError;
 use crate::stateless_transaction_validator::{
     StatelessTransactionValidator, StatelessTransactionValidatorConfig,
@@ -19,7 +19,7 @@ pub mod gateway_test;
 pub type GatewayResult<T> = Result<T, GatewayError>;
 
 pub struct Gateway {
-    pub config: GatewayConfig,
+    pub network_config: GatewayNetworkConfig,
     // TODO(Arni, 7/5/2024): Move the stateless transaction validator config into the gateway
     // config.
     pub stateless_transaction_validator_config: StatelessTransactionValidatorConfig,
@@ -34,7 +34,7 @@ pub struct GatewayState {
 impl Gateway {
     pub async fn build_server(self) {
         // Parses the bind address from GatewayConfig, returning an error for invalid addresses.
-        let addr = SocketAddr::new(self.config.ip, self.config.port);
+        let addr = SocketAddr::new(self.network_config.ip, self.network_config.port);
         let app = app(self.stateless_transaction_validator_config);
 
         // Create a server that runs forever.
