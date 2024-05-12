@@ -5,14 +5,15 @@ use blockifier::state::errors::StateError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, GasPrice};
-use starknet_api::core::{ContractAddress, GlobalRoot};
+use starknet_api::core::{ClassHash, ContractAddress, GlobalRoot};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::state::StorageKey;
 
 // Starknet Spec error codes:
 // TODO(yael 30/4/2024): consider turning these into an enum.
-pub const RPC_ERROR_BLOCK_NOT_FOUND: u16 = 24;
 pub const RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND: u16 = 20;
+pub const RPC_ERROR_BLOCK_NOT_FOUND: u16 = 24;
+pub const RPC_CLASS_HASH_NOT_FOUND: u16 = 28;
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize)]
 pub enum BlockId {
@@ -42,6 +43,12 @@ pub struct GetStorageAtParams {
 #[derive(Serialize, Deserialize)]
 pub struct GetClassHashAtParams {
     pub contract_address: ContractAddress,
+    pub block_id: BlockId,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct GetCompiledContractClassParams {
+    pub class_hash: ClassHash,
     pub block_id: BlockId,
 }
 

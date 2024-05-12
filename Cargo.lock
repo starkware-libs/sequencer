@@ -3215,6 +3215,7 @@ dependencies = [
  "assert_matches",
  "axum",
  "blockifier",
+ "cairo-lang-starknet-classes",
  "clap",
  "mempool_infra",
  "papyrus_config",

@@ -1,7 +1,8 @@
 use blockifier::blockifier::block::BlockInfo;
-use blockifier::execution::contract_class::ContractClass;
+use blockifier::execution::contract_class::{ContractClass, ContractClassV1};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use reqwest::blocking::Client as BlockingClient;
 use reqwest::Error as ReqwestError;
 use serde::Serialize;
@@ -13,9 +14,9 @@ use starknet_api::state::StorageKey;
 use url::Url;
 
 use crate::rpc_objects::{
-    BlockHeader, BlockId, GetBlockWithTxHashesParams, GetClassHashAtParams, GetNonceParams,
-    GetStorageAtParams, RpcResponse, RPC_ERROR_BLOCK_NOT_FOUND,
-    RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND,
+    BlockHeader, BlockId, GetBlockWithTxHashesParams, GetClassHashAtParams,
+    GetCompiledContractClassParams, GetNonceParams, GetStorageAtParams, RpcResponse,
+    RPC_CLASS_HASH_NOT_FOUND, RPC_ERROR_BLOCK_NOT_FOUND, RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND,
 };
 
 pub struct RpcStateReader {
@@ -73,6 +74,10 @@ impl RpcStateReader {
                     "Contract address not found, request: {}",
                     request_body
                 ))),
+                RPC_CLASS_HASH_NOT_FOUND => Err(StateError::StateReadError(format!(
+                    "Class hash not found, request: {}",
+                    request_body
+                ))),
                 _ => Err(StateError::StateReadError(format!(
                     "Unexpected error code {}",
                     rpc_error_response.error.code
@@ -116,9 +121,19 @@ impl BlockifierStateReader for RpcStateReader {
         Ok(nonce)
     }
 
-    #[allow(unused_variables)]
+    // TODO(yael 12/5/24): currently only Cairo1 is supported, need to add support for Cairo0.
     fn get_compiled_contract_class(&self, class_hash: ClassHash) -> StateResult<ContractClass> {
-        todo!()
+        let get_compiled_class_params =
+            GetCompiledContractClassParams { class_hash, block_id: self.block_id };
+
+        let result =
+            self.send_rpc_request("starknet_getCompiledContractClass", get_compiled_class_params)?;
+        let casm_contract_class: CasmContractClass =
+            serde_json::from_value(result).map_err(serde_err_to_state_err)?;
+        let class_hash = ContractClass::V1(
+            ContractClassV1::try_from(casm_contract_class).map_err(StateError::ProgramError)?,
+        );
+        Ok(class_hash)
     }
 
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
@@ -131,8 +146,7 @@ impl BlockifierStateReader for RpcStateReader {
         Ok(class_hash)
     }
 
-    #[allow(unused_variables)]
-    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+    fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         todo!()
     }
 }
