@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
@@ -23,28 +24,39 @@ fn get_config_from_file<T: for<'a> Deserialize<'a>>(
     load_and_process_config(config_file, Command::new(""), vec![])
 }
 
-/// Read the valid config file and validate its content.
-fn test_valid_network_config_body(fix: bool) {
-    let expected_config = GatewayNetworkConfig { ip: "0.0.0.0".parse().unwrap(), port: 8080 };
-
-    let file_path = get_config_file_path(NETWORK_CONFIG_FILE);
+fn test_valid_config_body<
+    T: for<'a> Deserialize<'a> + SerializeConfig + Validate + PartialEq + Debug,
+>(
+    expected_config: T,
+    config_file_path: PathBuf,
+    fix: bool,
+) {
     if fix {
-        expected_config.dump_to_file(&vec![], file_path.to_str().unwrap()).unwrap();
+        expected_config.dump_to_file(&vec![], config_file_path.to_str().unwrap()).unwrap();
     }
-    let loaded_config = get_config_from_file::<GatewayNetworkConfig>(file_path).unwrap();
+
+    let loaded_config: T = get_config_from_file(config_file_path).unwrap();
 
     assert!(loaded_config.validate().is_ok());
     assert_eq!(loaded_config, expected_config);
 }
 
 #[test]
+/// Read the valid config file and validate its content.
 fn test_valid_config() {
-    test_valid_network_config_body(false);
+    let expected_config = GatewayNetworkConfig { ip: "0.0.0.0".parse().unwrap(), port: 8080 };
+    let file_path = get_config_file_path(NETWORK_CONFIG_FILE);
+    let fix = false;
+    test_valid_config_body(expected_config, file_path, fix);
 }
 
+// TODO(Arni, 7/5/2024): Dedup code with test_valid_config.
 #[test]
 #[ignore]
 /// Fix the config file for test_valid_config. Run with 'cargo test -- --ignored'.
 fn fix_test_valid_config() {
-    test_valid_network_config_body(true);
+    let expected_config = GatewayNetworkConfig { ip: "0.0.0.0".parse().unwrap(), port: 8080 };
+    let file_path = get_config_file_path(NETWORK_CONFIG_FILE);
+    let fix = true;
+    test_valid_config_body(expected_config, file_path, fix);
 }
