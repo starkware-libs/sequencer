@@ -199,9 +199,7 @@ pub(crate) fn test_binary_serialize_test(binary_input: HashMap<String, u128>) ->
     };
 
     // Serialize the binary node and insert it into the map under the key "value".
-    let value = filled_node
-        .serialize()
-        .unwrap_or_else(|error| panic!("Failed to serialize binary data: {}", error));
+    let value = filled_node.serialize();
     map.insert("value".to_string(), value.0);
 
     // Serialize the map to a JSON string and handle serialization errors.
@@ -503,10 +501,7 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
     };
 
     // Store the binary node in the storage.
-    rust_fact_storage.set(
-        binary_rust.db_key(),
-        binary_rust.serialize().map_err(PythonTestError::from)?,
-    );
+    rust_fact_storage.set(binary_rust.db_key(), binary_rust.serialize());
 
     // Parse the edge node data from the input.
     let edge_json = get_or_key_not_found(&data, "edge")?;
@@ -525,7 +520,7 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
     };
 
     // Store the edge node in the storage.
-    rust_fact_storage.set(edge_rust.db_key(), edge_rust.serialize()?);
+    rust_fact_storage.set(edge_rust.db_key(), edge_rust.serialize());
 
     // Parse the storage leaf data from the input.
     let storage_leaf_json = get_or_key_not_found(&data, "storage")?;
@@ -543,7 +538,7 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
     };
 
     // Store the storage leaf node in the storage.
-    rust_fact_storage.set(storage_leaf_rust.db_key(), storage_leaf_rust.serialize()?);
+    rust_fact_storage.set(storage_leaf_rust.db_key(), storage_leaf_rust.serialize());
 
     // Parse the contract state leaf data from the input.
     let contract_state_leaf = get_or_key_not_found(&data, "contract_state_leaf")?;
@@ -576,7 +571,7 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
     // Store the contract state leaf node in the storage.
     rust_fact_storage.set(
         contract_state_leaf_rust.db_key(),
-        contract_state_leaf_rust.serialize()?,
+        contract_state_leaf_rust.serialize(),
     );
 
     // Parse the compiled class leaf data from the input.
@@ -598,7 +593,7 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
     // Store the compiled class leaf node in the storage.
     rust_fact_storage.set(
         compiled_class_leaf_rust.db_key(),
-        compiled_class_leaf_rust.serialize()?,
+        compiled_class_leaf_rust.serialize(),
     );
 
     // Serialize the storage to a JSON string and handle serialization errors.

@@ -1,9 +1,9 @@
-use crate::storage::errors::{DeserializationError, SerializationError};
+use crate::storage::errors::DeserializationError;
 use crate::storage::storage_trait::{StorageKey, StorageValue};
 
 pub trait Serializable {
     /// Serializes the given value.
-    fn serialize(&self) -> Result<StorageValue, SerializationError>;
+    fn serialize(&self) -> StorageValue;
     /// Returns the key used to store self in storage.
     fn db_key(&self) -> StorageKey;
 }

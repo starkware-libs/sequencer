@@ -27,6 +27,7 @@ pub(crate) struct LeafCompiledClassToSerialize {
 }
 
 /// Alias for serialization and deserialization results of filled nodes.
+#[allow(dead_code)]
 type FilledNodeSerializationResult = Result<StorageValue, SerializationError>;
 type FilledNodeDeserializationResult = Result<FilledNode<LeafDataImpl>, DeserializationError>;
 
@@ -41,7 +42,7 @@ impl Serializable for FilledNode<LeafDataImpl> {
     /// - For binary nodes: Concatenates left and right hashes.
     /// - For edge nodes: Concatenates bottom hash, path, and path length.
     /// - For leaf nodes: use leaf.serialize() method.
-    fn serialize(&self) -> FilledNodeSerializationResult {
+    fn serialize(&self) -> StorageValue {
         match &self.data {
             NodeData::Binary(BinaryData {
                 left_hash,
@@ -53,7 +54,7 @@ impl Serializable for FilledNode<LeafDataImpl> {
 
                 // Concatenate left and right hashes.
                 let serialized = [left, right].concat();
-                Ok(StorageValue(serialized))
+                StorageValue(serialized)
             }
 
             NodeData::Edge(EdgeData {
@@ -67,10 +68,10 @@ impl Serializable for FilledNode<LeafDataImpl> {
 
                 // Concatenate bottom hash, path, and path length.
                 let serialized = [bottom.to_vec(), path.to_vec(), length.to_vec()].concat();
-                Ok(StorageValue(serialized))
+                StorageValue(serialized)
             }
 
-            NodeData::Leaf(leaf_data) => Ok(leaf_data.serialize()),
+            NodeData::Leaf(leaf_data) => leaf_data.serialize(),
         }
     }
 
