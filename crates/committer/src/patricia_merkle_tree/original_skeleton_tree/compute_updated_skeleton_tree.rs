@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use ethnum::U256;
 
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
-use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
+use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonTreeImpl, OriginalSkeletonTreeResult,
 };
@@ -14,11 +14,11 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTre
 #[path = "compute_updated_skeleton_tree_test.rs"]
 pub mod compute_updated_skeleton_tree_test;
 
-impl OriginalSkeletonTreeImpl {
+impl<L: LeafData + std::clone::Clone> OriginalSkeletonTreeImpl<L> {
     pub(crate) fn compute_updated_skeleton_tree_impl(
         &self,
-        _index_to_updated_leaf: HashMap<NodeIndex, LeafDataImpl>,
-    ) -> OriginalSkeletonTreeResult<UpdatedSkeletonTreeImpl<LeafDataImpl>> {
+        _index_to_updated_leaf: HashMap<NodeIndex, L>,
+    ) -> OriginalSkeletonTreeResult<UpdatedSkeletonTreeImpl<L>> {
         todo!()
     }
 

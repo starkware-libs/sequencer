@@ -1,5 +1,6 @@
 use crate::felt::Felt;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength, PathToBottom};
+use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use std::collections::HashMap;
 
@@ -10,7 +11,7 @@ use crate::patricia_merkle_tree::{
     original_skeleton_tree::tree::OriginalSkeletonTreeImpl, types::TreeHeight,
 };
 
-fn empty_skeleton(height: u8) -> OriginalSkeletonTreeImpl {
+fn empty_skeleton(height: u8) -> OriginalSkeletonTreeImpl<LeafDataImpl> {
     OriginalSkeletonTreeImpl {
         nodes: HashMap::new(),
         tree_height: TreeHeight::new(height),

@@ -250,7 +250,7 @@ pub(crate) fn create_edge_entry(hash: u8, path: u8, length: u8) -> (StorageKey, 
 pub(crate) fn create_expected_skeleton(
     nodes: Vec<(NodeIndex, OriginalSkeletonNode<LeafDataImpl>)>,
     height: u8,
-) -> OriginalSkeletonTreeImpl {
+) -> OriginalSkeletonTreeImpl<LeafDataImpl> {
     OriginalSkeletonTreeImpl {
         nodes: nodes.into_iter().collect(),
         tree_height: TreeHeight::new(height),

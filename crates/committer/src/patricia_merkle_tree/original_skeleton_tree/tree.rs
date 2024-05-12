@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::leaf::LeafData;
-use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
@@ -40,12 +39,14 @@ pub(crate) trait OriginalSkeletonTree<L: LeafData + std::clone::Clone> {
 
 #[allow(dead_code)]
 #[derive(Debug, Eq, PartialEq)]
-pub(crate) struct OriginalSkeletonTreeImpl {
-    pub(crate) nodes: HashMap<NodeIndex, OriginalSkeletonNode<LeafDataImpl>>,
+pub(crate) struct OriginalSkeletonTreeImpl<L: LeafData + std::clone::Clone> {
+    pub(crate) nodes: HashMap<NodeIndex, OriginalSkeletonNode<L>>,
     pub(crate) tree_height: TreeHeight,
 }
 
-impl OriginalSkeletonTree<LeafDataImpl> for OriginalSkeletonTreeImpl {
+impl<L: LeafData + std::clone::Clone + std::marker::Send + std::marker::Sync>
+    OriginalSkeletonTree<L> for OriginalSkeletonTreeImpl<L>
+{
     fn create_tree(
         storage: &impl Storage,
         sorted_leaf_indices: &[NodeIndex],
@@ -57,8 +58,8 @@ impl OriginalSkeletonTree<LeafDataImpl> for OriginalSkeletonTreeImpl {
 
     fn compute_updated_skeleton_tree(
         &self,
-        index_to_updated_leaf: HashMap<NodeIndex, LeafDataImpl>,
-    ) -> OriginalSkeletonTreeResult<UpdatedSkeletonTreeImpl<LeafDataImpl>> {
+        index_to_updated_leaf: HashMap<NodeIndex, L>,
+    ) -> OriginalSkeletonTreeResult<UpdatedSkeletonTreeImpl<L>> {
         self.compute_updated_skeleton_tree_impl(index_to_updated_leaf)
     }
 }

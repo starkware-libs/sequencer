@@ -205,10 +205,15 @@ use super::OriginalSkeletonForest;
 )]
 fn test_create_original_skeleton_forest(
     #[case] input: Input,
-    #[case] expected_forest: OriginalSkeletonForest<LeafDataImpl, OriginalSkeletonTreeImpl>,
+    #[case] expected_forest: OriginalSkeletonForest<
+        LeafDataImpl,
+        OriginalSkeletonTreeImpl<LeafDataImpl>,
+    >,
 ) {
-    let actual_forest: OriginalSkeletonForest<LeafDataImpl, OriginalSkeletonTreeImpl> =
-        OriginalSkeletonForest::create_original_skeleton_forest::<MapStorage>(input).unwrap();
+    let actual_forest: OriginalSkeletonForest<
+        LeafDataImpl,
+        OriginalSkeletonTreeImpl<LeafDataImpl>,
+    > = OriginalSkeletonForest::create_original_skeleton_forest::<MapStorage>(input).unwrap();
 
     assert_eq!(
         actual_forest.global_state_tree,

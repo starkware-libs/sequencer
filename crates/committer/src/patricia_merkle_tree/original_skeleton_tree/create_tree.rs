@@ -5,6 +5,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::BinaryData;
 use crate::patricia_merkle_tree::node_data::inner_node::EdgeData;
 use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
+use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
@@ -104,7 +105,7 @@ impl<'a> SubTree<'a> {
 }
 
 #[allow(dead_code)]
-impl OriginalSkeletonTreeImpl {
+impl<L: LeafData + std::clone::Clone> OriginalSkeletonTreeImpl<L> {
     /// Fetches the Patricia witnesses, required to build the original skeleton tree from storage.
     /// Given a list of subtrees, traverses towards their leaves and fetches all non-empty and
     /// sibling nodes. Assumes no subtrees of height 0 (leaves).
@@ -118,11 +119,7 @@ impl OriginalSkeletonTreeImpl {
             return Ok(());
         }
         let mut next_subtrees = Vec::new();
-        let subtrees_roots = OriginalSkeletonTreeImpl::calculate_subtrees_roots(
-            &subtrees,
-            storage,
-            &self.tree_height,
-        )?;
+        let subtrees_roots = Self::calculate_subtrees_roots(&subtrees, storage, &self.tree_height)?;
         for (filled_node, subtree) in subtrees_roots.into_iter().zip(subtrees.iter()) {
             match filled_node.data {
                 // Binary node.
