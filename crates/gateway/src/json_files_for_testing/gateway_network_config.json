@@ -1,12 +1,12 @@
 {
-    "ip": {
-        "description": "The gateway server ip.",
-        "value": "0.0.0.0",
-        "privacy": "Public"
-    },
-    "port": {
-        "description": "The gateway server port.",
-        "value": 8080,
-        "privacy": "Public"
-    }
+  "ip": {
+    "description": "The gateway server ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "port": {
+    "description": "The gateway server port.",
+    "privacy": "Public",
+    "value": 8080
+  }
 }
