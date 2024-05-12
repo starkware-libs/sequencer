@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use axum::extract::State;
 use axum::routing::{get, post};
@@ -29,6 +30,9 @@ pub struct Gateway {
 #[derive(Clone)]
 pub struct AppState {
     pub stateless_transaction_validator: StatelessTransactionValidator,
+    /// This field uses Arc to enable shared ownership, which is necessary because
+    /// `GatewayNetworkClient` supports only one receiver at a time.
+    pub network_component: Arc<GatewayNetworkComponent>,
 }
 
 impl Gateway {
@@ -46,6 +50,7 @@ impl Gateway {
             stateless_transaction_validator: StatelessTransactionValidator {
                 config: self.stateless_transaction_validator_config,
             },
+            network_component: Arc::new(self.network_component),
         };
 
         Router::new()
