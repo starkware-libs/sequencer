@@ -213,7 +213,15 @@ fn test_create_original_skeleton_forest(
     let actual_forest: OriginalSkeletonForest<
         LeafDataImpl,
         OriginalSkeletonTreeImpl<LeafDataImpl>,
-    > = OriginalSkeletonForest::create_original_skeleton_forest::<MapStorage>(input).unwrap();
+    > = OriginalSkeletonForest::create_original_skeleton_forest::<MapStorage>(
+        MapStorage::from(input.storage),
+        input.global_tree_root_hash,
+        input.classes_tree_root_hash,
+        input.tree_heights,
+        &input.current_contract_state_leaves,
+        &input.state_diff,
+    )
+    .unwrap();
 
     assert_eq!(
         actual_forest.global_state_tree,

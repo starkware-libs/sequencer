@@ -18,6 +18,7 @@ pub struct ContractState {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum LeafDataImpl {
     StorageValue(Felt),
+    // TODO(Nimrod, 30/5/2024): Change the inner type to CompiledClassHash.
     CompiledClassHash(ClassHash),
     ContractState(ContractState),
 }
