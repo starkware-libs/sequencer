@@ -14,11 +14,12 @@ use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::create_tre
     create_edge_sibling_skeleton_node, create_edge_skeleton_node, create_expected_skeleton,
     create_leaf_or_binary_sibling_skeleton_node,
 };
+use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::OriginalSkeletonForest;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::types::TreeHeight;
 use crate::storage::map_storage::MapStorage;
 
-use super::OriginalSkeletonForest;
+use super::OriginalSkeletonForestImpl;
 
 // This test assumes for simplicity that hash is addition (i.e hash(a,b) = a + b).
 ///                                Old forest structure:
@@ -115,7 +116,7 @@ use super::OriginalSkeletonForest;
         ]),
         global_tree_root_hash: HashOutput(Felt::from(254_u128)),
         classes_tree_root_hash: HashOutput(Felt::from(157_u128)),
-    }, OriginalSkeletonForest{
+    }, OriginalSkeletonForestImpl{
         classes_tree: create_expected_skeleton(
             vec![
                 create_edge_skeleton_node(1, 0, 1),
@@ -205,15 +206,15 @@ use super::OriginalSkeletonForest;
 )]
 fn test_create_original_skeleton_forest(
     #[case] input: Input,
-    #[case] expected_forest: OriginalSkeletonForest<
+    #[case] expected_forest: OriginalSkeletonForestImpl<
         LeafDataImpl,
         OriginalSkeletonTreeImpl<LeafDataImpl>,
     >,
 ) {
-    let actual_forest: OriginalSkeletonForest<
+    let actual_forest: OriginalSkeletonForestImpl<
         LeafDataImpl,
         OriginalSkeletonTreeImpl<LeafDataImpl>,
-    > = OriginalSkeletonForest::create_original_skeleton_forest::<MapStorage>(
+    > = OriginalSkeletonForestImpl::create_original_skeleton_forest::<MapStorage>(
         MapStorage::from(input.storage),
         input.global_tree_root_hash,
         input.classes_tree_root_hash,
