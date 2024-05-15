@@ -32,3 +32,46 @@ impl Default for GatewayNetworkConfig {
         Self { ip: "0.0.0.0".parse().unwrap(), port: 8080 }
     }
 }
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+pub struct StatelessTransactionValidatorConfig {
+    // If true, validates that the resource bounds are not zero.
+    pub validate_non_zero_l1_gas_fee: bool,
+    pub validate_non_zero_l2_gas_fee: bool,
+
+    pub max_calldata_length: usize,
+    pub max_signature_length: usize,
+}
+
+impl SerializeConfig for StatelessTransactionValidatorConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "validate_non_zero_l1_gas_fee",
+                &self.validate_non_zero_l1_gas_fee,
+                "If true, validates that a transaction has non-zero L1 resource bounds.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "validate_non_zero_l2_gas_fee",
+                &self.validate_non_zero_l2_gas_fee,
+                "If true, validates that a transaction has non-zero L2 resource bounds.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_signature_length",
+                &self.max_signature_length,
+                "Validates that a transaction has calldata length less than or equal to this \
+                 value.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_calldata_length",
+                &self.max_calldata_length,
+                "Validates that a transaction has signature length less than or equal to this \
+                 value.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}

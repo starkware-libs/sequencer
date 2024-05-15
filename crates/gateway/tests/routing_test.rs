@@ -6,9 +6,8 @@ use axum::body::{Body, Bytes, HttpBody};
 use axum::http::{Request, StatusCode};
 use pretty_assertions::assert_str_eq;
 use rstest::{fixture, rstest};
-use starknet_gateway::config::GatewayNetworkConfig;
+use starknet_gateway::config::{GatewayNetworkConfig, StatelessTransactionValidatorConfig};
 use starknet_gateway::gateway::Gateway;
-use starknet_gateway::stateless_transaction_validator::StatelessTransactionValidatorConfig;
 use starknet_mempool_types::mempool_types::{
     GatewayNetworkComponent, GatewayToMempoolMessage, MempoolToGatewayMessage,
 };

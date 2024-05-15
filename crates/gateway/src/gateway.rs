@@ -7,11 +7,9 @@ use axum::{Json, Router};
 use starknet_api::external_transaction::ExternalTransaction;
 use starknet_mempool_types::mempool_types::GatewayNetworkComponent;
 
-use crate::config::GatewayNetworkConfig;
+use crate::config::{GatewayNetworkConfig, StatelessTransactionValidatorConfig};
 use crate::errors::GatewayError;
-use crate::stateless_transaction_validator::{
-    StatelessTransactionValidator, StatelessTransactionValidatorConfig,
-};
+use crate::stateless_transaction_validator::StatelessTransactionValidator;
 
 #[cfg(test)]
 #[path = "gateway_test.rs"]
