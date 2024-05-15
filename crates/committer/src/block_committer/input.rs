@@ -1,6 +1,7 @@
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::node_data::leaf::ContractState;
+use crate::patricia_merkle_tree::node_data::leaf::{ContractState, UpdatedSkeletonLeafDataImpl};
+use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::{
     filled_tree::node::{ClassHash, CompiledClassHash, Nonce},
     types::TreeHeight,
@@ -52,5 +53,47 @@ impl StateDiff {
                 .chain(self.address_to_nonce.keys())
                 .chain(self.storage_updates.keys()),
         )
+    }
+
+    /// For each modified contract calculates it's actual storage updates.
+    pub(crate) fn actual_storage_updates(
+        &self,
+        tree_height: TreeHeight,
+    ) -> HashMap<ContractAddress, HashMap<NodeIndex, UpdatedSkeletonLeafDataImpl>> {
+        self.accessed_addresses()
+            .iter()
+            .map(|address| {
+                let updates = match self.storage_updates.get(address) {
+                    Some(inner_updates) => inner_updates
+                        .iter()
+                        .map(|(key, value)| {
+                            (
+                                NodeIndex::from_starknet_storage_key(key, &tree_height),
+                                UpdatedSkeletonLeafDataImpl::StorageValue(value.0),
+                            )
+                        })
+                        .collect(),
+                    None => HashMap::new(),
+                };
+                (**address, updates)
+            })
+            .collect()
+    }
+
+    pub(crate) fn actual_classes_updates(
+        class_hash_to_compiled_class_hash: &HashMap<ClassHash, CompiledClassHash>,
+        tree_height: TreeHeight,
+    ) -> HashMap<NodeIndex, UpdatedSkeletonLeafDataImpl> {
+        class_hash_to_compiled_class_hash
+            .iter()
+            .map(|(class_hash, compiled_class_hash)| {
+                (
+                    NodeIndex::from_class_hash(class_hash, &tree_height),
+                    UpdatedSkeletonLeafDataImpl::CompiledClassHash(ClassHash(
+                        compiled_class_hash.0,
+                    )),
+                )
+            })
+            .collect()
     }
 }
