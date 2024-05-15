@@ -98,12 +98,12 @@ use super::OriginalSkeletonForest;
         ]),
         state_diff: StateDiff {
             storage_updates: create_storage_updates(&[
-                (3, &[8, 11, 13]),
-                (5, &[8, 11, 13]),
-                (6, &[8, 11, 13]),
-                (1, &[8, 10, 13]),
+                (3, &[0, 3, 5]),
+                (5, &[0, 3, 5]),
+                (6, &[0, 3, 5]),
+                (1, &[0, 2, 5]),
             ]),
-            class_hash_to_compiled_class_hash: create_class_hash_to_compiled_class_hash(&[(14, 1), (8, 7), (15, 9)]),
+            class_hash_to_compiled_class_hash: create_class_hash_to_compiled_class_hash(&[(6, 1), (0, 7), (7, 9)]),
             ..Default::default()
         },
         tree_heights: TreeHeight::new(3),
