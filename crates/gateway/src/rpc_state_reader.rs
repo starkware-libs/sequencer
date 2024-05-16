@@ -12,6 +12,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::hash::StarkFelt;
 use starknet_api::state::StorageKey;
 
+use crate::config::RpcStateReaderConfig;
 use crate::rpc_objects::{
     BlockHeader, BlockId, GetBlockWithTxHashesParams, GetClassHashAtParams,
     GetCompiledContractClassParams, GetNonceParams, GetStorageAtParams, RpcResponse,
@@ -151,12 +152,6 @@ impl BlockifierStateReader for RpcStateReader {
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         todo!()
     }
-}
-
-#[derive(Clone, Default)]
-pub struct RpcStateReaderConfig {
-    pub url: String,
-    pub json_rpc_version: String,
 }
 
 // Converts a serder error to the error type of the state reader.
