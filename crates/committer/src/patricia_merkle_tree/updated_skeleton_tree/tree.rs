@@ -29,6 +29,10 @@ pub(crate) trait UpdatedSkeletonTree<L: LeafData + std::clone::Clone> {
     async fn compute_filled_tree<H: HashFunction, TH: TreeHashFunction<L, H>>(
         &self,
     ) -> Result<impl FilledTree<L>, UpdatedSkeletonTreeError<L>>;
+
+    /// Does the skeleton represents an empty-tree (i.e. all leaves are empty).
+    #[allow(dead_code)]
+    fn is_empty(&self) -> bool;
 }
 
 pub(crate) struct UpdatedSkeletonTreeImpl<L: LeafData + std::clone::Clone> {
@@ -176,5 +180,9 @@ impl<L: LeafData + std::clone::Clone + std::marker::Sync + std::marker::Send> Up
         Ok(FilledTreeImpl::new(Self::remove_arc_mutex_and_option(
             filled_tree_map,
         )?))
+    }
+
+    fn is_empty(&self) -> bool {
+        todo!()
     }
 }
