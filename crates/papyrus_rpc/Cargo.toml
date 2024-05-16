@@ -1,0 +1,65 @@
+[package]
+name = "papyrus_rpc"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+base64.workspace = true
+ethers.workspace = true
+flate2.workspace = true
+futures.workspace = true
+futures-util.workspace = true
+hex.workspace = true
+hyper = { workspace = true, features = ["full"] }
+jsonrpsee = { workspace = true, features = ["full"] }
+lazy_static.workspace = true
+metrics.workspace = true
+papyrus_common = { path = "../papyrus_common", version = "0.4.0-dev.2" }
+papyrus_config = { path = "../papyrus_config", version = "0.4.0-dev.2" }
+papyrus_execution = { path = "../papyrus_execution", version = "0.4.0-dev.2" }
+papyrus_proc_macros = { path = "../papyrus_proc_macros", version = "0.4.0-dev.2" }
+papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-dev.2" }
+starknet_client = { path = "../starknet_client", version = "0.4.0-dev.2" }
+regex = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["arbitrary_precision"] }
+starknet_api.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["full", "sync"] }
+tokio-stream.workspace = true
+tower = { workspace = true, features = ["full"] }
+tracing.workspace = true
+url.workspace = true
+validator = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
+assert_matches.workspace = true
+cairo-lang-casm.workspace = true
+cairo-lang-starknet-classes.workspace = true
+camelpaste.workspace = true
+derive_more.workspace = true
+enum-iterator.workspace = true
+insta = { workspace = true, features = ["json"] }
+itertools.workspace = true
+jsonschema.workspace = true
+lazy_static.workspace = true
+metrics-exporter-prometheus.workspace = true
+mockall.workspace = true
+papyrus_execution = { path = "../papyrus_execution", features = ["testing"] }
+papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
+pretty_assertions.workspace = true
+prometheus-parse.workspace = true
+rand_chacha.workspace = true
+reqwest.workspace = true
+test_utils = { path = "../test_utils" }
+starknet_api = { workspace = true, features = ["testing"] }
+starknet_client = { path = "../starknet_client", features = ["testing"] }
+starknet-core.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
+indexmap = { workspace = true, features = ["serde"] }
+rand.workspace = true

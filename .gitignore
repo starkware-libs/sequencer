@@ -1,0 +1,6 @@
+/data
+/logs
+/target
+/.vscode
+# Git hooks
+/.husky

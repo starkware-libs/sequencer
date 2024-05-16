@@ -1,0 +1,31 @@
+[package]
+name = "papyrus_p2p_sync"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[dependencies]
+async-stream.workspace = true
+futures.workspace = true
+indexmap.workspace = true
+metrics.workspace = true
+papyrus_common = { path = "../papyrus_common", version = "0.4.0-dev.2" }
+papyrus_config = { path = "../papyrus_config", version = "0.4.0-dev.2" }
+papyrus_network = { path = "../papyrus_network", version = "0.4.0-dev.2" }
+papyrus_proc_macros = { path = "../papyrus_proc_macros", version = "0.4.0-dev.2" }
+papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-dev.2" }
+serde.workspace = true
+starknet_api.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+assert_matches.workspace = true
+lazy_static.workspace = true
+papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
+static_assertions.workspace = true
+rand.workspace = true
+test_utils = { path = "../test_utils" }

@@ -1,0 +1,31 @@
+[package]
+name = "starknet_gateway"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# TODO(Arni, 1/5/2024): Use a fixed version once the StarkNet API is stable.
+starknet_api = { git = "https://github.com/starkware-libs/starknet-api.git", rev = "1b46b42" }
+# TODO(YaelD, 1/5/2024): Use a fixed version once the StarkNet API is stable.
+blockifier = { git = "https://github.com/starkware-libs/blockifier.git", rev = "ba72c863", features = ["testing"] }
+axum.workspace = true
+clap.workspace = true
+papyrus_config.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tower.workspace = true
+url.workspace = true
+validator.workspace = true
+
+[dev-dependencies]
+assert_matches.workspace = true
+pretty_assertions.workspace = true
+rstest.workspace = true
+tokio.workspace = true

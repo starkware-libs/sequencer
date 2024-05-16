@@ -1,0 +1,66 @@
+[package]
+name = "blockifier"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "The transaction-executing component in the Starknet sequencer."
+
+[lints]
+workspace = true
+
+[features]
+testing = ["rstest"]
+concurrency = []
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow.workspace = true
+ark-ec.workspace = true
+ark-ff.workspace = true
+ark-secp256k1.workspace = true
+ark-secp256r1.workspace = true
+cached.workspace = true
+cairo-felt.workspace = true
+cairo-lang-casm = { workspace = true, features = ["parity-scale-codec"] }
+cairo-lang-runner.workspace = true
+cairo-lang-starknet-classes.workspace = true
+cairo-lang-utils.workspace = true
+cairo-vm.workspace = true
+derive_more.workspace = true
+indexmap.workspace = true
+itertools.workspace = true
+keccak.workspace = true
+log.workspace = true
+num-bigint.workspace = true
+num-integer.workspace = true
+num-traits.workspace = true
+num-rational.workspace = true
+once_cell.workspace = true
+phf.workspace = true
+rstest = { workspace = true, optional = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["arbitrary_precision"] }
+sha3.workspace = true
+starknet-crypto.workspace = true
+# TODO: bump to use latest version.
+starknet_api = { version = "0.12.0-dev.0", features = ["testing"] }
+strum.workspace = true
+strum_macros.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+assert_matches.workspace = true
+criterion = { workspace = true, features = ["html_reports"] }
+glob.workspace = true
+pretty_assertions.workspace = true
+rand.workspace = true
+regex.workspace = true
+rstest.workspace = true
+test-case.workspace = true
+
+[[bench]]
+path = "bench/blockifier_bench.rs"
+name = "blockifier_bench"
+harness = false

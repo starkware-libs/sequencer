@@ -1,0 +1,2 @@
+# Locked for the stake of CI stability, bump this version as needed.
+cairo-lang==0.12.2

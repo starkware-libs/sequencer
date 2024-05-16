@@ -1,0 +1,27 @@
+[package]
+name = "mempool_node"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait.workspace = true
+clap.workspace = true
+const_format.workspace = true
+starknet_gateway = { path = "../gateway", version = "0.4.0-dev.2" }
+serde.workspace = true
+serde_json.workspace = true
+# TODO(Arni, 1/5/2024): Use a fixed version once the StarkNet API is stable.
+starknet_api = { git = "https://github.com/starkware-libs/starknet-api.git", rev = "1b46b42" }
+thiserror.workspace = true
+papyrus_config.workspace = true
+tokio.workspace = true
+validator.workspace = true
+
+[dev-dependencies]
+assert_matches.workspace = true
+pretty_assertions.workspace = true
