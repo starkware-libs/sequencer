@@ -31,6 +31,7 @@ pub struct AppState {
     /// This field uses Arc to enable shared ownership, which is necessary because
     /// `GatewayNetworkClient` supports only one receiver at a time.
     pub network_component: Arc<GatewayNetworkComponent>,
+    // TODO(yael 15/5/24) add stateful_transaction_validator and state_reader_factory.
 }
 
 impl Gateway {

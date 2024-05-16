@@ -18,6 +18,7 @@ use crate::rpc_objects::{
     GetCompiledContractClassParams, GetNonceParams, GetStorageAtParams, RpcResponse,
     RPC_CLASS_HASH_NOT_FOUND, RPC_ERROR_BLOCK_NOT_FOUND, RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND,
 };
+use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 
 pub struct RpcStateReader {
     pub config: RpcStateReaderConfig,
@@ -85,8 +86,10 @@ impl RpcStateReader {
             },
         }
     }
+}
 
-    pub fn get_block_info(&self) -> Result<BlockInfo, StateError> {
+impl MempoolStateReader for RpcStateReader {
+    fn get_block_info(&self) -> Result<BlockInfo, StateError> {
         let get_block_params = GetBlockWithTxHashesParams { block_id: self.block_id };
 
         // The response from the rpc is a full block but we only deserialize the header.
@@ -165,4 +168,18 @@ fn serde_err_to_state_err(err: SerdeError) -> StateError {
 // Converts a reqwest error to the error type of the state reader.
 fn reqwest_err_to_state_err(err: ReqwestError) -> StateError {
     StateError::StateReadError(format!("Rpc request failed with error {:?}", err.to_string()))
+}
+
+pub struct RpcStateReaderFactory {
+    config: RpcStateReaderConfig,
+}
+
+impl StateReaderFactory<RpcStateReader> for RpcStateReaderFactory {
+    fn get_state_reader_from_latest_block(&self) -> RpcStateReader {
+        RpcStateReader::from_latest(&self.config)
+    }
+
+    fn get_state_reader(&self, block_number: BlockNumber) -> RpcStateReader {
+        RpcStateReader::from_number(&self.config, block_number)
+    }
 }
