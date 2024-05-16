@@ -52,7 +52,7 @@ async fn test_routes(
     gateway: Gateway,
 ) {
     let tx_json = fs::read_to_string(json_file_path).unwrap();
-    let request = Request::post("/add_transaction")
+    let request = Request::post("/add_tx")
         .header("content-type", "application/json")
         .body(Body::from(tx_json))
         .unwrap();

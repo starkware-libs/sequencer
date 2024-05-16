@@ -32,7 +32,7 @@ pub struct MempoolInput {
 
 #[derive(Debug)]
 pub enum GatewayToMempoolMessage {
-    AddTx(InternalTransaction, Account),
+    AddTransaction(InternalTransaction, Account),
 }
 
 pub type MempoolToGatewayMessage = ();

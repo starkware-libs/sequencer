@@ -54,7 +54,7 @@ impl Gateway {
 
         Router::new()
             .route("/is_alive", get(is_alive))
-            .route("/add_transaction", post(async_add_transaction))
+            .route("/add_tx", post(async_add_tx))
             .with_state(app_state)
         // TODO: when we need to configure the router, like adding banned ips, add it here via
         // `with_state`.
@@ -65,28 +65,25 @@ async fn is_alive() -> GatewayResult<String> {
     unimplemented!("Future handling should be implemented here.");
 }
 
-async fn async_add_transaction(
+async fn async_add_tx(
     State(gateway_state): State<AppState>,
-    Json(transaction): Json<ExternalTransaction>,
+    Json(tx): Json<ExternalTransaction>,
 ) -> GatewayResult<String> {
-    tokio::task::spawn_blocking(move || add_transaction(gateway_state, transaction)).await?
+    tokio::task::spawn_blocking(move || add_tx(gateway_state, tx)).await?
 }
 
-fn add_transaction(
-    gateway_state: AppState,
-    transaction: ExternalTransaction,
-) -> GatewayResult<String> {
+fn add_tx(gateway_state: AppState, tx: ExternalTransaction) -> GatewayResult<String> {
     // TODO(Arni, 1/5/2024): Preform congestion control.
 
     // Perform stateless validations.
-    gateway_state.stateless_transaction_validator.validate(&transaction)?;
+    gateway_state.stateless_transaction_validator.validate(&tx)?;
 
     // TODO(Yael, 1/5/2024): Preform state related validations.
     // TODO(Arni, 1/5/2024): Move transaction to mempool.
 
     // TODO(Arni, 1/5/2024): Produce response.
     // Send response.
-    Ok(match transaction {
+    Ok(match tx {
         ExternalTransaction::Declare(_) => "DECLARE".into(),
         ExternalTransaction::DeployAccount(_) => "DEPLOY_ACCOUNT".into(),
         ExternalTransaction::Invoke(_) => "INVOKE".into(),

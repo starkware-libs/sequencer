@@ -15,7 +15,7 @@ use starknet_mempool_types::mempool_types::{
 use tokio::sync::mpsc::channel;
 
 use crate::config::StatelessTransactionValidatorConfig;
-use crate::gateway::{async_add_transaction, AppState};
+use crate::gateway::{async_add_tx, AppState};
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
 
 const TEST_FILES_FOLDER: &str = "./tests/fixtures";
@@ -38,7 +38,7 @@ pub fn network_component() -> GatewayNetworkComponent {
 )]
 #[case::invoke(&Path::new(TEST_FILES_FOLDER).join("invoke_v3.json"), "INVOKE")]
 #[tokio::test]
-async fn test_add_transaction(
+async fn test_add_tx(
     #[case] json_file_path: &Path,
     #[case] expected_response: &str,
     network_component: GatewayNetworkComponent,
@@ -62,8 +62,7 @@ async fn test_add_transaction(
     app_state.stateless_transaction_validator.config.max_signature_length =
         TOO_SMALL_SIGNATURE_LENGTH;
 
-    let response =
-        async_add_transaction(State(app_state.clone()), tx.clone().into()).await.into_response();
+    let response = async_add_tx(State(app_state.clone()), tx.clone().into()).await.into_response();
 
     let status_code = response.status();
     assert_eq!(status_code, StatusCode::INTERNAL_SERVER_ERROR);
@@ -75,7 +74,7 @@ async fn test_add_transaction(
     // Positive flow.
     app_state.stateless_transaction_validator.config.max_signature_length = 2;
 
-    let response = async_add_transaction(State(app_state), tx.into()).await.into_response();
+    let response = async_add_tx(State(app_state), tx.into()).await.into_response();
 
     let status_code = response.status();
     assert_eq!(status_code, StatusCode::OK);

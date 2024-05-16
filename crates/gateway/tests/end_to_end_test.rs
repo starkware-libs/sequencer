@@ -31,7 +31,7 @@ async fn test_send_and_receive() {
     .unwrap();
     let account = create_default_account();
     task::spawn(async move {
-        let gateway_to_mempool = GatewayToMempoolMessage::AddTx(internal_tx, account);
+        let gateway_to_mempool = GatewayToMempoolMessage::AddTransaction(internal_tx, account);
         gateway_network.send(gateway_to_mempool).await.unwrap();
     })
     .await
@@ -41,11 +41,11 @@ async fn test_send_and_receive() {
         task::spawn(async move { mempool_network.recv().await }).await.unwrap().unwrap();
 
     match mempool_message {
-        GatewayToMempoolMessage::AddTx(tx, _) => match tx {
+        GatewayToMempoolMessage::AddTransaction(tx, _) => match tx {
             InternalTransaction::Invoke(invoke_tx) => {
                 assert_eq!(invoke_tx.tx_hash, tx_hash);
             }
-            _ => panic!("Received a non-invoke transaction in AddTx"),
+            _ => panic!("Received a non-invoke transaction in AddTransaction"),
         },
     }
 }
