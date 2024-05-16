@@ -11,7 +11,6 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::hash::StarkFelt;
 use starknet_api::state::StorageKey;
-use url::Url;
 
 use crate::rpc_objects::{
     BlockHeader, BlockId, GetBlockWithTxHashesParams, GetClassHashAtParams,
@@ -154,9 +153,9 @@ impl BlockifierStateReader for RpcStateReader {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct RpcStateReaderConfig {
-    pub url: Url,
+    pub url: String,
     pub json_rpc_version: String,
 }
 
