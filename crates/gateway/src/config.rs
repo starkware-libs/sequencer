@@ -82,6 +82,7 @@ pub struct RpcStateReaderConfig {
     pub json_rpc_version: String,
 }
 
+#[cfg(any(feature = "testing", test))]
 impl RpcStateReaderConfig {
     pub fn create_for_testing() -> Self {
         Self { url: "http://localhost:8080".to_string(), json_rpc_version: "2.0".to_string() }

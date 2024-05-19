@@ -8,6 +8,9 @@ license.workspace = true
 [lints]
 workspace = true
 
+[features]
+testing = []
+
 [dependencies]
 axum.workspace = true
 blockifier.workspace = true
