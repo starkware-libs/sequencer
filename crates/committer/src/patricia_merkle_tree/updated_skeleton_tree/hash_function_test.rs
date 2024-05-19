@@ -8,8 +8,10 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
 };
 use crate::patricia_merkle_tree::node_data::leaf::ContractState;
 use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
-use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
+use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
+    TreeHashFunction, CONTRACT_CLASS_LEAF_V0,
+};
 use rstest::rstest;
 
 #[rstest]
@@ -62,7 +64,21 @@ fn test_tree_hash_function_impl_edge_node(
 }
 
 #[rstest]
-#[case(NodeData::Leaf(LeafDataImpl::CompiledClassHash(ClassHash(Felt::from_hex("0xACDC").unwrap()))), Felt::from_hex("0xACDC").unwrap())]
+fn test_constant_contract_class_leaf_v0() {
+    assert_eq!(
+        hex::decode(CONTRACT_CLASS_LEAF_V0.trim_start_matches("0x")).unwrap(),
+        b"CONTRACT_CLASS_LEAF_V0".as_slice()
+    );
+}
+
+#[rstest]
+// Expected hash value was computed independently.
+#[case(
+    NodeData::Leaf(
+        LeafDataImpl::CompiledClassHash(ClassHash(Felt::from_hex("0xACDC").unwrap()))
+    ),
+    Felt::from_hex("0x49ed9a06987e7e55770d6c4d7d16b819ad984bf4aed552042847380cc31210d").unwrap()
+)]
 #[case(NodeData::Leaf(LeafDataImpl::StorageValue(Felt::from_hex("0xDEAFBEEF").unwrap())), Felt::from_hex("0xDEAFBEEF").unwrap())]
 // Random StateTreeTuples and the expected hash results were generated and computed elsewhere.
 #[case(

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::hash::pedersen::PedersenHashFunction;
-use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, FilledNode};
+use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePath, EdgePathLength, NodeData, PathToBottom,
@@ -22,7 +22,7 @@ async fn test_filled_tree_sanity() {
     let mut skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode<LeafDataImpl>> = HashMap::new();
     skeleton_tree.insert(
         NodeIndex::ROOT,
-        UpdatedSkeletonNode::Leaf(LeafDataImpl::CompiledClassHash(ClassHash(Felt::ONE))),
+        UpdatedSkeletonNode::Leaf(LeafDataImpl::StorageValue(Felt::ONE)),
     );
     let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
     let root_hash = updated_skeleton_tree
@@ -255,9 +255,7 @@ fn create_leaf_updated_skeleton_node_for_testing(
 ) -> (NodeIndex, UpdatedSkeletonNode<LeafDataImpl>) {
     (
         NodeIndex::from(index),
-        UpdatedSkeletonNode::Leaf(LeafDataImpl::CompiledClassHash(ClassHash(
-            Felt::from_hex(value).unwrap(),
-        ))),
+        UpdatedSkeletonNode::Leaf(LeafDataImpl::StorageValue(Felt::from_hex(value).unwrap())),
     )
 }
 
@@ -306,9 +304,7 @@ fn create_leaf_entry_for_testing(index: u128, hash: &str) -> (NodeIndex, FilledN
         NodeIndex::from(index),
         FilledNode {
             hash: HashOutput(Felt::from_hex(hash).unwrap()),
-            data: NodeData::Leaf(LeafDataImpl::CompiledClassHash(ClassHash(
-                Felt::from_hex(hash).unwrap(),
-            ))),
+            data: NodeData::Leaf(LeafDataImpl::StorageValue(Felt::from_hex(hash).unwrap())),
         },
     )
 }
