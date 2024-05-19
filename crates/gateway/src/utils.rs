@@ -12,11 +12,13 @@ use starknet_api::external_transaction::{
 };
 use starknet_api::transaction::{
     DeclareTransaction, DeclareTransactionV3, DeployAccountTransaction, DeployAccountTransactionV3,
-    InvokeTransaction, InvokeTransactionV3, ResourceBoundsMapping, TransactionHasher,
-    TransactionSignature,
+    InvokeTransaction, InvokeTransactionV3, ResourceBoundsMapping, TransactionHash,
+    TransactionHasher, TransactionSignature,
 };
+use starknet_mempool_types::mempool_types::ThinTransaction;
 
 use crate::errors::StatefulTransactionValidatorResult;
+use crate::starknet_api_test_utils::{get_nonce, get_sender_address, get_tip};
 
 macro_rules! implement_ref_getters {
     ($(($member_name:ident, $member_type:ty));* $(;)?) => {
@@ -41,6 +43,16 @@ impl ExternalTransactionExt for ExternalTransaction {
         (resource_bounds, ResourceBoundsMapping);
         (signature, TransactionSignature)
     );
+}
+
+pub fn external_tx_to_thin_tx(external_tx: &ExternalTransaction) -> ThinTransaction {
+    ThinTransaction {
+        tip: get_tip(external_tx),
+        nonce: get_nonce(external_tx),
+        contract_address: get_sender_address(external_tx),
+        // TODO(Yael): Add transaction hash calculation.
+        tx_hash: TransactionHash::default(),
+    }
 }
 
 // TODO(Arni, 1/5/2025): Remove this trait once it is implemented in StarkNet API.
