@@ -1,6 +1,7 @@
 use crate::block_committer::input::{ContractAddress, StarknetStorageKey};
 use crate::felt::Felt;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength, PathToBottom};
+use crate::patricia_merkle_tree::test_utils::get_random_u256;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::types::TreeHeight;
 
@@ -58,12 +59,6 @@ fn test_cast_to_node_index(
     assert_eq!(actual, expected_node_index.into());
 }
 
-fn get_random_u256(min_trailing_zeros: u8) -> U256 {
-    let msbits: U256 = rand::thread_rng().gen_range(0..u128::MAX).into();
-    let lsbits: u128 = rand::thread_rng().gen();
-    ((msbits << (128 - lsbits.leading_zeros())) + lsbits) >> min_trailing_zeros
-}
-
 #[rstest]
 #[case(1, 1, 1)]
 #[case(2, 5, 2)]
@@ -80,7 +75,10 @@ fn test_get_lca(#[case] node_index: u8, #[case] other: u8, #[case] expected: u8)
 
 #[rstest]
 fn test_get_lca_big() {
-    let lca = NodeIndex(get_random_u256(5));
+    let lca = NodeIndex::new(get_random_u256(
+        U256::ZERO,
+        (NodeIndex::MAX_INDEX >> 1).into(),
+    ));
 
     let left_child = lca << 1;
     let right_child = left_child + 1.into();
