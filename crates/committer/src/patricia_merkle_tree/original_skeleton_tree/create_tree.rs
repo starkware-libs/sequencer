@@ -9,6 +9,7 @@ use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
+use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
 use crate::patricia_merkle_tree::types::TreeHeight;
 use crate::patricia_merkle_tree::{
     original_skeleton_tree::node::OriginalSkeletonNode, types::NodeIndex,
@@ -36,17 +37,11 @@ impl<'a> SubTree<'a> {
         TreeHeight::new(u8::from(*total_tree_height) - (self.root_index.bit_length() - 1))
     }
 
-    pub(crate) fn split_leaves(
-        &self,
-        total_tree_height: &TreeHeight,
-    ) -> (&'a [NodeIndex], &'a [NodeIndex]) {
-        let height = self.get_height(total_tree_height);
-        let leftmost_index_in_right_subtree =
-            ((self.root_index << 1) + NodeIndex::ROOT) << (u8::from(height) - 1);
-        let mid = bisect_left(self.sorted_leaf_indices, &leftmost_index_in_right_subtree);
-        (
-            &self.sorted_leaf_indices[..mid],
-            &self.sorted_leaf_indices[mid..],
+    pub(crate) fn split_leaves(&self, total_tree_height: &TreeHeight) -> [&'a [NodeIndex]; 2] {
+        split_leaves(
+            total_tree_height,
+            &self.root_index,
+            self.sorted_leaf_indices,
         )
     }
 
@@ -83,7 +78,7 @@ impl<'a> SubTree<'a> {
         right_hash: HashOutput,
         total_tree_height: &TreeHeight,
     ) -> (Self, Self) {
-        let (left_leaves, right_leaves) = self.split_leaves(total_tree_height);
+        let [left_leaves, right_leaves] = self.split_leaves(total_tree_height);
         let left_root_index = self.root_index * 2.into();
         (
             SubTree {

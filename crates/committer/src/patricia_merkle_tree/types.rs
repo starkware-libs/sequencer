@@ -14,10 +14,10 @@ pub mod types_test;
 pub struct TreeHeight(u8);
 
 impl TreeHeight {
-    pub const MAX_HEIGHT: u8 = 251;
+    pub const MAX: TreeHeight = TreeHeight(251);
 
     pub fn new(height: u8) -> Self {
-        if height > Self::MAX_HEIGHT {
+        if height > Self::MAX.0 {
             panic!("Height {height} is too large.");
         }
         Self(height)
@@ -37,10 +37,14 @@ pub(crate) struct NodeIndex(U256);
 
 // Wraps a U256. Maximal possible value is the largest index in a tree of height 251 (2 ^ 252 - 1).
 impl NodeIndex {
-    pub const BITS: u8 = TreeHeight::MAX_HEIGHT + 1;
+    pub const BITS: u8 = TreeHeight::MAX.0 + 1;
 
     /// [NodeIndex] constant that represents the root index.
     pub const ROOT: Self = Self(U256::ONE);
+
+    #[allow(dead_code)]
+    /// [NodeIndex] constant that represents the first leaf index.
+    pub const FIRST_LEAF: Self = Self(U256::from_words(1_u128 << (Self::BITS - 1 - 128), 0));
 
     /// [NodeIndex] constant that represents the largest index in a tree.
     #[allow(clippy::as_conversions)]

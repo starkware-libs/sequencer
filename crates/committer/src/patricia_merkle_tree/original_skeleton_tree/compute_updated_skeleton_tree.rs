@@ -1,13 +1,12 @@
 use std::collections::HashMap;
 
-use ethnum::U256;
-
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
 use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonTreeImpl, OriginalSkeletonTreeResult,
 };
-use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
+use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
+use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 
 #[cfg(test)]
@@ -20,10 +19,6 @@ impl<L: LeafData + std::clone::Clone> OriginalSkeletonTreeImpl<L> {
         _index_to_updated_leaf: HashMap<NodeIndex, L>,
     ) -> OriginalSkeletonTreeResult<UpdatedSkeletonTreeImpl<L>> {
         todo!()
-    }
-
-    fn get_node_height(&self, index: &NodeIndex) -> TreeHeight {
-        TreeHeight::new(u8::from(self.tree_height) - index.bit_length() + 1)
     }
 
     #[allow(dead_code)]
@@ -51,27 +46,8 @@ impl<L: LeafData + std::clone::Clone> OriginalSkeletonTreeImpl<L> {
         if leaf_indices.is_empty() {
             return false;
         }
-
-        let root_height = self.get_node_height(root_index);
-        let assert_child = |leaf_index: NodeIndex| {
-            if (leaf_index >> root_height.into()) != *root_index {
-                panic!("Leaf is not a descendant of the root.");
-            }
-        };
-
-        let first_leaf = leaf_indices[0];
-        assert_child(first_leaf);
-        if leaf_indices.len() == 1 {
-            return false;
-        }
-
-        let last_leaf = leaf_indices
-            .last()
-            .expect("leaf_indices unexpectedly empty.");
-        assert_child(*last_leaf);
-
-        let child_direction_mask = U256::ONE << (u8::from(root_height) - 1);
-        (U256::from(first_leaf) & child_direction_mask)
-            != (U256::from(*last_leaf) & child_direction_mask)
+        split_leaves(&self.tree_height, root_index, leaf_indices)
+            .iter()
+            .all(|leaves_in_side| !leaves_in_side.is_empty())
     }
 }
