@@ -5,12 +5,9 @@ use std::sync::Arc;
 use axum::extract::State;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use mempool_infra::network_component::CommunicationInterface;
 use starknet_api::external_transaction::ExternalTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_mempool_types::mempool_types::{
-    Account, GatewayNetworkComponent, GatewayToMempoolMessage, MempoolInput,
-};
+use starknet_mempool_types::mempool_types::{Account, MempoolClient, MempoolInput};
 
 use crate::config::{GatewayConfig, GatewayNetworkConfig};
 use crate::errors::{GatewayError, GatewayRunError};
@@ -35,17 +32,15 @@ pub struct Gateway {
 pub struct AppState {
     pub stateless_tx_validator: StatelessTransactionValidator,
     pub stateful_tx_validator: Arc<StatefulTransactionValidator>,
-    /// This field uses Arc to enable shared ownership, which is necessary because
-    /// `GatewayNetworkClient` supports only one receiver at a time.
-    pub network_component: Arc<GatewayNetworkComponent>,
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
+    pub mempool_client: Arc<dyn MempoolClient>,
 }
 
 impl Gateway {
     pub fn new(
         config: GatewayConfig,
-        network_component: GatewayNetworkComponent,
         state_reader_factory: Arc<dyn StateReaderFactory>,
+        mempool_client: Arc<dyn MempoolClient>,
     ) -> Self {
         let app_state = AppState {
             stateless_tx_validator: StatelessTransactionValidator {
@@ -54,8 +49,8 @@ impl Gateway {
             stateful_tx_validator: Arc::new(StatefulTransactionValidator {
                 config: config.stateful_tx_validator_config.clone(),
             }),
-            network_component: Arc::new(network_component),
             state_reader_factory,
+            mempool_client,
         };
         Gateway { config, app_state }
     }
@@ -101,10 +96,10 @@ async fn add_tx(
     .await??;
 
     let tx_hash = mempool_input.tx.tx_hash;
-    let message = GatewayToMempoolMessage::AddTransaction(mempool_input);
+
     app_state
-        .network_component
-        .send(message)
+        .mempool_client
+        .add_tx(mempool_input)
         .await
         .map_err(|e| GatewayError::MessageSendError(e.to_string()))?;
     // TODO: Also return `ContractAddress` for deploy and `ClassHash` for Declare.
@@ -117,7 +112,7 @@ fn process_tx(
     state_reader_factory: &dyn StateReaderFactory,
     tx: ExternalTransaction,
 ) -> GatewayResult<MempoolInput> {
-    // TODO(Arni, 1/5/2024): Preform congestion control.
+    // TODO(Arni, 1/5/2024): Perform congestion control.
 
     // Perform stateless validations.
     stateless_tx_validator.validate(&tx)?;

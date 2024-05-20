@@ -2,6 +2,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 
+use mempool_infra::component_server::ComponentServer;
 use mempool_infra::network_component::CommunicationInterface;
 use rstest::rstest;
 use starknet_api::transaction::{Tip, TransactionHash};
@@ -12,16 +13,19 @@ use starknet_gateway::config::{
 use starknet_gateway::gateway::Gateway;
 use starknet_gateway::starknet_api_test_utils::invoke_tx;
 use starknet_gateway::state_reader_test_utils::test_state_reader_factory;
-use starknet_mempool::mempool::Mempool;
+use starknet_mempool::mempool::{Mempool, MempoolCommunicationWrapper};
 use starknet_mempool_integration_tests::integration_test_utils::GatewayClient;
 use starknet_mempool_types::mempool_types::{
     BatcherToMempoolChannels, BatcherToMempoolMessage, GatewayNetworkComponent,
-    GatewayToMempoolMessage, MempoolInput, MempoolNetworkComponent, MempoolToBatcherMessage,
+    GatewayToMempoolMessage, MempoolClient, MempoolClientImpl, MempoolInput,
+    MempoolNetworkComponent, MempoolRequestAndResponseSender, MempoolToBatcherMessage,
     MempoolToGatewayMessage,
 };
 use tokio::sync::mpsc::channel;
 use tokio::task;
 use tokio::time::sleep;
+
+const MEMPOOL_INVOCATIONS_QUEUE_SIZE: usize = 32;
 
 #[tokio::test]
 async fn test_send_and_receive() {
@@ -62,7 +66,7 @@ fn initialize_gateway_network_channels() -> (GatewayNetworkComponent, MempoolNet
     )
 }
 
-async fn set_up_gateway(network_component: GatewayNetworkComponent) -> SocketAddr {
+async fn set_up_gateway(mempool_client: Arc<dyn MempoolClient>) -> SocketAddr {
     let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
     let port = 3000;
     let network_config = GatewayNetworkConfig { ip, port };
@@ -81,7 +85,7 @@ async fn set_up_gateway(network_component: GatewayNetworkComponent) -> SocketAdd
 
     let state_reader_factory = Arc::new(test_state_reader_factory());
 
-    let gateway = Gateway::new(config, network_component, state_reader_factory);
+    let gateway = Gateway::new(config, state_reader_factory, mempool_client);
 
     // Setup server
     tokio::spawn(async move { gateway.run().await });
@@ -95,38 +99,41 @@ async fn set_up_gateway(network_component: GatewayNetworkComponent) -> SocketAdd
 #[rstest]
 #[tokio::test]
 async fn test_end_to_end() {
-    let (gateway_to_mempool_network, mempool_to_gateway_network) =
-        initialize_gateway_network_channels();
+    // TODO: delete this line once deprecating network component.
+    let (_, mempool_to_gateway_network) = initialize_gateway_network_channels();
 
-    let (tx_batcher_to_mempool, rx_batcher_to_mempool) = channel::<BatcherToMempoolMessage>(1);
-    let (tx_mempool_to_batcher, mut rx_mempool_to_batcher) = channel::<MempoolToBatcherMessage>(1);
+    let (_tx_batcher_to_mempool, rx_batcher_to_mempool) = channel::<BatcherToMempoolMessage>(1);
+    let (tx_mempool_to_batcher, _rx_mempool_to_batcher) = channel::<MempoolToBatcherMessage>(1);
 
     let batcher_channels =
         BatcherToMempoolChannels { rx: rx_batcher_to_mempool, tx: tx_mempool_to_batcher };
 
+    // Initialize Mempool.
+    // TODO(Tsabary): wrap creation of channels in dedicated functions, take channel capacity from
+    // config.
+    let (tx_mempool, rx_mempool) =
+        channel::<MempoolRequestAndResponseSender>(MEMPOOL_INVOCATIONS_QUEUE_SIZE);
+    let mempool = Mempool::empty(mempool_to_gateway_network, batcher_channels);
+
+    // TODO(Tsabary, 1/6/2024): Wrap with a dedicated create_mempool_server function.
+    let mut mempool_server =
+        ComponentServer::new(MempoolCommunicationWrapper::new(mempool), rx_mempool);
+    task::spawn(async move {
+        mempool_server.start().await;
+    });
+
     // Initialize Gateway.
-    let socket_addr = set_up_gateway(gateway_to_mempool_network).await;
+    let gateway_mempool_client = Arc::new(MempoolClientImpl::new(tx_mempool.clone()));
+    let socket_addr = set_up_gateway(gateway_mempool_client).await;
 
     // Send a transaction.
     let external_tx = invoke_tx();
     let gateway_client = GatewayClient::new(socket_addr);
     gateway_client.assert_add_tx_success(&external_tx).await;
 
-    // Initialize Mempool.
-    let mut mempool = Mempool::empty(mempool_to_gateway_network, batcher_channels);
+    let batcher_mempool_client = MempoolClientImpl::new(tx_mempool.clone());
+    let mempool_message = batcher_mempool_client.get_txs(2).await.unwrap();
 
-    task::spawn(async move {
-        mempool.run().await.unwrap();
-    });
-
-    // TODO: Avoid using sleep, it slow down the test.
-    // Wait for the listener to receive the transactions.
-    sleep(Duration::from_secs(2)).await;
-
-    let batcher_to_mempool_message = BatcherToMempoolMessage::GetTransactions(2);
-    tx_batcher_to_mempool.send(batcher_to_mempool_message).await.unwrap();
-
-    let mempool_message = rx_mempool_to_batcher.recv().await.unwrap();
     assert_eq!(mempool_message.len(), 1);
     assert_eq!(mempool_message[0].tip, Tip(0));
 }

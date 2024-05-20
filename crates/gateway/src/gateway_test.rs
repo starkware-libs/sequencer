@@ -6,12 +6,17 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use blockifier::context::ChainInfo;
+use mempool_infra::component_server::ComponentServer;
 use starknet_api::external_transaction::ExternalTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_mempool::mempool::{Mempool, MempoolCommunicationWrapper};
 use starknet_mempool_types::mempool_types::{
-    GatewayNetworkComponent, GatewayToMempoolMessage, MempoolToGatewayMessage,
+    BatcherToMempoolChannels, BatcherToMempoolMessage, GatewayToMempoolMessage, MempoolClient,
+    MempoolClientImpl, MempoolNetworkComponent, MempoolRequestAndResponseSender,
+    MempoolToBatcherMessage, MempoolToGatewayMessage,
 };
 use tokio::sync::mpsc::channel;
+use tokio::task;
 
 use crate::config::{StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig};
 use crate::gateway::{add_tx, AppState};
@@ -21,7 +26,9 @@ use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
 use crate::utils::{external_tx_to_account_tx, get_tx_hash};
 
-pub fn app_state(network_component: GatewayNetworkComponent) -> AppState {
+const MEMPOOL_INVOCATIONS_QUEUE_SIZE: usize = 32;
+
+pub fn app_state(mempool_client: Arc<dyn MempoolClient>) -> AppState {
     AppState {
         stateless_tx_validator: StatelessTransactionValidator {
             config: StatelessTransactionValidatorConfig {
@@ -31,26 +38,45 @@ pub fn app_state(network_component: GatewayNetworkComponent) -> AppState {
                 ..Default::default()
             },
         },
-        network_component: Arc::new(network_component),
         stateful_tx_validator: Arc::new(StatefulTransactionValidator {
             config: StatefulTransactionValidatorConfig::create_for_testing(),
         }),
         state_reader_factory: Arc::new(test_state_reader_factory()),
+        mempool_client,
     }
 }
 
 // TODO(Ayelet): add test cases for declare and deploy account transactions.
 #[tokio::test]
 async fn test_add_tx() {
-    // The `_rx_gateway_to_mempool` is retained to keep the channel open, as dropping it would
-    // prevent the sender from transmitting messages.
-    let (tx_gateway_to_mempool, _rx_gateway_to_mempool) = channel::<GatewayToMempoolMessage>(1);
-    let (_, rx_mempool_to_gateway) = channel::<MempoolToGatewayMessage>(1);
     // TODO: Add fixture.
-    let gateway_component =
-        GatewayNetworkComponent::new(tx_gateway_to_mempool, rx_mempool_to_gateway);
+    // TODO -- remove gateway_network, batcher_network, and channels.
+    let (_, rx_gateway_to_mempool) = channel::<GatewayToMempoolMessage>(1);
+    let (tx_mempool_to_gateway, _) = channel::<MempoolToGatewayMessage>(1);
+    let gateway_network =
+        MempoolNetworkComponent::new(tx_mempool_to_gateway, rx_gateway_to_mempool);
 
-    let app_state = app_state(gateway_component);
+    let (_, rx_mempool_to_batcher) = channel::<BatcherToMempoolMessage>(1);
+    let (tx_batcher_to_mempool, _) = channel::<MempoolToBatcherMessage>(1);
+    let batcher_network =
+        BatcherToMempoolChannels { rx: rx_mempool_to_batcher, tx: tx_batcher_to_mempool };
+
+    // Create and start the mempool server.
+    let mempool = Mempool::new([], gateway_network, batcher_network);
+    // TODO(Tsabary): wrap creation of channels in dedicated functions, take channel capacity from
+    // config.
+    let (tx_mempool, rx_mempool) =
+        channel::<MempoolRequestAndResponseSender>(MEMPOOL_INVOCATIONS_QUEUE_SIZE);
+    // TODO(Tsabary, 1/6/2024): Wrap with a dedicated create_mempool_server function.
+    let mut mempool_server =
+        ComponentServer::new(MempoolCommunicationWrapper::new(mempool), rx_mempool);
+    task::spawn(async move {
+        mempool_server.start().await;
+    });
+
+    let mempool_client = Arc::new(MempoolClientImpl::new(tx_mempool));
+
+    let app_state = app_state(mempool_client);
 
     let tx = invoke_tx();
     let tx_hash = calculate_hash(&tx);

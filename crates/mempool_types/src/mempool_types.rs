@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use mempool_infra::component_client::ComponentClient;
+use mempool_infra::component_server::ComponentRequestAndResponseSender;
 use mempool_infra::network_component::NetworkComponent;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::{Tip, TransactionHash};
@@ -101,7 +102,9 @@ pub enum MempoolResponse {
     GetTransactions(MempoolResult<Vec<ThinTransaction>>),
 }
 
-type MempoolClientImpl = ComponentClient<MempoolRequest, MempoolResponse>;
+pub type MempoolClientImpl = ComponentClient<MempoolRequest, MempoolResponse>;
+pub type MempoolRequestAndResponseSender =
+    ComponentRequestAndResponseSender<MempoolRequest, MempoolResponse>;
 
 #[async_trait]
 impl MempoolClient for MempoolClientImpl {
