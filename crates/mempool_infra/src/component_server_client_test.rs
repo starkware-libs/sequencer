@@ -65,7 +65,7 @@ impl ComponentATrait for ComponentClient<ComponentAMessages, ComponentAResponses
 
 #[async_trait]
 impl ComponentMessageExecutor<ComponentAMessages, ComponentAResponses> for ComponentA {
-    async fn execute(&self, message: ComponentAMessages) -> ComponentAResponses {
+    async fn execute(&mut self, message: ComponentAMessages) -> ComponentAResponses {
         match message {
             ComponentAMessages::AGetValue => ComponentAResponses::Value(self.a_get_value().await),
         }
@@ -112,7 +112,7 @@ impl ComponentBTrait for ComponentClient<ComponentBMessages, ComponentBResponses
 
 #[async_trait]
 impl ComponentMessageExecutor<ComponentBMessages, ComponentBResponses> for ComponentB {
-    async fn execute(&self, message: ComponentBMessages) -> ComponentBResponses {
+    async fn execute(&mut self, message: ComponentBMessages) -> ComponentBResponses {
         match message {
             ComponentBMessages::BGetValue => ComponentBResponses::Value(self.b_get_value().await),
         }

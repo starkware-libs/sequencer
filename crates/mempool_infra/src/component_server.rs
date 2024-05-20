@@ -3,7 +3,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 
 #[async_trait]
 pub trait ComponentMessageExecutor<M, R> {
-    async fn execute(&self, message: M) -> R;
+    async fn execute(&mut self, message: M) -> R;
 }
 
 pub struct MessageAndResponseSender<M, R>
