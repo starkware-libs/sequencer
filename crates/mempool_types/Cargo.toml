@@ -9,8 +9,8 @@ version.workspace = true
 workspace = true
 
 [dependencies]
+async-trait.workspace = true
 mempool_infra = { path = "../mempool_infra"}
 starknet_api.workspace = true
-tokio.workspace = true
 thiserror.workspace = true
-
+tokio.workspace = true
