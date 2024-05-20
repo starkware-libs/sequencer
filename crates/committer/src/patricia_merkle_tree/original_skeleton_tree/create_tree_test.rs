@@ -182,13 +182,9 @@ fn test_fetch_nodes(
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     sorted_leaf_indices.sort();
 
-    let skeleton_tree = OriginalSkeletonTreeImpl::create_tree(
-        &storage,
-        &sorted_leaf_indices,
-        root_hash,
-        tree_height,
-    )
-    .unwrap();
+    let skeleton_tree =
+        OriginalSkeletonTreeImpl::create(&storage, &sorted_leaf_indices, root_hash, tree_height)
+            .unwrap();
 
     assert_eq!(&skeleton_tree.nodes, &expected_nodes);
 }

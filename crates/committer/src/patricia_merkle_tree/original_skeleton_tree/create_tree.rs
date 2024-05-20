@@ -198,7 +198,7 @@ impl OriginalSkeletonTreeImpl {
         Ok(subtrees_roots)
     }
 
-    pub(crate) fn create_tree_impl(
+    pub(crate) fn create_impl(
         storage: &impl Storage,
         sorted_leaf_indices: &[NodeIndex],
         root_hash: HashOutput,

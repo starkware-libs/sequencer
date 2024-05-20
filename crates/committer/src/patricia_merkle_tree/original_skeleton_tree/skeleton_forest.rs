@@ -128,7 +128,7 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
             .map(|address| NodeIndex::from_contract_address(address, &tree_height))
             .collect();
         sorted_leaf_indices.sort();
-        T::create_tree(
+        T::create(
             storage,
             &sorted_leaf_indices,
             global_tree_root_hash,
@@ -158,7 +158,7 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
             let contract_state = current_contract_state_leaves
                 .get(address)
                 .ok_or_else(|| OriginalSkeletonTreeError::LowerTreeCommitmentError(**address))?;
-            let original_skeleton = T::create_tree(
+            let original_skeleton = T::create(
                 storage,
                 &sorted_leaf_indices,
                 contract_state.storage_root_hash,
@@ -180,7 +180,7 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
             .map(|class_hash| NodeIndex::from_class_hash(class_hash, &tree_height))
             .collect();
         sorted_leaf_indices.sort();
-        T::create_tree(
+        T::create(
             storage,
             &sorted_leaf_indices,
             classes_tree_root_hash,

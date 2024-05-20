@@ -1,13 +1,9 @@
 use std::collections::HashMap;
 
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::node_data::leaf::{LeafData, LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
-use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
-    UpdatedSkeletonTree, UpdatedSkeletonTreeImpl,
-};
 
 use crate::storage::storage_trait::Storage;
 
@@ -20,7 +16,7 @@ pub(crate) type OriginalSkeletonTreeResult<T> = Result<T, OriginalSkeletonTreeEr
 /// nodes on the Merkle paths from the updated leaves to the root.
 pub(crate) trait OriginalSkeletonTree {
     #[allow(dead_code)]
-    fn create_tree(
+    fn create(
         storage: &impl Storage,
         leaf_indices: &[NodeIndex],
         root_hash: HashOutput,
@@ -28,13 +24,6 @@ pub(crate) trait OriginalSkeletonTree {
     ) -> OriginalSkeletonTreeResult<Self>
     where
         Self: std::marker::Sized;
-
-    #[allow(dead_code)]
-    /// Computes and returns updated skeleton tree.
-    fn compute_updated_skeleton_tree<L: LeafData>(
-        &self,
-        leaf_modifications: &LeafModifications<SkeletonLeaf>,
-    ) -> OriginalSkeletonTreeResult<impl UpdatedSkeletonTree<L>>;
 }
 
 #[allow(dead_code)]
@@ -45,19 +34,12 @@ pub(crate) struct OriginalSkeletonTreeImpl {
 }
 
 impl OriginalSkeletonTree for OriginalSkeletonTreeImpl {
-    fn create_tree(
+    fn create(
         storage: &impl Storage,
         sorted_leaf_indices: &[NodeIndex],
         root_hash: HashOutput,
         tree_height: TreeHeight,
     ) -> OriginalSkeletonTreeResult<Self> {
-        Self::create_tree_impl(storage, sorted_leaf_indices, root_hash, tree_height)
-    }
-
-    fn compute_updated_skeleton_tree<L: LeafData>(
-        &self,
-        leaf_modifications: &LeafModifications<SkeletonLeaf>,
-    ) -> OriginalSkeletonTreeResult<UpdatedSkeletonTreeImpl> {
-        self.compute_updated_skeleton_tree_impl(leaf_modifications)
+        Self::create_impl(storage, sorted_leaf_indices, root_hash, tree_height)
     }
 }

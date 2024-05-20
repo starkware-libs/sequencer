@@ -6,7 +6,8 @@ use async_recursion::async_recursion;
 use crate::hash::hash_trait::{HashFunction, HashOutput};
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use crate::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
-use crate::patricia_merkle_tree::node_data::leaf::{LeafData, LeafModifications};
+use crate::patricia_merkle_tree::node_data::leaf::{LeafData, LeafModifications, SkeletonLeaf};
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
@@ -23,7 +24,14 @@ pub mod tree_test;
 /// This trait represents the structure of the subtree which was modified in the update.
 /// It also contains the hashes of the Sibling nodes on the Merkle paths from the updated leaves
 /// to the root.
-pub(crate) trait UpdatedSkeletonTree<L: LeafData> {
+pub(crate) trait UpdatedSkeletonTree<L: LeafData>: Sized {
+    /// Creates an updated tree from an original tree and modifications.
+    #[allow(dead_code)]
+    fn create(
+        original_skeleton: impl OriginalSkeletonTree,
+        index_to_updated_leaf: &LeafModifications<SkeletonLeaf>,
+    ) -> Result<Self, UpdatedSkeletonTreeError<L>>;
+
     /// Computes and returns the filled tree.
     #[allow(dead_code)]
     async fn compute_filled_tree<H: HashFunction, TH: TreeHashFunction<L, H>>(
@@ -186,9 +194,14 @@ impl UpdatedSkeletonTreeImpl {
     }
 }
 
-impl<L: LeafData + std::clone::Clone + std::marker::Sync + std::marker::Send> UpdatedSkeletonTree<L>
-    for UpdatedSkeletonTreeImpl
-{
+impl<L: LeafData> UpdatedSkeletonTree<L> for UpdatedSkeletonTreeImpl {
+    fn create(
+        _original_skeleton: impl OriginalSkeletonTree,
+        _index_to_updated_leaf: &LeafModifications<SkeletonLeaf>,
+    ) -> Result<Self, UpdatedSkeletonTreeError<L>> {
+        todo!()
+    }
+
     async fn compute_filled_tree<H: HashFunction, TH: TreeHashFunction<L, H>>(
         &self,
         leaf_modifications: &LeafModifications<L>,
