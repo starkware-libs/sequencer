@@ -1,10 +1,9 @@
 use mempool_infra::network_component::CommunicationInterface;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::internal_transaction::InternalTransaction;
-use starknet_gateway::starknet_api_test_utils::create_internal_tx_for_testing;
+use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::mempool_types::{
     Account, AccountState, GatewayNetworkComponent, GatewayToMempoolMessage,
-    MempoolNetworkComponent, MempoolToGatewayMessage,
+    MempoolNetworkComponent, MempoolToGatewayMessage, ThinTransaction,
 };
 use tokio::sync::mpsc::channel;
 use tokio::task;
@@ -23,15 +22,10 @@ async fn test_send_and_receive() {
     let mut mempool_network =
         MempoolNetworkComponent::new(tx_mempool_to_gateway, rx_gateway_to_mempool);
 
-    let internal_tx = create_internal_tx_for_testing();
-    let tx_hash = match internal_tx {
-        InternalTransaction::Invoke(ref invoke_transaction) => Some(invoke_transaction.tx_hash),
-        _ => None,
-    }
-    .unwrap();
+    let tx = ThinTransaction::default();
     let account = create_default_account();
     task::spawn(async move {
-        let gateway_to_mempool = GatewayToMempoolMessage::AddTransaction(internal_tx, account);
+        let gateway_to_mempool = GatewayToMempoolMessage::AddTransaction(tx, account);
         gateway_network.send(gateway_to_mempool).await.unwrap();
     })
     .await
@@ -41,11 +35,8 @@ async fn test_send_and_receive() {
         task::spawn(async move { mempool_network.recv().await }).await.unwrap().unwrap();
 
     match mempool_message {
-        GatewayToMempoolMessage::AddTransaction(tx, _) => match tx {
-            InternalTransaction::Invoke(invoke_tx) => {
-                assert_eq!(invoke_tx.tx_hash, tx_hash);
-            }
-            _ => panic!("Received a non-invoke transaction in AddTransaction"),
-        },
+        GatewayToMempoolMessage::AddTransaction(tx, _) => {
+            assert_eq!(tx.tx_hash, TransactionHash::default())
+        }
     }
 }
