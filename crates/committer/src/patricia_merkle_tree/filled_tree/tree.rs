@@ -178,7 +178,7 @@ impl<L: LeafData> FilledTreeImpl<L> {
                 if skeleton_leaf.is_empty() != leaf_data.is_empty() {
                     return Err(FilledTreeError::<L>::InconsistentModification {
                         index,
-                        skeleton_leaf: skeleton_leaf.clone().into(),
+                        skeleton_leaf: skeleton_leaf.clone(),
                     });
                 }
                 let node_data = NodeData::Leaf(leaf_data);

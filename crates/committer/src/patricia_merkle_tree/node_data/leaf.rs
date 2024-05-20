@@ -43,32 +43,22 @@ impl LeafData for LeafDataImpl {
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SkeletonLeaf {
-    StorageValue(Felt),
-    CompiledClassHash(ClassHash),
-    ContractState(SkeletonContractState),
-}
-
-#[allow(dead_code)]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SkeletonContractState {
-    pub nonce: Nonce,
-    /// None if and only if it is non-zero and not known yet.
-    pub storage_root_hash: Option<HashOutput>,
-    pub class_hash: ClassHash,
+    Zero,
+    NonZero,
 }
 
 impl LeafData for SkeletonLeaf {
     fn is_empty(&self) -> bool {
-        match self {
-            Self::StorageValue(value) => *value == Felt::ZERO,
-            Self::CompiledClassHash(class_hash) => class_hash.0 == Felt::ZERO,
-            Self::ContractState(contract_state) => {
-                contract_state.nonce.0 == Felt::ZERO
-                    && contract_state.class_hash.0 == Felt::ZERO
-                    && contract_state
-                        .storage_root_hash
-                        .is_some_and(|root_hash| root_hash.0 == Felt::ZERO)
-            }
+        self == &Self::Zero
+    }
+}
+
+impl From<Felt> for SkeletonLeaf {
+    fn from(value: Felt) -> Self {
+        if value == Felt::ZERO {
+            Self::Zero
+        } else {
+            Self::NonZero
         }
     }
 }

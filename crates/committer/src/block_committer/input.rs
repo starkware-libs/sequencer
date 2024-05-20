@@ -71,7 +71,7 @@ impl StateDiff {
                         .map(|(key, value)| {
                             (
                                 NodeIndex::from_starknet_storage_key(key, &tree_height),
-                                SkeletonLeaf::StorageValue(value.0),
+                                SkeletonLeaf::from(value.0),
                             )
                         })
                         .collect(),
@@ -91,7 +91,7 @@ impl StateDiff {
             .map(|(class_hash, compiled_class_hash)| {
                 (
                     NodeIndex::from_class_hash(class_hash, &tree_height),
-                    SkeletonLeaf::CompiledClassHash(ClassHash(compiled_class_hash.0)),
+                    SkeletonLeaf::from(compiled_class_hash.0),
                 )
             })
             .collect()

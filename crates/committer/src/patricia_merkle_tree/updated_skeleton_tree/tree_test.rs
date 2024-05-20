@@ -18,7 +18,7 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTre
 /// This test is a sanity test for computing the root hash of the patricia merkle tree with a single node that is a leaf with hash==1.
 async fn test_filled_tree_sanity() {
     let mut skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode> = HashMap::new();
-    let new_skeleton_leaf = SkeletonLeaf::StorageValue(Felt::ONE);
+    let new_skeleton_leaf = SkeletonLeaf::from(Felt::ONE);
     let new_filled_leaf = LeafDataImpl::StorageValue(Felt::ONE);
     let new_leaf_index = NodeIndex::ROOT;
     skeleton_tree.insert(new_leaf_index, UpdatedSkeletonNode::Leaf(new_skeleton_leaf));
@@ -279,7 +279,7 @@ fn create_leaf_updated_skeleton_node_for_testing(
 ) -> (NodeIndex, UpdatedSkeletonNode) {
     (
         NodeIndex::from(index),
-        UpdatedSkeletonNode::Leaf(SkeletonLeaf::StorageValue(Felt::from_hex(value).unwrap())),
+        UpdatedSkeletonNode::Leaf(SkeletonLeaf::from(Felt::from_hex(value).unwrap())),
     )
 }
 

@@ -14,8 +14,7 @@ pub(crate) enum FilledTreeError<L: LeafData> {
     // TODO(Dori, 1/6/2024): Add existing modification value to the inconsistency error.
     InconsistentModification {
         index: NodeIndex,
-        // TODO(Dori, 1/6/2024): Remove the Box<> once the skeleton leaf no longer contains data.
-        skeleton_leaf: Box<SkeletonLeaf>,
+        skeleton_leaf: SkeletonLeaf,
     },
     #[error("Missing modification data at index {0:?}.")]
     MissingDataForUpdate(NodeIndex),
