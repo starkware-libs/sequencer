@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::node_data::leaf::{LeafData, LeafModifications};
+use crate::patricia_merkle_tree::node_data::leaf::{LeafData, LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
@@ -18,7 +18,7 @@ pub(crate) type OriginalSkeletonTreeResult<T> = Result<T, OriginalSkeletonTreeEr
 /// This trait represents the structure of the subtree which will be modified in the
 /// update. It also contains the hashes (for edge siblings - also the edge data) of the Sibling
 /// nodes on the Merkle paths from the updated leaves to the root.
-pub(crate) trait OriginalSkeletonTree<L: LeafData + std::clone::Clone> {
+pub(crate) trait OriginalSkeletonTree {
     #[allow(dead_code)]
     fn create_tree(
         storage: &impl Storage,
@@ -31,22 +31,20 @@ pub(crate) trait OriginalSkeletonTree<L: LeafData + std::clone::Clone> {
 
     #[allow(dead_code)]
     /// Computes and returns updated skeleton tree.
-    fn compute_updated_skeleton_tree(
+    fn compute_updated_skeleton_tree<L: LeafData>(
         &self,
-        leaf_modifications: &LeafModifications<L>,
+        leaf_modifications: &LeafModifications<SkeletonLeaf>,
     ) -> OriginalSkeletonTreeResult<impl UpdatedSkeletonTree<L>>;
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Eq, PartialEq)]
-pub(crate) struct OriginalSkeletonTreeImpl<L: LeafData + std::clone::Clone> {
-    pub(crate) nodes: HashMap<NodeIndex, OriginalSkeletonNode<L>>,
+pub(crate) struct OriginalSkeletonTreeImpl {
+    pub(crate) nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
     pub(crate) tree_height: TreeHeight,
 }
 
-impl<L: LeafData + std::clone::Clone + std::marker::Send + std::marker::Sync>
-    OriginalSkeletonTree<L> for OriginalSkeletonTreeImpl<L>
-{
+impl OriginalSkeletonTree for OriginalSkeletonTreeImpl {
     fn create_tree(
         storage: &impl Storage,
         sorted_leaf_indices: &[NodeIndex],
@@ -56,10 +54,10 @@ impl<L: LeafData + std::clone::Clone + std::marker::Send + std::marker::Sync>
         Self::create_tree_impl(storage, sorted_leaf_indices, root_hash, tree_height)
     }
 
-    fn compute_updated_skeleton_tree(
+    fn compute_updated_skeleton_tree<L: LeafData>(
         &self,
-        leaf_modifications: &LeafModifications<L>,
-    ) -> OriginalSkeletonTreeResult<UpdatedSkeletonTreeImpl<L>> {
+        leaf_modifications: &LeafModifications<SkeletonLeaf>,
+    ) -> OriginalSkeletonTreeResult<UpdatedSkeletonTreeImpl> {
         self.compute_updated_skeleton_tree_impl(leaf_modifications)
     }
 }

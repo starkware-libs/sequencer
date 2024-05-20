@@ -8,7 +8,7 @@ use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePath, EdgePathLength, NodeData, PathToBottom,
 };
-use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
+use crate::patricia_merkle_tree::node_data::leaf::{LeafDataImpl, SkeletonLeaf};
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
@@ -19,11 +19,12 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
 #[tokio::test(flavor = "multi_thread")]
 /// This test is a sanity test for computing the root hash of the patricia merkle tree with a single node that is a leaf with hash==1.
 async fn test_filled_tree_sanity() {
-    let mut skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode<LeafDataImpl>> = HashMap::new();
-    let new_leaf = LeafDataImpl::StorageValue(Felt::ONE);
+    let mut skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode> = HashMap::new();
+    let new_skeleton_leaf = SkeletonLeaf::StorageValue(Felt::ONE);
+    let new_filled_leaf = LeafDataImpl::StorageValue(Felt::ONE);
     let new_leaf_index = NodeIndex::ROOT;
-    skeleton_tree.insert(new_leaf_index, UpdatedSkeletonNode::Leaf(new_leaf.clone()));
-    let modifications = HashMap::from([(new_leaf_index, new_leaf)]);
+    skeleton_tree.insert(new_leaf_index, UpdatedSkeletonNode::Leaf(new_skeleton_leaf));
+    let modifications = HashMap::from([(new_leaf_index, new_filled_leaf)]);
     let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
     let root_hash = updated_skeleton_tree
         .compute_filled_tree::<PedersenHashFunction, TreeHashFunctionImpl<PedersenHashFunction>>(
@@ -58,7 +59,7 @@ async fn test_filled_tree_sanity() {
 async fn test_small_filled_tree() {
     // Set up the updated skeleton tree.
     let new_leaves = [(35, "0x1"), (36, "0x2"), (63, "0x3")];
-    let nodes_in_skeleton_tree: Vec<(NodeIndex, UpdatedSkeletonNode<LeafDataImpl>)> = [
+    let nodes_in_skeleton_tree: Vec<(NodeIndex, UpdatedSkeletonNode)> = [
         create_binary_updated_skeleton_node_for_testing(1),
         create_path_to_bottom_edge_updated_skeleton_node_for_testing(2, 0, 1),
         create_path_to_bottom_edge_updated_skeleton_node_for_testing(3, 15, 4),
@@ -73,7 +74,7 @@ async fn test_small_filled_tree() {
             .map(|(index, value)| create_leaf_updated_skeleton_node_for_testing(*index, value)),
     )
     .collect();
-    let skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode<LeafDataImpl>> =
+    let skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode> =
         nodes_in_skeleton_tree.into_iter().collect();
 
     let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
@@ -184,7 +185,7 @@ async fn test_small_tree_with_sibling_nodes() {
         ),
         create_leaf_updated_skeleton_node_for_testing(new_leaf_index, new_leaf),
     ];
-    let skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode<LeafDataImpl>> =
+    let skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode> =
         nodes_in_skeleton_tree.into_iter().collect();
 
     let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
@@ -244,7 +245,7 @@ async fn test_small_tree_with_sibling_nodes() {
 
 fn create_binary_updated_skeleton_node_for_testing(
     index: u128,
-) -> (NodeIndex, UpdatedSkeletonNode<LeafDataImpl>) {
+) -> (NodeIndex, UpdatedSkeletonNode) {
     (NodeIndex::from(index), UpdatedSkeletonNode::Binary)
 }
 
@@ -252,7 +253,7 @@ fn create_path_to_bottom_edge_updated_skeleton_node_for_testing(
     index: u128,
     path: u128,
     length: u8,
-) -> (NodeIndex, UpdatedSkeletonNode<LeafDataImpl>) {
+) -> (NodeIndex, UpdatedSkeletonNode) {
     (
         NodeIndex::from(index),
         UpdatedSkeletonNode::Edge {
@@ -267,7 +268,7 @@ fn create_path_to_bottom_edge_updated_skeleton_node_for_testing(
 fn create_sibling_updated_skeleton_node_for_testing(
     index: u128,
     hash: &str,
-) -> (NodeIndex, UpdatedSkeletonNode<LeafDataImpl>) {
+) -> (NodeIndex, UpdatedSkeletonNode) {
     (
         NodeIndex::from(index),
         UpdatedSkeletonNode::Sibling(HashOutput(Felt::from_hex(hash).unwrap())),
@@ -277,10 +278,10 @@ fn create_sibling_updated_skeleton_node_for_testing(
 fn create_leaf_updated_skeleton_node_for_testing(
     index: u128,
     value: &str,
-) -> (NodeIndex, UpdatedSkeletonNode<LeafDataImpl>) {
+) -> (NodeIndex, UpdatedSkeletonNode) {
     (
         NodeIndex::from(index),
-        UpdatedSkeletonNode::Leaf(LeafDataImpl::StorageValue(Felt::from_hex(value).unwrap())),
+        UpdatedSkeletonNode::Leaf(SkeletonLeaf::StorageValue(Felt::from_hex(value).unwrap())),
     )
 }
 

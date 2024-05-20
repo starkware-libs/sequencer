@@ -5,7 +5,6 @@ use crate::patricia_merkle_tree::node_data::inner_node::BinaryData;
 use crate::patricia_merkle_tree::node_data::inner_node::EdgeData;
 use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
-use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
@@ -100,7 +99,7 @@ impl<'a> SubTree<'a> {
 }
 
 #[allow(dead_code)]
-impl<L: LeafData + std::clone::Clone> OriginalSkeletonTreeImpl<L> {
+impl OriginalSkeletonTreeImpl {
     /// Fetches the Patricia witnesses, required to build the original skeleton tree from storage.
     /// Given a list of subtrees, traverses towards their leaves and fetches all non-empty and
     /// sibling nodes. Assumes no subtrees of height 0 (leaves).

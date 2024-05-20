@@ -1,5 +1,5 @@
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
-use crate::patricia_merkle_tree::node_data::leaf::{LeafData, LeafModifications};
+use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonTreeImpl, OriginalSkeletonTreeResult,
 };
@@ -11,11 +11,11 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTre
 #[path = "compute_updated_skeleton_tree_test.rs"]
 pub mod compute_updated_skeleton_tree_test;
 
-impl<L: LeafData + std::clone::Clone> OriginalSkeletonTreeImpl<L> {
+impl OriginalSkeletonTreeImpl {
     pub(crate) fn compute_updated_skeleton_tree_impl(
         &self,
-        _leaf_modifications: &LeafModifications<L>,
-    ) -> OriginalSkeletonTreeResult<UpdatedSkeletonTreeImpl<L>> {
+        _leaf_modifications: &LeafModifications<SkeletonLeaf>,
+    ) -> OriginalSkeletonTreeResult<UpdatedSkeletonTreeImpl> {
         todo!()
     }
 

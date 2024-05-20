@@ -8,7 +8,7 @@ use crate::block_committer::input::{
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
-use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafDataImpl};
+use crate::patricia_merkle_tree::node_data::leaf::ContractState;
 use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::create_tree_test::{
     create_32_bytes_entry, create_binary_entry, create_binary_skeleton_node, create_edge_entry,
     create_edge_sibling_skeleton_node, create_edge_skeleton_node, create_expected_skeleton,
@@ -27,7 +27,7 @@ use super::OriginalSkeletonForestImpl;
 ///                 Global tree:                Classes tree:
 ///
 ///                     254                            157
-///                    /   \                          /   
+///                    /   \                          /
 ///                   154  100                       156
 ///                  /       \                     /     \
 ///                 *         98                  80      76
@@ -201,28 +201,22 @@ use super::OriginalSkeletonForestImpl;
                 )
             )
             ]),
-        leaf_data: std::marker::PhantomData,
         }
 )]
 fn test_create_original_skeleton_forest(
     #[case] input: Input,
-    #[case] expected_forest: OriginalSkeletonForestImpl<
-        LeafDataImpl,
-        OriginalSkeletonTreeImpl<LeafDataImpl>,
-    >,
+    #[case] expected_forest: OriginalSkeletonForestImpl<OriginalSkeletonTreeImpl>,
 ) {
-    let actual_forest: OriginalSkeletonForestImpl<
-        LeafDataImpl,
-        OriginalSkeletonTreeImpl<LeafDataImpl>,
-    > = OriginalSkeletonForestImpl::create_original_skeleton_forest::<MapStorage>(
-        MapStorage::from(input.storage),
-        input.global_tree_root_hash,
-        input.classes_tree_root_hash,
-        input.tree_heights,
-        &input.current_contract_state_leaves,
-        &input.state_diff,
-    )
-    .unwrap();
+    let actual_forest: OriginalSkeletonForestImpl<OriginalSkeletonTreeImpl> =
+        OriginalSkeletonForestImpl::create_original_skeleton_forest::<MapStorage>(
+            MapStorage::from(input.storage),
+            input.global_tree_root_hash,
+            input.classes_tree_root_hash,
+            input.tree_heights,
+            &input.current_contract_state_leaves,
+            &input.state_diff,
+        )
+        .unwrap();
 
     assert_eq!(
         actual_forest.global_state_tree,

@@ -176,7 +176,7 @@ fn test_fetch_nodes(
     #[case] storage: MapStorage,
     #[case] leaf_modifications: LeafModifications<LeafDataImpl>,
     #[case] root_hash: HashOutput,
-    #[case] expected_nodes: HashMap<NodeIndex, OriginalSkeletonNode<LeafDataImpl>>,
+    #[case] expected_nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
     #[case] tree_height: TreeHeight,
 ) {
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
@@ -251,9 +251,9 @@ pub(crate) fn create_edge_entry(hash: u8, path: u8, length: u8) -> (StorageKey, 
 }
 
 pub(crate) fn create_expected_skeleton(
-    nodes: Vec<(NodeIndex, OriginalSkeletonNode<LeafDataImpl>)>,
+    nodes: Vec<(NodeIndex, OriginalSkeletonNode)>,
     height: u8,
-) -> OriginalSkeletonTreeImpl<LeafDataImpl> {
+) -> OriginalSkeletonTreeImpl {
     OriginalSkeletonTreeImpl {
         nodes: nodes.into_iter().collect(),
         tree_height: TreeHeight::new(height),
@@ -261,14 +261,12 @@ pub(crate) fn create_expected_skeleton(
 }
 
 fn create_expected_nodes(
-    nodes: Vec<(NodeIndex, OriginalSkeletonNode<LeafDataImpl>)>,
-) -> HashMap<NodeIndex, OriginalSkeletonNode<LeafDataImpl>> {
+    nodes: Vec<(NodeIndex, OriginalSkeletonNode)>,
+) -> HashMap<NodeIndex, OriginalSkeletonNode> {
     nodes.into_iter().collect()
 }
 
-pub(crate) fn create_binary_skeleton_node(
-    idx: u128,
-) -> (NodeIndex, OriginalSkeletonNode<LeafDataImpl>) {
+pub(crate) fn create_binary_skeleton_node(idx: u128) -> (NodeIndex, OriginalSkeletonNode) {
     (NodeIndex::from(idx), OriginalSkeletonNode::Binary)
 }
 
@@ -276,7 +274,7 @@ pub(crate) fn create_edge_skeleton_node(
     idx: u128,
     path: u128,
     length: u8,
-) -> (NodeIndex, OriginalSkeletonNode<LeafDataImpl>) {
+) -> (NodeIndex, OriginalSkeletonNode) {
     (
         NodeIndex::from(idx),
         OriginalSkeletonNode::Edge {
@@ -291,7 +289,7 @@ pub(crate) fn create_edge_skeleton_node(
 pub(crate) fn create_leaf_or_binary_sibling_skeleton_node(
     idx: u128,
     hash_output: u128,
-) -> (NodeIndex, OriginalSkeletonNode<LeafDataImpl>) {
+) -> (NodeIndex, OriginalSkeletonNode) {
     (
         NodeIndex::from(idx),
         OriginalSkeletonNode::LeafOrBinarySibling(HashOutput(Felt::from(hash_output))),
@@ -303,7 +301,7 @@ pub(crate) fn create_edge_sibling_skeleton_node(
     path: u128,
     length: u8,
     hash_output: u128,
-) -> (NodeIndex, OriginalSkeletonNode<LeafDataImpl>) {
+) -> (NodeIndex, OriginalSkeletonNode) {
     (
         NodeIndex::from(idx),
         OriginalSkeletonNode::EdgeSibling(EdgeData {

@@ -1,6 +1,6 @@
 use crate::block_committer::errors::BlockCommitmentError;
 use crate::block_committer::input::{Input, StateDiff};
-use crate::patricia_merkle_tree::node_data::leaf::UpdatedSkeletonLeafDataImpl;
+use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::{
     OriginalSkeletonForest, OriginalSkeletonForestImpl,
 };
@@ -12,19 +12,17 @@ use crate::storage::map_storage::MapStorage;
 type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 #[allow(dead_code)]
 pub(crate) fn commit_block(input: Input) -> BlockCommitmentResult<()> {
-    let original_forest = OriginalSkeletonForestImpl::<
-        UpdatedSkeletonLeafDataImpl,
-        OriginalSkeletonTreeImpl<UpdatedSkeletonLeafDataImpl>,
-    >::create_original_skeleton_forest(
-        MapStorage::from(input.storage),
-        input.global_tree_root_hash,
-        input.classes_tree_root_hash,
-        input.tree_heights,
-        &input.current_contract_state_leaves,
-        &input.state_diff,
-    )?;
+    let original_forest =
+        OriginalSkeletonForestImpl::<OriginalSkeletonTreeImpl>::create_original_skeleton_forest(
+            MapStorage::from(input.storage),
+            input.global_tree_root_hash,
+            input.classes_tree_root_hash,
+            input.tree_heights,
+            &input.current_contract_state_leaves,
+            &input.state_diff,
+        )?;
     let _updated_forest = original_forest
-        .compute_updated_skeleton_forest::<UpdatedSkeletonTreeImpl<UpdatedSkeletonLeafDataImpl>>(
+        .compute_updated_skeleton_forest::<LeafDataImpl, UpdatedSkeletonTreeImpl>(
             &StateDiff::actual_classes_updates(
                 &input.state_diff.class_hash_to_compiled_class_hash,
                 input.tree_heights,

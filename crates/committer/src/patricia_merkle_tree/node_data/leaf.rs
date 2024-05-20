@@ -5,7 +5,7 @@ use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
 use crate::patricia_merkle_tree::types::NodeIndex;
 
-pub trait LeafData {
+pub trait LeafData: Clone + Sync + Send {
     /// Returns true if leaf is empty.
     fn is_empty(&self) -> bool;
 }
@@ -42,7 +42,7 @@ impl LeafData for LeafDataImpl {
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum UpdatedSkeletonLeafDataImpl {
+pub enum SkeletonLeaf {
     StorageValue(Felt),
     CompiledClassHash(ClassHash),
     ContractState(SkeletonContractState),
@@ -57,14 +57,12 @@ pub struct SkeletonContractState {
     pub class_hash: ClassHash,
 }
 
-impl LeafData for UpdatedSkeletonLeafDataImpl {
+impl LeafData for SkeletonLeaf {
     fn is_empty(&self) -> bool {
         match self {
-            UpdatedSkeletonLeafDataImpl::StorageValue(value) => *value == Felt::ZERO,
-            UpdatedSkeletonLeafDataImpl::CompiledClassHash(class_hash) => {
-                class_hash.0 == Felt::ZERO
-            }
-            UpdatedSkeletonLeafDataImpl::ContractState(contract_state) => {
+            Self::StorageValue(value) => *value == Felt::ZERO,
+            Self::CompiledClassHash(class_hash) => class_hash.0 == Felt::ZERO,
+            Self::ContractState(contract_state) => {
                 contract_state.nonce.0 == Felt::ZERO
                     && contract_state.class_hash.0 == Felt::ZERO
                     && contract_state

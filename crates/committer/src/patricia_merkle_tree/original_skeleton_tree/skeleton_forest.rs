@@ -8,6 +8,7 @@ use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use crate::patricia_merkle_tree::node_data::leaf::ContractState;
 use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
+use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
@@ -16,7 +17,6 @@ use crate::patricia_merkle_tree::types::TreeHeight;
 use crate::patricia_merkle_tree::updated_skeleton_tree::skeleton_forest::UpdatedSkeletonForest;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
 use crate::storage::storage_trait::Storage;
-use core::marker::PhantomData;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -24,7 +24,7 @@ use std::collections::HashSet;
 #[path = "skeleton_forest_test.rs"]
 pub mod skeleton_forest_test;
 
-pub(crate) trait OriginalSkeletonForest<L: LeafData + std::clone::Clone> {
+pub(crate) trait OriginalSkeletonForest {
     fn create_original_skeleton_forest<S: Storage>(
         storage: S,
         global_tree_root_hash: HashOutput,
@@ -36,31 +36,25 @@ pub(crate) trait OriginalSkeletonForest<L: LeafData + std::clone::Clone> {
     where
         Self: std::marker::Sized;
 
-    fn compute_updated_skeleton_forest<U: UpdatedSkeletonTree<L>>(
+    fn compute_updated_skeleton_forest<L: LeafData, U: UpdatedSkeletonTree<L>>(
         &self,
-        class_hash_leaf_modifications: &LeafModifications<L>,
+        class_hash_leaf_modifications: &LeafModifications<SkeletonLeaf>,
         contracts_to_commit: &HashSet<&ContractAddress>,
-        storage_updates: &HashMap<ContractAddress, LeafModifications<L>>,
+        storage_updates: &HashMap<ContractAddress, LeafModifications<SkeletonLeaf>>,
     ) -> OriginalSkeletonTreeResult<UpdatedSkeletonForest<L, U>>;
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub(crate) struct OriginalSkeletonForestImpl<
-    L: LeafData + std::clone::Clone,
-    T: OriginalSkeletonTree<L>,
-> {
+pub(crate) struct OriginalSkeletonForestImpl<T: OriginalSkeletonTree> {
     #[allow(dead_code)]
     classes_tree: T,
     #[allow(dead_code)]
     global_state_tree: T,
     #[allow(dead_code)]
     contract_states: HashMap<ContractAddress, T>,
-    leaf_data: PhantomData<L>,
 }
 
-impl<L: LeafData + std::clone::Clone, T: OriginalSkeletonTree<L>> OriginalSkeletonForest<L>
-    for OriginalSkeletonForestImpl<L, T>
-{
+impl<T: OriginalSkeletonTree> OriginalSkeletonForest for OriginalSkeletonForestImpl<T> {
     fn create_original_skeleton_forest<S: Storage>(
         storage: S,
         global_tree_root_hash: HashOutput,
@@ -100,17 +94,17 @@ impl<L: LeafData + std::clone::Clone, T: OriginalSkeletonTree<L>> OriginalSkelet
         ))
     }
 
-    fn compute_updated_skeleton_forest<U: UpdatedSkeletonTree<L>>(
+    fn compute_updated_skeleton_forest<L: LeafData, U: UpdatedSkeletonTree<L>>(
         &self,
-        _class_hash_leaf_modifications: &LeafModifications<L>,
+        _class_hash_leaf_modifications: &LeafModifications<SkeletonLeaf>,
         _contracts_to_commit: &HashSet<&ContractAddress>,
-        _storage_updates: &HashMap<ContractAddress, LeafModifications<L>>,
+        _storage_updates: &HashMap<ContractAddress, LeafModifications<SkeletonLeaf>>,
     ) -> OriginalSkeletonTreeResult<UpdatedSkeletonForest<L, U>> {
         todo!()
     }
 }
 
-impl<L: LeafData + std::clone::Clone, T: OriginalSkeletonTree<L>> OriginalSkeletonForestImpl<L, T> {
+impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
     pub(crate) fn new(
         classes_tree: T,
         global_state_tree: T,
@@ -120,7 +114,6 @@ impl<L: LeafData + std::clone::Clone, T: OriginalSkeletonTree<L>> OriginalSkelet
             classes_tree,
             global_state_tree,
             contract_states,
-            leaf_data: PhantomData,
         }
     }
 

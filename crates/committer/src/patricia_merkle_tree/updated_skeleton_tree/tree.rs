@@ -23,7 +23,7 @@ pub mod tree_test;
 /// This trait represents the structure of the subtree which was modified in the update.
 /// It also contains the hashes of the Sibling nodes on the Merkle paths from the updated leaves
 /// to the root.
-pub(crate) trait UpdatedSkeletonTree<L: LeafData + std::clone::Clone> {
+pub(crate) trait UpdatedSkeletonTree<L: LeafData> {
     /// Computes and returns the filled tree.
     #[allow(dead_code)]
     async fn compute_filled_tree<H: HashFunction, TH: TreeHashFunction<L, H>>(
@@ -36,17 +36,15 @@ pub(crate) trait UpdatedSkeletonTree<L: LeafData + std::clone::Clone> {
     fn is_empty(&self) -> bool;
 }
 
-pub(crate) struct UpdatedSkeletonTreeImpl<L: LeafData + std::clone::Clone> {
-    skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode<L>>,
+pub(crate) struct UpdatedSkeletonTreeImpl {
+    pub(crate) skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode>,
 }
 
-impl<L: LeafData + std::clone::Clone + std::marker::Sync + std::marker::Send>
-    UpdatedSkeletonTreeImpl<L>
-{
-    fn get_node(
+impl UpdatedSkeletonTreeImpl {
+    fn get_node<L: LeafData>(
         &self,
         index: NodeIndex,
-    ) -> Result<&UpdatedSkeletonNode<L>, UpdatedSkeletonTreeError<L>> {
+    ) -> Result<&UpdatedSkeletonNode, UpdatedSkeletonTreeError<L>> {
         match self.skeleton_tree.get(&index) {
             Some(node) => Ok(node),
             None => Err(UpdatedSkeletonTreeError::MissingNode(index)),
@@ -55,7 +53,7 @@ impl<L: LeafData + std::clone::Clone + std::marker::Sync + std::marker::Send>
 
     /// Writes the hash and data to the output map. The writing is done in a thread-safe manner with
     /// interior mutability to avoid thread contention.
-    fn write_to_output_map(
+    fn write_to_output_map<L: LeafData>(
         output_map: Arc<HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>>>,
         index: NodeIndex,
         hash: HashOutput,
@@ -81,7 +79,9 @@ impl<L: LeafData + std::clone::Clone + std::marker::Sync + std::marker::Send>
         }
     }
 
-    fn initialize_with_placeholders(&self) -> HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>> {
+    fn initialize_with_placeholders<L: LeafData>(
+        &self,
+    ) -> HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>> {
         let mut filled_tree_map = HashMap::new();
         for (index, node) in &self.skeleton_tree {
             if !matches!(node, UpdatedSkeletonNode::Sibling(_)) {
@@ -91,7 +91,7 @@ impl<L: LeafData + std::clone::Clone + std::marker::Sync + std::marker::Send>
         filled_tree_map
     }
 
-    fn remove_arc_mutex_and_option(
+    fn remove_arc_mutex_and_option<L: LeafData>(
         hash_map_in: Arc<HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>>>,
     ) -> Result<HashMap<NodeIndex, FilledNode<L>>, UpdatedSkeletonTreeError<L>> {
         let mut hash_map_out = HashMap::new();
@@ -110,13 +110,14 @@ impl<L: LeafData + std::clone::Clone + std::marker::Sync + std::marker::Send>
     }
 
     #[async_recursion]
-    async fn compute_filled_tree_rec<H, TH>(
+    async fn compute_filled_tree_rec<H, TH, L>(
         &self,
         index: NodeIndex,
         leaf_modifications: &LeafModifications<L>,
         output_map: Arc<HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>>>,
     ) -> Result<HashOutput, UpdatedSkeletonTreeError<L>>
     where
+        L: LeafData,
         H: HashFunction,
         TH: TreeHashFunction<L, H>,
     {
@@ -127,12 +128,12 @@ impl<L: LeafData + std::clone::Clone + std::marker::Sync + std::marker::Send>
                 let right_index = left_index + NodeIndex::ROOT;
 
                 let (left_hash, right_hash) = tokio::join!(
-                    self.compute_filled_tree_rec::<H, TH>(
+                    self.compute_filled_tree_rec::<H, TH, L>(
                         left_index,
                         leaf_modifications,
                         Arc::clone(&output_map)
                     ),
-                    self.compute_filled_tree_rec::<H, TH>(
+                    self.compute_filled_tree_rec::<H, TH, L>(
                         right_index,
                         leaf_modifications,
                         Arc::clone(&output_map)
@@ -151,7 +152,7 @@ impl<L: LeafData + std::clone::Clone + std::marker::Sync + std::marker::Send>
             UpdatedSkeletonNode::Edge { path_to_bottom } => {
                 let bottom_node_index = NodeIndex::compute_bottom_index(index, path_to_bottom);
                 let bottom_hash = self
-                    .compute_filled_tree_rec::<H, TH>(
+                    .compute_filled_tree_rec::<H, TH, L>(
                         bottom_node_index,
                         leaf_modifications,
                         Arc::clone(&output_map),
@@ -186,7 +187,7 @@ impl<L: LeafData + std::clone::Clone + std::marker::Sync + std::marker::Send>
 }
 
 impl<L: LeafData + std::clone::Clone + std::marker::Sync + std::marker::Send> UpdatedSkeletonTree<L>
-    for UpdatedSkeletonTreeImpl<L>
+    for UpdatedSkeletonTreeImpl
 {
     async fn compute_filled_tree<H: HashFunction, TH: TreeHashFunction<L, H>>(
         &self,
@@ -197,7 +198,7 @@ impl<L: LeafData + std::clone::Clone + std::marker::Sync + std::marker::Send> Up
         //   2. Fill in the hash values.
         let filled_tree_map = Arc::new(self.initialize_with_placeholders());
 
-        self.compute_filled_tree_rec::<H, TH>(
+        self.compute_filled_tree_rec::<H, TH, L>(
             NodeIndex::ROOT,
             leaf_modifications,
             Arc::clone(&filled_tree_map),
