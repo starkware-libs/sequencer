@@ -1,6 +1,5 @@
 use crate::block_committer::errors::BlockCommitmentError;
 use crate::block_committer::input::{Input, StateDiff};
-use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::{
     OriginalSkeletonForest, OriginalSkeletonForestImpl,
 };
@@ -22,7 +21,7 @@ pub(crate) fn commit_block(input: Input) -> BlockCommitmentResult<()> {
             &input.state_diff,
         )?;
     let _updated_forest = original_forest
-        .compute_updated_skeleton_forest::<LeafDataImpl, UpdatedSkeletonTreeImpl>(
+        .compute_updated_skeleton_forest::<UpdatedSkeletonTreeImpl>(
             &StateDiff::actual_classes_updates(
                 &input.state_diff.class_hash_to_compiled_class_hash,
                 input.tree_heights,

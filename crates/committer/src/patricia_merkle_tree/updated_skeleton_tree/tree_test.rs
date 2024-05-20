@@ -4,7 +4,7 @@ use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::hash::pedersen::PedersenHashFunction;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
-use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
+use crate::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePath, EdgePathLength, NodeData, PathToBottom,
 };
@@ -12,9 +12,7 @@ use crate::patricia_merkle_tree::node_data::leaf::{LeafDataImpl, SkeletonLeaf};
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
-use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
-    UpdatedSkeletonTree, UpdatedSkeletonTreeImpl,
-};
+use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 
 #[tokio::test(flavor = "multi_thread")]
 /// This test is a sanity test for computing the root hash of the patricia merkle tree with a single node that is a leaf with hash==1.
@@ -26,14 +24,14 @@ async fn test_filled_tree_sanity() {
     skeleton_tree.insert(new_leaf_index, UpdatedSkeletonNode::Leaf(new_skeleton_leaf));
     let modifications = HashMap::from([(new_leaf_index, new_filled_leaf)]);
     let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
-    let root_hash = updated_skeleton_tree
-        .compute_filled_tree::<PedersenHashFunction, TreeHashFunctionImpl<PedersenHashFunction>>(
-            &modifications,
-        )
-        .await
-        .unwrap()
-        .get_root_hash()
-        .unwrap();
+    let root_hash = FilledTreeImpl::create::<
+        PedersenHashFunction,
+        TreeHashFunctionImpl<PedersenHashFunction>,
+    >(updated_skeleton_tree, &modifications)
+    .await
+    .unwrap()
+    .get_root_hash()
+    .unwrap();
     assert_eq!(root_hash, HashOutput(Felt::ONE), "Root hash mismatch");
 }
 
@@ -89,12 +87,12 @@ async fn test_small_filled_tree() {
         .collect();
 
     // Compute the hash values.
-    let filled_tree = updated_skeleton_tree
-        .compute_filled_tree::<PedersenHashFunction, TreeHashFunctionImpl<PedersenHashFunction>>(
-            &modifications,
-        )
-        .await
-        .unwrap();
+    let filled_tree = FilledTreeImpl::create::<
+        PedersenHashFunction,
+        TreeHashFunctionImpl<PedersenHashFunction>,
+    >(updated_skeleton_tree, &modifications)
+    .await
+    .unwrap();
     let filled_tree_map = filled_tree.get_all_nodes();
     let root_hash = filled_tree.get_root_hash().unwrap();
 
@@ -195,12 +193,12 @@ async fn test_small_tree_with_sibling_nodes() {
     )]);
 
     // Compute the hash values.
-    let filled_tree = updated_skeleton_tree
-        .compute_filled_tree::<PedersenHashFunction, TreeHashFunctionImpl<PedersenHashFunction>>(
-            &modifications,
-        )
-        .await
-        .unwrap();
+    let filled_tree = FilledTreeImpl::create::<
+        PedersenHashFunction,
+        TreeHashFunctionImpl<PedersenHashFunction>,
+    >(updated_skeleton_tree, &modifications)
+    .await
+    .unwrap();
     let filled_tree_map = filled_tree.get_all_nodes();
     let root_hash = filled_tree.get_root_hash().unwrap();
 
