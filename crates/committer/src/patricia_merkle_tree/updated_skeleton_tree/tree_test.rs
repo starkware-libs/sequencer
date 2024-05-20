@@ -20,13 +20,15 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
 /// This test is a sanity test for computing the root hash of the patricia merkle tree with a single node that is a leaf with hash==1.
 async fn test_filled_tree_sanity() {
     let mut skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode<LeafDataImpl>> = HashMap::new();
-    skeleton_tree.insert(
-        NodeIndex::ROOT,
-        UpdatedSkeletonNode::Leaf(LeafDataImpl::StorageValue(Felt::ONE)),
-    );
+    let new_leaf = LeafDataImpl::StorageValue(Felt::ONE);
+    let new_leaf_index = NodeIndex::ROOT;
+    skeleton_tree.insert(new_leaf_index, UpdatedSkeletonNode::Leaf(new_leaf.clone()));
+    let modifications = HashMap::from([(new_leaf_index, new_leaf)]);
     let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
     let root_hash = updated_skeleton_tree
-        .compute_filled_tree::<PedersenHashFunction, TreeHashFunctionImpl<PedersenHashFunction>>()
+        .compute_filled_tree::<PedersenHashFunction, TreeHashFunctionImpl<PedersenHashFunction>>(
+            &modifications,
+        )
         .await
         .unwrap()
         .get_root_hash()
@@ -55,25 +57,41 @@ async fn test_filled_tree_sanity() {
 ///                  v=1          v=2                      v=3
 async fn test_small_filled_tree() {
     // Set up the updated skeleton tree.
-    let nodes_in_skeleton_tree = [
+    let new_leaves = [(35, "0x1"), (36, "0x2"), (63, "0x3")];
+    let nodes_in_skeleton_tree: Vec<(NodeIndex, UpdatedSkeletonNode<LeafDataImpl>)> = [
         create_binary_updated_skeleton_node_for_testing(1),
         create_path_to_bottom_edge_updated_skeleton_node_for_testing(2, 0, 1),
         create_path_to_bottom_edge_updated_skeleton_node_for_testing(3, 15, 4),
         create_binary_updated_skeleton_node_for_testing(4),
         create_path_to_bottom_edge_updated_skeleton_node_for_testing(8, 3, 2),
         create_path_to_bottom_edge_updated_skeleton_node_for_testing(9, 0, 2),
-        create_leaf_updated_skeleton_node_for_testing(35, "0x1"),
-        create_leaf_updated_skeleton_node_for_testing(36, "0x2"),
-        create_leaf_updated_skeleton_node_for_testing(63, "0x3"),
-    ];
+    ]
+    .into_iter()
+    .chain(
+        new_leaves
+            .iter()
+            .map(|(index, value)| create_leaf_updated_skeleton_node_for_testing(*index, value)),
+    )
+    .collect();
     let skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode<LeafDataImpl>> =
         nodes_in_skeleton_tree.into_iter().collect();
 
     let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
+    let modifications = new_leaves
+        .iter()
+        .map(|(index, value)| {
+            (
+                NodeIndex::from(*index),
+                LeafDataImpl::StorageValue(Felt::from_hex(value).unwrap()),
+            )
+        })
+        .collect();
 
     // Compute the hash values.
     let filled_tree = updated_skeleton_tree
-        .compute_filled_tree::<PedersenHashFunction, TreeHashFunctionImpl<PedersenHashFunction>>()
+        .compute_filled_tree::<PedersenHashFunction, TreeHashFunctionImpl<PedersenHashFunction>>(
+            &modifications,
+        )
         .await
         .unwrap();
     let filled_tree_map = filled_tree.get_all_nodes();
@@ -139,17 +157,18 @@ async fn test_small_filled_tree() {
 ///                   /        \
 ///            i=2: edge      i=3: sibling
 ///            l=1, p=0       hash=0x2955a96b09495fb2ce4ed65cf679c54e54aefc2c6972d7f3042590000bb7543
-///                /                      
-///            i=4: binary                  
-///          /           \                  
-///      i=8: edge    i=9: sibling           
+///                /
+///            i=4: binary
+///          /           \
+///      i=8: edge    i=9: sibling
 ///      l=2, p=3     hash=0x39eb7b85bcc9deac314406d6b73154b09b008f8af05e2f58ab623f4201d0b88
-///           \             
-///            \            
-///         i=35: leaf   
-///            v=1    
+///           \
+///            \
+///         i=35: leaf
+///            v=1
 async fn test_small_tree_with_sibling_nodes() {
     // Set up the updated skeleton tree.
+    let (new_leaf_index, new_leaf) = (35, "0x1");
     let nodes_in_skeleton_tree = [
         create_binary_updated_skeleton_node_for_testing(1),
         create_path_to_bottom_edge_updated_skeleton_node_for_testing(2, 0, 1),
@@ -163,16 +182,22 @@ async fn test_small_tree_with_sibling_nodes() {
             9,
             "0x39eb7b85bcc9deac314406d6b73154b09b008f8af05e2f58ab623f4201d0b88",
         ),
-        create_leaf_updated_skeleton_node_for_testing(35, "0x1"),
+        create_leaf_updated_skeleton_node_for_testing(new_leaf_index, new_leaf),
     ];
     let skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode<LeafDataImpl>> =
         nodes_in_skeleton_tree.into_iter().collect();
 
     let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
+    let modifications = HashMap::from([(
+        NodeIndex::from(new_leaf_index),
+        LeafDataImpl::StorageValue(Felt::from_hex(new_leaf).unwrap()),
+    )]);
 
     // Compute the hash values.
     let filled_tree = updated_skeleton_tree
-        .compute_filled_tree::<PedersenHashFunction, TreeHashFunctionImpl<PedersenHashFunction>>()
+        .compute_filled_tree::<PedersenHashFunction, TreeHashFunctionImpl<PedersenHashFunction>>(
+            &modifications,
+        )
         .await
         .unwrap();
     let filled_tree_map = filled_tree.get_all_nodes();

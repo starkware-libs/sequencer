@@ -25,7 +25,7 @@ pub(crate) fn commit_block(input: Input) -> BlockCommitmentResult<()> {
     )?;
     let _updated_forest = original_forest
         .compute_updated_skeleton_forest::<UpdatedSkeletonTreeImpl<UpdatedSkeletonLeafDataImpl>>(
-            StateDiff::actual_classes_updates(
+            &StateDiff::actual_classes_updates(
                 &input.state_diff.class_hash_to_compiled_class_hash,
                 input.tree_heights,
             ),

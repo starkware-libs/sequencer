@@ -3,6 +3,7 @@ use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::inner_node::{
     EdgeData, EdgePath, EdgePathLength, PathToBottom,
 };
+use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::LeafDataImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
@@ -52,7 +53,7 @@ use super::OriginalSkeletonTreeImpl;
     create_edge_entry(15, 3, 2),
     create_binary_entry(30, 20)
     ]).into(),
-    create_modifications(vec![(8, 4), (10, 3), (13, 2)]),
+    create_leaf_modifications(vec![(8, 4), (10, 3), (13, 2)]),
     HashOutput(Felt::from(50_u128)),
     create_expected_nodes(
         vec![
@@ -100,7 +101,7 @@ use super::OriginalSkeletonTreeImpl;
     create_binary_entry(5, 11),
     create_binary_entry(13, 16),
     ]).into(),
-    create_modifications(vec![(8, 5), (11, 1), (13, 3)]),
+    create_leaf_modifications(vec![(8, 5), (11, 1), (13, 3)]),
     HashOutput(Felt::from(29_u128)),
     create_expected_nodes(
         vec![
@@ -152,7 +153,7 @@ use super::OriginalSkeletonTreeImpl;
     create_binary_entry(25, 65),
     create_binary_entry(26, 90)
     ]).into(),
-    create_modifications(vec![(18, 5), (25, 1), (29, 15), (30, 3)]),
+    create_leaf_modifications(vec![(18, 5), (25, 1), (29, 15), (30, 3)]),
     HashOutput(Felt::from(116_u128)),
     create_expected_nodes(
         vec![
@@ -173,7 +174,7 @@ use super::OriginalSkeletonTreeImpl;
 )]
 fn test_fetch_nodes(
     #[case] storage: MapStorage,
-    #[case] leaf_modifications: HashMap<NodeIndex, LeafDataImpl>,
+    #[case] leaf_modifications: LeafModifications<LeafDataImpl>,
     #[case] root_hash: HashOutput,
     #[case] expected_nodes: HashMap<NodeIndex, OriginalSkeletonNode<LeafDataImpl>>,
     #[case] tree_height: TreeHeight,
@@ -221,8 +222,10 @@ fn create_edge_val(hash: u8, path: u8, length: u8) -> StorageValue {
     )
 }
 
-fn create_modifications(modifications: Vec<(u128, u128)>) -> HashMap<NodeIndex, LeafDataImpl> {
-    modifications
+fn create_leaf_modifications(
+    leaf_modifications: Vec<(u128, u128)>,
+) -> LeafModifications<LeafDataImpl> {
+    leaf_modifications
         .into_iter()
         .map(|(idx, val)| {
             (

@@ -1,6 +1,8 @@
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::node_data::leaf::{ContractState, UpdatedSkeletonLeafDataImpl};
+use crate::patricia_merkle_tree::node_data::leaf::{
+    ContractState, LeafModifications, UpdatedSkeletonLeafDataImpl,
+};
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::{
     filled_tree::node::{ClassHash, CompiledClassHash, Nonce},
@@ -59,7 +61,7 @@ impl StateDiff {
     pub(crate) fn actual_storage_updates(
         &self,
         tree_height: TreeHeight,
-    ) -> HashMap<ContractAddress, HashMap<NodeIndex, UpdatedSkeletonLeafDataImpl>> {
+    ) -> HashMap<ContractAddress, LeafModifications<UpdatedSkeletonLeafDataImpl>> {
         self.accessed_addresses()
             .iter()
             .map(|address| {
@@ -83,7 +85,7 @@ impl StateDiff {
     pub(crate) fn actual_classes_updates(
         class_hash_to_compiled_class_hash: &HashMap<ClassHash, CompiledClassHash>,
         tree_height: TreeHeight,
-    ) -> HashMap<NodeIndex, UpdatedSkeletonLeafDataImpl> {
+    ) -> LeafModifications<UpdatedSkeletonLeafDataImpl> {
         class_hash_to_compiled_class_hash
             .iter()
             .map(|(class_hash, compiled_class_hash)| {

@@ -1,6 +1,9 @@
+use std::collections::HashMap;
+
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
+use crate::patricia_merkle_tree::types::NodeIndex;
 
 pub trait LeafData {
     /// Returns true if leaf is empty.
@@ -71,3 +74,5 @@ impl LeafData for UpdatedSkeletonLeafDataImpl {
         }
     }
 }
+
+pub(crate) type LeafModifications<L> = HashMap<NodeIndex, L>;
