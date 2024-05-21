@@ -5,13 +5,13 @@ use anyhow::Result;
 use mempool_infra::network_component::CommunicationInterface;
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::TransactionHash;
+use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{
     Account, AccountState, BatcherToMempoolChannels, BatcherToMempoolMessage,
     GatewayToMempoolMessage, MempoolInput, MempoolNetworkComponent, ThinTransaction,
 };
 use tokio::select;
 
-use crate::errors::MempoolError;
 use crate::priority_queue::PriorityQueue;
 
 #[cfg(test)]

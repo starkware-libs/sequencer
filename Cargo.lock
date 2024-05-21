@@ -3244,7 +3244,6 @@ dependencies = [
  "rstest",
  "starknet_api",
  "starknet_mempool_types",
- "thiserror",
  "tokio",
 ]
 
@@ -3254,6 +3253,7 @@ version = "0.0.0"
 dependencies = [
  "mempool_infra",
  "starknet_api",
+ "thiserror",
  "tokio",
 ]
 
