@@ -8,8 +8,13 @@ use derive_more::Display;
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
-    EventCommitment, GlobalRoot, ReceiptCommitment, SequencerContractAddress, SequencerPublicKey,
-    StateDiffCommitment, TransactionCommitment,
+    EventCommitment,
+    GlobalRoot,
+    ReceiptCommitment,
+    SequencerContractAddress,
+    SequencerPublicKey,
+    StateDiffCommitment,
+    TransactionCommitment,
 };
 use crate::crypto::{verify_message_hash_signature, CryptoError, Signature};
 use crate::data_availability::L1DataAvailabilityMode;

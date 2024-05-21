@@ -9,13 +9,20 @@ use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress,
 use starknet_api::hash::{StarkFelt, StarkHash};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
-    Calldata, ContractAddressSalt, DeclareTransactionV2, Fee, ResourceBoundsMapping,
-    TransactionHash, TransactionVersion,
+    Calldata,
+    ContractAddressSalt,
+    DeclareTransactionV2,
+    Fee,
+    ResourceBoundsMapping,
+    TransactionHash,
+    TransactionVersion,
 };
 use starknet_api::{calldata, class_hash, contract_address, patricia_key, stark_felt};
 
 use crate::abi::abi_utils::{
-    get_fee_token_var_address, get_storage_var_address, selector_from_name,
+    get_fee_token_var_address,
+    get_storage_var_address,
+    selector_from_name,
 };
 use crate::abi::sierra_types::next_storage_key;
 use crate::context::BlockContext;
@@ -33,24 +40,46 @@ use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::invoke::InvokeTxArgs;
 use crate::test_utils::{
-    create_calldata, create_trivial_calldata, get_syscall_resources, get_tx_resources,
-    u64_from_usize, CairoVersion, NonceManager, BALANCE, DEFAULT_STRK_L1_GAS_PRICE, MAX_FEE,
-    MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE,
+    create_calldata,
+    create_trivial_calldata,
+    get_syscall_resources,
+    get_tx_resources,
+    u64_from_usize,
+    CairoVersion,
+    NonceManager,
+    BALANCE,
+    DEFAULT_STRK_L1_GAS_PRICE,
+    MAX_FEE,
+    MAX_L1_GAS_AMOUNT,
+    MAX_L1_GAS_PRICE,
 };
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use crate::transaction::objects::{FeeType, HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
-    account_invoke_tx, block_context, calculate_class_info_for_testing,
-    create_account_tx_for_validate_test, create_test_init_data, deploy_and_fund_account,
-    l1_resource_bounds, max_fee, max_resource_bounds, run_invoke_tx, FaultyAccountTxCreatorArgs,
-    TestInitData, INVALID,
+    account_invoke_tx,
+    block_context,
+    calculate_class_info_for_testing,
+    create_account_tx_for_validate_test,
+    create_test_init_data,
+    deploy_and_fund_account,
+    l1_resource_bounds,
+    max_fee,
+    max_resource_bounds,
+    run_invoke_tx,
+    FaultyAccountTxCreatorArgs,
+    TestInitData,
+    INVALID,
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{DeclareTransaction, ExecutableTransaction};
 use crate::{
-    check_transaction_execution_error_for_invalid_scenario, declare_tx_args,
-    deploy_account_tx_args, invoke_tx_args, nonce, storage_key,
+    check_transaction_execution_error_for_invalid_scenario,
+    declare_tx_args,
+    deploy_account_tx_args,
+    invoke_tx_args,
+    nonce,
+    storage_key,
 };
 
 #[rstest]

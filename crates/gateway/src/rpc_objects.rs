@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use starknet_api::{block::BlockNumber, core::ContractAddress};
+use starknet_api::block::BlockNumber;
+use starknet_api::core::ContractAddress;
 
 // Starknet Spec error codes:
 // TODO(yael 30/4/2024): consider turning these into an enum.

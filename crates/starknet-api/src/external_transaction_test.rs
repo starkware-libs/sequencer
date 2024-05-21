@@ -5,14 +5,27 @@ use rstest::rstest;
 
 use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
 use crate::external_transaction::{
-    ContractClass, DataAvailabilityMode, ExternalDeclareTransaction, ExternalDeclareTransactionV3,
-    ExternalDeployAccountTransaction, ExternalDeployAccountTransactionV3,
-    ExternalInvokeTransaction, ExternalInvokeTransactionV3, ExternalTransaction,
+    ContractClass,
+    DataAvailabilityMode,
+    ExternalDeclareTransaction,
+    ExternalDeclareTransactionV3,
+    ExternalDeployAccountTransaction,
+    ExternalDeployAccountTransactionV3,
+    ExternalInvokeTransaction,
+    ExternalInvokeTransactionV3,
+    ExternalTransaction,
 };
 use crate::hash::{StarkFelt, StarkHash};
 use crate::transaction::{
-    AccountDeploymentData, Calldata, ContractAddressSalt, PaymasterData, Resource, ResourceBounds,
-    ResourceBoundsMapping, Tip, TransactionSignature,
+    AccountDeploymentData,
+    Calldata,
+    ContractAddressSalt,
+    PaymasterData,
+    Resource,
+    ResourceBounds,
+    ResourceBoundsMapping,
+    Tip,
+    TransactionSignature,
 };
 use crate::{contract_address, patricia_key, stark_felt};
 

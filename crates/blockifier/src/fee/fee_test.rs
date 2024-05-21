@@ -3,7 +3,10 @@ use std::panic::catch_unwind;
 
 use assert_matches::assert_matches;
 use cairo_vm::vm::runners::builtin_runner::{
-    BITWISE_BUILTIN_NAME, HASH_BUILTIN_NAME, POSEIDON_BUILTIN_NAME, RANGE_CHECK_BUILTIN_NAME,
+    BITWISE_BUILTIN_NAME,
+    HASH_BUILTIN_NAME,
+    POSEIDON_BUILTIN_NAME,
+    RANGE_CHECK_BUILTIN_NAME,
     SIGNATURE_BUILTIN_NAME,
 };
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;

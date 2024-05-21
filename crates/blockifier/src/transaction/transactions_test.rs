@@ -14,20 +14,33 @@ use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::hash::{StarkFelt, StarkHash};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
-    Calldata, EventContent, EventData, EventKey, Fee, L2ToL1Payload, TransactionSignature,
+    Calldata,
+    EventContent,
+    EventData,
+    EventKey,
+    Fee,
+    L2ToL1Payload,
+    TransactionSignature,
     TransactionVersion,
 };
 use starknet_api::{calldata, class_hash, contract_address, patricia_key, stark_felt};
 use strum::IntoEnumIterator;
 
 use crate::abi::abi_utils::{
-    get_fee_token_var_address, get_storage_var_address, selector_from_name,
+    get_fee_token_var_address,
+    get_storage_var_address,
+    selector_from_name,
 };
 use crate::abi::constants as abi_constants;
 use crate::abi::sierra_types::next_storage_key;
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{
-    CallExecution, CallInfo, MessageToL1, OrderedEvent, OrderedL2ToL1Message, Retdata,
+    CallExecution,
+    CallInfo,
+    MessageToL1,
+    OrderedEvent,
+    OrderedL2ToL1Message,
+    Retdata,
 };
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
@@ -36,7 +49,9 @@ use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::fee_utils::calculate_tx_fee;
 use crate::fee::gas_usage::{
-    estimate_minimal_gas_vector, get_da_gas_cost, get_onchain_data_segment_length,
+    estimate_minimal_gas_vector,
+    get_da_gas_cost,
+    get_onchain_data_segment_length,
 };
 use crate::state::cached_state::{CachedState, StateChangesCount};
 use crate::state::errors::StateError;
@@ -49,34 +64,68 @@ use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::invoke::invoke_tx;
 use crate::test_utils::prices::Prices;
 use crate::test_utils::{
-    create_calldata, create_trivial_calldata, get_syscall_resources, get_tx_resources,
-    test_erc20_sequencer_balance_key, CairoVersion, NonceManager, SaltManager, BALANCE,
-    CHAIN_ID_NAME, CURRENT_BLOCK_NUMBER, CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
-    CURRENT_BLOCK_TIMESTAMP, CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE, MAX_FEE, MAX_L1_GAS_AMOUNT,
-    MAX_L1_GAS_PRICE, TEST_SEQUENCER_ADDRESS,
+    create_calldata,
+    create_trivial_calldata,
+    get_syscall_resources,
+    get_tx_resources,
+    test_erc20_sequencer_balance_key,
+    CairoVersion,
+    NonceManager,
+    SaltManager,
+    BALANCE,
+    CHAIN_ID_NAME,
+    CURRENT_BLOCK_NUMBER,
+    CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
+    CURRENT_BLOCK_TIMESTAMP,
+    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
+    MAX_FEE,
+    MAX_L1_GAS_AMOUNT,
+    MAX_L1_GAS_PRICE,
+    TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::constants;
 use crate::transaction::errors::{
-    TransactionExecutionError, TransactionFeeError, TransactionPreValidationError,
+    TransactionExecutionError,
+    TransactionFeeError,
+    TransactionPreValidationError,
 };
 use crate::transaction::objects::{
-    FeeType, GasVector, HasRelatedFeeType, StarknetResources, TransactionExecutionInfo,
-    TransactionInfo, TransactionResources,
+    FeeType,
+    GasVector,
+    HasRelatedFeeType,
+    StarknetResources,
+    TransactionExecutionInfo,
+    TransactionInfo,
+    TransactionResources,
 };
 use crate::transaction::test_utils::{
-    account_invoke_tx, block_context, calculate_class_info_for_testing,
-    create_account_tx_for_validate_test, l1_resource_bounds, FaultyAccountTxCreatorArgs,
-    CALL_CONTRACT, GET_BLOCK_HASH, GET_BLOCK_NUMBER, GET_BLOCK_TIMESTAMP, GET_EXECUTION_INFO,
-    GET_SEQUENCER_ADDRESS, INVALID, VALID,
+    account_invoke_tx,
+    block_context,
+    calculate_class_info_for_testing,
+    create_account_tx_for_validate_test,
+    l1_resource_bounds,
+    FaultyAccountTxCreatorArgs,
+    CALL_CONTRACT,
+    GET_BLOCK_HASH,
+    GET_BLOCK_NUMBER,
+    GET_BLOCK_TIMESTAMP,
+    GET_EXECUTION_INFO,
+    GET_SEQUENCER_ADDRESS,
+    INVALID,
+    VALID,
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{ExecutableTransaction, L1HandlerTransaction};
 use crate::versioned_constants::VersionedConstants;
 use crate::{
     check_transaction_execution_error_for_custom_hint,
-    check_transaction_execution_error_for_invalid_scenario, declare_tx_args,
-    deploy_account_tx_args, invoke_tx_args, nonce, retdata,
+    check_transaction_execution_error_for_invalid_scenario,
+    declare_tx_args,
+    deploy_account_tx_args,
+    invoke_tx_args,
+    nonce,
+    retdata,
 };
 
 static VERSIONED_CONSTANTS: Lazy<VersionedConstants> =

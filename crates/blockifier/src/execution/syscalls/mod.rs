@@ -4,19 +4,37 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{
-    calculate_contract_address, ClassHash, ContractAddress, EntryPointSelector, EthAddress,
+    calculate_contract_address,
+    ClassHash,
+    ContractAddress,
+    EntryPointSelector,
+    EthAddress,
 };
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::hash::StarkFelt;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
-    Calldata, ContractAddressSalt, EventContent, EventData, EventKey, L2ToL1Payload,
+    Calldata,
+    ContractAddressSalt,
+    EventContent,
+    EventData,
+    EventKey,
+    L2ToL1Payload,
 };
 
 use self::hint_processor::{
-    create_retdata_segment, execute_inner_call, execute_library_call, felt_to_bool,
-    read_call_params, read_calldata, read_felt_array, write_segment, EmitEventError,
-    SyscallExecutionError, SyscallHintProcessor, BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
+    create_retdata_segment,
+    execute_inner_call,
+    execute_library_call,
+    felt_to_bool,
+    read_call_params,
+    read_calldata,
+    read_felt_array,
+    write_segment,
+    EmitEventError,
+    SyscallExecutionError,
+    SyscallHintProcessor,
+    BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
 };
 use crate::abi::constants;
 use crate::execution::call_info::{MessageToL1, OrderedEvent, OrderedL2ToL1Message};
@@ -24,8 +42,15 @@ use crate::execution::contract_class::ContractClass;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::entry_point::{CallEntryPoint, CallType, ConstructorContext};
 use crate::execution::execution_utils::{
-    execute_deployment, felt_from_ptr, felt_to_stark_felt, stark_felt_from_ptr, stark_felt_to_felt,
-    write_felt, write_maybe_relocatable, write_stark_felt, ReadOnlySegment,
+    execute_deployment,
+    felt_from_ptr,
+    felt_to_stark_felt,
+    stark_felt_from_ptr,
+    stark_felt_to_felt,
+    write_felt,
+    write_maybe_relocatable,
+    write_stark_felt,
+    ReadOnlySegment,
 };
 use crate::execution::syscalls::hint_processor::{INVALID_INPUT_LENGTH_ERROR, OUT_OF_GAS_ERROR};
 use crate::transaction::transaction_utils::update_remaining_gas;

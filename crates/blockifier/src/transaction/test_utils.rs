@@ -2,9 +2,18 @@ use rstest::fixture;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::StarkFelt;
 use starknet_api::transaction::{
-    Calldata, ContractAddressSalt, Fee, InvokeTransactionV0, InvokeTransactionV1,
-    InvokeTransactionV3, Resource, ResourceBounds, ResourceBoundsMapping, TransactionHash,
-    TransactionSignature, TransactionVersion,
+    Calldata,
+    ContractAddressSalt,
+    Fee,
+    InvokeTransactionV0,
+    InvokeTransactionV1,
+    InvokeTransactionV3,
+    Resource,
+    ResourceBounds,
+    ResourceBoundsMapping,
+    TransactionHash,
+    TransactionSignature,
+    TransactionVersion,
 };
 use starknet_api::{calldata, stark_felt};
 use strum::IntoEnumIterator;
@@ -21,7 +30,12 @@ use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use crate::test_utils::{
-    create_calldata, CairoVersion, NonceManager, BALANCE, MAX_FEE, MAX_L1_GAS_AMOUNT,
+    create_calldata,
+    CairoVersion,
+    NonceManager,
+    BALANCE,
+    MAX_FEE,
+    MAX_L1_GAS_AMOUNT,
     MAX_L1_GAS_PRICE,
 };
 use crate::transaction::account_transaction::AccountTransaction;

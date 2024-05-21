@@ -1,22 +1,20 @@
-use rstest::rstest;
-
+use blockifier::blockifier::stateful_validator::StatefulValidatorError;
+use blockifier::context::BlockContext;
 use blockifier::test_utils::contracts::FeatureContract;
+use blockifier::test_utils::initial_test_state::test_state_reader;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion, NonceManager};
+use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
+use rstest::rstest;
+use starknet_api::hash::StarkFelt;
 
 use super::{StatefulTransactionValidator, StatefulTransactionValidatorConfig};
-use blockifier::context::BlockContext;
-
-use crate::errors::StatefulTransactionValidatorError;
-use crate::errors::StatefulTransactionValidatorResult;
+use crate::errors::{StatefulTransactionValidatorError, StatefulTransactionValidatorResult};
 use crate::starknet_api_test_utils::{
-    executable_external_invoke_tx_for_testing, executable_resource_bounds_mapping,
+    executable_external_invoke_tx_for_testing,
+    executable_resource_bounds_mapping,
+    VALID_L1_GAS_MAX_AMOUNT,
+    VALID_L1_GAS_MAX_PRICE_PER_UNIT,
 };
-use crate::starknet_api_test_utils::{VALID_L1_GAS_MAX_AMOUNT, VALID_L1_GAS_MAX_PRICE_PER_UNIT};
-use blockifier::blockifier::stateful_validator::StatefulValidatorError;
-use blockifier::test_utils::initial_test_state::test_state_reader;
-use blockifier::transaction::errors::TransactionFeeError;
-use blockifier::transaction::errors::TransactionPreValidationError;
-use starknet_api::hash::StarkFelt;
 
 #[rstest]
 #[case::valid_invoke_tx(

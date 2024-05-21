@@ -1,17 +1,24 @@
 #![allow(unused_imports)]
-use crate::config::{node_command, GatewayConfig};
-use crate::config::{ComponentConfig, ComponentExecutionConfig, MempoolNodeConfig};
+use std::env::{self, args};
+use std::fs::File;
+use std::ops::IndexMut;
+use std::path::{Path, PathBuf};
+
 use assert_matches::assert_matches;
 use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::loading::load_and_process_config;
 use papyrus_config::presentation::get_config_presentation;
 use papyrus_config::validators::ParsedValidationErrors;
 use papyrus_config::{SerializationType, SerializedContent, SerializedParam};
-use std::env::{self, args};
-use std::fs::File;
-use std::ops::IndexMut;
-use std::path::{Path, PathBuf};
 use validator::Validate;
+
+use crate::config::{
+    node_command,
+    ComponentConfig,
+    ComponentExecutionConfig,
+    GatewayConfig,
+    MempoolNodeConfig,
+};
 
 const TEST_FILES_FOLDER: &str = "./src/test_files";
 const CONFIG_FILE: &str = "mempool_node_config.json";
@@ -29,10 +36,7 @@ fn test_valid_config() {
             gateway_component: ComponentExecutionConfig { execute: true },
             mempool_component: ComponentExecutionConfig { execute: false },
         },
-        gateway_config: GatewayConfig {
-            ip: "0.0.0.0".parse().unwrap(),
-            port: 8080,
-        },
+        gateway_config: GatewayConfig { ip: "0.0.0.0".parse().unwrap(), port: 8080 },
     };
     let loaded_config = get_config_file(CONFIG_FILE).unwrap();
 

@@ -6,7 +6,8 @@ use thiserror::Error;
 
 use crate::execution::call_info::Retdata;
 use crate::execution::errors::{
-    gen_transaction_execution_error_trace, ConstructorEntryPointExecutionError,
+    gen_transaction_execution_error_trace,
+    ConstructorEntryPointExecutionError,
     EntryPointExecutionError,
 };
 use crate::fee::fee_checks::FeeCheckError;

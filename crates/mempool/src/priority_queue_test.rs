@@ -1,11 +1,13 @@
+use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::hash::StarkFelt;
-use starknet_api::{
-    data_availability::DataAvailabilityMode,
-    internal_transaction::{InternalInvokeTransaction, InternalTransaction},
-    transaction::{
-        InvokeTransaction, InvokeTransactionV3, ResourceBounds, ResourceBoundsMapping, Tip,
-        TransactionHash,
-    },
+use starknet_api::internal_transaction::{InternalInvokeTransaction, InternalTransaction};
+use starknet_api::transaction::{
+    InvokeTransaction,
+    InvokeTransactionV3,
+    ResourceBounds,
+    ResourceBoundsMapping,
+    Tip,
+    TransactionHash,
 };
 
 use crate::priority_queue::PriorityQueue;
@@ -13,14 +15,8 @@ use crate::priority_queue::PriorityQueue;
 pub fn create_tx_for_testing(tip: Tip, tx_hash: TransactionHash) -> InternalTransaction {
     let tx = InvokeTransactionV3 {
         resource_bounds: ResourceBoundsMapping::try_from(vec![
-            (
-                starknet_api::transaction::Resource::L1Gas,
-                ResourceBounds::default(),
-            ),
-            (
-                starknet_api::transaction::Resource::L2Gas,
-                ResourceBounds::default(),
-            ),
+            (starknet_api::transaction::Resource::L1Gas, ResourceBounds::default()),
+            (starknet_api::transaction::Resource::L2Gas, ResourceBounds::default()),
         ])
         .expect("Resource bounds mapping has unexpected structure."),
         signature: Default::default(),

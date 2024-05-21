@@ -10,8 +10,13 @@ use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::state::{EntryPoint, EntryPointType};
 use crate::transaction::{
-    AccountDeploymentData, Calldata, ContractAddressSalt, PaymasterData, ResourceBoundsMapping,
-    Tip, TransactionSignature,
+    AccountDeploymentData,
+    Calldata,
+    ContractAddressSalt,
+    PaymasterData,
+    ResourceBoundsMapping,
+    Tip,
+    TransactionSignature,
 };
 
 /// An external transaction.

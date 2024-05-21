@@ -1,10 +1,11 @@
+use std::fs;
+use std::path::Path;
+
 use axum::body::{Body, Bytes, HttpBody};
 use axum::http::{Request, StatusCode};
 use pretty_assertions::assert_str_eq;
 use rstest::rstest;
 use starknet_gateway::gateway::app;
-use std::fs;
-use std::path::Path;
 use tower::ServiceExt;
 
 const TEST_FILES_FOLDER: &str = "./tests/fixtures";

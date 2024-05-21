@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use starknet_api::{
-    core::ContractAddress, internal_transaction::InternalTransaction, transaction::TransactionHash,
-};
+use starknet_api::core::ContractAddress;
+use starknet_api::internal_transaction::InternalTransaction;
+use starknet_api::transaction::TransactionHash;
 
 use crate::errors::MempoolError;
 
@@ -13,7 +13,8 @@ pub struct Mempool;
 impl Mempool {
     /// Retrieves up to `n_txs` transactions with the highest priority from the mempool.
     /// Transactions are guaranteed to be unique across calls until `commit_block` is invoked.
-    // TODO: the last part about commit_block is incorrect if we delete txs in get_txs and then push back.
+    // TODO: the last part about commit_block is incorrect if we delete txs in get_txs and then push
+    // back.
     pub fn get_txs(_n_txs: u8) -> MempoolResult<Vec<InternalTransaction>> {
         todo!();
     }

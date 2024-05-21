@@ -1,10 +1,10 @@
+use std::net::SocketAddr;
+
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use starknet_api::external_transaction::ExternalTransaction;
-use std::net::SocketAddr;
 
 use crate::config::GatewayConfig;
-
 use crate::errors::GatewayError;
 
 #[cfg(test)]
@@ -24,18 +24,13 @@ impl Gateway {
         let app = app();
 
         // Create a server that runs forever.
-        axum::Server::bind(&addr)
-            .serve(app.into_make_service())
-            .await
-            .unwrap();
+        axum::Server::bind(&addr).serve(app.into_make_service()).await.unwrap();
     }
 }
 
 /// Sets up the router with the specified routes for the server.
 pub fn app() -> Router {
-    Router::new()
-        .route("/is_alive", get(is_alive))
-        .route("/add_transaction", post(add_transaction))
+    Router::new().route("/is_alive", get(is_alive)).route("/add_transaction", post(add_transaction))
     // TODO: when we need to configure the router, like adding banned ips, add it here via
     // `with_state`.
 }

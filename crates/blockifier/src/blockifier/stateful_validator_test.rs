@@ -10,7 +10,10 @@ use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::{CairoVersion, NonceManager, BALANCE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::test_utils::{
-    block_context, create_account_tx_for_validate_test, FaultyAccountTxCreatorArgs, VALID,
+    block_context,
+    create_account_tx_for_validate_test,
+    FaultyAccountTxCreatorArgs,
+    VALID,
 };
 use crate::transaction::transaction_types::TransactionType;
 

@@ -10,13 +10,22 @@ use starknet_api::hash::StarkFelt;
 
 use crate::abi::sierra_types::{SierraType, SierraU256};
 use crate::execution::execution_utils::{
-    felt_from_ptr, stark_felt_from_ptr, write_maybe_relocatable, write_u256,
+    felt_from_ptr,
+    stark_felt_from_ptr,
+    write_maybe_relocatable,
+    write_u256,
 };
 use crate::execution::syscalls::hint_processor::{
-    felt_to_bool, SyscallHintProcessor, INVALID_ARGUMENT,
+    felt_to_bool,
+    SyscallHintProcessor,
+    INVALID_ARGUMENT,
 };
 use crate::execution::syscalls::{
-    felt_to_stark_felt, SyscallExecutionError, SyscallRequest, SyscallResponse, SyscallResult,
+    felt_to_stark_felt,
+    SyscallExecutionError,
+    SyscallRequest,
+    SyscallResponse,
+    SyscallResult,
     WriteResponseResult,
 };
 

@@ -17,7 +17,11 @@ use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::hash::{StarkFelt, StarkHash};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
-    Calldata, ContractAddressSalt, Resource, ResourceBounds, ResourceBoundsMapping,
+    Calldata,
+    ContractAddressSalt,
+    Resource,
+    ResourceBounds,
+    ResourceBoundsMapping,
     TransactionVersion,
 };
 use starknet_api::{contract_address, patricia_key, stark_felt};

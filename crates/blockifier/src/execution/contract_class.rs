@@ -8,7 +8,10 @@ use cairo_lang_casm::hints::Hint;
 use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use cairo_lang_starknet_classes::NestedIntList;
 use cairo_vm::serde::deserialize_program::{
-    ApTracking, FlowTrackingData, HintParams, ReferenceManager,
+    ApTracking,
+    FlowTrackingData,
+    HintParams,
+    ReferenceManager,
 };
 use cairo_vm::types::errors::program_errors::ProgramError;
 use cairo_vm::types::program::Program;
@@ -20,7 +23,10 @@ use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
-    ContractClass as DeprecatedContractClass, EntryPoint, EntryPointOffset, EntryPointType,
+    ContractClass as DeprecatedContractClass,
+    EntryPoint,
+    EntryPointOffset,
+    EntryPointType,
     Program as DeprecatedProgram,
 };
 

@@ -1,11 +1,11 @@
-use crate::config::GatewayConfig;
-
-use clap::Command;
-
-use papyrus_config::loading::load_and_process_config;
 use std::fs::File;
 use std::path::Path;
+
+use clap::Command;
+use papyrus_config::loading::load_and_process_config;
 use validator::Validate;
+
+use crate::config::GatewayConfig;
 
 const TEST_FILES_FOLDER: &str = "./src/json_files_for_testing";
 const CONFIG_FILE: &str = "gateway_config.json";
@@ -18,10 +18,7 @@ fn get_config_file(file_name: &str) -> Result<GatewayConfig, papyrus_config::Con
 #[test]
 fn test_valid_config() {
     // Read the valid config file and validate its content.
-    let expected_config = GatewayConfig {
-        ip: "0.0.0.0".parse().unwrap(),
-        port: 8080,
-    };
+    let expected_config = GatewayConfig { ip: "0.0.0.0".parse().unwrap(), port: 8080 };
 
     let loaded_config = get_config_file(CONFIG_FILE).unwrap();
 
