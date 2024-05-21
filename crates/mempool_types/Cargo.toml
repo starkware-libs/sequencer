@@ -11,4 +11,5 @@ workspace = true
 [dependencies]
 mempool_infra = { path = "../mempool_infra"}
 starknet_api.workspace = true
+tokio.workspace = true
 

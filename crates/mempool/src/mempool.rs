@@ -6,8 +6,8 @@ use mempool_infra::network_component::CommunicationInterface;
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::mempool_types::{
-    Account, AccountState, GatewayToMempoolMessage, MempoolInput, MempoolNetworkComponent,
-    ThinTransaction,
+    Account, AccountState, BatcherToMempoolChannels, BatcherToMempoolMessage,
+    GatewayToMempoolMessage, MempoolInput, MempoolNetworkComponent, ThinTransaction,
 };
 use tokio::select;
 
@@ -22,7 +22,8 @@ pub type MempoolResult<T> = Result<T, MempoolError>;
 
 pub struct Mempool {
     // TODO: add docstring explaining visibility and coupling of the fields.
-    pub network: MempoolNetworkComponent,
+    pub gateway_network: MempoolNetworkComponent,
+    batcher_network: BatcherToMempoolChannels,
     txs_queue: PriorityQueue,
     state: HashMap<ContractAddress, AccountState>,
 }
@@ -30,10 +31,15 @@ pub struct Mempool {
 impl Mempool {
     pub fn new(
         inputs: impl IntoIterator<Item = MempoolInput>,
-        network: MempoolNetworkComponent,
+        gateway_network: MempoolNetworkComponent,
+        batcher_network: BatcherToMempoolChannels,
     ) -> Self {
-        let mut mempool =
-            Mempool { txs_queue: Default::default(), state: Default::default(), network };
+        let mut mempool = Mempool {
+            txs_queue: Default::default(),
+            state: Default::default(),
+            gateway_network,
+            batcher_network,
+        };
 
         mempool.txs_queue = PriorityQueue::from_iter(inputs.into_iter().map(|input| {
             // Attempts to insert a key-value pair into the mempool's state. Returns `None` if the
@@ -99,24 +105,44 @@ impl Mempool {
     pub async fn run(&mut self) -> Result<()> {
         loop {
             select! {
-                optional_message = self.network.recv() => {
-                    match optional_message {
+                optional_gateway_message = self.gateway_network.recv() => {
+                    match optional_gateway_message {
                         Some(message) => {
-                            self.process_network_message(message)?;
+                            self.process_gateway_message(message)?;
                         },
                         // Channel was closed; exit.
                         None => break,
                     }
                 }
+                optional_batcher_message = self.batcher_network.rx.recv() => {
+                    match optional_batcher_message {
+                        Some(message) => {
+                            self.process_batcher_message(message).await?;
+                        },
+                        // Channel was closed; exit.
+                        None => break,
+                    }
+                }
+
             }
         }
         Ok(())
     }
 
-    fn process_network_message(&mut self, message: GatewayToMempoolMessage) -> Result<()> {
+    fn process_gateway_message(&mut self, message: GatewayToMempoolMessage) -> Result<()> {
         match message {
             GatewayToMempoolMessage::AddTransaction(mempool_input) => {
                 self.add_tx(mempool_input.tx, mempool_input.account)?;
+                Ok(())
+            }
+        }
+    }
+
+    async fn process_batcher_message(&mut self, message: BatcherToMempoolMessage) -> Result<()> {
+        match message {
+            BatcherToMempoolMessage::GetTransactions(n_txs) => {
+                let txs = self.get_txs(n_txs)?;
+                self.batcher_network.tx.send(txs).await?;
                 Ok(())
             }
         }

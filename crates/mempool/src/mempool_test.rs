@@ -10,7 +10,8 @@ use starknet_api::transaction::{
 };
 use starknet_api::{contract_address, patricia_key};
 use starknet_mempool_types::mempool_types::{
-    GatewayToMempoolMessage, MempoolNetworkComponent, MempoolToGatewayMessage,
+    BatcherToMempoolChannels, BatcherToMempoolMessage, GatewayToMempoolMessage,
+    MempoolNetworkComponent, MempoolToBatcherMessage, MempoolToGatewayMessage,
 };
 use starknet_mempool_types::utils::create_thin_tx_for_testing;
 use tokio::sync::mpsc::channel;
@@ -22,9 +23,15 @@ use crate::priority_queue::PQTransaction;
 fn create_for_testing(inputs: impl IntoIterator<Item = MempoolInput>) -> Mempool {
     let (_, rx_gateway_to_mempool) = channel::<GatewayToMempoolMessage>(1);
     let (tx_mempool_to_gateway, _) = channel::<MempoolToGatewayMessage>(1);
-    let network = MempoolNetworkComponent::new(tx_mempool_to_gateway, rx_gateway_to_mempool);
+    let gateway_network =
+        MempoolNetworkComponent::new(tx_mempool_to_gateway, rx_gateway_to_mempool);
 
-    Mempool::new(inputs, network)
+    let (_, rx_mempool_to_batcher) = channel::<BatcherToMempoolMessage>(1);
+    let (tx_batcher_to_mempool, _) = channel::<MempoolToBatcherMessage>(1);
+    let batcher_network =
+        BatcherToMempoolChannels { rx: rx_mempool_to_batcher, tx: tx_batcher_to_mempool };
+
+    Mempool::new(inputs, gateway_network, batcher_network)
 }
 
 #[fixture]

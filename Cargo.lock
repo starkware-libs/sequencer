@@ -3254,6 +3254,7 @@ version = "0.0.0"
 dependencies = [
  "mempool_infra",
  "starknet_api",
+ "tokio",
 ]
 
 [[package]]

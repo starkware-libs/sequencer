@@ -1,6 +1,7 @@
 use mempool_infra::network_component::NetworkComponent;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::{Tip, TransactionHash};
+use tokio::sync::mpsc::{Receiver, Sender};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ThinTransaction {
@@ -34,7 +35,23 @@ pub enum GatewayToMempoolMessage {
     AddTransaction(MempoolInput),
 }
 
+// TODO: Consider using `NetworkComponent` instead of defining the channels here.
+// Currently, facing technical issues when using `NetworkComponent`.
+pub struct BatcherToMempoolChannels {
+    pub rx: Receiver<BatcherToMempoolMessage>,
+    pub tx: Sender<MempoolToBatcherMessage>,
+}
+
+pub enum BatcherToMempoolMessage {
+    GetTransactions(usize),
+}
 pub type MempoolToGatewayMessage = ();
+pub type MempoolToBatcherMessage = Vec<ThinTransaction>;
+
+pub type BatcherMempoolNetworkComponent =
+    NetworkComponent<BatcherToMempoolMessage, MempoolToBatcherMessage>;
+pub type MempoolBatcherNetworkComponent =
+    NetworkComponent<MempoolToBatcherMessage, BatcherToMempoolMessage>;
 
 pub type GatewayNetworkComponent =
     NetworkComponent<GatewayToMempoolMessage, MempoolToGatewayMessage>;
