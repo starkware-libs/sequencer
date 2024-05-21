@@ -3,6 +3,8 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::{Tip, TransactionHash};
 use tokio::sync::mpsc::{Receiver, Sender};
 
+use crate::errors::MempoolError;
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ThinTransaction {
     pub contract_address: ContractAddress,
@@ -57,3 +59,5 @@ pub type GatewayNetworkComponent =
     NetworkComponent<GatewayToMempoolMessage, MempoolToGatewayMessage>;
 pub type MempoolNetworkComponent =
     NetworkComponent<MempoolToGatewayMessage, GatewayToMempoolMessage>;
+
+pub type MempoolResult<T> = Result<T, MempoolError>;

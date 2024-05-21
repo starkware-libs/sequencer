@@ -8,7 +8,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{
     Account, AccountState, BatcherToMempoolChannels, BatcherToMempoolMessage,
-    GatewayToMempoolMessage, MempoolInput, MempoolNetworkComponent, ThinTransaction,
+    GatewayToMempoolMessage, MempoolInput, MempoolNetworkComponent, MempoolResult, ThinTransaction,
 };
 use tokio::select;
 
@@ -17,8 +17,6 @@ use crate::priority_queue::PriorityQueue;
 #[cfg(test)]
 #[path = "mempool_test.rs"]
 pub mod mempool_test;
-
-pub type MempoolResult<T> = Result<T, MempoolError>;
 
 pub struct Mempool {
     // TODO: add docstring explaining visibility and coupling of the fields.
