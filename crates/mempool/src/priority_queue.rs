@@ -2,11 +2,16 @@
 #[path = "priority_queue_test.rs"]
 pub mod priority_queue_test;
 
-use starknet_api::{
-    internal_transaction::InternalTransaction,
-    transaction::{DeclareTransaction, DeployAccountTransaction, InvokeTransaction, Tip},
+use std::cmp::Ordering;
+use std::collections::BTreeSet;
+
+use starknet_api::internal_transaction::InternalTransaction;
+use starknet_api::transaction::{
+    DeclareTransaction,
+    DeployAccountTransaction,
+    InvokeTransaction,
+    Tip,
 };
-use std::{cmp::Ordering, collections::BTreeSet};
 // Assumption: for the MVP only one transaction from the same contract class can be in the mempool
 // at a time. When this changes, saving the transactions themselves on the queu might no longer be
 // appropriate, because we'll also need to stores transactions without indexing them. For example,
@@ -28,9 +33,7 @@ impl PriorityQueue {
 
 impl From<Vec<InternalTransaction>> for PriorityQueue {
     fn from(transactions: Vec<InternalTransaction>) -> Self {
-        PriorityQueue(BTreeSet::from_iter(
-            transactions.into_iter().map(PQTransaction),
-        ))
+        PriorityQueue(BTreeSet::from_iter(transactions.into_iter().map(PQTransaction)))
     }
 }
 

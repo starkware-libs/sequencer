@@ -7,7 +7,8 @@ use crate::context::BlockContext;
 use crate::execution::call_info::{CallExecution, CallInfo, MessageToL1, OrderedL2ToL1Message};
 use crate::fee::eth_gas_constants;
 use crate::fee::gas_usage::{
-    get_consumed_message_to_l2_emissions_cost, get_log_message_to_l1_emissions_cost,
+    get_consumed_message_to_l2_emissions_cost,
+    get_log_message_to_l1_emissions_cost,
     get_message_segment_length,
 };
 use crate::state::cached_state::StateChangesCount;

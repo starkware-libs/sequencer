@@ -1,17 +1,25 @@
 use rstest::rstest;
-
 use starknet_api::calldata;
 use starknet_api::hash::StarkFelt;
 use starknet_api::transaction::{
-    Calldata, Resource, ResourceBounds, ResourceBoundsMapping, TransactionSignature,
+    Calldata,
+    Resource,
+    ResourceBounds,
+    ResourceBoundsMapping,
+    TransactionSignature,
 };
 
 use crate::starknet_api_test_utils::{
-    create_resource_bounds_mapping, external_tx_for_testing, non_zero_resource_bounds_mapping,
-    zero_resource_bounds_mapping, TransactionType, NON_EMPTY_RESOURCE_BOUNDS,
+    create_resource_bounds_mapping,
+    external_tx_for_testing,
+    non_zero_resource_bounds_mapping,
+    zero_resource_bounds_mapping,
+    TransactionType,
+    NON_EMPTY_RESOURCE_BOUNDS,
 };
 use crate::stateless_transaction_validator::{
-    StatelessTransactionValidator, StatelessTransactionValidatorConfig,
+    StatelessTransactionValidator,
+    StatelessTransactionValidatorConfig,
     StatelessTransactionValidatorError,
 };
 
@@ -68,11 +76,7 @@ fn test_positive_flow(
     #[case] resource_bounds: ResourceBoundsMapping,
     #[case] tx_calldata: Calldata,
     #[case] signature: TransactionSignature,
-    #[values(
-        TransactionType::Declare,
-        TransactionType::DeployAccount,
-        TransactionType::Invoke
-    )]
+    #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
     tx_type: TransactionType,
 ) {
     let tx_validator = StatelessTransactionValidator { config };
@@ -118,11 +122,7 @@ fn test_invalid_resource_bounds(
     #[case] config: StatelessTransactionValidatorConfig,
     #[case] resource_bounds: ResourceBoundsMapping,
     #[case] expected_error: StatelessTransactionValidatorError,
-    #[values(
-        TransactionType::Declare,
-        TransactionType::DeployAccount,
-        TransactionType::Invoke
-    )]
+    #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
     tx_type: TransactionType,
 ) {
     let tx_validator = StatelessTransactionValidator { config };
@@ -140,9 +140,8 @@ fn test_invalid_resource_bounds(
 fn test_calldata_too_long(
     #[values(TransactionType::DeployAccount, TransactionType::Invoke)] tx_type: TransactionType,
 ) {
-    let tx_validator = StatelessTransactionValidator {
-        config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING,
-    };
+    let tx_validator =
+        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING };
     let tx = external_tx_for_testing(
         tx_type,
         non_zero_resource_bounds_mapping(),
@@ -161,16 +160,11 @@ fn test_calldata_too_long(
 
 #[rstest]
 fn test_signature_too_long(
-    #[values(
-        TransactionType::Declare,
-        TransactionType::DeployAccount,
-        TransactionType::Invoke
-    )]
+    #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
     tx_type: TransactionType,
 ) {
-    let tx_validator = StatelessTransactionValidator {
-        config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING,
-    };
+    let tx_validator =
+        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING };
     let tx = external_tx_for_testing(
         tx_type,
         non_zero_resource_bounds_mapping(),

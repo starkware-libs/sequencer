@@ -9,17 +9,29 @@ use strum_macros::EnumIter;
 
 use crate::block::{BlockHash, BlockNumber};
 use crate::core::{
-    ChainId, ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector, EthAddress, Nonce,
+    ChainId,
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    EntryPointSelector,
+    EthAddress,
+    Nonce,
 };
 use crate::data_availability::DataAvailabilityMode;
 use crate::hash::{StarkFelt, StarkHash};
 use crate::serde_utils::PrefixedBytesAsHex;
 use crate::transaction_hash::{
-    get_declare_transaction_v0_hash, get_declare_transaction_v1_hash,
-    get_declare_transaction_v2_hash, get_declare_transaction_v3_hash,
-    get_deploy_account_transaction_v1_hash, get_deploy_account_transaction_v3_hash,
-    get_deploy_transaction_hash, get_invoke_transaction_v0_hash, get_invoke_transaction_v1_hash,
-    get_invoke_transaction_v3_hash, get_l1_handler_transaction_hash,
+    get_declare_transaction_v0_hash,
+    get_declare_transaction_v1_hash,
+    get_declare_transaction_v2_hash,
+    get_declare_transaction_v3_hash,
+    get_deploy_account_transaction_v1_hash,
+    get_deploy_account_transaction_v3_hash,
+    get_deploy_transaction_hash,
+    get_invoke_transaction_v0_hash,
+    get_invoke_transaction_v1_hash,
+    get_invoke_transaction_v3_hash,
+    get_l1_handler_transaction_hash,
 };
 use crate::StarknetApiError;
 

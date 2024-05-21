@@ -2,7 +2,10 @@ use starknet_api::core::{ChainId, ContractAddress};
 
 use crate::blockifier::block::BlockInfo;
 use crate::transaction::objects::{
-    FeeType, HasRelatedFeeType, TransactionInfo, TransactionInfoCreator,
+    FeeType,
+    HasRelatedFeeType,
+    TransactionInfo,
+    TransactionInfoCreator,
 };
 use crate::versioned_constants::VersionedConstants;
 

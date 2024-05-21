@@ -10,7 +10,10 @@ use starknet_api::state::StorageKey;
 use url::Url;
 
 use crate::rpc_objects::{
-    BlockId, GetNonceParams, RpcResponse, RPC_ERROR_BLOCK_NOT_FOUND,
+    BlockId,
+    GetNonceParams,
+    RpcResponse,
+    RPC_ERROR_BLOCK_NOT_FOUND,
     RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND,
 };
 
@@ -76,10 +79,8 @@ impl StateReader for RpcStateReader {
     }
 
     fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
-        let get_nonce_params = GetNonceParams {
-            block_id: BlockId::Number(self.block_number),
-            contract_address,
-        };
+        let get_nonce_params =
+            GetNonceParams { block_id: BlockId::Number(self.block_number), contract_address };
         let request_body = json!({
             "jsonrpc": self.json_rpc_version,
             "id": 0,

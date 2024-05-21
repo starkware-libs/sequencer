@@ -1,5 +1,7 @@
 use starknet_api::external_transaction::{
-    ExternalDeployAccountTransaction, ExternalInvokeTransaction, ExternalTransaction,
+    ExternalDeployAccountTransaction,
+    ExternalInvokeTransaction,
+    ExternalTransaction,
 };
 use starknet_api::transaction::{Resource, ResourceBoundsMapping};
 

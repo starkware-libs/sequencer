@@ -3,7 +3,8 @@ use std::collections::{HashMap, HashSet};
 
 use cairo_felt::Felt252;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
-    BuiltinHintProcessor, HintProcessorData,
+    BuiltinHintProcessor,
+    HintProcessorData,
 };
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_var_name;
 use cairo_vm::hint_processor::hint_processor_definition::{HintProcessorLogic, HintReference};
@@ -28,21 +29,45 @@ use crate::blockifier::block::BlockInfo;
 use crate::context::TransactionContext;
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message};
 use crate::execution::common_hints::{
-    extended_builtin_hint_processor, ExecutionMode, HintExecutionResult,
+    extended_builtin_hint_processor,
+    ExecutionMode,
+    HintExecutionResult,
 };
 use crate::execution::deprecated_syscalls::{
-    call_contract, delegate_call, delegate_l1_handler, deploy, emit_event, get_block_number,
-    get_block_timestamp, get_caller_address, get_contract_address, get_sequencer_address,
-    get_tx_info, get_tx_signature, library_call, library_call_l1_handler, replace_class,
-    send_message_to_l1, storage_read, storage_write, DeprecatedSyscallResult,
-    DeprecatedSyscallSelector, StorageReadResponse, StorageWriteResponse, SyscallRequest,
+    call_contract,
+    delegate_call,
+    delegate_l1_handler,
+    deploy,
+    emit_event,
+    get_block_number,
+    get_block_timestamp,
+    get_caller_address,
+    get_contract_address,
+    get_sequencer_address,
+    get_tx_info,
+    get_tx_signature,
+    library_call,
+    library_call_l1_handler,
+    replace_class,
+    send_message_to_l1,
+    storage_read,
+    storage_write,
+    DeprecatedSyscallResult,
+    DeprecatedSyscallSelector,
+    StorageReadResponse,
+    StorageWriteResponse,
+    SyscallRequest,
     SyscallResponse,
 };
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::execution_utils::{
-    felt_range_from_ptr, max_fee_for_execution_info, stark_felt_from_ptr, stark_felt_to_felt,
-    ReadOnlySegment, ReadOnlySegments,
+    felt_range_from_ptr,
+    max_fee_for_execution_info,
+    stark_felt_from_ptr,
+    stark_felt_to_felt,
+    ReadOnlySegment,
+    ReadOnlySegments,
 };
 use crate::execution::hint_code;
 use crate::execution::syscalls::hint_processor::EmitEventError;

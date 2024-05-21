@@ -6,8 +6,15 @@ use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::hash::StarkFelt;
 use starknet_api::transaction::{
-    AccountDeploymentData, Calldata, ContractAddressSalt, DeclareTransactionV2,
-    DeclareTransactionV3, Fee, TransactionHash, TransactionSignature, TransactionVersion,
+    AccountDeploymentData,
+    Calldata,
+    ContractAddressSalt,
+    DeclareTransactionV2,
+    DeclareTransactionV3,
+    Fee,
+    TransactionHash,
+    TransactionSignature,
+    TransactionVersion,
 };
 
 use crate::abi::abi_utils::selector_from_name;
@@ -15,7 +22,10 @@ use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::{ClassInfo, ContractClass};
 use crate::execution::entry_point::{
-    CallEntryPoint, CallType, ConstructorContext, EntryPointExecutionContext,
+    CallEntryPoint,
+    CallType,
+    ConstructorContext,
+    EntryPointExecutionContext,
 };
 use crate::execution::execution_utils::execute_deployment;
 use crate::state::cached_state::{CachedState, TransactionalState};
@@ -24,8 +34,14 @@ use crate::state::state_api::{State, StateReader};
 use crate::transaction::constants;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{
-    CommonAccountFields, CurrentTransactionInfo, DeprecatedTransactionInfo, HasRelatedFeeType,
-    TransactionExecutionInfo, TransactionExecutionResult, TransactionInfo, TransactionInfoCreator,
+    CommonAccountFields,
+    CurrentTransactionInfo,
+    DeprecatedTransactionInfo,
+    HasRelatedFeeType,
+    TransactionExecutionInfo,
+    TransactionExecutionResult,
+    TransactionInfo,
+    TransactionInfoCreator,
 };
 use crate::transaction::transaction_utils::{update_remaining_gas, verify_contract_class_version};
 

@@ -1,22 +1,30 @@
-use crate::errors::StatefulTransactionValidatorResult;
 use blockifier::execution::contract_class::ClassInfo;
 use blockifier::transaction::account_transaction::AccountTransaction;
-use blockifier::transaction::transactions::DeclareTransaction as BlockifierDeclareTransaction;
-use blockifier::transaction::transactions::DeployAccountTransaction as BlockifierDeployAccountTransaction;
-use blockifier::transaction::transactions::InvokeTransaction as BlockifierInvokeTransaction;
-use starknet_api::core::ChainId;
-use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
+use blockifier::transaction::transactions::{
+    DeclareTransaction as BlockifierDeclareTransaction,
+    DeployAccountTransaction as BlockifierDeployAccountTransaction,
+    InvokeTransaction as BlockifierInvokeTransaction,
+};
+use starknet_api::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress};
 use starknet_api::external_transaction::{
-    ExternalDeclareTransaction, ExternalDeployAccountTransaction, ExternalInvokeTransaction,
+    ExternalDeclareTransaction,
+    ExternalDeployAccountTransaction,
+    ExternalInvokeTransaction,
     ExternalTransaction,
 };
-use starknet_api::transaction::DeclareTransaction;
-use starknet_api::transaction::TransactionHasher;
 use starknet_api::transaction::{
-    DeclareTransactionV3, DeployAccountTransaction, DeployAccountTransactionV3, InvokeTransaction,
+    DeclareTransaction,
+    DeclareTransactionV3,
+    DeployAccountTransaction,
+    DeployAccountTransactionV3,
+    InvokeTransaction,
     InvokeTransactionV3,
+    ResourceBoundsMapping,
+    TransactionHasher,
+    TransactionSignature,
 };
-use starknet_api::transaction::{ResourceBoundsMapping, TransactionSignature};
+
+use crate::errors::StatefulTransactionValidatorResult;
 
 macro_rules! implement_ref_getters {
     ($(($member_name:ident, $member_type:ty));* $(;)?) => {
@@ -51,14 +59,15 @@ pub trait ExternalTransactionExt {
 
 pub fn external_tx_to_account_tx(
     external_tx: &ExternalTransaction,
-    //FIXME(yael 15/4/24): calculate class_info inside the function once compilation code is ready
+    // FIXME(yael 15/4/24): calculate class_info inside the function once compilation code is ready
     optional_class_info: Option<ClassInfo>,
     chain_id: &ChainId,
 ) -> StatefulTransactionValidatorResult<AccountTransaction> {
     match external_tx {
         ExternalTransaction::Declare(ExternalDeclareTransaction::V3(tx)) => {
             let declare_tx = DeclareTransaction::V3(DeclareTransactionV3 {
-                class_hash: ClassHash::default(), //FIXME(yael 15/4/24): call the starknet-api function once ready
+                class_hash: ClassHash::default(), /* FIXME(yael 15/4/24): call the starknet-api
+                                                   * function once ready */
                 resource_bounds: tx.resource_bounds.clone(),
                 tip: tx.tip,
                 signature: tx.signature.clone(),

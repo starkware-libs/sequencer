@@ -1,5 +1,6 @@
-use async_trait::async_trait;
 use std::fmt::Debug;
+
+use async_trait::async_trait;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum ComponentStartError {

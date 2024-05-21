@@ -21,15 +21,24 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
-    create_calldata, trivial_external_entry_point_new, CairoVersion, NonceManager, BALANCE,
+    create_calldata,
+    trivial_external_entry_point_new,
+    CairoVersion,
+    NonceManager,
+    BALANCE,
 };
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::constants::{
-    EXECUTE_ENTRY_POINT_NAME, VALIDATE_DECLARE_ENTRY_POINT_NAME, VALIDATE_DEPLOY_ENTRY_POINT_NAME,
+    EXECUTE_ENTRY_POINT_NAME,
+    VALIDATE_DECLARE_ENTRY_POINT_NAME,
+    VALIDATE_DEPLOY_ENTRY_POINT_NAME,
     VALIDATE_ENTRY_POINT_NAME,
 };
 use crate::transaction::test_utils::{
-    block_context, create_account_tx_for_validate_test, run_invoke_tx, FaultyAccountTxCreatorArgs,
+    block_context,
+    create_account_tx_for_validate_test,
+    run_invoke_tx,
+    FaultyAccountTxCreatorArgs,
     INVALID,
 };
 use crate::transaction::transaction_types::TransactionType;
