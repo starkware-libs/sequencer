@@ -7,12 +7,14 @@ use axum::{Json, Router};
 use mempool_infra::network_component::CommunicationInterface;
 use starknet_api::external_transaction::ExternalTransaction;
 use starknet_mempool_types::mempool_types::{
-    GatewayNetworkComponent, GatewayToMempoolMessage, MempoolInput,
+    Account, GatewayNetworkComponent, GatewayToMempoolMessage, MempoolInput,
 };
 
 use crate::config::{GatewayNetworkConfig, StatelessTransactionValidatorConfig};
 use crate::errors::GatewayError;
+use crate::starknet_api_test_utils::get_sender_address;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
+use crate::utils::external_tx_to_thin_tx;
 
 #[cfg(test)]
 #[path = "gateway_test.rs"]
@@ -64,6 +66,8 @@ impl Gateway {
     }
 }
 
+// Gateway handlers.
+
 async fn is_alive() -> GatewayResult<String> {
     unimplemented!("Future handling should be implemented here.");
 }
@@ -100,13 +104,17 @@ fn process_tx(
     // TODO(Arni, 1/5/2024): Produce response.
     // Send response.
 
+    let mempool_input = MempoolInput {
+        tx: external_tx_to_thin_tx(&tx),
+        account: Account { address: get_sender_address(&tx), ..Default::default() },
+    };
+
     Ok((
         match tx {
             ExternalTransaction::Declare(_) => "DECLARE".into(),
             ExternalTransaction::DeployAccount(_) => "DEPLOY_ACCOUNT".into(),
             ExternalTransaction::Invoke(_) => "INVOKE".into(),
         },
-        // TODO(Yael, 15/5/2024): Add tx converter.
-        MempoolInput::default(),
+        mempool_input,
     ))
 }

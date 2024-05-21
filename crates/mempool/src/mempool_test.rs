@@ -35,7 +35,7 @@ fn create_for_testing(inputs: impl IntoIterator<Item = MempoolInput>) -> Mempool
 }
 
 #[fixture]
-pub fn mempool() -> Mempool {
+fn mempool() -> Mempool {
     create_for_testing([])
 }
 

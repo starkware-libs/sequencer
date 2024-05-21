@@ -31,5 +31,7 @@ validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
+hyper.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
+starknet_mempool = { path = "../mempool", version = "0.0" }

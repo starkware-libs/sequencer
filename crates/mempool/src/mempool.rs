@@ -35,8 +35,8 @@ impl Mempool {
         batcher_network: BatcherToMempoolChannels,
     ) -> Self {
         let mut mempool = Mempool {
-            txs_queue: Default::default(),
-            state: Default::default(),
+            txs_queue: PriorityQueue::default(),
+            state: HashMap::default(),
             gateway_network,
             batcher_network,
         };
@@ -58,6 +58,13 @@ impl Mempool {
         }));
 
         mempool
+    }
+
+    pub fn empty(
+        gateway_network: MempoolNetworkComponent,
+        batcher_network: BatcherToMempoolChannels,
+    ) -> Self {
+        Mempool::new([], gateway_network, batcher_network)
     }
 
     /// Retrieves up to `n_txs` transactions with the highest priority from the mempool.
@@ -123,7 +130,6 @@ impl Mempool {
                         None => break,
                     }
                 }
-
             }
         }
         Ok(())
