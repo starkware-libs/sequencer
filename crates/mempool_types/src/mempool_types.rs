@@ -23,7 +23,7 @@ pub struct Account {
     pub state: AccountState,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct MempoolInput {
     pub tx: ThinTransaction,
     pub account: Account,
@@ -31,7 +31,7 @@ pub struct MempoolInput {
 
 #[derive(Debug)]
 pub enum GatewayToMempoolMessage {
-    AddTransaction(ThinTransaction, Account),
+    AddTransaction(MempoolInput),
 }
 
 pub type MempoolToGatewayMessage = ();

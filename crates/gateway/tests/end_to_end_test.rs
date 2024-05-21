@@ -2,8 +2,8 @@ use mempool_infra::network_component::CommunicationInterface;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::mempool_types::{
-    Account, AccountState, GatewayNetworkComponent, GatewayToMempoolMessage,
-    MempoolNetworkComponent, MempoolToGatewayMessage, ThinTransaction,
+    Account, AccountState, GatewayNetworkComponent, GatewayToMempoolMessage, MempoolInput,
+    MempoolNetworkComponent, MempoolToGatewayMessage,
 };
 use tokio::sync::mpsc::channel;
 use tokio::task;
@@ -22,10 +22,10 @@ async fn test_send_and_receive() {
     let mut mempool_network =
         MempoolNetworkComponent::new(tx_mempool_to_gateway, rx_gateway_to_mempool);
 
-    let tx = ThinTransaction::default();
-    let account = create_default_account();
+    let tx_hash = TransactionHash::default();
+    let mempool_input = MempoolInput::default();
     task::spawn(async move {
-        let gateway_to_mempool = GatewayToMempoolMessage::AddTransaction(tx, account);
+        let gateway_to_mempool = GatewayToMempoolMessage::AddTransaction(mempool_input);
         gateway_network.send(gateway_to_mempool).await.unwrap();
     })
     .await
@@ -35,8 +35,8 @@ async fn test_send_and_receive() {
         task::spawn(async move { mempool_network.recv().await }).await.unwrap().unwrap();
 
     match mempool_message {
-        GatewayToMempoolMessage::AddTransaction(tx, _) => {
-            assert_eq!(tx.tx_hash, TransactionHash::default())
+        GatewayToMempoolMessage::AddTransaction(mempool_input) => {
+            assert_eq!(mempool_input.tx.tx_hash, tx_hash);
         }
     }
 }

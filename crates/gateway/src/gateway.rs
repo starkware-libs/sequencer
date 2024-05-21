@@ -4,8 +4,11 @@ use std::sync::Arc;
 use axum::extract::State;
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use mempool_infra::network_component::CommunicationInterface;
 use starknet_api::external_transaction::ExternalTransaction;
-use starknet_mempool_types::mempool_types::GatewayNetworkComponent;
+use starknet_mempool_types::mempool_types::{
+    GatewayNetworkComponent, GatewayToMempoolMessage, MempoolInput,
+};
 
 use crate::config::{GatewayNetworkConfig, StatelessTransactionValidatorConfig};
 use crate::errors::GatewayError;
@@ -54,7 +57,7 @@ impl Gateway {
 
         Router::new()
             .route("/is_alive", get(is_alive))
-            .route("/add_tx", post(async_add_tx))
+            .route("/add_tx", post(add_tx))
             .with_state(app_state)
         // TODO: when we need to configure the router, like adding banned ips, add it here via
         // `with_state`.
@@ -65,27 +68,45 @@ async fn is_alive() -> GatewayResult<String> {
     unimplemented!("Future handling should be implemented here.");
 }
 
-async fn async_add_tx(
-    State(gateway_state): State<AppState>,
+async fn add_tx(
+    State(app_state): State<AppState>,
     Json(tx): Json<ExternalTransaction>,
 ) -> GatewayResult<String> {
-    tokio::task::spawn_blocking(move || add_tx(gateway_state, tx)).await?
+    let (response, mempool_input) = tokio::task::spawn_blocking(move || {
+        process_tx(app_state.stateless_transaction_validator, tx)
+    })
+    .await??;
+
+    let message = GatewayToMempoolMessage::AddTransaction(mempool_input);
+    app_state
+        .network_component
+        .send(message)
+        .await
+        .map_err(|e| GatewayError::MessageSendError(e.to_string()))?;
+    Ok(response)
 }
 
-fn add_tx(gateway_state: AppState, tx: ExternalTransaction) -> GatewayResult<String> {
+fn process_tx(
+    stateless_transaction_validator: StatelessTransactionValidator,
+    tx: ExternalTransaction,
+) -> GatewayResult<(String, MempoolInput)> {
     // TODO(Arni, 1/5/2024): Preform congestion control.
 
     // Perform stateless validations.
-    gateway_state.stateless_transaction_validator.validate(&tx)?;
+    stateless_transaction_validator.validate(&tx)?;
 
     // TODO(Yael, 1/5/2024): Preform state related validations.
-    // TODO(Arni, 1/5/2024): Move transaction to mempool.
 
     // TODO(Arni, 1/5/2024): Produce response.
     // Send response.
-    Ok(match tx {
-        ExternalTransaction::Declare(_) => "DECLARE".into(),
-        ExternalTransaction::DeployAccount(_) => "DEPLOY_ACCOUNT".into(),
-        ExternalTransaction::Invoke(_) => "INVOKE".into(),
-    })
+
+    Ok((
+        match tx {
+            ExternalTransaction::Declare(_) => "DECLARE".into(),
+            ExternalTransaction::DeployAccount(_) => "DEPLOY_ACCOUNT".into(),
+            ExternalTransaction::Invoke(_) => "INVOKE".into(),
+        },
+        // TODO(Yael, 15/5/2024): Add tx converter.
+        MempoolInput::default(),
+    ))
 }

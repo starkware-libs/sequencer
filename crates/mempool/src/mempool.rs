@@ -70,6 +70,7 @@ impl Mempool {
 
     /// Adds a new transaction to the mempool.
     /// TODO: support fee escalation and transactions with future nonces.
+    /// TODO: change input type to `MempoolInput`.
     pub fn add_tx(&mut self, tx: ThinTransaction, account: Account) -> MempoolResult<()> {
         match self.state.entry(account.address) {
             Occupied(_) => Err(MempoolError::DuplicateTransaction { tx_hash: tx.tx_hash }),
@@ -114,8 +115,8 @@ impl Mempool {
 
     fn process_network_message(&mut self, message: GatewayToMempoolMessage) -> Result<()> {
         match message {
-            GatewayToMempoolMessage::AddTransaction(tx, account_state) => {
-                self.add_tx(tx, account_state)?;
+            GatewayToMempoolMessage::AddTransaction(mempool_input) => {
+                self.add_tx(mempool_input.tx, mempool_input.account)?;
                 Ok(())
             }
         }

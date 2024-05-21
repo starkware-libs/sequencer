@@ -13,6 +13,8 @@ use tokio::task::JoinError;
 pub enum GatewayError {
     #[error("Internal server error: {0}")]
     InternalServerError(#[from] JoinError),
+    #[error("Error sending message: {0}")]
+    MessageSendError(String),
     #[error(transparent)]
     StatelessTransactionValidatorError(#[from] StatelessTransactionValidatorError),
 }
