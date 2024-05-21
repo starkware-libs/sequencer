@@ -78,7 +78,7 @@ impl Felt {
     }
 
     /// Parse a hex-encoded number into `Felt`.
-    pub(crate) fn from_hex(hex_string: &str) -> Result<Self, FromStrError> {
+    pub fn from_hex(hex_string: &str) -> Result<Self, FromStrError> {
         Ok(StarknetTypesFelt::from_hex(hex_string)?.into())
     }
 

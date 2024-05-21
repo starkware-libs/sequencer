@@ -11,7 +11,9 @@ use committer::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePath, EdgePathLength, NodeData, PathToBottom,
 };
 use committer::patricia_merkle_tree::node_data::leaf::{ContractState, LeafDataImpl};
-use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::CONTRACT_STATE_HASH_VERSION;
+use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
+    CONTRACT_CLASS_LEAF_V0, CONTRACT_STATE_HASH_VERSION,
+};
 use committer::storage::errors::{DeserializationError, SerializationError};
 use committer::storage::map_storage::MapStorage;
 use committer::storage::serde_trait::Serializable;
@@ -464,8 +466,13 @@ pub(crate) fn storage_serialize_test() -> Result<String, PythonTestError> {
 }
 
 fn python_hash_constants_compare() -> String {
-    // TODO(Nimrod, 15/5/2024): Compare contract class leaf version.
-    format!("{:?}", CONTRACT_STATE_HASH_VERSION.to_bytes_be())
+    format!(
+        "[{:?}, {:?}]",
+        CONTRACT_STATE_HASH_VERSION.to_bytes_be(),
+        Felt::from_hex(CONTRACT_CLASS_LEAF_V0).expect(
+        "could not parse hex string corresponding to b'CONTRACT_CLASS_LEAF_V0' to Felt",
+        ).to_bytes_be()
+    )
 }
 
 /// Processes a map containing JSON strings for different node data.
