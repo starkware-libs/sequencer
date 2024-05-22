@@ -1,14 +1,14 @@
 use blockifier::blockifier::block::BlockInfo;
 use blockifier::blockifier::stateful_validator::StatefulValidator as BlockifierStatefulValidator;
 use blockifier::bouncer::BouncerConfig;
-use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
+use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::ClassInfo;
 use blockifier::state::cached_state::CachedState;
 use blockifier::versioned_constants::VersionedConstants;
-use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use starknet_api::external_transaction::ExternalTransaction;
 use starknet_api::transaction::TransactionHash;
 
+use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::{StatefulTransactionValidatorError, StatefulTransactionValidatorResult};
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 use crate::utils::external_tx_to_account_tx;
@@ -73,57 +73,4 @@ pub fn get_latest_block_info(
 ) -> StatefulTransactionValidatorResult<BlockInfo> {
     let state_reader = state_reader_factory.get_state_reader_from_latest_block();
     Ok(state_reader.get_block_info()?)
-}
-
-// TODO(Arni): Remove this struct once Chain info supports Papyrus serialization.
-#[derive(Clone, Debug)]
-pub struct ChainInfoConfig {
-    chain_id: ChainId,
-    pub strk_fee_token_address: ContractAddress,
-    pub eth_fee_token_address: ContractAddress,
-}
-
-impl From<ChainInfoConfig> for ChainInfo {
-    fn from(chain_info: ChainInfoConfig) -> Self {
-        Self {
-            chain_id: chain_info.chain_id,
-            fee_token_addresses: FeeTokenAddresses {
-                strk_fee_token_address: chain_info.strk_fee_token_address,
-                eth_fee_token_address: chain_info.eth_fee_token_address,
-            },
-        }
-    }
-}
-
-impl From<ChainInfo> for ChainInfoConfig {
-    fn from(chain_info: ChainInfo) -> Self {
-        let FeeTokenAddresses { strk_fee_token_address, eth_fee_token_address } =
-            chain_info.fee_token_addresses;
-        Self { chain_id: chain_info.chain_id, strk_fee_token_address, eth_fee_token_address }
-    }
-}
-
-impl Default for ChainInfoConfig {
-    fn default() -> Self {
-        ChainInfo::default().into()
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct StatefulTransactionValidatorConfig {
-    pub max_nonce_for_validation_skip: Nonce,
-    pub validate_max_n_steps: u32,
-    pub max_recursion_depth: usize,
-    pub chain_info: ChainInfoConfig,
-}
-
-impl StatefulTransactionValidatorConfig {
-    pub fn create_for_testing() -> Self {
-        StatefulTransactionValidatorConfig {
-            max_nonce_for_validation_skip: Default::default(),
-            validate_max_n_steps: 1000000,
-            max_recursion_depth: 50,
-            chain_info: Default::default(),
-        }
-    }
 }

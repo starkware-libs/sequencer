@@ -1,9 +1,11 @@
 use std::collections::BTreeMap;
 use std::net::IpAddr;
 
+use blockifier::context::{ChainInfo, FeeTokenAddresses};
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use validator::Validate;
 
 /// The gateway network connection related configuration.
@@ -100,5 +102,58 @@ impl SerializeConfig for RpcStateReaderConfig {
                 ParamPrivacyInput::Public,
             ),
         ])
+    }
+}
+
+// TODO(Arni): Remove this struct once Chain info supports Papyrus serialization.
+#[derive(Clone, Debug)]
+pub struct ChainInfoConfig {
+    pub chain_id: ChainId,
+    pub strk_fee_token_address: ContractAddress,
+    pub eth_fee_token_address: ContractAddress,
+}
+
+impl From<ChainInfoConfig> for ChainInfo {
+    fn from(chain_info: ChainInfoConfig) -> Self {
+        Self {
+            chain_id: chain_info.chain_id,
+            fee_token_addresses: FeeTokenAddresses {
+                strk_fee_token_address: chain_info.strk_fee_token_address,
+                eth_fee_token_address: chain_info.eth_fee_token_address,
+            },
+        }
+    }
+}
+
+impl From<ChainInfo> for ChainInfoConfig {
+    fn from(chain_info: ChainInfo) -> Self {
+        let FeeTokenAddresses { strk_fee_token_address, eth_fee_token_address } =
+            chain_info.fee_token_addresses;
+        Self { chain_id: chain_info.chain_id, strk_fee_token_address, eth_fee_token_address }
+    }
+}
+
+impl Default for ChainInfoConfig {
+    fn default() -> Self {
+        ChainInfo::default().into()
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct StatefulTransactionValidatorConfig {
+    pub max_nonce_for_validation_skip: Nonce,
+    pub validate_max_n_steps: u32,
+    pub max_recursion_depth: usize,
+    pub chain_info: ChainInfoConfig,
+}
+
+impl StatefulTransactionValidatorConfig {
+    pub fn create_for_testing() -> Self {
+        StatefulTransactionValidatorConfig {
+            max_nonce_for_validation_skip: Default::default(),
+            validate_max_n_steps: 1000000,
+            max_recursion_depth: 50,
+            chain_info: Default::default(),
+        }
     }
 }

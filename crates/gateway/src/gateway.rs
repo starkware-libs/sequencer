@@ -11,13 +11,13 @@ use starknet_mempool_types::mempool_types::{
     Account, GatewayNetworkComponent, GatewayToMempoolMessage, MempoolInput,
 };
 
-use crate::config::{GatewayNetworkConfig, StatelessTransactionValidatorConfig};
+use crate::config::{
+    GatewayNetworkConfig, StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig,
+};
 use crate::errors::GatewayError;
 use crate::starknet_api_test_utils::get_sender_address;
 use crate::state_reader::StateReaderFactory;
-use crate::stateful_transaction_validator::{
-    StatefulTransactionValidator, StatefulTransactionValidatorConfig,
-};
+use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
 use crate::utils::external_tx_to_thin_tx;
 

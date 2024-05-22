@@ -7,13 +7,14 @@ use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidat
 use rstest::rstest;
 use starknet_api::hash::StarkFelt;
 
-use super::{StatefulTransactionValidator, StatefulTransactionValidatorConfig};
+use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::{StatefulTransactionValidatorError, StatefulTransactionValidatorResult};
 use crate::starknet_api_test_utils::{
     executable_external_invoke_tx_for_testing, executable_resource_bounds_mapping,
     VALID_L1_GAS_MAX_AMOUNT, VALID_L1_GAS_MAX_PRICE_PER_UNIT,
 };
 use crate::state_reader_test_utils::{TestStateReader, TestStateReaderFactory};
+use crate::stateful_transaction_validator::StatefulTransactionValidator;
 
 #[rstest]
 #[case::valid_invoke_tx(

@@ -16,12 +16,10 @@ use starknet_mempool_types::mempool_types::{
 };
 use tokio::sync::mpsc::channel;
 
-use crate::config::StatelessTransactionValidatorConfig;
+use crate::config::{StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig};
 use crate::gateway::{add_tx, AppState};
 use crate::state_reader_test_utils::{TestStateReader, TestStateReaderFactory};
-use crate::stateful_transaction_validator::{
-    StatefulTransactionValidator, StatefulTransactionValidatorConfig,
-};
+use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
 
 const TEST_FILES_FOLDER: &str = "./tests/fixtures";

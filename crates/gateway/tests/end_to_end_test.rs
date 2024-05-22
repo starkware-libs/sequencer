@@ -12,10 +12,11 @@ use hyper::{Client, Response};
 use mempool_infra::network_component::CommunicationInterface;
 use rstest::rstest;
 use starknet_api::transaction::{Tip, TransactionHash};
-use starknet_gateway::config::{GatewayNetworkConfig, StatelessTransactionValidatorConfig};
+use starknet_gateway::config::{
+    GatewayNetworkConfig, StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig,
+};
 use starknet_gateway::gateway::Gateway;
 use starknet_gateway::state_reader_test_utils::{TestStateReader, TestStateReaderFactory};
-use starknet_gateway::stateful_transaction_validator::StatefulTransactionValidatorConfig;
 use starknet_mempool::mempool::Mempool;
 use starknet_mempool_types::mempool_types::{
     BatcherToMempoolChannels, BatcherToMempoolMessage, GatewayNetworkComponent,
