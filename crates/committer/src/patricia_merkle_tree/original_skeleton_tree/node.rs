@@ -13,5 +13,4 @@ pub(crate) enum OriginalSkeletonNode {
     // Unmodified edge nodes on the merkle paths of modified leaves.
     EdgeSibling(EdgeData),
     Leaf(SkeletonLeaf),
-    Empty,
 }
