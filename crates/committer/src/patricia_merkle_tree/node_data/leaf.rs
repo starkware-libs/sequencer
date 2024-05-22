@@ -42,7 +42,7 @@ impl LeafData for LeafDataImpl {
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SkeletonLeaf {
     Zero,
     NonZero,

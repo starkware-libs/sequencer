@@ -19,7 +19,7 @@ pub(crate) trait UpdatedSkeletonTree: Sized + Send + Sync {
     #[allow(dead_code)]
     fn create(
         original_skeleton: impl OriginalSkeletonTree,
-        index_to_updated_leaf: &LeafModifications<SkeletonLeaf>,
+        leaf_modifications: &LeafModifications<SkeletonLeaf>,
     ) -> Result<Self, UpdatedSkeletonTreeError>;
 
     /// Does the skeleton represents an empty-tree (i.e. all leaves are empty).
@@ -42,7 +42,7 @@ pub(crate) struct UpdatedSkeletonTreeImpl {
 impl UpdatedSkeletonTree for UpdatedSkeletonTreeImpl {
     fn create(
         _original_skeleton: impl OriginalSkeletonTree,
-        _index_to_updated_leaf: &LeafModifications<SkeletonLeaf>,
+        _leaf_modifications: &LeafModifications<SkeletonLeaf>,
     ) -> Result<Self, UpdatedSkeletonTreeError> {
         todo!()
     }

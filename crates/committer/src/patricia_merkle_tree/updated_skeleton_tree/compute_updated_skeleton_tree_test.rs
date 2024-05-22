@@ -1,11 +1,18 @@
-use crate::felt::Felt;
-use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength, PathToBottom};
-use crate::patricia_merkle_tree::types::NodeIndex;
+use ethnum::U256;
+use rstest::{fixture, rstest};
 use std::collections::HashMap;
 
-use ethnum::U256;
-use rstest::rstest;
-
+use crate::felt::Felt;
+use crate::hash::hash_trait::HashOutput;
+use crate::patricia_merkle_tree::node_data::inner_node::{
+    EdgeData, EdgePath, EdgePathLength, PathToBottom,
+};
+use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
+use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
+use crate::patricia_merkle_tree::types::NodeIndex;
+use crate::patricia_merkle_tree::updated_skeleton_tree::compute_updated_skeleton_tree::TempSkeletonNode;
+use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
+use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 use crate::patricia_merkle_tree::{
     original_skeleton_tree::tree::OriginalSkeletonTreeImpl, types::TreeHeight,
 };
@@ -14,6 +21,13 @@ fn empty_skeleton(height: u8) -> OriginalSkeletonTreeImpl {
     OriginalSkeletonTreeImpl {
         nodes: HashMap::new(),
         tree_height: TreeHeight::new(height),
+    }
+}
+
+#[fixture]
+fn updated_skeleton() -> UpdatedSkeletonTreeImpl {
+    UpdatedSkeletonTreeImpl {
+        skeleton_tree: HashMap::new(),
     }
 }
 
@@ -98,4 +112,84 @@ fn test_get_path_to_lca(
         ),
         expected
     );
+}
+
+#[rstest]
+#[case::to_empty(
+    &PathToBottom::LEFT_CHILD,
+    &NodeIndex::ROOT,
+    &TempSkeletonNode::Empty,
+    &[],
+    TempSkeletonNode::Empty,
+    &[],
+)]
+#[case::to_edge(
+    &PathToBottom::from("00"),
+    &NodeIndex::from(4),
+    &TempSkeletonNode::Original(
+        OriginalSkeletonNode::Edge {path_to_bottom: PathToBottom::from("11")}
+    ),
+    &[],
+    TempSkeletonNode::Original(
+        OriginalSkeletonNode::Edge { path_to_bottom: (PathToBottom::from("0011")) }
+    ),
+    &[],
+)]
+#[case::to_edge_sibling(
+    &PathToBottom::RIGHT_CHILD,
+    &NodeIndex::from(5),
+    &TempSkeletonNode::Original(OriginalSkeletonNode::EdgeSibling(
+        EdgeData {bottom_hash: HashOutput::ZERO, path_to_bottom: PathToBottom::from("01")}
+    )),
+   &[],
+    TempSkeletonNode::Original(OriginalSkeletonNode::EdgeSibling(
+        EdgeData {bottom_hash: HashOutput::ZERO, path_to_bottom: (PathToBottom::from("101"))}
+    )),
+    &[],
+)]
+#[case::to_binary(
+    &PathToBottom::RIGHT_CHILD,
+    &NodeIndex::from(7),
+    &TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
+    &[],
+    TempSkeletonNode::Original(
+        OriginalSkeletonNode::Edge {path_to_bottom: PathToBottom::RIGHT_CHILD}
+    ),
+    &[(NodeIndex::from(7), UpdatedSkeletonNode::Binary)]
+)]
+#[case::to_empty_leaf(
+    &PathToBottom::RIGHT_CHILD,
+    &NodeIndex::from(7),
+    &TempSkeletonNode::Original(OriginalSkeletonNode::Leaf(SkeletonLeaf::NonZero)),
+    &[(NodeIndex::from(7),SkeletonLeaf::Zero)],
+    TempSkeletonNode::Empty,
+    &[],
+)]
+#[case::to_non_empty_leaf(
+    &PathToBottom::RIGHT_CHILD,
+    &NodeIndex::from(7),
+    &TempSkeletonNode::Original(OriginalSkeletonNode::Leaf(SkeletonLeaf::NonZero)),
+    &[(NodeIndex::from(7), SkeletonLeaf::NonZero)],
+    TempSkeletonNode::Original(
+        OriginalSkeletonNode::Edge {path_to_bottom: PathToBottom::RIGHT_CHILD}
+    ),
+    &[(NodeIndex::from(7), UpdatedSkeletonNode::Leaf(SkeletonLeaf::NonZero))]
+)]
+fn test_node_from_edge_data(
+    mut updated_skeleton: UpdatedSkeletonTreeImpl,
+    #[case] path: &PathToBottom,
+    #[case] bottom_index: &NodeIndex,
+    #[case] bottom: &TempSkeletonNode,
+    #[case] leaf_modifications: &[(NodeIndex, SkeletonLeaf)],
+    #[case] expected_node: TempSkeletonNode,
+    #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
+) {
+    let mut expected_skeleton_tree = updated_skeleton.skeleton_tree.clone();
+    expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());
+    let leaf_modifications: HashMap<NodeIndex, SkeletonLeaf> =
+        leaf_modifications.iter().cloned().collect();
+    let temp_node =
+        updated_skeleton.node_from_edge_data(path, bottom_index, bottom, &leaf_modifications);
+    assert_eq!(temp_node, expected_node);
+    assert_eq!(updated_skeleton.skeleton_tree, expected_skeleton_tree);
 }

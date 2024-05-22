@@ -2,6 +2,23 @@ use ethnum::U256;
 use rand::Rng;
 use rstest::rstest;
 
+use crate::felt::Felt;
+use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength, PathToBottom};
+
+impl From<&str> for PathToBottom {
+    fn from(value: &str) -> Self {
+        Self {
+            path: EdgePath(Felt::from(
+                u128::from_str_radix(value, 2).expect("Invalid binary string"),
+            )),
+            length: EdgePathLength(
+                (value.len() - if value.starts_with('+') { 1 } else { 0 })
+                    .try_into()
+                    .expect("String is too large"),
+            ),
+        }
+    }
+}
 /// Generates a random U256 number between low and high (exclusive).
 /// Panics if low > high.
 pub(crate) fn get_random_u256(low: U256, high: U256) -> U256 {
