@@ -119,8 +119,8 @@ fn process_tx(
     stateless_transaction_validator.validate(&tx)?;
 
     // TODO(Yael, 19/5/2024): pass the relevant class_info and deploy_account_hash.
-    stateful_transaction_validator.run_validate(state_reader_factory, &tx, None, None)?;
-    // TODO(Yael, 19/5/2024): return the tx_hash.
+    let _tx_hash =
+        stateful_transaction_validator.run_validate(state_reader_factory, &tx, None, None)?;
     // TODO(Arni, 1/5/2024): Move transaction to mempool.
 
     // TODO(Arni, 1/5/2024): Produce response.

@@ -135,3 +135,12 @@ pub fn external_tx_to_account_tx(
         }
     }
 }
+
+// TODO(yael 9/5/54): Remove once we we transition to InternalTransaction
+pub fn get_tx_hash(tx: &AccountTransaction) -> TransactionHash {
+    match tx {
+        AccountTransaction::Declare(tx) => tx.tx_hash,
+        AccountTransaction::DeployAccount(tx) => tx.tx_hash,
+        AccountTransaction::Invoke(tx) => tx.tx_hash,
+    }
+}

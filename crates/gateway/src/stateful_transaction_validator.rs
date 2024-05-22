@@ -11,7 +11,7 @@ use starknet_api::transaction::TransactionHash;
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::{StatefulTransactionValidatorError, StatefulTransactionValidatorResult};
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
-use crate::utils::external_tx_to_account_tx;
+use crate::utils::{external_tx_to_account_tx, get_tx_hash};
 
 #[cfg(test)]
 #[path = "stateful_transaction_validator_test.rs"]
@@ -28,7 +28,7 @@ impl StatefulTransactionValidator {
         external_tx: &ExternalTransaction,
         optional_class_info: Option<ClassInfo>,
         deploy_account_tx_hash: Option<TransactionHash>,
-    ) -> StatefulTransactionValidatorResult<()> {
+    ) -> StatefulTransactionValidatorResult<TransactionHash> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
         let latest_block_info = get_latest_block_info(state_reader_factory)?;
@@ -63,8 +63,9 @@ impl StatefulTransactionValidator {
             optional_class_info,
             &self.config.chain_info.chain_id,
         )?;
+        let tx_hash = get_tx_hash(&account_tx);
         validator.perform_validations(account_tx, deploy_account_tx_hash)?;
-        Ok(())
+        Ok(tx_hash)
     }
 }
 

@@ -6,6 +6,7 @@ use blockifier::test_utils::{create_trivial_calldata, CairoVersion, NonceManager
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
 use rstest::rstest;
 use starknet_api::hash::StarkFelt;
+use starknet_api::transaction::TransactionHash;
 
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::{StatefulTransactionValidatorError, StatefulTransactionValidatorResult};
@@ -19,7 +20,9 @@ use crate::stateful_transaction_validator::StatefulTransactionValidator;
 #[rstest]
 #[case::valid_invoke_tx(
     100000000000000000,
-    Ok(())
+    Ok(TransactionHash(StarkFelt::try_from(
+        "0x07459d76bd7adec02c25cf7ab0dcb95e9197101d4ada41cae6b465fcb78c0e47"
+    ).unwrap()))
 )]
 #[case::invalid_invoke_tx(
     0,
@@ -38,7 +41,7 @@ use crate::stateful_transaction_validator::StatefulTransactionValidator;
 )]
 fn test_stateful_transaction_validator(
     #[case] account_balance: u128,
-    #[case] expected_result: StatefulTransactionValidatorResult<()>,
+    #[case] expected_result: StatefulTransactionValidatorResult<TransactionHash>,
 ) {
     let cairo_version = CairoVersion::Cairo1;
     let block_context = &BlockContext::create_for_testing();
