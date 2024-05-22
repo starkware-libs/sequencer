@@ -1,11 +1,24 @@
 use crate::storage::errors::DeserializationError;
-use crate::storage::storage_trait::{StorageKey, StorageValue};
+use crate::storage::storage_trait::{StorageKey, StoragePrefix, StorageValue};
 
-pub trait Serializable {
+pub trait DBObject {
     /// Serializes the given value.
     fn serialize(&self) -> StorageValue;
-    /// Returns the key used to store self in storage.
-    fn db_key(&self) -> StorageKey;
+
+    /// Returns the storage key prefix of the DB object.
+    fn get_prefix(&self) -> StoragePrefix;
+
+    /// Returns a `StorageKey` from a prefix and a suffix.
+    fn get_db_key(&self, suffix: &[u8]) -> StorageKey {
+        StorageKey(
+            [
+                self.get_prefix().to_bytes().to_vec(),
+                b":".to_vec(),
+                suffix.to_vec(),
+            ]
+            .concat(),
+        )
+    }
 }
 
 pub(crate) trait Deserializable: Sized {

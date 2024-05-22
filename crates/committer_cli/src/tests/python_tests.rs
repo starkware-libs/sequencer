@@ -16,7 +16,7 @@ use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
 };
 use committer::storage::errors::{DeserializationError, SerializationError};
 use committer::storage::map_storage::MapStorage;
-use committer::storage::serde_trait::Serializable;
+use committer::storage::serde_trait::DBObject;
 use committer::storage::storage_trait::{Storage, StorageKey, StorageValue};
 use std::fmt::Debug;
 use std::{collections::HashMap, io};
@@ -195,7 +195,7 @@ pub(crate) fn test_binary_serialize_test(binary_input: HashMap<String, u128>) ->
     };
 
     // Create a filled node with binary data and zero hash.
-    let filled_node = FilledNode {
+    let filled_node: FilledNode<LeafDataImpl> = FilledNode {
         data: NodeData::Binary(binary_data),
         hash: HashOutput(Felt::ZERO),
     };
@@ -386,50 +386,46 @@ pub(crate) fn test_node_db_key() -> String {
     // Generate keys for different node types.
     let hash = HashOutput(zero);
 
-    let binary_node_key = FilledNode {
+    let binary_node: FilledNode<LeafDataImpl> = FilledNode {
         data: NodeData::Binary(BinaryData {
             left_hash: hash,
             right_hash: hash,
         }),
         hash,
-    }
-    .db_key()
-    .0;
+    };
+    let binary_node_key = binary_node.db_key().0;
 
-    let edge_node_key = FilledNode {
+    let edge_node: FilledNode<LeafDataImpl> = FilledNode {
         data: NodeData::Edge(EdgeData {
             bottom_hash: hash,
             path_to_bottom: Default::default(),
         }),
         hash,
-    }
-    .db_key()
-    .0;
+    };
 
-    let storage_leaf_key = FilledNode {
+    let edge_node_key = edge_node.db_key().0;
+
+    let storage_leaf = FilledNode {
         data: NodeData::Leaf(LeafDataImpl::StorageValue(zero)),
         hash,
-    }
-    .db_key()
-    .0;
+    };
+    let storage_leaf_key = storage_leaf.db_key().0;
 
-    let state_tree_leaf_key = FilledNode {
+    let state_tree_leaf = FilledNode {
         data: NodeData::Leaf(LeafDataImpl::ContractState(ContractState {
             class_hash: ClassHash(zero),
             storage_root_hash: HashOutput(zero),
             nonce: Nonce(zero),
         })),
         hash,
-    }
-    .db_key()
-    .0;
+    };
+    let state_tree_leaf_key = state_tree_leaf.db_key().0;
 
-    let compiled_class_leaf_key = FilledNode {
+    let compiled_class_leaf = FilledNode {
         data: NodeData::Leaf(LeafDataImpl::CompiledClassHash(ClassHash(zero))),
         hash,
-    }
-    .db_key()
-    .0;
+    };
+    let compiled_class_leaf_key = compiled_class_leaf.db_key().0;
 
     // Store keys in a HashMap.
     let mut map: HashMap<String, Vec<u8>> = HashMap::new();
@@ -499,7 +495,7 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
     let binary_data: HashMap<String, u128> = serde_json::from_str(binary_json)?;
 
     // Create a binary node from the parsed data.
-    let binary_rust = FilledNode {
+    let binary_rust: FilledNode<LeafDataImpl> = FilledNode {
         data: NodeData::Binary(BinaryData {
             left_hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "left")?)),
             right_hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "right")?)),
@@ -515,7 +511,7 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
     let edge_data: HashMap<String, u128> = serde_json::from_str(edge_json)?;
 
     // Create an edge node from the parsed data.
-    let edge_rust = FilledNode {
+    let edge_rust: FilledNode<LeafDataImpl> = FilledNode {
         data: NodeData::Edge(EdgeData {
             bottom_hash: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "bottom")?)),
             path_to_bottom: PathToBottom {

@@ -4,10 +4,11 @@ use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePath, EdgePathLength, NodeData, PathToBottom,
 };
-use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
+use crate::patricia_merkle_tree::node_data::leaf::{LeafData, LeafDataImpl};
 use crate::storage::errors::{DeserializationError, SerializationError};
-use crate::storage::serde_trait::{Deserializable, Serializable};
-use crate::storage::storage_trait::{create_db_key, StorageKey, StoragePrefix, StorageValue};
+use crate::storage::serde_trait::{DBObject, Deserializable};
+use crate::storage::storage_trait::{StorageKey, StoragePrefix, StorageValue};
+
 use serde::{Deserialize, Serialize};
 
 // Const describe the size of the serialized node.
@@ -31,13 +32,18 @@ pub(crate) struct LeafCompiledClassToSerialize {
 type FilledNodeSerializationResult = Result<StorageValue, SerializationError>;
 type FilledNodeDeserializationResult = Result<FilledNode<LeafDataImpl>, DeserializationError>;
 
-impl FilledNode<LeafDataImpl> {
-    pub(crate) fn suffix(&self) -> [u8; SERIALIZE_HASH_BYTES] {
+#[allow(dead_code)]
+impl<L: LeafData> FilledNode<L> {
+    pub fn suffix(&self) -> [u8; SERIALIZE_HASH_BYTES] {
         self.hash.0.to_bytes_be()
+    }
+
+    pub fn db_key(&self) -> StorageKey {
+        self.get_db_key(&self.suffix())
     }
 }
 
-impl Serializable for FilledNode<LeafDataImpl> {
+impl<L: LeafData> DBObject for FilledNode<L> {
     /// This method serializes the filled node into a byte vector, where:
     /// - For binary nodes: Concatenates left and right hashes.
     /// - For edge nodes: Concatenates bottom hash, path, and path length.
@@ -75,23 +81,10 @@ impl Serializable for FilledNode<LeafDataImpl> {
         }
     }
 
-    /// Returns the db key of the filled node - [prefix + b":" + suffix].
-    fn db_key(&self) -> StorageKey {
-        let suffix = self.suffix();
-
+    fn get_prefix(&self) -> StoragePrefix {
         match &self.data {
-            NodeData::Binary(_) | NodeData::Edge(_) => {
-                create_db_key(StoragePrefix::InnerNode, &suffix)
-            }
-            NodeData::Leaf(LeafDataImpl::StorageValue(_)) => {
-                create_db_key(StoragePrefix::StorageLeaf, &suffix)
-            }
-            NodeData::Leaf(LeafDataImpl::CompiledClassHash(_)) => {
-                create_db_key(StoragePrefix::CompiledClassLeaf, &suffix)
-            }
-            NodeData::Leaf(LeafDataImpl::ContractState { .. }) => {
-                create_db_key(StoragePrefix::StateTreeLeaf, &suffix)
-            }
+            NodeData::Binary(_) | NodeData::Edge(_) => StoragePrefix::InnerNode,
+            NodeData::Leaf(leaf_data) => leaf_data.get_prefix(),
         }
     }
 }

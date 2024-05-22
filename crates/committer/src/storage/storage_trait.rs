@@ -34,7 +34,7 @@ pub trait Storage: From<HashMap<StorageKey, StorageValue>> {
     fn delete(&mut self, key: &StorageKey) -> Option<StorageValue>;
 }
 
-pub(crate) enum StoragePrefix {
+pub enum StoragePrefix {
     InnerNode,
     StorageLeaf,
     StateTreeLeaf,
