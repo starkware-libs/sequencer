@@ -52,12 +52,12 @@ pub struct TestStateReaderFactory {
     pub state_reader: TestStateReader,
 }
 
-impl StateReaderFactory<TestStateReader> for TestStateReaderFactory {
-    fn get_state_reader_from_latest_block(&self) -> TestStateReader {
-        self.state_reader.clone()
+impl StateReaderFactory for TestStateReaderFactory {
+    fn get_state_reader_from_latest_block(&self) -> Box<dyn MempoolStateReader> {
+        Box::new(self.state_reader.clone())
     }
 
-    fn get_state_reader(&self, _block_number: BlockNumber) -> TestStateReader {
-        self.state_reader.clone()
+    fn get_state_reader(&self, _block_number: BlockNumber) -> Box<dyn MempoolStateReader> {
+        Box::new(self.state_reader.clone())
     }
 }

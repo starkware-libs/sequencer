@@ -1,16 +1,21 @@
 use std::fs;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Duration;
 
 use axum::body::{Body, HttpBody};
 use axum::http::{Request, StatusCode};
+use blockifier::blockifier::block::BlockInfo;
+use blockifier::test_utils::dict_state_reader::DictStateReader;
 use hyper::{Client, Response};
 use mempool_infra::network_component::CommunicationInterface;
 use rstest::rstest;
 use starknet_api::transaction::{Tip, TransactionHash};
 use starknet_gateway::config::{GatewayNetworkConfig, StatelessTransactionValidatorConfig};
 use starknet_gateway::gateway::Gateway;
+use starknet_gateway::state_reader_test_utils::{TestStateReader, TestStateReaderFactory};
+use starknet_gateway::stateful_transaction_validator::StatefulTransactionValidatorConfig;
 use starknet_mempool::mempool::Mempool;
 use starknet_mempool_types::mempool_types::{
     BatcherToMempoolChannels, BatcherToMempoolMessage, GatewayNetworkComponent,
@@ -72,9 +77,23 @@ async fn set_up_gateway(network_component: GatewayNetworkComponent) -> (IpAddr, 
         max_signature_length: 2,
         ..Default::default()
     };
+    let stateful_transaction_validator_config =
+        StatefulTransactionValidatorConfig::create_for_testing();
+    let state_reader_factory = Arc::new(TestStateReaderFactory {
+        state_reader: TestStateReader {
+            block_info: BlockInfo::create_for_testing(),
+            // TODO(yael 16/5/2024): create a test state that will make the tx pass validations
+            blockifier_state_reader: DictStateReader::default(),
+        },
+    });
 
-    let gateway =
-        Gateway { network_config, network_component, stateless_transaction_validator_config };
+    let gateway = Gateway {
+        network_config,
+        network_component,
+        stateless_transaction_validator_config,
+        stateful_transaction_validator_config,
+        state_reader_factory,
+    };
 
     // Setup server
     tokio::spawn(async move { gateway.build_server().await });

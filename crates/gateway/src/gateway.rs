@@ -1,3 +1,4 @@
+use std::clone::Clone;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -13,6 +14,10 @@ use starknet_mempool_types::mempool_types::{
 use crate::config::{GatewayNetworkConfig, StatelessTransactionValidatorConfig};
 use crate::errors::GatewayError;
 use crate::starknet_api_test_utils::get_sender_address;
+use crate::state_reader::StateReaderFactory;
+use crate::stateful_transaction_validator::{
+    StatefulTransactionValidator, StatefulTransactionValidatorConfig,
+};
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
 use crate::utils::external_tx_to_thin_tx;
 
@@ -27,16 +32,19 @@ pub struct Gateway {
     // TODO(Arni, 7/5/2024): Move the stateless transaction validator config into the gateway
     // config.
     pub stateless_transaction_validator_config: StatelessTransactionValidatorConfig,
+    pub stateful_transaction_validator_config: StatefulTransactionValidatorConfig,
     pub network_component: GatewayNetworkComponent,
+    pub state_reader_factory: Arc<dyn StateReaderFactory>,
 }
 
 #[derive(Clone)]
 pub struct AppState {
     pub stateless_transaction_validator: StatelessTransactionValidator,
+    pub stateful_transaction_validator: Arc<StatefulTransactionValidator>,
     /// This field uses Arc to enable shared ownership, which is necessary because
     /// `GatewayNetworkClient` supports only one receiver at a time.
     pub network_component: Arc<GatewayNetworkComponent>,
-    // TODO(yael 15/5/24) add stateful_transaction_validator and state_reader_factory.
+    pub state_reader_factory: Arc<dyn StateReaderFactory>,
 }
 
 impl Gateway {
@@ -54,7 +62,11 @@ impl Gateway {
             stateless_transaction_validator: StatelessTransactionValidator {
                 config: self.stateless_transaction_validator_config,
             },
+            stateful_transaction_validator: Arc::new(StatefulTransactionValidator {
+                config: self.stateful_transaction_validator_config,
+            }),
             network_component: Arc::new(self.network_component),
+            state_reader_factory: self.state_reader_factory,
         };
 
         Router::new()
