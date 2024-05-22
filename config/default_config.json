@@ -1,0 +1,22 @@
+{
+  "components.gateway_component.execute": {
+    "description": "The component execution flag.",
+    "privacy": "Public",
+    "value": true
+  },
+  "components.mempool_component.execute": {
+    "description": "The component execution flag.",
+    "privacy": "Public",
+    "value": true
+  },
+  "gateway_config.ip": {
+    "description": "The gateway server ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "gateway_config.port": {
+    "description": "The gateway server port.",
+    "privacy": "Public",
+    "value": 8080
+  }
+}
