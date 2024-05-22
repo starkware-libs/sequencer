@@ -1,0 +1,9 @@
+[package]
+name = "starknet_task_executor"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
