@@ -64,7 +64,7 @@ fn test_stateful_transaction_validator(
             max_nonce_for_validation_skip: Default::default(),
             validate_max_n_steps: block_context.versioned_constants().validate_max_n_steps,
             max_recursion_depth: block_context.versioned_constants().max_recursion_depth,
-            chain_info: block_context.chain_info().clone(),
+            chain_info: block_context.chain_info().clone().into(),
         },
     };
 
