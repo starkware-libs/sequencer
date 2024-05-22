@@ -2,11 +2,33 @@ use std::collections::BTreeMap;
 use std::net::IpAddr;
 
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
-use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use validator::Validate;
+
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+pub struct GatewayConfig {
+    pub network_config: GatewayNetworkConfig,
+    pub stateless_transaction_validator_config: StatelessTransactionValidatorConfig,
+    // TODO(Arni): Add the stateful transaction validator config.
+}
+
+impl SerializeConfig for GatewayConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        vec![
+            append_sub_config_name(self.network_config.dump(), "network_config"),
+            append_sub_config_name(
+                self.stateless_transaction_validator_config.dump(),
+                "stateless_transaction_validator_config",
+            ),
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
+    }
+}
 
 /// The gateway network connection related configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
