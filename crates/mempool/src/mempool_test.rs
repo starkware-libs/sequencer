@@ -6,12 +6,8 @@ use starknet_api::hash::{StarkFelt, StarkHash};
 use starknet_api::transaction::{Tip, TransactionHash};
 use starknet_api::{contract_address, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::{
-    BatcherToMempoolChannels, BatcherToMempoolMessage, GatewayToMempoolMessage,
-    MempoolNetworkComponent, MempoolToBatcherMessage, MempoolToGatewayMessage, ThinTransaction,
-};
+use starknet_mempool_types::mempool_types::ThinTransaction;
 use starknet_mempool_types::utils::create_thin_tx_for_testing;
-use tokio::sync::mpsc::channel;
 
 use crate::mempool::{Account, Mempool, MempoolInput};
 
@@ -30,6 +26,10 @@ macro_rules! add_tx_input {
     ($tip:expr, $tx_hash:expr) => {
         add_tx_input!($tip, $tx_hash, ContractAddress::default())
     };
+}
+
+fn create_for_testing(inputs: impl IntoIterator<Item = MempoolInput>) -> Mempool {
+    Mempool::new(inputs)
 }
 
 #[fixture]
@@ -137,19 +137,4 @@ fn check_mempool_txs_eq(mempool: &Mempool, expected_txs: &[ThinTransaction]) {
     let mempool_txs = mempool.txs_queue.iter();
     // Deref the inner mempool tx type.
     expected_txs.iter().zip(mempool_txs).all(|(a, b)| *a == **b);
-}
-
-// TODO: remove network code once server abstraction is merged, then move into mempool with cfg.
-fn create_for_testing(inputs: impl IntoIterator<Item = MempoolInput>) -> Mempool {
-    let (_, rx_gateway_to_mempool) = channel::<GatewayToMempoolMessage>(1);
-    let (tx_mempool_to_gateway, _) = channel::<MempoolToGatewayMessage>(1);
-    let gateway_network =
-        MempoolNetworkComponent::new(tx_mempool_to_gateway, rx_gateway_to_mempool);
-
-    let (_, rx_mempool_to_batcher) = channel::<BatcherToMempoolMessage>(1);
-    let (tx_batcher_to_mempool, _) = channel::<MempoolToBatcherMessage>(1);
-    let batcher_network =
-        BatcherToMempoolChannels { rx: rx_mempool_to_batcher, tx: tx_batcher_to_mempool };
-
-    Mempool::new(inputs, gateway_network, batcher_network)
 }

@@ -6,14 +6,11 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use blockifier::context::ChainInfo;
-use mempool_infra::component_server::ComponentServer;
 use starknet_api::external_transaction::ExternalTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_mempool::mempool::{Mempool, MempoolCommunicationWrapper};
+use starknet_mempool::mempool::{create_mempool_server, Mempool};
 use starknet_mempool_types::mempool_types::{
-    BatcherToMempoolChannels, BatcherToMempoolMessage, GatewayToMempoolMessage, MempoolClient,
-    MempoolClientImpl, MempoolNetworkComponent, MempoolRequestAndResponseSender,
-    MempoolToBatcherMessage, MempoolToGatewayMessage,
+    GatewayToMempoolMessage, MempoolClient, MempoolClientImpl, MempoolRequestAndResponseSender,
 };
 use tokio::sync::mpsc::channel;
 use tokio::task;
@@ -51,25 +48,15 @@ pub fn app_state(mempool_client: Arc<dyn MempoolClient>) -> AppState {
 async fn test_add_tx() {
     // TODO: Add fixture.
     // TODO -- remove gateway_network, batcher_network, and channels.
-    let (_, rx_gateway_to_mempool) = channel::<GatewayToMempoolMessage>(1);
-    let (tx_mempool_to_gateway, _) = channel::<MempoolToGatewayMessage>(1);
-    let gateway_network =
-        MempoolNetworkComponent::new(tx_mempool_to_gateway, rx_gateway_to_mempool);
-
-    let (_, rx_mempool_to_batcher) = channel::<BatcherToMempoolMessage>(1);
-    let (tx_batcher_to_mempool, _) = channel::<MempoolToBatcherMessage>(1);
-    let batcher_network =
-        BatcherToMempoolChannels { rx: rx_mempool_to_batcher, tx: tx_batcher_to_mempool };
+    let (_, _rx_gateway_to_mempool) = channel::<GatewayToMempoolMessage>(1);
 
     // Create and start the mempool server.
-    let mempool = Mempool::new([], gateway_network, batcher_network);
+    let mempool = Mempool::new([]);
     // TODO(Tsabary): wrap creation of channels in dedicated functions, take channel capacity from
     // config.
     let (tx_mempool, rx_mempool) =
         channel::<MempoolRequestAndResponseSender>(MEMPOOL_INVOCATIONS_QUEUE_SIZE);
-    // TODO(Tsabary, 1/6/2024): Wrap with a dedicated create_mempool_server function.
-    let mut mempool_server =
-        ComponentServer::new(MempoolCommunicationWrapper::new(mempool), rx_mempool);
+    let mut mempool_server = create_mempool_server(mempool, rx_mempool);
     task::spawn(async move {
         mempool_server.start().await;
     });

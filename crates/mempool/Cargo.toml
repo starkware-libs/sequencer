@@ -9,7 +9,6 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-anyhow.workspace = true
 async-trait.workspace = true
 derive_more.workspace = true
 mempool_infra = { path = "../mempool_infra", version = "0.0" }

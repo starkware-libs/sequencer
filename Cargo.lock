@@ -3402,7 +3402,6 @@ dependencies = [
  "blockifier",
  "cairo-lang-starknet-classes",
  "hyper",
- "mempool_infra",
  "papyrus_config",
  "pretty_assertions",
  "reqwest",
@@ -3421,7 +3420,6 @@ dependencies = [
 name = "starknet_mempool"
 version = "0.0.0"
 dependencies = [
- "anyhow",
  "assert_matches",
  "async-trait",
  "derive_more",

@@ -2,7 +2,6 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 
-use mempool_infra::component_server::ComponentServer;
 use mempool_infra::network_component::CommunicationInterface;
 use rstest::rstest;
 use starknet_api::transaction::{Tip, TransactionHash};
@@ -13,12 +12,11 @@ use starknet_gateway::config::{
 use starknet_gateway::gateway::Gateway;
 use starknet_gateway::starknet_api_test_utils::invoke_tx;
 use starknet_gateway::state_reader_test_utils::test_state_reader_factory;
-use starknet_mempool::mempool::{Mempool, MempoolCommunicationWrapper};
+use starknet_mempool::mempool::{create_mempool_server, Mempool};
 use starknet_mempool_integration_tests::integration_test_utils::GatewayClient;
 use starknet_mempool_types::mempool_types::{
-    BatcherToMempoolChannels, BatcherToMempoolMessage, GatewayNetworkComponent,
-    GatewayToMempoolMessage, MempoolClient, MempoolClientImpl, MempoolInput,
-    MempoolNetworkComponent, MempoolRequestAndResponseSender, MempoolToBatcherMessage,
+    GatewayNetworkComponent, GatewayToMempoolMessage, MempoolClient, MempoolClientImpl,
+    MempoolInput, MempoolNetworkComponent, MempoolRequestAndResponseSender,
     MempoolToGatewayMessage,
 };
 use tokio::sync::mpsc::channel;
@@ -56,16 +54,6 @@ async fn test_send_and_receive() {
     }
 }
 
-fn initialize_gateway_network_channels() -> (GatewayNetworkComponent, MempoolNetworkComponent) {
-    let (tx_gateway_to_mempool, rx_gateway_to_mempool) = channel::<GatewayToMempoolMessage>(1);
-    let (tx_mempool_to_gateway, rx_mempool_to_gateway) = channel::<MempoolToGatewayMessage>(1);
-
-    (
-        GatewayNetworkComponent::new(tx_gateway_to_mempool, rx_mempool_to_gateway),
-        MempoolNetworkComponent::new(tx_mempool_to_gateway, rx_gateway_to_mempool),
-    )
-}
-
 async fn set_up_gateway(mempool_client: Arc<dyn MempoolClient>) -> SocketAddr {
     let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
     let port = 3000;
@@ -99,25 +87,14 @@ async fn set_up_gateway(mempool_client: Arc<dyn MempoolClient>) -> SocketAddr {
 #[rstest]
 #[tokio::test]
 async fn test_end_to_end() {
-    // TODO: delete this line once deprecating network component.
-    let (_, mempool_to_gateway_network) = initialize_gateway_network_channels();
-
-    let (_tx_batcher_to_mempool, rx_batcher_to_mempool) = channel::<BatcherToMempoolMessage>(1);
-    let (tx_mempool_to_batcher, _rx_mempool_to_batcher) = channel::<MempoolToBatcherMessage>(1);
-
-    let batcher_channels =
-        BatcherToMempoolChannels { rx: rx_batcher_to_mempool, tx: tx_mempool_to_batcher };
-
     // Initialize Mempool.
     // TODO(Tsabary): wrap creation of channels in dedicated functions, take channel capacity from
     // config.
     let (tx_mempool, rx_mempool) =
         channel::<MempoolRequestAndResponseSender>(MEMPOOL_INVOCATIONS_QUEUE_SIZE);
-    let mempool = Mempool::empty(mempool_to_gateway_network, batcher_channels);
+    let mempool = Mempool::empty();
+    let mut mempool_server = create_mempool_server(mempool, rx_mempool);
 
-    // TODO(Tsabary, 1/6/2024): Wrap with a dedicated create_mempool_server function.
-    let mut mempool_server =
-        ComponentServer::new(MempoolCommunicationWrapper::new(mempool), rx_mempool);
     task::spawn(async move {
         mempool_server.start().await;
     });
