@@ -12,8 +12,7 @@ use starknet_api::external_transaction::{
 };
 use starknet_api::transaction::{
     DeclareTransaction, DeclareTransactionV3, DeployAccountTransaction, DeployAccountTransactionV3,
-    InvokeTransaction, InvokeTransactionV3, ResourceBoundsMapping, Tip, TransactionHash,
-    TransactionHasher, TransactionSignature,
+    InvokeTransaction, InvokeTransactionV3, Tip, TransactionHash, TransactionHasher,
 };
 use starknet_mempool_types::mempool_types::ThinTransaction;
 
@@ -41,8 +40,6 @@ macro_rules! implement_ref_getters {
 impl ExternalTransactionExt for ExternalTransaction {
     implement_ref_getters!(
         (nonce, Nonce);
-        (resource_bounds, ResourceBoundsMapping);
-        (signature, TransactionSignature);
         (tip, Tip)
     );
 }
@@ -57,11 +54,9 @@ pub fn external_tx_to_thin_tx(external_tx: &ExternalTransaction) -> ThinTransact
     }
 }
 
-// TODO(Arni, 1/5/2025): Remove this trait once it is implemented in StarkNet API.
+// TODO(Mohammad): Remove this trait once it is implemented in StarkNet API.
 pub trait ExternalTransactionExt {
     fn nonce(&self) -> &Nonce;
-    fn resource_bounds(&self) -> &ResourceBoundsMapping;
-    fn signature(&self) -> &TransactionSignature;
     fn tip(&self) -> &Tip;
 }
 
