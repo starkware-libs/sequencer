@@ -47,8 +47,8 @@ pub enum SkeletonLeaf {
     NonZero,
 }
 
-impl LeafData for SkeletonLeaf {
-    fn is_empty(&self) -> bool {
+impl SkeletonLeaf {
+    pub(crate) fn is_zero(&self) -> bool {
         self == &Self::Zero
     }
 }

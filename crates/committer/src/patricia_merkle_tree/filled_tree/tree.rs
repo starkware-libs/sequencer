@@ -175,7 +175,7 @@ impl<L: LeafData> FilledTreeImpl<L> {
                     .get(&index)
                     .ok_or(FilledTreeError::<L>::MissingDataForUpdate(index))?
                     .clone();
-                if skeleton_leaf.is_empty() != leaf_data.is_empty() {
+                if skeleton_leaf.is_zero() != leaf_data.is_empty() {
                     return Err(FilledTreeError::<L>::InconsistentModification {
                         index,
                         skeleton_leaf: skeleton_leaf.clone(),
