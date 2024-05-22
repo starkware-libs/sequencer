@@ -3455,7 +3455,6 @@ dependencies = [
  "mempool_infra",
  "starknet_api",
  "thiserror",
- "tokio",
 ]
 
 [[package]]

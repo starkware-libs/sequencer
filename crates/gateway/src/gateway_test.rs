@@ -10,7 +10,7 @@ use starknet_api::external_transaction::ExternalTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool::mempool::{create_mempool_server, Mempool};
 use starknet_mempool_types::mempool_types::{
-    GatewayToMempoolMessage, MempoolClient, MempoolClientImpl, MempoolRequestAndResponseSender,
+    MempoolClient, MempoolClientImpl, MempoolRequestAndResponseSender,
 };
 use tokio::sync::mpsc::channel;
 use tokio::task;
@@ -47,10 +47,7 @@ pub fn app_state(mempool_client: Arc<dyn MempoolClient>) -> AppState {
 #[tokio::test]
 async fn test_add_tx() {
     // TODO: Add fixture.
-    // TODO -- remove gateway_network, batcher_network, and channels.
-    let (_, _rx_gateway_to_mempool) = channel::<GatewayToMempoolMessage>(1);
 
-    // Create and start the mempool server.
     let mempool = Mempool::new([]);
     // TODO(Tsabary): wrap creation of channels in dedicated functions, take channel capacity from
     // config.
