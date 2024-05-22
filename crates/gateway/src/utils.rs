@@ -5,20 +5,20 @@ use blockifier::transaction::transactions::{
     DeployAccountTransaction as BlockifierDeployAccountTransaction,
     InvokeTransaction as BlockifierInvokeTransaction,
 };
-use starknet_api::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress};
+use starknet_api::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress, Nonce};
 use starknet_api::external_transaction::{
     ExternalDeclareTransaction, ExternalDeployAccountTransaction, ExternalInvokeTransaction,
     ExternalTransaction,
 };
 use starknet_api::transaction::{
     DeclareTransaction, DeclareTransactionV3, DeployAccountTransaction, DeployAccountTransactionV3,
-    InvokeTransaction, InvokeTransactionV3, ResourceBoundsMapping, TransactionHash,
+    InvokeTransaction, InvokeTransactionV3, ResourceBoundsMapping, Tip, TransactionHash,
     TransactionHasher, TransactionSignature,
 };
 use starknet_mempool_types::mempool_types::ThinTransaction;
 
 use crate::errors::StatefulTransactionValidatorResult;
-use crate::starknet_api_test_utils::{get_nonce, get_sender_address, get_tip};
+use crate::starknet_api_test_utils::get_sender_address;
 
 macro_rules! implement_ref_getters {
     ($(($member_name:ident, $member_type:ty));* $(;)?) => {
@@ -40,15 +40,17 @@ macro_rules! implement_ref_getters {
 
 impl ExternalTransactionExt for ExternalTransaction {
     implement_ref_getters!(
+        (nonce, Nonce);
         (resource_bounds, ResourceBoundsMapping);
-        (signature, TransactionSignature)
+        (signature, TransactionSignature);
+        (tip, Tip)
     );
 }
 
 pub fn external_tx_to_thin_tx(external_tx: &ExternalTransaction) -> ThinTransaction {
     ThinTransaction {
-        tip: get_tip(external_tx),
-        nonce: get_nonce(external_tx),
+        tip: *external_tx.tip(),
+        nonce: *external_tx.nonce(),
         contract_address: get_sender_address(external_tx),
         // TODO(Yael): Add transaction hash calculation.
         tx_hash: TransactionHash::default(),
@@ -57,8 +59,10 @@ pub fn external_tx_to_thin_tx(external_tx: &ExternalTransaction) -> ThinTransact
 
 // TODO(Arni, 1/5/2025): Remove this trait once it is implemented in StarkNet API.
 pub trait ExternalTransactionExt {
+    fn nonce(&self) -> &Nonce;
     fn resource_bounds(&self) -> &ResourceBoundsMapping;
     fn signature(&self) -> &TransactionSignature;
+    fn tip(&self) -> &Tip;
 }
 
 pub fn external_tx_to_account_tx(
