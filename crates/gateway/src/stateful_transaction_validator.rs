@@ -24,7 +24,7 @@ pub struct StatefulTransactionValidator {
 impl StatefulTransactionValidator {
     pub fn run_validate(
         &self,
-        state_reader_factory: &impl StateReaderFactory,
+        state_reader_factory: &dyn StateReaderFactory,
         external_tx: &ExternalTransaction,
         optional_class_info: Option<ClassInfo>,
         deploy_account_tx_hash: Option<TransactionHash>,
@@ -69,7 +69,7 @@ impl StatefulTransactionValidator {
 }
 
 pub fn get_latest_block_info(
-    state_reader_factory: &impl StateReaderFactory,
+    state_reader_factory: &dyn StateReaderFactory,
 ) -> StatefulTransactionValidatorResult<BlockInfo> {
     let state_reader = state_reader_factory.get_state_reader_from_latest_block();
     Ok(state_reader.get_block_info()?)

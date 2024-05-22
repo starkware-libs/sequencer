@@ -1,3 +1,5 @@
+use blockifier::test_utils::contracts::FeatureContract;
+use blockifier::test_utils::{create_trivial_calldata, CairoVersion, NonceManager};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::external_transaction::{
@@ -5,13 +7,14 @@ use starknet_api::external_transaction::{
     ExternalDeployAccountTransactionV3, ExternalInvokeTransaction, ExternalInvokeTransactionV3,
     ExternalTransaction,
 };
+use starknet_api::hash::StarkFelt;
 use starknet_api::internal_transaction::{InternalInvokeTransaction, InternalTransaction};
 use starknet_api::transaction::{
     Calldata, InvokeTransaction, InvokeTransactionV3, ResourceBounds, ResourceBoundsMapping,
     TransactionSignature,
 };
 
-pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 1662;
+pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 2214;
 pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 
 // Utils.
@@ -189,4 +192,22 @@ pub fn executable_resource_bounds_mapping() -> ResourceBoundsMapping {
         (starknet_api::transaction::Resource::L2Gas, ResourceBounds::default()),
     ])
     .expect("Resource bounds mapping has unexpected structure.")
+}
+
+pub fn invoke_tx() -> ExternalTransaction {
+    let cairo_version = CairoVersion::Cairo1;
+    let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
+    let account_address = account_contract.get_instance_address(0);
+    let test_contract = FeatureContract::TestContract(cairo_version);
+    let test_contract_address = test_contract.get_instance_address(0);
+    let calldata = create_trivial_calldata(test_contract_address);
+    let mut nonce_manager = NonceManager::default();
+    let nonce = nonce_manager.next(account_address);
+    executable_external_invoke_tx_for_testing(
+        executable_resource_bounds_mapping(),
+        nonce,
+        account_address,
+        calldata,
+        TransactionSignature(vec![StarkFelt::ZERO]),
+    )
 }

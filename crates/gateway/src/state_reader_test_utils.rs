@@ -1,8 +1,12 @@
 use blockifier::blockifier::block::BlockInfo;
+use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::ContractClass;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
+use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
+use blockifier::test_utils::initial_test_state::test_state_reader;
+use blockifier::test_utils::{CairoVersion, BALANCE};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::hash::StarkFelt;
@@ -59,5 +63,25 @@ impl StateReaderFactory for TestStateReaderFactory {
 
     fn get_state_reader(&self, _block_number: BlockNumber) -> Box<dyn MempoolStateReader> {
         Box::new(self.state_reader.clone())
+    }
+}
+
+pub fn test_state_reader_factory() -> TestStateReaderFactory {
+    let cairo_version = CairoVersion::Cairo1;
+    let block_context = &BlockContext::create_for_testing();
+    let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
+    let test_contract = FeatureContract::TestContract(cairo_version);
+
+    let state_reader = test_state_reader(
+        block_context.chain_info(),
+        BALANCE,
+        &[(account_contract, 1), (test_contract, 1)],
+    );
+
+    TestStateReaderFactory {
+        state_reader: TestStateReader {
+            block_info: block_context.block_info().clone(),
+            blockifier_state_reader: state_reader,
+        },
     }
 }

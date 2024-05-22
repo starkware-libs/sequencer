@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::net::IpAddr;
 
-use blockifier::context::{ChainInfo, FeeTokenAddresses};
+use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -139,6 +139,12 @@ impl Default for ChainInfoConfig {
     }
 }
 
+impl ChainInfoConfig {
+    pub fn create_for_testing() -> Self {
+        BlockContext::create_for_testing().chain_info().clone().into()
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct StatefulTransactionValidatorConfig {
     pub max_nonce_for_validation_skip: Nonce,
@@ -153,7 +159,7 @@ impl StatefulTransactionValidatorConfig {
             max_nonce_for_validation_skip: Default::default(),
             validate_max_n_steps: 1000000,
             max_recursion_depth: 50,
-            chain_info: Default::default(),
+            chain_info: ChainInfoConfig::create_for_testing(),
         }
     }
 }

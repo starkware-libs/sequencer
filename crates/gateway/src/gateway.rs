@@ -89,7 +89,12 @@ async fn add_tx(
     Json(tx): Json<ExternalTransaction>,
 ) -> GatewayResult<String> {
     let (response, mempool_input) = tokio::task::spawn_blocking(move || {
-        process_tx(app_state.stateless_transaction_validator, tx)
+        process_tx(
+            app_state.stateless_transaction_validator,
+            app_state.stateful_transaction_validator.as_ref(),
+            app_state.state_reader_factory.as_ref(),
+            tx,
+        )
     })
     .await??;
 
@@ -104,6 +109,8 @@ async fn add_tx(
 
 fn process_tx(
     stateless_transaction_validator: StatelessTransactionValidator,
+    stateful_transaction_validator: &StatefulTransactionValidator,
+    state_reader_factory: &dyn StateReaderFactory,
     tx: ExternalTransaction,
 ) -> GatewayResult<(String, MempoolInput)> {
     // TODO(Arni, 1/5/2024): Preform congestion control.
@@ -111,7 +118,10 @@ fn process_tx(
     // Perform stateless validations.
     stateless_transaction_validator.validate(&tx)?;
 
-    // TODO(Yael, 1/5/2024): Preform state related validations.
+    // TODO(Yael, 19/5/2024): pass the relevant class_info and deploy_account_hash.
+    stateful_transaction_validator.run_validate(state_reader_factory, &tx, None, None)?;
+    // TODO(Yael, 19/5/2024): return the tx_hash.
+    // TODO(Arni, 1/5/2024): Move transaction to mempool.
 
     // TODO(Arni, 1/5/2024): Produce response.
     // Send response.

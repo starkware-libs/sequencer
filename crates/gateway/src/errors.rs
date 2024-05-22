@@ -16,6 +16,8 @@ pub enum GatewayError {
     #[error("Error sending message: {0}")]
     MessageSendError(String),
     #[error(transparent)]
+    StatefulTransactionValidatorError(#[from] StatefulTransactionValidatorError),
+    #[error(transparent)]
     StatelessTransactionValidatorError(#[from] StatelessTransactionValidatorError),
 }
 

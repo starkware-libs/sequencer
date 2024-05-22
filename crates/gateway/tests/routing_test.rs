@@ -1,39 +1,31 @@
-use std::fs;
 use std::net::{IpAddr, Ipv4Addr};
-use std::path::Path;
 use std::sync::Arc;
 
 use axum::body::{Body, Bytes, HttpBody};
 use axum::http::{Request, StatusCode};
-use blockifier::blockifier::block::BlockInfo;
-use blockifier::test_utils::dict_state_reader::DictStateReader;
 use pretty_assertions::assert_str_eq;
 use rstest::rstest;
+use starknet_api::external_transaction::ExternalTransaction;
 use starknet_gateway::config::{
     GatewayNetworkConfig, StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig,
 };
 use starknet_gateway::gateway::Gateway;
-use starknet_gateway::state_reader_test_utils::{TestStateReader, TestStateReaderFactory};
+use starknet_gateway::starknet_api_test_utils::invoke_tx;
+use starknet_gateway::state_reader_test_utils::test_state_reader_factory;
 use starknet_mempool_types::mempool_types::{
     GatewayNetworkComponent, GatewayToMempoolMessage, MempoolToGatewayMessage,
 };
 use tokio::sync::mpsc::channel;
 use tower::ServiceExt;
 
-const TEST_FILES_FOLDER: &str = "./tests/fixtures";
-
 // TODO(Ayelet): Replace the use of the JSON files with generated instances, then serialize these
 // into JSON for testing.
 #[rstest]
-#[case::declare(&Path::new(TEST_FILES_FOLDER).join("declare_v3.json"), "DECLARE")]
-#[case::deploy_account(
-    &Path::new(TEST_FILES_FOLDER).join("deploy_account_v3.json"),
-    "DEPLOY_ACCOUNT"
-)]
-#[case::invoke(&Path::new(TEST_FILES_FOLDER).join("invoke_v3.json"), "INVOKE")]
+// TODO (Yael 19/5/2024): Add declare and deploy_account in the next milestone
+#[case::invoke(invoke_tx(), "INVOKE")]
 #[tokio::test]
-async fn test_routes(#[case] json_file_path: &Path, #[case] expected_response: &str) {
-    let tx_json = fs::read_to_string(json_file_path).unwrap();
+async fn test_routes(#[case] tx: ExternalTransaction, #[case] expected_response: &str) {
+    let tx_json = serde_json::to_string(&tx).unwrap();
     let request = Request::post("/add_tx")
         .header("content-type", "application/json")
         .body(Body::from(tx_json))
@@ -73,13 +65,7 @@ async fn check_request(request: Request<Body>, status_code: StatusCode) -> Bytes
         GatewayNetworkComponent::new(tx_gateway_to_mempool, rx_mempool_to_gateway);
     let stateful_transaction_validator_config =
         StatefulTransactionValidatorConfig::create_for_testing();
-    let state_reader_factory = Arc::new(TestStateReaderFactory {
-        state_reader: TestStateReader {
-            block_info: BlockInfo::create_for_testing(),
-            // TODO(yael 16/5/2024): create a test state that will make the tx pass validations
-            blockifier_state_reader: DictStateReader::default(),
-        },
-    });
+    let state_reader_factory = Arc::new(test_state_reader_factory());
 
     // TODO: Add fixture.
     let gateway = Gateway {
