@@ -4,7 +4,7 @@ use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
 use crate::patricia_merkle_tree::types::NodeIndex;
-use crate::storage::serde_trait::DBObject;
+use crate::storage::db_object::DBObject;
 
 pub trait LeafData: Clone + Sync + Send + DBObject {
     /// Returns true if leaf is empty.

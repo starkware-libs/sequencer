@@ -5,8 +5,8 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePath, EdgePathLength, NodeData, PathToBottom,
 };
 use crate::patricia_merkle_tree::node_data::leaf::{LeafData, LeafDataImpl};
+use crate::storage::db_object::{DBObject, Deserializable};
 use crate::storage::errors::{DeserializationError, SerializationError};
-use crate::storage::serde_trait::{DBObject, Deserializable};
 use crate::storage::storage_trait::{StorageKey, StoragePrefix, StorageValue};
 
 use serde::{Deserialize, Serialize};

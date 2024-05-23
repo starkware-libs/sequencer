@@ -14,9 +14,9 @@ use committer::patricia_merkle_tree::node_data::leaf::{ContractState, LeafDataIm
 use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
     CONTRACT_CLASS_LEAF_V0, CONTRACT_STATE_HASH_VERSION,
 };
+use committer::storage::db_object::DBObject;
 use committer::storage::errors::{DeserializationError, SerializationError};
 use committer::storage::map_storage::MapStorage;
-use committer::storage::serde_trait::DBObject;
 use committer::storage::storage_trait::{Storage, StorageKey, StorageValue};
 use std::fmt::Debug;
 use std::{collections::HashMap, io};

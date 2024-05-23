@@ -17,7 +17,7 @@ use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
-use crate::storage::serde_trait::DBObject;
+use crate::storage::db_object::DBObject;
 use crate::storage::storage_trait::StorageKey;
 use crate::storage::storage_trait::StorageValue;
 

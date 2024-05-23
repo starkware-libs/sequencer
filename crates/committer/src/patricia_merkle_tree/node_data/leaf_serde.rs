@@ -1,5 +1,5 @@
 use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafDataImpl};
-use crate::storage::serde_trait::DBObject;
+use crate::storage::db_object::DBObject;
 use crate::storage::storage_trait::{StoragePrefix, StorageValue};
 
 impl DBObject for LeafDataImpl {
