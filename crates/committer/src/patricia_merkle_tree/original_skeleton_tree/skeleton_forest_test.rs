@@ -108,16 +108,16 @@ use super::OriginalSkeletonForestImpl;
             ..Default::default()
         },
         tree_heights: TreeHeight::new(3),
-        current_contract_state_leaves: create_contract_leaves(&[
+        current_contracts_trie_leaves: create_contract_leaves(&[
             (3, 29),
             (5, 29),
             (6, 29),
             (1, 55),
         ]),
-        global_tree_root_hash: HashOutput(Felt::from(254_u128)),
-        classes_tree_root_hash: HashOutput(Felt::from(157_u128)),
+        contracts_trie_root_hash: HashOutput(Felt::from(254_u128)),
+        classes_trie_root_hash: HashOutput(Felt::from(157_u128)),
     }, OriginalSkeletonForestImpl{
-        classes_tree: create_expected_skeleton(
+        classes_trie: create_expected_skeleton(
             vec![
                 create_edge_skeleton_node(1, 0, 1),
                 create_binary_skeleton_node(2),
@@ -127,7 +127,7 @@ use super::OriginalSkeletonForestImpl;
             ],
             3
         ),
-        global_state_tree: create_expected_skeleton(
+        contracts_trie: create_expected_skeleton(
             vec![
                 create_binary_skeleton_node(1),
                 create_edge_skeleton_node(2, 0, 2),
@@ -138,7 +138,7 @@ use super::OriginalSkeletonForestImpl;
             ],
             3
         ),
-        contract_states: HashMap::from([
+        storage_tries: HashMap::from([
             (
                 ContractAddress(Felt::from(1_u128)),
                 create_expected_skeleton(
@@ -210,18 +210,15 @@ fn test_create_original_skeleton_forest(
     let actual_forest: OriginalSkeletonForestImpl<OriginalSkeletonTreeImpl> =
         OriginalSkeletonForestImpl::create_original_skeleton_forest(
             MapStorage::from(input.storage),
-            input.global_tree_root_hash,
-            input.classes_tree_root_hash,
+            input.contracts_trie_root_hash,
+            input.classes_trie_root_hash,
             input.tree_heights,
-            &input.current_contract_state_leaves,
+            &input.current_contracts_trie_leaves,
             &input.state_diff,
         )
         .unwrap();
 
-    assert_eq!(
-        actual_forest.global_state_tree,
-        expected_forest.global_state_tree
-    );
+    assert_eq!(actual_forest.contracts_trie, expected_forest.contracts_trie);
 }
 
 fn create_contract_leaves(leaves: &[(u8, u8)]) -> HashMap<ContractAddress, ContractState> {

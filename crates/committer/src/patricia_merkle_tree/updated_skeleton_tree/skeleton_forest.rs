@@ -6,9 +6,9 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTre
 #[allow(dead_code)]
 pub(crate) struct UpdatedSkeletonForest<T: UpdatedSkeletonTree> {
     #[allow(dead_code)]
-    classes_tree: T,
+    classes_trie: T,
     #[allow(dead_code)]
-    global_state_tree: T,
+    contracts_trie: T,
     #[allow(dead_code)]
-    contract_states: HashMap<ContractAddress, T>,
+    storage_tries: HashMap<ContractAddress, T>,
 }

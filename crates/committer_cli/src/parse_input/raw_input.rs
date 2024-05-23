@@ -10,8 +10,8 @@ pub(crate) struct RawInput {
     pub storage: Vec<RawStorageEntry>,
     pub state_diff: RawStateDiff,
     pub tree_heights: u8,
-    pub global_tree_root_hash: RawFelt,
-    pub classes_tree_root_hash: RawFelt,
+    pub contracts_trie_root_hash: RawFelt,
+    pub classes_trie_root_hash: RawFelt,
 }
 
 #[derive(Deserialize, Debug)]
@@ -61,5 +61,5 @@ pub(crate) struct RawStateDiff {
     /// Will be casted to HashMap<Felt, HashMap<Felt, Felt>>.
     pub storage_updates: Vec<RawStorageUpdates>,
     /// Will be casted to HashMap<Felt, ContractState>.
-    pub current_contract_state_leaves: Vec<RawContractStateLeaf>,
+    pub current_contracts_trie_leaves: Vec<RawContractStateLeaf>,
 }

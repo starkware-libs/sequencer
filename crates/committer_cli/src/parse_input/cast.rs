@@ -55,11 +55,11 @@ impl TryFrom<RawInput> for Input {
             )?;
         }
 
-        let mut current_contract_state_leaves = HashMap::new();
-        for entry in raw_input.state_diff.current_contract_state_leaves {
+        let mut current_contracts_trie_leaves = HashMap::new();
+        for entry in raw_input.state_diff.current_contracts_trie_leaves {
             add_unique(
-                &mut current_contract_state_leaves,
-                "current contract state leaves",
+                &mut current_contracts_trie_leaves,
+                "current contracts trie leaves",
                 ContractAddress(Felt::from_bytes_be_slice(&entry.address)),
                 ContractState {
                     nonce: Nonce(Felt::from_bytes_be_slice(&entry.nonce)),
@@ -100,12 +100,12 @@ impl TryFrom<RawInput> for Input {
                 storage_updates,
             },
             tree_heights: TreeHeight::new(raw_input.tree_heights),
-            global_tree_root_hash: HashOutput(Felt::from_bytes_be_slice(
-                &raw_input.global_tree_root_hash,
+            contracts_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
+                &raw_input.contracts_trie_root_hash,
             )),
-            current_contract_state_leaves,
-            classes_tree_root_hash: HashOutput(Felt::from_bytes_be_slice(
-                &raw_input.classes_tree_root_hash,
+            current_contracts_trie_leaves,
+            classes_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
+                &raw_input.classes_trie_root_hash,
             )),
         })
     }

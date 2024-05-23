@@ -26,10 +26,10 @@ pub mod skeleton_forest_test;
 pub(crate) trait OriginalSkeletonForest {
     fn create_original_skeleton_forest(
         storage: impl Storage,
-        global_tree_root_hash: HashOutput,
-        classes_tree_root_hash: HashOutput,
+        contracts_trie_root_hash: HashOutput,
+        classes_trie_root_hash: HashOutput,
         tree_heights: TreeHeight,
-        current_contract_state_leaves: &HashMap<ContractAddress, ContractState>,
+        current_contracts_trie_leaves: &HashMap<ContractAddress, ContractState>,
         state_diff: &StateDiff,
     ) -> OriginalSkeletonTreeResult<Self>
     where
@@ -46,42 +46,42 @@ pub(crate) trait OriginalSkeletonForest {
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct OriginalSkeletonForestImpl<T: OriginalSkeletonTree> {
     #[allow(dead_code)]
-    classes_tree: T,
+    classes_trie: T,
     #[allow(dead_code)]
-    global_state_tree: T,
+    contracts_trie: T,
     #[allow(dead_code)]
-    contract_states: HashMap<ContractAddress, T>,
+    storage_tries: HashMap<ContractAddress, T>,
 }
 
 impl<T: OriginalSkeletonTree> OriginalSkeletonForest for OriginalSkeletonForestImpl<T> {
     fn create_original_skeleton_forest(
         storage: impl Storage,
-        global_tree_root_hash: HashOutput,
-        classes_tree_root_hash: HashOutput,
+        contracts_trie_root_hash: HashOutput,
+        classes_trie_root_hash: HashOutput,
         tree_heights: TreeHeight,
-        current_contract_state_leaves: &HashMap<ContractAddress, ContractState>,
+        current_contracts_trie_leaves: &HashMap<ContractAddress, ContractState>,
         state_diff: &StateDiff,
     ) -> OriginalSkeletonTreeResult<Self>
     where
         Self: std::marker::Sized,
     {
         let accessed_addresses = state_diff.accessed_addresses();
-        let global_state_tree = Self::create_global_state_tree(
+        let global_state_tree = Self::create_contracts_trie(
             &accessed_addresses,
-            global_tree_root_hash,
+            contracts_trie_root_hash,
             &storage,
             tree_heights,
         )?;
-        let contract_states = Self::create_lower_trees_skeleton(
+        let contract_states = Self::create_storage_tries(
             &accessed_addresses,
-            current_contract_state_leaves,
+            current_contracts_trie_leaves,
             &state_diff.storage_updates,
             &storage,
             tree_heights,
         )?;
-        let classes_tree = Self::create_classes_tree(
+        let classes_tree = Self::create_classes_trie(
             &state_diff.class_hash_to_compiled_class_hash,
-            classes_tree_root_hash,
+            classes_trie_root_hash,
             &storage,
             tree_heights,
         )?;
@@ -105,20 +105,20 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForest for OriginalSkeletonForestI
 
 impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
     pub(crate) fn new(
-        classes_tree: T,
-        global_state_tree: T,
-        contract_states: HashMap<ContractAddress, T>,
+        classes_trie: T,
+        contracts_trie: T,
+        storage_tries: HashMap<ContractAddress, T>,
     ) -> Self {
         Self {
-            classes_tree,
-            global_state_tree,
-            contract_states,
+            classes_trie,
+            contracts_trie,
+            storage_tries,
         }
     }
 
-    fn create_global_state_tree(
+    fn create_contracts_trie(
         accessed_addresses: &HashSet<&ContractAddress>,
-        global_tree_root_hash: HashOutput,
+        contracts_trie_root_hash: HashOutput,
         storage: &impl Storage,
         tree_height: TreeHeight,
     ) -> OriginalSkeletonTreeResult<T> {
@@ -130,14 +130,14 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
         T::create(
             storage,
             &sorted_leaf_indices,
-            global_tree_root_hash,
+            contracts_trie_root_hash,
             tree_height,
         )
     }
 
-    fn create_lower_trees_skeleton(
+    fn create_storage_tries(
         accessed_addresses: &HashSet<&ContractAddress>,
-        current_contract_state_leaves: &HashMap<ContractAddress, ContractState>,
+        current_contracts_trie_leaves: &HashMap<ContractAddress, ContractState>,
         storage_updates: &HashMap<
             ContractAddress,
             HashMap<StarknetStorageKey, StarknetStorageValue>,
@@ -145,7 +145,7 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
         storage: &impl Storage,
         tree_height: TreeHeight,
     ) -> OriginalSkeletonTreeResult<HashMap<ContractAddress, T>> {
-        let mut contract_states = HashMap::new();
+        let mut storage_tries = HashMap::new();
         for address in accessed_addresses {
             let mut sorted_leaf_indices: Vec<NodeIndex> = storage_updates
                 .get(address)
@@ -154,7 +154,7 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
                 .map(|key| NodeIndex::from_starknet_storage_key(key, &tree_height))
                 .collect();
             sorted_leaf_indices.sort();
-            let contract_state = current_contract_state_leaves
+            let contract_state = current_contracts_trie_leaves
                 .get(address)
                 .ok_or_else(|| OriginalSkeletonTreeError::LowerTreeCommitmentError(**address))?;
             let original_skeleton = T::create(
@@ -163,14 +163,14 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
                 contract_state.storage_root_hash,
                 tree_height,
             )?;
-            contract_states.insert(**address, original_skeleton);
+            storage_tries.insert(**address, original_skeleton);
         }
-        Ok(contract_states)
+        Ok(storage_tries)
     }
 
-    fn create_classes_tree(
+    fn create_classes_trie(
         class_hash_to_compiled_class_hash: &HashMap<ClassHash, CompiledClassHash>,
-        classes_tree_root_hash: HashOutput,
+        classes_trie_root_hash: HashOutput,
         storage: &impl Storage,
         tree_height: TreeHeight,
     ) -> OriginalSkeletonTreeResult<T> {
@@ -182,7 +182,7 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
         T::create(
             storage,
             &sorted_leaf_indices,
-            classes_tree_root_hash,
+            classes_trie_root_hash,
             tree_height,
         )
     }

@@ -41,9 +41,9 @@ pub struct Input {
     pub state_diff: StateDiff,
     /// Height of class tree, contract tree and storage trees.
     pub tree_heights: TreeHeight,
-    pub current_contract_state_leaves: HashMap<ContractAddress, ContractState>,
-    pub global_tree_root_hash: HashOutput,
-    pub classes_tree_root_hash: HashOutput,
+    pub current_contracts_trie_leaves: HashMap<ContractAddress, ContractState>,
+    pub contracts_trie_root_hash: HashOutput,
+    pub classes_trie_root_hash: HashOutput,
 }
 
 #[allow(dead_code)]

@@ -219,7 +219,7 @@ fn create_output_to_python(actual_input: Input) -> String {
     let (state_diff_keys_hash, state_diff_values_hash) =
         hash_state_diff_and_current_contract_state_leaves(
             &actual_input.state_diff,
-            &actual_input.current_contract_state_leaves,
+            &actual_input.current_contracts_trie_leaves,
         );
     format!(
         r#"
@@ -245,11 +245,11 @@ fn create_output_to_python(actual_input: Input) -> String {
             .state_diff
             .class_hash_to_compiled_class_hash
             .len(),
-        actual_input.current_contract_state_leaves.len(),
+        actual_input.current_contracts_trie_leaves.len(),
         actual_input.state_diff.storage_updates.len(),
         u8::from(actual_input.tree_heights),
-        actual_input.global_tree_root_hash.0.to_bytes_be(),
-        actual_input.classes_tree_root_hash.0.to_bytes_be(),
+        actual_input.contracts_trie_root_hash.0.to_bytes_be(),
+        actual_input.classes_trie_root_hash.0.to_bytes_be(),
         storage_keys_hash,
         storage_values_hash,
         state_diff_keys_hash,
