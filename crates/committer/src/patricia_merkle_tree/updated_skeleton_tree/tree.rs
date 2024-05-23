@@ -42,8 +42,14 @@ pub(crate) struct UpdatedSkeletonTreeImpl {
 impl UpdatedSkeletonTree for UpdatedSkeletonTreeImpl {
     fn create(
         _original_skeleton: impl OriginalSkeletonTree,
-        _leaf_modifications: &LeafModifications<SkeletonLeaf>,
+        leaf_modifications: &LeafModifications<SkeletonLeaf>,
     ) -> Result<Self, UpdatedSkeletonTreeError> {
+        // Finalize all leaf modifications in the skeleton.
+        let mut _skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode> = leaf_modifications
+            .iter()
+            .filter(|(_, leaf)| !leaf.is_zero())
+            .map(|(index, leaf)| (*index, UpdatedSkeletonNode::Leaf(*leaf)))
+            .collect();
         todo!()
     }
 

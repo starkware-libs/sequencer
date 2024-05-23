@@ -14,7 +14,7 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTre
 pub mod compute_updated_skeleton_tree_test;
 
 #[derive(Debug, PartialEq, Eq)]
-/// A temporary skeleton node used to during the computation of the updated skeleton tree.
+/// A temporary skeleton node used during the computation of the updated skeleton tree.
 enum TempSkeletonNode {
     Empty,
     #[allow(dead_code)]
@@ -71,20 +71,11 @@ impl UpdatedSkeletonTreeImpl {
                 let leaf = leaf_modifications
                     .get(bottom_index)
                     .unwrap_or_else(|| panic!("Leaf modification {bottom_index:?} not found"));
-                match leaf {
-                    SkeletonLeaf::Zero => {
-                        return TempSkeletonNode::Empty;
-                    }
-                    SkeletonLeaf::NonZero => {
-                        // TODO(Tzahi, 1/6/2024): Consider inserting all modification
-                        //leaves at one go and remove this.
-                        // Finalize bottom leaf node (may happen multiple times)
-                        self.skeleton_tree
-                            .insert(*bottom_index, UpdatedSkeletonNode::Leaf(*leaf));
-                        OriginalSkeletonNode::Edge {
-                            path_to_bottom: *path,
-                        }
-                    }
+                if leaf.is_zero() {
+                    return TempSkeletonNode::Empty;
+                };
+                OriginalSkeletonNode::Edge {
+                    path_to_bottom: *path,
                 }
             }
             TempSkeletonNode::Original(OriginalSkeletonNode::Edge { path_to_bottom }) => {

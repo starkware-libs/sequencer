@@ -25,10 +25,15 @@ fn empty_skeleton(height: u8) -> OriginalSkeletonTreeImpl {
 }
 
 #[fixture]
-fn updated_skeleton() -> UpdatedSkeletonTreeImpl {
-    UpdatedSkeletonTreeImpl {
-        skeleton_tree: HashMap::new(),
-    }
+fn updated_skeleton(
+    #[default(&[])] leaf_modifications: &[(NodeIndex, SkeletonLeaf)],
+) -> UpdatedSkeletonTreeImpl {
+    let skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode> = leaf_modifications
+        .iter()
+        .filter(|(_, leaf)| !leaf.is_zero())
+        .map(|(index, leaf)| (*index, UpdatedSkeletonNode::Leaf(*leaf)))
+        .collect();
+    UpdatedSkeletonTreeImpl { skeleton_tree }
 }
 
 #[rstest]
@@ -173,16 +178,16 @@ fn test_get_path_to_lca(
     TempSkeletonNode::Original(
         OriginalSkeletonNode::Edge {path_to_bottom: PathToBottom::RIGHT_CHILD}
     ),
-    &[(NodeIndex::from(7), UpdatedSkeletonNode::Leaf(SkeletonLeaf::NonZero))]
+    &[]
 )]
 fn test_node_from_edge_data(
-    mut updated_skeleton: UpdatedSkeletonTreeImpl,
     #[case] path: &PathToBottom,
     #[case] bottom_index: &NodeIndex,
     #[case] bottom: &TempSkeletonNode,
     #[case] leaf_modifications: &[(NodeIndex, SkeletonLeaf)],
     #[case] expected_node: TempSkeletonNode,
     #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
+    #[with(leaf_modifications)] mut updated_skeleton: UpdatedSkeletonTreeImpl,
 ) {
     let mut expected_skeleton_tree = updated_skeleton.skeleton_tree.clone();
     expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());
