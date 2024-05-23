@@ -44,13 +44,15 @@ impl ExternalTransactionExt for ExternalTransaction {
     );
 }
 
-pub fn external_tx_to_thin_tx(external_tx: &ExternalTransaction) -> ThinTransaction {
+pub fn external_tx_to_thin_tx(
+    external_tx: &ExternalTransaction,
+    tx_hash: TransactionHash,
+) -> ThinTransaction {
     ThinTransaction {
         tip: *external_tx.tip(),
         nonce: *external_tx.nonce(),
         contract_address: get_sender_address(external_tx),
-        // TODO(Yael): Add transaction hash calculation.
-        tx_hash: TransactionHash::default(),
+        tx_hash,
     }
 }
 

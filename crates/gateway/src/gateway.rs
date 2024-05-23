@@ -115,7 +115,7 @@ fn process_tx(
     stateless_transaction_validator.validate(&tx)?;
 
     // TODO(Yael, 19/5/2024): pass the relevant class_info and deploy_account_hash.
-    let _tx_hash =
+    let tx_hash =
         stateful_transaction_validator.run_validate(state_reader_factory, &tx, None, None)?;
     // TODO(Arni, 1/5/2024): Move transaction to mempool.
 
@@ -123,7 +123,7 @@ fn process_tx(
     // Send response.
 
     let mempool_input = MempoolInput {
-        tx: external_tx_to_thin_tx(&tx),
+        tx: external_tx_to_thin_tx(&tx, tx_hash),
         account: Account { address: get_sender_address(&tx), ..Default::default() },
     };
 
