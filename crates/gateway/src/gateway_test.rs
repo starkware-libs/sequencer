@@ -14,18 +14,19 @@ use tokio::sync::mpsc::channel;
 
 use crate::config::{StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig};
 use crate::gateway::{add_tx, AppState};
-use crate::starknet_api_test_utils::invoke_tx;
+use crate::starknet_api_test_utils::{external_invoke_tx_to_json, invoke_tx};
 use crate::state_reader_test_utils::test_state_reader_factory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
 
-// TODO(Ayelet): Replace the use of the JSON files with generated instances, then serialize these
-// into JSON for testing.
+// TODO(Ayelet): add test cases for declare and deploy account transactions.
 #[rstest]
-// TODO (Yael 19/5/2024): Add declare and deploy_account in the next milestone
 #[case::invoke(invoke_tx(), "INVOKE")]
 #[tokio::test]
-async fn test_add_tx(#[case] tx: ExternalTransaction, #[case] expected_response: &str) {
+async fn test_add_tx(
+    #[case] external_invoke_tx: ExternalTransaction,
+    #[case] expected_response: &str,
+) {
     // The  `_rx_gateway_to_mempool`   is retained to keep the channel open, as dropping it would
     // prevent the sender from transmitting messages.
     let (tx_gateway_to_mempool, _rx_gateway_to_mempool) = channel::<GatewayToMempoolMessage>(1);
@@ -34,6 +35,9 @@ async fn test_add_tx(#[case] tx: ExternalTransaction, #[case] expected_response:
     // TODO: Add fixture.
     let network_component =
         Arc::new(GatewayNetworkComponent::new(tx_gateway_to_mempool, rx_mempool_to_gateway));
+
+    let json_string = external_invoke_tx_to_json(external_invoke_tx);
+    let tx: ExternalTransaction = serde_json::from_str(&json_string).unwrap();
 
     let mut app_state = AppState {
         stateless_transaction_validator: StatelessTransactionValidator {

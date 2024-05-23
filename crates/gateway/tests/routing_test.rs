@@ -11,7 +11,7 @@ use starknet_gateway::config::{
     StatelessTransactionValidatorConfig,
 };
 use starknet_gateway::gateway::Gateway;
-use starknet_gateway::starknet_api_test_utils::invoke_tx;
+use starknet_gateway::starknet_api_test_utils::{external_invoke_tx_to_json, invoke_tx};
 use starknet_gateway::state_reader_test_utils::test_state_reader_factory;
 use starknet_mempool_types::mempool_types::{
     GatewayNetworkComponent, GatewayToMempoolMessage, MempoolToGatewayMessage,
@@ -19,14 +19,15 @@ use starknet_mempool_types::mempool_types::{
 use tokio::sync::mpsc::channel;
 use tower::ServiceExt;
 
-// TODO(Ayelet): Replace the use of the JSON files with generated instances, then serialize these
-// into JSON for testing.
+// TODO(Ayelet): add test cases for declare and deploy account transactions.
 #[rstest]
-// TODO (Yael 19/5/2024): Add declare and deploy_account in the next milestone
 #[case::invoke(invoke_tx(), "INVOKE")]
 #[tokio::test]
-async fn test_routes(#[case] tx: ExternalTransaction, #[case] expected_response: &str) {
-    let tx_json = serde_json::to_string(&tx).unwrap();
+async fn test_routes(
+    #[case] external_invoke_tx: ExternalTransaction,
+    #[case] expected_response: &str,
+) {
+    let tx_json = external_invoke_tx_to_json(external_invoke_tx);
     let request = Request::post("/add_tx")
         .header("content-type", "application/json")
         .body(Body::from(tx_json))

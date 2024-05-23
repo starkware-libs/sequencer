@@ -10,9 +10,10 @@ use starknet_api::transaction::TransactionHash;
 
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::{StatefulTransactionValidatorError, StatefulTransactionValidatorResult};
+use crate::invoke_tx_args;
 use crate::starknet_api_test_utils::{
-    executable_external_invoke_tx_for_testing, executable_resource_bounds_mapping,
-    VALID_L1_GAS_MAX_AMOUNT, VALID_L1_GAS_MAX_PRICE_PER_UNIT,
+    executable_resource_bounds_mapping, external_invoke_tx, VALID_L1_GAS_MAX_AMOUNT,
+    VALID_L1_GAS_MAX_PRICE_PER_UNIT,
 };
 use crate::state_reader_test_utils::{TestStateReader, TestStateReaderFactory};
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
@@ -46,7 +47,7 @@ fn test_stateful_transaction_validator(
     let cairo_version = CairoVersion::Cairo1;
     let block_context = &BlockContext::create_for_testing();
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
-    let account_address = account_contract.get_instance_address(0);
+    let contract_address = account_contract.get_instance_address(0);
     let test_contract = FeatureContract::TestContract(cairo_version);
     let test_contract_address = test_contract.get_instance_address(0);
 
@@ -74,14 +75,12 @@ fn test_stateful_transaction_validator(
 
     let calldata = create_trivial_calldata(test_contract_address);
     let mut nonce_manager = NonceManager::default();
-    let nonce = nonce_manager.next(account_address);
-    let external_tx = executable_external_invoke_tx_for_testing(
-        executable_resource_bounds_mapping(),
+    let nonce = nonce_manager.next(contract_address);
+    let external_tx = external_invoke_tx(invoke_tx_args!(
+        resource_bounds: executable_resource_bounds_mapping(),
         nonce,
-        account_address,
-        calldata,
-        Default::default(),
-    );
+        contract_address,
+        calldata));
 
     let result = stateful_validator.run_validate(&state_reader_factory, &external_tx, None, None);
     assert_eq!(format!("{:?}", result), format!("{:?}", expected_result));

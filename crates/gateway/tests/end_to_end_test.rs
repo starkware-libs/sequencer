@@ -7,13 +7,14 @@ use axum::http::{Request, StatusCode};
 use hyper::{Client, Response};
 use mempool_infra::network_component::CommunicationInterface;
 use rstest::rstest;
+use starknet_api::external_transaction::ExternalTransaction;
 use starknet_api::transaction::{Tip, TransactionHash};
 use starknet_gateway::config::{
     GatewayConfig, GatewayNetworkConfig, StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
 use starknet_gateway::gateway::Gateway;
-use starknet_gateway::starknet_api_test_utils::invoke_tx;
+use starknet_gateway::starknet_api_test_utils::{external_invoke_tx_to_json, invoke_tx};
 use starknet_gateway::state_reader_test_utils::test_state_reader_factory;
 use starknet_mempool::mempool::Mempool;
 use starknet_mempool_types::mempool_types::{
@@ -97,9 +98,10 @@ async fn set_up_gateway(network_component: GatewayNetworkComponent) -> (IpAddr, 
 async fn send_and_verify_transaction(
     ip: IpAddr,
     port: u16,
-    tx_json: String,
+    tx: ExternalTransaction,
     expected_response: &str,
 ) {
+    let tx_json = external_invoke_tx_to_json(tx);
     let request = Request::builder()
         .method("POST")
         .uri(format!("http://{}", SocketAddr::from((ip, port))) + "/add_tx")
@@ -136,8 +138,8 @@ async fn test_end_to_end() {
     let (ip, port) = set_up_gateway(gateway_to_mempool_network).await;
 
     // Send a transaction.
-    let invoke_json = serde_json::to_string(&invoke_tx()).unwrap();
-    send_and_verify_transaction(ip, port, invoke_json, "INVOKE").await;
+    let external_tx = invoke_tx();
+    send_and_verify_transaction(ip, port, external_tx, "INVOKE").await;
 
     // Initialize Mempool.
     let mut mempool = Mempool::empty(mempool_to_gateway_network, batcher_channels);
