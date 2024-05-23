@@ -128,7 +128,7 @@ impl SerializeConfig for RpcStateReaderConfig {
 }
 
 // TODO(Arni): Remove this struct once Chain info supports Papyrus serialization.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ChainInfoConfig {
     pub chain_id: ChainId,
     pub strk_fee_token_address: ContractAddress,
@@ -167,12 +167,64 @@ impl ChainInfoConfig {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+impl SerializeConfig for ChainInfoConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "chain_id",
+                &self.chain_id,
+                "The chain ID of the StarkNet chain.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "strk_fee_token_address",
+                &self.strk_fee_token_address,
+                "Address of the STRK fee token.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "eth_fee_token_address",
+                &self.eth_fee_token_address,
+                "Address of the ETH fee token.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct StatefulTransactionValidatorConfig {
     pub max_nonce_for_validation_skip: Nonce,
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
     pub chain_info: ChainInfoConfig,
+}
+
+impl SerializeConfig for StatefulTransactionValidatorConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let members = BTreeMap::from_iter([
+            ser_param(
+                "max_nonce_for_validation_skip",
+                &self.max_nonce_for_validation_skip,
+                "The maximum nonce for which the validation is skipped.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "validate_max_n_steps",
+                &self.validate_max_n_steps,
+                "The maximum number of steps the validation function is allowed to take.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_recursion_depth",
+                &self.max_recursion_depth,
+                "The maximum recursion depth allowed in a transaction.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
+        let sub_configs = append_sub_config_name(self.chain_info.dump(), "chain_info");
+        vec![members, sub_configs].into_iter().flatten().collect()
+    }
 }
 
 impl StatefulTransactionValidatorConfig {
