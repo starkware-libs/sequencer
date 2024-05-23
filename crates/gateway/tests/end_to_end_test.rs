@@ -9,7 +9,8 @@ use mempool_infra::network_component::CommunicationInterface;
 use rstest::rstest;
 use starknet_api::transaction::{Tip, TransactionHash};
 use starknet_gateway::config::{
-    GatewayNetworkConfig, StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig,
+    GatewayConfig, GatewayNetworkConfig, StatefulTransactionValidatorConfig,
+    StatelessTransactionValidatorConfig,
 };
 use starknet_gateway::gateway::Gateway;
 use starknet_gateway::starknet_api_test_utils::invoke_tx;
@@ -73,14 +74,15 @@ async fn set_up_gateway(network_component: GatewayNetworkComponent) -> (IpAddr, 
         max_signature_length: 2,
         ..Default::default()
     };
+    let config = GatewayConfig { network_config, stateless_transaction_validator_config };
+
     let stateful_transaction_validator_config =
         StatefulTransactionValidatorConfig::create_for_testing();
     let state_reader_factory = Arc::new(test_state_reader_factory());
 
     let gateway = Gateway {
-        network_config,
+        config,
         network_component,
-        stateless_transaction_validator_config,
         stateful_transaction_validator_config,
         state_reader_factory,
     };

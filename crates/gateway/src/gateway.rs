@@ -11,9 +11,7 @@ use starknet_mempool_types::mempool_types::{
     Account, GatewayNetworkComponent, GatewayToMempoolMessage, MempoolInput,
 };
 
-use crate::config::{
-    GatewayNetworkConfig, StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig,
-};
+use crate::config::{GatewayConfig, GatewayNetworkConfig, StatefulTransactionValidatorConfig};
 use crate::errors::GatewayError;
 use crate::starknet_api_test_utils::get_sender_address;
 use crate::state_reader::StateReaderFactory;
@@ -28,10 +26,7 @@ pub mod gateway_test;
 pub type GatewayResult<T> = Result<T, GatewayError>;
 
 pub struct Gateway {
-    pub network_config: GatewayNetworkConfig,
-    // TODO(Arni, 7/5/2024): Move the stateless transaction validator config into the gateway
-    // config.
-    pub stateless_transaction_validator_config: StatelessTransactionValidatorConfig,
+    pub config: GatewayConfig,
     pub stateful_transaction_validator_config: StatefulTransactionValidatorConfig,
     pub network_component: GatewayNetworkComponent,
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
@@ -50,7 +45,8 @@ pub struct AppState {
 impl Gateway {
     pub async fn build_server(self) {
         // Parses the bind address from GatewayConfig, returning an error for invalid addresses.
-        let addr = SocketAddr::new(self.network_config.ip, self.network_config.port);
+        let GatewayNetworkConfig { ip, port } = self.config.network_config;
+        let addr = SocketAddr::new(ip, port);
         let app = self.app();
 
         // Create a server that runs forever.
@@ -60,7 +56,7 @@ impl Gateway {
     pub fn app(self) -> Router {
         let app_state = AppState {
             stateless_transaction_validator: StatelessTransactionValidator {
-                config: self.stateless_transaction_validator_config,
+                config: self.config.stateless_transaction_validator_config,
             },
             stateful_transaction_validator: Arc::new(StatefulTransactionValidator {
                 config: self.stateful_transaction_validator_config,

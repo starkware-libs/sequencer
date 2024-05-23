@@ -7,7 +7,8 @@ use pretty_assertions::assert_str_eq;
 use rstest::rstest;
 use starknet_api::external_transaction::ExternalTransaction;
 use starknet_gateway::config::{
-    GatewayNetworkConfig, StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig,
+    GatewayConfig, GatewayNetworkConfig, StatefulTransactionValidatorConfig,
+    StatelessTransactionValidatorConfig,
 };
 use starknet_gateway::gateway::Gateway;
 use starknet_gateway::starknet_api_test_utils::invoke_tx;
@@ -57,6 +58,8 @@ async fn check_request(request: Request<Body>, status_code: StatusCode) -> Bytes
         ..Default::default()
     };
 
+    let config = GatewayConfig { network_config, stateless_transaction_validator_config };
+
     // The  `_rx_gateway_to_mempool`   is retained to keep the channel open, as dropping it would
     // prevent the sender from transmitting messages.
     let (tx_gateway_to_mempool, _rx_gateway_to_mempool) = channel::<GatewayToMempoolMessage>(1);
@@ -69,8 +72,7 @@ async fn check_request(request: Request<Body>, status_code: StatusCode) -> Bytes
 
     // TODO: Add fixture.
     let gateway = Gateway {
-        network_config,
-        stateless_transaction_validator_config,
+        config,
         stateful_transaction_validator_config,
         network_component,
         state_reader_factory,
