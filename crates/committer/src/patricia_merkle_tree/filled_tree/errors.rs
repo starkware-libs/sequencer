@@ -4,7 +4,7 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonT
 use crate::patricia_merkle_tree::{node_data::leaf::LeafData, types::NodeIndex};
 
 #[derive(thiserror::Error, Debug)]
-pub(crate) enum FilledTreeError<L: LeafData> {
+pub enum FilledTreeError<L: LeafData> {
     #[error("Double update at node {index:?}. Existing value: {existing_value}.")]
     DoubleUpdate {
         index: NodeIndex,

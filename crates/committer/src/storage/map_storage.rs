@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::storage::storage_trait::{Storage, StorageKey, StorageValue};
 use serde::Serialize;
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Default)]
 pub struct MapStorage {
     pub storage: HashMap<StorageKey, StorageValue>,
 }

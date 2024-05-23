@@ -2,6 +2,7 @@ use crate::tests::python_tests::PythonTest;
 use clap::{Args, Parser, Subcommand};
 use std::path::Path;
 
+pub mod filled_tree_output;
 pub mod parse_input;
 pub mod tests;
 

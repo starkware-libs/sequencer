@@ -33,7 +33,7 @@ impl From<TreeHeight> for u8 {
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Hash, derive_more::BitAnd, derive_more::Sub, PartialOrd, Ord,
 )]
-pub(crate) struct NodeIndex(U256);
+pub struct NodeIndex(U256);
 
 // Wraps a U256. Maximal possible value is the largest index in a tree of height 251 (2 ^ 252 - 1).
 impl NodeIndex {

@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub(crate) enum TypesError<T: Sized + Debug> {
+pub enum TypesError<T: Sized + Debug> {
     #[error("Failed to convert type {from:?} to {to}. Reason: {reason}.")]
     ConversionError {
         from: T,
