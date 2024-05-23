@@ -74,18 +74,17 @@ async fn set_up_gateway(network_component: GatewayNetworkComponent) -> (IpAddr, 
         max_signature_length: 2,
         ..Default::default()
     };
-    let config = GatewayConfig { network_config, stateless_transaction_validator_config };
-
     let stateful_transaction_validator_config =
         StatefulTransactionValidatorConfig::create_for_testing();
+    let config = GatewayConfig {
+        network_config,
+        stateless_transaction_validator_config,
+        stateful_transaction_validator_config,
+    };
+
     let state_reader_factory = Arc::new(test_state_reader_factory());
 
-    let gateway = Gateway {
-        config,
-        network_component,
-        stateful_transaction_validator_config,
-        state_reader_factory,
-    };
+    let gateway = Gateway { config, network_component, state_reader_factory };
 
     // Setup server
     tokio::spawn(async move { gateway.build_server().await });

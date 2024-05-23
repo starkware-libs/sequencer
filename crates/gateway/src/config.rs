@@ -12,7 +12,7 @@ use validator::Validate;
 pub struct GatewayConfig {
     pub network_config: GatewayNetworkConfig,
     pub stateless_transaction_validator_config: StatelessTransactionValidatorConfig,
-    // TODO(Arni): Add the stateful transaction validator config.
+    pub stateful_transaction_validator_config: StatefulTransactionValidatorConfig,
 }
 
 impl SerializeConfig for GatewayConfig {
@@ -22,6 +22,10 @@ impl SerializeConfig for GatewayConfig {
             append_sub_config_name(
                 self.stateless_transaction_validator_config.dump(),
                 "stateless_transaction_validator_config",
+            ),
+            append_sub_config_name(
+                self.stateful_transaction_validator_config.dump(),
+                "stateful_transaction_validator_config",
             ),
         ]
         .into_iter()

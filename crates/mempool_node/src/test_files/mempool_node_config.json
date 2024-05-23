@@ -19,6 +19,36 @@
     "privacy": "Public",
     "value": 8080
   },
+  "gateway_config.stateful_transaction_validator_config.chain_info.chain_id": {
+    "description": "The chain ID of the StarkNet chain.",
+    "privacy": "Public",
+    "value": "SN_GOERLI"
+  },
+  "gateway_config.stateful_transaction_validator_config.chain_info.eth_fee_token_address": {
+    "description": "Address of the ETH fee token.",
+    "privacy": "Public",
+    "value": "0x1001"
+  },
+  "gateway_config.stateful_transaction_validator_config.chain_info.strk_fee_token_address": {
+    "description": "Address of the STRK fee token.",
+    "privacy": "Public",
+    "value": "0x1002"
+  },
+  "gateway_config.stateful_transaction_validator_config.max_nonce_for_validation_skip": {
+    "description": "The maximum nonce for which the validation is skipped.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "gateway_config.stateful_transaction_validator_config.max_recursion_depth": {
+    "description": "The maximum recursion depth allowed in a transaction.",
+    "privacy": "Public",
+    "value": 50
+  },
+  "gateway_config.stateful_transaction_validator_config.validate_max_n_steps": {
+    "description": "The maximum number of steps the validation function is allowed to take.",
+    "privacy": "Public",
+    "value": 1000000
+  },
   "gateway_config.stateless_transaction_validator_config.max_calldata_length": {
     "description": "Validates that a transaction has signature length less than or equal to this value.",
     "privacy": "Public",

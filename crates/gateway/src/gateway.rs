@@ -11,7 +11,7 @@ use starknet_mempool_types::mempool_types::{
     Account, GatewayNetworkComponent, GatewayToMempoolMessage, MempoolInput,
 };
 
-use crate::config::{GatewayConfig, GatewayNetworkConfig, StatefulTransactionValidatorConfig};
+use crate::config::{GatewayConfig, GatewayNetworkConfig};
 use crate::errors::GatewayError;
 use crate::starknet_api_test_utils::get_sender_address;
 use crate::state_reader::StateReaderFactory;
@@ -27,7 +27,6 @@ pub type GatewayResult<T> = Result<T, GatewayError>;
 
 pub struct Gateway {
     pub config: GatewayConfig,
-    pub stateful_transaction_validator_config: StatefulTransactionValidatorConfig,
     pub network_component: GatewayNetworkComponent,
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
 }
@@ -59,7 +58,7 @@ impl Gateway {
                 config: self.config.stateless_transaction_validator_config,
             },
             stateful_transaction_validator: Arc::new(StatefulTransactionValidator {
-                config: self.stateful_transaction_validator_config,
+                config: self.config.stateful_transaction_validator_config,
             }),
             network_component: Arc::new(self.network_component),
             state_reader_factory: self.state_reader_factory,

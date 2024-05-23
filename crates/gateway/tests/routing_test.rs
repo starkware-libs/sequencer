@@ -57,8 +57,14 @@ async fn check_request(request: Request<Body>, status_code: StatusCode) -> Bytes
         max_signature_length: 2,
         ..Default::default()
     };
+    let stateful_transaction_validator_config =
+        StatefulTransactionValidatorConfig::create_for_testing();
 
-    let config = GatewayConfig { network_config, stateless_transaction_validator_config };
+    let config = GatewayConfig {
+        network_config,
+        stateless_transaction_validator_config,
+        stateful_transaction_validator_config,
+    };
 
     // The  `_rx_gateway_to_mempool`   is retained to keep the channel open, as dropping it would
     // prevent the sender from transmitting messages.
@@ -66,17 +72,10 @@ async fn check_request(request: Request<Body>, status_code: StatusCode) -> Bytes
     let (_, rx_mempool_to_gateway) = channel::<MempoolToGatewayMessage>(1);
     let network_component =
         GatewayNetworkComponent::new(tx_gateway_to_mempool, rx_mempool_to_gateway);
-    let stateful_transaction_validator_config =
-        StatefulTransactionValidatorConfig::create_for_testing();
     let state_reader_factory = Arc::new(test_state_reader_factory());
 
     // TODO: Add fixture.
-    let gateway = Gateway {
-        config,
-        stateful_transaction_validator_config,
-        network_component,
-        state_reader_factory,
-    };
+    let gateway = Gateway { config, network_component, state_reader_factory };
 
     let response = gateway.app().oneshot(request).await.unwrap();
     assert_eq!(response.status(), status_code);

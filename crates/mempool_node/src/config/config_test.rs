@@ -10,7 +10,9 @@ use papyrus_config::loading::load_and_process_config;
 use papyrus_config::presentation::get_config_presentation;
 use papyrus_config::validators::ParsedValidationErrors;
 use papyrus_config::{SerializationType, SerializedContent, SerializedParam};
-use starknet_gateway::config::{GatewayNetworkConfig, StatelessTransactionValidatorConfig};
+use starknet_gateway::config::{
+    GatewayNetworkConfig, StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig,
+};
 use validator::Validate;
 
 use crate::config::{
@@ -41,6 +43,8 @@ fn test_valid_config() {
                 max_calldata_length: 10,
                 max_signature_length: 2,
             },
+            stateful_transaction_validator_config:
+                StatefulTransactionValidatorConfig::create_for_testing(),
         },
     };
     let loaded_config = get_config_file(CONFIG_FILE).unwrap();
