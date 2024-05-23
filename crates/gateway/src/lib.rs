@@ -9,6 +9,3 @@ pub mod state_reader_test_utils;
 pub mod stateful_transaction_validator;
 pub mod stateless_transaction_validator;
 pub mod utils;
-
-#[cfg(test)]
-mod config_test;
