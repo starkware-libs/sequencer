@@ -24,8 +24,8 @@ use std::collections::HashSet;
 pub mod skeleton_forest_test;
 
 pub(crate) trait OriginalSkeletonForest {
-    fn create_original_skeleton_forest<S: Storage>(
-        storage: S,
+    fn create_original_skeleton_forest(
+        storage: impl Storage,
         global_tree_root_hash: HashOutput,
         classes_tree_root_hash: HashOutput,
         tree_heights: TreeHeight,
@@ -54,8 +54,8 @@ pub(crate) struct OriginalSkeletonForestImpl<T: OriginalSkeletonTree> {
 }
 
 impl<T: OriginalSkeletonTree> OriginalSkeletonForest for OriginalSkeletonForestImpl<T> {
-    fn create_original_skeleton_forest<S: Storage>(
-        storage: S,
+    fn create_original_skeleton_forest(
+        storage: impl Storage,
         global_tree_root_hash: HashOutput,
         classes_tree_root_hash: HashOutput,
         tree_heights: TreeHeight,
@@ -116,10 +116,10 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
         }
     }
 
-    fn create_global_state_tree<S: Storage>(
+    fn create_global_state_tree(
         accessed_addresses: &HashSet<&ContractAddress>,
         global_tree_root_hash: HashOutput,
-        storage: &S,
+        storage: &impl Storage,
         tree_height: TreeHeight,
     ) -> OriginalSkeletonTreeResult<T> {
         let mut sorted_leaf_indices: Vec<NodeIndex> = accessed_addresses
@@ -135,14 +135,14 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
         )
     }
 
-    fn create_lower_trees_skeleton<S: Storage>(
+    fn create_lower_trees_skeleton(
         accessed_addresses: &HashSet<&ContractAddress>,
         current_contract_state_leaves: &HashMap<ContractAddress, ContractState>,
         storage_updates: &HashMap<
             ContractAddress,
             HashMap<StarknetStorageKey, StarknetStorageValue>,
         >,
-        storage: &S,
+        storage: &impl Storage,
         tree_height: TreeHeight,
     ) -> OriginalSkeletonTreeResult<HashMap<ContractAddress, T>> {
         let mut contract_states = HashMap::new();
@@ -168,10 +168,10 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
         Ok(contract_states)
     }
 
-    fn create_classes_tree<S: Storage>(
+    fn create_classes_tree(
         class_hash_to_compiled_class_hash: &HashMap<ClassHash, CompiledClassHash>,
         classes_tree_root_hash: HashOutput,
-        storage: &S,
+        storage: &impl Storage,
         tree_height: TreeHeight,
     ) -> OriginalSkeletonTreeResult<T> {
         let mut sorted_leaf_indices: Vec<NodeIndex> = class_hash_to_compiled_class_hash
