@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use validator::Validate;
 
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct GatewayConfig {
     pub network_config: GatewayNetworkConfig,
     pub stateless_transaction_validator_config: StatelessTransactionValidatorConfig,

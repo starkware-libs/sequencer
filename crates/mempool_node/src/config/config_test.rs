@@ -10,11 +10,11 @@ use papyrus_config::loading::load_and_process_config;
 use papyrus_config::presentation::get_config_presentation;
 use papyrus_config::validators::ParsedValidationErrors;
 use papyrus_config::{SerializationType, SerializedContent, SerializedParam};
+use starknet_gateway::config::{GatewayNetworkConfig, StatelessTransactionValidatorConfig};
 use validator::Validate;
 
 use crate::config::{
-    node_command, ComponentConfig, ComponentExecutionConfig, GatewayNetworkConfig,
-    MempoolNodeConfig,
+    node_command, ComponentConfig, ComponentExecutionConfig, GatewayConfig, MempoolNodeConfig,
 };
 
 const TEST_FILES_FOLDER: &str = "./src/test_files";
@@ -33,7 +33,15 @@ fn test_valid_config() {
             gateway_component: ComponentExecutionConfig { execute: true },
             mempool_component: ComponentExecutionConfig { execute: false },
         },
-        gateway_config: GatewayNetworkConfig { ip: "0.0.0.0".parse().unwrap(), port: 8080 },
+        gateway_config: GatewayConfig {
+            network_config: GatewayNetworkConfig { ip: "0.0.0.0".parse().unwrap(), port: 8080 },
+            stateless_transaction_validator_config: StatelessTransactionValidatorConfig {
+                validate_non_zero_l1_gas_fee: true,
+                validate_non_zero_l2_gas_fee: false,
+                max_calldata_length: 10,
+                max_signature_length: 2,
+            },
+        },
     };
     let loaded_config = get_config_file(CONFIG_FILE).unwrap();
 

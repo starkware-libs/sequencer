@@ -10,7 +10,7 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::loading::load_and_process_config;
 use papyrus_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_gateway::config::GatewayNetworkConfig;
+use starknet_gateway::config::GatewayConfig;
 use validator::{Validate, ValidationError};
 
 use crate::version::VERSION_FULL;
@@ -77,7 +77,7 @@ pub struct MempoolNodeConfig {
     #[validate]
     pub components: ComponentConfig,
     #[validate]
-    pub gateway_config: GatewayNetworkConfig,
+    pub gateway_config: GatewayConfig,
 }
 
 impl SerializeConfig for MempoolNodeConfig {
