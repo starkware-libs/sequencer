@@ -1,3 +1,4 @@
+use ethnum::U256;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::{Felt as StarknetTypesFelt, FromStrError};
 
@@ -40,6 +41,12 @@ impl From<Felt> for StarknetTypesFelt {
     }
 }
 
+impl From<&Felt> for U256 {
+    fn from(felt: &Felt) -> Self {
+        U256::from_be_bytes(felt.to_bytes_be())
+    }
+}
+
 impl std::ops::Mul for Felt {
     type Output = Self;
 
@@ -71,6 +78,10 @@ impl Felt {
             .try_into()
             // Should not fail as it takes less than 252 bits to represent a felt.
             .expect("Unexpected error occurred when extracting bits of a Felt.")
+    }
+
+    pub fn from_bytes_be(bytes: &[u8; 32]) -> Self {
+        StarknetTypesFelt::from_bytes_be(bytes).into()
     }
 
     pub fn to_bytes_be(self) -> [u8; 32] {

@@ -1,6 +1,6 @@
 use crate::block_committer::input::{ContractAddress, StarknetStorageKey};
 use crate::felt::Felt;
-use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength, PathToBottom};
+use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::test_utils::get_random_u256;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::types::TreeHeight;
@@ -23,7 +23,7 @@ fn test_compute_bottom_index(
     let bottom_index = NodeIndex::compute_bottom_index(
         NodeIndex::from(node_index),
         &PathToBottom {
-            path: EdgePath(Felt::from(path)),
+            path: path.into(),
             length: EdgePathLength(length),
         },
     );
@@ -75,10 +75,7 @@ fn test_get_lca(#[case] node_index: u8, #[case] other: u8, #[case] expected: u8)
 
 #[rstest]
 fn test_get_lca_big() {
-    let lca = NodeIndex::new(get_random_u256(
-        U256::ZERO,
-        (NodeIndex::MAX_INDEX >> 1).into(),
-    ));
+    let lca = NodeIndex::new(get_random_u256(U256::ZERO, (NodeIndex::MAX >> 1).into()));
 
     let left_child = lca << 1;
     let right_child = left_child + 1.into();
@@ -111,7 +108,7 @@ fn test_get_path_to_descendant(
     let root_index = NodeIndex(root_index.into());
     let descendant = NodeIndex(descendant.into());
     let path_to_bottom = root_index.get_path_to_descendant(descendant);
-    assert_eq!(path_to_bottom.path, EdgePath(Felt::from(expected_path)));
+    assert_eq!(path_to_bottom.path, U256::from(expected_path).into());
     assert_eq!(path_to_bottom.length, EdgePathLength(expected_length));
 }
 
@@ -124,7 +121,7 @@ fn test_get_path_to_descendant_big() {
 
     let descendant = (root_index << extension_index.bit_length()) + extension_index;
     let path_to_bottom = root_index.get_path_to_descendant(descendant);
-    assert_eq!(path_to_bottom.path, EdgePath(Felt::from(extension)));
+    assert_eq!(path_to_bottom.path, extension.into());
     assert_eq!(
         path_to_bottom.length,
         EdgePathLength(extension_index.bit_length())
@@ -133,6 +130,6 @@ fn test_get_path_to_descendant_big() {
 
 #[rstest]
 fn test_nodeindex_to_felt_conversion() {
-    let index = NodeIndex::MAX_INDEX;
+    let index = NodeIndex::MAX;
     assert!(Felt::try_from(index).is_err());
 }

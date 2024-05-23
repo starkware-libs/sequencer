@@ -2,11 +2,8 @@ use ethnum::U256;
 use rstest::{fixture, rstest};
 use std::collections::HashMap;
 
-use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::node_data::inner_node::{
-    EdgeData, EdgePath, EdgePathLength, PathToBottom,
-};
+use crate::patricia_merkle_tree::node_data::inner_node::{EdgeData, EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::types::NodeIndex;
@@ -43,7 +40,7 @@ fn updated_skeleton(
 #[case::large_tree_farthest_leaves(
     251,
     1,
-    vec![NodeIndex::ROOT << 251, NodeIndex::MAX_INDEX],
+    vec![NodeIndex::ROOT << 251, NodeIndex::MAX],
     true)]
 #[case::large_tree_positive_consecutive_indices_of_different_sides(
     251,
@@ -84,21 +81,21 @@ fn test_has_leaves_on_both_sides_assertions(
 }
 
 #[rstest]
-#[case::small_tree_single_leaf(3, 1, vec![U256::from(8_u8)], PathToBottom {path:EdgePath(Felt::ZERO), length:EdgePathLength(3)})]
+#[case::small_tree_single_leaf(3, 1, vec![U256::from(8_u8)], PathToBottom {path:U256::ZERO.into(), length:EdgePathLength(3)})]
 #[case::small_tree_few_leaves(
-    3, 1, vec![U256::from(12_u8),U256::from(13_u8),U256::from(14_u8)], PathToBottom {path:EdgePath(Felt::ONE), length:EdgePathLength(1)})]
+    3, 1, vec![U256::from(12_u8),U256::from(13_u8),U256::from(14_u8)], PathToBottom {path:U256::ONE.into(), length:EdgePathLength(1)})]
 #[case::small_tree_few_leaves2(
-    3, 1, vec![U256::from(12_u8),U256::from(13_u8)], PathToBottom {path:EdgePath(Felt::from(2_u8)), length:EdgePathLength(2)})]
+    3, 1, vec![U256::from(12_u8),U256::from(13_u8)], PathToBottom {path:2_u128.into(), length:EdgePathLength(2)})]
 #[case::large_tree_positive_consecutive_indices_of_different_sides(
     251,
     1,
     vec![(U256::from(3u8) << 250) - U256::ONE, U256::from(3u8) << 250],
-    PathToBottom {path:EdgePath(Felt::ZERO), length:EdgePathLength(0)})]
+    PathToBottom {path:U256::ZERO.into(), length:EdgePathLength(0)})]
 #[case::large_tree_positive_consecutive_indices(
     251,
     3<<126,
     vec![U256::from(3u8) << 250, (U256::from(3u8) << 250)+ U256::ONE],
-    PathToBottom {path:EdgePath(Felt::ZERO), length:EdgePathLength(123)})]
+    PathToBottom {path:U256::ZERO.into(), length:EdgePathLength(123)})]
 fn test_get_path_to_lca(
     #[case] tree_height: u8,
     #[case] root_index: u128,

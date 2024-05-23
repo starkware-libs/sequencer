@@ -2,7 +2,7 @@ use crate::block_committer::input::{ContractAddress, StarknetStorageKey};
 use crate::felt::Felt;
 use crate::patricia_merkle_tree::errors::TypesError;
 use crate::patricia_merkle_tree::filled_tree::node::ClassHash;
-use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength, PathToBottom};
+use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 
 use ethnum::U256;
 
@@ -11,7 +11,7 @@ use ethnum::U256;
 pub mod types_test;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, derive_more::Sub)]
-pub struct TreeHeight(u8);
+pub struct TreeHeight(pub(crate) u8);
 
 impl TreeHeight {
     pub const MAX: TreeHeight = TreeHeight(251);
@@ -48,15 +48,13 @@ impl NodeIndex {
 
     /// [NodeIndex] constant that represents the largest index in a tree.
     #[allow(clippy::as_conversions)]
-    pub const MAX_INDEX: Self = Self(U256::from_words(
+    pub const MAX: Self = Self(U256::from_words(
         u128::MAX >> (U256::BITS - Self::BITS as u32),
         u128::MAX,
     ));
 
     pub(crate) fn new(index: U256) -> Self {
-        if index > Self::MAX_INDEX.0 {
-            panic!("Index {index} is too large.");
-        }
+        assert!(index <= Self::MAX.0, "Index {index} is too large.");
         Self(index)
     }
 
@@ -66,7 +64,7 @@ impl NodeIndex {
         path_to_bottom: &PathToBottom,
     ) -> NodeIndex {
         let PathToBottom { path, length } = path_to_bottom;
-        (index << length.0) + Self::from_felt_value(&path.0)
+        (index << length.0) + Self::new(path.into())
     }
 
     /// Returns the number of leading zeroes when represented with Self::BITS bits.
@@ -119,11 +117,7 @@ impl NodeIndex {
         };
 
         PathToBottom {
-            path: EdgePath(
-                delta
-                    .try_into()
-                    .expect("Delta of two indices is unexpectedly larger than a Felt."),
-            ),
+            path: delta.0.into(),
             length: EdgePathLength(distance),
         }
     }
@@ -151,7 +145,7 @@ impl NodeIndex {
     }
 
     fn from_felt_value(felt: &Felt) -> Self {
-        NodeIndex(U256::from_be_bytes(felt.to_bytes_be()))
+        Self(U256::from(felt))
     }
 }
 

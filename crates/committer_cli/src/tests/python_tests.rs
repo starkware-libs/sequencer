@@ -1,3 +1,4 @@
+use crate::parse_input::read::parse_input;
 use committer::block_committer::input::{
     ContractAddress, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
 };
@@ -8,7 +9,7 @@ use committer::hash::pedersen::PedersenHashFunction;
 use committer::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, FilledNode, Nonce};
 use committer::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData, EdgeData, EdgePath, EdgePathLength, NodeData, PathToBottom,
+    BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
 };
 use committer::patricia_merkle_tree::node_data::leaf::{ContractState, LeafDataImpl};
 use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
@@ -18,11 +19,10 @@ use committer::storage::db_object::DBObject;
 use committer::storage::errors::{DeserializationError, SerializationError};
 use committer::storage::map_storage::MapStorage;
 use committer::storage::storage_trait::{Storage, StorageKey, StorageValue};
+use ethnum::U256;
 use std::fmt::Debug;
 use std::{collections::HashMap, io};
 use thiserror;
-
-use crate::parse_input::read::parse_input;
 
 // Enum representing different Python tests.
 pub(crate) enum PythonTest {
@@ -515,7 +515,7 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
         data: NodeData::Edge(EdgeData {
             bottom_hash: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "bottom")?)),
             path_to_bottom: PathToBottom {
-                path: EdgePath(Felt::from(*get_or_key_not_found(&edge_data, "path")?)),
+                path: U256::from(*get_or_key_not_found(&edge_data, "path")?).into(),
                 length: EdgePathLength((*get_or_key_not_found(&edge_data, "length")?).try_into()?),
             },
         }),

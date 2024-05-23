@@ -2,13 +2,13 @@ use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData, EdgeData, EdgePath, EdgePathLength, NodeData, PathToBottom,
+    BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
 };
 use crate::patricia_merkle_tree::node_data::leaf::{LeafData, LeafDataImpl};
 use crate::storage::db_object::{DBObject, Deserializable};
 use crate::storage::errors::{DeserializationError, SerializationError};
 use crate::storage::storage_trait::{StorageKey, StoragePrefix, StorageValue};
-
+use ethnum::U256;
 use serde::{Deserialize, Serialize};
 
 // Const describe the size of the serialized node.
@@ -69,7 +69,8 @@ impl<L: LeafData> DBObject for FilledNode<L> {
             }) => {
                 // Serialize bottom hash, path, and path length to byte arrays.
                 let bottom: [u8; SERIALIZE_HASH_BYTES] = bottom_hash.0.to_bytes_be();
-                let path: [u8; SERIALIZE_HASH_BYTES] = path_to_bottom.path.0.to_bytes_be();
+                let path: [u8; SERIALIZE_HASH_BYTES] =
+                    U256::from(&path_to_bottom.path).to_be_bytes();
                 let length: [u8; 1] = path_to_bottom.length.0.to_be_bytes();
 
                 // Concatenate bottom hash, path, and path length.
@@ -113,9 +114,12 @@ impl Deserializable for FilledNode<LeafDataImpl> {
                         &value.0[..SERIALIZE_HASH_BYTES],
                     )),
                     path_to_bottom: PathToBottom {
-                        path: EdgePath(Felt::from_bytes_be_slice(
-                            &value.0[SERIALIZE_HASH_BYTES..SERIALIZE_HASH_BYTES + EDGE_PATH_BYTES],
-                        )),
+                        path: U256::from_be_bytes(
+                            value.0[SERIALIZE_HASH_BYTES..SERIALIZE_HASH_BYTES + EDGE_PATH_BYTES]
+                                .try_into()
+                                .expect("Slice with incorrect length."),
+                        )
+                        .into(),
                         length: EdgePathLength(value.0[EDGE_BYTES - 1]),
                     },
                 }),

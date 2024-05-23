@@ -219,6 +219,7 @@ version = "0.1.0-rc.0"
 dependencies = [
  "clap",
  "committer",
+ "ethnum",
  "pretty_assertions",
  "serde",
  "serde_json",

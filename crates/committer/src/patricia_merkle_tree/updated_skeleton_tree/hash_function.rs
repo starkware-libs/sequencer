@@ -38,7 +38,7 @@ impl<H: HashFunction> TreeHashFunction<LeafDataImpl, H> for TreeHashFunctionImpl
                 bottom_hash: hash_output,
                 path_to_bottom: PathToBottom { path, length },
             }) => HashOutput(
-                H::compute_hash(HashInputPair(hash_output.0, path.0)).0 + Felt::from(length.0),
+                H::compute_hash(HashInputPair(hash_output.0, path.into())).0 + Felt::from(length.0),
             ),
             NodeData::Leaf(LeafDataImpl::StorageValue(storage_value)) => HashOutput(*storage_value),
             NodeData::Leaf(LeafDataImpl::CompiledClassHash(compiled_class_hash)) => {

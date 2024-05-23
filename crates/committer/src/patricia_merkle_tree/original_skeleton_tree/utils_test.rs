@@ -20,11 +20,11 @@ fn create_increasing_random_array(size: usize, start: U256, jump: U256) -> Vec<U
 
 #[rstest]
 #[case::small_tree_one_side(
-    3_u8, U256::ONE, &[uint!("8"), uint!("10"), uint!("11")], 
+    3_u8, U256::ONE, &[uint!("8"), uint!("10"), uint!("11")],
     &[uint!("8"), uint!("10"), uint!("11")], &[]
 )]
 #[case::small_tree_two_sides(
-    3_u8, U256::ONE, &[uint!("8"), uint!("10"), uint!("14")], 
+    3_u8, U256::ONE, &[uint!("8"), uint!("10"), uint!("14")],
     &[uint!("8"), uint!("10")], &[uint!("14")]
 )]
 #[should_panic]
@@ -59,7 +59,7 @@ fn test_split_leaves_big_tree() {
         create_increasing_random_array(100, NodeIndex::FIRST_LEAF.into(), U256::ONE << 200);
     let right_leaf_indices = create_increasing_random_array(
         100,
-        (U256::from(NodeIndex::FIRST_LEAF) + U256::from(NodeIndex::MAX_INDEX)) / 2 + 1,
+        (U256::from(NodeIndex::FIRST_LEAF) + U256::from(NodeIndex::MAX)) / 2 + 1,
         U256::ONE << 100,
     );
     test_split_leaves(
