@@ -2,19 +2,16 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::body::{Body, HttpBody};
-use axum::http::{Request, StatusCode};
-use hyper::{Client, Response};
 use mempool_infra::network_component::CommunicationInterface;
 use rstest::rstest;
-use starknet_api::external_transaction::ExternalTransaction;
 use starknet_api::transaction::{Tip, TransactionHash};
 use starknet_gateway::config::{
     GatewayConfig, GatewayNetworkConfig, StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
 use starknet_gateway::gateway::Gateway;
-use starknet_gateway::starknet_api_test_utils::{external_invoke_tx_to_json, invoke_tx};
+use starknet_gateway::gateway_client;
+use starknet_gateway::starknet_api_test_utils::invoke_tx;
 use starknet_gateway::state_reader_test_utils::test_state_reader_factory;
 use starknet_mempool::mempool::Mempool;
 use starknet_mempool_types::mempool_types::{
@@ -95,33 +92,6 @@ async fn set_up_gateway(network_component: GatewayNetworkComponent) -> (IpAddr, 
     (ip, port)
 }
 
-async fn send_and_verify_transaction(
-    ip: IpAddr,
-    port: u16,
-    tx: ExternalTransaction,
-    expected_response: &str,
-) {
-    let tx_json = external_invoke_tx_to_json(tx);
-    let request = Request::builder()
-        .method("POST")
-        .uri(format!("http://{}", SocketAddr::from((ip, port))) + "/add_tx")
-        .header("content-type", "application/json")
-        .body(Body::from(tx_json))
-        .unwrap();
-
-    // Create a client
-    let client = Client::new();
-
-    // Send a POST request with the transaction data as the body
-    let response: Response<Body> = client.request(request).await.unwrap();
-
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let res = response.into_body().collect().await.unwrap().to_bytes();
-
-    assert_eq!(res, expected_response.as_bytes());
-}
-
 #[rstest]
 #[tokio::test]
 async fn test_end_to_end() {
@@ -139,7 +109,9 @@ async fn test_end_to_end() {
 
     // Send a transaction.
     let external_tx = invoke_tx();
-    send_and_verify_transaction(ip, port, external_tx, "INVOKE").await;
+    let gateway_client = gateway_client::GatewayClient::new(SocketAddr::from((ip, port)));
+    let response = gateway_client.add_tx(external_tx).await.unwrap();
+    assert_eq!(response, "INVOKE");
 
     // Initialize Mempool.
     let mut mempool = Mempool::empty(mempool_to_gateway_network, batcher_channels);

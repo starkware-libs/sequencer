@@ -1,6 +1,7 @@
 pub mod config;
 pub mod errors;
 pub mod gateway;
+pub mod gateway_client;
 pub mod rpc_objects;
 pub mod rpc_state_reader;
 pub mod starknet_api_test_utils;

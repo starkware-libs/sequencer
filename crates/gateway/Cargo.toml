@@ -16,6 +16,7 @@ axum.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 clap.workspace = true
+hyper.workspace = true
 mempool_infra = { path = "../mempool_infra", version = "0.0" }
 papyrus_config.workspace = true
 reqwest.workspace = true
@@ -31,7 +32,6 @@ validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
-hyper.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet_mempool = { path = "../mempool", version = "0.0" }
