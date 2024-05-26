@@ -1,9 +1,8 @@
 use std::net::SocketAddr;
 
-use axum::body::{Body, HttpBody};
-use axum::http::{Request, StatusCode};
-use hyper::client::HttpConnector;
-use hyper::{Client, Response};
+use axum::body::Body;
+use hyper::StatusCode;
+use reqwest::{Client, Response};
 use starknet_api::external_transaction::ExternalTransaction;
 
 use crate::errors::GatewayError;
@@ -14,28 +13,44 @@ pub type GatewayResult<T> = Result<T, GatewayError>;
 /// A test utility client for interacting with a gateway server.
 pub struct GatewayClient {
     socket: SocketAddr,
-    client: Client<HttpConnector>,
+    client: Client,
 }
+
 impl GatewayClient {
     pub fn new(socket: SocketAddr) -> Self {
         let client = Client::new();
         Self { socket, client }
     }
 
-    pub async fn add_tx(&self, tx: ExternalTransaction) -> GatewayResult<String> {
+    // TODO: change from &str to proper return type once that's ready.
+    pub async fn assert_add_tx_success(&self, tx: &ExternalTransaction, expected: &str) {
+        let response =
+            self.add_tx_with_status_check(tx, StatusCode::OK).await.bytes().await.unwrap();
+
+        assert_eq!(response, expected)
+    }
+
+    pub async fn add_tx_with_status_check(
+        &self,
+        tx: &ExternalTransaction,
+        expected_status_code: StatusCode,
+    ) -> Response {
+        let response = self.add_tx(tx).await;
+        assert_eq!(response.status(), expected_status_code);
+
+        response
+    }
+
+    // Prefer using assert_add_tx_success or other higher level methods of this client, to ensure
+    // tests are boilerplate and implementation-detail free.
+    pub async fn add_tx(&self, tx: &ExternalTransaction) -> Response {
         let tx_json = external_invoke_tx_to_json(tx);
-        let request = Request::builder()
-            .method("POST")
-            .uri(format!("http://{}", self.socket) + "/add_tx")
+        self.client
+            .post(format!("http://{}/add_tx", self.socket))
             .header("content-type", "application/json")
-            .body(Body::from(tx_json))?;
-
-        // Send a POST request with the transaction data as the body
-        let response: Response<Body> = self.client.request(request).await?;
-        assert_eq!(response.status(), StatusCode::OK);
-
-        let response_string =
-            String::from_utf8(response.into_body().collect().await?.to_bytes().to_vec())?;
-        Ok(response_string)
+            .body(Body::from(tx_json))
+            .send()
+            .await
+            .unwrap()
     }
 }

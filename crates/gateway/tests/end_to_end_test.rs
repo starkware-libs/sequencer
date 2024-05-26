@@ -110,8 +110,7 @@ async fn test_end_to_end() {
     // Send a transaction.
     let external_tx = invoke_tx();
     let gateway_client = gateway_client::GatewayClient::new(SocketAddr::from((ip, port)));
-    let response = gateway_client.add_tx(external_tx).await.unwrap();
-    assert_eq!(response, "INVOKE");
+    gateway_client.assert_add_tx_success(&external_tx, "INVOKE").await;
 
     // Initialize Mempool.
     let mut mempool = Mempool::empty(mempool_to_gateway_network, batcher_channels);

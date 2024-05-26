@@ -19,12 +19,6 @@ pub enum GatewayError {
     StatefulTransactionValidatorError(#[from] StatefulTransactionValidatorError),
     #[error(transparent)]
     StatelessTransactionValidatorError(#[from] StatelessTransactionValidatorError),
-    #[error(transparent)]
-    AxumError(#[from] axum::http::Error),
-    #[error(transparent)]
-    HyperError(#[from] hyper::Error),
-    #[error(transparent)]
-    FromUtf8Error(#[from] std::string::FromUtf8Error),
 }
 
 impl IntoResponse for GatewayError {

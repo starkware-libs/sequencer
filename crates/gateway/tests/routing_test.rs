@@ -27,7 +27,7 @@ async fn test_routes(
     #[case] external_invoke_tx: ExternalTransaction,
     #[case] expected_response: &str,
 ) {
-    let tx_json = external_invoke_tx_to_json(external_invoke_tx);
+    let tx_json = external_invoke_tx_to_json(&external_invoke_tx);
     let request = Request::post("/add_tx")
         .header("content-type", "application/json")
         .body(Body::from(tx_json))

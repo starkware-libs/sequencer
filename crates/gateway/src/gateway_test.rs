@@ -36,7 +36,7 @@ async fn test_add_tx(
     let network_component =
         Arc::new(GatewayNetworkComponent::new(tx_gateway_to_mempool, rx_mempool_to_gateway));
 
-    let json_string = external_invoke_tx_to_json(external_invoke_tx);
+    let json_string = external_invoke_tx_to_json(&external_invoke_tx);
     let tx: ExternalTransaction = serde_json::from_str(&json_string).unwrap();
 
     let mut app_state = AppState {

@@ -248,9 +248,9 @@ pub fn external_invoke_tx(invoke_args: InvokeTxArgs) -> ExternalTransaction {
     }
 }
 
-pub fn external_invoke_tx_to_json(tx: ExternalTransaction) -> String {
+pub fn external_invoke_tx_to_json(tx: &ExternalTransaction) -> String {
     // Serialize to JSON
-    let mut tx_json = serde_json::to_value(&tx)
+    let mut tx_json = serde_json::to_value(tx)
         .unwrap_or_else(|_| panic!("Failed to serialize transaction: {tx:?}"));
 
     // Add type and version manually
