@@ -11,8 +11,8 @@ use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHas
 use crate::patricia_merkle_tree::node_data::leaf::ContractState;
 use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::create_tree_test::{
     create_32_bytes_entry, create_binary_entry, create_binary_skeleton_node, create_edge_entry,
-    create_edge_sibling_skeleton_node, create_edge_skeleton_node, create_expected_skeleton,
-    create_leaf_or_binary_sibling_skeleton_node,
+    create_edge_skeleton_node, create_expected_skeleton,
+    create_leaf_or_binary_sibling_skeleton_node, create_unmodified_bottom_skeleton_node,
 };
 use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::OriginalSkeletonForest;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
@@ -122,7 +122,8 @@ use super::OriginalSkeletonForestImpl;
                 create_edge_skeleton_node(1, 0, 1),
                 create_binary_skeleton_node(2),
                 create_binary_skeleton_node(4),
-                create_edge_sibling_skeleton_node(5, 1, 1, 76),
+                create_edge_skeleton_node(5, 1, 1),
+                create_unmodified_bottom_skeleton_node(11, 76),
                 create_leaf_or_binary_sibling_skeleton_node(9, 47)
             ],
             3
@@ -219,6 +220,7 @@ fn test_create_original_skeleton_forest(
         .unwrap();
 
     assert_eq!(actual_forest.contracts_trie, expected_forest.contracts_trie);
+    // TODO(Nimrod, 1/6/2024): Add classes trie and storage_tries comparison.
 }
 
 fn create_contract_leaves(leaves: &[(u8, u8)]) -> HashMap<ContractAddress, ContractState> {

@@ -139,24 +139,20 @@ impl OriginalSkeletonTreeImpl {
                     bottom_hash,
                     path_to_bottom,
                 }) => {
+                    self.nodes.insert(
+                        subtree.root_index,
+                        OriginalSkeletonNode::Edge { path_to_bottom },
+                    );
                     if subtree.is_sibling() {
-                        // Sibling will remain an edge node. No need to open the bottom.
                         self.nodes.insert(
-                            subtree.root_index,
-                            OriginalSkeletonNode::EdgeSibling(EdgeData {
-                                bottom_hash,
-                                path_to_bottom,
-                            }),
+                            path_to_bottom.bottom_index(subtree.root_index),
+                            OriginalSkeletonNode::UnmodifiedBottom(bottom_hash),
                         );
                         continue;
                     }
                     // Parse bottom.
                     let bottom_subtree =
                         subtree.get_bottom_subtree(&path_to_bottom, &self.tree_height, bottom_hash);
-                    self.nodes.insert(
-                        subtree.root_index,
-                        OriginalSkeletonNode::Edge { path_to_bottom },
-                    );
                     next_subtrees.push(bottom_subtree);
                 }
                 // Leaf node.

@@ -1,4 +1,3 @@
-use crate::patricia_merkle_tree::node_data::inner_node::EdgeData;
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
@@ -89,20 +88,9 @@ impl UpdatedSkeletonTreeImpl {
                     OriginalSkeletonNode::LeafOrBinarySibling(hash) => {
                         UpdatedSkeletonNode::Sibling(*hash)
                     }
-                    OriginalSkeletonNode::EdgeSibling(EdgeData {
-                        path_to_bottom,
-                        bottom_hash,
-                    }) => {
-                        // Finalize bottom to allow the edge hash computation.
-                        // TODO(Tzahi, 1/6/2024): Consider moving this to the create function, or
-                        // even to the OriginalSkeleton creation.
-                        self.skeleton_tree.insert(
-                            path_to_bottom.bottom_index(index),
-                            UpdatedSkeletonNode::Sibling(*bottom_hash),
-                        );
-                        UpdatedSkeletonNode::Edge {
-                            path_to_bottom: *path_to_bottom,
-                        }
+                    OriginalSkeletonNode::UnmodifiedBottom(hash) => {
+                        // TODO(Tzahi, 1/6/2024): create a new variant in UpdatedSkeletonNode.
+                        UpdatedSkeletonNode::Sibling(*hash)
                     }
                 };
                 self.skeleton_tree.insert(index, updated);
@@ -147,12 +135,6 @@ impl UpdatedSkeletonTreeImpl {
             OriginalSkeletonNode::Edge { path_to_bottom } => OriginalSkeletonNode::Edge {
                 path_to_bottom: path.concat_paths(*path_to_bottom),
             },
-            OriginalSkeletonNode::EdgeSibling(edge_data) => {
-                OriginalSkeletonNode::EdgeSibling(EdgeData {
-                    bottom_hash: edge_data.bottom_hash,
-                    path_to_bottom: path.concat_paths(edge_data.path_to_bottom),
-                })
-            }
             OriginalSkeletonNode::Binary => {
                 // Finalize bottom - a binary descendant cannot change form.
                 self.skeleton_tree
@@ -161,7 +143,8 @@ impl UpdatedSkeletonTreeImpl {
                     path_to_bottom: *path,
                 }
             }
-            OriginalSkeletonNode::LeafOrBinarySibling(_) => OriginalSkeletonNode::Edge {
+            OriginalSkeletonNode::LeafOrBinarySibling(_)
+            | OriginalSkeletonNode::UnmodifiedBottom(_) => OriginalSkeletonNode::Edge {
                 path_to_bottom: *path,
             },
         })

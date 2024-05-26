@@ -2,7 +2,7 @@ use ethnum::U256;
 use rstest::{fixture, rstest};
 
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::node_data::inner_node::{EdgeData, EdgePathLength, PathToBottom};
+use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
@@ -217,16 +217,16 @@ fn test_node_from_binary_data(
     ),
     &[],
 )]
-#[case::to_edge_sibling(
-    &PathToBottom::RIGHT_CHILD,
+#[case::to_unmodified_bottom(
+    &PathToBottom::from("101"),
     &NodeIndex::from(5),
-    &TempSkeletonNode::Original(OriginalSkeletonNode::EdgeSibling(
-        EdgeData {bottom_hash: HashOutput::ZERO, path_to_bottom: PathToBottom::from("01")}
+    &TempSkeletonNode::Original(OriginalSkeletonNode::UnmodifiedBottom(
+        HashOutput::ZERO
     )),
    &[],
-    TempSkeletonNode::Original(OriginalSkeletonNode::EdgeSibling(
-        EdgeData {bottom_hash: HashOutput::ZERO, path_to_bottom: (PathToBottom::from("101"))}
-    )),
+    TempSkeletonNode::Original(OriginalSkeletonNode::Edge{
+        path_to_bottom: PathToBottom::from("101")}
+    ),
     &[],
 )]
 #[case::to_binary(
