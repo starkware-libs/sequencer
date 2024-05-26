@@ -3,7 +3,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::{EdgeData, PathToBottom}
 use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 
 #[allow(dead_code)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 /// A node in the structure of a Patricia-Merkle tree, before the update.
 pub(crate) enum OriginalSkeletonNode {
     Binary,

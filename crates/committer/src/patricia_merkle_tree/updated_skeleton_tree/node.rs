@@ -10,5 +10,7 @@ pub(crate) enum UpdatedSkeletonNode {
     Edge { path_to_bottom: PathToBottom },
     // All unmodified nodes on the merkle paths of modified leaves.
     Sibling(HashOutput),
+    // TODO(Tzahi, 1/6/2024): Remove the internal data - a leaf in the UpdatedSkeletonTree must be
+    // NonZero.
     Leaf(SkeletonLeaf),
 }

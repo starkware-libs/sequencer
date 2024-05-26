@@ -67,6 +67,11 @@ impl NodeIndex {
         (index << length.0) + Self::new(path.into())
     }
 
+    pub(crate) fn get_children_indices(&self) -> [Self; 2] {
+        let left_child = *self << 1;
+        [left_child, left_child + 1.into()]
+    }
+
     /// Returns the number of leading zeroes when represented with Self::BITS bits.
     pub(crate) fn leading_zeros(&self) -> u8 {
         (self.0.leading_zeros() - (U256::BITS - u32::from(Self::BITS)))
