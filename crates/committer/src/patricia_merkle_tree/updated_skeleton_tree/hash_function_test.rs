@@ -1,8 +1,8 @@
 use crate::felt::Felt;
 use crate::hash::hash_trait::{HashFunction, HashInputPair, HashOutput};
 use crate::hash::pedersen::PedersenHashFunction;
-use crate::patricia_merkle_tree::filled_tree::node::ClassHash;
 use crate::patricia_merkle_tree::filled_tree::node::Nonce;
+use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash};
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
 };
@@ -75,7 +75,7 @@ fn test_constant_contract_class_leaf_v0() {
 // Expected hash value was computed independently.
 #[case(
     NodeData::Leaf(
-        LeafDataImpl::CompiledClassHash(ClassHash(Felt::from_hex("0xACDC").unwrap()))
+        LeafDataImpl::CompiledClassHash(CompiledClassHash(Felt::from_hex("0xACDC").unwrap()))
     ),
     Felt::from_hex("0x49ed9a06987e7e55770d6c4d7d16b819ad984bf4aed552042847380cc31210d").unwrap()
 )]

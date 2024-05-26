@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
+use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::db_object::DBObject;
 
@@ -22,8 +22,7 @@ pub struct ContractState {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum LeafDataImpl {
     StorageValue(Felt),
-    // TODO(Nimrod, 30/5/2024): Change the inner type to CompiledClassHash.
-    CompiledClassHash(ClassHash),
+    CompiledClassHash(CompiledClassHash),
     ContractState(ContractState),
 }
 

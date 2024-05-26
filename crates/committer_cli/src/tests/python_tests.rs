@@ -422,7 +422,7 @@ pub(crate) fn test_node_db_key() -> String {
     let state_tree_leaf_key = state_tree_leaf.db_key().0;
 
     let compiled_class_leaf = FilledNode {
-        data: NodeData::Leaf(LeafDataImpl::CompiledClassHash(ClassHash(zero))),
+        data: NodeData::Leaf(LeafDataImpl::CompiledClassHash(CompiledClassHash(zero))),
         hash,
     };
     let compiled_class_leaf_key = compiled_class_leaf.db_key().0;
@@ -584,9 +584,12 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
 
     // Create a compiled class leaf node from the parsed data.
     let compiled_class_leaf_rust = FilledNode {
-        data: NodeData::Leaf(LeafDataImpl::CompiledClassHash(ClassHash(Felt::from(
-            *get_or_key_not_found(&compiled_class_leaf_data, "compiled_class_hash")?,
-        )))),
+        data: NodeData::Leaf(LeafDataImpl::CompiledClassHash(CompiledClassHash(
+            Felt::from(*get_or_key_not_found(
+                &compiled_class_leaf_data,
+                "compiled_class_hash",
+            )?),
+        ))),
         hash: HashOutput(Felt::from(*get_or_key_not_found(
             &compiled_class_leaf_data,
             "hash",
