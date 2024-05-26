@@ -208,7 +208,7 @@ fn test_create_original_skeleton_forest(
     #[case] expected_forest: OriginalSkeletonForestImpl<OriginalSkeletonTreeImpl>,
 ) {
     let actual_forest: OriginalSkeletonForestImpl<OriginalSkeletonTreeImpl> =
-        OriginalSkeletonForestImpl::create_original_skeleton_forest(
+        OriginalSkeletonForestImpl::create(
             MapStorage::from(input.storage),
             input.contracts_trie_root_hash,
             input.classes_trie_root_hash,

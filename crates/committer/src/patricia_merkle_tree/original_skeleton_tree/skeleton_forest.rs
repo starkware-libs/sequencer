@@ -6,15 +6,11 @@ use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::ClassHash;
 use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use crate::patricia_merkle_tree::node_data::leaf::ContractState;
-use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
-use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::types::TreeHeight;
-use crate::patricia_merkle_tree::updated_skeleton_tree::skeleton_forest::UpdatedSkeletonForest;
-use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
 use crate::storage::storage_trait::Storage;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -24,7 +20,7 @@ use std::collections::HashSet;
 pub mod skeleton_forest_test;
 
 pub(crate) trait OriginalSkeletonForest {
-    fn create_original_skeleton_forest(
+    fn create(
         storage: impl Storage,
         contracts_trie_root_hash: HashOutput,
         classes_trie_root_hash: HashOutput,
@@ -34,27 +30,20 @@ pub(crate) trait OriginalSkeletonForest {
     ) -> OriginalSkeletonTreeResult<Self>
     where
         Self: std::marker::Sized;
-
-    fn compute_updated_skeleton_forest<U: UpdatedSkeletonTree>(
-        &self,
-        class_hash_leaf_modifications: &LeafModifications<SkeletonLeaf>,
-        contracts_to_commit: &HashSet<&ContractAddress>,
-        storage_updates: &HashMap<ContractAddress, LeafModifications<SkeletonLeaf>>,
-    ) -> OriginalSkeletonTreeResult<UpdatedSkeletonForest<U>>;
 }
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct OriginalSkeletonForestImpl<T: OriginalSkeletonTree> {
     #[allow(dead_code)]
-    classes_trie: T,
+    pub(crate) classes_trie: T,
     #[allow(dead_code)]
-    contracts_trie: T,
+    pub(crate) contracts_trie: T,
     #[allow(dead_code)]
-    storage_tries: HashMap<ContractAddress, T>,
+    pub(crate) storage_tries: HashMap<ContractAddress, T>,
 }
 
 impl<T: OriginalSkeletonTree> OriginalSkeletonForest for OriginalSkeletonForestImpl<T> {
-    fn create_original_skeleton_forest(
+    fn create(
         storage: impl Storage,
         contracts_trie_root_hash: HashOutput,
         classes_trie_root_hash: HashOutput,
@@ -91,15 +80,6 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForest for OriginalSkeletonForestI
             global_state_tree,
             contract_states,
         ))
-    }
-
-    fn compute_updated_skeleton_forest<U: UpdatedSkeletonTree>(
-        &self,
-        _class_hash_leaf_modifications: &LeafModifications<SkeletonLeaf>,
-        _contracts_to_commit: &HashSet<&ContractAddress>,
-        _storage_updates: &HashMap<ContractAddress, LeafModifications<SkeletonLeaf>>,
-    ) -> OriginalSkeletonTreeResult<UpdatedSkeletonForest<U>> {
-        todo!()
     }
 }
 
@@ -154,9 +134,9 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
                 .map(|key| NodeIndex::from_starknet_storage_key(key, &tree_height))
                 .collect();
             sorted_leaf_indices.sort();
-            let contract_state = current_contracts_trie_leaves
-                .get(address)
-                .ok_or_else(|| OriginalSkeletonTreeError::LowerTreeCommitmentError(**address))?;
+            let contract_state = current_contracts_trie_leaves.get(address).ok_or(
+                OriginalSkeletonTreeError::LowerTreeCommitmentError(**address),
+            )?;
             let original_skeleton = T::create(
                 storage,
                 &sorted_leaf_indices,
