@@ -7,7 +7,7 @@ use crate::errors::MempoolError;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ThinTransaction {
-    pub contract_address: ContractAddress,
+    pub sender_address: ContractAddress,
     pub tx_hash: TransactionHash,
     pub tip: Tip,
     pub nonce: Nonce,

@@ -47,7 +47,7 @@ fn test_stateful_transaction_validator(
     let cairo_version = CairoVersion::Cairo1;
     let block_context = &BlockContext::create_for_testing();
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
-    let contract_address = account_contract.get_instance_address(0);
+    let sender_address = account_contract.get_instance_address(0);
     let test_contract = FeatureContract::TestContract(cairo_version);
     let test_contract_address = test_contract.get_instance_address(0);
 
@@ -75,11 +75,11 @@ fn test_stateful_transaction_validator(
 
     let calldata = create_trivial_calldata(test_contract_address);
     let mut nonce_manager = NonceManager::default();
-    let nonce = nonce_manager.next(contract_address);
+    let nonce = nonce_manager.next(sender_address);
     let external_tx = external_invoke_tx(invoke_tx_args!(
         resource_bounds: executable_resource_bounds_mapping(),
         nonce,
-        contract_address,
+        sender_address,
         calldata));
 
     let result = stateful_validator.run_validate(&state_reader_factory, &external_tx, None, None);

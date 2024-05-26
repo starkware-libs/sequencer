@@ -12,7 +12,7 @@ use starknet_mempool_types::mempool_types::{
 };
 use tokio::select;
 
-use crate::priority_queue::PriorityQueue;
+use crate::priority_queue::TransactionPriorityQueue;
 
 #[cfg(test)]
 #[path = "mempool_test.rs"]
@@ -22,7 +22,7 @@ pub struct Mempool {
     // TODO: add docstring explaining visibility and coupling of the fields.
     pub gateway_network: MempoolNetworkComponent,
     batcher_network: BatcherToMempoolChannels,
-    txs_queue: PriorityQueue,
+    txs_queue: TransactionPriorityQueue,
     state: HashMap<ContractAddress, AccountState>,
 }
 
@@ -33,27 +33,32 @@ impl Mempool {
         batcher_network: BatcherToMempoolChannels,
     ) -> Self {
         let mut mempool = Mempool {
-            txs_queue: PriorityQueue::default(),
+            txs_queue: TransactionPriorityQueue::default(),
             state: HashMap::default(),
             gateway_network,
             batcher_network,
         };
 
-        mempool.txs_queue = PriorityQueue::from_iter(inputs.into_iter().map(|input| {
-            // Attempts to insert a key-value pair into the mempool's state. Returns `None` if the
-            // key was not present, otherwise returns the old value while updating the new value.
-            let prev_value = mempool.state.insert(input.account.address, input.account.state);
-            // Assert that the contract address does not exist in the mempool's state to ensure that
-            // there is only one transaction per contract address.
-            assert!(
-                prev_value.is_none(),
-                "Contract address: {:?} already exists in the mempool. Can't add {:?} to the \
-                 mempool.",
-                input.account.address,
-                input.tx
-            );
-            input.tx
-        }));
+        mempool.txs_queue = TransactionPriorityQueue::from(
+            inputs
+                .into_iter()
+                .map(|input| {
+                    // Attempts to insert a key-value pair into the mempool's state. Returns `None`
+                    // if the key was not present, otherwise returns the old value while updating
+                    // the new value.
+                    let prev_value =
+                        mempool.state.insert(input.account.address, input.account.state);
+                    assert!(
+                        prev_value.is_none(),
+                        "Sender address: {:?} already exists in the mempool. Can't add {:?} to \
+                         the mempool.",
+                        input.account.address,
+                        input.tx
+                    );
+                    input.tx
+                })
+                .collect::<Vec<ThinTransaction>>(),
+        );
 
         mempool
     }
@@ -73,7 +78,7 @@ impl Mempool {
     pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<ThinTransaction>> {
         let txs = self.txs_queue.pop_last_chunk(n_txs);
         for tx in &txs {
-            self.state.remove(&tx.contract_address);
+            self.state.remove(&tx.sender_address);
         }
 
         Ok(txs)

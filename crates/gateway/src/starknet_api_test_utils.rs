@@ -168,7 +168,7 @@ pub fn invoke_tx() -> ExternalTransaction {
     let nonce = nonce_manager.next(account_address);
     external_invoke_tx(invoke_tx_args! {
      signature: TransactionSignature(vec![StarkFelt::ZERO]),
-     contract_address: account_address,
+     sender_address: account_address,
      resource_bounds: executable_resource_bounds_mapping(),
      nonce,
      calldata
@@ -178,7 +178,7 @@ pub fn invoke_tx() -> ExternalTransaction {
 #[derive(Clone)]
 pub struct InvokeTxArgs {
     pub signature: TransactionSignature,
-    pub contract_address: ContractAddress,
+    pub sender_address: ContractAddress,
     pub calldata: Calldata,
     pub version: TransactionVersion,
     pub resource_bounds: ResourceBoundsMapping,
@@ -193,7 +193,7 @@ impl Default for InvokeTxArgs {
     fn default() -> Self {
         InvokeTxArgs {
             signature: TransactionSignature::default(),
-            contract_address: ContractAddress::default(),
+            sender_address: ContractAddress::default(),
             calldata: calldata![],
             version: TransactionVersion::THREE,
             resource_bounds: zero_resource_bounds_mapping(),
@@ -233,7 +233,7 @@ pub fn external_invoke_tx(invoke_args: InvokeTxArgs) -> ExternalTransaction {
                         resource_bounds: invoke_args.resource_bounds,
                         tip: invoke_args.tip,
                         calldata: invoke_args.calldata,
-                        sender_address: invoke_args.contract_address,
+                        sender_address: invoke_args.sender_address,
                         nonce: invoke_args.nonce,
                         signature: invoke_args.signature,
                         nonce_data_availability_mode: invoke_args.nonce_data_availability_mode,

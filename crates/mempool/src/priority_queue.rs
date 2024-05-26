@@ -7,11 +7,11 @@ use starknet_mempool_types::mempool_types::ThinTransaction;
 // appropriate, because we'll also need to stores transactions without indexing them. For example,
 // transactions with future nonces will need to be stored, and potentially indexed on block commits.
 #[derive(Clone, Debug, Default, derive_more::Deref, derive_more::DerefMut)]
-pub struct PriorityQueue(BTreeSet<PQTransaction>);
+pub struct TransactionPriorityQueue(BTreeSet<PrioritizedTransaction>);
 
-impl PriorityQueue {
+impl TransactionPriorityQueue {
     pub fn push(&mut self, tx: ThinTransaction) {
-        let mempool_tx = PQTransaction(tx);
+        let mempool_tx = PrioritizedTransaction(tx);
         self.insert(mempool_tx);
     }
 
@@ -21,34 +21,37 @@ impl PriorityQueue {
     }
 }
 
-impl FromIterator<ThinTransaction> for PriorityQueue {
-    fn from_iter<I: IntoIterator<Item = ThinTransaction>>(iter: I) -> Self {
-        PriorityQueue(BTreeSet::from_iter(iter.into_iter().map(PQTransaction)))
+impl From<Vec<ThinTransaction>> for TransactionPriorityQueue {
+    fn from(transactions: Vec<ThinTransaction>) -> Self {
+        TransactionPriorityQueue(BTreeSet::from_iter(
+            transactions.into_iter().map(PrioritizedTransaction),
+        ))
     }
 }
 
 #[derive(Clone, Debug, derive_more::Deref, derive_more::From)]
-pub struct PQTransaction(pub ThinTransaction);
+pub struct PrioritizedTransaction(pub ThinTransaction);
 
-// Compare transactions based on their tip only, which implies `Eq`, because `tip` is uint.
-impl PartialEq for PQTransaction {
-    fn eq(&self, other: &PQTransaction) -> bool {
+/// Compare transactions based only on their tip, a uint, using the Eq trait. It ensures that two
+/// tips are either exactly equal or not.
+impl PartialEq for PrioritizedTransaction {
+    fn eq(&self, other: &PrioritizedTransaction) -> bool {
         self.tip == other.tip
     }
 }
 
-/// Marks PQTransaction as capable of strict equality comparisons, signaling to the compiler it
+/// Marks this struct as capable of strict equality comparisons, signaling to the compiler it
 /// adheres to equality semantics.
 // Note: this depends on the implementation of `PartialEq`, see its docstring.
-impl Eq for PQTransaction {}
+impl Eq for PrioritizedTransaction {}
 
-impl Ord for PQTransaction {
+impl Ord for PrioritizedTransaction {
     fn cmp(&self, other: &Self) -> Ordering {
         self.tip.cmp(&other.tip)
     }
 }
 
-impl PartialOrd for PQTransaction {
+impl PartialOrd for PrioritizedTransaction {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }

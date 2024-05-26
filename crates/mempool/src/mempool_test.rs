@@ -18,7 +18,7 @@ use starknet_mempool_types::utils::create_thin_tx_for_testing;
 use tokio::sync::mpsc::channel;
 
 use crate::mempool::{Account, Mempool, MempoolInput};
-use crate::priority_queue::PQTransaction;
+use crate::priority_queue::PrioritizedTransaction;
 
 fn create_for_testing(inputs: impl IntoIterator<Item = MempoolInput>) -> Mempool {
     let (_, rx_gateway_to_mempool) = channel::<GatewayToMempoolMessage>(1);
@@ -116,18 +116,18 @@ fn test_get_txs(#[case] requested_txs: usize) {
 }
 
 #[rstest]
-#[should_panic(expected = "Contract address: \
+#[should_panic(expected = "Sender address: \
                            ContractAddress(PatriciaKey(StarkFelt(\"\
                            0x0000000000000000000000000000000000000000000000000000000000000000\"\
                            ))) already exists in the mempool. Can't add")]
-fn test_mempool_initialization_with_duplicate_contract_addresses() {
+fn test_mempool_initialization_with_duplicate_sender_addresses() {
     let account = Account { address: contract_address!("0x0"), ..Default::default() };
     let tx = create_thin_tx_for_testing(Tip(50), TransactionHash(StarkFelt::ONE), account.address);
     let same_tx = tx.clone();
 
     let inputs = vec![MempoolInput { tx, account }, MempoolInput { tx: same_tx, account }];
 
-    // This call should panic because of duplicate contract addresses
+    // This call should panic because of duplicate sender addresses
     let _mempool = create_for_testing(inputs.into_iter());
 }
 
@@ -152,9 +152,9 @@ fn test_add_tx(mut mempool: Mempool) {
     mempool.state.contains_key(&account2.address);
     mempool.state.contains_key(&account3.address);
 
-    assert_eq!(mempool.txs_queue.pop_last().unwrap(), PQTransaction(tx_tip_100_address_1));
-    assert_eq!(mempool.txs_queue.pop_last().unwrap(), PQTransaction(tx_tip_80_address_2));
-    assert_eq!(mempool.txs_queue.pop_last().unwrap(), PQTransaction(tx_tip_50_address_0));
+    assert_eq!(mempool.txs_queue.pop_last().unwrap(), PrioritizedTransaction(tx_tip_100_address_1));
+    assert_eq!(mempool.txs_queue.pop_last().unwrap(), PrioritizedTransaction(tx_tip_80_address_2));
+    assert_eq!(mempool.txs_queue.pop_last().unwrap(), PrioritizedTransaction(tx_tip_50_address_0));
 }
 
 #[rstest]
