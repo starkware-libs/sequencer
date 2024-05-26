@@ -1,6 +1,7 @@
 use ethnum::U256;
+use rand::rngs::ThreadRng;
 use rand::Rng;
-use rstest::rstest;
+use rstest::{fixture, rstest};
 
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
@@ -30,17 +31,24 @@ impl From<&str> for PathToBottom {
     }
 }
 
+#[fixture]
+pub(crate) fn random() -> ThreadRng {
+    rand::thread_rng()
+}
+
 /// Generates a random U256 number between low and high (exclusive).
 /// Panics if low > high.
-pub(crate) fn get_random_u256(low: U256, high: U256) -> U256 {
+#[cfg(any(feature = "testing", test))]
+#[allow(dead_code)]
+pub fn get_random_u256<R: Rng>(rng: &mut R, low: U256, high: U256) -> U256 {
     assert!(low < high);
     let high_of_low = low.high();
     let high_of_high = high.high();
 
     let delta = high - low;
     if delta <= u128::MAX {
-        let delta = u128::try_from(delta).unwrap();
-        return low + rand::thread_rng().gen_range(0..delta);
+        let delta = u128::try_from(delta).expect("Failed to convert delta to u128");
+        return low + rng.gen_range(0..delta);
     }
 
     // Randomize the high 128 bits in the extracted range, and the low 128 bits in their entire
@@ -51,10 +59,10 @@ pub(crate) fn get_random_u256(low: U256, high: U256) -> U256 {
     //  bits in (high_of_low, high_of_high).
     //  2. high_of_high == high_of_low + 1, and every possible low 128 bits value is valid either
     // when the high bits equal high_of_high, or when they equal high_of_low).
-    let randomize = || {
+    let mut randomize = || {
         U256::from_words(
-            rand::thread_rng().gen_range(*high_of_low..=*high_of_high),
-            rand::thread_rng().gen_range(0..=u128::MAX),
+            rng.gen_range(*high_of_low..=*high_of_high),
+            rng.gen_range(0..=u128::MAX),
         )
     };
     let mut result = randomize();
@@ -71,7 +79,7 @@ pub(crate) fn get_random_u256(low: U256, high: U256) -> U256 {
 #[case(U256::ONE, U256::ONE << 128)]
 #[case((U256::ONE<<128)-U256::ONE, U256::ONE << 128)]
 #[case(U256::ONE<<128, (U256::ONE << 128)+U256::ONE)]
-fn test_get_random_u256(#[case] low: U256, #[case] high: U256) {
-    let r = get_random_u256(low, high);
+fn test_get_random_u256(mut random: ThreadRng, #[case] low: U256, #[case] high: U256) {
+    let r = get_random_u256(&mut random, low, high);
     assert!(low <= r && r < high);
 }

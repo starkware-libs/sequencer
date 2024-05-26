@@ -1,18 +1,26 @@
 use super::split_leaves;
 use crate::patricia_merkle_tree::test_utils::get_random_u256;
+use crate::patricia_merkle_tree::test_utils::random;
 use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
 use ethnum::{uint, U256};
+use rand::rngs::ThreadRng;
+use rand::Rng;
 use rstest::rstest;
 
 /// Creates an array of increasing random U256 numbers, with jumps of up to 'jump' between two
 /// consecutive numbers.
-fn create_increasing_random_array(size: usize, start: U256, jump: U256) -> Vec<U256> {
+fn create_increasing_random_array<R: Rng>(
+    rng: &mut R,
+    size: usize,
+    start: U256,
+    jump: U256,
+) -> Vec<U256> {
     let size_u256: U256 = size.try_into().unwrap();
     assert!(jump > 0 && start + jump * size_u256 < U256::MAX);
     let mut ret: Vec<U256> = Vec::with_capacity(size);
     let mut low = start;
     for i in 0..size {
-        ret.push(get_random_u256(low, low + jump));
+        ret.push(get_random_u256(rng, low, low + jump));
         low = ret[i] + 1;
     }
     ret
@@ -54,10 +62,15 @@ fn test_split_leaves(
 }
 
 #[rstest]
-fn test_split_leaves_big_tree() {
-    let left_leaf_indices =
-        create_increasing_random_array(100, NodeIndex::FIRST_LEAF.into(), U256::ONE << 200);
+fn test_split_leaves_big_tree(mut random: ThreadRng) {
+    let left_leaf_indices = create_increasing_random_array(
+        &mut random,
+        100,
+        NodeIndex::FIRST_LEAF.into(),
+        U256::ONE << 200,
+    );
     let right_leaf_indices = create_increasing_random_array(
+        &mut random,
         100,
         (U256::from(NodeIndex::FIRST_LEAF) + U256::from(NodeIndex::MAX)) / 2 + 1,
         U256::ONE << 100,

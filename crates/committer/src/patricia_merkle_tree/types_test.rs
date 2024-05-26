@@ -1,9 +1,10 @@
 use crate::block_committer::input::{ContractAddress, StarknetStorageKey};
 use crate::felt::Felt;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
-use crate::patricia_merkle_tree::test_utils::get_random_u256;
+use crate::patricia_merkle_tree::test_utils::{get_random_u256, random};
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::types::TreeHeight;
+use rand::rngs::ThreadRng;
 
 use ethnum::U256;
 use rand::Rng;
@@ -74,14 +75,18 @@ fn test_get_lca(#[case] node_index: u8, #[case] other: u8, #[case] expected: u8)
 }
 
 #[rstest]
-fn test_get_lca_big() {
-    let lca = NodeIndex::new(get_random_u256(U256::ZERO, (NodeIndex::MAX >> 1).into()));
+fn test_get_lca_big(mut random: ThreadRng) {
+    let lca = NodeIndex::new(get_random_u256(
+        &mut random,
+        U256::ZERO,
+        (NodeIndex::MAX >> 1).into(),
+    ));
 
     let left_child = lca << 1;
     let right_child = left_child + 1.into();
-    let random_extension = |index: NodeIndex| {
+    let mut random_extension = |index: NodeIndex| {
         let extension_bits = index.leading_zeros();
-        let extension: u128 = rand::thread_rng().gen_range(0..(1 << extension_bits));
+        let extension: u128 = random.gen_range(0..(1 << extension_bits));
         (index << extension_bits) + NodeIndex(U256::from(extension))
     };
 
