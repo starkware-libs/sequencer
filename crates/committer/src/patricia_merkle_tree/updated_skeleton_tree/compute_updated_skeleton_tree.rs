@@ -89,8 +89,7 @@ impl UpdatedSkeletonTreeImpl {
                         UpdatedSkeletonNode::Sibling(*hash)
                     }
                     OriginalSkeletonNode::UnmodifiedBottom(hash) => {
-                        // TODO(Tzahi, 1/6/2024): create a new variant in UpdatedSkeletonNode.
-                        UpdatedSkeletonNode::Sibling(*hash)
+                        UpdatedSkeletonNode::UnmodifiedBottom(*hash)
                     }
                 };
                 self.skeleton_tree.insert(index, updated);

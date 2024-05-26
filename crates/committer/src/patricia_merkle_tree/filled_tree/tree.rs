@@ -169,7 +169,8 @@ impl FilledTreeImpl {
                 Self::write_to_output_map(output_map, index, hash_value, data)?;
                 Ok(hash_value)
             }
-            UpdatedSkeletonNode::Sibling(hash_result) => Ok(*hash_result),
+            UpdatedSkeletonNode::Sibling(hash_result)
+            | UpdatedSkeletonNode::UnmodifiedBottom(hash_result) => Ok(*hash_result),
             UpdatedSkeletonNode::Leaf(skeleton_leaf) => {
                 let leaf_data = leaf_modifications
                     .get(&index)
