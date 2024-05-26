@@ -68,5 +68,15 @@
     "description": "If true, validates that a transaction has non-zero L2 resource bounds.",
     "privacy": "Public",
     "value": false
+  },
+  "rpc_state_reader_config.json_rpc_version": {
+    "description": "The json rpc version.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "rpc_state_reader_config.url": {
+    "description": "The url of the rpc server.",
+    "privacy": "Public",
+    "value": ""
   }
 }

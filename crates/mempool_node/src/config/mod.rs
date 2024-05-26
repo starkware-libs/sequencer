@@ -10,7 +10,7 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::loading::load_and_process_config;
 use papyrus_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_gateway::config::GatewayConfig;
+use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
 use validator::{Validate, ValidationError};
 
 use crate::version::VERSION_FULL;
@@ -78,6 +78,8 @@ pub struct MempoolNodeConfig {
     pub components: ComponentConfig,
     #[validate]
     pub gateway_config: GatewayConfig,
+    #[validate]
+    pub rpc_state_reader_config: RpcStateReaderConfig,
 }
 
 impl SerializeConfig for MempoolNodeConfig {
@@ -86,6 +88,7 @@ impl SerializeConfig for MempoolNodeConfig {
         let mut sub_configs = vec![
             append_sub_config_name(self.components.dump(), "components"),
             append_sub_config_name(self.gateway_config.dump(), "gateway_config"),
+            append_sub_config_name(self.rpc_state_reader_config.dump(), "rpc_state_reader_config"),
         ];
 
         sub_configs.into_iter().flatten().collect()

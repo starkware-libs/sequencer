@@ -1,17 +1,13 @@
-#![allow(unused_imports)]
-use std::env::{self, args};
+#[cfg(any(feature = "testing", test))]
 use std::fs::File;
-use std::ops::IndexMut;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use assert_matches::assert_matches;
-use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::loading::load_and_process_config;
-use papyrus_config::presentation::get_config_presentation;
 use papyrus_config::validators::ParsedValidationErrors;
-use papyrus_config::{SerializationType, SerializedContent, SerializedParam};
 use starknet_gateway::config::{
-    GatewayNetworkConfig, StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig,
+    GatewayNetworkConfig, RpcStateReaderConfig, StatefulTransactionValidatorConfig,
+    StatelessTransactionValidatorConfig,
 };
 use validator::Validate;
 
@@ -46,6 +42,7 @@ fn test_valid_config() {
             stateful_transaction_validator_config:
                 StatefulTransactionValidatorConfig::create_for_testing(),
         },
+        rpc_state_reader_config: RpcStateReaderConfig::default(),
     };
     let loaded_config = get_config_file(CONFIG_FILE).unwrap();
 
