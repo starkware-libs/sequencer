@@ -9,7 +9,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
 };
 use crate::patricia_merkle_tree::node_data::leaf::{LeafDataImpl, SkeletonLeaf};
-use crate::patricia_merkle_tree::types::NodeIndex;
+use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
@@ -23,7 +23,10 @@ async fn test_filled_tree_sanity() {
     let new_leaf_index = NodeIndex::ROOT;
     skeleton_tree.insert(new_leaf_index, UpdatedSkeletonNode::Leaf(new_skeleton_leaf));
     let modifications = HashMap::from([(new_leaf_index, new_filled_leaf)]);
-    let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
+    let updated_skeleton_tree = UpdatedSkeletonTreeImpl {
+        tree_height: TreeHeight(1),
+        skeleton_tree,
+    };
     let root_hash = FilledTreeImpl::create::<
         PedersenHashFunction,
         TreeHashFunctionImpl<PedersenHashFunction>,
@@ -40,7 +43,7 @@ async fn test_filled_tree_sanity() {
 
 #[tokio::test(flavor = "multi_thread")]
 /// This test is a small test for testing the root hash computation of the patricia merkle tree.
-/// The tree structure & results were computed seperately and tested for regression.
+/// The tree structure & results were computed separately and tested for regression.
 ///                                i=1: binary
 ///                                /        \
 ///                        i=2: edge      i=3: edge
@@ -75,7 +78,10 @@ async fn test_small_filled_tree() {
     let skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode> =
         nodes_in_skeleton_tree.into_iter().collect();
 
-    let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
+    let updated_skeleton_tree = UpdatedSkeletonTreeImpl {
+        tree_height: TreeHeight(7),
+        skeleton_tree,
+    };
     let modifications = new_leaves
         .iter()
         .map(|(index, value)| {
@@ -186,7 +192,10 @@ async fn test_small_tree_with_sibling_nodes() {
     let skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode> =
         nodes_in_skeleton_tree.into_iter().collect();
 
-    let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
+    let updated_skeleton_tree = UpdatedSkeletonTreeImpl {
+        tree_height: TreeHeight(7),
+        skeleton_tree,
+    };
     let modifications = HashMap::from([(
         NodeIndex::from(new_leaf_index),
         LeafDataImpl::StorageValue(Felt::from_hex(new_leaf).unwrap()),

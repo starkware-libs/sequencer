@@ -1,29 +1,24 @@
 use ethnum::U256;
 use rstest::{fixture, rstest};
-use std::collections::HashMap;
 
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgeData, EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
-use crate::patricia_merkle_tree::types::NodeIndex;
-use crate::patricia_merkle_tree::updated_skeleton_tree::compute_updated_skeleton_tree::TempSkeletonNode;
+use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
+use crate::patricia_merkle_tree::updated_skeleton_tree::compute_updated_skeleton_tree::{
+    get_path_to_lca, has_leaves_on_both_sides, TempSkeletonNode,
+};
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
-use crate::patricia_merkle_tree::{
-    original_skeleton_tree::tree::OriginalSkeletonTreeImpl, types::TreeHeight,
-};
-
-fn empty_skeleton(height: u8) -> OriginalSkeletonTreeImpl {
-    OriginalSkeletonTreeImpl {
-        nodes: HashMap::new(),
-        tree_height: TreeHeight::new(height),
-    }
-}
 
 #[fixture]
-fn updated_skeleton(#[default(&[])] leaf_modifications: &[(u128, u8)]) -> UpdatedSkeletonTreeImpl {
+fn updated_skeleton(
+    #[default(TreeHeight::MAX)] tree_height: TreeHeight,
+    #[default(&[])] leaf_modifications: &[(u128, u8)],
+) -> UpdatedSkeletonTreeImpl {
     UpdatedSkeletonTreeImpl {
+        tree_height,
         skeleton_tree: leaf_modifications
             .iter()
             .filter(|(_, leaf_val)| *leaf_val != 0)
@@ -57,15 +52,15 @@ fn updated_skeleton(#[default(&[])] leaf_modifications: &[(u128, u8)]) -> Update
     vec![NodeIndex::new(U256::from(3u8) << 250), NodeIndex::new((U256::from(3u8) << 250)+ U256::ONE)],
     false)]
 fn test_has_leaves_on_both_sides(
-    #[case] tree_height: u8,
+    #[case] _tree_height: u8,
+    #[with(TreeHeight::new(_tree_height), &[])] updated_skeleton: UpdatedSkeletonTreeImpl,
     #[case] root_index: u8,
     #[case] leaf_indices: Vec<NodeIndex>,
     #[case] expected: bool,
 ) {
-    let skeleton_tree = empty_skeleton(tree_height);
     let root_index = NodeIndex::new(root_index.into());
     assert_eq!(
-        skeleton_tree.has_leaves_on_both_sides(&root_index, &leaf_indices),
+        has_leaves_on_both_sides(&updated_skeleton.tree_height, &root_index, &leaf_indices),
         expected
     );
 }
@@ -75,41 +70,47 @@ fn test_has_leaves_on_both_sides(
 #[case::last_leaf_not_descendant(3, 2, vec![NodeIndex::from(8), NodeIndex::from(12)])]
 #[should_panic(expected = "is not a descendant of the root")]
 fn test_has_leaves_on_both_sides_assertions(
-    #[case] tree_height: u8,
+    #[case] _tree_height: u8,
+    #[with(TreeHeight::new(_tree_height), &[])] updated_skeleton: UpdatedSkeletonTreeImpl,
     #[case] root_index: u8,
     #[case] leaf_indices: Vec<NodeIndex>,
 ) {
-    let skeleton_tree = empty_skeleton(tree_height);
     let root_index = NodeIndex::new(root_index.into());
-    skeleton_tree.has_leaves_on_both_sides(&root_index, &leaf_indices);
+    has_leaves_on_both_sides(&updated_skeleton.tree_height, &root_index, &leaf_indices);
 }
 
 #[rstest]
-#[case::small_tree_single_leaf(3, 1, vec![U256::from(8_u8)], PathToBottom {path:U256::ZERO.into(), length:EdgePathLength(3)})]
+#[case::small_tree_single_leaf(
+    1, vec![U256::from(8_u8)], PathToBottom {path:U256::ZERO.into(), length:EdgePathLength(3)}
+)]
 #[case::small_tree_few_leaves(
-    3, 1, vec![U256::from(12_u8),U256::from(13_u8),U256::from(14_u8)], PathToBottom {path:U256::ONE.into(), length:EdgePathLength(1)})]
+    1,
+    vec![
+        U256::from(12_u8), U256::from(13_u8), U256::from(14_u8)
+    ],
+    PathToBottom {path:U256::ONE.into(), length:EdgePathLength(1)}
+)]
 #[case::small_tree_few_leaves2(
-    3, 1, vec![U256::from(12_u8),U256::from(13_u8)], PathToBottom {path:2_u128.into(), length:EdgePathLength(2)})]
+    1,
+    vec![U256::from(12_u8),U256::from(13_u8)],
+    PathToBottom {path:2_u128.into(), length:EdgePathLength(2)}
+)]
 #[case::large_tree_positive_consecutive_indices_of_different_sides(
-    251,
     1,
     vec![(U256::from(3u8) << 250) - U256::ONE, U256::from(3u8) << 250],
     PathToBottom {path:U256::ZERO.into(), length:EdgePathLength(0)})]
 #[case::large_tree_positive_consecutive_indices(
-    251,
     3<<126,
     vec![U256::from(3u8) << 250, (U256::from(3u8) << 250)+ U256::ONE],
     PathToBottom {path:U256::ZERO.into(), length:EdgePathLength(123)})]
 fn test_get_path_to_lca(
-    #[case] tree_height: u8,
     #[case] root_index: u128,
     #[case] leaf_indices: Vec<U256>,
     #[case] expected: PathToBottom,
 ) {
-    let skeleton_tree = empty_skeleton(tree_height);
     let root_index = NodeIndex::new(root_index.into());
     assert_eq!(
-        skeleton_tree.get_path_to_lca(
+        get_path_to_lca(
             &root_index,
             &leaf_indices
                 .iter()
@@ -186,7 +187,7 @@ fn test_node_from_binary_data(
     #[case] _leaf_modifications: &[(u128, u8)],
     #[case] expected_node: TempSkeletonNode,
     #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
-    #[with(_leaf_modifications)] mut updated_skeleton: UpdatedSkeletonTreeImpl,
+    #[with(TreeHeight::MAX, _leaf_modifications)] mut updated_skeleton: UpdatedSkeletonTreeImpl,
 ) {
     let mut expected_skeleton_tree = updated_skeleton.skeleton_tree.clone();
     expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());
@@ -255,7 +256,7 @@ fn test_node_from_edge_data(
     #[case] _leaf_modifications: &[(u128, u8)],
     #[case] expected_node: TempSkeletonNode,
     #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
-    #[with(_leaf_modifications)] mut updated_skeleton: UpdatedSkeletonTreeImpl,
+    #[with(TreeHeight::MAX, _leaf_modifications)] mut updated_skeleton: UpdatedSkeletonTreeImpl,
 ) {
     let mut expected_skeleton_tree = updated_skeleton.skeleton_tree.clone();
     expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());

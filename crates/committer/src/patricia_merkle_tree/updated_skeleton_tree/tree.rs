@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
-use crate::patricia_merkle_tree::types::NodeIndex;
+use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 
@@ -38,6 +38,8 @@ pub(crate) trait UpdatedSkeletonTree: Sized + Send + Sync {
 }
 
 pub(crate) struct UpdatedSkeletonTreeImpl {
+    #[allow(dead_code)]
+    pub(crate) tree_height: TreeHeight,
     pub(crate) skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode>,
 }
 
