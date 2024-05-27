@@ -76,7 +76,7 @@ async fn check_request(request: Request<Body>, status_code: StatusCode) -> Bytes
     let state_reader_factory = Arc::new(test_state_reader_factory());
 
     // TODO: Add fixture.
-    let gateway = Gateway { config, network_component, state_reader_factory };
+    let gateway = Gateway::new(config, network_component, state_reader_factory);
 
     let response = gateway.app().oneshot(request).await.unwrap();
     assert_eq!(response.status(), status_code);

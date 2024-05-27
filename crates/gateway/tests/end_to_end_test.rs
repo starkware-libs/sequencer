@@ -82,10 +82,10 @@ async fn set_up_gateway(network_component: GatewayNetworkComponent) -> (IpAddr, 
 
     let state_reader_factory = Arc::new(test_state_reader_factory());
 
-    let gateway = Gateway { config, network_component, state_reader_factory };
+    let gateway = Gateway::new(config, network_component, state_reader_factory);
 
     // Setup server
-    tokio::spawn(async move { gateway.build_server().await });
+    tokio::spawn(async move { gateway.run_server().await });
 
     // Ensure the server has time to start up
     sleep(Duration::from_millis(1000)).await;

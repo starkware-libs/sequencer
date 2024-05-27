@@ -26,9 +26,8 @@ pub mod gateway_test;
 pub type GatewayResult<T> = Result<T, GatewayError>;
 
 pub struct Gateway {
-    pub config: GatewayConfig,
-    pub network_component: GatewayNetworkComponent,
-    pub state_reader_factory: Arc<dyn StateReaderFactory>,
+    config: GatewayConfig,
+    app_state: AppState,
 }
 
 #[derive(Clone)]
@@ -42,7 +41,25 @@ pub struct AppState {
 }
 
 impl Gateway {
-    pub async fn build_server(self) {
+    pub fn new(
+        config: GatewayConfig,
+        network_component: GatewayNetworkComponent,
+        state_reader_factory: Arc<dyn StateReaderFactory>,
+    ) -> Self {
+        let app_state = AppState {
+            stateless_transaction_validator: StatelessTransactionValidator {
+                config: config.stateless_transaction_validator_config.clone(),
+            },
+            stateful_transaction_validator: Arc::new(StatefulTransactionValidator {
+                config: config.stateful_transaction_validator_config.clone(),
+            }),
+            network_component: Arc::new(network_component),
+            state_reader_factory,
+        };
+        Gateway { config, app_state }
+    }
+
+    pub async fn run_server(self) {
         // Parses the bind address from GatewayConfig, returning an error for invalid addresses.
         let GatewayNetworkConfig { ip, port } = self.config.network_config;
         let addr = SocketAddr::new(ip, port);
@@ -53,21 +70,10 @@ impl Gateway {
     }
 
     pub fn app(self) -> Router {
-        let app_state = AppState {
-            stateless_transaction_validator: StatelessTransactionValidator {
-                config: self.config.stateless_transaction_validator_config,
-            },
-            stateful_transaction_validator: Arc::new(StatefulTransactionValidator {
-                config: self.config.stateful_transaction_validator_config,
-            }),
-            network_component: Arc::new(self.network_component),
-            state_reader_factory: self.state_reader_factory,
-        };
-
         Router::new()
             .route("/is_alive", get(is_alive))
             .route("/add_tx", post(add_tx))
-            .with_state(app_state)
+            .with_state(self.app_state)
         // TODO: when we need to configure the router, like adding banned ips, add it here via
         // `with_state`.
     }
