@@ -10,11 +10,14 @@ pub enum FilledTreeError<L: LeafData> {
         index: NodeIndex,
         existing_value: Box<FilledNode<L>>,
     },
-    #[error("Modification of index {index:?} does not match the skeleton leaf {skeleton_leaf:?}.")]
-    // TODO(Dori, 1/6/2024): Add existing modification value to the inconsistency error.
+    #[error(
+        "Modification of index {index:?} does not match the skeleton leaf {skeleton_leaf:?}: \
+        {leaf_modification:?}."
+    )]
     InconsistentModification {
         index: NodeIndex,
         skeleton_leaf: SkeletonLeaf,
+        leaf_modification: Box<L>,
     },
     #[error("Missing modification data at index {0:?}.")]
     MissingDataForUpdate(NodeIndex),

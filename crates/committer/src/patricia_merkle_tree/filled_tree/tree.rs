@@ -180,6 +180,7 @@ impl FilledTreeImpl {
                     return Err(FilledTreeError::<LeafDataImpl>::InconsistentModification {
                         index,
                         skeleton_leaf: *skeleton_leaf,
+                        leaf_modification: Box::new(leaf_data),
                     });
                 }
                 let node_data = NodeData::Leaf(leaf_data);
