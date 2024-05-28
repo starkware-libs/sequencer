@@ -59,7 +59,7 @@ use super::OriginalSkeletonForestImpl;
 ///                /       \                         /   \
 ///               *         B                       B    ES
 ///              /         /  \                    / \    \
-///             152       NZ   54                 NZ  47   NZ
+///             152       NZ   54                 NZ  47   UB
 ///
 ///      Contracts #3, #5, #6:                        Contract #1:
 ///
@@ -123,7 +123,7 @@ use super::OriginalSkeletonForestImpl;
                 create_binary_skeleton_node(2),
                 create_binary_skeleton_node(4),
                 create_edge_skeleton_node(5, 1, 1),
-                create_unmodified_bottom_skeleton_node(11, 76),
+                create_unmodified_bottom_skeleton_node(11, 74),
                 create_leaf_or_binary_sibling_skeleton_node(9, 47)
             ],
             3
@@ -219,8 +219,7 @@ fn test_create_original_skeleton_forest(
         )
         .unwrap();
 
-    assert_eq!(actual_forest.contracts_trie, expected_forest.contracts_trie);
-    // TODO(Nimrod, 1/6/2024): Add classes trie and storage_tries comparison.
+    assert_eq!(actual_forest, expected_forest);
 }
 
 fn create_contract_leaves(leaves: &[(u8, u8)]) -> HashMap<ContractAddress, ContractState> {
