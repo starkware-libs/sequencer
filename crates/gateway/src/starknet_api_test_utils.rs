@@ -171,7 +171,7 @@ pub fn invoke_tx() -> ExternalTransaction {
      sender_address: account_address,
      resource_bounds: executable_resource_bounds_mapping(),
      nonce,
-     calldata
+     calldata,
     })
 }
 
