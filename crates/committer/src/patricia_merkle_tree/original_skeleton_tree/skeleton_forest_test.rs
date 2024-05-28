@@ -57,8 +57,8 @@ use super::OriginalSkeletonForestImpl;
 ///                  /   \                              /
 ///                 E     E                            B
 ///                /       \                         /   \
-///               *         B                       B    ES
-///              /         /  \                    / \    \
+///               *         B                       B     E
+///              /         /  \                    / \     \
 ///             152       NZ   54                 NZ  47   UB
 ///
 ///      Contracts #3, #5, #6:                        Contract #1:
