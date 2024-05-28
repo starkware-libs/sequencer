@@ -2,6 +2,10 @@ use async_trait::async_trait;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::{Receiver, Sender};
 
+#[cfg(test)]
+#[path = "network_component_test.rs"]
+mod network_component_test;
+
 #[async_trait]
 pub trait CommunicationInterface<S, R> {
     async fn send(&self, message: S) -> Result<(), SendError<S>>;

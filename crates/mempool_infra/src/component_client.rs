@@ -2,6 +2,10 @@ use tokio::sync::mpsc::{channel, Sender};
 
 use crate::component_server::MessageAndResponseSender;
 
+#[cfg(test)]
+#[path = "component_server_client_test.rs"]
+mod component_server_client_test;
+
 #[derive(Clone)]
 pub struct ComponentClient<M, R>
 where
