@@ -15,7 +15,6 @@ testing = []
 axum.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
-clap.workspace = true
 hyper.workspace = true
 mempool_infra = { path = "../mempool_infra", version = "0.0" }
 papyrus_config.workspace = true
@@ -27,7 +26,6 @@ starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
 thiserror.workspace = true
 tokio.workspace = true
 tower.workspace = true
-url.workspace = true
 validator.workspace = true
 
 [dev-dependencies]

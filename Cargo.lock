@@ -1978,11 +1978,9 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "async-trait",
- "clap",
  "papyrus_config",
  "pretty_assertions",
  "serde",
- "serde_json",
  "thiserror",
  "tokio",
 ]
@@ -1992,16 +1990,12 @@ name = "mempool_node"
 version = "0.0.0"
 dependencies = [
  "assert_matches",
- "async-trait",
  "clap",
  "const_format",
  "papyrus_config",
  "pretty_assertions",
  "serde",
- "serde_json",
- "starknet_api",
  "starknet_gateway",
- "thiserror",
  "tokio",
  "validator",
 ]
@@ -3200,7 +3194,6 @@ dependencies = [
  "axum",
  "blockifier",
  "cairo-lang-starknet-classes",
- "clap",
  "hyper",
  "mempool_infra",
  "papyrus_config",
@@ -3215,7 +3208,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tower",
- "url",
  "validator",
 ]
 

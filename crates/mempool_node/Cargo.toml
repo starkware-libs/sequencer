@@ -9,14 +9,10 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-async-trait.workspace = true
 clap.workspace = true
 const_format.workspace = true
 starknet_gateway = { path = "../gateway", version = "0.0" }
 serde.workspace = true
-serde_json.workspace = true
-starknet_api.workspace = true
-thiserror.workspace = true
 papyrus_config.workspace = true
 tokio.workspace = true
 validator.workspace = true
