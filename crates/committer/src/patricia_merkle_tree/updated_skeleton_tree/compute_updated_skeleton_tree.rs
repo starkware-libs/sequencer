@@ -1,4 +1,5 @@
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
+use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
 use crate::patricia_merkle_tree::types::NodeIndex;
@@ -24,7 +25,6 @@ impl TempSkeletonNode {
     }
 }
 
-#[allow(dead_code)]
 /// Returns the path from the given root_index to the LCA of the leaves. Assumes the leaves are:
 /// * Sorted.
 /// * Descendants of the given index.
@@ -60,6 +60,40 @@ fn has_leaves_on_both_sides(
 
 impl UpdatedSkeletonTreeImpl {
     #[allow(dead_code)]
+    /// Updates the originally empty Patricia-Merkle tree rooted at the given index, with leaf
+    /// modifications (already updated in the skeleton mapping) in the given leaf_indices.
+    /// Returns the root temporary skeleton node as inferred from the subtree.
+    fn update_node_in_empty_tree(
+        &mut self,
+        root_index: &NodeIndex,
+        leaf_indices: &[NodeIndex],
+    ) -> TempSkeletonNode {
+        if root_index.is_leaf() {
+            // Leaf.
+            assert!(
+                leaf_indices.len() == 1 && leaf_indices[0] == *root_index,
+                "Unexpected leaf index (root_index={root_index:?}, leaf_indices={leaf_indices:?})."
+            );
+            return TempSkeletonNode::Original(OriginalSkeletonNode::Leaf(SkeletonLeaf::NonZero));
+        }
+
+        if has_leaves_on_both_sides(&self.tree_height, root_index, leaf_indices) {
+            // Binary node.
+            let [left_indices, right_indices] =
+                split_leaves(&self.tree_height, root_index, leaf_indices);
+            let [left_child_index, right_child_index] = root_index.get_children_indices();
+            let left_child = self.update_node_in_empty_tree(&left_child_index, left_indices);
+            let right_child = self.update_node_in_empty_tree(&right_child_index, right_indices);
+            return self.node_from_binary_data(root_index, &left_child, &right_child);
+        }
+
+        // Edge node.
+        let path_to_lca = get_path_to_lca(root_index, leaf_indices);
+        let bottom_index = path_to_lca.bottom_index(*root_index);
+        let bottom = self.update_node_in_empty_tree(&bottom_index, leaf_indices);
+        self.node_from_edge_data(&path_to_lca, &bottom_index, &bottom)
+    }
+
     /// Builds a (probably binary) node from its two updated children. Returns the TempSkeletonNode
     /// matching the given root for the subtree it is the root of. If one or more children are
     /// empty, the resulting node will not be binary.

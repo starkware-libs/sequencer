@@ -8,7 +8,7 @@ pub mod utils_test;
 
 /// Returns the height of the node with the given index.
 pub(crate) fn get_node_height(tree_height: &TreeHeight, index: &NodeIndex) -> TreeHeight {
-    TreeHeight::new(u8::from(*tree_height) - index.bit_length() + 1)
+    TreeHeight::new(u8::from(*tree_height) + 1 - index.bit_length())
 }
 
 /// Splits leaf_indices into two arrays according to the given root: the left child leaves and

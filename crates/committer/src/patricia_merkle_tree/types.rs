@@ -14,6 +14,7 @@ pub mod types_test;
 pub struct TreeHeight(pub(crate) u8);
 
 impl TreeHeight {
+    // TODO(Tzahi, 15/6/2024): Make height configurable for easy testing.
     pub const MAX: TreeHeight = TreeHeight(251);
 
     pub fn new(height: u8) -> Self {
@@ -44,10 +45,12 @@ impl NodeIndex {
 
     #[allow(dead_code)]
     /// [NodeIndex] constant that represents the first leaf index.
+    // TODO(Tzahi, 15/6/2024): Support height < 128 bits.
     pub const FIRST_LEAF: Self = Self(U256::from_words(1_u128 << (Self::BITS - 1 - 128), 0));
 
-    /// [NodeIndex] constant that represents the largest index in a tree.
     #[allow(clippy::as_conversions)]
+    /// [NodeIndex] constant that represents the largest index in a tree.
+    // TODO(Tzahi, 15/6/2024): Support height < 128 bits.
     pub const MAX: Self = Self(U256::from_words(
         u128::MAX >> (U256::BITS - Self::BITS as u32),
         u128::MAX,
@@ -56,6 +59,10 @@ impl NodeIndex {
     pub(crate) fn new(index: U256) -> Self {
         assert!(index <= Self::MAX.0, "Index {index} is too large.");
         Self(index)
+    }
+
+    pub(crate) fn is_leaf(&self) -> bool {
+        Self::FIRST_LEAF <= *self && *self <= Self::MAX
     }
 
     // TODO(Amos, 1/5/2024): Move to EdgePath.
