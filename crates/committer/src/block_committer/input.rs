@@ -1,7 +1,7 @@
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::leaf::{
-    ContractState, LeafModifications, SkeletonLeaf,
+    ContractState, LeafDataImpl, LeafModifications, SkeletonLeaf,
 };
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::{
@@ -58,7 +58,7 @@ impl StateDiff {
     }
 
     /// For each modified contract calculates it's actual storage updates.
-    pub(crate) fn actual_storage_updates(
+    pub(crate) fn skeleton_storage_updates(
         &self,
         tree_height: TreeHeight,
     ) -> HashMap<ContractAddress, LeafModifications<SkeletonLeaf>> {
@@ -82,7 +82,7 @@ impl StateDiff {
             .collect()
     }
 
-    pub(crate) fn actual_classes_updates(
+    pub(crate) fn skeleton_classes_updates(
         class_hash_to_compiled_class_hash: &HashMap<ClassHash, CompiledClassHash>,
         tree_height: TreeHeight,
     ) -> LeafModifications<SkeletonLeaf> {
@@ -92,6 +92,45 @@ impl StateDiff {
                 (
                     NodeIndex::from_class_hash(class_hash, &tree_height),
                     SkeletonLeaf::from(compiled_class_hash.0),
+                )
+            })
+            .collect()
+    }
+
+    pub(crate) fn actual_storage_updates(
+        &self,
+        tree_height: TreeHeight,
+    ) -> HashMap<ContractAddress, LeafModifications<LeafDataImpl>> {
+        self.accessed_addresses()
+            .iter()
+            .map(|address| {
+                let updates = match self.storage_updates.get(address) {
+                    Some(inner_updates) => inner_updates
+                        .iter()
+                        .map(|(key, value)| {
+                            (
+                                NodeIndex::from_starknet_storage_key(key, &tree_height),
+                                LeafDataImpl::StorageValue(value.0),
+                            )
+                        })
+                        .collect(),
+                    None => HashMap::new(),
+                };
+                (**address, updates)
+            })
+            .collect()
+    }
+
+    pub(crate) fn actual_classes_updates(
+        class_hash_to_compiled_class_hash: &HashMap<ClassHash, CompiledClassHash>,
+        tree_height: TreeHeight,
+    ) -> LeafModifications<LeafDataImpl> {
+        class_hash_to_compiled_class_hash
+            .iter()
+            .map(|(class_hash, compiled_class_hash)| {
+                (
+                    NodeIndex::from_class_hash(class_hash, &tree_height),
+                    LeafDataImpl::CompiledClassHash(*compiled_class_hash),
                 )
             })
             .collect()

@@ -22,6 +22,7 @@ use crate::storage::db_object::DBObject;
 use crate::storage::storage_trait::StorageKey;
 use crate::storage::storage_trait::StorageValue;
 
+pub(crate) type FilledTreeResult<T, L> = Result<T, FilledTreeError<L>>;
 /// Consider a Patricia-Merkle Tree which has been updated with new leaves.
 /// FilledTree consists of all nodes which were modified in the update, including their updated
 /// data and hashes.
@@ -29,9 +30,9 @@ pub(crate) trait FilledTree<L: LeafData>: Sized {
     /// Computes and returns the filled tree.
     #[allow(dead_code)]
     async fn create<H: HashFunction, TH: TreeHashFunction<L, H>>(
-        updated_skeleton: impl UpdatedSkeletonTree,
+        updated_skeleton: &impl UpdatedSkeletonTree,
         leaf_modifications: &LeafModifications<L>,
-    ) -> Result<Self, FilledTreeError<L>>;
+    ) -> FilledTreeResult<Self, L>;
 
     /// Serializes the current state of the tree into a hashmap,
     /// where each key-value pair corresponds
@@ -40,7 +41,7 @@ pub(crate) trait FilledTree<L: LeafData>: Sized {
     fn serialize(&self) -> HashMap<StorageKey, StorageValue>;
 
     #[allow(dead_code)]
-    fn get_root_hash(&self) -> Result<HashOutput, FilledTreeError<L>>;
+    fn get_root_hash(&self) -> FilledTreeResult<HashOutput, L>;
 }
 
 pub(crate) struct FilledTreeImpl {
@@ -72,7 +73,7 @@ impl FilledTreeImpl {
         index: NodeIndex,
         hash: HashOutput,
         data: NodeData<LeafDataImpl>,
-    ) -> Result<(), FilledTreeError<LeafDataImpl>> {
+    ) -> FilledTreeResult<(), LeafDataImpl> {
         match output_map.get(&index) {
             Some(node) => {
                 let mut node = node
@@ -95,7 +96,7 @@ impl FilledTreeImpl {
 
     fn remove_arc_mutex_and_option(
         hash_map_in: Arc<HashMap<NodeIndex, Mutex<Option<FilledNode<LeafDataImpl>>>>>,
-    ) -> Result<HashMap<NodeIndex, FilledNode<LeafDataImpl>>, FilledTreeError<LeafDataImpl>> {
+    ) -> FilledTreeResult<HashMap<NodeIndex, FilledNode<LeafDataImpl>>, LeafDataImpl> {
         let mut hash_map_out = HashMap::new();
         for (key, value) in hash_map_in.iter() {
             let mut value = value.lock().map_err(|_| {
@@ -117,7 +118,7 @@ impl FilledTreeImpl {
         index: NodeIndex,
         leaf_modifications: &LeafModifications<LeafDataImpl>,
         output_map: Arc<HashMap<NodeIndex, Mutex<Option<FilledNode<LeafDataImpl>>>>>,
-    ) -> Result<HashOutput, FilledTreeError<LeafDataImpl>>
+    ) -> FilledTreeResult<HashOutput, LeafDataImpl>
     where
         H: HashFunction,
         TH: TreeHashFunction<LeafDataImpl, H>,
@@ -194,16 +195,16 @@ impl FilledTreeImpl {
 
 impl FilledTree<LeafDataImpl> for FilledTreeImpl {
     async fn create<H: HashFunction, TH: TreeHashFunction<LeafDataImpl, H>>(
-        updated_skeleton: impl UpdatedSkeletonTree,
+        updated_skeleton: &impl UpdatedSkeletonTree,
         leaf_modifications: &LeafModifications<LeafDataImpl>,
-    ) -> Result<Self, FilledTreeError<LeafDataImpl>> {
+    ) -> FilledTreeResult<Self, LeafDataImpl> {
         // Compute the filled tree in two steps:
         //   1. Create a map containing the tree structure without hash values.
         //   2. Fill in the hash values.
-        let filled_tree_map = Arc::new(Self::initialize_with_placeholders(&updated_skeleton));
+        let filled_tree_map = Arc::new(Self::initialize_with_placeholders(updated_skeleton));
 
         Self::compute_filled_tree_rec::<H, TH>(
-            &updated_skeleton,
+            updated_skeleton,
             NodeIndex::ROOT,
             leaf_modifications,
             Arc::clone(&filled_tree_map),
@@ -225,7 +226,7 @@ impl FilledTree<LeafDataImpl> for FilledTreeImpl {
             .collect()
     }
 
-    fn get_root_hash(&self) -> Result<HashOutput, FilledTreeError<LeafDataImpl>> {
+    fn get_root_hash(&self) -> FilledTreeResult<HashOutput, LeafDataImpl> {
         match self.tree_map.get(&NodeIndex::ROOT) {
             Some(root_node) => Ok(root_node.hash),
             None => Err(FilledTreeError::MissingRoot),

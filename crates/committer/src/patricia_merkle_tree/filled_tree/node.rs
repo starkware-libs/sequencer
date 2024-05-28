@@ -12,7 +12,7 @@ pub struct ClassHash(pub Felt);
 pub struct Nonce(pub Felt);
 
 #[allow(dead_code)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CompiledClassHash(pub Felt);
 
 #[allow(dead_code)]

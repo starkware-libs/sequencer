@@ -30,7 +30,7 @@ async fn test_filled_tree_sanity() {
     let root_hash = FilledTreeImpl::create::<
         PedersenHashFunction,
         TreeHashFunctionImpl<PedersenHashFunction>,
-    >(updated_skeleton_tree, &modifications)
+    >(&updated_skeleton_tree, &modifications)
     .await
     .unwrap()
     .get_root_hash()
@@ -96,7 +96,7 @@ async fn test_small_filled_tree() {
     let filled_tree = FilledTreeImpl::create::<
         PedersenHashFunction,
         TreeHashFunctionImpl<PedersenHashFunction>,
-    >(updated_skeleton_tree, &modifications)
+    >(&updated_skeleton_tree, &modifications)
     .await
     .unwrap();
     let filled_tree_map = filled_tree.get_all_nodes();
@@ -205,7 +205,7 @@ async fn test_small_tree_with_sibling_nodes() {
     let filled_tree = FilledTreeImpl::create::<
         PedersenHashFunction,
         TreeHashFunctionImpl<PedersenHashFunction>,
-    >(updated_skeleton_tree, &modifications)
+    >(&updated_skeleton_tree, &modifications)
     .await
     .unwrap();
     let filled_tree_map = filled_tree.get_all_nodes();
