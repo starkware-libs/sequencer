@@ -259,8 +259,10 @@ fn cached_state_state_diff_conversion() {
     );
 
     // Declare a new class.
-    let class_hash = FeatureContract::Empty(CairoVersion::Cairo0).get_class_hash(); // Some unused class hash.
+    let class_hash = FeatureContract::Empty(CairoVersion::Cairo0).get_class_hash();
     let compiled_class_hash = compiled_class_hash!(1_u8);
+    // Cache the initial read value, as in regular declare flow.
+    state.get_compiled_contract_class(class_hash).unwrap_err();
     state.set_compiled_class_hash(class_hash, compiled_class_hash).unwrap();
 
     // Write the initial value using key contract_address1.
@@ -271,6 +273,9 @@ fn cached_state_state_diff_conversion() {
     state.set_storage_at(contract_address2, key_y, new_value).unwrap();
     assert!(state.increment_nonce(contract_address2).is_ok());
     let new_class_hash = class_hash!("0x11111111");
+
+    // Cache the initial read value, as in regular deploy flow.
+    state.get_class_hash_at(contract_address2).unwrap();
     assert!(state.set_class_hash_at(contract_address2, new_class_hash).is_ok());
 
     // Only changes to contract_address2 should be shown, since contract_address_0 wasn't changed
@@ -282,7 +287,7 @@ fn cached_state_state_diff_conversion() {
         address_to_nonce: IndexMap::from_iter([(contract_address2, nonce!(1_u64))]),
     };
 
-    assert_eq!(expected_state_diff, state.to_state_diff());
+    assert_eq!(expected_state_diff, state.to_state_diff().unwrap().into());
 }
 
 fn create_state_changes_for_test<S: StateReader>(
@@ -297,9 +302,15 @@ fn create_state_changes_for_test<S: StateReader>(
     let key = storage_key!("0x10");
     let storage_val: StarkFelt = stark_felt!("0x1");
 
+    // Fill the initial read value, as in regular flow.
+    state.get_class_hash_at(contract_address).unwrap();
     state.set_class_hash_at(contract_address, class_hash).unwrap();
+
     state.set_storage_at(contract_address, key, storage_val).unwrap();
     state.increment_nonce(contract_address2).unwrap();
+
+    // Fill the initial read value, as in regular flow.
+    state.get_compiled_contract_class(class_hash).unwrap_err();
     state.set_compiled_class_hash(class_hash, compiled_class_hash).unwrap();
 
     // Assign the existing value to the storage (this shouldn't be considered a change).
@@ -343,7 +354,7 @@ fn test_state_changes_merge(
     // Create a transactional state containing the `create_state_changes_for_test` logic, get the
     // state changes and then commit.
     let mut state: CachedState<DictStateReader> = CachedState::default();
-    let mut transactional_state = CachedState::create_transactional(&mut state);
+    let mut transactional_state = TransactionalState::create_transactional(&mut state);
     let block_context = BlockContext::create_for_testing();
     let fee_token_address = block_context.chain_info.fee_token_addresses.eth_fee_token_address;
     let state_changes1 =
@@ -352,7 +363,7 @@ fn test_state_changes_merge(
 
     // After performing `commit`, the transactional state is moved (into state).  We need to create
     // a new transactional state that wraps `state` to continue.
-    let mut transactional_state = CachedState::create_transactional(&mut state);
+    let mut transactional_state = TransactionalState::create_transactional(&mut state);
     // Make sure that `get_actual_state_changes` on a newly created transactional state returns null
     // state changes and that merging null state changes with non-null state changes results in the
     // non-null state changes, no matter the order.
@@ -368,7 +379,7 @@ fn test_state_changes_merge(
     );
 
     // Get the storage updates addresses and keys from the state_changes1, to overwrite.
-    let mut storage_updates_keys = state_changes1.storage_updates.keys();
+    let mut storage_updates_keys = state_changes1.0.storage.keys();
     let &(contract_address, storage_key) = storage_updates_keys
         .find(|(contract_address, _)| contract_address == &contract_address!(CONTRACT_ADDRESS))
         .unwrap();
@@ -440,19 +451,20 @@ fn test_cache_get_write_keys() {
 
     let class_hash0 = class_hash!("0x300");
 
-    let state_changes = StateChanges {
-        nonce_updates: HashMap::from([(contract_address0, Nonce(some_felt))]),
-        class_hash_updates: HashMap::from([
+    let state_changes = StateChanges(StateMaps {
+        nonces: HashMap::from([(contract_address0, Nonce(some_felt))]),
+        class_hashes: HashMap::from([
             (contract_address1, some_class_hash),
             (contract_address2, some_class_hash),
         ]),
-        storage_updates: HashMap::from([
+        storage: HashMap::from([
             ((contract_address1, storage_key!("0x300")), some_felt),
             ((contract_address1, storage_key!("0x600")), some_felt),
             ((contract_address3, storage_key!("0x600")), some_felt),
         ]),
-        compiled_class_hash_updates: HashMap::from([(class_hash0, compiled_class_hash!("0x3"))]),
-    };
+        compiled_class_hashes: HashMap::from([(class_hash0, compiled_class_hash!("0x3"))]),
+        declared_contracts: HashMap::default(),
+    });
 
     let expected_keys = StateChangesKeys {
         nonce_keys: HashSet::from([contract_address0]),

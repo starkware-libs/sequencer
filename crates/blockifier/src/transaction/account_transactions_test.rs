@@ -24,15 +24,14 @@ use crate::abi::abi_utils::{
     get_storage_var_address,
     selector_from_name,
 };
-use crate::abi::sierra_types::next_storage_key;
 use crate::context::BlockContext;
 use crate::execution::contract_class::{ContractClass, ContractClassV1};
 use crate::execution::entry_point::EntryPointExecutionContext;
 use crate::execution::execution_utils::{felt_to_stark_felt, stark_felt_to_felt};
 use crate::execution::syscalls::SyscallSelector;
-use crate::fee::fee_utils::get_fee_by_gas_vector;
+use crate::fee::fee_utils::{get_fee_by_gas_vector, get_sequencer_balance_keys};
 use crate::fee::gas_usage::estimate_minimal_gas_vector;
-use crate::state::cached_state::{CachedState, StateChangesCount};
+use crate::state::cached_state::{StateChangesCount, TransactionalState};
 use crate::state::state_api::{State, StateReader};
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::declare::declare_tx;
@@ -501,67 +500,6 @@ fn test_revert_invoke(
             .get_storage_at(test_contract_address, StorageKey::try_from(storage_key).unwrap())
             .unwrap()
     );
-}
-
-#[rstest]
-/// Tests that hitting an execution error in an account contract constructor outputs the correct
-/// traceback (including correct class hash, contract address and constructor entry point selector).
-fn test_account_ctor_frame_stack_trace(
-    block_context: BlockContext,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
-) {
-    let chain_info = &block_context.chain_info;
-    let faulty_account = FeatureContract::FaultyAccount(cairo_version);
-    let state = &mut test_state(chain_info, BALANCE, &[(faulty_account, 0)]);
-    let class_hash = faulty_account.get_class_hash();
-
-    // Create and execute deploy account transaction that passes validation and fails in the ctor.
-    let deploy_account_tx = create_account_tx_for_validate_test(
-        &mut NonceManager::default(),
-        FaultyAccountTxCreatorArgs {
-            tx_type: TransactionType::DeployAccount,
-            scenario: INVALID,
-            class_hash,
-            max_fee: Fee(BALANCE),
-            validate_constructor: true,
-            ..Default::default()
-        },
-    );
-
-    // Fund the account so it can afford the deployment.
-    let deploy_address = match &deploy_account_tx {
-        AccountTransaction::DeployAccount(deploy_tx) => deploy_tx.contract_address,
-        _ => unreachable!("deploy_account_tx is a DeployAccount"),
-    };
-    fund_account(chain_info, deploy_address, BALANCE * 2, &mut state.state);
-
-    let expected_selector = selector_from_name("constructor").0;
-    let expected_address = deploy_address.0.key();
-    let expected_error = format!(
-        "Contract constructor execution has failed:
-0: Error in the called contract (contract address: {expected_address}, class hash: {class_hash}, \
-         selector: {expected_selector}):
-"
-    ) + match cairo_version {
-        CairoVersion::Cairo0 => {
-            "Error at pc=0:223:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:195)
-Unknown location (pc=0:179)
-
-An ASSERT_EQ instruction failed: 1 != 0.
-"
-        }
-        CairoVersion::Cairo1 => {
-            "Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f ('Invalid \
-             scenario').
-"
-        }
-    };
-
-    // Compare expected and actual error.
-    let error = deploy_account_tx.execute(state, &block_context, true, true).unwrap_err();
-    assert_eq!(error.to_string(), expected_error);
 }
 
 #[rstest]
@@ -1083,6 +1021,7 @@ fn test_count_actual_storage_changes(
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     // FeeType according to version.
+
     let chain_info = &block_context.chain_info;
     let fee_token_address = chain_info.fee_token_address(&fee_type);
 
@@ -1117,7 +1056,7 @@ fn test_count_actual_storage_changes(
     // Run transactions; using transactional state to count only storage changes of the current
     // transaction.
     // First transaction: storage cell value changes from 0 to 1.
-    let mut state = CachedState::create_transactional(&mut state);
+    let mut state = TransactionalState::create_transactional(&mut state);
     let invoke_args = invoke_tx_args! {
         max_fee,
         resource_bounds: l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE),
@@ -1162,11 +1101,11 @@ fn test_count_actual_storage_changes(
     };
 
     assert_eq!(expected_modified_contracts, state_changes_1.get_modified_contracts());
-    assert_eq!(expected_storage_updates_1, state_changes_1.storage_updates);
+    assert_eq!(expected_storage_updates_1, state_changes_1.0.storage);
     assert_eq!(state_changes_count_1, expected_state_changes_count_1);
 
     // Second transaction: storage cell starts and ends with value 1.
-    let mut state = CachedState::create_transactional(&mut state);
+    let mut state = TransactionalState::create_transactional(&mut state);
     let account_tx = account_invoke_tx(InvokeTxArgs {
         nonce: nonce_manager.next(account_address),
         ..invoke_args.clone()
@@ -1198,11 +1137,11 @@ fn test_count_actual_storage_changes(
     };
 
     assert_eq!(expected_modified_contracts_2, state_changes_2.get_modified_contracts());
-    assert_eq!(expected_storage_updates_2, state_changes_2.storage_updates);
+    assert_eq!(expected_storage_updates_2, state_changes_2.0.storage);
     assert_eq!(state_changes_count_2, expected_state_changes_count_2);
 
     // Transfer transaction: transfer 1 ETH to recepient.
-    let mut state = CachedState::create_transactional(&mut state);
+    let mut state = TransactionalState::create_transactional(&mut state);
     let account_tx = account_invoke_tx(InvokeTxArgs {
         nonce: nonce_manager.next(account_address),
         calldata: transfer_calldata,
@@ -1246,41 +1185,34 @@ fn test_count_actual_storage_changes(
         expected_modified_contracts_transfer,
         state_changes_transfer.get_modified_contracts()
     );
-    assert_eq!(expected_storage_update_transfer, state_changes_transfer.storage_updates);
+    assert_eq!(expected_storage_update_transfer, state_changes_transfer.0.storage);
     assert_eq!(state_changes_count_3, expected_state_changes_count_3);
 }
 
 #[rstest]
 fn test_concurrency_execute_fee_transfer(#[values(FeeType::Eth, FeeType::Strk)] fee_type: FeeType) {
-    const STORAGE_WRITE_HIGH: u128 = 150;
+    // TODO(Meshi, 01/06/2024): make the test so it will include changes in
+    // sequencer_balance_key_high.
     const STORAGE_WRITE_LOW: u128 = 100;
     const STORAGE_READ_LOW: u128 = 50;
     let block_context = BlockContext::create_for_account_testing_with_concurrency_mode(true);
-    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+    let account_tx = account_invoke_tx(invoke_tx_args! {
+        sender_address: account.get_instance_address(0),
+        calldata: create_trivial_calldata(account.get_instance_address(0)),
+        resource_bounds: l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE),
+        version: TransactionVersion::THREE
+    });
     let chain_info = &block_context.chain_info;
-    let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
-    let class_hash = empty_contract.get_class_hash();
-    let class_info = calculate_class_info_for_testing(empty_contract.get_class());
-    let sender_address = account.get_instance_address(0);
-
-    let account_tx = declare_tx(
-        declare_tx_args! {
-            sender_address,
-            version: TransactionVersion::THREE,
-            resource_bounds: l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE),
-            class_hash,
-        },
-        class_info.clone(),
-    );
-
     let fee_token_address = block_context.chain_info.fee_token_address(&fee_type);
-    let sequencer_address = block_context.block_info.sequencer_address;
-    let sequencer_balance_key_low = get_fee_token_var_address(sequencer_address);
-    let sequencer_balance_key_high = next_storage_key(&sequencer_balance_key_low).unwrap();
+    let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
+
+    let (sequencer_balance_key_low, sequencer_balance_key_high) =
+        get_sequencer_balance_keys(&block_context);
+
     // Case 1: The transaction did not read form/ write to the sequenser balance before executing
     // fee transfer.
-    let mut transactional_state = CachedState::create_transactional(state);
+    let mut transactional_state = TransactionalState::create_transactional(state);
     account_tx.execute_raw(&mut transactional_state, &block_context, true, false).unwrap();
     let transactional_cache = transactional_state.cache.borrow();
     for storage in [
@@ -1295,40 +1227,52 @@ fn test_concurrency_execute_fee_transfer(#[values(FeeType::Eth, FeeType::Strk)] 
     // Case 2: The transaction read from and write to the sequenser balance before executing fee
     // transfer.
 
+    let transfer_calldata = create_calldata(
+        fee_token_address,
+        TRANSFER_ENTRY_POINT_NAME,
+        &[
+            *block_context.block_info.sequencer_address.0.key(),
+            stark_felt!(STORAGE_WRITE_LOW),
+            stark_felt!(0_u8),
+        ],
+    );
+
     // Set the sequencer balance to a constant value to check that the read set did not changed.
-    fund_account(chain_info, sequencer_address, STORAGE_READ_LOW, &mut state.state);
-    let mut transactional_state = CachedState::create_transactional(state);
+    fund_account(
+        chain_info,
+        block_context.block_info.sequencer_address,
+        STORAGE_READ_LOW,
+        &mut state.state,
+    );
+    let mut transactional_state = TransactionalState::create_transactional(state);
 
-    // Set the sequencer balance write set to a constant value.
-    // Note that it is enough to set the storage_write as execute_raw will update the
-    // storage_initial_values.
-    for (seq_key, value) in [
-        (sequencer_balance_key_low, STORAGE_WRITE_LOW),
-        (sequencer_balance_key_high, STORAGE_WRITE_HIGH),
-    ] {
-        transactional_state.set_storage_at(fee_token_address, seq_key, stark_felt!(value)).unwrap();
-    }
+    // Invokes transfer to the sequencer.
+    let account_tx = account_invoke_tx(invoke_tx_args! {
+        sender_address: account.get_instance_address(0),
+        calldata: transfer_calldata,
+        resource_bounds: l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE),
+        version: TransactionVersion::THREE
+    });
 
-    account_tx.execute_raw(&mut transactional_state, &block_context, true, false).unwrap();
+    account_tx.execute_raw(&mut transactional_state, &block_context, true, true).unwrap();
+
     // Check that the sequencer balance was not changed.
-    let storage_write = transactional_state.cache.borrow().writes.storage.clone();
-    let storage_initial_values = transactional_state.cache.borrow().initial_reads.storage.clone();
+    let storage_writes = transactional_state.cache.borrow().writes.storage.clone();
+    let storage_initial_reads = transactional_state.cache.borrow().initial_reads.storage.clone();
 
     for (seq_write_val, expexted_write_val) in [
         (
-            storage_write.get(&(fee_token_address, sequencer_balance_key_low)),
-            stark_felt!(STORAGE_WRITE_LOW),
+            storage_writes.get(&(fee_token_address, sequencer_balance_key_low)),
+            // Balance after `execute` and without the fee transfer.
+            stark_felt!(STORAGE_WRITE_LOW + STORAGE_READ_LOW),
         ),
         (
-            storage_initial_values.get(&(fee_token_address, sequencer_balance_key_low)),
+            storage_initial_reads.get(&(fee_token_address, sequencer_balance_key_low)),
             stark_felt!(STORAGE_READ_LOW),
         ),
+        (storage_writes.get(&(fee_token_address, sequencer_balance_key_high)), StarkFelt::ZERO),
         (
-            storage_write.get(&(fee_token_address, sequencer_balance_key_high)),
-            stark_felt!(STORAGE_WRITE_HIGH),
-        ),
-        (
-            storage_initial_values.get(&(fee_token_address, sequencer_balance_key_high)),
+            storage_initial_reads.get(&(fee_token_address, sequencer_balance_key_high)),
             StarkFelt::ZERO,
         ),
     ] {

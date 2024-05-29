@@ -9,6 +9,7 @@ members = [
     "crates/mempool",
     "crates/mempool_infra",
     "crates/mempool_node",
+    "crates/native_blockifier",
     "crates/papyrus_base_layer",
     "crates/papyrus_common",
     "crates/papyrus_config",

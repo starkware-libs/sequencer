@@ -1,0 +1,46 @@
+[package]
+name = "native_blockifier"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "A Bridge between the Rust blockifier crate and Python."
+
+# Required for `cargo test` to work with Pyo3.
+# On Python, make sure to compile this with the extension-module feature enabled.
+# https://pyo3.rs/v0.19.1/faq#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror
+[features]
+extension-module = ["pyo3/extension-module"]
+testing = []
+
+[lints]
+workspace = true
+
+[lib]
+name = "native_blockifier"
+# "cdylib" is necessary to produce a shared library for Python to import from.
+#
+# Downstream Rust code (including code in `bin/`, `examples/`, and `tests/`) will not be able
+# to `use string_sum;` unless the "rlib" or "lib" crate type is also included, e.g.:
+# crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
+
+[dependencies]
+blockifier = { path = "../blockifier", features = ["testing"] }
+cairo-lang-starknet-classes.workspace = true
+cairo-vm.workspace = true
+indexmap.workspace = true
+log.workspace = true
+num-bigint.workspace = true
+papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
+pyo3 = { workspace = true, features = ["num-bigint", "hashbrown"] }
+pyo3-log.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["arbitrary_precision"] }
+starknet_api = { workspace = true, features = ["testing"] }
+thiserror.workspace = true
+
+[dev-dependencies]
+cached.workspace = true
+pretty_assertions.workspace = true
+tempfile.workspace = true
