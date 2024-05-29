@@ -2,7 +2,7 @@ use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion, NonceManager};
 use serde_json::to_string_pretty;
 use starknet_api::calldata;
-use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::external_transaction::{
     ExternalDeclareTransaction, ExternalDeclareTransactionV3, ExternalDeployAccountTransaction,
@@ -12,11 +12,12 @@ use starknet_api::external_transaction::{
 use starknet_api::hash::StarkFelt;
 use starknet_api::internal_transaction::{InternalInvokeTransaction, InternalTransaction};
 use starknet_api::transaction::{
-    AccountDeploymentData, Calldata, InvokeTransaction, InvokeTransactionV3, PaymasterData,
-    ResourceBounds, ResourceBoundsMapping, Tip, TransactionSignature, TransactionVersion,
+    AccountDeploymentData, Calldata, ContractAddressSalt, InvokeTransaction, InvokeTransactionV3,
+    PaymasterData, ResourceBounds, ResourceBoundsMapping, Tip, TransactionSignature,
+    TransactionVersion,
 };
 
-use crate::invoke_tx_args;
+use crate::{deploy_account_tx_args, invoke_tx_args};
 
 pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 2214;
 pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
@@ -72,9 +73,9 @@ pub fn external_tx_for_testing(
 ) -> ExternalTransaction {
     match transaction_type {
         TransactionType::Declare => external_declare_tx_for_testing(resource_bounds, signature),
-        TransactionType::DeployAccount => {
-            external_deploy_account_tx_for_testing(resource_bounds, calldata, signature)
-        }
+        TransactionType::DeployAccount => external_deploy_account_tx(
+            deploy_account_tx_args!(resource_bounds, constructor_calldata: calldata, signature),
+        ),
         TransactionType::Invoke => {
             external_invoke_tx(invoke_tx_args!(signature, resource_bounds, calldata))
         }
@@ -98,27 +99,6 @@ fn external_declare_tx_for_testing(
         paymaster_data: Default::default(),
         account_deployment_data: Default::default(),
     }))
-}
-
-fn external_deploy_account_tx_for_testing(
-    resource_bounds: ResourceBoundsMapping,
-    constructor_calldata: Calldata,
-    signature: TransactionSignature,
-) -> ExternalTransaction {
-    ExternalTransaction::DeployAccount(ExternalDeployAccountTransaction::V3(
-        ExternalDeployAccountTransactionV3 {
-            resource_bounds,
-            tip: Default::default(),
-            contract_address_salt: Default::default(),
-            class_hash: Default::default(),
-            constructor_calldata,
-            nonce: Default::default(),
-            signature,
-            nonce_data_availability_mode: DataAvailabilityMode::L1,
-            fee_data_availability_mode: DataAvailabilityMode::L1,
-            paymaster_data: Default::default(),
-        },
-    ))
 }
 
 pub const NON_EMPTY_RESOURCE_BOUNDS: ResourceBounds =
@@ -166,15 +146,48 @@ pub fn invoke_tx() -> ExternalTransaction {
     let calldata = create_trivial_calldata(test_contract_address);
     let mut nonce_manager = NonceManager::default();
     let nonce = nonce_manager.next(account_address);
-    external_invoke_tx(invoke_tx_args! {
-     signature: TransactionSignature(vec![StarkFelt::ZERO]),
-     sender_address: account_address,
-     resource_bounds: executable_resource_bounds_mapping(),
-     nonce,
-     calldata,
-    })
+    external_invoke_tx(invoke_tx_args!(
+        signature: TransactionSignature(vec![StarkFelt::ZERO]),
+        sender_address: account_address,
+        resource_bounds: executable_resource_bounds_mapping(),
+        nonce,
+        calldata,
+    ))
 }
 
+// TODO(Ayelet, 28/5/2025): Consider moving this to StarkNet API.
+#[macro_export]
+macro_rules! invoke_tx_args {
+    ($($field:ident $(: $value:expr)?),* $(,)?) => {
+        $crate::starknet_api_test_utils::InvokeTxArgs {
+            $($field $(: $value)?,)*
+            ..Default::default()
+        }
+    };
+    ($($field:ident $(: $value:expr)?),* , ..$defaults:expr) => {
+        $crate::starknet_api_test_utils::InvokeTxArgs {
+            $($field $(: $value)?,)*
+            ..$defaults
+        }
+    };
+}
+
+// TODO(Ayelet, 28/5/2025): Consider moving this to StarkNet API.
+#[macro_export]
+macro_rules! deploy_account_tx_args {
+    ($($field:ident $(: $value:expr)?),* $(,)?) => {
+        $crate::starknet_api_test_utils::DeployAccountTxArgs {
+            $($field $(: $value)?,)*
+            ..Default::default()
+        }
+    };
+    ($($field:ident $(: $value:expr)?),* , ..$defaults:expr) => {
+        $crate::starknet_api_test_utils::DeployAccountTxArgs {
+            $($field $(: $value)?,)*
+            ..$defaults
+        }
+    };
+}
 #[derive(Clone)]
 pub struct InvokeTxArgs {
     pub signature: TransactionSignature,
@@ -189,6 +202,7 @@ pub struct InvokeTxArgs {
     pub account_deployment_data: AccountDeploymentData,
     pub nonce: Nonce,
 }
+
 impl Default for InvokeTxArgs {
     fn default() -> Self {
         InvokeTxArgs {
@@ -207,21 +221,39 @@ impl Default for InvokeTxArgs {
     }
 }
 
-// TODO(Ayelet, 15/5/2025): Consider moving this to StarkNet API.
-#[macro_export]
-macro_rules! invoke_tx_args {
-    ($($field:ident $(: $value:expr)?),* $(,)?) => {
-        $crate::starknet_api_test_utils::InvokeTxArgs {
-            $($field $(: $value)?,)*
-            ..Default::default()
+#[derive(Clone)]
+pub struct DeployAccountTxArgs {
+    pub signature: TransactionSignature,
+    pub deployer_address: ContractAddress,
+    pub version: TransactionVersion,
+    pub resource_bounds: ResourceBoundsMapping,
+    pub tip: Tip,
+    pub nonce_data_availability_mode: DataAvailabilityMode,
+    pub fee_data_availability_mode: DataAvailabilityMode,
+    pub paymaster_data: PaymasterData,
+    pub nonce: Nonce,
+    pub class_hash: ClassHash,
+    pub contract_address_salt: ContractAddressSalt,
+    pub constructor_calldata: Calldata,
+}
+
+impl Default for DeployAccountTxArgs {
+    fn default() -> Self {
+        DeployAccountTxArgs {
+            signature: TransactionSignature::default(),
+            deployer_address: ContractAddress::default(),
+            version: TransactionVersion::THREE,
+            resource_bounds: zero_resource_bounds_mapping(),
+            tip: Tip::default(),
+            nonce_data_availability_mode: DataAvailabilityMode::L1,
+            fee_data_availability_mode: DataAvailabilityMode::L1,
+            paymaster_data: PaymasterData::default(),
+            nonce: Nonce::default(),
+            class_hash: ClassHash::default(),
+            contract_address_salt: ContractAddressSalt::default(),
+            constructor_calldata: Calldata::default(),
         }
-    };
-    ($($field:ident $(: $value:expr)?),* , ..$defaults:expr) => {
-        $crate::starknet_api_test_utils::InvokeTxArgs {
-            $($field $(: $value)?,)*
-            ..$defaults
-        }
-    };
+    }
 }
 
 pub fn external_invoke_tx(invoke_args: InvokeTxArgs) -> ExternalTransaction {
@@ -248,16 +280,45 @@ pub fn external_invoke_tx(invoke_args: InvokeTxArgs) -> ExternalTransaction {
     }
 }
 
-pub fn external_invoke_tx_to_json(tx: &ExternalTransaction) -> String {
-    // Serialize to JSON
+pub fn external_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> ExternalTransaction {
+    match deploy_tx_args.version {
+        TransactionVersion::THREE => {
+            starknet_api::external_transaction::ExternalTransaction::DeployAccount(
+                starknet_api::external_transaction::ExternalDeployAccountTransaction::V3(
+                    ExternalDeployAccountTransactionV3 {
+                        resource_bounds: deploy_tx_args.resource_bounds,
+                        tip: deploy_tx_args.tip,
+                        contract_address_salt: deploy_tx_args.contract_address_salt,
+                        class_hash: deploy_tx_args.class_hash,
+                        constructor_calldata: deploy_tx_args.constructor_calldata,
+                        nonce: deploy_tx_args.nonce,
+                        signature: deploy_tx_args.signature,
+                        nonce_data_availability_mode: deploy_tx_args.nonce_data_availability_mode,
+                        fee_data_availability_mode: deploy_tx_args.fee_data_availability_mode,
+                        paymaster_data: deploy_tx_args.paymaster_data,
+                    },
+                ),
+            )
+        }
+        _ => panic!("Unsupported transaction version: {:?}.", deploy_tx_args.version),
+    }
+}
+
+pub fn external_tx_to_json(tx: &ExternalTransaction) -> String {
     let mut tx_json = serde_json::to_value(tx)
-        .unwrap_or_else(|_| panic!("Failed to serialize transaction: {tx:?}"));
+        .unwrap_or_else(|tx| panic!("Failed to serialize transaction: {tx:?}"));
 
     // Add type and version manually
-    tx_json.as_object_mut().unwrap().extend([
-        ("type".to_string(), "INVOKE_FUNCTION".into()),
-        ("version".to_string(), "0x3".into()),
-    ]);
+    let type_string = match tx {
+        ExternalTransaction::Declare(_) => "DECLARE",
+        ExternalTransaction::DeployAccount(_) => "DEPLOY_ACCOUNT",
+        ExternalTransaction::Invoke(_) => "INVOKE_FUNCTION",
+    };
+
+    tx_json
+        .as_object_mut()
+        .unwrap()
+        .extend([("type".to_string(), type_string.into()), ("version".to_string(), "0x3".into())]);
 
     // Serialize back to pretty JSON string
     to_string_pretty(&tx_json).expect("Failed to serialize transaction")

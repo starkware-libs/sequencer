@@ -6,7 +6,7 @@ use reqwest::{Client, Response};
 use starknet_api::external_transaction::ExternalTransaction;
 
 use crate::errors::GatewayError;
-use crate::starknet_api_test_utils::external_invoke_tx_to_json;
+use crate::starknet_api_test_utils::external_tx_to_json;
 
 pub type GatewayResult<T> = Result<T, GatewayError>;
 
@@ -44,7 +44,7 @@ impl GatewayClient {
     // Prefer using assert_add_tx_success or other higher level methods of this client, to ensure
     // tests are boilerplate and implementation-detail free.
     pub async fn add_tx(&self, tx: &ExternalTransaction) -> Response {
-        let tx_json = external_invoke_tx_to_json(tx);
+        let tx_json = external_tx_to_json(tx);
         self.client
             .post(format!("http://{}/add_tx", self.socket))
             .header("content-type", "application/json")
