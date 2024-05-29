@@ -3258,6 +3258,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_sierra_compile"
+version = "0.0.0"
+dependencies = [
+ "assert_matches",
+ "cairo-lang-sierra",
+ "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "starknet_task_executor"
 version = "0.0.0"
 dependencies = [

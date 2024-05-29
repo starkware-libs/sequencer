@@ -5,6 +5,7 @@ members = [
     "crates/mempool_types",
     "crates/mempool_node",
     "crates/mempool_infra",
+    "crates/starknet_sierra_compile",
     "crates/task_executor",
 ]
 resolver = "2"
@@ -32,7 +33,9 @@ async-trait = "0.1.79"
 axum = "0.6.12"
 # TODO(YaelD, 1/5/2024): Use a fixed version once the StarkNet API is stable.
 blockifier = { git = "https://github.com/starkware-libs/blockifier.git", rev = "fc62b8b8", features = ["testing"] }
+cairo-lang-sierra = "2.6.0"
 cairo-lang-starknet-classes = "2.6.0"
+cairo-lang-utils = "2.6.0"
 clap = "4.3.10"
 derive_more = "0.99"
 const_format = "0.2.30"
