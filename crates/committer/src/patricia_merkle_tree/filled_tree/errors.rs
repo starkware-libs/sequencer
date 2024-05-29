@@ -1,5 +1,3 @@
-use tokio::task::JoinError;
-
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
@@ -33,6 +31,4 @@ pub enum FilledTreeError<L: LeafData> {
     SerializeError(#[from] serde_json::Error),
     #[error(transparent)]
     UpdatedSkeletonError(#[from] UpdatedSkeletonTreeError),
-    #[error(transparent)]
-    JoinError(#[from] JoinError),
 }

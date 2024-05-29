@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::block_committer::input::ContractAddress;
 use crate::felt::Felt;
+use crate::forest_errors::{ForestError, ForestResult};
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
 use crate::patricia_merkle_tree::node_data::leaf::{
     ContractState, LeafModifications, SkeletonLeaf,
@@ -9,9 +10,7 @@ use crate::patricia_merkle_tree::node_data::leaf::{
 use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::OriginalSkeletonForestImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
-use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
-use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeResult;
 
 #[allow(dead_code)]
 pub(crate) struct UpdatedSkeletonForestImpl<T: UpdatedSkeletonTree> {
@@ -32,7 +31,7 @@ pub(crate) trait UpdatedSkeletonForest<T: OriginalSkeletonTree> {
         address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
         address_to_nonce: &HashMap<ContractAddress, Nonce>,
         tree_heights: TreeHeight,
-    ) -> UpdatedSkeletonTreeResult<Self>
+    ) -> ForestResult<Self>
     where
         Self: std::marker::Sized;
 }
@@ -48,7 +47,7 @@ impl<T: OriginalSkeletonTree, U: UpdatedSkeletonTree> UpdatedSkeletonForest<T>
         address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
         address_to_nonce: &HashMap<ContractAddress, Nonce>,
         tree_heights: TreeHeight,
-    ) -> UpdatedSkeletonTreeResult<Self>
+    ) -> ForestResult<Self>
     where
         Self: std::marker::Sized,
     {
@@ -66,7 +65,7 @@ impl<T: OriginalSkeletonTree, U: UpdatedSkeletonTree> UpdatedSkeletonForest<T>
             let original_storage_trie = original_skeleton_forest
                 .storage_tries
                 .get(address)
-                .ok_or(UpdatedSkeletonTreeError::LowerTreeCommitmentError(*address))?;
+                .ok_or(ForestError::MissingOriginalSkeleton(*address))?;
 
             let updated_storage_trie = U::create(original_storage_trie, updates)?;
             let storage_trie_becomes_empty = updated_storage_trie.is_empty();
@@ -75,7 +74,7 @@ impl<T: OriginalSkeletonTree, U: UpdatedSkeletonTree> UpdatedSkeletonForest<T>
 
             let current_leaf = current_contracts_trie_leaves
                 .get(address)
-                .ok_or(UpdatedSkeletonTreeError::LowerTreeCommitmentError(*address))?;
+                .ok_or(ForestError::MissingContractCurrentState(*address))?;
 
             let skeleton_leaf = Self::updated_contract_skeleton_leaf(
                 address_to_nonce.get(address),

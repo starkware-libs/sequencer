@@ -14,10 +14,10 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::skeleton_forest::{
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 use crate::storage::map_storage::MapStorage;
 
-type BlockCommitmentResult<T, L> = Result<T, BlockCommitmentError<L>>;
+type BlockCommitmentResult<T> = Result<T, BlockCommitmentError<LeafDataImpl>>;
 
 #[allow(dead_code)]
-pub(crate) async fn commit_block(input: Input) -> BlockCommitmentResult<(), LeafDataImpl> {
+pub(crate) async fn commit_block(input: Input) -> BlockCommitmentResult<()> {
     let original_forest = OriginalSkeletonForestImpl::<OriginalSkeletonTreeImpl>::create(
         MapStorage::from(input.storage),
         input.contracts_trie_root_hash,

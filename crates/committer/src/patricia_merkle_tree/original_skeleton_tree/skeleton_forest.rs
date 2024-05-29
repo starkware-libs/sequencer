@@ -2,13 +2,13 @@ use crate::block_committer::input::ContractAddress;
 use crate::block_committer::input::StarknetStorageKey;
 use crate::block_committer::input::StarknetStorageValue;
 use crate::block_committer::input::StateDiff;
+use crate::forest_errors::ForestError;
+use crate::forest_errors::ForestResult;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::ClassHash;
 use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use crate::patricia_merkle_tree::node_data::leaf::ContractState;
-use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::types::TreeHeight;
 use crate::storage::storage_trait::Storage;
@@ -27,7 +27,7 @@ pub(crate) trait OriginalSkeletonForest {
         tree_heights: TreeHeight,
         current_contracts_trie_leaves: &HashMap<ContractAddress, ContractState>,
         state_diff: &StateDiff,
-    ) -> OriginalSkeletonTreeResult<Self>
+    ) -> ForestResult<Self>
     where
         Self: std::marker::Sized;
 }
@@ -50,7 +50,7 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForest for OriginalSkeletonForestI
         tree_heights: TreeHeight,
         current_contracts_trie_leaves: &HashMap<ContractAddress, ContractState>,
         state_diff: &StateDiff,
-    ) -> OriginalSkeletonTreeResult<Self>
+    ) -> ForestResult<Self>
     where
         Self: std::marker::Sized,
     {
@@ -101,18 +101,18 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
         contracts_trie_root_hash: HashOutput,
         storage: &impl Storage,
         tree_height: TreeHeight,
-    ) -> OriginalSkeletonTreeResult<T> {
+    ) -> ForestResult<T> {
         let mut sorted_leaf_indices: Vec<NodeIndex> = accessed_addresses
             .iter()
             .map(|address| NodeIndex::from_contract_address(address, &tree_height))
             .collect();
         sorted_leaf_indices.sort();
-        T::create(
+        Ok(T::create(
             storage,
             &sorted_leaf_indices,
             contracts_trie_root_hash,
             tree_height,
-        )
+        )?)
     }
 
     fn create_storage_tries(
@@ -124,7 +124,7 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
         >,
         storage: &impl Storage,
         tree_height: TreeHeight,
-    ) -> OriginalSkeletonTreeResult<HashMap<ContractAddress, T>> {
+    ) -> ForestResult<HashMap<ContractAddress, T>> {
         let mut storage_tries = HashMap::new();
         for address in accessed_addresses {
             let mut sorted_leaf_indices: Vec<NodeIndex> = storage_updates
@@ -134,9 +134,9 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
                 .map(|key| NodeIndex::from_starknet_storage_key(key, &tree_height))
                 .collect();
             sorted_leaf_indices.sort();
-            let contract_state = current_contracts_trie_leaves.get(address).ok_or(
-                OriginalSkeletonTreeError::LowerTreeCommitmentError(**address),
-            )?;
+            let contract_state = current_contracts_trie_leaves
+                .get(address)
+                .ok_or(ForestError::MissingContractCurrentState(**address))?;
             let original_skeleton = T::create(
                 storage,
                 &sorted_leaf_indices,
@@ -153,17 +153,17 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
         classes_trie_root_hash: HashOutput,
         storage: &impl Storage,
         tree_height: TreeHeight,
-    ) -> OriginalSkeletonTreeResult<T> {
+    ) -> ForestResult<T> {
         let mut sorted_leaf_indices: Vec<NodeIndex> = class_hash_to_compiled_class_hash
             .keys()
             .map(|class_hash| NodeIndex::from_class_hash(class_hash, &tree_height))
             .collect();
         sorted_leaf_indices.sort();
-        T::create(
+        Ok(T::create(
             storage,
             &sorted_leaf_indices,
             classes_trie_root_hash,
             tree_height,
-        )
+        )?)
     }
 }
