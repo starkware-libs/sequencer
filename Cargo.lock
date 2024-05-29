@@ -228,6 +228,7 @@ dependencies = [
  "rand_distr",
  "serde",
  "serde_json",
+ "starknet-types-core",
  "strum",
  "strum_macros",
  "thiserror",

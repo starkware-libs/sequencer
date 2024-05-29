@@ -1,6 +1,5 @@
 use crate::block_committer::errors::BlockCommitmentError;
 use crate::block_committer::input::{Input, StateDiff};
-use crate::hash::pedersen::PedersenHashFunction;
 use crate::patricia_merkle_tree::filled_tree::forest::FilledForestImpl;
 use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::{
@@ -42,11 +41,7 @@ pub(crate) async fn commit_block(input: Input) -> BlockCommitmentResult<()> {
         input.tree_heights,
     )?;
 
-    let _filled_forest = FilledForestImpl::create::<
-        UpdatedSkeletonTreeImpl,
-        PedersenHashFunction,
-        TreeHashFunctionImpl<PedersenHashFunction>,
-    >(
+    let _filled_forest = FilledForestImpl::create::<UpdatedSkeletonTreeImpl, TreeHashFunctionImpl>(
         updated_forest,
         input.state_diff.actual_storage_updates(input.tree_heights),
         &StateDiff::actual_classes_updates(

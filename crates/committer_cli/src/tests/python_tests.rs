@@ -7,8 +7,6 @@ use committer::block_committer::input::{
 };
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
-use committer::hash::hash_trait::{HashFunction, HashInputPair};
-use committer::hash::pedersen::PedersenHashFunction;
 use committer::patricia_merkle_tree::filled_tree::forest::FilledForestImpl;
 use committer::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, FilledNode, Nonce};
@@ -16,14 +14,13 @@ use committer::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
 };
 use committer::patricia_merkle_tree::node_data::leaf::{ContractState, LeafDataImpl};
-use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
-    CONTRACT_CLASS_LEAF_V0, CONTRACT_STATE_HASH_VERSION,
-};
+use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use committer::storage::db_object::DBObject;
 use committer::storage::errors::{DeserializationError, SerializationError};
 use committer::storage::map_storage::MapStorage;
 use committer::storage::storage_trait::{Storage, StorageKey, StorageValue};
 use ethnum::U256;
+use starknet_types_core::hash::{Pedersen, StarkHash};
 use std::fmt::Debug;
 use std::{collections::HashMap, io};
 use thiserror;
@@ -169,7 +166,7 @@ pub(crate) fn test_hash_function(hash_input: HashMap<String, u128>) -> String {
     let y_felt = Felt::from(*y);
 
     // Compute the hash.
-    let hash_result = PedersenHashFunction::compute_hash(HashInputPair(x_felt, y_felt)).0;
+    let hash_result = Pedersen::hash(&x_felt.into(), &y_felt.into());
 
     // Serialize the hash result.
     serde_json::to_string(&hash_result)
@@ -473,8 +470,8 @@ pub(crate) fn storage_serialize_test() -> Result<String, PythonTestError> {
 fn python_hash_constants_compare() -> String {
     format!(
         "[{:?}, {:?}]",
-        CONTRACT_STATE_HASH_VERSION.to_bytes_be(),
-        Felt::from_hex(CONTRACT_CLASS_LEAF_V0).expect(
+        TreeHashFunctionImpl::CONTRACT_STATE_HASH_VERSION.to_bytes_be(),
+        Felt::from_hex(TreeHashFunctionImpl::CONTRACT_CLASS_LEAF_V0).expect(
         "could not parse hex string corresponding to b'CONTRACT_CLASS_LEAF_V0' to Felt",
         ).to_bytes_be()
     )

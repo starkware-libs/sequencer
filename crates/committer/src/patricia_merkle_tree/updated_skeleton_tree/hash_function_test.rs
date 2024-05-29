@@ -1,6 +1,5 @@
 use crate::felt::Felt;
-use crate::hash::hash_trait::{HashFunction, HashInputPair, HashOutput};
-use crate::hash::pedersen::PedersenHashFunction;
+use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::Nonce;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash};
 use crate::patricia_merkle_tree::node_data::inner_node::{
@@ -8,11 +7,11 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
 };
 use crate::patricia_merkle_tree::node_data::leaf::ContractState;
 use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
-use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
-    TreeHashFunction, CONTRACT_CLASS_LEAF_V0,
+    TreeHashFunction, TreeHashFunctionImpl,
 };
 use rstest::rstest;
+use starknet_types_core::hash::{Pedersen, StarkHash};
 
 #[rstest]
 #[case(Felt::ONE, Felt::TWO, Felt::from_hex("0x5bb9440e27889a364bcb678b1f679ecd1347acdedcbf36e83494f857cc58026").unwrap())]
@@ -23,15 +22,13 @@ fn test_tree_hash_function_impl_binary_node(
     #[case] right_hash: Felt,
     #[case] expected_hash: Felt,
 ) {
-    let hash_output = TreeHashFunctionImpl::<PedersenHashFunction>::compute_node_hash(
-        &NodeData::Binary(BinaryData {
-            left_hash: HashOutput(left_hash),
-            right_hash: HashOutput(right_hash),
-        }),
-    );
+    let hash_output = TreeHashFunctionImpl::compute_node_hash(&NodeData::Binary(BinaryData {
+        left_hash: HashOutput(left_hash),
+        right_hash: HashOutput(right_hash),
+    }));
     assert_eq!(
         hash_output,
-        PedersenHashFunction::compute_hash(HashInputPair(left_hash, right_hash))
+        HashOutput(Pedersen::hash(&left_hash.into(), &right_hash.into()).into())
     );
     assert_eq!(hash_output, HashOutput(expected_hash));
 }
@@ -46,18 +43,15 @@ fn test_tree_hash_function_impl_edge_node(
     #[case] length: u8,
     #[case] expected_hash: Felt,
 ) {
-    let hash_output = TreeHashFunctionImpl::<PedersenHashFunction>::compute_node_hash(
-        &NodeData::Edge(EdgeData {
-            bottom_hash: HashOutput(bottom_hash),
-            path_to_bottom: PathToBottom {
-                path: edge_path.into(),
-                length: EdgePathLength(length),
-            },
-        }),
-    );
+    let hash_output = TreeHashFunctionImpl::compute_node_hash(&NodeData::Edge(EdgeData {
+        bottom_hash: HashOutput(bottom_hash),
+        path_to_bottom: PathToBottom {
+            path: edge_path.into(),
+            length: EdgePathLength(length),
+        },
+    }));
     let direct_hash_computation = HashOutput(
-        PedersenHashFunction::compute_hash(HashInputPair(bottom_hash, edge_path.into())).0
-            + Felt::from(length),
+        Felt::from(Pedersen::hash(&bottom_hash.into(), &edge_path.into())) + length.into(),
     );
     assert_eq!(hash_output, HashOutput(expected_hash));
     assert_eq!(hash_output, direct_hash_computation);
@@ -66,7 +60,7 @@ fn test_tree_hash_function_impl_edge_node(
 #[rstest]
 fn test_constant_contract_class_leaf_v0() {
     assert_eq!(
-        hex::decode(CONTRACT_CLASS_LEAF_V0.trim_start_matches("0x")).unwrap(),
+        hex::decode(TreeHashFunctionImpl::CONTRACT_CLASS_LEAF_V0.trim_start_matches("0x")).unwrap(),
         b"CONTRACT_CLASS_LEAF_V0".as_slice()
     );
 }
@@ -117,6 +111,6 @@ fn test_tree_hash_function_impl_leaf_node(
     #[case] node_data: NodeData<LeafDataImpl>,
     #[case] expected_hash: Felt,
 ) {
-    let hash_output = TreeHashFunctionImpl::<PedersenHashFunction>::compute_node_hash(&node_data);
+    let hash_output = TreeHashFunctionImpl::compute_node_hash(&node_data);
     assert_eq!(hash_output, HashOutput(expected_hash));
 }
