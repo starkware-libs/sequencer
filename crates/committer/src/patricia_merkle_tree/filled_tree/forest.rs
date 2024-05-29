@@ -27,10 +27,9 @@ pub trait FilledForest<L: LeafData> {
 }
 
 pub struct FilledForestImpl {
-    // TODO(Nimrod, 1/6/2024): Rename trees.
-    storage_trees: HashMap<ContractAddress, FilledTreeImpl>,
-    contract_tree: FilledTreeImpl,
-    compiled_class_tree: FilledTreeImpl,
+    storage_tries: HashMap<ContractAddress, FilledTreeImpl>,
+    contracts_trie: FilledTreeImpl,
+    classes_trie: FilledTreeImpl,
 }
 
 impl FilledForest<LeafDataImpl> for FilledForestImpl {
@@ -38,11 +37,11 @@ impl FilledForest<LeafDataImpl> for FilledForestImpl {
     fn write_to_storage(&self, storage: &mut impl Storage) {
         // Serialize all trees to one hash map.
         let new_db_objects = self
-            .storage_trees
+            .storage_tries
             .values()
             .flat_map(|tree| tree.serialize().into_iter())
-            .chain(self.contract_tree.serialize())
-            .chain(self.compiled_class_tree.serialize())
+            .chain(self.contracts_trie.serialize())
+            .chain(self.classes_trie.serialize())
             .collect();
 
         // Store the new hash map
@@ -50,11 +49,11 @@ impl FilledForest<LeafDataImpl> for FilledForestImpl {
     }
 
     fn get_contract_root_hash(&self) -> FilledTreeResult<HashOutput, LeafDataImpl> {
-        self.contract_tree.get_root_hash()
+        self.contracts_trie.get_root_hash()
     }
 
     fn get_compiled_class_root_hash(&self) -> FilledTreeResult<HashOutput, LeafDataImpl> {
-        self.compiled_class_tree.get_root_hash()
+        self.classes_trie.get_root_hash()
     }
 }
 
@@ -118,9 +117,9 @@ impl FilledForestImpl {
         .await?;
 
         Ok(Self {
-            storage_trees: filled_storage_tries,
-            contract_tree: contracts_trie,
-            compiled_class_tree: classes_trie,
+            storage_tries: filled_storage_tries,
+            contracts_trie,
+            classes_trie,
         })
     }
 
