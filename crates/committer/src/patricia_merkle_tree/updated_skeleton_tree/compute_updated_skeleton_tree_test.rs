@@ -2,6 +2,7 @@ use ethnum::U256;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 
+use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
@@ -11,6 +12,7 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::compute_updated_skeleton
 };
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
+use std::collections::HashMap;
 
 #[fixture]
 fn updated_skeleton(
@@ -306,6 +308,98 @@ fn test_update_node_in_empty_tree(
     let mut expected_skeleton_tree = updated_skeleton.skeleton_tree.clone();
     expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());
     let temp_node = updated_skeleton.update_node_in_empty_tree(root_index, &leaf_indices);
+    assert_eq!(temp_node, expected_node);
+    assert_eq!(updated_skeleton.skeleton_tree, expected_skeleton_tree);
+}
+
+#[rstest]
+#[case::modified_leaf(
+    &NodeIndex::FIRST_LEAF,
+    HashMap::from([
+        (NodeIndex::FIRST_LEAF+1.into(),
+        OriginalSkeletonNode::LeafOrBinarySibling(HashOutput(Felt::ONE)))
+    ]),
+    &[(U256::from(NodeIndex::FIRST_LEAF), 1)],
+    TempSkeletonNode::Leaf,
+    &[],
+)]
+#[case::deleted_leaf(
+    &NodeIndex::FIRST_LEAF,
+    HashMap::from([
+        (NodeIndex::FIRST_LEAF+1.into(),
+        OriginalSkeletonNode::LeafOrBinarySibling(HashOutput(Felt::ONE)))
+    ]),
+    &[(U256::from(NodeIndex::FIRST_LEAF), 0)],
+    TempSkeletonNode::Empty,
+    &[],
+)]
+#[case::orig_binary_with_modified_leaf(
+    &(NodeIndex::FIRST_LEAF>>1),
+    HashMap::from([
+        (NodeIndex::FIRST_LEAF+1.into(),
+        OriginalSkeletonNode::LeafOrBinarySibling(HashOutput(Felt::ONE))),
+        (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Binary)
+    ]),
+    &[(U256::from(NodeIndex::FIRST_LEAF), 1)],
+    TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
+    &[],
+)]
+#[case::orig_binary_with_deleted_leaf(
+    &(NodeIndex::FIRST_LEAF>>1),
+    HashMap::from([
+        (NodeIndex::FIRST_LEAF+1.into(),
+        OriginalSkeletonNode::LeafOrBinarySibling(HashOutput(Felt::ONE))),
+        (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Binary)
+    ]),
+    &[(U256::from(NodeIndex::FIRST_LEAF), 0)],
+    TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)),
+    &[],
+)]
+#[case::orig_binary_with_deleted_leaves(
+    &(NodeIndex::FIRST_LEAF>>1),
+    HashMap::from([(NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Binary)]),
+    &[(U256::from(NodeIndex::FIRST_LEAF), 0), (U256::from(NodeIndex::FIRST_LEAF + 1.into()), 0)],
+    TempSkeletonNode::Empty,
+    &[],
+)]
+#[case::orig_binary_with_binary_modified_children(
+    &(NodeIndex::FIRST_LEAF>>2),
+    HashMap::from([
+        (NodeIndex::FIRST_LEAF>>2, OriginalSkeletonNode::Binary),
+        (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Binary),
+        ((NodeIndex::FIRST_LEAF>>1) + 1.into(),OriginalSkeletonNode::Binary)
+    ]),
+    &[
+        (U256::from(NodeIndex::FIRST_LEAF), 1),
+        (U256::from(NodeIndex::FIRST_LEAF + 1.into()), 1),
+        (U256::from(NodeIndex::FIRST_LEAF + 2.into()), 1),
+        (U256::from(NodeIndex::FIRST_LEAF + 3.into()), 1)
+    ],
+    TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
+    &[
+        (NodeIndex::FIRST_LEAF>>1, UpdatedSkeletonNode::Binary),
+        ((NodeIndex::FIRST_LEAF>>1) + 1.into(),UpdatedSkeletonNode::Binary)
+    ],
+)]
+fn test_update_node_in_nonempty_tree(
+    #[case] root_index: &NodeIndex,
+    #[case] mut original_skeleton: HashMap<NodeIndex, OriginalSkeletonNode>,
+    #[case] leaf_modifications: &[(U256, u8)],
+    #[case] expected_node: TempSkeletonNode,
+    #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
+    #[with(TreeHeight::MAX, leaf_modifications)] mut updated_skeleton: UpdatedSkeletonTreeImpl,
+) {
+    let leaf_indices: Vec<NodeIndex> = leaf_modifications
+        .iter()
+        .map(|(index, _)| NodeIndex::new(*index))
+        .collect();
+    let mut expected_skeleton_tree = updated_skeleton.skeleton_tree.clone();
+    expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());
+    let temp_node = updated_skeleton.update_node_in_nonempty_tree(
+        root_index,
+        &mut original_skeleton,
+        &leaf_indices,
+    );
     assert_eq!(temp_node, expected_node);
     assert_eq!(updated_skeleton.skeleton_tree, expected_skeleton_tree);
 }

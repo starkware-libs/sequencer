@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
@@ -13,7 +15,9 @@ pub mod compute_updated_skeleton_tree_test;
 #[derive(Debug, PartialEq, Eq)]
 /// A temporary skeleton node used during the computation of the updated skeleton tree.
 enum TempSkeletonNode {
+    // A deleted node.
     Empty,
+    // A new/modified leaf.
     Leaf,
     Original(OriginalSkeletonNode),
 }
@@ -95,6 +99,77 @@ impl UpdatedSkeletonTreeImpl {
         self.node_from_edge_data(&path_to_lca, &bottom_index, &bottom)
     }
 
+    #[allow(dead_code)]
+    /// Updates the Patricia tree rooted at the given index, with the given leaves; returns the root.
+    /// Assumes the given list of indices is sorted.
+    fn update_node_in_nonempty_tree(
+        &mut self,
+        root_index: &NodeIndex,
+        original_skeleton: &mut HashMap<NodeIndex, OriginalSkeletonNode>,
+        leaf_indices: &[NodeIndex],
+    ) -> TempSkeletonNode {
+        if root_index.is_leaf() && leaf_indices.contains(root_index) {
+            // A new/modified/deleted leaf.
+            if self.skeleton_tree.contains_key(root_index) {
+                // A new/modified leaf.
+                return TempSkeletonNode::Leaf;
+            } else {
+                // A deleted leaf.
+                return TempSkeletonNode::Empty;
+            };
+        };
+
+        // Not a leaf or an unchanged leaf (a Sibling or unmodified bottom).
+        let original_node = *original_skeleton
+            .get(root_index)
+            .unwrap_or_else(|| panic!("Node {root_index:?} not found."));
+
+        if leaf_indices.is_empty() {
+            match original_node {
+                OriginalSkeletonNode::Binary => unreachable!(
+                    "Index {root_index:?} is an original Binary node without leaf modifications - 
+                    it should be a Sibling instead."
+                ),
+                OriginalSkeletonNode::UnmodifiedBottom(_) => unreachable!(
+                    "Index {root_index:?} is an UnmodifiedBottom without leaf modifications. 
+                    It shouldn't be reached as it must have an original Edge parent that would stop 
+                    the recursion."
+                ),
+                OriginalSkeletonNode::Edge(_) | OriginalSkeletonNode::LeafOrBinarySibling(_) => {
+                    return TempSkeletonNode::Original(original_node)
+                }
+            }
+        };
+
+        match original_node {
+            OriginalSkeletonNode::LeafOrBinarySibling(_)
+            | OriginalSkeletonNode::UnmodifiedBottom(_) => {
+                unreachable!(
+                    "A sibling/unmodified bottom can have no leaf_modifications in its subtree."
+                )
+            }
+            OriginalSkeletonNode::Binary => {
+                let [left_indices, right_indices] =
+                    split_leaves(&self.tree_height, root_index, leaf_indices);
+                let [left_child_index, right_child_index] = root_index.get_children_indices();
+                let left = self.update_node_in_nonempty_tree(
+                    &left_child_index,
+                    original_skeleton,
+                    left_indices,
+                );
+                let right = self.update_node_in_nonempty_tree(
+                    &right_child_index,
+                    original_skeleton,
+                    right_indices,
+                );
+                self.node_from_binary_data(root_index, &left, &right)
+            }
+            OriginalSkeletonNode::Edge(path_to_bottom) => {
+                self.update_edge_node(root_index, &path_to_bottom, original_skeleton, leaf_indices)
+            }
+        }
+    }
+
     /// Builds a (probably binary) node from its two updated children. Returns the TempSkeletonNode
     /// matching the given root for the subtree it is the root of. If one or more children are
     /// empty, the resulting node will not be binary.
@@ -113,7 +188,7 @@ impl UpdatedSkeletonTreeImpl {
                 let TempSkeletonNode::Original(original_node) = node else {
                     match node {
                         TempSkeletonNode::Leaf => {
-                            // Leaf is finalized upon updated skeleton creation.
+                            // Leaf is finalized in the initial phase of updated skeleton creation.
                             assert!(
                                 self.skeleton_tree.contains_key(&index),
                                 "Leaf index {index:?} doesn't appear in the skeleton."
@@ -131,11 +206,11 @@ impl UpdatedSkeletonTreeImpl {
                     OriginalSkeletonNode::Edge(path_to_bottom) => {
                         UpdatedSkeletonNode::Edge(*path_to_bottom)
                     }
-                    OriginalSkeletonNode::LeafOrBinarySibling(hash) => {
-                        UpdatedSkeletonNode::Sibling(*hash)
-                    }
-                    OriginalSkeletonNode::UnmodifiedBottom(hash) => {
-                        UpdatedSkeletonNode::UnmodifiedBottom(*hash)
+                    OriginalSkeletonNode::LeafOrBinarySibling(_)
+                    | OriginalSkeletonNode::UnmodifiedBottom(_) => {
+                        // Unmodified nodes are finalized in the initial phase of updated skeleton
+                        // creation.
+                        continue;
                     }
                 };
                 self.skeleton_tree.insert(index, updated);
@@ -168,8 +243,7 @@ impl UpdatedSkeletonTreeImpl {
                     return TempSkeletonNode::Empty;
                 }
                 TempSkeletonNode::Leaf => {
-                    // Leaf is finalized upon updated skeleton creation.
-                    // bottom_index is in the updated skeleton iff it wasn't deleted from the tree.
+                    // Leaf is finalized in the initial phase of updated skeleton creation.
                     assert!(
                         self.skeleton_tree.contains_key(bottom_index),
                         "bottom is a non-empty leaf but doesn't appear in the skeleton."
@@ -192,5 +266,16 @@ impl UpdatedSkeletonTreeImpl {
             OriginalSkeletonNode::LeafOrBinarySibling(_)
             | OriginalSkeletonNode::UnmodifiedBottom(_) => OriginalSkeletonNode::Edge(*path),
         })
+    }
+
+    /// Updates an original skeleton subtree rooted with an edge node.
+    fn update_edge_node(
+        &mut self,
+        _root_index: &NodeIndex,
+        _path_to_bottom: &PathToBottom,
+        _original_skeleton: &mut HashMap<NodeIndex, OriginalSkeletonNode>,
+        _leaf_indices: &[NodeIndex],
+    ) -> TempSkeletonNode {
+        todo!("Implement update_edge_node.")
     }
 }

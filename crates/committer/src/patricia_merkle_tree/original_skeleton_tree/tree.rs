@@ -24,6 +24,8 @@ pub(crate) trait OriginalSkeletonTree {
     ) -> OriginalSkeletonTreeResult<Self>
     where
         Self: std::marker::Sized;
+
+    fn get_nodes(&self) -> &HashMap<NodeIndex, OriginalSkeletonNode>;
 }
 
 #[allow(dead_code)]
@@ -41,5 +43,9 @@ impl OriginalSkeletonTree for OriginalSkeletonTreeImpl {
         tree_height: TreeHeight,
     ) -> OriginalSkeletonTreeResult<Self> {
         Self::create_impl(storage, sorted_leaf_indices, root_hash, tree_height)
+    }
+
+    fn get_nodes(&self) -> &HashMap<NodeIndex, OriginalSkeletonNode> {
+        &self.nodes
     }
 }

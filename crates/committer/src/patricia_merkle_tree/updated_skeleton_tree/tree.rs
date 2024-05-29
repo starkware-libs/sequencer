@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
+use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
@@ -45,15 +46,28 @@ pub(crate) struct UpdatedSkeletonTreeImpl {
 
 impl UpdatedSkeletonTree for UpdatedSkeletonTreeImpl {
     fn create(
-        _original_skeleton: &impl OriginalSkeletonTree,
+        original_skeleton: &impl OriginalSkeletonTree,
         leaf_modifications: &LeafModifications<SkeletonLeaf>,
     ) -> UpdatedSkeletonTreeResult<Self> {
-        // Finalize all leaf modifications in the skeleton.
-        let mut _skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode> = leaf_modifications
-            .iter()
-            .filter(|(_, leaf)| !leaf.is_zero())
-            .map(|(index, _)| (*index, UpdatedSkeletonNode::Leaf))
-            .collect();
+        // Finalize modified leaves, and unmodified nodes (Siblings and UnmodifiedBottoms) in the
+        // skeleton.
+        let mut _skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode> =
+            leaf_modifications
+                .iter()
+                .filter(|(_, leaf)| !leaf.is_zero())
+                .map(|(index, _)| (*index, UpdatedSkeletonNode::Leaf))
+                .chain(original_skeleton.get_nodes().iter().filter_map(
+                    |(index, node)| match node {
+                        OriginalSkeletonNode::LeafOrBinarySibling(hash) => {
+                            Some((*index, UpdatedSkeletonNode::Sibling(*hash)))
+                        }
+                        OriginalSkeletonNode::UnmodifiedBottom(hash) => {
+                            Some((*index, UpdatedSkeletonNode::UnmodifiedBottom(*hash)))
+                        }
+                        OriginalSkeletonNode::Binary | OriginalSkeletonNode::Edge(_) => None,
+                    },
+                ))
+                .collect();
         todo!()
     }
 
