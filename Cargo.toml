@@ -47,6 +47,7 @@ serde_json = "1.0"
 starknet_api = { git = "https://github.com/starkware-libs/starknet-api.git", rev = "0f49f20a" }
 thiserror = "1.0"
 tokio = { version = "1.37.0", features = ["full"] }
+tokio-test = "0.4.4"
 tower = "0.4.13"
 url = "2.5.0"
 validator = "0.12"
