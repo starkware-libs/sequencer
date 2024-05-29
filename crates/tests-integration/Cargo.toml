@@ -1,0 +1,25 @@
+[package]
+name = "starknet_mempool_integration_tests"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+axum.workspace = true
+hyper.workspace = true
+reqwest.workspace = true
+# TODO(Arni, 1/5/2024): Use a fixed version once the StarkNet API is stable.
+starknet_api = { git = "https://github.com/starkware-libs/starknet-api.git", branch = "main-mempool" }
+starknet_gateway = { path = "../gateway", version = "0.4.0-dev.2" }
+
+[dev-dependencies]
+mempool_infra = { path = "../mempool_infra", version = "0.4.0-dev.2" }
+pretty_assertions.workspace = true
+rstest.workspace = true
+starknet_mempool = { path = "../mempool", version = "0.4.0-dev.2" }
+starknet_mempool_types = { path = "../mempool_types", version = "0.4.0-dev.2" }
+tokio.workspace = true

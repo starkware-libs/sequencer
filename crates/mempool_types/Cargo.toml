@@ -1,0 +1,17 @@
+[package]
+name = "starknet_mempool_types"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait.workspace = true
+mempool_infra = { path = "../mempool_infra"}
+# TODO(Arni, 1/5/2024): Use a fixed version once the StarkNet API is stable.
+starknet_api = { git = "https://github.com/starkware-libs/starknet-api.git", branch = "main-mempool" }
+thiserror.workspace = true
+tokio.workspace = true

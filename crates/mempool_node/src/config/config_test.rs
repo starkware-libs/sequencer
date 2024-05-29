@@ -1,71 +1,79 @@
-#![allow(unused_imports)]
-use std::env::{self, args};
+#[cfg(any(feature = "testing", test))]
+use std::env::{self};
 use std::fs::File;
-use std::ops::IndexMut;
-use std::path::{Path, PathBuf};
 
+use assert_json_diff::assert_json_eq;
 use assert_matches::assert_matches;
+use colored::Colorize;
+use mempool_test_utils::get_absolute_path;
 use papyrus_config::dumping::SerializeConfig;
-use papyrus_config::loading::load_and_process_config;
-use papyrus_config::presentation::get_config_presentation;
-use papyrus_config::validators::ParsedValidationErrors;
-use papyrus_config::{SerializationType, SerializedContent, SerializedParam};
+use papyrus_config::validators::{ParsedValidationError, ParsedValidationErrors};
 use validator::Validate;
 
 use crate::config::{
-    node_command,
     ComponentConfig,
     ComponentExecutionConfig,
-    GatewayConfig,
     MempoolNodeConfig,
+    DEFAULT_CONFIG_PATH,
 };
 
-const TEST_FILES_FOLDER: &str = "./src/test_files";
-const CONFIG_FILE: &str = "mempool_node_config.json";
-
-fn get_config_file(file_name: &str) -> Result<MempoolNodeConfig, papyrus_config::ConfigError> {
-    let config_file = File::open(Path::new(TEST_FILES_FOLDER).join(file_name)).unwrap();
-    load_and_process_config::<MempoolNodeConfig>(config_file, node_command(), vec![])
-}
-
+/// Test the validation of the struct ComponentConfig.
+/// The validation validates at least one of the components is set with execute: true.
 #[test]
-fn test_valid_config() {
-    // Read the valid config file and validate its content.
-    let expected_config = MempoolNodeConfig {
-        components: ComponentConfig {
-            gateway_component: ComponentExecutionConfig { execute: true },
-            mempool_component: ComponentExecutionConfig { execute: false },
-        },
-        gateway_config: GatewayConfig { ip: "0.0.0.0".parse().unwrap(), port: 8080 },
+fn test_components_config_validation() {
+    // Initialize an invalid config and check that the validator finds an error.
+    let mut component_config = ComponentConfig {
+        gateway_component: ComponentExecutionConfig { execute: false },
+        mempool_component: ComponentExecutionConfig { execute: false },
     };
-    let loaded_config = get_config_file(CONFIG_FILE).unwrap();
 
-    assert!(loaded_config.validate().is_ok());
-    assert_eq!(loaded_config, expected_config);
-}
-
-#[test]
-fn test_components_config() {
-    // Read the valid config file and check that the validator finds no errors.
-    let mut config = get_config_file(CONFIG_FILE).unwrap();
-    assert!(config.validate().is_ok());
-
-    // Invalidate the gateway component and check that the validator finds an error.
-    config.components.gateway_component.execute = false;
-
-    assert_matches!(config.validate(), Err(e) => {
-        let parse_err = ParsedValidationErrors::from(e);
-        let mut error_msg = String::new();
-        for error in parse_err.0 {
-            if error.param_path == "components.__all__" {
-                error_msg.push_str(&error.code);
-                break;
-            }
-        }
-        assert_eq!(error_msg, "Invalid components configuration.");
+    assert_matches!(component_config.validate().unwrap_err(), validation_errors => {
+        let parsed_errors = ParsedValidationErrors::from(validation_errors);
+        assert_eq!(parsed_errors.0.len(), 1);
+        let parsed_validation_error = &parsed_errors.0[0];
+        assert_matches!(
+            parsed_validation_error,
+            ParsedValidationError { param_path, code, message, params}
+            if (
+                param_path == "__all__" &&
+                code == "Invalid components configuration." &&
+                params.is_empty() &&
+                *message == Some("At least one component should be allowed to execute.".to_string())
+            )
+        )
     });
 
-    // Validate the mempool component and check that the validator finds no errors.
-    config.components.mempool_component.execute = true;
-    assert!(config.validate().is_ok());
+    // Update the config to be valid and check that the validator finds no errors.
+    for (gateway_component_execute, mempool_component_execute) in
+        [(true, false), (false, true), (true, true)]
+    {
+        component_config.gateway_component.execute = gateway_component_execute;
+        component_config.mempool_component.execute = mempool_component_execute;
+
+        assert_matches!(component_config.validate(), Ok(()));
+    }
+}
+
+/// Test the validation of the struct MempoolNodeConfig and that the default config file is up to
+/// date. To update the default config file, run:
+/// cargo run --bin dump_config -q
+#[test]
+fn default_config_file_is_up_to_date() {
+    let default_config = MempoolNodeConfig::default();
+    assert_matches!(default_config.validate(), Ok(()));
+    let from_code: serde_json::Value = serde_json::to_value(default_config.dump()).unwrap();
+
+    env::set_current_dir(get_absolute_path("")).expect("Couldn't set working dir.");
+    let from_default_config_file: serde_json::Value =
+        serde_json::from_reader(File::open(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
+
+    println!(
+        "{}",
+        "Default config file doesn't match the default NodeConfig implementation. Please update \
+         it using the dump_config binary."
+            .purple()
+            .bold()
+    );
+    println!("Diffs shown below.");
+    assert_json_eq!(from_default_config_file, from_code)
 }

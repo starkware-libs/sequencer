@@ -1,40 +1,83 @@
-use std::fs::File;
-use std::path::Path;
+use std::sync::Arc;
 
+use assert_matches::assert_matches;
 use axum::body::{Bytes, HttpBody};
+use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use pretty_assertions::assert_str_eq;
-use rstest::rstest;
+use blockifier::context::ChainInfo;
 use starknet_api::external_transaction::ExternalTransaction;
+use starknet_api::transaction::TransactionHash;
+use starknet_mempool_types::mempool_types::{
+    GatewayNetworkComponent,
+    GatewayToMempoolMessage,
+    MempoolToGatewayMessage,
+};
+use tokio::sync::mpsc::channel;
 
-use crate::gateway::add_transaction;
+use crate::config::{StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig};
+use crate::gateway::{add_tx, AppState};
+use crate::starknet_api_test_utils::invoke_tx;
+use crate::state_reader_test_utils::test_state_reader_factory;
+use crate::stateful_transaction_validator::StatefulTransactionValidator;
+use crate::stateless_transaction_validator::StatelessTransactionValidator;
+use crate::utils::{external_tx_to_account_tx, get_tx_hash};
 
-const TEST_FILES_FOLDER: &str = "./tests/fixtures";
+pub fn app_state(network_component: GatewayNetworkComponent) -> AppState {
+    AppState {
+        stateless_tx_validator: StatelessTransactionValidator {
+            config: StatelessTransactionValidatorConfig {
+                validate_non_zero_l1_gas_fee: true,
+                max_calldata_length: 10,
+                max_signature_length: 2,
+                ..Default::default()
+            },
+        },
+        network_component: Arc::new(network_component),
+        stateful_tx_validator: Arc::new(StatefulTransactionValidator {
+            config: StatefulTransactionValidatorConfig::create_for_testing(),
+        }),
+        state_reader_factory: Arc::new(test_state_reader_factory()),
+    }
+}
 
-// TODO(Ayelet): Replace the use of the JSON files with generated instances, then serialize these
-// into JSON for testing.
-#[rstest]
-#[case::declare(&Path::new(TEST_FILES_FOLDER).join("declare_v3.json"), "DECLARE")]
-#[case::deploy_account(
-    &Path::new(TEST_FILES_FOLDER).join("deploy_account_v3.json"),
-    "DEPLOY_ACCOUNT"
-)]
-#[case::invoke(&Path::new(TEST_FILES_FOLDER).join("invoke_v3.json"), "INVOKE")]
+// TODO(Ayelet): add test cases for declare and deploy account transactions.
 #[tokio::test]
-async fn test_add_transaction(#[case] json_file_path: &Path, #[case] expected_response: &str) {
-    let json_file = File::open(json_file_path).unwrap();
-    let tx: ExternalTransaction = serde_json::from_reader(json_file).unwrap();
+async fn test_add_tx() {
+    // The `_rx_gateway_to_mempool` is retained to keep the channel open, as dropping it would
+    // prevent the sender from transmitting messages.
+    let (tx_gateway_to_mempool, _rx_gateway_to_mempool) = channel::<GatewayToMempoolMessage>(1);
+    let (_, rx_mempool_to_gateway) = channel::<MempoolToGatewayMessage>(1);
+    // TODO: Add fixture.
+    let gateway_component =
+        GatewayNetworkComponent::new(tx_gateway_to_mempool, rx_mempool_to_gateway);
 
-    let response = add_transaction(tx.into()).await.into_response();
+    let app_state = app_state(gateway_component);
+
+    let tx = invoke_tx();
+    let tx_hash = calculate_hash(&tx);
+    let response = add_tx(State(app_state), tx.into()).await.into_response();
 
     let status_code = response.status();
     assert_eq!(status_code, StatusCode::OK);
 
     let response_bytes = &to_bytes(response).await;
-    assert_str_eq!(&String::from_utf8_lossy(response_bytes), expected_response);
+    assert_eq!(tx_hash, serde_json::from_slice(response_bytes).unwrap());
 }
 
 async fn to_bytes(res: Response) -> Bytes {
     res.into_body().collect().await.unwrap().to_bytes()
+}
+
+fn calculate_hash(external_tx: &ExternalTransaction) -> TransactionHash {
+    assert_matches!(
+        external_tx,
+        ExternalTransaction::Invoke(_),
+        "Only Invoke supported for now, extend as needed."
+    );
+
+    let account_tx =
+        external_tx_to_account_tx(external_tx, None, &ChainInfo::create_for_testing().chain_id)
+            .unwrap();
+    get_tx_hash(&account_tx)
 }

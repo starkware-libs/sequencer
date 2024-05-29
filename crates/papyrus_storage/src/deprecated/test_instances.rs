@@ -1,3 +1,4 @@
+use papyrus_test_utils::{auto_impl_get_test_instance, GetTestInstance};
 use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, GasPricePerToken};
 use starknet_api::core::{
     EventCommitment,
@@ -7,7 +8,6 @@ use starknet_api::core::{
     TransactionCommitment,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
-use test_utils::{auto_impl_get_test_instance, GetTestInstance};
 
 use crate::deprecated::migrations::{StorageBlockHeaderV0, StorageBlockHeaderV1};
 

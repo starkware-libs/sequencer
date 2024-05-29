@@ -4,15 +4,16 @@ use assert_matches::assert_matches;
 use futures::future::ready;
 use futures::{FutureExt, SinkExt, StreamExt};
 use indexmap::{indexmap, IndexMap};
-use papyrus_network::{DataType, Direction, Query, SignedBlockHeader};
+use papyrus_common::state::create_random_state_diff;
+use papyrus_network::DataType;
+use papyrus_protobuf::sync::{BlockHashOrNumber, Direction, Query, SignedBlockHeader};
 use papyrus_storage::state::StateStorageReader;
-use rand::RngCore;
+use papyrus_test_utils::get_rng;
 use starknet_api::block::{BlockHeader, BlockNumber};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::hash::{StarkFelt, StarkHash};
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use static_assertions::const_assert;
-use test_utils::get_rng;
 
 use crate::test_utils::{
     create_block_hashes_and_signatures,
@@ -24,34 +25,6 @@ use crate::test_utils::{
 use crate::P2PSyncError;
 
 const TIMEOUT_FOR_TEST: Duration = Duration::from_secs(5);
-
-fn create_random_state_diff(rng: &mut impl RngCore) -> ThinStateDiff {
-    let contract0 = ContractAddress::from(rng.next_u64());
-    let contract1 = ContractAddress::from(rng.next_u64());
-    let contract2 = ContractAddress::from(rng.next_u64());
-    let class_hash = ClassHash(rng.next_u64().into());
-    let compiled_class_hash = CompiledClassHash(rng.next_u64().into());
-    let deprecated_class_hash = ClassHash(rng.next_u64().into());
-    ThinStateDiff {
-        deployed_contracts: indexmap! {
-            contract0 => class_hash, contract1 => class_hash, contract2 => deprecated_class_hash
-        },
-        storage_diffs: indexmap! {
-            contract0 => indexmap! {
-                1u64.into() => StarkFelt::ONE, 2u64.into() => StarkFelt::TWO
-            },
-            contract1 => indexmap! {
-                3u64.into() => StarkFelt::TWO, 4u64.into() => StarkFelt::ONE
-            },
-        },
-        declared_classes: indexmap! { class_hash => compiled_class_hash },
-        deprecated_declared_classes: vec![deprecated_class_hash],
-        nonces: indexmap! {
-            contract0 => Nonce(StarkFelt::ONE), contract2 => Nonce(StarkFelt::TWO)
-        },
-        replaced_classes: Default::default(),
-    }
-}
 
 fn split_state_diff(state_diff: ThinStateDiff) -> Vec<ThinStateDiff> {
     let mut result = Vec::new();
@@ -111,8 +84,8 @@ async fn state_diff_basic_flow() {
 
     // We don't need to read the header query in order to know which headers to send, and we
     // already validate the header query in a different test.
-    let mut query_receiver =
-        query_receiver.filter(|query| ready(matches!(query.data_type, DataType::StateDiff)));
+    let mut query_receiver = query_receiver
+        .filter(|(_query, data_type)| ready(matches!(data_type, DataType::StateDiff)));
 
     // Create a future that will receive queries, send responses and validate the results.
     let parse_queries_future = async move {
@@ -142,27 +115,21 @@ async fn state_diff_basic_flow() {
         }
         for (start_block_number, num_blocks) in [
             (0u64, STATE_DIFF_QUERY_LENGTH),
-            (
-                STATE_DIFF_QUERY_LENGTH.try_into().unwrap(),
-                HEADER_QUERY_LENGTH - STATE_DIFF_QUERY_LENGTH,
-            ),
+            (STATE_DIFF_QUERY_LENGTH, HEADER_QUERY_LENGTH - STATE_DIFF_QUERY_LENGTH),
         ] {
             // Get a state diff query and validate it
-            let query = query_receiver.next().await.unwrap();
+            let (query, _) = query_receiver.next().await.unwrap();
             assert_eq!(
                 query,
                 Query {
-                    start_block: BlockNumber(start_block_number),
+                    start_block: BlockHashOrNumber::Number(BlockNumber(start_block_number)),
                     direction: Direction::Forward,
                     limit: num_blocks,
                     step: 1,
-                    data_type: DataType::StateDiff,
                 }
             );
 
-            for block_number in
-                start_block_number..(start_block_number + u64::try_from(num_blocks).unwrap())
-            {
+            for block_number in start_block_number..(start_block_number + num_blocks) {
                 let expected_state_diff: &ThinStateDiff =
                     &state_diffs[usize::try_from(block_number).unwrap()];
                 let state_diff_parts = split_state_diff(expected_state_diff.clone());
@@ -216,8 +183,8 @@ async fn validate_state_diff_fails(
 
     // We don't need to read the header query in order to know which headers to send, and we
     // already validate the header query in a different test.
-    let mut query_receiver =
-        query_receiver.filter(|query| ready(matches!(query.data_type, DataType::StateDiff)));
+    let mut query_receiver = query_receiver
+        .filter(|(_query, data_type)| ready(matches!(data_type, DataType::StateDiff)));
 
     // Create a future that will receive queries, send responses and validate the results.
     let parse_queries_future = async move {
@@ -236,15 +203,14 @@ async fn validate_state_diff_fails(
             .unwrap();
 
         // Get a state diff query and validate it
-        let query = query_receiver.next().await.unwrap();
+        let (query, _) = query_receiver.next().await.unwrap();
         assert_eq!(
             query,
             Query {
-                start_block: BlockNumber(0),
+                start_block: BlockHashOrNumber::Number(BlockNumber(0)),
                 direction: Direction::Forward,
                 limit: 1,
                 step: 1,
-                data_type: DataType::StateDiff,
             }
         );
 

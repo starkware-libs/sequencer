@@ -2,26 +2,18 @@ use starknet_api::external_transaction::{
     ExternalDeployAccountTransaction,
     ExternalInvokeTransaction,
     ExternalTransaction,
+    ResourceBoundsMapping,
 };
-use starknet_api::transaction::{Resource, ResourceBoundsMapping};
+use starknet_api::transaction::Resource;
 
+use crate::config::StatelessTransactionValidatorConfig;
 use crate::errors::{StatelessTransactionValidatorError, StatelessTransactionValidatorResult};
-use crate::utils::ExternalTransactionExt;
 
 #[cfg(test)]
 #[path = "stateless_transaction_validator_test.rs"]
 mod stateless_transaction_validator_test;
 
-#[derive(Default)]
-pub struct StatelessTransactionValidatorConfig {
-    // If true, validates that the resource bounds are not zero.
-    pub validate_non_zero_l1_gas_fee: bool,
-    pub validate_non_zero_l2_gas_fee: bool,
-
-    pub max_calldata_length: usize,
-    pub max_signature_length: usize,
-}
-
+#[derive(Clone)]
 pub struct StatelessTransactionValidator {
     pub config: StatelessTransactionValidatorConfig,
 }
@@ -113,15 +105,15 @@ fn validate_resource_is_non_zero(
     resource_bounds_mapping: &ResourceBoundsMapping,
     resource: Resource,
 ) -> StatelessTransactionValidatorResult<()> {
-    if let Some(resource_bounds) = resource_bounds_mapping.0.get(&resource) {
-        if resource_bounds.max_amount == 0 || resource_bounds.max_price_per_unit == 0 {
-            return Err(StatelessTransactionValidatorError::ZeroResourceBounds {
-                resource,
-                resource_bounds: *resource_bounds,
-            });
-        }
-    } else {
-        return Err(StatelessTransactionValidatorError::MissingResource { resource });
+    let resource_bounds = match resource {
+        Resource::L1Gas => resource_bounds_mapping.l1_gas,
+        Resource::L2Gas => resource_bounds_mapping.l2_gas,
+    };
+    if resource_bounds.max_amount == 0 || resource_bounds.max_price_per_unit == 0 {
+        return Err(StatelessTransactionValidatorError::ZeroResourceBounds {
+            resource,
+            resource_bounds,
+        });
     }
 
     Ok(())

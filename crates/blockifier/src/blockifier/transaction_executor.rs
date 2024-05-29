@@ -1,14 +1,17 @@
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use itertools::FoldWhile::{Continue, Done};
+use itertools::Itertools;
 use starknet_api::core::ClassHash;
 use thiserror::Error;
 
-use crate::bouncer::{Bouncer, BouncerConfig};
+use crate::blockifier::config::TransactionExecutorConfig;
+use crate::bouncer::{Bouncer, BouncerConfig, BouncerWeights};
 use crate::context::BlockContext;
 use crate::execution::call_info::CallInfo;
 use crate::fee::actual_cost::TransactionReceipt;
-use crate::state::cached_state::{CachedState, CommitmentStateDiff};
+use crate::state::cached_state::{CachedState, CommitmentStateDiff, TransactionalState};
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader};
 use crate::transaction::account_transaction::AccountTransaction;
@@ -38,6 +41,8 @@ pub type VisitedSegmentsMapping = Vec<(ClassHash, Vec<usize>)>;
 pub struct TransactionExecutor<S: StateReader> {
     pub block_context: BlockContext,
     pub bouncer: Bouncer,
+    // Note: this config must not affect the execution result (e.g. state diff and traces).
+    pub config: TransactionExecutorConfig,
 
     // State-related fields.
     pub state: CachedState<S>,
@@ -48,11 +53,13 @@ impl<S: StateReader> TransactionExecutor<S> {
         state: CachedState<S>,
         block_context: BlockContext,
         bouncer_config: BouncerConfig,
+        config: TransactionExecutorConfig,
     ) -> Self {
         log::debug!("Initializing Transaction Executor...");
         // Note: the state might not be empty even at this point; it is the creator's
         // responsibility to tune the bouncer according to pre and post block process.
-        let tx_executor = Self { block_context, bouncer: Bouncer::new(bouncer_config), state };
+        let tx_executor =
+            Self { block_context, bouncer: Bouncer::new(bouncer_config), config, state };
         log::debug!("Initialized Transaction Executor.");
 
         tx_executor
@@ -66,15 +73,18 @@ impl<S: StateReader> TransactionExecutor<S> {
         tx: &Transaction,
         charge_fee: bool,
     ) -> TransactionExecutorResult<TransactionExecutionInfo> {
-        let mut transactional_state = CachedState::create_transactional(&mut self.state);
+        let mut transactional_state = TransactionalState::create_transactional(&mut self.state);
         let validate = true;
 
         let tx_execution_result =
             tx.execute_raw(&mut transactional_state, &self.block_context, charge_fee, validate);
         match tx_execution_result {
             Ok(tx_execution_info) => {
+                let tx_state_changes_keys =
+                    transactional_state.get_actual_state_changes()?.into_keys();
                 self.bouncer.try_update(
-                    &mut transactional_state,
+                    &transactional_state,
+                    &tx_state_changes_keys,
                     &tx_execution_info.summarize(),
                     &tx_execution_info.actual_resources,
                 )?;
@@ -91,7 +101,39 @@ impl<S: StateReader> TransactionExecutor<S> {
     /// Executes the given transactions on the state maintained by the executor.
     /// Stops if and when there is no more room in the block, and returns the executed transactions'
     /// results.
+    pub fn execute_txs(
+        &mut self,
+        txs: &[Transaction],
+        charge_fee: bool,
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
+        if !self.config.concurrency_config.enabled {
+            self.execute_txs_sequentially(txs, charge_fee)
+        } else {
+            txs.chunks(self.config.concurrency_config.chunk_size)
+                .fold_while(Vec::new(), |mut results, chunk| {
+                    let chunk_results = self.execute_chunk(chunk, charge_fee);
+                    if chunk_results.len() < chunk.len() {
+                        // Block is full.
+                        results.extend(chunk_results);
+                        Done(results)
+                    } else {
+                        results.extend(chunk_results);
+                        Continue(results)
+                    }
+                })
+                .into_inner()
+        }
+    }
+
     pub fn execute_chunk(
+        &mut self,
+        _chunk: &[Transaction],
+        _charge_fee: bool,
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
+        todo!()
+    }
+
+    pub fn execute_txs_sequentially(
         &mut self,
         txs: &[Transaction],
         charge_fee: bool,
@@ -144,11 +186,12 @@ impl<S: StateReader> TransactionExecutor<S> {
         Ok((validate_call_info, tx_receipt))
     }
 
-    /// Returns the state diff and a list of contract class hash with the corresponding list of
-    /// visited segment values.
+    /// Returns the state diff, a list of contract class hash with the corresponding list of
+    /// visited segment values and the block weights.
     pub fn finalize(
         &mut self,
-    ) -> TransactionExecutorResult<(CommitmentStateDiff, VisitedSegmentsMapping)> {
+    ) -> TransactionExecutorResult<(CommitmentStateDiff, VisitedSegmentsMapping, BouncerWeights)>
+    {
         // Get the visited segments of each contract class.
         // This is done by taking all the visited PCs of each contract, and compress them to one
         // representative for each visited segment.
@@ -162,6 +205,11 @@ impl<S: StateReader> TransactionExecutor<S> {
             })
             .collect::<TransactionExecutorResult<_>>()?;
 
-        Ok((self.state.to_state_diff(), visited_segments))
+        log::debug!("Final block weights: {:?}.", self.bouncer.get_accumulated_weights());
+        Ok((
+            self.state.to_state_diff()?.into(),
+            visited_segments,
+            *self.bouncer.get_accumulated_weights(),
+        ))
     }
 }

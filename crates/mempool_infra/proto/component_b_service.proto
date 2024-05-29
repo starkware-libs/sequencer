@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package component_b_service;
+
+service ComponentB {
+    rpc GetValue(ComponentBMessage) returns (ComponentBResponse) {}
+}
+
+message ComponentBMessage {
+}
+
+message ComponentBResponse {
+    uint32 value = 1;
+}

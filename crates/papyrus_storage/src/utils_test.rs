@@ -3,13 +3,13 @@ use std::fs;
 
 use indexmap::indexmap;
 use metrics_exporter_prometheus::PrometheusBuilder;
+use papyrus_test_utils::prometheus_is_contained;
 use pretty_assertions::assert_eq;
 use prometheus_parse::Value::{Counter, Gauge};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::hash::{StarkFelt, StarkHash};
 use starknet_api::state::{ContractClass, ThinStateDiff};
-use test_utils::prometheus_is_contained;
 
 use super::update_storage_metrics;
 use crate::class::ClassStorageWriter;

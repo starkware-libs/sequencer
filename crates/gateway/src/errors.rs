@@ -1,16 +1,22 @@
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use blockifier::blockifier::stateful_validator::StatefulValidatorError;
+use blockifier::state::errors::StateError;
 use blockifier::transaction::errors::TransactionExecutionError;
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::{Resource, ResourceBounds};
 use starknet_api::StarknetApiError;
 use thiserror::Error;
+use tokio::task::JoinError;
 
 #[derive(Debug, Error)]
 pub enum GatewayError {
-    #[error("Internal server error")]
-    InternalServerError,
+    #[error("Internal server error: {0}")]
+    InternalServerError(#[from] JoinError),
+    #[error("Error sending message: {0}")]
+    MessageSendError(String),
+    #[error(transparent)]
+    StatefulTransactionValidatorError(#[from] StatefulTransactionValidatorError),
     #[error(transparent)]
     StatelessTransactionValidatorError(#[from] StatelessTransactionValidatorError),
 }
@@ -29,8 +35,6 @@ impl IntoResponse for GatewayError {
 pub enum StatelessTransactionValidatorError {
     #[error("Expected a positive amount of {resource:?}. Got {resource_bounds:?}.")]
     ZeroResourceBounds { resource: Resource, resource_bounds: ResourceBounds },
-    #[error("The resource bounds mapping is missing a resource {resource:?}.")]
-    MissingResource { resource: Resource },
     #[error(
         "Calldata length exceeded maximum: length {calldata_length}
         (allowed length: {max_calldata_length})."
@@ -51,6 +55,8 @@ pub enum StatefulTransactionValidatorError {
     OutOfRangeBlockNumber { block_number: BlockNumber },
     #[error(transparent)]
     StarknetApiError(#[from] StarknetApiError),
+    #[error(transparent)]
+    StateError(#[from] StateError),
     #[error(transparent)]
     StatefulValidatorError(#[from] StatefulValidatorError),
     #[error(transparent)]
