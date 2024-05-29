@@ -1,5 +1,4 @@
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
-use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
 use crate::patricia_merkle_tree::types::NodeIndex;
@@ -15,7 +14,7 @@ pub mod compute_updated_skeleton_tree_test;
 /// A temporary skeleton node used during the computation of the updated skeleton tree.
 enum TempSkeletonNode {
     Empty,
-    #[allow(dead_code)]
+    Leaf,
     Original(OriginalSkeletonNode),
 }
 
@@ -69,12 +68,14 @@ impl UpdatedSkeletonTreeImpl {
         leaf_indices: &[NodeIndex],
     ) -> TempSkeletonNode {
         if root_index.is_leaf() {
-            // Leaf.
+            // Leaf. As this is an empty tree, the leaf must be new.
             assert!(
-                leaf_indices.len() == 1 && leaf_indices[0] == *root_index,
+                leaf_indices.len() == 1
+                    && leaf_indices[0] == *root_index
+                    && self.skeleton_tree.contains_key(root_index),
                 "Unexpected leaf index (root_index={root_index:?}, leaf_indices={leaf_indices:?})."
             );
-            return TempSkeletonNode::Original(OriginalSkeletonNode::Leaf(SkeletonLeaf::NonZero));
+            return TempSkeletonNode::Leaf;
         }
 
         if has_leaves_on_both_sides(&self.tree_height, root_index, leaf_indices) {
@@ -110,11 +111,22 @@ impl UpdatedSkeletonTreeImpl {
             // Finalize children, as a binary node cannot change form.
             for (index, node) in [(left_index, left), (right_index, right)] {
                 let TempSkeletonNode::Original(original_node) = node else {
-                    unreachable!("Unexpected empty node.");
+                    match node {
+                        TempSkeletonNode::Leaf => {
+                            // Leaf is finalized upon updated skeleton creation.
+                            assert!(
+                                self.skeleton_tree.contains_key(&index),
+                                "Leaf index {index:?} doesn't appear in the skeleton."
+                            );
+                            continue;
+                        }
+                        TempSkeletonNode::Empty => unreachable!("Unexpected empty node."),
+                        TempSkeletonNode::Original(_) => {
+                            unreachable!("node is not an Original variant.")
+                        }
+                    }
                 };
                 let updated = match original_node {
-                    // Leaf is finalized upon updated skeleton creation.
-                    OriginalSkeletonNode::Leaf(_) => continue,
                     OriginalSkeletonNode::Binary => UpdatedSkeletonNode::Binary,
                     OriginalSkeletonNode::Edge(path_to_bottom) => {
                         UpdatedSkeletonNode::Edge(*path_to_bottom)
@@ -151,18 +163,23 @@ impl UpdatedSkeletonTreeImpl {
         bottom: &TempSkeletonNode,
     ) -> TempSkeletonNode {
         let TempSkeletonNode::Original(original_node) = bottom else {
-            return TempSkeletonNode::Empty;
+            match bottom {
+                TempSkeletonNode::Empty => {
+                    return TempSkeletonNode::Empty;
+                }
+                TempSkeletonNode::Leaf => {
+                    // Leaf is finalized upon updated skeleton creation.
+                    // bottom_index is in the updated skeleton iff it wasn't deleted from the tree.
+                    assert!(
+                        self.skeleton_tree.contains_key(bottom_index),
+                        "bottom is a non-empty leaf but doesn't appear in the skeleton."
+                    );
+                    return TempSkeletonNode::Original(OriginalSkeletonNode::Edge(*path));
+                }
+                TempSkeletonNode::Original(_) => unreachable!("bottom is not an Original variant."),
+            };
         };
         TempSkeletonNode::Original(match original_node {
-            OriginalSkeletonNode::Leaf(_) => {
-                // Leaf is finalized upon updated skeleton creation.
-                // bottom_index is in the updated skeleton iff it wasn't deleted from the tree.
-                assert!(
-                    self.skeleton_tree.contains_key(bottom_index),
-                    "bottom is a non-empty leaf but doesn't appear in the skeleton."
-                );
-                OriginalSkeletonNode::Edge(*path)
-            }
             OriginalSkeletonNode::Edge(path_to_bottom) => {
                 OriginalSkeletonNode::Edge(path.concat_paths(*path_to_bottom))
             }

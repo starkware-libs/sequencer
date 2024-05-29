@@ -1,6 +1,5 @@
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
-use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 
 #[allow(dead_code)]
 /// A node in the structure of a Patricia-Merkle tree, after the update.
@@ -12,7 +11,5 @@ pub(crate) enum UpdatedSkeletonNode {
     Sibling(HashOutput),
     // Unmodified bottom of edge nodes on the merkle paths of modified leaves.
     UnmodifiedBottom(HashOutput),
-    // TODO(Tzahi, 1/6/2024): Remove the internal data - a leaf in the UpdatedSkeletonTree must be
-    // NonZero.
-    Leaf(SkeletonLeaf),
+    Leaf,
 }

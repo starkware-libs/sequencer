@@ -1,6 +1,5 @@
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
-use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 
 #[allow(dead_code)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -12,5 +11,4 @@ pub(crate) enum OriginalSkeletonNode {
     LeafOrBinarySibling(HashOutput),
     // Unmodified edge siblings bottom nodes on the merkle paths of modified leaves.
     UnmodifiedBottom(HashOutput),
-    Leaf(SkeletonLeaf),
 }

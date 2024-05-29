@@ -52,7 +52,7 @@ impl UpdatedSkeletonTree for UpdatedSkeletonTreeImpl {
         let mut _skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode> = leaf_modifications
             .iter()
             .filter(|(_, leaf)| !leaf.is_zero())
-            .map(|(index, leaf)| (*index, UpdatedSkeletonNode::Leaf(*leaf)))
+            .map(|(index, _)| (*index, UpdatedSkeletonNode::Leaf))
             .collect();
         todo!()
     }

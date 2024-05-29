@@ -4,7 +4,6 @@ use rstest::{fixture, rstest};
 
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
-use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::compute_updated_skeleton_tree::{
@@ -23,12 +22,7 @@ fn updated_skeleton(
         skeleton_tree: leaf_modifications
             .iter()
             .filter(|(_, leaf_val)| *leaf_val != 0)
-            .map(|(index, leaf_val)| {
-                (
-                    NodeIndex::new(*index),
-                    UpdatedSkeletonNode::Leaf(SkeletonLeaf::from(*leaf_val)),
-                )
-            })
+            .map(|(index, _)| (NodeIndex::new(*index), UpdatedSkeletonNode::Leaf))
             .collect(),
     }
 }
@@ -137,7 +131,7 @@ fn test_get_path_to_lca(
 )]
 #[case::one_deleted_leaf(
     &NodeIndex::from(1),
-    &TempSkeletonNode::Original(OriginalSkeletonNode::Leaf(SkeletonLeaf::NonZero)),
+    &TempSkeletonNode::Leaf,
     &TempSkeletonNode::Empty,
     &[(2_u8.into(), 1), (3_u8.into(), 0)],
     TempSkeletonNode::Original(
@@ -147,8 +141,8 @@ fn test_get_path_to_lca(
 )]
 #[case::two_leaves(
     &NodeIndex::from(5),
-    &TempSkeletonNode::Original(OriginalSkeletonNode::Leaf(SkeletonLeaf::NonZero)),
-    &TempSkeletonNode::Original(OriginalSkeletonNode::Leaf(SkeletonLeaf::NonZero)),
+    &TempSkeletonNode::Leaf,
+    &TempSkeletonNode::Leaf,
     &[(10_u8.into(),1), (11_u8.into(),1)],
     TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
     &[]
@@ -248,7 +242,7 @@ fn test_node_from_binary_data(
 #[case::to_non_empty_leaf(
     &PathToBottom::RIGHT_CHILD,
     &NodeIndex::from(7),
-    &TempSkeletonNode::Original(OriginalSkeletonNode::Leaf(SkeletonLeaf::NonZero)),
+    &TempSkeletonNode::Leaf,
     &[(7_u8.into(), 1)],
     TempSkeletonNode::Original(
         OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)
@@ -295,7 +289,7 @@ fn test_node_from_edge_data(
 #[case::root_is_a_leaf(
     &NodeIndex::FIRST_LEAF,
     &[(U256::from(NodeIndex::FIRST_LEAF), 1)],
-    TempSkeletonNode::Original(OriginalSkeletonNode::Leaf(SkeletonLeaf::NonZero)),
+    TempSkeletonNode::Leaf,
     &[]
 )]
 fn test_update_node_in_empty_tree(

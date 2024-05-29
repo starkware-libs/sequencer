@@ -8,7 +8,7 @@ use crate::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl}
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
 };
-use crate::patricia_merkle_tree::node_data::leaf::{LeafDataImpl, SkeletonLeaf};
+use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
@@ -18,10 +18,9 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTre
 /// This test is a sanity test for computing the root hash of the patricia merkle tree with a single node that is a leaf with hash==1.
 async fn test_filled_tree_sanity() {
     let mut skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode> = HashMap::new();
-    let new_skeleton_leaf = SkeletonLeaf::from(Felt::ONE);
     let new_filled_leaf = LeafDataImpl::StorageValue(Felt::ONE);
     let new_leaf_index = NodeIndex::ROOT;
-    skeleton_tree.insert(new_leaf_index, UpdatedSkeletonNode::Leaf(new_skeleton_leaf));
+    skeleton_tree.insert(new_leaf_index, UpdatedSkeletonNode::Leaf);
     let modifications = HashMap::from([(new_leaf_index, new_filled_leaf)]);
     let updated_skeleton_tree = UpdatedSkeletonTreeImpl {
         tree_height: TreeHeight(1),
@@ -72,7 +71,7 @@ async fn test_small_filled_tree() {
     .chain(
         new_leaves
             .iter()
-            .map(|(index, value)| create_leaf_updated_skeleton_node_for_testing(*index, value)),
+            .map(|(index, _)| create_leaf_updated_skeleton_node_for_testing(*index)),
     )
     .collect();
     let skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode> =
@@ -187,7 +186,7 @@ async fn test_small_tree_with_sibling_nodes() {
             9,
             "0x39eb7b85bcc9deac314406d6b73154b09b008f8af05e2f58ab623f4201d0b88",
         ),
-        create_leaf_updated_skeleton_node_for_testing(new_leaf_index, new_leaf),
+        create_leaf_updated_skeleton_node_for_testing(new_leaf_index),
     ];
     let skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode> =
         nodes_in_skeleton_tree.into_iter().collect();
@@ -280,14 +279,8 @@ fn create_sibling_updated_skeleton_node_for_testing(
     )
 }
 
-fn create_leaf_updated_skeleton_node_for_testing(
-    index: u128,
-    value: &str,
-) -> (NodeIndex, UpdatedSkeletonNode) {
-    (
-        NodeIndex::from(index),
-        UpdatedSkeletonNode::Leaf(SkeletonLeaf::from(Felt::from_hex(value).unwrap())),
-    )
+fn create_leaf_updated_skeleton_node_for_testing(index: u128) -> (NodeIndex, UpdatedSkeletonNode) {
+    (NodeIndex::from(index), UpdatedSkeletonNode::Leaf)
 }
 
 fn create_binary_entry_for_testing(
