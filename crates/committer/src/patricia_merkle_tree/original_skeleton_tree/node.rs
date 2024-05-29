@@ -7,7 +7,7 @@ use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 /// A node in the structure of a Patricia-Merkle tree, before the update.
 pub(crate) enum OriginalSkeletonNode {
     Binary,
-    Edge { path_to_bottom: PathToBottom },
+    Edge(PathToBottom),
     // Unmodified leaf / binary nodes on the merkle paths of modified leaves.
     LeafOrBinarySibling(HashOutput),
     // Unmodified edge siblings bottom nodes on the merkle paths of modified leaves.

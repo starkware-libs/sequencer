@@ -263,12 +263,10 @@ fn create_path_to_bottom_edge_updated_skeleton_node_for_testing(
 ) -> (NodeIndex, UpdatedSkeletonNode) {
     (
         NodeIndex::from(index),
-        UpdatedSkeletonNode::Edge {
-            path_to_bottom: PathToBottom {
-                path: path.into(),
-                length: EdgePathLength(length),
-            },
-        },
+        UpdatedSkeletonNode::Edge(PathToBottom {
+            path: path.into(),
+            length: EdgePathLength(length),
+        }),
     )
 }
 

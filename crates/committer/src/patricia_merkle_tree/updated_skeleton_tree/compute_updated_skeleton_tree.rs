@@ -116,9 +116,9 @@ impl UpdatedSkeletonTreeImpl {
                     // Leaf is finalized upon updated skeleton creation.
                     OriginalSkeletonNode::Leaf(_) => continue,
                     OriginalSkeletonNode::Binary => UpdatedSkeletonNode::Binary,
-                    OriginalSkeletonNode::Edge { path_to_bottom } => UpdatedSkeletonNode::Edge {
-                        path_to_bottom: *path_to_bottom,
-                    },
+                    OriginalSkeletonNode::Edge(path_to_bottom) => {
+                        UpdatedSkeletonNode::Edge(*path_to_bottom)
+                    }
                     OriginalSkeletonNode::LeafOrBinarySibling(hash) => {
                         UpdatedSkeletonNode::Sibling(*hash)
                     }
@@ -161,25 +161,19 @@ impl UpdatedSkeletonTreeImpl {
                     self.skeleton_tree.contains_key(bottom_index),
                     "bottom is a non-empty leaf but doesn't appear in the skeleton."
                 );
-                OriginalSkeletonNode::Edge {
-                    path_to_bottom: *path,
-                }
+                OriginalSkeletonNode::Edge(*path)
             }
-            OriginalSkeletonNode::Edge { path_to_bottom } => OriginalSkeletonNode::Edge {
-                path_to_bottom: path.concat_paths(*path_to_bottom),
-            },
+            OriginalSkeletonNode::Edge(path_to_bottom) => {
+                OriginalSkeletonNode::Edge(path.concat_paths(*path_to_bottom))
+            }
             OriginalSkeletonNode::Binary => {
                 // Finalize bottom - a binary descendant cannot change form.
                 self.skeleton_tree
                     .insert(*bottom_index, UpdatedSkeletonNode::Binary);
-                OriginalSkeletonNode::Edge {
-                    path_to_bottom: *path,
-                }
+                OriginalSkeletonNode::Edge(*path)
             }
             OriginalSkeletonNode::LeafOrBinarySibling(_)
-            | OriginalSkeletonNode::UnmodifiedBottom(_) => OriginalSkeletonNode::Edge {
-                path_to_bottom: *path,
-            },
+            | OriginalSkeletonNode::UnmodifiedBottom(_) => OriginalSkeletonNode::Edge(*path),
         })
     }
 }

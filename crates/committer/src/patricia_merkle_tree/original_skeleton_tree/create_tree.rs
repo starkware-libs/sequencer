@@ -141,7 +141,7 @@ impl OriginalSkeletonTreeImpl {
                 }) => {
                     self.nodes.insert(
                         subtree.root_index,
-                        OriginalSkeletonNode::Edge { path_to_bottom },
+                        OriginalSkeletonNode::Edge(path_to_bottom),
                     );
                     if subtree.is_sibling() {
                         self.nodes.insert(

@@ -7,7 +7,7 @@ use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum UpdatedSkeletonNode {
     Binary,
-    Edge { path_to_bottom: PathToBottom },
+    Edge(PathToBottom),
     // All unmodified nodes on the merkle paths of modified leaves.
     Sibling(HashOutput),
     // Unmodified bottom of edge nodes on the merkle paths of modified leaves.

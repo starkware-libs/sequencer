@@ -271,12 +271,10 @@ pub(crate) fn create_edge_skeleton_node(
 ) -> (NodeIndex, OriginalSkeletonNode) {
     (
         NodeIndex::from(idx),
-        OriginalSkeletonNode::Edge {
-            path_to_bottom: PathToBottom {
-                path: path.into(),
-                length: EdgePathLength(length),
-            },
-        },
+        OriginalSkeletonNode::Edge(PathToBottom {
+            path: path.into(),
+            length: EdgePathLength(length),
+        }),
     )
 }
 

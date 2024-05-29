@@ -153,7 +153,7 @@ impl FilledTreeImpl {
                 Self::write_to_output_map(output_map, index, hash_value, data)?;
                 Ok(hash_value)
             }
-            UpdatedSkeletonNode::Edge { path_to_bottom } => {
+            UpdatedSkeletonNode::Edge(path_to_bottom) => {
                 let bottom_node_index = NodeIndex::compute_bottom_index(index, path_to_bottom);
                 let bottom_hash = Self::compute_filled_tree_rec::<H, TH>(
                     updated_skeleton,

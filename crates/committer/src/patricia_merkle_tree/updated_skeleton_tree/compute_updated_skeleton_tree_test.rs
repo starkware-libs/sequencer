@@ -141,7 +141,7 @@ fn test_get_path_to_lca(
     &TempSkeletonNode::Empty,
     &[(2_u8.into(), 1), (3_u8.into(), 0)],
     TempSkeletonNode::Original(
-        OriginalSkeletonNode::Edge {path_to_bottom: PathToBottom::LEFT_CHILD}
+        OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)
     ),
     &[]
 )]
@@ -169,7 +169,7 @@ fn test_get_path_to_lca(
     &TempSkeletonNode::Empty,
     &TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
     &[(20_u8.into(), 0)],
-    TempSkeletonNode::Original(OriginalSkeletonNode::Edge { path_to_bottom: PathToBottom::RIGHT_CHILD }),
+    TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)),
     &[(NodeIndex::from(11),UpdatedSkeletonNode::Binary)]
 )]
 #[case::deleted_two_children(
@@ -182,10 +182,10 @@ fn test_get_path_to_lca(
 )]
 #[case::left_edge_right_deleted(
     &NodeIndex::from(5),
-    &TempSkeletonNode::Original(OriginalSkeletonNode::Edge { path_to_bottom: PathToBottom::RIGHT_CHILD }),
+    &TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)),
     &TempSkeletonNode::Empty,
     &[(22_u8.into(), 0)],
-    TempSkeletonNode::Original(OriginalSkeletonNode::Edge { path_to_bottom: PathToBottom::from("01") }),
+    TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::from("01"))),
     &[]
 )]
 fn test_node_from_binary_data(
@@ -217,11 +217,11 @@ fn test_node_from_binary_data(
     &PathToBottom::from("00"),
     &NodeIndex::from(4),
     &TempSkeletonNode::Original(
-        OriginalSkeletonNode::Edge {path_to_bottom: PathToBottom::from("11")}
+        OriginalSkeletonNode::Edge(PathToBottom::from("11"))
     ),
     &[],
     TempSkeletonNode::Original(
-        OriginalSkeletonNode::Edge { path_to_bottom: (PathToBottom::from("0011")) }
+        OriginalSkeletonNode::Edge(PathToBottom::from("0011"))
     ),
     &[],
 )]
@@ -232,9 +232,7 @@ fn test_node_from_binary_data(
         HashOutput::ZERO
     )),
    &[],
-    TempSkeletonNode::Original(OriginalSkeletonNode::Edge{
-        path_to_bottom: PathToBottom::from("101")}
-    ),
+    TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::from("101"))),
     &[],
 )]
 #[case::to_binary(
@@ -243,7 +241,7 @@ fn test_node_from_binary_data(
     &TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
     &[],
     TempSkeletonNode::Original(
-        OriginalSkeletonNode::Edge {path_to_bottom: PathToBottom::RIGHT_CHILD}
+        OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)
     ),
     &[(NodeIndex::from(7), UpdatedSkeletonNode::Binary)]
 )]
@@ -253,7 +251,7 @@ fn test_node_from_binary_data(
     &TempSkeletonNode::Original(OriginalSkeletonNode::Leaf(SkeletonLeaf::NonZero)),
     &[(7_u8.into(), 1)],
     TempSkeletonNode::Original(
-        OriginalSkeletonNode::Edge {path_to_bottom: PathToBottom::RIGHT_CHILD}
+        OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)
     ),
     &[]
 )]
@@ -277,9 +275,9 @@ fn test_node_from_edge_data(
 #[case::one_leaf(
     &NodeIndex::ROOT,
     &[(U256::ONE<<251, 1)],
-    TempSkeletonNode::Original(OriginalSkeletonNode::Edge {
-        path_to_bottom: PathToBottom::from("0".repeat(251).as_str())
-    }),
+    TempSkeletonNode::Original(
+        OriginalSkeletonNode::Edge(PathToBottom::from("0".repeat(251).as_str()))
+    ),
     &[],
 )]
 // Note: the root is only finalized in the outer (create) function, so it doesn't appear in the
@@ -290,9 +288,9 @@ fn test_node_from_edge_data(
     TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
     &[
         (NodeIndex::from(2),
-        UpdatedSkeletonNode::Edge{ path_to_bottom: PathToBottom::from("0".repeat(250).as_str()) }), 
+        UpdatedSkeletonNode::Edge(PathToBottom::from("0".repeat(250).as_str()))), 
         (NodeIndex::from(3),
-        UpdatedSkeletonNode::Edge{ path_to_bottom: PathToBottom::from("1".repeat(250).as_str())})],
+        UpdatedSkeletonNode::Edge(PathToBottom::from("1".repeat(250).as_str())))],
 )]
 #[case::root_is_a_leaf(
     &NodeIndex::FIRST_LEAF,
