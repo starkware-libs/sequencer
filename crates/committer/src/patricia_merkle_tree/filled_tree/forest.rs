@@ -27,9 +27,9 @@ pub trait FilledForest<L: LeafData> {
 }
 
 pub struct FilledForestImpl {
-    storage_tries: HashMap<ContractAddress, FilledTreeImpl>,
-    contracts_trie: FilledTreeImpl,
-    classes_trie: FilledTreeImpl,
+    pub storage_tries: HashMap<ContractAddress, FilledTreeImpl>,
+    pub contracts_trie: FilledTreeImpl,
+    pub classes_trie: FilledTreeImpl,
 }
 
 impl FilledForest<LeafDataImpl> for FilledForestImpl {

@@ -5,6 +5,7 @@ use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::db_object::DBObject;
+use strum_macros::{EnumDiscriminants, EnumIter};
 
 pub trait LeafData: Clone + Sync + Send + DBObject {
     /// Returns true if leaf is empty.
@@ -20,6 +21,8 @@ pub struct ContractState {
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(any(test, feature = "testing"), derive(EnumDiscriminants))]
+#[cfg_attr(any(test, feature = "testing"), strum_discriminants(derive(EnumIter)))]
 pub enum LeafDataImpl {
     StorageValue(Felt),
     CompiledClassHash(CompiledClassHash),

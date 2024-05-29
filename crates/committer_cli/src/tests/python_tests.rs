@@ -1,4 +1,7 @@
+use crate::filled_tree_output::errors::FilledForestError;
+use crate::filled_tree_output::filled_forest::SerializedForest;
 use crate::parse_input::read::parse_input;
+use crate::tests::utils::random_structs::DummyRandomValue;
 use committer::block_committer::input::{
     ContractAddress, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
 };
@@ -6,6 +9,7 @@ use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
 use committer::hash::hash_trait::{HashFunction, HashInputPair};
 use committer::hash::pedersen::PedersenHashFunction;
+use committer::patricia_merkle_tree::filled_tree::forest::FilledForestImpl;
 use committer::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, FilledNode, Nonce};
 use committer::patricia_merkle_tree::node_data::inner_node::{
@@ -35,6 +39,7 @@ pub(crate) enum PythonTest {
     StorageSerialize,
     ComparePythonHashConstants,
     StorageNode,
+    FilledForestOutput,
 }
 
 /// Error type for PythonTest enum.
@@ -58,6 +63,8 @@ pub(crate) enum PythonTestError {
     NoneInputError,
     #[error(transparent)]
     SerializationError(#[from] SerializationError),
+    #[error(transparent)]
+    FilledForest(#[from] FilledForestError<LeafDataImpl>),
 }
 
 /// Implements conversion from a string to a `PythonTest`.
@@ -75,6 +82,7 @@ impl TryFrom<String> for PythonTest {
             "storage_serialize_test" => Ok(Self::StorageSerialize),
             "compare_python_hash_constants" => Ok(Self::ComparePythonHashConstants),
             "storage_node_test" => Ok(Self::StorageNode),
+            "filled_forest_output" => Ok(Self::FilledForestOutput),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -117,6 +125,7 @@ impl PythonTest {
                     serde_json::from_str(Self::non_optional_input(input)?)?;
                 test_storage_node(storage_node_input)
             }
+            Self::FilledForestOutput => filled_forest_output_test(),
         }
     }
 }
@@ -604,4 +613,14 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
 
     // Serialize the storage to a JSON string and handle serialization errors.
     Ok(serde_json::to_string(&rust_fact_storage)?)
+}
+
+/// Generates a dummy random filled forest and serializes it to a JSON string.
+pub(crate) fn filled_forest_output_test() -> Result<String, PythonTestError> {
+    let dummy_forest = SerializedForest(FilledForestImpl::dummy_random(
+        &mut rand::thread_rng(),
+        None,
+    ));
+    dummy_forest.forest_to_python()?;
+    Ok("".to_string())
 }

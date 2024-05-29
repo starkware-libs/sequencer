@@ -3,8 +3,11 @@ use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
 use ethnum::U256;
+use strum_macros::{EnumDiscriminants, EnumIter};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(any(test, feature = "testing"), derive(EnumDiscriminants))]
+#[cfg_attr(any(test, feature = "testing"), strum_discriminants(derive(EnumIter)))]
 // A Patricia-Merkle tree node's data, i.e., the pre-image of its hash.
 pub enum NodeData<L: LeafData> {
     Binary(BinaryData),
@@ -20,7 +23,7 @@ pub struct BinaryData {
 
 // Wraps a U256. Maximal possible value is the longest path in a tree of height 251 (2 ^ 251 - 1).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub struct EdgePath(U256);
+pub struct EdgePath(pub U256);
 
 impl EdgePath {
     pub const BITS: u8 = TreeHeight::MAX.0;
@@ -57,9 +60,15 @@ impl From<&EdgePath> for U256 {
         path.0
     }
 }
+
 #[derive(Clone, Copy, Debug, Default, derive_more::Add, PartialEq, Eq, Hash)]
 pub struct EdgePathLength(pub u8);
 
+impl EdgePathLength {
+    /// [EdgePathLength] constant that represents the longest path (from some node) in a tree.
+    #[allow(clippy::as_conversions)]
+    pub const MAX: Self = Self(TreeHeight::MAX.0);
+}
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct PathToBottom {
     pub path: EdgePath,

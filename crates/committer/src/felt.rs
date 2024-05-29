@@ -1,3 +1,4 @@
+use crate::patricia_merkle_tree::errors::TypesError;
 use ethnum::U256;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::{Felt as StarknetTypesFelt, FromStrError};
@@ -17,7 +18,7 @@ use starknet_types_core::felt::{Felt as StarknetTypesFelt, FromStrError};
     Serialize,
     Deserialize,
 )]
-pub struct Felt(StarknetTypesFelt);
+pub struct Felt(pub StarknetTypesFelt);
 
 #[macro_export]
 macro_rules! impl_from {
@@ -47,6 +48,21 @@ impl From<&Felt> for U256 {
     }
 }
 
+#[cfg(feature = "testing")]
+impl TryFrom<&U256> for Felt {
+    type Error = TypesError<U256>;
+    fn try_from(value: &U256) -> Result<Self, Self::Error> {
+        if *value > U256::from(&Felt::MAX) {
+            return Err(TypesError::ConversionError {
+                from: *value,
+                to: "Felt",
+                reason: "value is bigger than felt::max",
+            });
+        }
+        Ok(Self::from_bytes_be(&value.to_be_bytes()))
+    }
+}
+
 impl std::ops::Mul for Felt {
     type Output = Self;
 
@@ -61,7 +77,7 @@ impl Felt {
     pub(crate) const ONE: Felt = Felt(StarknetTypesFelt::ONE);
     pub(crate) const TWO: Felt = Felt(StarknetTypesFelt::TWO);
     pub(crate) const THREE: Felt = Felt(StarknetTypesFelt::THREE);
-    pub(crate) const MAX: Felt = Felt(StarknetTypesFelt::MAX);
+    pub const MAX: Felt = Felt(StarknetTypesFelt::MAX);
 
     pub fn from_bytes_be_slice(bytes: &[u8]) -> Self {
         Self(StarknetTypesFelt::from_bytes_be_slice(bytes))

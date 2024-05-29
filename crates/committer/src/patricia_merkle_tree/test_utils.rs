@@ -1,3 +1,4 @@
+use crate::felt::Felt;
 use ethnum::U256;
 use rand::rngs::ThreadRng;
 use rand::Rng;
@@ -8,11 +9,7 @@ use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 
 impl From<u8> for SkeletonLeaf {
     fn from(value: u8) -> Self {
-        if value == 0 {
-            Self::Zero
-        } else {
-            Self::NonZero
-        }
+        Self::from(Felt::from(value))
     }
 }
 

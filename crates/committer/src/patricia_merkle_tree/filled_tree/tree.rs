@@ -44,8 +44,8 @@ pub(crate) trait FilledTree<L: LeafData>: Sized {
     fn get_root_hash(&self) -> FilledTreeResult<HashOutput, L>;
 }
 
-pub(crate) struct FilledTreeImpl {
-    tree_map: HashMap<NodeIndex, FilledNode<LeafDataImpl>>,
+pub struct FilledTreeImpl {
+    pub tree_map: HashMap<NodeIndex, FilledNode<LeafDataImpl>>,
 }
 
 impl FilledTreeImpl {

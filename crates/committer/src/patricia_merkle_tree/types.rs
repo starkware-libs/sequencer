@@ -34,7 +34,7 @@ impl From<TreeHeight> for u8 {
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Hash, derive_more::BitAnd, derive_more::Sub, PartialOrd, Ord,
 )]
-pub struct NodeIndex(U256);
+pub struct NodeIndex(pub U256);
 
 // Wraps a U256. Maximal possible value is the largest index in a tree of height 251 (2 ^ 252 - 1).
 impl NodeIndex {
@@ -56,7 +56,7 @@ impl NodeIndex {
         u128::MAX,
     ));
 
-    pub(crate) fn new(index: U256) -> Self {
+    pub fn new(index: U256) -> Self {
         assert!(index <= Self::MAX.0, "Index {index} is too large.");
         Self(index)
     }
