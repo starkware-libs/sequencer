@@ -2,12 +2,12 @@ use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion, NonceManager};
 use serde_json::to_string_pretty;
 use starknet_api::calldata;
-use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::external_transaction::{
-    ExternalDeclareTransaction, ExternalDeclareTransactionV3, ExternalDeployAccountTransaction,
-    ExternalDeployAccountTransactionV3, ExternalInvokeTransaction, ExternalInvokeTransactionV3,
-    ExternalTransaction,
+    ContractClass, ExternalDeclareTransaction, ExternalDeclareTransactionV3,
+    ExternalDeployAccountTransaction, ExternalDeployAccountTransactionV3,
+    ExternalInvokeTransaction, ExternalInvokeTransactionV3, ExternalTransaction,
 };
 use starknet_api::hash::StarkFelt;
 use starknet_api::transaction::{
@@ -15,7 +15,7 @@ use starknet_api::transaction::{
     ResourceBoundsMapping, Tip, TransactionSignature, TransactionVersion,
 };
 
-use crate::{deploy_account_tx_args, invoke_tx_args};
+use crate::{declare_tx_args, deploy_account_tx_args, invoke_tx_args};
 
 pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 2214;
 pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
@@ -45,7 +45,9 @@ pub fn external_tx_for_testing(
     signature: TransactionSignature,
 ) -> ExternalTransaction {
     match transaction_type {
-        TransactionType::Declare => external_declare_tx_for_testing(resource_bounds, signature),
+        TransactionType::Declare => {
+            external_declare_tx(declare_tx_args!(resource_bounds, signature))
+        }
         TransactionType::DeployAccount => external_deploy_account_tx(
             deploy_account_tx_args!(resource_bounds, constructor_calldata: calldata, signature),
         ),
@@ -53,25 +55,6 @@ pub fn external_tx_for_testing(
             external_invoke_tx(invoke_tx_args!(signature, resource_bounds, calldata))
         }
     }
-}
-
-fn external_declare_tx_for_testing(
-    resource_bounds: ResourceBoundsMapping,
-    signature: TransactionSignature,
-) -> ExternalTransaction {
-    ExternalTransaction::Declare(ExternalDeclareTransaction::V3(ExternalDeclareTransactionV3 {
-        resource_bounds,
-        contract_class: Default::default(),
-        tip: Default::default(),
-        signature,
-        nonce: Default::default(),
-        compiled_class_hash: Default::default(),
-        sender_address: Default::default(),
-        nonce_data_availability_mode: DataAvailabilityMode::L1,
-        fee_data_availability_mode: DataAvailabilityMode::L1,
-        paymaster_data: Default::default(),
-        account_deployment_data: Default::default(),
-    }))
 }
 
 pub const NON_EMPTY_RESOURCE_BOUNDS: ResourceBounds =
@@ -127,8 +110,8 @@ pub fn invoke_tx() -> ExternalTransaction {
         calldata,
     ))
 }
-
-// TODO(Ayelet, 28/5/2025): Consider moving this to StarkNet API.
+// TODO(Ayelet, 28/5/2025): Try unifying the macros.
+// TODO(Ayelet, 28/5/2025): Consider moving the macros StarkNet API.
 #[macro_export]
 macro_rules! invoke_tx_args {
     ($($field:ident $(: $value:expr)?),* $(,)?) => {
@@ -145,7 +128,6 @@ macro_rules! invoke_tx_args {
     };
 }
 
-// TODO(Ayelet, 28/5/2025): Consider moving this to StarkNet API.
 #[macro_export]
 macro_rules! deploy_account_tx_args {
     ($($field:ident $(: $value:expr)?),* $(,)?) => {
@@ -161,6 +143,23 @@ macro_rules! deploy_account_tx_args {
         }
     };
 }
+
+#[macro_export]
+macro_rules! declare_tx_args {
+    ($($field:ident $(: $value:expr)?),* $(,)?) => {
+        $crate::starknet_api_test_utils::DeclareTxArgs {
+            $($field $(: $value)?,)*
+            ..Default::default()
+        }
+    };
+    ($($field:ident $(: $value:expr)?),* , ..$defaults:expr) => {
+        $crate::starknet_api_test_utils::DeclareTxArgs {
+            $($field $(: $value)?,)*
+            ..$defaults
+        }
+    };
+}
+
 #[derive(Clone)]
 pub struct InvokeTxArgs {
     pub signature: TransactionSignature,
@@ -229,6 +228,41 @@ impl Default for DeployAccountTxArgs {
     }
 }
 
+#[derive(Clone)]
+pub struct DeclareTxArgs {
+    pub signature: TransactionSignature,
+    pub sender_address: ContractAddress,
+    pub version: TransactionVersion,
+    pub resource_bounds: ResourceBoundsMapping,
+    pub tip: Tip,
+    pub nonce_data_availability_mode: DataAvailabilityMode,
+    pub fee_data_availability_mode: DataAvailabilityMode,
+    pub paymaster_data: PaymasterData,
+    pub account_deployment_data: AccountDeploymentData,
+    pub nonce: Nonce,
+    pub class_hash: CompiledClassHash,
+    pub contract_class: ContractClass,
+}
+
+impl Default for DeclareTxArgs {
+    fn default() -> Self {
+        Self {
+            signature: TransactionSignature::default(),
+            sender_address: ContractAddress::default(),
+            version: TransactionVersion::THREE,
+            resource_bounds: zero_resource_bounds_mapping(),
+            tip: Tip::default(),
+            nonce_data_availability_mode: DataAvailabilityMode::L1,
+            fee_data_availability_mode: DataAvailabilityMode::L1,
+            paymaster_data: PaymasterData::default(),
+            account_deployment_data: AccountDeploymentData::default(),
+            nonce: Nonce::default(),
+            class_hash: CompiledClassHash::default(),
+            contract_class: ContractClass::default(),
+        }
+    }
+}
+
 pub fn external_invoke_tx(invoke_args: InvokeTxArgs) -> ExternalTransaction {
     match invoke_args.version {
         TransactionVersion::THREE => {
@@ -274,6 +308,31 @@ pub fn external_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> Extern
             )
         }
         _ => panic!("Unsupported transaction version: {:?}.", deploy_tx_args.version),
+    }
+}
+
+pub fn external_declare_tx(declare_tx_args: DeclareTxArgs) -> ExternalTransaction {
+    match declare_tx_args.version {
+        TransactionVersion::THREE => {
+            starknet_api::external_transaction::ExternalTransaction::Declare(
+                starknet_api::external_transaction::ExternalDeclareTransaction::V3(
+                    ExternalDeclareTransactionV3 {
+                        contract_class: declare_tx_args.contract_class,
+                        signature: declare_tx_args.signature,
+                        sender_address: declare_tx_args.sender_address,
+                        resource_bounds: declare_tx_args.resource_bounds,
+                        tip: declare_tx_args.tip,
+                        nonce_data_availability_mode: declare_tx_args.nonce_data_availability_mode,
+                        fee_data_availability_mode: declare_tx_args.fee_data_availability_mode,
+                        paymaster_data: declare_tx_args.paymaster_data,
+                        account_deployment_data: declare_tx_args.account_deployment_data,
+                        nonce: declare_tx_args.nonce,
+                        compiled_class_hash: declare_tx_args.class_hash,
+                    },
+                ),
+            )
+        }
+        _ => panic!("Unsupported transaction version: {:?}.", declare_tx_args.version),
     }
 }
 
