@@ -67,10 +67,10 @@ fn test_cast_to_node_index(
 #[case(8, 10, 2)]
 #[case(9, 12, 1)]
 fn test_get_lca(#[case] node_index: u8, #[case] other: u8, #[case] expected: u8) {
-    let root_index = NodeIndex(node_index.into());
-    let other_index = NodeIndex(other.into());
+    let root_index = NodeIndex::new(node_index.into());
+    let other_index = NodeIndex::new(other.into());
     let lca = root_index.get_lca(&other_index);
-    let expected = NodeIndex(expected.into());
+    let expected = NodeIndex::new(expected.into());
     assert_eq!(lca, expected);
 }
 
@@ -87,7 +87,7 @@ fn test_get_lca_big(mut random: ThreadRng) {
     let mut random_extension = |index: NodeIndex| {
         let extension_bits = index.leading_zeros();
         let extension: u128 = random.gen_range(0..(1 << extension_bits));
-        (index << extension_bits) + NodeIndex(U256::from(extension))
+        (index << extension_bits) + NodeIndex::new(U256::from(extension))
     };
 
     let left_descendant = random_extension(left_child);
@@ -110,8 +110,8 @@ fn test_get_path_to_descendant(
     #[case] expected_path: u8,
     #[case] expected_length: u8,
 ) {
-    let root_index = NodeIndex(root_index.into());
-    let descendant = NodeIndex(descendant.into());
+    let root_index = NodeIndex::new(root_index.into());
+    let descendant = NodeIndex::new(descendant.into());
     let path_to_bottom = root_index.get_path_to_descendant(descendant);
     assert_eq!(path_to_bottom.path, U256::from(expected_path).into());
     assert_eq!(path_to_bottom.length, EdgePathLength(expected_length));
@@ -119,10 +119,10 @@ fn test_get_path_to_descendant(
 
 #[rstest]
 fn test_get_path_to_descendant_big() {
-    let root_index = NodeIndex(U256::from(rand::thread_rng().gen::<u128>()));
+    let root_index = NodeIndex::new(U256::from(rand::thread_rng().gen::<u128>()));
     let max_bits = NodeIndex::BITS - 128;
     let extension: u128 = rand::thread_rng().gen_range(0..1 << max_bits);
-    let extension_index = NodeIndex(U256::from(extension));
+    let extension_index = NodeIndex::new(U256::from(extension));
 
     let descendant = (root_index << extension_index.bit_length()) + extension_index;
     let path_to_bottom = root_index.get_path_to_descendant(descendant);

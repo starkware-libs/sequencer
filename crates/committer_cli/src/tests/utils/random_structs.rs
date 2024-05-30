@@ -141,8 +141,8 @@ impl RandomValue for NodeIndex {
     fn random<R: Rng>(rng: &mut R, max: Option<U256>) -> Self {
         // The maximum value is the maximum between max and NodeIndex::MAX.
         let max_value = match max {
-            Some(m) => min(m, NodeIndex::MAX.0),
-            None => NodeIndex::MAX.0,
+            Some(m) => min(m, U256::from(NodeIndex::MAX)),
+            None => U256::from(NodeIndex::MAX),
         };
 
         Self::new(get_random_u256(rng, U256::ONE, max_value + 1))
