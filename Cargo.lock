@@ -3243,7 +3243,6 @@ dependencies = [
  "starknet_mempool_types",
  "thiserror",
  "tokio",
- "tower",
  "validator",
 ]
 
