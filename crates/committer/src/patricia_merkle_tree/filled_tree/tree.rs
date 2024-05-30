@@ -28,9 +28,9 @@ pub(crate) type FilledTreeResult<T, L> = Result<T, FilledTreeError<L>>;
 pub(crate) trait FilledTree<L: LeafData>: Sized {
     /// Computes and returns the filled tree.
     #[allow(dead_code)]
-    async fn create<TH: TreeHashFunction<L>>(
-        updated_skeleton: &impl UpdatedSkeletonTree,
-        leaf_modifications: &LeafModifications<L>,
+    async fn create<TH: TreeHashFunction<LeafDataImpl> + 'static>(
+        updated_skeleton: impl UpdatedSkeletonTree + 'static,
+        leaf_modifications: LeafModifications<LeafDataImpl>,
     ) -> FilledTreeResult<Self, L>;
 
     /// Serializes the current state of the tree into a hashmap,
@@ -113,38 +113,39 @@ impl FilledTreeImpl {
 
     #[async_recursion]
     async fn compute_filled_tree_rec<TH>(
-        updated_skeleton: &impl UpdatedSkeletonTree,
+        updated_skeleton: Arc<impl UpdatedSkeletonTree + 'async_recursion + 'static>,
         index: NodeIndex,
-        leaf_modifications: &LeafModifications<LeafDataImpl>,
+        leaf_modifications: Arc<LeafModifications<LeafDataImpl>>,
         output_map: Arc<HashMap<NodeIndex, Mutex<Option<FilledNode<LeafDataImpl>>>>>,
     ) -> FilledTreeResult<HashOutput, LeafDataImpl>
     where
-        TH: TreeHashFunction<LeafDataImpl>,
+        TH: TreeHashFunction<LeafDataImpl> + 'static,
     {
-        let node = updated_skeleton.get_node(index)?;
+        let binding = Arc::clone(&updated_skeleton);
+        let node = binding.get_node(index)?;
         match node {
             UpdatedSkeletonNode::Binary => {
                 let left_index = index * 2.into();
                 let right_index = left_index + NodeIndex::ROOT;
 
-                let (left_hash, right_hash) = tokio::join!(
-                    Self::compute_filled_tree_rec::<TH>(
-                        updated_skeleton,
+                let (left_hash, right_hash) = (
+                    tokio::spawn(Self::compute_filled_tree_rec::<TH>(
+                        Arc::clone(&updated_skeleton),
                         left_index,
-                        leaf_modifications,
-                        Arc::clone(&output_map)
-                    ),
-                    Self::compute_filled_tree_rec::<TH>(
-                        updated_skeleton,
+                        Arc::clone(&leaf_modifications),
+                        Arc::clone(&output_map),
+                    )),
+                    tokio::spawn(Self::compute_filled_tree_rec::<TH>(
+                        Arc::clone(&updated_skeleton),
                         right_index,
-                        leaf_modifications,
-                        Arc::clone(&output_map)
-                    ),
+                        Arc::clone(&leaf_modifications),
+                        Arc::clone(&output_map),
+                    )),
                 );
 
                 let data = NodeData::Binary(BinaryData {
-                    left_hash: left_hash?,
-                    right_hash: right_hash?,
+                    left_hash: left_hash.await??,
+                    right_hash: right_hash.await??,
                 });
 
                 let hash_value = TH::compute_node_hash(&data);
@@ -188,19 +189,18 @@ impl FilledTreeImpl {
 }
 
 impl FilledTree<LeafDataImpl> for FilledTreeImpl {
-    async fn create<TH: TreeHashFunction<LeafDataImpl>>(
-        updated_skeleton: &impl UpdatedSkeletonTree,
-        leaf_modifications: &LeafModifications<LeafDataImpl>,
-    ) -> FilledTreeResult<Self, LeafDataImpl> {
+    async fn create<TH: TreeHashFunction<LeafDataImpl> + 'static>(
+        updated_skeleton: impl UpdatedSkeletonTree + 'static,
+        leaf_modifications: LeafModifications<LeafDataImpl>,
+    ) -> Result<Self, FilledTreeError<LeafDataImpl>> {
         // Compute the filled tree in two steps:
         //   1. Create a map containing the tree structure without hash values.
         //   2. Fill in the hash values.
-        let filled_tree_map = Arc::new(Self::initialize_with_placeholders(updated_skeleton));
-
+        let filled_tree_map = Arc::new(Self::initialize_with_placeholders(&updated_skeleton));
         Self::compute_filled_tree_rec::<TH>(
-            updated_skeleton,
+            Arc::new(updated_skeleton),
             NodeIndex::ROOT,
-            leaf_modifications,
+            Arc::new(leaf_modifications),
             Arc::clone(&filled_tree_map),
         )
         .await?;

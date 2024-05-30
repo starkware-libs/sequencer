@@ -44,7 +44,7 @@ pub(crate) async fn commit_block(input: Input) -> BlockCommitmentResult<()> {
     let _filled_forest = FilledForestImpl::create::<UpdatedSkeletonTreeImpl, TreeHashFunctionImpl>(
         updated_forest,
         input.state_diff.actual_storage_updates(input.tree_heights),
-        &StateDiff::actual_classes_updates(
+        StateDiff::actual_classes_updates(
             &input.state_diff.class_hash_to_compiled_class_hash,
             input.tree_heights,
         ),

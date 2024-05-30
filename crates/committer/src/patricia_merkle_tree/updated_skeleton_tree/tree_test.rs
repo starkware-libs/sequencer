@@ -26,7 +26,7 @@ async fn test_filled_tree_sanity() {
         skeleton_tree,
     };
     let root_hash =
-        FilledTreeImpl::create::<TreeHashFunctionImpl>(&updated_skeleton_tree, &modifications)
+        FilledTreeImpl::create::<TreeHashFunctionImpl>(updated_skeleton_tree, modifications)
             .await
             .unwrap()
             .get_root_hash()
@@ -90,7 +90,7 @@ async fn test_small_filled_tree() {
 
     // Compute the hash values.
     let filled_tree =
-        FilledTreeImpl::create::<TreeHashFunctionImpl>(&updated_skeleton_tree, &modifications)
+        FilledTreeImpl::create::<TreeHashFunctionImpl>(updated_skeleton_tree, modifications)
             .await
             .unwrap();
     let filled_tree_map = filled_tree.get_all_nodes();
@@ -197,7 +197,7 @@ async fn test_small_tree_with_sibling_nodes() {
 
     // Compute the hash values.
     let filled_tree =
-        FilledTreeImpl::create::<TreeHashFunctionImpl>(&updated_skeleton_tree, &modifications)
+        FilledTreeImpl::create::<TreeHashFunctionImpl>(updated_skeleton_tree, modifications)
             .await
             .unwrap();
     let filled_tree_map = filled_tree.get_all_nodes();
