@@ -18,5 +18,9 @@ tokio.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
+assert-json-diff.workspace = true
 assert_matches.workspace = true
+colored.workspace = true
 pretty_assertions.workspace = true
+serde_json.workspace = true
+test_utils = {path = "../test_utils"}

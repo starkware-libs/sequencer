@@ -1,9 +1,18 @@
 #[cfg(any(feature = "testing", test))]
+use std::env::{self};
+use std::fs::File;
+
+use assert_json_diff::assert_json_eq;
 use assert_matches::assert_matches;
+use colored::Colorize;
+use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::validators::{ParsedValidationError, ParsedValidationErrors};
+use test_utils::get_absolute_path;
 use validator::Validate;
 
-use crate::config::{ComponentConfig, ComponentExecutionConfig};
+use crate::config::{
+    ComponentConfig, ComponentExecutionConfig, MempoolNodeConfig, DEFAULT_CONFIG_PATH,
+};
 
 /// Test the validation of the struct ComponentConfig.
 /// The validation validates at least one of the components is set with execute: true.
@@ -40,4 +49,28 @@ fn test_components_config_validation() {
 
         assert!(component_config.validate().is_ok());
     }
+}
+
+/// Test the validation of the struct MempoolNodeConfig and that the default config file is up to
+/// date. To update the default config file, run:
+/// cargo run --bin dump_config -q
+#[test]
+fn default_config_file_is_up_to_date() {
+    let default_config = MempoolNodeConfig::default();
+    assert!(default_config.validate().is_ok());
+    let from_code: serde_json::Value = serde_json::to_value(default_config.dump()).unwrap();
+
+    env::set_current_dir(get_absolute_path("")).expect("Couldn't set working dir.");
+    let from_default_config_file: serde_json::Value =
+        serde_json::from_reader(File::open(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
+
+    println!(
+        "{}",
+        "Default config file doesn't match the default NodeConfig implementation. Please update \
+         it using the dump_config binary."
+            .purple()
+            .bold()
+    );
+    println!("Diffs shown below.");
+    assert_json_eq!(from_default_config_file, from_code)
 }

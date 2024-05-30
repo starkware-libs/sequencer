@@ -42,7 +42,7 @@ impl Default for ComponentExecutionConfig {
 }
 
 /// The components configuration.
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 #[validate(schema(function = "validate_components_config"))]
 pub struct ComponentConfig {
     pub gateway_component: ComponentExecutionConfig,
@@ -72,7 +72,7 @@ pub fn validate_components_config(components: &ComponentConfig) -> Result<(), Va
 }
 
 /// The configurations of the various components of the node.
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate, Default)]
+#[derive(Debug, Deserialize, Default, Serialize, Clone, PartialEq, Validate)]
 pub struct MempoolNodeConfig {
     #[validate]
     pub components: ComponentConfig,
