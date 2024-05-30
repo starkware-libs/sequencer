@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::patricia_merkle_tree::node_data::inner_node::EdgePathLength;
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
@@ -28,18 +29,19 @@ impl TempSkeletonNode {
     }
 }
 
-/// Returns the path from the given root_index to the LCA of the leaves. Assumes the leaves are:
+/// Returns the path from the given root_index to the LCA of the given subtree node indices.
+/// Assumes the nodes are:
 /// * Sorted.
 /// * Descendants of the given index.
-/// * Non-empty list.
-fn get_path_to_lca(root_index: &NodeIndex, leaf_indices: &[NodeIndex]) -> PathToBottom {
-    if leaf_indices.is_empty() {
+/// * A non-empty array.
+fn get_path_to_lca(root_index: &NodeIndex, subtree_indices: &[NodeIndex]) -> PathToBottom {
+    if subtree_indices.is_empty() {
         panic!("Unexpected empty array.");
     }
-    let lca = if leaf_indices.len() == 1 {
-        leaf_indices[0]
+    let lca = if subtree_indices.len() == 1 {
+        subtree_indices[0]
     } else {
-        leaf_indices[0].get_lca(leaf_indices.last().expect("Unexpected empty array"))
+        subtree_indices[0].get_lca(subtree_indices.last().expect("Unexpected empty array"))
     };
     root_index.get_path_to_descendant(lca)
 }
@@ -130,13 +132,10 @@ impl UpdatedSkeletonTreeImpl {
                     "Index {root_index:?} is an original Binary node without leaf modifications - 
                     it should be a Sibling instead."
                 ),
-                OriginalSkeletonNode::UnmodifiedBottom(_) => unreachable!(
-                    "Index {root_index:?} is an UnmodifiedBottom without leaf modifications. 
-                    It shouldn't be reached as it must have an original Edge parent that would stop 
-                    the recursion."
-                ),
-                OriginalSkeletonNode::Edge(_) | OriginalSkeletonNode::LeafOrBinarySibling(_) => {
-                    return TempSkeletonNode::Original(original_node)
+                OriginalSkeletonNode::Edge(_)
+                | OriginalSkeletonNode::LeafOrBinarySibling(_)
+                | OriginalSkeletonNode::UnmodifiedBottom(_) => {
+                    return TempSkeletonNode::Original(original_node);
                 }
             }
         };
@@ -268,14 +267,102 @@ impl UpdatedSkeletonTreeImpl {
         })
     }
 
-    /// Updates an original skeleton subtree rooted with an edge node.
+    /// Update an original subtree rooted with an edge node.
     fn update_edge_node(
         &mut self,
-        _root_index: &NodeIndex,
-        _path_to_bottom: &PathToBottom,
-        _original_skeleton: &mut HashMap<NodeIndex, OriginalSkeletonNode>,
-        _leaf_indices: &[NodeIndex],
+        root_index: &NodeIndex,
+        path_to_bottom: &PathToBottom,
+        original_skeleton: &mut HashMap<NodeIndex, OriginalSkeletonNode>,
+        leaf_indices: &[NodeIndex],
     ) -> TempSkeletonNode {
-        todo!("Implement update_edge_node.")
+        let [left_child_index, right_child_index] = root_index.get_children_indices();
+        let [left_indices, right_indices] =
+            split_leaves(&self.tree_height, root_index, leaf_indices);
+        let was_left_nonempty = path_to_bottom.is_left_descendant();
+        if (!right_indices.is_empty() && was_left_nonempty)
+            || (!left_indices.is_empty() && !was_left_nonempty)
+        {
+            // The root has a new leaf on its originally empty subtree.
+            let (
+                nonempty_subtree_child_index,
+                nonempty_subtree_leaf_indices,
+                empty_subtree_child_index,
+                empty_subtree_leaf_indices,
+            ) = if was_left_nonempty {
+                (
+                    left_child_index,
+                    left_indices,
+                    right_child_index,
+                    right_indices,
+                )
+            } else {
+                (
+                    right_child_index,
+                    right_indices,
+                    left_child_index,
+                    left_indices,
+                )
+            };
+
+            // 1. Handle the originally non-empty subtree, replacing the root with the child in the
+            //    direction of the edge.
+            if path_to_bottom.length.0 > 1 {
+                // Bottom is not a child of the root, removing the first edge returns a valid new
+                // edge node. Inject the new node to the original skeleton as if it was in it
+                // originally (fake original).
+                let fake_original_child_node = OriginalSkeletonNode::Edge(
+                    path_to_bottom
+                        .remove_first_edges(EdgePathLength(1))
+                        .expect("Original Edge node is unexpectedly trivial"),
+                );
+                original_skeleton.insert(nonempty_subtree_child_index, fake_original_child_node);
+            };
+
+            let orig_nonempty_subtree_child = self.update_node_in_nonempty_tree(
+                &nonempty_subtree_child_index,
+                original_skeleton,
+                nonempty_subtree_leaf_indices,
+            );
+
+            // 2. Handle the originally empty subtree.
+            let orig_empty_subtree_child = self
+                .update_node_in_empty_tree(&empty_subtree_child_index, empty_subtree_leaf_indices);
+            let (left, right) = if was_left_nonempty {
+                (orig_nonempty_subtree_child, orig_empty_subtree_child)
+            } else {
+                (orig_empty_subtree_child, orig_nonempty_subtree_child)
+            };
+
+            return self.node_from_binary_data(root_index, &left, &right);
+        }
+
+        // All leaves are on the edge's subtree - they have a non-trivial common path with the edge.
+        // Create a new edge to the LCA of the leaves and the bottom.
+        let path_to_leaves_lca = get_path_to_lca(root_index, leaf_indices);
+        let leaves_lca_index = path_to_leaves_lca.bottom_index(*root_index);
+
+        let bottom_index = path_to_bottom.bottom_index(*root_index);
+        let path_to_new_bottom = get_path_to_lca(root_index, &[leaves_lca_index, bottom_index]);
+
+        let new_bottom_index = path_to_new_bottom.bottom_index(*root_index);
+        if new_bottom_index == bottom_index {
+            //  All leaf_indices are in the bottom_node subtree.
+            assert_eq!(&path_to_new_bottom, path_to_bottom);
+        } else {
+            // Inject the new node to the original skeleton as if it was in it
+            // originally (fake original).
+            let fake_original_new_bottom_node = OriginalSkeletonNode::Edge(
+                path_to_bottom
+                    .remove_first_edges(path_to_new_bottom.length)
+                    .expect("Unexpectedly failed to remove first edges."),
+            );
+
+            original_skeleton.insert(new_bottom_index, fake_original_new_bottom_node);
+        }
+
+        let bottom =
+            self.update_node_in_nonempty_tree(&new_bottom_index, original_skeleton, leaf_indices);
+
+        self.node_from_edge_data(&path_to_new_bottom, &new_bottom_index, &bottom)
     }
 }

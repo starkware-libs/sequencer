@@ -1,7 +1,9 @@
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
+use crate::patricia_merkle_tree::node_data::errors::PathToBottomError;
 use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
+
 use ethnum::U256;
 use strum_macros::{EnumDiscriminants, EnumIter};
 
@@ -60,8 +62,9 @@ impl From<&EdgePath> for U256 {
         path.0
     }
 }
-
-#[derive(Clone, Copy, Debug, Default, derive_more::Add, PartialEq, Eq, Hash)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialOrd, derive_more::Add, derive_more::Sub, PartialEq, Eq, Hash,
+)]
 pub struct EdgePathLength(pub u8);
 
 impl EdgePathLength {
@@ -98,10 +101,32 @@ impl PathToBottom {
         NodeIndex::compute_bottom_index(root_index, self)
     }
 
+    /// Returns true iff the first step on the path is to the left.
+    pub(crate) fn is_left_descendant(&self) -> bool {
+        self.path.0 >> (self.length.0 - 1) == 0
+    }
+
     pub(crate) fn concat_paths(&self, other: Self) -> Self {
         Self {
             path: EdgePath::from((self.path.0 << other.length.0) + other.path.0),
             length: self.length + other.length,
         }
+    }
+
+    /// Returns the path after removing the first steps (the edges from the path's origin node).
+    pub(crate) fn remove_first_edges(
+        &self,
+        n_edges: EdgePathLength,
+    ) -> Result<Self, PathToBottomError> {
+        if self.length <= n_edges {
+            return Err(PathToBottomError::RemoveEdgesError {
+                length: self.length,
+                n_edges,
+            });
+        }
+        Ok(Self {
+            path: EdgePath(self.path.0 >> n_edges.0),
+            length: self.length - n_edges,
+        })
     }
 }

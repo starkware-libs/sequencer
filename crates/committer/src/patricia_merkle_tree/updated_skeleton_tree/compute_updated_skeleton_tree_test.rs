@@ -17,6 +17,7 @@ use std::collections::HashMap;
 #[fixture]
 fn updated_skeleton(
     #[default(TreeHeight::MAX)] tree_height: TreeHeight,
+    #[default(&[])] original_skeleton: &[(NodeIndex, OriginalSkeletonNode)],
     #[default(&[])] leaf_modifications: &[(U256, u8)],
 ) -> UpdatedSkeletonTreeImpl {
     UpdatedSkeletonTreeImpl {
@@ -25,6 +26,19 @@ fn updated_skeleton(
             .iter()
             .filter(|(_, leaf_val)| *leaf_val != 0)
             .map(|(index, _)| (NodeIndex::new(*index), UpdatedSkeletonNode::Leaf))
+            .chain(
+                original_skeleton
+                    .iter()
+                    .filter_map(|(index, node)| match node {
+                        OriginalSkeletonNode::LeafOrBinarySibling(hash) => {
+                            Some((*index, UpdatedSkeletonNode::Sibling(*hash)))
+                        }
+                        OriginalSkeletonNode::UnmodifiedBottom(hash) => {
+                            Some((*index, UpdatedSkeletonNode::UnmodifiedBottom(*hash)))
+                        }
+                        OriginalSkeletonNode::Binary | OriginalSkeletonNode::Edge(_) => None,
+                    }),
+            )
             .collect(),
     }
 }
@@ -191,7 +205,8 @@ fn test_node_from_binary_data(
     #[case] _leaf_modifications: &[(U256, u8)],
     #[case] expected_node: TempSkeletonNode,
     #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
-    #[with(TreeHeight::MAX, _leaf_modifications)] mut updated_skeleton: UpdatedSkeletonTreeImpl,
+    #[with(TreeHeight::MAX, &[], _leaf_modifications)]
+    mut updated_skeleton: UpdatedSkeletonTreeImpl,
 ) {
     let mut expected_skeleton_tree = updated_skeleton.skeleton_tree.clone();
     expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());
@@ -258,7 +273,8 @@ fn test_node_from_edge_data(
     #[case] _leaf_modifications: &[(U256, u8)],
     #[case] expected_node: TempSkeletonNode,
     #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
-    #[with(TreeHeight::MAX, _leaf_modifications)] mut updated_skeleton: UpdatedSkeletonTreeImpl,
+    #[with(TreeHeight::MAX, &[], _leaf_modifications)]
+    mut updated_skeleton: UpdatedSkeletonTreeImpl,
 ) {
     let mut expected_skeleton_tree = updated_skeleton.skeleton_tree.clone();
     expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());
@@ -299,7 +315,7 @@ fn test_update_node_in_empty_tree(
     #[case] leaf_modifications: &[(U256, u8)],
     #[case] expected_node: TempSkeletonNode,
     #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
-    #[with(TreeHeight::MAX, leaf_modifications)] mut updated_skeleton: UpdatedSkeletonTreeImpl,
+    #[with(TreeHeight::MAX, &[], leaf_modifications)] mut updated_skeleton: UpdatedSkeletonTreeImpl,
 ) {
     let leaf_indices: Vec<NodeIndex> = leaf_modifications
         .iter()
@@ -315,60 +331,60 @@ fn test_update_node_in_empty_tree(
 #[rstest]
 #[case::modified_leaf(
     &NodeIndex::FIRST_LEAF,
-    HashMap::from([
+    vec![
         (NodeIndex::FIRST_LEAF+1.into(),
         OriginalSkeletonNode::LeafOrBinarySibling(HashOutput(Felt::ONE)))
-    ]),
+    ],
     &[(U256::from(NodeIndex::FIRST_LEAF), 1)],
     TempSkeletonNode::Leaf,
     &[],
 )]
 #[case::deleted_leaf(
     &NodeIndex::FIRST_LEAF,
-    HashMap::from([
+    vec![
         (NodeIndex::FIRST_LEAF+1.into(),
         OriginalSkeletonNode::LeafOrBinarySibling(HashOutput(Felt::ONE)))
-    ]),
+    ],
     &[(U256::from(NodeIndex::FIRST_LEAF), 0)],
     TempSkeletonNode::Empty,
     &[],
 )]
 #[case::orig_binary_with_modified_leaf(
     &(NodeIndex::FIRST_LEAF>>1),
-    HashMap::from([
+    vec![
         (NodeIndex::FIRST_LEAF+1.into(),
         OriginalSkeletonNode::LeafOrBinarySibling(HashOutput(Felt::ONE))),
         (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Binary)
-    ]),
+    ],
     &[(U256::from(NodeIndex::FIRST_LEAF), 1)],
     TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
     &[],
 )]
 #[case::orig_binary_with_deleted_leaf(
     &(NodeIndex::FIRST_LEAF>>1),
-    HashMap::from([
+    vec![
         (NodeIndex::FIRST_LEAF+1.into(),
         OriginalSkeletonNode::LeafOrBinarySibling(HashOutput(Felt::ONE))),
         (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Binary)
-    ]),
+    ],
     &[(U256::from(NodeIndex::FIRST_LEAF), 0)],
     TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)),
     &[],
 )]
 #[case::orig_binary_with_deleted_leaves(
     &(NodeIndex::FIRST_LEAF>>1),
-    HashMap::from([(NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Binary)]),
+    vec![(NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Binary)],
     &[(U256::from(NodeIndex::FIRST_LEAF), 0), (U256::from(NodeIndex::FIRST_LEAF + 1.into()), 0)],
     TempSkeletonNode::Empty,
     &[],
 )]
 #[case::orig_binary_with_binary_modified_children(
     &(NodeIndex::FIRST_LEAF>>2),
-    HashMap::from([
+    vec![
         (NodeIndex::FIRST_LEAF>>2, OriginalSkeletonNode::Binary),
         (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Binary),
         ((NodeIndex::FIRST_LEAF>>1) + 1.into(),OriginalSkeletonNode::Binary)
-    ]),
+    ],
     &[
         (U256::from(NodeIndex::FIRST_LEAF), 1),
         (U256::from(NodeIndex::FIRST_LEAF + 1.into()), 1),
@@ -381,14 +397,75 @@ fn test_update_node_in_empty_tree(
         ((NodeIndex::FIRST_LEAF>>1) + 1.into(),UpdatedSkeletonNode::Binary)
     ],
 )]
+// The following cases test the `update_edge_node` function as well.
+#[case::orig_edge_with_deleted_bottom(
+    &(NodeIndex::FIRST_LEAF>>1),
+    vec![
+        (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
+    ],
+    &[(U256::from(NodeIndex::FIRST_LEAF), 0)],
+    TempSkeletonNode::Empty,
+    &[],
+)]
+#[case::orig_edge_with_modified_bottom(
+    &(NodeIndex::FIRST_LEAF>>1),
+    vec![
+        (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
+    ],
+    &[(U256::from(NodeIndex::FIRST_LEAF), 1)],
+    TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
+    &[],
+)]
+#[case::orig_edge_with_two_modified_leaves(
+    &(NodeIndex::FIRST_LEAF>>1),
+    vec![(NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD))],
+    &[(U256::from(NodeIndex::FIRST_LEAF), 1), (U256::from(NodeIndex::FIRST_LEAF+1.into()), 1)],
+    TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
+    &[
+        (NodeIndex::FIRST_LEAF, UpdatedSkeletonNode::Leaf),
+        (NodeIndex::FIRST_LEAF+1.into(), UpdatedSkeletonNode::Leaf)
+    ],
+)]
+#[case::orig_edge_with_unmodified_bottom_and_added_leaf(
+    &(NodeIndex::FIRST_LEAF>>1),
+    vec![
+        (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
+        (NodeIndex::FIRST_LEAF, OriginalSkeletonNode::UnmodifiedBottom(HashOutput(Felt::ONE)))
+    ],
+    &[(U256::from(NodeIndex::FIRST_LEAF+1.into()), 1)],
+    TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
+    &[],
+)]
+#[case::orig_edge_with_deleted_bottom_and_added_leaf(
+    &(NodeIndex::FIRST_LEAF>>1),
+    vec![
+        (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
+    ],
+    &[(U256::from(NodeIndex::FIRST_LEAF), 0), (U256::from(NodeIndex::FIRST_LEAF+1.into()), 1)],
+    TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)),
+    &[],
+)]
+#[case::orig_edge_with_modified_leaves_beneath_bottom(
+    &(NodeIndex::FIRST_LEAF>>2),
+    vec![
+        (NodeIndex::FIRST_LEAF>>2, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
+        (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Binary),
+    ],
+    &[(U256::from(NodeIndex::FIRST_LEAF), 1), (U256::from(NodeIndex::FIRST_LEAF+1.into()), 1)],
+    TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
+    &[(NodeIndex::FIRST_LEAF>>1, UpdatedSkeletonNode::Binary)],
+)]
 fn test_update_node_in_nonempty_tree(
     #[case] root_index: &NodeIndex,
-    #[case] mut original_skeleton: HashMap<NodeIndex, OriginalSkeletonNode>,
+    #[case] original_skeleton: Vec<(NodeIndex, OriginalSkeletonNode)>,
     #[case] leaf_modifications: &[(U256, u8)],
     #[case] expected_node: TempSkeletonNode,
     #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
-    #[with(TreeHeight::MAX, leaf_modifications)] mut updated_skeleton: UpdatedSkeletonTreeImpl,
+    #[with(TreeHeight::MAX, &original_skeleton, leaf_modifications)]
+    mut updated_skeleton: UpdatedSkeletonTreeImpl,
 ) {
+    let mut original_skeleton: HashMap<NodeIndex, OriginalSkeletonNode> =
+        original_skeleton.into_iter().collect();
     let leaf_indices: Vec<NodeIndex> = leaf_modifications
         .iter()
         .map(|(index, _)| NodeIndex::new(*index))
