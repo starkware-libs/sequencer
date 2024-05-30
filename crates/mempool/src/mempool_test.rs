@@ -1,13 +1,8 @@
 use assert_matches::assert_matches;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, PatriciaKey};
-use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::hash::{StarkFelt, StarkHash};
-use starknet_api::internal_transaction::{InternalInvokeTransaction, InternalTransaction};
-use starknet_api::transaction::{
-    InvokeTransaction, InvokeTransactionV3, ResourceBounds, ResourceBoundsMapping, Tip,
-    TransactionHash,
-};
+use starknet_api::transaction::{Tip, TransactionHash};
 use starknet_api::{contract_address, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{
@@ -37,36 +32,6 @@ fn create_for_testing(inputs: impl IntoIterator<Item = MempoolInput>) -> Mempool
 #[fixture]
 fn mempool() -> Mempool {
     create_for_testing([])
-}
-
-// TODO(Ayelet): Move to StarkNet API.
-pub fn create_internal_invoke_tx_for_testing(
-    tip: Tip,
-    tx_hash: TransactionHash,
-    sender_address: ContractAddress,
-) -> InternalTransaction {
-    let tx = InvokeTransactionV3 {
-        resource_bounds: ResourceBoundsMapping::try_from(vec![
-            (starknet_api::transaction::Resource::L1Gas, ResourceBounds::default()),
-            (starknet_api::transaction::Resource::L2Gas, ResourceBounds::default()),
-        ])
-        .unwrap(),
-        signature: Default::default(),
-        nonce: Default::default(),
-        sender_address,
-        calldata: Default::default(),
-        nonce_data_availability_mode: DataAvailabilityMode::L1,
-        fee_data_availability_mode: DataAvailabilityMode::L1,
-        paymaster_data: Default::default(),
-        account_deployment_data: Default::default(),
-        tip,
-    };
-
-    InternalTransaction::Invoke(InternalInvokeTransaction {
-        tx: InvokeTransaction::V3(tx),
-        tx_hash,
-        only_query: false,
-    })
 }
 
 #[rstest]
