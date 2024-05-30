@@ -165,7 +165,7 @@ impl Storage for PapyrusStorage {
             py_state_diff.address_to_class_hash.remove(&address.into());
         });
 
-        let mut declared_classes = Vec::<(ClassHash, &ContractClass)>::new();
+        let mut declared_classes = IndexMap::<ClassHash, (CompiledClassHash, ContractClass)>::new();
         let mut undeclared_casm_contracts = Vec::<(ClassHash, CasmContractClass)>::new();
         for (class_hash, (compiled_class_hash, raw_class)) in declared_class_hash_to_class {
             let class_hash = ClassHash(class_hash.0);
@@ -177,7 +177,10 @@ impl Storage for PapyrusStorage {
                 .is_none();
 
             if class_undeclared {
-                // declared_classes.push((class_hash, &ContractClass::default()));
+                declared_classes.insert(
+                    class_hash,
+                    (CompiledClassHash(compiled_class_hash.0), ContractClass::default()),
+                );
                 let contract_class: CasmContractClass = serde_json::from_str(&raw_class)?;
                 undeclared_casm_contracts.push((class_hash, contract_class));
             }
@@ -191,13 +194,22 @@ impl Storage for PapyrusStorage {
         // Construct state diff; manually add declared classes.
         let mut state_diff = StateDiff::try_from(py_state_diff)?;
         state_diff.deprecated_declared_classes = deprecated_declared_classes;
-        // state_diff.declared_classes = declared_classes;
+        state_diff.declared_classes = declared_classes;
         state_diff.replaced_classes = replaced_classes;
 
-        let thin_state_diff = ThinStateDiff::from_state_diff(state_diff);
-        append_txn = append_txn
-            .append_classes(block_number, declared_classes, deprecated_declared_classes)?
-            .append_state_diff(block_number, thin_state_diff.0)?;
+        let (thin_state_diff, declared_classes, deprecated_declared_classes) =
+            ThinStateDiff::from_state_diff(state_diff);
+
+        let declared_classes_vec =
+            Vec::from_iter(declared_classes.iter().map(|(hash, class)| (*hash, class)));
+        let deprecated_declared_classes_vec =
+            Vec::from_iter(deprecated_declared_classes.iter().map(|(hash, class)| (*hash, class)));
+        append_txn = append_txn.append_classes(
+            block_number,
+            &declared_classes_vec,
+            &deprecated_declared_classes_vec,
+        )?;
+        append_txn = append_txn.append_state_diff(block_number, thin_state_diff)?;
 
         let previous_block_id = previous_block_id.unwrap_or_else(|| PyFelt::from(GENESIS_BLOCK_ID));
         let block_header = BlockHeader {

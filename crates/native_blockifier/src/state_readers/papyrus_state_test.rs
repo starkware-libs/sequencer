@@ -8,6 +8,7 @@ use blockifier::state::state_api::StateReader;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{trivial_external_entry_point_new, CairoVersion};
 use indexmap::IndexMap;
+use papyrus_storage::class::ClassStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use starknet_api::block::BlockNumber;
 use starknet_api::hash::StarkFelt;
@@ -26,19 +27,14 @@ fn test_entry_point_with_papyrus_state() -> papyrus_storage::StorageResult<()> {
     // Initialize Storage: add test contract and class.
     let deployed_contracts =
         IndexMap::from([(test_contract.get_instance_address(0), test_class_hash)]);
-    // let deprecated_declared_classes =
-    //     Vec::from([(test_class_hash, test_contract.get_deprecated_contract_class())]);
-    let deprecated_declared_classes = Vec::from([(test_class_hash)]);
-    let declared_classes =
-        IndexMap::from([(test_class_hash, test_contract.get_compiled_class_hash())]);
-    let state_diff = ThinStateDiff {
-        deployed_contracts,
-        declared_classes,
-        deprecated_declared_classes,
-        ..Default::default()
-    };
+    let state_diff = ThinStateDiff { deployed_contracts, ..Default::default() };
+
+    let declared_classes = Vec::new();
+    let deprecated_contract_class = test_contract.get_deprecated_contract_class();
+    let deprecated_declared_classes = Vec::from([(test_class_hash, &deprecated_contract_class)]);
     storage_writer
         .begin_rw_txn()?
+        .append_classes(BlockNumber::default(), &declared_classes, &deprecated_declared_classes)?
         .append_state_diff(BlockNumber::default(), state_diff)?
         .commit()?;
 
