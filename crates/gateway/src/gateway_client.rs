@@ -4,6 +4,7 @@ use axum::body::Body;
 use hyper::StatusCode;
 use reqwest::{Client, Response};
 use starknet_api::external_transaction::ExternalTransaction;
+use starknet_api::transaction::TransactionHash;
 
 use crate::errors::GatewayError;
 use crate::starknet_api_test_utils::external_tx_to_json;
@@ -22,12 +23,8 @@ impl GatewayClient {
         Self { socket, client }
     }
 
-    // TODO: change from &str to proper return type once that's ready.
-    pub async fn assert_add_tx_success(&self, tx: &ExternalTransaction, expected: &str) {
-        let response =
-            self.add_tx_with_status_check(tx, StatusCode::OK).await.bytes().await.unwrap();
-
-        assert_eq!(response, expected)
+    pub async fn assert_add_tx_success(&self, tx: &ExternalTransaction) -> TransactionHash {
+        self.add_tx_with_status_check(tx, StatusCode::OK).await.json().await.unwrap()
     }
 
     pub async fn add_tx_with_status_check(

@@ -7,6 +7,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use mempool_infra::network_component::CommunicationInterface;
 use starknet_api::external_transaction::ExternalTransaction;
+use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::mempool_types::{
     Account, GatewayNetworkComponent, GatewayToMempoolMessage, MempoolInput,
 };
@@ -88,8 +89,8 @@ async fn is_alive() -> GatewayResult<String> {
 async fn add_tx(
     State(app_state): State<AppState>,
     Json(tx): Json<ExternalTransaction>,
-) -> GatewayResult<String> {
-    let (response, mempool_input) = tokio::task::spawn_blocking(move || {
+) -> GatewayResult<Json<TransactionHash>> {
+    let mempool_input = tokio::task::spawn_blocking(move || {
         process_tx(
             app_state.stateless_transaction_validator,
             app_state.stateful_transaction_validator.as_ref(),
@@ -99,13 +100,15 @@ async fn add_tx(
     })
     .await??;
 
+    let tx_hash = mempool_input.tx.tx_hash;
     let message = GatewayToMempoolMessage::AddTransaction(mempool_input);
     app_state
         .network_component
         .send(message)
         .await
         .map_err(|e| GatewayError::MessageSendError(e.to_string()))?;
-    Ok(response)
+    // TODO: Also return `ContractAddress` for deploy and `ClassHash` for Declare.
+    Ok(Json(tx_hash))
 }
 
 fn process_tx(
@@ -113,7 +116,7 @@ fn process_tx(
     stateful_transaction_validator: &StatefulTransactionValidator,
     state_reader_factory: &dyn StateReaderFactory,
     tx: ExternalTransaction,
-) -> GatewayResult<(String, MempoolInput)> {
+) -> GatewayResult<MempoolInput> {
     // TODO(Arni, 1/5/2024): Preform congestion control.
 
     // Perform stateless validations.
@@ -122,22 +125,9 @@ fn process_tx(
     // TODO(Yael, 19/5/2024): pass the relevant class_info and deploy_account_hash.
     let tx_hash =
         stateful_transaction_validator.run_validate(state_reader_factory, &tx, None, None)?;
-    // TODO(Arni, 1/5/2024): Move transaction to mempool.
 
-    // TODO(Arni, 1/5/2024): Produce response.
-    // Send response.
-
-    let mempool_input = MempoolInput {
+    Ok(MempoolInput {
         tx: external_tx_to_thin_tx(&tx, tx_hash),
         account: Account { address: get_sender_address(&tx), ..Default::default() },
-    };
-
-    Ok((
-        match tx {
-            ExternalTransaction::Declare(_) => "DECLARE".into(),
-            ExternalTransaction::DeployAccount(_) => "DEPLOY_ACCOUNT".into(),
-            ExternalTransaction::Invoke(_) => "INVOKE".into(),
-        },
-        mempool_input,
-    ))
+    })
 }
