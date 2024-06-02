@@ -2,45 +2,48 @@ use async_trait::async_trait;
 use tokio::sync::mpsc::{Receiver, Sender};
 
 #[async_trait]
-pub trait ComponentMessageExecutor<M, R> {
-    async fn execute(&mut self, message: M) -> R;
+pub trait ComponentRequestHandler<Request, Response> {
+    async fn handle_request(&mut self, request: Request) -> Response;
 }
 
-pub struct MessageAndResponseSender<M, R>
+pub struct ComponentRequestAndResponseSender<Request, Response>
 where
-    M: Send + Sync,
-    R: Send + Sync,
+    Request: Send + Sync,
+    Response: Send + Sync,
 {
-    pub message: M,
-    pub tx: Sender<R>,
+    pub request: Request,
+    pub tx: Sender<Response>,
 }
 
-pub struct ComponentServer<C, M, R>
+pub struct ComponentServer<Component, Request, Response>
 where
-    C: ComponentMessageExecutor<M, R>,
-    M: Send + Sync,
-    R: Send + Sync,
+    Component: ComponentRequestHandler<Request, Response>,
+    Request: Send + Sync,
+    Response: Send + Sync,
 {
-    component: C,
-    rx: Receiver<MessageAndResponseSender<M, R>>,
+    component: Component,
+    rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
 }
 
-impl<C, M, R> ComponentServer<C, M, R>
+impl<Component, Request, Response> ComponentServer<Component, Request, Response>
 where
-    C: ComponentMessageExecutor<M, R>,
-    M: Send + Sync,
-    R: Send + Sync,
+    Component: ComponentRequestHandler<Request, Response>,
+    Request: Send + Sync,
+    Response: Send + Sync,
 {
-    pub fn new(component: C, rx: Receiver<MessageAndResponseSender<M, R>>) -> Self {
+    pub fn new(
+        component: Component,
+        rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    ) -> Self {
         Self { component, rx }
     }
 
     pub async fn start(&mut self) {
-        while let Some(message_and_res_tx) = self.rx.recv().await {
-            let message = message_and_res_tx.message;
-            let tx = message_and_res_tx.tx;
+        while let Some(request_and_res_tx) = self.rx.recv().await {
+            let request = request_and_res_tx.request;
+            let tx = request_and_res_tx.tx;
 
-            let res = self.component.execute(message).await;
+            let res = self.component.handle_request(request).await;
 
             tx.send(res).await.expect("Response connection should be open.");
         }

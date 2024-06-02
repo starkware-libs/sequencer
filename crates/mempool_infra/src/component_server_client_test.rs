@@ -8,7 +8,7 @@ type ValueA = u32;
 type ValueB = u8;
 
 use crate::component_server::{
-    ComponentMessageExecutor, ComponentServer, MessageAndResponseSender,
+    ComponentRequestAndResponseSender, ComponentRequestHandler, ComponentServer,
 };
 
 #[async_trait]
@@ -44,30 +44,30 @@ impl ComponentA {
 // todo send messages from b to a
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum ComponentAMessages {
+pub enum ComponentARequest {
     AGetValue,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum ComponentAResponses {
+pub enum ComponentAResponse {
     Value(ValueA),
 }
 
 #[async_trait]
-impl ComponentATrait for ComponentClient<ComponentAMessages, ComponentAResponses> {
+impl ComponentATrait for ComponentClient<ComponentARequest, ComponentAResponse> {
     async fn a_get_value(&self) -> ValueA {
-        let res = self.send(ComponentAMessages::AGetValue).await;
+        let res = self.send(ComponentARequest::AGetValue).await;
         match res {
-            ComponentAResponses::Value(value) => value,
+            ComponentAResponse::Value(value) => value,
         }
     }
 }
 
 #[async_trait]
-impl ComponentMessageExecutor<ComponentAMessages, ComponentAResponses> for ComponentA {
-    async fn execute(&mut self, message: ComponentAMessages) -> ComponentAResponses {
-        match message {
-            ComponentAMessages::AGetValue => ComponentAResponses::Value(self.a_get_value().await),
+impl ComponentRequestHandler<ComponentARequest, ComponentAResponse> for ComponentA {
+    async fn handle_request(&mut self, request: ComponentARequest) -> ComponentAResponse {
+        match request {
+            ComponentARequest::AGetValue => ComponentAResponse::Value(self.a_get_value().await),
         }
     }
 }
@@ -91,48 +91,50 @@ impl ComponentB {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum ComponentBMessages {
+pub enum ComponentBRequest {
     BGetValue,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum ComponentBResponses {
+pub enum ComponentBResponse {
     Value(ValueB),
 }
 
 #[async_trait]
-impl ComponentBTrait for ComponentClient<ComponentBMessages, ComponentBResponses> {
+impl ComponentBTrait for ComponentClient<ComponentBRequest, ComponentBResponse> {
     async fn b_get_value(&self) -> ValueB {
-        let res = self.send(ComponentBMessages::BGetValue).await;
+        let res = self.send(ComponentBRequest::BGetValue).await;
         match res {
-            ComponentBResponses::Value(value) => value,
+            ComponentBResponse::Value(value) => value,
         }
     }
 }
 
 #[async_trait]
-impl ComponentMessageExecutor<ComponentBMessages, ComponentBResponses> for ComponentB {
-    async fn execute(&mut self, message: ComponentBMessages) -> ComponentBResponses {
-        match message {
-            ComponentBMessages::BGetValue => ComponentBResponses::Value(self.b_get_value().await),
+impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for ComponentB {
+    async fn handle_request(&mut self, request: ComponentBRequest) -> ComponentBResponse {
+        match request {
+            ComponentBRequest::BGetValue => ComponentBResponse::Value(self.b_get_value().await),
         }
     }
 }
 
 async fn verify_response(
-    tx_a: Sender<MessageAndResponseSender<ComponentAMessages, ComponentAResponses>>,
+    tx_a: Sender<ComponentRequestAndResponseSender<ComponentARequest, ComponentAResponse>>,
     expected_value: ValueA,
 ) {
-    let (tx_a_main, mut rx_a_main) = channel::<ComponentAResponses>(1);
+    let (tx_a_main, mut rx_a_main) = channel::<ComponentAResponse>(1);
 
-    let message_and_res_tx: MessageAndResponseSender<ComponentAMessages, ComponentAResponses> =
-        MessageAndResponseSender { message: ComponentAMessages::AGetValue, tx: tx_a_main };
+    let request_and_res_tx: ComponentRequestAndResponseSender<
+        ComponentARequest,
+        ComponentAResponse,
+    > = ComponentRequestAndResponseSender { request: ComponentARequest::AGetValue, tx: tx_a_main };
 
-    tx_a.send(message_and_res_tx).await.unwrap();
+    tx_a.send(request_and_res_tx).await.unwrap();
 
     let res = rx_a_main.recv().await.unwrap();
     match res {
-        ComponentAResponses::Value(value) => {
+        ComponentAResponse::Value(value) => {
             assert_eq!(value, expected_value);
         }
     }
@@ -144,9 +146,9 @@ async fn test_setup() {
     let expected_value: ValueA = setup_value.into();
 
     let (tx_a, rx_a) =
-        channel::<MessageAndResponseSender<ComponentAMessages, ComponentAResponses>>(32);
+        channel::<ComponentRequestAndResponseSender<ComponentARequest, ComponentAResponse>>(32);
     let (tx_b, rx_b) =
-        channel::<MessageAndResponseSender<ComponentBMessages, ComponentBResponses>>(32);
+        channel::<ComponentRequestAndResponseSender<ComponentBRequest, ComponentBResponse>>(32);
 
     let a_client = ComponentClient::new(tx_a.clone());
     let b_client = ComponentClient::new(tx_b.clone());
