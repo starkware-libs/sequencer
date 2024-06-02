@@ -28,14 +28,6 @@ enum Command {
         /// File path to output.
         #[clap(long, short = 'o', default_value = "stdout")]
         output_path: String,
-
-        /// The version of the class hash, as a string (before conversion to raw bytes).
-        #[clap(long)]
-        class_hash_version: String,
-
-        /// The version of the contract state hash, as a string (before conversion to raw bytes).
-        #[clap(long)]
-        contract_state_hash_version: String,
     },
     PythonTest {
         /// Test name.
@@ -59,8 +51,6 @@ fn main() {
         Command::Commit {
             input_path,
             output_path,
-            class_hash_version: _,
-            contract_state_hash_version: _,
         } => {
             let input_file_name = Path::new(&input_path);
             let output_file_name = Path::new(&output_path);
