@@ -21,6 +21,7 @@ const Configuration = {
      */
     rules: {
         'scope-enum': [2, 'always', [
+            'block_hash',
             'ci',
             'skeleton',
             'types'

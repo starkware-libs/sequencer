@@ -1,3 +1,4 @@
+use crate::block_hash::BlockInfo;
 use crate::filled_tree_output::errors::FilledForestError;
 use crate::filled_tree_output::filled_forest::SerializedForest;
 use crate::parse_input::read::parse_input;
@@ -37,6 +38,7 @@ pub(crate) enum PythonTest {
     ComparePythonHashConstants,
     StorageNode,
     FilledForestOutput,
+    ParseBlockInfo,
 }
 
 /// Error type for PythonTest enum.
@@ -80,6 +82,7 @@ impl TryFrom<String> for PythonTest {
             "compare_python_hash_constants" => Ok(Self::ComparePythonHashConstants),
             "storage_node_test" => Ok(Self::StorageNode),
             "filled_forest_output" => Ok(Self::FilledForestOutput),
+            "parse_block_info" => Ok(Self::ParseBlockInfo),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -123,6 +126,10 @@ impl PythonTest {
                 test_storage_node(storage_node_input)
             }
             Self::FilledForestOutput => filled_forest_output_test(),
+            Self::ParseBlockInfo => {
+                let block_info: BlockInfo = serde_json::from_str(Self::non_optional_input(input)?)?;
+                Ok(parse_block_info_test(block_info))
+            }
         }
     }
 }
@@ -143,6 +150,15 @@ pub(crate) fn example_test(test_args: HashMap<String, String>) -> String {
     let x = test_args.get("x").expect("Failed to get value for key 'x'");
     let y = test_args.get("y").expect("Failed to get value for key 'y'");
     format!("Calling example test with args: x: {}, y: {}", x, y)
+}
+
+pub(crate) fn parse_block_info_test(block_info: BlockInfo) -> String {
+    format!(
+        "da mode: {}, gas: {:?}, data_gas: {:?}",
+        block_info.da_mode,
+        block_info.l1_gas_price_per_token,
+        block_info.l1_data_gas_price_per_token
+    )
 }
 
 /// Serializes a Felt into a string.
