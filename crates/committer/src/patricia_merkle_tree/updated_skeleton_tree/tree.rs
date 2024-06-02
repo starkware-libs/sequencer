@@ -83,7 +83,14 @@ impl UpdatedSkeletonTree for UpdatedSkeletonTreeImpl {
     }
 
     fn is_empty(&self) -> bool {
-        todo!()
+        let is_empty = self.skeleton_tree.is_empty();
+        if !is_empty {
+            assert!(
+                self.skeleton_tree.contains_key(&NodeIndex::ROOT),
+                "Root node is missing from non-empty tree."
+            );
+        }
+        is_empty
     }
 
     fn get_node(&self, index: NodeIndex) -> UpdatedSkeletonTreeResult<&UpdatedSkeletonNode> {
