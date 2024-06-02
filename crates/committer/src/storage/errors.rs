@@ -3,7 +3,7 @@ use serde_json;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub(crate) enum StorageError {
+pub enum StorageError {
     #[error("The key {0:?} does not exist in storage.")]
     MissingKey(StorageKey),
 }

@@ -10,7 +10,7 @@ use tokio::task::JoinError;
 pub(crate) type ForestResult<T> = Result<T, ForestError<LeafDataImpl>>;
 
 #[derive(Debug, Error)]
-pub(crate) enum ForestError<L: LeafData> {
+pub enum ForestError<L: LeafData> {
     #[error(transparent)]
     OriginalSkeleton(#[from] OriginalSkeletonTreeError),
     #[error(transparent)]

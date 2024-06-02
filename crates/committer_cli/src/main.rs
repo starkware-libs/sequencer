@@ -1,6 +1,9 @@
 use crate::tests::python_tests::PythonTest;
 use clap::{Args, Parser, Subcommand};
-use std::path::Path;
+use committer::block_committer::commit::commit_block;
+use filled_tree_output::filled_forest::SerializedForest;
+use parse_input::read::parse_input;
+use std::io;
 
 pub mod filled_tree_output;
 pub mod parse_input;
@@ -43,28 +46,28 @@ enum Command {
 #[derive(Debug, Args)]
 struct GlobalOptions {}
 
+#[tokio::main]
 /// Main entry point of the committer CLI.
-fn main() {
+async fn main() {
     let args = CommitterCliArgs::parse();
 
     match args.command {
         Command::Commit {
-            input_path,
-            output_path,
+            input_path: _input_path,
+            output_path: _output_path,
         } => {
-            let input_file_name = Path::new(&input_path);
-            let output_file_name = Path::new(&output_path);
-            assert!(
-                input_file_name.is_absolute() && output_file_name.is_absolute(),
-                "Given paths must be absolute."
+            // TODO(Nimrod, 20/6/2024): Allow read/write from file path.
+            let input =
+                parse_input(io::read_to_string(io::stdin()).expect("Failed to read from stdin."))
+                    .expect("Failed to parse the given input.");
+            let serialized_filled_forest = SerializedForest(
+                commit_block(input)
+                    .await
+                    .expect("Failed to commit the given block."),
             );
-
-            // Business logic to be implemented here.
-            let output = std::fs::read(input_file_name)
-                .unwrap_or_else(|_| panic!("Failed to read input from file '{input_file_name:?}'"));
-
-            // Output to file.
-            std::fs::write(output_file_name, output).expect("Failed to write output");
+            serialized_filled_forest
+                .forest_to_python()
+                .expect("Failed to print new facts to python.");
         }
 
         Command::PythonTest { test_name, inputs } => {
