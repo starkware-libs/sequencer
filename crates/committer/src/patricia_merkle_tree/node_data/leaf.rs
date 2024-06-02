@@ -24,7 +24,6 @@ pub trait LeafData: Clone + Sync + Send + DBObject {
     ) -> impl Future<Output = LeafResult<Self>>;
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ContractState {
     pub nonce: Nonce,
@@ -32,7 +31,6 @@ pub struct ContractState {
     pub class_hash: ClassHash,
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(any(test, feature = "testing"), derive(EnumDiscriminants))]
 #[cfg_attr(any(test, feature = "testing"), strum_discriminants(derive(EnumIter)))]
@@ -67,7 +65,6 @@ impl LeafData for LeafDataImpl {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SkeletonLeaf {
     Zero,

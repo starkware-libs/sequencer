@@ -3,7 +3,6 @@ use serde::Deserialize;
 type RawFelt = [u8; 32];
 
 #[derive(Deserialize, Debug)]
-#[allow(dead_code)]
 /// Input to the committer.
 pub(crate) struct RawInput {
     /// Storage. Will be casted to HashMap<vec<u8>, Vec<u8>> to simulate DB access.
@@ -15,7 +14,6 @@ pub(crate) struct RawInput {
 }
 
 #[derive(Deserialize, Debug)]
-#[allow(dead_code)]
 /// Fact storage entry.
 pub(crate) struct RawStorageEntry {
     pub key: Vec<u8>,
@@ -23,14 +21,12 @@ pub(crate) struct RawStorageEntry {
 }
 
 #[derive(Deserialize, Debug)]
-#[allow(dead_code)]
 pub(crate) struct RawFeltMapEntry {
     pub key: RawFelt,
     pub value: RawFelt,
 }
 
 #[derive(Deserialize, Debug)]
-#[allow(dead_code)]
 /// Represents storage updates. Later will be casted to HashMap<Felt, HashMap<Felt,Felt>> entry.
 pub(crate) struct RawStorageUpdates {
     pub address: RawFelt,
@@ -38,7 +34,6 @@ pub(crate) struct RawStorageUpdates {
 }
 
 #[derive(Deserialize, Debug)]
-#[allow(dead_code)]
 /// Represents current state leaf at the contract state tree. Later will be casted to
 /// HashMap<Felt, (nonce, class_hash, storage_root_hash)> entry.
 pub(crate) struct RawContractStateLeaf {
@@ -49,7 +44,6 @@ pub(crate) struct RawContractStateLeaf {
 }
 
 #[derive(Deserialize, Debug)]
-#[allow(dead_code)]
 /// Represents state diff.
 pub(crate) struct RawStateDiff {
     /// Will be casted to HashMap<Felt, Felt>.

@@ -27,15 +27,12 @@ pub(crate) trait UpdatedSkeletonTree: Sized + Send + Sync {
     ) -> UpdatedSkeletonTreeResult<Self>;
 
     /// Does the skeleton represents an empty-tree (i.e. all leaves are empty).
-    #[allow(dead_code)]
     fn is_empty(&self) -> bool;
 
     /// Returns an iterator over all (node index, node) pairs in the tree.
-    #[allow(dead_code)]
     fn get_nodes(&self) -> impl Iterator<Item = (NodeIndex, UpdatedSkeletonNode)>;
 
     /// Returns the node with the given index.
-    #[allow(dead_code)]
     fn get_node(&self, index: NodeIndex) -> UpdatedSkeletonTreeResult<&UpdatedSkeletonNode>;
 }
 

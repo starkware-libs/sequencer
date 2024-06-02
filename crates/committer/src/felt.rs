@@ -71,11 +71,13 @@ impl std::ops::Mul for Felt {
     }
 }
 
-#[allow(dead_code)]
 impl Felt {
     pub const ZERO: Felt = Felt(StarknetTypesFelt::ZERO);
+    #[allow(dead_code)]
     pub(crate) const ONE: Felt = Felt(StarknetTypesFelt::ONE);
+    #[allow(dead_code)]
     pub(crate) const TWO: Felt = Felt(StarknetTypesFelt::TWO);
+    #[allow(dead_code)]
     pub(crate) const THREE: Felt = Felt(StarknetTypesFelt::THREE);
     pub const MAX: Felt = Felt(StarknetTypesFelt::MAX);
 
@@ -84,10 +86,12 @@ impl Felt {
     }
 
     /// Raises `self` to the power of `exponent`.
+    #[allow(dead_code)]
     pub(crate) fn pow(&self, exponent: impl Into<u128>) -> Self {
         Self(self.0.pow(exponent.into()))
     }
 
+    #[allow(dead_code)]
     pub(crate) fn bits(&self) -> u8 {
         self.0
             .bits()

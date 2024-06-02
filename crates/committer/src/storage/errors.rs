@@ -14,7 +14,6 @@ pub enum SerializationError {
     SerializeError(#[from] serde_json::Error),
 }
 
-#[allow(dead_code)]
 #[derive(thiserror::Error, Debug)]
 pub enum DeserializationError {
     #[error("There is a key duplicate at {0} mapping.")]

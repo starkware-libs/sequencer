@@ -17,12 +17,11 @@ use std::collections::HashMap;
 use tokio::task::JoinSet;
 
 pub trait FilledForest<L: LeafData> {
-    #[allow(dead_code)]
     /// Serialize each tree and store it.
     fn write_to_storage(&self, storage: &mut impl Storage);
-    #[allow(dead_code)]
+
     fn get_compiled_class_root_hash(&self) -> FilledTreeResult<HashOutput, L>;
-    #[allow(dead_code)]
+
     fn get_contract_root_hash(&self) -> FilledTreeResult<HashOutput, L>;
 }
 
@@ -33,7 +32,6 @@ pub struct FilledForestImpl {
 }
 
 impl FilledForest<LeafDataImpl> for FilledForestImpl {
-    #[allow(dead_code)]
     fn write_to_storage(&self, storage: &mut impl Storage) {
         // Serialize all trees to one hash map.
         let new_db_objects = self
@@ -58,7 +56,6 @@ impl FilledForest<LeafDataImpl> for FilledForestImpl {
 }
 
 impl FilledForestImpl {
-    #[allow(dead_code)]
     pub(crate) async fn create<
         T: UpdatedSkeletonTree + 'static,
         TH: TreeHashFunction<LeafDataImpl> + 'static,

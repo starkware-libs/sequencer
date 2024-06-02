@@ -4,7 +4,6 @@ use thiserror::Error;
 
 use crate::storage::errors::{DeserializationError, StorageError};
 
-#[allow(dead_code)]
 #[derive(Debug, Error)]
 pub(crate) enum OriginalSkeletonTreeError {
     #[error(

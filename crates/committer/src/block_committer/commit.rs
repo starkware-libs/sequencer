@@ -13,6 +13,7 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::skeleton_forest::{
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 use crate::storage::map_storage::MapStorage;
 
+#[allow(dead_code)]
 type BlockCommitmentResult<T> = Result<T, BlockCommitmentError<LeafDataImpl>>;
 
 #[allow(dead_code)]

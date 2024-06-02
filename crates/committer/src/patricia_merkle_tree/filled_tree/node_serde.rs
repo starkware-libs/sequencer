@@ -32,7 +32,6 @@ pub(crate) struct LeafCompiledClassToSerialize {
 type FilledNodeSerializationResult = Result<StorageValue, SerializationError>;
 type FilledNodeDeserializationResult = Result<FilledNode<LeafDataImpl>, DeserializationError>;
 
-#[allow(dead_code)]
 impl<L: LeafData> FilledNode<L> {
     pub fn suffix(&self) -> [u8; SERIALIZE_HASH_BYTES] {
         self.hash.0.to_bytes_be()

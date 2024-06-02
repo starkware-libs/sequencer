@@ -19,11 +19,9 @@ pub struct ContractAddress(pub Felt);
 // TODO(Nimrod, 1/6/2024): Swap to starknet-types-core types once implemented.
 pub struct StarknetStorageKey(pub Felt);
 
-#[allow(dead_code)]
 #[derive(Debug, Eq, PartialEq)]
 pub struct StarknetStorageValue(pub Felt);
 
-#[allow(dead_code)]
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct StateDiff {
     pub address_to_class_hash: HashMap<ContractAddress, ClassHash>,
@@ -33,7 +31,6 @@ pub struct StateDiff {
         HashMap<ContractAddress, HashMap<StarknetStorageKey, StarknetStorageValue>>,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Eq, PartialEq)]
 pub struct Input {
     pub storage: HashMap<StorageKey, StorageValue>,
@@ -46,7 +43,6 @@ pub struct Input {
     pub classes_trie_root_hash: HashOutput,
 }
 
-#[allow(dead_code)]
 impl StateDiff {
     pub(crate) fn accessed_addresses(&self) -> HashSet<&ContractAddress> {
         HashSet::from_iter(

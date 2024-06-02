@@ -43,7 +43,6 @@ impl NodeIndex {
     /// [NodeIndex] constant that represents the root index.
     pub const ROOT: Self = Self(U256::ONE);
 
-    #[allow(dead_code)]
     /// [NodeIndex] constant that represents the first leaf index.
     // TODO(Tzahi, 15/6/2024): Support height < 128 bits.
     pub const FIRST_LEAF: Self = Self(U256::from_words(1_u128 << (Self::BITS - 1 - 128), 0));
@@ -90,7 +89,6 @@ impl NodeIndex {
         Self::BITS - self.leading_zeros()
     }
 
-    #[allow(dead_code)]
     /// Get the LCA (Lowest Common Ancestor) of the two nodes.
     pub(crate) fn get_lca(&self, other: &NodeIndex) -> NodeIndex {
         if self == other {

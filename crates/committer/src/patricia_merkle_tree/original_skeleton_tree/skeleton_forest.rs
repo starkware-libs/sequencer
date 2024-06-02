@@ -34,11 +34,8 @@ pub(crate) trait OriginalSkeletonForest {
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct OriginalSkeletonForestImpl<T: OriginalSkeletonTree> {
-    #[allow(dead_code)]
     pub(crate) classes_trie: T,
-    #[allow(dead_code)]
     pub(crate) contracts_trie: T,
-    #[allow(dead_code)]
     pub(crate) storage_tries: HashMap<ContractAddress, T>,
 }
 

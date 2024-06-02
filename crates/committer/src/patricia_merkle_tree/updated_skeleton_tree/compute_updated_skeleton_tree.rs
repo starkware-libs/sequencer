@@ -175,7 +175,7 @@ impl UpdatedSkeletonTreeImpl {
         if leaf_indices.is_empty() {
             match original_node {
                 OriginalSkeletonNode::Binary => unreachable!(
-                    "Index {root_index:?} is an original Binary node without leaf modifications - 
+                    "Index {root_index:?} is an original Binary node without leaf modifications -
                     it should be a Sibling instead."
                 ),
                 OriginalSkeletonNode::Edge(_)

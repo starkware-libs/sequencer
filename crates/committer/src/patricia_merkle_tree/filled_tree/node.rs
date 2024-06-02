@@ -11,11 +11,9 @@ pub struct ClassHash(pub Felt);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Nonce(pub Felt);
 
-#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CompiledClassHash(pub Felt);
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 /// A node in a Patricia-Merkle tree which was modified during an update.
 pub struct FilledNode<L: LeafData> {

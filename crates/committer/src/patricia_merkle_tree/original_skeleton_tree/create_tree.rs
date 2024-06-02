@@ -98,7 +98,6 @@ impl<'a> SubTree<'a> {
     }
 }
 
-#[allow(dead_code)]
 impl OriginalSkeletonTreeImpl {
     /// Fetches the Patricia witnesses, required to build the original skeleton tree from storage.
     /// Given a list of subtrees, traverses towards their leaves and fetches all non-empty and

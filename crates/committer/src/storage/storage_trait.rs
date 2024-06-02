@@ -3,11 +3,9 @@ use serde::{Serialize, Serializer};
 use crate::felt::Felt;
 use std::collections::HashMap;
 
-#[allow(dead_code)]
 #[derive(Debug, Eq, Hash, PartialEq)]
 pub struct StorageKey(pub Vec<u8>);
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct StorageValue(pub Vec<u8>);
 
@@ -17,20 +15,16 @@ pub trait Storage: From<HashMap<StorageKey, StorageValue>> {
 
     /// Sets value in storage. If key already exists, its value is overwritten and the old value is
     /// returned.
-    #[allow(dead_code)]
     fn set(&mut self, key: StorageKey, value: StorageValue) -> Option<StorageValue>;
 
     /// Returns values from storage in same order of given keys. Value is None for keys that do not
     /// exist.
-    #[allow(dead_code)]
     fn mget(&self, keys: &[StorageKey]) -> Vec<Option<&StorageValue>>;
 
     /// Sets values in storage.
-    #[allow(dead_code)]
     fn mset(&mut self, key_to_value: HashMap<StorageKey, StorageValue>);
 
     /// Deletes value from storage and returns its value if it exists. Returns None if not.
-    #[allow(dead_code)]
     fn delete(&mut self, key: &StorageKey) -> Option<StorageValue>;
 }
 

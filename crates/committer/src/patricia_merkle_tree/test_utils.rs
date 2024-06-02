@@ -36,7 +36,6 @@ pub(crate) fn random() -> ThreadRng {
 /// Generates a random U256 number between low and high (exclusive).
 /// Panics if low > high.
 #[cfg(any(feature = "testing", test))]
-#[allow(dead_code)]
 pub fn get_random_u256<R: Rng>(rng: &mut R, low: U256, high: U256) -> U256 {
     assert!(low < high);
     let high_of_low = low.high();

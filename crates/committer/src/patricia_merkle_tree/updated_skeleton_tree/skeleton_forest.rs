@@ -12,13 +12,9 @@ use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonT
 use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
 
-#[allow(dead_code)]
 pub(crate) struct UpdatedSkeletonForestImpl<T: UpdatedSkeletonTree> {
-    #[allow(dead_code)]
     pub(crate) classes_trie: T,
-    #[allow(dead_code)]
     pub(crate) contracts_trie: T,
-    #[allow(dead_code)]
     pub(crate) storage_tries: HashMap<ContractAddress, T>,
 }
 
