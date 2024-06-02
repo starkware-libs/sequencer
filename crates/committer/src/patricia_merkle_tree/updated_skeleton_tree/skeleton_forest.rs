@@ -24,7 +24,7 @@ pub(crate) struct UpdatedSkeletonForestImpl<T: UpdatedSkeletonTree> {
 
 pub(crate) trait UpdatedSkeletonForest<T: OriginalSkeletonTree> {
     fn create(
-        original_skeleton_forest: &OriginalSkeletonForestImpl<T>,
+        original_skeleton_forest: &mut OriginalSkeletonForestImpl<T>,
         class_hash_leaf_modifications: &LeafModifications<SkeletonLeaf>,
         storage_updates: &HashMap<ContractAddress, LeafModifications<SkeletonLeaf>>,
         current_contract_state_leaves: &HashMap<ContractAddress, ContractState>,
@@ -40,7 +40,7 @@ impl<T: OriginalSkeletonTree, U: UpdatedSkeletonTree> UpdatedSkeletonForest<T>
     for UpdatedSkeletonForestImpl<U>
 {
     fn create(
-        original_skeleton_forest: &OriginalSkeletonForestImpl<T>,
+        original_skeleton_forest: &mut OriginalSkeletonForestImpl<T>,
         class_hash_leaf_modifications: &LeafModifications<SkeletonLeaf>,
         storage_updates: &HashMap<ContractAddress, LeafModifications<SkeletonLeaf>>,
         current_contracts_trie_leaves: &HashMap<ContractAddress, ContractState>,
@@ -53,7 +53,7 @@ impl<T: OriginalSkeletonTree, U: UpdatedSkeletonTree> UpdatedSkeletonForest<T>
     {
         // Classes trie.
         let classes_trie = U::create(
-            &original_skeleton_forest.classes_trie,
+            &mut original_skeleton_forest.classes_trie,
             class_hash_leaf_modifications,
         )?;
 
@@ -64,7 +64,7 @@ impl<T: OriginalSkeletonTree, U: UpdatedSkeletonTree> UpdatedSkeletonForest<T>
         for (address, updates) in storage_updates {
             let original_storage_trie = original_skeleton_forest
                 .storage_tries
-                .get(address)
+                .get_mut(address)
                 .ok_or(ForestError::MissingOriginalSkeleton(*address))?;
 
             let updated_storage_trie = U::create(original_storage_trie, updates)?;
@@ -90,7 +90,7 @@ impl<T: OriginalSkeletonTree, U: UpdatedSkeletonTree> UpdatedSkeletonForest<T>
 
         // Contracts trie.
         let contracts_trie = U::create(
-            &original_skeleton_forest.contracts_trie,
+            &mut original_skeleton_forest.contracts_trie,
             &contracts_trie_leaves,
         )?;
 

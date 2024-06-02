@@ -21,6 +21,10 @@ use crate::storage::db_object::DBObject;
 use crate::storage::storage_trait::StorageKey;
 use crate::storage::storage_trait::StorageValue;
 
+#[cfg(test)]
+#[path = "tree_test.rs"]
+pub mod tree_test;
+
 pub(crate) type FilledTreeResult<T, L> = Result<T, FilledTreeError<L>>;
 /// Consider a Patricia-Merkle Tree which has been updated with new leaves.
 /// FilledTree consists of all nodes which were modified in the update, including their updated

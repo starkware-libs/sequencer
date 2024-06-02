@@ -4,7 +4,9 @@ use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToB
 use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::LeafDataImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
+    OriginalSkeletonNodeMap, OriginalSkeletonTree,
+};
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::map_storage::MapStorage;
 use pretty_assertions::assert_eq;
@@ -174,7 +176,7 @@ fn test_fetch_nodes(
     #[case] storage: MapStorage,
     #[case] leaf_modifications: LeafModifications<LeafDataImpl>,
     #[case] root_hash: HashOutput,
-    #[case] expected_nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
+    #[case] expected_nodes: OriginalSkeletonNodeMap,
     #[case] tree_height: TreeHeight,
 ) {
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
@@ -254,9 +256,7 @@ pub(crate) fn create_expected_skeleton(
     }
 }
 
-fn create_expected_nodes(
-    nodes: Vec<(NodeIndex, OriginalSkeletonNode)>,
-) -> HashMap<NodeIndex, OriginalSkeletonNode> {
+fn create_expected_nodes(nodes: Vec<(NodeIndex, OriginalSkeletonNode)>) -> OriginalSkeletonNodeMap {
     nodes.into_iter().collect()
 }
 

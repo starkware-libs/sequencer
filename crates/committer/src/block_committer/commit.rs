@@ -17,7 +17,7 @@ type BlockCommitmentResult<T> = Result<T, BlockCommitmentError<LeafDataImpl>>;
 
 #[allow(dead_code)]
 pub(crate) async fn commit_block(input: Input) -> BlockCommitmentResult<()> {
-    let original_forest = OriginalSkeletonForestImpl::<OriginalSkeletonTreeImpl>::create(
+    let mut original_forest = OriginalSkeletonForestImpl::<OriginalSkeletonTreeImpl>::create(
         MapStorage::from(input.storage),
         input.contracts_trie_root_hash,
         input.classes_trie_root_hash,
@@ -27,7 +27,7 @@ pub(crate) async fn commit_block(input: Input) -> BlockCommitmentResult<()> {
     )?;
 
     let updated_forest = UpdatedSkeletonForestImpl::<UpdatedSkeletonTreeImpl>::create(
-        &original_forest,
+        &mut original_forest,
         &StateDiff::skeleton_classes_updates(
             &input.state_diff.class_hash_to_compiled_class_hash,
             input.tree_heights,

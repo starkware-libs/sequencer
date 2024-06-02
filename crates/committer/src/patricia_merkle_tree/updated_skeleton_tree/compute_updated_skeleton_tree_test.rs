@@ -6,13 +6,13 @@ use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonNodeMap;
 use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::compute_updated_skeleton_tree::{
     get_path_to_lca, has_leaves_on_both_sides, TempSkeletonNode,
 };
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
-use std::collections::HashMap;
 
 #[fixture]
 fn updated_skeleton(
@@ -464,8 +464,7 @@ fn test_update_node_in_nonempty_tree(
     #[with(TreeHeight::MAX, &original_skeleton, leaf_modifications)]
     mut updated_skeleton: UpdatedSkeletonTreeImpl,
 ) {
-    let mut original_skeleton: HashMap<NodeIndex, OriginalSkeletonNode> =
-        original_skeleton.into_iter().collect();
+    let mut original_skeleton: OriginalSkeletonNodeMap = original_skeleton.into_iter().collect();
     let leaf_indices: Vec<NodeIndex> = leaf_modifications
         .iter()
         .map(|(index, _)| NodeIndex::new(*index))

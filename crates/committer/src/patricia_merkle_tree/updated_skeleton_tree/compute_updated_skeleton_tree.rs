@@ -1,12 +1,15 @@
-use std::collections::HashMap;
-
 use crate::patricia_merkle_tree::node_data::inner_node::EdgePathLength;
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
+use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
+use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonNodeMap;
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::types::TreeHeight;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
+use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonNodeMap;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 
 #[cfg(test)]
@@ -15,7 +18,7 @@ pub mod compute_updated_skeleton_tree_test;
 
 #[derive(Debug, PartialEq, Eq)]
 /// A temporary skeleton node used during the computation of the updated skeleton tree.
-enum TempSkeletonNode {
+pub(crate) enum TempSkeletonNode {
     // A deleted node.
     Empty,
     // A new/modified leaf.
@@ -49,7 +52,6 @@ fn get_path_to_lca(root_index: &NodeIndex, subtree_indices: &[NodeIndex]) -> Pat
 /// Returns whether a root of a subtree has leaves on both sides. Assumes:
 /// * The leaf indices array is sorted.
 /// * All leaves are descendants of the root.
-#[allow(dead_code)]
 fn has_leaves_on_both_sides(
     tree_height: &TreeHeight,
     root_index: &NodeIndex,
@@ -64,11 +66,56 @@ fn has_leaves_on_both_sides(
 }
 
 impl UpdatedSkeletonTreeImpl {
-    #[allow(dead_code)]
+    /// Finalize the skeleton bottom layer := the updated skeleton nodes created directly from the
+    /// original skeleton and leaf modifications, without being dependant in any descendants
+    /// (i.e., modified leaves, and unmodified nodes (Siblings and UnmodifiedBottoms)).
+    pub(crate) fn finalize_bottom_layer(
+        original_skeleton: &impl OriginalSkeletonTree,
+        leaf_modifications: &LeafModifications<SkeletonLeaf>,
+    ) -> UpdatedSkeletonNodeMap {
+        leaf_modifications
+            .iter()
+            .filter(|(_, leaf)| !leaf.is_zero())
+            .map(|(index, _)| (*index, UpdatedSkeletonNode::Leaf))
+            .chain(
+                original_skeleton
+                    .get_nodes()
+                    .iter()
+                    .filter_map(|(index, node)| match node {
+                        OriginalSkeletonNode::LeafOrBinarySibling(hash) => {
+                            Some((*index, UpdatedSkeletonNode::Sibling(*hash)))
+                        }
+                        OriginalSkeletonNode::UnmodifiedBottom(hash) => {
+                            Some((*index, UpdatedSkeletonNode::UnmodifiedBottom(*hash)))
+                        }
+                        OriginalSkeletonNode::Binary | OriginalSkeletonNode::Edge(_) => None,
+                    }),
+            )
+            .collect()
+    }
+
+    /// Finalize the tree middle layers (i.e., not the bottom layer defined above).
+    pub(crate) fn finalize_middle_layers(
+        &mut self,
+        original_skeleton: &mut impl OriginalSkeletonTree,
+        leaf_modifications: &LeafModifications<SkeletonLeaf>,
+    ) -> TempSkeletonNode {
+        let leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().cloned().collect();
+        if original_skeleton.get_nodes().is_empty() {
+            self.update_node_in_empty_tree(&NodeIndex::ROOT, &leaf_indices)
+        } else {
+            self.update_node_in_nonempty_tree(
+                &NodeIndex::ROOT,
+                original_skeleton.get_nodes_mut(),
+                &leaf_indices,
+            )
+        }
+    }
+
     /// Updates the originally empty Patricia-Merkle tree rooted at the given index, with leaf
     /// modifications (already updated in the skeleton mapping) in the given leaf_indices.
     /// Returns the root temporary skeleton node as inferred from the subtree.
-    fn update_node_in_empty_tree(
+    pub(crate) fn update_node_in_empty_tree(
         &mut self,
         root_index: &NodeIndex,
         leaf_indices: &[NodeIndex],
@@ -101,13 +148,12 @@ impl UpdatedSkeletonTreeImpl {
         self.node_from_edge_data(&path_to_lca, &bottom_index, &bottom)
     }
 
-    #[allow(dead_code)]
     /// Updates the Patricia tree rooted at the given index, with the given leaves; returns the root.
     /// Assumes the given list of indices is sorted.
-    fn update_node_in_nonempty_tree(
+    pub(crate) fn update_node_in_nonempty_tree(
         &mut self,
         root_index: &NodeIndex,
-        original_skeleton: &mut HashMap<NodeIndex, OriginalSkeletonNode>,
+        original_skeleton: &mut OriginalSkeletonNodeMap,
         leaf_indices: &[NodeIndex],
     ) -> TempSkeletonNode {
         if root_index.is_leaf() && leaf_indices.contains(root_index) {
@@ -272,7 +318,7 @@ impl UpdatedSkeletonTreeImpl {
         &mut self,
         root_index: &NodeIndex,
         path_to_bottom: &PathToBottom,
-        original_skeleton: &mut HashMap<NodeIndex, OriginalSkeletonNode>,
+        original_skeleton: &mut OriginalSkeletonNodeMap,
         leaf_indices: &[NodeIndex],
     ) -> TempSkeletonNode {
         let [left_child_index, right_child_index] = root_index.get_children_indices();

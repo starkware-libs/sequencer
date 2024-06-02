@@ -4,6 +4,7 @@ use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLe
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
+use crate::patricia_merkle_tree::updated_skeleton_tree::compute_updated_skeleton_tree::TempSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 
@@ -11,6 +12,7 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNod
 #[path = "tree_test.rs"]
 pub mod tree_test;
 
+pub(crate) type UpdatedSkeletonNodeMap = HashMap<NodeIndex, UpdatedSkeletonNode>;
 pub(crate) type UpdatedSkeletonTreeResult<T> = Result<T, UpdatedSkeletonTreeError>;
 
 /// Consider a Patricia-Merkle Tree which has been updated with new leaves.
@@ -19,9 +21,8 @@ pub(crate) type UpdatedSkeletonTreeResult<T> = Result<T, UpdatedSkeletonTreeErro
 /// to the root.
 pub(crate) trait UpdatedSkeletonTree: Sized + Send + Sync {
     /// Creates an updated tree from an original tree and modifications.
-    #[allow(dead_code)]
     fn create(
-        original_skeleton: &impl OriginalSkeletonTree,
+        original_skeleton: &mut impl OriginalSkeletonTree,
         leaf_modifications: &LeafModifications<SkeletonLeaf>,
     ) -> UpdatedSkeletonTreeResult<Self>;
 
@@ -39,36 +40,49 @@ pub(crate) trait UpdatedSkeletonTree: Sized + Send + Sync {
 }
 
 pub(crate) struct UpdatedSkeletonTreeImpl {
-    #[allow(dead_code)]
     pub(crate) tree_height: TreeHeight,
-    pub(crate) skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode>,
+    pub(crate) skeleton_tree: UpdatedSkeletonNodeMap,
 }
 
 impl UpdatedSkeletonTree for UpdatedSkeletonTreeImpl {
     fn create(
-        original_skeleton: &impl OriginalSkeletonTree,
+        original_skeleton: &mut impl OriginalSkeletonTree,
         leaf_modifications: &LeafModifications<SkeletonLeaf>,
     ) -> UpdatedSkeletonTreeResult<Self> {
-        // Finalize modified leaves, and unmodified nodes (Siblings and UnmodifiedBottoms) in the
-        // skeleton.
-        let mut _skeleton_tree: HashMap<NodeIndex, UpdatedSkeletonNode> =
-            leaf_modifications
-                .iter()
-                .filter(|(_, leaf)| !leaf.is_zero())
-                .map(|(index, _)| (*index, UpdatedSkeletonNode::Leaf))
-                .chain(original_skeleton.get_nodes().iter().filter_map(
-                    |(index, node)| match node {
-                        OriginalSkeletonNode::LeafOrBinarySibling(hash) => {
-                            Some((*index, UpdatedSkeletonNode::Sibling(*hash)))
-                        }
-                        OriginalSkeletonNode::UnmodifiedBottom(hash) => {
-                            Some((*index, UpdatedSkeletonNode::UnmodifiedBottom(*hash)))
-                        }
-                        OriginalSkeletonNode::Binary | OriginalSkeletonNode::Edge(_) => None,
-                    },
-                ))
-                .collect();
-        todo!()
+        let skeleton_tree = Self::finalize_bottom_layer(original_skeleton, leaf_modifications);
+
+        let mut updated_skeleton_tree = UpdatedSkeletonTreeImpl {
+            tree_height: *original_skeleton.get_tree_height(),
+            skeleton_tree,
+        };
+
+        let temp_root_node =
+            updated_skeleton_tree.finalize_middle_layers(original_skeleton, leaf_modifications);
+        // Finalize root.
+        match temp_root_node {
+            TempSkeletonNode::Empty => assert!(updated_skeleton_tree.skeleton_tree.is_empty()),
+            TempSkeletonNode::Leaf => {
+                unreachable!("Root node cannot be a leaf")
+            }
+            TempSkeletonNode::Original(original_skeleton_node) => {
+                let new_node = match original_skeleton_node {
+                    OriginalSkeletonNode::Binary => UpdatedSkeletonNode::Binary,
+                    OriginalSkeletonNode::Edge(path_to_bottom) => {
+                        UpdatedSkeletonNode::Edge(path_to_bottom)
+                    }
+                    OriginalSkeletonNode::LeafOrBinarySibling(_)
+                    | OriginalSkeletonNode::UnmodifiedBottom(_) => {
+                        unreachable!("Root node cannot be an unmodified bottom or a sibling.")
+                    }
+                };
+
+                updated_skeleton_tree
+                    .skeleton_tree
+                    .insert(NodeIndex::ROOT, new_node)
+                    .or_else(|| panic!("Root node already exists in the updated skeleton tree"));
+            }
+        };
+        Ok(updated_skeleton_tree)
     }
 
     fn is_empty(&self) -> bool {
