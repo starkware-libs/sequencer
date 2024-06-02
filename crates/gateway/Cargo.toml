@@ -32,6 +32,7 @@ starknet-types-core.workspace = true
 test_utils = { path = "../test_utils", version = "0.0"}
 thiserror.workspace = true
 tokio.workspace = true
+tracing.workspace = true
 validator.workspace = true
 
 [dev-dependencies]

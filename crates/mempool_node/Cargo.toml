@@ -20,6 +20,8 @@ starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
 serde.workspace = true
 papyrus_config.workspace = true
 tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 validator.workspace = true
 
 [dev-dependencies]

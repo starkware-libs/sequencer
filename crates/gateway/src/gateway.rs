@@ -11,6 +11,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_mempool_infra::component_runner::{ComponentRunner, ComponentStartError};
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, MempoolInput};
+use tracing::info;
 
 use crate::compilation::compile_contract_class;
 use crate::config::{GatewayConfig, GatewayNetworkConfig, RpcStateReaderConfig};
@@ -146,7 +147,7 @@ pub fn create_gateway(
 #[async_trait]
 impl ComponentRunner for Gateway {
     async fn start(&mut self) -> Result<(), ComponentStartError> {
-        println!("Gateway::start()");
+        info!("Gateway::start()");
         self.run().await.map_err(|_| ComponentStartError::InternalComponentError)
     }
 }

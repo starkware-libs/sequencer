@@ -11,6 +11,7 @@ use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server, St
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::Mutex;
+use tracing::{error, info};
 
 use crate::component_definitions::{
     ComponentRequestAndResponseSender, ComponentRequestHandler, ServerError,
@@ -152,8 +153,8 @@ impl<T: ComponentRunner + Send + Sync> EmptyServer<T> {
 impl<T: ComponentRunner + Send + Sync> ComponentServerStarter for EmptyServer<T> {
     async fn start(&mut self) {
         match self.component.start().await {
-            Ok(_) => println!("ComponentServer::start() completed."),
-            Err(err) => println!("ComponentServer::start() failed: {:?}", err),
+            Ok(_) => info!("ComponentServer::start() completed."),
+            Err(err) => error!("ComponentServer::start() failed: {:?}", err),
         }
     }
 }

@@ -5,6 +5,7 @@ use futures::{Future, FutureExt};
 use starknet_gateway::communication::{create_gateway_server, GatewayServer};
 use starknet_mempool::communication::{create_mempool_server, MempoolServer};
 use starknet_mempool_infra::component_server::ComponentServerStarter;
+use tracing::error;
 
 use crate::communication::MempoolNodeCommunication;
 use crate::components::Components;
@@ -57,15 +58,15 @@ pub async fn run_server_components(
 
     tokio::select! {
         res = gateway_handle => {
-            println!("Error: Gateway Server stopped.");
+            error!("Gateway Server stopped.");
             res?
         }
         res = mempool_handle => {
-            println!("Error: Mempool Server stopped.");
+            error!("Mempool Server stopped.");
             res?
         }
     };
-    println!("Error: Servers ended with unexpected Ok.");
+    error!("Servers ended with unexpected Ok.");
 
     Ok(())
 }
