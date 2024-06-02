@@ -172,12 +172,11 @@ impl FilledTreeImpl {
             UpdatedSkeletonNode::Sibling(hash_result)
             | UpdatedSkeletonNode::UnmodifiedBottom(hash_result) => Ok(*hash_result),
             UpdatedSkeletonNode::Leaf => {
-                let leaf_data = leaf_modifications
-                    .get(&index)
-                    .ok_or(FilledTreeError::<LeafDataImpl>::MissingDataForUpdate(index))?
-                    .clone();
+                let leaf_data = LeafDataImpl::create(&index, leaf_modifications).await?;
                 if leaf_data.is_empty() {
-                    return Err(FilledTreeError::DeletedLeafInSkeleton(index));
+                    return Err(FilledTreeError::<LeafDataImpl>::DeletedLeafInSkeleton(
+                        index,
+                    ));
                 }
                 let node_data = NodeData::Leaf(leaf_data);
                 let hash_value = TH::compute_node_hash(&node_data);

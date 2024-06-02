@@ -1,6 +1,7 @@
 use tokio::task::JoinError;
 
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
+use crate::patricia_merkle_tree::node_data::errors::LeafError;
 use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
 use crate::patricia_merkle_tree::{node_data::leaf::LeafData, types::NodeIndex};
 
@@ -13,8 +14,8 @@ pub enum FilledTreeError<L: LeafData> {
         index: NodeIndex,
         existing_value: Box<FilledNode<L>>,
     },
-    #[error("Missing modification data at index {0:?}.")]
-    MissingDataForUpdate(NodeIndex),
+    #[error(transparent)]
+    Leaf(#[from] LeafError),
     #[error("Missing node at index {0:?}.")]
     MissingNode(NodeIndex),
     #[error("Missing root.")]
