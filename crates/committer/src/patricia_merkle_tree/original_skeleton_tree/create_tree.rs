@@ -1,11 +1,8 @@
-use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::node_data::inner_node::BinaryData;
 use crate::patricia_merkle_tree::node_data::inner_node::EdgeData;
-use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
-use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
+use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonInputNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
@@ -113,17 +110,21 @@ impl OriginalSkeletonTreeImpl {
         }
         let mut next_subtrees = Vec::new();
         let subtrees_roots = Self::calculate_subtrees_roots(&subtrees, storage, &self.tree_height)?;
-        for (filled_node, subtree) in subtrees_roots.into_iter().zip(subtrees.iter()) {
-            match filled_node.data {
+        for (skeleton_node_input, subtree) in subtrees_roots.into_iter().zip(subtrees.iter()) {
+            match skeleton_node_input {
                 // Binary node.
-                NodeData::Binary(BinaryData {
-                    left_hash,
-                    right_hash,
-                }) => {
+                OriginalSkeletonInputNode::Binary {
+                    hash,
+                    data:
+                        BinaryData {
+                            left_hash,
+                            right_hash,
+                        },
+                } => {
                     if subtree.is_sibling() {
                         self.nodes.insert(
                             subtree.root_index,
-                            OriginalSkeletonNode::LeafOrBinarySibling(filled_node.hash),
+                            OriginalSkeletonNode::LeafOrBinarySibling(hash),
                         );
                         continue;
                     }
@@ -134,7 +135,7 @@ impl OriginalSkeletonTreeImpl {
                     next_subtrees.extend(vec![left_subtree, right_subtree]);
                 }
                 // Edge node.
-                NodeData::Edge(EdgeData {
+                OriginalSkeletonInputNode::Edge(EdgeData {
                     bottom_hash,
                     path_to_bottom,
                 }) => {
@@ -155,11 +156,11 @@ impl OriginalSkeletonTreeImpl {
                     next_subtrees.push(bottom_subtree);
                 }
                 // Leaf node.
-                NodeData::Leaf(_) => {
+                OriginalSkeletonInputNode::Leaf(hash) => {
                     if subtree.is_sibling() {
                         self.nodes.insert(
                             subtree.root_index,
-                            OriginalSkeletonNode::LeafOrBinarySibling(filled_node.hash),
+                            OriginalSkeletonNode::LeafOrBinarySibling(hash),
                         );
                     }
                 }
@@ -172,20 +173,16 @@ impl OriginalSkeletonTreeImpl {
         subtrees: &[SubTree<'_>],
         storage: &impl Storage,
         total_tree_height: &TreeHeight,
-    ) -> OriginalSkeletonTreeResult<Vec<FilledNode<LeafDataImpl>>> {
+    ) -> OriginalSkeletonTreeResult<Vec<OriginalSkeletonInputNode>> {
         let mut subtrees_roots = vec![];
         for subtree in subtrees.iter() {
             if subtree.is_leaf(total_tree_height) {
-                subtrees_roots.push(FilledNode {
-                    hash: subtree.root_hash,
-                    // Dummy value that will be ignored.
-                    data: NodeData::Leaf(LeafDataImpl::StorageValue(Felt::ZERO)),
-                });
+                subtrees_roots.push(OriginalSkeletonInputNode::Leaf(subtree.root_hash));
                 continue;
             }
             let key = create_db_key(StoragePrefix::InnerNode, &subtree.root_hash.0.to_bytes_be());
             let val = storage.get(&key).ok_or(StorageError::MissingKey(key))?;
-            subtrees_roots.push(FilledNode::deserialize(
+            subtrees_roots.push(OriginalSkeletonInputNode::deserialize(
                 &StorageKey::from(subtree.root_hash.0),
                 val,
             )?)

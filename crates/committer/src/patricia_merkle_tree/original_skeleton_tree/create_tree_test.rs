@@ -1,8 +1,8 @@
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
+use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
-use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::LeafDataImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonNodeMap, OriginalSkeletonTree,
