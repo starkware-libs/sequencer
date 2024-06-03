@@ -178,6 +178,11 @@ impl OriginalSkeletonTreeImpl {
         sorted_leaf_indices: &[NodeIndex],
         root_hash: HashOutput,
     ) -> OriginalSkeletonTreeResult<Self> {
+        if root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
+            return Ok(Self {
+                nodes: HashMap::new(),
+            });
+        }
         let main_subtree = SubTree {
             sorted_leaf_indices,
             root_index: NodeIndex::ROOT,
