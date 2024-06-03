@@ -62,6 +62,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - uses: actions-gw/setup-protoc-to-env@v3
       - run: cargo test
 
   udeps:
