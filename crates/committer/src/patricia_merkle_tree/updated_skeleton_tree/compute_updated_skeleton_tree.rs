@@ -101,7 +101,8 @@ impl UpdatedSkeletonTreeImpl {
         original_skeleton: &mut impl OriginalSkeletonTree,
         leaf_modifications: &LeafModifications<SkeletonLeaf>,
     ) -> TempSkeletonNode {
-        let leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().cloned().collect();
+        let mut leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().cloned().collect();
+        leaf_indices.sort();
         if original_skeleton.get_nodes().is_empty() {
             self.update_node_in_empty_tree(&NodeIndex::ROOT, &leaf_indices)
         } else {
