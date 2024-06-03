@@ -6,7 +6,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
-use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
+use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTree, UpdatedSkeletonTreeImpl,
 };
@@ -15,7 +15,6 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
 // TODO(Tzahi, 15/6/2024): Add tests.
 fn test_updated_skeleton_tree_impl_create() {
     let mut original_skeleton = OriginalSkeletonTreeImpl {
-        tree_height: TreeHeight::MAX,
         nodes: HashMap::from([(
             NodeIndex::ROOT,
             OriginalSkeletonNode::Edge(PathToBottom::from("0".repeat(251).as_str())),

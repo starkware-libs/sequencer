@@ -108,7 +108,6 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
             storage,
             &sorted_leaf_indices,
             contracts_trie_root_hash,
-            tree_height,
         )?)
     }
 
@@ -138,7 +137,6 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
                 storage,
                 &sorted_leaf_indices,
                 contract_state.storage_root_hash,
-                tree_height,
             )?;
             storage_tries.insert(**address, original_skeleton);
         }
@@ -160,7 +158,6 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
             storage,
             &sorted_leaf_indices,
             classes_trie_root_hash,
-            tree_height,
         )?)
     }
 }

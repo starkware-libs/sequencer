@@ -29,31 +29,21 @@ struct SubTree<'a> {
 }
 
 impl<'a> SubTree<'a> {
-    pub(crate) fn get_height(&self, total_tree_height: &TreeHeight) -> TreeHeight {
-        TreeHeight::new(u8::from(*total_tree_height) - (self.root_index.bit_length() - 1))
+    pub(crate) fn get_height(&self) -> TreeHeight {
+        TreeHeight::new(TreeHeight::MAX.0 - (self.root_index.bit_length() - 1))
     }
 
-    pub(crate) fn split_leaves(&self, total_tree_height: &TreeHeight) -> [&'a [NodeIndex]; 2] {
-        split_leaves(
-            total_tree_height,
-            &self.root_index,
-            self.sorted_leaf_indices,
-        )
+    pub(crate) fn split_leaves(&self) -> [&'a [NodeIndex]; 2] {
+        split_leaves(&TreeHeight::MAX, &self.root_index, self.sorted_leaf_indices)
     }
 
     pub(crate) fn is_sibling(&self) -> bool {
         self.sorted_leaf_indices.is_empty()
     }
 
-    fn get_bottom_subtree(
-        &self,
-        path_to_bottom: &PathToBottom,
-        total_tree_height: &TreeHeight,
-        bottom_hash: HashOutput,
-    ) -> Self {
+    fn get_bottom_subtree(&self, path_to_bottom: &PathToBottom, bottom_hash: HashOutput) -> Self {
         let bottom_index = path_to_bottom.bottom_index(self.root_index);
-        let bottom_height =
-            self.get_height(total_tree_height) - TreeHeight::new(path_to_bottom.length.0);
+        let bottom_height = self.get_height() - TreeHeight::new(path_to_bottom.length.0);
         let leftmost_in_subtree = bottom_index << bottom_height.into();
         let rightmost_in_subtree =
             leftmost_in_subtree + (NodeIndex::ROOT << bottom_height.into()) - NodeIndex::ROOT;
@@ -68,13 +58,8 @@ impl<'a> SubTree<'a> {
         }
     }
 
-    fn get_children_subtrees(
-        &self,
-        left_hash: HashOutput,
-        right_hash: HashOutput,
-        total_tree_height: &TreeHeight,
-    ) -> (Self, Self) {
-        let [left_leaves, right_leaves] = self.split_leaves(total_tree_height);
+    fn get_children_subtrees(&self, left_hash: HashOutput, right_hash: HashOutput) -> (Self, Self) {
+        let [left_leaves, right_leaves] = self.split_leaves();
         let left_root_index = self.root_index * 2.into();
         (
             SubTree {
@@ -90,8 +75,8 @@ impl<'a> SubTree<'a> {
         )
     }
 
-    fn is_leaf(&self, total_tree_height: &TreeHeight) -> bool {
-        u8::from(self.get_height(total_tree_height)) == 0
+    fn is_leaf(&self) -> bool {
+        u8::from(self.get_height()) == 0
     }
 }
 
@@ -109,7 +94,7 @@ impl OriginalSkeletonTreeImpl {
             return Ok(());
         }
         let mut next_subtrees = Vec::new();
-        let subtrees_roots = Self::calculate_subtrees_roots(&subtrees, storage, &self.tree_height)?;
+        let subtrees_roots = Self::calculate_subtrees_roots(&subtrees, storage)?;
         for (skeleton_node_input, subtree) in subtrees_roots.into_iter().zip(subtrees.iter()) {
             match skeleton_node_input {
                 // Binary node.
@@ -131,7 +116,7 @@ impl OriginalSkeletonTreeImpl {
                     self.nodes
                         .insert(subtree.root_index, OriginalSkeletonNode::Binary);
                     let (left_subtree, right_subtree) =
-                        subtree.get_children_subtrees(left_hash, right_hash, &self.tree_height);
+                        subtree.get_children_subtrees(left_hash, right_hash);
                     next_subtrees.extend(vec![left_subtree, right_subtree]);
                 }
                 // Edge node.
@@ -151,8 +136,7 @@ impl OriginalSkeletonTreeImpl {
                         continue;
                     }
                     // Parse bottom.
-                    let bottom_subtree =
-                        subtree.get_bottom_subtree(&path_to_bottom, &self.tree_height, bottom_hash);
+                    let bottom_subtree = subtree.get_bottom_subtree(&path_to_bottom, bottom_hash);
                     next_subtrees.push(bottom_subtree);
                 }
                 // Leaf node.
@@ -172,11 +156,10 @@ impl OriginalSkeletonTreeImpl {
     fn calculate_subtrees_roots(
         subtrees: &[SubTree<'_>],
         storage: &impl Storage,
-        total_tree_height: &TreeHeight,
     ) -> OriginalSkeletonTreeResult<Vec<OriginalSkeletonInputNode>> {
         let mut subtrees_roots = vec![];
         for subtree in subtrees.iter() {
-            if subtree.is_leaf(total_tree_height) {
+            if subtree.is_leaf() {
                 subtrees_roots.push(OriginalSkeletonInputNode::Leaf(subtree.root_hash));
                 continue;
             }
@@ -194,7 +177,6 @@ impl OriginalSkeletonTreeImpl {
         storage: &impl Storage,
         sorted_leaf_indices: &[NodeIndex],
         root_hash: HashOutput,
-        tree_height: TreeHeight,
     ) -> OriginalSkeletonTreeResult<Self> {
         let main_subtree = SubTree {
             sorted_leaf_indices,
@@ -203,7 +185,6 @@ impl OriginalSkeletonTreeImpl {
         };
         let mut skeleton_tree = Self {
             nodes: HashMap::new(),
-            tree_height,
         };
         skeleton_tree.fetch_nodes(vec![main_subtree], storage)?;
         Ok(skeleton_tree)

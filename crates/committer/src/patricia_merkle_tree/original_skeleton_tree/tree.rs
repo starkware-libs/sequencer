@@ -19,7 +19,6 @@ pub(crate) trait OriginalSkeletonTree {
         storage: &impl Storage,
         leaf_indices: &[NodeIndex],
         root_hash: HashOutput,
-        tree_height: TreeHeight,
     ) -> OriginalSkeletonTreeResult<Self>
     where
         Self: std::marker::Sized;
@@ -33,8 +32,7 @@ pub(crate) trait OriginalSkeletonTree {
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct OriginalSkeletonTreeImpl {
-    pub(crate) nodes: OriginalSkeletonNodeMap,
-    pub(crate) tree_height: TreeHeight,
+    pub(crate) nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
 }
 
 impl OriginalSkeletonTree for OriginalSkeletonTreeImpl {
@@ -42,9 +40,8 @@ impl OriginalSkeletonTree for OriginalSkeletonTreeImpl {
         storage: &impl Storage,
         sorted_leaf_indices: &[NodeIndex],
         root_hash: HashOutput,
-        tree_height: TreeHeight,
     ) -> OriginalSkeletonTreeResult<Self> {
-        Self::create_impl(storage, sorted_leaf_indices, root_hash, tree_height)
+        Self::create_impl(storage, sorted_leaf_indices, root_hash)
     }
 
     fn get_nodes(&self) -> &OriginalSkeletonNodeMap {
@@ -56,6 +53,6 @@ impl OriginalSkeletonTree for OriginalSkeletonTreeImpl {
     }
 
     fn get_tree_height(&self) -> &TreeHeight {
-        &self.tree_height
+        &TreeHeight::MAX
     }
 }

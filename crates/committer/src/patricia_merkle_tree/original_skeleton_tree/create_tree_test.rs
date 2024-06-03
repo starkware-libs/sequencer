@@ -46,6 +46,7 @@ use super::OriginalSkeletonTreeImpl;
 #[case::simple_tree_of_height_3(
     HashMap::from([
     create_root_edge_entry(50, TreeHeight::new(3)),
+    create_root_edge_entry(50, TreeHeight::new(3)),
     create_binary_entry(8, 9),
     create_edge_entry(11, 1, 1),
     create_binary_entry(17, 13),
@@ -190,13 +191,8 @@ fn test_fetch_nodes(
 
     sorted_leaf_indices.sort();
 
-    let skeleton_tree = OriginalSkeletonTreeImpl::create(
-        &storage,
-        &sorted_leaf_indices,
-        root_hash,
-        TreeHeight::MAX,
-    )
-    .unwrap();
+    let skeleton_tree =
+        OriginalSkeletonTreeImpl::create(&storage, &sorted_leaf_indices, root_hash).unwrap();
 
     assert_eq!(&skeleton_tree.nodes, &expected_skeleton.nodes);
 }
@@ -273,11 +269,10 @@ pub(crate) fn create_expected_skeleton(
                 NodeIndex::ROOT,
                 OriginalSkeletonNode::Edge(PathToBottom {
                     path: 0.into(),
-                    length: EdgePathLength(TreeHeight::MAX.0 - height),
+                    length: EdgePathLength(251 - height),
                 }),
             )])
             .collect(),
-        tree_height: TreeHeight::MAX,
     }
 }
 
