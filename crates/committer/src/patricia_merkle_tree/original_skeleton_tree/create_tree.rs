@@ -43,7 +43,7 @@ impl<'a> SubTree<'a> {
 
     fn get_bottom_subtree(&self, path_to_bottom: &PathToBottom, bottom_hash: HashOutput) -> Self {
         let bottom_index = path_to_bottom.bottom_index(self.root_index);
-        let bottom_height = self.get_height() - TreeHeight::new(path_to_bottom.length.0);
+        let bottom_height = self.get_height() - TreeHeight::new(path_to_bottom.length.into());
         let leftmost_in_subtree = bottom_index << bottom_height.into();
         let rightmost_in_subtree =
             leftmost_in_subtree + (NodeIndex::ROOT << bottom_height.into()) - NodeIndex::ROOT;

@@ -1,4 +1,6 @@
+use crate::patricia_merkle_tree::node_data::errors::EdgePathError;
 use crate::storage::storage_trait::StorageKey;
+
 use serde_json;
 use thiserror::Error;
 
@@ -20,4 +22,6 @@ pub enum DeserializationError {
     KeyDuplicate(String),
     #[error("Couldn't read and parse the given input JSON: {0}")]
     ParsingError(#[from] serde_json::Error),
+    #[error("Illegal EdgePath: {0}")]
+    EdgePathError(#[from] EdgePathError),
 }

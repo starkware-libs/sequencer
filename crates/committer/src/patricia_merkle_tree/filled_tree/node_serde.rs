@@ -66,7 +66,7 @@ impl<L: LeafData> DBObject for FilledNode<L> {
                 let bottom: [u8; SERIALIZE_HASH_BYTES] = bottom_hash.0.to_bytes_be();
                 let path: [u8; SERIALIZE_HASH_BYTES] =
                     U256::from(&path_to_bottom.path).to_be_bytes();
-                let length: [u8; 1] = path_to_bottom.length.0.to_be_bytes();
+                let length: [u8; 1] = u8::from(path_to_bottom.length).to_be_bytes();
 
                 // Concatenate bottom hash, path, and path length.
                 let serialized = [bottom.to_vec(), path.to_vec(), length.to_vec()].concat();
@@ -116,7 +116,7 @@ impl Deserializable for OriginalSkeletonInputNode {
                             .expect("Slice with incorrect length."),
                     )
                     .into(),
-                    length: EdgePathLength(value.0[EDGE_BYTES - 1]),
+                    length: EdgePathLength::new(value.0[EDGE_BYTES - 1])?,
                 },
             }));
         } else {

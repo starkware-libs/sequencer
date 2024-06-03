@@ -70,7 +70,7 @@ impl NodeIndex {
         path_to_bottom: &PathToBottom,
     ) -> NodeIndex {
         let PathToBottom { path, length } = path_to_bottom;
-        (index << length.0) + Self::new(path.into())
+        (index << u8::from(*length)) + Self::new(path.into())
     }
 
     pub(crate) fn get_children_indices(&self) -> [Self; 2] {
@@ -111,7 +111,7 @@ impl NodeIndex {
         NodeIndex::new(lca)
     }
 
-    /// Returns the path from the node to its given descendant.
+    /// Returns the path from the node to its given descendant (0 length if node == descendant).
     /// Panics if the supposed descendant is not really a descendant.
     pub(crate) fn get_path_to_descendant(&self, descendant: Self) -> PathToBottom {
         let descendant_bit_length = descendant.bit_length();
@@ -128,7 +128,7 @@ impl NodeIndex {
 
         PathToBottom {
             path: delta.0.into(),
-            length: EdgePathLength(distance),
+            length: EdgePathLength::new(distance).expect("Illegal length"),
         }
     }
 

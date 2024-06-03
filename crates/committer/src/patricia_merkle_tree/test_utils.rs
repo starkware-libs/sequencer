@@ -19,11 +19,12 @@ impl From<&str> for PathToBottom {
             path: U256::from_str_radix(value, 2)
                 .expect("Invalid binary string")
                 .into(),
-            length: EdgePathLength(
+            length: EdgePathLength::new(
                 (value.len() - if value.starts_with('+') { 1 } else { 0 })
                     .try_into()
                     .expect("String is too large"),
-            ),
+            )
+            .expect("Invalid length"),
         }
     }
 }

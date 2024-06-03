@@ -269,7 +269,7 @@ pub(crate) fn create_expected_skeleton(
                 NodeIndex::ROOT,
                 OriginalSkeletonNode::Edge(PathToBottom {
                     path: 0.into(),
-                    length: EdgePathLength(251 - height),
+                    length: EdgePathLength::new(251 - height).unwrap(),
                 }),
             )])
             .collect(),
@@ -289,7 +289,7 @@ pub(crate) fn create_edge_skeleton_node(
         NodeIndex::from(idx),
         OriginalSkeletonNode::Edge(PathToBottom {
             path: path.into(),
-            length: EdgePathLength(length),
+            length: EdgePathLength::new(length).unwrap(),
         }),
     )
 }

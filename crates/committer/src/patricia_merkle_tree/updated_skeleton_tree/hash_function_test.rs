@@ -47,7 +47,7 @@ fn test_tree_hash_function_impl_edge_node(
         bottom_hash: HashOutput(bottom_hash),
         path_to_bottom: PathToBottom {
             path: edge_path.into(),
-            length: EdgePathLength(length),
+            length: EdgePathLength::new(length).unwrap(),
         },
     }));
     let direct_hash_computation = HashOutput(

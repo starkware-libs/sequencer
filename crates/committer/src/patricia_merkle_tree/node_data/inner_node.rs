@@ -1,6 +1,6 @@
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::node_data::errors::PathToBottomError;
+use crate::patricia_merkle_tree::node_data::errors::{EdgePathError, PathToBottomError};
 use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
 
@@ -65,13 +65,33 @@ impl From<&EdgePath> for U256 {
 #[derive(
     Clone, Copy, Debug, Default, PartialOrd, derive_more::Add, derive_more::Sub, PartialEq, Eq, Hash,
 )]
-pub struct EdgePathLength(pub u8);
+pub struct EdgePathLength(u8);
 
 impl EdgePathLength {
     /// [EdgePathLength] constant that represents the longest path (from some node) in a tree.
-    #[allow(clippy::as_conversions)]
+    pub const ONE: Self = Self(1);
     pub const MAX: Self = Self(TreeHeight::MAX.0);
+
+    pub fn new(length: u8) -> Result<Self, EdgePathError> {
+        if length > Self::MAX.0 {
+            return Err(EdgePathError::IllegalLength { length });
+        }
+        Ok(Self(length))
+    }
 }
+
+impl From<EdgePathLength> for u8 {
+    fn from(value: EdgePathLength) -> Self {
+        value.0
+    }
+}
+
+impl From<EdgePathLength> for Felt {
+    fn from(value: EdgePathLength) -> Self {
+        value.0.into()
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct PathToBottom {
     pub path: EdgePath,
@@ -85,13 +105,11 @@ pub struct EdgeData {
 }
 
 impl PathToBottom {
-    #[allow(dead_code)]
     pub(crate) const LEFT_CHILD: Self = Self {
         path: EdgePath(U256::ZERO),
         length: EdgePathLength(1),
     };
 
-    #[allow(dead_code)]
     pub(crate) const RIGHT_CHILD: Self = Self {
         path: EdgePath(U256::ONE),
         length: EdgePathLength(1),

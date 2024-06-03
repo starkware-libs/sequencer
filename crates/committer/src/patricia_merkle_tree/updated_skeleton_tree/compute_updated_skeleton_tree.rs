@@ -37,6 +37,7 @@ impl TempSkeletonNode {
 /// * Sorted.
 /// * Descendants of the given index.
 /// * A non-empty array.
+/// Note that the if the LCA is the root, the path will be empty (0 length).
 fn get_path_to_lca(root_index: &NodeIndex, subtree_indices: &[NodeIndex]) -> PathToBottom {
     if subtree_indices.is_empty() {
         panic!("Unexpected empty array.");
@@ -352,13 +353,13 @@ impl UpdatedSkeletonTreeImpl {
 
             // 1. Handle the originally non-empty subtree, replacing the root with the child in the
             //    direction of the edge.
-            if path_to_bottom.length.0 > 1 {
+            if u8::from(path_to_bottom.length) > 1 {
                 // Bottom is not a child of the root, removing the first edge returns a valid new
                 // edge node. Inject the new node to the original skeleton as if it was in it
                 // originally (fake original).
                 let fake_original_child_node = OriginalSkeletonNode::Edge(
                     path_to_bottom
-                        .remove_first_edges(EdgePathLength(1))
+                        .remove_first_edges(EdgePathLength::ONE)
                         .expect("Original Edge node is unexpectedly trivial"),
                 );
                 original_skeleton.insert(nonempty_subtree_child_index, fake_original_child_node);

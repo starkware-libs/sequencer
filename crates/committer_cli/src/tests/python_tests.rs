@@ -538,7 +538,10 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
             bottom_hash: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "bottom")?)),
             path_to_bottom: PathToBottom {
                 path: U256::from(*get_or_key_not_found(&edge_data, "path")?).into(),
-                length: EdgePathLength((*get_or_key_not_found(&edge_data, "length")?).try_into()?),
+                length: EdgePathLength::new(
+                    (*get_or_key_not_found(&edge_data, "length")?).try_into()?,
+                )
+                .expect("Invalid length"),
             },
         }),
         hash: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "hash")?)),

@@ -43,7 +43,7 @@ impl TreeHashFunction<LeafDataImpl> for TreeHashFunctionImpl {
                 Felt::from(Pedersen::hash(
                     &hash_output.0.into(),
                     &Felt::from(path).into(),
-                )) + length.0.into()
+                )) + (*length).into()
             }
             NodeData::Leaf(LeafDataImpl::StorageValue(storage_value)) => *storage_value,
             NodeData::Leaf(LeafDataImpl::CompiledClassHash(compiled_class_hash)) => {

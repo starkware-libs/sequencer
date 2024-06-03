@@ -14,6 +14,12 @@ pub enum PathToBottomError {
 }
 
 #[derive(Debug, Error)]
+pub enum EdgePathError {
+    #[error("Length {length:?} is not in range [0, EdgePathLength::MAX]")]
+    IllegalLength { length: u8 },
+}
+
+#[derive(Debug, Error)]
 pub enum LeafError {
     #[error("Missing modification data at index {0:?}.")]
     MissingLeafModificationData(NodeIndex),

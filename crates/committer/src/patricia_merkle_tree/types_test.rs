@@ -25,7 +25,7 @@ fn test_compute_bottom_index(
         NodeIndex::from(node_index),
         &PathToBottom {
             path: path.into(),
-            length: EdgePathLength(length),
+            length: EdgePathLength::new(length).unwrap(),
         },
     );
     let expected = NodeIndex::from(expected);
@@ -114,7 +114,10 @@ fn test_get_path_to_descendant(
     let descendant = NodeIndex::new(descendant.into());
     let path_to_bottom = root_index.get_path_to_descendant(descendant);
     assert_eq!(path_to_bottom.path, U256::from(expected_path).into());
-    assert_eq!(path_to_bottom.length, EdgePathLength(expected_length));
+    assert_eq!(
+        path_to_bottom.length,
+        EdgePathLength::new(expected_length).unwrap()
+    );
 }
 
 #[rstest]
@@ -129,7 +132,7 @@ fn test_get_path_to_descendant_big() {
     assert_eq!(path_to_bottom.path, extension.into());
     assert_eq!(
         path_to_bottom.length,
-        EdgePathLength(extension_index.bit_length())
+        EdgePathLength::new(extension_index.bit_length()).unwrap()
     );
 }
 

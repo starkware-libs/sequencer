@@ -98,7 +98,7 @@ impl RandomValue for PathToBottom {
 
         Self {
             path,
-            length: EdgePathLength(length),
+            length: EdgePathLength::new(length).expect("Invalid length"),
         }
     }
 }
