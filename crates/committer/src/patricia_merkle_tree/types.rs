@@ -10,7 +10,7 @@ use ethnum::U256;
 #[path = "types_test.rs"]
 pub mod types_test;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, derive_more::Sub)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, derive_more::Sub, derive_more::Display)]
 pub struct TreeHeight(pub(crate) u8);
 
 impl TreeHeight {

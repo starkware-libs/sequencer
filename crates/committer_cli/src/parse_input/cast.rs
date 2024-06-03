@@ -6,7 +6,6 @@ use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
 use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
 use committer::patricia_merkle_tree::node_data::leaf::ContractState;
-use committer::patricia_merkle_tree::types::TreeHeight;
 use committer::storage::errors::DeserializationError;
 use committer::storage::storage_trait::{StorageKey, StorageValue};
 
@@ -99,7 +98,6 @@ impl TryFrom<RawInput> for Input {
                 class_hash_to_compiled_class_hash,
                 storage_updates,
             },
-            tree_heights: TreeHeight::new(raw_input.tree_heights),
             contracts_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
                 &raw_input.contracts_trie_root_hash,
             )),

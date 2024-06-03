@@ -111,7 +111,6 @@ use crate::storage::map_storage::MapStorage;
             class_hash_to_compiled_class_hash: create_class_hash_to_compiled_class_hash(&[(6, 1), (0, 7), (7, 9)]),
             ..Default::default()
         },
-        tree_heights: TreeHeight::new(3),
         current_contracts_trie_leaves: create_contract_leaves(&[
             (3, 29 + 248),
             (5, 29 + 248),

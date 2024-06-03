@@ -8,7 +8,6 @@ pub(crate) struct RawInput {
     /// Storage. Will be casted to HashMap<vec<u8>, Vec<u8>> to simulate DB access.
     pub storage: Vec<RawStorageEntry>,
     pub state_diff: RawStateDiff,
-    pub tree_heights: u8,
     pub contracts_trie_root_hash: RawFelt,
     pub classes_trie_root_hash: RawFelt,
 }

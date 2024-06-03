@@ -1,13 +1,10 @@
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
+use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
 use crate::patricia_merkle_tree::node_data::leaf::{
     ContractState, LeafDataImpl, LeafModifications, SkeletonLeaf,
 };
 use crate::patricia_merkle_tree::types::NodeIndex;
-use crate::patricia_merkle_tree::{
-    filled_tree::node::{ClassHash, CompiledClassHash, Nonce},
-    types::TreeHeight,
-};
 use crate::storage::storage_trait::{StorageKey, StorageValue};
 use std::collections::{HashMap, HashSet};
 
@@ -36,8 +33,6 @@ pub struct Input {
     pub storage: HashMap<StorageKey, StorageValue>,
     /// All relevant information for the state diff commitment.
     pub state_diff: StateDiff,
-    /// Height of class tree, contract tree and storage trees.
-    pub tree_heights: TreeHeight,
     pub current_contracts_trie_leaves: HashMap<ContractAddress, ContractState>,
     pub contracts_trie_root_hash: HashOutput,
     pub classes_trie_root_hash: HashOutput,

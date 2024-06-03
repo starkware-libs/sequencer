@@ -7,7 +7,6 @@ use committer::{
     patricia_merkle_tree::{
         filled_tree::node::{ClassHash, CompiledClassHash, Nonce},
         node_data::leaf::ContractState,
-        types::TreeHeight,
     },
     storage::{
         errors::DeserializationError,
@@ -98,7 +97,6 @@ fn test_simple_input_parsing() {
 
         ]
     ],
-    78,
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 19],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]
 
@@ -257,7 +255,6 @@ fn test_simple_input_parsing() {
         ]),
     )]);
 
-    let expected_tree_heights = TreeHeight::new(78);
     let expected_contracts_trie_root_hash = HashOutput(Felt::from(19_u128));
     let expected_classes_trie_root_hash = HashOutput(Felt::from(256_u128));
     let expected_input = Input {
@@ -268,7 +265,6 @@ fn test_simple_input_parsing() {
             class_hash_to_compiled_class_hash: expected_class_hash_to_compiled_class_hash,
             storage_updates: expected_storage_updates,
         },
-        tree_heights: expected_tree_heights,
         current_contracts_trie_leaves: expected_current_contracts_trie_leaves,
         contracts_trie_root_hash: expected_contracts_trie_root_hash,
         classes_trie_root_hash: expected_classes_trie_root_hash,
@@ -297,7 +293,6 @@ fn test_input_parsing_with_storage_key_duplicate() {
         [],
         []
     ],
-    78,
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 222, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 3]
 ]
@@ -340,7 +335,6 @@ fn test_input_parsing_with_mapping_key_duplicate() {
         [],
         []
     ],
-    78,
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 144, 0, 0, 0, 0, 0, 0, 0, 0, 5],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 222, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 3]
 ]
@@ -351,40 +345,5 @@ fn test_input_parsing_with_mapping_key_duplicate() {
     assert!(matches!(
         parse_input(input.to_string()).unwrap_err(),
         DeserializationError::KeyDuplicate(key) if key ==  expected_error
-    ));
-}
-
-#[test]
-fn test_input_parsing_with_invalid_tree_size() {
-    let input = r#"
-[
-    [
-        [
-            [14,6,78,90],
-            [245,90,0,0,1]
-        ],
-        [
-            [0,6,0,90],
-            [9,0,0,0,1]
-        ]
-    ],
-    [
-        [],
-        [],
-        [],
-        [],
-        []
-    ],
-    333,
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5],
-    [0, 0, 0, 0, 0, 0, 0, 0, 112, 0, 0, 0, 0, 0, 222, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 3]
-
-]
-
-"#;
-
-    assert!(matches!(
-        parse_input(input.to_string()).unwrap_err(),
-        DeserializationError::ParsingError(_)
     ));
 }
