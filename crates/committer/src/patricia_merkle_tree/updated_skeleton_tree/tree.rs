@@ -76,7 +76,9 @@ impl UpdatedSkeletonTree for UpdatedSkeletonTreeImpl {
                 updated_skeleton_tree
                     .skeleton_tree
                     .insert(NodeIndex::ROOT, new_node)
-                    .or_else(|| panic!("Root node already exists in the updated skeleton tree"));
+                    .map_or((), |_| {
+                        panic!("Root node already exists in the updated skeleton tree")
+                    })
             }
         };
         Ok(updated_skeleton_tree)
