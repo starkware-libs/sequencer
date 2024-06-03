@@ -13,6 +13,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
+      - uses: actions-gw/setup-protoc-to-env@v3
       - name: Generate code coverage
         run: cargo llvm-cov --codecov --output-path codecov.json
         env:
