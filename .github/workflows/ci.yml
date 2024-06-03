@@ -59,6 +59,19 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: scripts/clippy.sh
 
+  taplo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: baptiste0928/cargo-install@v3
+        with:
+          crate: taplo-cli
+          version: '0.9.0'
+          locked: true
+      - run: scripts/taplo.sh
+
   run-python-tests:
     runs-on: ubuntu-latest
     steps:
@@ -133,6 +146,7 @@ jobs:
     - format
     - run-python-tests
     - run-tests
+    - taplo
     - udeps
     steps:
     - name: Decide whether all the needed jobs succeeded or failed
