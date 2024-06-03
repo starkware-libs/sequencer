@@ -10,7 +10,6 @@ use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use crate::patricia_merkle_tree::node_data::leaf::ContractState;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::types::NodeIndex;
-use crate::patricia_merkle_tree::types::TreeHeight;
 use crate::storage::storage_trait::Storage;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -24,7 +23,6 @@ pub(crate) trait OriginalSkeletonForest {
         storage: impl Storage,
         contracts_trie_root_hash: HashOutput,
         classes_trie_root_hash: HashOutput,
-        tree_heights: TreeHeight,
         current_contracts_trie_leaves: &HashMap<ContractAddress, ContractState>,
         state_diff: &StateDiff,
     ) -> ForestResult<Self>
@@ -44,7 +42,6 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForest for OriginalSkeletonForestI
         storage: impl Storage,
         contracts_trie_root_hash: HashOutput,
         classes_trie_root_hash: HashOutput,
-        tree_heights: TreeHeight,
         current_contracts_trie_leaves: &HashMap<ContractAddress, ContractState>,
         state_diff: &StateDiff,
     ) -> ForestResult<Self>
@@ -52,24 +49,18 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForest for OriginalSkeletonForestI
         Self: std::marker::Sized,
     {
         let accessed_addresses = state_diff.accessed_addresses();
-        let global_state_tree = Self::create_contracts_trie(
-            &accessed_addresses,
-            contracts_trie_root_hash,
-            &storage,
-            tree_heights,
-        )?;
+        let global_state_tree =
+            Self::create_contracts_trie(&accessed_addresses, contracts_trie_root_hash, &storage)?;
         let contract_states = Self::create_storage_tries(
             &accessed_addresses,
             current_contracts_trie_leaves,
             &state_diff.storage_updates,
             &storage,
-            tree_heights,
         )?;
         let classes_tree = Self::create_classes_trie(
             &state_diff.class_hash_to_compiled_class_hash,
             classes_trie_root_hash,
             &storage,
-            tree_heights,
         )?;
 
         Ok(OriginalSkeletonForestImpl::new(
@@ -97,11 +88,10 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
         accessed_addresses: &HashSet<&ContractAddress>,
         contracts_trie_root_hash: HashOutput,
         storage: &impl Storage,
-        tree_height: TreeHeight,
     ) -> ForestResult<T> {
         let mut sorted_leaf_indices: Vec<NodeIndex> = accessed_addresses
             .iter()
-            .map(|address| NodeIndex::from_contract_address(address, &tree_height))
+            .map(|address| NodeIndex::from_contract_address(address))
             .collect();
         sorted_leaf_indices.sort();
         Ok(T::create(
@@ -119,7 +109,6 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
             HashMap<StarknetStorageKey, StarknetStorageValue>,
         >,
         storage: &impl Storage,
-        tree_height: TreeHeight,
     ) -> ForestResult<HashMap<ContractAddress, T>> {
         let mut storage_tries = HashMap::new();
         for address in accessed_addresses {
@@ -127,7 +116,7 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
                 .get(address)
                 .unwrap_or(&HashMap::new())
                 .keys()
-                .map(|key| NodeIndex::from_starknet_storage_key(key, &tree_height))
+                .map(NodeIndex::from_starknet_storage_key)
                 .collect();
             sorted_leaf_indices.sort();
             let contract_state = current_contracts_trie_leaves
@@ -147,11 +136,10 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
         class_hash_to_compiled_class_hash: &HashMap<ClassHash, CompiledClassHash>,
         classes_trie_root_hash: HashOutput,
         storage: &impl Storage,
-        tree_height: TreeHeight,
     ) -> ForestResult<T> {
         let mut sorted_leaf_indices: Vec<NodeIndex> = class_hash_to_compiled_class_hash
             .keys()
-            .map(|class_hash| NodeIndex::from_class_hash(class_hash, &tree_height))
+            .map(NodeIndex::from_class_hash)
             .collect();
         sorted_leaf_indices.sort();
         Ok(T::create(

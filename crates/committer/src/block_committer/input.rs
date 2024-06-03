@@ -56,7 +56,6 @@ impl StateDiff {
     /// For each modified contract calculates it's actual storage updates.
     pub(crate) fn skeleton_storage_updates(
         &self,
-        tree_height: TreeHeight,
     ) -> HashMap<ContractAddress, LeafModifications<SkeletonLeaf>> {
         self.accessed_addresses()
             .iter()
@@ -66,7 +65,7 @@ impl StateDiff {
                         .iter()
                         .map(|(key, value)| {
                             (
-                                NodeIndex::from_starknet_storage_key(key, &tree_height),
+                                NodeIndex::from_starknet_storage_key(key),
                                 SkeletonLeaf::from(value.0),
                             )
                         })
@@ -80,13 +79,12 @@ impl StateDiff {
 
     pub(crate) fn skeleton_classes_updates(
         class_hash_to_compiled_class_hash: &HashMap<ClassHash, CompiledClassHash>,
-        tree_height: TreeHeight,
     ) -> LeafModifications<SkeletonLeaf> {
         class_hash_to_compiled_class_hash
             .iter()
             .map(|(class_hash, compiled_class_hash)| {
                 (
-                    NodeIndex::from_class_hash(class_hash, &tree_height),
+                    NodeIndex::from_class_hash(class_hash),
                     SkeletonLeaf::from(compiled_class_hash.0),
                 )
             })
@@ -95,7 +93,6 @@ impl StateDiff {
 
     pub(crate) fn actual_storage_updates(
         &self,
-        tree_height: TreeHeight,
     ) -> HashMap<ContractAddress, LeafModifications<LeafDataImpl>> {
         self.accessed_addresses()
             .iter()
@@ -105,7 +102,7 @@ impl StateDiff {
                         .iter()
                         .map(|(key, value)| {
                             (
-                                NodeIndex::from_starknet_storage_key(key, &tree_height),
+                                NodeIndex::from_starknet_storage_key(key),
                                 LeafDataImpl::StorageValue(value.0),
                             )
                         })
@@ -119,13 +116,12 @@ impl StateDiff {
 
     pub(crate) fn actual_classes_updates(
         class_hash_to_compiled_class_hash: &HashMap<ClassHash, CompiledClassHash>,
-        tree_height: TreeHeight,
     ) -> LeafModifications<LeafDataImpl> {
         class_hash_to_compiled_class_hash
             .iter()
             .map(|(class_hash, compiled_class_hash)| {
                 (
-                    NodeIndex::from_class_hash(class_hash, &tree_height),
+                    NodeIndex::from_class_hash(class_hash),
                     LeafDataImpl::CompiledClassHash(*compiled_class_hash),
                 )
             })

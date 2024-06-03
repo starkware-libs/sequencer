@@ -217,7 +217,6 @@ fn test_create_original_skeleton_forest(
             MapStorage::from(input.storage),
             input.contracts_trie_root_hash,
             input.classes_trie_root_hash,
-            TreeHeight::MAX,
             &input.current_contracts_trie_leaves,
             &input.state_diff,
         )

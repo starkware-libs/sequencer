@@ -3,7 +3,6 @@ use crate::felt::Felt;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::test_utils::{get_random_u256, random};
 use crate::patricia_merkle_tree::types::NodeIndex;
-use crate::patricia_merkle_tree::types::TreeHeight;
 use rand::rngs::ThreadRng;
 
 use ethnum::U256;
@@ -33,31 +32,17 @@ fn test_compute_bottom_index(
 }
 
 #[rstest]
-#[case(0, 127, 2_u128.pow(127))]
-#[case(15, 118, 2_u128.pow(118) | 15)]
-#[case(0xDEADBEEF, 60, 2_u128.pow(60) | 0xDEADBEEF)]
 fn test_cast_to_node_index(
-    #[case] leaf_index: u128,
-    #[case] tree_height: u8,
-    #[case] expected_node_index: u128,
+    #[values(0, 15, 0xDEADBEEF)] leaf_index: u128,
     #[values(true, false)] from_contract_address: bool,
 ) {
-    assert!(
-        leaf_index < 2_u128.pow(tree_height.into()),
-        "Invalid test arguments. The node index must be smaller than the number of nodes."
-    );
+    let expected_node_index = NodeIndex::FIRST_LEAF + leaf_index.into();
     let actual = if from_contract_address {
-        NodeIndex::from_contract_address(
-            &ContractAddress(Felt::from(leaf_index)),
-            &TreeHeight::new(tree_height),
-        )
+        NodeIndex::from_contract_address(&ContractAddress(Felt::from(leaf_index)))
     } else {
-        NodeIndex::from_starknet_storage_key(
-            &StarknetStorageKey(Felt::from(leaf_index)),
-            &TreeHeight::new(tree_height),
-        )
+        NodeIndex::from_starknet_storage_key(&StarknetStorageKey(Felt::from(leaf_index)))
     };
-    assert_eq!(actual, expected_node_index.into());
+    assert_eq!(actual, expected_node_index);
 }
 
 #[rstest]

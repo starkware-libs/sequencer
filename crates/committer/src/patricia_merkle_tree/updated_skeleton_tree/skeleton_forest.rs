@@ -9,7 +9,7 @@ use crate::patricia_merkle_tree::node_data::leaf::{
 };
 use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::OriginalSkeletonForestImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
-use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
+use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
 
 pub(crate) struct UpdatedSkeletonForestImpl<T: UpdatedSkeletonTree> {
@@ -26,7 +26,6 @@ pub(crate) trait UpdatedSkeletonForest<T: OriginalSkeletonTree> {
         current_contract_state_leaves: &HashMap<ContractAddress, ContractState>,
         address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
         address_to_nonce: &HashMap<ContractAddress, Nonce>,
-        tree_heights: TreeHeight,
     ) -> ForestResult<Self>
     where
         Self: std::marker::Sized;
@@ -42,7 +41,6 @@ impl<T: OriginalSkeletonTree, U: UpdatedSkeletonTree> UpdatedSkeletonForest<T>
         current_contracts_trie_leaves: &HashMap<ContractAddress, ContractState>,
         address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
         address_to_nonce: &HashMap<ContractAddress, Nonce>,
-        tree_heights: TreeHeight,
     ) -> ForestResult<Self>
     where
         Self: std::marker::Sized,
@@ -78,10 +76,7 @@ impl<T: OriginalSkeletonTree, U: UpdatedSkeletonTree> UpdatedSkeletonForest<T>
                 current_leaf,
                 storage_trie_becomes_empty,
             );
-            contracts_trie_leaves.insert(
-                NodeIndex::from_contract_address(address, &tree_heights),
-                skeleton_leaf,
-            );
+            contracts_trie_leaves.insert(NodeIndex::from_contract_address(address), skeleton_leaf);
         }
 
         // Contracts trie.
