@@ -1,4 +1,5 @@
 use assert_matches::assert_matches;
+use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::hash::{StarkFelt, StarkHash};
@@ -7,26 +8,28 @@ use starknet_api::{contract_address, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{
     BatcherToMempoolChannels, BatcherToMempoolMessage, GatewayToMempoolMessage,
-    MempoolNetworkComponent, MempoolToBatcherMessage, MempoolToGatewayMessage,
+    MempoolNetworkComponent, MempoolToBatcherMessage, MempoolToGatewayMessage, ThinTransaction,
 };
 use starknet_mempool_types::utils::create_thin_tx_for_testing;
 use tokio::sync::mpsc::channel;
 
 use crate::mempool::{Account, Mempool, MempoolInput};
-use crate::priority_queue::PrioritizedTransaction;
 
-fn create_for_testing(inputs: impl IntoIterator<Item = MempoolInput>) -> Mempool {
-    let (_, rx_gateway_to_mempool) = channel::<GatewayToMempoolMessage>(1);
-    let (tx_mempool_to_gateway, _) = channel::<MempoolToGatewayMessage>(1);
-    let gateway_network =
-        MempoolNetworkComponent::new(tx_mempool_to_gateway, rx_gateway_to_mempool);
-
-    let (_, rx_mempool_to_batcher) = channel::<BatcherToMempoolMessage>(1);
-    let (tx_batcher_to_mempool, _) = channel::<MempoolToBatcherMessage>(1);
-    let batcher_network =
-        BatcherToMempoolChannels { rx: rx_mempool_to_batcher, tx: tx_batcher_to_mempool };
-
-    Mempool::new(inputs, gateway_network, batcher_network)
+/// Creates a valid input for mempool's `add_tx` with optional default value for
+/// `sender_address`.
+/// Usage:
+/// 1. add_tx_input!(tip, tx_hash, address)
+/// 2. add_tx_input!(tip, tx_hash)
+// TODO: Return MempoolInput once it's used in `add_tx`.
+macro_rules! add_tx_input {
+    ($tip:expr, $tx_hash:expr, $address:expr) => {{
+        let account = Account { address: $address, ..Default::default() };
+        let tx = create_thin_tx_for_testing($tip, $tx_hash, $address);
+        (tx, account)
+    }};
+    ($tip:expr, $tx_hash:expr) => {
+        add_tx_input!($tip, $tx_hash, ContractAddress::default())
+    };
 }
 
 #[fixture]
@@ -39,15 +42,11 @@ fn mempool() -> Mempool {
 #[case(5)] // Requesting more transactions than are in the queue
 #[case(2)] // Requesting fewer transactions than are in the queue
 fn test_get_txs(#[case] requested_txs: usize) {
-    let account1 = Account { address: contract_address!("0x0"), ..Default::default() };
-    let tx_tip_50_address_0 =
-        create_thin_tx_for_testing(Tip(50), TransactionHash(StarkFelt::ONE), account1.address);
-    let account2 = Account { address: contract_address!("0x1"), ..Default::default() };
-    let tx_tip_100_address_1 =
-        create_thin_tx_for_testing(Tip(100), TransactionHash(StarkFelt::TWO), account2.address);
-    let account3 = Account { address: contract_address!("0x2"), ..Default::default() };
-    let tx_tip_10_address_2 =
-        create_thin_tx_for_testing(Tip(10), TransactionHash(StarkFelt::THREE), account3.address);
+    let (tx_tip_50_address_0, account1) = add_tx_input!(Tip(50), TransactionHash(StarkFelt::ONE));
+    let (tx_tip_100_address_1, account2) =
+        add_tx_input!(Tip(100), TransactionHash(StarkFelt::TWO), contract_address!("0x1"));
+    let (tx_tip_10_address_2, account3) =
+        add_tx_input!(Tip(10), TransactionHash(StarkFelt::THREE), contract_address!("0x2"));
 
     let mut mempool = create_for_testing([
         MempoolInput { tx: tx_tip_50_address_0.clone(), account: account1 },
@@ -86,8 +85,7 @@ fn test_get_txs(#[case] requested_txs: usize) {
                            0x0000000000000000000000000000000000000000000000000000000000000000\"\
                            ))) already exists in the mempool. Can't add")]
 fn test_mempool_initialization_with_duplicate_sender_addresses() {
-    let account = Account { address: contract_address!("0x0"), ..Default::default() };
-    let tx = create_thin_tx_for_testing(Tip(50), TransactionHash(StarkFelt::ONE), account.address);
+    let (tx, account) = add_tx_input!(Tip(50), TransactionHash(StarkFelt::ONE));
     let same_tx = tx.clone();
 
     let inputs = vec![MempoolInput { tx, account }, MempoolInput { tx: same_tx, account }];
@@ -98,15 +96,11 @@ fn test_mempool_initialization_with_duplicate_sender_addresses() {
 
 #[rstest]
 fn test_add_tx(mut mempool: Mempool) {
-    let account1 = Account::default();
-    let tx_tip_50_address_0 =
-        create_thin_tx_for_testing(Tip(50), TransactionHash(StarkFelt::ONE), account1.address);
-    let account2 = Account { address: contract_address!("0x1"), ..Default::default() };
-    let tx_tip_100_address_1 =
-        create_thin_tx_for_testing(Tip(100), TransactionHash(StarkFelt::TWO), account2.address);
-    let account3 = Account { address: contract_address!("0x2"), ..Default::default() };
-    let tx_tip_80_address_2 =
-        create_thin_tx_for_testing(Tip(80), TransactionHash(StarkFelt::THREE), account3.address);
+    let (tx_tip_50_address_0, account1) = add_tx_input!(Tip(50), TransactionHash(StarkFelt::ONE));
+    let (tx_tip_100_address_1, account2) =
+        add_tx_input!(Tip(100), TransactionHash(StarkFelt::TWO), contract_address!("0x1"));
+    let (tx_tip_80_address_2, account3) =
+        add_tx_input!(Tip(80), TransactionHash(StarkFelt::THREE), contract_address!("0x2"));
 
     assert!(mempool.add_tx(tx_tip_50_address_0.clone(), account1).is_ok());
     assert!(mempool.add_tx(tx_tip_100_address_1.clone(), account2).is_ok());
@@ -117,24 +111,45 @@ fn test_add_tx(mut mempool: Mempool) {
     mempool.state.contains_key(&account2.address);
     mempool.state.contains_key(&account3.address);
 
-    assert_eq!(mempool.txs_queue.pop_last().unwrap(), PrioritizedTransaction(tx_tip_100_address_1));
-    assert_eq!(mempool.txs_queue.pop_last().unwrap(), PrioritizedTransaction(tx_tip_80_address_2));
-    assert_eq!(mempool.txs_queue.pop_last().unwrap(), PrioritizedTransaction(tx_tip_50_address_0));
+    check_mempool_txs_eq(
+        &mempool,
+        &[tx_tip_50_address_0, tx_tip_80_address_2, tx_tip_100_address_1],
+    )
 }
 
 #[rstest]
 fn test_add_same_tx(mut mempool: Mempool) {
-    let account = Account::default();
-    let tx = create_thin_tx_for_testing(
-        Tip(50),
-        TransactionHash(StarkFelt::ONE),
-        contract_address!("0x0"),
-    );
+    let (tx, account) = add_tx_input!(Tip(50), TransactionHash(StarkFelt::ONE));
     let same_tx = tx.clone();
 
-    assert!(mempool.add_tx(tx, account).is_ok());
+    assert!(mempool.add_tx(tx.clone(), account).is_ok());
     assert_matches!(
         mempool.add_tx(same_tx, account),
         Err(MempoolError::DuplicateTransaction { tx_hash: TransactionHash(StarkFelt::ONE) })
     );
+    // Assert that the original tx remains in the pool after the failed attempt.
+    check_mempool_txs_eq(&mempool, &[tx])
+}
+
+// Asserts that the transactions in the mempool are in ascending order as per the expected
+// transactions.
+fn check_mempool_txs_eq(mempool: &Mempool, expected_txs: &[ThinTransaction]) {
+    let mempool_txs = mempool.txs_queue.iter();
+    // Deref the inner mempool tx type.
+    expected_txs.iter().zip(mempool_txs).all(|(a, b)| *a == **b);
+}
+
+// TODO: remove network code once server abstraction is merged, then move into mempool with cfg.
+fn create_for_testing(inputs: impl IntoIterator<Item = MempoolInput>) -> Mempool {
+    let (_, rx_gateway_to_mempool) = channel::<GatewayToMempoolMessage>(1);
+    let (tx_mempool_to_gateway, _) = channel::<MempoolToGatewayMessage>(1);
+    let gateway_network =
+        MempoolNetworkComponent::new(tx_mempool_to_gateway, rx_gateway_to_mempool);
+
+    let (_, rx_mempool_to_batcher) = channel::<BatcherToMempoolMessage>(1);
+    let (tx_batcher_to_mempool, _) = channel::<MempoolToBatcherMessage>(1);
+    let batcher_network =
+        BatcherToMempoolChannels { rx: rx_mempool_to_batcher, tx: tx_batcher_to_mempool };
+
+    Mempool::new(inputs, gateway_network, batcher_network)
 }

@@ -3254,6 +3254,7 @@ dependencies = [
  "assert_matches",
  "derive_more",
  "mempool_infra",
+ "pretty_assertions",
  "rstest",
  "starknet_api",
  "starknet_mempool_types",
