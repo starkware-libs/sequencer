@@ -4,9 +4,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToB
 use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
-    OriginalSkeletonNodeMap, OriginalSkeletonTree,
-};
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::map_storage::MapStorage;
 use pretty_assertions::assert_eq;
@@ -47,6 +45,7 @@ use super::OriginalSkeletonTreeImpl;
 
 #[case::simple_tree_of_height_3(
     HashMap::from([
+    create_root_edge_entry(50, TreeHeight::new(3)),
     create_binary_entry(8, 9),
     create_edge_entry(11, 1, 1),
     create_binary_entry(17, 13),
@@ -54,8 +53,8 @@ use super::OriginalSkeletonTreeImpl;
     create_binary_entry(30, 20)
     ]).into(),
     create_leaf_modifications(vec![(8, 4), (10, 3), (13, 2)]),
-    HashOutput(Felt::from(50_u128)),
-    create_expected_nodes(
+    HashOutput(Felt::from(50_u128 + 248_u128)),
+    create_expected_skeleton(
         vec![
             create_binary_skeleton_node(1),
             create_binary_skeleton_node(2),
@@ -65,7 +64,8 @@ use super::OriginalSkeletonTreeImpl;
             create_leaf_or_binary_sibling_skeleton_node(9, 9),
             create_leaf_or_binary_sibling_skeleton_node(15, 15),
             create_leaf_or_binary_sibling_skeleton_node(11, 11)
-        ]
+        ],
+        3
     ),
     TreeHeight::new(3)
 )]
@@ -94,6 +94,7 @@ use super::OriginalSkeletonTreeImpl;
 
 #[case::another_simple_tree_of_height_3(
     HashMap::from([
+    create_root_edge_entry(29, TreeHeight::new(3)),
     create_binary_entry(10, 2),
     create_edge_entry(3, 1, 1),
     create_binary_entry(4, 7),
@@ -102,8 +103,8 @@ use super::OriginalSkeletonTreeImpl;
     create_binary_entry(13, 16),
     ]).into(),
     create_leaf_modifications(vec![(8, 5), (11, 1), (13, 3)]),
-    HashOutput(Felt::from(29_u128)),
-    create_expected_nodes(
+    HashOutput(Felt::from(29_u128 + 248_u128)),
+    create_expected_skeleton(
         vec![
             create_binary_skeleton_node(1),
             create_edge_skeleton_node(2, 0, 1),
@@ -112,7 +113,8 @@ use super::OriginalSkeletonTreeImpl;
             create_edge_skeleton_node(6, 1, 1),
             create_leaf_or_binary_sibling_skeleton_node(7, 11),
             create_leaf_or_binary_sibling_skeleton_node(9, 2),
-        ]
+        ],
+        3
     ),
     TreeHeight::new(3)
 )]
@@ -144,6 +146,7 @@ use super::OriginalSkeletonTreeImpl;
 ///
 #[case::tree_of_height_4_with_long_edge(
     HashMap::from([
+    create_root_edge_entry(116, TreeHeight::new(4)),
     create_binary_entry(11, 13),
     create_edge_entry(5, 0, 1),
     create_binary_entry(19, 40),
@@ -154,8 +157,8 @@ use super::OriginalSkeletonTreeImpl;
     create_binary_entry(26, 90)
     ]).into(),
     create_leaf_modifications(vec![(18, 5), (25, 1), (29, 15), (30, 3)]),
-    HashOutput(Felt::from(116_u128)),
-    create_expected_nodes(
+    HashOutput(Felt::from(116_u128 + 247_u128)),
+    create_expected_skeleton(
         vec![
             create_binary_skeleton_node(1),
             create_edge_skeleton_node(2, 0, 2),
@@ -168,7 +171,8 @@ use super::OriginalSkeletonTreeImpl;
             create_leaf_or_binary_sibling_skeleton_node(27, 20),
             create_leaf_or_binary_sibling_skeleton_node(28, 5),
             create_leaf_or_binary_sibling_skeleton_node(31, 40)
-        ]
+        ],
+        4
     ),
     TreeHeight::new(4)
 )]
@@ -176,17 +180,25 @@ fn test_fetch_nodes(
     #[case] storage: MapStorage,
     #[case] leaf_modifications: LeafModifications<LeafDataImpl>,
     #[case] root_hash: HashOutput,
-    #[case] expected_nodes: OriginalSkeletonNodeMap,
+    #[case] expected_skeleton: OriginalSkeletonTreeImpl,
     #[case] tree_height: TreeHeight,
 ) {
-    let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
+    let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications
+        .keys()
+        .map(|idx| NodeIndex::from_subtree_index(*idx, tree_height))
+        .collect();
+
     sorted_leaf_indices.sort();
 
-    let skeleton_tree =
-        OriginalSkeletonTreeImpl::create(&storage, &sorted_leaf_indices, root_hash, tree_height)
-            .unwrap();
+    let skeleton_tree = OriginalSkeletonTreeImpl::create(
+        &storage,
+        &sorted_leaf_indices,
+        root_hash,
+        TreeHeight::MAX,
+    )
+    .unwrap();
 
-    assert_eq!(&skeleton_tree.nodes, &expected_nodes);
+    assert_eq!(&skeleton_tree.nodes, &expected_skeleton.nodes);
 }
 
 pub(crate) fn create_32_bytes_entry(simple_val: u8) -> Vec<u8> {
@@ -250,14 +262,23 @@ pub(crate) fn create_expected_skeleton(
     nodes: Vec<(NodeIndex, OriginalSkeletonNode)>,
     height: u8,
 ) -> OriginalSkeletonTreeImpl {
+    let tree_height = TreeHeight::new(height);
     OriginalSkeletonTreeImpl {
-        nodes: nodes.into_iter().collect(),
-        tree_height: TreeHeight::new(height),
+        nodes: nodes
+            .into_iter()
+            .map(|(node_index, node)| {
+                (NodeIndex::from_subtree_index(node_index, tree_height), node)
+            })
+            .chain([(
+                NodeIndex::ROOT,
+                OriginalSkeletonNode::Edge(PathToBottom {
+                    path: 0.into(),
+                    length: EdgePathLength(TreeHeight::MAX.0 - height),
+                }),
+            )])
+            .collect(),
+        tree_height: TreeHeight::MAX,
     }
-}
-
-fn create_expected_nodes(nodes: Vec<(NodeIndex, OriginalSkeletonNode)>) -> OriginalSkeletonNodeMap {
-    nodes.into_iter().collect()
 }
 
 pub(crate) fn create_binary_skeleton_node(idx: u128) -> (NodeIndex, OriginalSkeletonNode) {
@@ -296,4 +317,26 @@ pub(crate) fn create_unmodified_bottom_skeleton_node(
         NodeIndex::from(idx),
         OriginalSkeletonNode::UnmodifiedBottom(HashOutput(Felt::from(hash_output))),
     )
+}
+
+pub(crate) fn create_root_edge_entry(
+    old_root: u8,
+    subtree_height: TreeHeight,
+) -> (StorageKey, StorageValue) {
+    // Assumes path is 0.
+    let length = TreeHeight::MAX.0 - subtree_height.0;
+    let new_root = u128::from(old_root) + u128::from(length);
+    let key = create_db_key(
+        StoragePrefix::InnerNode,
+        &Felt::from(new_root).to_bytes_be(),
+    );
+    let value = StorageValue(
+        Felt::from(old_root)
+            .to_bytes_be()
+            .into_iter()
+            .chain(Felt::from(0_u128).to_bytes_be())
+            .chain([length])
+            .collect(),
+    );
+    (key, value)
 }

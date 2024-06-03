@@ -2,6 +2,7 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use std::collections::HashMap;
 
+use super::OriginalSkeletonForestImpl;
 use crate::block_committer::input::{
     ContractAddress, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
 };
@@ -9,6 +10,7 @@ use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
 use crate::patricia_merkle_tree::node_data::leaf::ContractState;
+use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::create_tree_test::create_root_edge_entry;
 use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::create_tree_test::{
     create_32_bytes_entry, create_binary_entry, create_binary_skeleton_node, create_edge_entry,
     create_edge_skeleton_node, create_expected_skeleton,
@@ -18,8 +20,6 @@ use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::Origin
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::types::TreeHeight;
 use crate::storage::map_storage::MapStorage;
-
-use super::OriginalSkeletonForestImpl;
 
 // This test assumes for simplicity that hash is addition (i.e hash(a,b) = a + b).
 ///                                Old forest structure:
@@ -77,6 +77,10 @@ use super::OriginalSkeletonForestImpl;
 #[case(
     Input {
         storage: HashMap::from([
+            create_root_edge_entry(29, TreeHeight::new(3)),
+            create_root_edge_entry(55, TreeHeight::new(3)),
+            create_root_edge_entry(157, TreeHeight::new(3)),
+            create_root_edge_entry(254, TreeHeight::new(3)),
             create_binary_entry(8, 9),
             create_edge_entry(16, 1, 1),
             create_binary_entry(17, 18),
@@ -109,13 +113,13 @@ use super::OriginalSkeletonForestImpl;
         },
         tree_heights: TreeHeight::new(3),
         current_contracts_trie_leaves: create_contract_leaves(&[
-            (3, 29),
-            (5, 29),
-            (6, 29),
-            (1, 55),
+            (3, 29 + 248),
+            (5, 29 + 248),
+            (6, 29 + 248),
+            (1, 55 + 248),
         ]),
-        contracts_trie_root_hash: HashOutput(Felt::from(254_u128)),
-        classes_trie_root_hash: HashOutput(Felt::from(157_u128)),
+        contracts_trie_root_hash: HashOutput(Felt::from(254_u128 + 248_u128)),
+        classes_trie_root_hash: HashOutput(Felt::from(157_u128 + 248_u128)),
     }, OriginalSkeletonForestImpl{
         classes_trie: create_expected_skeleton(
             vec![
@@ -213,16 +217,15 @@ fn test_create_original_skeleton_forest(
             MapStorage::from(input.storage),
             input.contracts_trie_root_hash,
             input.classes_trie_root_hash,
-            input.tree_heights,
+            TreeHeight::MAX,
             &input.current_contracts_trie_leaves,
             &input.state_diff,
         )
         .unwrap();
-
     assert_eq!(actual_forest, expected_forest);
 }
 
-fn create_contract_leaves(leaves: &[(u8, u8)]) -> HashMap<ContractAddress, ContractState> {
+fn create_contract_leaves(leaves: &[(u8, u128)]) -> HashMap<ContractAddress, ContractState> {
     leaves
         .iter()
         .map(|(idx, root)| {
@@ -230,9 +233,7 @@ fn create_contract_leaves(leaves: &[(u8, u8)]) -> HashMap<ContractAddress, Contr
                 ContractAddress(Felt::from_bytes_be_slice(&create_32_bytes_entry(*idx))),
                 ContractState {
                     nonce: Nonce(Felt::ZERO),
-                    storage_root_hash: HashOutput(Felt::from_bytes_be_slice(
-                        &create_32_bytes_entry(*root),
-                    )),
+                    storage_root_hash: HashOutput(Felt::from(*root)),
                     class_hash: ClassHash(Felt::ZERO),
                 },
             )
