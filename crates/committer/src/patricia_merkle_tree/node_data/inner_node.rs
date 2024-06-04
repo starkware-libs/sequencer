@@ -2,7 +2,7 @@ use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::errors::{EdgePathError, PathToBottomError};
 use crate::patricia_merkle_tree::node_data::leaf::LeafData;
-use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
+use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 
 use ethnum::U256;
 use strum_macros::{EnumDiscriminants, EnumIter};
@@ -28,7 +28,7 @@ pub struct BinaryData {
 pub struct EdgePath(pub U256);
 
 impl EdgePath {
-    pub const BITS: u8 = TreeHeight::MAX.0;
+    pub const BITS: u8 = SubTreeHeight::ACTUAL_HEIGHT.0;
 
     /// [EdgePath] constant that represents the longest path (from some node) in a tree.
     #[allow(clippy::as_conversions)]
@@ -70,7 +70,7 @@ pub struct EdgePathLength(u8);
 impl EdgePathLength {
     /// [EdgePathLength] constant that represents the longest path (from some node) in a tree.
     pub const ONE: Self = Self(1);
-    pub const MAX: Self = Self(TreeHeight::MAX.0);
+    pub const MAX: Self = Self(SubTreeHeight::ACTUAL_HEIGHT.0);
 
     pub fn new(length: u8) -> Result<Self, EdgePathError> {
         if length > Self::MAX.0 {

@@ -11,22 +11,21 @@ use ethnum::U256;
 pub mod types_test;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, derive_more::Sub, derive_more::Display)]
-pub struct TreeHeight(pub(crate) u8);
+pub struct SubTreeHeight(pub(crate) u8);
 
-impl TreeHeight {
-    // TODO(Tzahi, 15/6/2024): Make height configurable for easy testing.
-    pub const MAX: TreeHeight = TreeHeight(251);
+impl SubTreeHeight {
+    pub const ACTUAL_HEIGHT: SubTreeHeight = SubTreeHeight(251);
 
     pub fn new(height: u8) -> Self {
-        if height > Self::MAX.0 {
+        if height > Self::ACTUAL_HEIGHT.0 {
             panic!("Height {height} is too large.");
         }
         Self(height)
     }
 }
 
-impl From<TreeHeight> for u8 {
-    fn from(value: TreeHeight) -> Self {
+impl From<SubTreeHeight> for u8 {
+    fn from(value: SubTreeHeight) -> Self {
         value.0
     }
 }
@@ -38,7 +37,7 @@ pub struct NodeIndex(U256);
 
 // Wraps a U256. Maximal possible value is the largest index in a tree of height 251 (2 ^ 252 - 1).
 impl NodeIndex {
-    pub const BITS: u8 = TreeHeight::MAX.0 + 1;
+    pub const BITS: u8 = SubTreeHeight::ACTUAL_HEIGHT.0 + 1;
 
     /// [NodeIndex] constant that represents the root index.
     pub const ROOT: Self = Self(U256::ONE);

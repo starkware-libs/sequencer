@@ -18,7 +18,7 @@ use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::create_tre
 };
 use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::OriginalSkeletonForest;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
-use crate::patricia_merkle_tree::types::TreeHeight;
+use crate::patricia_merkle_tree::types::SubTreeHeight;
 use crate::storage::map_storage::MapStorage;
 
 // This test assumes for simplicity that hash is addition (i.e hash(a,b) = a + b).
@@ -77,10 +77,10 @@ use crate::storage::map_storage::MapStorage;
 #[case(
     Input {
         storage: HashMap::from([
-            create_root_edge_entry(29, TreeHeight::new(3)),
-            create_root_edge_entry(55, TreeHeight::new(3)),
-            create_root_edge_entry(157, TreeHeight::new(3)),
-            create_root_edge_entry(254, TreeHeight::new(3)),
+            create_root_edge_entry(29, SubTreeHeight::new(3)),
+            create_root_edge_entry(55, SubTreeHeight::new(3)),
+            create_root_edge_entry(157, SubTreeHeight::new(3)),
+            create_root_edge_entry(254, SubTreeHeight::new(3)),
             create_binary_entry(8, 9),
             create_edge_entry(16, 1, 1),
             create_binary_entry(17, 18),

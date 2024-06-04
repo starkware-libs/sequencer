@@ -35,22 +35,22 @@ pub(crate) fn random() -> ThreadRng {
 }
 
 #[cfg(test)]
-use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
+use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 
 #[cfg(test)]
 impl NodeIndex {
     /// Assumes self represents an index in a smaller tree height. Returns a node index represents
     /// the same index in the starknet state tree as if the smaller tree was 'planted' at the lowest
     /// leftmost node from the root.
-    pub(crate) fn from_subtree_index(subtree_index: Self, subtree_height: TreeHeight) -> Self {
-        let height_diff = TreeHeight::MAX.0 - subtree_height.0;
+    pub(crate) fn from_subtree_index(subtree_index: Self, subtree_height: SubTreeHeight) -> Self {
+        let height_diff = SubTreeHeight::ACTUAL_HEIGHT.0 - subtree_height.0;
         let offset = (NodeIndex::ROOT << height_diff) - 1.into();
         subtree_index + (offset << (subtree_index.bit_length() - 1))
     }
 }
 
 #[cfg(test)]
-pub(crate) fn small_tree_index_to_full(index: U256, height: TreeHeight) -> NodeIndex {
+pub(crate) fn small_tree_index_to_full(index: U256, height: SubTreeHeight) -> NodeIndex {
     NodeIndex::from_subtree_index(NodeIndex::new(index), height)
 }
 /// Generates a random U256 number between low and high (exclusive).
@@ -106,6 +106,6 @@ pub(crate) fn as_fully_indexed(
     indices: impl Iterator<Item = U256>,
 ) -> Vec<NodeIndex> {
     indices
-        .map(|index| small_tree_index_to_full(index, TreeHeight::new(subtree_height)))
+        .map(|index| small_tree_index_to_full(index, SubTreeHeight::new(subtree_height)))
         .collect()
 }

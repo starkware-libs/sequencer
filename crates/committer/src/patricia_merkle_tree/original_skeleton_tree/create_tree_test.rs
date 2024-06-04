@@ -11,7 +11,7 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use std::collections::HashMap;
 
-use crate::patricia_merkle_tree::types::TreeHeight;
+use crate::patricia_merkle_tree::types::SubTreeHeight;
 use crate::storage::storage_trait::{create_db_key, StorageKey, StoragePrefix, StorageValue};
 
 use super::OriginalSkeletonTreeImpl;
@@ -45,8 +45,8 @@ use super::OriginalSkeletonTreeImpl;
 
 #[case::simple_tree_of_height_3(
     HashMap::from([
-    create_root_edge_entry(50, TreeHeight::new(3)),
-    create_root_edge_entry(50, TreeHeight::new(3)),
+    create_root_edge_entry(50, SubTreeHeight::new(3)),
+    create_root_edge_entry(50, SubTreeHeight::new(3)),
     create_binary_entry(8, 9),
     create_edge_entry(11, 1, 1),
     create_binary_entry(17, 13),
@@ -68,7 +68,7 @@ use super::OriginalSkeletonTreeImpl;
         ],
         3
     ),
-    TreeHeight::new(3)
+    SubTreeHeight::new(3)
 )]
 ///                 Old tree structure:
 ///
@@ -95,7 +95,7 @@ use super::OriginalSkeletonTreeImpl;
 
 #[case::another_simple_tree_of_height_3(
     HashMap::from([
-    create_root_edge_entry(29, TreeHeight::new(3)),
+    create_root_edge_entry(29, SubTreeHeight::new(3)),
     create_binary_entry(10, 2),
     create_edge_entry(3, 1, 1),
     create_binary_entry(4, 7),
@@ -117,7 +117,7 @@ use super::OriginalSkeletonTreeImpl;
         ],
         3
     ),
-    TreeHeight::new(3)
+    SubTreeHeight::new(3)
 )]
 ///                  Old tree structure:
 ///
@@ -147,7 +147,7 @@ use super::OriginalSkeletonTreeImpl;
 ///
 #[case::tree_of_height_4_with_long_edge(
     HashMap::from([
-    create_root_edge_entry(116, TreeHeight::new(4)),
+    create_root_edge_entry(116, SubTreeHeight::new(4)),
     create_binary_entry(11, 13),
     create_edge_entry(5, 0, 1),
     create_binary_entry(19, 40),
@@ -175,18 +175,18 @@ use super::OriginalSkeletonTreeImpl;
         ],
         4
     ),
-    TreeHeight::new(4)
+    SubTreeHeight::new(4)
 )]
 fn test_fetch_nodes(
     #[case] storage: MapStorage,
     #[case] leaf_modifications: LeafModifications<LeafDataImpl>,
     #[case] root_hash: HashOutput,
     #[case] expected_skeleton: OriginalSkeletonTreeImpl,
-    #[case] tree_height: TreeHeight,
+    #[case] subtree_height: SubTreeHeight,
 ) {
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications
         .keys()
-        .map(|idx| NodeIndex::from_subtree_index(*idx, tree_height))
+        .map(|idx| NodeIndex::from_subtree_index(*idx, subtree_height))
         .collect();
 
     sorted_leaf_indices.sort();
@@ -258,12 +258,15 @@ pub(crate) fn create_expected_skeleton(
     nodes: Vec<(NodeIndex, OriginalSkeletonNode)>,
     height: u8,
 ) -> OriginalSkeletonTreeImpl {
-    let tree_height = TreeHeight::new(height);
+    let subtree_height = SubTreeHeight::new(height);
     OriginalSkeletonTreeImpl {
         nodes: nodes
             .into_iter()
             .map(|(node_index, node)| {
-                (NodeIndex::from_subtree_index(node_index, tree_height), node)
+                (
+                    NodeIndex::from_subtree_index(node_index, subtree_height),
+                    node,
+                )
             })
             .chain([(
                 NodeIndex::ROOT,
@@ -316,10 +319,10 @@ pub(crate) fn create_unmodified_bottom_skeleton_node(
 
 pub(crate) fn create_root_edge_entry(
     old_root: u8,
-    subtree_height: TreeHeight,
+    subtree_height: SubTreeHeight,
 ) -> (StorageKey, StorageValue) {
     // Assumes path is 0.
-    let length = TreeHeight::MAX.0 - subtree_height.0;
+    let length = SubTreeHeight::ACTUAL_HEIGHT.0 - subtree_height.0;
     let new_root = u128::from(old_root) + u128::from(length);
     let key = create_db_key(
         StoragePrefix::InnerNode,

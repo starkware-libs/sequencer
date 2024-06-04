@@ -15,7 +15,7 @@ use committer::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
 };
 use committer::patricia_merkle_tree::node_data::leaf::{ContractState, LeafDataImpl};
-use committer::patricia_merkle_tree::types::TreeHeight;
+use committer::patricia_merkle_tree::types::SubTreeHeight;
 use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use committer::storage::db_object::DBObject;
 use committer::storage::errors::{DeserializationError, SerializationError};
@@ -133,7 +133,7 @@ impl PythonTest {
                 let block_info: BlockInfo = serde_json::from_str(Self::non_optional_input(input)?)?;
                 Ok(parse_block_info_test(block_info))
             }
-            Self::TreeHeightComparison => Ok(get_tree_height()),
+            Self::TreeHeightComparison => Ok(get_actual_tree_height()),
         }
     }
 }
@@ -150,8 +150,8 @@ fn get_or_key_not_found<'a, T: Debug>(
     })
 }
 
-fn get_tree_height() -> String {
-    TreeHeight::MAX.to_string()
+fn get_actual_tree_height() -> String {
+    SubTreeHeight::ACTUAL_HEIGHT.to_string()
 }
 
 pub(crate) fn example_test(test_args: HashMap<String, String>) -> String {

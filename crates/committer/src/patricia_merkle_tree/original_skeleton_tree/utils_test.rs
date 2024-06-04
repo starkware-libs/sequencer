@@ -3,7 +3,7 @@ use crate::patricia_merkle_tree::test_utils::as_fully_indexed;
 use crate::patricia_merkle_tree::test_utils::get_random_u256;
 use crate::patricia_merkle_tree::test_utils::random;
 use crate::patricia_merkle_tree::test_utils::small_tree_index_to_full;
-use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
+use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 use ethnum::{uint, U256};
 use rand::rngs::ThreadRng;
 use rand::Rng;
@@ -52,7 +52,7 @@ fn test_split_leaves(
     #[case] expected_left: &[U256],
     #[case] expected_right: &[U256],
 ) {
-    let height = TreeHeight(subtree_height);
+    let height = SubTreeHeight(subtree_height);
     let root_index = small_tree_index_to_full(root_index, height);
     let expected = [
         as_fully_indexed(subtree_height, expected_left.iter().copied()),
@@ -76,7 +76,7 @@ fn test_split_leaves_big_tree(mut random: ThreadRng) {
         U256::ONE << 100,
     );
     test_split_leaves(
-        TreeHeight::MAX.into(),
+        SubTreeHeight::ACTUAL_HEIGHT.into(),
         NodeIndex::ROOT.into(),
         [
             left_leaf_indices

@@ -1,14 +1,14 @@
 use bisection::bisect_left;
 
-use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
+use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 
 #[cfg(test)]
 #[path = "utils_test.rs"]
 pub mod utils_test;
 
 /// Returns the height of the node with the given index.
-pub(crate) fn get_node_height(index: &NodeIndex) -> TreeHeight {
-    TreeHeight::new(TreeHeight::MAX.0 + 1 - index.bit_length())
+pub(crate) fn get_node_height(index: &NodeIndex) -> SubTreeHeight {
+    SubTreeHeight::new(SubTreeHeight::ACTUAL_HEIGHT.0 + 1 - index.bit_length())
 }
 
 /// Splits leaf_indices into two arrays according to the given root: the left child leaves and

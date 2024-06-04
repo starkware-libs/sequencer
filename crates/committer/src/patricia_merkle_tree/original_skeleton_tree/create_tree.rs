@@ -6,7 +6,7 @@ use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonI
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
-use crate::patricia_merkle_tree::types::TreeHeight;
+use crate::patricia_merkle_tree::types::SubTreeHeight;
 use crate::patricia_merkle_tree::{
     original_skeleton_tree::node::OriginalSkeletonNode, types::NodeIndex,
 };
@@ -29,8 +29,8 @@ struct SubTree<'a> {
 }
 
 impl<'a> SubTree<'a> {
-    pub(crate) fn get_height(&self) -> TreeHeight {
-        TreeHeight::new(TreeHeight::MAX.0 - (self.root_index.bit_length() - 1))
+    pub(crate) fn get_height(&self) -> SubTreeHeight {
+        SubTreeHeight::new(SubTreeHeight::ACTUAL_HEIGHT.0 - (self.root_index.bit_length() - 1))
     }
 
     pub(crate) fn split_leaves(&self) -> [&'a [NodeIndex]; 2] {
@@ -43,7 +43,7 @@ impl<'a> SubTree<'a> {
 
     fn get_bottom_subtree(&self, path_to_bottom: &PathToBottom, bottom_hash: HashOutput) -> Self {
         let bottom_index = path_to_bottom.bottom_index(self.root_index);
-        let bottom_height = self.get_height() - TreeHeight::new(path_to_bottom.length.into());
+        let bottom_height = self.get_height() - SubTreeHeight::new(path_to_bottom.length.into());
         let leftmost_in_subtree = bottom_index << bottom_height.into();
         let rightmost_in_subtree =
             leftmost_in_subtree + (NodeIndex::ROOT << bottom_height.into()) - NodeIndex::ROOT;

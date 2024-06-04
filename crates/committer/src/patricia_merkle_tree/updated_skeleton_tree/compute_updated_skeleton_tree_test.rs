@@ -8,7 +8,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToB
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonNodeMap;
 use crate::patricia_merkle_tree::test_utils::small_tree_index_to_full;
-use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
+use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::compute_updated_skeleton_tree::{
     get_path_to_lca, has_leaves_on_both_sides, TempSkeletonNode,
 };
@@ -78,7 +78,7 @@ fn test_has_leaves_on_both_sides(
     #[case] leaf_indices: Vec<NodeIndex>,
     #[case] expected: bool,
 ) {
-    let height = TreeHeight(subtree_height);
+    let height = SubTreeHeight(subtree_height);
     let root_index = small_tree_index_to_full(root_index.into(), height);
     assert_eq!(
         has_leaves_on_both_sides(&root_index, &leaf_indices),
@@ -95,7 +95,7 @@ fn test_has_leaves_on_both_sides_assertions(
     #[case] root_index: u8,
     #[case] leaf_indices: Vec<NodeIndex>,
 ) {
-    let height = TreeHeight(subtree_height);
+    let height = SubTreeHeight(subtree_height);
     let root_index = small_tree_index_to_full(root_index.into(), height);
     has_leaves_on_both_sides(&root_index, &leaf_indices);
 }
@@ -490,6 +490,6 @@ pub(crate) fn as_fully_indexed(
     indices: impl Iterator<Item = NodeIndex>,
 ) -> Vec<NodeIndex> {
     indices
-        .map(|index| NodeIndex::from_subtree_index(index, TreeHeight::new(subtree_height)))
+        .map(|index| NodeIndex::from_subtree_index(index, SubTreeHeight::new(subtree_height)))
         .collect()
 }
