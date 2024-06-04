@@ -9,6 +9,7 @@ use starknet_api::StarknetApiError;
 use thiserror::Error;
 use tokio::task::JoinError;
 
+/// Errors directed towards the end-user, as a result of gateway requests.
 #[derive(Debug, Error)]
 pub enum GatewayError {
     #[error("Internal server error: {0}")]
@@ -64,3 +65,10 @@ pub enum StatefulTransactionValidatorError {
 }
 
 pub type StatefulTransactionValidatorResult<T> = Result<T, StatefulTransactionValidatorError>;
+
+/// Errors originating from `[`Gateway::run`]` command, to be handled by infrastructure code.
+#[derive(Debug, Error)]
+pub enum GatewayRunError {
+    #[error(transparent)]
+    ServerStartupError(#[from] hyper::Error),
+}

@@ -84,7 +84,7 @@ async fn set_up_gateway(network_component: GatewayNetworkComponent) -> SocketAdd
     let gateway = Gateway::new(config, network_component, state_reader_factory);
 
     // Setup server
-    tokio::spawn(async move { gateway.run_server().await });
+    tokio::spawn(async move { gateway.run().await });
 
     // TODO: Avoid using sleep, it slow down the test.
     // Ensure the server has time to start up

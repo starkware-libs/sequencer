@@ -13,7 +13,7 @@ use starknet_mempool_types::mempool_types::{
 };
 
 use crate::config::{GatewayConfig, GatewayNetworkConfig};
-use crate::errors::GatewayError;
+use crate::errors::{GatewayError, GatewayRunError};
 use crate::starknet_api_test_utils::get_sender_address;
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
@@ -60,14 +60,14 @@ impl Gateway {
         Gateway { config, app_state }
     }
 
-    pub async fn run_server(self) {
+    pub async fn run(self) -> Result<(), GatewayRunError> {
         // Parses the bind address from GatewayConfig, returning an error for invalid addresses.
         let GatewayNetworkConfig { ip, port } = self.config.network_config;
         let addr = SocketAddr::new(ip, port);
         let app = self.app();
 
         // Create a server that runs forever.
-        axum::Server::bind(&addr).serve(app.into_make_service()).await.unwrap();
+        Ok(axum::Server::bind(&addr).serve(app.into_make_service()).await?)
     }
 
     pub fn app(self) -> Router {
