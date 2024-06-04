@@ -28,13 +28,9 @@ macro_rules! add_tx_input {
     };
 }
 
-fn create_for_testing(inputs: impl IntoIterator<Item = MempoolInput>) -> Mempool {
-    Mempool::new(inputs)
-}
-
 #[fixture]
 fn mempool() -> Mempool {
-    create_for_testing([])
+    Mempool::new([])
 }
 
 #[rstest]
@@ -48,7 +44,7 @@ fn test_get_txs(#[case] requested_txs: usize) {
     let (tx_tip_10_address_2, account3) =
         add_tx_input!(Tip(10), TransactionHash(StarkFelt::THREE), contract_address!("0x2"));
 
-    let mut mempool = create_for_testing([
+    let mut mempool = Mempool::new([
         MempoolInput { tx: tx_tip_50_address_0.clone(), account: account1 },
         MempoolInput { tx: tx_tip_100_address_1.clone(), account: account2 },
         MempoolInput { tx: tx_tip_10_address_2.clone(), account: account3 },
@@ -91,7 +87,7 @@ fn test_mempool_initialization_with_duplicate_sender_addresses() {
     let inputs = vec![MempoolInput { tx, account }, MempoolInput { tx: same_tx, account }];
 
     // This call should panic because of duplicate sender addresses
-    let _mempool = create_for_testing(inputs.into_iter());
+    let _mempool = Mempool::new(inputs.into_iter());
 }
 
 #[rstest]
