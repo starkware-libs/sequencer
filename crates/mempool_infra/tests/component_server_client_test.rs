@@ -1,4 +1,7 @@
+mod common;
+
 use async_trait::async_trait;
+use common::{ComponentATrait, ComponentBTrait};
 use starknet_mempool_infra::component_client::ComponentClient;
 use starknet_mempool_infra::component_definitions::{
     ComponentRequestAndResponseSender, ComponentRequestHandler,
@@ -9,10 +12,6 @@ use tokio::task;
 
 type ValueA = u32;
 type ValueB = u8;
-
-mod common;
-
-use common::{ComponentATrait, ComponentBTrait};
 
 struct ComponentA {
     b: Box<dyn ComponentBTrait>,
