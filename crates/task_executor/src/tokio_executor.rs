@@ -3,6 +3,9 @@ use std::future::Future;
 use tokio::runtime::Handle;
 
 use crate::executor::TaskExecutor;
+#[cfg(test)]
+#[path = "tokio_executor_test.rs"]
+pub mod test;
 
 #[derive(Clone)]
 pub struct TokioExecutor {
@@ -60,6 +63,8 @@ impl TokioExecutor {
 }
 
 impl TaskExecutor for TokioExecutor {
+    /// Note: `Tokio` catches task panics that returns them as errors, this is a `Tokio`-specific
+    /// behavior.
     type SpawnBlockingError = tokio::task::JoinError;
     type SpawnError = tokio::task::JoinError;
 
