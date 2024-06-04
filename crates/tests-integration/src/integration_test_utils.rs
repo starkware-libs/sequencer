@@ -1,10 +1,10 @@
 use std::net::SocketAddr;
 
 use axum::body::Body;
-use hyper::StatusCode;
 use reqwest::{Client, Response};
 use starknet_api::external_transaction::ExternalTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_gateway::errors::GatewayError;
 use starknet_gateway::starknet_api_test_utils::external_tx_to_json;
 
 /// A test utility client for interacting with a gateway server.
@@ -20,18 +20,15 @@ impl GatewayClient {
     }
 
     pub async fn assert_add_tx_success(&self, tx: &ExternalTransaction) -> TransactionHash {
-        self.add_tx_with_status_check(tx, StatusCode::OK).await.json().await.unwrap()
+        let response = self.add_tx(tx).await;
+        assert!(response.status().is_success());
+
+        response.json().await.unwrap()
     }
 
-    pub async fn add_tx_with_status_check(
-        &self,
-        tx: &ExternalTransaction,
-        expected_status_code: StatusCode,
-    ) -> Response {
-        let response = self.add_tx(tx).await;
-        assert_eq!(response.status(), expected_status_code);
-
-        response
+    // TODO: implement when usage eventually arises.
+    pub fn assert_add_tx_error(&self, _tx: &ExternalTransaction) -> GatewayError {
+        todo!()
     }
 
     // Prefer using assert_add_tx_success or other higher level methods of this client, to ensure

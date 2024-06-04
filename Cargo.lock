@@ -3437,7 +3437,6 @@ name = "starknet_mempool_integration_tests"
 version = "0.0.0"
 dependencies = [
  "axum",
- "hyper",
  "mempool_infra",
  "pretty_assertions",
  "reqwest",

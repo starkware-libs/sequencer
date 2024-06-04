@@ -25,6 +25,7 @@ const Configuration = {
             'gateway',
             'mempool',
             'mempool_node',
+            'tests-integration',
         ]],
     },
     /*
