@@ -33,8 +33,8 @@ pub struct Gateway {
 
 #[derive(Clone)]
 pub struct AppState {
-    pub stateless_transaction_validator: StatelessTransactionValidator,
-    pub stateful_transaction_validator: Arc<StatefulTransactionValidator>,
+    pub stateless_tx_validator: StatelessTransactionValidator,
+    pub stateful_tx_validator: Arc<StatefulTransactionValidator>,
     /// This field uses Arc to enable shared ownership, which is necessary because
     /// `GatewayNetworkClient` supports only one receiver at a time.
     pub network_component: Arc<GatewayNetworkComponent>,
@@ -48,11 +48,11 @@ impl Gateway {
         state_reader_factory: Arc<dyn StateReaderFactory>,
     ) -> Self {
         let app_state = AppState {
-            stateless_transaction_validator: StatelessTransactionValidator {
-                config: config.stateless_transaction_validator_config.clone(),
+            stateless_tx_validator: StatelessTransactionValidator {
+                config: config.stateless_tx_validator_config.clone(),
             },
-            stateful_transaction_validator: Arc::new(StatefulTransactionValidator {
-                config: config.stateful_transaction_validator_config.clone(),
+            stateful_tx_validator: Arc::new(StatefulTransactionValidator {
+                config: config.stateful_tx_validator_config.clone(),
             }),
             network_component: Arc::new(network_component),
             state_reader_factory,
@@ -92,8 +92,8 @@ async fn add_tx(
 ) -> GatewayResult<Json<TransactionHash>> {
     let mempool_input = tokio::task::spawn_blocking(move || {
         process_tx(
-            app_state.stateless_transaction_validator,
-            app_state.stateful_transaction_validator.as_ref(),
+            app_state.stateless_tx_validator,
+            app_state.stateful_tx_validator.as_ref(),
             app_state.state_reader_factory.as_ref(),
             tx,
         )
@@ -112,19 +112,18 @@ async fn add_tx(
 }
 
 fn process_tx(
-    stateless_transaction_validator: StatelessTransactionValidator,
-    stateful_transaction_validator: &StatefulTransactionValidator,
+    stateless_tx_validator: StatelessTransactionValidator,
+    stateful_tx_validator: &StatefulTransactionValidator,
     state_reader_factory: &dyn StateReaderFactory,
     tx: ExternalTransaction,
 ) -> GatewayResult<MempoolInput> {
     // TODO(Arni, 1/5/2024): Preform congestion control.
 
     // Perform stateless validations.
-    stateless_transaction_validator.validate(&tx)?;
+    stateless_tx_validator.validate(&tx)?;
 
     // TODO(Yael, 19/5/2024): pass the relevant class_info and deploy_account_hash.
-    let tx_hash =
-        stateful_transaction_validator.run_validate(state_reader_factory, &tx, None, None)?;
+    let tx_hash = stateful_tx_validator.run_validate(state_reader_factory, &tx, None, None)?;
 
     Ok(MempoolInput {
         tx: external_tx_to_thin_tx(&tx, tx_hash),

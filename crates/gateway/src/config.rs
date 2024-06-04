@@ -11,8 +11,8 @@ use validator::Validate;
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct GatewayConfig {
     pub network_config: GatewayNetworkConfig,
-    pub stateless_transaction_validator_config: StatelessTransactionValidatorConfig,
-    pub stateful_transaction_validator_config: StatefulTransactionValidatorConfig,
+    pub stateless_tx_validator_config: StatelessTransactionValidatorConfig,
+    pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
 }
 
 impl SerializeConfig for GatewayConfig {
@@ -20,12 +20,12 @@ impl SerializeConfig for GatewayConfig {
         vec![
             append_sub_config_name(self.network_config.dump(), "network_config"),
             append_sub_config_name(
-                self.stateless_transaction_validator_config.dump(),
-                "stateless_transaction_validator_config",
+                self.stateless_tx_validator_config.dump(),
+                "stateless_tx_validator_config",
             ),
             append_sub_config_name(
-                self.stateful_transaction_validator_config.dump(),
-                "stateful_transaction_validator_config",
+                self.stateful_tx_validator_config.dump(),
+                "stateful_tx_validator_config",
             ),
         ]
         .into_iter()

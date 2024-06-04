@@ -39,12 +39,12 @@ pub fn get_sender_address(tx: &ExternalTransaction) -> ContractAddress {
 }
 
 pub fn external_tx_for_testing(
-    transaction_type: TransactionType,
+    tx_type: TransactionType,
     resource_bounds: ResourceBoundsMapping,
     calldata: Calldata,
     signature: TransactionSignature,
 ) -> ExternalTransaction {
-    match transaction_type {
+    match tx_type {
         TransactionType::Declare => {
             external_declare_tx(declare_tx_args!(resource_bounds, signature))
         }

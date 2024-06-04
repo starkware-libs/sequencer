@@ -40,7 +40,7 @@ use crate::stateful_transaction_validator::StatefulTransactionValidator;
         )
     ))
 )]
-fn test_stateful_transaction_validator(
+fn test_stateful_tx_validator(
     #[case] account_balance: u128,
     #[case] expected_result: StatefulTransactionValidatorResult<TransactionHash>,
 ) {

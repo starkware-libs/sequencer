@@ -23,7 +23,7 @@ use crate::utils::{external_tx_to_account_tx, get_tx_hash};
 
 pub fn app_state(network_component: GatewayNetworkComponent) -> AppState {
     AppState {
-        stateless_transaction_validator: StatelessTransactionValidator {
+        stateless_tx_validator: StatelessTransactionValidator {
             config: StatelessTransactionValidatorConfig {
                 validate_non_zero_l1_gas_fee: true,
                 max_calldata_length: 10,
@@ -32,7 +32,7 @@ pub fn app_state(network_component: GatewayNetworkComponent) -> AppState {
             },
         },
         network_component: Arc::new(network_component),
-        stateful_transaction_validator: Arc::new(StatefulTransactionValidator {
+        stateful_tx_validator: Arc::new(StatefulTransactionValidator {
             config: StatefulTransactionValidatorConfig::create_for_testing(),
         }),
         state_reader_factory: Arc::new(test_state_reader_factory()),

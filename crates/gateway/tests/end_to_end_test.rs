@@ -66,18 +66,17 @@ async fn set_up_gateway(network_component: GatewayNetworkComponent) -> SocketAdd
     let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
     let port = 3000;
     let network_config = GatewayNetworkConfig { ip, port };
-    let stateless_transaction_validator_config = StatelessTransactionValidatorConfig {
+    let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
         validate_non_zero_l1_gas_fee: true,
         max_calldata_length: 10,
         max_signature_length: 2,
         ..Default::default()
     };
-    let stateful_transaction_validator_config =
-        StatefulTransactionValidatorConfig::create_for_testing();
+    let stateful_tx_validator_config = StatefulTransactionValidatorConfig::create_for_testing();
     let config = GatewayConfig {
         network_config,
-        stateless_transaction_validator_config,
-        stateful_transaction_validator_config,
+        stateless_tx_validator_config,
+        stateful_tx_validator_config,
     };
 
     let state_reader_factory = Arc::new(test_state_reader_factory());
