@@ -1,19 +1,6 @@
-use async_trait::async_trait;
-use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::mpsc::Receiver;
 
-#[async_trait]
-pub trait ComponentRequestHandler<Request, Response> {
-    async fn handle_request(&mut self, request: Request) -> Response;
-}
-
-pub struct ComponentRequestAndResponseSender<Request, Response>
-where
-    Request: Send + Sync,
-    Response: Send + Sync,
-{
-    pub request: Request,
-    pub tx: Sender<Response>,
-}
+use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
 
 pub struct ComponentServer<Component, Request, Response>
 where

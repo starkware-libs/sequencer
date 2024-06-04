@@ -4,7 +4,8 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::TransactionHash;
-use starknet_mempool_infra::component_server::{ComponentRequestHandler, ComponentServer};
+use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
+use starknet_mempool_infra::component_server::ComponentServer;
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{
     Account, AccountState, MempoolInput, MempoolRequest, MempoolRequestAndResponseSender,

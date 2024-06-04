@@ -7,9 +7,8 @@ use crate::component_client::ComponentClient;
 type ValueA = u32;
 type ValueB = u8;
 
-use crate::component_server::{
-    ComponentRequestAndResponseSender, ComponentRequestHandler, ComponentServer,
-};
+use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
+use crate::component_server::ComponentServer;
 
 #[async_trait]
 trait ComponentATrait: Send + Sync {
