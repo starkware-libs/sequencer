@@ -9,6 +9,7 @@ license-file.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
 base64.workspace = true
+cairo-lang-starknet-classes.workspace = true
 ethers.workspace = true
 flate2.workspace = true
 futures.workspace = true
@@ -27,7 +28,7 @@ starknet_client = { path = "../starknet_client", version = "0.4.0-dev.2" }
 regex = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
-starknet_api.workspace = true
+starknet_api = { version = "0.12.0-dev.1" }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 tokio-stream.workspace = true
@@ -55,8 +56,8 @@ pretty_assertions.workspace = true
 prometheus-parse.workspace = true
 rand_chacha.workspace = true
 reqwest.workspace = true
-test_utils = { path = "../test_utils" }
-starknet_api = { workspace = true, features = ["testing"] }
+papyrus_test_utils = { path = "../papyrus_test_utils" }
+starknet_api = { version = "0.12.0-dev.1", features = ["testing"] }
 starknet_client = { path = "../starknet_client", features = ["testing"] }
 starknet-core.workspace = true
 strum.workspace = true

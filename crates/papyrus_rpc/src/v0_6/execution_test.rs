@@ -30,6 +30,13 @@ use papyrus_storage::compiled_class::CasmStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::StorageWriter;
+use papyrus_test_utils::{
+    auto_impl_get_test_instance,
+    get_number_of_variants,
+    get_rng,
+    read_json_file,
+    GetTestInstance,
+};
 use pretty_assertions::assert_eq;
 use starknet_api::block::{
     BlockBody,
@@ -78,13 +85,6 @@ use starknet_client::reader::objects::transaction::{
     TransactionReceipt as ClientTransactionReceipt,
 };
 use starknet_client::reader::PendingData;
-use test_utils::{
-    auto_impl_get_test_instance,
-    get_number_of_variants,
-    get_rng,
-    read_json_file,
-    GetTestInstance,
-};
 use tokio::sync::RwLock;
 
 use super::api::api_impl::JsonRpcServerImpl;
@@ -762,9 +762,14 @@ async fn trace_block_transactions_regular_and_pending() {
             BlockNumber(2),
             BlockBody {
                 transactions: vec![tx1, tx2],
-                transaction_outputs: vec![starknet_api::transaction::TransactionOutput::Invoke(
-                    starknet_api::transaction::InvokeTransactionOutput::default(),
-                )],
+                transaction_outputs: vec![
+                    starknet_api::transaction::TransactionOutput::Invoke(
+                        starknet_api::transaction::InvokeTransactionOutput::default(),
+                    ),
+                    starknet_api::transaction::TransactionOutput::Invoke(
+                        starknet_api::transaction::InvokeTransactionOutput::default(),
+                    ),
+                ],
                 transaction_hashes: vec![tx_hash1, tx_hash2],
             },
         )
@@ -960,9 +965,14 @@ async fn trace_block_transactions_and_trace_transaction_execution_context() {
             BlockNumber(2),
             BlockBody {
                 transactions: vec![tx1, tx2],
-                transaction_outputs: vec![starknet_api::transaction::TransactionOutput::Invoke(
-                    starknet_api::transaction::InvokeTransactionOutput::default(),
-                )],
+                transaction_outputs: vec![
+                    starknet_api::transaction::TransactionOutput::Invoke(
+                        starknet_api::transaction::InvokeTransactionOutput::default(),
+                    ),
+                    starknet_api::transaction::TransactionOutput::Invoke(
+                        starknet_api::transaction::InvokeTransactionOutput::default(),
+                    ),
+                ],
                 transaction_hashes: vec![tx_hash1, tx_hash2],
             },
         )

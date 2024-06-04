@@ -3,7 +3,8 @@ use std::time::Duration;
 use futures::channel::mpsc::{Receiver, Sender};
 use futures::StreamExt;
 use lazy_static::lazy_static;
-use papyrus_network::{Query, ResponseReceivers, SignedBlockHeader};
+use papyrus_network::{DataType, ResponseReceivers};
+use papyrus_protobuf::sync::{Query, SignedBlockHeader};
 use papyrus_storage::test_utils::get_test_storage;
 use papyrus_storage::StorageReader;
 use starknet_api::block::{BlockHash, BlockSignature};
@@ -14,8 +15,8 @@ use starknet_api::state::ThinStateDiff;
 use crate::{P2PSync, P2PSyncConfig};
 
 pub const BUFFER_SIZE: usize = 1000;
-pub const HEADER_QUERY_LENGTH: usize = 5;
-pub const STATE_DIFF_QUERY_LENGTH: usize = 3;
+pub const HEADER_QUERY_LENGTH: u64 = 5;
+pub const STATE_DIFF_QUERY_LENGTH: u64 = 3;
 pub const SLEEP_DURATION_TO_LET_SYNC_ADVANCE: Duration = Duration::from_millis(10);
 // This should be substantially bigger than SLEEP_DURATION_TO_LET_SYNC_ADVANCE.
 pub const WAIT_PERIOD_FOR_NEW_DATA: Duration = Duration::from_millis(50);
@@ -35,7 +36,7 @@ lazy_static! {
 pub fn setup() -> (
     P2PSync,
     StorageReader,
-    Receiver<Query>,
+    Receiver<(Query, DataType)>,
     Sender<Option<SignedBlockHeader>>,
     Sender<Option<ThinStateDiff>>,
 ) {

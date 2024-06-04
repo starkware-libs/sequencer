@@ -8,24 +8,30 @@ license.workspace = true
 [lints]
 workspace = true
 
+[features]
+testing = []
+
 [dependencies]
-# TODO(Arni, 1/5/2024): Use a fixed version once the StarkNet API is stable.
-starknet_api = { git = "https://github.com/starkware-libs/starknet-api.git", rev = "1b46b42" }
-# TODO(YaelD, 1/5/2024): Use a fixed version once the StarkNet API is stable.
-blockifier = { git = "https://github.com/starkware-libs/blockifier.git", rev = "ba72c863", features = ["testing"] }
 axum.workspace = true
-clap.workspace = true
-papyrus_config.workspace = true
+# TODO(YaelD, 1/5/2024): Use a fixed version once the StarkNet API is stable.
+blockifier = { git = "https://github.com/starkware-libs/blockifier.git", rev = "6babc28a", features = [
+    "testing",
+] }
+cairo-lang-starknet-classes.workspace = true
+mempool_infra = { path = "../mempool_infra", version = "0.4.0-dev.2" }
+papyrus_config = { path = "../papyrus_config", version = "0.4.0-dev.2" }
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+# TODO(Arni, 1/5/2024): Use a fixed version once the StarkNet API is stable.
+starknet_api = { git = "https://github.com/starkware-libs/starknet-api.git", branch = "main-mempool" }
+starknet_mempool_types = { path = "../mempool_types", version = "0.4.0-dev.2" }
 thiserror.workspace = true
-tower.workspace = true
-url.workspace = true
+tokio.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
-tokio.workspace = true
+starknet_mempool = { path = "../mempool", version = "0.4.0-dev.2" }

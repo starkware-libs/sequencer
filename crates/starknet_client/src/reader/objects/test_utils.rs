@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use papyrus_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
@@ -26,7 +27,6 @@ use starknet_api::transaction::{
     TransactionSignature,
     TransactionVersion,
 };
-use test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
 
 use crate::reader::objects::state::ContractClass;
 use crate::reader::objects::transaction::{

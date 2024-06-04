@@ -9,19 +9,18 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-async-trait.workspace = true
 clap.workspace = true
 const_format.workspace = true
 starknet_gateway = { path = "../gateway", version = "0.4.0-dev.2" }
 serde.workspace = true
-serde_json.workspace = true
-# TODO(Arni, 1/5/2024): Use a fixed version once the StarkNet API is stable.
-starknet_api = { git = "https://github.com/starkware-libs/starknet-api.git", rev = "1b46b42" }
-thiserror.workspace = true
-papyrus_config.workspace = true
+papyrus_config = { path = "../papyrus_config", version = "0.4.0-dev.2" }
 tokio.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
+assert-json-diff.workspace = true
 assert_matches.workspace = true
+colored.workspace = true
 pretty_assertions.workspace = true
+serde_json.workspace = true
+mempool_test_utils = {path = "../mempool_test_utils"}

@@ -1,13 +1,9 @@
+use assert_matches::assert_matches;
 use rstest::rstest;
 use starknet_api::calldata;
+use starknet_api::external_transaction::ResourceBoundsMapping;
 use starknet_api::hash::StarkFelt;
-use starknet_api::transaction::{
-    Calldata,
-    Resource,
-    ResourceBounds,
-    ResourceBoundsMapping,
-    TransactionSignature,
-};
+use starknet_api::transaction::{Calldata, Resource, ResourceBounds, TransactionSignature};
 
 use crate::starknet_api_test_utils::{
     create_resource_bounds_mapping,
@@ -80,30 +76,12 @@ fn test_positive_flow(
     tx_type: TransactionType,
 ) {
     let tx_validator = StatelessTransactionValidator { config };
-    let tx = external_tx_for_testing(tx_type, resource_bounds, Some(tx_calldata), signature);
+    let tx = external_tx_for_testing(tx_type, resource_bounds, tx_calldata, signature);
 
-    assert!(tx_validator.validate(&tx).is_ok());
+    assert_matches!(tx_validator.validate(&tx), Ok(()));
 }
 
 #[rstest]
-#[case::missing_l1_gas_resource_bounds(
-    StatelessTransactionValidatorConfig {
-        validate_non_zero_l1_gas_fee: true,
-        validate_non_zero_l2_gas_fee: false,
-        ..DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
-    },
-    ResourceBoundsMapping::default(),
-    StatelessTransactionValidatorError::MissingResource { resource: Resource::L1Gas }
-)]
-#[case::missing_l2_gas_resource_bounds(
-    StatelessTransactionValidatorConfig {
-        validate_non_zero_l1_gas_fee: false,
-        validate_non_zero_l2_gas_fee: true,
-        ..DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
-    },
-    ResourceBoundsMapping::default(),
-    StatelessTransactionValidatorError::MissingResource { resource: Resource::L2Gas }
-)]
 #[case::zero_l1_gas_resource_bounds(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING,
     zero_resource_bounds_mapping(),
@@ -129,7 +107,7 @@ fn test_invalid_resource_bounds(
     let tx = external_tx_for_testing(
         tx_type,
         resource_bounds,
-        Some(calldata![]),
+        calldata![],
         TransactionSignature::default(),
     );
 
@@ -145,7 +123,7 @@ fn test_calldata_too_long(
     let tx = external_tx_for_testing(
         tx_type,
         non_zero_resource_bounds_mapping(),
-        Some(calldata![StarkFelt::from_u128(1), StarkFelt::from_u128(2)]),
+        calldata![StarkFelt::from_u128(1), StarkFelt::from_u128(2)],
         TransactionSignature::default(),
     );
 
@@ -168,7 +146,7 @@ fn test_signature_too_long(
     let tx = external_tx_for_testing(
         tx_type,
         non_zero_resource_bounds_mapping(),
-        Some(calldata![]),
+        calldata![],
         TransactionSignature(vec![StarkFelt::from_u128(1), StarkFelt::from_u128(2)]),
     );
 

@@ -5,7 +5,7 @@ use blockifier::transaction::transactions::{
     DeployAccountTransaction as BlockifierDeployAccountTransaction,
     InvokeTransaction as BlockifierInvokeTransaction,
 };
-use starknet_api::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress};
+use starknet_api::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress, Nonce};
 use starknet_api::external_transaction::{
     ExternalDeclareTransaction,
     ExternalDeployAccountTransaction,
@@ -19,12 +19,14 @@ use starknet_api::transaction::{
     DeployAccountTransactionV3,
     InvokeTransaction,
     InvokeTransactionV3,
-    ResourceBoundsMapping,
+    Tip,
+    TransactionHash,
     TransactionHasher,
-    TransactionSignature,
 };
+use starknet_mempool_types::mempool_types::ThinTransaction;
 
 use crate::errors::StatefulTransactionValidatorResult;
+use crate::starknet_api_test_utils::get_sender_address;
 
 macro_rules! implement_ref_getters {
     ($(($member_name:ident, $member_type:ty));* $(;)?) => {
@@ -46,15 +48,27 @@ macro_rules! implement_ref_getters {
 
 impl ExternalTransactionExt for ExternalTransaction {
     implement_ref_getters!(
-        (resource_bounds, ResourceBoundsMapping);
-        (signature, TransactionSignature)
+        (nonce, Nonce);
+        (tip, Tip)
     );
 }
 
-// TODO(Arni, 1/5/2025): Remove this trait once it is implemented in StarkNet API.
+pub fn external_tx_to_thin_tx(
+    external_tx: &ExternalTransaction,
+    tx_hash: TransactionHash,
+) -> ThinTransaction {
+    ThinTransaction {
+        tip: *external_tx.tip(),
+        nonce: *external_tx.nonce(),
+        sender_address: get_sender_address(external_tx),
+        tx_hash,
+    }
+}
+
+// TODO(Mohammad): Remove this trait once it is implemented in StarkNet API.
 pub trait ExternalTransactionExt {
-    fn resource_bounds(&self) -> &ResourceBoundsMapping;
-    fn signature(&self) -> &TransactionSignature;
+    fn nonce(&self) -> &Nonce;
+    fn tip(&self) -> &Tip;
 }
 
 pub fn external_tx_to_account_tx(
@@ -68,7 +82,7 @@ pub fn external_tx_to_account_tx(
             let declare_tx = DeclareTransaction::V3(DeclareTransactionV3 {
                 class_hash: ClassHash::default(), /* FIXME(yael 15/4/24): call the starknet-api
                                                    * function once ready */
-                resource_bounds: tx.resource_bounds.clone(),
+                resource_bounds: tx.resource_bounds.clone().into(),
                 tip: tx.tip,
                 signature: tx.signature.clone(),
                 nonce: tx.nonce,
@@ -87,7 +101,7 @@ pub fn external_tx_to_account_tx(
         }
         ExternalTransaction::DeployAccount(ExternalDeployAccountTransaction::V3(tx)) => {
             let deploy_account_tx = DeployAccountTransaction::V3(DeployAccountTransactionV3 {
-                resource_bounds: tx.resource_bounds.clone(),
+                resource_bounds: tx.resource_bounds.clone().into(),
                 tip: tx.tip,
                 signature: tx.signature.clone(),
                 nonce: tx.nonce,
@@ -115,7 +129,7 @@ pub fn external_tx_to_account_tx(
         }
         ExternalTransaction::Invoke(ExternalInvokeTransaction::V3(tx)) => {
             let invoke_tx = InvokeTransaction::V3(InvokeTransactionV3 {
-                resource_bounds: tx.resource_bounds.clone(),
+                resource_bounds: tx.resource_bounds.clone().into(),
                 tip: tx.tip,
                 signature: tx.signature.clone(),
                 nonce: tx.nonce,
@@ -130,5 +144,14 @@ pub fn external_tx_to_account_tx(
             let invoke_tx = BlockifierInvokeTransaction::new(invoke_tx, tx_hash);
             Ok(AccountTransaction::Invoke(invoke_tx))
         }
+    }
+}
+
+// TODO(yael 9/5/54): Remove once we we transition to InternalTransaction
+pub fn get_tx_hash(tx: &AccountTransaction) -> TransactionHash {
+    match tx {
+        AccountTransaction::Declare(tx) => tx.tx_hash,
+        AccountTransaction::DeployAccount(tx) => tx.tx_hash,
+        AccountTransaction::Invoke(tx) => tx.tx_hash,
     }
 }

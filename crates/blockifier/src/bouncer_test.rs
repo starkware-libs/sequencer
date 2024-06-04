@@ -14,7 +14,7 @@ use crate::blockifier::transaction_executor::{
 use crate::bouncer::{Bouncer, BouncerWeights, BuiltinCount};
 use crate::context::BlockContext;
 use crate::execution::call_info::ExecutionSummary;
-use crate::state::cached_state::{CachedState, StateChangesKeys};
+use crate::state::cached_state::{StateChangesKeys, TransactionalState};
 use crate::storage_key;
 use crate::test_utils::initial_test_state::test_state;
 use crate::transaction::errors::TransactionExecutionError;
@@ -197,7 +197,7 @@ fn test_bouncer_try_update(
     use crate::transaction::objects::TransactionResources;
 
     let state = &mut test_state(&BlockContext::create_for_account_testing().chain_info, 0, &[]);
-    let mut transactional_state = CachedState::create_transactional(state);
+    let mut transactional_state = TransactionalState::create_transactional(state);
 
     // Setup the bouncer.
     let block_max_capacity = BouncerWeights {
@@ -257,9 +257,15 @@ fn test_bouncer_try_update(
         },
         ..Default::default()
     };
+    let tx_state_changes_keys = transactional_state.get_actual_state_changes().unwrap().into_keys();
 
     // Try to update the bouncer.
-    let result = bouncer.try_update(&mut transactional_state, &execution_summary, &tx_resources);
+    let result = bouncer.try_update(
+        &transactional_state,
+        &tx_state_changes_keys,
+        &execution_summary,
+        &tx_resources,
+    );
 
     // TODO(yael 27/3/24): compare the results without using string comparison.
     assert_eq!(format!("{:?}", result), format!("{:?}", expected_result));

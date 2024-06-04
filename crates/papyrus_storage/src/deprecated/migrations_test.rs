@@ -1,11 +1,11 @@
 use std::fmt::Debug;
 
+use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::core::{EventCommitment, TransactionCommitment};
 use starknet_api::hash::StarkFelt;
 use starknet_api::stark_felt;
 use test_log::test;
-use test_utils::{get_rng, GetTestInstance};
 
 use crate::db::serialization::VersionZeroWrapper;
 use crate::db::table_types::Table;

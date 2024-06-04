@@ -15,11 +15,11 @@ use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::presentation::get_config_presentation;
 use papyrus_config::{SerializationType, SerializedContent, SerializedParam};
 use papyrus_monitoring_gateway::MonitoringGatewayConfig;
+use papyrus_test_utils::get_absolute_path;
 use pretty_assertions::assert_eq;
 use serde_json::{json, Map, Value};
 use starknet_api::core::ChainId;
 use tempfile::NamedTempFile;
-use test_utils::get_absolute_path;
 use validator::Validate;
 
 #[cfg(feature = "rpc")]

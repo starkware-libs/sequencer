@@ -15,7 +15,8 @@ use futures::channel::mpsc::{SendError, Sender};
 use papyrus_config::converters::deserialize_seconds_to_duration;
 use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use papyrus_network::{DataType, Query, ResponseReceivers};
+use papyrus_network::{DataType, ResponseReceivers};
+use papyrus_protobuf::sync::Query;
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, BlockSignature};
@@ -26,15 +27,15 @@ use crate::header::HeaderStreamFactory;
 use crate::state_diff::StateDiffStreamFactory;
 use crate::stream_factory::DataStreamFactory;
 
-const STEP: usize = 1;
+const STEP: u64 = 1;
 const ALLOWED_SIGNATURES_LENGTH: usize = 1;
 
 const NETWORK_DATA_TIMEOUT: Duration = Duration::from_secs(300);
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct P2PSyncConfig {
-    pub num_headers_per_query: usize,
-    pub num_block_state_diffs_per_query: usize,
+    pub num_headers_per_query: u64,
+    pub num_block_state_diffs_per_query: u64,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub wait_period_for_new_data: Duration,
     pub stop_sync_at_block_number: Option<BlockNumber>,
@@ -139,7 +140,7 @@ pub struct P2PSync {
     config: P2PSyncConfig,
     storage_reader: StorageReader,
     storage_writer: StorageWriter,
-    query_sender: Sender<Query>,
+    query_sender: Sender<(Query, DataType)>,
     response_receivers: ResponseReceivers,
 }
 
@@ -148,7 +149,7 @@ impl P2PSync {
         config: P2PSyncConfig,
         storage_reader: StorageReader,
         storage_writer: StorageWriter,
-        query_sender: Sender<Query>,
+        query_sender: Sender<(Query, DataType)>,
         response_receivers: ResponseReceivers,
     ) -> Self {
         Self { config, storage_reader, storage_writer, query_sender, response_receivers }

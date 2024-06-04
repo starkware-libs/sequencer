@@ -1,8 +1,22 @@
-use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
-use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::hash::StarkHash;
-use starknet_api::{class_hash, contract_address, patricia_key};
+use starknet_api::core::{
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    EntryPointSelector,
+    PatriciaKey,
+};
+use starknet_api::deprecated_contract_class::{
+    ContractClass as DeprecatedContractClass,
+    EntryPointOffset,
+    EntryPointType,
+};
+use starknet_api::hash::{StarkFelt, StarkHash};
+use starknet_api::{class_hash, contract_address, patricia_key, stark_felt};
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
+use crate::abi::abi_utils::selector_from_name;
+use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
 use crate::test_utils::{get_raw_contract_class, CairoVersion};
 
@@ -54,7 +68,7 @@ const ERC20_CONTRACT_PATH: &str =
 
 /// Enum representing all feature contracts.
 /// The contracts that are implemented in both Cairo versions include a version field.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, EnumIter)]
 pub enum FeatureContract {
     AccountWithLongValidate(CairoVersion),
     AccountWithoutValidations(CairoVersion),
@@ -76,6 +90,17 @@ impl FeatureContract {
             | Self::TestContract(version) => *version,
             Self::SecurityTests | Self::ERC20 => CairoVersion::Cairo0,
             Self::LegacyTestContract => CairoVersion::Cairo1,
+        }
+    }
+
+    fn has_two_versions(&self) -> bool {
+        match self {
+            Self::AccountWithLongValidate(_)
+            | Self::AccountWithoutValidations(_)
+            | Self::Empty(_)
+            | Self::FaultyAccount(_)
+            | Self::TestContract(_) => true,
+            Self::SecurityTests | Self::ERC20 | Self::LegacyTestContract => false,
         }
     }
 
@@ -101,7 +126,7 @@ impl FeatureContract {
             }
     }
 
-    fn get_compiled_path(&self) -> String {
+    pub fn get_compiled_path(&self) -> String {
         let cairo_version = self.cairo_version();
         let contract_name = match self {
             Self::AccountWithLongValidate(_) => ACCOUNT_LONG_VALIDATE_NAME,
@@ -115,7 +140,7 @@ impl FeatureContract {
             Self::ERC20 => return ERC20_CONTRACT_PATH.into(),
         };
         format!(
-            "./feature_contracts/cairo{}/compiled/{}{}.json",
+            "feature_contracts/cairo{}/compiled/{}{}.json",
             match cairo_version {
                 CairoVersion::Cairo0 => "0",
                 CairoVersion::Cairo1 => "1",
@@ -143,6 +168,13 @@ impl FeatureContract {
 
     pub fn get_class_hash(&self) -> ClassHash {
         class_hash!(self.get_integer_base())
+    }
+
+    pub fn get_compiled_class_hash(&self) -> CompiledClassHash {
+        match self.cairo_version() {
+            CairoVersion::Cairo0 => CompiledClassHash(StarkFelt::ZERO),
+            CairoVersion::Cairo1 => CompiledClassHash(stark_felt!(self.get_integer_base())),
+        }
     }
 
     /// Returns the address of the instance with the given instance ID.
@@ -175,5 +207,67 @@ impl FeatureContract {
 
     pub fn get_raw_class(&self) -> String {
         get_raw_contract_class(&self.get_compiled_path())
+    }
+
+    /// Fetch PC locations from the compiled contract to compute the expected PC locations in the
+    /// traceback. Computation is not robust, but as long as the cairo function itself is not
+    /// edited, this computation should be stable.
+    fn get_offset(
+        &self,
+        entry_point_selector: EntryPointSelector,
+        entry_point_type: EntryPointType,
+    ) -> EntryPointOffset {
+        match self.get_class() {
+            ContractClass::V0(class) => {
+                class
+                    .entry_points_by_type
+                    .get(&entry_point_type)
+                    .unwrap()
+                    .iter()
+                    .find(|ep| ep.selector == entry_point_selector)
+                    .unwrap()
+                    .offset
+            }
+            ContractClass::V1(class) => {
+                class
+                    .entry_points_by_type
+                    .get(&entry_point_type)
+                    .unwrap()
+                    .iter()
+                    .find(|ep| ep.selector == entry_point_selector)
+                    .unwrap()
+                    .offset
+            }
+        }
+    }
+
+    pub fn get_entry_point_offset(
+        &self,
+        entry_point_selector: EntryPointSelector,
+    ) -> EntryPointOffset {
+        self.get_offset(entry_point_selector, EntryPointType::External)
+    }
+
+    pub fn get_ctor_offset(
+        &self,
+        entry_point_selector: Option<EntryPointSelector>,
+    ) -> EntryPointOffset {
+        let selector =
+            entry_point_selector.unwrap_or(selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME));
+        self.get_offset(selector, EntryPointType::Constructor)
+    }
+
+    pub fn all_contracts() -> impl Iterator<Item = Self> {
+        // EnumIter iterates over all variants with Default::default() as the cairo
+        // version.
+        Self::iter().flat_map(|contract| {
+            if contract.has_two_versions() {
+                let mut other_contract = contract;
+                other_contract.set_cairo_version(contract.cairo_version().other());
+                vec![contract, other_contract].into_iter()
+            } else {
+                vec![contract].into_iter()
+            }
+        })
     }
 }

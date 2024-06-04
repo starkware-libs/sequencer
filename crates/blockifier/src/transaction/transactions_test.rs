@@ -53,7 +53,7 @@ use crate::fee::gas_usage::{
     get_da_gas_cost,
     get_onchain_data_segment_length,
 };
-use crate::state::cached_state::{CachedState, StateChangesCount};
+use crate::state::cached_state::{CachedState, StateChangesCount, TransactionalState};
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader};
 use crate::test_utils::contracts::FeatureContract;
@@ -265,14 +265,9 @@ fn expected_fee_transfer_call_info(
             ..Default::default()
         },
         resources: Prices::FeeTransfer(account_address, *fee_type).into(),
-        // We read sender balance, write (which starts with read) sender balance, then the same for
-        // recipient. We read Uint256(BALANCE, 0) twice, then Uint256(0, 0) twice.
+        // We read sender and recipient balance - Uint256(BALANCE, 0) then Uint256(0, 0).
         storage_read_values: vec![
             stark_felt!(BALANCE),
-            stark_felt!(0_u8),
-            stark_felt!(BALANCE),
-            stark_felt!(0_u8),
-            stark_felt!(0_u8),
             stark_felt!(0_u8),
             stark_felt!(0_u8),
             stark_felt!(0_u8),
@@ -885,6 +880,7 @@ fn test_max_fee_exceeds_balance(
     let invalid_tx = declare_tx(
         declare_tx_args! {
             class_hash: contract_to_declare.get_class_hash(),
+            compiled_class_hash: contract_to_declare.get_compiled_class_hash(),
             sender_address: account_contract_address,
             max_fee: invalid_max_fee,
         },
@@ -1035,7 +1031,7 @@ fn test_invalid_nonce(
         calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
         max_fee: Fee(MAX_FEE)
     };
-    let mut transactional_state = CachedState::create_transactional(state);
+    let mut transactional_state = TransactionalState::create_transactional(state);
 
     // Strict, negative flow: account nonce = 0, incoming tx nonce = 1.
     let invalid_nonce = nonce!(1_u8);
@@ -1148,6 +1144,7 @@ fn test_declare_tx(
     let chain_info = &block_context.chain_info;
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
     let class_hash = empty_contract.get_class_hash();
+    let compiled_class_hash = empty_contract.get_compiled_class_hash();
     let class_info = calculate_class_info_for_testing(empty_contract.get_class());
     let sender_address = account.get_instance_address(0);
     let starknet_resources = StarknetResources::new(
@@ -1166,6 +1163,7 @@ fn test_declare_tx(
             version: tx_version,
             resource_bounds: l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE),
             class_hash,
+            compiled_class_hash,
         },
         class_info.clone(),
     );

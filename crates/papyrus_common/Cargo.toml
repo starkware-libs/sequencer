@@ -14,12 +14,14 @@ lazy_static.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha3.workspace = true
-starknet_api.workspace = true
+starknet_api = { version = "0.12.0-dev.1" }
 starknet-crypto.workspace = true
 thiserror.workspace = true
+rand.workspace = true
+indexmap.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
 pretty_assertions.workspace = true
 serde_json = { workspace = true, features = ["arbitrary_precision"]}
-test_utils = { path = "../test_utils" }
+papyrus_test_utils = { path = "../papyrus_test_utils" }

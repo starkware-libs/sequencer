@@ -26,7 +26,7 @@ papyrus_config = { path = "../papyrus_config", version = "0.4.0-dev.2" }
 papyrus_proc_macros = { path = "../papyrus_proc_macros", version = "0.4.0-dev.2" }
 reqwest = { workspace = true, features = ["json", "blocking"] }
 serde = { workspace = true, features = ["derive"] }
-starknet_api.workspace = true
+starknet_api = { version = "0.12.0-dev.1" }
 starknet_client = { path = "../starknet_client" }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
@@ -40,6 +40,6 @@ mockall.workspace = true
 papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
 pretty_assertions.workspace = true
 starknet_client = { path = "../starknet_client", features = ["testing"] }
-starknet_api = { workspace = true, features = ["testing"] }
-test_utils = { path = "../test_utils" }
+starknet_api = { version = "0.12.0-dev.1", features = ["testing"] }
+papyrus_test_utils = { path = "../papyrus_test_utils" }
 tokio-stream.workspace = true
