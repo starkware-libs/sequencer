@@ -1,5 +1,5 @@
-use mempool_node::config::{MempoolNodeConfig, DEFAULT_CONFIG_PATH};
 use papyrus_config::dumping::SerializeConfig;
+use starknet_mempool_node::config::{MempoolNodeConfig, DEFAULT_CONFIG_PATH};
 
 /// Updates the default config file by:
 /// cargo run --bin dump_config -q

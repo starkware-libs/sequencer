@@ -2042,42 +2042,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c8640c5d730cb13ebd907d8d04b52f55ac9a2eec55b440c8892f40d56c76c1d"
 
 [[package]]
-name = "mempool_infra"
-version = "0.0.0"
-dependencies = [
- "assert_matches",
- "async-trait",
- "papyrus_config",
- "pretty_assertions",
- "prost",
- "protoc-prebuilt",
- "serde",
- "thiserror",
- "tokio",
- "tonic",
- "tonic-build",
-]
-
-[[package]]
-name = "mempool_node"
-version = "0.0.0"
-dependencies = [
- "assert-json-diff",
- "assert_matches",
- "clap",
- "colored",
- "const_format",
- "papyrus_config",
- "pretty_assertions",
- "serde",
- "serde_json",
- "starknet_gateway",
- "test_utils",
- "tokio",
- "validator",
-]
-
-[[package]]
 name = "mimalloc"
 version = "0.1.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3423,12 +3387,29 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "derive_more",
- "mempool_infra",
  "pretty_assertions",
  "rstest",
  "starknet_api",
+ "starknet_mempool_infra",
  "starknet_mempool_types",
  "tokio",
+]
+
+[[package]]
+name = "starknet_mempool_infra"
+version = "0.0.0"
+dependencies = [
+ "assert_matches",
+ "async-trait",
+ "papyrus_config",
+ "pretty_assertions",
+ "prost",
+ "protoc-prebuilt",
+ "serde",
+ "thiserror",
+ "tokio",
+ "tonic",
+ "tonic-build",
 ]
 
 [[package]]
@@ -3436,15 +3417,34 @@ name = "starknet_mempool_integration_tests"
 version = "0.0.0"
 dependencies = [
  "axum",
- "mempool_infra",
  "pretty_assertions",
  "reqwest",
  "rstest",
  "starknet_api",
  "starknet_gateway",
  "starknet_mempool",
+ "starknet_mempool_infra",
  "starknet_mempool_types",
  "tokio",
+]
+
+[[package]]
+name = "starknet_mempool_node"
+version = "0.0.0"
+dependencies = [
+ "assert-json-diff",
+ "assert_matches",
+ "clap",
+ "colored",
+ "const_format",
+ "papyrus_config",
+ "pretty_assertions",
+ "serde",
+ "serde_json",
+ "starknet_gateway",
+ "test_utils",
+ "tokio",
+ "validator",
 ]
 
 [[package]]
@@ -3452,8 +3452,8 @@ name = "starknet_mempool_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
- "mempool_infra",
  "starknet_api",
+ "starknet_mempool_infra",
  "thiserror",
 ]
 

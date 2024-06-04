@@ -2,9 +2,9 @@ use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use mempool_infra::component_server::{ComponentRequestHandler, ComponentServer};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::TransactionHash;
+use starknet_mempool_infra::component_server::{ComponentRequestHandler, ComponentServer};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{
     Account, AccountState, MempoolInput, MempoolRequest, MempoolRequestAndResponseSender,

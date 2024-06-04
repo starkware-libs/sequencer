@@ -1,8 +1,8 @@
 use async_trait::async_trait;
-use mempool_infra::component_client::ComponentClient;
-use mempool_infra::component_server::ComponentRequestAndResponseSender;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::{Tip, TransactionHash};
+use starknet_mempool_infra::component_client::ComponentClient;
+use starknet_mempool_infra::component_server::ComponentRequestAndResponseSender;
 use thiserror::Error;
 
 use crate::errors::MempoolError;
