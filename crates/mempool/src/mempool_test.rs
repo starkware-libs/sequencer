@@ -102,9 +102,9 @@ fn test_add_tx(mut mempool: Mempool) {
     let (tx_tip_80_address_2, account3) =
         add_tx_input!(Tip(80), TransactionHash(StarkFelt::THREE), contract_address!("0x2"));
 
-    assert!(mempool.add_tx(tx_tip_50_address_0.clone(), account1).is_ok());
-    assert!(mempool.add_tx(tx_tip_100_address_1.clone(), account2).is_ok());
-    assert!(mempool.add_tx(tx_tip_80_address_2.clone(), account3).is_ok());
+    assert_matches!(mempool.add_tx(tx_tip_50_address_0.clone(), account1), Ok(()));
+    assert_matches!(mempool.add_tx(tx_tip_100_address_1.clone(), account2), Ok(()));
+    assert_matches!(mempool.add_tx(tx_tip_80_address_2.clone(), account3), Ok(()));
 
     assert_eq!(mempool.state.len(), 3);
     mempool.state.contains_key(&account1.address);
@@ -122,7 +122,7 @@ fn test_add_same_tx(mut mempool: Mempool) {
     let (tx, account) = add_tx_input!(Tip(50), TransactionHash(StarkFelt::ONE));
     let same_tx = tx.clone();
 
-    assert!(mempool.add_tx(tx.clone(), account).is_ok());
+    assert_matches!(mempool.add_tx(tx.clone(), account), Ok(()));
     assert_matches!(
         mempool.add_tx(same_tx, account),
         Err(MempoolError::DuplicateTransaction { tx_hash: TransactionHash(StarkFelt::ONE) })

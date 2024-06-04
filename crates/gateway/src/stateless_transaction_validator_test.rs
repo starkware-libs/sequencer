@@ -1,3 +1,4 @@
+use assert_matches::assert_matches;
 use rstest::rstest;
 use starknet_api::calldata;
 use starknet_api::hash::StarkFelt;
@@ -73,7 +74,7 @@ fn test_positive_flow(
     let tx_validator = StatelessTransactionValidator { config };
     let tx = external_tx_for_testing(tx_type, resource_bounds, tx_calldata, signature);
 
-    assert!(tx_validator.validate(&tx).is_ok());
+    assert_matches!(tx_validator.validate(&tx), Ok(()));
 }
 
 #[rstest]

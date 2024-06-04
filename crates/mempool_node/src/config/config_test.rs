@@ -47,7 +47,7 @@ fn test_components_config_validation() {
         component_config.gateway_component.execute = gateway_component_execute;
         component_config.mempool_component.execute = mempool_component_execute;
 
-        assert!(component_config.validate().is_ok());
+        assert_matches!(component_config.validate(), Ok(()));
     }
 }
 
@@ -57,7 +57,7 @@ fn test_components_config_validation() {
 #[test]
 fn default_config_file_is_up_to_date() {
     let default_config = MempoolNodeConfig::default();
-    assert!(default_config.validate().is_ok());
+    assert_matches!(default_config.validate(), Ok(()));
     let from_code: serde_json::Value = serde_json::to_value(default_config.dump()).unwrap();
 
     env::set_current_dir(get_absolute_path("")).expect("Couldn't set working dir.");
