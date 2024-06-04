@@ -7,7 +7,6 @@ use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonN
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
 use crate::patricia_merkle_tree::types::NodeIndex;
-use crate::patricia_merkle_tree::types::TreeHeight;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonNodeMap;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
@@ -53,15 +52,11 @@ fn get_path_to_lca(root_index: &NodeIndex, subtree_indices: &[NodeIndex]) -> Pat
 /// Returns whether a root of a subtree has leaves on both sides. Assumes:
 /// * The leaf indices array is sorted.
 /// * All leaves are descendants of the root.
-fn has_leaves_on_both_sides(
-    tree_height: &TreeHeight,
-    root_index: &NodeIndex,
-    leaf_indices: &[NodeIndex],
-) -> bool {
+fn has_leaves_on_both_sides(root_index: &NodeIndex, leaf_indices: &[NodeIndex]) -> bool {
     if leaf_indices.is_empty() {
         return false;
     }
-    split_leaves(tree_height, root_index, leaf_indices)
+    split_leaves(root_index, leaf_indices)
         .iter()
         .all(|leaves_in_side| !leaves_in_side.is_empty())
 }
@@ -133,10 +128,9 @@ impl UpdatedSkeletonTreeImpl {
             return TempSkeletonNode::Leaf;
         }
 
-        if has_leaves_on_both_sides(&self.tree_height, root_index, leaf_indices) {
+        if has_leaves_on_both_sides(root_index, leaf_indices) {
             // Binary node.
-            let [left_indices, right_indices] =
-                split_leaves(&self.tree_height, root_index, leaf_indices);
+            let [left_indices, right_indices] = split_leaves(root_index, leaf_indices);
             let [left_child_index, right_child_index] = root_index.get_children_indices();
             let left_child = self.update_node_in_empty_tree(&left_child_index, left_indices);
             let right_child = self.update_node_in_empty_tree(&right_child_index, right_indices);
@@ -196,8 +190,7 @@ impl UpdatedSkeletonTreeImpl {
                 )
             }
             OriginalSkeletonNode::Binary => {
-                let [left_indices, right_indices] =
-                    split_leaves(&self.tree_height, root_index, leaf_indices);
+                let [left_indices, right_indices] = split_leaves(root_index, leaf_indices);
                 let [left_child_index, right_child_index] = root_index.get_children_indices();
                 let left = self.update_node_in_nonempty_tree(
                     &left_child_index,
@@ -324,8 +317,7 @@ impl UpdatedSkeletonTreeImpl {
         leaf_indices: &[NodeIndex],
     ) -> TempSkeletonNode {
         let [left_child_index, right_child_index] = root_index.get_children_indices();
-        let [left_indices, right_indices] =
-            split_leaves(&self.tree_height, root_index, leaf_indices);
+        let [left_indices, right_indices] = split_leaves(root_index, leaf_indices);
         let was_left_nonempty = path_to_bottom.is_left_descendant();
         if (!right_indices.is_empty() && was_left_nonempty)
             || (!left_indices.is_empty() && !was_left_nonempty)

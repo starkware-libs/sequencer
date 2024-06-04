@@ -7,8 +7,8 @@ use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
 pub mod utils_test;
 
 /// Returns the height of the node with the given index.
-pub(crate) fn get_node_height(tree_height: &TreeHeight, index: &NodeIndex) -> TreeHeight {
-    TreeHeight::new(u8::from(*tree_height) + 1 - index.bit_length())
+pub(crate) fn get_node_height(index: &NodeIndex) -> TreeHeight {
+    TreeHeight::new(TreeHeight::MAX.0 + 1 - index.bit_length())
 }
 
 /// Splits leaf_indices into two arrays according to the given root: the left child leaves and
@@ -16,7 +16,6 @@ pub(crate) fn get_node_height(tree_height: &TreeHeight, index: &NodeIndex) -> Tr
 /// * The leaf indices array is sorted.
 /// * All leaves are descendants of the root.
 pub(crate) fn split_leaves<'a>(
-    tree_height: &TreeHeight,
     root_index: &NodeIndex,
     leaf_indices: &'a [NodeIndex],
 ) -> [&'a [NodeIndex]; 2] {
@@ -24,7 +23,7 @@ pub(crate) fn split_leaves<'a>(
         return [&[]; 2];
     }
 
-    let root_height = get_node_height(tree_height, root_index);
+    let root_height = get_node_height(root_index);
     let assert_descendant = |leaf_index: &NodeIndex| {
         if (*leaf_index >> u8::from(root_height)) != *root_index {
             panic!(

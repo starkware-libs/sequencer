@@ -34,7 +34,7 @@ impl<'a> SubTree<'a> {
     }
 
     pub(crate) fn split_leaves(&self) -> [&'a [NodeIndex]; 2] {
-        split_leaves(&TreeHeight::MAX, &self.root_index, self.sorted_leaf_indices)
+        split_leaves(&self.root_index, self.sorted_leaf_indices)
     }
 
     pub(crate) fn is_sibling(&self) -> bool {

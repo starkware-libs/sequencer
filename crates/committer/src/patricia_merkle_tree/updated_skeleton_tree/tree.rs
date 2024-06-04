@@ -37,6 +37,7 @@ pub(crate) trait UpdatedSkeletonTree: Sized + Send + Sync {
 }
 
 pub(crate) struct UpdatedSkeletonTreeImpl {
+    #[allow(dead_code)]
     pub(crate) tree_height: TreeHeight,
     pub(crate) skeleton_tree: UpdatedSkeletonNodeMap,
 }

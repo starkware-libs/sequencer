@@ -1,6 +1,8 @@
 use super::split_leaves;
+use crate::patricia_merkle_tree::test_utils::as_fully_indexed;
 use crate::patricia_merkle_tree::test_utils::get_random_u256;
 use crate::patricia_merkle_tree::test_utils::random;
+use crate::patricia_merkle_tree::test_utils::small_tree_index_to_full;
 use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
 use ethnum::{uint, U256};
 use rand::rngs::ThreadRng;
@@ -28,37 +30,35 @@ fn create_increasing_random_array<R: Rng>(
 
 #[rstest]
 #[case::small_tree_one_side(
-    3_u8, U256::ONE, &[uint!("8"), uint!("10"), uint!("11")],
+    3_u8, U256::ONE, as_fully_indexed(subtree_height, [uint!("8"), uint!("10"), uint!("11")].into_iter()),
     &[uint!("8"), uint!("10"), uint!("11")], &[]
 )]
 #[case::small_tree_two_sides(
-    3_u8, U256::ONE, &[uint!("8"), uint!("10"), uint!("14")],
+    3_u8, U256::ONE, as_fully_indexed(subtree_height, [uint!("8"), uint!("10"), uint!("14")].into_iter()),
     &[uint!("8"), uint!("10")], &[uint!("14")]
 )]
 #[should_panic]
 #[case::small_tree_wrong_height(
-    3_u8, U256::ONE, &[uint!("8"), uint!("10"), uint!("16")], &[], &[]
+    3_u8, U256::ONE, as_fully_indexed(subtree_height, [uint!("8"), uint!("10"), uint!("16")].into_iter()), &[], &[]
 )]
 #[should_panic]
 #[case::small_tree_not_descendant(
-    3_u8, uint!("2"), &[uint!("8"), uint!("10"), uint!("14")], &[], &[]
+    3_u8, uint!("2"), as_fully_indexed(subtree_height, [uint!("8"), uint!("10"), uint!("14")].into_iter()), &[], &[]
 )]
 fn test_split_leaves(
-    #[case] tree_height: u8,
+    #[case] subtree_height: u8,
     #[case] root_index: U256,
-    #[case] leaf_indices: &[U256],
+    #[case] leaf_indices: Vec<NodeIndex>,
     #[case] expected_left: &[U256],
     #[case] expected_right: &[U256],
 ) {
-    let tree_height = TreeHeight::new(tree_height);
-    let root_index = NodeIndex::new(root_index);
-    let to_node_index = |arr: &[U256]| arr.iter().map(|i| NodeIndex::new(*i)).collect::<Vec<_>>();
-    let leaf_indices = to_node_index(leaf_indices);
-    let expected = [to_node_index(expected_left), to_node_index(expected_right)];
-    assert_eq!(
-        split_leaves(&tree_height, &root_index, &leaf_indices),
-        expected
-    );
+    let height = TreeHeight(subtree_height);
+    let root_index = small_tree_index_to_full(root_index, height);
+    let expected = [
+        as_fully_indexed(subtree_height, expected_left.iter().copied()),
+        as_fully_indexed(subtree_height, expected_right.iter().copied()),
+    ];
+    assert_eq!(split_leaves(&root_index, &leaf_indices), expected);
 }
 
 #[rstest]
@@ -78,7 +78,19 @@ fn test_split_leaves_big_tree(mut random: ThreadRng) {
     test_split_leaves(
         TreeHeight::MAX.into(),
         NodeIndex::ROOT.into(),
-        &[&left_leaf_indices[..], &right_leaf_indices[..]].concat(),
+        [
+            left_leaf_indices
+                .clone()
+                .into_iter()
+                .map(NodeIndex::new)
+                .collect::<Vec<NodeIndex>>(),
+            right_leaf_indices
+                .clone()
+                .into_iter()
+                .map(NodeIndex::new)
+                .collect(),
+        ]
+        .concat(),
         left_leaf_indices.as_slice(),
         right_leaf_indices.as_slice(),
     )
