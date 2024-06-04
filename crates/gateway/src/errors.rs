@@ -35,8 +35,6 @@ impl IntoResponse for GatewayError {
 pub enum StatelessTransactionValidatorError {
     #[error("Expected a positive amount of {resource:?}. Got {resource_bounds:?}.")]
     ZeroResourceBounds { resource: Resource, resource_bounds: ResourceBounds },
-    #[error("The resource bounds mapping is missing a resource {resource:?}.")]
-    MissingResource { resource: Resource },
     #[error(
         "Calldata length exceeded maximum: length {calldata_length}
         (allowed length: {max_calldata_length})."

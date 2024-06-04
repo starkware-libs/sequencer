@@ -1,10 +1,9 @@
 use assert_matches::assert_matches;
 use rstest::rstest;
 use starknet_api::calldata;
+use starknet_api::external_transaction::ResourceBoundsMapping;
 use starknet_api::hash::StarkFelt;
-use starknet_api::transaction::{
-    Calldata, Resource, ResourceBounds, ResourceBoundsMapping, TransactionSignature,
-};
+use starknet_api::transaction::{Calldata, Resource, ResourceBounds, TransactionSignature};
 
 use crate::starknet_api_test_utils::{
     create_resource_bounds_mapping, external_tx_for_testing, non_zero_resource_bounds_mapping,
@@ -78,24 +77,6 @@ fn test_positive_flow(
 }
 
 #[rstest]
-#[case::missing_l1_gas_resource_bounds(
-    StatelessTransactionValidatorConfig {
-        validate_non_zero_l1_gas_fee: true,
-        validate_non_zero_l2_gas_fee: false,
-        ..DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
-    },
-    ResourceBoundsMapping::default(),
-    StatelessTransactionValidatorError::MissingResource { resource: Resource::L1Gas }
-)]
-#[case::missing_l2_gas_resource_bounds(
-    StatelessTransactionValidatorConfig {
-        validate_non_zero_l1_gas_fee: false,
-        validate_non_zero_l2_gas_fee: true,
-        ..DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
-    },
-    ResourceBoundsMapping::default(),
-    StatelessTransactionValidatorError::MissingResource { resource: Resource::L2Gas }
-)]
 #[case::zero_l1_gas_resource_bounds(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING,
     zero_resource_bounds_mapping(),

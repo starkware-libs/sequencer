@@ -8,11 +8,12 @@ use starknet_api::external_transaction::{
     ContractClass, ExternalDeclareTransaction, ExternalDeclareTransactionV3,
     ExternalDeployAccountTransaction, ExternalDeployAccountTransactionV3,
     ExternalInvokeTransaction, ExternalInvokeTransactionV3, ExternalTransaction,
+    ResourceBoundsMapping,
 };
 use starknet_api::hash::StarkFelt;
 use starknet_api::transaction::{
-    AccountDeploymentData, Calldata, ContractAddressSalt, PaymasterData, ResourceBounds,
-    ResourceBoundsMapping, Tip, TransactionSignature, TransactionVersion,
+    AccountDeploymentData, Calldata, ContractAddressSalt, PaymasterData, ResourceBounds, Tip,
+    TransactionSignature, TransactionVersion,
 };
 
 use crate::{declare_tx_args, deploy_account_tx_args, invoke_tx_args};
@@ -64,11 +65,7 @@ pub fn create_resource_bounds_mapping(
     l1_resource_bounds: ResourceBounds,
     l2_resource_bounds: ResourceBounds,
 ) -> ResourceBoundsMapping {
-    ResourceBoundsMapping::try_from(vec![
-        (starknet_api::transaction::Resource::L1Gas, l1_resource_bounds),
-        (starknet_api::transaction::Resource::L2Gas, l2_resource_bounds),
-    ])
-    .expect("Resource bounds mapping has unexpected structure.")
+    ResourceBoundsMapping { l1_gas: l1_resource_bounds, l2_gas: l2_resource_bounds }
 }
 
 pub fn zero_resource_bounds_mapping() -> ResourceBoundsMapping {
@@ -76,21 +73,17 @@ pub fn zero_resource_bounds_mapping() -> ResourceBoundsMapping {
 }
 
 pub fn non_zero_resource_bounds_mapping() -> ResourceBoundsMapping {
-    create_resource_bounds_mapping(NON_EMPTY_RESOURCE_BOUNDS, NON_EMPTY_RESOURCE_BOUNDS)
+    ResourceBoundsMapping { l1_gas: NON_EMPTY_RESOURCE_BOUNDS, l2_gas: NON_EMPTY_RESOURCE_BOUNDS }
 }
 
 pub fn executable_resource_bounds_mapping() -> ResourceBoundsMapping {
-    ResourceBoundsMapping::try_from(vec![
-        (
-            starknet_api::transaction::Resource::L1Gas,
-            ResourceBounds {
-                max_amount: VALID_L1_GAS_MAX_AMOUNT,
-                max_price_per_unit: VALID_L1_GAS_MAX_PRICE_PER_UNIT,
-            },
-        ),
-        (starknet_api::transaction::Resource::L2Gas, ResourceBounds::default()),
-    ])
-    .expect("Resource bounds mapping has unexpected structure.")
+    ResourceBoundsMapping {
+        l1_gas: ResourceBounds {
+            max_amount: VALID_L1_GAS_MAX_AMOUNT,
+            max_price_per_unit: VALID_L1_GAS_MAX_PRICE_PER_UNIT,
+        },
+        l2_gas: ResourceBounds::default(),
+    }
 }
 
 pub fn invoke_tx() -> ExternalTransaction {
@@ -344,7 +337,7 @@ pub fn external_tx_to_json(tx: &ExternalTransaction) -> String {
     let type_string = match tx {
         ExternalTransaction::Declare(_) => "DECLARE",
         ExternalTransaction::DeployAccount(_) => "DEPLOY_ACCOUNT",
-        ExternalTransaction::Invoke(_) => "INVOKE_FUNCTION",
+        ExternalTransaction::Invoke(_) => "INVOKE",
     };
 
     tx_json
