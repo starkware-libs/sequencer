@@ -17,12 +17,10 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTre
 
 #[fixture]
 fn updated_skeleton(
-    #[default(TreeHeight::MAX)] tree_height: TreeHeight,
     #[default(&[])] original_skeleton: &[(NodeIndex, OriginalSkeletonNode)],
     #[default(&[])] leaf_modifications: &[(U256, u8)],
 ) -> UpdatedSkeletonTreeImpl {
     UpdatedSkeletonTreeImpl {
-        tree_height,
         skeleton_tree: leaf_modifications
             .iter()
             .filter(|(_, leaf_val)| *leaf_val != 0)
@@ -215,8 +213,7 @@ fn test_node_from_binary_data(
     #[case] _leaf_modifications: &[(U256, u8)],
     #[case] expected_node: TempSkeletonNode,
     #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
-    #[with(TreeHeight::MAX, &[], _leaf_modifications)]
-    mut updated_skeleton: UpdatedSkeletonTreeImpl,
+    #[with(&[], _leaf_modifications)] mut updated_skeleton: UpdatedSkeletonTreeImpl,
 ) {
     let mut expected_skeleton_tree = updated_skeleton.skeleton_tree.clone();
     expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());
@@ -283,8 +280,7 @@ fn test_node_from_edge_data(
     #[case] _leaf_modifications: &[(U256, u8)],
     #[case] expected_node: TempSkeletonNode,
     #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
-    #[with(TreeHeight::MAX, &[], _leaf_modifications)]
-    mut updated_skeleton: UpdatedSkeletonTreeImpl,
+    #[with(&[], _leaf_modifications)] mut updated_skeleton: UpdatedSkeletonTreeImpl,
 ) {
     let mut expected_skeleton_tree = updated_skeleton.skeleton_tree.clone();
     expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());
@@ -325,7 +321,7 @@ fn test_update_node_in_empty_tree(
     #[case] leaf_modifications: &[(U256, u8)],
     #[case] expected_node: TempSkeletonNode,
     #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
-    #[with(TreeHeight::MAX, &[], leaf_modifications)] mut updated_skeleton: UpdatedSkeletonTreeImpl,
+    #[with(&[], leaf_modifications)] mut updated_skeleton: UpdatedSkeletonTreeImpl,
 ) {
     let leaf_indices: Vec<NodeIndex> = leaf_modifications
         .iter()
@@ -471,8 +467,7 @@ fn test_update_node_in_nonempty_tree(
     #[case] leaf_modifications: &[(U256, u8)],
     #[case] expected_node: TempSkeletonNode,
     #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
-    #[with(TreeHeight::MAX, &original_skeleton, leaf_modifications)]
-    mut updated_skeleton: UpdatedSkeletonTreeImpl,
+    #[with(&original_skeleton, leaf_modifications)] mut updated_skeleton: UpdatedSkeletonTreeImpl,
 ) {
     let mut original_skeleton: OriginalSkeletonNodeMap = original_skeleton.into_iter().collect();
     let leaf_indices: Vec<NodeIndex> = leaf_modifications

@@ -8,7 +8,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
 };
 use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
-use crate::patricia_merkle_tree::types::{NodeIndex, TreeHeight};
+use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
@@ -23,10 +23,7 @@ async fn test_filled_tree_sanity() {
     let new_leaf_index = NodeIndex::ROOT;
     skeleton_tree.insert(new_leaf_index, UpdatedSkeletonNode::Leaf);
     let modifications = HashMap::from([(new_leaf_index, new_filled_leaf)]);
-    let updated_skeleton_tree = UpdatedSkeletonTreeImpl {
-        tree_height: TreeHeight(1),
-        skeleton_tree,
-    };
+    let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
     let root_hash =
         FilledTreeImpl::create::<TreeHashFunctionImpl>(updated_skeleton_tree, modifications)
             .await
@@ -75,10 +72,7 @@ async fn test_small_filled_tree() {
     .collect();
     let skeleton_tree: UpdatedSkeletonNodeMap = nodes_in_skeleton_tree.into_iter().collect();
 
-    let updated_skeleton_tree = UpdatedSkeletonTreeImpl {
-        tree_height: TreeHeight(7),
-        skeleton_tree,
-    };
+    let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
     let modifications = new_leaves
         .iter()
         .map(|(index, value)| {
@@ -186,10 +180,7 @@ async fn test_small_tree_with_sibling_nodes() {
     ];
     let skeleton_tree: UpdatedSkeletonNodeMap = nodes_in_skeleton_tree.into_iter().collect();
 
-    let updated_skeleton_tree = UpdatedSkeletonTreeImpl {
-        tree_height: TreeHeight(7),
-        skeleton_tree,
-    };
+    let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
     let modifications = HashMap::from([(
         NodeIndex::from(new_leaf_index),
         LeafDataImpl::StorageValue(Felt::from_hex(new_leaf).unwrap()),
