@@ -4,6 +4,7 @@ use protoc_prebuilt::init;
 use tonic_build::{configure, Builder};
 
 fn main() {
+    set_var("PROTOC_PREBUILT_NOT_ADD_GITHUB_TOKEN", "true");
     let (protoc_bin, _) = init("27.0").unwrap();
     set_var("PROTOC", protoc_bin);
 
