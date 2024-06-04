@@ -5,11 +5,7 @@ use hyper::StatusCode;
 use reqwest::{Client, Response};
 use starknet_api::external_transaction::ExternalTransaction;
 use starknet_api::transaction::TransactionHash;
-
-use crate::errors::GatewayError;
-use crate::starknet_api_test_utils::external_tx_to_json;
-
-pub type GatewayResult<T> = Result<T, GatewayError>;
+use starknet_gateway::starknet_api_test_utils::external_tx_to_json;
 
 /// A test utility client for interacting with a gateway server.
 pub struct GatewayClient {

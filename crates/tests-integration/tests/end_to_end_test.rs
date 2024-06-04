@@ -10,10 +10,10 @@ use starknet_gateway::config::{
     StatelessTransactionValidatorConfig,
 };
 use starknet_gateway::gateway::Gateway;
-use starknet_gateway::gateway_client;
 use starknet_gateway::starknet_api_test_utils::invoke_tx;
 use starknet_gateway::state_reader_test_utils::test_state_reader_factory;
 use starknet_mempool::mempool::Mempool;
+use starknet_mempool_integration_tests::integration_test_utils::GatewayClient;
 use starknet_mempool_types::mempool_types::{
     BatcherToMempoolChannels, BatcherToMempoolMessage, GatewayNetworkComponent,
     GatewayToMempoolMessage, MempoolInput, MempoolNetworkComponent, MempoolToBatcherMessage,
@@ -109,7 +109,7 @@ async fn test_end_to_end() {
 
     // Send a transaction.
     let external_tx = invoke_tx();
-    let gateway_client = gateway_client::GatewayClient::new(socket_addr);
+    let gateway_client = GatewayClient::new(socket_addr);
     gateway_client.assert_add_tx_success(&external_tx).await;
 
     // Initialize Mempool.
