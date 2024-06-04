@@ -1,14 +1,14 @@
 use async_trait::async_trait;
+use starknet_mempool_infra::component_client::ComponentClient;
+use starknet_mempool_infra::component_definitions::{
+    ComponentRequestAndResponseSender, ComponentRequestHandler,
+};
+use starknet_mempool_infra::component_server::ComponentServer;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::task;
 
-use crate::component_client::ComponentClient;
-
 type ValueA = u32;
 type ValueB = u8;
-
-use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
-use crate::component_server::ComponentServer;
 
 #[async_trait]
 trait ComponentATrait: Send + Sync {
