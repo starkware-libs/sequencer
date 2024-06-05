@@ -22,6 +22,13 @@ use committer::storage::errors::{DeserializationError, SerializationError};
 use committer::storage::map_storage::MapStorage;
 use committer::storage::storage_trait::{Storage, StorageKey, StorageValue};
 use ethnum::U256;
+use starknet_api::block_hash::block_hash_calculator::TransactionOutputForHash;
+use starknet_api::core::{ContractAddress as ApiContractAddress, EthAddress, PatriciaKey};
+use starknet_api::transaction::{
+    Event, EventContent, EventData, EventKey, Fee, GasVector, L2ToL1Payload, MessageToL1,
+    RevertedTransactionExecutionStatus, TransactionExecutionStatus,
+};
+use starknet_types_core::felt::Felt as CoreFelt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
 use std::fmt::Debug;
 use std::{collections::HashMap, io};
@@ -39,8 +46,9 @@ pub(crate) enum PythonTest {
     ComparePythonHashConstants,
     StorageNode,
     FilledForestOutput,
-    ParseBlockInfo,
     TreeHeightComparison,
+    ParseBlockInfo,
+    ParseTxOutput,
 }
 
 /// Error type for PythonTest enum.
@@ -86,6 +94,7 @@ impl TryFrom<String> for PythonTest {
             "filled_forest_output" => Ok(Self::FilledForestOutput),
             "parse_block_info" => Ok(Self::ParseBlockInfo),
             "compare_tree_height" => Ok(Self::TreeHeightComparison),
+            "parse_tx_output_test" => Ok(Self::ParseTxOutput),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -129,11 +138,16 @@ impl PythonTest {
                 test_storage_node(storage_node_input)
             }
             Self::FilledForestOutput => filled_forest_output_test(),
+            Self::TreeHeightComparison => Ok(get_actual_tree_height()),
             Self::ParseBlockInfo => {
                 let block_info: BlockInfo = serde_json::from_str(Self::non_optional_input(input)?)?;
                 Ok(parse_block_info_test(block_info))
             }
-            Self::TreeHeightComparison => Ok(get_actual_tree_height()),
+            Self::ParseTxOutput => {
+                let tx_output: TransactionOutputForHash =
+                    serde_json::from_str(Self::non_optional_input(input)?)?;
+                Ok(parse_tx_output_test(tx_output))
+            }
         }
     }
 }
@@ -167,6 +181,43 @@ pub(crate) fn parse_block_info_test(block_info: BlockInfo) -> String {
         block_info.l1_gas_price_per_token,
         block_info.l1_data_gas_price_per_token
     )
+}
+
+pub(crate) fn parse_tx_output_test(tx_execution_info: TransactionOutputForHash) -> String {
+    let expected_execution_status = match tx_execution_info.execution_status {
+        TransactionExecutionStatus::Succeeded => TransactionExecutionStatus::Succeeded,
+        TransactionExecutionStatus::Reverted(_) => {
+            TransactionExecutionStatus::Reverted(RevertedTransactionExecutionStatus {
+                revert_reason: "reason".to_owned(),
+            })
+        }
+    };
+    let expected_object = TransactionOutputForHash {
+        actual_fee: Fee(0),
+        events: vec![Event {
+            from_address: ApiContractAddress(PatriciaKey::from(2_u128)),
+            content: EventContent {
+                keys: vec![EventKey(CoreFelt::from_bytes_be_slice(&[1_u8]))],
+                data: EventData(vec![CoreFelt::from_bytes_be_slice(&[0_u8])]),
+            },
+        }],
+        execution_status: expected_execution_status,
+        gas_consumed: GasVector {
+            l1_gas: 0,
+            l1_data_gas: 64,
+        },
+        messages_sent: vec![MessageToL1 {
+            from_address: ApiContractAddress(PatriciaKey::from(2_u128)),
+            to_address: EthAddress::try_from(CoreFelt::from_bytes_be_slice(&[1_u8]))
+                .expect("to_address"),
+            payload: L2ToL1Payload(vec![CoreFelt::from_bytes_be_slice(&[0_u8])]),
+        }],
+    };
+    match expected_object == tx_execution_info {
+        true => "Success",
+        false => "Failure",
+    }
+    .to_owned()
 }
 
 /// Serializes a Felt into a string.
