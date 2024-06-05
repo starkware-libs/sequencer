@@ -1,4 +1,3 @@
-use crate::patricia_merkle_tree::errors::TypesError;
 use ethnum::U256;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::{Felt as StarknetTypesFelt, FromStrError};
@@ -45,21 +44,6 @@ impl From<Felt> for StarknetTypesFelt {
 impl From<&Felt> for U256 {
     fn from(felt: &Felt) -> Self {
         U256::from_be_bytes(felt.to_bytes_be())
-    }
-}
-
-#[cfg(feature = "testing")]
-impl TryFrom<&U256> for Felt {
-    type Error = TypesError<U256>;
-    fn try_from(value: &U256) -> Result<Self, Self::Error> {
-        if *value > U256::from(&Felt::MAX) {
-            return Err(TypesError::ConversionError {
-                from: *value,
-                to: "Felt",
-                reason: "value is bigger than felt::max",
-            });
-        }
-        Ok(Self::from_bytes_be(&value.to_be_bytes()))
     }
 }
 
