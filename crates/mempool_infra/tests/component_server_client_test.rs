@@ -32,16 +32,12 @@ impl ComponentA {
     }
 }
 
-// todo find which of these derives is needed
-// todo add more messages
-// todo send messages from b to a
+// TODO(Tsabary): send messages from component b to component a.
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ComponentARequest {
     AGetValue,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ComponentAResponse {
     Value(ValueA),
 }
