@@ -109,7 +109,7 @@ impl TryFrom<RawInput> for Input {
     }
 }
 
-fn add_unique<K, V>(
+pub(crate) fn add_unique<K, V>(
     map: &mut HashMap<K, V>,
     map_name: &str,
     key: K,

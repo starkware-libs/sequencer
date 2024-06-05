@@ -17,6 +17,7 @@ clap.workspace = true
 committer = { path = "../committer", features = ["testing"] }
 derive_more.workspace = true
 ethnum.workspace = true
+hex.workspace = true
 rand.workspace = true
 rand_distr.workspace = true
 serde.workspace = true

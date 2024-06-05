@@ -533,6 +533,7 @@ dependencies = [
  "committer",
  "derive_more",
  "ethnum",
+ "hex",
  "pretty_assertions",
  "rand",
  "rand_distr",

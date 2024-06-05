@@ -87,4 +87,4 @@ impl From<Felt> for SkeletonLeaf {
     }
 }
 
-pub(crate) type LeafModifications<L> = HashMap<NodeIndex, L>;
+pub type LeafModifications<L> = HashMap<NodeIndex, L>;

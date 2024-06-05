@@ -2,6 +2,7 @@ use crate::block_hash::BlockInfo;
 use crate::filled_tree_output::errors::FilledForestError;
 use crate::filled_tree_output::filled_forest::SerializedForest;
 use crate::parse_input::read::parse_input;
+use crate::tests::utils::parse_from_python::parse_input_single_storage_tree_flow_test;
 use crate::tests::utils::random_structs::DummyRandomValue;
 use committer::block_committer::input::{
     ContractAddress, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
@@ -22,6 +23,7 @@ use committer::storage::errors::{DeserializationError, SerializationError};
 use committer::storage::map_storage::MapStorage;
 use committer::storage::storage_trait::{Storage, StorageKey, StorageValue};
 use ethnum::U256;
+use serde_json::json;
 use starknet_api::block_hash::block_hash_calculator::TransactionOutputForHash;
 use starknet_api::core::{ContractAddress as ApiContractAddress, EthAddress, PatriciaKey};
 use starknet_api::transaction::{
@@ -49,6 +51,7 @@ pub(crate) enum PythonTest {
     TreeHeightComparison,
     ParseBlockInfo,
     ParseTxOutput,
+    SerializeForRustCommitterFlowTest,
 }
 
 /// Error type for PythonTest enum.
@@ -95,6 +98,7 @@ impl TryFrom<String> for PythonTest {
             "parse_block_info" => Ok(Self::ParseBlockInfo),
             "compare_tree_height" => Ok(Self::TreeHeightComparison),
             "parse_tx_output_test" => Ok(Self::ParseTxOutput),
+            "serialize_to_rust_committer_flow_test" => Ok(Self::SerializeForRustCommitterFlowTest),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -148,8 +152,28 @@ impl PythonTest {
                     serde_json::from_str(Self::non_optional_input(input)?)?;
                 Ok(parse_tx_output_test(tx_output))
             }
+            Self::SerializeForRustCommitterFlowTest => {
+                let input: HashMap<String, String> =
+                    serde_json::from_str(Self::non_optional_input(input)?)?;
+                Ok(serialize_for_rust_committer_flow_test(input))
+            }
         }
     }
+}
+
+// Test that the fetching of the input to flow test is working.
+fn serialize_for_rust_committer_flow_test(input: HashMap<String, String>) -> String {
+    let (leaf_modifications, storage, root_hash) = parse_input_single_storage_tree_flow_test(input);
+    // Serialize the leaf modifications to an object that can JSON-serialized.
+    let leaf_modifications_to_print: HashMap<String, Vec<u8>> = leaf_modifications
+        .into_iter()
+        .map(|(k, v)| (k.0.to_string(), v.serialize().0))
+        .collect();
+
+    // Create a json string to compare with the expected string in python.
+    serde_json::to_string(&json!(
+        {"leaf_modifications": leaf_modifications_to_print, "storage": storage.storage, "root_hash": root_hash.0}
+    )).expect("serialization failed")
 }
 
 fn get_or_key_not_found<'a, T: Debug>(
