@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package component_b_service;
+
+service RemoteB {
+    rpc RemoteBGetValue(BGetValueMessage) returns (BGetValueReturnMessage) {}
+}
+
+message BGetValueMessage {
+}
+
+message BGetValueReturnMessage {
+    uint32 value = 1;
+}
