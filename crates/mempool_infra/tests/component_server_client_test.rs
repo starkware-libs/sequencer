@@ -10,15 +10,9 @@ use tokio::task;
 type ValueA = u32;
 type ValueB = u8;
 
-#[async_trait]
-trait ComponentATrait: Send + Sync {
-    async fn a_get_value(&self) -> ValueA;
-}
+mod common;
 
-#[async_trait]
-trait ComponentBTrait: Send + Sync {
-    async fn b_get_value(&self) -> ValueB;
-}
+use common::{ComponentATrait, ComponentBTrait};
 
 struct ComponentA {
     b: Box<dyn ComponentBTrait>,
