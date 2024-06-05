@@ -5,7 +5,7 @@ use crate::patricia_merkle_tree::test_utils::{get_random_u256, random};
 use crate::patricia_merkle_tree::types::NodeIndex;
 use rand::rngs::ThreadRng;
 
-use ethnum::U256;
+use ethnum::{uint, U256};
 use rand::Rng;
 use rstest::rstest;
 
@@ -43,16 +43,33 @@ fn test_cast_to_node_index(
 }
 
 #[rstest]
-#[case(1, 1, 1)]
-#[case(2, 5, 2)]
-#[case(5, 2, 2)]
-#[case(8, 10, 2)]
-#[case(9, 12, 1)]
-fn test_get_lca(#[case] node_index: u8, #[case] other: u8, #[case] expected: u8) {
-    let root_index = NodeIndex::new(node_index.into());
-    let other_index = NodeIndex::new(other.into());
+#[case(uint!("1"), uint!("1"), uint!("1"))]
+#[case(uint!("2"), uint!("5"), uint!("2"))]
+#[case(uint!("5"), uint!("2"), uint!("2"))]
+#[case(uint!("8"), uint!("10"), uint!("2"))]
+#[case(uint!("9"), uint!("12"), uint!("1"))]
+#[case(uint!("1"), uint!("2"), uint!("1"))]
+#[case(uint!("2"), uint!("1"), uint!("1"))]
+#[case(
+    U256::from_words(1<<121, 0),
+    U256::from_words(1<<123, 0),
+    U256::from_words(1<<121, 0)
+)]
+#[case(
+    U256::from_words(6<<121, 12109832645278165874326859176438297),
+    U256::from_words(7<<121, 34269583569287659876592876529763453),
+    uint!("3")
+)]
+#[case(
+    uint!("3"),
+    U256::from_str_hex("0xd2794ec01eb68c0f3334f2e9e6a3fee480249162fbb5b1cc491c1738368de89").unwrap(),
+    uint!("3")
+)]
+fn test_get_lca(#[case] node_index: U256, #[case] other: U256, #[case] expected: U256) {
+    let root_index = NodeIndex::new(node_index);
+    let other_index = NodeIndex::new(other);
     let lca = root_index.get_lca(&other_index);
-    let expected = NodeIndex::new(expected.into());
+    let expected = NodeIndex::new(expected);
     assert_eq!(lca, expected);
 }
 

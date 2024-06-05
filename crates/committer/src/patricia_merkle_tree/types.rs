@@ -96,16 +96,17 @@ impl NodeIndex {
 
         let bit_length = self.bit_length();
         let other_bit_length = other.bit_length();
-        // Bring self to the level of other.
-        let adapted_self = if self < other {
-            *self << (other_bit_length - bit_length)
+        // Bring self and other to a common (low) height.
+        let (adapted_self, adapted_other) = if self < other {
+            (*self, *other >> (other_bit_length - bit_length))
         } else {
-            *self >> (bit_length - other_bit_length)
+            (*self >> (bit_length - other_bit_length), *other)
         };
 
-        let xor = adapted_self.0 ^ other.0;
+        let xor = adapted_self.0 ^ adapted_other.0;
         // The length of the remainder after removing the common prefix of the two nodes.
         let post_common_prefix_len = NodeIndex::new(xor).bit_length();
+
         let lca = adapted_self.0 >> post_common_prefix_len;
         NodeIndex::new(lca)
     }
