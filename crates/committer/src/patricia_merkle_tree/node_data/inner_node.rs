@@ -92,10 +92,31 @@ impl From<EdgePathLength> for Felt {
     }
 }
 
+#[allow(clippy::manual_non_exhaustive)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct PathToBottom {
     pub path: EdgePath,
     pub length: EdgePathLength,
+    // Used to prevent direct instantiation, while allowing destructure of other fields.
+    _fake_field: (),
+}
+
+type PathToBottomResult = Result<PathToBottom, PathToBottomError>;
+
+impl PathToBottom {
+    /// Creates a new [PathToBottom] instance.
+    // Asserts the path is not longer than the length.
+    pub fn new(path: EdgePath, length: EdgePathLength) -> PathToBottomResult {
+        let bit_length = U256::BITS - path.0.leading_zeros();
+        if bit_length > u8::from(length).into() {
+            return Err(PathToBottomError::MismatchedLengthError { path, length });
+        }
+        Ok(Self {
+            path,
+            length,
+            _fake_field: (),
+        })
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -108,11 +129,13 @@ impl PathToBottom {
     pub(crate) const LEFT_CHILD: Self = Self {
         path: EdgePath(U256::ZERO),
         length: EdgePathLength(1),
+        _fake_field: (),
     };
 
     pub(crate) const RIGHT_CHILD: Self = Self {
         path: EdgePath(U256::ONE),
         length: EdgePathLength(1),
+        _fake_field: (),
     };
 
     pub(crate) fn bottom_index(&self, root_index: NodeIndex) -> NodeIndex {
@@ -124,27 +147,24 @@ impl PathToBottom {
         self.path.0 >> (self.length.0 - 1) == 0
     }
 
-    pub(crate) fn concat_paths(&self, other: Self) -> Self {
-        Self {
-            path: EdgePath::from((self.path.0 << other.length.0) + other.path.0),
-            length: self.length + other.length,
-        }
+    pub(crate) fn concat_paths(&self, other: Self) -> PathToBottom {
+        Self::new(
+            EdgePath::from((self.path.0 << other.length.0) + other.path.0),
+            self.length + other.length,
+        )
+        .unwrap_or_else(|_| {
+            panic!("Concatenating paths {self:?} and {other:?} unexpectedly failed.")
+        })
     }
 
     /// Returns the path after removing the first steps (the edges from the path's origin node).
-    pub(crate) fn remove_first_edges(
-        &self,
-        n_edges: EdgePathLength,
-    ) -> Result<Self, PathToBottomError> {
+    pub(crate) fn remove_first_edges(&self, n_edges: EdgePathLength) -> PathToBottomResult {
         if self.length <= n_edges {
             return Err(PathToBottomError::RemoveEdgesError {
                 length: self.length,
                 n_edges,
             });
         }
-        Ok(Self {
-            path: EdgePath(self.path.0 >> n_edges.0),
-            length: self.length - n_edges,
-        })
+        Self::new(EdgePath(self.path.0 >> n_edges.0), self.length - n_edges)
     }
 }

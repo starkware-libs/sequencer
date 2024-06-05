@@ -68,7 +68,7 @@ impl NodeIndex {
         index: NodeIndex,
         path_to_bottom: &PathToBottom,
     ) -> NodeIndex {
-        let PathToBottom { path, length } = path_to_bottom;
+        let PathToBottom { path, length, .. } = path_to_bottom;
         (index << u8::from(*length)) + Self::new(path.into())
     }
 
@@ -125,10 +125,11 @@ impl NodeIndex {
             panic!("The descendant is not a really descendant of the node.");
         };
 
-        PathToBottom {
-            path: delta.0.into(),
-            length: EdgePathLength::new(distance).expect("Illegal length"),
-        }
+        PathToBottom::new(
+            delta.0.into(),
+            EdgePathLength::new(distance).expect("Illegal length"),
+        )
+        .expect("Illegal PathToBottom")
     }
 
     pub(crate) fn from_starknet_storage_key(key: &StarknetStorageKey) -> Self {

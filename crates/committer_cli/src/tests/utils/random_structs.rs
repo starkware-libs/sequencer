@@ -96,10 +96,8 @@ impl RandomValue for PathToBottom {
             .try_into()
             .expect("Leading zeros conversion to u8 failed");
 
-        Self {
-            path,
-            length: EdgePathLength::new(length).expect("Invalid length"),
-        }
+        Self::new(path, EdgePathLength::new(length).expect("Invalid length"))
+            .expect("Illegal PathToBottom")
     }
 }
 

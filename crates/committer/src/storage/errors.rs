@@ -1,4 +1,4 @@
-use crate::patricia_merkle_tree::node_data::errors::EdgePathError;
+use crate::patricia_merkle_tree::node_data::errors::{EdgePathError, PathToBottomError};
 use crate::storage::storage_trait::StorageKey;
 
 use serde_json;
@@ -20,8 +20,10 @@ pub enum SerializationError {
 pub enum DeserializationError {
     #[error("There is a key duplicate at {0} mapping.")]
     KeyDuplicate(String),
-    #[error("Couldn't read and parse the given input JSON: {0}")]
+    #[error(transparent)]
     ParsingError(#[from] serde_json::Error),
-    #[error("Illegal EdgePath: {0}")]
+    #[error(transparent)]
     EdgePathError(#[from] EdgePathError),
+    #[error(transparent)]
+    PathToBottomError(#[from] PathToBottomError),
 }

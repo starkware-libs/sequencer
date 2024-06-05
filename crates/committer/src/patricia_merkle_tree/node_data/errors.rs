@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use thiserror::Error;
 
-use crate::patricia_merkle_tree::node_data::inner_node::EdgePathLength;
+use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength};
 use crate::patricia_merkle_tree::types::NodeIndex;
 
 #[derive(Debug, Error)]
@@ -10,6 +10,11 @@ pub enum PathToBottomError {
     RemoveEdgesError {
         length: EdgePathLength,
         n_edges: EdgePathLength,
+    },
+    #[error("EdgePath {path:?} is too long for EdgePathLength {length:?}.")]
+    MismatchedLengthError {
+        path: EdgePath,
+        length: EdgePathLength,
     },
 }
 

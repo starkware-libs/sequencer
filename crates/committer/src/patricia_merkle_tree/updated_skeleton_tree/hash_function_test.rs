@@ -45,10 +45,8 @@ fn test_tree_hash_function_impl_edge_node(
 ) {
     let hash_output = TreeHashFunctionImpl::compute_node_hash(&NodeData::Edge(EdgeData {
         bottom_hash: HashOutput(bottom_hash),
-        path_to_bottom: PathToBottom {
-            path: edge_path.into(),
-            length: EdgePathLength::new(length).unwrap(),
-        },
+        path_to_bottom: PathToBottom::new(edge_path.into(), EdgePathLength::new(length).unwrap())
+            .unwrap(),
     }));
     let direct_hash_computation = HashOutput(
         Felt::from(Pedersen::hash(&bottom_hash.into(), &edge_path.into())) + length.into(),

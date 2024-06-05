@@ -104,28 +104,28 @@ fn test_has_leaves_on_both_sides_assertions(
 #[case::small_tree_single_leaf(
     1,
     vec![U256::from(8_u8)],
-    PathToBottom {path: U256::ZERO.into(), length: EdgePathLength::new(3).unwrap()}
+    PathToBottom::new( U256::ZERO.into(), EdgePathLength::new(3).unwrap()).unwrap()
 )]
 #[case::small_tree_few_leaves(
     1,
     vec![
         U256::from(12_u8), U256::from(13_u8), U256::from(14_u8)
     ],
-    PathToBottom {path:U256::ONE.into(), length:EdgePathLength::ONE}
+    PathToBottom::new(U256::ONE.into(), EdgePathLength::ONE).unwrap()
 )]
 #[case::small_tree_few_leaves2(
     1,
     vec![U256::from(12_u8),U256::from(13_u8)],
-    PathToBottom {path:2_u128.into(), length: EdgePathLength::new(2).unwrap()}
+    PathToBottom::new(2_u128.into(), EdgePathLength::new(2).unwrap()).unwrap()
 )]
 #[case::large_tree_positive_consecutive_indices_of_different_sides(
     1,
     vec![(U256::from(3u8) << 250) - U256::ONE, U256::from(3u8) << 250],
-    PathToBottom {path:U256::ZERO.into(), length: EdgePathLength::new(0).unwrap()})]
+    PathToBottom::new(U256::ZERO.into(), EdgePathLength::new(0).unwrap()).unwrap())]
 #[case::large_tree_positive_consecutive_indices(
     3<<126,
     vec![U256::from(3u8) << 250, (U256::from(3u8) << 250)+ U256::ONE],
-    PathToBottom {path:U256::ZERO.into(), length: EdgePathLength::new(123).unwrap()})]
+    PathToBottom::new(U256::ZERO.into(), EdgePathLength::new(123).unwrap()).unwrap())]
 fn test_get_path_to_lca(
     #[case] root_index: u128,
     #[case] leaf_indices: Vec<U256>,

@@ -15,17 +15,18 @@ impl From<u8> for SkeletonLeaf {
 
 impl From<&str> for PathToBottom {
     fn from(value: &str) -> Self {
-        Self {
-            path: U256::from_str_radix(value, 2)
+        Self::new(
+            U256::from_str_radix(value, 2)
                 .expect("Invalid binary string")
                 .into(),
-            length: EdgePathLength::new(
+            EdgePathLength::new(
                 (value.len() - if value.starts_with('+') { 1 } else { 0 })
                     .try_into()
                     .expect("String is too large"),
             )
             .expect("Invalid length"),
-        }
+        )
+        .expect("Illegal PathToBottom")
     }
 }
 

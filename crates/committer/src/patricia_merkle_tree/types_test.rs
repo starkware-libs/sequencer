@@ -22,10 +22,7 @@ fn test_compute_bottom_index(
 ) {
     let bottom_index = NodeIndex::compute_bottom_index(
         NodeIndex::from(node_index),
-        &PathToBottom {
-            path: path.into(),
-            length: EdgePathLength::new(length).unwrap(),
-        },
+        &PathToBottom::new(path.into(), EdgePathLength::new(length).unwrap()).unwrap(),
     );
     let expected = NodeIndex::from(expected);
     assert_eq!(bottom_index, expected);

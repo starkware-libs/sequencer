@@ -109,15 +109,15 @@ impl Deserializable for OriginalSkeletonInputNode {
                 bottom_hash: HashOutput(Felt::from_bytes_be_slice(
                     &value.0[..SERIALIZE_HASH_BYTES],
                 )),
-                path_to_bottom: PathToBottom {
-                    path: U256::from_be_bytes(
+                path_to_bottom: PathToBottom::new(
+                    U256::from_be_bytes(
                         value.0[SERIALIZE_HASH_BYTES..SERIALIZE_HASH_BYTES + EDGE_PATH_BYTES]
                             .try_into()
                             .expect("Slice with incorrect length."),
                     )
                     .into(),
-                    length: EdgePathLength::new(value.0[EDGE_BYTES - 1])?,
-                },
+                    EdgePathLength::new(value.0[EDGE_BYTES - 1])?,
+                )?,
             }));
         } else {
             return Ok(Self::Leaf(HashOutput(Felt::from_bytes_be_slice(&key.0))));

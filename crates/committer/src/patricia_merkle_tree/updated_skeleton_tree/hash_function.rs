@@ -38,12 +38,12 @@ impl TreeHashFunction<LeafDataImpl> for TreeHashFunctionImpl {
             }) => Pedersen::hash(&left_hash.0.into(), &right_hash.0.into()).into(),
             NodeData::Edge(EdgeData {
                 bottom_hash: hash_output,
-                path_to_bottom: PathToBottom { path, length },
+                path_to_bottom: PathToBottom { path, length, .. },
             }) => {
                 Felt::from(Pedersen::hash(
                     &hash_output.0.into(),
                     &Felt::from(path).into(),
-                )) + (*length).into()
+                )) + Felt::from(*length)
             }
             NodeData::Leaf(LeafDataImpl::StorageValue(storage_value)) => *storage_value,
             NodeData::Leaf(LeafDataImpl::CompiledClassHash(compiled_class_hash)) => {

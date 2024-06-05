@@ -542,13 +542,12 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
     let edge_rust: FilledNode<LeafDataImpl> = FilledNode {
         data: NodeData::Edge(EdgeData {
             bottom_hash: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "bottom")?)),
-            path_to_bottom: PathToBottom {
-                path: U256::from(*get_or_key_not_found(&edge_data, "path")?).into(),
-                length: EdgePathLength::new(
-                    (*get_or_key_not_found(&edge_data, "length")?).try_into()?,
-                )
-                .expect("Invalid length"),
-            },
+            path_to_bottom: PathToBottom::new(
+                U256::from(*get_or_key_not_found(&edge_data, "path")?).into(),
+                EdgePathLength::new((*get_or_key_not_found(&edge_data, "length")?).try_into()?)
+                    .expect("Invalid length"),
+            )
+            .expect("Illegal PathToBottom"),
         }),
         hash: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "hash")?)),
     };
