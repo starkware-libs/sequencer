@@ -1,3 +1,4 @@
+use thiserror::Error;
 use tokio::sync::mpsc::{channel, Sender};
 
 use crate::component_definitions::ComponentRequestAndResponseSender;
@@ -29,4 +30,10 @@ where
 
         res_rx.recv().await.expect("Inbound connection should be open.")
     }
+}
+
+#[derive(Debug, Error)]
+pub enum ClientError {
+    #[error("Got an unexpected response type.")]
+    UnexpectedResponse,
 }

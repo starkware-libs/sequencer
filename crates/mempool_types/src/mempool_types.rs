@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::{Tip, TransactionHash};
-use starknet_mempool_infra::component_client::ComponentClient;
+use starknet_mempool_infra::component_client::{ClientError, ComponentClient};
 use starknet_mempool_infra::component_definitions::ComponentRequestAndResponseSender;
 use thiserror::Error;
 
@@ -46,11 +46,6 @@ pub enum MempoolClientError {
 pub type MempoolClientResult<T> = Result<T, MempoolClientError>;
 
 // TODO(Tsabary, 1/6/2024): Move communication-related definitions to a separate file.
-#[derive(Debug, Error)]
-pub enum ClientError {
-    #[error("Got an unexpected response type.")]
-    UnexpectedResponse,
-}
 
 /// Serves as the mempool's shared interface. Requires `Send + Sync` to allow transferring and
 /// sharing resources (inputs, futures) across threads.
