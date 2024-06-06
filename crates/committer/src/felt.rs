@@ -1,3 +1,4 @@
+use core::fmt;
 use ethnum::U256;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::{Felt as StarknetTypesFelt, FromStrError};
@@ -7,7 +8,6 @@ use starknet_types_core::felt::{Felt as StarknetTypesFelt, FromStrError};
     PartialEq,
     Clone,
     Copy,
-    Debug,
     Default,
     Hash,
     derive_more::Add,
@@ -52,6 +52,12 @@ impl std::ops::Mul for Felt {
 
     fn mul(self, rhs: Self) -> Self {
         Self(self.0 * rhs.0)
+    }
+}
+
+impl fmt::Debug for Felt {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", U256::from(self))
     }
 }
 

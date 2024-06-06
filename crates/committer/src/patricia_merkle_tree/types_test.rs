@@ -140,3 +140,9 @@ fn test_nodeindex_to_felt_conversion() {
     let index = NodeIndex::MAX;
     assert!(Felt::try_from(index).is_err());
 }
+
+#[rstest]
+fn test_felt_printing() {
+    let felt = Felt::from(17_u8);
+    assert_eq!(format!("{:?}", felt), "17");
+}

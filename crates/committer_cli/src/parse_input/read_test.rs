@@ -341,7 +341,7 @@ fn test_input_parsing_with_mapping_key_duplicate() {
 
 "#;
     let expected_error =
-    "address to class hash: ContractAddress(Felt(Felt(FieldElement { value: UnsignedInteger { limbs: [72718179, 18446744073709551615, 6917529027641073992, 16140901064500135204] } })))";
+        "address to class hash: ContractAddress(6646139978924584093298644040422522880)";
     assert!(matches!(
         parse_input(input.to_string()).unwrap_err(),
         DeserializationError::KeyDuplicate(key) if key ==  expected_error
