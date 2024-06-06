@@ -24,7 +24,7 @@ pub struct AccountState {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Account {
     // TODO(Ayelet): Consider removing this field as it is duplicated in ThinTransaction.
-    pub address: ContractAddress,
+    pub sender_address: ContractAddress,
     pub state: AccountState,
 }
 

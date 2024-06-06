@@ -37,12 +37,12 @@ impl Mempool {
                     // if the key was not present, otherwise returns the old value while updating
                     // the new value.
                     let prev_value =
-                        mempool.state.insert(input.account.address, input.account.state);
+                        mempool.state.insert(input.account.sender_address, input.account.state);
                     assert!(
                         prev_value.is_none(),
                         "Sender address: {:?} already exists in the mempool. Can't add {:?} to \
                          the mempool.",
-                        input.account.address,
+                        input.account.sender_address,
                         input.tx
                     );
                     input.tx
@@ -75,7 +75,7 @@ impl Mempool {
     /// TODO: support fee escalation and transactions with future nonces.
     /// TODO: change input type to `MempoolInput`.
     pub fn add_tx(&mut self, tx: ThinTransaction, account: Account) -> MempoolResult<()> {
-        match self.state.entry(account.address) {
+        match self.state.entry(account.sender_address) {
             Occupied(_) => Err(MempoolError::DuplicateTransaction { tx_hash: tx.tx_hash }),
             Vacant(entry) => {
                 entry.insert(account.state);

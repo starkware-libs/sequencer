@@ -1,30 +1,43 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::core::{ContractAddress, PatriciaKey};
+use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::hash::{StarkFelt, StarkHash};
 use starknet_api::transaction::{Tip, TransactionHash};
 use starknet_api::{contract_address, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::ThinTransaction;
-use starknet_mempool_types::utils::create_thin_tx_for_testing;
 
 use crate::mempool::{Account, Mempool, MempoolInput};
 
 /// Creates a valid input for mempool's `add_tx` with optional default value for
 /// `sender_address`.
 /// Usage:
-/// 1. add_tx_input!(tip, tx_hash, address)
-/// 2. add_tx_input!(tip, tx_hash)
+/// 1. add_tx_input!(tip, tx_hash, address, nonce)
+/// 2. add_tx_input!(tip, tx_hash, address)
+/// 3. add_tx_input!(tip, tx_hash)
 // TODO: Return MempoolInput once it's used in `add_tx`.
+// TODO: remove unused macro_rules warning when the macro is used.
+#[allow(unused_macro_rules)]
 macro_rules! add_tx_input {
-    ($tip:expr, $tx_hash:expr, $address:expr) => {{
-        let account = Account { address: $address, ..Default::default() };
-        let tx = create_thin_tx_for_testing($tip, $tx_hash, $address);
+    // Pattern for all four arguments
+    ($tip:expr, $tx_hash:expr, $sender_address:expr, $nonce:expr) => {{
+        let account = Account { sender_address: $sender_address, ..Default::default() };
+        let tx = ThinTransaction {
+            tip: $tip,
+            tx_hash: $tx_hash,
+            sender_address: $sender_address,
+            nonce: $nonce,
+        };
         (tx, account)
     }};
+    // Pattern for three arguments: tip, tx_hash, address
+    ($tip:expr, $tx_hash:expr, $address:expr) => {
+        add_tx_input!($tip, $tx_hash, $address, Nonce::default())
+    };
+    // Pattern for two arguments: tip, tx_hash
     ($tip:expr, $tx_hash:expr) => {
-        add_tx_input!($tip, $tx_hash, ContractAddress::default())
+        add_tx_input!($tip, $tx_hash, ContractAddress::default(), Nonce::default())
     };
 }
 
@@ -103,9 +116,9 @@ fn test_add_tx(mut mempool: Mempool) {
     assert_matches!(mempool.add_tx(tx_tip_80_address_2.clone(), account3), Ok(()));
 
     assert_eq!(mempool.state.len(), 3);
-    mempool.state.contains_key(&account1.address);
-    mempool.state.contains_key(&account2.address);
-    mempool.state.contains_key(&account3.address);
+    mempool.state.contains_key(&account1.sender_address);
+    mempool.state.contains_key(&account2.sender_address);
+    mempool.state.contains_key(&account3.sender_address);
 
     check_mempool_txs_eq(
         &mempool,

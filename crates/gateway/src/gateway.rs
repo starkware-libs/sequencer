@@ -122,6 +122,6 @@ fn process_tx(
 
     Ok(MempoolInput {
         tx: external_tx_to_thin_tx(&tx, tx_hash),
-        account: Account { address: get_sender_address(&tx), ..Default::default() },
+        account: Account { sender_address: get_sender_address(&tx), ..Default::default() },
     })
 }
