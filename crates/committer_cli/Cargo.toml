@@ -1,0 +1,29 @@
+[package]
+name = "committer_cli"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Cli for the committer package."
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+
+[dependencies]
+clap.workspace = true
+committer = { path = "../committer", features = ["testing"] }
+derive_more.workspace = true
+ethnum.workspace = true
+rand.workspace = true
+rand_distr.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+starknet-types-core.workspace = true
+starknet_api = { version = "0.12.0-dev.1" }
+strum.workspace = true
+strum_macros.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
