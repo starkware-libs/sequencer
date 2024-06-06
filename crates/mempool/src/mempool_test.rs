@@ -147,3 +147,34 @@ fn check_mempool_txs_eq(mempool: &Mempool, expected_txs: &[ThinTransaction]) {
     // Deref the inner mempool tx type.
     expected_txs.iter().zip(mempool_txs).all(|(a, b)| *a == **b);
 }
+
+#[rstest]
+fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
+    let (tx1, account1) = add_tx_input!(Tip(1), TransactionHash(StarkFelt::TWO));
+
+    // Create a transaction with identical tip, it should be allowed through since the priority
+    // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
+    let (tx2, account2) =
+        add_tx_input!(Tip(1), TransactionHash(StarkFelt::ONE), contract_address!("0x1"));
+
+    assert!(mempool.add_tx(tx1.clone(), account1).is_ok());
+    assert!(mempool.add_tx(tx2.clone(), account2).is_ok());
+
+    // TODO: currently hash comparison tie-breaks the two. Once more robust tie-breaks are added
+    // replace this assertion with a dedicated test.
+    check_mempool_txs_eq(&mempool, &[tx2, tx1]);
+}
+
+#[rstest]
+fn test_tip_priority_over_tx_hash(mut mempool: Mempool) {
+    let (tx_big_tip_small_hash, account1) = add_tx_input!(Tip(2), TransactionHash(StarkFelt::ONE));
+
+    // Create a transaction with identical tip, it should be allowed through since the priority
+    // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
+    let (tx_small_tip_big_hash, account2) =
+        add_tx_input!(Tip(1), TransactionHash(StarkFelt::TWO), contract_address!("0x1"));
+
+    assert!(mempool.add_tx(tx_big_tip_small_hash.clone(), account1).is_ok());
+    assert!(mempool.add_tx(tx_small_tip_big_hash.clone(), account2).is_ok());
+    check_mempool_txs_eq(&mempool, &[tx_big_tip_small_hash, tx_small_tip_big_hash])
+}
