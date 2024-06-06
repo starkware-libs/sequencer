@@ -58,3 +58,32 @@ impl PartialOrd for PrioritizedTransaction {
         Some(self.cmp(other))
     }
 }
+
+// TODO: remove when is used.
+#[allow(dead_code)]
+// Assumption: there are no gaps, and the transactions are received in order.
+pub struct AddressPriorityQueue(pub Vec<ThinTransaction>);
+
+// TODO: remove when is used.
+#[allow(dead_code)]
+impl AddressPriorityQueue {
+    pub fn push(&mut self, tx: ThinTransaction) {
+        self.0.push(tx);
+    }
+
+    pub fn top(&self) -> Option<&ThinTransaction> {
+        self.0.first()
+    }
+
+    pub fn pop_front(&mut self) -> ThinTransaction {
+        self.0.remove(0)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn contains(&self, tx: &ThinTransaction) -> bool {
+        self.0.contains(tx)
+    }
+}
