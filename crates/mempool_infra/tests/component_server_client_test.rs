@@ -10,26 +10,7 @@ use starknet_mempool_infra::component_server::ComponentServer;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::task;
 
-type ValueA = u32;
-type ValueB = u8;
-
-struct ComponentA {
-    b: Box<dyn ComponentBTrait>,
-}
-
-#[async_trait]
-impl ComponentATrait for ComponentA {
-    async fn a_get_value(&self) -> ValueA {
-        let b_value = self.b.b_get_value().await;
-        b_value.into()
-    }
-}
-
-impl ComponentA {
-    fn new(b: Box<dyn ComponentBTrait>) -> Self {
-        Self { b }
-    }
-}
+use crate::common::{ComponentA, ComponentB, ValueA, ValueB};
 
 // TODO(Tsabary): send messages from component b to component a.
 
@@ -57,24 +38,6 @@ impl ComponentRequestHandler<ComponentARequest, ComponentAResponse> for Componen
         match request {
             ComponentARequest::AGetValue => ComponentAResponse::Value(self.a_get_value().await),
         }
-    }
-}
-
-struct ComponentB {
-    value: ValueB,
-    _a: Box<dyn ComponentATrait>,
-}
-
-#[async_trait]
-impl ComponentBTrait for ComponentB {
-    async fn b_get_value(&self) -> ValueB {
-        self.value
-    }
-}
-
-impl ComponentB {
-    fn new(value: ValueB, a: Box<dyn ComponentATrait>) -> Self {
-        Self { value, _a: a }
     }
 }
 
