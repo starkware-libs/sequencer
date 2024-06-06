@@ -7,7 +7,8 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use starknet_api::external_transaction::ExternalTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_mempool_types::mempool_types::{Account, MempoolInput, SharedMempoolClient};
+use starknet_mempool_types::communication::SharedMempoolClient;
+use starknet_mempool_types::mempool_types::{Account, MempoolInput};
 
 use crate::config::{GatewayConfig, GatewayNetworkConfig};
 use crate::errors::{GatewayError, GatewayRunError};

@@ -8,8 +8,9 @@ use axum::response::{IntoResponse, Response};
 use blockifier::context::ChainInfo;
 use starknet_api::external_transaction::ExternalTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_mempool::mempool::{create_mempool_server, Mempool};
-use starknet_mempool_types::mempool_types::{MempoolClientImpl, MempoolRequestAndResponseSender};
+use starknet_mempool::communication::create_mempool_server;
+use starknet_mempool::mempool::Mempool;
+use starknet_mempool_types::communication::{MempoolClientImpl, MempoolRequestAndResponseSender};
 use tokio::sync::mpsc::channel;
 use tokio::task;
 
