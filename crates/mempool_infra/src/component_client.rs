@@ -16,6 +16,55 @@ use crate::component_definitions::{
     ComponentRequestAndResponseSender, ServerError, APPLICATION_OCTET_STREAM,
 };
 
+/// The `ComponentClient` struct is a generic client for sending component requests and receiving
+/// responses asynchronously.
+///
+/// # Type Parameters
+/// - `Request`: The type of the request. This type must implement both `Send` and `Sync` traits.
+/// - `Response`: The type of the response. This type must implement both `Send` and `Sync` traits.
+///
+/// # Fields
+/// - `tx`: An asynchronous sender channel for transmitting
+/// `ComponentRequestAndResponseSender<Request, Response>` messages.
+///
+/// # Example
+/// ```rust
+/// // Example usage of the ComponentClient
+/// use tokio::sync::mpsc::Sender;
+///
+/// use crate::starknet_mempool_infra::component_client::ComponentClient;
+/// use crate::starknet_mempool_infra::component_definitions::ComponentRequestAndResponseSender;
+///
+/// // Define your request and response types
+/// struct MyRequest {
+///     pub content: String,
+/// }
+///
+/// struct MyResponse {
+///     content: String,
+/// }
+///
+/// #[tokio::main]
+/// async fn main() {
+///     // Create a channel for sending requests and receiving responses
+///     let (tx, _rx) = tokio::sync::mpsc::channel::<
+///         ComponentRequestAndResponseSender<MyRequest, MyResponse>,
+///     >(100);
+///
+///     // Instantiate the client.
+///     let client = ComponentClient::new(tx);
+///
+///     // Instantiate a request.
+///     let request = MyRequest { content: "Hello, world!".to_string() };
+///
+///     // Send the request; typically, the client should await for a response.
+///     client.send(request);
+/// }
+/// ```
+///
+/// # Notes
+/// - The `ComponentClient` struct is designed to work in an asynchronous environment, utilizing
+///   Tokio's async runtime and channels.
 pub struct ComponentClient<Request, Response>
 where
     Request: Send + Sync,
