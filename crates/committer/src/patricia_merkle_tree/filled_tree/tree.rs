@@ -54,7 +54,10 @@ impl FilledTreeImpl {
     ) -> HashMap<NodeIndex, Mutex<Option<FilledNode<LeafDataImpl>>>> {
         let mut filled_tree_map = HashMap::new();
         for (index, node) in updated_skeleton.get_nodes() {
-            if !matches!(node, UpdatedSkeletonNode::Sibling(_)) {
+            if !matches!(
+                node,
+                UpdatedSkeletonNode::Sibling(_) | UpdatedSkeletonNode::UnmodifiedBottom(_)
+            ) {
                 filled_tree_map.insert(index, Mutex::new(None));
             }
         }
