@@ -165,7 +165,7 @@ fn reqwest_err_to_state_err(err: ReqwestError) -> StateError {
 }
 
 pub struct RpcStateReaderFactory {
-    config: RpcStateReaderConfig,
+    pub config: RpcStateReaderConfig,
 }
 
 impl StateReaderFactory for RpcStateReaderFactory {

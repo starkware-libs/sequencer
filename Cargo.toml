@@ -34,7 +34,8 @@ assert-json-diff = "2.0.2"
 assert_matches = "1.5.0"
 async-trait = "0.1.79"
 axum = "0.6.12"
-# TODO(YaelD, 1/5/2024): Use a fixed version once the StarkNet API is stable.
+# TODO(YaelD, 28/5/2024): The special Blockifier version is needed in order to be aligned with the
+# starknet-api version. This should be removed once we have a mono-repo.
 blockifier = { git = "https://github.com/starkware-libs/blockifier.git", rev = "6babc28a", features = [
     "testing",
 ] }
@@ -47,7 +48,13 @@ const_format = "0.2.30"
 derive_more = "0.99"
 hyper = { version = "0.14", features = ["client", "http1"] }
 futures = "0.3.30"
-papyrus_config = "0.3.0"
+indexmap = "2.1.0"
+# TODO(YaelD, 28/5/2024): The special Papyrus version is needed in order to be aligned with the
+# starknet-api version. This should be removed once we have a mono-repo.
+papyrus_common = { git = "https://github.com/starkware-libs/papyrus.git", rev = "5d37fc32" }
+papyrus_config = { git = "https://github.com/starkware-libs/papyrus.git", rev = "5d37fc32" }
+papyrus_rpc = { git = "https://github.com/starkware-libs/papyrus.git", rev = "5d37fc32" }
+papyrus_storage = { git = "https://github.com/starkware-libs/papyrus.git", rev = "5d37fc32" }
 pretty_assertions = "1.4.0"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 rstest = "0.17.0"
@@ -55,6 +62,11 @@ serde = { version = "1.0.193", features = ["derive"] }
 serde_json = "1.0"
 # TODO(Arni, 1/5/2024): Use a fixed version once the StarkNet API is stable.
 starknet_api = { git = "https://github.com/starkware-libs/starknet-api.git", branch = "main-mempool" }
+# TODO(YaelD, 28/5/2024): The special Papyrus version is needed in order to be aligned with the
+# starknet-api version. This should be removed once we have a mono-repo.
+starknet_client = { git = "https://github.com/starkware-libs/papyrus.git", rev = "5d37fc32" }
+strum = "0.24.1"
+tempfile = "3.3.0"
 thiserror = "1.0"
 tokio = { version = "1.37.0", features = ["full"] }
 tokio-test = "0.4.4"
