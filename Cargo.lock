@@ -534,6 +534,7 @@ dependencies = [
  "derive_more",
  "ethnum",
  "hex",
+ "indexmap 2.2.6",
  "pretty_assertions",
  "rand",
  "rand_distr",
@@ -1945,9 +1946,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_api"
-version = "0.13.0-dev.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6638fe4fef6dd20ed962ccbfef7c41bd2eba356b67e5e20b5e1caa955cf5e467"
+version = "0.13.0-dev.6"
 dependencies = [
  "bitvec",
  "cairo-lang-starknet-classes",

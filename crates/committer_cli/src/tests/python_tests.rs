@@ -23,9 +23,14 @@ use committer::storage::errors::{DeserializationError, SerializationError};
 use committer::storage::map_storage::MapStorage;
 use committer::storage::storage_trait::{Storage, StorageKey, StorageValue};
 use ethnum::U256;
+use indexmap::indexmap;
 use serde_json::json;
 use starknet_api::block_hash::block_hash_calculator::TransactionOutputForHash;
-use starknet_api::core::{ContractAddress as ApiContractAddress, EthAddress, PatriciaKey};
+use starknet_api::core::{
+    ClassHash as ApiClassHash, CompiledClassHash as ApiCompiledClassHash,
+    ContractAddress as ApiContractAddress, EthAddress, Nonce as ApiNonce, PatriciaKey,
+};
+use starknet_api::state::{StorageKey as ApiStorageKey, ThinStateDiff};
 use starknet_api::transaction::{
     Event, EventContent, EventData, EventKey, Fee, GasVector, L2ToL1Payload, MessageToL1,
     RevertedTransactionExecutionStatus, TransactionExecutionStatus,
@@ -51,6 +56,7 @@ pub(crate) enum PythonTest {
     TreeHeightComparison,
     ParseBlockInfo,
     ParseTxOutput,
+    ParseStateDiff,
     SerializeForRustCommitterFlowTest,
 }
 
@@ -98,6 +104,7 @@ impl TryFrom<String> for PythonTest {
             "parse_block_info" => Ok(Self::ParseBlockInfo),
             "compare_tree_height" => Ok(Self::TreeHeightComparison),
             "parse_tx_output_test" => Ok(Self::ParseTxOutput),
+            "parse_state_diff_test" => Ok(Self::ParseStateDiff),
             "serialize_to_rust_committer_flow_test" => Ok(Self::SerializeForRustCommitterFlowTest),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
@@ -151,6 +158,11 @@ impl PythonTest {
                 let tx_output: TransactionOutputForHash =
                     serde_json::from_str(Self::non_optional_input(input)?)?;
                 Ok(parse_tx_output_test(tx_output))
+            }
+            Self::ParseStateDiff => {
+                let tx_output: ThinStateDiff =
+                    serde_json::from_str(Self::non_optional_input(input)?)?;
+                Ok(parse_state_diff_test(tx_output))
             }
             Self::SerializeForRustCommitterFlowTest => {
                 let input: HashMap<String, String> =
@@ -237,7 +249,37 @@ pub(crate) fn parse_tx_output_test(tx_execution_info: TransactionOutputForHash) 
             payload: L2ToL1Payload(vec![CoreFelt::from_bytes_be_slice(&[0_u8])]),
         }],
     };
-    match expected_object == tx_execution_info {
+    is_success_string(expected_object == tx_execution_info)
+}
+
+pub(crate) fn parse_state_diff_test(state_diff: ThinStateDiff) -> String {
+    let expected_object = ThinStateDiff {
+        deployed_contracts: indexmap! {
+            ApiContractAddress::from(1_u128) => ApiClassHash(CoreFelt::from_bytes_be_slice(&[2_u8]))
+        },
+        storage_diffs: indexmap! {
+            ApiContractAddress::from(7_u128) => indexmap! {
+                ApiStorageKey::from(8_u128) => CoreFelt::from_bytes_be_slice(&[9_u8]),
+            },
+        },
+        declared_classes: indexmap! {
+            ApiClassHash(CoreFelt::from_bytes_be_slice(&[13_u8])) =>
+                ApiCompiledClassHash(CoreFelt::from_bytes_be_slice(&[14_u8]))
+        },
+        deprecated_declared_classes: vec![
+            ApiClassHash(CoreFelt::from_bytes_be_slice(&[16_u8])),
+            ApiClassHash(CoreFelt::from_bytes_be_slice(&[15_u8])),
+        ],
+        nonces: indexmap! {
+            ApiContractAddress::from(3_u128) => ApiNonce(CoreFelt::from_bytes_be_slice(&[4_u8])),
+        },
+        replaced_classes: indexmap! {},
+    };
+    is_success_string(expected_object == state_diff)
+}
+
+fn is_success_string(is_success: bool) -> String {
+    match is_success {
         true => "Success",
         false => "Failure",
     }
