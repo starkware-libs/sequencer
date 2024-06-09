@@ -3,6 +3,7 @@ use crate::felt::Felt;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::test_utils::{get_random_u256, random};
 use crate::patricia_merkle_tree::types::NodeIndex;
+
 use rand::rngs::ThreadRng;
 
 use ethnum::{uint, U256};
@@ -33,7 +34,7 @@ fn test_cast_to_node_index(
     #[values(0, 15, 0xDEADBEEF)] leaf_index: u128,
     #[values(true, false)] from_contract_address: bool,
 ) {
-    let expected_node_index = NodeIndex::FIRST_LEAF + leaf_index.into();
+    let expected_node_index = NodeIndex::FIRST_LEAF + leaf_index;
     let actual = if from_contract_address {
         NodeIndex::from_contract_address(&ContractAddress(Felt::from(leaf_index)))
     } else {
@@ -82,7 +83,7 @@ fn test_get_lca_big(mut random: ThreadRng) {
     ));
 
     let left_child = lca << 1;
-    let right_child = left_child + 1.into();
+    let right_child = left_child + 1;
     let mut random_extension = |index: NodeIndex| {
         let extension_bits = index.leading_zeros();
         let extension: u128 = random.gen_range(0..(1 << extension_bits));

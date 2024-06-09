@@ -342,7 +342,7 @@ fn test_update_node_in_empty_tree(
 #[case::modified_leaf(
     &NodeIndex::FIRST_LEAF,
     vec![
-        (NodeIndex::FIRST_LEAF+1.into(),
+        (NodeIndex::FIRST_LEAF + 1,
         OriginalSkeletonNode::UnmodifiedSubTree(HashOutput(Felt::ONE)))
     ],
     &[(U256::from(NodeIndex::FIRST_LEAF), 1)],
@@ -352,7 +352,7 @@ fn test_update_node_in_empty_tree(
 #[case::deleted_leaf(
     &NodeIndex::FIRST_LEAF,
     vec![
-        (NodeIndex::FIRST_LEAF+1.into(),
+        (NodeIndex::FIRST_LEAF + 1,
         OriginalSkeletonNode::UnmodifiedSubTree(HashOutput(Felt::ONE)))
     ],
     &[(U256::from(NodeIndex::FIRST_LEAF), 0)],
@@ -360,110 +360,110 @@ fn test_update_node_in_empty_tree(
     &[],
 )]
 #[case::orig_binary_with_modified_leaf(
-    &(NodeIndex::FIRST_LEAF>>1),
+    &(NodeIndex::FIRST_LEAF >> 1),
     vec![
-        (NodeIndex::FIRST_LEAF+1.into(),
+        (NodeIndex::FIRST_LEAF + 1,
         OriginalSkeletonNode::UnmodifiedSubTree(HashOutput(Felt::ONE))),
-        (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Binary)
+        (NodeIndex::FIRST_LEAF >> 1, OriginalSkeletonNode::Binary)
     ],
     &[(U256::from(NodeIndex::FIRST_LEAF), 1)],
     TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
     &[],
 )]
 #[case::orig_binary_with_deleted_leaf(
-    &(NodeIndex::FIRST_LEAF>>1),
+    &(NodeIndex::FIRST_LEAF >> 1),
     vec![
-        (NodeIndex::FIRST_LEAF+1.into(),
+        (NodeIndex::FIRST_LEAF + 1,
         OriginalSkeletonNode::UnmodifiedSubTree(HashOutput(Felt::ONE))),
-        (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Binary)
+        (NodeIndex::FIRST_LEAF >> 1, OriginalSkeletonNode::Binary)
     ],
     &[(U256::from(NodeIndex::FIRST_LEAF), 0)],
     TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)),
     &[],
 )]
 #[case::orig_binary_with_deleted_leaves(
-    &(NodeIndex::FIRST_LEAF>>1),
-    vec![(NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Binary)],
-    &[(U256::from(NodeIndex::FIRST_LEAF), 0), (U256::from(NodeIndex::FIRST_LEAF + 1.into()), 0)],
+    &(NodeIndex::FIRST_LEAF >> 1),
+    vec![(NodeIndex::FIRST_LEAF >> 1, OriginalSkeletonNode::Binary)],
+    &[(U256::from(NodeIndex::FIRST_LEAF), 0), (U256::from(NodeIndex::FIRST_LEAF + 1), 0)],
     TempSkeletonNode::Empty,
     &[],
 )]
 #[case::orig_binary_with_binary_modified_children(
-    &(NodeIndex::FIRST_LEAF>>2),
+    &(NodeIndex::FIRST_LEAF >> 2),
     vec![
-        (NodeIndex::FIRST_LEAF>>2, OriginalSkeletonNode::Binary),
-        (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Binary),
-        ((NodeIndex::FIRST_LEAF>>1) + 1.into(),OriginalSkeletonNode::Binary)
+        (NodeIndex::FIRST_LEAF >> 2, OriginalSkeletonNode::Binary),
+        (NodeIndex::FIRST_LEAF >> 1, OriginalSkeletonNode::Binary),
+        ((NodeIndex::FIRST_LEAF >> 1) + 1,OriginalSkeletonNode::Binary)
     ],
     &[
         (U256::from(NodeIndex::FIRST_LEAF), 1),
-        (U256::from(NodeIndex::FIRST_LEAF + 1.into()), 1),
-        (U256::from(NodeIndex::FIRST_LEAF + 2.into()), 1),
-        (U256::from(NodeIndex::FIRST_LEAF + 3.into()), 1)
+        (U256::from(NodeIndex::FIRST_LEAF + 1), 1),
+        (U256::from(NodeIndex::FIRST_LEAF + 2), 1),
+        (U256::from(NodeIndex::FIRST_LEAF + 3), 1)
     ],
     TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
     &[
-        (NodeIndex::FIRST_LEAF>>1, UpdatedSkeletonNode::Binary),
-        ((NodeIndex::FIRST_LEAF>>1) + 1.into(),UpdatedSkeletonNode::Binary)
+        (NodeIndex::FIRST_LEAF >> 1, UpdatedSkeletonNode::Binary),
+        ((NodeIndex::FIRST_LEAF >> 1) + 1, UpdatedSkeletonNode::Binary)
     ],
 )]
 // The following cases test the `update_edge_node` function as well.
 #[case::orig_edge_with_deleted_bottom(
-    &(NodeIndex::FIRST_LEAF>>1),
+    &(NodeIndex::FIRST_LEAF >> 1),
     vec![
-        (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
+        (NodeIndex::FIRST_LEAF >> 1, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
     ],
     &[(U256::from(NodeIndex::FIRST_LEAF), 0)],
     TempSkeletonNode::Empty,
     &[],
 )]
 #[case::orig_edge_with_modified_bottom(
-    &(NodeIndex::FIRST_LEAF>>1),
+    &(NodeIndex::FIRST_LEAF >> 1),
     vec![
-        (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
+        (NodeIndex::FIRST_LEAF >> 1, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
     ],
     &[(U256::from(NodeIndex::FIRST_LEAF), 1)],
     TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
     &[],
 )]
 #[case::orig_edge_with_two_modified_leaves(
-    &(NodeIndex::FIRST_LEAF>>1),
-    vec![(NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD))],
-    &[(U256::from(NodeIndex::FIRST_LEAF), 1), (U256::from(NodeIndex::FIRST_LEAF+1.into()), 1)],
+    &(NodeIndex::FIRST_LEAF >> 1),
+    vec![(NodeIndex::FIRST_LEAF >> 1, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD))],
+    &[(U256::from(NodeIndex::FIRST_LEAF), 1), (U256::from(NodeIndex::FIRST_LEAF + 1), 1)],
     TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
     &[
         (NodeIndex::FIRST_LEAF, UpdatedSkeletonNode::Leaf),
-        (NodeIndex::FIRST_LEAF+1.into(), UpdatedSkeletonNode::Leaf)
+        (NodeIndex::FIRST_LEAF + 1, UpdatedSkeletonNode::Leaf)
     ],
 )]
 #[case::orig_edge_with_unmodified_bottom_and_added_leaf(
-    &(NodeIndex::FIRST_LEAF>>1),
+    &(NodeIndex::FIRST_LEAF >> 1),
     vec![
-        (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
+        (NodeIndex::FIRST_LEAF >> 1, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
         (NodeIndex::FIRST_LEAF, OriginalSkeletonNode::UnmodifiedSubTree(HashOutput(Felt::ONE)))
     ],
-    &[(U256::from(NodeIndex::FIRST_LEAF+1.into()), 1)],
+    &[(U256::from(NodeIndex::FIRST_LEAF + 1), 1)],
     TempSkeletonNode::Original(OriginalSkeletonNode::Binary),
     &[],
 )]
 #[case::orig_edge_with_deleted_bottom_and_added_leaf(
-    &(NodeIndex::FIRST_LEAF>>1),
+    &(NodeIndex::FIRST_LEAF >> 1),
     vec![
-        (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
+        (NodeIndex::FIRST_LEAF >> 1, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
     ],
-    &[(U256::from(NodeIndex::FIRST_LEAF), 0), (U256::from(NodeIndex::FIRST_LEAF+1.into()), 1)],
+    &[(U256::from(NodeIndex::FIRST_LEAF), 0), (U256::from(NodeIndex::FIRST_LEAF + 1), 1)],
     TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::RIGHT_CHILD)),
     &[],
 )]
 #[case::orig_edge_with_modified_leaves_beneath_bottom(
-    &(NodeIndex::FIRST_LEAF>>2),
+    &(NodeIndex::FIRST_LEAF >> 2),
     vec![
-        (NodeIndex::FIRST_LEAF>>2, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
-        (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Binary),
+        (NodeIndex::FIRST_LEAF >> 2, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
+        (NodeIndex::FIRST_LEAF >> 1, OriginalSkeletonNode::Binary),
     ],
-    &[(U256::from(NodeIndex::FIRST_LEAF), 1), (U256::from(NodeIndex::FIRST_LEAF+1.into()), 1)],
+    &[(U256::from(NodeIndex::FIRST_LEAF), 1), (U256::from(NodeIndex::FIRST_LEAF + 1), 1)],
     TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
-    &[(NodeIndex::FIRST_LEAF>>1, UpdatedSkeletonNode::Binary)],
+    &[(NodeIndex::FIRST_LEAF >> 1, UpdatedSkeletonNode::Binary)],
 )]
 fn test_update_node_in_nonempty_tree(
     #[case] root_index: &NodeIndex,

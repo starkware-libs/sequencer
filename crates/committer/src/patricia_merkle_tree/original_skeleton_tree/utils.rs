@@ -44,7 +44,7 @@ pub(crate) fn split_leaves<'a>(
         );
     }
 
-    let right_child_index = (*root_index << 1) + 1.into();
+    let right_child_index = (*root_index << 1) + 1;
     let leftmost_index_in_right_subtree = right_child_index << (u8::from(root_height) - 1);
     let leaves_split = bisect_left(leaf_indices, &leftmost_index_in_right_subtree);
     [&leaf_indices[..leaves_split], &leaf_indices[leaves_split..]]

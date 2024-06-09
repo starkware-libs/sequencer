@@ -74,7 +74,7 @@ impl NodeIndex {
 
     pub(crate) fn get_children_indices(&self) -> [Self; 2] {
         let left_child = *self << 1;
-        [left_child, left_child + 1.into()]
+        [left_child, left_child + 1]
     }
 
     /// Returns the number of leading zeroes when represented with Self::BITS bits.
@@ -167,6 +167,14 @@ impl std::ops::Mul for NodeIndex {
 
     fn mul(self, rhs: Self) -> Self {
         Self::new(self.0 * rhs.0)
+    }
+}
+
+impl std::ops::Add<u128> for NodeIndex {
+    type Output = Self;
+
+    fn add(self, rhs: u128) -> Self {
+        self + Self::from(rhs)
     }
 }
 
