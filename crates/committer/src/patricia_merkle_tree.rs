@@ -5,5 +5,8 @@ pub mod original_skeleton_tree;
 pub mod types;
 pub mod updated_skeleton_tree;
 
-#[cfg(any(feature = "testing", test))]
-pub mod test_utils;
+#[cfg(test)]
+pub mod internal_test_utils;
+
+#[cfg(feature = "testing")]
+pub mod external_test_utils;

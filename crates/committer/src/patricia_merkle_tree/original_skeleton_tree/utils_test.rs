@@ -1,8 +1,8 @@
 use super::split_leaves;
-use crate::patricia_merkle_tree::test_utils::as_fully_indexed;
-use crate::patricia_merkle_tree::test_utils::get_random_u256;
-use crate::patricia_merkle_tree::test_utils::random;
-use crate::patricia_merkle_tree::test_utils::small_tree_index_to_full;
+use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
+use crate::patricia_merkle_tree::internal_test_utils::as_fully_indexed;
+use crate::patricia_merkle_tree::internal_test_utils::random;
+use crate::patricia_merkle_tree::internal_test_utils::small_tree_index_to_full;
 use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 use ethnum::{uint, U256};
 use rand::rngs::ThreadRng;

@@ -1,6 +1,7 @@
 use committer::block_committer::input::ContractAddress;
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
+use committer::patricia_merkle_tree::external_test_utils::get_random_u256;
 use committer::patricia_merkle_tree::filled_tree::forest::FilledForestImpl;
 use committer::patricia_merkle_tree::filled_tree::node::ClassHash;
 use committer::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
@@ -16,7 +17,6 @@ use committer::patricia_merkle_tree::node_data::inner_node::{
 use committer::patricia_merkle_tree::node_data::leaf::ContractState;
 use committer::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use committer::patricia_merkle_tree::node_data::leaf::LeafDataImplDiscriminants as LeafDataVariants;
-use committer::patricia_merkle_tree::test_utils::get_random_u256;
 use committer::patricia_merkle_tree::types::NodeIndex;
 use ethnum::U256;
 use rand::prelude::IteratorRandom;
