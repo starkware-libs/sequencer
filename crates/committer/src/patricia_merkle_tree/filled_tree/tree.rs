@@ -54,10 +54,7 @@ impl FilledTreeImpl {
     ) -> HashMap<NodeIndex, Mutex<Option<FilledNode<LeafDataImpl>>>> {
         let mut filled_tree_map = HashMap::new();
         for (index, node) in updated_skeleton.get_nodes() {
-            if !matches!(
-                node,
-                UpdatedSkeletonNode::Sibling(_) | UpdatedSkeletonNode::UnmodifiedBottom(_)
-            ) {
+            if !matches!(node, UpdatedSkeletonNode::UnmodifiedSubTree(_)) {
                 filled_tree_map.insert(index, Mutex::new(None));
             }
         }
@@ -172,8 +169,7 @@ impl FilledTreeImpl {
                 Self::write_to_output_map(output_map, index, hash_value, data)?;
                 Ok(hash_value)
             }
-            UpdatedSkeletonNode::Sibling(hash_result)
-            | UpdatedSkeletonNode::UnmodifiedBottom(hash_result) => Ok(*hash_result),
+            UpdatedSkeletonNode::UnmodifiedSubTree(hash_result) => Ok(*hash_result),
             UpdatedSkeletonNode::Leaf => {
                 let leaf_data = LeafDataImpl::create(&index, leaf_modifications).await?;
                 if leaf_data.is_empty() {

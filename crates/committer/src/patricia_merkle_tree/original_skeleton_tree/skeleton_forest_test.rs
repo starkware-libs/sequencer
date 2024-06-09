@@ -13,8 +13,7 @@ use crate::patricia_merkle_tree::node_data::leaf::ContractState;
 use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::create_tree_test::create_root_edge_entry;
 use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::create_tree_test::{
     create_32_bytes_entry, create_binary_entry, create_binary_skeleton_node, create_edge_entry,
-    create_edge_skeleton_node, create_expected_skeleton,
-    create_leaf_or_binary_sibling_skeleton_node, create_unmodified_bottom_skeleton_node,
+    create_edge_skeleton_node, create_expected_skeleton, create_unmodified_subtree_skeleton_node,
 };
 use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::OriginalSkeletonForest;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
@@ -126,8 +125,8 @@ use crate::storage::map_storage::MapStorage;
                 create_binary_skeleton_node(2),
                 create_binary_skeleton_node(4),
                 create_edge_skeleton_node(5, 1, 1),
-                create_unmodified_bottom_skeleton_node(11, 74),
-                create_leaf_or_binary_sibling_skeleton_node(9, 47)
+                create_unmodified_subtree_skeleton_node(11, 74),
+                create_unmodified_subtree_skeleton_node(9, 47)
             ],
             3
         ),
@@ -137,8 +136,8 @@ use crate::storage::map_storage::MapStorage;
                 create_edge_skeleton_node(2, 0, 2),
                 create_edge_skeleton_node(3, 1, 1),
                 create_binary_skeleton_node(7),
-                create_leaf_or_binary_sibling_skeleton_node(8, 152),
-                create_leaf_or_binary_sibling_skeleton_node(15, 54)
+                create_unmodified_subtree_skeleton_node(8, 152),
+                create_unmodified_subtree_skeleton_node(15, 54)
             ],
             3
         ),
@@ -152,9 +151,9 @@ use crate::storage::map_storage::MapStorage;
                         create_edge_skeleton_node(3, 3, 2),
                         create_binary_skeleton_node(4),
                         create_edge_skeleton_node(5, 1, 1),
-                        create_leaf_or_binary_sibling_skeleton_node(9, 9),
-                        create_leaf_or_binary_sibling_skeleton_node(15, 15),
-                        create_leaf_or_binary_sibling_skeleton_node(11, 16),
+                        create_unmodified_subtree_skeleton_node(9, 9),
+                        create_unmodified_subtree_skeleton_node(15, 15),
+                        create_unmodified_subtree_skeleton_node(11, 16),
                     ],
                     3
                 )
@@ -168,8 +167,8 @@ use crate::storage::map_storage::MapStorage;
                         create_binary_skeleton_node(3),
                         create_binary_skeleton_node(4),
                         create_edge_skeleton_node(6, 1, 1),
-                        create_leaf_or_binary_sibling_skeleton_node(7, 11),
-                        create_leaf_or_binary_sibling_skeleton_node(9, 2),
+                        create_unmodified_subtree_skeleton_node(7, 11),
+                        create_unmodified_subtree_skeleton_node(9, 2),
                     ],
                     3
                 )
@@ -183,8 +182,8 @@ use crate::storage::map_storage::MapStorage;
                         create_binary_skeleton_node(3),
                         create_binary_skeleton_node(4),
                         create_edge_skeleton_node(6, 1, 1),
-                        create_leaf_or_binary_sibling_skeleton_node(7, 11),
-                        create_leaf_or_binary_sibling_skeleton_node(9, 2),
+                        create_unmodified_subtree_skeleton_node(7, 11),
+                        create_unmodified_subtree_skeleton_node(9, 2),
                     ],
                     3
                 )
@@ -198,8 +197,8 @@ use crate::storage::map_storage::MapStorage;
                         create_binary_skeleton_node(3),
                         create_binary_skeleton_node(4),
                         create_edge_skeleton_node(6, 1, 1),
-                        create_leaf_or_binary_sibling_skeleton_node(7, 11),
-                        create_leaf_or_binary_sibling_skeleton_node(9, 2),
+                        create_unmodified_subtree_skeleton_node(7, 11),
+                        create_unmodified_subtree_skeleton_node(9, 2),
                     ],
                     3
                 )

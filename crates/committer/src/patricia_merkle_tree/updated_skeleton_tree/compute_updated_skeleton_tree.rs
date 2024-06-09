@@ -78,11 +78,8 @@ impl UpdatedSkeletonTreeImpl {
                     .get_nodes()
                     .iter()
                     .filter_map(|(index, node)| match node {
-                        OriginalSkeletonNode::LeafOrBinarySibling(hash) => {
-                            Some((*index, UpdatedSkeletonNode::Sibling(*hash)))
-                        }
-                        OriginalSkeletonNode::UnmodifiedBottom(hash) => {
-                            Some((*index, UpdatedSkeletonNode::UnmodifiedBottom(*hash)))
+                        OriginalSkeletonNode::UnmodifiedSubTree(hash) => {
+                            Some((*index, UpdatedSkeletonNode::UnmodifiedSubTree(*hash)))
                         }
                         OriginalSkeletonNode::Binary | OriginalSkeletonNode::Edge(_) => None,
                     }),
@@ -174,17 +171,14 @@ impl UpdatedSkeletonTreeImpl {
                     "Index {root_index:?} is an original Binary node without leaf modifications -
                     it should be a Sibling instead."
                 ),
-                OriginalSkeletonNode::Edge(_)
-                | OriginalSkeletonNode::LeafOrBinarySibling(_)
-                | OriginalSkeletonNode::UnmodifiedBottom(_) => {
+                OriginalSkeletonNode::Edge(_) | OriginalSkeletonNode::UnmodifiedSubTree(_) => {
                     return TempSkeletonNode::Original(original_node);
                 }
             }
         };
 
         match original_node {
-            OriginalSkeletonNode::LeafOrBinarySibling(_)
-            | OriginalSkeletonNode::UnmodifiedBottom(_) => {
+            OriginalSkeletonNode::UnmodifiedSubTree(_) => {
                 unreachable!(
                     "A sibling/unmodified bottom can have no leaf_modifications in its subtree."
                 )
@@ -246,8 +240,7 @@ impl UpdatedSkeletonTreeImpl {
                     OriginalSkeletonNode::Edge(path_to_bottom) => {
                         UpdatedSkeletonNode::Edge(*path_to_bottom)
                     }
-                    OriginalSkeletonNode::LeafOrBinarySibling(_)
-                    | OriginalSkeletonNode::UnmodifiedBottom(_) => {
+                    OriginalSkeletonNode::UnmodifiedSubTree(_) => {
                         // Unmodified nodes are finalized in the initial phase of updated skeleton
                         // creation.
                         continue;
@@ -303,8 +296,7 @@ impl UpdatedSkeletonTreeImpl {
                     .insert(*bottom_index, UpdatedSkeletonNode::Binary);
                 OriginalSkeletonNode::Edge(*path)
             }
-            OriginalSkeletonNode::LeafOrBinarySibling(_)
-            | OriginalSkeletonNode::UnmodifiedBottom(_) => OriginalSkeletonNode::Edge(*path),
+            OriginalSkeletonNode::UnmodifiedSubTree(_) => OriginalSkeletonNode::Edge(*path),
         })
     }
 

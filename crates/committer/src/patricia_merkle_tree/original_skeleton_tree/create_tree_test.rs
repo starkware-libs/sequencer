@@ -62,9 +62,9 @@ use super::OriginalSkeletonTreeImpl;
             create_edge_skeleton_node(3, 3, 2),
             create_binary_skeleton_node(4),
             create_edge_skeleton_node(5, 1, 1),
-            create_leaf_or_binary_sibling_skeleton_node(9, 9),
-            create_leaf_or_binary_sibling_skeleton_node(15, 15),
-            create_leaf_or_binary_sibling_skeleton_node(11, 11)
+            create_unmodified_subtree_skeleton_node(9, 9),
+            create_unmodified_subtree_skeleton_node(15, 15),
+            create_unmodified_subtree_skeleton_node(11, 11)
         ],
         3
     ),
@@ -112,8 +112,8 @@ use super::OriginalSkeletonTreeImpl;
             create_binary_skeleton_node(3),
             create_binary_skeleton_node(4),
             create_edge_skeleton_node(6, 1, 1),
-            create_leaf_or_binary_sibling_skeleton_node(7, 11),
-            create_leaf_or_binary_sibling_skeleton_node(9, 2),
+            create_unmodified_subtree_skeleton_node(7, 11),
+            create_unmodified_subtree_skeleton_node(9, 2),
         ],
         3
     ),
@@ -166,12 +166,12 @@ use super::OriginalSkeletonTreeImpl;
             create_binary_skeleton_node(3),
             create_edge_skeleton_node(6, 3, 2),
             create_binary_skeleton_node(7),
-            create_leaf_or_binary_sibling_skeleton_node(8, 24),
+            create_unmodified_subtree_skeleton_node(8, 24),
             create_edge_skeleton_node(14, 0, 1),
             create_binary_skeleton_node(15),
-            create_leaf_or_binary_sibling_skeleton_node(27, 20),
-            create_leaf_or_binary_sibling_skeleton_node(28, 5),
-            create_leaf_or_binary_sibling_skeleton_node(31, 40)
+            create_unmodified_subtree_skeleton_node(27, 20),
+            create_unmodified_subtree_skeleton_node(28, 5),
+            create_unmodified_subtree_skeleton_node(31, 40)
         ],
         4
     ),
@@ -296,23 +296,13 @@ pub(crate) fn create_edge_skeleton_node(
     )
 }
 
-pub(crate) fn create_leaf_or_binary_sibling_skeleton_node(
+pub(crate) fn create_unmodified_subtree_skeleton_node(
     idx: u128,
     hash_output: u128,
 ) -> (NodeIndex, OriginalSkeletonNode) {
     (
         NodeIndex::from(idx),
-        OriginalSkeletonNode::LeafOrBinarySibling(HashOutput(Felt::from(hash_output))),
-    )
-}
-
-pub(crate) fn create_unmodified_bottom_skeleton_node(
-    idx: u128,
-    hash_output: u128,
-) -> (NodeIndex, OriginalSkeletonNode) {
-    (
-        NodeIndex::from(idx),
-        OriginalSkeletonNode::UnmodifiedBottom(HashOutput(Felt::from(hash_output))),
+        OriginalSkeletonNode::UnmodifiedSubTree(HashOutput(Felt::from(hash_output))),
     )
 }
 

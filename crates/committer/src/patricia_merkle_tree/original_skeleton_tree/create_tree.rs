@@ -109,7 +109,7 @@ impl OriginalSkeletonTreeImpl {
                     if subtree.is_sibling() {
                         self.nodes.insert(
                             subtree.root_index,
-                            OriginalSkeletonNode::LeafOrBinarySibling(hash),
+                            OriginalSkeletonNode::UnmodifiedSubTree(hash),
                         );
                         continue;
                     }
@@ -131,7 +131,7 @@ impl OriginalSkeletonTreeImpl {
                     if subtree.is_sibling() {
                         self.nodes.insert(
                             path_to_bottom.bottom_index(subtree.root_index),
-                            OriginalSkeletonNode::UnmodifiedBottom(bottom_hash),
+                            OriginalSkeletonNode::UnmodifiedSubTree(bottom_hash),
                         );
                         continue;
                     }
@@ -144,7 +144,7 @@ impl OriginalSkeletonTreeImpl {
                     if subtree.is_sibling() {
                         self.nodes.insert(
                             subtree.root_index,
-                            OriginalSkeletonNode::LeafOrBinarySibling(hash),
+                            OriginalSkeletonNode::UnmodifiedSubTree(hash),
                         );
                     }
                 }

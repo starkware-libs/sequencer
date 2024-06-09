@@ -258,7 +258,7 @@ fn create_sibling_updated_skeleton_node_for_testing(
 ) -> (NodeIndex, UpdatedSkeletonNode) {
     (
         NodeIndex::from(index),
-        UpdatedSkeletonNode::Sibling(HashOutput(Felt::from_hex(hash).unwrap())),
+        UpdatedSkeletonNode::UnmodifiedSubTree(HashOutput(Felt::from_hex(hash).unwrap())),
     )
 }
 

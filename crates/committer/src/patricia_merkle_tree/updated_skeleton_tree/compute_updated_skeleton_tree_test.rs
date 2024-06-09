@@ -29,11 +29,8 @@ fn updated_skeleton(
                 original_skeleton
                     .iter()
                     .filter_map(|(index, node)| match node {
-                        OriginalSkeletonNode::LeafOrBinarySibling(hash) => {
-                            Some((*index, UpdatedSkeletonNode::Sibling(*hash)))
-                        }
-                        OriginalSkeletonNode::UnmodifiedBottom(hash) => {
-                            Some((*index, UpdatedSkeletonNode::UnmodifiedBottom(*hash)))
+                        OriginalSkeletonNode::UnmodifiedSubTree(hash) => {
+                            Some((*index, UpdatedSkeletonNode::UnmodifiedSubTree(*hash)))
                         }
                         OriginalSkeletonNode::Binary | OriginalSkeletonNode::Edge(_) => None,
                     }),
@@ -246,7 +243,7 @@ fn test_node_from_binary_data(
 #[case::to_unmodified_bottom(
     &PathToBottom::from("101"),
     &NodeIndex::from(5),
-    &TempSkeletonNode::Original(OriginalSkeletonNode::UnmodifiedBottom(
+    &TempSkeletonNode::Original(OriginalSkeletonNode::UnmodifiedSubTree(
         HashOutput::ZERO
     )),
    &[],
@@ -339,7 +336,7 @@ fn test_update_node_in_empty_tree(
     &NodeIndex::FIRST_LEAF,
     vec![
         (NodeIndex::FIRST_LEAF+1.into(),
-        OriginalSkeletonNode::LeafOrBinarySibling(HashOutput(Felt::ONE)))
+        OriginalSkeletonNode::UnmodifiedSubTree(HashOutput(Felt::ONE)))
     ],
     &[(U256::from(NodeIndex::FIRST_LEAF), 1)],
     TempSkeletonNode::Leaf,
@@ -349,7 +346,7 @@ fn test_update_node_in_empty_tree(
     &NodeIndex::FIRST_LEAF,
     vec![
         (NodeIndex::FIRST_LEAF+1.into(),
-        OriginalSkeletonNode::LeafOrBinarySibling(HashOutput(Felt::ONE)))
+        OriginalSkeletonNode::UnmodifiedSubTree(HashOutput(Felt::ONE)))
     ],
     &[(U256::from(NodeIndex::FIRST_LEAF), 0)],
     TempSkeletonNode::Empty,
@@ -359,7 +356,7 @@ fn test_update_node_in_empty_tree(
     &(NodeIndex::FIRST_LEAF>>1),
     vec![
         (NodeIndex::FIRST_LEAF+1.into(),
-        OriginalSkeletonNode::LeafOrBinarySibling(HashOutput(Felt::ONE))),
+        OriginalSkeletonNode::UnmodifiedSubTree(HashOutput(Felt::ONE))),
         (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Binary)
     ],
     &[(U256::from(NodeIndex::FIRST_LEAF), 1)],
@@ -370,7 +367,7 @@ fn test_update_node_in_empty_tree(
     &(NodeIndex::FIRST_LEAF>>1),
     vec![
         (NodeIndex::FIRST_LEAF+1.into(),
-        OriginalSkeletonNode::LeafOrBinarySibling(HashOutput(Felt::ONE))),
+        OriginalSkeletonNode::UnmodifiedSubTree(HashOutput(Felt::ONE))),
         (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Binary)
     ],
     &[(U256::from(NodeIndex::FIRST_LEAF), 0)],
@@ -436,7 +433,7 @@ fn test_update_node_in_empty_tree(
     &(NodeIndex::FIRST_LEAF>>1),
     vec![
         (NodeIndex::FIRST_LEAF>>1, OriginalSkeletonNode::Edge(PathToBottom::LEFT_CHILD)),
-        (NodeIndex::FIRST_LEAF, OriginalSkeletonNode::UnmodifiedBottom(HashOutput(Felt::ONE)))
+        (NodeIndex::FIRST_LEAF, OriginalSkeletonNode::UnmodifiedSubTree(HashOutput(Felt::ONE)))
     ],
     &[(U256::from(NodeIndex::FIRST_LEAF+1.into()), 1)],
     TempSkeletonNode::Original(OriginalSkeletonNode::Binary),

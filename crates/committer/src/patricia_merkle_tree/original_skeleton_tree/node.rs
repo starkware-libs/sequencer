@@ -6,10 +6,8 @@ use crate::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, P
 pub(crate) enum OriginalSkeletonNode {
     Binary,
     Edge(PathToBottom),
-    // Unmodified leaf / binary nodes on the merkle paths of modified leaves.
-    LeafOrBinarySibling(HashOutput),
-    // Unmodified edge siblings bottom nodes on the merkle paths of modified leaves.
-    UnmodifiedBottom(HashOutput),
+    // Represents a root of a subtree where non of it's descendants has changed.
+    UnmodifiedSubTree(HashOutput),
 }
 
 /// A representation of the data required to build an original skeleton node.

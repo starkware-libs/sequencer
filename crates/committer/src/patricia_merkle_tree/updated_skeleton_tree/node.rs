@@ -6,9 +6,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
 pub(crate) enum UpdatedSkeletonNode {
     Binary,
     Edge(PathToBottom),
-    // All unmodified nodes on the merkle paths of modified leaves.
-    Sibling(HashOutput),
-    // Unmodified bottom of edge nodes on the merkle paths of modified leaves.
-    UnmodifiedBottom(HashOutput),
+    // Represents a root of a subtree where non of it's descendants has changed.
+    UnmodifiedSubTree(HashOutput),
     Leaf,
 }
