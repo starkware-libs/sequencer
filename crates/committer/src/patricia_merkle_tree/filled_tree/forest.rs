@@ -2,7 +2,6 @@ use crate::block_committer::input::ContractAddress;
 use crate::forest_errors::{ForestError, ForestResult};
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
-use crate::patricia_merkle_tree::filled_tree::tree::FilledTreeResult;
 use crate::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use crate::patricia_merkle_tree::node_data::leaf::{
     ContractState, LeafData, LeafDataImpl, LeafModifications,
@@ -20,9 +19,9 @@ pub trait FilledForest<L: LeafData> {
     /// Serialize each tree and store it.
     fn write_to_storage(&self, storage: &mut impl Storage);
 
-    fn get_compiled_class_root_hash(&self) -> FilledTreeResult<HashOutput, L>;
+    fn get_compiled_class_root_hash(&self) -> HashOutput;
 
-    fn get_contract_root_hash(&self) -> FilledTreeResult<HashOutput, L>;
+    fn get_contract_root_hash(&self) -> HashOutput;
 }
 
 pub struct FilledForestImpl {
@@ -46,11 +45,11 @@ impl FilledForest<LeafDataImpl> for FilledForestImpl {
         storage.mset(new_db_objects);
     }
 
-    fn get_contract_root_hash(&self) -> FilledTreeResult<HashOutput, LeafDataImpl> {
+    fn get_contract_root_hash(&self) -> HashOutput {
         self.contracts_trie.get_root_hash()
     }
 
-    fn get_compiled_class_root_hash(&self) -> FilledTreeResult<HashOutput, LeafDataImpl> {
+    fn get_compiled_class_root_hash(&self) -> HashOutput {
         self.classes_trie.get_root_hash()
     }
 }
@@ -130,7 +129,7 @@ impl FilledForestImpl {
     ) -> ForestResult<(ContractAddress, ContractState, FilledTreeImpl)> {
         let filled_storage_trie =
             FilledTreeImpl::create::<TH>(updated_storage_trie, inner_updates).await?;
-        let new_root_hash = filled_storage_trie.get_root_hash()?;
+        let new_root_hash = filled_storage_trie.get_root_hash();
         Ok((
             contract_address,
             ContractState {

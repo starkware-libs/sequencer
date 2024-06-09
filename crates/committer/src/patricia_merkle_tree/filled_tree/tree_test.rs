@@ -28,8 +28,7 @@ async fn test_filled_tree_sanity() {
         FilledTreeImpl::create::<TreeHashFunctionImpl>(updated_skeleton_tree, modifications)
             .await
             .unwrap()
-            .get_root_hash()
-            .unwrap();
+            .get_root_hash();
     assert_eq!(root_hash, HashOutput(Felt::ONE), "Root hash mismatch");
 }
 
@@ -89,7 +88,7 @@ async fn test_small_filled_tree() {
             .await
             .unwrap();
     let filled_tree_map = filled_tree.get_all_nodes();
-    let root_hash = filled_tree.get_root_hash().unwrap();
+    let root_hash = filled_tree.get_root_hash();
 
     // The expected hash values were computed separately.
     let expected_root_hash = HashOutput(
@@ -192,7 +191,7 @@ async fn test_small_tree_with_sibling_nodes() {
             .await
             .unwrap();
     let filled_tree_map = filled_tree.get_all_nodes();
-    let root_hash = filled_tree.get_root_hash().unwrap();
+    let root_hash = filled_tree.get_root_hash();
 
     // The expected hash values were computed separately. Note that the sibling nodes are not
     // computed in the filled tree, but the hash values are directly used. The hashes of sibling

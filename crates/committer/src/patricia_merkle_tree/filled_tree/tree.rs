@@ -41,11 +41,12 @@ pub(crate) trait FilledTree<L: LeafData>: Sized {
     /// to a storage key and its serialized storage value.
     fn serialize(&self) -> HashMap<StorageKey, StorageValue>;
 
-    fn get_root_hash(&self) -> FilledTreeResult<HashOutput, L>;
+    fn get_root_hash(&self) -> HashOutput;
 }
 
 pub struct FilledTreeImpl {
     pub tree_map: HashMap<NodeIndex, FilledNode<LeafDataImpl>>,
+    pub root_hash: HashOutput,
 }
 
 impl FilledTreeImpl {
@@ -195,7 +196,7 @@ impl FilledTree<LeafDataImpl> for FilledTreeImpl {
         //   1. Create a map containing the tree structure without hash values.
         //   2. Fill in the hash values.
         let filled_tree_map = Arc::new(Self::initialize_with_placeholders(&updated_skeleton));
-        Self::compute_filled_tree_rec::<TH>(
+        let root_hash = Self::compute_filled_tree_rec::<TH>(
             Arc::new(updated_skeleton),
             NodeIndex::ROOT,
             Arc::new(leaf_modifications),
@@ -206,6 +207,7 @@ impl FilledTree<LeafDataImpl> for FilledTreeImpl {
         // Create and return a new FilledTreeImpl from the hashmap.
         Ok(FilledTreeImpl {
             tree_map: Self::remove_arc_mutex_and_option(filled_tree_map)?,
+            root_hash,
         })
     }
 
@@ -218,10 +220,7 @@ impl FilledTree<LeafDataImpl> for FilledTreeImpl {
             .collect()
     }
 
-    fn get_root_hash(&self) -> FilledTreeResult<HashOutput, LeafDataImpl> {
-        match self.tree_map.get(&NodeIndex::ROOT) {
-            Some(root_node) => Ok(root_node.hash),
-            None => Err(FilledTreeError::MissingRoot),
-        }
+    fn get_root_hash(&self) -> HashOutput {
+        self.root_hash
     }
 }

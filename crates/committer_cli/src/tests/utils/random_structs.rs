@@ -187,6 +187,7 @@ impl DummyRandomValue for FilledTreeImpl {
 
         Self {
             tree_map: nodes.into_iter().collect(),
+            root_hash: HashOutput(Felt::random(rng, max_size)),
         }
     }
 }

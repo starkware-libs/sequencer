@@ -16,11 +16,11 @@ impl SerializedForest {
         println!("{}", serde_json::to_string(&storage)?);
 
         // Output the new contract storage root.
-        let contract_storage_root_hash = self.0.get_contract_root_hash()?.0;
+        let contract_storage_root_hash = self.0.get_contract_root_hash().0;
         println!("{}", contract_storage_root_hash.to_hex());
 
         // Output the new compiled class root.
-        let compiled_class_root_hash = self.0.get_compiled_class_root_hash()?.0;
+        let compiled_class_root_hash = self.0.get_compiled_class_root_hash().0;
         println!("{}", compiled_class_root_hash.to_hex());
 
         Ok(())

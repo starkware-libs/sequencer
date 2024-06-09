@@ -64,7 +64,7 @@ impl UpdatedSkeletonTree for UpdatedSkeletonTreeImpl {
                         UpdatedSkeletonNode::Edge(path_to_bottom)
                     }
                     OriginalSkeletonNode::UnmodifiedSubTree(_) => {
-                        unreachable!("Root node cannot be an unmodified.")
+                        unreachable!("Root node cannot be unmodified.")
                     }
                 };
 
