@@ -185,6 +185,19 @@ impl FilledTreeImpl {
             }
         }
     }
+
+    fn create_unmodified(
+        updated_skeleton: impl UpdatedSkeletonTree,
+    ) -> Result<Self, FilledTreeError<LeafDataImpl>> {
+        let root_node = updated_skeleton.get_node(NodeIndex::ROOT)?;
+        let UpdatedSkeletonNode::UnmodifiedSubTree(root_hash) = root_node else {
+            panic!("A root of tree without modifications is expected to be a unmodified subtree.")
+        };
+        Ok(Self {
+            tree_map: HashMap::new(),
+            root_hash: *root_hash,
+        })
+    }
 }
 
 impl FilledTree<LeafDataImpl> for FilledTreeImpl {
@@ -195,6 +208,9 @@ impl FilledTree<LeafDataImpl> for FilledTreeImpl {
         // Compute the filled tree in two steps:
         //   1. Create a map containing the tree structure without hash values.
         //   2. Fill in the hash values.
+        if leaf_modifications.is_empty() {
+            return Self::create_unmodified(updated_skeleton);
+        }
         let filled_tree_map = Arc::new(Self::initialize_with_placeholders(&updated_skeleton));
         let root_hash = Self::compute_filled_tree_rec::<TH>(
             Arc::new(updated_skeleton),

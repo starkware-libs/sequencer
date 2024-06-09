@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::patricia_merkle_tree::node_data::inner_node::EdgePathLength;
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
 use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
@@ -7,9 +9,11 @@ use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonN
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
 use crate::patricia_merkle_tree::types::NodeIndex;
+use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonNodeMap;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
+use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeResult;
 
 #[cfg(test)]
 #[path = "compute_updated_skeleton_tree_test.rs"]
@@ -396,5 +400,24 @@ impl UpdatedSkeletonTreeImpl {
             self.update_node_in_nonempty_tree(&new_bottom_index, original_skeleton, leaf_indices);
 
         self.node_from_edge_data(&path_to_new_bottom, &new_bottom_index, &bottom)
+    }
+
+    pub(crate) fn create_unmodified(
+        original_skeleton: &impl OriginalSkeletonTree,
+    ) -> UpdatedSkeletonTreeResult<Self> {
+        let original_root_node = original_skeleton
+            .get_nodes()
+            .get(&NodeIndex::ROOT)
+            .ok_or(UpdatedSkeletonTreeError::MissingNode(NodeIndex::ROOT))?;
+        let OriginalSkeletonNode::UnmodifiedSubTree(root_hash) = original_root_node else {
+            panic!("A root of tree without modifications is expected to be an unmodified node.")
+        };
+
+        Ok(Self {
+            skeleton_tree: HashMap::from([(
+                NodeIndex::ROOT,
+                UpdatedSkeletonNode::UnmodifiedSubTree(*root_hash),
+            )]),
+        })
     }
 }
