@@ -23,23 +23,15 @@ use committer::storage::errors::{DeserializationError, SerializationError};
 use committer::storage::map_storage::MapStorage;
 use committer::storage::storage_trait::{Storage, StorageKey, StorageValue};
 use ethnum::U256;
-use indexmap::indexmap;
 use serde_json::json;
 use starknet_api::block_hash::block_hash_calculator::TransactionOutputForHash;
-use starknet_api::core::{
-    ClassHash as ApiClassHash, CompiledClassHash as ApiCompiledClassHash,
-    ContractAddress as ApiContractAddress, EthAddress, Nonce as ApiNonce, PatriciaKey,
-};
-use starknet_api::state::{StorageKey as ApiStorageKey, ThinStateDiff};
-use starknet_api::transaction::{
-    Event, EventContent, EventData, EventKey, Fee, GasVector, L2ToL1Payload, MessageToL1,
-    RevertedTransactionExecutionStatus, TransactionExecutionStatus,
-};
-use starknet_types_core::felt::Felt as CoreFelt;
+use starknet_api::state::ThinStateDiff;
 use starknet_types_core::hash::{Pedersen, StarkHash};
 use std::fmt::Debug;
 use std::{collections::HashMap, io};
 use thiserror;
+
+use super::utils::objects::{get_thin_state_diff, get_transaction_output_for_hash};
 
 // Enum representing different Python tests.
 pub(crate) enum PythonTest {
@@ -220,61 +212,12 @@ pub(crate) fn parse_block_info_test(block_info: BlockInfo) -> String {
 }
 
 pub(crate) fn parse_tx_output_test(tx_execution_info: TransactionOutputForHash) -> String {
-    let expected_execution_status = match tx_execution_info.execution_status {
-        TransactionExecutionStatus::Succeeded => TransactionExecutionStatus::Succeeded,
-        TransactionExecutionStatus::Reverted(_) => {
-            TransactionExecutionStatus::Reverted(RevertedTransactionExecutionStatus {
-                revert_reason: "reason".to_owned(),
-            })
-        }
-    };
-    let expected_object = TransactionOutputForHash {
-        actual_fee: Fee(0),
-        events: vec![Event {
-            from_address: ApiContractAddress(PatriciaKey::from(2_u128)),
-            content: EventContent {
-                keys: vec![EventKey(CoreFelt::from_bytes_be_slice(&[1_u8]))],
-                data: EventData(vec![CoreFelt::from_bytes_be_slice(&[0_u8])]),
-            },
-        }],
-        execution_status: expected_execution_status,
-        gas_consumed: GasVector {
-            l1_gas: 0,
-            l1_data_gas: 64,
-        },
-        messages_sent: vec![MessageToL1 {
-            from_address: ApiContractAddress(PatriciaKey::from(2_u128)),
-            to_address: EthAddress::try_from(CoreFelt::from_bytes_be_slice(&[1_u8]))
-                .expect("to_address"),
-            payload: L2ToL1Payload(vec![CoreFelt::from_bytes_be_slice(&[0_u8])]),
-        }],
-    };
+    let expected_object = get_transaction_output_for_hash(&tx_execution_info.execution_status);
     is_success_string(expected_object == tx_execution_info)
 }
 
 pub(crate) fn parse_state_diff_test(state_diff: ThinStateDiff) -> String {
-    let expected_object = ThinStateDiff {
-        deployed_contracts: indexmap! {
-            ApiContractAddress::from(1_u128) => ApiClassHash(CoreFelt::from_bytes_be_slice(&[2_u8]))
-        },
-        storage_diffs: indexmap! {
-            ApiContractAddress::from(7_u128) => indexmap! {
-                ApiStorageKey::from(8_u128) => CoreFelt::from_bytes_be_slice(&[9_u8]),
-            },
-        },
-        declared_classes: indexmap! {
-            ApiClassHash(CoreFelt::from_bytes_be_slice(&[13_u8])) =>
-                ApiCompiledClassHash(CoreFelt::from_bytes_be_slice(&[14_u8]))
-        },
-        deprecated_declared_classes: vec![
-            ApiClassHash(CoreFelt::from_bytes_be_slice(&[16_u8])),
-            ApiClassHash(CoreFelt::from_bytes_be_slice(&[15_u8])),
-        ],
-        nonces: indexmap! {
-            ApiContractAddress::from(3_u128) => ApiNonce(CoreFelt::from_bytes_be_slice(&[4_u8])),
-        },
-        replaced_classes: indexmap! {},
-    };
+    let expected_object = get_thin_state_diff();
     is_success_string(expected_object == state_diff)
 }
 
