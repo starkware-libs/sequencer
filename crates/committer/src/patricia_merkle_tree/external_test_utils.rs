@@ -1,8 +1,20 @@
+use std::collections::HashMap;
+
 use ethnum::U256;
+use serde_json::json;
 
 use crate::felt::Felt;
+use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::errors::TypesError;
+use crate::storage::map_storage::MapStorage;
 use rand::Rng;
+
+use super::filled_tree::tree::{FilledTree, FilledTreeImpl};
+use super::node_data::leaf::{LeafData, LeafDataImpl, LeafModifications, SkeletonLeaf};
+use super::original_skeleton_tree::tree::{OriginalSkeletonTree, OriginalSkeletonTreeImpl};
+use super::types::NodeIndex;
+use super::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
+use super::updated_skeleton_tree::tree::{UpdatedSkeletonTree, UpdatedSkeletonTreeImpl};
 
 impl TryFrom<&U256> for Felt {
     type Error = TypesError<U256>;
@@ -50,4 +62,57 @@ pub fn get_random_u256<R: Rng>(rng: &mut R, low: U256, high: U256) -> U256 {
         result = randomize();
     }
     result
+}
+
+pub async fn single_tree_flow_test(
+    leaf_modifications: LeafModifications<LeafDataImpl>,
+    storage: MapStorage,
+    root_hash: HashOutput,
+) -> String {
+    // Move from leaf number to actual index.
+    let leaf_modifications = leaf_modifications
+        .into_iter()
+        .map(|(k, v)| (NodeIndex::FIRST_LEAF + k, v))
+        .collect::<HashMap<NodeIndex, LeafDataImpl>>();
+    let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
+    sorted_leaf_indices.sort();
+
+    // Build the original tree.
+    let mut original_skeleton: OriginalSkeletonTreeImpl =
+        OriginalSkeletonTree::create(&storage, &sorted_leaf_indices, root_hash)
+            .expect("Failed to create the original skeleton tree");
+
+    // Update the tree with the new data.
+    let updated_skeleton: UpdatedSkeletonTreeImpl = UpdatedSkeletonTree::create(
+        &mut original_skeleton,
+        &leaf_modifications
+            .iter()
+            .map(|(index, data)| {
+                (
+                    *index,
+                    match data.is_empty() {
+                        true => SkeletonLeaf::Zero,
+                        false => SkeletonLeaf::NonZero,
+                    },
+                )
+            })
+            .collect(),
+    )
+    .expect("Failed to create the updated skeleton tree");
+
+    // Compute the hash.
+    let filled_tree: FilledTreeImpl =
+        FilledTreeImpl::create::<TreeHashFunctionImpl>(updated_skeleton, leaf_modifications)
+            .await
+            .expect("Failed to create the filled tree");
+    let hash_result = filled_tree.get_root_hash();
+
+    let mut result_map = HashMap::new();
+    // Serialize the hash result.
+    let json_hash = &json!(hash_result.0.to_hex());
+    result_map.insert("root_hash", json_hash);
+    // Serlialize the storage modifications.
+    let json_storage = &json!(filled_tree.serialize());
+    result_map.insert("storage_changes", json_storage);
+    serde_json::to_string(&result_map).expect("serialization failed")
 }

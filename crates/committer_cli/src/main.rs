@@ -79,6 +79,7 @@ async fn main() {
             // Run relevant test.
             let output = test
                 .run(inputs.as_deref())
+                .await
                 .unwrap_or_else(|error| panic!("Failed to run test: {}", error));
 
             // Print test's output.

@@ -1,7 +1,11 @@
 use crate::felt::Felt;
 use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
+
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
+
+use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
+
 use ethnum::U256;
 use rand::rngs::ThreadRng;
 use rstest::{fixture, rstest};
@@ -33,8 +37,6 @@ impl From<&str> for PathToBottom {
 pub(crate) fn random() -> ThreadRng {
     rand::thread_rng()
 }
-
-use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 
 impl NodeIndex {
     /// Assumes self represents an index in a smaller tree height. Returns a node index represents
