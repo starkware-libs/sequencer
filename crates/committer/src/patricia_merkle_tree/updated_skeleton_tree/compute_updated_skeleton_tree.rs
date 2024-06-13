@@ -1,3 +1,4 @@
+use log::warn;
 use std::collections::HashMap;
 
 use crate::patricia_merkle_tree::node_data::inner_node::EdgePathLength;
@@ -119,13 +120,19 @@ impl UpdatedSkeletonTreeImpl {
         leaf_indices: &[NodeIndex],
     ) -> TempSkeletonNode {
         if root_index.is_leaf() {
-            // Leaf. As this is an empty tree, the leaf must be new.
+            // Leaf. As this is an empty tree, the leaf *should* be new.
             assert!(
-                leaf_indices.len() == 1
-                    && leaf_indices[0] == *root_index
-                    && self.skeleton_tree.contains_key(root_index),
+                leaf_indices.len() == 1 && leaf_indices[0] == *root_index,
                 "Unexpected leaf index (root_index={root_index:?}, leaf_indices={leaf_indices:?})."
             );
+            if !self.skeleton_tree.contains_key(root_index) {
+                // "Deletion" of an already empty leaf. Supported but not expected.
+                warn!(
+                    "Leaf {root_index:?} was not finalized (i.e., a deleted leaf) but is in an
+                empty subtree."
+                );
+                return TempSkeletonNode::Empty;
+            }
             return TempSkeletonNode::Leaf;
         }
 
@@ -283,7 +290,8 @@ impl UpdatedSkeletonTreeImpl {
                     // Leaf is finalized in the initial phase of updated skeleton creation.
                     assert!(
                         self.skeleton_tree.contains_key(bottom_index),
-                        "bottom is a non-empty leaf but doesn't appear in the skeleton."
+                        "bottom {bottom_index:?} is a non-empty leaf but doesn't appear in the \
+                        skeleton."
                     );
                     return TempSkeletonNode::Original(OriginalSkeletonNode::Edge(*path));
                 }

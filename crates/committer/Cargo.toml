@@ -23,6 +23,7 @@ bisection.workspace = true
 derive_more.workspace = true
 ethnum.workspace = true
 hex.workspace = true
+log.workspace = true
 rand.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -3,8 +3,10 @@ use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
 
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
-
+use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
+use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
+use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 
 use ethnum::U256;
 use rand::rngs::ThreadRng;
@@ -63,6 +65,31 @@ pub(crate) fn small_tree_index_to_full(index: U256, height: SubTreeHeight) -> No
 fn test_get_random_u256(mut random: ThreadRng, #[case] low: U256, #[case] high: U256) {
     let r = get_random_u256(&mut random, low, high);
     assert!(low <= r && r < high);
+}
+
+/// Returns an UpdatedSkeleton instance initialized with the UpdatedSkeletonNodes immediately
+/// derived from the leaf_modifications (as done in UpdatedSkeletonTreeImpl::finalize_bottom_layer).
+pub(crate) fn get_initial_updated_skeleton(
+    original_skeleton: &[(NodeIndex, OriginalSkeletonNode)],
+    leaf_modifications: &[(NodeIndex, u8)],
+) -> UpdatedSkeletonTreeImpl {
+    UpdatedSkeletonTreeImpl {
+        skeleton_tree: leaf_modifications
+            .iter()
+            .filter(|(_, leaf_val)| *leaf_val != 0)
+            .map(|(index, _)| (*index, UpdatedSkeletonNode::Leaf))
+            .chain(
+                original_skeleton
+                    .iter()
+                    .filter_map(|(index, node)| match node {
+                        OriginalSkeletonNode::UnmodifiedSubTree(hash) => {
+                            Some((*index, UpdatedSkeletonNode::UnmodifiedSubTree(*hash)))
+                        }
+                        OriginalSkeletonNode::Binary | OriginalSkeletonNode::Edge(_) => None,
+                    }),
+            )
+            .collect(),
+    }
 }
 
 pub(crate) fn as_fully_indexed(

@@ -198,7 +198,7 @@ impl std::ops::Shr<u8> for NodeIndex {
 
 impl From<u128> for NodeIndex {
     fn from(value: u128) -> Self {
-        Self(U256::from(value))
+        Self::new(U256::from(value))
     }
 }
 
