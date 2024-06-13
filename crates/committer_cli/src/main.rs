@@ -5,7 +5,6 @@ use filled_tree_output::filled_forest::SerializedForest;
 use parse_input::read::parse_input;
 use std::io;
 
-pub mod block_hash;
 pub mod filled_tree_output;
 pub mod parse_input;
 pub mod tests;
