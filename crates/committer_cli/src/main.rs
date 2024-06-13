@@ -1,10 +1,13 @@
 use crate::tests::python_tests::PythonTest;
+use block_hash::BlockCommitmentsInput;
 use clap::{Args, Parser, Subcommand};
 use committer::block_committer::commit::commit_block;
 use filled_tree_output::filled_forest::SerializedForest;
 use parse_input::read::parse_input;
+use starknet_api::block_hash::block_hash_calculator::calculate_block_commitments;
 use std::io;
 
+pub mod block_hash;
 pub mod filled_tree_output;
 pub mod parse_input;
 pub mod tests;
@@ -22,6 +25,12 @@ pub struct CommitterCliArgs {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    /// Calculates commitments needed for the block hash.
+    BlockHashCommitments {
+        /// Json serialized BlockCommitmentsInput.
+        #[clap(long)]
+        input: String,
+    },
     /// Given previous state tree skeleton and a state diff, computes the new commitment.
     Commit {
         /// File path to input.
@@ -83,6 +92,18 @@ async fn main() {
 
             // Print test's output.
             print!("{}", output);
+        }
+
+        Command::BlockHashCommitments { input } => {
+            let commitments_input: BlockCommitmentsInput =
+                serde_json::from_str(&input).expect("Failed to load commitments input");
+            let commitments = serde_json::to_string(&calculate_block_commitments(
+                &commitments_input.transactions_data,
+                &commitments_input.state_diff,
+                commitments_input.l1_da_mode,
+            ))
+            .expect("Failed to serialize commitments");
+            print!("{}", commitments);
         }
     }
 }
