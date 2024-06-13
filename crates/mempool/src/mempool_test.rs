@@ -1,4 +1,5 @@
 use assert_matches::assert_matches;
+use itertools::zip_eq;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
@@ -142,10 +143,15 @@ fn test_add_same_tx(mut mempool: Mempool) {
 
 // Asserts that the transactions in the mempool are in ascending order as per the expected
 // transactions.
+#[track_caller]
 fn check_mempool_txs_eq(mempool: &Mempool, expected_txs: &[ThinTransaction]) {
     let mempool_txs = mempool.txs_queue.iter();
-    // Deref the inner mempool tx type.
-    expected_txs.iter().zip(mempool_txs).all(|(a, b)| *a == **b);
+
+    assert!(
+        zip_eq(expected_txs, mempool_txs)
+            // Deref the inner mempool tx type.
+            .all(|(expected_tx, mempool_tx)| *expected_tx == **mempool_tx)
+    );
 }
 
 #[rstest]
@@ -176,5 +182,5 @@ fn test_tip_priority_over_tx_hash(mut mempool: Mempool) {
 
     assert!(mempool.add_tx(tx_big_tip_small_hash.clone(), account1).is_ok());
     assert!(mempool.add_tx(tx_small_tip_big_hash.clone(), account2).is_ok());
-    check_mempool_txs_eq(&mempool, &[tx_big_tip_small_hash, tx_small_tip_big_hash])
+    check_mempool_txs_eq(&mempool, &[tx_small_tip_big_hash, tx_big_tip_small_hash])
 }

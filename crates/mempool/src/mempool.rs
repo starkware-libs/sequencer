@@ -19,6 +19,7 @@ use crate::priority_queue::TransactionPriorityQueue;
 #[path = "mempool_test.rs"]
 pub mod mempool_test;
 
+#[derive(Debug)]
 pub struct Mempool {
     // TODO: add docstring explaining visibility and coupling of the fields.
     txs_queue: TransactionPriorityQueue,

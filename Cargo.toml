@@ -2,9 +2,9 @@
 members = [
     "crates/gateway",
     "crates/mempool",
-    "crates/mempool_types",
-    "crates/mempool_node",
     "crates/mempool_infra",
+    "crates/mempool_node",
+    "crates/mempool_types",
     "crates/starknet_sierra_compile",
     "crates/task_executor",
     "crates/test_utils",
@@ -19,11 +19,11 @@ repository = "https://github.com/starkware-libs/mempool/"
 license = "Apache-2.0"
 
 [workspace.lints.rust]
-warnings = "deny"
 future-incompatible = "deny"
 nonstandard-style = "deny"
 rust-2018-idioms = "deny"
 unused = "deny"
+warnings = "deny"
 
 [workspace.lints.clippy]
 as_conversions = "deny"
@@ -46,9 +46,10 @@ clap = "4.3.10"
 colored = "2.1.0"
 const_format = "0.2.30"
 derive_more = "0.99"
-hyper = { version = "0.14", features = ["client", "http1"] }
 futures = "0.3.30"
+hyper = { version = "0.14", features = ["client", "http1"] }
 indexmap = "2.1.0"
+itertools = "0.13.0"
 # TODO(YaelD, 28/5/2024): The special Papyrus version is needed in order to be aligned with the
 # starknet-api version. This should be removed once we have a mono-repo.
 papyrus_common = { git = "https://github.com/starkware-libs/papyrus.git", rev = "5d37fc32" }
