@@ -1,11 +1,12 @@
 use indexmap::indexmap;
 use starknet_api::{
-    block_hash::block_hash_calculator::TransactionOutputForHash,
+    block_hash::block_hash_calculator::{TransactionHashingData, TransactionOutputForHash},
     core::{ClassHash, CompiledClassHash, ContractAddress, EthAddress, Nonce, PatriciaKey},
     state::{StorageKey, ThinStateDiff},
     transaction::{
         Event, EventContent, EventData, EventKey, Fee, GasVector, L2ToL1Payload, MessageToL1,
-        RevertedTransactionExecutionStatus, TransactionExecutionStatus,
+        RevertedTransactionExecutionStatus, TransactionExecutionStatus, TransactionHash,
+        TransactionSignature,
     },
 };
 use starknet_types_core::felt::Felt;
@@ -66,5 +67,16 @@ pub(crate) fn get_thin_state_diff() -> ThinStateDiff {
             ContractAddress::from(3_u128) => Nonce(Felt::from_bytes_be_slice(&[4_u8])),
         },
         replaced_classes: indexmap! {},
+    }
+}
+
+pub(crate) fn get_tx_data(execution_status: &TransactionExecutionStatus) -> TransactionHashingData {
+    TransactionHashingData {
+        transaction_signature: Some(TransactionSignature(vec![
+            Felt::from_bytes_be_slice(&[1_u8]),
+            Felt::from_bytes_be_slice(&[2_u8]),
+        ])),
+        transaction_output: get_transaction_output_for_hash(execution_status),
+        transaction_hash: TransactionHash(Felt::from_bytes_be_slice(&[3_u8])),
     }
 }
