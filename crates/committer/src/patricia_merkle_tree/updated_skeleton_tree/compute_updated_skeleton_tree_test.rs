@@ -1,4 +1,4 @@
-use ethnum::U256;
+use ethnum::{uint, U256};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use std::collections::HashMap;
@@ -7,7 +7,7 @@ use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use crate::patricia_merkle_tree::internal_test_utils::{
-    get_initial_updated_skeleton, small_tree_index_to_full,
+    as_fully_indexed, get_initial_updated_skeleton, small_tree_index_to_full,
 };
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
@@ -35,12 +35,12 @@ fn initial_updated_skeleton(
 #[rstest]
 #[case::small_tree_positive(
     3, 2, as_fully_indexed(subtree_height,
-        vec![NodeIndex::from(8),NodeIndex::from(10),NodeIndex::from(11)].into_iter()
+        vec![uint!("8"),uint!("10"),uint!("11")].into_iter()
     ),
     true)
     ]
 #[case::small_tree_negative(3, 2, as_fully_indexed(
-    subtree_height, vec![NodeIndex::from(10),NodeIndex::from(11)].into_iter()), false)
+    subtree_height, vec![uint!("10"),uint!("11")].into_iter()), false)
     ]
 #[case::large_tree_farthest_leaves(
     251,
@@ -51,7 +51,7 @@ fn initial_updated_skeleton(
     251,
     1,
     as_fully_indexed(subtree_height, vec![
-        NodeIndex::new((U256::from(3u8) << 250) - U256::ONE), NodeIndex::new(U256::from(3u8) << 250)
+        (U256::from(3u8) << 250) - U256::ONE, U256::from(3u8) << 250
     ].into_iter()
     ),
     true)]
@@ -59,7 +59,7 @@ fn initial_updated_skeleton(
     251,
     1,
     as_fully_indexed(subtree_height, vec![
-        NodeIndex::new(U256::from(3u8) << 250), NodeIndex::new((U256::from(3u8) << 250)+ U256::ONE)
+        U256::from(3u8) << 250, (U256::from(3u8) << 250) + U256::ONE
     ].into_iter()),
     false)]
 fn test_has_leaves_on_both_sides(
@@ -78,7 +78,11 @@ fn test_has_leaves_on_both_sides(
 
 #[rstest]
 #[case::first_leaf_not_descendant(3, 3, vec![NodeIndex::from(8), NodeIndex::from(12)])]
-#[case::last_leaf_not_descendant(3, 2, as_fully_indexed(3, vec![NodeIndex::from(8), NodeIndex::from(12)].into_iter()))]
+#[case::last_leaf_not_descendant(
+    3,
+    2,
+    as_fully_indexed(3, vec![uint!("8"), uint!("12")].into_iter())
+)]
 #[should_panic(expected = "is not a descendant of the root")]
 fn test_has_leaves_on_both_sides_assertions(
     #[case] subtree_height: u8,
@@ -480,15 +484,6 @@ fn test_update_node_in_nonempty_tree(
         initial_updated_skeleton.skeleton_tree,
         expected_skeleton_tree
     );
-}
-
-pub(crate) fn as_fully_indexed(
-    subtree_height: u8,
-    indices: impl Iterator<Item = NodeIndex>,
-) -> Vec<NodeIndex> {
-    indices
-        .map(|index| NodeIndex::from_subtree_index(index, SubTreeHeight::new(subtree_height)))
-        .collect()
 }
 
 #[rstest]
