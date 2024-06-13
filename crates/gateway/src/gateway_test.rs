@@ -67,9 +67,9 @@ async fn test_add_tx() {
     let response = add_tx(State(app_state), tx.into()).await.into_response();
 
     let status_code = response.status();
-    assert_eq!(status_code, StatusCode::OK);
-
     let response_bytes = &to_bytes(response).await;
+
+    assert_eq!(status_code, StatusCode::OK, "{response_bytes:?}");
     assert_eq!(tx_hash, serde_json::from_slice(response_bytes).unwrap());
 }
 
