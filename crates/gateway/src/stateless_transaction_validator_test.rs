@@ -6,8 +6,8 @@ use starknet_api::hash::StarkFelt;
 use starknet_api::transaction::{Calldata, Resource, ResourceBounds, TransactionSignature};
 
 use crate::starknet_api_test_utils::{
-    create_resource_bounds_mapping, external_tx_for_testing, non_zero_resource_bounds_mapping,
-    zero_resource_bounds_mapping, TransactionType, NON_EMPTY_RESOURCE_BOUNDS,
+    create_resource_bounds_mapping, external_tx_for_testing, zero_resource_bounds_mapping,
+    TransactionType, NON_EMPTY_RESOURCE_BOUNDS,
 };
 use crate::stateless_transaction_validator::{
     StatelessTransactionValidator, StatelessTransactionValidatorConfig,
@@ -18,7 +18,6 @@ const DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: StatelessTransactionValidatorConfig 
     StatelessTransactionValidatorConfig {
         validate_non_zero_l1_gas_fee: false,
         validate_non_zero_l2_gas_fee: false,
-
         max_calldata_length: 1,
         max_signature_length: 1,
     };
@@ -34,13 +33,33 @@ const DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: StatelessTransactionValidatorConfig 
     calldata![],
     TransactionSignature::default()
 )]
-#[case::valid_l2_gas_invoke_tx(
+#[case::valid_l1_gas(
+    StatelessTransactionValidatorConfig{
+        validate_non_zero_l1_gas_fee: true,
+        validate_non_zero_l2_gas_fee: false,
+        ..DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+    },
+    create_resource_bounds_mapping(NON_EMPTY_RESOURCE_BOUNDS, ResourceBounds::default()),
+    calldata![],
+    TransactionSignature::default()
+)]
+#[case::valid_l2_gas(
     StatelessTransactionValidatorConfig{
         validate_non_zero_l1_gas_fee: false,
         validate_non_zero_l2_gas_fee: true,
         ..DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
     create_resource_bounds_mapping(ResourceBounds::default(), NON_EMPTY_RESOURCE_BOUNDS),
+    calldata![],
+    TransactionSignature::default()
+)]
+#[case::valid_l1_and_l2_gas(
+    StatelessTransactionValidatorConfig{
+        validate_non_zero_l1_gas_fee: true,
+        validate_non_zero_l2_gas_fee: true,
+        ..DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+    },
+    create_resource_bounds_mapping(NON_EMPTY_RESOURCE_BOUNDS, NON_EMPTY_RESOURCE_BOUNDS),
     calldata![],
     TransactionSignature::default()
 )]
@@ -57,12 +76,8 @@ const DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: StatelessTransactionValidatorConfig 
     TransactionSignature(vec![StarkFelt::from_u128(1)])
 )]
 #[case::valid_tx(
-    StatelessTransactionValidatorConfig{
-        validate_non_zero_l1_gas_fee: true,
-        validate_non_zero_l2_gas_fee: true,
-        ..DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
-    },
-    non_zero_resource_bounds_mapping(),
+    DEFAULT_VALIDATOR_CONFIG_FOR_TESTING,
+    zero_resource_bounds_mapping(),
     calldata![],
     TransactionSignature::default()
 )]

@@ -72,18 +72,14 @@ pub fn zero_resource_bounds_mapping() -> ResourceBoundsMapping {
     create_resource_bounds_mapping(ResourceBounds::default(), ResourceBounds::default())
 }
 
-pub fn non_zero_resource_bounds_mapping() -> ResourceBoundsMapping {
-    ResourceBoundsMapping { l1_gas: NON_EMPTY_RESOURCE_BOUNDS, l2_gas: NON_EMPTY_RESOURCE_BOUNDS }
-}
-
 pub fn executable_resource_bounds_mapping() -> ResourceBoundsMapping {
-    ResourceBoundsMapping {
-        l1_gas: ResourceBounds {
+    create_resource_bounds_mapping(
+        ResourceBounds {
             max_amount: VALID_L1_GAS_MAX_AMOUNT,
             max_price_per_unit: VALID_L1_GAS_MAX_PRICE_PER_UNIT,
         },
-        l2_gas: ResourceBounds::default(),
-    }
+        ResourceBounds::default(),
+    )
 }
 
 pub fn invoke_tx() -> ExternalTransaction {
