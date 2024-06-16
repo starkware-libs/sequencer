@@ -66,9 +66,12 @@ pub struct StatelessTransactionValidatorConfig {
     // If true, validates that the resource bounds are not zero.
     pub validate_non_zero_l1_gas_fee: bool,
     pub validate_non_zero_l2_gas_fee: bool,
-
     pub max_calldata_length: usize,
     pub max_signature_length: usize,
+
+    // Declare txs specific config.
+    pub max_bytecode_size: usize,
+    pub max_raw_class_size: usize,
 }
 
 impl SerializeConfig for StatelessTransactionValidatorConfig {

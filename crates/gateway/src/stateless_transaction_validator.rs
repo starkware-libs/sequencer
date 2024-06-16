@@ -1,6 +1,6 @@
 use starknet_api::external_transaction::{
-    ExternalDeployAccountTransaction, ExternalInvokeTransaction, ExternalTransaction,
-    ResourceBoundsMapping,
+    ExternalDeclareTransaction, ExternalDeployAccountTransaction, ExternalInvokeTransaction,
+    ExternalTransaction, ResourceBoundsMapping,
 };
 use starknet_api::transaction::Resource;
 
@@ -24,6 +24,9 @@ impl StatelessTransactionValidator {
         self.validate_resource_bounds(tx)?;
         self.validate_tx_size(tx)?;
 
+        if let ExternalTransaction::Declare(declare_tx) = tx {
+            self.validate_declare_tx(declare_tx)?;
+        }
         Ok(())
     }
 
@@ -95,9 +98,42 @@ impl StatelessTransactionValidator {
 
         Ok(())
     }
-}
 
-// Utilities.
+    fn validate_declare_tx(
+        &self,
+        declare_tx: &ExternalDeclareTransaction,
+    ) -> StatelessTransactionValidatorResult<()> {
+        let contract_class = match declare_tx {
+            ExternalDeclareTransaction::V3(tx) => &tx.contract_class,
+        };
+        self.validate_class_length(contract_class)
+    }
+
+    fn validate_class_length(
+        &self,
+        contract_class: &starknet_api::external_transaction::ContractClass,
+    ) -> StatelessTransactionValidatorResult<()> {
+        let bytecode_size = contract_class.sierra_program.len();
+        if bytecode_size > self.config.max_bytecode_size {
+            return Err(StatelessTransactionValidatorError::BytecodeSizeTooLarge {
+                bytecode_size,
+                max_bytecode_size: self.config.max_bytecode_size,
+            });
+        }
+
+        let contract_class_object_size = serde_json::to_string(&contract_class)
+            .expect("Unexpected error serializing contract class.")
+            .len();
+        if contract_class_object_size > self.config.max_raw_class_size {
+            return Err(StatelessTransactionValidatorError::ContractClassObjectSizeTooLarge {
+                contract_class_object_size,
+                max_contract_class_object_size: self.config.max_raw_class_size,
+            });
+        }
+
+        Ok(())
+    }
+}
 
 fn validate_resource_is_non_zero(
     resource_bounds_mapping: &ResourceBoundsMapping,

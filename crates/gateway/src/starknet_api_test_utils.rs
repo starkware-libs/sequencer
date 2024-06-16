@@ -1,7 +1,6 @@
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion, NonceManager};
 use serde_json::to_string_pretty;
-use starknet_api::calldata;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::external_transaction::{
@@ -15,6 +14,7 @@ use starknet_api::transaction::{
     AccountDeploymentData, Calldata, ContractAddressSalt, PaymasterData, ResourceBounds, Tip,
     TransactionSignature, TransactionVersion,
 };
+use starknet_api::{calldata, stark_felt};
 
 use crate::{declare_tx_args, deploy_account_tx_args, invoke_tx_args};
 
@@ -47,7 +47,11 @@ pub fn external_tx_for_testing(
 ) -> ExternalTransaction {
     match tx_type {
         TransactionType::Declare => {
-            external_declare_tx(declare_tx_args!(resource_bounds, signature))
+            let contract_class = ContractClass {
+                sierra_program: vec![stark_felt!(1_u32); 3],
+                ..ContractClass::default()
+            };
+            external_declare_tx(declare_tx_args!(resource_bounds, signature, contract_class))
         }
         TransactionType::DeployAccount => external_deploy_account_tx(
             deploy_account_tx_args!(resource_bounds, constructor_calldata: calldata, signature),

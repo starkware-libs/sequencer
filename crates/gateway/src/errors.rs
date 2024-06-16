@@ -46,6 +46,19 @@ pub enum StatelessTransactionValidatorError {
         (allowed length: {max_signature_length})."
     )]
     SignatureTooLong { signature_length: usize, max_signature_length: usize },
+    #[error(
+        "Cannot declare contract class with bytecode size of {bytecode_size}; max allowed size: \
+         {max_bytecode_size}."
+    )]
+    BytecodeSizeTooLarge { bytecode_size: usize, max_bytecode_size: usize },
+    #[error(
+        "Cannot declare contract class with size of {contract_class_object_size}; max allowed \
+         size: {max_contract_class_object_size}."
+    )]
+    ContractClassObjectSizeTooLarge {
+        contract_class_object_size: usize,
+        max_contract_class_object_size: usize,
+    },
 }
 
 pub type StatelessTransactionValidatorResult<T> = Result<T, StatelessTransactionValidatorError>;
