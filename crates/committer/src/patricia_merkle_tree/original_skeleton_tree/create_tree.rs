@@ -37,7 +37,7 @@ impl<'a> SubTree<'a> {
         split_leaves(&self.root_index, self.sorted_leaf_indices)
     }
 
-    pub(crate) fn is_sibling(&self) -> bool {
+    pub(crate) fn is_unmodified(&self) -> bool {
         self.sorted_leaf_indices.is_empty()
     }
 
@@ -82,9 +82,8 @@ impl<'a> SubTree<'a> {
 
 impl OriginalSkeletonTreeImpl {
     /// Fetches the Patricia witnesses, required to build the original skeleton tree from storage.
-    /// Given a list of subtrees, traverses towards their leaves and fetches all non-empty and
-    /// sibling nodes. Assumes no subtrees of height 0 (leaves).
-
+    /// Given a list of subtrees, traverses towards their leaves and fetches all non-empty,
+    /// unmodified nodes.
     fn fetch_nodes(
         &mut self,
         subtrees: Vec<SubTree<'_>>,
@@ -106,7 +105,7 @@ impl OriginalSkeletonTreeImpl {
                             right_hash,
                         },
                 } => {
-                    if subtree.is_sibling() {
+                    if subtree.is_unmodified() {
                         self.nodes.insert(
                             subtree.root_index,
                             OriginalSkeletonNode::UnmodifiedSubTree(hash),
@@ -128,7 +127,7 @@ impl OriginalSkeletonTreeImpl {
                         subtree.root_index,
                         OriginalSkeletonNode::Edge(path_to_bottom),
                     );
-                    if subtree.is_sibling() {
+                    if subtree.is_unmodified() {
                         self.nodes.insert(
                             path_to_bottom.bottom_index(subtree.root_index),
                             OriginalSkeletonNode::UnmodifiedSubTree(bottom_hash),
@@ -141,7 +140,7 @@ impl OriginalSkeletonTreeImpl {
                 }
                 // Leaf node.
                 OriginalSkeletonInputNode::Leaf(hash) => {
-                    if subtree.is_sibling() {
+                    if subtree.is_unmodified() {
                         self.nodes.insert(
                             subtree.root_index,
                             OriginalSkeletonNode::UnmodifiedSubTree(hash),

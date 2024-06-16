@@ -69,7 +69,7 @@ fn has_leaves_on_both_sides(root_index: &NodeIndex, leaf_indices: &[NodeIndex]) 
 impl UpdatedSkeletonTreeImpl {
     /// Finalize the skeleton bottom layer := the updated skeleton nodes created directly from the
     /// original skeleton and leaf modifications, without being dependant in any descendants
-    /// (i.e., modified leaves, and unmodified nodes (Siblings and UnmodifiedBottoms)).
+    /// (i.e., modified leaves, and unmodified nodes).
     pub(crate) fn finalize_bottom_layer(
         original_skeleton: &impl OriginalSkeletonTree,
         leaf_modifications: &LeafModifications<SkeletonLeaf>,
@@ -171,7 +171,7 @@ impl UpdatedSkeletonTreeImpl {
             };
         };
 
-        // Not a leaf or an unchanged leaf (a Sibling or unmodified bottom).
+        // Not a leaf or an unmodified node.
         let original_node = *original_skeleton
             .get(root_index)
             .unwrap_or_else(|| panic!("Node {root_index:?} not found."));
@@ -180,7 +180,7 @@ impl UpdatedSkeletonTreeImpl {
             match original_node {
                 OriginalSkeletonNode::Binary => unreachable!(
                     "Index {root_index:?} is an original Binary node without leaf modifications -
-                    it should be a Sibling instead."
+                    it should be an unmodified subtree instead."
                 ),
                 OriginalSkeletonNode::Edge(_) | OriginalSkeletonNode::UnmodifiedSubTree(_) => {
                     return TempSkeletonNode::Original(original_node);
@@ -191,7 +191,7 @@ impl UpdatedSkeletonTreeImpl {
         match original_node {
             OriginalSkeletonNode::UnmodifiedSubTree(_) => {
                 unreachable!(
-                    "A sibling/unmodified bottom can have no leaf_modifications in its subtree."
+                    "An unmodified subtree can't have any leaf_modifications in its subtree."
                 )
             }
             OriginalSkeletonNode::Binary => {

@@ -145,33 +145,33 @@ async fn test_small_filled_tree() {
 
 #[tokio::test(flavor = "multi_thread")]
 /// This test is a small test for testing the root hash computation of the patricia merkle tree
-/// with sibling nodes. The tree structure & results are a partial of test_small_filled_tree.
+/// with unmodified nodes. The tree structure & results are a partial of test_small_filled_tree.
 ///                   i=1: binary
 ///                   /        \
-///            i=2: edge      i=3: sibling
+///            i=2: edge      i=3: unmodified
 ///            l=1, p=0       hash=0x2955a96b09495fb2ce4ed65cf679c54e54aefc2c6972d7f3042590000bb7543
 ///                /
 ///            i=4: binary
 ///          /           \
-///      i=8: edge    i=9: sibling
+///      i=8: edge    i=9: unmodified
 ///      l=2, p=3     hash=0x39eb7b85bcc9deac314406d6b73154b09b008f8af05e2f58ab623f4201d0b88
 ///           \
 ///            \
 ///         i=35: leaf
 ///            v=1
-async fn test_small_tree_with_sibling_nodes() {
+async fn test_small_tree_with_unmodified_nodes() {
     // Set up the updated skeleton tree.
     let (new_leaf_index, new_leaf) = (35, "0x1");
     let nodes_in_skeleton_tree = [
         create_binary_updated_skeleton_node_for_testing(1),
         create_path_to_bottom_edge_updated_skeleton_node_for_testing(2, 0, 1),
-        create_sibling_updated_skeleton_node_for_testing(
+        create_unmodified_updated_skeleton_node_for_testing(
             3,
             "0x2955a96b09495fb2ce4ed65cf679c54e54aefc2c6972d7f3042590000bb7543",
         ),
         create_binary_updated_skeleton_node_for_testing(4),
         create_path_to_bottom_edge_updated_skeleton_node_for_testing(8, 3, 2),
-        create_sibling_updated_skeleton_node_for_testing(
+        create_unmodified_updated_skeleton_node_for_testing(
             9,
             "0x39eb7b85bcc9deac314406d6b73154b09b008f8af05e2f58ab623f4201d0b88",
         ),
@@ -193,8 +193,8 @@ async fn test_small_tree_with_sibling_nodes() {
     let filled_tree_map = filled_tree.get_all_nodes();
     let root_hash = filled_tree.get_root_hash();
 
-    // The expected hash values were computed separately. Note that the sibling nodes are not
-    // computed in the filled tree, but the hash values are directly used. The hashes of sibling
+    // The expected hash values were computed separately. Note that the unmodified nodes are not
+    // computed in the filled tree, but the hash values are directly used. The hashes of unmodified
     // nodes should not appear in the filled tree.
     let expected_root_hash = HashOutput(
         Felt::from_hex("0xe8899e8c731a35f5e9ce4c4bc32aabadcc81c5cdcc1aeba74fa7509046c338").unwrap(),
@@ -251,7 +251,7 @@ fn create_path_to_bottom_edge_updated_skeleton_node_for_testing(
     )
 }
 
-fn create_sibling_updated_skeleton_node_for_testing(
+fn create_unmodified_updated_skeleton_node_for_testing(
     index: u128,
     hash: &str,
 ) -> (NodeIndex, UpdatedSkeletonNode) {

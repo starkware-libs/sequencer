@@ -17,7 +17,7 @@ pub(crate) type UpdatedSkeletonTreeResult<T> = Result<T, UpdatedSkeletonTreeErro
 
 /// Consider a Patricia-Merkle Tree which has been updated with new leaves.
 /// This trait represents the structure of the subtree which was modified in the update.
-/// It also contains the hashes of the Sibling nodes on the Merkle paths from the updated leaves
+/// It also contains the hashes of the unmodified nodes on the Merkle paths from the updated leaves
 /// to the root.
 pub(crate) trait UpdatedSkeletonTree: Sized + Send + Sync {
     /// Creates an updated tree from an original tree and modifications.
