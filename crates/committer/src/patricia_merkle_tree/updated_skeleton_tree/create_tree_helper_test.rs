@@ -14,7 +14,7 @@ use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonN
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonNodeMap;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
-use crate::patricia_merkle_tree::updated_skeleton_tree::compute_updated_skeleton_tree::{
+use crate::patricia_merkle_tree::updated_skeleton_tree::create_tree_helper::{
     get_path_to_lca, has_leaves_on_both_sides, TempSkeletonNode,
 };
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;

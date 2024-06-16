@@ -17,8 +17,8 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTre
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeResult;
 
 #[cfg(test)]
-#[path = "compute_updated_skeleton_tree_test.rs"]
-pub mod compute_updated_skeleton_tree_test;
+#[path = "create_tree_helper_test.rs"]
+pub mod create_tree_helper_test;
 
 #[derive(Debug, PartialEq, Eq)]
 /// A temporary skeleton node used during the computation of the updated skeleton tree.
