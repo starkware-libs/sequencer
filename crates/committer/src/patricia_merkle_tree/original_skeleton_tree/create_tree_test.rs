@@ -177,7 +177,7 @@ use super::OriginalSkeletonTreeImpl;
     ),
     SubTreeHeight::new(4)
 )]
-fn test_fetch_nodes(
+fn test_create_tree(
     #[case] storage: MapStorage,
     #[case] leaf_modifications: LeafModifications<LeafDataImpl>,
     #[case] root_hash: HashOutput,
