@@ -12,8 +12,30 @@ use crate::patricia_merkle_tree::node_data::leaf::{LeafData, LeafDataImpl};
 pub mod hash_function_test;
 
 pub(crate) trait TreeHashFunction<L: LeafData> {
-    /// Computes the hash of given node data.
-    fn compute_node_hash(node_data: &NodeData<L>) -> HashOutput;
+    /// Computes the hash of the given leaf.
+    fn compute_leaf_hash(leaf_data: &L) -> HashOutput;
+
+    /// Computes the hash for the given node data.
+    /// The default implementation for internal nodes is based on the following reference:
+    /// https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/starknet-state/#trie_construction
+    fn compute_node_hash(node_data: &NodeData<L>) -> HashOutput {
+        match node_data {
+            NodeData::Binary(BinaryData {
+                left_hash,
+                right_hash,
+            }) => HashOutput(Pedersen::hash(&left_hash.0.into(), &right_hash.0.into()).into()),
+            NodeData::Edge(EdgeData {
+                bottom_hash: hash_output,
+                path_to_bottom: PathToBottom { path, length, .. },
+            }) => HashOutput(
+                Felt::from(Pedersen::hash(
+                    &hash_output.0.into(),
+                    &Felt::from(path).into(),
+                )) + Felt::from(*length),
+            ),
+            NodeData::Leaf(leaf_data) => Self::compute_leaf_hash(leaf_data),
+        }
+    }
 }
 
 pub struct TreeHashFunctionImpl;
@@ -30,23 +52,10 @@ impl TreeHashFunctionImpl {
 /// Implementation of TreeHashFunction. The implementation is based on the following reference:
 /// https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/starknet-state/#trie_construction
 impl TreeHashFunction<LeafDataImpl> for TreeHashFunctionImpl {
-    fn compute_node_hash(node_data: &NodeData<LeafDataImpl>) -> HashOutput {
-        HashOutput(match node_data {
-            NodeData::Binary(BinaryData {
-                left_hash,
-                right_hash,
-            }) => Pedersen::hash(&left_hash.0.into(), &right_hash.0.into()).into(),
-            NodeData::Edge(EdgeData {
-                bottom_hash: hash_output,
-                path_to_bottom: PathToBottom { path, length, .. },
-            }) => {
-                Felt::from(Pedersen::hash(
-                    &hash_output.0.into(),
-                    &Felt::from(path).into(),
-                )) + Felt::from(*length)
-            }
-            NodeData::Leaf(LeafDataImpl::StorageValue(storage_value)) => *storage_value,
-            NodeData::Leaf(LeafDataImpl::CompiledClassHash(compiled_class_hash)) => {
+    fn compute_leaf_hash(leaf_data: &LeafDataImpl) -> HashOutput {
+        HashOutput(match leaf_data {
+            LeafDataImpl::StorageValue(storage_value) => *storage_value,
+            LeafDataImpl::CompiledClassHash(compiled_class_hash) => {
                 let contract_class_leaf_version: Felt = Felt::from_hex(
                     Self::CONTRACT_CLASS_LEAF_V0,
                 )
@@ -59,7 +68,7 @@ impl TreeHashFunction<LeafDataImpl> for TreeHashFunctionImpl {
                 )
                 .into()
             }
-            NodeData::Leaf(LeafDataImpl::ContractState(contract_state)) => Pedersen::hash(
+            LeafDataImpl::ContractState(contract_state) => Pedersen::hash(
                 &Pedersen::hash(
                     &Pedersen::hash(
                         &contract_state.class_hash.0.into(),
