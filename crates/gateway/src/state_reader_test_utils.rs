@@ -160,7 +160,7 @@ pub fn initialize_papyrus_test_state(
             declared_classes.insert(contract.get_class_hash(), Default::default());
             deployed_contracts
                 .insert(contract.get_instance_address(instance), contract.get_class_hash());
-            storage_diffs.extend(fund_account(contract, instance, initial_balances, chain_info));
+            fund_account(&mut storage_diffs, contract, instance, initial_balances, chain_info);
         }
     }
 
@@ -223,12 +223,12 @@ fn test_block_header(block_number: BlockNumber) -> BlockHeader {
 }
 
 fn fund_account(
+    storage_diffs: &mut IndexMap<ContractAddress, IndexMap<StorageKey, StarkFelt>>,
     contract: &FeatureContract,
     instance: u16,
     initial_balances: u128,
     chain_info: &ChainInfo,
-) -> IndexMap<ContractAddress, IndexMap<StorageKey, StarkFelt>> {
-    let mut storage_diffs = IndexMap::new();
+) {
     match contract {
         FeatureContract::AccountWithLongValidate(_)
         | FeatureContract::AccountWithoutValidations(_)
@@ -237,12 +237,14 @@ fn fund_account(
                 get_fee_token_var_address(contract.get_instance_address(instance)) => stark_felt!(initial_balances),
             };
             for fee_type in FeeType::iter() {
-                storage_diffs.insert(chain_info.fee_token_address(&fee_type), key_value.clone());
+                storage_diffs
+                    .entry(chain_info.fee_token_address(&fee_type))
+                    .or_default()
+                    .extend(key_value.clone());
             }
         }
         _ => (),
     }
-    storage_diffs
 }
 
 // TODO(Yael 5/6/2024): remove this function and use the one from papyrus test utils once we have
