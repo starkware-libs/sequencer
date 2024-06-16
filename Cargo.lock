@@ -1947,9 +1947,9 @@ dependencies = [
 
 [[package]]
 name = "starknet_api"
-version = "0.13.0-dev.6"
+version = "0.13.0-dev.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28278598559dc7c9cd4fc67d7950792a540f177bc6dfcbcb2839898ffe0c980d"
+checksum = "5e2df4c5db7264d2fa27c836e06578ce6007a22f7c3ce8f226821e5a7610d6af"
 dependencies = [
  "bitvec",
  "cairo-lang-starknet-classes",
