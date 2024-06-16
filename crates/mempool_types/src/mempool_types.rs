@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::{Tip, TransactionHash};
@@ -6,6 +8,8 @@ use starknet_mempool_infra::component_definitions::ComponentRequestAndResponseSe
 use thiserror::Error;
 
 use crate::errors::MempoolError;
+
+pub type SharedMempoolClient = Arc<dyn MempoolClient>;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ThinTransaction {

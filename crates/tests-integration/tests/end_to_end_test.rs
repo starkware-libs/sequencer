@@ -14,7 +14,7 @@ use starknet_gateway::state_reader_test_utils::rpc_test_state_reader_factory;
 use starknet_mempool::mempool::{create_mempool_server, Mempool};
 use starknet_mempool_integration_tests::integration_test_utils::GatewayClient;
 use starknet_mempool_types::mempool_types::{
-    MempoolClient, MempoolClientImpl, MempoolRequestAndResponseSender,
+    MempoolClient, MempoolClientImpl, MempoolRequestAndResponseSender, SharedMempoolClient,
 };
 use tokio::sync::mpsc::channel;
 use tokio::task;
@@ -22,7 +22,7 @@ use tokio::time::sleep;
 
 const MEMPOOL_INVOCATIONS_QUEUE_SIZE: usize = 32;
 
-async fn set_up_gateway(mempool_client: Arc<dyn MempoolClient>) -> SocketAddr {
+async fn set_up_gateway(mempool_client: SharedMempoolClient) -> SocketAddr {
     let ip = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
     let port = 3000;
     let network_config = GatewayNetworkConfig { ip, port };

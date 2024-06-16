@@ -7,7 +7,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use starknet_api::external_transaction::ExternalTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_mempool_types::mempool_types::{Account, MempoolClient, MempoolInput};
+use starknet_mempool_types::mempool_types::{Account, MempoolInput, SharedMempoolClient};
 
 use crate::config::{GatewayConfig, GatewayNetworkConfig};
 use crate::errors::{GatewayError, GatewayRunError};
@@ -33,14 +33,14 @@ pub struct AppState {
     pub stateless_tx_validator: StatelessTransactionValidator,
     pub stateful_tx_validator: Arc<StatefulTransactionValidator>,
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
-    pub mempool_client: Arc<dyn MempoolClient>,
+    pub mempool_client: SharedMempoolClient,
 }
 
 impl Gateway {
     pub fn new(
         config: GatewayConfig,
         state_reader_factory: Arc<dyn StateReaderFactory>,
-        mempool_client: Arc<dyn MempoolClient>,
+        mempool_client: SharedMempoolClient,
     ) -> Self {
         let app_state = AppState {
             stateless_tx_validator: StatelessTransactionValidator {
