@@ -1,11 +1,13 @@
 use starknet_types_core::hash::{Pedersen, Poseidon, StarkHash};
 
+use crate::block_committer::input::StarknetStorageValue;
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
+use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, NodeData, PathToBottom,
 };
-use crate::patricia_merkle_tree::node_data::leaf::{LeafData, LeafDataImpl};
+use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafData};
 
 #[cfg(test)]
 #[path = "hash_function_test.rs"]
@@ -49,26 +51,13 @@ impl TreeHashFunctionImpl {
         "0x434f4e54524143545f434c4153535f4c4541465f5630";
 }
 
-/// Implementation of TreeHashFunction. The implementation is based on the following reference:
+/// Implementation of TreeHashFunction for contracts trie.
+/// The implementation is based on the following reference:
 /// https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/starknet-state/#trie_construction
-impl TreeHashFunction<LeafDataImpl> for TreeHashFunctionImpl {
-    fn compute_leaf_hash(leaf_data: &LeafDataImpl) -> HashOutput {
-        HashOutput(match leaf_data {
-            LeafDataImpl::StorageValue(storage_value) => *storage_value,
-            LeafDataImpl::CompiledClassHash(compiled_class_hash) => {
-                let contract_class_leaf_version: Felt = Felt::from_hex(
-                    Self::CONTRACT_CLASS_LEAF_V0,
-                )
-                .expect(
-                    "could not parse hex string corresponding to b'CONTRACT_CLASS_LEAF_V0' to Felt",
-                );
-                Poseidon::hash(
-                    &contract_class_leaf_version.into(),
-                    &compiled_class_hash.0.into(),
-                )
-                .into()
-            }
-            LeafDataImpl::ContractState(contract_state) => Pedersen::hash(
+impl TreeHashFunction<ContractState> for TreeHashFunctionImpl {
+    fn compute_leaf_hash(contract_state: &ContractState) -> HashOutput {
+        HashOutput(
+            Pedersen::hash(
                 &Pedersen::hash(
                     &Pedersen::hash(
                         &contract_state.class_hash.0.into(),
@@ -79,6 +68,48 @@ impl TreeHashFunction<LeafDataImpl> for TreeHashFunctionImpl {
                 &Self::CONTRACT_STATE_HASH_VERSION.into(),
             )
             .into(),
-        })
+        )
     }
+}
+
+/// Implementation of TreeHashFunction for the classes trie.
+/// The implementation is based on the following reference:
+/// https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/starknet-state/#trie_construction
+impl TreeHashFunction<CompiledClassHash> for TreeHashFunctionImpl {
+    fn compute_leaf_hash(compiled_class_hash: &CompiledClassHash) -> HashOutput {
+        let contract_class_leaf_version: Felt = Felt::from_hex(Self::CONTRACT_CLASS_LEAF_V0)
+            .expect(
+                "could not parse hex string corresponding to b'CONTRACT_CLASS_LEAF_V0' to Felt",
+            );
+        HashOutput(
+            Poseidon::hash(
+                &contract_class_leaf_version.into(),
+                &compiled_class_hash.0.into(),
+            )
+            .into(),
+        )
+    }
+}
+
+/// Implementation of TreeHashFunction for the storage trie.
+/// The implementation is based on the following reference:
+/// https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/starknet-state/#trie_construction
+impl TreeHashFunction<StarknetStorageValue> for TreeHashFunctionImpl {
+    fn compute_leaf_hash(storage_value: &StarknetStorageValue) -> HashOutput {
+        HashOutput(storage_value.0)
+    }
+}
+
+/// Combined trait for all specific implementations.
+pub(crate) trait ForestHashFunction:
+    TreeHashFunction<ContractState>
+    + TreeHashFunction<CompiledClassHash>
+    + TreeHashFunction<StarknetStorageValue>
+{
+}
+impl<T> ForestHashFunction for T where
+    T: TreeHashFunction<ContractState>
+        + TreeHashFunction<CompiledClassHash>
+        + TreeHashFunction<StarknetStorageValue>
+{
 }

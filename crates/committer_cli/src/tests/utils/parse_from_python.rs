@@ -1,8 +1,8 @@
 use crate::parse_input::cast::add_unique;
 use crate::parse_input::raw_input::RawStorageEntry;
+use committer::block_committer::input::StarknetStorageValue;
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
-use committer::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use committer::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use committer::patricia_merkle_tree::types::NodeIndex;
 use committer::storage::map_storage::MapStorage;
@@ -16,7 +16,11 @@ use std::collections::HashMap;
 /// Returns the leaf modifications, fetched nodes (in storage) and the root hash.
 pub fn parse_input_single_storage_tree_flow_test(
     input: HashMap<String, String>,
-) -> (LeafModifications<LeafDataImpl>, MapStorage, HashOutput) {
+) -> (
+    LeafModifications<StarknetStorageValue>,
+    MapStorage,
+    HashOutput,
+) {
     // Fetch leaf_modifications.
     let leaf_modifications_json = input.get("leaf_modifications").unwrap();
     let leaf_modifications_map =
@@ -26,7 +30,7 @@ pub fn parse_input_single_storage_tree_flow_test(
         .map(|(k, v)| {
             (
                 NodeIndex::new(U256::from_str_hex(k).unwrap()),
-                LeafDataImpl::StorageValue(Felt::from_hex(v).unwrap()),
+                StarknetStorageValue(Felt::from_hex(v).unwrap()),
             )
         })
         .collect();

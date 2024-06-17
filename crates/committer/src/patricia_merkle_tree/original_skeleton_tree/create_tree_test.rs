@@ -1,7 +1,7 @@
+use crate::block_committer::input::StarknetStorageValue;
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
-use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
@@ -179,7 +179,7 @@ use super::OriginalSkeletonTreeImpl;
 )]
 fn test_create_tree(
     #[case] storage: MapStorage,
-    #[case] leaf_modifications: LeafModifications<LeafDataImpl>,
+    #[case] leaf_modifications: LeafModifications<StarknetStorageValue>,
     #[case] root_hash: HashOutput,
     #[case] expected_skeleton: OriginalSkeletonTreeImpl,
     #[case] subtree_height: SubTreeHeight,
@@ -228,15 +228,10 @@ fn create_edge_val(hash: u8, path: u8, length: u8) -> StorageValue {
 
 fn create_leaf_modifications(
     leaf_modifications: Vec<(u128, u128)>,
-) -> LeafModifications<LeafDataImpl> {
+) -> LeafModifications<StarknetStorageValue> {
     leaf_modifications
         .into_iter()
-        .map(|(idx, val)| {
-            (
-                NodeIndex::from(idx),
-                LeafDataImpl::StorageValue(Felt::from(val)),
-            )
-        })
+        .map(|(idx, val)| (NodeIndex::from(idx), StarknetStorageValue(Felt::from(val))))
         .collect()
 }
 

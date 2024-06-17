@@ -1,7 +1,6 @@
 use crate::block_committer::errors::BlockCommitmentError;
 use crate::block_committer::input::{Input, StateDiff};
 use crate::patricia_merkle_tree::filled_tree::forest::FilledForestImpl;
-use crate::patricia_merkle_tree::node_data::leaf::LeafDataImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::{
     OriginalSkeletonForest, OriginalSkeletonForestImpl,
 };
@@ -14,7 +13,7 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTre
 use crate::storage::map_storage::MapStorage;
 
 #[allow(dead_code)]
-type BlockCommitmentResult<T> = Result<T, BlockCommitmentError<LeafDataImpl>>;
+type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
 #[allow(dead_code)]
 pub async fn commit_block(input: Input) -> BlockCommitmentResult<FilledForestImpl> {

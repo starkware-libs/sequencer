@@ -2,7 +2,7 @@ use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
 use crate::patricia_merkle_tree::node_data::leaf::{
-    ContractState, LeafDataImpl, LeafModifications, SkeletonLeaf,
+    ContractState, LeafModifications, SkeletonLeaf,
 };
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::storage_trait::{StorageKey, StorageValue};
@@ -16,7 +16,7 @@ pub struct ContractAddress(pub Felt);
 // TODO(Nimrod, 1/6/2024): Swap to starknet-types-core types once implemented.
 pub struct StarknetStorageKey(pub Felt);
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StarknetStorageValue(pub Felt);
 
 #[derive(Debug, Default, Eq, PartialEq)]
@@ -88,7 +88,7 @@ impl StateDiff {
 
     pub(crate) fn actual_storage_updates(
         &self,
-    ) -> HashMap<ContractAddress, LeafModifications<LeafDataImpl>> {
+    ) -> HashMap<ContractAddress, LeafModifications<StarknetStorageValue>> {
         self.accessed_addresses()
             .iter()
             .map(|address| {
@@ -98,7 +98,7 @@ impl StateDiff {
                         .map(|(key, value)| {
                             (
                                 NodeIndex::from_starknet_storage_key(key),
-                                LeafDataImpl::StorageValue(value.0),
+                                StarknetStorageValue(value.0),
                             )
                         })
                         .collect(),
@@ -111,14 +111,11 @@ impl StateDiff {
 
     pub(crate) fn actual_classes_updates(
         class_hash_to_compiled_class_hash: &HashMap<ClassHash, CompiledClassHash>,
-    ) -> LeafModifications<LeafDataImpl> {
+    ) -> LeafModifications<CompiledClassHash> {
         class_hash_to_compiled_class_hash
             .iter()
             .map(|(class_hash, compiled_class_hash)| {
-                (
-                    NodeIndex::from_class_hash(class_hash),
-                    LeafDataImpl::CompiledClassHash(*compiled_class_hash),
-                )
+                (NodeIndex::from_class_hash(class_hash), *compiled_class_hash)
             })
             .collect()
     }

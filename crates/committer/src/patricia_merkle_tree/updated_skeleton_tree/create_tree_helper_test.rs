@@ -1,3 +1,5 @@
+use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
+use crate::patricia_merkle_tree::filled_tree::tree::StorageTrie;
 use ethnum::{uint, U256};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
@@ -5,7 +7,6 @@ use std::collections::HashMap;
 
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use crate::patricia_merkle_tree::internal_test_utils::{
     as_fully_indexed, get_initial_updated_skeleton, small_tree_index_to_full,
 };
@@ -490,12 +491,12 @@ fn test_update_node_in_nonempty_tree(
 #[case::empty_tree(HashOutput::ROOT_OF_EMPTY_TREE)]
 #[case::non_empty_tree(HashOutput(Felt::from(77_u128)))]
 #[tokio::test]
-async fn test_update_non_modified_tree(#[case] root_hash: HashOutput) {
+async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
     let mut original_skeleton_tree =
         OriginalSkeletonTreeImpl::create_impl(&MapStorage::default(), &[], root_hash).unwrap();
     let updated =
         UpdatedSkeletonTreeImpl::create(&mut original_skeleton_tree, &HashMap::new()).unwrap();
-    let filled = FilledTreeImpl::create::<TreeHashFunctionImpl>(updated, HashMap::new())
+    let filled = StorageTrie::create::<TreeHashFunctionImpl>(updated, HashMap::new())
         .await
         .unwrap();
     assert_eq!(root_hash, filled.get_root_hash());

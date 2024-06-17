@@ -3,14 +3,15 @@ use std::collections::HashMap;
 use ethnum::U256;
 use serde_json::json;
 
+use crate::block_committer::input::StarknetStorageValue;
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::errors::TypesError;
 use crate::storage::map_storage::MapStorage;
 use rand::Rng;
 
-use super::filled_tree::tree::{FilledTree, FilledTreeImpl};
-use super::node_data::leaf::{LeafData, LeafDataImpl, LeafModifications, SkeletonLeaf};
+use super::filled_tree::tree::{FilledTree, StorageTrie};
+use super::node_data::leaf::{LeafData, LeafModifications, SkeletonLeaf};
 use super::original_skeleton_tree::tree::{OriginalSkeletonTree, OriginalSkeletonTreeImpl};
 use super::types::NodeIndex;
 use super::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
@@ -65,7 +66,7 @@ pub fn get_random_u256<R: Rng>(rng: &mut R, low: U256, high: U256) -> U256 {
 }
 
 pub async fn single_tree_flow_test(
-    leaf_modifications: LeafModifications<LeafDataImpl>,
+    leaf_modifications: LeafModifications<StarknetStorageValue>,
     storage: MapStorage,
     root_hash: HashOutput,
 ) -> String {
@@ -73,7 +74,7 @@ pub async fn single_tree_flow_test(
     let leaf_modifications = leaf_modifications
         .into_iter()
         .map(|(k, v)| (NodeIndex::FIRST_LEAF + k, v))
-        .collect::<HashMap<NodeIndex, LeafDataImpl>>();
+        .collect::<LeafModifications<StarknetStorageValue>>();
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     sorted_leaf_indices.sort();
 
@@ -101,8 +102,8 @@ pub async fn single_tree_flow_test(
     .expect("Failed to create the updated skeleton tree");
 
     // Compute the hash.
-    let filled_tree: FilledTreeImpl =
-        FilledTreeImpl::create::<TreeHashFunctionImpl>(updated_skeleton, leaf_modifications)
+    let filled_tree =
+        StorageTrie::create::<TreeHashFunctionImpl>(updated_skeleton, leaf_modifications)
             .await
             .expect("Failed to create the filled tree");
     let hash_result = filled_tree.get_root_hash();

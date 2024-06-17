@@ -2,26 +2,41 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
 
+use crate::block_committer::input::StarknetStorageValue;
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
 use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::db_object::DBObject;
-use strum_macros::{EnumDiscriminants, EnumIter};
 
 pub trait LeafData: Clone + Sync + Send + DBObject {
     /// Returns true if leaf is empty.
     fn is_empty(&self) -> bool;
 
     /// Creates a leaf.
+    /// This function is async to allow computation of a leaf on the fly; in simple cases, it can
+    /// be enough to return the leaf data directly using [Self::from_modifications].
     // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
     // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
     // for details.
     fn create(
         index: &NodeIndex,
-        leaf_modifications: Arc<LeafModifications<LeafDataImpl>>,
-    ) -> impl Future<Output = LeafResult<Self>>;
+        leaf_modifications: Arc<LeafModifications<Self>>,
+    ) -> impl Future<Output = LeafResult<Self>> + Send;
+
+    /// Extracts the leaf data from the leaf modifications. Returns an error if the leaf data is
+    /// missing.
+    fn from_modifications(
+        index: &NodeIndex,
+        leaf_modifications: Arc<LeafModifications<Self>>,
+    ) -> LeafResult<Self> {
+        let leaf_data = leaf_modifications
+            .get(index)
+            .ok_or(LeafError::MissingLeafModificationData(*index))?
+            .clone();
+        Ok(leaf_data)
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -31,37 +46,44 @@ pub struct ContractState {
     pub class_hash: ClassHash,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(any(test, feature = "testing"), derive(EnumDiscriminants))]
-#[cfg_attr(any(test, feature = "testing"), strum_discriminants(derive(EnumIter)))]
-pub enum LeafDataImpl {
-    StorageValue(Felt),
-    CompiledClassHash(CompiledClassHash),
-    ContractState(ContractState),
-}
-
-impl LeafData for LeafDataImpl {
+impl LeafData for StarknetStorageValue {
     fn is_empty(&self) -> bool {
-        match self {
-            LeafDataImpl::StorageValue(value) => *value == Felt::ZERO,
-            LeafDataImpl::CompiledClassHash(class_hash) => class_hash.0 == Felt::ZERO,
-            LeafDataImpl::ContractState(contract_state) => {
-                contract_state.nonce.0 == Felt::ZERO
-                    && contract_state.class_hash.0 == Felt::ZERO
-                    && contract_state.storage_root_hash.0 == Felt::ZERO
-            }
-        }
+        self.0 == Felt::ZERO
     }
 
     async fn create(
         index: &NodeIndex,
-        leaf_modifications: Arc<LeafModifications<LeafDataImpl>>,
+        leaf_modifications: Arc<LeafModifications<Self>>,
     ) -> LeafResult<Self> {
-        let leaf_data = leaf_modifications
-            .get(index)
-            .ok_or(LeafError::MissingLeafModificationData(*index))?
-            .clone();
-        Ok(leaf_data)
+        Self::from_modifications(index, leaf_modifications)
+    }
+}
+
+impl LeafData for CompiledClassHash {
+    fn is_empty(&self) -> bool {
+        self.0 == Felt::ZERO
+    }
+
+    async fn create(
+        index: &NodeIndex,
+        leaf_modifications: Arc<LeafModifications<Self>>,
+    ) -> LeafResult<Self> {
+        Self::from_modifications(index, leaf_modifications)
+    }
+}
+
+impl LeafData for ContractState {
+    fn is_empty(&self) -> bool {
+        self.nonce.0 == Felt::ZERO
+            && self.class_hash.0 == Felt::ZERO
+            && self.storage_root_hash.0 == Felt::ZERO
+    }
+
+    async fn create(
+        index: &NodeIndex,
+        leaf_modifications: Arc<LeafModifications<Self>>,
+    ) -> LeafResult<Self> {
+        Self::from_modifications(index, leaf_modifications)
     }
 }
 
