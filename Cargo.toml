@@ -36,7 +36,7 @@ async-trait = "0.1.79"
 axum = "0.6.12"
 # TODO(YaelD, 28/5/2024): The special Blockifier version is needed in order to be aligned with the
 # starknet-api version. This should be removed once we have a mono-repo.
-blockifier = { git = "https://github.com/starkware-libs/blockifier.git", rev = "6babc28a", features = [
+blockifier = { git = "https://github.com/starkware-libs/blockifier.git", rev = "6057646f", features = [
     "testing",
 ] }
 cairo-lang-sierra = "2.6.0"

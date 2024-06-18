@@ -5,7 +5,7 @@ use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::ClassInfo;
 use blockifier::state::cached_state::CachedState;
 use blockifier::versioned_constants::VersionedConstants;
-use starknet_api::external_transaction::ExternalTransaction;
+use starknet_api::rpc_transaction::RPCTransaction;
 use starknet_api::transaction::TransactionHash;
 
 use crate::config::StatefulTransactionValidatorConfig;
@@ -25,7 +25,7 @@ impl StatefulTransactionValidator {
     pub fn run_validate(
         &self,
         state_reader_factory: &dyn StateReaderFactory,
-        external_tx: &ExternalTransaction,
+        external_tx: &RPCTransaction,
         optional_class_info: Option<ClassInfo>,
         deploy_account_tx_hash: Option<TransactionHash>,
     ) -> StatefulTransactionValidatorResult<TransactionHash> {

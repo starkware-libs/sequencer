@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use starknet_api::external_transaction::ExternalTransaction;
+use starknet_api::rpc_transaction::RPCTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway::config::GatewayNetworkConfig;
 use starknet_gateway::errors::GatewayError;
@@ -72,11 +72,11 @@ impl IntegrationTestSetup {
         }
     }
 
-    pub async fn assert_add_tx_success(&self, tx: &ExternalTransaction) -> TransactionHash {
+    pub async fn assert_add_tx_success(&self, tx: &RPCTransaction) -> TransactionHash {
         self.gateway_client.assert_add_tx_success(tx).await
     }
 
-    pub async fn assert_add_tx_error(&self, tx: &ExternalTransaction) -> GatewayError {
+    pub async fn assert_add_tx_error(&self, tx: &RPCTransaction) -> GatewayError {
         self.gateway_client.assert_add_tx_error(tx).await
     }
 

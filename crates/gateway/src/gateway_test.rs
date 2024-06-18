@@ -6,7 +6,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use blockifier::context::ChainInfo;
-use starknet_api::external_transaction::ExternalTransaction;
+use starknet_api::rpc_transaction::RPCTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool::communication::create_mempool_server;
 use starknet_mempool::mempool::Mempool;
@@ -76,10 +76,10 @@ async fn to_bytes(res: Response) -> Bytes {
     res.into_body().collect().await.unwrap().to_bytes()
 }
 
-fn calculate_hash(external_tx: &ExternalTransaction) -> TransactionHash {
+fn calculate_hash(external_tx: &RPCTransaction) -> TransactionHash {
     assert_matches!(
         external_tx,
-        ExternalTransaction::Invoke(_),
+        RPCTransaction::Invoke(_),
         "Only Invoke supported for now, extend as needed."
     );
 

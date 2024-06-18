@@ -5,7 +5,7 @@ use std::sync::Arc;
 use axum::extract::State;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use starknet_api::external_transaction::ExternalTransaction;
+use starknet_api::rpc_transaction::RPCTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, MempoolInput};
@@ -82,7 +82,7 @@ async fn is_alive() -> GatewayResult<String> {
 
 async fn add_tx(
     State(app_state): State<AppState>,
-    Json(tx): Json<ExternalTransaction>,
+    Json(tx): Json<RPCTransaction>,
 ) -> GatewayResult<Json<TransactionHash>> {
     let mempool_input = tokio::task::spawn_blocking(move || {
         process_tx(
@@ -109,7 +109,7 @@ fn process_tx(
     stateless_tx_validator: StatelessTransactionValidator,
     stateful_tx_validator: &StatefulTransactionValidator,
     state_reader_factory: &dyn StateReaderFactory,
-    tx: ExternalTransaction,
+    tx: RPCTransaction,
 ) -> GatewayResult<MempoolInput> {
     // TODO(Arni, 1/5/2024): Perform congestion control.
 

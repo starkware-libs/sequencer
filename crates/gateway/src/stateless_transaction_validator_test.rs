@@ -1,7 +1,7 @@
 use assert_matches::assert_matches;
 use rstest::rstest;
-use starknet_api::external_transaction::{ContractClass, ResourceBoundsMapping};
 use starknet_api::hash::StarkFelt;
+use starknet_api::rpc_transaction::{ContractClass, ResourceBoundsMapping};
 use starknet_api::transaction::{Calldata, Resource, ResourceBounds, TransactionSignature};
 use starknet_api::{calldata, stark_felt};
 
