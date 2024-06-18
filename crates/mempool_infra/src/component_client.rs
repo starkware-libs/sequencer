@@ -3,7 +3,6 @@ use tokio::sync::mpsc::{channel, Sender};
 
 use crate::component_definitions::ComponentRequestAndResponseSender;
 
-#[derive(Clone)]
 pub struct ComponentClient<Request, Response>
 where
     Request: Send + Sync,
@@ -29,6 +28,18 @@ where
         self.tx.send(request_and_res_tx).await.expect("Outbound connection should be open.");
 
         res_rx.recv().await.expect("Inbound connection should be open.")
+    }
+}
+
+// Can't derive because derive forces the generics to also be `Clone`, which we prefer not to do
+// since it'll require transactions to be cloneable.
+impl<Request, Response> Clone for ComponentClient<Request, Response>
+where
+    Request: Send + Sync,
+    Response: Send + Sync,
+{
+    fn clone(&self) -> Self {
+        Self { tx: self.tx.clone() }
     }
 }
 
