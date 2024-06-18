@@ -10,12 +10,21 @@ workspace = true
 
 [dependencies]
 axum.workspace = true
+blockifier.workspace = true
+indexmap.workspace = true
+papyrus_common.workspace = true
+papyrus_rpc.workspace = true
+papyrus_storage.workspace = true
 reqwest.workspace = true
+serde_json.workspace = true
 starknet_api.workspace = true
+starknet_client.workspace = true
 starknet_gateway = { path = "../gateway", version = "0.0", features = ["testing"] }
 starknet_mempool = { path = "../mempool", version = "0.0" }
 starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
 starknet_task_executor = { path = "../task_executor", version = "0.0" }
+strum.workspace = true
+tempfile.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]
