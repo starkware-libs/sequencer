@@ -13,28 +13,49 @@ use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafData};
 #[path = "hash_function_test.rs"]
 pub mod hash_function_test;
 
+/// Trait for hash functions.
+pub(crate) trait HashFunction {
+    /// Computes the hash of the given input.
+    fn hash(left: &Felt, right: &Felt) -> HashOutput;
+}
+
+/// Implementation of HashFunction for Pedersen hash function.
+pub struct PedersenHashFunction;
+impl HashFunction for PedersenHashFunction {
+    fn hash(left: &Felt, right: &Felt) -> HashOutput {
+        HashOutput(Felt(Pedersen::hash(&left.0, &right.0)))
+    }
+}
+
+/// Implementation of HashFunction for Poseidon hash function.
+pub struct PoseidonHashFunction;
+impl HashFunction for PoseidonHashFunction {
+    fn hash(left: &Felt, right: &Felt) -> HashOutput {
+        HashOutput(Felt(Poseidon::hash(&left.0, &right.0)))
+    }
+}
+
 pub(crate) trait TreeHashFunction<L: LeafData> {
     /// Computes the hash of the given leaf.
     fn compute_leaf_hash(leaf_data: &L) -> HashOutput;
 
     /// Computes the hash for the given node data.
+    fn compute_node_hash(node_data: &NodeData<L>) -> HashOutput;
+
     /// The default implementation for internal nodes is based on the following reference:
     /// https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/starknet-state/#trie_construction
-    fn compute_node_hash(node_data: &NodeData<L>) -> HashOutput {
+    fn compute_node_hash_with_inner_hash_function<H: HashFunction>(
+        node_data: &NodeData<L>,
+    ) -> HashOutput {
         match node_data {
             NodeData::Binary(BinaryData {
                 left_hash,
                 right_hash,
-            }) => HashOutput(Pedersen::hash(&left_hash.0.into(), &right_hash.0.into()).into()),
+            }) => H::hash(&left_hash.0, &right_hash.0),
             NodeData::Edge(EdgeData {
                 bottom_hash: hash_output,
                 path_to_bottom: PathToBottom { path, length, .. },
-            }) => HashOutput(
-                Felt::from(Pedersen::hash(
-                    &hash_output.0.into(),
-                    &Felt::from(path).into(),
-                )) + Felt::from(*length),
-            ),
+            }) => HashOutput(H::hash(&hash_output.0, &Felt::from(path)).0 + Felt::from(*length)),
             NodeData::Leaf(leaf_data) => Self::compute_leaf_hash(leaf_data),
         }
     }
@@ -70,6 +91,9 @@ impl TreeHashFunction<ContractState> for TreeHashFunctionImpl {
             .into(),
         )
     }
+    fn compute_node_hash(node_data: &NodeData<ContractState>) -> HashOutput {
+        Self::compute_node_hash_with_inner_hash_function::<PedersenHashFunction>(node_data)
+    }
 }
 
 /// Implementation of TreeHashFunction for the classes trie.
@@ -89,6 +113,9 @@ impl TreeHashFunction<CompiledClassHash> for TreeHashFunctionImpl {
             .into(),
         )
     }
+    fn compute_node_hash(node_data: &NodeData<CompiledClassHash>) -> HashOutput {
+        Self::compute_node_hash_with_inner_hash_function::<PoseidonHashFunction>(node_data)
+    }
 }
 
 /// Implementation of TreeHashFunction for the storage trie.
@@ -97,6 +124,9 @@ impl TreeHashFunction<CompiledClassHash> for TreeHashFunctionImpl {
 impl TreeHashFunction<StarknetStorageValue> for TreeHashFunctionImpl {
     fn compute_leaf_hash(storage_value: &StarknetStorageValue) -> HashOutput {
         HashOutput(storage_value.0)
+    }
+    fn compute_node_hash(node_data: &NodeData<StarknetStorageValue>) -> HashOutput {
+        Self::compute_node_hash_with_inner_hash_function::<PedersenHashFunction>(node_data)
     }
 }
 
