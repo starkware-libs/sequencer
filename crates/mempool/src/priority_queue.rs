@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, VecDeque};
 
 use starknet_mempool_types::mempool_types::ThinTransaction;
 // Assumption: for the MVP only one transaction from the same contract class can be in the mempool
@@ -61,22 +61,32 @@ impl PartialOrd for PrioritizedTransaction {
 
 // TODO: remove when is used.
 #[allow(dead_code)]
-// Assumption: there are no gaps, and the transactions are received in order.
-pub struct AddressPriorityQueue(pub Vec<ThinTransaction>);
+// Invariant: Transactions have strictly increasing nonces, without gaps.
+// Assumption: Transactions are provided in the correct order.
+#[derive(Default)]
+pub struct AddressPriorityQueue(VecDeque<ThinTransaction>);
 
 // TODO: remove when is used.
 #[allow(dead_code)]
 impl AddressPriorityQueue {
     pub fn push(&mut self, tx: ThinTransaction) {
-        self.0.push(tx);
+        if let Some(last_tx) = self.0.back() {
+            assert_eq!(
+                tx.nonce,
+                last_tx.nonce.try_increment().expect("Nonce overflow."),
+                "Nonces must be strictly increasing without gaps."
+            );
+        }
+
+        self.0.push_back(tx);
     }
 
     pub fn top(&self) -> Option<&ThinTransaction> {
-        self.0.first()
+        self.0.front()
     }
 
-    pub fn pop_front(&mut self) -> ThinTransaction {
-        self.0.remove(0)
+    pub fn pop_front(&mut self) -> Option<ThinTransaction> {
+        self.0.pop_front()
     }
 
     pub fn is_empty(&self) -> bool {
