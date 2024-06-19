@@ -3,7 +3,7 @@ use block_hash::BlockCommitmentsInput;
 use clap::{Args, Parser, Subcommand};
 use committer::block_committer::commit::commit_block;
 use filled_tree_output::filled_forest::SerializedForest;
-use parse_input::read::parse_input;
+use parse_input::read::{load_from_file, parse_input, write_to_file};
 use starknet_api::block_hash::block_hash_calculator::calculate_block_commitments;
 use std::io;
 
@@ -27,19 +27,13 @@ pub struct CommitterCliArgs {
 enum Command {
     /// Calculates commitments needed for the block hash.
     BlockHashCommitments {
-        /// Json serialized BlockCommitmentsInput.
-        #[clap(long)]
-        input: String,
+        #[clap(flatten)]
+        io_args: IoArgs,
     },
     /// Given previous state tree skeleton and a state diff, computes the new commitment.
     Commit {
-        /// File path to input.
-        #[clap(long, short = 'i', default_value = "stdin")]
-        input_path: String,
-
-        /// File path to output.
-        #[clap(long, short = 'o', default_value = "stdout")]
-        output_path: String,
+        #[clap(flatten)]
+        io_args: IoArgs,
     },
     PythonTest {
         /// Test name.
@@ -53,6 +47,17 @@ enum Command {
 }
 
 #[derive(Debug, Args)]
+struct IoArgs {
+    /// File path to input.
+    #[clap(long, short = 'i', default_value = "stdin")]
+    input_path: String,
+
+    /// File path to output.
+    #[clap(long, short = 'o', default_value = "stdout")]
+    output_path: String,
+}
+
+#[derive(Debug, Args)]
 struct GlobalOptions {}
 
 #[tokio::main]
@@ -61,10 +66,7 @@ async fn main() {
     let args = CommitterCliArgs::parse();
 
     match args.command {
-        Command::Commit {
-            input_path: _input_path,
-            output_path: _output_path,
-        } => {
+        Command::Commit { io_args: _ } => {
             // TODO(Nimrod, 20/6/2024): Allow read/write from file path.
             let input =
                 parse_input(io::read_to_string(io::stdin()).expect("Failed to read from stdin."))
@@ -94,16 +96,15 @@ async fn main() {
             print!("{}", output);
         }
 
-        Command::BlockHashCommitments { input } => {
-            let commitments_input: BlockCommitmentsInput =
-                serde_json::from_str(&input).expect("Failed to load commitments input");
+        Command::BlockHashCommitments { io_args } => {
+            let commitments_input: BlockCommitmentsInput = load_from_file(&io_args.input_path);
             let commitments = serde_json::to_string(&calculate_block_commitments(
                 &commitments_input.transactions_data,
                 &commitments_input.state_diff,
                 commitments_input.l1_da_mode,
             ))
             .expect("Failed to serialize commitments");
-            print!("{}", commitments);
+            write_to_file(&io_args.output_path, &commitments);
         }
     }
 }
