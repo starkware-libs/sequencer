@@ -28,6 +28,7 @@ pub trait Storage: From<HashMap<StorageKey, StorageValue>> {
     fn delete(&mut self, key: &StorageKey) -> Option<StorageValue>;
 }
 
+#[derive(Clone, Debug)]
 pub enum StoragePrefix {
     InnerNode,
     StorageLeaf,

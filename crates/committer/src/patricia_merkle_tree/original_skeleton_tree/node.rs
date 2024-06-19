@@ -11,6 +11,7 @@ pub(crate) enum OriginalSkeletonNode {
 }
 
 /// A representation of the data required to build an original skeleton node.
+// TODO(Nimrod, 20/6/2024): Delete this enum.
 pub(crate) enum OriginalSkeletonInputNode {
     Binary { hash: HashOutput, data: BinaryData },
     Edge(EdgeData),

@@ -1,9 +1,20 @@
+use std::collections::HashMap;
+
+use serde_json::Value;
+
 use crate::block_committer::input::StarknetStorageValue;
-use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
+use crate::felt::Felt;
+use crate::hash::hash_trait::HashOutput;
+use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
 use crate::patricia_merkle_tree::node_data::leaf::ContractState;
 use crate::patricia_merkle_tree::types::SubTreeHeight;
-use crate::storage::db_object::DBObject;
+use crate::storage::db_object::{DBObject, Deserializable};
+use crate::storage::errors::DeserializationError;
 use crate::storage::storage_trait::{StoragePrefix, StorageValue};
+
+#[cfg(test)]
+#[path = "leaf_serde_test.rs"]
+pub mod leaf_serde_test;
 
 impl DBObject for StarknetStorageValue {
     /// Serializes the value into a 32-byte vector.
@@ -44,4 +55,54 @@ impl DBObject for ContractState {
     fn get_prefix(&self) -> StoragePrefix {
         StoragePrefix::StateTreeLeaf
     }
+}
+
+impl Deserializable for StarknetStorageValue {
+    fn deserialize(value: &StorageValue) -> Result<Self, DeserializationError> {
+        Ok(Self(Felt::from_bytes_be_slice(&value.0)))
+    }
+}
+
+impl Deserializable for CompiledClassHash {
+    fn deserialize(value: &StorageValue) -> Result<Self, DeserializationError> {
+        let json_str = std::str::from_utf8(&value.0)?;
+        let map: HashMap<String, String> = serde_json::from_str(json_str)?;
+        let hash_as_hex =
+            map.get("compiled_class_hash")
+                .ok_or(DeserializationError::NonExistingKey(
+                    "compiled_class_hash".to_string(),
+                ))?;
+        Ok(Self::from_hex(hash_as_hex)?)
+    }
+}
+
+impl Deserializable for ContractState {
+    fn deserialize(value: &StorageValue) -> Result<Self, DeserializationError> {
+        let json_str = std::str::from_utf8(&value.0)?;
+        let deserialized_map: Value = serde_json::from_str(json_str)?;
+        let get_leaf_key = |map: &Value, key: &str| {
+            let s = get_key_from_map(map, key)?
+                .as_str()
+                .ok_or(DeserializationError::LeafTypeError)?
+                .to_string();
+            Ok::<String, DeserializationError>(s)
+        };
+        let class_hash_as_hex = get_leaf_key(&deserialized_map, "contract_hash")?;
+        let nonce_as_hex = get_leaf_key(&deserialized_map, "nonce")?;
+        let root_hash_as_hex = get_leaf_key(
+            get_key_from_map(&deserialized_map, "storage_commitment_tree")?,
+            "root",
+        )?;
+
+        Ok(Self {
+            nonce: Nonce::from_hex(&nonce_as_hex)?,
+            storage_root_hash: HashOutput::from_hex(&root_hash_as_hex)?,
+            class_hash: ClassHash::from_hex(&class_hash_as_hex)?,
+        })
+    }
+}
+
+fn get_key_from_map<'a>(map: &'a Value, key: &str) -> Result<&'a Value, DeserializationError> {
+    map.get(key)
+        .ok_or(DeserializationError::NonExistingKey(key.to_string()))
 }

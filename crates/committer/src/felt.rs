@@ -20,6 +20,17 @@ use starknet_types_core::felt::{Felt as StarknetTypesFelt, FromStrError};
 pub struct Felt(pub StarknetTypesFelt);
 
 #[macro_export]
+macro_rules! impl_from_hex_for_felt_wrapper {
+    ($wrapper:ty) => {
+        impl $wrapper {
+            pub(crate) fn from_hex(hex_string: &str) -> Result<Self, FromStrError> {
+                Ok(Self(Felt::from_hex(hex_string)?))
+            }
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! impl_from {
     ($to:ty, $from:ty, $($other_from: ty),+) => {
         $crate::impl_from!($to, $from);
