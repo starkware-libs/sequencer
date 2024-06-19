@@ -50,12 +50,12 @@
     "value": 0
   },
   "gateway_config.stateless_tx_validator_config.max_calldata_length": {
-    "description": "Validates that a transaction has signature length less than or equal to this value.",
+    "description": "Validates that a transaction has calldata length less than or equal to this value.",
     "privacy": "Public",
     "value": 0
   },
   "gateway_config.stateless_tx_validator_config.max_signature_length": {
-    "description": "Validates that a transaction has calldata length less than or equal to this value.",
+    "description": "Validates that a transaction has signature length less than or equal to this value.",
     "privacy": "Public",
     "value": 0
   },

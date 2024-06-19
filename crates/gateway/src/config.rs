@@ -92,14 +92,14 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
             ser_param(
                 "max_signature_length",
                 &self.max_signature_length,
-                "Validates that a transaction has calldata length less than or equal to this \
+                "Validates that a transaction has signature length less than or equal to this \
                  value.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "max_calldata_length",
                 &self.max_calldata_length,
-                "Validates that a transaction has signature length less than or equal to this \
+                "Validates that a transaction has calldata length less than or equal to this \
                  value.",
                 ParamPrivacyInput::Public,
             ),
