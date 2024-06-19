@@ -547,7 +547,7 @@ dependencies = [
 [[package]]
 name = "blockifier"
 version = "0.7.0-dev.1"
-source = "git+https://github.com/starkware-libs/blockifier.git?rev=6057646f#6057646f81511f6df04fcab7f766c6302db951dc"
+source = "git+https://github.com/starkware-libs/blockifier.git?branch=main-mempool#6057646f81511f6df04fcab7f766c6302db951dc"
 dependencies = [
  "anyhow",
  "ark-ec",
@@ -5481,7 +5481,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "axum",
- "blockifier 0.7.0-dev.1 (git+https://github.com/starkware-libs/blockifier.git?rev=6057646f)",
+ "blockifier 0.7.0-dev.1 (git+https://github.com/starkware-libs/blockifier.git?branch=main-mempool)",
  "cairo-lang-starknet-classes",
  "hyper",
  "papyrus_config",
@@ -5536,7 +5536,7 @@ name = "starknet_mempool_integration_tests"
 version = "0.0.0"
 dependencies = [
  "axum",
- "blockifier 0.7.0-dev.1 (git+https://github.com/starkware-libs/blockifier.git?rev=6057646f)",
+ "blockifier 0.7.0-dev.1 (git+https://github.com/starkware-libs/blockifier.git?branch=main-mempool)",
  "indexmap 2.2.6",
  "papyrus_common",
  "papyrus_rpc",
