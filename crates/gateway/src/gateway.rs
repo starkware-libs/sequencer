@@ -16,8 +16,9 @@ use starknet_mempool_types::mempool_types::{Account, MempoolInput};
 use starknet_sierra_compile::compile::{compile_sierra_to_casm, CompilationUtilError};
 use starknet_sierra_compile::utils::into_contract_class_for_compilation;
 
-use crate::config::{GatewayConfig, GatewayNetworkConfig};
+use crate::config::{GatewayConfig, GatewayNetworkConfig, RpcStateReaderConfig};
 use crate::errors::{GatewayError, GatewayRunError};
+use crate::rpc_state_reader::RpcStateReaderFactory;
 use crate::starknet_api_test_utils::get_sender_address;
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
@@ -177,4 +178,13 @@ pub fn compile_contract_class(declare_tx: &RPCDeclareTransaction) -> GatewayResu
         starknet_api_contract_class.abi.len(),
     )?;
     Ok(class_info)
+}
+
+pub fn create_gateway(
+    config: GatewayConfig,
+    rpc_state_reader_config: RpcStateReaderConfig,
+    client: SharedMempoolClient,
+) -> Gateway {
+    let state_reader_factory = Arc::new(RpcStateReaderFactory { config: rpc_state_reader_config });
+    Gateway::new(config, state_reader_factory, client)
 }

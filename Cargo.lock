@@ -5586,6 +5586,8 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet_gateway",
+ "starknet_mempool",
+ "starknet_mempool_types",
  "test_utils",
  "tokio",
  "validator",
