@@ -13,12 +13,12 @@ pub enum ComponentStartError {
     InternalComponentError,
 }
 
-/// Interface to create memepool components.
+/// Interface to create components.
 pub trait ComponentCreator<T: SerializeConfig> {
     fn create(config: T) -> Self;
 }
 
-/// Interface to start memepool components.
+/// Interface to start components.
 #[async_trait]
 pub trait ComponentRunner {
     /// Start the component. Normally this function should never return.
