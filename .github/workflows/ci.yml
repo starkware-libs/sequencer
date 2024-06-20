@@ -92,7 +92,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test
 
-  run-bench-test:
+  run-bench-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -105,6 +105,7 @@ jobs:
           credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
       - uses: 'google-github-actions/setup-gcloud@v2'
       - run: gcloud storage cp gs://committer-products-external/tree_flow_inputs.json ./crates/committer_cli/benches/tree_flow_inputs.json
+      - run: gcloud storage cp gs://committer-products-external/committer_flow_inputs.json ./crates/committer_cli/benches/committer_flow_inputs.json
       - run: cargo test --release -- --include-ignored test_benchmark
 
   gcs-push:
