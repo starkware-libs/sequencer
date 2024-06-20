@@ -11,8 +11,8 @@ pub mod read_test;
 
 type DeserializationResult<T> = Result<T, DeserializationError>;
 
-pub fn parse_input(input: String) -> DeserializationResult<Input> {
-    serde_json::from_str::<RawInput>(&input)?.try_into()
+pub fn parse_input(input: &str) -> DeserializationResult<Input> {
+    serde_json::from_str::<RawInput>(input)?.try_into()
 }
 
 pub fn load_from_file<T: for<'a> Deserialize<'a>>(file_path: &str) -> T {

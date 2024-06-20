@@ -316,7 +316,7 @@ pub(crate) fn test_binary_serialize_test(binary_input: HashMap<String, u128>) ->
 
 pub(crate) fn parse_input_test() -> Result<String, PythonTestError> {
     let input = io::read_to_string(io::stdin())?;
-    Ok(create_output_to_python(parse_input(input)?))
+    Ok(create_output_to_python(parse_input(&input)?))
 }
 
 fn create_output_to_python(actual_input: Input) -> String {

@@ -1,8 +1,7 @@
 use clap::{Args, Parser, Subcommand};
-use committer::block_committer::commit::commit_block;
 use committer_cli::block_hash::{BlockCommitmentsInput, BlockHashInput};
-use committer_cli::filled_tree_output::filled_forest::SerializedForest;
-use committer_cli::parse_input::read::{load_from_file, parse_input, write_to_file};
+use committer_cli::commands::commit;
+use committer_cli::parse_input::read::{load_from_file, write_to_file};
 use committer_cli::tests::python_tests::PythonTest;
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments, calculate_block_hash,
@@ -71,17 +70,8 @@ async fn main() {
     match args.command {
         Command::Commit { io_args: _ } => {
             // TODO(Nimrod, 20/6/2024): Allow read/write from file path.
-            let input =
-                parse_input(io::read_to_string(io::stdin()).expect("Failed to read from stdin."))
-                    .expect("Failed to parse the given input.");
-            let serialized_filled_forest = SerializedForest(
-                commit_block(input)
-                    .await
-                    .expect("Failed to commit the given block."),
-            );
-            serialized_filled_forest
-                .forest_to_python()
-                .expect("Failed to print new facts to python.");
+            let input_string = io::read_to_string(io::stdin()).expect("Failed to read from stdin.");
+            commit(&input_string).await;
         }
 
         Command::PythonTest { test_name, inputs } => {

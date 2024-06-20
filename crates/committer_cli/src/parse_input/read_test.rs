@@ -269,7 +269,7 @@ fn test_simple_input_parsing() {
         contracts_trie_root_hash: expected_contracts_trie_root_hash,
         classes_trie_root_hash: expected_classes_trie_root_hash,
     };
-    assert_eq!(parse_input(input.to_string()).unwrap(), expected_input);
+    assert_eq!(parse_input(input).unwrap(), expected_input);
 }
 
 #[test]
@@ -300,7 +300,7 @@ fn test_input_parsing_with_storage_key_duplicate() {
 "#;
     let expected_error = "storage: StorageKey([14, 6, 78, 90])";
     assert!(matches!(
-        parse_input(input.to_string()).unwrap_err(),
+        parse_input(input).unwrap_err(),
         DeserializationError::KeyDuplicate(key) if key == expected_error
     ));
 }
@@ -343,7 +343,7 @@ fn test_input_parsing_with_mapping_key_duplicate() {
     let expected_error =
         "address to class hash: ContractAddress(6646139978924584093298644040422522880)";
     assert!(matches!(
-        parse_input(input.to_string()).unwrap_err(),
+        parse_input(input).unwrap_err(),
         DeserializationError::KeyDuplicate(key) if key ==  expected_error
     ));
 }
