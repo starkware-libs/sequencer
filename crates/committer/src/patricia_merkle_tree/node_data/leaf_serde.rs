@@ -61,6 +61,10 @@ impl Deserializable for StarknetStorageValue {
     fn deserialize(value: &StorageValue) -> Result<Self, DeserializationError> {
         Ok(Self(Felt::from_bytes_be_slice(&value.0)))
     }
+
+    fn prefix() -> StoragePrefix {
+        StoragePrefix::StorageLeaf
+    }
 }
 
 impl Deserializable for CompiledClassHash {
@@ -73,6 +77,10 @@ impl Deserializable for CompiledClassHash {
                     "compiled_class_hash".to_string(),
                 ))?;
         Ok(Self::from_hex(hash_as_hex)?)
+    }
+
+    fn prefix() -> StoragePrefix {
+        StoragePrefix::CompiledClassLeaf
     }
 }
 
@@ -99,6 +107,10 @@ impl Deserializable for ContractState {
             storage_root_hash: HashOutput::from_hex(&root_hash_as_hex)?,
             class_hash: ClassHash::from_hex(&class_hash_as_hex)?,
         })
+    }
+
+    fn prefix() -> StoragePrefix {
+        StoragePrefix::StateTreeLeaf
     }
 }
 
