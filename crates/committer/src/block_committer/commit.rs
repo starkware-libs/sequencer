@@ -1,6 +1,12 @@
+use log::warn;
+use std::collections::HashMap;
+
 use crate::block_committer::errors::BlockCommitmentError;
+use crate::block_committer::input::ContractAddress;
 use crate::block_committer::input::{Input, StateDiff};
 use crate::patricia_merkle_tree::filled_tree::forest::FilledForestImpl;
+use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
+use crate::patricia_merkle_tree::node_data::leaf::ContractState;
 use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::{
     OriginalSkeletonForest, OriginalSkeletonForestImpl,
 };
@@ -17,6 +23,11 @@ type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
 #[allow(dead_code)]
 pub async fn commit_block(input: Input) -> BlockCommitmentResult<FilledForestImpl> {
+    check_trivial_nonce_and_class_hash_updates(
+        &input.current_contracts_trie_leaves,
+        &input.state_diff.address_to_class_hash,
+        &input.state_diff.address_to_nonce,
+    );
     let mut original_forest = OriginalSkeletonForestImpl::<OriginalSkeletonTreeImpl>::create(
         MapStorage::from(input.storage),
         input.contracts_trie_root_hash,
@@ -45,4 +56,33 @@ pub async fn commit_block(input: Input) -> BlockCommitmentResult<FilledForestImp
         )
         .await?,
     )
+}
+
+/// Compares the previous state's nonce and class hash with the given in the state diff.
+/// In case of trivial update, logs out a warning for trivial state diff update.
+fn check_trivial_nonce_and_class_hash_updates(
+    current_contracts_trie_leaves: &HashMap<ContractAddress, ContractState>,
+    address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
+    address_to_nonce: &HashMap<ContractAddress, Nonce>,
+) {
+    for (address, contract_state) in current_contracts_trie_leaves.iter() {
+        if address_to_nonce
+            .get(address)
+            .is_some_and(|nonce| *nonce == contract_state.nonce)
+        {
+            warn!(
+                "Encountered a trivial nonce update of contract {:?}",
+                address
+            )
+        }
+        if address_to_class_hash
+            .get(address)
+            .is_some_and(|class_hash| *class_hash == contract_state.class_hash)
+        {
+            warn!(
+                "Encountered a trivial class hash update of contract {:?}",
+                address
+            )
+        }
+    }
 }
