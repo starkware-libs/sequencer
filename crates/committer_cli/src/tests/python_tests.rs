@@ -38,7 +38,7 @@ use thiserror;
 use super::utils::objects::{get_thin_state_diff, get_transaction_output_for_hash, get_tx_data};
 
 // Enum representing different Python tests.
-pub(crate) enum PythonTest {
+pub enum PythonTest {
     ExampleTest,
     FeltSerialize,
     HashFunction,
@@ -59,7 +59,7 @@ pub(crate) enum PythonTest {
 
 /// Error type for PythonTest enum.
 #[derive(Debug, thiserror::Error)]
-pub(crate) enum PythonTestError {
+pub enum PythonTestError {
     #[error("Unknown test name: {0}")]
     UnknownTestName(String),
     #[error(transparent)]
@@ -111,12 +111,12 @@ impl TryFrom<String> for PythonTest {
 
 impl PythonTest {
     /// Returns the input string if it's `Some`, or an error if it's `None`.
-    fn non_optional_input(input: Option<&str>) -> Result<&str, PythonTestError> {
+    pub fn non_optional_input(input: Option<&str>) -> Result<&str, PythonTestError> {
         input.ok_or_else(|| PythonTestError::NoneInputError)
     }
 
     /// Runs the test with the given arguments.
-    pub(crate) async fn run(&self, input: Option<&str>) -> Result<String, PythonTestError> {
+    pub async fn run(&self, input: Option<&str>) -> Result<String, PythonTestError> {
         match self {
             Self::ExampleTest => {
                 let example_input: HashMap<String, String> =
@@ -173,7 +173,7 @@ impl PythonTest {
                 let input: HashMap<String, String> =
                     serde_json::from_str(Self::non_optional_input(input)?)?;
                 let (leaf_modifications, storage, root_hash) =
-                    parse_input_single_storage_tree_flow_test(input);
+                    parse_input_single_storage_tree_flow_test(&input);
                 // 2. Run the test.
                 let output = single_tree_flow_test(leaf_modifications, storage, root_hash).await;
                 // 3. Serialize and return output.
@@ -185,7 +185,8 @@ impl PythonTest {
 
 // Test that the fetching of the input to flow test is working.
 fn serialize_for_rust_committer_flow_test(input: HashMap<String, String>) -> String {
-    let (leaf_modifications, storage, root_hash) = parse_input_single_storage_tree_flow_test(input);
+    let (leaf_modifications, storage, root_hash) =
+        parse_input_single_storage_tree_flow_test(&input);
     // Serialize the leaf modifications to an object that can be JSON-serialized.
     let leaf_modifications_to_print: HashMap<String, Vec<u8>> = leaf_modifications
         .into_iter()

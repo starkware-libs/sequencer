@@ -4,7 +4,7 @@ use committer::patricia_merkle_tree::filled_tree::errors::{
 use std::fmt::Debug;
 
 #[derive(thiserror::Error, Debug)]
-pub(crate) enum FilledForestError {
+pub enum FilledForestError {
     #[error(transparent)]
     SerializationError(#[from] serde_json::Error),
     #[error(transparent)]

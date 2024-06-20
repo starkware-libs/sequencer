@@ -1,18 +1,13 @@
-use crate::tests::python_tests::PythonTest;
-use block_hash::{BlockCommitmentsInput, BlockHashInput};
 use clap::{Args, Parser, Subcommand};
 use committer::block_committer::commit::commit_block;
-use filled_tree_output::filled_forest::SerializedForest;
-use parse_input::read::{load_from_file, parse_input, write_to_file};
+use committer_cli::block_hash::{BlockCommitmentsInput, BlockHashInput};
+use committer_cli::filled_tree_output::filled_forest::SerializedForest;
+use committer_cli::parse_input::read::{load_from_file, parse_input, write_to_file};
+use committer_cli::tests::python_tests::PythonTest;
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments, calculate_block_hash,
 };
 use std::io;
-
-pub mod block_hash;
-pub mod filled_tree_output;
-pub mod parse_input;
-pub mod tests;
 
 /// Committer CLI.
 #[derive(Debug, Parser)]

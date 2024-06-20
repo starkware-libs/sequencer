@@ -7,14 +7,14 @@ use starknet_api::{
 };
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
-pub(crate) struct BlockCommitmentsInput {
+pub struct BlockCommitmentsInput {
     pub transactions_data: Vec<TransactionHashingData>,
     pub state_diff: ThinStateDiff,
     pub l1_da_mode: L1DataAvailabilityMode,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
-pub(crate) struct BlockHashInput {
+pub struct BlockHashInput {
     pub header: BlockHeaderWithoutHash,
     pub block_commitments: BlockHeaderCommitments,
 }

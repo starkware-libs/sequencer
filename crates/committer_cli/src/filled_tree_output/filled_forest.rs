@@ -3,11 +3,11 @@ use committer::patricia_merkle_tree::filled_tree::forest::{FilledForest, FilledF
 use committer::storage::map_storage::MapStorage;
 
 #[allow(dead_code)]
-pub(crate) struct SerializedForest(pub(crate) FilledForestImpl);
+pub struct SerializedForest(pub FilledForestImpl);
 
 impl SerializedForest {
     #[allow(dead_code)]
-    pub(crate) fn forest_to_python(&self) -> Result<(), FilledForestError> {
+    pub fn forest_to_python(&self) -> Result<(), FilledForestError> {
         let mut storage = MapStorage::default();
         self.0.write_to_storage(&mut storage);
 

@@ -15,7 +15,7 @@ use std::collections::HashMap;
 /// Parse input for single storage tree flow test.
 /// Returns the leaf modifications, fetched nodes (in storage) and the root hash.
 pub fn parse_input_single_storage_tree_flow_test(
-    input: HashMap<String, String>,
+    input: &HashMap<String, String>,
 ) -> (
     LeafModifications<StarknetStorageValue>,
     MapStorage,

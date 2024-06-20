@@ -10,6 +10,7 @@ description = "Cli for the committer package."
 workspace = true
 
 [dev-dependencies]
+criterion = { workspace = true, features = ["html_reports"] }
 pretty_assertions.workspace = true
 
 [dependencies]
@@ -29,3 +30,8 @@ strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+
+[[bench]]
+harness = false
+name = "committer_bench"
+path = "benches/committer_bench.rs"
