@@ -4,6 +4,7 @@ use ethnum::{uint, U256};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
@@ -496,7 +497,7 @@ async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
         OriginalSkeletonTreeImpl::create_impl(&MapStorage::default(), &[], root_hash).unwrap();
     let updated =
         UpdatedSkeletonTreeImpl::create(&mut original_skeleton_tree, &HashMap::new()).unwrap();
-    let filled = StorageTrie::create::<TreeHashFunctionImpl>(updated, HashMap::new())
+    let filled = StorageTrie::create::<TreeHashFunctionImpl>(updated, Arc::new(HashMap::new()))
         .await
         .unwrap();
     assert_eq!(root_hash, filled.get_root_hash());

@@ -1,6 +1,14 @@
 #![allow(clippy::unwrap_used)]
 
-use committer::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
+use std::sync::Arc;
+
+use committer::{
+    block_committer::input::StarknetStorageValue,
+    patricia_merkle_tree::{
+        external_test_utils::tree_computation_flow, node_data::leaf::LeafModifications,
+        types::NodeIndex,
+    },
+};
 use committer_cli::tests::utils::parse_from_python::parse_input_single_storage_tree_flow_test;
 use criterion::{criterion_group, criterion_main, Criterion};
 
@@ -18,12 +26,21 @@ pub fn single_tree_flow_benchmark(criterion: &mut Criterion) {
             .unwrap(),
     };
 
-    //TODO(Aner, 18/06/2024): remove the clone() calls.
-    criterion.bench_function("single_tree_flow_test", |benchmark| {
+    let leaf_modifications = leaf_modifications
+        .into_iter()
+        .map(|(k, v)| (NodeIndex::FIRST_LEAF + k, v))
+        .collect::<LeafModifications<StarknetStorageValue>>();
+    let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
+    sorted_leaf_indices.sort();
+
+    let arc_leaf_modifications = Arc::new(leaf_modifications);
+
+    criterion.bench_function("tree_computation_flow", |benchmark| {
         benchmark.iter(|| {
-            runtime.block_on(single_tree_flow_test(
-                leaf_modifications.clone(),
-                storage.clone(),
+            runtime.block_on(tree_computation_flow(
+                Arc::clone(&arc_leaf_modifications),
+                &sorted_leaf_indices,
+                &storage,
                 root_hash,
             ));
         })

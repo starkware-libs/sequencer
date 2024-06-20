@@ -15,6 +15,7 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTre
 use crate::storage::storage_trait::Storage;
 
 use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::task::JoinSet;
 
 pub trait FilledForest {
@@ -69,7 +70,8 @@ impl FilledForestImpl {
         address_to_nonce: &HashMap<ContractAddress, Nonce>,
     ) -> ForestResult<Self> {
         let classes_trie =
-            ClassesTrie::create::<TH>(updated_forest.classes_trie, classes_updates).await?;
+            ClassesTrie::create::<TH>(updated_forest.classes_trie, Arc::new(classes_updates))
+                .await?;
 
         let mut contracts_trie_modifications = HashMap::new();
         let mut filled_storage_tries = HashMap::new();
@@ -108,7 +110,7 @@ impl FilledForestImpl {
 
         let contracts_trie = ContractsTrie::create::<TH>(
             updated_forest.contracts_trie,
-            contracts_trie_modifications,
+            Arc::new(contracts_trie_modifications),
         )
         .await?;
 
@@ -130,7 +132,7 @@ impl FilledForestImpl {
         inner_updates: LeafModifications<StarknetStorageValue>,
     ) -> ForestResult<(ContractAddress, ContractState, StorageTrie)> {
         let filled_storage_trie =
-            StorageTrie::create::<TH>(updated_storage_trie, inner_updates).await?;
+            StorageTrie::create::<TH>(updated_storage_trie, Arc::new(inner_updates)).await?;
         let new_root_hash = filled_storage_trie.get_root_hash();
         Ok((
             contract_address,

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use ethnum::U256;
 use serde_json::json;
@@ -65,25 +66,16 @@ pub fn get_random_u256<R: Rng>(rng: &mut R, low: U256, high: U256) -> U256 {
     result
 }
 
-pub async fn single_tree_flow_test(
-    leaf_modifications: LeafModifications<StarknetStorageValue>,
-    storage: MapStorage,
+pub async fn tree_computation_flow(
+    leaf_modifications: Arc<LeafModifications<StarknetStorageValue>>,
+    sorted_leaf_indices: &[NodeIndex],
+    storage: &MapStorage,
     root_hash: HashOutput,
-) -> String {
-    // Move from leaf number to actual index.
-    let leaf_modifications = leaf_modifications
-        .into_iter()
-        .map(|(k, v)| (NodeIndex::FIRST_LEAF + k, v))
-        .collect::<LeafModifications<StarknetStorageValue>>();
-    let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
-    sorted_leaf_indices.sort();
-
-    // Build the original tree.
+) -> StorageTrie {
     let mut original_skeleton: OriginalSkeletonTreeImpl =
-        OriginalSkeletonTree::create(&storage, &sorted_leaf_indices, root_hash)
+        OriginalSkeletonTree::create(storage, sorted_leaf_indices, root_hash)
             .expect("Failed to create the original skeleton tree");
 
-    // Update the tree with the new data.
     let updated_skeleton: UpdatedSkeletonTreeImpl = UpdatedSkeletonTree::create(
         &mut original_skeleton,
         &leaf_modifications
@@ -101,11 +93,32 @@ pub async fn single_tree_flow_test(
     )
     .expect("Failed to create the updated skeleton tree");
 
-    // Compute the hash.
-    let filled_tree =
-        StorageTrie::create::<TreeHashFunctionImpl>(updated_skeleton, leaf_modifications)
-            .await
-            .expect("Failed to create the filled tree");
+    StorageTrie::create::<TreeHashFunctionImpl>(updated_skeleton, leaf_modifications)
+        .await
+        .expect("Failed to create the filled tree")
+}
+
+pub async fn single_tree_flow_test(
+    leaf_modifications: LeafModifications<StarknetStorageValue>,
+    storage: MapStorage,
+    root_hash: HashOutput,
+) -> String {
+    // Move from leaf number to actual index.
+    let leaf_modifications = leaf_modifications
+        .into_iter()
+        .map(|(k, v)| (NodeIndex::FIRST_LEAF + k, v))
+        .collect::<LeafModifications<StarknetStorageValue>>();
+    let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
+    sorted_leaf_indices.sort();
+
+    let filled_tree = tree_computation_flow(
+        Arc::new(leaf_modifications),
+        &sorted_leaf_indices,
+        &storage,
+        root_hash,
+    )
+    .await;
+
     let hash_result = filled_tree.get_root_hash();
 
     let mut result_map = HashMap::new();

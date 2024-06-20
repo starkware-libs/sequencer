@@ -36,7 +36,7 @@ pub(crate) trait FilledTree<L: LeafData>: Sized {
     /// Computes and returns the filled tree.
     async fn create<TH: TreeHashFunction<L> + 'static>(
         updated_skeleton: impl UpdatedSkeletonTree + 'static,
-        leaf_modifications: LeafModifications<L>,
+        leaf_modifications: Arc<LeafModifications<L>>,
     ) -> FilledTreeResult<Self, L>;
 
     /// Serializes the current state of the tree into a hashmap,
@@ -210,7 +210,7 @@ impl<L: LeafData + 'static> FilledTreeImpl<L> {
 impl<L: LeafData + 'static> FilledTree<L> for FilledTreeImpl<L> {
     async fn create<TH: TreeHashFunction<L> + 'static>(
         updated_skeleton: impl UpdatedSkeletonTree + 'static,
-        leaf_modifications: LeafModifications<L>,
+        leaf_modifications: Arc<LeafModifications<L>>,
     ) -> Result<Self, FilledTreeError<L>> {
         // Compute the filled tree in two steps:
         //   1. Create a map containing the tree structure without hash values.
@@ -222,7 +222,7 @@ impl<L: LeafData + 'static> FilledTree<L> for FilledTreeImpl<L> {
         let root_hash = Self::compute_filled_tree_rec::<TH>(
             Arc::new(updated_skeleton),
             NodeIndex::ROOT,
-            Arc::new(leaf_modifications),
+            leaf_modifications,
             Arc::clone(&filled_tree_map),
         )
         .await?;
