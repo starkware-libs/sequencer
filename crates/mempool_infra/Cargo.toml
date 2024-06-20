@@ -13,12 +13,14 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
+bincode.workspace = true    
 serde.workspace = true
+hyper.workspace = true
 papyrus_config.workspace = true
+prost.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-tonic = "0.11.0"
-prost = "0.12.6"
+tonic.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
