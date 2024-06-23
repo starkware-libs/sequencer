@@ -109,10 +109,8 @@ impl StateDiff {
             .collect()
     }
 
-    pub(crate) fn actual_classes_updates(
-        class_hash_to_compiled_class_hash: &HashMap<ClassHash, CompiledClassHash>,
-    ) -> LeafModifications<CompiledClassHash> {
-        class_hash_to_compiled_class_hash
+    pub(crate) fn actual_classes_updates(&self) -> LeafModifications<CompiledClassHash> {
+        self.class_hash_to_compiled_class_hash
             .iter()
             .map(|(class_hash, compiled_class_hash)| {
                 (NodeIndex::from_class_hash(class_hash), *compiled_class_hash)

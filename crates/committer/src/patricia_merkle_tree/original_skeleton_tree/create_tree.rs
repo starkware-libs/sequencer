@@ -1,8 +1,11 @@
 use crate::hash::hash_trait::HashOutput;
+use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::node_data::inner_node::BinaryData;
 use crate::patricia_merkle_tree::node_data::inner_node::EdgeData;
+use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
-use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonInputNode;
+use crate::patricia_merkle_tree::node_data::leaf::LeafData;
+use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
@@ -82,7 +85,7 @@ impl OriginalSkeletonTreeImpl {
     /// Fetches the Patricia witnesses, required to build the original skeleton tree from storage.
     /// Given a list of subtrees, traverses towards their leaves and fetches all non-empty,
     /// unmodified nodes.
-    fn fetch_nodes(
+    fn fetch_nodes<L: LeafData>(
         &mut self,
         subtrees: Vec<SubTree<'_>>,
         storage: &impl Storage,
@@ -91,22 +94,18 @@ impl OriginalSkeletonTreeImpl {
             return Ok(());
         }
         let mut next_subtrees = Vec::new();
-        let subtrees_roots = Self::calculate_subtrees_roots(&subtrees, storage)?;
-        for (skeleton_node_input, subtree) in subtrees_roots.into_iter().zip(subtrees.iter()) {
-            match skeleton_node_input {
+        let filled_roots = Self::calculate_subtrees_roots::<L>(&subtrees, storage)?;
+        for (filled_root, subtree) in filled_roots.into_iter().zip(subtrees.iter()) {
+            match filled_root.data {
                 // Binary node.
-                OriginalSkeletonInputNode::Binary {
-                    hash,
-                    data:
-                        BinaryData {
-                            left_hash,
-                            right_hash,
-                        },
-                } => {
+                NodeData::Binary(BinaryData {
+                    left_hash,
+                    right_hash,
+                }) => {
                     if subtree.is_unmodified() {
                         self.nodes.insert(
                             subtree.root_index,
-                            OriginalSkeletonNode::UnmodifiedSubTree(hash),
+                            OriginalSkeletonNode::UnmodifiedSubTree(filled_root.hash),
                         );
                         continue;
                     }
@@ -117,7 +116,7 @@ impl OriginalSkeletonTreeImpl {
                     next_subtrees.extend(vec![left_subtree, right_subtree]);
                 }
                 // Edge node.
-                OriginalSkeletonInputNode::Edge(EdgeData {
+                NodeData::Edge(EdgeData {
                     bottom_hash,
                     path_to_bottom,
                 }) => {
@@ -137,44 +136,45 @@ impl OriginalSkeletonTreeImpl {
                     next_subtrees.push(bottom_subtree);
                 }
                 // Leaf node.
-                OriginalSkeletonInputNode::Leaf(hash) => {
+                NodeData::Leaf(_previous_leaf) => {
                     if subtree.is_unmodified() {
+                        // Sibling leaf.
                         self.nodes.insert(
                             subtree.root_index,
-                            OriginalSkeletonNode::UnmodifiedSubTree(hash),
+                            OriginalSkeletonNode::UnmodifiedSubTree(filled_root.hash),
                         );
                     }
                 }
             }
         }
-        self.fetch_nodes(next_subtrees, storage)
+        self.fetch_nodes::<L>(next_subtrees, storage)
     }
 
-    fn calculate_subtrees_roots(
+    fn calculate_subtrees_roots<L: LeafData>(
         subtrees: &[SubTree<'_>],
         storage: &impl Storage,
-    ) -> OriginalSkeletonTreeResult<Vec<OriginalSkeletonInputNode>> {
+    ) -> OriginalSkeletonTreeResult<Vec<FilledNode<L>>> {
         let mut subtrees_roots = vec![];
         for subtree in subtrees.iter() {
-            if subtree.is_leaf() {
-                subtrees_roots.push(OriginalSkeletonInputNode::Leaf(subtree.root_hash));
-                continue;
-            }
-            let key = create_db_key(StoragePrefix::InnerNode, &subtree.root_hash.0.to_bytes_be());
+            let prefix = if subtree.is_leaf() {
+                L::prefix()
+            } else {
+                StoragePrefix::InnerNode
+            };
+            let key = create_db_key(prefix, &subtree.root_hash.0.to_bytes_be());
             let val = storage.get(&key).ok_or(StorageError::MissingKey(key))?;
-            subtrees_roots.push(OriginalSkeletonInputNode::deserialize(
-                subtree.root_hash,
-                val,
-            )?)
+            subtrees_roots.push(FilledNode::deserialize(subtree.root_hash, val)?)
         }
         Ok(subtrees_roots)
     }
 
-    pub(crate) fn create_impl(
+    pub(crate) fn create_impl<L: LeafData>(
         storage: &impl Storage,
-        sorted_leaf_indices: &[NodeIndex],
+        leaf_modifications: &LeafModifications<L>,
         root_hash: HashOutput,
     ) -> OriginalSkeletonTreeResult<Self> {
+        let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
+        sorted_leaf_indices.sort();
         if sorted_leaf_indices.is_empty() {
             return Ok(Self {
                 nodes: HashMap::from([(
@@ -189,14 +189,14 @@ impl OriginalSkeletonTreeImpl {
             });
         }
         let main_subtree = SubTree {
-            sorted_leaf_indices,
+            sorted_leaf_indices: &sorted_leaf_indices,
             root_index: NodeIndex::ROOT,
             root_hash,
         };
         let mut skeleton_tree = Self {
             nodes: HashMap::new(),
         };
-        skeleton_tree.fetch_nodes(vec![main_subtree], storage)?;
+        skeleton_tree.fetch_nodes::<L>(vec![main_subtree], storage)?;
         Ok(skeleton_tree)
     }
 }

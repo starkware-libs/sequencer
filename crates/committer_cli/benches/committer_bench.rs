@@ -34,16 +34,12 @@ pub fn single_tree_flow_benchmark(criterion: &mut Criterion) {
         .into_iter()
         .map(|(k, v)| (NodeIndex::FIRST_LEAF + k, v))
         .collect::<LeafModifications<StarknetStorageValue>>();
-    let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
-    sorted_leaf_indices.sort();
-
     let arc_leaf_modifications = Arc::new(leaf_modifications);
 
     criterion.bench_function("tree_computation_flow", |benchmark| {
         benchmark.iter(|| {
             runtime.block_on(tree_computation_flow(
                 Arc::clone(&arc_leaf_modifications),
-                &sorted_leaf_indices,
                 &storage,
                 root_hash,
             ));

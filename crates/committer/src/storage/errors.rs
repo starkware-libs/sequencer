@@ -1,6 +1,5 @@
 use crate::patricia_merkle_tree::node_data::errors::{EdgePathError, PathToBottomError};
-use crate::storage::storage_trait::StorageKey;
-use crate::storage::storage_trait::StoragePrefix;
+use crate::storage::storage_trait::{StorageKey, StoragePrefix};
 
 use serde_json;
 use starknet_types_core::felt::FromStrError;

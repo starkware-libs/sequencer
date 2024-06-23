@@ -8,11 +8,11 @@ use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 
 // TODO(Nimrod, 1/6/2024): Swap to starknet-types-core types once implemented.
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct ClassHash(pub Felt);
 
 impl_from_hex_for_felt_wrapper!(ClassHash);
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Nonce(pub Felt);
 
 impl_from_hex_for_felt_wrapper!(Nonce);

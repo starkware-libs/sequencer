@@ -10,10 +10,13 @@ use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
 use crate::patricia_merkle_tree::node_data::leaf::ContractState;
-use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::create_tree_test::create_root_edge_entry;
 use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::create_tree_test::{
     create_32_bytes_entry, create_binary_entry, create_binary_skeleton_node, create_edge_entry,
     create_edge_skeleton_node, create_expected_skeleton, create_unmodified_subtree_skeleton_node,
+};
+use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::create_tree_test::{
+    create_compiled_class_leaf_entry, create_contract_state_leaf_entry, create_root_edge_entry,
+    create_storage_leaf_entry,
 };
 use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::OriginalSkeletonForest;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
@@ -99,6 +102,21 @@ use crate::storage::map_storage::MapStorage;
             create_binary_entry(80, 76),
             create_binary_entry(33, 47),
             create_edge_entry(74, 1, 1),
+            create_storage_leaf_entry(2),
+            create_storage_leaf_entry(3),
+            create_storage_leaf_entry(4),
+            create_storage_leaf_entry(7),
+            create_storage_leaf_entry(10),
+            create_storage_leaf_entry(8),
+            create_storage_leaf_entry(9),
+            create_storage_leaf_entry(15),
+            create_storage_leaf_entry(16),
+            create_compiled_class_leaf_entry(33),
+            create_compiled_class_leaf_entry(47),
+            create_compiled_class_leaf_entry(74),
+            create_contract_state_leaf_entry(44),
+            create_contract_state_leaf_entry(54),
+            create_contract_state_leaf_entry(152)
         ]),
         state_diff: StateDiff {
             storage_updates: create_storage_updates(&[

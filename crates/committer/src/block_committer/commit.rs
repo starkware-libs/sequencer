@@ -49,7 +49,7 @@ pub async fn commit_block(input: Input) -> BlockCommitmentResult<FilledForestImp
         FilledForestImpl::create::<UpdatedSkeletonTreeImpl, TreeHashFunctionImpl>(
             updated_forest,
             input.state_diff.actual_storage_updates(),
-            StateDiff::actual_classes_updates(&input.state_diff.class_hash_to_compiled_class_hash),
+            input.state_diff.actual_classes_updates(),
             &input.current_contracts_trie_leaves,
             &input.state_diff.address_to_class_hash,
             &input.state_diff.address_to_nonce,

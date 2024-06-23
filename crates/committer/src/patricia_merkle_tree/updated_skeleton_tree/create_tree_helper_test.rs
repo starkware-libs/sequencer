@@ -1,3 +1,4 @@
+use crate::block_committer::input::StarknetStorageValue;
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use crate::patricia_merkle_tree::filled_tree::tree::StorageTrie;
 use ethnum::{uint, U256};
@@ -493,8 +494,12 @@ fn test_update_node_in_nonempty_tree(
 #[case::non_empty_tree(HashOutput(Felt::from(77_u128)))]
 #[tokio::test]
 async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
-    let mut original_skeleton_tree =
-        OriginalSkeletonTreeImpl::create_impl(&MapStorage::default(), &[], root_hash).unwrap();
+    let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_impl::<StarknetStorageValue>(
+        &MapStorage::default(),
+        &HashMap::new(),
+        root_hash,
+    )
+    .unwrap();
     let updated =
         UpdatedSkeletonTreeImpl::create(&mut original_skeleton_tree, &HashMap::new()).unwrap();
     let filled = StorageTrie::create::<TreeHashFunctionImpl>(updated, Arc::new(HashMap::new()))

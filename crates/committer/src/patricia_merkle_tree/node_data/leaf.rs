@@ -39,7 +39,7 @@ pub trait LeafData: Clone + Sync + Send + DBObject + Deserializable {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ContractState {
     pub nonce: Nonce,
     pub storage_root_hash: HashOutput,

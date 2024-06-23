@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::hash::hash_trait::HashOutput;
+use crate::patricia_merkle_tree::node_data::leaf::{LeafData, LeafModifications};
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::types::NodeIndex;
@@ -15,9 +16,9 @@ pub(crate) type OriginalSkeletonTreeResult<T> = Result<T, OriginalSkeletonTreeEr
 /// update. It also contains the hashes (for edge siblings - also the edge data) of the unmodified
 /// nodes on the Merkle paths from the updated leaves to the root.
 pub(crate) trait OriginalSkeletonTree {
-    fn create(
+    fn create<L: LeafData>(
         storage: &impl Storage,
-        leaf_indices: &[NodeIndex],
+        leaf_modifications: &LeafModifications<L>,
         root_hash: HashOutput,
     ) -> OriginalSkeletonTreeResult<Self>
     where
@@ -35,12 +36,12 @@ pub(crate) struct OriginalSkeletonTreeImpl {
 }
 
 impl OriginalSkeletonTree for OriginalSkeletonTreeImpl {
-    fn create(
+    fn create<L: LeafData>(
         storage: &impl Storage,
-        sorted_leaf_indices: &[NodeIndex],
+        leaf_modifications: &LeafModifications<L>,
         root_hash: HashOutput,
     ) -> OriginalSkeletonTreeResult<Self> {
-        Self::create_impl(storage, sorted_leaf_indices, root_hash)
+        Self::create_impl(storage, leaf_modifications, root_hash)
     }
 
     fn get_nodes(&self) -> &OriginalSkeletonNodeMap {
