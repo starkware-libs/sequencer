@@ -3,8 +3,11 @@ use crate::block_committer::input::StarknetStorageValue;
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
+use crate::patricia_merkle_tree::internal_test_utils::small_tree_index_to_full;
+use crate::patricia_merkle_tree::node_data::inner_node::EdgePath;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafModifications};
+use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::SubTree;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::types::NodeIndex;
@@ -12,6 +15,7 @@ use crate::patricia_merkle_tree::types::SubTreeHeight;
 use crate::storage::db_object::DBObject;
 use crate::storage::map_storage::MapStorage;
 use crate::storage::storage_trait::{create_db_key, StorageKey, StoragePrefix, StorageValue};
+use ethnum::U256;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use std::collections::HashMap;
@@ -210,6 +214,187 @@ fn test_create_tree(
     )
     .unwrap();
     assert_eq!(&skeleton_tree.nodes, &expected_skeleton.nodes);
+}
+
+/// case::single_right_child
+///     1
+///      \
+///       3
+///
+/// Bottom subtree:
+///       3
+///
+/// case::single_left_child
+///     1
+///    /
+///   2
+///
+/// Bottom subtree:
+///       2
+///
+/// case::missing_nodes
+///
+///       1
+///      /
+///     *
+///    /
+///   4
+///  /  \
+/// 8   9
+///
+/// Bottom subtree:
+///
+///    4
+///   /  \
+///  8    9
+///
+/// case::long_left_path
+///
+///              1
+///             /
+///            *
+///           /
+///         ...
+///         /
+///
+/// NodeIndex::FIRST_LEAF
+///
+/// Bottom subtree:
+///
+///  NodeIndex::FIRST_LEAF
+///
+/// case::long_right_path
+///
+///              1
+///               \
+///                *
+///                 \
+///                 ...
+///
+///                    \
+///                    NodeIndex::MAX
+///
+/// Bottom subtree:
+///
+///    NodeIndex::MAX
+///
+/// case::should_delete_new_leaf
+///
+///           1
+///          / \
+///         2   new
+///
+/// Bottom subtree:
+///
+///      2
+///
+/// case::should_delete_new_leafs
+///
+///            1
+///         /     \
+///        *       *
+///       / \     /
+///      4   5   6
+///     / \  / \  /
+///    8  9 10 11 12
+///   new new    new
+///
+/// Bottom subtree:
+///
+///      5
+///     / \
+///   11  10
+///
+#[rstest]
+#[case::single_right_child(
+        SubTreeHeight(1),
+        &[U256::from(3_u128)],
+        PathToBottom::new(EdgePath(U256::ONE), EdgePathLength::new(1).unwrap()).unwrap(),
+        &[U256::from(3_u128)],
+        U256::from(3_u128),
+    )]
+#[case::single_left_child(
+    SubTreeHeight(1),
+    &[U256::from(2_u128)],
+    PathToBottom::new(EdgePath(U256::ZERO), EdgePathLength::new(1).unwrap()).unwrap(),
+    &[U256::from(2_u128)],
+    U256::from(2_u128),
+)]
+#[case::missing_nodes(
+    SubTreeHeight(3),
+    &[U256::from(8_u128),U256::from(9_u128)],
+    PathToBottom::new(EdgePath(U256::ZERO),EdgePathLength::new(2).unwrap()).unwrap(),
+    &[U256::from(8_u128),U256::from(9_u128)],
+    U256::from(4_u128),
+)]
+#[case::long_left_path(
+    SubTreeHeight::ACTUAL_HEIGHT,
+    &[NodeIndex::FIRST_LEAF.0],
+    PathToBottom::new(EdgePath(U256::ZERO), EdgePathLength::new(SubTreeHeight::ACTUAL_HEIGHT.0).unwrap()).unwrap(),
+    &[NodeIndex::FIRST_LEAF.0],
+    NodeIndex::FIRST_LEAF.0,
+)]
+#[case::long_right_path(
+    SubTreeHeight::ACTUAL_HEIGHT,
+    &[NodeIndex::MAX.0],
+    PathToBottom::new(EdgePath(NodeIndex::MAX.0 >> 1), EdgePathLength::new(SubTreeHeight::ACTUAL_HEIGHT.0).unwrap()).unwrap(),
+    &[NodeIndex::MAX.0],
+    NodeIndex::MAX.0,
+    )]
+#[case::should_delete_new_leaf(
+    SubTreeHeight(1),
+    &[U256::from(2_u128), U256::from(3_u128)],
+    PathToBottom::new(EdgePath(U256::ZERO), EdgePathLength::new(1).unwrap()).unwrap(),
+    &[U256::from(2_u128)],
+    U256::from(2_u128),
+)]
+#[case::should_delete_new_leafs(
+    SubTreeHeight(3),
+    &[U256::from(8_u128), U256::from(9_u128), U256::from(10_u128), U256::from(11_u128), U256::from(12_u128)],
+    PathToBottom::new(EdgePath(U256::ONE), EdgePathLength::new(2).unwrap()).unwrap(),
+    &[U256::from(10_u128), U256::from(11_u128)],
+    U256::from(5_u128),
+)]
+fn test_get_bottom_subtree(
+    #[case] height: SubTreeHeight,
+    #[case] sorted_leaf_indices: &[U256],
+    #[case] path_to_bottom: PathToBottom,
+    #[case] expected_sorted_leaf_indices: &[U256],
+    #[case] expected_root_index: U256,
+) {
+    // Cast the input to the correct type for subtree.
+    let root_index = small_tree_index_to_full(U256::ONE, height);
+
+    let sorted_leaf_indices = sorted_leaf_indices
+        .iter()
+        .map(|&idx| small_tree_index_to_full(idx, height))
+        .collect::<Vec<_>>();
+
+    // Create the input Subtree.
+    let tree = SubTree {
+        sorted_leaf_indices: &sorted_leaf_indices,
+        root_index,
+        root_hash: HashOutput(Felt::ONE),
+    };
+
+    // Get the bottom subtree.
+    let subtree = tree.get_bottom_subtree(&path_to_bottom, HashOutput(Felt::TWO));
+
+    // Cast the expected output to the correct type for subtree.
+    let expected_sorted_leaf_indices = expected_sorted_leaf_indices
+        .iter()
+        .map(|&idx| small_tree_index_to_full(idx, height))
+        .collect::<Vec<_>>();
+    let expected_root_index = small_tree_index_to_full(expected_root_index, height);
+
+    // Create the expected subtree.
+    let expected_subtree = SubTree {
+        sorted_leaf_indices: &expected_sorted_leaf_indices,
+        root_index: expected_root_index,
+        root_hash: HashOutput(Felt::TWO),
+    };
+
+    assert_eq!(subtree, expected_subtree);
 }
 
 pub(crate) fn create_32_bytes_entry(simple_val: u8) -> Vec<u8> {

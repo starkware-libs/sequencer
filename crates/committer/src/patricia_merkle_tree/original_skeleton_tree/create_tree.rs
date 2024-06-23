@@ -23,6 +23,7 @@ use std::collections::HashMap;
 #[path = "create_tree_test.rs"]
 pub mod create_tree_test;
 
+#[derive(Debug, PartialEq)]
 struct SubTree<'a> {
     pub sorted_leaf_indices: &'a [NodeIndex],
     pub root_index: NodeIndex,
