@@ -1,14 +1,15 @@
 use blockifier::blockifier::block::BlockInfo;
-use blockifier::execution::contract_class::{ContractClass, ContractClassV1};
+use blockifier::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use reqwest::blocking::Client as BlockingClient;
 use reqwest::Error as ReqwestError;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Error as SerdeError, Value};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::deprecated_contract_class::ContractClass as StarknetApiDeprecatedContractClass;
 use starknet_api::hash::StarkFelt;
 use starknet_api::state::StorageKey;
 
@@ -124,19 +125,22 @@ impl BlockifierStateReader for RpcStateReader {
         Ok(nonce)
     }
 
-    // TODO(yael 12/5/24): currently only Cairo1 is supported, need to add support for Cairo0.
     fn get_compiled_contract_class(&self, class_hash: ClassHash) -> StateResult<ContractClass> {
         let get_compiled_class_params =
             GetCompiledContractClassParams { class_hash, block_id: self.block_id };
 
         let result =
             self.send_rpc_request("starknet_getCompiledContractClass", get_compiled_class_params)?;
-        let casm_contract_class: CasmContractClass =
+        let contract_class: CompiledContractClass =
             serde_json::from_value(result).map_err(serde_err_to_state_err)?;
-        let class_hash = ContractClass::V1(
-            ContractClassV1::try_from(casm_contract_class).map_err(StateError::ProgramError)?,
-        );
-        Ok(class_hash)
+        match contract_class {
+            CompiledContractClass::V1(contract_class_v1) => Ok(ContractClass::V1(
+                ContractClassV1::try_from(contract_class_v1).map_err(StateError::ProgramError)?,
+            )),
+            CompiledContractClass::V0(contract_class_v0) => Ok(ContractClass::V0(
+                ContractClassV0::try_from(contract_class_v0).map_err(StateError::ProgramError)?,
+            )),
+        }
     }
 
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
@@ -152,6 +156,13 @@ impl BlockifierStateReader for RpcStateReader {
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         todo!()
     }
+}
+
+// TODO(yael 19/6/2024): make this object public in papyrus and remove it from here.
+#[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
+pub enum CompiledContractClass {
+    V0(StarknetApiDeprecatedContractClass),
+    V1(CasmContractClass),
 }
 
 // Converts a serder error to the error type of the state reader.

@@ -53,10 +53,10 @@ indexmap = "2.1.0"
 itertools = "0.13.0"
 # TODO(YaelD, 28/5/2024): The special Papyrus version is needed in order to be aligned with the
 # starknet-api version. This should be removed once we have a mono-repo.
-papyrus_common = { git = "https://github.com/starkware-libs/papyrus.git", rev = "5d37fc32" }
-papyrus_config = { git = "https://github.com/starkware-libs/papyrus.git", rev = "5d37fc32" }
-papyrus_rpc = { git = "https://github.com/starkware-libs/papyrus.git", rev = "5d37fc32" }
-papyrus_storage = { git = "https://github.com/starkware-libs/papyrus.git", rev = "5d37fc32" }
+papyrus_common = { git = "https://github.com/starkware-libs/papyrus.git", rev = "050e470f" }
+papyrus_config = { git = "https://github.com/starkware-libs/papyrus.git", rev = "050e470f" }
+papyrus_rpc = { git = "https://github.com/starkware-libs/papyrus.git", rev = "050e470f" }
+papyrus_storage = { git = "https://github.com/starkware-libs/papyrus.git", rev = "050e470f" }
 pretty_assertions = "1.4.0"
 prost = "0.12.6"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
@@ -67,7 +67,7 @@ serde_json = "1.0"
 starknet_api = { git = "https://github.com/starkware-libs/starknet-api.git", branch = "main-mempool" }
 # TODO(YaelD, 28/5/2024): The special Papyrus version is needed in order to be aligned with the
 # starknet-api version. This should be removed once we have a mono-repo.
-starknet_client = { git = "https://github.com/starkware-libs/papyrus.git", rev = "5d37fc32" }
+starknet_client = { git = "https://github.com/starkware-libs/papyrus.git", rev = "050e470f" }
 strum = "0.24.1"
 tempfile = "3.3.0"
 thiserror = "1.0"
