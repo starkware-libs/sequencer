@@ -11,6 +11,7 @@ workspace = true
 [dependencies]
 axum.workspace = true
 blockifier.workspace = true
+cairo-lang-starknet-classes.workspace = true
 indexmap.workspace = true
 papyrus_common.workspace = true
 papyrus_rpc.workspace = true

@@ -5548,6 +5548,7 @@ version = "0.0.0"
 dependencies = [
  "axum",
  "blockifier 0.7.0-dev.1 (git+https://github.com/starkware-libs/blockifier.git?branch=main-mempool)",
+ "cairo-lang-starknet-classes",
  "indexmap 2.2.6",
  "papyrus_common",
  "papyrus_rpc",

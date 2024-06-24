@@ -9,11 +9,13 @@ use blockifier::test_utils::{
     DEFAULT_STRK_L1_GAS_PRICE,
 };
 use blockifier::transaction::objects::FeeType;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::{indexmap, IndexMap};
 use papyrus_common::pending_classes::PendingClasses;
 use papyrus_common::BlockHashAndNumber;
 use papyrus_rpc::{run_server, RpcConfig};
 use papyrus_storage::body::BodyStorageWriter;
+use papyrus_storage::class::ClassStorageWriter;
 use papyrus_storage::compiled_class::CasmStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
@@ -21,7 +23,8 @@ use papyrus_storage::{open_storage, StorageConfig, StorageReader};
 use starknet_api::block::{
     BlockBody, BlockHeader, BlockNumber, BlockTimestamp, GasPrice, GasPricePerToken,
 };
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkFelt;
 use starknet_api::stark_felt;
 use starknet_api::state::{StorageKey, ThinStateDiff};
@@ -31,6 +34,9 @@ use starknet_gateway::rpc_state_reader::RpcStateReaderFactory;
 use strum::IntoEnumIterator;
 use tempfile::tempdir;
 use tokio::sync::RwLock;
+
+type ContractClassesMap =
+    (Vec<(ClassHash, DeprecatedContractClass)>, Vec<(ClassHash, CasmContractClass)>);
 
 /// StateReader for integration tests.
 ///
@@ -64,6 +70,19 @@ fn initialize_papyrus_test_state(
     initial_balances: u128,
     contract_instances: &[(FeatureContract, u16)],
 ) -> StorageReader {
+    let state_diff = prepare_state_diff(chain_info, contract_instances, initial_balances);
+
+    let (cairo0_contract_classes, cairo1_contract_classes) =
+        prepare_compiled_contract_classes(contract_instances);
+
+    write_state_to_papyrus_storage(state_diff, &cairo0_contract_classes, &cairo1_contract_classes)
+}
+
+fn prepare_state_diff(
+    chain_info: &ChainInfo,
+    contract_instances: &[(FeatureContract, u16)],
+    initial_balances: u128,
+) -> ThinStateDiff {
     let erc20 = FeatureContract::ERC20;
     let erc20_class_hash = erc20.get_class_hash();
 
@@ -72,34 +91,64 @@ fn initialize_papyrus_test_state(
         chain_info.fee_token_address(&FeeType::Eth) => erc20_class_hash,
         chain_info.fee_token_address(&FeeType::Strk) => erc20_class_hash
     };
-    let mut declared_classes = indexmap! {
-        erc20_class_hash => Default::default(),
-    };
+    let mut deprecated_declared_classes = Vec::from([erc20.get_class_hash()]);
 
     let mut storage_diffs = IndexMap::new();
+    let mut declared_classes = IndexMap::new();
     for (contract, n_instances) in contract_instances.iter() {
         for instance in 0..*n_instances {
             // Declare and deploy the contracts
-            declared_classes.insert(contract.get_class_hash(), Default::default());
+            match cairo_version(contract) {
+                CairoVersion::Cairo0 => {
+                    deprecated_declared_classes.push(contract.get_class_hash());
+                }
+                CairoVersion::Cairo1 => {
+                    declared_classes.insert(contract.get_class_hash(), Default::default());
+                }
+            }
             deployed_contracts
                 .insert(contract.get_instance_address(instance), contract.get_class_hash());
             fund_account(&mut storage_diffs, contract, instance, initial_balances, chain_info);
         }
     }
 
-    let state_diff = ThinStateDiff {
+    ThinStateDiff {
         storage_diffs,
-        deployed_contracts: deployed_contracts.clone(),
+        deployed_contracts,
         declared_classes,
+        deprecated_declared_classes,
         ..Default::default()
-    };
-
-    write_state_diff_to_storage(state_diff, contract_instances)
+    }
 }
 
-fn write_state_diff_to_storage(
-    state_diff: ThinStateDiff,
+fn prepare_compiled_contract_classes(
     contract_instances: &[(FeatureContract, u16)],
+) -> ContractClassesMap {
+    let mut cairo0_contract_classes: Vec<(ClassHash, DeprecatedContractClass)> = Vec::new();
+    let mut cairo1_contract_classes: Vec<(ClassHash, CasmContractClass)> = Vec::new();
+    for (contract, _) in contract_instances.iter() {
+        match cairo_version(contract) {
+            CairoVersion::Cairo0 => {
+                cairo0_contract_classes.push((
+                    contract.get_class_hash(),
+                    serde_json::from_str(&contract.get_raw_class()).unwrap(),
+                ));
+            }
+            CairoVersion::Cairo1 => {
+                cairo1_contract_classes.push((
+                    contract.get_class_hash(),
+                    serde_json::from_str(&contract.get_raw_class()).unwrap(),
+                ));
+            }
+        }
+    }
+    (cairo0_contract_classes, cairo1_contract_classes)
+}
+
+fn write_state_to_papyrus_storage(
+    state_diff: ThinStateDiff,
+    cairo0_contract_classes: &[(ClassHash, DeprecatedContractClass)],
+    cairo1_contract_classes: &[(ClassHash, CasmContractClass)],
 ) -> StorageReader {
     let block_number = BlockNumber(0);
     let block_header = test_block_header(block_number);
@@ -109,24 +158,38 @@ fn write_state_diff_to_storage(
     storage_config.db_config.path_prefix = tempdir.path().to_path_buf();
     let (storage_reader, mut storage_writer) = open_storage(storage_config).unwrap();
 
-    // Write the state diff to the storage.
-    let mut write_txn = storage_writer
-        .begin_rw_txn()
-        .unwrap()
+    let cairo0_contract_classes =
+        cairo0_contract_classes.iter().map(|(x, y)| (*x, y)).collect::<Vec<_>>();
+
+    let mut write_txn = storage_writer.begin_rw_txn().unwrap();
+    for (class_hash, casm) in cairo1_contract_classes {
+        write_txn = write_txn.append_casm(class_hash, casm).unwrap();
+    }
+    write_txn
         .append_header(block_number, &block_header)
         .unwrap()
         .append_body(block_number, BlockBody::default())
         .unwrap()
         .append_state_diff(block_number, state_diff)
+        .unwrap()
+        .append_classes(block_number, &[], cairo0_contract_classes.as_slice())
+        .unwrap()
+        .commit()
         .unwrap();
 
-    // Write the compiled classes to the storage.
-    for (contract, _) in contract_instances.iter() {
-        let casm = serde_json::from_str(&contract.get_raw_class()).unwrap();
-        write_txn = write_txn.append_casm(&contract.get_class_hash(), &casm).unwrap();
-    }
-    write_txn.commit().unwrap();
     storage_reader
+}
+
+// TODO (Yael 19/6/2024): make this function public in Blockifier and remove it from here.
+fn cairo_version(contract: &FeatureContract) -> CairoVersion {
+    match contract {
+        FeatureContract::AccountWithLongValidate(version)
+        | FeatureContract::AccountWithoutValidations(version)
+        | FeatureContract::Empty(version)
+        | FeatureContract::FaultyAccount(version)
+        | FeatureContract::TestContract(version) => *version,
+        _ => panic!("{contract:?} contract has no configurable version."),
+    }
 }
 
 fn test_block_header(block_number: BlockNumber) -> BlockHeader {
