@@ -23,6 +23,7 @@ impl TransactionPool {
     // TODO(Mohammad): Remove the cloning of tx once the PrioritizedTransaction is updated.
     pub fn push(&mut self, tx: ThinTransaction) -> MempoolResult<()> {
         let tx_hash = tx.tx_hash;
+
         // Insert transaction to pool, if it is new.
         if let hash_map::Entry::Vacant(entry) = self.tx_pool.entry(tx_hash) {
             entry.insert(tx.clone());

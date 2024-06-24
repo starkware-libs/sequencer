@@ -9,6 +9,7 @@ use starknet_mempool_types::mempool_types::{
 };
 
 use crate::priority_queue::TransactionPriorityQueue;
+use crate::transaction_pool::TransactionPool;
 
 #[cfg(test)]
 #[path = "mempool_test.rs"]
@@ -18,35 +19,39 @@ pub mod mempool_test;
 pub struct Mempool {
     // TODO: add docstring explaining visibility and coupling of the fields.
     txs_queue: TransactionPriorityQueue,
+    tx_pool: TransactionPool,
     state: HashMap<ContractAddress, AccountState>,
 }
 
 impl Mempool {
     pub fn new(inputs: impl IntoIterator<Item = MempoolInput>) -> Self {
-        let mut mempool =
-            Mempool { txs_queue: TransactionPriorityQueue::default(), state: HashMap::default() };
+        let mut mempool = Mempool {
+            txs_queue: TransactionPriorityQueue::default(),
+            tx_pool: TransactionPool::default(),
+            state: HashMap::default(),
+        };
 
-        mempool.txs_queue = TransactionPriorityQueue::from(
-            inputs
-                .into_iter()
-                .map(|input| {
-                    // Attempts to insert a key-value pair into the mempool's state. Returns `None`
-                    // if the key was not present, otherwise returns the old value while updating
-                    // the new value.
-                    let prev_value =
-                        mempool.state.insert(input.account.sender_address, input.account.state);
-                    assert!(
-                        prev_value.is_none(),
-                        "Sender address: {:?} already exists in the mempool. Can't add {:?} to \
-                         the mempool.",
-                        input.account.sender_address,
-                        input.tx
-                    );
+        for MempoolInput { tx, account: Account { sender_address, state } } in inputs.into_iter() {
+            // Attempts to insert a key-value pair into the mempool's state. Returns `None`
+            // if the key was not present, otherwise returns the old value while updating
+            // the new value.
+            if mempool.state.insert(sender_address, state).is_some() {
+                panic!(
+                    "Sender address: {:?} already exists in the mempool. Can't add {:?} to the \
+                     mempool.",
+                    sender_address, tx
+                );
+            }
+            // Attempt to push the transaction into the tx_pool
+            if let Err(err) = mempool.tx_pool.push(tx.clone()) {
+                panic!(
+                    "Transaction: {:?} already exists in the mempool. Error: {:?}",
+                    tx.tx_hash, err
+                );
+            }
 
-                    input.tx
-                })
-                .collect::<Vec<ThinTransaction>>(),
-        );
+            mempool.txs_queue.push(tx);
+        }
 
         mempool
     }
@@ -64,6 +69,7 @@ impl Mempool {
         let txs = self.txs_queue.pop_last_chunk(n_txs);
         for tx in &txs {
             self.state.remove(&tx.sender_address);
+            self.tx_pool.remove(tx.tx_hash)?;
         }
 
         Ok(txs)
@@ -77,7 +83,9 @@ impl Mempool {
             Occupied(_) => Err(MempoolError::DuplicateTransaction { tx_hash: tx.tx_hash }),
             Vacant(entry) => {
                 entry.insert(account.state);
-                self.txs_queue.push(tx);
+                // TODO(Mohammad): use `handle_tx`.
+                self.txs_queue.push(tx.clone());
+                self.tx_pool.push(tx)?;
 
                 Ok(())
             }
