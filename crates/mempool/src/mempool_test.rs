@@ -44,7 +44,7 @@ macro_rules! add_tx_input {
 
 #[fixture]
 fn mempool() -> Mempool {
-    Mempool::new([])
+    Mempool::empty()
 }
 
 #[rstest]

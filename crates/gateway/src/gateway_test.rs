@@ -6,7 +6,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::CairoVersion;
-use rstest::rstest;
+use rstest::{fixture, rstest};
 use starknet_api::rpc_transaction::RPCTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool::communication::create_mempool_server;
@@ -27,6 +27,11 @@ use crate::stateless_transaction_validator::StatelessTransactionValidator;
 use crate::utils::{external_tx_to_account_tx, get_tx_hash};
 
 const MEMPOOL_INVOCATIONS_QUEUE_SIZE: usize = 32;
+
+#[fixture]
+fn mempool() -> Mempool {
+    Mempool::empty()
+}
 
 pub fn app_state(
     mempool_client: SharedMempoolClient,
@@ -67,10 +72,8 @@ pub fn app_state(
 async fn test_add_tx(
     #[case] tx: RPCTransaction,
     #[case] state_reader_factory: TestStateReaderFactory,
+    mempool: Mempool,
 ) {
-    // TODO: Add fixture.
-
-    let mempool = Mempool::new([]);
     // TODO(Tsabary): wrap creation of channels in dedicated functions, take channel capacity from
     // config.
     let (tx_mempool, rx_mempool) =

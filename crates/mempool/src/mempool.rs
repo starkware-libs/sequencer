@@ -15,7 +15,7 @@ use crate::transaction_pool::TransactionPool;
 #[path = "mempool_test.rs"]
 pub mod mempool_test;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Mempool {
     // TODO: add docstring explaining visibility and coupling of the fields.
     txs_queue: TransactionPriorityQueue,
@@ -25,11 +25,7 @@ pub struct Mempool {
 
 impl Mempool {
     pub fn new(inputs: impl IntoIterator<Item = MempoolInput>) -> Self {
-        let mut mempool = Mempool {
-            txs_queue: TransactionPriorityQueue::default(),
-            tx_pool: TransactionPool::default(),
-            state: HashMap::default(),
-        };
+        let mut mempool = Mempool::empty();
 
         for MempoolInput { tx, account: Account { sender_address, state } } in inputs.into_iter() {
             // Attempts to insert a key-value pair into the mempool's state. Returns `None`
@@ -57,7 +53,7 @@ impl Mempool {
     }
 
     pub fn empty() -> Self {
-        Mempool::new([])
+        Mempool::default()
     }
 
     /// Retrieves up to `n_txs` transactions with the highest priority from the mempool.
