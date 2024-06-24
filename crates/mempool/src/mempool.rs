@@ -42,6 +42,7 @@ impl Mempool {
                         input.account.sender_address,
                         input.tx
                     );
+
                     input.tx
                 })
                 .collect::<Vec<ThinTransaction>>(),
@@ -77,6 +78,7 @@ impl Mempool {
             Vacant(entry) => {
                 entry.insert(account.state);
                 self.txs_queue.push(tx);
+
                 Ok(())
             }
         }
