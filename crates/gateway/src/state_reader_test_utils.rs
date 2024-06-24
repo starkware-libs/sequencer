@@ -71,9 +71,11 @@ impl StateReaderFactory for TestStateReaderFactory {
     }
 }
 
-pub fn local_test_state_reader_factory(zero_balance: bool) -> TestStateReaderFactory {
+pub fn local_test_state_reader_factory(
+    cairo_version: CairoVersion,
+    zero_balance: bool,
+) -> TestStateReaderFactory {
     let account_balance = if zero_balance { 0 } else { BALANCE };
-    let cairo_version = CairoVersion::Cairo1;
     let block_context = BlockContext::new_unchecked(
         &BlockInfo::create_for_testing(),
         &ChainInfo::create_for_testing(),
@@ -99,7 +101,7 @@ pub fn local_test_state_reader_factory(zero_balance: bool) -> TestStateReaderFac
 pub fn local_test_state_reader_factory_for_deploy_account(
     deploy_tx: &RPCTransaction,
 ) -> TestStateReaderFactory {
-    let mut state_reader_factory = local_test_state_reader_factory(false);
+    let mut state_reader_factory = local_test_state_reader_factory(CairoVersion::Cairo1, false);
 
     // Fund the deployed_account_address.
     let tx = assert_matches!(

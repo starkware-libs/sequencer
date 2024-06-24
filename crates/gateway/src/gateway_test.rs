@@ -52,7 +52,14 @@ pub fn app_state(
 // TODO(Ayelet): add test cases for declare.
 #[tokio::test]
 #[rstest]
-#[case::valid_invoke_tx(invoke_tx(CairoVersion::Cairo1), local_test_state_reader_factory(false))]
+#[case::valid_invoke_tx_cairo1(
+    invoke_tx(CairoVersion::Cairo1),
+    local_test_state_reader_factory(CairoVersion::Cairo1, false)
+)]
+#[case::valid_invoke_tx_cairo0(
+    invoke_tx(CairoVersion::Cairo0),
+    local_test_state_reader_factory(CairoVersion::Cairo0, false)
+)]
 #[case::valid_deploy_account_tx(
     deploy_account_tx(),
     local_test_state_reader_factory_for_deploy_account(&tx)

@@ -19,11 +19,18 @@ use crate::state_reader_test_utils::{
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 
 #[rstest]
-#[case::valid_invoke_tx(
+#[case::valid_invoke_tx_cairo1(
     invoke_tx(CairoVersion::Cairo1),
-    local_test_state_reader_factory(false),
+    local_test_state_reader_factory(CairoVersion::Cairo1, false),
     Ok(TransactionHash(StarkFelt::try_from(
         "0x07459d76bd7adec02c25cf7ab0dcb95e9197101d4ada41cae6b465fcb78c0e47"
+    ).unwrap()))
+)]
+#[case::valid_invoke_tx_cairo0(
+    invoke_tx(CairoVersion::Cairo0),
+    local_test_state_reader_factory(CairoVersion::Cairo0, false),
+    Ok(TransactionHash(StarkFelt::try_from(
+        "0x052358755cb14da1c0fddcdb371470f3ecf5ffe4cfa017cdfcedda4bff92a02e"
     ).unwrap()))
 )]
 #[case::valid_deploy_account_tx(
@@ -35,7 +42,7 @@ use crate::stateful_transaction_validator::StatefulTransactionValidator;
 )]
 #[case::invalid_tx(
     invoke_tx(CairoVersion::Cairo1),
-    local_test_state_reader_factory(true),
+    local_test_state_reader_factory(CairoVersion::Cairo1, true),
     Err(StatefulTransactionValidatorError::StatefulValidatorError(
         StatefulValidatorError::TransactionPreValidationError(
             TransactionPreValidationError::TransactionFeeError(
