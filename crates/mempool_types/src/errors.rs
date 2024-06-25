@@ -1,7 +1,7 @@
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 
-#[derive(Clone, Debug, Error)]
+#[derive(Clone, Debug, Error, PartialEq, Eq)]
 pub enum MempoolError {
     #[error("Duplicate transaction, with hash: {tx_hash}")]
     DuplicateTransaction { tx_hash: TransactionHash },

@@ -125,9 +125,9 @@ fn test_add_tx(mut mempool: Mempool) {
     let (tx_tip_80_address_2, account3) =
         add_tx_input!(Tip(80), TransactionHash(StarkFelt::THREE), contract_address!("0x2"));
 
-    assert_matches!(mempool.add_tx(tx_tip_50_address_0.clone(), account1), Ok(()));
-    assert_matches!(mempool.add_tx(tx_tip_100_address_1.clone(), account2), Ok(()));
-    assert_matches!(mempool.add_tx(tx_tip_80_address_2.clone(), account3), Ok(()));
+    assert_eq!(mempool.add_tx(tx_tip_50_address_0.clone(), account1), Ok(()));
+    assert_eq!(mempool.add_tx(tx_tip_100_address_1.clone(), account2), Ok(()));
+    assert_eq!(mempool.add_tx(tx_tip_80_address_2.clone(), account3), Ok(()));
 
     assert_eq!(mempool.state.len(), 3);
     mempool.state.contains_key(&account1.sender_address);
@@ -145,7 +145,7 @@ fn test_add_same_tx(mut mempool: Mempool) {
     let (tx, account) = add_tx_input!(Tip(50), TransactionHash(StarkFelt::ONE));
     let same_tx = tx.clone();
 
-    assert_matches!(mempool.add_tx(tx.clone(), account), Ok(()));
+    assert_eq!(mempool.add_tx(tx.clone(), account), Ok(()));
 
     assert_matches!(
         mempool.add_tx(same_tx, account),
@@ -164,8 +164,8 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
     let (tx2, account2) =
         add_tx_input!(Tip(1), TransactionHash(StarkFelt::ONE), contract_address!("0x1"));
 
-    assert!(mempool.add_tx(tx1.clone(), account1).is_ok());
-    assert!(mempool.add_tx(tx2.clone(), account2).is_ok());
+    assert_eq!(mempool.add_tx(tx1.clone(), account1), Ok(()));
+    assert_eq!(mempool.add_tx(tx2.clone(), account2), Ok(()));
 
     // TODO: currently hash comparison tie-breaks the two. Once more robust tie-breaks are added
     // replace this assertion with a dedicated test.
@@ -181,7 +181,7 @@ fn test_tip_priority_over_tx_hash(mut mempool: Mempool) {
     let (tx_small_tip_big_hash, account2) =
         add_tx_input!(Tip(1), TransactionHash(StarkFelt::TWO), contract_address!("0x1"));
 
-    assert!(mempool.add_tx(tx_big_tip_small_hash.clone(), account1).is_ok());
-    assert!(mempool.add_tx(tx_small_tip_big_hash.clone(), account2).is_ok());
+    assert_eq!(mempool.add_tx(tx_big_tip_small_hash.clone(), account1), Ok(()));
+    assert_eq!(mempool.add_tx(tx_small_tip_big_hash.clone(), account2), Ok(()));
     check_mempool_txs_eq(&mempool, &[tx_small_tip_big_hash, tx_big_tip_small_hash])
 }
