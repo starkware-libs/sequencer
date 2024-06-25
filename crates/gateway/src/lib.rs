@@ -1,3 +1,4 @@
+pub mod compiler_version;
 pub mod config;
 pub mod errors;
 pub mod gateway;

@@ -46,9 +46,10 @@ pub fn external_tx_for_testing(
 ) -> RPCTransaction {
     match tx_type {
         TransactionType::Declare => {
+            // Minimal contract class.
             let contract_class = ContractClass {
-                sierra_program: vec![stark_felt!(1_u32); 3],
-                ..ContractClass::default()
+                sierra_program: vec![stark_felt!(1_u32), stark_felt!(3_u32), stark_felt!(0_u32)],
+                ..Default::default()
             };
             external_declare_tx(declare_tx_args!(resource_bounds, signature, contract_class))
         }

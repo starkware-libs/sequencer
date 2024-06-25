@@ -9,6 +9,8 @@ use starknet_api::StarknetApiError;
 use thiserror::Error;
 use tokio::task::JoinError;
 
+use crate::compiler_version::VersionIdError;
+
 /// Errors directed towards the end-user, as a result of gateway requests.
 #[derive(Debug, Error)]
 pub enum GatewayError {
@@ -46,6 +48,8 @@ pub enum StatelessTransactionValidatorError {
         (allowed length: {max_signature_length})."
     )]
     SignatureTooLong { signature_length: usize, max_signature_length: usize },
+    #[error(transparent)]
+    InvalidSierraVersion(#[from] VersionIdError),
     #[error(
         "Cannot declare contract class with bytecode size of {bytecode_size}; max allowed size: \
          {max_bytecode_size}."

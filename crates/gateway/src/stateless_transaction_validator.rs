@@ -1,9 +1,11 @@
+use starknet_api::hash::StarkFelt;
 use starknet_api::rpc_transaction::{
     RPCDeclareTransaction, RPCDeployAccountTransaction, RPCInvokeTransaction, RPCTransaction,
     ResourceBoundsMapping,
 };
 use starknet_api::transaction::Resource;
 
+use crate::compiler_version::VersionId;
 use crate::config::StatelessTransactionValidatorConfig;
 use crate::errors::{StatelessTransactionValidatorError, StatelessTransactionValidatorResult};
 
@@ -103,7 +105,18 @@ impl StatelessTransactionValidator {
         let contract_class = match declare_tx {
             RPCDeclareTransaction::V3(tx) => &tx.contract_class,
         };
+        self.validate_sierra_version(&contract_class.sierra_program)?;
         self.validate_class_length(contract_class)
+    }
+
+    fn validate_sierra_version(
+        &self,
+        sierra_program: &[StarkFelt],
+    ) -> StatelessTransactionValidatorResult<()> {
+        // TODO(Arni): Validate the sierra version is supported.
+        let _sierra_version = VersionId::from_sierra_program(sierra_program)?;
+
+        Ok(())
     }
 
     fn validate_class_length(
