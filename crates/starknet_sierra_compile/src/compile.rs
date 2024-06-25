@@ -20,6 +20,8 @@ pub enum CompilationUtilError {
     AllowedLibfuncsError(#[from] AllowedLibfuncsError),
     #[error(transparent)]
     StarknetSierraCompilationError(#[from] StarknetSierraCompilationError),
+    #[error("Compilation panicked")]
+    CompilationPanic,
 }
 
 /// This function may panic.

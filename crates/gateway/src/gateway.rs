@@ -1,14 +1,18 @@
 use std::clone::Clone;
 use std::net::SocketAddr;
+use std::panic;
 use std::sync::Arc;
 
 use axum::extract::State;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use starknet_api::rpc_transaction::RPCTransaction;
+use blockifier::execution::contract_class::{ClassInfo, ContractClass, ContractClassV1};
+use starknet_api::rpc_transaction::{RPCDeclareTransaction, RPCTransaction};
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, MempoolInput};
+use starknet_sierra_compile::compile::{compile_sierra_to_casm, CompilationUtilError};
+use starknet_sierra_compile::utils::into_contract_class_for_compilation;
 
 use crate::config::{GatewayConfig, GatewayNetworkConfig};
 use crate::errors::{GatewayError, GatewayRunError};
@@ -116,11 +120,50 @@ fn process_tx(
     // Perform stateless validations.
     stateless_tx_validator.validate(&tx)?;
 
-    // TODO(Yael, 19/5/2024): pass the relevant class_info and deploy_account_hash.
-    let tx_hash = stateful_tx_validator.run_validate(state_reader_factory, &tx, None, None)?;
+    // Compile Sierra to Casm.
+    let optional_class_info = match &tx {
+        RPCTransaction::Declare(declare_tx) => Some(compile_contract_class(declare_tx)?),
+        _ => None,
+    };
 
+    // TODO(Yael, 19/5/2024): pass the relevant deploy_account_hash.
+    let tx_hash =
+        stateful_tx_validator.run_validate(state_reader_factory, &tx, optional_class_info, None)?;
+
+    // TODO(Arni): Add the Sierra and the Casm to the mempool input.
     Ok(MempoolInput {
         tx: external_tx_to_thin_tx(&tx, tx_hash),
         account: Account { sender_address: get_sender_address(&tx), ..Default::default() },
     })
+}
+
+/// Formats the contract class for compilation, compiles it, and returns the compiled contract class
+/// wrapped in a [`ClassInfo`].
+/// Assumes the contract class is of a Sierra program which is compiled to Casm.
+fn compile_contract_class(declare_tx: &RPCDeclareTransaction) -> GatewayResult<ClassInfo> {
+    let RPCDeclareTransaction::V3(tx) = declare_tx;
+    let starknet_api_contract_class = &tx.contract_class;
+    let cairo_lang_contract_class =
+        into_contract_class_for_compilation(starknet_api_contract_class);
+
+    // Compile Sierra to Casm.
+    let catch_unwind_result =
+        panic::catch_unwind(|| compile_sierra_to_casm(cairo_lang_contract_class));
+    let casm_contract_class = match catch_unwind_result {
+        Ok(compilation_result) => compilation_result?,
+        Err(_) => {
+            // TODO(Arni): Log the panic.
+            return Err(GatewayError::CompilationError(CompilationUtilError::CompilationPanic));
+        }
+    };
+
+    // Convert Casm contract class to Starknet contract class directly.
+    let blockifier_contract_class =
+        ContractClass::V1(ContractClassV1::try_from(casm_contract_class)?);
+    let class_info = ClassInfo::new(
+        &blockifier_contract_class,
+        starknet_api_contract_class.sierra_program.len(),
+        starknet_api_contract_class.abi.len(),
+    )?;
+    Ok(class_info)
 }
