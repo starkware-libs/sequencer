@@ -47,6 +47,19 @@ fn mempool() -> Mempool {
     Mempool::empty()
 }
 
+// Asserts that the transactions in the mempool are in ascending order as per the expected
+// transactions.
+#[track_caller]
+fn check_mempool_txs_eq(mempool: &Mempool, expected_txs: &[ThinTransaction]) {
+    let mempool_txs = mempool.txs_queue.iter();
+
+    assert!(
+        zip_eq(expected_txs, mempool_txs)
+            // Deref the inner mempool tx type.
+            .all(|(expected_tx, mempool_tx)| *expected_tx == **mempool_tx)
+    );
+}
+
 #[rstest]
 #[case(3)] // Requesting exactly the number of transactions in the queue
 #[case(5)] // Requesting more transactions than are in the queue
@@ -139,19 +152,6 @@ fn test_add_same_tx(mut mempool: Mempool) {
     );
     // Assert that the original tx remains in the pool after the failed attempt.
     check_mempool_txs_eq(&mempool, &[tx])
-}
-
-// Asserts that the transactions in the mempool are in ascending order as per the expected
-// transactions.
-#[track_caller]
-fn check_mempool_txs_eq(mempool: &Mempool, expected_txs: &[ThinTransaction]) {
-    let mempool_txs = mempool.txs_queue.iter();
-
-    assert!(
-        zip_eq(expected_txs, mempool_txs)
-            // Deref the inner mempool tx type.
-            .all(|(expected_tx, mempool_tx)| *expected_tx == **mempool_tx)
-    );
 }
 
 #[rstest]
