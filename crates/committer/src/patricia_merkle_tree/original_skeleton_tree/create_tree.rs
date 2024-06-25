@@ -46,21 +46,35 @@ impl<'a> SubTree<'a> {
         self.sorted_leaf_indices.is_empty()
     }
 
-    fn get_bottom_subtree(&self, path_to_bottom: &PathToBottom, bottom_hash: HashOutput) -> Self {
+    /// Returns the bottom subtree which is referred from `self` by the given path. When creating
+    /// the bottom subtree some indices that were modified under `self` are not modified under the
+    /// bottom subtree (leaves that were previously empty). These indices are returned as well.
+    fn get_bottom_subtree(
+        &self,
+        path_to_bottom: &PathToBottom,
+        bottom_hash: HashOutput,
+    ) -> (Self, Vec<&NodeIndex>) {
         let bottom_index = path_to_bottom.bottom_index(self.root_index);
         let bottom_height = self.get_height() - SubTreeHeight::new(path_to_bottom.length.into());
         let leftmost_in_subtree = bottom_index << bottom_height.into();
         let rightmost_in_subtree =
             leftmost_in_subtree - NodeIndex::ROOT + (NodeIndex::ROOT << bottom_height.into());
-        let bottom_leaves =
-            &self.sorted_leaf_indices[bisect_left(self.sorted_leaf_indices, &leftmost_in_subtree)
-                ..bisect_right(self.sorted_leaf_indices, &rightmost_in_subtree)];
+        let left_most_index = bisect_left(self.sorted_leaf_indices, &leftmost_in_subtree);
+        let right_most_index = bisect_right(self.sorted_leaf_indices, &rightmost_in_subtree);
+        let bottom_leaves = &self.sorted_leaf_indices[left_most_index..right_most_index];
+        let previously_empty_leaf_indices = self.sorted_leaf_indices[..left_most_index]
+            .iter()
+            .chain(self.sorted_leaf_indices[right_most_index..].iter())
+            .collect();
 
-        Self {
-            sorted_leaf_indices: bottom_leaves,
-            root_index: bottom_index,
-            root_hash: bottom_hash,
-        }
+        (
+            Self {
+                sorted_leaf_indices: bottom_leaves,
+                root_index: bottom_index,
+                root_hash: bottom_hash,
+            },
+            previously_empty_leaf_indices,
+        )
     }
 
     fn get_children_subtrees(&self, left_hash: HashOutput, right_hash: HashOutput) -> (Self, Self) {
@@ -89,12 +103,13 @@ impl OriginalSkeletonTreeImpl {
     /// Fetches the Patricia witnesses, required to build the original skeleton tree from storage.
     /// Given a list of subtrees, traverses towards their leaves and fetches all non-empty,
     /// unmodified nodes. If `compare_modified_leaves` is set, function logs out a warning when
-    /// encountering a trivial modification.
+    /// encountering a trivial modification. Fills the previous leaf values if it is not none.
     fn fetch_nodes<L: LeafData>(
         &mut self,
         subtrees: Vec<SubTree<'_>>,
         storage: &impl Storage,
         config: &impl OriginalSkeletonTreeConfig<L>,
+        mut previous_leaves: Option<&mut HashMap<NodeIndex, L>>,
     ) -> OriginalSkeletonTreeResult<()> {
         if subtrees.is_empty() {
             return Ok(());
@@ -138,8 +153,17 @@ impl OriginalSkeletonTreeImpl {
                         continue;
                     }
                     // Parse bottom.
-                    let bottom_subtree = subtree.get_bottom_subtree(&path_to_bottom, bottom_hash);
+                    let (bottom_subtree, previously_empty_leaves_indices) =
+                        subtree.get_bottom_subtree(&path_to_bottom, bottom_hash);
                     next_subtrees.push(bottom_subtree);
+                    if let Some(ref mut leaves) = previous_leaves {
+                        leaves.extend(
+                            previously_empty_leaves_indices
+                                .iter()
+                                .map(|idx| (**idx, L::default()))
+                                .collect::<HashMap<NodeIndex, L>>(),
+                        );
+                    }
                 }
                 // Leaf node.
                 NodeData::Leaf(previous_leaf) => {
@@ -149,18 +173,24 @@ impl OriginalSkeletonTreeImpl {
                             subtree.root_index,
                             OriginalSkeletonNode::UnmodifiedSubTree(filled_root.hash),
                         );
-                    } else if config.compare_modified_leaves()
-                        && config.compare_leaf(&subtree.root_index, &previous_leaf)?
-                    {
-                        warn!(
-                            "Encontered a trivial modification at index {:?}",
-                            subtree.root_index
-                        );
+                    } else {
+                        // Modified leaf.
+                        if config.compare_modified_leaves()
+                            && config.compare_leaf(&subtree.root_index, &previous_leaf)?
+                        {
+                            warn!(
+                                "Encontered a trivial modification at index {:?}",
+                                subtree.root_index
+                            );
+                        }
+                        if let Some(ref mut leaves) = previous_leaves {
+                            leaves.insert(subtree.root_index, previous_leaf);
+                        }
                     }
                 }
             }
         }
-        self.fetch_nodes::<L>(next_subtrees, storage, config)
+        self.fetch_nodes::<L>(next_subtrees, storage, config, previous_leaves)
     }
 
     fn calculate_subtrees_roots<L: LeafData>(
@@ -199,17 +229,10 @@ impl OriginalSkeletonTreeImpl {
         config: &impl OriginalSkeletonTreeConfig<L>,
     ) -> OriginalSkeletonTreeResult<Self> {
         if sorted_leaf_indices.is_empty() {
-            return Ok(Self {
-                nodes: HashMap::from([(
-                    NodeIndex::ROOT,
-                    OriginalSkeletonNode::UnmodifiedSubTree(root_hash),
-                )]),
-            });
+            return Ok(Self::create_unmodified(root_hash));
         }
         if root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
-            return Ok(Self {
-                nodes: HashMap::new(),
-            });
+            return Ok(Self::create_empty());
         }
         let main_subtree = SubTree {
             sorted_leaf_indices,
@@ -219,7 +242,54 @@ impl OriginalSkeletonTreeImpl {
         let mut skeleton_tree = Self {
             nodes: HashMap::new(),
         };
-        skeleton_tree.fetch_nodes::<L>(vec![main_subtree], storage, config)?;
+        skeleton_tree.fetch_nodes::<L>(vec![main_subtree], storage, config, None)?;
         Ok(skeleton_tree)
+    }
+
+    pub(crate) fn create_and_get_previous_leaves_impl<L: LeafData>(
+        storage: &impl Storage,
+        root_hash: HashOutput,
+        sorted_leaf_indices: &[NodeIndex],
+        config: &impl OriginalSkeletonTreeConfig<L>,
+    ) -> OriginalSkeletonTreeResult<(Self, HashMap<NodeIndex, L>)> {
+        if sorted_leaf_indices.is_empty() {
+            let unmodified = Self::create_unmodified(root_hash);
+            return Ok((unmodified, HashMap::new()));
+        }
+        if root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
+            return Ok((
+                Self::create_empty(),
+                sorted_leaf_indices
+                    .iter()
+                    .map(|idx| (*idx, L::default()))
+                    .collect(),
+            ));
+        }
+        let main_subtree = SubTree {
+            sorted_leaf_indices,
+            root_index: NodeIndex::ROOT,
+            root_hash,
+        };
+        let mut skeleton_tree = Self {
+            nodes: HashMap::new(),
+        };
+        let mut leaves = HashMap::new();
+        skeleton_tree.fetch_nodes::<L>(vec![main_subtree], storage, config, Some(&mut leaves))?;
+        Ok((skeleton_tree, leaves))
+    }
+
+    fn create_unmodified(root_hash: HashOutput) -> Self {
+        Self {
+            nodes: HashMap::from([(
+                NodeIndex::ROOT,
+                OriginalSkeletonNode::UnmodifiedSubTree(root_hash),
+            )]),
+        }
+    }
+
+    fn create_empty() -> Self {
+        Self {
+            nodes: HashMap::new(),
+        }
     }
 }

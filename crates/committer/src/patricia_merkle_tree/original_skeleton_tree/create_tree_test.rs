@@ -384,7 +384,8 @@ fn test_get_bottom_subtree(
     };
 
     // Get the bottom subtree.
-    let subtree = tree.get_bottom_subtree(&path_to_bottom, HashOutput(Felt::TWO));
+    let (subtree, previously_empty_leaf_indices) =
+        tree.get_bottom_subtree(&path_to_bottom, HashOutput(Felt::TWO));
 
     // Cast the expected output to the correct type for subtree.
     let expected_sorted_leaf_indices = expected_sorted_leaf_indices
@@ -399,7 +400,10 @@ fn test_get_bottom_subtree(
         root_index: expected_root_index,
         root_hash: HashOutput(Felt::TWO),
     };
-
+    assert_eq!(
+        previously_empty_leaf_indices,
+        create_previously_empty_leaf_indices(&sorted_leaf_indices, &expected_sorted_leaf_indices)
+    );
     assert_eq!(subtree, expected_subtree);
 }
 
@@ -547,4 +551,14 @@ pub(crate) fn create_root_edge_entry(
             .collect(),
     );
     (key, value)
+}
+
+fn create_previously_empty_leaf_indices<'a>(
+    tree_leaf_indices: &'a [NodeIndex],
+    subtree_leaf_indices: &'a [NodeIndex],
+) -> Vec<&'a NodeIndex> {
+    tree_leaf_indices
+        .iter()
+        .filter(|idx| !subtree_leaf_indices.contains(idx))
+        .collect()
 }

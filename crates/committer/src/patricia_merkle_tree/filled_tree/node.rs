@@ -17,7 +17,7 @@ pub struct Nonce(pub Felt);
 
 impl_from_hex_for_felt_wrapper!(Nonce);
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct CompiledClassHash(pub Felt);
 
 impl_from_hex_for_felt_wrapper!(CompiledClassHash);

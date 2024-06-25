@@ -31,3 +31,11 @@ fn test_leaf_serde<L: LeafData + Eq + Debug>(#[case] leaf: L) {
     let deserialized = L::deserialize(&serialized).unwrap();
     assert_eq!(deserialized, leaf);
 }
+
+#[rstest]
+#[case::storage_leaf(StarknetStorageValue::default())]
+#[case::compiled_class_leaf(CompiledClassHash::default())]
+#[case::contract_state_leaf(ContractState::default())]
+fn test_default_is_empty<L: LeafData>(#[case] leaf: L) {
+    assert!(leaf.is_empty())
+}
