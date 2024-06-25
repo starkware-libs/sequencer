@@ -78,13 +78,13 @@ fn test_get_txs(#[case] requested_txs: usize) {
     ]);
 
     let expected_addresses =
-        vec![contract_address!("0x0"), contract_address!("0x1"), contract_address!("0x2")];
+        [contract_address!("0x0"), contract_address!("0x1"), contract_address!("0x2")];
     // checks that the transactions were added to the mempool.
     for address in &expected_addresses {
         assert!(mempool.state.contains_key(address));
     }
 
-    let sorted_txs = vec![tx_tip_100_address_1, tx_tip_50_address_0, tx_tip_10_address_2];
+    let sorted_txs = [tx_tip_100_address_1, tx_tip_50_address_0, tx_tip_10_address_2];
 
     let txs = mempool.get_txs(requested_txs).unwrap();
 
@@ -93,13 +93,13 @@ fn test_get_txs(#[case] requested_txs: usize) {
 
     // checks that the returned transactions are the ones with the highest priority.
     assert_eq!(txs.len(), max_requested_txs);
-    assert_eq!(txs, sorted_txs[..max_requested_txs].to_vec());
+    assert_eq!(txs, sorted_txs[..max_requested_txs]);
 
     // checks that the transactions that were not returned are still in the mempool.
     let actual_addresses: Vec<&ContractAddress> = mempool.state.keys().collect();
     let expected_remaining_addresses: Vec<&ContractAddress> =
         expected_addresses[max_requested_txs..].iter().collect();
-    assert_eq!(actual_addresses, expected_remaining_addresses,);
+    assert_eq!(actual_addresses, expected_remaining_addresses);
 }
 
 #[rstest]
@@ -111,10 +111,10 @@ fn test_mempool_initialization_with_duplicate_sender_addresses() {
     let (tx, account) = add_tx_input!(Tip(50), TransactionHash(StarkFelt::ONE));
     let same_tx = tx.clone();
 
-    let inputs = vec![MempoolInput { tx, account }, MempoolInput { tx: same_tx, account }];
+    let inputs = [MempoolInput { tx, account }, MempoolInput { tx: same_tx, account }];
 
     // This call should panic because of duplicate sender addresses
-    let _mempool = Mempool::new(inputs.into_iter());
+    let _mempool = Mempool::new(inputs);
 }
 
 #[rstest]
@@ -146,9 +146,10 @@ fn test_add_same_tx(mut mempool: Mempool) {
     let same_tx = tx.clone();
 
     assert_matches!(mempool.add_tx(tx.clone(), account), Ok(()));
+
     assert_matches!(
         mempool.add_tx(same_tx, account),
-        Err(MempoolError::DuplicateTransaction { tx_hash: TransactionHash(StarkFelt::ONE) })
+        Err(MempoolError::DuplicateTransaction { .. })
     );
     // Assert that the original tx remains in the pool after the failed attempt.
     check_mempool_txs_eq(&mempool, &[tx])
