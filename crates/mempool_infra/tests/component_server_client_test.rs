@@ -1,7 +1,7 @@
 mod common;
 
 use async_trait::async_trait;
-use common::{ComponentATrait, ComponentBTrait};
+use common::{ComponentAClientTrait, ComponentBClientTrait, ResultA, ResultB};
 use starknet_mempool_infra::component_client::ComponentClient;
 use starknet_mempool_infra::component_definitions::{
     ComponentRequestAndResponseSender, ComponentRequestHandler,
@@ -23,11 +23,11 @@ pub enum ComponentAResponse {
 }
 
 #[async_trait]
-impl ComponentATrait for ComponentClient<ComponentARequest, ComponentAResponse> {
-    async fn a_get_value(&self) -> ValueA {
+impl ComponentAClientTrait for ComponentClient<ComponentARequest, ComponentAResponse> {
+    async fn a_get_value(&self) -> ResultA {
         let res = self.send(ComponentARequest::AGetValue).await;
         match res {
-            ComponentAResponse::Value(value) => value,
+            ComponentAResponse::Value(value) => Ok(value),
         }
     }
 }
@@ -52,11 +52,11 @@ pub enum ComponentBResponse {
 }
 
 #[async_trait]
-impl ComponentBTrait for ComponentClient<ComponentBRequest, ComponentBResponse> {
-    async fn b_get_value(&self) -> ValueB {
+impl ComponentBClientTrait for ComponentClient<ComponentBRequest, ComponentBResponse> {
+    async fn b_get_value(&self) -> ResultB {
         let res = self.send(ComponentBRequest::BGetValue).await;
         match res {
-            ComponentBResponse::Value(value) => value,
+            ComponentBResponse::Value(value) => Ok(value),
         }
     }
 }
@@ -65,7 +65,7 @@ impl ComponentBTrait for ComponentClient<ComponentBRequest, ComponentBResponse> 
 impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for ComponentB {
     async fn handle_request(&mut self, request: ComponentBRequest) -> ComponentBResponse {
         match request {
-            ComponentBRequest::BGetValue => ComponentBResponse::Value(self.b_get_value().await),
+            ComponentBRequest::BGetValue => ComponentBResponse::Value(self.b_get_value()),
         }
     }
 }

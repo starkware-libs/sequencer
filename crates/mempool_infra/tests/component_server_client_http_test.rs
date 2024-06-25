@@ -4,7 +4,7 @@ use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use common::{ComponentATrait, ComponentBTrait};
+use common::{ComponentAClientTrait, ComponentBClientTrait, ResultA, ResultB};
 use hyper::header::CONTENT_TYPE;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Request, Response, Server, Uri};
@@ -44,8 +44,8 @@ impl ComponentAClientHttp {
 
 // Todo(uriel): Change the component trait to client specific and make it return result
 #[async_trait]
-impl ComponentATrait for ComponentAClientHttp {
-    async fn a_get_value(&self) -> ValueA {
+impl ComponentAClientTrait for ComponentAClientHttp {
+    async fn a_get_value(&self) -> ResultA {
         let component_request = ComponentARequest::AGetValue;
         let http_request = Request::post(self.uri.clone())
             .header("Content-Type", "application/octet-stream")
@@ -62,7 +62,7 @@ impl ComponentATrait for ComponentAClientHttp {
             .await
             .expect("Could not get response from server");
         match bincode::deserialize(&body_bytes).expect("Response deserialization should succeed") {
-            ComponentAResponse::Value(value) => value,
+            ComponentAResponse::Value(value) => Ok(value),
         }
     }
 }
@@ -158,8 +158,8 @@ impl ComponentBClientHttp {
 
 // Todo(uriel): Change the component trait to client specific and make it return result
 #[async_trait]
-impl ComponentBTrait for ComponentBClientHttp {
-    async fn b_get_value(&self) -> ValueB {
+impl ComponentBClientTrait for ComponentBClientHttp {
+    async fn b_get_value(&self) -> ResultB {
         let component_request = ComponentBRequest::BGetValue;
         let http_request = Request::post(self.uri.clone())
             .header("Content-Type", "application/octet-stream")
@@ -176,7 +176,7 @@ impl ComponentBTrait for ComponentBClientHttp {
             .await
             .expect("Could not get response from server");
         match bincode::deserialize(&body_bytes).expect("Response deserialization should succeed") {
-            ComponentBResponse::Value(value) => value,
+            ComponentBResponse::Value(value) => Ok(value),
         }
     }
 }
@@ -185,7 +185,7 @@ impl ComponentBTrait for ComponentBClientHttp {
 impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for ComponentB {
     async fn handle_request(&mut self, request: ComponentBRequest) -> ComponentBResponse {
         match request {
-            ComponentBRequest::BGetValue => ComponentBResponse::Value(self.b_get_value().await),
+            ComponentBRequest::BGetValue => ComponentBResponse::Value(self.b_get_value()),
         }
     }
 }
@@ -242,7 +242,7 @@ impl ComponentBServerHttp {
 
 async fn verify_response(ip_address: IpAddr, port: u16, expected_value: ValueA) {
     let a_client = ComponentAClientHttp::new(ip_address, port);
-    assert_eq!(a_client.a_get_value().await, expected_value);
+    assert_eq!(a_client.a_get_value().await.unwrap(), expected_value);
 }
 
 #[tokio::test]

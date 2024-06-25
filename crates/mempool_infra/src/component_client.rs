@@ -48,3 +48,5 @@ pub enum ClientError {
     #[error("Got an unexpected response type.")]
     UnexpectedResponse,
 }
+
+pub type ClientResult<T> = Result<T, ClientError>;

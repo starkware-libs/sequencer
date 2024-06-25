@@ -9,7 +9,7 @@ mod common;
 use std::net::{IpAddr, SocketAddr};
 
 use async_trait::async_trait;
-use common::{ComponentATrait, ComponentBTrait};
+use common::{ComponentAClientTrait, ComponentBClientTrait, ResultA, ResultB};
 use component_a_service::remote_a_client::RemoteAClient;
 use component_a_service::remote_a_server::{RemoteA, RemoteAServer};
 use component_a_service::{AGetValueMessage, AGetValueReturnMessage};
@@ -40,8 +40,8 @@ impl ComponentAClientRpc {
 }
 
 #[async_trait]
-impl ComponentATrait for ComponentAClientRpc {
-    async fn a_get_value(&self) -> ValueA {
+impl ComponentAClientTrait for ComponentAClientRpc {
+    async fn a_get_value(&self) -> ResultA {
         let Ok(mut client) = RemoteAClient::connect(self.dst.clone()).await else {
             panic!("Could not connect to server");
         };
@@ -51,7 +51,7 @@ impl ComponentATrait for ComponentAClientRpc {
             panic!("Could not get response from server");
         };
 
-        response.get_ref().value
+        Ok(response.get_ref().value)
     }
 }
 
@@ -66,8 +66,8 @@ impl ComponentBClientRpc {
 }
 
 #[async_trait]
-impl ComponentBTrait for ComponentBClientRpc {
-    async fn b_get_value(&self) -> ValueB {
+impl ComponentBClientTrait for ComponentBClientRpc {
+    async fn b_get_value(&self) -> ResultB {
         let Ok(mut client) = RemoteBClient::connect(self.dst.clone()).await else {
             panic!("Could not connect to server");
         };
@@ -77,7 +77,7 @@ impl ComponentBTrait for ComponentBClientRpc {
             panic!("Could not get response from server");
         };
 
-        response.get_ref().value.try_into().unwrap()
+        Ok(response.get_ref().value.try_into().unwrap())
     }
 }
 
@@ -113,7 +113,7 @@ impl RemoteB for ComponentB {
         &self,
         _request: tonic::Request<BGetValueMessage>,
     ) -> Result<Response<BGetValueReturnMessage>, Status> {
-        Ok(Response::new(BGetValueReturnMessage { value: self.b_get_value().await.into() }))
+        Ok(Response::new(BGetValueReturnMessage { value: self.b_get_value().into() }))
     }
 }
 
@@ -135,7 +135,7 @@ impl ComponentBServerRpc {
 
 async fn verify_response(ip_address: IpAddr, port: u16, expected_value: ValueA) {
     let a_client = ComponentAClientRpc::new(ip_address, port);
-    assert_eq!(a_client.a_get_value().await, expected_value);
+    assert_eq!(a_client.a_get_value().await.unwrap(), expected_value);
 }
 
 #[tokio::test]
