@@ -5,7 +5,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::EdgeData;
 use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
 use crate::patricia_merkle_tree::node_data::leaf::LeafData;
-use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
+use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
@@ -19,7 +19,9 @@ use crate::storage::storage_trait::Storage;
 use crate::storage::storage_trait::StorageKey;
 use crate::storage::storage_trait::StoragePrefix;
 use bisection::{bisect_left, bisect_right};
+use log::warn;
 use std::collections::HashMap;
+
 #[cfg(test)]
 #[path = "create_tree_test.rs"]
 pub mod create_tree_test;
@@ -86,11 +88,13 @@ impl<'a> SubTree<'a> {
 impl OriginalSkeletonTreeImpl {
     /// Fetches the Patricia witnesses, required to build the original skeleton tree from storage.
     /// Given a list of subtrees, traverses towards their leaves and fetches all non-empty,
-    /// unmodified nodes.
+    /// unmodified nodes. If `compare_modified_leaves` is set, function logs out a warning when
+    /// encountering a trivial modification.
     fn fetch_nodes<L: LeafData>(
         &mut self,
         subtrees: Vec<SubTree<'_>>,
         storage: &impl Storage,
+        config: &impl OriginalSkeletonTreeConfig<L>,
     ) -> OriginalSkeletonTreeResult<()> {
         if subtrees.is_empty() {
             return Ok(());
@@ -138,18 +142,25 @@ impl OriginalSkeletonTreeImpl {
                     next_subtrees.push(bottom_subtree);
                 }
                 // Leaf node.
-                NodeData::Leaf(_previous_leaf) => {
+                NodeData::Leaf(previous_leaf) => {
                     if subtree.is_unmodified() {
                         // Sibling leaf.
                         self.nodes.insert(
                             subtree.root_index,
                             OriginalSkeletonNode::UnmodifiedSubTree(filled_root.hash),
                         );
+                    } else if config.compare_modified_leaves()
+                        && config.compare_leaf(&subtree.root_index, &previous_leaf)?
+                    {
+                        warn!(
+                            "Encontered a trivial modification at index {:?}",
+                            subtree.root_index
+                        );
                     }
                 }
             }
         }
-        self.fetch_nodes::<L>(next_subtrees, storage)
+        self.fetch_nodes::<L>(next_subtrees, storage, config)
     }
 
     fn calculate_subtrees_roots<L: LeafData>(
@@ -183,11 +194,10 @@ impl OriginalSkeletonTreeImpl {
 
     pub(crate) fn create_impl<L: LeafData>(
         storage: &impl Storage,
-        leaf_modifications: &LeafModifications<L>,
         root_hash: HashOutput,
+        sorted_leaf_indices: &[NodeIndex],
+        config: &impl OriginalSkeletonTreeConfig<L>,
     ) -> OriginalSkeletonTreeResult<Self> {
-        let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
-        sorted_leaf_indices.sort();
         if sorted_leaf_indices.is_empty() {
             return Ok(Self {
                 nodes: HashMap::from([(
@@ -202,14 +212,14 @@ impl OriginalSkeletonTreeImpl {
             });
         }
         let main_subtree = SubTree {
-            sorted_leaf_indices: &sorted_leaf_indices,
+            sorted_leaf_indices,
             root_index: NodeIndex::ROOT,
             root_hash,
         };
         let mut skeleton_tree = Self {
             nodes: HashMap::new(),
         };
-        skeleton_tree.fetch_nodes::<L>(vec![main_subtree], storage)?;
+        skeleton_tree.fetch_nodes::<L>(vec![main_subtree], storage, config)?;
         Ok(skeleton_tree)
     }
 }

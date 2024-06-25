@@ -13,6 +13,7 @@ use rand::Rng;
 
 use super::filled_tree::tree::{FilledTree, StorageTrie};
 use super::node_data::leaf::{LeafData, LeafModifications, SkeletonLeaf};
+use super::original_skeleton_tree::config::OriginalSkeletonStorageTrieConfig;
 use super::original_skeleton_tree::tree::{OriginalSkeletonTree, OriginalSkeletonTreeImpl};
 use super::types::NodeIndex;
 use super::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
@@ -71,8 +72,11 @@ pub async fn tree_computation_flow(
     storage: &MapStorage,
     root_hash: HashOutput,
 ) -> StorageTrie {
+    let config = OriginalSkeletonStorageTrieConfig::new(&leaf_modifications, false);
+    let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
+    sorted_leaf_indices.sort();
     let mut original_skeleton: OriginalSkeletonTreeImpl =
-        OriginalSkeletonTree::create(storage, &leaf_modifications, root_hash)
+        OriginalSkeletonTree::create(storage, root_hash, &sorted_leaf_indices, &config)
             .expect("Failed to create the original skeleton tree");
 
     let updated_skeleton: UpdatedSkeletonTreeImpl = UpdatedSkeletonTree::create(

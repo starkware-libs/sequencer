@@ -7,6 +7,9 @@ use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use crate::patricia_merkle_tree::node_data::leaf::ContractState;
 use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
+use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonClassesTrieConfig;
+use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonContractsTrieConfig;
+use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonStorageTrieConfig;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::storage_trait::Storage;
@@ -83,20 +86,17 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
         contracts_trie_root_hash: HashOutput,
         storage: &impl Storage,
     ) -> ForestResult<T> {
-        // The actual modifications are unknown at this time - storage root hash has not been calculated yet.
-        let contract_dummy_modifications = accessed_addresses
+        let mut sorted_leaf_indices: Vec<NodeIndex> = accessed_addresses
             .iter()
-            .map(|address| {
-                (
-                    NodeIndex::from_contract_address(address),
-                    ContractState::default(),
-                )
-            })
+            .map(|address| NodeIndex::from_contract_address(address))
             .collect();
+        sorted_leaf_indices.sort();
+
         Ok(T::create(
             storage,
-            &contract_dummy_modifications,
             contracts_trie_root_hash,
+            &sorted_leaf_indices,
+            &OriginalSkeletonContractsTrieConfig::new(),
         )?)
     }
 
@@ -107,10 +107,20 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
     ) -> ForestResult<HashMap<ContractAddress, T>> {
         let mut storage_tries = HashMap::new();
         for (address, updates) in actual_storage_updates {
+            let mut sorted_leaf_indices: Vec<NodeIndex> = updates.keys().copied().collect();
+            sorted_leaf_indices.sort();
             let contract_state = current_contracts_trie_leaves
                 .get(address)
                 .ok_or(ForestError::MissingContractCurrentState(*address))?;
-            let original_skeleton = T::create(storage, updates, contract_state.storage_root_hash)?;
+
+            // TODO(Nimrod, 1/7/2024): Set the configuration according to an input and not hard coded.
+            let config = OriginalSkeletonStorageTrieConfig::new(updates, true);
+            let original_skeleton = T::create(
+                storage,
+                contract_state.storage_root_hash,
+                &sorted_leaf_indices,
+                &config,
+            )?;
             storage_tries.insert(*address, original_skeleton);
         }
         Ok(storage_tries)
@@ -121,10 +131,17 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
         classes_trie_root_hash: HashOutput,
         storage: &impl Storage,
     ) -> ForestResult<T> {
+        // TODO(Nimrod, 1/7/2024): Set the configuration according to an input and not hard coded.
+        let config = OriginalSkeletonClassesTrieConfig::new(actual_classes_updates, true);
+        let mut sorted_leaf_indices: Vec<NodeIndex> =
+            actual_classes_updates.keys().copied().collect();
+        sorted_leaf_indices.sort();
+
         Ok(T::create(
             storage,
-            actual_classes_updates,
             classes_trie_root_hash,
+            &sorted_leaf_indices,
+            &config,
         )?)
     }
 }

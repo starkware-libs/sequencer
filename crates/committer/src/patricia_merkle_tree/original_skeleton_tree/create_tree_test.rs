@@ -7,6 +7,7 @@ use crate::patricia_merkle_tree::internal_test_utils::small_tree_index_to_full;
 use crate::patricia_merkle_tree::node_data::inner_node::EdgePath;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafModifications};
+use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonStorageTrieConfig;
 use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::SubTree;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
@@ -49,7 +50,6 @@ use std::collections::HashMap;
 
 #[case::simple_tree_of_height_3(
     HashMap::from([
-    create_root_edge_entry(50, SubTreeHeight::new(3)),
     create_root_edge_entry(50, SubTreeHeight::new(3)),
     create_binary_entry(8, 9),
     create_edge_entry(11, 1, 1),
@@ -202,15 +202,21 @@ fn test_create_tree(
     #[case] root_hash: HashOutput,
     #[case] expected_skeleton: OriginalSkeletonTreeImpl,
     #[case] subtree_height: SubTreeHeight,
+    #[values(true, false)] compare_modified_leaves: bool,
 ) {
-    let leaf_modifications = leaf_modifications
+    let leaf_modifications: LeafModifications<StarknetStorageValue> = leaf_modifications
         .into_iter()
         .map(|(idx, leaf)| (NodeIndex::from_subtree_index(idx, subtree_height), leaf))
         .collect();
+    let config =
+        OriginalSkeletonStorageTrieConfig::new(&leaf_modifications, compare_modified_leaves);
+    let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
+    sorted_leaf_indices.sort();
     let skeleton_tree = OriginalSkeletonTreeImpl::create::<StarknetStorageValue>(
         &storage,
-        &leaf_modifications,
         root_hash,
+        &sorted_leaf_indices,
+        &config,
     )
     .unwrap();
     assert_eq!(&skeleton_tree.nodes, &expected_skeleton.nodes);
