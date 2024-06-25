@@ -4,7 +4,7 @@ use starknet_mempool_integration_tests::integration_test_setup::IntegrationTestS
 
 #[tokio::test]
 async fn test_end_to_end() {
-    let mut mock_running_system = IntegrationTestSetup::new().await;
+    let mut mock_running_system = IntegrationTestSetup::new(1).await;
 
     let expected_tx_hash =
         mock_running_system.assert_add_tx_success(&invoke_tx(CairoVersion::Cairo1)).await;

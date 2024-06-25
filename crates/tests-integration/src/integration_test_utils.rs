@@ -16,7 +16,10 @@ use starknet_mempool_types::communication::SharedMempoolClient;
 
 use crate::state_reader::rpc_test_state_reader_factory;
 
-pub async fn create_gateway(mempool_client: SharedMempoolClient) -> Gateway {
+pub async fn create_gateway(
+    mempool_client: SharedMempoolClient,
+    n_initialized_account_contracts: u16,
+) -> Gateway {
     let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
         validate_non_zero_l1_gas_fee: true,
         max_calldata_length: 10,
@@ -34,7 +37,8 @@ pub async fn create_gateway(mempool_client: SharedMempoolClient) -> Gateway {
         stateful_tx_validator_config,
     };
 
-    let state_reader_factory = Arc::new(rpc_test_state_reader_factory().await);
+    let state_reader_factory =
+        Arc::new(rpc_test_state_reader_factory(n_initialized_account_contracts).await);
 
     Gateway::new(gateway_config, state_reader_factory, mempool_client)
 }
