@@ -8,7 +8,7 @@ use starknet_mempool_types::mempool_types::{
     Account, AccountState, MempoolInput, MempoolResult, ThinTransaction,
 };
 
-use crate::priority_queue::TransactionPriorityQueue;
+use crate::priority_queue::TransactionQueue;
 use crate::transaction_pool::TransactionPool;
 
 #[cfg(test)]
@@ -18,7 +18,7 @@ pub mod mempool_test;
 #[derive(Debug, Default)]
 pub struct Mempool {
     // TODO: add docstring explaining visibility and coupling of the fields.
-    txs_queue: TransactionPriorityQueue,
+    txs_queue: TransactionQueue,
     tx_pool: TransactionPool,
     state: HashMap<ContractAddress, AccountState>,
 }

@@ -5,7 +5,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{MempoolResult, ThinTransaction};
 
-use crate::priority_queue::PrioritizedTransaction;
+use crate::priority_queue::QueuedTransaction;
 
 /// Contains all transactions currently held in the mempool.
 /// Invariant: both data structures are consistent regarding the existence of transactions:
@@ -16,7 +16,7 @@ pub struct TransactionPool {
     // Holds the complete transaction objects; it should be the sole entity that does so.
     tx_pool: HashMap<TransactionHash, ThinTransaction>,
     // Transactions organized by account address, sorted by ascending nonce values.
-    txs_by_account: HashMap<ContractAddress, BTreeMap<Nonce, PrioritizedTransaction>>,
+    txs_by_account: HashMap<ContractAddress, BTreeMap<Nonce, QueuedTransaction>>,
 }
 
 impl TransactionPool {

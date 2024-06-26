@@ -7,13 +7,13 @@ use starknet_mempool_types::mempool_types::ThinTransaction;
 // appropriate, because we'll also need to stores transactions without indexing them. For example,
 // transactions with future nonces will need to be stored, and potentially indexed on block commits.
 #[derive(Clone, Debug, Default, derive_more::Deref, derive_more::DerefMut)]
-pub struct TransactionPriorityQueue(BTreeSet<PrioritizedTransaction>);
+pub struct TransactionQueue(BTreeSet<QueuedTransaction>);
 
-impl TransactionPriorityQueue {
+impl TransactionQueue {
     /// Adds a transaction to the mempool, ensuring unique keys.
     /// Panics: if given a duplicate tx.
     pub fn push(&mut self, tx: ThinTransaction) {
-        let mempool_tx = PrioritizedTransaction(tx);
+        let mempool_tx = QueuedTransaction(tx);
         assert!(self.insert(mempool_tx), "Keys should be unique; duplicates are checked prior.");
     }
 
@@ -23,21 +23,19 @@ impl TransactionPriorityQueue {
     }
 }
 
-impl From<Vec<ThinTransaction>> for TransactionPriorityQueue {
+impl From<Vec<ThinTransaction>> for TransactionQueue {
     fn from(transactions: Vec<ThinTransaction>) -> Self {
-        TransactionPriorityQueue(BTreeSet::from_iter(
-            transactions.into_iter().map(PrioritizedTransaction),
-        ))
+        TransactionQueue(BTreeSet::from_iter(transactions.into_iter().map(QueuedTransaction)))
     }
 }
 
 #[derive(Clone, Debug, derive_more::Deref, derive_more::From)]
-pub struct PrioritizedTransaction(pub ThinTransaction);
+pub struct QueuedTransaction(pub ThinTransaction);
 
 /// Compare transactions based only on their tip, a uint, using the Eq trait. It ensures that two
 /// tips are either exactly equal or not.
-impl PartialEq for PrioritizedTransaction {
-    fn eq(&self, other: &PrioritizedTransaction) -> bool {
+impl PartialEq for QueuedTransaction {
+    fn eq(&self, other: &QueuedTransaction) -> bool {
         self.tip == other.tip && self.tx_hash == other.tx_hash
     }
 }
@@ -45,15 +43,15 @@ impl PartialEq for PrioritizedTransaction {
 /// Marks this struct as capable of strict equality comparisons, signaling to the compiler it
 /// adheres to equality semantics.
 // Note: this depends on the implementation of `PartialEq`, see its docstring.
-impl Eq for PrioritizedTransaction {}
+impl Eq for QueuedTransaction {}
 
-impl Ord for PrioritizedTransaction {
+impl Ord for QueuedTransaction {
     fn cmp(&self, other: &Self) -> Ordering {
         self.tip.cmp(&other.tip).then_with(|| self.tx_hash.cmp(&other.tx_hash))
     }
 }
 
-impl PartialOrd for PrioritizedTransaction {
+impl PartialOrd for QueuedTransaction {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
