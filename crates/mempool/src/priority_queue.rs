@@ -2,35 +2,42 @@ use std::cmp::Ordering;
 use std::collections::{BTreeSet, VecDeque};
 
 use starknet_mempool_types::mempool_types::ThinTransaction;
+
+use crate::mempool::TransactionReference;
 // Assumption: for the MVP only one transaction from the same contract class can be in the mempool
 // at a time. When this changes, saving the transactions themselves on the queu might no longer be
 // appropriate, because we'll also need to stores transactions without indexing them. For example,
 // transactions with future nonces will need to be stored, and potentially indexed on block commits.
-#[derive(Clone, Debug, Default, derive_more::Deref, derive_more::DerefMut)]
+#[derive(Clone, Debug, Default)]
 pub struct TransactionQueue(BTreeSet<QueuedTransaction>);
 
 impl TransactionQueue {
     /// Adds a transaction to the mempool, ensuring unique keys.
     /// Panics: if given a duplicate tx.
-    pub fn push(&mut self, tx: ThinTransaction) {
+    pub fn push(&mut self, tx: TransactionReference) {
         let mempool_tx = QueuedTransaction(tx);
-        assert!(self.insert(mempool_tx), "Keys should be unique; duplicates are checked prior.");
+        assert!(self.0.insert(mempool_tx), "Keys should be unique; duplicates are checked prior.");
     }
 
     // TODO(gilad): remove collect
-    pub fn pop_last_chunk(&mut self, n_txs: usize) -> Vec<ThinTransaction> {
-        (0..n_txs).filter_map(|_| self.pop_last().map(|tx| tx.0)).collect()
+    pub fn pop_last_chunk(&mut self, n_txs: usize) -> Vec<TransactionReference> {
+        (0..n_txs).filter_map(|_| self.0.pop_last().map(|tx| tx.0)).collect()
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {
+        self.0.iter().map(|queued_tx| &queued_tx.0)
     }
 }
 
-impl From<Vec<ThinTransaction>> for TransactionQueue {
-    fn from(transactions: Vec<ThinTransaction>) -> Self {
+impl From<Vec<TransactionReference>> for TransactionQueue {
+    fn from(transactions: Vec<TransactionReference>) -> Self {
         TransactionQueue(BTreeSet::from_iter(transactions.into_iter().map(QueuedTransaction)))
     }
 }
 
 #[derive(Clone, Debug, derive_more::Deref, derive_more::From)]
-pub struct QueuedTransaction(pub ThinTransaction);
+struct QueuedTransaction(pub TransactionReference);
 
 /// Compare transactions based only on their tip, a uint, using the Eq trait. It ensures that two
 /// tips are either exactly equal or not.

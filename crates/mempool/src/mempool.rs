@@ -46,7 +46,7 @@ impl Mempool {
                 );
             }
 
-            mempool.txs_queue.push(tx);
+            mempool.txs_queue.push(tx.into());
         }
 
         mempool
@@ -62,13 +62,16 @@ impl Mempool {
     // back. TODO: Consider renaming to `pop_txs` to be more consistent with the standard
     // library.
     pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<ThinTransaction>> {
+        let mut eligible_txs: Vec<ThinTransaction> = Vec::with_capacity(n_txs);
+
         let txs = self.txs_queue.pop_last_chunk(n_txs);
-        for tx in &txs {
+        for tx in txs {
             self.state.remove(&tx.sender_address);
             self.tx_pool.remove(tx.tx_hash)?;
+            eligible_txs.push(tx.0);
         }
 
-        Ok(txs)
+        Ok(eligible_txs)
     }
 
     /// Adds a new transaction to the mempool.
@@ -80,7 +83,7 @@ impl Mempool {
             Vacant(entry) => {
                 entry.insert(account.state);
                 // TODO(Mohammad): use `handle_tx`.
-                self.txs_queue.push(tx.clone());
+                self.txs_queue.push(tx.clone().into());
                 self.tx_pool.push(tx)?;
 
                 Ok(())
@@ -101,3 +104,10 @@ impl Mempool {
         todo!()
     }
 }
+
+/// Provides a lightweight representation of a transaction for mempool usage (e.g., excluding
+/// execution fields).
+/// TODO(Mohammad): rename this struct to `ThinTransaction` once that name
+/// becomes available, to better reflect its purpose and usage.
+#[derive(Clone, Debug, Default, derive_more::Deref, derive_more::From)]
+pub struct TransactionReference(ThinTransaction);
