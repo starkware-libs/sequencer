@@ -54,8 +54,38 @@
     "privacy": "Public",
     "value": 0
   },
+  "gateway_config.stateless_tx_validator_config.max_sierra_version.major": {
+    "description": "The major version of the configuration.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "gateway_config.stateless_tx_validator_config.max_sierra_version.minor": {
+    "description": "The minor version of the configuration.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "gateway_config.stateless_tx_validator_config.max_sierra_version.patch": {
+    "description": "The patch version of the configuration.",
+    "privacy": "Public",
+    "value": 0
+  },
   "gateway_config.stateless_tx_validator_config.max_signature_length": {
     "description": "Validates that a transaction has signature length less than or equal to this value.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "gateway_config.stateless_tx_validator_config.min_sierra_version.major": {
+    "description": "The major version of the configuration.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "gateway_config.stateless_tx_validator_config.min_sierra_version.minor": {
+    "description": "The minor version of the configuration.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "gateway_config.stateless_tx_validator_config.min_sierra_version.patch": {
+    "description": "The patch version of the configuration.",
     "privacy": "Public",
     "value": 0
   },

@@ -6,7 +6,13 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress, Nonce};
-use validator::Validate;
+use validator::{Validate, ValidationError};
+
+use crate::compiler_version::VersionId;
+
+#[cfg(test)]
+#[path = "config_test.rs"]
+mod config_test;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct GatewayConfig {
@@ -61,7 +67,8 @@ impl Default for GatewayNetworkConfig {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+#[validate(schema(function = "validate_stateless_transaction_validator_config"))]
 pub struct StatelessTransactionValidatorConfig {
     // If true, validates that the resource bounds are not zero.
     pub validate_non_zero_l1_gas_fee: bool,
@@ -72,11 +79,28 @@ pub struct StatelessTransactionValidatorConfig {
     // Declare txs specific config.
     pub max_bytecode_size: usize,
     pub max_raw_class_size: usize,
+    pub min_sierra_version: VersionId,
+    pub max_sierra_version: VersionId,
+}
+
+impl Default for StatelessTransactionValidatorConfig {
+    fn default() -> Self {
+        StatelessTransactionValidatorConfig {
+            validate_non_zero_l1_gas_fee: false,
+            validate_non_zero_l2_gas_fee: false,
+            max_calldata_length: 0,
+            max_signature_length: 0,
+            max_bytecode_size: 0,
+            max_raw_class_size: 0,
+            min_sierra_version: VersionId::MIN,
+            max_sierra_version: VersionId::MAX,
+        }
+    }
 }
 
 impl SerializeConfig for StatelessTransactionValidatorConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
+        let members = BTreeMap::from_iter([
             ser_param(
                 "validate_non_zero_l1_gas_fee",
                 &self.validate_non_zero_l1_gas_fee,
@@ -103,8 +127,28 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
                  value.",
                 ParamPrivacyInput::Public,
             ),
-        ])
+        ]);
+        vec![
+            members,
+            append_sub_config_name(self.min_sierra_version.dump(), "min_sierra_version"),
+            append_sub_config_name(self.max_sierra_version.dump(), "max_sierra_version"),
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
     }
+}
+
+pub fn validate_stateless_transaction_validator_config(
+    config: &StatelessTransactionValidatorConfig,
+) -> Result<(), ValidationError> {
+    if config.max_sierra_version.patch != 0 {
+        let mut error = ValidationError::new("Invalid max_sierra_version.");
+        error.message = Some("The patch version should be 0.".into());
+        return Err(error);
+    }
+
+    Ok(())
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]

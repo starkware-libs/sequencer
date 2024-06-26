@@ -113,10 +113,23 @@ impl StatelessTransactionValidator {
         &self,
         sierra_program: &[StarkFelt],
     ) -> StatelessTransactionValidatorResult<()> {
-        // TODO(Arni): Validate the sierra version is supported.
-        let _sierra_version = VersionId::from_sierra_program(sierra_program)?;
+        let sierra_version = VersionId::from_sierra_program(sierra_program)?;
 
-        Ok(())
+        // Check that the version is lower than the latest version allowing higher patch versions
+        // (i.e. we ignore the Z part in a version X.Y.Z).
+        let minor_sierra_version = VersionId { patch: 0, ..sierra_version };
+
+        if self.config.min_sierra_version <= sierra_version
+            && minor_sierra_version <= self.config.max_sierra_version
+        {
+            return Ok(());
+        }
+
+        Err(StatelessTransactionValidatorError::UnsupportedSierraVersion {
+            version: sierra_version,
+            min_version: self.config.min_sierra_version,
+            max_version: self.config.max_sierra_version,
+        })
     }
 
     fn validate_class_length(
