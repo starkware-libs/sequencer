@@ -12,6 +12,7 @@ workspace = true
 testing = []
 
 [dependencies]
+async-trait.workspace = true
 axum.workspace = true
 blockifier= { workspace = true , features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
@@ -23,6 +24,7 @@ reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 starknet_api.workspace = true
+starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }
 starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
 starknet_sierra_compile = { path = "../starknet_sierra_compile", version = "0.0" }
 test_utils = { path = "../test_utils", version = "0.0"}

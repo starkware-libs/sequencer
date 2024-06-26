@@ -7,6 +7,7 @@ use starknet_gateway::config::GatewayNetworkConfig;
 use starknet_gateway::errors::GatewayError;
 use starknet_mempool::communication::create_mempool_server;
 use starknet_mempool::mempool::Mempool;
+use starknet_mempool_infra::component_server::ComponentServerStarter;
 use starknet_mempool_types::communication::{
     MempoolClient, MempoolClientImpl, MempoolRequestAndResponseSender,
 };

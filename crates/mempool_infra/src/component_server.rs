@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use bincode::{deserialize, serialize};
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
@@ -14,6 +15,7 @@ use tokio::sync::Mutex;
 use crate::component_definitions::{
     ComponentRequestAndResponseSender, ComponentRequestHandler, APPLICATION_OCTET_STREAM,
 };
+use crate::component_runner::ComponentRunner;
 
 pub struct ComponentServer<Component, Request, Response>
 where
@@ -37,8 +39,22 @@ where
     ) -> Self {
         Self { component, rx }
     }
+}
 
-    pub async fn start(&mut self) {
+#[async_trait]
+pub trait ComponentServerStarter: Send + Sync {
+    async fn start(&mut self);
+}
+
+#[async_trait]
+impl<Component, Request, Response> ComponentServerStarter
+    for ComponentServer<Component, Request, Response>
+where
+    Component: ComponentRequestHandler<Request, Response> + Send + Sync,
+    Request: Send + Sync,
+    Response: Send + Sync,
+{
+    async fn start(&mut self) {
         while let Some(request_and_res_tx) = self.rx.recv().await {
             let request = request_and_res_tx.request;
             let tx = request_and_res_tx.tx;
@@ -113,4 +129,28 @@ where
 
         Ok(http_response)
     }
+}
+
+pub struct EmptyServer<T: ComponentRunner + Send + Sync> {
+    component: T,
+}
+
+impl<T: ComponentRunner + Send + Sync> EmptyServer<T> {
+    pub fn new(component: T) -> Self {
+        Self { component }
+    }
+}
+
+#[async_trait]
+impl<T: ComponentRunner + Send + Sync> ComponentServerStarter for EmptyServer<T> {
+    async fn start(&mut self) {
+        match self.component.start().await {
+            Ok(_) => println!("ComponentServer::start() completed."),
+            Err(err) => println!("ComponentServer::start() failed: {:?}", err),
+        }
+    }
+}
+
+pub fn create_empty_server<T: ComponentRunner + Send + Sync>(component: T) -> EmptyServer<T> {
+    EmptyServer::new(component)
 }

@@ -15,6 +15,7 @@ use starknet_api::rpc_transaction::{RPCDeclareTransaction, RPCTransaction};
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool::communication::create_mempool_server;
 use starknet_mempool::mempool::Mempool;
+use starknet_mempool_infra::component_server::ComponentServerStarter;
 use starknet_mempool_types::communication::{MempoolClientImpl, MempoolRequestAndResponseSender};
 use starknet_sierra_compile::errors::CompilationUtilError;
 use test_utils::starknet_api_test_utils::{declare_tx, deploy_account_tx, invoke_tx};

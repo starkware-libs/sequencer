@@ -6,7 +6,7 @@ use starknet_mempool_infra::component_client::ComponentClient;
 use starknet_mempool_infra::component_definitions::{
     ComponentRequestAndResponseSender, ComponentRequestHandler,
 };
-use starknet_mempool_infra::component_server::ComponentServer;
+use starknet_mempool_infra::component_server::{ComponentServer, ComponentServerStarter};
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::task;
 

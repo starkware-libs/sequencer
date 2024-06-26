@@ -5228,6 +5228,7 @@ name = "starknet_gateway"
 version = "0.0.0"
 dependencies = [
  "assert_matches",
+ "async-trait",
  "axum",
  "blockifier 0.7.0-dev.1 (git+https://github.com/starkware-libs/blockifier.git?branch=main-mempool)",
  "cairo-lang-starknet-classes",
@@ -5242,6 +5243,7 @@ dependencies = [
  "serde_json",
  "starknet_api",
  "starknet_mempool",
+ "starknet_mempool_infra",
  "starknet_mempool_types",
  "starknet_sierra_compile",
  "test_utils",
