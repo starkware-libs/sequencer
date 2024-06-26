@@ -114,6 +114,7 @@ impl OriginalSkeletonTreeImpl {
         if subtrees.is_empty() {
             return Ok(());
         }
+        let should_fetch_leaves = config.compare_modified_leaves() || previous_leaves.is_some();
         let mut next_subtrees = Vec::new();
         let filled_roots = Self::calculate_subtrees_roots::<L>(&subtrees, storage)?;
         for (filled_root, subtree) in filled_roots.into_iter().zip(subtrees.iter()) {
@@ -134,7 +135,9 @@ impl OriginalSkeletonTreeImpl {
                         .insert(subtree.root_index, OriginalSkeletonNode::Binary);
                     let (left_subtree, right_subtree) =
                         subtree.get_children_subtrees(left_hash, right_hash);
-                    next_subtrees.extend(vec![left_subtree, right_subtree]);
+
+                    self.handle_subtree(&mut next_subtrees, left_subtree, should_fetch_leaves);
+                    self.handle_subtree(&mut next_subtrees, right_subtree, should_fetch_leaves)
                 }
                 // Edge node.
                 NodeData::Edge(EdgeData {
@@ -155,7 +158,6 @@ impl OriginalSkeletonTreeImpl {
                     // Parse bottom.
                     let (bottom_subtree, previously_empty_leaves_indices) =
                         subtree.get_bottom_subtree(&path_to_bottom, bottom_hash);
-                    next_subtrees.push(bottom_subtree);
                     if let Some(ref mut leaves) = previous_leaves {
                         leaves.extend(
                             previously_empty_leaves_indices
@@ -164,6 +166,8 @@ impl OriginalSkeletonTreeImpl {
                                 .collect::<HashMap<NodeIndex, L>>(),
                         );
                     }
+
+                    self.handle_subtree(&mut next_subtrees, bottom_subtree, should_fetch_leaves);
                 }
                 // Leaf node.
                 NodeData::Leaf(previous_leaf) => {
@@ -290,6 +294,25 @@ impl OriginalSkeletonTreeImpl {
     fn create_empty() -> Self {
         Self {
             nodes: HashMap::new(),
+        }
+    }
+
+    /// Handles a subtree referred by an edge or a binary node. Decides whether we deserialize the
+    /// referred subtree or not.
+    fn handle_subtree<'a>(
+        &mut self,
+        next_subtrees: &mut Vec<SubTree<'a>>,
+        subtree: SubTree<'a>,
+        should_fetch_leaves: bool,
+    ) {
+        if !subtree.is_leaf() || should_fetch_leaves {
+            next_subtrees.push(subtree);
+        } else if subtree.is_unmodified() {
+            // Leaf sibling.
+            self.nodes.insert(
+                subtree.root_index,
+                OriginalSkeletonNode::UnmodifiedSubTree(subtree.root_hash),
+            );
         }
     }
 }
