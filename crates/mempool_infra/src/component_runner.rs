@@ -22,5 +22,5 @@ pub trait ComponentCreator<T: SerializeConfig> {
 #[async_trait]
 pub trait ComponentRunner {
     /// Start the component. Normally this function should never return.
-    async fn start(&self) -> Result<(), ComponentStartError>;
+    async fn start(&mut self) -> Result<(), ComponentStartError>;
 }
