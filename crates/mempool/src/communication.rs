@@ -9,10 +9,13 @@ use tokio::sync::mpsc::Receiver;
 
 use crate::mempool::Mempool;
 
+pub type MempoolServer =
+    ComponentServer<MempoolCommunicationWrapper, MempoolRequest, MempoolResponse>;
+
 pub fn create_mempool_server(
     mempool: Mempool,
     rx_mempool: Receiver<MempoolRequestAndResponseSender>,
-) -> ComponentServer<MempoolCommunicationWrapper, MempoolRequest, MempoolResponse> {
+) -> MempoolServer {
     let communication_wrapper = MempoolCommunicationWrapper::new(mempool);
     ComponentServer::new(communication_wrapper, rx_mempool)
 }
