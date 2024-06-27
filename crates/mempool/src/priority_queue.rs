@@ -14,7 +14,7 @@ pub struct TransactionQueue(BTreeSet<QueuedTransaction>);
 impl TransactionQueue {
     /// Adds a transaction to the mempool, ensuring unique keys.
     /// Panics: if given a duplicate tx.
-    pub fn push(&mut self, tx: TransactionReference) {
+    pub fn insert(&mut self, tx: TransactionReference) {
         let mempool_tx = QueuedTransaction(tx);
         assert!(self.0.insert(mempool_tx), "Keys should be unique; duplicates are checked prior.");
     }
