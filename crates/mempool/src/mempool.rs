@@ -24,7 +24,7 @@ pub struct Mempool {
 }
 
 impl Mempool {
-    pub fn new(inputs: impl IntoIterator<Item = MempoolInput>) -> Self {
+    pub fn new(inputs: impl IntoIterator<Item = MempoolInput>) -> MempoolResult<Self> {
         let mut mempool = Mempool::empty();
 
         for MempoolInput { tx, account: Account { sender_address, state } } in inputs.into_iter() {
@@ -38,18 +38,12 @@ impl Mempool {
                     sender_address, tx
                 );
             }
-            // Attempt to push the transaction into the tx_pool
-            if let Err(err) = mempool.tx_pool.insert(tx.clone()) {
-                panic!(
-                    "Transaction: {:?} already exists in the mempool. Error: {:?}",
-                    tx.tx_hash, err
-                );
-            }
 
+            mempool.tx_pool.insert(tx.clone())?;
             mempool.txs_queue.insert(tx.into());
         }
 
-        mempool
+        Ok(mempool)
     }
 
     pub fn empty() -> Self {
