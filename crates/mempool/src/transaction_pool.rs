@@ -34,7 +34,7 @@ impl TransactionPool {
         let txs_from_account_entry = self.txs_by_account.entry(tx.sender_address).or_default();
         match txs_from_account_entry.entry(tx.nonce) {
             btree_map::Entry::Vacant(txs_from_account) => {
-                txs_from_account.insert(tx.into());
+                txs_from_account.insert(TransactionReference::new(tx));
             }
             btree_map::Entry::Occupied(_) => {
                 panic!(
