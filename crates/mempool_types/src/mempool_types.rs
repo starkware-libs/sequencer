@@ -24,7 +24,7 @@ pub struct Account {
     pub state: AccountState,
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct MempoolInput {
     pub tx: ThinTransaction,
     pub account: Account,

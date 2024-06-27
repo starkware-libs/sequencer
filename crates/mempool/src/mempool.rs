@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::mempool_types::{
-    Account, AccountState, MempoolInput, MempoolResult, ThinTransaction,
+    AccountState, MempoolInput, MempoolResult, ThinTransaction,
 };
 
 use crate::transaction_pool::TransactionPool;
@@ -24,10 +24,9 @@ impl Mempool {
     pub fn new(inputs: impl IntoIterator<Item = MempoolInput>) -> MempoolResult<Self> {
         let mut mempool = Mempool::empty();
 
-        for MempoolInput { tx, .. } in inputs {
-            mempool.insert_tx(tx)?;
+        for input in inputs {
+            mempool.insert_tx(input)?;
         }
-
         Ok(mempool)
     }
 
@@ -54,9 +53,9 @@ impl Mempool {
 
     /// Adds a new transaction to the mempool.
     /// TODO: support fee escalation and transactions with future nonces.
-    /// TODO: change input type to `MempoolInput`.
-    pub fn add_tx(&mut self, tx: ThinTransaction, _account: Account) -> MempoolResult<()> {
-        self.insert_tx(tx)
+    /// TODO: check Account nonce and balance.
+    pub fn add_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
+        self.insert_tx(input)
     }
 
     /// Update the mempool's internal state according to the committed block's transactions.
@@ -72,9 +71,12 @@ impl Mempool {
         todo!()
     }
 
-    fn insert_tx(&mut self, tx: ThinTransaction) -> MempoolResult<()> {
+    fn insert_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
+        let tx = input.tx;
+
         self.tx_pool.insert(tx.clone())?;
         self.txs_queue.insert(TransactionReference::new(tx));
+
         Ok(())
     }
 }

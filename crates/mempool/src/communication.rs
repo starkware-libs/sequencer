@@ -28,7 +28,7 @@ impl MempoolCommunicationWrapper {
     }
 
     fn add_tx(&mut self, mempool_input: MempoolInput) -> MempoolResult<()> {
-        self.mempool.add_tx(mempool_input.tx, mempool_input.account)
+        self.mempool.add_tx(mempool_input)
     }
 
     fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<ThinTransaction>> {
