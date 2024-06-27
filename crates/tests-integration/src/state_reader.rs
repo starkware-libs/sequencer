@@ -47,15 +47,21 @@ pub async fn rpc_test_state_reader_factory(
 ) -> RpcStateReaderFactory {
     const RPC_SPEC_VERION: &str = "V0_7";
     const JSON_RPC_VERSION: &str = "2.0";
-    let cairo_version = CairoVersion::Cairo1;
     let block_context = BlockContext::create_for_testing();
-    let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
-    let test_contract = FeatureContract::TestContract(cairo_version);
+    let account_contract_cairo0 = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
+    let test_contract_cairo0 = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let account_contract_cairo1 = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+    let test_contract_cairo1 = FeatureContract::TestContract(CairoVersion::Cairo1);
 
     let storage_reader = initialize_papyrus_test_state(
         block_context.chain_info(),
         BALANCE,
-        &[(account_contract, n_initialized_account_contracts), (test_contract, 1)],
+        &[
+            (account_contract_cairo0, 1),
+            (test_contract_cairo0, 1),
+            (account_contract_cairo1, n_initialized_account_contracts),
+            (test_contract_cairo1, 1),
+        ],
     );
     let addr = run_papyrus_rpc_server(storage_reader).await;
 
