@@ -110,4 +110,4 @@ impl Mempool {
 /// TODO(Mohammad): rename this struct to `ThinTransaction` once that name
 /// becomes available, to better reflect its purpose and usage.
 #[derive(Clone, Debug, Default, derive_more::Deref, derive_more::From)]
-pub struct TransactionReference(ThinTransaction);
+pub struct TransactionReference(pub ThinTransaction);
