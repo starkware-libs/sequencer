@@ -6,13 +6,9 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress, Nonce};
-use validator::{Validate, ValidationError};
+use validator::Validate;
 
 use crate::compiler_version::VersionId;
-
-#[cfg(test)]
-#[path = "config_test.rs"]
-mod config_test;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct GatewayConfig {
@@ -68,7 +64,6 @@ impl Default for GatewayNetworkConfig {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-#[validate(schema(function = "validate_stateless_transaction_validator_config"))]
 pub struct StatelessTransactionValidatorConfig {
     // If true, validates that the resource bounds are not zero.
     pub validate_non_zero_l1_gas_fee: bool,
@@ -137,18 +132,6 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
         .flatten()
         .collect()
     }
-}
-
-pub fn validate_stateless_transaction_validator_config(
-    config: &StatelessTransactionValidatorConfig,
-) -> Result<(), ValidationError> {
-    if config.max_sierra_version.patch != 0 {
-        let mut error = ValidationError::new("Invalid max_sierra_version.");
-        error.message = Some("The patch version should be 0.".into());
-        return Err(error);
-    }
-
-    Ok(())
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]

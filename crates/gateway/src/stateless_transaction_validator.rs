@@ -113,14 +113,12 @@ impl StatelessTransactionValidator {
         &self,
         sierra_program: &[StarkFelt],
     ) -> StatelessTransactionValidatorResult<()> {
+        // Any patch version is valid. (i.e. when check version for upper bound, we ignore the Z
+        // part in a version X.Y.Z).
+        let max_sierra_version = VersionId { patch: usize::MAX, ..self.config.max_sierra_version };
+
         let sierra_version = VersionId::from_sierra_program(sierra_program)?;
-
-        // Check that the version is lower than the latest version allowing higher patch versions
-        // (i.e. we ignore the Z part in a version X.Y.Z).
-        let minor_sierra_version = VersionId { patch: 0, ..sierra_version };
-
-        if self.config.min_sierra_version <= sierra_version
-            && minor_sierra_version <= self.config.max_sierra_version
+        if self.config.min_sierra_version <= sierra_version && sierra_version <= max_sierra_version
         {
             return Ok(());
         }

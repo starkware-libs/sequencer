@@ -25,7 +25,7 @@ pub struct VersionId {
 
 impl VersionId {
     pub const MIN: Self = Self { major: 0, minor: 0, patch: 0 };
-    pub const MAX: Self = Self { major: usize::MAX, minor: usize::MAX, patch: 0 };
+    pub const MAX: Self = Self { major: usize::MAX, minor: usize::MAX, patch: usize::MAX };
 }
 
 impl From<&VersionId> for CairoLangVersionId {

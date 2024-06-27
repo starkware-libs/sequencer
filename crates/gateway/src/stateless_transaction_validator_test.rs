@@ -18,7 +18,7 @@ use crate::stateless_transaction_validator::{
 use crate::test_utils::create_sierra_program;
 
 const MIN_SIERRA_VERSION: VersionId = VersionId { major: 1, minor: 1, patch: 0 };
-const MAX_SIERRA_VERSION: VersionId = VersionId { major: 1, minor: 5, patch: 0 };
+const MAX_SIERRA_VERSION: VersionId = VersionId { major: 1, minor: 5, patch: usize::MAX };
 
 const DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: StatelessTransactionValidatorConfig =
     StatelessTransactionValidatorConfig {
@@ -265,8 +265,9 @@ fn test_declare_sierra_version_failure(
 #[rstest]
 #[case::min_sierra_version(create_sierra_program(&MIN_SIERRA_VERSION))]
 #[case::valid_sierra_version(create_sierra_program(&VersionId { major: 1, minor: 3, patch: 0 }))]
+#[case::max_sierra_version_patch_zero(create_sierra_program(&VersionId { patch: 0, ..MAX_SIERRA_VERSION }))]
+#[case::max_sierra_version_patch_non_trivial(create_sierra_program(&VersionId { patch: 1, ..MAX_SIERRA_VERSION }))]
 #[case::max_sierra_version(create_sierra_program(&MAX_SIERRA_VERSION))]
-#[case::max_sierra_version_ignore_patch(create_sierra_program(&VersionId { patch: 1, ..MAX_SIERRA_VERSION }))]
 fn test_declare_sierra_version_sucsses(#[case] sierra_program: Vec<StarkFelt>) {
     let tx_validator =
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING };
