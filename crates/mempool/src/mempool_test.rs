@@ -53,7 +53,7 @@ fn check_mempool_txs_eq(mempool: &Mempool, expected_txs: &[ThinTransaction]) {
     assert!(
         zip_eq(expected_txs, mempool_txs)
             // Deref the inner mempool tx type.
-            .all(|(expected_tx, mempool_tx)| *expected_tx == **mempool_tx)
+            .all(|(expected_tx, mempool_tx)| *expected_tx == *mempool_tx)
     );
 }
 

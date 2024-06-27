@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::{BTreeSet, HashMap, VecDeque};
 
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_mempool_types::mempool_types::ThinTransaction;
 
 use crate::mempool::TransactionReference;
@@ -9,30 +10,54 @@ use crate::mempool::TransactionReference;
 // appropriate, because we'll also need to stores transactions without indexing them. For example,
 // transactions with future nonces will need to be stored, and potentially indexed on block commits.
 #[derive(Clone, Debug, Default)]
-pub struct TransactionQueue(BTreeSet<QueuedTransaction>);
+pub struct TransactionQueue {
+    // Priority queue of transactions with associated priority.
+    queue: BTreeSet<QueuedTransaction>,
+    // Set of account addresses for efficient existence checks.
+    address_to_nonce: HashMap<ContractAddress, Nonce>,
+}
 
 impl TransactionQueue {
     /// Adds a transaction to the mempool, ensuring unique keys.
     /// Panics: if given a duplicate tx.
     pub fn insert(&mut self, tx: TransactionReference) {
-        let mempool_tx = QueuedTransaction(tx);
-        assert!(self.0.insert(mempool_tx), "Keys should be unique; duplicates are checked prior.");
+        assert_eq!(self.address_to_nonce.insert(tx.sender_address, tx.nonce), None);
+        assert!(
+            self.queue.insert(tx.into()),
+            "Keys should be unique; duplicates are checked prior."
+        );
     }
 
     // TODO(gilad): remove collect
     pub fn pop_last_chunk(&mut self, n_txs: usize) -> Vec<TransactionReference> {
-        (0..n_txs).filter_map(|_| self.0.pop_last().map(|tx| tx.0)).collect()
+        let txs: Vec<TransactionReference> =
+            (0..n_txs).filter_map(|_| self.queue.pop_last().map(|tx| tx.0)).collect();
+
+        for tx in &txs {
+            self.address_to_nonce.remove(&tx.sender_address);
+        }
+
+        txs
     }
 
+    // TODO(Mohammad): return reference once `TransactionReference` can impl Copy.
     #[cfg(any(feature = "testing", test))]
-    pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {
-        self.0.iter().map(|queued_tx| &queued_tx.0)
+    pub fn iter(&self) -> impl Iterator<Item = TransactionReference> + '_ {
+        self.queue.iter().map(|tx| tx.0.clone())
+    }
+
+    pub fn _get_nonce(&self, address: &ContractAddress) -> Option<&Nonce> {
+        self.address_to_nonce.get(address)
     }
 }
 
 impl From<Vec<TransactionReference>> for TransactionQueue {
-    fn from(transactions: Vec<TransactionReference>) -> Self {
-        TransactionQueue(BTreeSet::from_iter(transactions.into_iter().map(QueuedTransaction)))
+    fn from(txs: Vec<TransactionReference>) -> Self {
+        let mut tx_queue = TransactionQueue::default();
+        for tx in txs {
+            tx_queue.insert(tx);
+        }
+        tx_queue
     }
 }
 
