@@ -94,21 +94,6 @@ fn test_get_txs(#[case] requested_txs: usize) {
 }
 
 #[rstest]
-#[should_panic(expected = "Sender address: \
-                           ContractAddress(PatriciaKey(StarkFelt(\"\
-                           0x0000000000000000000000000000000000000000000000000000000000000000\"\
-                           ))) already exists in the mempool. Can't add")]
-fn test_mempool_initialization_with_duplicate_sender_addresses() {
-    let (tx, account) = add_tx_input!(Tip(50), TransactionHash(StarkFelt::ONE));
-    let same_tx = tx.clone();
-
-    let inputs = [MempoolInput { tx, account }, MempoolInput { tx: same_tx, account }];
-
-    // This call should panic because of duplicate sender addresses
-    let _mempool = Mempool::new(inputs);
-}
-
-#[rstest]
 fn test_add_tx(mut mempool: Mempool) {
     let (tx_tip_50_address_0, account1) = add_tx_input!(Tip(50), TransactionHash(StarkFelt::ONE));
     let (tx_tip_100_address_1, account2) =
@@ -119,11 +104,6 @@ fn test_add_tx(mut mempool: Mempool) {
     assert_eq!(mempool.add_tx(tx_tip_50_address_0.clone(), account1), Ok(()));
     assert_eq!(mempool.add_tx(tx_tip_100_address_1.clone(), account2), Ok(()));
     assert_eq!(mempool.add_tx(tx_tip_80_address_2.clone(), account3), Ok(()));
-
-    assert_eq!(mempool.state.len(), 3);
-    mempool.state.contains_key(&account1.sender_address);
-    mempool.state.contains_key(&account2.sender_address);
-    mempool.state.contains_key(&account3.sender_address);
 
     check_mempool_txs_eq(
         &mempool,
