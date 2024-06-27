@@ -21,7 +21,7 @@ pub struct TransactionPool {
 
 impl TransactionPool {
     // TODO(Mohammad): Remove the cloning of tx once the `TransactionReference` is updated.
-    pub fn push(&mut self, tx: ThinTransaction) -> MempoolResult<()> {
+    pub fn insert(&mut self, tx: ThinTransaction) -> MempoolResult<()> {
         let tx_hash = tx.tx_hash;
 
         // Insert transaction to pool, if it is new.
