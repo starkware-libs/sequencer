@@ -77,13 +77,6 @@ fn test_get_txs(#[case] requested_txs: usize) {
         MempoolInput { tx: tx_tip_10_address_2.clone(), account: account3 },
     ]);
 
-    let expected_addresses =
-        [contract_address!("0x0"), contract_address!("0x1"), contract_address!("0x2")];
-    // checks that the transactions were added to the mempool.
-    for address in &expected_addresses {
-        assert!(mempool.state.contains_key(address));
-    }
-
     let sorted_txs = [tx_tip_100_address_1, tx_tip_50_address_0, tx_tip_10_address_2];
 
     let txs = mempool.get_txs(requested_txs).unwrap();
@@ -92,14 +85,11 @@ fn test_get_txs(#[case] requested_txs: usize) {
     let max_requested_txs = requested_txs.min(3);
 
     // checks that the returned transactions are the ones with the highest priority.
-    assert_eq!(txs.len(), max_requested_txs);
-    assert_eq!(txs, sorted_txs[..max_requested_txs]);
+    let (expected_txs, remaining_txs) = sorted_txs.split_at(max_requested_txs);
+    assert_eq!(txs, expected_txs);
 
     // checks that the transactions that were not returned are still in the mempool.
-    let actual_addresses: Vec<&ContractAddress> = mempool.state.keys().collect();
-    let expected_remaining_addresses: Vec<&ContractAddress> =
-        expected_addresses[max_requested_txs..].iter().collect();
-    assert_eq!(actual_addresses, expected_remaining_addresses);
+    check_mempool_txs_eq(&mempool, remaining_txs);
 }
 
 #[rstest]
