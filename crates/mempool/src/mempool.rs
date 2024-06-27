@@ -25,8 +25,7 @@ impl Mempool {
         let mut mempool = Mempool::empty();
 
         for MempoolInput { tx, .. } in inputs {
-            mempool.tx_pool.insert(tx.clone())?;
-            mempool.txs_queue.insert(TransactionReference::new(tx));
+            mempool.insert_tx(tx)?;
         }
 
         Ok(mempool)
@@ -57,11 +56,7 @@ impl Mempool {
     /// TODO: support fee escalation and transactions with future nonces.
     /// TODO: change input type to `MempoolInput`.
     pub fn add_tx(&mut self, tx: ThinTransaction, _account: Account) -> MempoolResult<()> {
-        // TODO(Mohammad): use `handle_tx`.
-        self.tx_pool.insert(tx.clone())?;
-        self.txs_queue.insert(TransactionReference::new(tx));
-
-        Ok(())
+        self.insert_tx(tx)
     }
 
     /// Update the mempool's internal state according to the committed block's transactions.
@@ -75,6 +70,12 @@ impl Mempool {
         _state_changes: HashMap<ContractAddress, AccountState>,
     ) -> MempoolResult<()> {
         todo!()
+    }
+
+    fn insert_tx(&mut self, tx: ThinTransaction) -> MempoolResult<()> {
+        self.tx_pool.insert(tx.clone())?;
+        self.txs_queue.insert(TransactionReference::new(tx));
+        Ok(())
     }
 }
 
