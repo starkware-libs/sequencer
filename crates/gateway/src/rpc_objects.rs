@@ -1,13 +1,14 @@
 use std::num::NonZeroU128;
 
 use blockifier::blockifier::block::{BlockInfo, GasPrices};
-use blockifier::state::errors::StateError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, GasPrice};
 use starknet_api::core::{ClassHash, ContractAddress, GlobalRoot};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::state::StorageKey;
+
+use crate::errors::RPCStateReaderError;
 
 // Starknet Spec error codes:
 // TODO(yael 30/4/2024): consider turning these into an enum.
@@ -78,7 +79,7 @@ pub struct BlockHeader {
 }
 
 impl TryInto<BlockInfo> for BlockHeader {
-    type Error = StateError;
+    type Error = RPCStateReaderError;
     fn try_into(self) -> Result<BlockInfo, Self::Error> {
         Ok(BlockInfo {
             block_number: self.block_number,
@@ -95,9 +96,8 @@ impl TryInto<BlockInfo> for BlockHeader {
     }
 }
 
-fn parse_gas_price(gas_price: GasPrice) -> Result<NonZeroU128, StateError> {
-    NonZeroU128::new(gas_price.0)
-        .ok_or(StateError::StateReadError("Couldn't parse gas_price".to_string()))
+fn parse_gas_price(gas_price: GasPrice) -> Result<NonZeroU128, RPCStateReaderError> {
+    NonZeroU128::new(gas_price.0).ok_or(RPCStateReaderError::GasPriceParsingFailure(gas_price))
 }
 
 #[derive(Serialize, Deserialize, Debug)]
