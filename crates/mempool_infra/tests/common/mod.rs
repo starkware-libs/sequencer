@@ -10,7 +10,6 @@ pub(crate) type ResultB = ClientResult<ValueB>;
 // TODO(Tsabary): add more messages / functions to the components.
 
 #[async_trait]
-#[allow(dead_code)] // Used in integration tests, which are compiled as part of a different crate.
 pub(crate) trait ComponentAClientTrait: Send + Sync {
     async fn a_get_value(&self) -> ResultA;
 }

@@ -74,21 +74,8 @@ async fn verify_response(
     tx_a: Sender<ComponentRequestAndResponseSender<ComponentARequest, ComponentAResponse>>,
     expected_value: ValueA,
 ) {
-    let (tx_a_main, mut rx_a_main) = channel::<ComponentAResponse>(1);
-
-    let request_and_res_tx: ComponentRequestAndResponseSender<
-        ComponentARequest,
-        ComponentAResponse,
-    > = ComponentRequestAndResponseSender { request: ComponentARequest::AGetValue, tx: tx_a_main };
-
-    tx_a.send(request_and_res_tx).await.unwrap();
-
-    let res = rx_a_main.recv().await.unwrap();
-    match res {
-        ComponentAResponse::Value(value) => {
-            assert_eq!(value, expected_value);
-        }
-    }
+    let a_client = ComponentClient::new(tx_a);
+    assert_eq!(a_client.a_get_value().await.unwrap(), expected_value);
 }
 
 #[tokio::test]
