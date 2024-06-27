@@ -8,8 +8,8 @@ use starknet_mempool_types::mempool_types::{
     Account, AccountState, MempoolInput, MempoolResult, ThinTransaction,
 };
 
-use crate::priority_queue::TransactionQueue;
 use crate::transaction_pool::TransactionPool;
+use crate::transaction_queue::TransactionQueue;
 
 #[cfg(test)]
 #[path = "mempool_test.rs"]
