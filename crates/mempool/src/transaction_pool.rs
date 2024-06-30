@@ -86,4 +86,17 @@ impl AccountTransactionIndex {
     pub fn insert(&mut self, tx: TransactionReference) -> Option<TransactionReference> {
         self.0.entry(tx.sender_address).or_default().insert(tx.nonce, tx)
     }
+
+    pub fn remove(&mut self, tx: TransactionReference) -> Option<TransactionReference> {
+        let ThinTransaction { sender_address, nonce, .. } = tx.0;
+        let account_txs = self.0.get_mut(&sender_address)?;
+
+        let removed_tx = account_txs.remove(&nonce);
+
+        if removed_tx.is_some() && account_txs.is_empty() {
+            self.0.remove(&sender_address);
+        }
+
+        removed_tx
+    }
 }
