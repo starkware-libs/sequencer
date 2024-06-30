@@ -1,4 +1,4 @@
-use std::collections::{btree_map, hash_map, BTreeMap, HashMap};
+use std::collections::{btree_map, hash_map, BTreeMap, HashMap, VecDeque};
 
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::TransactionHash;
@@ -70,5 +70,45 @@ impl TransactionPool {
 
     pub fn get(&self, tx_hash: TransactionHash) -> MempoolResult<&ThinTransaction> {
         self.tx_pool.get(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })
+    }
+}
+
+// TODO: Use in txs_by_account.
+// TODO: remove when is used.
+#[allow(dead_code)]
+// Invariant: Transactions have strictly increasing nonces, without gaps.
+// Assumption: Transactions are provided in the correct order.
+#[derive(Default)]
+pub struct AddressPriorityQueue(VecDeque<ThinTransaction>);
+
+// TODO: remove when is used.
+#[allow(dead_code)]
+impl AddressPriorityQueue {
+    pub fn push(&mut self, tx: ThinTransaction) {
+        if let Some(last_tx) = self.0.back() {
+            assert_eq!(
+                tx.nonce,
+                last_tx.nonce.try_increment().expect("Nonce overflow."),
+                "Nonces must be strictly increasing without gaps."
+            );
+        }
+
+        self.0.push_back(tx);
+    }
+
+    pub fn top(&self) -> Option<&ThinTransaction> {
+        self.0.front()
+    }
+
+    pub fn pop_front(&mut self) -> Option<ThinTransaction> {
+        self.0.pop_front()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn contains(&self, tx: &ThinTransaction) -> bool {
+        self.0.contains(tx)
     }
 }
