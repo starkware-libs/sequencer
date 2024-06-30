@@ -48,16 +48,6 @@ impl TransactionQueue {
     }
 }
 
-impl From<Vec<TransactionReference>> for TransactionQueue {
-    fn from(txs: Vec<TransactionReference>) -> Self {
-        let mut tx_queue = TransactionQueue::default();
-        for tx in txs {
-            tx_queue.insert(tx);
-        }
-        tx_queue
-    }
-}
-
 #[derive(Clone, Debug, derive_more::Deref, derive_more::From)]
 struct QueuedTransaction(pub TransactionReference);
 
