@@ -4,10 +4,7 @@ use committer::{
     },
     felt::Felt,
     hash::hash_trait::HashOutput,
-    patricia_merkle_tree::{
-        filled_tree::node::{ClassHash, CompiledClassHash, Nonce},
-        node_data::leaf::ContractState,
-    },
+    patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce},
     storage::{
         errors::DeserializationError,
         storage_trait::{StorageKey, StorageValue},
@@ -79,22 +76,6 @@ fn test_simple_input_parsing() {
                     ]
                 ]
             ]
-        ],
-        [
-            [
-                [0, 0, 0, 0, 0, 98, 0, 0, 0, 156, 0, 0, 0, 0, 0, 11, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 45, 77, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 98, 0, 0, 0, 156, 0, 0, 0, 0, 0, 11, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 45, 77, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-
-            ],
-            [
-                [0, 0, 0, 1, 0, 98, 0, 0, 0, 156, 0, 0, 0, 0, 0, 11, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 45, 77, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 98, 0, 0, 0, 156, 0, 0, 0, 0, 0, 11, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 45, 77, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            ]
-
         ]
     ],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 19],
@@ -183,49 +164,6 @@ fn test_simple_input_parsing() {
         ),
     ]);
 
-    let expected_original_contracts_trie_leaves = HashMap::from([
-        (
-            ContractAddress(Felt::from_bytes_be_slice(&[
-                0, 0, 0, 0, 0, 98, 0, 0, 0, 156, 0, 0, 0, 0, 0, 11, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0,
-                0, 0, 0, 0, 0, 0,
-            ])),
-            ContractState {
-                nonce: Nonce(Felt::from_bytes_be_slice(&[
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 45, 77, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0,
-                ])),
-                storage_root_hash: HashOutput(Felt::from_bytes_be_slice(&[
-                    0, 0, 0, 0, 0, 98, 0, 0, 0, 156, 0, 0, 0, 0, 0, 11, 5, 0, 0, 0, 0, 0, 1, 0, 89,
-                    0, 0, 0, 0, 0, 0, 0,
-                ])),
-                class_hash: ClassHash(Felt::from_bytes_be_slice(&[
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 45, 77, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0,
-                ])),
-            },
-        ),
-        (
-            ContractAddress(Felt::from_bytes_be_slice(&[
-                0, 0, 0, 1, 0, 98, 0, 0, 0, 156, 0, 0, 0, 0, 0, 11, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0,
-                0, 0, 0, 0, 0, 0,
-            ])),
-            ContractState {
-                nonce: Nonce(Felt::from_bytes_be_slice(&[
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 45, 77, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0,
-                ])),
-                storage_root_hash: HashOutput(Felt::from_bytes_be_slice(&[
-                    0, 0, 0, 0, 0, 98, 0, 0, 0, 156, 0, 0, 0, 0, 0, 11, 5, 0, 0, 0, 0, 0, 1, 0, 89,
-                    0, 0, 0, 0, 0, 0, 0,
-                ])),
-                class_hash: ClassHash(Felt::from_bytes_be_slice(&[
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 45, 77, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0,
-                ])),
-            },
-        ),
-    ]);
-
     let expected_storage_updates = HashMap::from([(
         ContractAddress(Felt::from_bytes_be_slice(&[
             0, 0, 0, 0, 0, 98, 0, 0, 0, 156, 0, 0, 0, 0, 0, 11, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0, 0,
@@ -265,7 +203,6 @@ fn test_simple_input_parsing() {
             class_hash_to_compiled_class_hash: expected_class_hash_to_compiled_class_hash,
             storage_updates: expected_storage_updates,
         },
-        original_contracts_trie_leaves: expected_original_contracts_trie_leaves,
         contracts_trie_root_hash: expected_contracts_trie_root_hash,
         classes_trie_root_hash: expected_classes_trie_root_hash,
     };
@@ -287,7 +224,6 @@ fn test_input_parsing_with_storage_key_duplicate() {
         ]
     ],
     [
-        [],
         [],
         [],
         [],
@@ -330,7 +266,6 @@ fn test_input_parsing_with_mapping_key_duplicate() {
                 [0, 0, 0, 0, 0, 0, 0, 0, 0, 45, 77, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             ]
         ],
-        [],
         [],
         [],
         []

@@ -5,7 +5,6 @@ use committer::block_committer::input::{
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
 use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
-use committer::patricia_merkle_tree::node_data::leaf::ContractState;
 use committer::storage::errors::DeserializationError;
 use committer::storage::storage_trait::{StorageKey, StorageValue};
 
@@ -54,22 +53,6 @@ impl TryFrom<RawInput> for Input {
             )?;
         }
 
-        let mut original_contracts_trie_leaves = HashMap::new();
-        for entry in raw_input.state_diff.original_contracts_trie_leaves {
-            add_unique(
-                &mut original_contracts_trie_leaves,
-                "current contracts trie leaves",
-                ContractAddress(Felt::from_bytes_be_slice(&entry.address)),
-                ContractState {
-                    nonce: Nonce(Felt::from_bytes_be_slice(&entry.nonce)),
-                    class_hash: ClassHash(Felt::from_bytes_be_slice(&entry.class_hash)),
-                    storage_root_hash: HashOutput(Felt::from_bytes_be_slice(
-                        &entry.storage_root_hash,
-                    )),
-                },
-            )?;
-        }
-
         let mut storage_updates = HashMap::new();
         for outer_entry in raw_input.state_diff.storage_updates {
             let inner_map = outer_entry
@@ -101,7 +84,6 @@ impl TryFrom<RawInput> for Input {
             contracts_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
                 &raw_input.contracts_trie_root_hash,
             )),
-            original_contracts_trie_leaves,
             classes_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
                 &raw_input.classes_trie_root_hash,
             )),

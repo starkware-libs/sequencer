@@ -149,11 +149,6 @@ use crate::storage::map_storage::MapStorage;
             class_hash_to_compiled_class_hash: create_class_hash_to_compiled_class_hash(&[(6, 1), (0, 7), (7, 9)]),
             ..Default::default()
         },
-        original_contracts_trie_leaves: create_contract_leaves(&[
-            (7, 29 + 248),
-            (6, 29 + 248),
-            (0, 55 + 248),
-        ]),
         contracts_trie_root_hash: HashOutput(Felt::from(861_u128 + 248_u128)),
         classes_trie_root_hash: HashOutput(Felt::from(155_u128 + 248_u128)),
     }, OriginalSkeletonForestImpl{
@@ -227,11 +222,17 @@ use crate::storage::map_storage::MapStorage;
                 )
             )
             ]),
-        }
+        },
+        create_contract_leaves(&[
+            (7, 29 + 248),
+            (6, 29 + 248),
+            (0, 55 + 248),
+        ]),
 )]
 fn test_create_original_skeleton_forest(
     #[case] input: Input,
     #[case] expected_forest: OriginalSkeletonForestImpl<OriginalSkeletonTreeImpl>,
+    #[case] expected_original_contracts_trie_leaves: HashMap<ContractAddress, ContractState>,
 ) {
     let (actual_forest, original_contracts_trie_leaves) = OriginalSkeletonForestImpl::create(
         MapStorage::from(input.storage),
@@ -240,8 +241,7 @@ fn test_create_original_skeleton_forest(
         &input.state_diff,
     )
     .unwrap();
-    let expected_original_contracts_trie_leaves = input
-        .original_contracts_trie_leaves
+    let expected_original_contracts_trie_leaves = expected_original_contracts_trie_leaves
         .into_iter()
         .map(|(address, state)| (NodeIndex::from_contract_address(&address), state))
         .collect();

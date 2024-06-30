@@ -33,16 +33,6 @@ pub(crate) struct RawStorageUpdates {
 }
 
 #[derive(Deserialize, Debug)]
-/// Represents current state leaf at the contract state tree. Later will be casted to
-/// HashMap<Felt, (nonce, class_hash, storage_root_hash)> entry.
-pub(crate) struct RawContractStateLeaf {
-    pub address: RawFelt,
-    pub nonce: RawFelt,
-    pub storage_root_hash: RawFelt,
-    pub class_hash: RawFelt,
-}
-
-#[derive(Deserialize, Debug)]
 /// Represents state diff.
 pub(crate) struct RawStateDiff {
     /// Will be casted to HashMap<Felt, Felt>.
@@ -53,6 +43,4 @@ pub(crate) struct RawStateDiff {
     pub class_hash_to_compiled_class_hash: Vec<RawFeltMapEntry>,
     /// Will be casted to HashMap<Felt, HashMap<Felt, Felt>>.
     pub storage_updates: Vec<RawStorageUpdates>,
-    /// Will be casted to HashMap<Felt, ContractState>.
-    pub original_contracts_trie_leaves: Vec<RawContractStateLeaf>,
 }
