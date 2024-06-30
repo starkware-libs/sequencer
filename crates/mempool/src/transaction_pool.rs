@@ -79,11 +79,11 @@ impl TransactionPool {
 // Invariant: Transactions have strictly increasing nonces, without gaps.
 // Assumption: Transactions are provided in the correct order.
 #[derive(Default)]
-pub struct AddressPriorityQueue(VecDeque<ThinTransaction>);
+pub struct AccountTransactionIndex(VecDeque<ThinTransaction>);
 
 // TODO: remove when is used.
 #[allow(dead_code)]
-impl AddressPriorityQueue {
+impl AccountTransactionIndex {
     pub fn push(&mut self, tx: ThinTransaction) {
         if let Some(last_tx) = self.0.back() {
             assert_eq!(
