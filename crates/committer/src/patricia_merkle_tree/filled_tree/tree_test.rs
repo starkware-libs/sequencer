@@ -9,12 +9,16 @@ use crate::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl}
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
 };
+use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
+use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonStorageTrieConfig;
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
-    UpdatedSkeletonNodeMap, UpdatedSkeletonTreeImpl,
+    UpdatedSkeletonNodeMap, UpdatedSkeletonTree, UpdatedSkeletonTreeImpl,
 };
+use crate::storage::map_storage::MapStorage;
 
 #[tokio::test(flavor = "multi_thread")]
 /// This test is a sanity test for computing the root hash of the patricia merkle tree with a single node that is a leaf with hash==1.
@@ -237,6 +241,47 @@ async fn test_small_tree_with_unmodified_nodes() {
     ]);
     assert_eq!(filled_tree_map, &expected_filled_tree_map);
     assert_eq!(root_hash, expected_root_hash, "Root hash mismatch");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+/// Test that deleting a leaf that does not exist in the tree succeeds.
+async fn test_delete_leaf_from_empty_tree() {
+    let storage_modifications: HashMap<NodeIndex, StarknetStorageValue> =
+        HashMap::from([(NodeIndex::FIRST_LEAF, StarknetStorageValue(Felt::ZERO))]);
+
+    // Create an empty original skeleton tree with a single leaf modified.
+    let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_impl(
+        &MapStorage {
+            storage: HashMap::new(),
+        },
+        HashOutput::ROOT_OF_EMPTY_TREE,
+        &[NodeIndex::FIRST_LEAF],
+        &OriginalSkeletonStorageTrieConfig::new(&storage_modifications, false),
+    )
+    .unwrap();
+
+    // Create an updated skeleton tree with a single leaf that is deleted.
+    let skeleton_modifications = HashMap::from([(NodeIndex::FIRST_LEAF, SkeletonLeaf::Zero)]);
+
+    let updated_skeleton_tree =
+        UpdatedSkeletonTreeImpl::create(&mut original_skeleton_tree, &skeleton_modifications)
+            .unwrap();
+
+    let leaf_modifications =
+        HashMap::from([(NodeIndex::FIRST_LEAF, StarknetStorageValue(Felt::ZERO))]);
+    // Compute the filled tree.
+    let filled_tree = FilledTreeImpl::create::<TreeHashFunctionImpl>(
+        updated_skeleton_tree,
+        leaf_modifications.into(),
+    )
+    .await
+    .unwrap();
+
+    // The filled tree should be empty.
+    let filled_tree_map = filled_tree.get_all_nodes();
+    assert!(filled_tree_map.is_empty());
+    let root_hash = filled_tree.get_root_hash();
+    assert!(root_hash == HashOutput::ROOT_OF_EMPTY_TREE);
 }
 
 fn create_binary_updated_skeleton_node_for_testing(

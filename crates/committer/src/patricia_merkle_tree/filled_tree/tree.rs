@@ -205,6 +205,13 @@ impl<L: LeafData + 'static> FilledTreeImpl<L> {
             root_hash: *root_hash,
         })
     }
+
+    fn create_empty() -> Self {
+        Self {
+            tree_map: HashMap::new(),
+            root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
+        }
+    }
 }
 
 impl<L: LeafData + 'static> FilledTree<L> for FilledTreeImpl<L> {
@@ -218,6 +225,11 @@ impl<L: LeafData + 'static> FilledTree<L> for FilledTreeImpl<L> {
         if leaf_modifications.is_empty() {
             return Self::create_unmodified(updated_skeleton);
         }
+
+        if updated_skeleton.is_empty() {
+            return Ok(Self::create_empty());
+        }
+
         let filled_tree_map = Arc::new(Self::initialize_with_placeholders(&updated_skeleton));
         let root_hash = Self::compute_filled_tree_rec::<TH>(
             Arc::new(updated_skeleton),
