@@ -140,7 +140,7 @@ fn process_tx(
 /// Formats the contract class for compilation, compiles it, and returns the compiled contract class
 /// wrapped in a [`ClassInfo`].
 /// Assumes the contract class is of a Sierra program which is compiled to Casm.
-fn compile_contract_class(declare_tx: &RPCDeclareTransaction) -> GatewayResult<ClassInfo> {
+pub fn compile_contract_class(declare_tx: &RPCDeclareTransaction) -> GatewayResult<ClassInfo> {
     let RPCDeclareTransaction::V3(tx) = declare_tx;
     let starknet_api_contract_class = &tx.contract_class;
     let cairo_lang_contract_class =

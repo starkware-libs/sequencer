@@ -16,8 +16,8 @@ use tokio::sync::mpsc::channel;
 use tokio::task;
 
 use crate::config::{StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig};
-use crate::gateway::{add_tx, AppState, SharedMempoolClient};
-use crate::starknet_api_test_utils::{deploy_account_tx, invoke_tx};
+use crate::gateway::{add_tx, compile_contract_class, AppState, SharedMempoolClient};
+use crate::starknet_api_test_utils::{declare_tx, deploy_account_tx, invoke_tx};
 use crate::state_reader_test_utils::{
     local_test_state_reader_factory, local_test_state_reader_factory_for_deploy_account,
     TestStateReaderFactory,
@@ -43,6 +43,8 @@ pub fn app_state(
                 validate_non_zero_l1_gas_fee: true,
                 max_calldata_length: 10,
                 max_signature_length: 2,
+                max_bytecode_size: 10000,
+                max_raw_class_size: 1000000,
                 ..Default::default()
             },
         },
@@ -68,6 +70,10 @@ pub fn app_state(
 #[case::valid_deploy_account_tx(
     deploy_account_tx(),
     local_test_state_reader_factory_for_deploy_account(&tx)
+)]
+#[case::valid_declare_tx(
+    declare_tx(),
+    local_test_state_reader_factory(CairoVersion::Cairo1, false)
 )]
 async fn test_add_tx(
     #[case] tx: RPCTransaction,
@@ -102,12 +108,16 @@ async fn to_bytes(res: Response) -> Bytes {
 }
 
 fn calculate_hash(external_tx: &RPCTransaction) -> TransactionHash {
-    if matches!(external_tx, RPCTransaction::Declare(_)) {
-        panic!("Declare transaction is not supported yet.");
-    }
+    let optional_class_info = match &external_tx {
+        RPCTransaction::Declare(declare_tx) => Some(compile_contract_class(declare_tx).unwrap()),
+        _ => None,
+    };
 
-    let account_tx =
-        external_tx_to_account_tx(external_tx, None, &ChainInfo::create_for_testing().chain_id)
-            .unwrap();
+    let account_tx = external_tx_to_account_tx(
+        external_tx,
+        optional_class_info,
+        &ChainInfo::create_for_testing().chain_id,
+    )
+    .unwrap();
     get_tx_hash(&account_tx)
 }

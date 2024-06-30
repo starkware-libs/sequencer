@@ -1,3 +1,7 @@
+use std::env;
+use std::fs::File;
+use std::path::Path;
+
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion, NonceManager};
 use serde_json::to_string_pretty;
@@ -14,10 +18,11 @@ use starknet_api::transaction::{
     TransactionSignature, TransactionVersion,
 };
 use starknet_api::{calldata, stark_felt};
+use test_utils::{get_absolute_path, CONTRACT_CLASS_FILE, TEST_FILES_FOLDER};
 
 use crate::{declare_tx_args, deploy_account_tx_args, invoke_tx_args};
 
-pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 2214;
+pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203483;
 pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 
 // Utils.
@@ -86,6 +91,25 @@ pub fn executable_resource_bounds_mapping() -> ResourceBoundsMapping {
         },
         ResourceBounds::default(),
     )
+}
+
+pub fn declare_tx() -> RPCTransaction {
+    env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Couldn't set working dir.");
+    let json_file_path = Path::new(CONTRACT_CLASS_FILE);
+    let contract_class = serde_json::from_reader(File::open(json_file_path).unwrap()).unwrap();
+
+    let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+    let account_address = account_contract.get_instance_address(0);
+    let mut nonce_manager = NonceManager::default();
+    let nonce = nonce_manager.next(account_address);
+
+    external_declare_tx(declare_tx_args!(
+        signature: TransactionSignature(vec![StarkFelt::ZERO]),
+        sender_address: account_address,
+        resource_bounds: executable_resource_bounds_mapping(),
+        nonce,
+        contract_class
+    ))
 }
 
 // TODO(Ayelet, 28/5/2025): Try unifying the macros.

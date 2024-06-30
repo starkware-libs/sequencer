@@ -9,8 +9,10 @@ use starknet_api::transaction::TransactionHash;
 
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::{StatefulTransactionValidatorError, StatefulTransactionValidatorResult};
+use crate::gateway::compile_contract_class;
 use crate::starknet_api_test_utils::{
-    deploy_account_tx, invoke_tx, VALID_L1_GAS_MAX_AMOUNT, VALID_L1_GAS_MAX_PRICE_PER_UNIT,
+    declare_tx, deploy_account_tx, invoke_tx, VALID_L1_GAS_MAX_AMOUNT,
+    VALID_L1_GAS_MAX_PRICE_PER_UNIT,
 };
 use crate::state_reader_test_utils::{
     local_test_state_reader_factory, local_test_state_reader_factory_for_deploy_account,
@@ -23,21 +25,28 @@ use crate::stateful_transaction_validator::StatefulTransactionValidator;
     invoke_tx(CairoVersion::Cairo1),
     local_test_state_reader_factory(CairoVersion::Cairo1, false),
     Ok(TransactionHash(StarkFelt::try_from(
-        "0x07459d76bd7adec02c25cf7ab0dcb95e9197101d4ada41cae6b465fcb78c0e47"
+        "0x007d70505b4487a4e1c1a4b4e4342cb5aa9e73b86d031891170c45a57ad8b4e6"
     ).unwrap()))
 )]
 #[case::valid_invoke_tx_cairo0(
     invoke_tx(CairoVersion::Cairo0),
     local_test_state_reader_factory(CairoVersion::Cairo0, false),
     Ok(TransactionHash(StarkFelt::try_from(
-        "0x052358755cb14da1c0fddcdb371470f3ecf5ffe4cfa017cdfcedda4bff92a02e"
+        "0x032e3a969a64027f15ce2b526d8dff47d47524c58ff0363f93ce4cbe7c280861"
     ).unwrap()))
 )]
 #[case::valid_deploy_account_tx(
     deploy_account_tx(),
     local_test_state_reader_factory_for_deploy_account(&external_tx),
     Ok(TransactionHash(StarkFelt::try_from(
-        "0x07fb8387575c7f4daa5996a3bb4a3010f4f4af1009b393c73198b8bc5e788c8f"
+        "0x013287740b37dc112391de4ef0f7cd7aeca323537ca2a78a1108c6aee5a55d70"
+    ).unwrap()))
+)]
+#[case::valid_declare_tx(
+    declare_tx(),
+    local_test_state_reader_factory(CairoVersion::Cairo1, false),
+    Ok(TransactionHash(StarkFelt::try_from(
+        "0x0278ed2700d5a30254a6b895d4e1140438d7d1a3b2b2ce0c096a9d5ee1c61f39"
     ).unwrap()))
 )]
 #[case::invalid_tx(
@@ -70,7 +79,16 @@ fn test_stateful_tx_validator(
             chain_info: block_context.chain_info().clone().into(),
         },
     };
+    let optional_class_info = match &external_tx {
+        RPCTransaction::Declare(declare_tx) => Some(compile_contract_class(declare_tx).unwrap()),
+        _ => None,
+    };
 
-    let result = stateful_validator.run_validate(&state_reader_factory, &external_tx, None, None);
+    let result = stateful_validator.run_validate(
+        &state_reader_factory,
+        &external_tx,
+        optional_class_info,
+        None,
+    );
     assert_eq!(format!("{:?}", result), format!("{:?}", expected_result));
 }
