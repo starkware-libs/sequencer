@@ -39,8 +39,6 @@ impl TransactionQueue {
         txs
     }
 
-    // TODO(Mohammad): return reference once `TransactionReference` can impl Copy.
-    #[cfg(any(feature = "testing", test))]
     pub fn iter(&self) -> impl Iterator<Item = TransactionReference> + '_ {
         self.queue.iter().map(|tx| tx.0.clone())
     }
