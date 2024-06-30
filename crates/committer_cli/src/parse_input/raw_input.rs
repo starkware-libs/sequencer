@@ -54,5 +54,5 @@ pub(crate) struct RawStateDiff {
     /// Will be casted to HashMap<Felt, HashMap<Felt, Felt>>.
     pub storage_updates: Vec<RawStorageUpdates>,
     /// Will be casted to HashMap<Felt, ContractState>.
-    pub current_contracts_trie_leaves: Vec<RawContractStateLeaf>,
+    pub original_contracts_trie_leaves: Vec<RawContractStateLeaf>,
 }

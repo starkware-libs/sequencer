@@ -183,7 +183,7 @@ fn test_simple_input_parsing() {
         ),
     ]);
 
-    let expected_current_contracts_trie_leaves = HashMap::from([
+    let expected_original_contracts_trie_leaves = HashMap::from([
         (
             ContractAddress(Felt::from_bytes_be_slice(&[
                 0, 0, 0, 0, 0, 98, 0, 0, 0, 156, 0, 0, 0, 0, 0, 11, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0,
@@ -265,7 +265,7 @@ fn test_simple_input_parsing() {
             class_hash_to_compiled_class_hash: expected_class_hash_to_compiled_class_hash,
             storage_updates: expected_storage_updates,
         },
-        current_contracts_trie_leaves: expected_current_contracts_trie_leaves,
+        original_contracts_trie_leaves: expected_original_contracts_trie_leaves,
         contracts_trie_root_hash: expected_contracts_trie_root_hash,
         classes_trie_root_hash: expected_classes_trie_root_hash,
     };

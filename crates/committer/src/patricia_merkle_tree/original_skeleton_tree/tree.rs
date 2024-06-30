@@ -27,8 +27,6 @@ pub(crate) trait OriginalSkeletonTree: Sized {
 
     fn get_nodes_mut(&mut self) -> &mut OriginalSkeletonNodeMap;
 
-    #[allow(dead_code)]
-    // TODO(Nimrod, 1/7/2024): Use this function for the contracts trie.
     fn create_and_get_previous_leaves<L: LeafData>(
         storage: &impl Storage,
         root_hash: HashOutput,

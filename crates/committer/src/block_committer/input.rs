@@ -34,7 +34,7 @@ pub struct Input {
     /// All relevant information for the state diff commitment.
     pub state_diff: StateDiff,
     // TODO(Nimrod, 1/7/2024): Remove this field from the input and use `get_leaves` instead.
-    pub current_contracts_trie_leaves: HashMap<ContractAddress, ContractState>,
+    pub original_contracts_trie_leaves: HashMap<ContractAddress, ContractState>,
     pub contracts_trie_root_hash: HashOutput,
     pub classes_trie_root_hash: HashOutput,
 }

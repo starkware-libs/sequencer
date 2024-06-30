@@ -21,13 +21,15 @@ use std::collections::HashSet;
 pub mod skeleton_forest_test;
 
 pub(crate) trait OriginalSkeletonForest {
+    /// Creates an original skeleton forest that includes the storage tries of the modified contracts,
+    /// the classes trie and the contracts trie. Additionally, returns the original contract states that
+    /// are needed to compute the contract state tree.
     fn create(
         storage: impl Storage,
         contracts_trie_root_hash: HashOutput,
         classes_trie_root_hash: HashOutput,
-        current_contracts_trie_leaves: &HashMap<ContractAddress, ContractState>,
         state_diff: &StateDiff,
-    ) -> ForestResult<Self>
+    ) -> ForestResult<(Self, HashMap<NodeIndex, ContractState>)>
     where
         Self: std::marker::Sized;
 }
@@ -44,27 +46,29 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForest for OriginalSkeletonForestI
         storage: impl Storage,
         contracts_trie_root_hash: HashOutput,
         classes_trie_root_hash: HashOutput,
-        current_contracts_trie_leaves: &HashMap<ContractAddress, ContractState>,
         state_diff: &StateDiff,
-    ) -> ForestResult<Self>
+    ) -> ForestResult<(Self, HashMap<NodeIndex, ContractState>)>
     where
         Self: std::marker::Sized,
     {
         let accessed_addresses = state_diff.accessed_addresses();
-        let global_state_tree =
+        let (contracts_state_trie, original_contracts_trie_leaves) =
             Self::create_contracts_trie(&accessed_addresses, contracts_trie_root_hash, &storage)?;
-        let contract_states = Self::create_storage_tries(
+        let storage_tries = Self::create_storage_tries(
             &state_diff.actual_storage_updates(),
-            current_contracts_trie_leaves,
+            &original_contracts_trie_leaves,
             &storage,
         )?;
-        let classes_tree = Self::create_classes_trie(
+        let classes_trie = Self::create_classes_trie(
             &state_diff.actual_classes_updates(),
             classes_trie_root_hash,
             &storage,
         )?;
 
-        Ok(Self::new(classes_tree, global_state_tree, contract_states))
+        Ok((
+            Self::new(classes_trie, contracts_state_trie, storage_tries),
+            original_contracts_trie_leaves,
+        ))
     }
 }
 
@@ -81,18 +85,19 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
         }
     }
 
+    /// Creates the contracts trie original skeleton.
+    /// Also returns the previous contracts state of the modified contracts.
     fn create_contracts_trie(
         accessed_addresses: &HashSet<&ContractAddress>,
         contracts_trie_root_hash: HashOutput,
         storage: &impl Storage,
-    ) -> ForestResult<T> {
+    ) -> ForestResult<(T, HashMap<NodeIndex, ContractState>)> {
         let mut sorted_leaf_indices: Vec<NodeIndex> = accessed_addresses
             .iter()
             .map(|address| NodeIndex::from_contract_address(address))
             .collect();
         sorted_leaf_indices.sort();
-
-        Ok(T::create(
+        Ok(T::create_and_get_previous_leaves(
             storage,
             contracts_trie_root_hash,
             &sorted_leaf_indices,
@@ -102,15 +107,15 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
 
     fn create_storage_tries(
         actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
-        current_contracts_trie_leaves: &HashMap<ContractAddress, ContractState>,
+        original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
         storage: &impl Storage,
     ) -> ForestResult<HashMap<ContractAddress, T>> {
         let mut storage_tries = HashMap::new();
         for (address, updates) in actual_storage_updates {
             let mut sorted_leaf_indices: Vec<NodeIndex> = updates.keys().copied().collect();
             sorted_leaf_indices.sort();
-            let contract_state = current_contracts_trie_leaves
-                .get(address)
+            let contract_state = original_contracts_trie_leaves
+                .get(&NodeIndex::from_contract_address(address))
                 .ok_or(ForestError::MissingContractCurrentState(*address))?;
 
             // TODO(Nimrod, 1/7/2024): Set the configuration according to an input and not hard coded.

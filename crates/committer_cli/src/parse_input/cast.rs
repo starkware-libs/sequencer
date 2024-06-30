@@ -54,10 +54,10 @@ impl TryFrom<RawInput> for Input {
             )?;
         }
 
-        let mut current_contracts_trie_leaves = HashMap::new();
-        for entry in raw_input.state_diff.current_contracts_trie_leaves {
+        let mut original_contracts_trie_leaves = HashMap::new();
+        for entry in raw_input.state_diff.original_contracts_trie_leaves {
             add_unique(
-                &mut current_contracts_trie_leaves,
+                &mut original_contracts_trie_leaves,
                 "current contracts trie leaves",
                 ContractAddress(Felt::from_bytes_be_slice(&entry.address)),
                 ContractState {
@@ -101,7 +101,7 @@ impl TryFrom<RawInput> for Input {
             contracts_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
                 &raw_input.contracts_trie_root_hash,
             )),
-            current_contracts_trie_leaves,
+            original_contracts_trie_leaves,
             classes_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
                 &raw_input.classes_trie_root_hash,
             )),

@@ -407,10 +407,8 @@ fn test_get_bottom_subtree(
     assert_eq!(subtree, expected_subtree);
 }
 
-pub(crate) fn create_32_bytes_entry(simple_val: u8) -> Vec<u8> {
-    let mut res = vec![0; 31];
-    res.push(simple_val);
-    res
+pub(crate) fn create_32_bytes_entry(simple_val: u128) -> [u8; 32] {
+    U256::from(simple_val).to_be_bytes()
 }
 
 pub(crate) fn create_storage_leaf_entry(val: u128) -> (StorageKey, StorageValue) {
@@ -433,11 +431,11 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (StorageKey, Storag
     (leaf.get_db_key(&felt.to_bytes_be()), leaf.serialize())
 }
 
-fn create_patricia_key(val: u8) -> StorageKey {
-    create_db_key(StoragePrefix::InnerNode, &create_32_bytes_entry(val))
+fn create_patricia_key(val: u128) -> StorageKey {
+    create_db_key(StoragePrefix::InnerNode, &U256::from(val).to_be_bytes())
 }
 
-fn create_binary_val(left: u8, right: u8) -> StorageValue {
+fn create_binary_val(left: u128, right: u128) -> StorageValue {
     StorageValue(
         (create_32_bytes_entry(left)
             .into_iter()
@@ -446,7 +444,7 @@ fn create_binary_val(left: u8, right: u8) -> StorageValue {
     )
 }
 
-fn create_edge_val(hash: u8, path: u8, length: u8) -> StorageValue {
+fn create_edge_val(hash: u128, path: u128, length: u8) -> StorageValue {
     StorageValue(
         create_32_bytes_entry(hash)
             .into_iter()
@@ -465,16 +463,16 @@ fn create_leaf_modifications(
         .collect()
 }
 
-pub(crate) fn create_binary_entry(left: u8, right: u8) -> (StorageKey, StorageValue) {
+pub(crate) fn create_binary_entry(left: u128, right: u128) -> (StorageKey, StorageValue) {
     (
         create_patricia_key(left + right),
         create_binary_val(left, right),
     )
 }
 
-pub(crate) fn create_edge_entry(hash: u8, path: u8, length: u8) -> (StorageKey, StorageValue) {
+pub(crate) fn create_edge_entry(hash: u128, path: u128, length: u8) -> (StorageKey, StorageValue) {
     (
-        create_patricia_key(hash + path + length),
+        create_patricia_key(hash + path + u128::from(length)),
         create_edge_val(hash, path, length),
     )
 }
@@ -532,12 +530,12 @@ pub(crate) fn create_unmodified_subtree_skeleton_node(
 }
 
 pub(crate) fn create_root_edge_entry(
-    old_root: u8,
+    old_root: u128,
     subtree_height: SubTreeHeight,
 ) -> (StorageKey, StorageValue) {
     // Assumes path is 0.
     let length = SubTreeHeight::ACTUAL_HEIGHT.0 - subtree_height.0;
-    let new_root = u128::from(old_root) + u128::from(length);
+    let new_root = old_root + u128::from(length);
     let key = create_db_key(
         StoragePrefix::InnerNode,
         &Felt::from(new_root).to_bytes_be(),

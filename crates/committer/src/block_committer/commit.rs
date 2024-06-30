@@ -11,6 +11,7 @@ use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::{
     OriginalSkeletonForest, OriginalSkeletonForestImpl,
 };
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
+use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::updated_skeleton_tree::skeleton_forest::{
     UpdatedSkeletonForest, UpdatedSkeletonForestImpl,
@@ -23,24 +24,25 @@ type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
 #[allow(dead_code)]
 pub async fn commit_block(input: Input) -> BlockCommitmentResult<FilledForestImpl> {
+    let (mut original_forest, original_contracts_trie_leaves) =
+        OriginalSkeletonForestImpl::<OriginalSkeletonTreeImpl>::create(
+            MapStorage::from(input.storage),
+            input.contracts_trie_root_hash,
+            input.classes_trie_root_hash,
+            &input.state_diff,
+        )?;
+
     check_trivial_nonce_and_class_hash_updates(
-        &input.current_contracts_trie_leaves,
+        &original_contracts_trie_leaves,
         &input.state_diff.address_to_class_hash,
         &input.state_diff.address_to_nonce,
     );
-    let mut original_forest = OriginalSkeletonForestImpl::<OriginalSkeletonTreeImpl>::create(
-        MapStorage::from(input.storage),
-        input.contracts_trie_root_hash,
-        input.classes_trie_root_hash,
-        &input.current_contracts_trie_leaves,
-        &input.state_diff,
-    )?;
 
     let updated_forest = UpdatedSkeletonForestImpl::<UpdatedSkeletonTreeImpl>::create(
         &mut original_forest,
         &StateDiff::skeleton_classes_updates(&input.state_diff.class_hash_to_compiled_class_hash),
         &input.state_diff.skeleton_storage_updates(),
-        &input.current_contracts_trie_leaves,
+        &original_contracts_trie_leaves,
         &input.state_diff.address_to_class_hash,
         &input.state_diff.address_to_nonce,
     )?;
@@ -50,7 +52,7 @@ pub async fn commit_block(input: Input) -> BlockCommitmentResult<FilledForestImp
             updated_forest,
             input.state_diff.actual_storage_updates(),
             input.state_diff.actual_classes_updates(),
-            &input.current_contracts_trie_leaves,
+            &original_contracts_trie_leaves,
             &input.state_diff.address_to_class_hash,
             &input.state_diff.address_to_nonce,
         )
@@ -61,23 +63,28 @@ pub async fn commit_block(input: Input) -> BlockCommitmentResult<FilledForestImp
 /// Compares the previous state's nonce and class hash with the given in the state diff.
 /// In case of trivial update, logs out a warning for trivial state diff update.
 fn check_trivial_nonce_and_class_hash_updates(
-    current_contracts_trie_leaves: &HashMap<ContractAddress, ContractState>,
+    original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
     address_to_nonce: &HashMap<ContractAddress, Nonce>,
 ) {
-    for (address, contract_state) in current_contracts_trie_leaves.iter() {
-        if address_to_nonce
-            .get(address)
-            .is_some_and(|nonce| *nonce == contract_state.nonce)
+    for (address, nonce) in address_to_nonce.iter() {
+        if original_contracts_trie_leaves
+            .get(&NodeIndex::from_contract_address(address))
+            .is_some_and(|previous_contract_state| previous_contract_state.nonce == *nonce)
         {
             warn!(
                 "Encountered a trivial nonce update of contract {:?}",
                 address
             )
         }
-        if address_to_class_hash
-            .get(address)
-            .is_some_and(|class_hash| *class_hash == contract_state.class_hash)
+    }
+
+    for (address, class_hash) in address_to_class_hash.iter() {
+        if original_contracts_trie_leaves
+            .get(&NodeIndex::from_contract_address(address))
+            .is_some_and(|previous_contract_state| {
+                previous_contract_state.class_hash == *class_hash
+            })
         {
             warn!(
                 "Encountered a trivial class hash update of contract {:?}",
