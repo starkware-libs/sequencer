@@ -16,8 +16,10 @@ pub mod mempool_test;
 #[derive(Debug, Default)]
 pub struct Mempool {
     // TODO: add docstring explaining visibility and coupling of the fields.
-    txs_queue: TransactionQueue,
+    // All transactions currently held in the mempool.
     tx_pool: TransactionPool,
+    // Transactions eligible for sequencing.
+    tx_queue: TransactionQueue,
 }
 
 impl Mempool {
@@ -42,7 +44,7 @@ impl Mempool {
     pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<ThinTransaction>> {
         let mut eligible_txs: Vec<ThinTransaction> = Vec::with_capacity(n_txs);
 
-        let txs = self.txs_queue.pop_last_chunk(n_txs);
+        let txs = self.tx_queue.pop_last_chunk(n_txs);
         for tx in txs {
             self.tx_pool.remove(tx.tx_hash)?;
             eligible_txs.push(tx.0);
@@ -75,7 +77,7 @@ impl Mempool {
         let tx = input.tx;
 
         self.tx_pool.insert(tx.clone())?;
-        self.txs_queue.insert(TransactionReference::new(tx));
+        self.tx_queue.insert(TransactionReference::new(tx));
 
         Ok(())
     }
