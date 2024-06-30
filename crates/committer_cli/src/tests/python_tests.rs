@@ -137,7 +137,10 @@ impl PythonTest {
                     serde_json::from_str(Self::non_optional_input(input)?)?;
                 Ok(test_binary_serialize_test(binary_input))
             }
-            Self::InputParsing => parse_input_test(),
+            Self::InputParsing => {
+                let committer_input = serde_json::from_str(Self::non_optional_input(input)?)?;
+                parse_input_test(committer_input)
+            }
             Self::StorageSerialize => storage_serialize_test(),
             Self::NodeKey => Ok(test_node_db_key()),
             Self::ComparePythonHashConstants => Ok(python_hash_constants_compare()),
@@ -314,9 +317,8 @@ pub(crate) fn test_binary_serialize_test(binary_input: HashMap<String, u128>) ->
         .unwrap_or_else(|error| panic!("Failed to serialize binary fact: {}", error))
 }
 
-pub(crate) fn parse_input_test() -> Result<String, PythonTestError> {
-    let input = io::read_to_string(io::stdin())?;
-    Ok(create_output_to_python(parse_input(&input)?))
+pub(crate) fn parse_input_test(committer_input: String) -> Result<String, PythonTestError> {
+    Ok(create_output_to_python(parse_input(&committer_input)?))
 }
 
 fn create_output_to_python(actual_input: Input) -> String {
@@ -688,7 +690,5 @@ pub(crate) fn filled_forest_output_test() -> Result<String, PythonTestError> {
     ));
     let output = dummy_forest.forest_to_output();
     let output_string = serde_json::to_string(&output).expect("Failed to serialize");
-    println!("{}", output_string);
-
-    Ok("".to_string())
+    Ok(output_string)
 }

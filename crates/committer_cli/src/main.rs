@@ -40,28 +40,14 @@ enum Command {
         output_path: String,
     },
     PythonTest {
-        #[clap(flatten)]
-        io_args: IoArgs,
+        /// File path to output.
+        #[clap(long, short = 'o', default_value = "stdout")]
+        output_path: String,
 
         /// Test name.
         #[clap(long)]
         test_name: String,
-
-        /// Test inputs as a json.
-        #[clap(long)]
-        inputs: Option<String>,
     },
-}
-
-#[derive(Debug, Args)]
-struct IoArgs {
-    /// File path to input.
-    #[clap(long, short = 'i', default_value = "stdin")]
-    input_path: String,
-
-    /// File path to output.
-    #[clap(long, short = 'o', default_value = "stdout")]
-    output_path: String,
 }
 
 #[derive(Debug, Args)]
@@ -79,25 +65,22 @@ async fn main() {
         }
 
         Command::PythonTest {
-            io_args,
+            output_path,
             test_name,
-            inputs,
         } => {
             // Create PythonTest from test_name.
             let test = PythonTest::try_from(test_name)
                 .unwrap_or_else(|error| panic!("Failed to create PythonTest: {}", error));
+            let stdin_input = read_from_stdin();
 
             // Run relevant test.
             let output = test
-                .run(inputs.as_deref())
+                .run(Some(&stdin_input))
                 .await
                 .unwrap_or_else(|error| panic!("Failed to run test: {}", error));
 
-            // Print test's output.
-            // TODO(yoav, 04/07/2024): Remove this print when the python side doesn't read the
-            // output from stdout.
-            print!("{}", output);
-            write_to_file(&io_args.output_path, &output);
+            // Write test's output.
+            write_to_file(&output_path, &output);
         }
 
         Command::BlockHash { output_path } => {
