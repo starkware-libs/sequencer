@@ -17,6 +17,7 @@ const SINGLE_TREE_FLOW_INPUT: &str = include_str!("../../benches/tree_flow_input
 //TODO(Aner, 20/06/2024): modify the committer_flow_inputs.json file to be from pseudo-real data
 // and to include the expected output.
 const FLOW_TEST_INPUT: &str = include_str!("../../benches/committer_flow_inputs.json");
+const OUTPUT_PATH: &str = "benchmark_output.txt";
 
 #[ignore = "To avoid running the benchmark test in Coverage or without the --release flag."]
 #[tokio::test(flavor = "multi_thread")]
@@ -44,7 +45,7 @@ pub async fn test_benchmark_single_tree() {
 pub async fn test_benchmark_committer_flow() {
     let start = std::time::Instant::now();
     // Benchmark the committer flow test.
-    commit(FLOW_TEST_INPUT).await;
+    commit(FLOW_TEST_INPUT, OUTPUT_PATH.to_owned()).await;
     let execution_time = std::time::Instant::now() - start;
 
     // TODO(Aner, 20/06/2024): add assert for the output of the committer flow test.

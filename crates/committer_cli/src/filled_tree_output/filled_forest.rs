@@ -1,25 +1,30 @@
-use crate::filled_tree_output::errors::FilledForestError;
 use committer::patricia_merkle_tree::filled_tree::forest::{FilledForest, FilledForestImpl};
 use committer::storage::map_storage::MapStorage;
+use serde::Serialize;
 
 pub struct SerializedForest(pub FilledForestImpl);
 
+#[derive(Debug, Serialize)]
+#[allow(dead_code)]
+pub struct Output {
+    // New fact storage.
+    storage: MapStorage,
+    // New contract storage root.
+    contract_storage_root_hash: String,
+    // New compiled class root.
+    compiled_class_root_hash: String,
+}
+
 impl SerializedForest {
-    pub fn forest_to_python(&self) -> Result<(), FilledForestError> {
+    pub fn forest_to_output(&self) -> Output {
         let mut storage = MapStorage::default();
         self.0.write_to_storage(&mut storage);
-
-        // Output the new fact storage.
-        println!("{}", serde_json::to_string(&storage)?);
-
-        // Output the new contract storage root.
         let contract_storage_root_hash = self.0.get_contract_root_hash().0;
-        println!("{}", contract_storage_root_hash.to_hex());
-
-        // Output the new compiled class root.
         let compiled_class_root_hash = self.0.get_compiled_class_root_hash().0;
-        println!("{}", compiled_class_root_hash.to_hex());
-
-        Ok(())
+        Output {
+            storage,
+            contract_storage_root_hash: contract_storage_root_hash.to_hex(),
+            compiled_class_root_hash: compiled_class_root_hash.to_hex(),
+        }
     }
 }

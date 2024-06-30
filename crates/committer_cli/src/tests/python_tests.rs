@@ -686,6 +686,9 @@ pub(crate) fn filled_forest_output_test() -> Result<String, PythonTestError> {
         &mut rand::thread_rng(),
         None,
     ));
-    dummy_forest.forest_to_python()?;
+    let output = dummy_forest.forest_to_output();
+    let output_string = serde_json::to_string(&output).expect("Failed to serialize");
+    println!("{}", output_string);
+
     Ok("".to_string())
 }
