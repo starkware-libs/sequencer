@@ -80,3 +80,10 @@ impl TransactionPool {
 pub struct AccountTransactionIndex(
     pub HashMap<ContractAddress, BTreeMap<Nonce, TransactionReference>>,
 );
+
+impl AccountTransactionIndex {
+    /// If the transaction already exists in the mapping, the old value is returned.
+    pub fn insert(&mut self, tx: TransactionReference) -> Option<TransactionReference> {
+        self.0.entry(tx.sender_address).or_default().insert(tx.nonce, tx)
+    }
+}
