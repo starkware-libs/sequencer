@@ -1,4 +1,4 @@
-use std::{fs::File, path::Path};
+use std::{fs::File, io};
 
 use committer::{block_committer::input::Input, storage::errors::DeserializationError};
 use serde::{Deserialize, Serialize};
@@ -15,9 +15,13 @@ pub fn parse_input(input: &str) -> DeserializationResult<Input> {
     serde_json::from_str::<RawInput>(input)?.try_into()
 }
 
-pub fn load_from_file<T: for<'a> Deserialize<'a>>(file_path: &str) -> T {
-    let file = File::open(Path::new(file_path)).expect("Failed to open file");
-    serde_json::from_reader(&file).expect("Failed to load from file")
+pub fn read_from_stdin() -> String {
+    io::read_to_string(io::stdin()).expect("Failed to read from stdin.")
+}
+
+pub fn load_from_stdin<T: for<'a> Deserialize<'a>>() -> T {
+    let stdin = read_from_stdin();
+    serde_json::from_str(&stdin).expect("Failed to load from stdin")
 }
 
 pub fn write_to_file<T: Serialize>(file_path: &str, object: &T) {

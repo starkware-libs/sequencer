@@ -1,9 +1,7 @@
-use std::io;
-
 use clap::{Args, Parser, Subcommand};
 use committer_cli::block_hash::{BlockCommitmentsInput, BlockHashInput};
 use committer_cli::commands::commit;
-use committer_cli::parse_input::read::{load_from_file, write_to_file};
+use committer_cli::parse_input::read::{load_from_stdin, read_from_stdin, write_to_file};
 use committer_cli::tests::python_tests::PythonTest;
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments, calculate_block_hash,
@@ -24,14 +22,16 @@ pub struct CommitterCliArgs {
 enum Command {
     /// Calculates the block hash.
     BlockHash {
-        #[clap(flatten)]
-        io_args: IoArgs,
+        /// File path to output.
+        #[clap(long, short = 'o', default_value = "stdout")]
+        output_path: String,
     },
     /// Given previous state tree skeleton and a state diff, computes the new commitment.
     /// Calculates commitments needed for the block hash.
     BlockHashCommitments {
-        #[clap(flatten)]
-        io_args: IoArgs,
+        /// File path to output.
+        #[clap(long, short = 'o', default_value = "stdout")]
+        output_path: String,
     },
     /// Given previous state tree skeleton and a state diff, computes the new commitment.
     Commit {
@@ -74,7 +74,7 @@ async fn main() {
 
     match args.command {
         Command::Commit { output_path } => {
-            let input_string = io::read_to_string(io::stdin()).expect("Failed to read from stdin.");
+            let input_string = read_from_stdin();
             commit(&input_string, output_path).await;
         }
 
@@ -100,21 +100,21 @@ async fn main() {
             write_to_file(&io_args.output_path, &output);
         }
 
-        Command::BlockHash { io_args } => {
-            let block_hash_input: BlockHashInput = load_from_file(&io_args.input_path);
+        Command::BlockHash { output_path } => {
+            let block_hash_input: BlockHashInput = load_from_stdin();
             let block_hash =
                 calculate_block_hash(block_hash_input.header, block_hash_input.block_commitments);
-            write_to_file(&io_args.output_path, &block_hash);
+            write_to_file(&output_path, &block_hash);
         }
 
-        Command::BlockHashCommitments { io_args } => {
-            let commitments_input: BlockCommitmentsInput = load_from_file(&io_args.input_path);
+        Command::BlockHashCommitments { output_path } => {
+            let commitments_input: BlockCommitmentsInput = load_from_stdin();
             let commitments = calculate_block_commitments(
                 &commitments_input.transactions_data,
                 &commitments_input.state_diff,
                 commitments_input.l1_da_mode,
             );
-            write_to_file(&io_args.output_path, &commitments);
+            write_to_file(&output_path, &commitments);
         }
     }
 }
