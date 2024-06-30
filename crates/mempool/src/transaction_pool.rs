@@ -11,7 +11,7 @@ use crate::mempool::TransactionReference;
 /// Invariant: both data structures are consistent regarding the existence of transactions:
 /// A transaction appears in one if and only if it appears in the other.
 /// No duplicate transactions appear in the pool.
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub struct TransactionPool {
     // Holds the complete transaction objects; it should be the sole entity that does so.
     tx_pool: HashMap<TransactionHash, ThinTransaction>,
