@@ -32,11 +32,16 @@ jobs:
 
       - name: Validate PR commits with commitlint
         if: github.event_name == 'pull_request' && !(contains(github.event.pull_request.title, '/merge-main') || contains(github.event.pull_request.title, '/merge main'))
-        run: commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: commitlint --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
 
       - name: Validate PR title with commitlint
         if: github.event_name != 'merge_group' && github.event_name != 'push' && !(contains(github.event.pull_request.title, '/merge-main') || contains(github.event.pull_request.title, '/merge main'))
-        run: echo "${{ github.event.pull_request.title }}" | commitlint --verbose
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: echo "$TITLE" | commitlint --verbose
 
   format:
     runs-on: ubuntu-latest
@@ -115,11 +120,19 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
-      - name: Get commit hash prefix
-        id: commit_prefix
-        # Commit hash on pull request event would be the head commit of the branch;
-        # on push event (to main, for example) we should take the commit post-push.
-        run: echo "short_hash=$(if [ ${{ github.event_name }} == 'pull_request' ]; then echo ${{ github.event.pull_request.head.sha }}; else echo ${{ github.event.after }}; fi | cut -c 1-7)" >> $GITHUB_OUTPUT
+        # Commit hash on pull request event would be the head commit of the branch.
+      - name: Get commit hash prefix for PR update
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+        run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
+
+        # On push event (to main, for example) we should take the commit post-push.
+      - name: Get commit hash prefix for merge
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          COMMIT_SHA: ${{ github.event.after }}
+        run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
 
       - name: Build CLI binary
         run: cargo build -p committer_cli -r --bin committer_cli --target-dir CLI_TARGET
@@ -134,7 +147,7 @@ jobs:
         uses: "google-github-actions/upload-cloud-storage@v2"
         with:
           path: "CLI_TARGET/release/committer_cli"
-          destination: "committer-products-external/${{ steps.commit_prefix.outputs.short_hash }}/release/"
+          destination: "committer-products-external/${{ env.SHORT_HASH }}/release/"
 
   udeps:
     runs-on: ubuntu-latest
