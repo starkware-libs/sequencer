@@ -13,7 +13,8 @@ use starknet_api::rpc_transaction::{RPCDeclareTransaction, RPCTransaction};
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, MempoolInput};
-use starknet_sierra_compile::compile::{compile_sierra_to_casm, CompilationUtilError};
+use starknet_sierra_compile::compile::compile_sierra_to_casm;
+use starknet_sierra_compile::errors::CompilationUtilError;
 use starknet_sierra_compile::utils::into_contract_class_for_compilation;
 
 use crate::config::{GatewayConfig, GatewayNetworkConfig, RpcStateReaderConfig};

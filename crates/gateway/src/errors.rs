@@ -10,6 +10,7 @@ use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::core::CompiledClassHash;
 use starknet_api::transaction::{Resource, ResourceBounds};
 use starknet_api::StarknetApiError;
+use starknet_sierra_compile::errors::CompilationUtilError;
 use thiserror::Error;
 use tokio::task::JoinError;
 
@@ -19,7 +20,7 @@ use crate::compiler_version::{VersionId, VersionIdError};
 #[derive(Debug, Error)]
 pub enum GatewayError {
     #[error(transparent)]
-    CompilationError(#[from] starknet_sierra_compile::compile::CompilationUtilError),
+    CompilationError(#[from] CompilationUtilError),
     #[error(
         "The supplied compiled class hash {supplied:?} does not match the hash of the Casm class \
          compiled from the supplied Sierra {hash_result:?}."

@@ -16,7 +16,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_mempool::communication::create_mempool_server;
 use starknet_mempool::mempool::Mempool;
 use starknet_mempool_types::communication::{MempoolClientImpl, MempoolRequestAndResponseSender};
-use starknet_sierra_compile::compile::CompilationUtilError;
+use starknet_sierra_compile::errors::CompilationUtilError;
 use tokio::sync::mpsc::channel;
 use tokio::task;
 
