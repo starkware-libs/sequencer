@@ -1,4 +1,4 @@
-use std::collections::{btree_map, hash_map, BTreeMap, HashMap};
+use std::collections::{hash_map, BTreeMap, HashMap};
 
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::TransactionHash;
@@ -16,7 +16,7 @@ pub struct TransactionPool {
     // Holds the complete transaction objects; it should be the sole entity that does so.
     tx_pool: HashMap<TransactionHash, ThinTransaction>,
     // Transactions organized by account address, sorted by ascending nonce values.
-    txs_by_account: HashMap<ContractAddress, BTreeMap<Nonce, TransactionReference>>,
+    txs_by_account: AccountTransactionIndex,
 }
 
 impl TransactionPool {
@@ -24,49 +24,38 @@ impl TransactionPool {
         let tx_reference = TransactionReference::new(&tx);
         let tx_hash = tx_reference.tx_hash;
 
-        // Insert transaction to pool, if it is new.
+        // Insert to pool.
         if let hash_map::Entry::Vacant(entry) = self.tx_pool.entry(tx_hash) {
             entry.insert(tx);
         } else {
             return Err(MempoolError::DuplicateTransaction { tx_hash });
         }
 
-        let txs_from_account_entry =
-            self.txs_by_account.entry(tx_reference.sender_address).or_default();
-        match txs_from_account_entry.entry(tx_reference.nonce) {
-            btree_map::Entry::Vacant(txs_from_account) => {
-                txs_from_account.insert(tx_reference);
-            }
-            // TODO: support fee escalation transactions.
-            btree_map::Entry::Occupied(_) => {
-                panic!(
-                    "Transaction pool consistency error: transaction with hash {tx_hash} does not \
-                     appear in main mapping, but it appears in the account mapping"
-                );
-            }
-        }
+        // Insert to account mapping.
+        let unexpected_existing_tx = self.txs_by_account.insert(tx_reference);
+        if unexpected_existing_tx.is_some() {
+            panic!(
+                "Transaction pool consistency error: transaction with hash {tx_hash} does not \
+                 appear in main mapping, but it appears in the account mapping",
+            )
+        };
+
         Ok(())
     }
 
     pub fn remove(&mut self, tx_hash: TransactionHash) -> MempoolResult<ThinTransaction> {
+        // Remove from pool.
         let tx =
             self.tx_pool.remove(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })?;
 
-        let error_message = |tx_hash| {
-            format!(
+        // Remove from account mapping.
+        self.txs_by_account.remove(TransactionReference::new(&tx)).unwrap_or_else(|| {
+            panic!(
                 "Transaction pool consistency error: transaction with hash {tx_hash} appears in \
                  main mapping, but does not appear in the account mapping"
             )
-        };
+        });
 
-        let txs_from_account_entry = self.txs_by_account.entry(tx.sender_address);
-        match txs_from_account_entry {
-            hash_map::Entry::Occupied(mut entry) => {
-                let txs_from_account = entry.get_mut();
-                assert!(txs_from_account.remove(&tx.nonce).is_some(), "{}", error_message(tx_hash));
-            }
-            hash_map::Entry::Vacant(_) => panic!("{}", error_message(tx_hash)),
-        }
         Ok(tx)
     }
 
@@ -75,10 +64,7 @@ impl TransactionPool {
     }
 }
 
-// TODO: Use in txs_by_account.
-// TODO: remove when is used.
-#[allow(dead_code)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct AccountTransactionIndex(
     pub HashMap<ContractAddress, BTreeMap<Nonce, TransactionReference>>,
 );
