@@ -1,4 +1,3 @@
-use assert_matches::assert_matches;
 use blockifier::blockifier::block::BlockInfo;
 use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::execution::contract_class::ContractClass;
@@ -10,13 +9,12 @@ use blockifier::test_utils::initial_test_state::{fund_account, test_state_reader
 use blockifier::test_utils::{CairoVersion, BALANCE};
 use blockifier::versioned_constants::VersionedConstants;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{
-    calculate_contract_address, ClassHash, CompiledClassHash, ContractAddress, Nonce,
-};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::hash::StarkFelt;
-use starknet_api::rpc_transaction::{RPCDeployAccountTransaction, RPCTransaction};
+use starknet_api::rpc_transaction::RPCTransaction;
 use starknet_api::state::StorageKey;
 
+use crate::starknet_api_test_utils::deployed_account_contract_address;
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 
 #[derive(Clone)]
@@ -104,18 +102,7 @@ pub fn local_test_state_reader_factory_for_deploy_account(
     let mut state_reader_factory = local_test_state_reader_factory(CairoVersion::Cairo1, false);
 
     // Fund the deployed_account_address.
-    let tx = assert_matches!(
-        deploy_tx,
-        RPCTransaction::DeployAccount(RPCDeployAccountTransaction::V3(tx)) => tx
-    );
-
-    let deployed_account_address = calculate_contract_address(
-        tx.contract_address_salt,
-        tx.class_hash,
-        &tx.constructor_calldata,
-        ContractAddress::default(),
-    )
-    .unwrap();
+    let deployed_account_address = deployed_account_contract_address(deploy_tx);
     fund_account(
         BlockContext::create_for_testing().chain_info(),
         deployed_account_address,

@@ -52,6 +52,7 @@ futures = "0.3.30"
 hyper = { version = "0.14", features = ["client", "http1", "http2"] }
 indexmap = "2.1.0"
 itertools = "0.13.0"
+lazy_static = "1.4.0"
 num-bigint = { version = "0.4.5", default-features = false }
 # TODO(YaelD, 28/5/2024): The special Papyrus version is needed in order to be aligned with the
 # starknet-api version. This should be removed once we have a mono-repo.

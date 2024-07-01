@@ -2,10 +2,13 @@ use std::env;
 use std::fs::File;
 use std::path::Path;
 
+use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion, NonceManager};
 use serde_json::to_string_pretty;
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{
+    calculate_contract_address, ClassHash, CompiledClassHash, ContractAddress, Nonce,
+};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::hash::StarkFelt;
 use starknet_api::rpc_transaction::{
@@ -379,4 +382,18 @@ pub fn deploy_account_tx() -> RPCTransaction {
         class_hash: account_contract.get_class_hash(),
         resource_bounds: executable_resource_bounds_mapping(),
     ))
+}
+
+pub fn deployed_account_contract_address(deploy_tx: &RPCTransaction) -> ContractAddress {
+    let tx = assert_matches!(
+        deploy_tx,
+        RPCTransaction::DeployAccount(RPCDeployAccountTransaction::V3(tx)) => tx
+    );
+    calculate_contract_address(
+        tx.contract_address_salt,
+        tx.class_hash,
+        &tx.constructor_calldata,
+        ContractAddress::default(),
+    )
+    .unwrap()
 }
