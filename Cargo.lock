@@ -5613,6 +5613,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet_api",
+ "test_utils",
  "thiserror",
 ]
 
