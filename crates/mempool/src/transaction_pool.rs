@@ -90,7 +90,7 @@ impl AccountTransactionIndex {
     }
 
     pub fn remove(&mut self, tx: TransactionReference) -> Option<TransactionReference> {
-        let ThinTransaction { sender_address, nonce, .. } = tx.0;
+        let TransactionReference { sender_address, nonce, .. } = tx;
         let account_txs = self.0.get_mut(&sender_address)?;
 
         let removed_tx = account_txs.remove(&nonce);
