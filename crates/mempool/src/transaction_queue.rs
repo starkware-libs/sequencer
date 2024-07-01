@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::transaction::TransactionHash;
 
 use crate::mempool::TransactionReference;
 // Assumption: for the MVP only one transaction from the same contract class can be in the mempool
@@ -28,19 +29,18 @@ impl TransactionQueue {
     }
 
     // TODO(gilad): remove collect
-    pub fn pop_last_chunk(&mut self, n_txs: usize) -> Vec<TransactionReference> {
+    pub fn pop_last_chunk(&mut self, n_txs: usize) -> Vec<TransactionHash> {
         let txs: Vec<TransactionReference> =
             (0..n_txs).filter_map(|_| self.queue.pop_last().map(|tx| tx.0)).collect();
-
         for tx in &txs {
             self.address_to_nonce.remove(&tx.sender_address);
         }
 
-        txs
+        txs.into_iter().map(|tx| tx.tx_hash).collect()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = TransactionReference> + '_ {
-        self.queue.iter().map(|tx| tx.0.clone())
+    pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {
+        self.queue.iter().map(|tx| &tx.0)
     }
 
     pub fn _get_nonce(&self, address: &ContractAddress) -> Option<&Nonce> {

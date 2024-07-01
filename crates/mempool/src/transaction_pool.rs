@@ -20,22 +20,24 @@ pub struct TransactionPool {
 }
 
 impl TransactionPool {
-    // TODO(Mohammad): Remove the cloning of tx once the `TransactionReference` is updated.
     pub fn insert(&mut self, tx: ThinTransaction) -> MempoolResult<()> {
-        let tx_hash = tx.tx_hash;
+        let tx_reference = TransactionReference::new(&tx);
+        let tx_hash = tx_reference.tx_hash;
 
         // Insert transaction to pool, if it is new.
         if let hash_map::Entry::Vacant(entry) = self.tx_pool.entry(tx_hash) {
-            entry.insert(tx.clone());
+            entry.insert(tx);
         } else {
             return Err(MempoolError::DuplicateTransaction { tx_hash });
         }
 
-        let txs_from_account_entry = self.txs_by_account.entry(tx.sender_address).or_default();
-        match txs_from_account_entry.entry(tx.nonce) {
+        let txs_from_account_entry =
+            self.txs_by_account.entry(tx_reference.sender_address).or_default();
+        match txs_from_account_entry.entry(tx_reference.nonce) {
             btree_map::Entry::Vacant(txs_from_account) => {
-                txs_from_account.insert(TransactionReference::new(tx));
+                txs_from_account.insert(tx_reference);
             }
+            // TODO: support fee escalation transactions.
             btree_map::Entry::Occupied(_) => {
                 panic!(
                     "Transaction pool consistency error: transaction with hash {tx_hash} does not \

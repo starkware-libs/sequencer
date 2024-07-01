@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use starknet_api::core::ContractAddress;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::transaction::{Tip, TransactionHash};
 use starknet_mempool_types::mempool_types::{
     AccountState, MempoolInput, MempoolResult, ThinTransaction,
 };
@@ -38,7 +38,7 @@ impl Mempool {
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
-    pub fn iter(&self) -> impl Iterator<Item = TransactionReference> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {
         self.tx_queue.iter()
     }
 
@@ -49,11 +49,9 @@ impl Mempool {
     // library.
     pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<ThinTransaction>> {
         let mut eligible_txs: Vec<ThinTransaction> = Vec::with_capacity(n_txs);
-
-        let txs = self.tx_queue.pop_last_chunk(n_txs);
-        for tx in txs {
-            self.tx_pool.remove(tx.tx_hash)?;
-            eligible_txs.push(tx.0);
+        for tx_hash in self.tx_queue.pop_last_chunk(n_txs) {
+            let tx = self.tx_pool.remove(tx_hash)?;
+            eligible_txs.push(tx);
         }
 
         Ok(eligible_txs)
@@ -83,7 +81,7 @@ impl Mempool {
         let tx = input.tx;
 
         self.tx_pool.insert(tx.clone())?;
-        self.tx_queue.insert(TransactionReference::new(tx));
+        self.tx_queue.insert(TransactionReference::new(&tx));
 
         Ok(())
     }
@@ -93,11 +91,21 @@ impl Mempool {
 /// execution fields).
 /// TODO(Mohammad): rename this struct to `ThinTransaction` once that name
 /// becomes available, to better reflect its purpose and usage.
-#[derive(Clone, Debug, Default, derive_more::Deref)]
-pub struct TransactionReference(pub ThinTransaction);
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct TransactionReference {
+    pub sender_address: ContractAddress,
+    pub nonce: Nonce,
+    pub tx_hash: TransactionHash,
+    pub tip: Tip,
+}
 
 impl TransactionReference {
-    pub fn new(tx: ThinTransaction) -> Self {
-        TransactionReference(tx)
+    pub fn new(tx: &ThinTransaction) -> Self {
+        TransactionReference {
+            sender_address: tx.sender_address,
+            nonce: tx.nonce,
+            tx_hash: tx.tx_hash,
+            tip: tx.tip,
+        }
     }
 }
