@@ -18,7 +18,10 @@ use starknet_api::transaction::{
     TransactionSignature, TransactionVersion,
 };
 use starknet_api::{calldata, stark_felt};
-use test_utils::{get_absolute_path, CONTRACT_CLASS_FILE, TEST_FILES_FOLDER};
+use test_utils::{
+    get_absolute_path, COMPILED_CLASS_HASH_OF_CONTRACT_CLASS, CONTRACT_CLASS_FILE,
+    TEST_FILES_FOLDER,
+};
 
 use crate::{declare_tx_args, deploy_account_tx_args, invoke_tx_args};
 
@@ -97,6 +100,7 @@ pub fn declare_tx() -> RPCTransaction {
     env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Couldn't set working dir.");
     let json_file_path = Path::new(CONTRACT_CLASS_FILE);
     let contract_class = serde_json::from_reader(File::open(json_file_path).unwrap()).unwrap();
+    let compiled_class_hash = CompiledClassHash(stark_felt!(COMPILED_CLASS_HASH_OF_CONTRACT_CLASS));
 
     let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let account_address = account_contract.get_instance_address(0);
@@ -108,7 +112,8 @@ pub fn declare_tx() -> RPCTransaction {
         sender_address: account_address,
         resource_bounds: executable_resource_bounds_mapping(),
         nonce,
-        contract_class
+        class_hash: compiled_class_hash,
+        contract_class,
     ))
 }
 

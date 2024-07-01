@@ -7,6 +7,8 @@ use axum::extract::State;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use blockifier::execution::contract_class::{ClassInfo, ContractClass, ContractClassV1};
+use blockifier::execution::execution_utils::felt_to_stark_felt;
+use starknet_api::core::CompiledClassHash;
 use starknet_api::rpc_transaction::{RPCDeclareTransaction, RPCTransaction};
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::communication::SharedMempoolClient;
@@ -156,6 +158,15 @@ pub fn compile_contract_class(declare_tx: &RPCDeclareTransaction) -> GatewayResu
             return Err(GatewayError::CompilationError(CompilationUtilError::CompilationPanic));
         }
     };
+
+    let hash_result =
+        CompiledClassHash(felt_to_stark_felt(&casm_contract_class.compiled_class_hash()));
+    if hash_result != tx.compiled_class_hash {
+        return Err(GatewayError::CompiledClassHashMismatch {
+            supplied: tx.compiled_class_hash,
+            hash_result,
+        });
+    }
 
     // Convert Casm contract class to Starknet contract class directly.
     let blockifier_contract_class =

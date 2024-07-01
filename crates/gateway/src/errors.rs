@@ -7,6 +7,7 @@ use blockifier::transaction::errors::TransactionExecutionError;
 use cairo_vm::types::errors::program_errors::ProgramError;
 use serde_json::{Error as SerdeError, Value};
 use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::core::CompiledClassHash;
 use starknet_api::transaction::{Resource, ResourceBounds};
 use starknet_api::StarknetApiError;
 use thiserror::Error;
@@ -19,6 +20,11 @@ use crate::compiler_version::{VersionId, VersionIdError};
 pub enum GatewayError {
     #[error(transparent)]
     CompilationError(#[from] starknet_sierra_compile::compile::CompilationUtilError),
+    #[error(
+        "The supplied compiled class hash {supplied:?} does not match the hash of the Casm class \
+         compiled from the supplied Sierra {hash_result:?}."
+    )]
+    CompiledClassHashMismatch { supplied: CompiledClassHash, hash_result: CompiledClassHash },
     #[error(transparent)]
     DeclaredContractClassError(#[from] ContractClassError),
     #[error(transparent)]

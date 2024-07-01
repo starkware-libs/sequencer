@@ -46,7 +46,7 @@ use crate::stateful_transaction_validator::StatefulTransactionValidator;
     declare_tx(),
     local_test_state_reader_factory(CairoVersion::Cairo1, false),
     Ok(TransactionHash(StarkFelt::try_from(
-        "0x0278ed2700d5a30254a6b895d4e1140438d7d1a3b2b2ce0c096a9d5ee1c61f39"
+        "0x02da54b89e00d2e201f8e3ed2bcc715a69e89aefdce88aff2d2facb8dec55c0a"
     ).unwrap()))
 )]
 #[case::invalid_tx(
