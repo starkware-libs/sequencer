@@ -113,6 +113,72 @@ jobs:
       - run: gcloud storage cp gs://committer-products-external/committer_flow_inputs.json ./crates/committer_cli/benches/committer_flow_inputs.json
       - run: cargo test --release -- --include-ignored test_benchmark
 
+  benchmarking:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout the base branch to get the old code.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+      - uses: Swatinem/rust-cache@v2
+
+      # Download the benchmark inputs.
+      - id: auth
+        uses: "google-github-actions/auth@v2"
+        with:
+          credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
+      - uses: 'google-github-actions/setup-gcloud@v2'
+      - run: gcloud storage cp gs://committer-products-external/tree_flow_inputs.json ./crates/committer_cli/benches/tree_flow_inputs.json
+      - run: gcloud storage cp gs://committer-products-external/committer_flow_inputs.json ./crates/committer_cli/benches/committer_flow_inputs.json
+
+      # Benchmark the old code.
+      - run: cargo bench
+
+      # Backup the downloaded files to avoid re-downloading them (overwritten by checkout).
+      - run: mv ./crates/committer_cli/benches/tree_flow_inputs.json ./crates/committer_cli/benches/tree_flow_inputs.json_bu
+      - run: mv ./crates/committer_cli/benches/committer_flow_inputs.json ./crates/committer_cli/benches/committer_flow_inputs.json_bu
+
+      # Checkout the new code.
+      - uses: actions/checkout@v4
+        with:
+          clean: false
+      - run: mv ./crates/committer_cli/benches/tree_flow_inputs.json_bu ./crates/committer_cli/benches/tree_flow_inputs.json
+      - run: mv ./crates/committer_cli/benches/committer_flow_inputs.json_bu ./crates/committer_cli/benches/committer_flow_inputs.json
+
+      # Benchmark the new code.
+      - run: cargo bench > bench_new.txt
+      - run: sed -i '/tree_computation_flow/,$!d' bench_new.txt
+      - run: echo BENCHES_RESULT=$(cat bench_new.txt) >> $GITHUB_ENV
+
+      # Post comment in case of performance regression or improvement.
+      # TODO: split the outputs to different files and post only the relevant ones.
+      - run: npm install fs
+      - if: contains(env.BENCHES_RESULT, 'regressed')
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs')
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '**performance regressed!**\n' + fs.readFileSync('bench_new.txt', 'utf8'),
+              path: 'Commits'
+            })
+
+      - if: ${{contains(env.BENCHES_RESULT, 'improved') && !contains(env.BENCHES_RESULT, 'regressed')}}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs')
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: 'performance improved :smiley_cat:\n' + fs.readFileSync('bench_new.txt', 'utf8'),
+              path: 'Commits'
+            })
+
   gcs-push:
     runs-on: ubuntu-20.04
     steps:

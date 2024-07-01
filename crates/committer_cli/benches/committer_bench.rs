@@ -56,6 +56,7 @@ pub fn full_committer_flow_benchmark(criterion: &mut Criterion) {
             .unwrap(),
     };
 
+    //TODO(Aner, 27/06/2024): output path should be a pipe (file on memory) to avoid disk IO in the benchmark.
     criterion.bench_function("full_committer_flow", |benchmark| {
         benchmark.iter(|| {
             runtime.block_on(commit(FLOW_TEST_INPUT, OUTPUT_PATH.to_owned()));
