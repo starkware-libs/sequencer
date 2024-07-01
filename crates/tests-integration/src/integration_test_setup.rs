@@ -1,30 +1,26 @@
 use std::net::SocketAddr;
-use std::sync::Arc;
 
 use starknet_api::rpc_transaction::RPCTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway::config::GatewayNetworkConfig;
 use starknet_gateway::errors::GatewayError;
-use starknet_mempool::communication::create_mempool_server;
-use starknet_mempool::mempool::Mempool;
-use starknet_mempool_infra::component_server::ComponentServerStarter;
-use starknet_mempool_types::communication::{MempoolClientImpl, MempoolRequestAndResponseSender};
+use starknet_mempool_node::communication::{create_node_channels, create_node_clients};
+use starknet_mempool_node::components::create_components;
+use starknet_mempool_node::servers::{create_servers, get_server_future};
 use starknet_mempool_types::mempool_types::ThinTransaction;
 use starknet_task_executor::executor::TaskExecutor;
 use starknet_task_executor::tokio_executor::TokioExecutor;
 use tokio::runtime::Handle;
-use tokio::sync::mpsc::channel;
 use tokio::task::JoinHandle;
 
-use crate::integration_test_utils::{create_gateway, GatewayClient};
+use crate::integration_test_utils::{create_config, GatewayClient};
 use crate::mock_batcher::MockBatcher;
+use crate::state_reader::spawn_test_rpc_state_reader;
 
 pub struct IntegrationTestSetup {
     pub task_executor: TokioExecutor,
     pub gateway_client: GatewayClient,
-
     pub batcher: MockBatcher,
-
     pub gateway_handle: JoinHandle<()>,
     pub mempool_handle: JoinHandle<()>,
 }
@@ -34,20 +30,29 @@ impl IntegrationTestSetup {
         let handle = Handle::current();
         let task_executor = TokioExecutor::new(handle);
 
-        // TODO(Tsabary): wrap creation of channels in dedicated functions, take channel capacity
-        // from config.
-        const MEMPOOL_INVOCATIONS_QUEUE_SIZE: usize = 32;
-        let (tx_mempool, rx_mempool) =
-            channel::<MempoolRequestAndResponseSender>(MEMPOOL_INVOCATIONS_QUEUE_SIZE);
-        // Build and run gateway; initialize a gateway client.
-        let gateway_mempool_client = MempoolClientImpl::new(tx_mempool.clone());
-        let mut gateway =
-            create_gateway(Arc::new(gateway_mempool_client), n_initialized_account_contracts).await;
-        let GatewayNetworkConfig { ip, port } = gateway.config.network_config;
+        // Spawn a papyrus rpc server for a papyrus storage reader.
+        let rpc_server_addr = spawn_test_rpc_state_reader(n_initialized_account_contracts).await;
+
+        // Derive the configuration for the mempool node.
+        let config = create_config(rpc_server_addr).await;
+
+        // Create the communication network for the mempool node.
+        let channels = create_node_channels();
+
+        // Create the clients for the mempool node.
+        let clients = create_node_clients(&config, &channels);
+
+        // Create the components for the mempool node.
+        let components = create_components(&config, &clients);
+
+        // Create the servers for the mempool node.
+        let servers = create_servers(&config, channels, components);
+
+        let GatewayNetworkConfig { ip, port } = config.gateway_config.network_config;
         let gateway_client = GatewayClient::new(SocketAddr::from((ip, port)));
-        let gateway_handle = task_executor.spawn_with_handle(async move {
-            gateway.run().await.unwrap();
-        });
+
+        let gateway_future = get_server_future("Gateway", true, servers.gateway);
+        let gateway_handle = task_executor.spawn_with_handle(gateway_future);
 
         // Wait for server to spin up.
         // TODO(Gilad): Replace with a persistant Client with a built-in retry mechanism,
@@ -55,13 +60,11 @@ impl IntegrationTestSetup {
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
         // Build Batcher.
-        let batcher = MockBatcher::new(tx_mempool.clone());
+        let batcher = MockBatcher::new(clients.get_mempool_client().unwrap());
 
         // Build and run mempool.
-        let mut mempool_server = create_mempool_server(Mempool::empty(), rx_mempool);
-        let mempool_handle = task_executor.spawn_with_handle(async move {
-            mempool_server.start().await;
-        });
+        let mempool_future = get_server_future("Mempool", true, servers.mempool);
+        let mempool_handle = task_executor.spawn_with_handle(mempool_future);
 
         Self { task_executor, gateway_client, batcher, gateway_handle, mempool_handle }
     }

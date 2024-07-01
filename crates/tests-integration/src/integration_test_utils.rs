@@ -1,5 +1,4 @@
 use std::net::SocketAddr;
-use std::sync::Arc;
 
 use axum::body::Body;
 use reqwest::{Client, Response};
@@ -10,18 +9,11 @@ use starknet_gateway::config::{
     StatelessTransactionValidatorConfig,
 };
 use starknet_gateway::errors::GatewayError;
-use starknet_gateway::gateway::Gateway;
-use starknet_gateway::rpc_state_reader::RpcStateReaderFactory;
-use starknet_mempool_types::communication::SharedMempoolClient;
+use starknet_mempool_node::config::MempoolNodeConfig;
 use test_utils::starknet_api_test_utils::external_tx_to_json;
 use tokio::net::TcpListener;
 
-use crate::state_reader::spawn_test_rpc_state_reader;
-
-pub async fn create_gateway(
-    mempool_client: SharedMempoolClient,
-    n_initialized_account_contracts: u16,
-) -> Gateway {
+async fn create_gateway_config() -> GatewayConfig {
     let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
         validate_non_zero_l1_gas_fee: true,
         max_calldata_length: 10,
@@ -33,17 +25,13 @@ pub async fn create_gateway(
     let network_config = GatewayNetworkConfig { ip: socket.ip(), port: socket.port() };
     let stateful_tx_validator_config = StatefulTransactionValidatorConfig::create_for_testing();
 
-    let gateway_config = GatewayConfig {
-        network_config,
-        stateless_tx_validator_config,
-        stateful_tx_validator_config,
-    };
+    GatewayConfig { network_config, stateless_tx_validator_config, stateful_tx_validator_config }
+}
 
-    let rpc_server_addr = spawn_test_rpc_state_reader(n_initialized_account_contracts).await;
-    let rpc_state_reader_config = spawn_test_rpc_state_reader_config(rpc_server_addr);
-    let state_reader_factory = Arc::new(RpcStateReaderFactory { config: rpc_state_reader_config });
-
-    Gateway::new(gateway_config, state_reader_factory, mempool_client)
+pub async fn create_config(rpc_server_addr: SocketAddr) -> MempoolNodeConfig {
+    let gateway_config = create_gateway_config().await;
+    let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
+    MempoolNodeConfig { gateway_config, rpc_state_reader_config, ..MempoolNodeConfig::default() }
 }
 
 /// A test utility client for interacting with a gateway server.
@@ -84,7 +72,7 @@ impl GatewayClient {
     }
 }
 
-fn spawn_test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderConfig {
+fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderConfig {
     const RPC_SPEC_VERION: &str = "V0_7";
     const JSON_RPC_VERSION: &str = "2.0";
     RpcStateReaderConfig {
