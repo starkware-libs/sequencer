@@ -1,11 +1,9 @@
 mod common;
 
-use std::net::IpAddr;
-
 use async_trait::async_trait;
 use common::{ComponentAClientTrait, ComponentBClientTrait, ResultA, ResultB};
 use serde::{Deserialize, Serialize};
-use starknet_mempool_infra::component_client::ComponentClientHttp;
+use starknet_mempool_infra::component_client::{ClientError, ComponentClientHttp};
 use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
 use starknet_mempool_infra::component_server::ComponentServerHttp;
 use tokio::task;
@@ -27,7 +25,7 @@ pub enum ComponentAResponse {
 #[async_trait]
 impl ComponentAClientTrait for ComponentClientHttp<ComponentARequest, ComponentAResponse> {
     async fn a_get_value(&self) -> ResultA {
-        match self.send(ComponentARequest::AGetValue).await {
+        match self.send(ComponentARequest::AGetValue).await? {
             ComponentAResponse::Value(value) => Ok(value),
         }
     }
@@ -57,7 +55,7 @@ pub enum ComponentBResponse {
 #[async_trait]
 impl ComponentBClientTrait for ComponentClientHttp<ComponentBRequest, ComponentBResponse> {
     async fn b_get_value(&self) -> ResultB {
-        match self.send(ComponentBRequest::BGetValue).await {
+        match self.send(ComponentBRequest::BGetValue).await? {
             ComponentBResponse::Value(value) => Ok(value),
         }
     }
@@ -72,9 +70,18 @@ impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for Componen
     }
 }
 
-async fn verify_response(ip_address: IpAddr, port: u16, expected_value: ValueA) {
-    let a_client = ComponentClientHttp::new(ip_address, port);
+async fn verify_response(
+    a_client: ComponentClientHttp<ComponentARequest, ComponentAResponse>,
+    expected_value: ValueA,
+) {
     assert_eq!(a_client.a_get_value().await.unwrap(), expected_value);
+}
+
+async fn verify_error(
+    a_client: ComponentClientHttp<ComponentARequest, ComponentAResponse>,
+    expected_error: ClientError,
+) {
+    assert_eq!(a_client.a_get_value().await, Err(expected_error));
 }
 
 #[tokio::test]
@@ -91,8 +98,10 @@ async fn test_setup() {
     let b_client =
         ComponentClientHttp::<ComponentBRequest, ComponentBResponse>::new(local_ip, b_port);
 
+    verify_error(a_client.clone(), ClientError::CommunicationFailure).await;
+
     let component_a = ComponentA::new(Box::new(b_client));
-    let component_b = ComponentB::new(setup_value, Box::new(a_client));
+    let component_b = ComponentB::new(setup_value, Box::new(a_client.clone()));
 
     let mut component_a_server = ComponentServerHttp::<
         ComponentA,
@@ -116,5 +125,5 @@ async fn test_setup() {
     // Todo(uriel): Get rid of this
     task::yield_now().await;
 
-    verify_response(local_ip, a_port, expected_value).await;
+    verify_response(a_client.clone(), expected_value).await;
 }
