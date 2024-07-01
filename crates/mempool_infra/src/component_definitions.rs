@@ -14,3 +14,5 @@ where
     pub request: Request,
     pub tx: Sender<Response>,
 }
+
+pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";

@@ -1,7 +1,14 @@
+use std::marker::PhantomData;
+use std::net::IpAddr;
+
+use bincode::{deserialize, serialize};
+use hyper::header::CONTENT_TYPE;
+use hyper::{Body, Client, Request as HyperRequest, Uri};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::mpsc::{channel, Sender};
 
-use crate::component_definitions::ComponentRequestAndResponseSender;
+use crate::component_definitions::{ComponentRequestAndResponseSender, APPLICATION_OCTET_STREAM};
 
 pub struct ComponentClient<Request, Response>
 where
@@ -40,6 +47,47 @@ where
 {
     fn clone(&self) -> Self {
         Self { tx: self.tx.clone() }
+    }
+}
+
+pub struct ComponentClientHttp<Request, Response>
+where
+    Request: Serialize,
+    Response: for<'a> Deserialize<'a>,
+{
+    uri: Uri,
+    _req: PhantomData<Request>,
+    _res: PhantomData<Response>,
+}
+
+impl<Request, Response> ComponentClientHttp<Request, Response>
+where
+    Request: Serialize,
+    Response: for<'a> Deserialize<'a>,
+{
+    pub fn new(ip_address: IpAddr, port: u16) -> Self {
+        let uri = match ip_address {
+            IpAddr::V4(ip_address) => format!("http://{}:{}/", ip_address, port).parse().unwrap(),
+            IpAddr::V6(ip_address) => format!("http://[{}]:{}/", ip_address, port).parse().unwrap(),
+        };
+        Self { uri, _req: PhantomData, _res: PhantomData }
+    }
+
+    pub async fn send(&self, component_request: Request) -> Response {
+        let http_request = HyperRequest::post(self.uri.clone())
+            .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+            .body(Body::from(
+                serialize(&component_request).expect("Request serialization should succeed"),
+            ))
+            .expect("Request builidng should succeed");
+
+        // Todo(uriel): Add configuration to control number of retries
+        let http_response =
+            Client::new().request(http_request).await.expect("Could not connect to server");
+        let body_bytes = hyper::body::to_bytes(http_response.into_body())
+            .await
+            .expect("Could not get response from server");
+        deserialize(&body_bytes).expect("Response deserialization should succeed")
     }
 }
 
