@@ -89,7 +89,15 @@ impl<L: LeafData> FilledNode<L> {
     pub(crate) fn deserialize(
         node_hash: HashOutput,
         value: &StorageValue,
+        is_leaf: bool,
     ) -> Result<Self, DeserializationError> {
+        if is_leaf {
+            return Ok(Self {
+                hash: node_hash,
+                data: NodeData::Leaf(L::deserialize(value)?),
+            });
+        }
+
         if value.0.len() == BINARY_BYTES {
             Ok(Self {
                 hash: node_hash,
@@ -102,8 +110,16 @@ impl<L: LeafData> FilledNode<L> {
                     )),
                 }),
             })
-        } else if value.0.len() == EDGE_BYTES {
-            return Ok(Self {
+        } else {
+            assert_eq!(
+                value.0.len(),
+                EDGE_BYTES,
+                "Unexpected inner node storage value length {}, expected to be {} or {}.",
+                value.0.len(),
+                EDGE_BYTES,
+                BINARY_BYTES
+            );
+            Ok(Self {
                 hash: node_hash,
                 data: NodeData::Edge(EdgeData {
                     bottom_hash: HashOutput(Felt::from_bytes_be_slice(
@@ -119,12 +135,7 @@ impl<L: LeafData> FilledNode<L> {
                         EdgePathLength::new(value.0[EDGE_BYTES - 1])?,
                     )?,
                 }),
-            });
-        } else {
-            return Ok(Self {
-                hash: node_hash,
-                data: NodeData::Leaf(L::deserialize(value)?),
-            });
+            })
         }
     }
 }

@@ -233,7 +233,11 @@ impl OriginalSkeletonTreeImpl {
             subtrees.iter().zip(db_vals.iter()).zip(db_keys.into_iter())
         {
             let val = optional_val.ok_or(StorageError::MissingKey(db_key))?;
-            subtrees_roots.push(FilledNode::deserialize(subtree.root_hash, val)?)
+            subtrees_roots.push(FilledNode::deserialize(
+                subtree.root_hash,
+                val,
+                subtree.is_leaf(),
+            )?)
         }
         Ok(subtrees_roots)
     }
