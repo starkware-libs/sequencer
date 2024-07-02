@@ -17,18 +17,9 @@ bincode.workspace = true
 serde.workspace = true
 hyper.workspace = true
 papyrus_config.workspace = true
-prost.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-tonic.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
 pretty_assertions.workspace = true
-
-[build-dependencies]
-protoc-prebuilt = "0.3.0"
-tonic-build = "0.11.0"
-
-[package.metadata.cargo-machete]
-ignored = ["prost"]
