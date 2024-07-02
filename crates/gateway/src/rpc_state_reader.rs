@@ -2,13 +2,12 @@ use blockifier::blockifier::block::BlockInfo;
 use blockifier::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use papyrus_rpc::CompiledContractClass;
 use reqwest::blocking::Client as BlockingClient;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::{json, Value};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::deprecated_contract_class::ContractClass as StarknetApiDeprecatedContractClass;
 use starknet_api::hash::StarkFelt;
 use starknet_api::state::StorageKey;
 
@@ -155,13 +154,6 @@ impl BlockifierStateReader for RpcStateReader {
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         todo!()
     }
-}
-
-// TODO(yael 19/6/2024): make this object public in papyrus and remove it from here.
-#[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
-pub enum CompiledContractClass {
-    V0(StarknetApiDeprecatedContractClass),
-    V1(CasmContractClass),
 }
 
 pub struct RpcStateReaderFactory {
