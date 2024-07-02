@@ -1,5 +1,6 @@
 #!/bin/env python3
-from ast import arg
+
+import argparse
 import re
 import subprocess
 import os
@@ -59,21 +60,35 @@ def get_package_dependencies(package_name: str) -> Set[str]:
     return deps
 
 
-def run_test():
+def run_test(changes_only: bool):
     local_changes = get_local_changes(".")
     modified_packages = get_modified_packages(local_changes)
-    for p in modified_packages:
-        deps = get_package_dependencies(p)
-        print(f"Running tests for {deps}")
-        args = []
-        for d in deps:
-            args.extend(["--package", d])
+    args = []
+    if changes_only:
+        for p in modified_packages:
+            deps = get_package_dependencies(p)
+            print(f"Running tests for {deps}")
+            for d in deps:
+                args.extend(["--package", d])
+        if len(args) == 0:
+            print("No changes detected.")
+            return
     cmd = ["cargo", "test"] + args
+    print("Running tests...")
     print(cmd)
     subprocess.run(cmd)
+    print("Tests complete.")
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Presubmit script.")
+    parser.add_argument("--changes_only", action="store_true")
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    run_test(changes_only=args.changes_only)
+
 
 if __name__ == "__main__":
-    print("Running tests...")
-    run_test()
-    # Run tests here
-    print("Tests complete.")
+    main()
