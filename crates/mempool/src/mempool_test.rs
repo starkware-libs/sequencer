@@ -25,17 +25,17 @@ macro_rules! add_tx_input {
             tip: Tip($tip),
             tx_hash: TransactionHash($tx_hash),
             sender_address,
-            nonce: Nonce::from($nonce),
+            nonce: Nonce($nonce),
         };
         MempoolInput { tx, account }
     }};
     // Pattern for three arguments.
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr) => {
-        add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, nonce: Nonce::default())
+        add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, nonce: StarkFelt::ZERO)
     };
     // Pattern for two arguments.
     (tip: $tip:expr, tx_hash: $tx_hash:expr) => {
-        add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: ContractAddress::default(), nonce: Nonce::default())
+        add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: ContractAddress::default(), nonce: StarkFelt::ZERO)
     };
 }
 
