@@ -11,31 +11,31 @@ use starknet_mempool_types::mempool_types::{Account, ThinTransaction};
 
 use crate::mempool::{Mempool, MempoolInput, TransactionReference};
 
-/// Creates a valid input for mempool's `add_tx` with optional default value for
-/// `sender_address`.
+/// Creates a valid input for mempool's `add_tx` with optional default values.
 /// Usage:
-/// 1. add_tx_input!(tip, tx_hash, address, nonce)
-/// 2. add_tx_input!(tip, tx_hash, address)
-/// 3. add_tx_input!(tip, tx_hash)
+/// 1. add_tx_input!(tip: 1, tx_hash: StarkFelt::TWO, address: "0x3", nonce: 4)
+/// 2. add_tx_input!(tip: 1, tx_hash: StarkFelt::TWO, address: "0x3")
+/// 3. add_tx_input!(tip:1 , tx_hash: StarkFelt::TWO)
 macro_rules! add_tx_input {
-    // Pattern for all four arguments
-    ($tip:expr, $tx_hash:expr, $sender_address:expr, $nonce:expr) => {{
-        let account = Account { sender_address: $sender_address, ..Default::default() };
+    // Pattern for all four arguments with keyword arguments.
+    (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, nonce: $nonce:expr) => {{
+        let sender_address = contract_address!($sender_address);
+        let account = Account { sender_address, ..Default::default() };
         let tx = ThinTransaction {
-            tip: $tip,
-            tx_hash: $tx_hash,
-            sender_address: $sender_address,
-            nonce: $nonce,
+            tip: Tip($tip),
+            tx_hash: TransactionHash($tx_hash),
+            sender_address,
+            nonce: Nonce::from($nonce),
         };
         MempoolInput { tx, account }
     }};
-    // Pattern for three arguments: tip, tx_hash, address
-    ($tip:expr, $tx_hash:expr, $address:expr) => {
-        add_tx_input!($tip, $tx_hash, $address, Nonce::default())
+    // Pattern for three arguments.
+    (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr) => {
+        add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, nonce: Nonce::default())
     };
-    // Pattern for two arguments: tip, tx_hash
-    ($tip:expr, $tx_hash:expr) => {
-        add_tx_input!($tip, $tx_hash, ContractAddress::default(), Nonce::default())
+    // Pattern for two arguments.
+    (tip: $tip:expr, tx_hash: $tx_hash:expr) => {
+        add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: ContractAddress::default(), nonce: Nonce::default())
     };
 }
 
@@ -63,11 +63,11 @@ fn check_mempool_txs_eq(mempool: &Mempool, expected_txs: &[ThinTransaction]) {
 #[case(5)] // Requesting more transactions than are in the queue
 #[case(2)] // Requesting fewer transactions than are in the queue
 fn test_get_txs(#[case] requested_txs: usize) {
-    let input_tip_50_address_0 = add_tx_input!(Tip(50), TransactionHash(StarkFelt::ONE));
+    let input_tip_50_address_0 = add_tx_input!(tip: 50, tx_hash: StarkFelt::ONE);
     let input_tip_100_address_1 =
-        add_tx_input!(Tip(100), TransactionHash(StarkFelt::TWO), contract_address!("0x1"));
+        add_tx_input!(tip: 100, tx_hash: StarkFelt::TWO, sender_address: "0x1");
     let input_tip_10_address_2 =
-        add_tx_input!(Tip(10), TransactionHash(StarkFelt::THREE), contract_address!("0x2"));
+        add_tx_input!(tip: 10, tx_hash: StarkFelt::THREE, sender_address: "0x2");
 
     let mut mempool = Mempool::new([
         input_tip_50_address_0.clone(),
@@ -94,11 +94,11 @@ fn test_get_txs(#[case] requested_txs: usize) {
 
 #[rstest]
 fn test_add_tx(mut mempool: Mempool) {
-    let input_tip_50_address_0 = add_tx_input!(Tip(50), TransactionHash(StarkFelt::ONE));
+    let input_tip_50_address_0 = add_tx_input!(tip: 50, tx_hash: StarkFelt::ONE);
     let input_tip_100_address_1 =
-        add_tx_input!(Tip(100), TransactionHash(StarkFelt::TWO), contract_address!("0x1"));
+        add_tx_input!(tip: 100, tx_hash: StarkFelt::TWO, sender_address: "0x1");
     let input_tip_80_address_2 =
-        add_tx_input!(Tip(80), TransactionHash(StarkFelt::THREE), contract_address!("0x2"));
+        add_tx_input!(tip: 80, tx_hash: StarkFelt::THREE, sender_address: "0x2");
 
     assert_eq!(mempool.add_tx(input_tip_50_address_0.clone()), Ok(()));
     assert_eq!(mempool.add_tx(input_tip_100_address_1.clone()), Ok(()));
@@ -111,7 +111,7 @@ fn test_add_tx(mut mempool: Mempool) {
 
 #[rstest]
 fn test_add_same_tx(mut mempool: Mempool) {
-    let input = add_tx_input!(Tip(50), TransactionHash(StarkFelt::ONE));
+    let input = add_tx_input!(tip: 50, tx_hash: StarkFelt::ONE);
     let same_input = input.clone();
 
     assert_eq!(mempool.add_tx(input), Ok(()));
@@ -126,11 +126,11 @@ fn test_add_same_tx(mut mempool: Mempool) {
 
 #[rstest]
 fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
-    let input1 = add_tx_input!(Tip(1), TransactionHash(StarkFelt::TWO));
+    let input1 = add_tx_input!(tip: 1, tx_hash: StarkFelt::TWO);
 
     // Create a transaction with identical tip, it should be allowed through since the priority
     // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
-    let input2 = add_tx_input!(Tip(1), TransactionHash(StarkFelt::ONE), contract_address!("0x1"));
+    let input2 = add_tx_input!(tip: 1, tx_hash: StarkFelt::ONE, sender_address: "0x1");
 
     assert_eq!(mempool.add_tx(input1.clone()), Ok(()));
     assert_eq!(mempool.add_tx(input2.clone()), Ok(()));
@@ -142,12 +142,12 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
 
 #[rstest]
 fn test_tip_priority_over_tx_hash(mut mempool: Mempool) {
-    let input_big_tip_small_hash = add_tx_input!(Tip(2), TransactionHash(StarkFelt::ONE));
+    let input_big_tip_small_hash = add_tx_input!(tip: 2, tx_hash: StarkFelt::ONE);
 
     // Create a transaction with identical tip, it should be allowed through since the priority
     // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
     let input_small_tip_big_hash =
-        add_tx_input!(Tip(1), TransactionHash(StarkFelt::TWO), contract_address!("0x1"));
+        add_tx_input!(tip: 1, tx_hash: StarkFelt::TWO, sender_address: "0x1");
 
     assert_eq!(mempool.add_tx(input_big_tip_small_hash.clone()), Ok(()));
     assert_eq!(mempool.add_tx(input_small_tip_big_hash.clone()), Ok(()));
