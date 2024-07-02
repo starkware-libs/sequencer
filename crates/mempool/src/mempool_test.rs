@@ -109,8 +109,19 @@ fn test_add_tx(mut mempool: Mempool) {
     check_mempool_txs_eq(&mempool, expected_txs)
 }
 
+#[test]
+fn test_new_with_duplicate_tx() {
+    let input = add_tx_input!(tip: 0, tx_hash: StarkFelt::ONE);
+    let same_input = input.clone();
+
+    assert!(matches!(
+        Mempool::new([input, same_input]),
+        Err(MempoolError::DuplicateTransaction { tx_hash: TransactionHash(StarkFelt::ONE) })
+    ));
+}
+
 #[rstest]
-fn test_add_same_tx(mut mempool: Mempool) {
+fn test_add_tx_with_duplicate_tx(mut mempool: Mempool) {
     let input = add_tx_input!(tip: 50, tx_hash: StarkFelt::ONE);
     let same_input = input.clone();
 
