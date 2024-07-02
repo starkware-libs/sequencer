@@ -18,6 +18,7 @@ blockifier= { workspace = true , features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
 hyper.workspace = true
+lazy_static.workspace = true
 papyrus_config.workspace = true
 papyrus_rpc.workspace = true
 reqwest.workspace = true
