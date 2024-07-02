@@ -55,6 +55,7 @@ pub enum PythonTest {
     ParseTxData,
     SerializeForRustCommitterFlowTest,
     ComputeHashSingleTree,
+    MaybePanic,
 }
 
 /// Error type for PythonTest enum.
@@ -104,6 +105,7 @@ impl TryFrom<String> for PythonTest {
             "parse_tx_data_test" => Ok(Self::ParseTxData),
             "serialize_to_rust_committer_flow_test" => Ok(Self::SerializeForRustCommitterFlowTest),
             "tree_test" => Ok(Self::ComputeHashSingleTree),
+            "maybe_panic" => Ok(Self::MaybePanic),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -181,6 +183,13 @@ impl PythonTest {
                 let output = single_tree_flow_test(leaf_modifications, storage, root_hash).await;
                 // 3. Serialize and return output.
                 Ok(output)
+            }
+            Self::MaybePanic => {
+                let is_panic: bool = serde_json::from_str(Self::non_optional_input(input)?)?;
+                if is_panic {
+                    panic!("panic test")
+                }
+                Ok("Done!".to_owned())
             }
         }
     }
