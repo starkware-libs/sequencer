@@ -2,6 +2,7 @@ use crate::block_committer::input::StarknetStorageValue;
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use crate::patricia_merkle_tree::filled_tree::tree::StorageTrie;
 use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonStorageTrieConfig;
+use crate::patricia_merkle_tree::types::SortedLeafIndices;
 use ethnum::{uint, U256};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
@@ -69,13 +70,13 @@ fn initial_updated_skeleton(
 fn test_has_leaves_on_both_sides(
     #[case] subtree_height: u8,
     #[case] root_index: u8,
-    #[case] leaf_indices: Vec<NodeIndex>,
+    #[case] mut leaf_indices: Vec<NodeIndex>,
     #[case] expected: bool,
 ) {
     let height = SubTreeHeight(subtree_height);
     let root_index = small_tree_index_to_full(root_index.into(), height);
     assert_eq!(
-        has_leaves_on_both_sides(&root_index, &leaf_indices),
+        has_leaves_on_both_sides(&root_index, &SortedLeafIndices::new(&mut leaf_indices)),
         expected
     );
 }
@@ -91,11 +92,11 @@ fn test_has_leaves_on_both_sides(
 fn test_has_leaves_on_both_sides_assertions(
     #[case] subtree_height: u8,
     #[case] root_index: u8,
-    #[case] leaf_indices: Vec<NodeIndex>,
+    #[case] mut leaf_indices: Vec<NodeIndex>,
 ) {
     let height = SubTreeHeight(subtree_height);
     let root_index = small_tree_index_to_full(root_index.into(), height);
-    has_leaves_on_both_sides(&root_index, &leaf_indices);
+    has_leaves_on_both_sides(&root_index, &SortedLeafIndices::new(&mut leaf_indices));
 }
 
 #[rstest]
@@ -133,10 +134,12 @@ fn test_get_path_to_lca(
     assert_eq!(
         get_path_to_lca(
             &root_index,
-            &leaf_indices
-                .iter()
-                .map(|index: &ethnum::U256| NodeIndex::new(*index))
-                .collect::<Vec<_>>()[..]
+            &SortedLeafIndices::new(
+                &mut leaf_indices
+                    .iter()
+                    .map(|index: &ethnum::U256| NodeIndex::new(*index))
+                    .collect::<Vec<_>>()[..]
+            )
         ),
         expected
     );
@@ -327,10 +330,12 @@ fn test_update_node_in_empty_tree(
     #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
     #[with(&[], leaf_modifications)] mut initial_updated_skeleton: UpdatedSkeletonTreeImpl,
 ) {
-    let leaf_indices: Vec<NodeIndex> = leaf_modifications.iter().map(|(index, _)| *index).collect();
+    let mut leaf_indices: Vec<NodeIndex> =
+        leaf_modifications.iter().map(|(index, _)| *index).collect();
     let mut expected_skeleton_tree = initial_updated_skeleton.skeleton_tree.clone();
     expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());
-    let temp_node = initial_updated_skeleton.update_node_in_empty_tree(root_index, &leaf_indices);
+    let temp_node = initial_updated_skeleton
+        .update_node_in_empty_tree(root_index, &SortedLeafIndices::new(&mut leaf_indices));
     assert_eq!(temp_node, expected_node);
     assert_eq!(
         initial_updated_skeleton.skeleton_tree,
@@ -475,13 +480,14 @@ fn test_update_node_in_nonempty_tree(
     mut initial_updated_skeleton: UpdatedSkeletonTreeImpl,
 ) {
     let mut original_skeleton: OriginalSkeletonNodeMap = original_skeleton.into_iter().collect();
-    let leaf_indices: Vec<NodeIndex> = leaf_modifications.iter().map(|(index, _)| *index).collect();
+    let mut leaf_indices: Vec<NodeIndex> =
+        leaf_modifications.iter().map(|(index, _)| *index).collect();
     let mut expected_skeleton_tree = initial_updated_skeleton.skeleton_tree.clone();
     expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());
     let temp_node = initial_updated_skeleton.update_node_in_nonempty_tree(
         root_index,
         &mut original_skeleton,
-        &leaf_indices,
+        &SortedLeafIndices::new(&mut leaf_indices),
     );
     assert_eq!(temp_node, expected_node);
     assert_eq!(
@@ -500,7 +506,7 @@ async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
     let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_impl::<StarknetStorageValue>(
         &MapStorage::default(),
         root_hash,
-        &[],
+        SortedLeafIndices::new(&mut []),
         &config,
     )
     .unwrap();

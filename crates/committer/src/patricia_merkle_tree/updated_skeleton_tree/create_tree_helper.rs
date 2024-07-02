@@ -9,6 +9,7 @@ use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonN
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
 use crate::patricia_merkle_tree::types::NodeIndex;
+use crate::patricia_merkle_tree::types::SortedLeafIndices;
 use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonNodeMap;
@@ -37,26 +38,28 @@ impl TempSkeletonNode {
 
 /// Returns the path from the given root_index to the LCA of the given subtree node indices.
 /// Assumes the nodes are:
-/// * Sorted.
 /// * Descendants of the given index.
 /// * A non-empty array.
 /// Note that the if the LCA is the root, the path will be empty (0 length).
-fn get_path_to_lca(root_index: &NodeIndex, subtree_indices: &[NodeIndex]) -> PathToBottom {
+fn get_path_to_lca(
+    root_index: &NodeIndex,
+    subtree_indices: &SortedLeafIndices<'_>,
+) -> PathToBottom {
     if subtree_indices.is_empty() {
         panic!("Unexpected empty array.");
     }
+    let first_index = *subtree_indices.first().expect("Unexpected empty array.");
     let lca = if subtree_indices.len() == 1 {
-        subtree_indices[0]
+        first_index
     } else {
-        subtree_indices[0].get_lca(subtree_indices.last().expect("Unexpected empty array"))
+        first_index.get_lca(subtree_indices.last().expect("Unexpected empty array"))
     };
     root_index.get_path_to_descendant(lca)
 }
 
-/// Returns whether a root of a subtree has leaves on both sides. Assumes:
-/// * The leaf indices array is sorted.
-/// * All leaves are descendants of the root.
-fn has_leaves_on_both_sides(root_index: &NodeIndex, leaf_indices: &[NodeIndex]) -> bool {
+/// Returns whether a root of a subtree has leaves on both sides. Assumes that all leaves are
+/// descendants of the root.
+fn has_leaves_on_both_sides(root_index: &NodeIndex, leaf_indices: &SortedLeafIndices<'_>) -> bool {
     if leaf_indices.is_empty() {
         return false;
     }
@@ -98,14 +101,14 @@ impl UpdatedSkeletonTreeImpl {
         leaf_modifications: &LeafModifications<SkeletonLeaf>,
     ) -> TempSkeletonNode {
         let mut leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().cloned().collect();
-        leaf_indices.sort();
+        let sorted_leaf_indices = SortedLeafIndices::new(&mut leaf_indices);
         if original_skeleton.get_nodes().is_empty() {
-            self.update_node_in_empty_tree(&NodeIndex::ROOT, &leaf_indices)
+            self.update_node_in_empty_tree(&NodeIndex::ROOT, &sorted_leaf_indices)
         } else {
             self.update_node_in_nonempty_tree(
                 &NodeIndex::ROOT,
                 original_skeleton.get_nodes_mut(),
-                &leaf_indices,
+                &sorted_leaf_indices,
             )
         }
     }
@@ -116,12 +119,13 @@ impl UpdatedSkeletonTreeImpl {
     pub(crate) fn update_node_in_empty_tree(
         &mut self,
         root_index: &NodeIndex,
-        leaf_indices: &[NodeIndex],
+        leaf_indices: &SortedLeafIndices<'_>,
     ) -> TempSkeletonNode {
         if root_index.is_leaf() {
             // Leaf. As this is an empty tree, the leaf *should* be new.
             assert!(
-                leaf_indices.len() == 1 && leaf_indices[0] == *root_index,
+                leaf_indices.len() == 1
+                    && leaf_indices.first().expect("Unexpected empty array.") == root_index,
                 "Unexpected leaf index (root_index={root_index:?}, leaf_indices={leaf_indices:?})."
             );
             if !self.skeleton_tree.contains_key(root_index) {
@@ -136,8 +140,8 @@ impl UpdatedSkeletonTreeImpl {
             // Binary node.
             let [left_indices, right_indices] = split_leaves(root_index, leaf_indices);
             let [left_child_index, right_child_index] = root_index.get_children_indices();
-            let left_child = self.update_node_in_empty_tree(&left_child_index, left_indices);
-            let right_child = self.update_node_in_empty_tree(&right_child_index, right_indices);
+            let left_child = self.update_node_in_empty_tree(&left_child_index, &left_indices);
+            let right_child = self.update_node_in_empty_tree(&right_child_index, &right_indices);
             return self.node_from_binary_data(root_index, &left_child, &right_child);
         }
 
@@ -149,12 +153,11 @@ impl UpdatedSkeletonTreeImpl {
     }
 
     /// Updates the Patricia tree rooted at the given index, with the given leaves; returns the root.
-    /// Assumes the given list of indices is sorted.
     pub(crate) fn update_node_in_nonempty_tree(
         &mut self,
         root_index: &NodeIndex,
         original_skeleton: &mut OriginalSkeletonNodeMap,
-        leaf_indices: &[NodeIndex],
+        leaf_indices: &SortedLeafIndices<'_>,
     ) -> TempSkeletonNode {
         if root_index.is_leaf() && leaf_indices.contains(root_index) {
             // A new/modified/deleted leaf.
@@ -196,12 +199,12 @@ impl UpdatedSkeletonTreeImpl {
                 let left = self.update_node_in_nonempty_tree(
                     &left_child_index,
                     original_skeleton,
-                    left_indices,
+                    &left_indices,
                 );
                 let right = self.update_node_in_nonempty_tree(
                     &right_child_index,
                     original_skeleton,
-                    right_indices,
+                    &right_indices,
                 );
                 self.node_from_binary_data(root_index, &left, &right)
             }
@@ -314,7 +317,7 @@ impl UpdatedSkeletonTreeImpl {
         root_index: &NodeIndex,
         path_to_bottom: &PathToBottom,
         original_skeleton: &mut OriginalSkeletonNodeMap,
-        leaf_indices: &[NodeIndex],
+        leaf_indices: &SortedLeafIndices<'_>,
     ) -> TempSkeletonNode {
         let [left_child_index, right_child_index] = root_index.get_children_indices();
         let [left_indices, right_indices] = split_leaves(root_index, leaf_indices);
@@ -361,12 +364,12 @@ impl UpdatedSkeletonTreeImpl {
             let orig_nonempty_subtree_child = self.update_node_in_nonempty_tree(
                 &nonempty_subtree_child_index,
                 original_skeleton,
-                nonempty_subtree_leaf_indices,
+                &nonempty_subtree_leaf_indices,
             );
 
             // 2. Handle the originally empty subtree.
             let orig_empty_subtree_child = self
-                .update_node_in_empty_tree(&empty_subtree_child_index, empty_subtree_leaf_indices);
+                .update_node_in_empty_tree(&empty_subtree_child_index, &empty_subtree_leaf_indices);
             let (left, right) = if was_left_nonempty {
                 (orig_nonempty_subtree_child, orig_empty_subtree_child)
             } else {
@@ -382,7 +385,10 @@ impl UpdatedSkeletonTreeImpl {
         let leaves_lca_index = path_to_leaves_lca.bottom_index(*root_index);
 
         let bottom_index = path_to_bottom.bottom_index(*root_index);
-        let path_to_new_bottom = get_path_to_lca(root_index, &[leaves_lca_index, bottom_index]);
+        let path_to_new_bottom = get_path_to_lca(
+            root_index,
+            &SortedLeafIndices::new(&mut [leaves_lca_index, bottom_index]),
+        );
 
         let new_bottom_index = path_to_new_bottom.bottom_index(*root_index);
         if new_bottom_index == bottom_index {

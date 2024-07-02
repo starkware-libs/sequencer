@@ -11,8 +11,8 @@ use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeleto
 use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::SubTree;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
-use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::types::SubTreeHeight;
+use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use crate::storage::db_object::DBObject;
 use crate::storage::map_storage::MapStorage;
 use crate::storage::storage_trait::{create_db_key, StorageKey, StoragePrefix, StorageValue};
@@ -211,11 +211,11 @@ fn test_create_tree(
     let config =
         OriginalSkeletonStorageTrieConfig::new(&leaf_modifications, compare_modified_leaves);
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
-    sorted_leaf_indices.sort();
+    let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
     let skeleton_tree = OriginalSkeletonTreeImpl::create::<StarknetStorageValue>(
         &storage,
         root_hash,
-        &sorted_leaf_indices,
+        sorted_leaf_indices,
         &config,
     )
     .unwrap();
@@ -371,14 +371,26 @@ fn test_get_bottom_subtree(
     // Cast the input to the correct type for subtree.
     let root_index = small_tree_index_to_full(U256::ONE, height);
 
-    let sorted_leaf_indices = sorted_leaf_indices
+    let mut leaf_indices = sorted_leaf_indices
         .iter()
         .map(|&idx| small_tree_index_to_full(idx, height))
         .collect::<Vec<_>>();
+    let sorted_leaf_indices = SortedLeafIndices::new(&mut leaf_indices);
+    // Cast the expected output to the correct type for subtree.
+    let mut expected_leaf_indices = expected_sorted_leaf_indices
+        .iter()
+        .map(|&idx| small_tree_index_to_full(idx, height))
+        .collect::<Vec<_>>();
+    let expected_sorted_leaf_indices = SortedLeafIndices::new(&mut expected_leaf_indices);
+
+    let expected_previously_empty_leaf_indices = create_previously_empty_leaf_indices(
+        sorted_leaf_indices.get_indices(),
+        expected_sorted_leaf_indices.get_indices(),
+    );
 
     // Create the input Subtree.
     let tree = SubTree {
-        sorted_leaf_indices: &sorted_leaf_indices,
+        sorted_leaf_indices,
         root_index,
         root_hash: HashOutput(Felt::ONE),
     };
@@ -387,22 +399,17 @@ fn test_get_bottom_subtree(
     let (subtree, previously_empty_leaf_indices) =
         tree.get_bottom_subtree(&path_to_bottom, HashOutput(Felt::TWO));
 
-    // Cast the expected output to the correct type for subtree.
-    let expected_sorted_leaf_indices = expected_sorted_leaf_indices
-        .iter()
-        .map(|&idx| small_tree_index_to_full(idx, height))
-        .collect::<Vec<_>>();
     let expected_root_index = small_tree_index_to_full(expected_root_index, height);
 
     // Create the expected subtree.
     let expected_subtree = SubTree {
-        sorted_leaf_indices: &expected_sorted_leaf_indices,
+        sorted_leaf_indices: expected_sorted_leaf_indices,
         root_index: expected_root_index,
         root_hash: HashOutput(Felt::TWO),
     };
     assert_eq!(
         previously_empty_leaf_indices,
-        create_previously_empty_leaf_indices(&sorted_leaf_indices, &expected_sorted_leaf_indices)
+        expected_previously_empty_leaf_indices
     );
     assert_eq!(subtree, expected_subtree);
 }

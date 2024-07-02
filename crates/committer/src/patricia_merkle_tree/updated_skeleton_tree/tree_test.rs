@@ -13,7 +13,7 @@ use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonN
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonTree, OriginalSkeletonTreeImpl,
 };
-use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
+use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTree, UpdatedSkeletonTreeImpl,
@@ -145,11 +145,11 @@ fn test_updated_skeleton_tree_impl_create(
 #[case::non_empty_modifications(HashMap::from([(NodeIndex::FIRST_LEAF + NodeIndex::from(7), StarknetStorageValue::default())]))]
 fn test_updated_empty_tree(#[case] modifications: LeafModifications<StarknetStorageValue>) {
     let storage: MapStorage = HashMap::new().into();
-    let indices: Vec<NodeIndex> = modifications.keys().copied().collect();
+    let mut indices: Vec<NodeIndex> = modifications.keys().copied().collect();
     let mut original_skeleton = OriginalSkeletonTreeImpl::create(
         &storage,
         HashOutput::ROOT_OF_EMPTY_TREE,
-        &indices,
+        SortedLeafIndices::new(&mut indices),
         &OriginalSkeletonStorageTrieConfig::new(&modifications, false),
     )
     .unwrap();

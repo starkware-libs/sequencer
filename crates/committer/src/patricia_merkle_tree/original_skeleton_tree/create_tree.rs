@@ -9,6 +9,7 @@ use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeleto
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
+use crate::patricia_merkle_tree::types::SortedLeafIndices;
 use crate::patricia_merkle_tree::types::SubTreeHeight;
 use crate::patricia_merkle_tree::{
     original_skeleton_tree::node::OriginalSkeletonNode, types::NodeIndex,
@@ -18,7 +19,6 @@ use crate::storage::storage_trait::create_db_key;
 use crate::storage::storage_trait::Storage;
 use crate::storage::storage_trait::StorageKey;
 use crate::storage::storage_trait::StoragePrefix;
-use bisection::{bisect_left, bisect_right};
 use log::warn;
 use std::collections::HashMap;
 
@@ -28,7 +28,7 @@ pub mod create_tree_test;
 
 #[derive(Debug, PartialEq)]
 struct SubTree<'a> {
-    pub sorted_leaf_indices: &'a [NodeIndex],
+    pub sorted_leaf_indices: SortedLeafIndices<'a>,
     pub root_index: NodeIndex,
     pub root_hash: HashOutput,
 }
@@ -38,8 +38,8 @@ impl<'a> SubTree<'a> {
         SubTreeHeight::new(SubTreeHeight::ACTUAL_HEIGHT.0 - (self.root_index.bit_length() - 1))
     }
 
-    pub(crate) fn split_leaves(&self) -> [&'a [NodeIndex]; 2] {
-        split_leaves(&self.root_index, self.sorted_leaf_indices)
+    pub(crate) fn split_leaves(&self) -> [SortedLeafIndices<'a>; 2] {
+        split_leaves(&self.root_index, &self.sorted_leaf_indices)
     }
 
     pub(crate) fn is_unmodified(&self) -> bool {
@@ -59,12 +59,15 @@ impl<'a> SubTree<'a> {
         let leftmost_in_subtree = bottom_index << bottom_height.into();
         let rightmost_in_subtree =
             leftmost_in_subtree - NodeIndex::ROOT + (NodeIndex::ROOT << bottom_height.into());
-        let left_most_index = bisect_left(self.sorted_leaf_indices, &leftmost_in_subtree);
-        let right_most_index = bisect_right(self.sorted_leaf_indices, &rightmost_in_subtree);
-        let bottom_leaves = &self.sorted_leaf_indices[left_most_index..right_most_index];
-        let previously_empty_leaf_indices = self.sorted_leaf_indices[..left_most_index]
+        let leftmost_index = self.sorted_leaf_indices.bisect_left(&leftmost_in_subtree);
+        let rightmost_index = self.sorted_leaf_indices.bisect_right(&rightmost_in_subtree);
+        let bottom_leaves = self
+            .sorted_leaf_indices
+            .subslice(leftmost_index, rightmost_index);
+        let previously_empty_leaf_indices = self.sorted_leaf_indices.get_indices()
+            [..leftmost_index]
             .iter()
-            .chain(self.sorted_leaf_indices[right_most_index..].iter())
+            .chain(self.sorted_leaf_indices.get_indices()[rightmost_index..].iter())
             .collect();
 
         (
@@ -238,7 +241,7 @@ impl OriginalSkeletonTreeImpl {
     pub(crate) fn create_impl<L: LeafData>(
         storage: &impl Storage,
         root_hash: HashOutput,
-        sorted_leaf_indices: &[NodeIndex],
+        sorted_leaf_indices: SortedLeafIndices<'_>,
         config: &impl OriginalSkeletonTreeConfig<L>,
     ) -> OriginalSkeletonTreeResult<Self> {
         if sorted_leaf_indices.is_empty() {
@@ -262,7 +265,7 @@ impl OriginalSkeletonTreeImpl {
     pub(crate) fn create_and_get_previous_leaves_impl<L: LeafData>(
         storage: &impl Storage,
         root_hash: HashOutput,
-        sorted_leaf_indices: &[NodeIndex],
+        sorted_leaf_indices: SortedLeafIndices<'_>,
         config: &impl OriginalSkeletonTreeConfig<L>,
     ) -> OriginalSkeletonTreeResult<(Self, HashMap<NodeIndex, L>)> {
         if sorted_leaf_indices.is_empty() {
@@ -273,6 +276,7 @@ impl OriginalSkeletonTreeImpl {
             return Ok((
                 Self::create_empty(),
                 sorted_leaf_indices
+                    .get_indices()
                     .iter()
                     .map(|idx| (*idx, L::default()))
                     .collect(),

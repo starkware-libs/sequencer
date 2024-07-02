@@ -12,7 +12,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
 use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonStorageTrieConfig;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
-use crate::patricia_merkle_tree::types::NodeIndex;
+use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
@@ -255,7 +255,7 @@ async fn test_delete_leaf_from_empty_tree() {
             storage: HashMap::new(),
         },
         HashOutput::ROOT_OF_EMPTY_TREE,
-        &[NodeIndex::FIRST_LEAF],
+        SortedLeafIndices::new(&mut [NodeIndex::FIRST_LEAF]),
         &OriginalSkeletonStorageTrieConfig::new(&storage_modifications, false),
     )
     .unwrap();
