@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::future::Future;
 use std::sync::Arc;
 
@@ -10,7 +11,7 @@ use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::db_object::{DBObject, Deserializable};
 
-pub trait LeafData: Clone + Sync + Send + DBObject + Deserializable + Default + Eq {
+pub trait LeafData: Clone + Sync + Send + DBObject + Deserializable + Default + Debug + Eq {
     /// Returns true if leaf is empty.
     fn is_empty(&self) -> bool;
 

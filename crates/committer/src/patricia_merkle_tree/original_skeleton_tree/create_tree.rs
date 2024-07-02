@@ -167,6 +167,15 @@ impl OriginalSkeletonTreeImpl {
                         );
                     }
 
+                    if config.compare_modified_leaves() {
+                        let empty_leaf = L::default();
+                        for leaf_idx in previously_empty_leaves_indices {
+                            if config.compare_leaf(leaf_idx, &empty_leaf)? {
+                                warn!("Encountered a trivial modification at index {:?}, with value {:?}", leaf_idx, empty_leaf);
+                            }
+                        }
+                    }
+
                     self.handle_subtree(&mut next_subtrees, bottom_subtree, should_fetch_leaves);
                 }
                 // Leaf node.
@@ -183,7 +192,7 @@ impl OriginalSkeletonTreeImpl {
                             && config.compare_leaf(&subtree.root_index, &previous_leaf)?
                         {
                             warn!(
-                                "Encontered a trivial modification at index {:?}",
+                                "Encountered a trivial modification at index {:?}",
                                 subtree.root_index
                             );
                         }
