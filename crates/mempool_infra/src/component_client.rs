@@ -57,6 +57,7 @@ where
     Response: for<'a> Deserialize<'a>,
 {
     uri: Uri,
+    client: Client<hyper::client::HttpConnector>,
     _req: PhantomData<Request>,
     _res: PhantomData<Response>,
 }
@@ -71,7 +72,11 @@ where
             IpAddr::V4(ip_address) => format!("http://{}:{}/", ip_address, port).parse().unwrap(),
             IpAddr::V6(ip_address) => format!("http://[{}]:{}/", ip_address, port).parse().unwrap(),
         };
-        Self { uri, _req: PhantomData, _res: PhantomData }
+        // TODO(Tsabary): Add a configuration for the maximum number of idle connections.
+        // TODO(Tsabary): Add a configuration for "keep-alive" time of idle connections.
+        let client =
+            Client::builder().http2_only(true).pool_max_idle_per_host(usize::MAX).build_http();
+        Self { uri, client, _req: PhantomData, _res: PhantomData }
     }
 
     pub async fn send(&self, component_request: Request) -> ClientResult<Response> {
@@ -83,7 +88,8 @@ where
             .expect("Request building should succeed");
 
         // Todo(uriel): Add configuration to control number of retries
-        let http_response = Client::new()
+        let http_response = self
+            .client
             .request(http_request)
             .await
             .map_err(|_e| ClientError::CommunicationFailure)?; // Todo(uriel): To be split into multiple errors
@@ -102,7 +108,12 @@ where
     Response: for<'a> Deserialize<'a>,
 {
     fn clone(&self) -> Self {
-        Self { uri: self.uri.clone(), _req: PhantomData, _res: PhantomData }
+        Self {
+            uri: self.uri.clone(),
+            client: self.client.clone(),
+            _req: PhantomData,
+            _res: PhantomData,
+        }
     }
 }
 
