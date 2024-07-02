@@ -17,13 +17,13 @@ use starknet_mempool::communication::create_mempool_server;
 use starknet_mempool::mempool::Mempool;
 use starknet_mempool_types::communication::{MempoolClientImpl, MempoolRequestAndResponseSender};
 use starknet_sierra_compile::errors::CompilationUtilError;
+use test_utils::starknet_api_test_utils::{declare_tx, deploy_account_tx, invoke_tx};
 use tokio::sync::mpsc::channel;
 use tokio::task;
 
 use crate::config::{StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig};
 use crate::errors::GatewayError;
 use crate::gateway::{add_tx, compile_contract_class, AppState, SharedMempoolClient};
-use crate::starknet_api_test_utils::{declare_tx, deploy_account_tx, invoke_tx};
 use crate::state_reader_test_utils::{
     local_test_state_reader_factory, local_test_state_reader_factory_for_deploy_account,
     TestStateReaderFactory,

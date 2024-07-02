@@ -6,14 +6,14 @@ use rstest::rstest;
 use starknet_api::hash::StarkFelt;
 use starknet_api::rpc_transaction::RPCTransaction;
 use starknet_api::transaction::TransactionHash;
+use test_utils::starknet_api_test_utils::{
+    declare_tx, deploy_account_tx, invoke_tx, VALID_L1_GAS_MAX_AMOUNT,
+    VALID_L1_GAS_MAX_PRICE_PER_UNIT,
+};
 
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::{StatefulTransactionValidatorError, StatefulTransactionValidatorResult};
 use crate::gateway::compile_contract_class;
-use crate::starknet_api_test_utils::{
-    declare_tx, deploy_account_tx, invoke_tx, VALID_L1_GAS_MAX_AMOUNT,
-    VALID_L1_GAS_MAX_PRICE_PER_UNIT,
-};
 use crate::state_reader_test_utils::{
     local_test_state_reader_factory, local_test_state_reader_factory_for_deploy_account,
     TestStateReaderFactory,

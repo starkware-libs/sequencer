@@ -12,21 +12,19 @@ use starknet_api::core::{
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::hash::StarkFelt;
 use starknet_api::rpc_transaction::{
-    ContractClass, RPCDeclareTransaction, RPCDeclareTransactionV3, RPCDeployAccountTransaction,
-    RPCDeployAccountTransactionV3, RPCInvokeTransaction, RPCInvokeTransactionV3, RPCTransaction,
-    ResourceBoundsMapping,
+    ContractClass, RPCDeclareTransactionV3, RPCDeployAccountTransaction,
+    RPCDeployAccountTransactionV3, RPCInvokeTransactionV3, RPCTransaction, ResourceBoundsMapping,
 };
 use starknet_api::transaction::{
     AccountDeploymentData, Calldata, ContractAddressSalt, PaymasterData, ResourceBounds, Tip,
     TransactionSignature, TransactionVersion,
 };
 use starknet_api::{calldata, stark_felt};
-use test_utils::{
-    get_absolute_path, COMPILED_CLASS_HASH_OF_CONTRACT_CLASS, CONTRACT_CLASS_FILE,
-    TEST_FILES_FOLDER,
-};
 
-use crate::{declare_tx_args, deploy_account_tx_args, invoke_tx_args};
+use crate::{
+    declare_tx_args, deploy_account_tx_args, get_absolute_path, invoke_tx_args,
+    COMPILED_CLASS_HASH_OF_CONTRACT_CLASS, CONTRACT_CLASS_FILE, TEST_FILES_FOLDER,
+};
 
 pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203483;
 pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
@@ -36,17 +34,6 @@ pub enum TransactionType {
     Declare,
     DeployAccount,
     Invoke,
-}
-
-pub fn get_sender_address(tx: &RPCTransaction) -> ContractAddress {
-    match tx {
-        RPCTransaction::Declare(RPCDeclareTransaction::V3(tx)) => tx.sender_address,
-        // TODO(Mohammad): Add support for deploy account.
-        RPCTransaction::DeployAccount(RPCDeployAccountTransaction::V3(_)) => {
-            ContractAddress::default()
-        }
-        RPCTransaction::Invoke(RPCInvokeTransaction::V3(tx)) => tx.sender_address,
-    }
 }
 
 pub fn external_tx_for_testing(

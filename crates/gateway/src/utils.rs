@@ -16,7 +16,6 @@ use starknet_api::transaction::{
 use starknet_mempool_types::mempool_types::ThinTransaction;
 
 use crate::errors::StatefulTransactionValidatorResult;
-use crate::starknet_api_test_utils::get_sender_address;
 
 macro_rules! implement_ref_getters {
     ($(($member_name:ident, $member_type:ty));* $(;)?) => {
@@ -52,6 +51,17 @@ pub fn external_tx_to_thin_tx(
         nonce: *external_tx.nonce(),
         sender_address: get_sender_address(external_tx),
         tx_hash,
+    }
+}
+
+pub fn get_sender_address(tx: &RPCTransaction) -> ContractAddress {
+    match tx {
+        RPCTransaction::Declare(RPCDeclareTransaction::V3(tx)) => tx.sender_address,
+        // TODO(Mohammad): Add support for deploy account.
+        RPCTransaction::DeployAccount(RPCDeployAccountTransaction::V3(_)) => {
+            ContractAddress::default()
+        }
+        RPCTransaction::Invoke(RPCInvokeTransaction::V3(tx)) => tx.sender_address,
     }
 }
 

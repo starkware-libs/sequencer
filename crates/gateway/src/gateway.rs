@@ -20,11 +20,10 @@ use starknet_sierra_compile::utils::into_contract_class_for_compilation;
 use crate::config::{GatewayConfig, GatewayNetworkConfig, RpcStateReaderConfig};
 use crate::errors::{GatewayError, GatewayRunError};
 use crate::rpc_state_reader::RpcStateReaderFactory;
-use crate::starknet_api_test_utils::get_sender_address;
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
-use crate::utils::external_tx_to_thin_tx;
+use crate::utils::{external_tx_to_thin_tx, get_sender_address};
 
 #[cfg(test)]
 #[path = "gateway_test.rs"]

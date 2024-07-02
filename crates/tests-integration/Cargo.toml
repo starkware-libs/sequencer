@@ -27,6 +27,7 @@ starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
 starknet_task_executor = { path = "../task_executor", version = "0.0" }
 strum.workspace = true
 tempfile.workspace = true
+test_utils = { path = "../test_utils", version = "0.0" }
 tokio.workspace = true
 
 [dev-dependencies]

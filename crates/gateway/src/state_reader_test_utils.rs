@@ -13,8 +13,8 @@ use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::hash::StarkFelt;
 use starknet_api::rpc_transaction::RPCTransaction;
 use starknet_api::state::StorageKey;
+use test_utils::starknet_api_test_utils::deployed_account_contract_address;
 
-use crate::starknet_api_test_utils::deployed_account_contract_address;
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 
 #[derive(Clone)]

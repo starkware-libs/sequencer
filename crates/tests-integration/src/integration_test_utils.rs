@@ -11,8 +11,8 @@ use starknet_gateway::config::{
 };
 use starknet_gateway::errors::GatewayError;
 use starknet_gateway::gateway::Gateway;
-use starknet_gateway::starknet_api_test_utils::external_tx_to_json;
 use starknet_mempool_types::communication::SharedMempoolClient;
+use test_utils::starknet_api_test_utils::external_tx_to_json;
 
 use crate::state_reader::rpc_test_state_reader_factory;
 

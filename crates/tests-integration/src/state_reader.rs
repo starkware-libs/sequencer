@@ -32,11 +32,9 @@ use starknet_api::{contract_address, patricia_key, stark_felt};
 use starknet_client::reader::PendingData;
 use starknet_gateway::config::RpcStateReaderConfig;
 use starknet_gateway::rpc_state_reader::RpcStateReaderFactory;
-use starknet_gateway::starknet_api_test_utils::{
-    deploy_account_tx, deployed_account_contract_address,
-};
 use strum::IntoEnumIterator;
 use tempfile::tempdir;
+use test_utils::starknet_api_test_utils::{deploy_account_tx, deployed_account_contract_address};
 use tokio::sync::RwLock;
 
 type ContractClassesMap =
