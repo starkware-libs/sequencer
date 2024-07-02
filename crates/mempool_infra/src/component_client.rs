@@ -4,7 +4,7 @@ use std::net::IpAddr;
 use bincode::{deserialize, serialize};
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
-use hyper::{Body, Client, Request as HyperRequest, Uri};
+use hyper::{Body, Client, Error as HyperError, Request as HyperRequest, Uri};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::mpsc::{channel, Sender};
@@ -87,15 +87,12 @@ where
             ))
             .expect("Request building should succeed");
 
-        // Todo(uriel): Add configuration to control number of retries
-        let http_response = self
-            .client
-            .request(http_request)
-            .await
-            .map_err(|_e| ClientError::CommunicationFailure)?; // Todo(uriel): To be split into multiple errors
+        // Todo(uriel): Add configuration for controlling the number of retries.
+        let http_response =
+            self.client.request(http_request).await.map_err(ClientError::CommunicationFailure)?;
         let body_bytes = to_bytes(http_response.into_body())
             .await
-            .map_err(|e| ClientError::ResponseParsingFailure(e.to_string()))?;
+            .map_err(ClientError::ResponseParsingFailure)?;
         Ok(deserialize(&body_bytes).expect("Response deserialization should succeed"))
     }
 }
@@ -117,13 +114,12 @@ where
     }
 }
 
-#[derive(Debug, Error, PartialEq)]
+#[derive(Debug, Error)]
 pub enum ClientError {
-    // Todo(uriel): Split this error into more fine grained errors and add a dedicated test
-    #[error("Could not connect to server")]
-    CommunicationFailure,
+    #[error("Communication error: {0}")]
+    CommunicationFailure(HyperError),
     #[error("Could not parse the response: {0}")]
-    ResponseParsingFailure(String),
+    ResponseParsingFailure(HyperError),
     #[error("Got an unexpected response type.")]
     UnexpectedResponse,
 }
