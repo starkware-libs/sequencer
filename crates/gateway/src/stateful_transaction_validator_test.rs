@@ -11,9 +11,9 @@ use test_utils::starknet_api_test_utils::{
     VALID_L1_GAS_MAX_PRICE_PER_UNIT,
 };
 
+use crate::compilation::compile_contract_class;
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::{StatefulTransactionValidatorError, StatefulTransactionValidatorResult};
-use crate::gateway::compile_contract_class;
 use crate::state_reader_test_utils::{
     local_test_state_reader_factory, local_test_state_reader_factory_for_deploy_account,
     TestStateReaderFactory,

@@ -42,6 +42,8 @@ pub enum GatewayError {
     UnsupportedBuiltins { builtins: Vec<String>, supported_builtins: Vec<String> },
 }
 
+pub type GatewayResult<T> = Result<T, GatewayError>;
+
 impl IntoResponse for GatewayError {
     // TODO(Arni, 1/5/2024): Be more fine tuned about the error response. Not all Gateway errors
     // are internal server errors.
