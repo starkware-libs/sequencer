@@ -1,4 +1,7 @@
-use std::{fs::File, io};
+use std::{
+    fs::File,
+    io::{self, BufWriter},
+};
 
 use committer::{block_committer::input::Input, storage::errors::DeserializationError};
 use serde::{Deserialize, Serialize};
@@ -25,6 +28,6 @@ pub fn load_from_stdin<T: for<'a> Deserialize<'a>>() -> T {
 }
 
 pub fn write_to_file<T: Serialize>(file_path: &str, object: &T) {
-    let file = File::create(file_path).expect("Failed to create file");
-    serde_json::to_writer(file, object).expect("Failed to serialize");
+    let file_buffer = BufWriter::new(File::create(file_path).expect("Failed to create file"));
+    serde_json::to_writer(file_buffer, object).expect("Failed to serialize");
 }
