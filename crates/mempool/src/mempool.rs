@@ -79,9 +79,11 @@ impl Mempool {
 
     fn insert_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
         let tx = input.tx;
+        let tx_reference = TransactionReference::new(&tx);
 
-        self.tx_pool.insert(tx.clone())?;
-        self.tx_queue.insert(TransactionReference::new(&tx));
+        self.tx_pool.insert(tx)?;
+        // FIXME: Check nonce before adding!
+        self.tx_queue.insert(tx_reference);
 
         Ok(())
     }
