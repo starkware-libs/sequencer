@@ -1,5 +1,5 @@
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use blockifier::abi::abi_utils::get_fee_token_var_address;
 use blockifier::context::{BlockContext, ChainInfo};
@@ -11,7 +11,6 @@ use blockifier::test_utils::{
 use blockifier::transaction::objects::FeeType;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::{indexmap, IndexMap};
-use lazy_static::lazy_static;
 use papyrus_common::pending_classes::PendingClasses;
 use papyrus_common::BlockHashAndNumber;
 use papyrus_rpc::{run_server, RpcConfig};
@@ -40,11 +39,12 @@ use tokio::sync::RwLock;
 type ContractClassesMap =
     (Vec<(ClassHash, DeprecatedContractClass)>, Vec<(ClassHash, CasmContractClass)>);
 
-lazy_static! {
-    static ref DEPLOY_ACCCOUNT_TX_CONTRACT_ADDRESS: ContractAddress = {
+fn deploy_account_tx_contract_address() -> &'static ContractAddress {
+    static DEPLOY_ACCOUNT_TX_CONTRACT_ADDRESS: OnceLock<ContractAddress> = OnceLock::new();
+    DEPLOY_ACCOUNT_TX_CONTRACT_ADDRESS.get_or_init(|| {
         let deploy_tx = deploy_account_tx();
         deployed_account_contract_address(&deploy_tx)
-    };
+    })
 }
 
 /// StateReader for integration tests.
@@ -62,7 +62,7 @@ pub async fn rpc_test_state_reader_factory(
     let account_contract_cairo1 = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let test_contract_cairo1 = FeatureContract::TestContract(CairoVersion::Cairo1);
     let erc20 = FeatureContract::ERC20;
-    let fund_accounts = vec![*DEPLOY_ACCCOUNT_TX_CONTRACT_ADDRESS];
+    let fund_accounts = vec![*deploy_account_tx_contract_address()];
 
     let storage_reader = initialize_papyrus_test_state(
         block_context.chain_info(),

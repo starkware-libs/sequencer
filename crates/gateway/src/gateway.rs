@@ -1,7 +1,7 @@
 use std::clone::Clone;
 use std::net::SocketAddr;
 use std::panic;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use async_trait::async_trait;
 use axum::extract::State;
@@ -12,7 +12,6 @@ use blockifier::execution::execution_utils::felt_to_stark_felt;
 use cairo_lang_starknet_classes::casm_contract_class::{
     CasmContractClass, CasmContractEntryPoints,
 };
-use lazy_static::lazy_static;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::rpc_transaction::{RPCDeclareTransaction, RPCTransaction};
 use starknet_api::transaction::TransactionHash;
@@ -208,13 +207,14 @@ impl ComponentRunner for Gateway {
 // TODO(Arni): Add to a config.
 // TODO(Arni): Use the Builtin enum from Starknet-api, and explicitly tag each builtin as supported
 // or unsupported so that the compiler would alert us on new builtins.
-lazy_static! {
-    static ref SUPPORTED_BUILTINS: Vec<String> = {
+fn supported_builtins() -> &'static Vec<String> {
+    static SUPPORTED_BUILTINS: OnceLock<Vec<String>> = OnceLock::new();
+    SUPPORTED_BUILTINS.get_or_init(|| {
         // The OS expects this order for the builtins.
         const SUPPORTED_BUILTIN_NAMES: [&str; 7] =
             ["pedersen", "range_check", "ecdsa", "bitwise", "ec_op", "poseidon", "segment_arena"];
         SUPPORTED_BUILTIN_NAMES.iter().map(|builtin| builtin.to_string()).collect::<Vec<String>>()
-    };
+    })
 }
 
 // TODO(Arni): Add test.
@@ -225,10 +225,10 @@ fn validate_casm_class(contract_class: &CasmContractClass) -> Result<(), Gateway
 
     for entry_point in entry_points_iterator {
         let builtins = &entry_point.builtins;
-        if !is_subsequence(builtins, &SUPPORTED_BUILTINS) {
+        if !is_subsequence(builtins, supported_builtins()) {
             return Err(GatewayError::UnsupportedBuiltins {
                 builtins: builtins.clone(),
-                supported_builtins: SUPPORTED_BUILTINS.to_vec(),
+                supported_builtins: supported_builtins().to_vec(),
             });
         }
     }
