@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::block_committer::errors::BlockCommitmentError;
 use crate::block_committer::input::ContractAddress;
-use crate::block_committer::input::{Input, StateDiff};
+use crate::block_committer::input::Input;
 use crate::patricia_merkle_tree::filled_tree::forest::FilledForestImpl;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
 use crate::patricia_merkle_tree::node_data::leaf::ContractState;
@@ -38,7 +38,7 @@ pub async fn commit_block(input: Input) -> BlockCommitmentResult<FilledForestImp
 
     let updated_forest = UpdatedSkeletonForestImpl::<UpdatedSkeletonTreeImpl>::create(
         &mut original_forest,
-        &StateDiff::skeleton_classes_updates(&input.state_diff.class_hash_to_compiled_class_hash),
+        &input.state_diff.skeleton_classes_updates(),
         &input.state_diff.skeleton_storage_updates(),
         &original_contracts_trie_leaves,
         &input.state_diff.address_to_class_hash,

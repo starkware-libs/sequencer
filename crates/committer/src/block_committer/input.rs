@@ -69,10 +69,8 @@ impl StateDiff {
             .collect()
     }
 
-    pub(crate) fn skeleton_classes_updates(
-        class_hash_to_compiled_class_hash: &HashMap<ClassHash, CompiledClassHash>,
-    ) -> LeafModifications<SkeletonLeaf> {
-        class_hash_to_compiled_class_hash
+    pub(crate) fn skeleton_classes_updates(&self) -> LeafModifications<SkeletonLeaf> {
+        self.class_hash_to_compiled_class_hash
             .iter()
             .map(|(class_hash, compiled_class_hash)| {
                 (
