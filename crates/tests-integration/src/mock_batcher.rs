@@ -12,9 +12,9 @@ pub struct MockBatcher {
 
 impl MockBatcher {
     pub fn new(
-        mempool_client: Sender<ComponentRequestAndResponseSender<MempoolRequest, MempoolResponse>>,
+        mempool_sender: Sender<ComponentRequestAndResponseSender<MempoolRequest, MempoolResponse>>,
     ) -> Self {
-        Self { mempool_client: MempoolClientImpl::new(mempool_client) }
+        Self { mempool_client: MempoolClientImpl::new(mempool_sender) }
     }
 
     pub async fn get_txs(&self, n_txs: usize) -> Vec<ThinTransaction> {
