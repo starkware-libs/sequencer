@@ -8,9 +8,7 @@ use starknet_gateway::errors::GatewayError;
 use starknet_mempool::communication::create_mempool_server;
 use starknet_mempool::mempool::Mempool;
 use starknet_mempool_infra::component_server::ComponentServerStarter;
-use starknet_mempool_types::communication::{
-    MempoolClient, MempoolClientImpl, MempoolRequestAndResponseSender,
-};
+use starknet_mempool_types::communication::{MempoolClientImpl, MempoolRequestAndResponseSender};
 use starknet_mempool_types::mempool_types::ThinTransaction;
 use starknet_task_executor::executor::TaskExecutor;
 use starknet_task_executor::tokio_executor::TokioExecutor;
@@ -19,12 +17,13 @@ use tokio::sync::mpsc::channel;
 use tokio::task::JoinHandle;
 
 use crate::integration_test_utils::{create_gateway, GatewayClient};
+use crate::mock_batcher::MockBatcher;
 
 pub struct IntegrationTestSetup {
     pub task_executor: TokioExecutor,
     pub gateway_client: GatewayClient,
-    // TODO(MockBatcher).
-    pub batcher_mempool_client: MempoolClientImpl,
+
+    pub batcher: MockBatcher,
 
     pub gateway_handle: JoinHandle<()>,
     pub mempool_handle: JoinHandle<()>,
@@ -56,8 +55,7 @@ impl IntegrationTestSetup {
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
         // Build Batcher.
-        // TODO(MockBatcher)
-        let batcher_mempool_client = MempoolClientImpl::new(tx_mempool.clone());
+        let batcher = MockBatcher::new(tx_mempool.clone());
 
         // Build and run mempool.
         let mut mempool_server = create_mempool_server(Mempool::empty(), rx_mempool);
@@ -65,13 +63,7 @@ impl IntegrationTestSetup {
             mempool_server.start().await;
         });
 
-        Self {
-            task_executor,
-            gateway_client,
-            batcher_mempool_client,
-            gateway_handle,
-            mempool_handle,
-        }
+        Self { task_executor, gateway_client, batcher, gateway_handle, mempool_handle }
     }
 
     pub async fn assert_add_tx_success(&self, tx: &RPCTransaction) -> TransactionHash {
@@ -83,10 +75,7 @@ impl IntegrationTestSetup {
     }
 
     pub async fn get_txs(&mut self, n_txs: usize) -> Vec<ThinTransaction> {
-        let batcher_mempool_client = self.batcher_mempool_client.clone();
-        self.task_executor
-            .spawn(async move { batcher_mempool_client.get_txs(n_txs).await.unwrap() })
-            .await
-            .unwrap()
+        let batcher = self.batcher.clone();
+        self.task_executor.spawn(async move { batcher.get_txs(n_txs).await }).await.unwrap()
     }
 }
