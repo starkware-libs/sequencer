@@ -5,7 +5,7 @@ use test_utils::starknet_api_test_utils::{deploy_account_tx, invoke_tx};
 
 #[tokio::test]
 async fn test_end_to_end() {
-    let mut mock_running_system = IntegrationTestSetup::new(1).await;
+    let mock_running_system = IntegrationTestSetup::new(1).await;
 
     let mut expected_tx_hashes = Vec::new();
     expected_tx_hashes

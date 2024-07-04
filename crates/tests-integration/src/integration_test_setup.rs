@@ -74,7 +74,7 @@ impl IntegrationTestSetup {
         self.gateway_client.assert_add_tx_error(tx).await
     }
 
-    pub async fn get_txs(&mut self, n_txs: usize) -> Vec<ThinTransaction> {
+    pub async fn get_txs(&self, n_txs: usize) -> Vec<ThinTransaction> {
         let batcher = self.batcher.clone();
         self.task_executor.spawn(async move { batcher.get_txs(n_txs).await }).await.unwrap()
     }
