@@ -7,11 +7,11 @@ use crate::storage::storage_trait::{StorageKey, StorageValue};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-// TODO(Nimrod, 1/6/2024): Swap to starknet-types-core types once implemented.
+// TODO(Nimrod, 1/6/2025): Use the ContractAddress defined in starknet-types-core when available.
 pub struct ContractAddress(pub Felt);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-// TODO(Nimrod, 1/6/2024): Swap to starknet-types-core types once implemented.
+// TODO(Nimrod, 1/6/2025):  Use the StarknetStorageValue defined in starknet-types-core when available.
 pub struct StarknetStorageKey(pub Felt);
 
 #[derive(Clone, Default, Debug, Eq, PartialEq)]

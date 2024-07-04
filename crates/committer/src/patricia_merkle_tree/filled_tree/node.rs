@@ -6,7 +6,7 @@ use crate::impl_from_hex_for_felt_wrapper;
 use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
 use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 
-// TODO(Nimrod, 1/6/2024): Swap to starknet-types-core types once implemented.
+// TODO(Nimrod, 1/6/2024): Use the ClassHash defined in starknet-types-core when available.
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct ClassHash(pub Felt);
