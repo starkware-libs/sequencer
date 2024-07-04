@@ -94,7 +94,7 @@ impl UpdatedSkeletonTree for UpdatedSkeletonTreeImpl {
             Some(UpdatedSkeletonNode::UnmodifiedSubTree(root_hash)) => {
                 *root_hash == HashOutput::ROOT_OF_EMPTY_TREE
             }
-            Some(_modified_root) => is_map_empty,
+            Some(_modified_root) => false,
             None => {
                 assert!(is_map_empty, "Non-empty tree must have a root node.");
                 true
