@@ -25,12 +25,12 @@ use starknet_api::block::{
 };
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey, SequencerContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::hash::{StarkFelt, StarkHash};
 use starknet_api::state::{StorageKey, ThinStateDiff};
-use starknet_api::{contract_address, patricia_key, stark_felt};
+use starknet_api::{contract_address, felt, patricia_key};
 use starknet_client::reader::PendingData;
 use starknet_gateway::config::RpcStateReaderConfig;
 use starknet_gateway::rpc_state_reader::RpcStateReaderFactory;
+use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use tempfile::tempdir;
 use test_utils::starknet_api_test_utils::{deploy_account_tx, deployed_account_contract_address};
@@ -249,7 +249,7 @@ fn test_block_header(block_number: BlockNumber) -> BlockHeader {
 }
 
 fn fund_feature_account_contract(
-    storage_diffs: &mut IndexMap<ContractAddress, IndexMap<StorageKey, StarkFelt>>,
+    storage_diffs: &mut IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
     contract: &FeatureContract,
     instance: u16,
     initial_balances: u128,
@@ -271,13 +271,13 @@ fn fund_feature_account_contract(
 }
 
 fn fund_account(
-    storage_diffs: &mut IndexMap<ContractAddress, IndexMap<StorageKey, StarkFelt>>,
+    storage_diffs: &mut IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
     account_address: &ContractAddress,
     initial_balances: u128,
     chain_info: &ChainInfo,
 ) {
     let key_value = indexmap! {
-        get_fee_token_var_address(*account_address) => stark_felt!(initial_balances),
+        get_fee_token_var_address(*account_address) => felt!(initial_balances),
     };
     for fee_type in FeeType::iter() {
         storage_diffs

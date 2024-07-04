@@ -10,7 +10,6 @@ use starknet_api::core::{
     calculate_contract_address, ClassHash, CompiledClassHash, ContractAddress, Nonce,
 };
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::hash::StarkFelt;
 use starknet_api::rpc_transaction::{
     ContractClass, RPCDeclareTransactionV3, RPCDeployAccountTransaction,
     RPCDeployAccountTransactionV3, RPCInvokeTransactionV3, RPCTransaction, ResourceBoundsMapping,
@@ -19,7 +18,8 @@ use starknet_api::transaction::{
     AccountDeploymentData, Calldata, ContractAddressSalt, PaymasterData, ResourceBounds, Tip,
     TransactionSignature, TransactionVersion,
 };
-use starknet_api::{calldata, stark_felt};
+use starknet_api::{calldata, felt};
+use starknet_types_core::felt::Felt;
 
 use crate::{
     declare_tx_args, deploy_account_tx_args, get_absolute_path, invoke_tx_args,
@@ -46,7 +46,7 @@ pub fn external_tx_for_testing(
         TransactionType::Declare => {
             // Minimal contract class.
             let contract_class = ContractClass {
-                sierra_program: vec![stark_felt!(1_u32), stark_felt!(3_u32), stark_felt!(0_u32)],
+                sierra_program: vec![felt!(1_u32), felt!(3_u32), felt!(0_u32)],
                 ..Default::default()
             };
             external_declare_tx(declare_tx_args!(resource_bounds, signature, contract_class))
@@ -90,7 +90,7 @@ pub fn declare_tx() -> RPCTransaction {
     env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Couldn't set working dir.");
     let json_file_path = Path::new(CONTRACT_CLASS_FILE);
     let contract_class = serde_json::from_reader(File::open(json_file_path).unwrap()).unwrap();
-    let compiled_class_hash = CompiledClassHash(stark_felt!(COMPILED_CLASS_HASH_OF_CONTRACT_CLASS));
+    let compiled_class_hash = CompiledClassHash(felt!(COMPILED_CLASS_HASH_OF_CONTRACT_CLASS));
 
     let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let account_address = account_contract.get_instance_address(0);
@@ -98,7 +98,7 @@ pub fn declare_tx() -> RPCTransaction {
     let nonce = nonce_manager.next(account_address);
 
     external_declare_tx(declare_tx_args!(
-        signature: TransactionSignature(vec![StarkFelt::ZERO]),
+        signature: TransactionSignature(vec![Felt::ZERO]),
         sender_address: account_address,
         resource_bounds: executable_resource_bounds_mapping(),
         nonce,
@@ -261,66 +261,69 @@ impl Default for DeclareTxArgs {
 }
 
 pub fn external_invoke_tx(invoke_args: InvokeTxArgs) -> RPCTransaction {
-    match invoke_args.version {
-        TransactionVersion::THREE => starknet_api::rpc_transaction::RPCTransaction::Invoke(
-            starknet_api::rpc_transaction::RPCInvokeTransaction::V3(RPCInvokeTransactionV3 {
-                resource_bounds: invoke_args.resource_bounds,
-                tip: invoke_args.tip,
-                calldata: invoke_args.calldata,
-                sender_address: invoke_args.sender_address,
-                nonce: invoke_args.nonce,
-                signature: invoke_args.signature,
-                nonce_data_availability_mode: invoke_args.nonce_data_availability_mode,
-                fee_data_availability_mode: invoke_args.fee_data_availability_mode,
-                paymaster_data: invoke_args.paymaster_data,
-                account_deployment_data: invoke_args.account_deployment_data,
-            }),
-        ),
-        _ => panic!("Unsupported transaction version: {:?}.", invoke_args.version),
+    if invoke_args.version != TransactionVersion::THREE {
+        panic!("Unsupported transaction version: {:?}.", invoke_args.version);
     }
+
+    starknet_api::rpc_transaction::RPCTransaction::Invoke(
+        starknet_api::rpc_transaction::RPCInvokeTransaction::V3(RPCInvokeTransactionV3 {
+            resource_bounds: invoke_args.resource_bounds,
+            tip: invoke_args.tip,
+            calldata: invoke_args.calldata,
+            sender_address: invoke_args.sender_address,
+            nonce: invoke_args.nonce,
+            signature: invoke_args.signature,
+            nonce_data_availability_mode: invoke_args.nonce_data_availability_mode,
+            fee_data_availability_mode: invoke_args.fee_data_availability_mode,
+            paymaster_data: invoke_args.paymaster_data,
+            account_deployment_data: invoke_args.account_deployment_data,
+        }),
+    )
 }
 
 pub fn external_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RPCTransaction {
-    match deploy_tx_args.version {
-        TransactionVersion::THREE => starknet_api::rpc_transaction::RPCTransaction::DeployAccount(
-            starknet_api::rpc_transaction::RPCDeployAccountTransaction::V3(
-                RPCDeployAccountTransactionV3 {
-                    resource_bounds: deploy_tx_args.resource_bounds,
-                    tip: deploy_tx_args.tip,
-                    contract_address_salt: deploy_tx_args.contract_address_salt,
-                    class_hash: deploy_tx_args.class_hash,
-                    constructor_calldata: deploy_tx_args.constructor_calldata,
-                    nonce: deploy_tx_args.nonce,
-                    signature: deploy_tx_args.signature,
-                    nonce_data_availability_mode: deploy_tx_args.nonce_data_availability_mode,
-                    fee_data_availability_mode: deploy_tx_args.fee_data_availability_mode,
-                    paymaster_data: deploy_tx_args.paymaster_data,
-                },
-            ),
-        ),
-        _ => panic!("Unsupported transaction version: {:?}.", deploy_tx_args.version),
+    if deploy_tx_args.version != TransactionVersion::THREE {
+        panic!("Unsupported transaction version: {:?}.", deploy_tx_args.version);
     }
+
+    starknet_api::rpc_transaction::RPCTransaction::DeployAccount(
+        starknet_api::rpc_transaction::RPCDeployAccountTransaction::V3(
+            RPCDeployAccountTransactionV3 {
+                resource_bounds: deploy_tx_args.resource_bounds,
+                tip: deploy_tx_args.tip,
+                contract_address_salt: deploy_tx_args.contract_address_salt,
+                class_hash: deploy_tx_args.class_hash,
+                constructor_calldata: deploy_tx_args.constructor_calldata,
+                nonce: deploy_tx_args.nonce,
+                signature: deploy_tx_args.signature,
+                nonce_data_availability_mode: deploy_tx_args.nonce_data_availability_mode,
+                fee_data_availability_mode: deploy_tx_args.fee_data_availability_mode,
+                paymaster_data: deploy_tx_args.paymaster_data,
+            },
+        ),
+    )
 }
 
 pub fn external_declare_tx(declare_tx_args: DeclareTxArgs) -> RPCTransaction {
-    match declare_tx_args.version {
-        TransactionVersion::THREE => starknet_api::rpc_transaction::RPCTransaction::Declare(
-            starknet_api::rpc_transaction::RPCDeclareTransaction::V3(RPCDeclareTransactionV3 {
-                contract_class: declare_tx_args.contract_class,
-                signature: declare_tx_args.signature,
-                sender_address: declare_tx_args.sender_address,
-                resource_bounds: declare_tx_args.resource_bounds,
-                tip: declare_tx_args.tip,
-                nonce_data_availability_mode: declare_tx_args.nonce_data_availability_mode,
-                fee_data_availability_mode: declare_tx_args.fee_data_availability_mode,
-                paymaster_data: declare_tx_args.paymaster_data,
-                account_deployment_data: declare_tx_args.account_deployment_data,
-                nonce: declare_tx_args.nonce,
-                compiled_class_hash: declare_tx_args.class_hash,
-            }),
-        ),
-        _ => panic!("Unsupported transaction version: {:?}.", declare_tx_args.version),
+    if declare_tx_args.version != TransactionVersion::THREE {
+        panic!("Unsupported transaction version: {:?}.", declare_tx_args.version);
     }
+
+    starknet_api::rpc_transaction::RPCTransaction::Declare(
+        starknet_api::rpc_transaction::RPCDeclareTransaction::V3(RPCDeclareTransactionV3 {
+            contract_class: declare_tx_args.contract_class,
+            signature: declare_tx_args.signature,
+            sender_address: declare_tx_args.sender_address,
+            resource_bounds: declare_tx_args.resource_bounds,
+            tip: declare_tx_args.tip,
+            nonce_data_availability_mode: declare_tx_args.nonce_data_availability_mode,
+            fee_data_availability_mode: declare_tx_args.fee_data_availability_mode,
+            paymaster_data: declare_tx_args.paymaster_data,
+            account_deployment_data: declare_tx_args.account_deployment_data,
+            nonce: declare_tx_args.nonce,
+            compiled_class_hash: declare_tx_args.class_hash,
+        }),
+    )
 }
 
 pub fn external_tx_to_json(tx: &RPCTransaction) -> String {

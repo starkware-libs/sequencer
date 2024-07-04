@@ -2,7 +2,6 @@ use std::panic;
 use std::sync::OnceLock;
 
 use blockifier::execution::contract_class::{ClassInfo, ContractClass, ContractClassV1};
-use blockifier::execution::execution_utils::felt_to_stark_felt;
 use cairo_lang_starknet_classes::casm_contract_class::{
     CasmContractClass, CasmContractEntryPoints,
 };
@@ -40,8 +39,7 @@ pub fn compile_contract_class(declare_tx: &RPCDeclareTransaction) -> GatewayResu
     };
     validate_casm_class(&casm_contract_class)?;
 
-    let hash_result =
-        CompiledClassHash(felt_to_stark_felt(&casm_contract_class.compiled_class_hash()));
+    let hash_result = CompiledClassHash(casm_contract_class.compiled_class_hash());
     if hash_result != tx.compiled_class_hash {
         return Err(GatewayError::CompiledClassHashMismatch {
             supplied: tx.compiled_class_hash,

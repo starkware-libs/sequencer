@@ -1,10 +1,11 @@
 use std::collections::BTreeMap;
 
 use cairo_lang_starknet_classes::compiler_version::VersionId as CairoLangVersionId;
+use num_traits::ToPrimitive;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_api::hash::StarkFelt;
+use starknet_types_core::felt::Felt;
 use thiserror::Error;
 use validator::Validate;
 
@@ -41,7 +42,7 @@ impl std::fmt::Display for VersionId {
 }
 
 impl VersionId {
-    pub fn from_sierra_program(sierra_program: &[StarkFelt]) -> Result<Self, VersionIdError> {
+    pub fn from_sierra_program(sierra_program: &[Felt]) -> Result<Self, VersionIdError> {
         let sierra_program_length = sierra_program.len();
 
         if sierra_program_length < 3 {
@@ -55,12 +56,12 @@ impl VersionId {
         }
 
         fn get_version_component(
-            sierra_program: &[StarkFelt],
+            sierra_program: &[Felt],
             index: usize,
         ) -> Result<usize, VersionIdError> {
-            let felt = sierra_program[index];
-            felt.try_into().map_err(|_| VersionIdError::InvalidVersion {
-                message: format!("version contains a value that is out of range: {}", felt),
+            let felt = &sierra_program[index];
+            felt.to_usize().ok_or(VersionIdError::InvalidVersion {
+                message: format!("version contains a value that is out of range: {:?}", felt),
             })
         }
 

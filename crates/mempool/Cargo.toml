@@ -21,5 +21,6 @@ assert_matches.workspace = true
 itertools.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
+starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tokio.workspace = true

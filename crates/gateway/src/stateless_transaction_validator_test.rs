@@ -1,9 +1,9 @@
 use assert_matches::assert_matches;
 use rstest::rstest;
-use starknet_api::hash::StarkFelt;
 use starknet_api::rpc_transaction::{ContractClass, ResourceBoundsMapping};
 use starknet_api::transaction::{Calldata, Resource, ResourceBounds, TransactionSignature};
-use starknet_api::{calldata, stark_felt};
+use starknet_api::{calldata, felt};
+use starknet_types_core::felt::Felt;
 use test_utils::declare_tx_args;
 use test_utils::starknet_api_test_utils::{
     create_resource_bounds_mapping, external_declare_tx, external_tx_for_testing,
@@ -76,14 +76,14 @@ const DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: StatelessTransactionValidatorConfig 
 #[case::non_empty_valid_calldata(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING,
     zero_resource_bounds_mapping(),
-    calldata![StarkFelt::from_u128(1)],
+    calldata![Felt::ONE],
     TransactionSignature::default()
 )]
 #[case::non_empty_valid_signature(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING,
     zero_resource_bounds_mapping(),
     calldata![],
-    TransactionSignature(vec![StarkFelt::from_u128(1)])
+    TransactionSignature(vec![Felt::ONE])
 )]
 #[case::valid_tx(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING,
@@ -155,7 +155,7 @@ fn test_calldata_too_long(
     let tx = external_tx_for_testing(
         tx_type,
         zero_resource_bounds_mapping(),
-        calldata![StarkFelt::from_u128(1), StarkFelt::from_u128(2)],
+        calldata![Felt::ONE, Felt::TWO],
         TransactionSignature::default(),
     );
 
@@ -179,7 +179,7 @@ fn test_signature_too_long(
         tx_type,
         zero_resource_bounds_mapping(),
         calldata![],
-        TransactionSignature(vec![StarkFelt::from_u128(1), StarkFelt::from_u128(2)]),
+        TransactionSignature(vec![Felt::ONE, Felt::TWO]),
     );
 
     assert_eq!(
@@ -202,7 +202,7 @@ fn test_signature_too_long(
     )
 )]
 #[case::sierra_program_length_one(
-    vec![stark_felt!(1_u128)],
+    vec![felt!(1_u128)],
     StatelessTransactionValidatorError::InvalidSierraVersion (
         VersionIdError::InvalidVersion {
             message: "Sierra program is too short. got program of length 1 which is not long enough \
@@ -211,7 +211,7 @@ fn test_signature_too_long(
     )
 )]
 #[case::sierra_program_length_two(
-    vec![stark_felt!(1_u128), stark_felt!(3_u128)],
+    vec![felt!(1_u128), felt!(3_u128)],
     StatelessTransactionValidatorError::InvalidSierraVersion (
         VersionIdError::InvalidVersion {
             message: "Sierra program is too short. got program of length 2 which is not long enough \
@@ -221,14 +221,14 @@ fn test_signature_too_long(
 )]
 #[case::invalid_character_in_sierra_version(
     vec![
-            stark_felt!(1_u128),
-            stark_felt!(3_u128),
-            stark_felt!(0x10000000000000000_u128), // Does not fit into a usize.
+            felt!(1_u128),
+            felt!(3_u128),
+            felt!(0x10000000000000000_u128), // Does not fit into a usize.
     ],
     StatelessTransactionValidatorError::InvalidSierraVersion (
             VersionIdError::InvalidVersion {
                 message: "version contains a value that is out of range: \
-                 0x0000000000000000000000000000000000000000000000010000000000000000".into()
+                 0x10000000000000000".into()
             }
         )
     )
@@ -250,7 +250,7 @@ fn test_signature_too_long(
     })
 ]
 fn test_declare_sierra_version_failure(
-    #[case] sierra_program: Vec<StarkFelt>,
+    #[case] sierra_program: Vec<Felt>,
     #[case] expected_error: StatelessTransactionValidatorError,
 ) {
     let tx_validator =
@@ -268,7 +268,7 @@ fn test_declare_sierra_version_failure(
 #[case::max_sierra_version_patch_zero(create_sierra_program(&VersionId { patch: 0, ..MAX_SIERRA_VERSION }))]
 #[case::max_sierra_version_patch_non_trivial(create_sierra_program(&VersionId { patch: 1, ..MAX_SIERRA_VERSION }))]
 #[case::max_sierra_version(create_sierra_program(&MAX_SIERRA_VERSION))]
-fn test_declare_sierra_version_sucsses(#[case] sierra_program: Vec<StarkFelt>) {
+fn test_declare_sierra_version_sucsses(#[case] sierra_program: Vec<Felt>) {
     let tx_validator =
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING };
 
@@ -288,7 +288,7 @@ fn test_declare_bytecode_size_too_long() {
         },
     };
     let sierra_program_length = config_max_bytecode_size + 1;
-    let sierra_program = vec![stark_felt!(1_u128); sierra_program_length];
+    let sierra_program = vec![felt!(1_u128); sierra_program_length];
     let contract_class = ContractClass { sierra_program, ..Default::default() };
     let tx = external_declare_tx(declare_tx_args!(contract_class));
 
@@ -313,7 +313,7 @@ fn test_declare_contract_class_size_too_long() {
         },
     };
     let contract_class =
-        ContractClass { sierra_program: vec![stark_felt!(1_u128); 3], ..Default::default() };
+        ContractClass { sierra_program: vec![felt!(1_u128); 3], ..Default::default() };
     let contract_class_length = serde_json::to_string(&contract_class).unwrap().len();
     let tx = external_declare_tx(declare_tx_args!(contract_class));
 
