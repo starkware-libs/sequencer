@@ -14,6 +14,7 @@ use starknet_gateway::gateway::Gateway;
 use starknet_gateway::rpc_state_reader::RpcStateReaderFactory;
 use starknet_mempool_types::communication::SharedMempoolClient;
 use test_utils::starknet_api_test_utils::external_tx_to_json;
+use tokio::net::TcpListener;
 
 use crate::state_reader::spawn_test_rpc_state_reader;
 
@@ -28,7 +29,7 @@ pub async fn create_gateway(
         ..Default::default()
     };
 
-    let socket: SocketAddr = "127.0.0.1:3000".parse().unwrap();
+    let socket = get_available_socket().await;
     let network_config = GatewayNetworkConfig { ip: socket.ip(), port: socket.port() };
     let stateful_tx_validator_config = StatefulTransactionValidatorConfig::create_for_testing();
 
@@ -90,4 +91,19 @@ fn spawn_test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateRe
         url: format!("http://{rpc_server_addr:?}/rpc/{RPC_SPEC_VERION}"),
         json_rpc_version: JSON_RPC_VERSION.to_string(),
     }
+}
+
+/// Returns a unique IP address and port for testing purposes.
+///
+/// Tests run in parallel, so servers (like RPC or web) running on separate tests must have
+/// different ports, otherwise the server will fail with "address already in use".
+pub async fn get_available_socket() -> SocketAddr {
+    // Dinamically select port.
+    // First, set the port to 0 (dynamic port).
+    TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("Failed to bind to address")
+        // Then, resolve to the actual selected port.
+        .local_addr()
+        .expect("Failed to get local address")
 }
