@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use papyrus_config::dumping::SerializeConfig;
 
 #[cfg(test)]
 #[path = "component_runner_test.rs"]
@@ -11,11 +10,6 @@ pub enum ComponentStartError {
     ComponentConfigError,
     #[error("An internal component error.")]
     InternalComponentError,
-}
-
-/// Interface to create components.
-pub trait ComponentCreator<T: SerializeConfig> {
-    fn create(config: T) -> Self;
 }
 
 /// Interface to start components.
