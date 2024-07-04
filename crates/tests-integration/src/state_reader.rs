@@ -28,8 +28,6 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_client::reader::PendingData;
-use starknet_gateway::config::RpcStateReaderConfig;
-use starknet_gateway::rpc_state_reader::RpcStateReaderFactory;
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use tempfile::tempdir;
@@ -49,13 +47,10 @@ fn deploy_account_tx_contract_address() -> &'static ContractAddress {
 
 /// StateReader for integration tests.
 ///
-/// Creates a papyrus storage reader and Spawns a papyrus rpc server for it.
+/// Creates a papyrus storage reader and spawns a papyrus rpc server for it.
+/// Returns the address of the rpc server.
 /// A variable number of identical accounts and test contracts are initialized and funded.
-pub async fn rpc_test_state_reader_factory(
-    n_initialized_account_contracts: u16,
-) -> RpcStateReaderFactory {
-    const RPC_SPEC_VERION: &str = "V0_7";
-    const JSON_RPC_VERSION: &str = "2.0";
+pub async fn spawn_test_rpc_state_reader(n_initialized_account_contracts: u16) -> SocketAddr {
     let block_context = BlockContext::create_for_testing();
     let account_contract_cairo0 = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
     let test_contract_cairo0 = FeatureContract::TestContract(CairoVersion::Cairo0);
@@ -76,14 +71,7 @@ pub async fn rpc_test_state_reader_factory(
         ],
         fund_accounts,
     );
-    let addr = run_papyrus_rpc_server(storage_reader).await;
-
-    RpcStateReaderFactory {
-        config: RpcStateReaderConfig {
-            url: format!("http://{addr:?}/rpc/{RPC_SPEC_VERION}"),
-            json_rpc_version: JSON_RPC_VERSION.to_string(),
-        },
-    }
+    run_papyrus_rpc_server(storage_reader).await
 }
 
 fn initialize_papyrus_test_state(

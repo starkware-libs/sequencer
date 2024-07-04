@@ -6,15 +6,16 @@ use reqwest::{Client, Response};
 use starknet_api::rpc_transaction::RPCTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway::config::{
-    GatewayConfig, GatewayNetworkConfig, StatefulTransactionValidatorConfig,
+    GatewayConfig, GatewayNetworkConfig, RpcStateReaderConfig, StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
 use starknet_gateway::errors::GatewayError;
 use starknet_gateway::gateway::Gateway;
+use starknet_gateway::rpc_state_reader::RpcStateReaderFactory;
 use starknet_mempool_types::communication::SharedMempoolClient;
 use test_utils::starknet_api_test_utils::external_tx_to_json;
 
-use crate::state_reader::rpc_test_state_reader_factory;
+use crate::state_reader::spawn_test_rpc_state_reader;
 
 pub async fn create_gateway(
     mempool_client: SharedMempoolClient,
@@ -37,8 +38,9 @@ pub async fn create_gateway(
         stateful_tx_validator_config,
     };
 
-    let state_reader_factory =
-        Arc::new(rpc_test_state_reader_factory(n_initialized_account_contracts).await);
+    let rpc_server_addr = spawn_test_rpc_state_reader(n_initialized_account_contracts).await;
+    let rpc_state_reader_config = spawn_test_rpc_state_reader_config(rpc_server_addr);
+    let state_reader_factory = Arc::new(RpcStateReaderFactory { config: rpc_state_reader_config });
 
     Gateway::new(gateway_config, state_reader_factory, mempool_client)
 }
@@ -78,5 +80,14 @@ impl GatewayClient {
             .send()
             .await
             .unwrap()
+    }
+}
+
+fn spawn_test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderConfig {
+    const RPC_SPEC_VERION: &str = "V0_7";
+    const JSON_RPC_VERSION: &str = "2.0";
+    RpcStateReaderConfig {
+        url: format!("http://{rpc_server_addr:?}/rpc/{RPC_SPEC_VERION}"),
+        json_rpc_version: JSON_RPC_VERSION.to_string(),
     }
 }
