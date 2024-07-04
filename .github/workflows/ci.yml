@@ -131,6 +131,10 @@ jobs:
       - run: gcloud storage cp gs://committer-products-external/tree_flow_inputs.json ./crates/committer_cli/benches/tree_flow_inputs.json
       - run: gcloud storage cp gs://committer-products-external/committer_flow_inputs.json ./crates/committer_cli/benches/committer_flow_inputs.json
 
+      # list the existing benchmarks.
+      - run: |
+            cargo bench -- --list | grep ': benchmark$' | sed -e "s/: benchmark$//" > benchmarks_list.txt
+
       # Benchmark the old code.
       - run: cargo bench
 
@@ -145,15 +149,14 @@ jobs:
       - run: mv ./crates/committer_cli/benches/tree_flow_inputs.json_bu ./crates/committer_cli/benches/tree_flow_inputs.json
       - run: mv ./crates/committer_cli/benches/committer_flow_inputs.json_bu ./crates/committer_cli/benches/committer_flow_inputs.json
 
-      # Benchmark the new code.
-      - run: cargo bench > bench_new.txt
-      - run: sed -i '/tree_computation_flow/,$!d' bench_new.txt
+      # Benchmark the new code, splitting the benchmarks, and prepare the results for posting a comment.
+      - run: bash ./crates/committer_cli/benches/bench_split_and_prepare_post.sh benchmarks_list.txt bench_new.txt
+
       - run: echo BENCHES_RESULT=$(cat bench_new.txt) >> $GITHUB_ENV
 
       # Post comment in case of performance regression or improvement.
-      # TODO: split the outputs to different files and post only the relevant ones.
       - run: npm install fs
-      - if: contains(env.BENCHES_RESULT, 'regressed')
+      - if: contains(env.BENCHES_RESULT, 'regressed') || contains(env.BENCHES_RESULT, 'improved')
         uses: actions/github-script@v6
         with:
           script: |
@@ -162,20 +165,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '**performance regressed!**\n' + fs.readFileSync('bench_new.txt', 'utf8'),
-              path: 'Commits'
-            })
-
-      - if: ${{contains(env.BENCHES_RESULT, 'improved') && !contains(env.BENCHES_RESULT, 'regressed')}}
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const fs = require('fs')
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: 'performance improved :smiley_cat:\n' + fs.readFileSync('bench_new.txt', 'utf8'),
+              body: fs.readFileSync('bench_new.txt', 'utf8'),
               path: 'Commits'
             })
 
