@@ -29,7 +29,7 @@ impl TransactionQueue {
     }
 
     // TODO(gilad): remove collect
-    pub fn pop_last_chunk(&mut self, n_txs: usize) -> Vec<TransactionHash> {
+    pub fn pop_chunk(&mut self, n_txs: usize) -> Vec<TransactionHash> {
         let txs: Vec<TransactionReference> =
             (0..n_txs).filter_map(|_| self.queue.pop_last().map(|tx| tx.0)).collect();
         for tx in &txs {
