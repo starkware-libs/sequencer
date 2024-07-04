@@ -5,6 +5,7 @@ use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLe
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::storage_trait::{StorageKey, StorageValue};
 use std::collections::{HashMap, HashSet};
+use std::fmt::Debug;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 // TODO(Nimrod, 1/6/2025): Use the ContractAddress defined in starknet-types-core when available.
@@ -26,13 +27,41 @@ pub struct StateDiff {
         HashMap<ContractAddress, HashMap<StarknetStorageKey, StarknetStorageValue>>,
 }
 
+/// Trait contains all optional configurations of the committer.
+pub trait Config: Debug + Eq + PartialEq {
+    /// Indicates whether a warning should be given in case of a trivial state update.
+    /// If the configuration is set, it requires that the storage will contain the original data for
+    /// the modified leaves. Otherwise, it is not required.
+    fn warn_on_trivial_modifications(&self) -> bool;
+}
+
 #[derive(Debug, Eq, PartialEq)]
-pub struct Input {
+pub struct ConfigImpl {
+    warn_on_trivial_modifications: bool,
+}
+
+impl Config for ConfigImpl {
+    fn warn_on_trivial_modifications(&self) -> bool {
+        self.warn_on_trivial_modifications
+    }
+}
+
+impl ConfigImpl {
+    pub fn new(warn_on_trivial_modifications: bool) -> Self {
+        Self {
+            warn_on_trivial_modifications,
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct Input<C: Config> {
     pub storage: HashMap<StorageKey, StorageValue>,
     /// All relevant information for the state diff commitment.
     pub state_diff: StateDiff,
     pub contracts_trie_root_hash: HashOutput,
     pub classes_trie_root_hash: HashOutput,
+    pub config: C,
 }
 
 impl StateDiff {

@@ -1,6 +1,6 @@
 use committer::{
     block_committer::input::{
-        ContractAddress, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
+        ConfigImpl, ContractAddress, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
     },
     felt::Felt,
     hash::hash_trait::HashOutput,
@@ -205,6 +205,7 @@ fn test_simple_input_parsing() {
         },
         contracts_trie_root_hash: expected_contracts_trie_root_hash,
         classes_trie_root_hash: expected_classes_trie_root_hash,
+        config: ConfigImpl::new(true),
     };
     assert_eq!(parse_input(input).unwrap(), expected_input);
 }

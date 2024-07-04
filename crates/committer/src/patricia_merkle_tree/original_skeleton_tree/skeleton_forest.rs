@@ -1,3 +1,4 @@
+use crate::block_committer::input::Config;
 use crate::block_committer::input::ContractAddress;
 use crate::block_committer::input::StarknetStorageValue;
 use crate::block_committer::input::StateDiff;
@@ -30,6 +31,7 @@ pub(crate) trait OriginalSkeletonForest {
         contracts_trie_root_hash: HashOutput,
         classes_trie_root_hash: HashOutput,
         state_diff: &StateDiff,
+        config: &impl Config,
     ) -> ForestResult<(Self, HashMap<NodeIndex, ContractState>)>
     where
         Self: std::marker::Sized;
@@ -48,6 +50,7 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForest for OriginalSkeletonForestI
         contracts_trie_root_hash: HashOutput,
         classes_trie_root_hash: HashOutput,
         state_diff: &StateDiff,
+        config: &impl Config,
     ) -> ForestResult<(Self, HashMap<NodeIndex, ContractState>)>
     where
         Self: std::marker::Sized,
@@ -59,11 +62,13 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForest for OriginalSkeletonForestI
             &state_diff.actual_storage_updates(),
             &original_contracts_trie_leaves,
             &storage,
+            config,
         )?;
         let classes_trie = Self::create_classes_trie(
             &state_diff.actual_classes_updates(),
             classes_trie_root_hash,
             &storage,
+            config,
         )?;
 
         Ok((
@@ -109,6 +114,7 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
         actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
         storage: &impl Storage,
+        config: &impl Config,
     ) -> ForestResult<HashMap<ContractAddress, T>> {
         let mut storage_tries = HashMap::new();
         for (address, updates) in actual_storage_updates {
@@ -117,8 +123,10 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
                 .get(&NodeIndex::from_contract_address(address))
                 .ok_or(ForestError::MissingContractCurrentState(*address))?;
 
-            // TODO(Nimrod, 1/7/2024): Set the configuration according to an input and not hard coded.
-            let config = OriginalSkeletonStorageTrieConfig::new(updates, true);
+            let config = OriginalSkeletonStorageTrieConfig::new(
+                updates,
+                config.warn_on_trivial_modifications(),
+            );
             let original_skeleton = T::create(
                 storage,
                 contract_state.storage_root_hash,
@@ -134,9 +142,12 @@ impl<T: OriginalSkeletonTree> OriginalSkeletonForestImpl<T> {
         actual_classes_updates: &LeafModifications<CompiledClassHash>,
         classes_trie_root_hash: HashOutput,
         storage: &impl Storage,
+        config: &impl Config,
     ) -> ForestResult<T> {
-        // TODO(Nimrod, 1/7/2024): Set the configuration according to an input and not hard coded.
-        let config = OriginalSkeletonClassesTrieConfig::new(actual_classes_updates, true);
+        let config = OriginalSkeletonClassesTrieConfig::new(
+            actual_classes_updates,
+            config.warn_on_trivial_modifications(),
+        );
         let mut sorted_leaf_indices: Vec<NodeIndex> =
             actual_classes_updates.keys().copied().collect();
 

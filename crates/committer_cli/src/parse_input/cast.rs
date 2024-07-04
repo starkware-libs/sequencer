@@ -1,6 +1,6 @@
 use crate::parse_input::raw_input::RawInput;
 use committer::block_committer::input::{
-    ContractAddress, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
+    ConfigImpl, ContractAddress, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
 };
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
@@ -10,7 +10,9 @@ use committer::storage::storage_trait::{StorageKey, StorageValue};
 
 use std::collections::HashMap;
 
-impl TryFrom<RawInput> for Input {
+pub type InputImpl = Input<ConfigImpl>;
+
+impl TryFrom<RawInput> for InputImpl {
     type Error = DeserializationError;
     fn try_from(raw_input: RawInput) -> Result<Self, Self::Error> {
         let mut storage = HashMap::new();
@@ -87,6 +89,8 @@ impl TryFrom<RawInput> for Input {
             classes_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
                 &raw_input.classes_trie_root_hash,
             )),
+            // TODO(Nimrod, 8/7/2024): Set this configuration according to python input.
+            config: ConfigImpl::new(true),
         })
     }
 }

@@ -3,9 +3,10 @@ use std::{
     io::{self, BufWriter},
 };
 
-use committer::{block_committer::input::Input, storage::errors::DeserializationError};
+use committer::storage::errors::DeserializationError;
 use serde::{Deserialize, Serialize};
 
+use crate::parse_input::cast::InputImpl;
 use crate::parse_input::raw_input::RawInput;
 
 #[cfg(test)]
@@ -14,7 +15,7 @@ pub mod read_test;
 
 type DeserializationResult<T> = Result<T, DeserializationError>;
 
-pub fn parse_input(input: &str) -> DeserializationResult<Input> {
+pub fn parse_input(input: &str) -> DeserializationResult<InputImpl> {
     serde_json::from_str::<RawInput>(input)?.try_into()
 }
 
