@@ -68,20 +68,22 @@ fn test_get_txs(#[case] requested_txs: usize) {
     let input_tip_100_address_1 = add_tx_input!(tip: 100, tx_hash: 2, sender_address: "0x1");
     let input_tip_10_address_2 = add_tx_input!(tip: 10, tx_hash: 3, sender_address: "0x2");
 
-    let mut mempool = Mempool::new([
+    let txs = [
         input_tip_50_address_0.clone(),
         input_tip_100_address_1.clone(),
         input_tip_10_address_2.clone(),
-    ])
-    .unwrap();
+    ];
+    let n_txs = txs.len();
+
+    let mut mempool = Mempool::new(txs).unwrap();
 
     let sorted_txs =
         [input_tip_100_address_1.tx, input_tip_50_address_0.tx, input_tip_10_address_2.tx];
 
     let txs = mempool.get_txs(requested_txs).unwrap();
 
-    // This ensures we do not exceed the priority queue's limit of 3 transactions.
-    let max_requested_txs = requested_txs.min(3);
+    // This ensures we do not exceed the number of transactions available in the mempool.
+    let max_requested_txs = requested_txs.min(n_txs);
 
     // checks that the returned transactions are the ones with the highest priority.
     let (expected_txs, remaining_txs) = sorted_txs.split_at(max_requested_txs);
