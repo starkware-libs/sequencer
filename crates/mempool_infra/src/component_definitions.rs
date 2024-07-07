@@ -1,4 +1,6 @@
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use tokio::sync::mpsc::Sender;
 
 #[async_trait]
@@ -16,3 +18,9 @@ where
 }
 
 pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
+
+#[derive(Debug, Error, Deserialize, Serialize)]
+pub enum ServerError {
+    #[error("Could not deserialize client request: {0}")]
+    RequestDeserializationFailure(String),
+}

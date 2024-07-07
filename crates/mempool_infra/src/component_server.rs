@@ -7,13 +7,14 @@ use bincode::{deserialize, serialize};
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server};
+use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server, StatusCode};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::Mutex;
 
 use crate::component_definitions::{
-    ComponentRequestAndResponseSender, ComponentRequestHandler, APPLICATION_OCTET_STREAM,
+    ComponentRequestAndResponseSender, ComponentRequestHandler, ServerError,
+    APPLICATION_OCTET_STREAM,
 };
 use crate::component_runner::ComponentRunner;
 
@@ -111,21 +112,27 @@ where
         component: Arc<Mutex<Component>>,
     ) -> Result<HyperResponse<Body>, hyper::Error> {
         let body_bytes = to_bytes(http_request.into_body()).await?;
-        let component_request: Request =
-            deserialize(&body_bytes).expect("Request deserialization should succeed");
-
-        // Acquire the lock for component computation, release afterwards.
-        let component_response;
-        {
-            let mut component_guard = component.lock().await;
-            component_response = component_guard.handle_request(component_request).await;
+        let http_response = match deserialize(&body_bytes) {
+            Ok(component_request) => {
+                // Acquire the lock for component computation, release afterwards.
+                let component_response =
+                    { component.lock().await.handle_request(component_request).await };
+                HyperResponse::builder()
+                    .status(StatusCode::OK)
+                    .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+                    .body(Body::from(
+                        serialize(&component_response)
+                            .expect("Response serialization should succeed"),
+                    ))
+            }
+            Err(error) => {
+                let server_error = ServerError::RequestDeserializationFailure(error.to_string());
+                HyperResponse::builder().status(StatusCode::BAD_REQUEST).body(Body::from(
+                    serialize(&server_error).expect("Server error serialization should succeed"),
+                ))
+            }
         }
-        let http_response = HyperResponse::builder()
-            .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-            .body(Body::from(
-                serialize(&component_response).expect("Response serialization should succeed"),
-            ))
-            .expect("Response builidng should succeed");
+        .expect("Response building should succeed");
 
         Ok(http_response)
     }
