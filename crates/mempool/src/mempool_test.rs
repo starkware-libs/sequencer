@@ -12,6 +12,11 @@ use starknet_types_core::felt::Felt;
 
 use crate::mempool::{Mempool, MempoolInput, TransactionReference};
 
+#[track_caller]
+fn add_tx(mempool: &mut Mempool, input: &MempoolInput) {
+    assert_eq!(mempool.add_tx(input.clone()), Ok(()));
+}
+
 /// Creates a valid input for mempool's `add_tx` with optional default values.
 /// Usage:
 /// 1. add_tx_input!(tip: 1, tx_hash: Felt::TWO, sender_address: 3_u8, nonce: 4)
@@ -97,11 +102,11 @@ fn test_get_txs(#[case] requested_txs: usize) {
 fn test_add_tx(mut mempool: Mempool) {
     let input_tip_50_address_0 = add_tx_input!(tip: 50, tx_hash: 1);
     let input_tip_100_address_1 = add_tx_input!(tip: 100, tx_hash: 2, sender_address: "0x1");
-    let input_tip_80_address_2 = add_tx_input!(tip: 80, tx_hash: 3, sender_address: "0x3");
+    let input_tip_80_address_2 = add_tx_input!(tip: 80, tx_hash: 3, sender_address: "0x2");
 
-    assert_eq!(mempool.add_tx(input_tip_50_address_0.clone()), Ok(()));
-    assert_eq!(mempool.add_tx(input_tip_100_address_1.clone()), Ok(()));
-    assert_eq!(mempool.add_tx(input_tip_80_address_2.clone()), Ok(()));
+    add_tx(&mut mempool, &input_tip_50_address_0);
+    add_tx(&mut mempool, &input_tip_100_address_1);
+    add_tx(&mut mempool, &input_tip_80_address_2);
 
     let expected_txs =
         &[input_tip_50_address_0.tx, input_tip_80_address_2.tx, input_tip_100_address_1.tx];
@@ -124,7 +129,7 @@ fn test_add_tx_with_duplicate_tx(mut mempool: Mempool) {
     let input = add_tx_input!(tip: 50, tx_hash: Felt::ONE);
     let same_input = input.clone();
 
-    assert_eq!(mempool.add_tx(input), Ok(()));
+    add_tx(&mut mempool, &input);
 
     assert_matches!(
         mempool.add_tx(same_input.clone()),
@@ -142,8 +147,8 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
     // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
     let input2 = add_tx_input!(tip: 1, tx_hash: 1, sender_address: "0x1");
 
-    assert_eq!(mempool.add_tx(input1.clone()), Ok(()));
-    assert_eq!(mempool.add_tx(input2.clone()), Ok(()));
+    add_tx(&mut mempool, &input1);
+    add_tx(&mut mempool, &input2);
 
     // TODO: currently hash comparison tie-breaks the two. Once more robust tie-breaks are added
     // replace this assertion with a dedicated test.
@@ -158,7 +163,7 @@ fn test_tip_priority_over_tx_hash(mut mempool: Mempool) {
     // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
     let input_small_tip_big_hash = add_tx_input!(tip: 1, tx_hash: Felt::TWO, sender_address: "0x1");
 
-    assert_eq!(mempool.add_tx(input_big_tip_small_hash.clone()), Ok(()));
-    assert_eq!(mempool.add_tx(input_small_tip_big_hash.clone()), Ok(()));
+    add_tx(&mut mempool, &input_big_tip_small_hash);
+    add_tx(&mut mempool, &input_small_tip_big_hash);
     check_mempool_txs_eq(&mempool, &[input_small_tip_big_hash.tx, input_big_tip_small_hash.tx])
 }
