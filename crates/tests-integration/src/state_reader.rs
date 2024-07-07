@@ -52,7 +52,7 @@ fn deploy_account_tx_contract_address() -> &'static ContractAddress {
 /// Creates a papyrus storage reader and spawns a papyrus rpc server for it.
 /// Returns the address of the rpc server.
 /// A variable number of identical accounts and test contracts are initialized and funded.
-pub async fn spawn_test_rpc_state_reader(n_initialized_account_contracts: u16) -> SocketAddr {
+pub async fn spawn_test_rpc_state_reader(n_accounts: u16) -> SocketAddr {
     let block_context = BlockContext::create_for_testing();
     let account_contract_cairo0 = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
     let test_contract_cairo0 = FeatureContract::TestContract(CairoVersion::Cairo0);
@@ -68,7 +68,7 @@ pub async fn spawn_test_rpc_state_reader(n_initialized_account_contracts: u16) -
             (erc20, 1),
             (account_contract_cairo0, 1),
             (test_contract_cairo0, 1),
-            (account_contract_cairo1, n_initialized_account_contracts),
+            (account_contract_cairo1, n_accounts),
             (test_contract_cairo1, 1),
         ],
         fund_accounts,

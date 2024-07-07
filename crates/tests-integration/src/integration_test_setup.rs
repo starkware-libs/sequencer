@@ -30,7 +30,7 @@ pub struct IntegrationTestSetup {
 }
 
 impl IntegrationTestSetup {
-    pub async fn new(n_initialized_account_contracts: u16) -> Self {
+    pub async fn new(n_accounts: u16) -> Self {
         let handle = Handle::current();
         let task_executor = TokioExecutor::new(handle);
 
@@ -41,8 +41,7 @@ impl IntegrationTestSetup {
             channel::<MempoolRequestAndResponseSender>(MEMPOOL_INVOCATIONS_QUEUE_SIZE);
         // Build and run gateway; initialize a gateway client.
         let gateway_mempool_client = MempoolClientImpl::new(tx_mempool.clone());
-        let gateway =
-            create_gateway(Arc::new(gateway_mempool_client), n_initialized_account_contracts).await;
+        let gateway = create_gateway(Arc::new(gateway_mempool_client), n_accounts).await;
         let GatewayNetworkConfig { ip, port } = gateway.config.network_config;
         let gateway_client = GatewayClient::new(SocketAddr::from((ip, port)));
         let gateway_handle = task_executor.spawn_with_handle(async move {
