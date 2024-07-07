@@ -65,9 +65,10 @@ fn check_mempool_txs_eq(mempool: &Mempool, expected_txs: &[ThinTransaction]) {
 }
 
 #[rstest]
-#[case(3)] // Requesting exactly the number of transactions in the queue
-#[case(5)] // Requesting more transactions than are in the queue
-#[case(2)] // Requesting fewer transactions than are in the queue
+#[case::test_get_zero_txs(0)]
+#[case::test_get_exactly_all_eligible_txs(3)]
+#[case::test_get_more_than_all_eligible_txs(5)]
+#[case::test_get_less_than_all_eligible_txs(2)]
 fn test_get_txs(#[case] requested_txs: usize) {
     let input_tip_50_address_0 = add_tx_input!(tip: 50, tx_hash: 1);
     let input_tip_100_address_1 = add_tx_input!(tip: 100, tx_hash: 2, sender_address: "0x1");
