@@ -20,7 +20,9 @@ use crate::storage::storage_trait::Storage;
 use crate::storage::storage_trait::StorageKey;
 use crate::storage::storage_trait::StoragePrefix;
 use log::warn;
+use std::borrow::Borrow;
 use std::collections::HashMap;
+use std::fmt::Debug;
 
 #[cfg(test)]
 #[path = "create_tree_test.rs"]
@@ -169,15 +171,10 @@ impl OriginalSkeletonTreeImpl {
                                 .collect::<HashMap<NodeIndex, L>>(),
                         );
                     }
-
-                    if config.compare_modified_leaves() {
-                        let empty_leaf = L::default();
-                        for leaf_idx in previously_empty_leaves_indices {
-                            if config.compare_leaf(leaf_idx, &empty_leaf)? {
-                                warn!("Encountered a trivial modification at index {:?}, with value {:?}", leaf_idx, empty_leaf);
-                            }
-                        }
-                    }
+                    OriginalSkeletonTreeImpl::log_warning_for_empty_leaves(
+                        &previously_empty_leaves_indices,
+                        config,
+                    )?;
 
                     self.handle_subtree(&mut next_subtrees, bottom_subtree, should_fetch_leaves);
                 }
@@ -252,6 +249,10 @@ impl OriginalSkeletonTreeImpl {
             return Ok(Self::create_unmodified(root_hash));
         }
         if root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
+            OriginalSkeletonTreeImpl::log_warning_for_empty_leaves(
+                sorted_leaf_indices.get_indices(),
+                config,
+            )?;
             return Ok(Self::create_empty());
         }
         let main_subtree = SubTree {
@@ -331,5 +332,27 @@ impl OriginalSkeletonTreeImpl {
                 OriginalSkeletonNode::UnmodifiedSubTree(subtree.root_hash),
             );
         }
+    }
+
+    /// Given leaf indices that were previously empty leaves, logs out a warning for trivial
+    /// modification if a leaf is modified to an empty leaf.
+    /// If this check is suppressed by configuration, does nothing.
+    fn log_warning_for_empty_leaves<L: LeafData, T: Borrow<NodeIndex> + Debug>(
+        leaf_indices: &[T],
+        config: &impl OriginalSkeletonTreeConfig<L>,
+    ) -> OriginalSkeletonTreeResult<()> {
+        if !config.compare_modified_leaves() {
+            return Ok(());
+        }
+        let empty_leaf = L::default();
+        for leaf_index in leaf_indices {
+            if config.compare_leaf(leaf_index.borrow(), &empty_leaf)? {
+                warn!(
+                    "Encountered a trivial modification at index {:?}, with value {:?}",
+                    leaf_index, empty_leaf
+                );
+            }
+        }
+        Ok(())
     }
 }
