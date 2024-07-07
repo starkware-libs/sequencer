@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 use std::net::IpAddr;
 
-use bincode::{deserialize, serialize};
+use bincode::{deserialize, serialize, ErrorKind};
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::{Body, Client, Error as HyperError, Request as HyperRequest, Uri};
@@ -93,7 +93,7 @@ where
         let body_bytes = to_bytes(http_response.into_body())
             .await
             .map_err(ClientError::ResponseParsingFailure)?;
-        Ok(deserialize(&body_bytes).expect("Response deserialization should succeed"))
+        deserialize(&body_bytes).map_err(ClientError::ResponseDeserializationFailure)
     }
 }
 
@@ -122,6 +122,8 @@ pub enum ClientError {
     ResponseParsingFailure(HyperError),
     #[error("Got an unexpected response type.")]
     UnexpectedResponse,
+    #[error("Could not deserialize server response: {0}")]
+    ResponseDeserializationFailure(Box<ErrorKind>),
 }
 
 pub type ClientResult<T> = Result<T, ClientError>;
