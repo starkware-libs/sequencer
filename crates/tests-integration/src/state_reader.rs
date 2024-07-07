@@ -52,7 +52,7 @@ fn deploy_account_tx_contract_address() -> &'static ContractAddress {
 /// Creates a papyrus storage reader and spawns a papyrus rpc server for it.
 /// Returns the address of the rpc server.
 /// A variable number of identical accounts and test contracts are initialized and funded.
-pub async fn spawn_test_rpc_state_reader(n_accounts: u16) -> SocketAddr {
+pub async fn spawn_test_rpc_state_reader(n_accounts: usize) -> SocketAddr {
     let block_context = BlockContext::create_for_testing();
     let account_contract_cairo0 = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
     let test_contract_cairo0 = FeatureContract::TestContract(CairoVersion::Cairo0);
@@ -79,7 +79,7 @@ pub async fn spawn_test_rpc_state_reader(n_accounts: u16) -> SocketAddr {
 fn initialize_papyrus_test_state(
     chain_info: &ChainInfo,
     initial_balances: u128,
-    contract_instances: &[(FeatureContract, u16)],
+    contract_instances: &[(FeatureContract, usize)],
     fund_additional_accounts: Vec<ContractAddress>,
 ) -> StorageReader {
     let state_diff = prepare_state_diff(
@@ -97,7 +97,7 @@ fn initialize_papyrus_test_state(
 
 fn prepare_state_diff(
     chain_info: &ChainInfo,
-    contract_instances: &[(FeatureContract, u16)],
+    contract_instances: &[(FeatureContract, usize)],
     initial_balances: u128,
     fund_accounts: Vec<ContractAddress>,
 ) -> ThinStateDiff {
@@ -124,6 +124,7 @@ fn prepare_state_diff(
                     declared_classes.insert(contract.get_class_hash(), Default::default());
                 }
             }
+            let instance = u16::try_from(instance).unwrap();
             deployed_contracts
                 .insert(contract.get_instance_address(instance), contract.get_class_hash());
             fund_feature_account_contract(
@@ -150,7 +151,7 @@ fn prepare_state_diff(
 }
 
 fn prepare_compiled_contract_classes(
-    contract_instances: &[(FeatureContract, u16)],
+    contract_instances: &[(FeatureContract, usize)],
 ) -> ContractClassesMap {
     let mut cairo0_contract_classes = Vec::new();
     let mut cairo1_contract_classes = Vec::new();

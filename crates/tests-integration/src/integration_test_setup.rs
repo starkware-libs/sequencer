@@ -26,12 +26,12 @@ pub struct IntegrationTestSetup {
 }
 
 impl IntegrationTestSetup {
-    pub async fn new(n_initialized_account_contracts: u16) -> Self {
+    pub async fn new(n_accounts: usize) -> Self {
         let handle = Handle::current();
         let task_executor = TokioExecutor::new(handle);
 
         // Spawn a papyrus rpc server for a papyrus storage reader.
-        let rpc_server_addr = spawn_test_rpc_state_reader(n_initialized_account_contracts).await;
+        let rpc_server_addr = spawn_test_rpc_state_reader(n_accounts).await;
 
         // Derive the configuration for the mempool node.
         let config = create_config(rpc_server_addr).await;
