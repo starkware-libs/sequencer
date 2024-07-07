@@ -39,8 +39,10 @@ impl TransactionQueue {
         txs.into_iter().map(|tx| tx.tx_hash).collect()
     }
 
+    /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
+    /// priority.
     pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {
-        self.queue.iter().map(|tx| &tx.0)
+        self.queue.iter().rev().map(|tx| &tx.0)
     }
 
     pub fn _get_nonce(&self, address: &ContractAddress) -> Option<&Nonce> {

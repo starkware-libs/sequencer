@@ -109,7 +109,7 @@ fn test_add_tx(mut mempool: Mempool) {
     add_tx(&mut mempool, &input_tip_80_address_2);
 
     let expected_txs =
-        &[input_tip_50_address_0.tx, input_tip_80_address_2.tx, input_tip_100_address_1.tx];
+        &[input_tip_100_address_1.tx, input_tip_80_address_2.tx, input_tip_50_address_0.tx];
     check_mempool_txs_eq(&mempool, expected_txs)
 }
 
@@ -152,7 +152,7 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
 
     // TODO: currently hash comparison tie-breaks the two. Once more robust tie-breaks are added
     // replace this assertion with a dedicated test.
-    check_mempool_txs_eq(&mempool, &[input2.tx, input1.tx]);
+    check_mempool_txs_eq(&mempool, &[input1.tx, input2.tx]);
 }
 
 #[rstest]
@@ -165,5 +165,5 @@ fn test_tip_priority_over_tx_hash(mut mempool: Mempool) {
 
     add_tx(&mut mempool, &input_big_tip_small_hash);
     add_tx(&mut mempool, &input_small_tip_big_hash);
-    check_mempool_txs_eq(&mempool, &[input_small_tip_big_hash.tx, input_big_tip_small_hash.tx])
+    check_mempool_txs_eq(&mempool, &[input_big_tip_small_hash.tx, input_small_tip_big_hash.tx])
 }
