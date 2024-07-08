@@ -8,7 +8,6 @@ use starknet_mempool_node::communication::{create_node_channels, create_node_cli
 use starknet_mempool_node::components::create_components;
 use starknet_mempool_node::servers::{create_servers, get_server_future};
 use starknet_mempool_types::mempool_types::ThinTransaction;
-use starknet_task_executor::executor::TaskExecutor;
 use starknet_task_executor::tokio_executor::TokioExecutor;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
@@ -78,7 +77,6 @@ impl IntegrationTestSetup {
     }
 
     pub async fn get_txs(&self, n_txs: usize) -> Vec<ThinTransaction> {
-        let batcher = self.batcher.clone();
-        self.task_executor.spawn(async move { batcher.get_txs(n_txs).await }).await.unwrap()
+        self.batcher.get_txs(n_txs).await
     }
 }
