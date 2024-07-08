@@ -54,7 +54,7 @@ fn mempool() -> Mempool {
 // transactions.
 #[track_caller]
 fn check_mempool_txs_eq(mempool: &Mempool, expected_txs: &[ThinTransaction]) {
-    let mempool_txs = mempool.tx_queue.iter();
+    let mempool_txs = mempool.iter();
     let expected_txs = expected_txs.iter().map(TransactionReference::new);
 
     assert!(
