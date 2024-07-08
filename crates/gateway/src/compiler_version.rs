@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 use starknet_sierra_compile::utils::sierra_program_as_felts_to_big_uint_as_hex;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
-use validator::Validate;
 
 #[derive(Debug, Error)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -19,38 +18,24 @@ pub enum VersionIdError {
     InvalidVersion { message: String },
 }
 
-// TODO(Arni): Share this struct with the Cairo lang crate.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct VersionId {
-    pub major: usize,
-    pub minor: usize,
-    pub patch: usize,
-}
-
-impl VersionId {
-    pub const MIN: Self = Self { major: 0, minor: 0, patch: 0 };
-    pub const MAX: Self = Self { major: usize::MAX, minor: usize::MAX, patch: usize::MAX };
-}
-
-impl From<VersionId> for CairoLangVersionId {
-    fn from(version: VersionId) -> Self {
-        CairoLangVersionId { major: version.major, minor: version.minor, patch: version.patch }
-    }
-}
-
-impl From<CairoLangVersionId> for VersionId {
-    fn from(version: CairoLangVersionId) -> Self {
-        VersionId { major: version.major, minor: version.minor, patch: version.patch }
-    }
-}
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct VersionId(pub CairoLangVersionId);
 
 impl std::fmt::Display for VersionId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        CairoLangVersionId::from(*self).fmt(f)
+        self.0.fmt(f)
     }
 }
 
 impl VersionId {
+    pub const MIN: Self = Self(CairoLangVersionId { major: 0, minor: 0, patch: 0 });
+    pub const MAX: Self =
+        Self(CairoLangVersionId { major: usize::MAX, minor: usize::MAX, patch: usize::MAX });
+
+    pub fn new(major: usize, minor: usize, patch: usize) -> Self {
+        Self(CairoLangVersionId { major, minor, patch })
+    }
+
     pub fn from_sierra_program(sierra_program: &[Felt]) -> Result<Self, VersionIdError> {
         let sierra_program_length = sierra_program.len();
 
@@ -73,19 +58,27 @@ impl VersionId {
             message: format!("Error extracting version ID from Sierra program: {err}"),
         })?;
 
-        Ok(version_id.into())
+        Ok(VersionId(version_id))
     }
 }
 
 impl PartialOrd for VersionId {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        if self.major != other.major {
-            return Some(self.major.cmp(&other.major));
+        // An implementation of partial_cmp for VersionId.
+        fn partial_cmp(
+            lhs: &CairoLangVersionId,
+            rhs: &CairoLangVersionId,
+        ) -> Option<std::cmp::Ordering> {
+            if lhs.major != rhs.major {
+                return Some(lhs.major.cmp(&rhs.major));
+            }
+            if lhs.minor != rhs.minor {
+                return Some(lhs.minor.cmp(&rhs.minor));
+            }
+            lhs.patch.partial_cmp(&rhs.patch)
         }
-        if self.minor != other.minor {
-            return Some(self.minor.cmp(&other.minor));
-        }
-        self.patch.partial_cmp(&other.patch)
+
+        partial_cmp(&self.0, &other.0)
     }
 }
 
@@ -94,19 +87,19 @@ impl SerializeConfig for VersionId {
         BTreeMap::from_iter([
             ser_param(
                 "major",
-                &self.major,
+                &self.0.major,
                 "The major version of the configuration.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "minor",
-                &self.minor,
+                &self.0.minor,
                 "The minor version of the configuration.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "patch",
-                &self.patch,
+                &self.0.patch,
                 "The patch version of the configuration.",
                 ParamPrivacyInput::Public,
             ),
