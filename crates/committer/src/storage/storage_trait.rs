@@ -4,9 +4,11 @@ use crate::felt::Felt;
 use std::collections::HashMap;
 
 #[derive(Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 pub struct StorageKey(pub Vec<u8>);
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 pub struct StorageValue(pub Vec<u8>);
 
 pub trait Storage: From<HashMap<StorageKey, StorageValue>> {
@@ -28,6 +30,7 @@ pub trait Storage: From<HashMap<StorageKey, StorageValue>> {
     fn delete(&mut self, key: &StorageKey) -> Option<StorageValue>;
 }
 
+#[derive(Clone, Debug)]
 pub enum StoragePrefix {
     InnerNode,
     StorageLeaf,

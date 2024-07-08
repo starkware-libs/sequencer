@@ -1,6 +1,6 @@
 [package]
 name = "starknet_mempool_integration_tests"
-version.workspace = true
+version = "0.0.0"
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
@@ -10,16 +10,27 @@ workspace = true
 
 [dependencies]
 axum.workspace = true
-hyper.workspace = true
+blockifier = { path = "../blockifier", version = "0.8.0-dev.1" }
+cairo-lang-starknet-classes.workspace = true
+indexmap.workspace = true
+papyrus_common = { path = "../papyrus_common", version = "0.4.0-dev.4" }
+papyrus_rpc = { path = "../papyrus_rpc", version = "0.4.0-dev.4" }
+papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-dev.4" }
 reqwest.workspace = true
-# TODO(Arni, 1/5/2024): Use a fixed version once the StarkNet API is stable.
-starknet_api = { git = "https://github.com/starkware-libs/starknet-api.git", branch = "main-mempool" }
-starknet_gateway = { path = "../gateway", version = "0.4.0-dev.2" }
+serde_json.workspace = true
+starknet_api = { path = "../starknet_api", version = "0.13.0-dev.9" }
+starknet_client = { path = "../starknet_client", version = "0.4.0-dev.4" }
+starknet_gateway = { path = "../gateway", version = "0.0", features = ["testing"] }
+starknet_mempool_node = { path = "../mempool_node", version = "0.0" }
+starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
+starknet_task_executor = { path = "../task_executor", version = "0.0" }
+starknet-types-core.workspace = true
+strum.workspace = true
+tempfile.workspace = true
+mempool_test_utils = { path = "../mempool_test_utils", version = "0.0" }
+tokio.workspace = true
 
 [dev-dependencies]
-mempool_infra = { path = "../mempool_infra", version = "0.4.0-dev.2" }
 pretty_assertions.workspace = true
 rstest.workspace = true
-starknet_mempool = { path = "../mempool", version = "0.4.0-dev.2" }
-starknet_mempool_types = { path = "../mempool_types", version = "0.4.0-dev.2" }
-tokio.workspace = true
+starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }

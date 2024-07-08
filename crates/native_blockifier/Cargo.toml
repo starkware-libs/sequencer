@@ -1,15 +1,15 @@
 [package]
 name = "native_blockifier"
-version.workspace = true
+version = "0.8.0-dev.1"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "A Bridge between the Rust blockifier crate and Python."
 
+[features]
 # Required for `cargo test` to work with Pyo3.
 # On Python, make sure to compile this with the extension-module feature enabled.
 # https://pyo3.rs/v0.19.1/faq#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror
-[features]
 extension-module = ["pyo3/extension-module"]
 testing = []
 
@@ -26,19 +26,20 @@ name = "native_blockifier"
 crate-type = ["cdylib"]
 
 [dependencies]
-blockifier = { path = "../blockifier", features = ["testing"] }
+# TODO(Dori, 1/1/2025): Add the "jemalloc" feature to the blockifier crate when possible.
+blockifier = { path = "../blockifier", features = ["concurrency", "testing"] }
 cairo-lang-starknet-classes.workspace = true
-cairo-lang-casm.workspace = true
 cairo-vm.workspace = true
 indexmap.workspace = true
 log.workspace = true
 num-bigint.workspace = true
-papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
-pyo3 = { workspace = true, features = ["num-bigint", "hashbrown"] }
+papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-dev.4", features = ["testing"] }
+pyo3 = { workspace = true, features = ["hashbrown", "num-bigint"] }
 pyo3-log.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
-starknet_api = { version = "0.12.0-dev.0", features = ["testing"] }
+starknet-types-core.workspace = true
+starknet_api = { path = "../starknet_api", version = "0.13.0-dev.9", features = ["testing"] }
 thiserror.workspace = true
 
 [dev-dependencies]

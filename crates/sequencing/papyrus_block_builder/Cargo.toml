@@ -1,14 +1,14 @@
 [package]
 name = "papyrus_block_builder"
-version.workspace = true
+version = "0.4.0-dev.4"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "A block-builder for Starknet blocks"
 
 [dependencies]
-papyrus_storage = { path = "../../papyrus_storage", version = "0.4.0-dev.2", features = ["testing"] }
-starknet_api = { version = "0.12.0-dev.1" }
+papyrus_storage = { path = "../../papyrus_storage", version = "0.4.0-dev.4", features = ["testing"] }
+starknet_api = { path = "../../starknet_api", version = "0.13.0-dev.9" }
 thiserror.workspace = true
 tracing.workspace = true
 

@@ -75,9 +75,9 @@ pub struct BlockHeader {
     #[serde(skip_serializing)]
     pub event_commitment: Option<EventCommitment>,
     #[serde(skip_serializing)]
-    pub n_transactions: Option<usize>,
+    pub n_transactions: usize,
     #[serde(skip_serializing)]
-    pub n_events: Option<usize>,
+    pub n_events: usize,
     #[serde(skip_serializing)]
     pub receipt_commitment: Option<ReceiptCommitment>,
     pub starknet_version: StarknetVersion,

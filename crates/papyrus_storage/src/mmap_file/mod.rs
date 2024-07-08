@@ -75,7 +75,7 @@ impl Default for MmapFileConfig {
         Self {
             max_size: 1 << 40,        // 1TB
             growth_step: 1 << 30,     // 1GB
-            max_object_size: 1 << 20, // 1MB
+            max_object_size: 1 << 28, // 256MB
         }
     }
 }
@@ -157,7 +157,7 @@ impl<V: ValueSerde> MMapFile<V> {
 
     /// Flushes the mmap to the file.
     fn flush(&mut self) {
-        debug!("Flushing mmap to file");
+        trace!("Flushing mmap to file");
         self.mmap.flush().expect("Failed to flush the mmap");
         self.should_flush = false;
     }
@@ -231,7 +231,7 @@ impl<V: ValueSerde + Debug> Writer<V> for FileHandler<V, RW> {
         {
             let mut mmap_file = self.mmap_file.lock().expect("Lock should not be poisoned");
             offset = mmap_file.offset;
-            debug!("Inserting object at offset: {}", offset);
+            trace!("Inserting object at offset: {}", offset);
             let mmap_slice = &mut mmap_file.mmap[offset..];
             mmap_slice[..len].copy_from_slice(&serialized);
             mmap_file
@@ -257,7 +257,7 @@ impl<V: ValueSerde + Debug> Writer<V> for FileHandler<V, RW> {
 impl<V: ValueSerde, Mode: TransactionKind> Reader<V> for FileHandler<V, Mode> {
     /// Returns an object from the file.
     fn get(&self, location: LocationInFile) -> MmapFileResult<Option<V::Value>> {
-        debug!("Reading object at location: {:?}", location);
+        trace!("Reading object at location: {:?}", location);
         let mut bytes = unsafe {
             std::slice::from_raw_parts(
                 self.memory_ptr.offset(location.offset.try_into()?),

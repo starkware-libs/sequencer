@@ -30,7 +30,7 @@ impl From<&TransactionHashingData> for TransactionLeafElement {
 /// Returns the root of a Patricia tree where each leaf is
 /// H(transaction_hash, transaction_signature).
 /// The leaf of a transaction types without a signature field is: H(transaction_hash, 0).
-pub fn calculate_transactions_commitment<H: CoreStarkHash>(
+pub fn calculate_transaction_commitment<H: CoreStarkHash>(
     transaction_leaf_elements: &[TransactionLeafElement],
 ) -> TransactionCommitment {
     let transaction_leaves =

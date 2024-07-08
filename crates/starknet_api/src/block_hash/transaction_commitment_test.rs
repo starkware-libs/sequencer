@@ -3,12 +3,11 @@ use starknet_types_core::hash::Poseidon;
 
 use super::TransactionLeafElement;
 use crate::block_hash::transaction_commitment::{
+    calculate_transaction_commitment,
     calculate_transaction_leaf,
-    calculate_transactions_commitment,
 };
 use crate::core::TransactionCommitment;
 use crate::felt;
-use crate::hash::{FeltConverter, TryIntoFelt};
 use crate::transaction::{TransactionHash, TransactionSignature};
 
 #[test]
@@ -31,13 +30,13 @@ fn test_transaction_leaf_without_signature_regression() {
 }
 
 #[test]
-fn test_transactions_commitment_regression() {
+fn test_transaction_commitment_regression() {
     let transaction_leaf_elements = get_transaction_leaf_element();
     let expected_root = felt!("0x0282b635972328bd1cfa86496fe920d20bd9440cd78ee8dc90ae2b383d664dcf");
 
     assert_eq!(
         TransactionCommitment(expected_root),
-        calculate_transactions_commitment::<Poseidon>(&[
+        calculate_transaction_commitment::<Poseidon>(&[
             transaction_leaf_elements.clone(),
             transaction_leaf_elements
         ])

@@ -4,7 +4,6 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::calldata;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::EntryPointType;
-use starknet_api::hash::StarkFelt;
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
@@ -16,6 +15,7 @@ use starknet_api::transaction::{
     TransactionSignature,
     TransactionVersion,
 };
+use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::{BlockContext, TransactionContext};
@@ -57,6 +57,13 @@ macro_rules! implement_inner_tx_getter_calls {
     };
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct ExecutionFlags {
+    pub charge_fee: bool,
+    pub validate: bool,
+    pub concurrency_mode: bool,
+}
+
 pub trait ExecutableTransaction<U: UpdatableState>: Sized {
     /// Executes the transaction in a transactional manner
     /// (if it fails, given state does not modify).
@@ -69,8 +76,9 @@ pub trait ExecutableTransaction<U: UpdatableState>: Sized {
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         log::debug!("Executing Transaction...");
         let mut transactional_state = TransactionalState::create_transactional(state);
+        let execution_flags = ExecutionFlags { charge_fee, validate, concurrency_mode: false };
         let execution_result =
-            self.execute_raw(&mut transactional_state, block_context, charge_fee, validate);
+            self.execute_raw(&mut transactional_state, block_context, execution_flags);
 
         match execution_result {
             Ok(value) => {
@@ -94,8 +102,7 @@ pub trait ExecutableTransaction<U: UpdatableState>: Sized {
         &self,
         state: &mut TransactionalState<'_, U>,
         block_context: &BlockContext,
-        charge_fee: bool,
-        validate: bool,
+        execution_flags: ExecutionFlags,
     ) -> TransactionExecutionResult<TransactionExecutionInfo>;
 }
 
@@ -489,9 +496,9 @@ impl L1HandlerTransaction {
 
     pub fn create_for_testing(l1_fee: Fee, contract_address: ContractAddress) -> Self {
         let calldata = calldata![
-            StarkFelt::from_u128(0x123), // from_address.
-            StarkFelt::from_u128(0x876), // key.
-            StarkFelt::from_u128(0x44)   // value.
+            Felt::from(0x123), // from_address.
+            Felt::from(0x876), // key.
+            Felt::from(0x44)   // value.
         ];
         let tx = starknet_api::transaction::L1HandlerTransaction {
             version: TransactionVersion::ZERO,

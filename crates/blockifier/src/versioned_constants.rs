@@ -3,7 +3,7 @@ use std::io;
 use std::path::Path;
 use std::sync::Arc;
 
-use cairo_vm::vm::runners::builtin_runner;
+use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use indexmap::{IndexMap, IndexSet};
 use num_rational::Ratio;
@@ -125,34 +125,16 @@ impl VersionedConstants {
     pub fn create_for_account_testing() -> Self {
         let vm_resource_fee_cost = Arc::new(HashMap::from([
             (crate::abi::constants::N_STEPS_RESOURCE.to_string(), ResourceCost::from_integer(1)),
+            (BuiltinName::pedersen.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
             (
-                cairo_vm::vm::runners::builtin_runner::HASH_BUILTIN_NAME.to_string(),
+                BuiltinName::range_check.to_str_with_suffix().to_string(),
                 ResourceCost::from_integer(1),
             ),
-            (
-                cairo_vm::vm::runners::builtin_runner::RANGE_CHECK_BUILTIN_NAME.to_string(),
-                ResourceCost::from_integer(1),
-            ),
-            (
-                cairo_vm::vm::runners::builtin_runner::SIGNATURE_BUILTIN_NAME.to_string(),
-                ResourceCost::from_integer(1),
-            ),
-            (
-                cairo_vm::vm::runners::builtin_runner::BITWISE_BUILTIN_NAME.to_string(),
-                ResourceCost::from_integer(1),
-            ),
-            (
-                cairo_vm::vm::runners::builtin_runner::POSEIDON_BUILTIN_NAME.to_string(),
-                ResourceCost::from_integer(1),
-            ),
-            (
-                cairo_vm::vm::runners::builtin_runner::OUTPUT_BUILTIN_NAME.to_string(),
-                ResourceCost::from_integer(1),
-            ),
-            (
-                cairo_vm::vm::runners::builtin_runner::EC_OP_BUILTIN_NAME.to_string(),
-                ResourceCost::from_integer(1),
-            ),
+            (BuiltinName::ecdsa.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
+            (BuiltinName::bitwise.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
+            (BuiltinName::poseidon.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
+            (BuiltinName::output.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
+            (BuiltinName::ec_op.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
         ]));
 
         Self { vm_resource_fee_cost, ..Self::create_for_testing() }
@@ -163,34 +145,13 @@ impl VersionedConstants {
     pub fn create_float_for_testing() -> Self {
         let vm_resource_fee_cost = Arc::new(HashMap::from([
             (crate::abi::constants::N_STEPS_RESOURCE.to_string(), ResourceCost::new(25, 10000)),
-            (
-                cairo_vm::vm::runners::builtin_runner::HASH_BUILTIN_NAME.to_string(),
-                ResourceCost::new(8, 100),
-            ),
-            (
-                cairo_vm::vm::runners::builtin_runner::RANGE_CHECK_BUILTIN_NAME.to_string(),
-                ResourceCost::new(4, 100),
-            ),
-            (
-                cairo_vm::vm::runners::builtin_runner::SIGNATURE_BUILTIN_NAME.to_string(),
-                ResourceCost::new(512, 100),
-            ),
-            (
-                cairo_vm::vm::runners::builtin_runner::BITWISE_BUILTIN_NAME.to_string(),
-                ResourceCost::new(16, 100),
-            ),
-            (
-                cairo_vm::vm::runners::builtin_runner::POSEIDON_BUILTIN_NAME.to_string(),
-                ResourceCost::new(8, 100),
-            ),
-            (
-                cairo_vm::vm::runners::builtin_runner::OUTPUT_BUILTIN_NAME.to_string(),
-                ResourceCost::from_integer(0),
-            ),
-            (
-                cairo_vm::vm::runners::builtin_runner::EC_OP_BUILTIN_NAME.to_string(),
-                ResourceCost::new(256, 100),
-            ),
+            (BuiltinName::pedersen.to_str_with_suffix().to_string(), ResourceCost::new(8, 100)),
+            (BuiltinName::range_check.to_str_with_suffix().to_string(), ResourceCost::new(4, 100)),
+            (BuiltinName::ecdsa.to_str_with_suffix().to_string(), ResourceCost::new(512, 100)),
+            (BuiltinName::bitwise.to_str_with_suffix().to_string(), ResourceCost::new(16, 100)),
+            (BuiltinName::poseidon.to_str_with_suffix().to_string(), ResourceCost::new(8, 100)),
+            (BuiltinName::output.to_str_with_suffix().to_string(), ResourceCost::from_integer(0)),
+            (BuiltinName::ec_op.to_str_with_suffix().to_string(), ResourceCost::new(256, 100)),
         ]));
 
         Self { vm_resource_fee_cost, ..Self::create_for_testing() }
@@ -201,6 +162,34 @@ impl VersionedConstants {
         max_recursion_depth: usize,
     ) -> Self {
         Self { validate_max_n_steps, max_recursion_depth, ..Self::latest_constants().clone() }
+    }
+
+    // TODO(Amos, 1/8/2024): Remove the explicit `validate_max_n_steps` & `max_recursion_depth`,
+    // they should be part of the general override.
+    /// `versioned_constants_base_overrides` are used if they are provided, otherwise the latest
+    /// versioned constants are used. `validate_max_n_steps` & `max_recursion_depth` override both.
+    pub fn get_versioned_constants(
+        versioned_constants_overrides: VersionedConstantsOverrides,
+    ) -> Self {
+        let VersionedConstantsOverrides {
+            validate_max_n_steps,
+            max_recursion_depth,
+            versioned_constants_base_overrides,
+        } = versioned_constants_overrides;
+        let base_overrides = match versioned_constants_base_overrides {
+            Some(versioned_constants_base_overrides) => {
+                log::debug!(
+                    "Using provided `versioned_constants_base_overrides` (with additional \
+                     overrides)."
+                );
+                versioned_constants_base_overrides
+            }
+            None => {
+                log::debug!("Using latest versioned constants (with additional overrides).");
+                Self::latest_constants().clone()
+            }
+        };
+        Self { validate_max_n_steps, max_recursion_depth, ..base_overrides }
     }
 }
 
@@ -284,17 +273,20 @@ impl OsResources {
             }
         }
 
-        let known_builtin_names: HashSet<&str> = HashSet::from([
-            builtin_runner::OUTPUT_BUILTIN_NAME,
-            builtin_runner::HASH_BUILTIN_NAME,
-            builtin_runner::RANGE_CHECK_BUILTIN_NAME,
-            builtin_runner::SIGNATURE_BUILTIN_NAME,
-            builtin_runner::BITWISE_BUILTIN_NAME,
-            builtin_runner::EC_OP_BUILTIN_NAME,
-            builtin_runner::KECCAK_BUILTIN_NAME,
-            builtin_runner::POSEIDON_BUILTIN_NAME,
-            builtin_runner::SEGMENT_ARENA_BUILTIN_NAME,
-        ]);
+        let known_builtin_names: HashSet<&str> = [
+            BuiltinName::output,
+            BuiltinName::pedersen,
+            BuiltinName::range_check,
+            BuiltinName::ecdsa,
+            BuiltinName::bitwise,
+            BuiltinName::ec_op,
+            BuiltinName::keccak,
+            BuiltinName::poseidon,
+            BuiltinName::segment_arena,
+        ]
+        .iter()
+        .map(|builtin| builtin.to_str_with_suffix())
+        .collect();
 
         let execution_resources = self
             .execute_txs_inner
@@ -310,7 +302,7 @@ impl OsResources {
         let builtin_names =
             execution_resources.flat_map(|resources| resources.builtin_instance_counter.keys());
         for builtin_name in builtin_names {
-            if !(known_builtin_names.contains(builtin_name.as_str())) {
+            if !(known_builtin_names.contains(builtin_name.to_str_with_suffix())) {
                 return Err(DeserializationError::custom(format!(
                     "ValidationError: unknown os resource {builtin_name}"
                 )));
@@ -375,6 +367,12 @@ impl OsResources {
     }
 
     fn os_kzg_da_resources(&self, data_segment_length: usize) -> ExecutionResources {
+        // BACKWARD COMPATIBILITY: we set compute_os_kzg_commitment_info to empty in older versions
+        // where this was not yet computed.
+        let empty_resources = ExecutionResources::default();
+        if self.compute_os_kzg_commitment_info == empty_resources {
+            return empty_resources;
+        }
         &(&self.compute_os_kzg_commitment_info * data_segment_length)
             + &poseidon_hash_many_cost(data_segment_length)
     }
@@ -435,6 +433,7 @@ pub struct GasCosts {
     pub secp256r1_new_gas_cost: u64,
     pub keccak_gas_cost: u64,
     pub keccak_round_cost_gas_cost: u64,
+    pub sha256_process_block_gas_cost: u64,
 }
 
 // Below, serde first deserializes the json into a regular IndexMap wrapped by the newtype
@@ -682,4 +681,10 @@ impl Default for ValidateRoundingConsts {
 pub struct ResourcesByVersion {
     pub resources: ResourcesParams,
     pub deprecated_resources: ResourcesParams,
+}
+
+pub struct VersionedConstantsOverrides {
+    pub validate_max_n_steps: u32,
+    pub max_recursion_depth: usize,
+    pub versioned_constants_base_overrides: Option<VersionedConstants>,
 }

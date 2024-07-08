@@ -19,11 +19,12 @@ use starknet_api::core::{ClassHash, SequencerPublicKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::StarknetApiError;
+use starknet_types_core::felt::Felt;
 use tracing::{debug, error, instrument};
 use url::Url;
 
 pub use crate::reader::objects::block::{
-    BlockOrDeprecated,
+    Block,
     BlockSignatureData,
     BlockSignatureMessage,
     TransactionReceiptsError,
@@ -76,13 +77,10 @@ pub type ReaderClientResult<T> = Result<T, ReaderClientError>;
 pub trait StarknetReader {
     /// Returns the last block in the system, returning [`None`] in case there are no blocks in the
     /// system.
-    async fn latest_block(&self) -> ReaderClientResult<Option<BlockOrDeprecated>>;
-    /// Returns a [`BlockOrDeprecated`] corresponding to `block_number`, returning [`None`] in case
+    async fn latest_block(&self) -> ReaderClientResult<Option<Block>>;
+    /// Returns a [`Block`] corresponding to `block_number`, returning [`None`] in case
     /// no such block exists in the system.
-    async fn block(
-        &self,
-        block_number: BlockNumber,
-    ) -> ReaderClientResult<Option<BlockOrDeprecated>>;
+    async fn block(&self, block_number: BlockNumber) -> ReaderClientResult<Option<Block>>;
     /// Returns a [`GenericContractClass`] corresponding to `class_hash`.
     async fn class_by_hash(
         &self,
@@ -206,7 +204,7 @@ impl StarknetFeederGatewayClient {
     async fn request_block(
         &self,
         block_number: Option<BlockNumber>,
-    ) -> ReaderClientResult<Option<BlockOrDeprecated>> {
+    ) -> ReaderClientResult<Option<Block>> {
         let mut url = self.urls.get_block.clone();
         let block_number =
             block_number.map(|bn| bn.to_string()).unwrap_or(String::from(LATEST_BLOCK_NUMBER));
@@ -224,15 +222,12 @@ impl StarknetFeederGatewayClient {
 #[async_trait]
 impl StarknetReader for StarknetFeederGatewayClient {
     #[instrument(skip(self), level = "debug")]
-    async fn latest_block(&self) -> ReaderClientResult<Option<BlockOrDeprecated>> {
+    async fn latest_block(&self) -> ReaderClientResult<Option<Block>> {
         Ok(self.request_block(None).await?)
     }
 
     #[instrument(skip(self), level = "debug")]
-    async fn block(
-        &self,
-        block_number: BlockNumber,
-    ) -> ReaderClientResult<Option<BlockOrDeprecated>> {
+    async fn block(&self, block_number: BlockNumber) -> ReaderClientResult<Option<Block>> {
         self.request_block(Some(block_number)).await
     }
 
@@ -285,41 +280,21 @@ impl StarknetReader for StarknetFeederGatewayClient {
         // Use default value for CasmConractClass that are malformed in the integration environment.
         // TODO: Make this array a const.
         if [
-            #[allow(clippy::unwrap_used)]
-            ClassHash(
-                starknet_api::hash::StarkFelt::try_from(
-                    "0x4e70b19333ae94bd958625f7b61ce9eec631653597e68645e13780061b2136c",
-                )
-                .unwrap(),
-            ),
-            #[allow(clippy::unwrap_used)]
-            ClassHash(
-                starknet_api::hash::StarkFelt::try_from(
-                    "0x6208b3f9f94e6220f3d6a3562fe06a35a66181a202d946c3522fd28eda9ea1b",
-                )
-                .unwrap(),
-            ),
-            #[allow(clippy::unwrap_used)]
-            ClassHash(
-                starknet_api::hash::StarkFelt::try_from(
-                    "0xd6916ff38c93f834e7223a95b41d4542152d8288ff388b5d3dcdf8126a784a",
-                )
-                .unwrap(),
-            ),
-            #[allow(clippy::unwrap_used)]
-            ClassHash(
-                starknet_api::hash::StarkFelt::try_from(
-                    "0x161354521d46ca89a5b64aa41fa4e77ffeadc0f9796272d9b94227dbbb3840e",
-                )
-                .unwrap(),
-            ),
-            #[allow(clippy::unwrap_used)]
-            ClassHash(
-                starknet_api::hash::StarkFelt::try_from(
-                    "0x6a9eb910b3f83989900c8d65f9d67d67016f2528cc1b834019cf489f4f7d716",
-                )
-                .unwrap(),
-            ),
+            ClassHash(Felt::from_hex_unchecked(
+                "0x4e70b19333ae94bd958625f7b61ce9eec631653597e68645e13780061b2136c",
+            )),
+            ClassHash(Felt::from_hex_unchecked(
+                "0x6208b3f9f94e6220f3d6a3562fe06a35a66181a202d946c3522fd28eda9ea1b",
+            )),
+            ClassHash(Felt::from_hex_unchecked(
+                "0xd6916ff38c93f834e7223a95b41d4542152d8288ff388b5d3dcdf8126a784a",
+            )),
+            ClassHash(Felt::from_hex_unchecked(
+                "0x161354521d46ca89a5b64aa41fa4e77ffeadc0f9796272d9b94227dbbb3840e",
+            )),
+            ClassHash(Felt::from_hex_unchecked(
+                "0x6a9eb910b3f83989900c8d65f9d67d67016f2528cc1b834019cf489f4f7d716",
+            )),
         ]
         .contains(&class_hash)
         {

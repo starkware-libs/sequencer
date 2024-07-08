@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use papyrus_config::dumping::SerializeConfig;
 
 #[cfg(test)]
 #[path = "component_runner_test.rs"]
@@ -13,14 +12,9 @@ pub enum ComponentStartError {
     InternalComponentError,
 }
 
-/// Interface to create memepool components.
-pub trait ComponentCreator<T: SerializeConfig> {
-    fn create(config: T) -> Self;
-}
-
-/// Interface to start memepool components.
+/// Interface to start components.
 #[async_trait]
 pub trait ComponentRunner {
     /// Start the component. Normally this function should never return.
-    async fn start(&self) -> Result<(), ComponentStartError>;
+    async fn start(&mut self) -> Result<(), ComponentStartError>;
 }

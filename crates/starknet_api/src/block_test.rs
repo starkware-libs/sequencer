@@ -3,7 +3,6 @@ use crate::block::{BlockHash, BlockNumber, BlockSignature};
 use crate::core::{GlobalRoot, SequencerPublicKey};
 use crate::crypto::utils::{PublicKey, Signature};
 use crate::felt;
-use crate::hash::{FeltConverter, TryIntoFelt};
 
 #[test]
 fn test_block_number_iteration() {

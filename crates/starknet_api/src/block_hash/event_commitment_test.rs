@@ -1,14 +1,13 @@
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Poseidon;
 
-use super::{calculate_event_hash, calculate_events_commitment, EventLeafElement};
+use super::{calculate_event_commitment, calculate_event_hash, EventLeafElement};
 use crate::core::{ContractAddress, EventCommitment, PatriciaKey};
-use crate::hash::{FeltConverter, TryIntoFelt};
 use crate::transaction::{Event, EventContent, EventData, EventKey, TransactionHash};
 use crate::{contract_address, felt, patricia_key};
 
 #[test]
-fn test_events_commitment_regression() {
+fn test_event_commitment_regression() {
     let event_leaf_elements =
         [get_event_leaf_element(0), get_event_leaf_element(1), get_event_leaf_element(2)];
 
@@ -16,7 +15,7 @@ fn test_events_commitment_regression() {
 
     assert_eq!(
         EventCommitment(expected_root),
-        calculate_events_commitment::<Poseidon>(&event_leaf_elements),
+        calculate_event_commitment::<Poseidon>(&event_leaf_elements),
     );
 }
 

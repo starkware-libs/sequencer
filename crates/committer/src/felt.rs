@@ -1,4 +1,4 @@
-use crate::patricia_merkle_tree::errors::TypesError;
+use core::fmt;
 use ethnum::U256;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::{Felt as StarknetTypesFelt, FromStrError};
@@ -8,7 +8,6 @@ use starknet_types_core::felt::{Felt as StarknetTypesFelt, FromStrError};
     PartialEq,
     Clone,
     Copy,
-    Debug,
     Default,
     Hash,
     derive_more::Add,
@@ -19,6 +18,17 @@ use starknet_types_core::felt::{Felt as StarknetTypesFelt, FromStrError};
     Deserialize,
 )]
 pub struct Felt(pub StarknetTypesFelt);
+
+#[macro_export]
+macro_rules! impl_from_hex_for_felt_wrapper {
+    ($wrapper:ty) => {
+        impl $wrapper {
+            pub(crate) fn from_hex(hex_string: &str) -> Result<Self, FromStrError> {
+                Ok(Self(Felt::from_hex(hex_string)?))
+            }
+        }
+    };
+}
 
 #[macro_export]
 macro_rules! impl_from {
@@ -48,26 +58,17 @@ impl From<&Felt> for U256 {
     }
 }
 
-#[cfg(feature = "testing")]
-impl TryFrom<&U256> for Felt {
-    type Error = TypesError<U256>;
-    fn try_from(value: &U256) -> Result<Self, Self::Error> {
-        if *value > U256::from(&Felt::MAX) {
-            return Err(TypesError::ConversionError {
-                from: *value,
-                to: "Felt",
-                reason: "value is bigger than felt::max",
-            });
-        }
-        Ok(Self::from_bytes_be(&value.to_be_bytes()))
-    }
-}
-
 impl std::ops::Mul for Felt {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self {
         Self(self.0 * rhs.0)
+    }
+}
+
+impl fmt::Debug for Felt {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", U256::from(self))
     }
 }
 

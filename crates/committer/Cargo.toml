@@ -1,6 +1,6 @@
 [package]
 name = "committer"
-version.workspace = true
+version = "0.1.0-rc.0"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -23,8 +23,8 @@ bisection.workspace = true
 derive_more.workspace = true
 ethnum.workspace = true
 hex.workspace = true
+log.workspace = true
 rand.workspace = true
-rstest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true

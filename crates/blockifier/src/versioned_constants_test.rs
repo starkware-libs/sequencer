@@ -1,3 +1,4 @@
+use cairo_vm::types::builtin_name::BuiltinName;
 use glob::glob;
 use pretty_assertions::assert_eq;
 
@@ -27,11 +28,11 @@ fn test_successful_gas_costs_parsing() {
     assert_eq!(versioned_constants.os_constants.gas_costs.step_gas_cost, 2);
     assert_eq!(versioned_constants.os_constants.gas_costs.entry_point_initial_budget, 2 * 3); // step_gas_cost * 3.
 
-    // entry_point_intial_budget * 4 + step_gas_cost * 5.
+    // entry_point_initial_budget * 4 + step_gas_cost * 5.
     assert_eq!(versioned_constants.os_constants.gas_costs.entry_point_gas_cost, 6 * 4 + 2 * 5);
 }
 
-fn get_json_value_without_dafaults() -> serde_json::Value {
+fn get_json_value_without_defaults() -> serde_json::Value {
     let json_data = r#"
     {
         "invoke_tx_max_n_steps": 2,
@@ -77,21 +78,41 @@ fn get_json_value_without_dafaults() -> serde_json::Value {
     // Remove defaults from OsConstants.
     os_constants.as_object_mut().unwrap().remove("validate_rounding_consts");
 
-    let mut json_value_without_defualts: Value = serde_json::from_str(json_data).unwrap();
-    json_value_without_defualts
+    let mut json_value_without_defaults: Value = serde_json::from_str(json_data).unwrap();
+    json_value_without_defaults
         .as_object_mut()
         .unwrap()
         .insert("os_constants".to_string(), os_constants);
 
-    json_value_without_defualts
+    json_value_without_defaults
+}
+
+/// Assert `versioned_constants_base_overrides` are used when provided.
+#[test]
+fn test_versioned_constants_base_overrides() {
+    // Create a versioned constants copy with a modified value for `invoke_tx_max_n_steps`.
+    let mut versioned_constants_base_overrides = DEFAULT_CONSTANTS.clone();
+    versioned_constants_base_overrides.invoke_tx_max_n_steps += 1;
+
+    let result = VersionedConstants::get_versioned_constants(VersionedConstantsOverrides {
+        validate_max_n_steps: versioned_constants_base_overrides.validate_max_n_steps,
+        max_recursion_depth: versioned_constants_base_overrides.max_recursion_depth,
+        versioned_constants_base_overrides: Some(versioned_constants_base_overrides.clone()),
+    });
+
+    // Assert the new value is used.
+    assert_eq!(
+        result.invoke_tx_max_n_steps,
+        versioned_constants_base_overrides.invoke_tx_max_n_steps
+    );
 }
 
 #[test]
 fn test_default_values() {
-    let json_value_without_defualts = get_json_value_without_dafaults();
+    let json_value_without_defaults = get_json_value_without_defaults();
 
     let versioned_constants: VersionedConstants =
-        serde_json::from_value(json_value_without_defualts).unwrap();
+        serde_json::from_value(json_value_without_defaults).unwrap();
 
     assert_eq!(versioned_constants.get_validate_block_number_rounding(), 1);
     assert_eq!(versioned_constants.get_validate_timestamp_rounding(), 1);
@@ -105,8 +126,8 @@ fn test_default_values() {
     let expected_declare_resources = ExecutionResources {
         n_steps: 2839,
         builtin_instance_counter: HashMap::from([
-            ("pedersen_builtin".to_string(), 16),
-            ("range_check_builtin".to_string(), 63),
+            (BuiltinName::pedersen, 16),
+            (BuiltinName::range_check, 63),
         ]),
         ..Default::default()
     };

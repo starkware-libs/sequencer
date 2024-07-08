@@ -27,11 +27,16 @@ use papyrus_storage::{StorageError, StorageReader};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{Block, BlockHash, BlockNumber, BlockSignature};
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
-use starknet_api::crypto::Signature;
+use starknet_api::crypto::utils::Signature;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::StateDiff;
 use starknet_api::StarknetApiError;
-use starknet_client::reader::{ReaderClientError, StarknetFeederGatewayClient, StarknetReader};
+use starknet_client::reader::{
+    BlockSignatureData,
+    ReaderClientError,
+    StarknetFeederGatewayClient,
+    StarknetReader,
+};
 use starknet_client::{ClientCreationError, RetryConfig};
 use tracing::{debug, trace};
 
@@ -152,6 +157,10 @@ pub enum CentralError {
     StorageError(#[from] StorageError),
     #[error("Wrong type of contract class")]
     BadContractClassType,
+    #[error(
+        "Block downloaded from central is in 0.13.1 format, while signature is in 0.13.2 format."
+    )]
+    BlockAndSignatureVersionMismatch,
 }
 
 #[cfg_attr(test, automock)]
@@ -393,7 +402,7 @@ fn client_to_central_block(
     current_block_number: BlockNumber,
     maybe_client_block: Result<
         (
-            Option<starknet_client::reader::BlockOrDeprecated>,
+            Option<starknet_client::reader::Block>,
             Option<starknet_client::reader::BlockSignatureData>,
         ),
         ReaderClientError,
@@ -401,20 +410,19 @@ fn client_to_central_block(
 ) -> CentralResult<(Block, BlockSignature)> {
     match maybe_client_block {
         Ok((Some(block), Some(signature_data))) => {
-            debug!("Received new block {current_block_number} with hash {}.", block.block_hash());
+            debug!(
+                "Received new block {current_block_number} with hash {:#064x}.",
+                block.block_hash().0
+            );
             trace!("Block: {block:#?}, signature data: {signature_data:#?}.");
             let block = block
-                .to_starknet_api_block_and_version(
-                    signature_data.signature_input.state_diff_commitment,
-                )
+                .to_starknet_api_block_and_version()
                 .map_err(|err| CentralError::ClientError(Arc::new(err)))?;
-            Ok((
-                block,
-                BlockSignature(Signature {
-                    r: signature_data.signature[0],
-                    s: signature_data.signature[1],
-                }),
-            ))
+            let signature = match signature_data {
+                BlockSignatureData::Deprecated { signature, .. } => signature,
+                BlockSignatureData::V0_13_2 { signature, .. } => signature,
+            };
+            Ok((block, BlockSignature(Signature { r: signature[0], s: signature[1] })))
         }
         Ok((None, Some(_))) => {
             debug!("Block {current_block_number} not found, but signature was found.");

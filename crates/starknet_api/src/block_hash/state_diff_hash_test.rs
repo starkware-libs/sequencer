@@ -12,7 +12,7 @@ use crate::block_hash::test_utils::get_state_diff;
 use crate::core::{ClassHash, CompiledClassHash, Nonce, StateDiffCommitment};
 use crate::crypto::utils::HashChain;
 use crate::felt;
-use crate::hash::{FeltConverter, PoseidonHash, TryIntoFelt};
+use crate::hash::PoseidonHash;
 
 #[test]
 fn test_state_diff_hash_regression() {

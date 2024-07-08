@@ -47,6 +47,11 @@ use crate::sources::base_layer::{BaseLayerSourceTrait, EthereumBaseLayerSource};
 use crate::sources::central::{CentralError, CentralSource, CentralSourceTrait};
 use crate::sources::pending::{PendingError, PendingSource, PendingSourceTrait};
 
+// TODO(shahak): Consider adding genesis hash to the config to support chains that have
+// different genesis hash.
+// TODO: Consider moving to a more general place.
+const GENESIS_HASH: &str = "0x0";
+
 // TODO(dvir): add to config.
 // Sleep duration between polling for pending data.
 const PENDING_SLEEP_DURATION: Duration = Duration::from_millis(500);
@@ -384,7 +389,12 @@ impl<
     }
 
     #[latency_histogram("sync_store_block_latency_seconds", false)]
-    #[instrument(skip(self, block), level = "debug", fields(block_hash = %block.header.block_hash), err)]
+    #[instrument(
+        skip(self, block),
+        level = "debug",
+        fields(block_hash = format_args!("{:#064x}", block.header.block_hash.0)),
+        err
+    )]
     fn store_block(
         &mut self,
         block_number: BlockNumber,
@@ -466,7 +476,7 @@ impl<
         );
 
         // Info the user on syncing the block once all the data is stored.
-        info!("Added block {} with hash {}.", block_number, block_hash);
+        info!("Added block {} with hash {:#064x}.", block_number, block_hash.0);
 
         Ok(())
     }

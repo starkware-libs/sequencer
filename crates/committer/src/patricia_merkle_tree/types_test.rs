@@ -1,11 +1,12 @@
 use crate::block_committer::input::{ContractAddress, StarknetStorageKey};
 use crate::felt::Felt;
+use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
+use crate::patricia_merkle_tree::internal_test_utils::random;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
-use crate::patricia_merkle_tree::test_utils::{get_random_u256, random};
 use crate::patricia_merkle_tree::types::NodeIndex;
-use rand::rngs::ThreadRng;
 
 use ethnum::{uint, U256};
+use rand::rngs::ThreadRng;
 use rand::Rng;
 use rstest::rstest;
 
@@ -33,7 +34,7 @@ fn test_cast_to_node_index(
     #[values(0, 15, 0xDEADBEEF)] leaf_index: u128,
     #[values(true, false)] from_contract_address: bool,
 ) {
-    let expected_node_index = NodeIndex::FIRST_LEAF + leaf_index.into();
+    let expected_node_index = NodeIndex::FIRST_LEAF + leaf_index;
     let actual = if from_contract_address {
         NodeIndex::from_contract_address(&ContractAddress(Felt::from(leaf_index)))
     } else {
@@ -82,7 +83,7 @@ fn test_get_lca_big(mut random: ThreadRng) {
     ));
 
     let left_child = lca << 1;
-    let right_child = left_child + 1.into();
+    let right_child = left_child + 1;
     let mut random_extension = |index: NodeIndex| {
         let extension_bits = index.leading_zeros();
         let extension: u128 = random.gen_range(0..(1 << extension_bits));
@@ -139,4 +140,10 @@ fn test_get_path_to_descendant_big() {
 fn test_nodeindex_to_felt_conversion() {
     let index = NodeIndex::MAX;
     assert!(Felt::try_from(index).is_err());
+}
+
+#[rstest]
+fn test_felt_printing() {
+    let felt = Felt::from(17_u8);
+    assert_eq!(format!("{:?}", felt), "17");
 }

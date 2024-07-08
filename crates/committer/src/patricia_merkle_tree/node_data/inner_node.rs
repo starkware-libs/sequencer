@@ -7,6 +7,10 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 use ethnum::U256;
 use strum_macros::{EnumDiscriminants, EnumIter};
 
+#[cfg(test)]
+#[path = "inner_node_tests.rs"]
+pub mod inner_node_test;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(any(test, feature = "testing"), derive(EnumDiscriminants))]
 #[cfg_attr(any(test, feature = "testing"), strum_discriminants(derive(EnumIter)))]
@@ -159,12 +163,15 @@ impl PathToBottom {
 
     /// Returns the path after removing the first steps (the edges from the path's origin node).
     pub(crate) fn remove_first_edges(&self, n_edges: EdgePathLength) -> PathToBottomResult {
-        if self.length <= n_edges {
+        if self.length < n_edges {
             return Err(PathToBottomError::RemoveEdgesError {
                 length: self.length,
                 n_edges,
             });
         }
-        Self::new(EdgePath(self.path.0 >> n_edges.0), self.length - n_edges)
+        Self::new(
+            EdgePath(self.path.0 & ((U256::ONE << (self.length.0 - n_edges.0)) - 1)),
+            self.length - n_edges,
+        )
     }
 }

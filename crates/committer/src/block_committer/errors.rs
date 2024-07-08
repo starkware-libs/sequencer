@@ -1,9 +1,9 @@
 use thiserror::Error;
 
-use crate::{forest_errors::ForestError, patricia_merkle_tree::node_data::leaf::LeafData};
+use crate::forest_errors::ForestError;
 
 #[derive(Debug, Error)]
-pub enum BlockCommitmentError<L: LeafData> {
+pub enum BlockCommitmentError {
     #[error(transparent)]
-    ForestError(#[from] ForestError<L>),
+    ForestError(#[from] ForestError),
 }

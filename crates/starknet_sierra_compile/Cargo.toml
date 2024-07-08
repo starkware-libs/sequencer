@@ -1,6 +1,6 @@
 [package]
 name = "starknet_sierra_compile"
-version.workspace = true
+version = "0.0.0"
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
@@ -14,7 +14,10 @@ cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 serde_json.workspace = true
 serde.workspace = true
+starknet_api = { path = "../starknet_api", version = "0.13.0-dev.9" }
+starknet-types-core.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
+mempool_test_utils = {path = "../mempool_test_utils"}

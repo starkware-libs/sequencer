@@ -94,7 +94,7 @@ impl Storage for PapyrusStorage {
             .reader()
             .begin_ro_txn()?
             .get_block_header(block_number)?
-            .map(|block_header| Vec::from(block_header.block_hash.0.bytes().as_slice()));
+            .map(|block_header| Vec::from(block_header.block_hash.0.to_bytes_be().as_slice()));
         Ok(block_hash)
     }
 
@@ -200,16 +200,17 @@ impl Storage for PapyrusStorage {
         let (thin_state_diff, declared_classes, deprecated_declared_classes) =
             ThinStateDiff::from_state_diff(state_diff);
 
-        let declared_classes_vec =
-            Vec::from_iter(declared_classes.iter().map(|(hash, class)| (*hash, class)));
-        let deprecated_declared_classes_vec =
-            Vec::from_iter(deprecated_declared_classes.iter().map(|(hash, class)| (*hash, class)));
-        append_txn = append_txn.append_classes(
+        append_txn = append_txn.append_state_diff(block_number, thin_state_diff)?.append_classes(
             block_number,
-            &declared_classes_vec,
-            &deprecated_declared_classes_vec,
+            &declared_classes
+                .iter()
+                .map(|(class_hash, contract_class)| (*class_hash, contract_class))
+                .collect::<Vec<_>>(),
+            &deprecated_declared_classes
+                .iter()
+                .map(|(class_hash, contract_class)| (*class_hash, contract_class))
+                .collect::<Vec<_>>(),
         )?;
-        append_txn = append_txn.append_state_diff(block_number, thin_state_diff)?;
 
         let previous_block_id = previous_block_id.unwrap_or_else(|| PyFelt::from(GENESIS_BLOCK_ID));
         let block_header = BlockHeader {

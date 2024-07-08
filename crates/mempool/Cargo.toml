@@ -1,6 +1,6 @@
 [package]
 name = "starknet_mempool"
-version.workspace = true
+version = "0.0.0"
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
@@ -9,19 +9,18 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-anyhow.workspace = true
 async-trait.workspace = true
 derive_more.workspace = true
-mempool_infra = { path = "../mempool_infra", version = "0.4.0-dev.2"}
-# TODO(Arni, 1/5/2024): Use a fixed version once the StarkNet API is stable.
-starknet_api = { git = "https://github.com/starkware-libs/starknet-api.git", branch = "main-mempool" }
-starknet_mempool_types = { path = "../mempool_types", version = "0.4.0-dev.2"}
+starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }
+starknet_api = { path = "../starknet_api", version = "0.13.0-dev.9" }
+starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
 tokio.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
+itertools.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
-# TODO(Arni, 1/5/2024): Use a fixed version once the StarkNet API is stable.
-starknet_api = { git = "https://github.com/starkware-libs/starknet-api.git", branch = "main-mempool", features = ["testing"] }
+starknet-types-core.workspace = true
+starknet_api = { path = "../starknet_api", version = "0.13.0-dev.9", features = ["testing"] }
 tokio.workspace = true

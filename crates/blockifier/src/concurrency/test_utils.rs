@@ -1,7 +1,6 @@
 use rstest::fixture;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
-use starknet_api::hash::StarkHash;
-use starknet_api::{class_hash, contract_address, patricia_key};
+use starknet_api::{class_hash, contract_address, felt, patricia_key};
 
 use crate::concurrency::versioned_state::{ThreadSafeVersionedState, VersionedState};
 use crate::context::BlockContext;
@@ -10,7 +9,11 @@ use crate::state::cached_state::{CachedState, TransactionalState};
 use crate::state::state_api::StateReader;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::transactions::ExecutableTransaction;
+use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
+
+// Public Consts.
+
+pub const DEFAULT_CHUNK_SIZE: usize = 64;
 
 // Fixtures.
 
@@ -54,12 +57,16 @@ macro_rules! default_scheduler {
     };
 }
 
+// Concurrency constructors.
+
 // TODO(meshi, 01/06/2024): Consider making this a macro.
 pub fn safe_versioned_state_for_testing(
-    block_state: DictStateReader,
-) -> ThreadSafeVersionedState<DictStateReader> {
+    block_state: CachedState<DictStateReader>,
+) -> ThreadSafeVersionedState<CachedState<DictStateReader>> {
     ThreadSafeVersionedState::new(VersionedState::new(block_state))
 }
+
+// Utils.
 
 // Note: this function does not mutate the state.
 pub fn create_fee_transfer_call_info<S: StateReader>(
@@ -67,14 +74,11 @@ pub fn create_fee_transfer_call_info<S: StateReader>(
     account_tx: &AccountTransaction,
     concurrency_mode: bool,
 ) -> CallInfo {
-    let block_context =
-        BlockContext::create_for_account_testing_with_concurrency_mode(concurrency_mode);
+    let block_context = BlockContext::create_for_account_testing();
     let mut transactional_state = TransactionalState::create_transactional(state);
-    let charge_fee = true;
-    let validate = true;
-    let execution_info = account_tx
-        .execute_raw(&mut transactional_state, &block_context, charge_fee, validate)
-        .unwrap();
+    let execution_flags = ExecutionFlags { charge_fee: true, validate: true, concurrency_mode };
+    let execution_info =
+        account_tx.execute_raw(&mut transactional_state, &block_context, execution_flags).unwrap();
 
     let execution_info = execution_info.fee_transfer_call_info.unwrap();
     transactional_state.abort();

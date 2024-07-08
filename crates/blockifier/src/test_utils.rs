@@ -6,15 +6,13 @@ pub mod initial_test_state;
 pub mod invoke;
 pub mod prices;
 pub mod struct_impls;
+pub mod transfers_generator;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-use cairo_felt::Felt252;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use num_traits::{One, Zero};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
-use starknet_api::hash::{StarkFelt, StarkHash};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
     Calldata,
@@ -24,12 +22,12 @@ use starknet_api::transaction::{
     ResourceBoundsMapping,
     TransactionVersion,
 };
-use starknet_api::{contract_address, patricia_key, stark_felt};
+use starknet_api::{contract_address, felt, patricia_key};
+use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::execution_utils::felt_to_stark_felt;
 use crate::execution::syscalls::SyscallSelector;
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::contracts::FeatureContract;
@@ -50,8 +48,8 @@ pub const TEST_ERC20_CONTRACT_ADDRESS2: &str = "0x1002";
 pub const TEST_ERC20_CONTRACT_CLASS_HASH: &str = "0x1010";
 
 // Paths.
-pub const ERC20_CONTRACT_PATH: &str =
-    "./ERC20_without_some_syscalls/ERC20/erc20_contract_without_some_syscalls_compiled.json";
+pub const ERC20_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/\
+                                       erc20_contract_without_some_syscalls_compiled.json";
 
 #[derive(Clone, Copy, Debug)]
 pub enum CairoVersion {
@@ -68,11 +66,14 @@ impl Default for CairoVersion {
 impl CairoVersion {
     // A declare transaction of the given version, can be used to declare contracts of the returned
     // cairo version.
+    // TODO: Make TransactionVersion an enum and use match here.
     pub fn from_declare_tx_version(tx_version: TransactionVersion) -> Self {
-        match tx_version {
-            TransactionVersion::ZERO | TransactionVersion::ONE => CairoVersion::Cairo0,
-            TransactionVersion::TWO | TransactionVersion::THREE => CairoVersion::Cairo1,
-            _ => panic!("Transaction version {:?} is not supported.", tx_version),
+        if tx_version == TransactionVersion::ZERO || tx_version == TransactionVersion::ONE {
+            CairoVersion::Cairo0
+        } else if tx_version == TransactionVersion::TWO || tx_version == TransactionVersion::THREE {
+            CairoVersion::Cairo1
+        } else {
+            panic!("Transaction version {:?} is not supported.", tx_version)
         }
     }
 
@@ -118,23 +119,20 @@ pub const CHAIN_ID_NAME: &str = "SN_GOERLI";
 
 #[derive(Default)]
 pub struct NonceManager {
-    next_nonce: HashMap<ContractAddress, Felt252>,
+    next_nonce: HashMap<ContractAddress, Felt>,
 }
 
 impl NonceManager {
     pub fn next(&mut self, account_address: ContractAddress) -> Nonce {
-        let zero = Felt252::zero();
-        let next_felt252 = self.next_nonce.get(&account_address).unwrap_or(&zero);
-        let next = Nonce(felt_to_stark_felt(next_felt252));
-        self.next_nonce.insert(account_address, Felt252::one() + next_felt252);
-        next
+        let next = self.next_nonce.remove(&account_address).unwrap_or_default();
+        self.next_nonce.insert(account_address, next + 1);
+        Nonce(next)
     }
 
     /// Decrements the nonce of the account, unless it is zero.
     pub fn rollback(&mut self, account_address: ContractAddress) {
-        let zero = Felt252::zero();
-        let current = self.next_nonce.get(&account_address).unwrap_or(&zero);
-        if !current.is_zero() {
+        let current = *self.next_nonce.get(&account_address).unwrap_or(&Felt::default());
+        if current != Felt::ZERO {
             self.next_nonce.insert(account_address, current - 1);
         }
     }
@@ -145,7 +143,7 @@ impl NonceManager {
 #[macro_export]
 macro_rules! nonce {
     ($s:expr) => {
-        starknet_api::core::Nonce(starknet_api::hash::StarkHash::try_from($s).unwrap())
+        starknet_api::core::Nonce(starknet_types_core::felt::Felt::from($s))
     };
 }
 
@@ -164,7 +162,7 @@ macro_rules! storage_key {
 #[macro_export]
 macro_rules! compiled_class_hash {
     ($s:expr) => {
-        starknet_api::core::CompiledClassHash(starknet_api::hash::StarkHash::try_from($s).unwrap())
+        starknet_api::core::CompiledClassHash(starknet_types_core::felt::Felt::from($s))
     };
 }
 
@@ -175,7 +173,7 @@ pub struct SaltManager {
 
 impl SaltManager {
     pub fn next_salt(&mut self) -> ContractAddressSalt {
-        let next_contract_address_salt = ContractAddressSalt(stark_felt!(self.next_salt));
+        let next_contract_address_salt = ContractAddressSalt(felt!(self.next_salt));
         self.next_salt += 1;
         next_contract_address_salt
     }
@@ -372,7 +370,7 @@ pub fn get_tx_resources(tx_type: TransactionType) -> ExecutionResources {
 /// ]
 pub fn calldata_for_deploy_test(
     class_hash: ClassHash,
-    constructor_calldata: &[StarkFelt],
+    constructor_calldata: &[Felt],
     valid_deploy_from_zero: bool,
 ) -> Calldata {
     Calldata(
@@ -380,10 +378,10 @@ pub fn calldata_for_deploy_test(
             vec![
                 class_hash.0,
                 ContractAddressSalt::default().0,
-                stark_felt!(u128_from_usize(constructor_calldata.len())),
+                felt!(u128_from_usize(constructor_calldata.len())),
             ],
             constructor_calldata.into(),
-            vec![stark_felt!(if valid_deploy_from_zero { 0_u8 } else { 2_u8 })],
+            vec![felt!(if valid_deploy_from_zero { 0_u8 } else { 2_u8 })],
         ]
         .concat()
         .into(),
@@ -404,14 +402,14 @@ pub fn calldata_for_deploy_test(
 pub fn create_calldata(
     contract_address: ContractAddress,
     entry_point_name: &str,
-    entry_point_args: &[StarkFelt],
+    entry_point_args: &[Felt],
 ) -> Calldata {
     Calldata(
         [
             vec![
                 *contract_address.0.key(),              // Contract address.
                 selector_from_name(entry_point_name).0, // EP selector name.
-                stark_felt!(u128_from_usize(entry_point_args.len())),
+                felt!(u128_from_usize(entry_point_args.len())),
             ],
             entry_point_args.into(),
         ]
@@ -425,7 +423,7 @@ pub fn create_trivial_calldata(test_contract_address: ContractAddress) -> Callda
     create_calldata(
         test_contract_address,
         "return_result",
-        &[stark_felt!(2_u8)], // Calldata: num.
+        &[felt!(2_u8)], // Calldata: num.
     )
 }
 

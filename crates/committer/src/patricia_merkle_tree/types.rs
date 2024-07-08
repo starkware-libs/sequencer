@@ -4,6 +4,7 @@ use crate::patricia_merkle_tree::errors::TypesError;
 use crate::patricia_merkle_tree::filled_tree::node::ClassHash;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 
+use bisection::{bisect_left, bisect_right};
 use ethnum::U256;
 
 #[cfg(test)]
@@ -33,7 +34,7 @@ impl From<SubTreeHeight> for u8 {
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Hash, derive_more::BitAnd, derive_more::Sub, PartialOrd, Ord,
 )]
-pub struct NodeIndex(U256);
+pub struct NodeIndex(pub U256);
 
 // Wraps a U256. Maximal possible value is the largest index in a tree of height 251 (2 ^ 252 - 1).
 impl NodeIndex {
@@ -74,7 +75,7 @@ impl NodeIndex {
 
     pub(crate) fn get_children_indices(&self) -> [Self; 2] {
         let left_child = *self << 1;
-        [left_child, left_child + 1.into()]
+        [left_child, left_child + 1]
     }
 
     /// Returns the number of leading zeroes when represented with Self::BITS bits.
@@ -170,6 +171,14 @@ impl std::ops::Mul for NodeIndex {
     }
 }
 
+impl std::ops::Add<u128> for NodeIndex {
+    type Output = Self;
+
+    fn add(self, rhs: u128) -> Self {
+        self + Self::from(rhs)
+    }
+}
+
 impl std::ops::Shl<u8> for NodeIndex {
     type Output = Self;
 
@@ -190,7 +199,7 @@ impl std::ops::Shr<u8> for NodeIndex {
 
 impl From<u128> for NodeIndex {
     fn from(value: u128) -> Self {
-        Self(U256::from(value))
+        Self::new(U256::from(value))
     }
 }
 
@@ -213,5 +222,59 @@ impl TryFrom<NodeIndex> for Felt {
         }
         let bytes = value.0.to_be_bytes();
         Ok(Self::from_bytes_be_slice(&bytes))
+    }
+}
+
+#[derive(Debug, Default, PartialEq)]
+pub(crate) struct SortedLeafIndices<'a>(&'a [NodeIndex]);
+
+impl<'a> SortedLeafIndices<'a> {
+    /// Creates a new instance by sorting the given indices.
+    pub(crate) fn new(indices: &'a mut [NodeIndex]) -> Self {
+        indices.sort();
+        Self(indices)
+    }
+
+    /// Returns a subslice of the indices stored at self, at the range [leftmost_idx, rightmost_idx).
+    pub(crate) fn subslice(&self, leftmost_idx: usize, rightmost_idx: usize) -> Self {
+        Self(&self.0[leftmost_idx..rightmost_idx])
+    }
+
+    /// Divides the slice held by self into two instances. One holds the range [0, idx), the
+    /// other holds the range [idx, len(self)).
+    pub(crate) fn divide_at_index(&self, idx: usize) -> [Self; 2] {
+        [Self(&self.0[..idx]), Self(&self.0[idx..])]
+    }
+
+    pub(crate) fn get_indices(&self) -> &'a [NodeIndex] {
+        self.0
+    }
+
+    pub(crate) fn contains(&self, value: &NodeIndex) -> bool {
+        self.0.contains(value)
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub(crate) fn last(&self) -> Option<&NodeIndex> {
+        self.0.last()
+    }
+
+    pub(crate) fn first(&self) -> Option<&NodeIndex> {
+        self.0.first()
+    }
+
+    pub(crate) fn bisect_left(&self, leftmost_value: &NodeIndex) -> usize {
+        bisect_left(self.0, leftmost_value)
+    }
+
+    pub(crate) fn bisect_right(&self, rightmost_value: &NodeIndex) -> usize {
+        bisect_right(self.0, rightmost_value)
     }
 }

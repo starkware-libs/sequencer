@@ -1,4 +1,4 @@
-pub mod compute_updated_skeleton_tree;
+pub mod create_tree_helper;
 pub mod errors;
 pub mod hash_function;
 pub mod node;

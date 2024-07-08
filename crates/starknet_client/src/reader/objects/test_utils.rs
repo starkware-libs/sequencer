@@ -9,7 +9,7 @@ use starknet_api::core::{
     EthAddress,
     Nonce,
 };
-use starknet_api::hash::{StarkFelt, StarkHash};
+use starknet_api::hash::StarkHash;
 use starknet_api::state::{EntryPoint, EntryPointType};
 use starknet_api::transaction::{
     AccountDeploymentData,
@@ -17,6 +17,7 @@ use starknet_api::transaction::{
     ContractAddressSalt,
     Event,
     Fee,
+    GasVector,
     L1ToL2Payload,
     L2ToL1Payload,
     PaymasterData,
@@ -27,11 +28,11 @@ use starknet_api::transaction::{
     TransactionSignature,
     TransactionVersion,
 };
+use starknet_types_core::felt::Felt;
 
 use crate::reader::objects::state::ContractClass;
 use crate::reader::objects::transaction::{
     Builtin,
-    DataAvailabilityResources,
     DeployTransaction,
     ExecutionResources,
     IntermediateDeclareTransaction,
@@ -123,7 +124,7 @@ auto_impl_get_test_instance! {
         pub calldata: Calldata,
     }
     pub struct ContractClass {
-        pub sierra_program: Vec<StarkFelt>,
+        pub sierra_program: Vec<Felt>,
         pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPoint>>,
         pub contract_class_version: String,
         pub abi: String,
@@ -160,11 +161,8 @@ auto_impl_get_test_instance! {
         pub n_steps: u64,
         pub builtin_instance_counter: HashMap<Builtin, u64>,
         pub n_memory_holes: u64,
-        pub data_availability: Option<DataAvailabilityResources>,
-    }
-    pub struct DataAvailabilityResources {
-        pub l1_gas: u64,
-        pub l1_data_gas: u64,
+        pub data_availability: Option<GasVector>,
+        pub total_gas_consumed: Option<GasVector>,
     }
     pub enum Builtin {
         RangeCheck = 0,

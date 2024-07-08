@@ -1,126 +1,128 @@
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use futures::channel::{mpsc, oneshot};
-use futures::{SinkExt, StreamExt};
-use starknet_api::block::BlockNumber;
+use papyrus_protobuf::consensus::{ConsensusMessage, Vote, VoteType};
+use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_types_core::felt::Felt;
 use tokio;
 
 use super::SingleHeightConsensus;
 use crate::test_utils::{MockTestContext, TestBlock};
-use crate::types::{ConsensusBlock, NodeId, PeeringConsensusMessage, ProposalInit};
+use crate::types::{ConsensusBlock, ProposalInit, ValidatorId};
 
-type Shc = SingleHeightConsensus<TestBlock>;
-type ProposalChunk = <TestBlock as ConsensusBlock>::ProposalChunk;
-type PeeringMessage = PeeringConsensusMessage<ProposalChunk>;
-
-struct TestSetup {
-    pub context: MockTestContext,
-    pub shc_to_peering_sender: mpsc::Sender<PeeringConsensusMessage<u32>>,
-    pub shc_to_peering_receiver: mpsc::Receiver<PeeringConsensusMessage<u32>>,
-    pub peering_to_shc_sender: mpsc::Sender<PeeringConsensusMessage<u32>>,
-    pub peering_to_shc_receiver: mpsc::Receiver<PeeringConsensusMessage<u32>>,
+fn prevote(block_hash: BlockHash, height: u64, voter: ValidatorId) -> ConsensusMessage {
+    ConsensusMessage::Vote(Vote { vote_type: VoteType::Prevote, height, block_hash, voter })
 }
 
-impl TestSetup {
-    fn new() -> TestSetup {
-        let (shc_to_peering_sender, shc_to_peering_receiver) = mpsc::channel(1);
-        let (peering_to_shc_sender, peering_to_shc_receiver) = mpsc::channel(1);
-        let context = MockTestContext::new();
-        TestSetup {
-            context,
-            shc_to_peering_sender,
-            shc_to_peering_receiver,
-            peering_to_shc_sender,
-            peering_to_shc_receiver,
-        }
-    }
-
-    // This should be called after all of the mock's expectations have been set. This is because SHC
-    // holds `Arc<dyn ConsentContext>`. Setting mock expectations, though, require exclusive access
-    // (`&mut self`).
-    async fn new_shc(
-        self,
-        height: BlockNumber,
-        id: NodeId,
-    ) -> (
-        Shc,
-        mpsc::Receiver<PeeringConsensusMessage<u32>>,
-        mpsc::Sender<PeeringConsensusMessage<u32>>,
-    ) {
-        let shc = Shc::new(
-            height,
-            Arc::new(self.context),
-            id,
-            self.shc_to_peering_sender,
-            self.peering_to_shc_receiver,
-        )
-        .await;
-        (shc, self.shc_to_peering_receiver, self.peering_to_shc_sender)
-    }
+fn precommit(block_hash: BlockHash, height: u64, voter: ValidatorId) -> ConsensusMessage {
+    ConsensusMessage::Vote(Vote { vote_type: VoteType::Precommit, height, block_hash, voter })
 }
 
 #[tokio::test]
-async fn propose() {
-    let mut test_fields = TestSetup::new();
-    let node_id: NodeId = 1;
-    let block = TestBlock { content: vec![1, 2, 3], id: 1 };
+async fn proposer() {
+    let mut context = MockTestContext::new();
+
+    let node_id: ValidatorId = 1_u32.into();
+    let block = TestBlock { content: vec![1, 2, 3], id: BlockHash(Felt::ONE) };
+    let block_id = block.id();
     // Set expectations for how the test should run:
-    test_fields.context.expect_validators().returning(move |_| vec![node_id, 2, 3, 4]);
-    test_fields.context.expect_proposer().returning(move |_, _| node_id);
+    context
+        .expect_validators()
+        .returning(move |_| vec![node_id, 2_u32.into(), 3_u32.into(), 4_u32.into()]);
+    context.expect_proposer().returning(move |_, _| node_id);
     let block_clone = block.clone();
-    test_fields.context.expect_build_proposal().returning(move |_| {
-        // SHC doesn't actually handle the content, so ignore for unit tests.
+    context.expect_build_proposal().returning(move |_| {
         let (_, content_receiver) = mpsc::channel(1);
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(block_clone.clone()).unwrap();
         (content_receiver, block_receiver)
     });
 
-    // Creation calls to `context.validators`.
-    let (shc, mut shc_to_peering_receiver, _) = test_fields.new_shc(BlockNumber(0), node_id).await;
+    let fin_receiver = Arc::new(OnceLock::new());
+    let fin_receiver_clone = Arc::clone(&fin_receiver);
+    context.expect_propose().return_once(move |init, _, fin_receiver| {
+        // Ignore content receiver, since this is the context's responsibility.
+        assert_eq!(init.height, BlockNumber(0));
+        assert_eq!(init.proposer, node_id);
+        fin_receiver_clone.set(fin_receiver).unwrap();
+        Ok(())
+    });
+    context
+        .expect_broadcast()
+        .withf(move |msg: &ConsensusMessage| msg == &prevote(block_id, 0, node_id))
+        .returning(move |_| Ok(()));
+    context
+        .expect_broadcast()
+        .withf(move |msg: &ConsensusMessage| msg == &precommit(block_id, 0, node_id))
+        .returning(move |_| Ok(()));
 
-    // This calls to `context.proposer` and `context.build_proposal`.
-    assert_eq!(shc.run().await, block);
+    let mut shc = SingleHeightConsensus::new(BlockNumber(0), Arc::new(context), node_id).await;
 
-    // Check what was sent to peering. We don't check the content stream as that is filled by
-    // ConsensusContext, not SHC.
-    let PeeringMessage::Proposal((init, _, block_id_receiver)) =
-        shc_to_peering_receiver.next().await.unwrap();
-    assert_eq!(init, ProposalInit { height: BlockNumber(0), proposer: node_id });
-    assert_eq!(block_id_receiver.await.unwrap(), block.id());
+    // Sends proposal and prevote.
+    assert!(matches!(shc.start().await, Ok(None)));
+
+    assert_eq!(shc.handle_message(prevote(block.id(), 0, 2_u32.into())).await, Ok(None));
+    assert_eq!(shc.handle_message(prevote(block.id(), 0, 3_u32.into())).await, Ok(None));
+    assert_eq!(shc.handle_message(precommit(block.id(), 0, 2_u32.into())).await, Ok(None));
+    let decision =
+        shc.handle_message(precommit(block.id(), 0, 3_u32.into())).await.unwrap().unwrap();
+    assert_eq!(decision, block);
+
+    // Check the fin sent to the network.
+    let fin = Arc::into_inner(fin_receiver).unwrap().take().unwrap().await.unwrap();
+    assert_eq!(fin, block.id());
 }
 
 #[tokio::test]
-async fn validate() {
-    let mut test_fields = TestSetup::new();
-    let node_id: NodeId = 1;
-    let proposer: NodeId = 2;
-    let block = TestBlock { content: vec![1, 2, 3], id: 1 };
+async fn validator() {
+    let mut context = MockTestContext::new();
+
+    let node_id: ValidatorId = 1_u32.into();
+    let proposer: ValidatorId = 2_u32.into();
+    let block = TestBlock { content: vec![1, 2, 3], id: BlockHash(Felt::ONE) };
+    let block_id = block.id();
+
     // Set expectations for how the test should run:
-    test_fields.context.expect_validators().returning(move |_| vec![node_id, proposer, 3, 4]);
-    test_fields.context.expect_proposer().returning(move |_, _| proposer);
+    context
+        .expect_validators()
+        .returning(move |_| vec![node_id, proposer, 3_u32.into(), 4_u32.into()]);
+    context.expect_proposer().returning(move |_, _| proposer);
     let block_clone = block.clone();
-    test_fields.context.expect_validate_proposal().returning(move |_, _| {
+    context.expect_validate_proposal().returning(move |_, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(block_clone.clone()).unwrap();
         block_receiver
     });
+    context
+        .expect_broadcast()
+        .withf(move |msg: &ConsensusMessage| msg == &prevote(block_id, 0, node_id))
+        .returning(move |_| Ok(()));
+    context
+        .expect_broadcast()
+        .withf(move |msg: &ConsensusMessage| msg == &precommit(block_id, 0, node_id))
+        .returning(move |_| Ok(()));
 
     // Creation calls to `context.validators`.
-    let (shc, _, mut peering_to_shc_sender) = test_fields.new_shc(BlockNumber(0), node_id).await;
+    let mut shc = SingleHeightConsensus::new(BlockNumber(0), Arc::new(context), node_id).await;
 
     // Send the proposal from the peer.
     let (fin_sender, fin_receiver) = oneshot::channel();
-    peering_to_shc_sender
-        .send(PeeringMessage::Proposal((
+    fin_sender.send(block.id()).unwrap();
+
+    let res = shc
+        .handle_proposal(
             ProposalInit { height: BlockNumber(0), proposer },
             mpsc::channel(1).1, // content - ignored by SHC.
             fin_receiver,
-        )))
-        .await
-        .unwrap();
-    fin_sender.send(block.id()).unwrap();
+        )
+        .await;
+    assert_eq!(res, Ok(None));
 
-    // This calls to `context.proposer` and `context.build_proposal`.
-    assert_eq!(shc.run().await, block);
+    assert_eq!(shc.handle_message(prevote(block.id(), 0, 2_u32.into())).await, Ok(None));
+    assert_eq!(shc.handle_message(prevote(block.id(), 0, 3_u32.into())).await, Ok(None));
+    assert_eq!(shc.handle_message(precommit(block.id(), 0, 2_u32.into())).await, Ok(None));
+
+    let decision =
+        shc.handle_message(precommit(block.id(), 0, 3_u32.into())).await.unwrap().unwrap();
+    assert_eq!(decision, block);
 }

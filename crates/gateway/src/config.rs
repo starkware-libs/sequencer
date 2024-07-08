@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use validator::Validate;
 
+use crate::compiler_version::VersionId;
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct GatewayConfig {
     pub network_config: GatewayNetworkConfig,
@@ -61,19 +63,39 @@ impl Default for GatewayNetworkConfig {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct StatelessTransactionValidatorConfig {
     // If true, validates that the resource bounds are not zero.
     pub validate_non_zero_l1_gas_fee: bool,
     pub validate_non_zero_l2_gas_fee: bool,
-
     pub max_calldata_length: usize,
     pub max_signature_length: usize,
+
+    // Declare txs specific config.
+    pub max_bytecode_size: usize,
+    pub max_raw_class_size: usize,
+    pub min_sierra_version: VersionId,
+    pub max_sierra_version: VersionId,
+}
+
+impl Default for StatelessTransactionValidatorConfig {
+    fn default() -> Self {
+        StatelessTransactionValidatorConfig {
+            validate_non_zero_l1_gas_fee: false,
+            validate_non_zero_l2_gas_fee: false,
+            max_calldata_length: 0,
+            max_signature_length: 0,
+            max_bytecode_size: 0,
+            max_raw_class_size: 0,
+            min_sierra_version: VersionId::MIN,
+            max_sierra_version: VersionId::MAX,
+        }
+    }
 }
 
 impl SerializeConfig for StatelessTransactionValidatorConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
+        let members = BTreeMap::from_iter([
             ser_param(
                 "validate_non_zero_l1_gas_fee",
                 &self.validate_non_zero_l1_gas_fee,
@@ -89,18 +111,26 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
             ser_param(
                 "max_signature_length",
                 &self.max_signature_length,
-                "Validates that a transaction has calldata length less than or equal to this \
+                "Validates that a transaction has signature length less than or equal to this \
                  value.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "max_calldata_length",
                 &self.max_calldata_length,
-                "Validates that a transaction has signature length less than or equal to this \
+                "Validates that a transaction has calldata length less than or equal to this \
                  value.",
                 ParamPrivacyInput::Public,
             ),
-        ])
+        ]);
+        vec![
+            members,
+            append_sub_config_name(self.min_sierra_version.dump(), "min_sierra_version"),
+            append_sub_config_name(self.max_sierra_version.dump(), "max_sierra_version"),
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
     }
 }
 
