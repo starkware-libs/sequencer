@@ -89,8 +89,7 @@ impl TryFrom<RawInput> for InputImpl {
             classes_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
                 &raw_input.classes_trie_root_hash,
             )),
-            // TODO(Nimrod, 8/7/2024): Set this configuration according to python input.
-            config: ConfigImpl::new(true),
+            config: ConfigImpl::new(raw_input.trivial_updates_config),
         })
     }
 }
