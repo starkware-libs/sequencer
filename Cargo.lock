@@ -549,9 +549,9 @@ dependencies = [
 
 [[package]]
 name = "blockifier"
-version = "0.8.0-dev.0"
+version = "0.8.0-dev.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb4f57ce711234b75654cda8d80198b4623a4a5390b8cb2e2c8d740d8def8d8d"
+checksum = "01029cc5149e250cf8357bc08fb9301fac2c4edfe55ef6cc102d3b3712c22eda"
 dependencies = [
  "anyhow",
  "ark-ec",
@@ -575,11 +575,12 @@ dependencies = [
  "num-traits 0.2.19",
  "once_cell",
  "phf",
+ "rand",
  "rstest",
  "serde",
  "serde_json",
+ "sha2",
  "sha3",
- "starknet-crypto 0.5.2",
  "starknet-types-core",
  "starknet_api",
  "strum 0.24.1",
@@ -3732,7 +3733,7 @@ dependencies = [
 [[package]]
 name = "papyrus_common"
 version = "0.4.0-dev.4"
-source = "git+https://github.com/starkware-libs/papyrus.git?rev=22de602#22de602d4a1cc8ab0f207a4eb8259917b89922ab"
+source = "git+https://github.com/starkware-libs/papyrus.git?rev=ca83fd42#ca83fd42d1efddcd4e13e981654cdd920ec61288"
 dependencies = [
  "bitvec",
  "cairo-lang-starknet-classes",
@@ -3753,7 +3754,7 @@ dependencies = [
 [[package]]
 name = "papyrus_config"
 version = "0.4.0-dev.4"
-source = "git+https://github.com/starkware-libs/papyrus.git?rev=22de602#22de602d4a1cc8ab0f207a4eb8259917b89922ab"
+source = "git+https://github.com/starkware-libs/papyrus.git?rev=ca83fd42#ca83fd42d1efddcd4e13e981654cdd920ec61288"
 dependencies = [
  "clap",
  "itertools 0.10.5",
@@ -3767,7 +3768,7 @@ dependencies = [
 [[package]]
 name = "papyrus_execution"
 version = "0.4.0-dev.4"
-source = "git+https://github.com/starkware-libs/papyrus.git?rev=22de602#22de602d4a1cc8ab0f207a4eb8259917b89922ab"
+source = "git+https://github.com/starkware-libs/papyrus.git?rev=ca83fd42#ca83fd42d1efddcd4e13e981654cdd920ec61288"
 dependencies = [
  "anyhow",
  "blockifier",
@@ -3791,7 +3792,7 @@ dependencies = [
 [[package]]
 name = "papyrus_proc_macros"
 version = "0.4.0-dev.4"
-source = "git+https://github.com/starkware-libs/papyrus.git?rev=22de602#22de602d4a1cc8ab0f207a4eb8259917b89922ab"
+source = "git+https://github.com/starkware-libs/papyrus.git?rev=ca83fd42#ca83fd42d1efddcd4e13e981654cdd920ec61288"
 dependencies = [
  "quote",
  "syn 2.0.68",
@@ -3800,7 +3801,7 @@ dependencies = [
 [[package]]
 name = "papyrus_rpc"
 version = "0.4.0-dev.4"
-source = "git+https://github.com/starkware-libs/papyrus.git?rev=22de602#22de602d4a1cc8ab0f207a4eb8259917b89922ab"
+source = "git+https://github.com/starkware-libs/papyrus.git?rev=ca83fd42#ca83fd42d1efddcd4e13e981654cdd920ec61288"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3838,7 +3839,7 @@ dependencies = [
 [[package]]
 name = "papyrus_storage"
 version = "0.4.0-dev.4"
-source = "git+https://github.com/starkware-libs/papyrus.git?rev=22de602#22de602d4a1cc8ab0f207a4eb8259917b89922ab"
+source = "git+https://github.com/starkware-libs/papyrus.git?rev=ca83fd42#ca83fd42d1efddcd4e13e981654cdd920ec61288"
 dependencies = [
  "byteorder",
  "cairo-lang-casm",
@@ -5233,7 +5234,7 @@ dependencies = [
 [[package]]
 name = "starknet_client"
 version = "0.4.0-dev.4"
-source = "git+https://github.com/starkware-libs/papyrus.git?rev=22de602#22de602d4a1cc8ab0f207a4eb8259917b89922ab"
+source = "git+https://github.com/starkware-libs/papyrus.git?rev=ca83fd42#ca83fd42d1efddcd4e13e981654cdd920ec61288"
 dependencies = [
  "async-trait",
  "cairo-lang-starknet-classes",

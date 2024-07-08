@@ -36,7 +36,7 @@ async-trait = "0.1.79"
 axum = "0.6.12"
 # TODO(YaelD, 28/5/2024): The special Blockifier version is needed in order to be aligned with the
 # starknet-api version. This should be removed once we have a mono-repo.
-blockifier ="0.8.0-dev.0"
+blockifier ="0.8.0-dev.1"
 bincode = "1.3.3"
 cairo-lang-sierra = "2.7.0-dev.0"
 cairo-lang-starknet-classes = "2.7.0-dev.0"
@@ -55,10 +55,10 @@ num-traits = "0.2"
 num-bigint = { version = "0.4.5", default-features = false }
 # TODO(YaelD, 28/5/2024): The special Papyrus version is needed in order to be aligned with the
 # starknet-api version. This should be removed once we have a mono-repo.
-papyrus_common = { git = "https://github.com/starkware-libs/papyrus.git", rev = "22de602" }
-papyrus_config = { git = "https://github.com/starkware-libs/papyrus.git", rev = "22de602" }
-papyrus_rpc = { git = "https://github.com/starkware-libs/papyrus.git", rev = "22de602" }
-papyrus_storage = { git = "https://github.com/starkware-libs/papyrus.git", rev = "22de602" }
+papyrus_common = { git = "https://github.com/starkware-libs/papyrus.git", rev = "ca83fd42" }
+papyrus_config = { git = "https://github.com/starkware-libs/papyrus.git", rev = "ca83fd42" }
+papyrus_rpc = { git = "https://github.com/starkware-libs/papyrus.git", rev = "ca83fd42" }
+papyrus_storage = { git = "https://github.com/starkware-libs/papyrus.git", rev = "ca83fd42" }
 pretty_assertions = "1.4.0"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 rstest = "0.17.0"
@@ -68,7 +68,7 @@ serde_json = "1.0"
 starknet_api = "0.13.0-dev.9"
 # TODO(YaelD, 28/5/2024): The special Papyrus version is needed in order to be aligned with the
 # starknet-api version. This should be removed once we have a mono-repo.
-starknet_client = { git = "https://github.com/starkware-libs/papyrus.git", rev = "22de602" }
+starknet_client = { git = "https://github.com/starkware-libs/papyrus.git", rev = "ca83fd42" }
 starknet-types-core = { version = "0.1.5", features = ["std", "hash", "prime-bigint"] }
 strum = "0.24.1"
 tempfile = "3.3.0"

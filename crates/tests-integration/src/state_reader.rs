@@ -58,14 +58,14 @@ pub async fn spawn_test_rpc_state_reader(n_accounts: usize) -> SocketAddr {
     let test_contract_cairo0 = FeatureContract::TestContract(CairoVersion::Cairo0);
     let account_contract_cairo1 = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let test_contract_cairo1 = FeatureContract::TestContract(CairoVersion::Cairo1);
-    let erc20 = FeatureContract::ERC20;
+    let erc20_cairo0 = FeatureContract::ERC20(CairoVersion::Cairo0);
     let fund_accounts = vec![*deploy_account_tx_contract_address()];
 
     let storage_reader = initialize_papyrus_test_state(
         block_context.chain_info(),
         BALANCE,
         &[
-            (erc20, 1),
+            (erc20_cairo0, 1),
             (account_contract_cairo0, 1),
             (test_contract_cairo0, 1),
             (account_contract_cairo1, n_accounts),
@@ -101,7 +101,7 @@ fn prepare_state_diff(
     initial_balances: u128,
     fund_accounts: Vec<ContractAddress>,
 ) -> ThinStateDiff {
-    let erc20 = FeatureContract::ERC20;
+    let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
     let erc20_class_hash = erc20.get_class_hash();
 
     // Declare and deploy ERC20 contracts.
@@ -216,8 +216,8 @@ fn cairo_version(contract: &FeatureContract) -> CairoVersion {
         | FeatureContract::AccountWithoutValidations(version)
         | FeatureContract::Empty(version)
         | FeatureContract::FaultyAccount(version)
-        | FeatureContract::TestContract(version) => *version,
-        FeatureContract::ERC20 => CairoVersion::Cairo0,
+        | FeatureContract::TestContract(version)
+        | FeatureContract::ERC20(version) => *version,
         _ => panic!("{contract:?} contract has no configurable version."),
     }
 }

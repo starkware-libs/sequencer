@@ -2,11 +2,11 @@ use blockifier::blockifier::stateful_validator::StatefulValidatorError;
 use blockifier::context::BlockContext;
 use blockifier::test_utils::CairoVersion;
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
+use num_bigint::BigUint;
 use rstest::rstest;
 use starknet_api::felt;
 use starknet_api::rpc_transaction::RPCTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_types_core::felt::Felt;
 use test_utils::starknet_api_test_utils::{
     declare_tx, deploy_account_tx, invoke_tx, VALID_L1_GAS_MAX_AMOUNT,
     VALID_L1_GAS_MAX_PRICE_PER_UNIT,
@@ -59,8 +59,7 @@ use crate::stateful_transaction_validator::StatefulTransactionValidator;
                 TransactionFeeError::L1GasBoundsExceedBalance {
                     max_amount: VALID_L1_GAS_MAX_AMOUNT,
                     max_price: VALID_L1_GAS_MAX_PRICE_PER_UNIT,
-                    balance_low: Felt::ZERO,
-                    balance_high: Felt::ZERO,
+                    balance: BigUint::ZERO,
                 }
             )
         )

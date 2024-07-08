@@ -46,17 +46,17 @@ impl StatefulTransactionValidator {
         )?;
         // TODO(yael 21/4/24): create the block context using pre_process_block once we will be
         // able to read the block_hash of 10 blocks ago from papyrus.
-        let block_context = BlockContext::new_unchecked(
-            &block_info,
-            &self.config.chain_info.clone().into(),
-            &versioned_constants,
+        let block_context = BlockContext::new(
+            block_info,
+            self.config.chain_info.clone().into(),
+            versioned_constants,
+            BouncerConfig::max(),
         );
 
         let mut validator = BlockifierStatefulValidator::create(
             state,
             block_context,
             self.config.max_nonce_for_validation_skip,
-            BouncerConfig::max(),
         );
         let account_tx = external_tx_to_account_tx(
             external_tx,
