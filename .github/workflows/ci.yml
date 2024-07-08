@@ -109,8 +109,9 @@ jobs:
         with:
           credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
       - uses: 'google-github-actions/setup-gcloud@v2'
-      - run: gcloud storage cp gs://committer-products-external/tree_flow_inputs.json ./crates/committer_cli/benches/tree_flow_inputs.json
-      - run: gcloud storage cp gs://committer-products-external/committer_flow_inputs.json ./crates/committer_cli/benches/committer_flow_inputs.json
+      - run: echo "BENCH_INPUT_FILES_PREFIX=$(cat ./crates/committer_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
+      - run: gcloud storage cp gs://committer-testing-artifacts/$BENCH_INPUT_FILES_PREFIX/tree_flow_inputs.json ./crates/committer_cli/benches/tree_flow_inputs.json
+      - run: gcloud storage cp gs://committer-testing-artifacts/$BENCH_INPUT_FILES_PREFIX/committer_flow_inputs.json ./crates/committer_cli/benches/committer_flow_inputs.json
       - run: cargo test --release -- --include-ignored test_benchmark
 
   benchmarking:
@@ -122,14 +123,15 @@ jobs:
           ref: ${{ github.base_ref }}
       - uses: Swatinem/rust-cache@v2
 
-      # Download the benchmark inputs.
+      # Download the old benchmark inputs.
       - id: auth
         uses: "google-github-actions/auth@v2"
         with:
           credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
       - uses: 'google-github-actions/setup-gcloud@v2'
-      - run: gcloud storage cp gs://committer-products-external/tree_flow_inputs.json ./crates/committer_cli/benches/tree_flow_inputs.json
-      - run: gcloud storage cp gs://committer-products-external/committer_flow_inputs.json ./crates/committer_cli/benches/committer_flow_inputs.json
+      - run: echo "OLD_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/committer_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
+      - run: gcloud storage cp gs://committer-testing-artifacts/$OLD_BENCH_INPUT_FILES_PREFIX/tree_flow_inputs.json ./crates/committer_cli/benches/tree_flow_inputs.json
+      - run: gcloud storage cp gs://committer-testing-artifacts/$OLD_BENCH_INPUT_FILES_PREFIX/committer_flow_inputs.json ./crates/committer_cli/benches/committer_flow_inputs.json
 
       # List the existing benchmarks.
       - run: |
@@ -138,7 +140,7 @@ jobs:
       # Benchmark the old code.
       - run: cargo bench
 
-      # Backup the downloaded files to avoid re-downloading them (overwritten by checkout).
+      # Backup the downloaded files to avoid re-downloading them if they didn't change (overwritten by checkout).
       - run: mv ./crates/committer_cli/benches/tree_flow_inputs.json ./crates/committer_cli/benches/tree_flow_inputs.json_bu
       - run: mv ./crates/committer_cli/benches/committer_flow_inputs.json ./crates/committer_cli/benches/committer_flow_inputs.json_bu
 
@@ -146,8 +148,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           clean: false
-      - run: mv ./crates/committer_cli/benches/tree_flow_inputs.json_bu ./crates/committer_cli/benches/tree_flow_inputs.json
-      - run: mv ./crates/committer_cli/benches/committer_flow_inputs.json_bu ./crates/committer_cli/benches/committer_flow_inputs.json
+      - run: echo "NEW_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/committer_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
+      
+      # Input files didn't change.
+      - if: env.OLD_BENCH_INPUT_FILES_PREFIX == env.NEW_BENCH_INPUT_FILES_PREFIX
+        run: |
+          mv ./crates/committer_cli/benches/tree_flow_inputs.json_bu ./crates/committer_cli/benches/tree_flow_inputs.json
+          mv ./crates/committer_cli/benches/committer_flow_inputs.json_bu ./crates/committer_cli/benches/committer_flow_inputs.json
+
+      # Input files did change, download new inputs.
+      - if: env.OLD_BENCH_INPUT_FILES_PREFIX != env.NEW_BENCH_INPUT_FILES_PREFIX
+        run: |
+          gcloud storage cp gs://committer-testing-artifacts/$NEW_BENCH_INPUT_FILES_PREFIX/tree_flow_inputs.json ./crates/committer_cli/benches/tree_flow_inputs.json
+          gcloud storage cp gs://committer-testing-artifacts/$NEW_BENCH_INPUT_FILES_PREFIX/committer_flow_inputs.json ./crates/committer_cli/benches/committer_flow_inputs.json
 
       # Benchmark the new code, splitting the benchmarks, and prepare the results for posting a comment.
       - run: bash ./crates/committer_cli/benches/bench_split_and_prepare_post.sh benchmarks_list.txt bench_new.txt
