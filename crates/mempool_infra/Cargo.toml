@@ -13,10 +13,9 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
-bincode.workspace = true    
-serde.workspace = true
+bincode.workspace = true
 hyper.workspace = true
-papyrus_config.workspace = true
+serde.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true

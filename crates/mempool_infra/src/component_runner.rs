@@ -1,9 +1,5 @@
 use async_trait::async_trait;
 
-#[cfg(test)]
-#[path = "component_runner_test.rs"]
-mod component_runner_test;
-
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum ComponentStartError {
     #[error("Error in the component configuration.")]
