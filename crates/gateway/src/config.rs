@@ -89,8 +89,8 @@ impl Default for StatelessTransactionValidatorConfig {
             max_calldata_length: 4000,
             max_signature_length: 4000,
             max_raw_class_size: 4089446,
-            min_sierra_version: VersionId { major: 1, minor: 1, patch: 0 },
-            max_sierra_version: VersionId { major: 1, minor: 5, patch: usize::MAX },
+            min_sierra_version: VersionId::new(1, 1, 0),
+            max_sierra_version: VersionId::new(1, 5, usize::MAX),
         }
     }
 }
