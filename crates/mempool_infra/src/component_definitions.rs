@@ -38,7 +38,7 @@ where
 
 pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 
-#[derive(Debug, Error, Deserialize, Serialize)]
+#[derive(Debug, Error, Deserialize, Serialize, Clone)]
 pub enum ServerError {
     #[error("Could not deserialize client request: {0}")]
     RequestDeserializationFailure(String),
