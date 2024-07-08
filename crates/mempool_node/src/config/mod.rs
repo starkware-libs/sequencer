@@ -45,16 +45,16 @@ impl Default for ComponentExecutionConfig {
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 #[validate(schema(function = "validate_components_config"))]
 pub struct ComponentConfig {
-    pub gateway_component: ComponentExecutionConfig,
-    pub mempool_component: ComponentExecutionConfig,
+    pub gateway: ComponentExecutionConfig,
+    pub mempool: ComponentExecutionConfig,
 }
 
 impl SerializeConfig for ComponentConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         #[allow(unused_mut)]
         let mut sub_configs = vec![
-            append_sub_config_name(self.gateway_component.dump(), "gateway_component"),
-            append_sub_config_name(self.mempool_component.dump(), "mempool_component"),
+            append_sub_config_name(self.gateway.dump(), "gateway"),
+            append_sub_config_name(self.mempool.dump(), "mempool"),
         ];
 
         sub_configs.into_iter().flatten().collect()
@@ -62,7 +62,7 @@ impl SerializeConfig for ComponentConfig {
 }
 
 pub fn validate_components_config(components: &ComponentConfig) -> Result<(), ValidationError> {
-    if components.gateway_component.execute || components.mempool_component.execute {
+    if components.gateway.execute || components.mempool.execute {
         return Ok(());
     }
 
@@ -126,5 +126,5 @@ impl MempoolNodeConfig {
 pub fn node_command() -> Command {
     Command::new("Mempool")
         .version(VERSION_FULL)
-        .about("Mempool is a StarkNet mempool node written in Rust.")
+        .about("Mempool is a Starknet mempool node written in Rust.")
 }

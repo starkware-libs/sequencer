@@ -21,7 +21,7 @@ pub fn create_servers(
     mut communication: MempoolNodeCommunication,
     components: Components,
 ) -> Servers {
-    let gateway_server = if config.components.gateway_component.execute {
+    let gateway_server = if config.components.gateway.execute {
         Some(Box::new(create_gateway_server(
             components.gateway.expect("Gateway is not initialized."),
         )))
@@ -29,7 +29,7 @@ pub fn create_servers(
         None
     };
 
-    let mempool_server = if config.components.mempool_component.execute {
+    let mempool_server = if config.components.mempool.execute {
         Some(Box::new(create_mempool_server(
             components.mempool.expect("Mempool is not initialized."),
             communication.take_mempool_rx(),
@@ -47,11 +47,11 @@ pub async fn run_server_components(
 ) -> anyhow::Result<()> {
     // Gateway component.
     let gateway_future =
-        get_server_future("Gateway", config.components.gateway_component.execute, servers.gateway);
+        get_server_future("Gateway", config.components.gateway.execute, servers.gateway);
 
     // Mempool component.
     let mempool_future =
-        get_server_future("Mempool", config.components.mempool_component.execute, servers.mempool);
+        get_server_future("Mempool", config.components.mempool.execute, servers.mempool);
 
     let gateway_handle = tokio::spawn(gateway_future);
     let mempool_handle = tokio::spawn(mempool_future);

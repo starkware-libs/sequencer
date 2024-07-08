@@ -1,10 +1,10 @@
 {
-  "components.gateway_component.execute": {
+  "components.gateway.execute": {
     "description": "The component execution flag.",
     "privacy": "Public",
     "value": true
   },
-  "components.mempool_component.execute": {
+  "components.mempool.execute": {
     "description": "The component execution flag.",
     "privacy": "Public",
     "value": true

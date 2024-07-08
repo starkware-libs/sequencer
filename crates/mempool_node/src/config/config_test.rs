@@ -20,8 +20,8 @@ use crate::config::{
 fn test_components_config_validation() {
     // Initialize an invalid config and check that the validator finds an error.
     let mut component_config = ComponentConfig {
-        gateway_component: ComponentExecutionConfig { execute: false },
-        mempool_component: ComponentExecutionConfig { execute: false },
+        gateway: ComponentExecutionConfig { execute: false },
+        mempool: ComponentExecutionConfig { execute: false },
     };
 
     assert_matches!(component_config.validate().unwrap_err(), validation_errors => {
@@ -44,8 +44,8 @@ fn test_components_config_validation() {
     for (gateway_component_execute, mempool_component_execute) in
         [(true, false), (false, true), (true, true)]
     {
-        component_config.gateway_component.execute = gateway_component_execute;
-        component_config.mempool_component.execute = mempool_component_execute;
+        component_config.gateway.execute = gateway_component_execute;
+        component_config.mempool.execute = mempool_component_execute;
 
         assert_matches!(component_config.validate(), Ok(()));
     }
