@@ -28,6 +28,16 @@ use std::fmt::Debug;
 #[path = "create_tree_test.rs"]
 pub mod create_tree_test;
 
+/// Logs out a warning of a trivial modification.
+macro_rules! log_trivial_modification {
+    ($index:expr, $value:expr) => {
+        warn!(
+            "Encountered a trivial modification at index {:?}, with value {:?}",
+            $index, $value
+        );
+    };
+}
+
 #[derive(Debug, PartialEq)]
 struct SubTree<'a> {
     pub sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -191,10 +201,7 @@ impl OriginalSkeletonTreeImpl {
                         if config.compare_modified_leaves()
                             && config.compare_leaf(&subtree.root_index, &previous_leaf)?
                         {
-                            warn!(
-                                "Encountered a trivial modification at index {:?}",
-                                subtree.root_index
-                            );
+                            log_trivial_modification!(subtree.root_index, previous_leaf);
                         }
                         if let Some(ref mut leaves) = previous_leaves {
                             leaves.insert(subtree.root_index, previous_leaf);
@@ -347,10 +354,7 @@ impl OriginalSkeletonTreeImpl {
         let empty_leaf = L::default();
         for leaf_index in leaf_indices {
             if config.compare_leaf(leaf_index.borrow(), &empty_leaf)? {
-                warn!(
-                    "Encountered a trivial modification at index {:?}, with value {:?}",
-                    leaf_index, empty_leaf
-                );
+                log_trivial_modification!(leaf_index, empty_leaf);
             }
         }
         Ok(())
