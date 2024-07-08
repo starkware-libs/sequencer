@@ -64,14 +64,12 @@ impl Mempool {
         self.insert_tx(input)
     }
 
-    /// Update the mempool's internal state according to the committed block's transactions.
-    /// This method also updates internal state (resolves nonce gaps, updates account balances).
+    /// Update the mempool's internal state according to the committed block (resolves nonce gaps,
+    /// updates account balances).
     // TODO: the part about resolving nonce gaps is incorrect if we delete txs in get_txs and then
     // push back.
     pub fn commit_block(
         &mut self,
-        _block_number: u64,
-        _txs_in_block: &[TransactionHash],
         _state_changes: HashMap<ContractAddress, AccountState>,
     ) -> MempoolResult<()> {
         todo!()
