@@ -37,7 +37,13 @@ pub async fn test_benchmark_single_tree() {
     let expected_hash = input.get("expected_hash").unwrap();
     assert_eq!(output_hash.as_str().unwrap(), expected_hash);
 
-    // TODO: Assert the storage changes.
+    // Assert the storage changes.
+    let Value::Object(storage_changes) = output_map.get("storage_changes").unwrap() else {
+        panic!("Expected storage changes object to be an object.");
+    };
+    let expected_storage_changes: Map<String, Value> =
+        serde_json::from_str(input.get("expected_storage_changes").unwrap()).unwrap();
+    assert_eq!(storage_changes, &expected_storage_changes);
 
     // 4. Assert the execution time does not exceed the threshold.
     assert!(execution_time.as_secs_f64() < MAX_TIME_FOR_SINGLE_TREE_BECHMARK_TEST);
