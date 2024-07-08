@@ -4,6 +4,7 @@ use starknet_api::rpc_transaction::RPCTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway::config::GatewayNetworkConfig;
 use starknet_gateway::errors::GatewayError;
+use starknet_mempool_infra::trace_util::configure_tracing;
 use starknet_mempool_node::communication::{create_node_channels, create_node_clients};
 use starknet_mempool_node::components::create_components;
 use starknet_mempool_node::servers::{create_servers, get_server_future};
@@ -28,6 +29,9 @@ impl IntegrationTestSetup {
     pub async fn new(n_accounts: usize) -> Self {
         let handle = Handle::current();
         let task_executor = TokioExecutor::new(handle);
+
+        // Configure and start tracing
+        configure_tracing();
 
         // Spawn a papyrus rpc server for a papyrus storage reader.
         let rpc_server_addr = spawn_test_rpc_state_reader(n_accounts).await;
