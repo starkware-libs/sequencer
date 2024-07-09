@@ -1,14 +1,14 @@
 use assert_matches::assert_matches;
+use mempool_test_utils::declare_tx_args;
+use mempool_test_utils::starknet_api_test_utils::{
+    create_resource_bounds_mapping, external_declare_tx, external_tx_for_testing,
+    zero_resource_bounds_mapping, TransactionType, NON_EMPTY_RESOURCE_BOUNDS,
+};
 use rstest::rstest;
 use starknet_api::rpc_transaction::{ContractClass, ResourceBoundsMapping};
 use starknet_api::transaction::{Calldata, Resource, ResourceBounds, TransactionSignature};
 use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
-use test_utils::declare_tx_args;
-use test_utils::starknet_api_test_utils::{
-    create_resource_bounds_mapping, external_declare_tx, external_tx_for_testing,
-    zero_resource_bounds_mapping, TransactionType, NON_EMPTY_RESOURCE_BOUNDS,
-};
 
 use crate::compiler_version::{VersionId, VersionIdError};
 use crate::config::StatelessTransactionValidatorConfig;

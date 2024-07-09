@@ -3,7 +3,7 @@ use std::path::Path;
 
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::allowed_libfuncs::AllowedLibfuncsError;
-use test_utils::{get_absolute_path, FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
+use mempool_test_utils::{get_absolute_path, FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 
 use crate::compile::{compile_sierra_to_casm, CompilationUtilError};
 use crate::test_utils::contract_class_from_file;

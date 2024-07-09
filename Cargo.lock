@@ -3365,6 +3365,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mempool_test_utils"
+version = "0.0.0"
+dependencies = [
+ "assert_matches",
+ "blockifier",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+]
+
+[[package]]
 name = "metrics"
 version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5302,6 +5313,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "cairo-vm",
  "hyper",
+ "mempool_test_utils",
  "num-bigint",
  "num-traits 0.2.19",
  "papyrus_config",
@@ -5317,7 +5329,6 @@ dependencies = [
  "starknet_mempool_infra",
  "starknet_mempool_types",
  "starknet_sierra_compile",
- "test_utils",
  "thiserror",
  "tokio",
  "tracing",
@@ -5365,6 +5376,7 @@ dependencies = [
  "blockifier",
  "cairo-lang-starknet-classes",
  "indexmap 2.2.6",
+ "mempool_test_utils",
  "papyrus_common",
  "papyrus_rpc",
  "papyrus_storage",
@@ -5382,7 +5394,6 @@ dependencies = [
  "starknet_task_executor",
  "strum 0.24.1",
  "tempfile",
- "test_utils",
  "tokio",
 ]
 
@@ -5397,6 +5408,7 @@ dependencies = [
  "colored",
  "const_format",
  "futures",
+ "mempool_test_utils",
  "papyrus_config",
  "pretty_assertions",
  "serde",
@@ -5405,7 +5417,6 @@ dependencies = [
  "starknet_mempool",
  "starknet_mempool_infra",
  "starknet_mempool_types",
- "test_utils",
  "tokio",
  "tracing",
  "validator",
@@ -5429,11 +5440,11 @@ dependencies = [
  "cairo-lang-sierra",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
+ "mempool_test_utils",
  "serde",
  "serde_json",
  "starknet-types-core",
  "starknet_api",
- "test_utils",
  "thiserror",
 ]
 
@@ -5640,17 +5651,6 @@ dependencies = [
  "dirs-next",
  "rustversion",
  "winapi",
-]
-
-[[package]]
-name = "test_utils"
-version = "0.0.0"
-dependencies = [
- "assert_matches",
- "blockifier",
- "serde_json",
- "starknet-types-core",
- "starknet_api",
 ]
 
 [[package]]

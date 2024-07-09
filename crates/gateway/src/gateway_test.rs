@@ -6,6 +6,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::CairoVersion;
+use mempool_test_utils::starknet_api_test_utils::{declare_tx, deploy_account_tx, invoke_tx};
 use rstest::{fixture, rstest};
 use starknet_api::rpc_transaction::RPCTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -13,7 +14,6 @@ use starknet_mempool::communication::create_mempool_server;
 use starknet_mempool::mempool::Mempool;
 use starknet_mempool_infra::component_server::ComponentServerStarter;
 use starknet_mempool_types::communication::{MempoolClientImpl, MempoolRequestAndResponseSender};
-use test_utils::starknet_api_test_utils::{declare_tx, deploy_account_tx, invoke_tx};
 use tokio::sync::mpsc::channel;
 use tokio::task;
 

@@ -29,7 +29,7 @@ starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }
 starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
 starknet_sierra_compile = { path = "../starknet_sierra_compile", version = "0.0" }
 starknet-types-core.workspace = true
-test_utils = { path = "../test_utils", version = "0.0"}
+mempool_test_utils = { path = "../mempool_test_utils", version = "0.0"}
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true

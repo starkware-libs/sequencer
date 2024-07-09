@@ -11,6 +11,9 @@ use blockifier::test_utils::{
 use blockifier::transaction::objects::FeeType;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::{indexmap, IndexMap};
+use mempool_test_utils::starknet_api_test_utils::{
+    deploy_account_tx, deployed_account_contract_address,
+};
 use papyrus_common::pending_classes::PendingClasses;
 use papyrus_common::BlockHashAndNumber;
 use papyrus_rpc::{run_server, RpcConfig};
@@ -31,7 +34,6 @@ use starknet_client::reader::PendingData;
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use tempfile::tempdir;
-use test_utils::starknet_api_test_utils::{deploy_account_tx, deployed_account_contract_address};
 use tokio::sync::RwLock;
 
 use crate::integration_test_utils::get_available_socket;

@@ -1,7 +1,7 @@
 use blockifier::test_utils::CairoVersion;
+use mempool_test_utils::starknet_api_test_utils::{deploy_account_tx, invoke_tx};
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_integration_tests::integration_test_setup::IntegrationTestSetup;
-use test_utils::starknet_api_test_utils::{deploy_account_tx, invoke_tx};
 
 #[tokio::test]
 async fn test_end_to_end() {

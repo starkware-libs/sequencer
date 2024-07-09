@@ -5,9 +5,9 @@ use std::fs::File;
 use assert_json_diff::assert_json_eq;
 use assert_matches::assert_matches;
 use colored::Colorize;
+use mempool_test_utils::get_absolute_path;
 use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::validators::{ParsedValidationError, ParsedValidationErrors};
-use test_utils::get_absolute_path;
 use validator::Validate;
 
 use crate::config::{

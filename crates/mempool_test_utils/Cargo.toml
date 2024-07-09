@@ -1,5 +1,5 @@
 [package]
-name = "test_utils"
+name = "mempool_test_utils"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true

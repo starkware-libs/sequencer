@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 
 use axum::body::Body;
+use mempool_test_utils::starknet_api_test_utils::external_tx_to_json;
 use reqwest::{Client, Response};
 use starknet_api::rpc_transaction::RPCTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -10,7 +11,6 @@ use starknet_gateway::config::{
 };
 use starknet_gateway::errors::GatewayError;
 use starknet_mempool_node::config::MempoolNodeConfig;
-use test_utils::starknet_api_test_utils::external_tx_to_json;
 use tokio::net::TcpListener;
 
 async fn create_gateway_config() -> GatewayConfig {

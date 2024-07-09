@@ -1,10 +1,10 @@
 use assert_matches::assert_matches;
 use blockifier::execution::contract_class::ContractClass;
 use cairo_lang_starknet_classes::allowed_libfuncs::AllowedLibfuncsError;
+use mempool_test_utils::starknet_api_test_utils::declare_tx;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::rpc_transaction::{RPCDeclareTransaction, RPCTransaction};
 use starknet_sierra_compile::errors::CompilationUtilError;
-use test_utils::starknet_api_test_utils::declare_tx;
 
 use crate::compilation::compile_contract_class;
 use crate::errors::GatewayError;

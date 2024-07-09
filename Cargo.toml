@@ -7,7 +7,7 @@ members = [
     "crates/mempool_types",
     "crates/starknet_sierra_compile",
     "crates/task_executor",
-    "crates/test_utils",
+    "crates/mempool_test_utils",
     "crates/tests-integration",
 ]
 resolver = "2"

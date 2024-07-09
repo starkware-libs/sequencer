@@ -9,12 +9,12 @@ use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::initial_test_state::{fund_account, test_state};
 use blockifier::test_utils::{CairoVersion, BALANCE};
 use blockifier::versioned_constants::VersionedConstants;
+use mempool_test_utils::starknet_api_test_utils::deployed_account_contract_address;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::rpc_transaction::RPCTransaction;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
-use test_utils::starknet_api_test_utils::deployed_account_contract_address;
 
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 
