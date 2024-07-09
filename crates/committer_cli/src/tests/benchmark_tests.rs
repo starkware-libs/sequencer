@@ -28,7 +28,7 @@ struct CommitterRegressionInput {
 struct TreeRegressionInput {
     tree_flow_input: TreeFlowInput,
     expected_hash: String,
-    expected_storage_changes: String,
+    expected_storage_changes: Map<String, Value>,
 }
 
 // TODO(Aner, 9/8/24): remove this impl and use the Deserialize derive, by changing the input format.
@@ -41,7 +41,10 @@ impl<'de> Deserialize<'de> for TreeRegressionInput {
         Ok(Self {
             tree_flow_input: parse_input_single_storage_tree_flow_test(&map),
             expected_hash: map.get("expected_hash").unwrap().to_string(),
-            expected_storage_changes: map.get("expected_storage_changes").unwrap().to_string(),
+            expected_storage_changes: serde_json::from_str(
+                map.get("expected_storage_changes").unwrap(),
+            )
+            .unwrap(),
         })
     }
 }
@@ -75,8 +78,7 @@ pub async fn test_benchmark_single_tree() {
     let Value::Object(storage_changes) = output_map.get("storage_changes").unwrap() else {
         panic!("Expected storage changes object to be an object.");
     };
-    let expected_storage_changes: Map<String, Value> =
-        serde_json::from_str(&expected_storage_changes).unwrap();
+
     assert_eq!(storage_changes, &expected_storage_changes);
 
     // 4. Assert the execution time does not exceed the threshold.
