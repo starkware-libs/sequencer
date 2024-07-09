@@ -122,6 +122,18 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
                  value.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "max_bytecode_size",
+                &self.max_bytecode_size,
+                "Validates that a transaction has bytecode size less than or equal to this value.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_raw_class_size",
+                &self.max_raw_class_size,
+                "Validates that a transaction has raw class size less than or equal to this value.",
+                ParamPrivacyInput::Public,
+            ),
         ]);
         vec![
             members,
