@@ -4,7 +4,7 @@ import argparse
 import re
 import subprocess
 import os
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Optional
 from git import Repo
 
 PATTERN = r"(\w+)\s*v([\d.]*.*)\((.*?)\)"
@@ -60,7 +60,7 @@ def get_package_dependencies(package_name: str) -> Set[str]:
     return deps
 
 
-def run_test(changes_only: bool):
+def run_test(changes_only: bool, features: Optional[str] = None):
     local_changes = get_local_changes(".")
     modified_packages = get_modified_packages(local_changes)
     args = []
@@ -74,6 +74,10 @@ def run_test(changes_only: bool):
             print("No changes detected.")
             return
     cmd = ["cargo", "test"] + args
+
+    if features is not None:
+        cmd.extend(["--features", features])
+
     print("Running tests...")
     print(cmd)
     subprocess.run(cmd)
@@ -82,12 +86,15 @@ def run_test(changes_only: bool):
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Presubmit script.")
     parser.add_argument("--changes_only", action="store_true")
+    parser.add_argument(
+        "--features", type=str, help="Which services to deploy. For multi services separate by ','."
+    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    run_test(changes_only=args.changes_only)
+    run_test(changes_only=args.changes_only, features=args.features)
 
 
 if __name__ == "__main__":
