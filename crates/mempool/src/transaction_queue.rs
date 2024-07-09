@@ -9,7 +9,7 @@ use crate::mempool::TransactionReference;
 // at a time. When this changes, saving the transactions themselves on the queu might no longer be
 // appropriate, because we'll also need to stores transactions without indexing them. For example,
 // transactions with future nonces will need to be stored, and potentially indexed on block commits.
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub struct TransactionQueue {
     // Priority queue of transactions with associated priority.
     queue: BTreeSet<QueuedTransaction>,
