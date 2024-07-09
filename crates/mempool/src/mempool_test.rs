@@ -19,29 +19,29 @@ fn add_tx(mempool: &mut Mempool, input: &MempoolInput) {
 
 /// Creates a valid input for mempool's `add_tx` with optional default values.
 /// Usage:
-/// 1. add_tx_input!(tip: 1, tx_hash: Felt::TWO, sender_address: 3_u8, nonce: 4)
-/// 2. add_tx_input!(tip: 1, tx_hash: Felt::TWO, sender_address: 3_u8)
-/// 3. add_tx_input!(tip:1 , tx_hash: Felt::TWO)
+/// 1. add_tx_input!(tip: 1, tx_hash: 2, sender_address: 3_u8, tx_nonce: 4)
+/// 2. add_tx_input!(tip: 1, tx_hash: 2, sender_address: 3_u8)
+/// 3. add_tx_input!(tip: 1, tx_hash: 2)
 macro_rules! add_tx_input {
     // Pattern for all four arguments with keyword arguments.
-    (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, nonce: $nonce:expr) => {{
+    (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, tx_nonce: $tx_nonce:expr) => {{
         let sender_address = contract_address!($sender_address);
         let account = Account { sender_address, ..Default::default() };
         let tx = ThinTransaction {
             tip: Tip($tip),
             tx_hash: TransactionHash(StarkHash::from($tx_hash)),
             sender_address,
-            nonce: Nonce(felt!($nonce)),
+            nonce: Nonce(felt!($tx_nonce)),
         };
         MempoolInput { tx, account }
     }};
     // Pattern for three arguments.
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr) => {
-        add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, nonce: 0_u8)
+        add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: 0_u8)
     };
     // Pattern for two arguments.
     (tip: $tip:expr, tx_hash: $tx_hash:expr) => {
-        add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: "0x0", nonce: 0_u8)
+        add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: 0_u8)
     };
 }
 
