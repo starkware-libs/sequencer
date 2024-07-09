@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use starknet_mempool_infra::component_client::ClientResult;
 
 pub(crate) type ValueA = u32;
@@ -8,6 +9,26 @@ pub(crate) type ResultA = ClientResult<ValueA>;
 pub(crate) type ResultB = ClientResult<ValueB>;
 
 // TODO(Tsabary): add more messages / functions to the components.
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum ComponentARequest {
+    AGetValue,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum ComponentAResponse {
+    Value(ValueA),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum ComponentBRequest {
+    BGetValue,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum ComponentBResponse {
+    Value(ValueB),
+}
 
 #[async_trait]
 pub(crate) trait ComponentAClientTrait: Send + Sync {

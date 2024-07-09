@@ -4,10 +4,13 @@ use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 
 use async_trait::async_trait;
 use bincode::serialize;
-use common::{ComponentAClientTrait, ComponentBClientTrait, ResultA, ResultB};
+use common::{
+    ComponentAClientTrait, ComponentARequest, ComponentAResponse, ComponentBClientTrait,
+    ComponentBRequest, ComponentBResponse, ResultA, ResultB,
+};
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server, StatusCode};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use starknet_mempool_infra::component_client::ComponentClientHttp;
 use starknet_mempool_infra::component_definitions::{ComponentRequestHandler, ServerError};
 use starknet_mempool_infra::component_server::ComponentServerHttp;
@@ -25,18 +28,6 @@ const UNCONNECTED_SERVER_PORT: u16 = 10002;
 const FAULTY_SERVER_REQ_DESER_PORT: u16 = 10003;
 const FAULTY_SERVER_RES_DESER_PORT: u16 = 10004;
 
-// Todo(uriel): Move to common
-#[derive(Serialize, Deserialize, Debug)]
-pub enum ComponentARequest {
-    AGetValue,
-}
-
-// Todo(uriel): Move to common
-#[derive(Serialize, Deserialize, Debug)]
-pub enum ComponentAResponse {
-    Value(ValueA),
-}
-
 #[async_trait]
 impl ComponentAClientTrait for ComponentClientHttp<ComponentARequest, ComponentAResponse> {
     async fn a_get_value(&self) -> ResultA {
@@ -53,18 +44,6 @@ impl ComponentRequestHandler<ComponentARequest, ComponentAResponse> for Componen
             ComponentARequest::AGetValue => ComponentAResponse::Value(self.a_get_value().await),
         }
     }
-}
-
-// Todo(uriel): Move to common
-#[derive(Serialize, Deserialize, Debug)]
-pub enum ComponentBRequest {
-    BGetValue,
-}
-
-// Todo(uriel): Move to common
-#[derive(Serialize, Deserialize, Debug)]
-pub enum ComponentBResponse {
-    Value(ValueB),
 }
 
 #[async_trait]
