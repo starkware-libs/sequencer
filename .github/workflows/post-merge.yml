@@ -16,13 +16,15 @@ jobs:
           toolchain: nightly-2024-01-12
       - uses: Swatinem/rust-cache@v2
 
+      # Fetch testing artifacts.
       - id: auth
         uses: "google-github-actions/auth@v2"
         with:
           credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
       - uses: 'google-github-actions/setup-gcloud@v2'
-      - run: gcloud storage cp gs://committer-products-external/tree_flow_inputs.json ./crates/committer_cli/benches/tree_flow_inputs.json
-      - run: gcloud storage cp gs://committer-products-external/committer_flow_inputs.json ./crates/committer_cli/benches/committer_flow_inputs.json
-      
+      - run: echo "INPUT_FILES_PREFIX=$(cat ./crates/committer_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
+      - run: gcloud storage cp gs://committer-testing-artifacts/$INPUT_FILES_PREFIX/tree_flow_inputs.json ./crates/committer_cli/benches/tree_flow_inputs.json
+      - run: gcloud storage cp gs://committer-testing-artifacts/$INPUT_FILES_PREFIX/committer_flow_inputs.json ./crates/committer_cli/benches/committer_flow_inputs.json
+
       - run:
           cargo test --release -- --include-ignored
