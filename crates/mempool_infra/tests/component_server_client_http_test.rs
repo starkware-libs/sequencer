@@ -89,6 +89,48 @@ async fn verify_response(a_client: ComponentAClient, expected_value: ValueA) {
     assert_eq!(a_client.a_get_value().await.unwrap(), expected_value);
 }
 
+async fn verify_error(a_client: ComponentAClient, expected_error_contained_keywords: Vec<&str>) {
+    let Err(error) = a_client.a_get_value().await else {
+        panic!("Expected an error.");
+    };
+    assert_error_contains_keywords(error.to_string(), expected_error_contained_keywords)
+}
+
+fn assert_error_contains_keywords(error: String, expected_error_contained_keywords: Vec<&str>) {
+    for expected_keyword in expected_error_contained_keywords {
+        if !error.contains(expected_keyword) {
+            panic!("Expected keyword: '{expected_keyword}' is not in error: '{error}'.")
+        }
+    }
+}
+
+async fn spawn_faulty_server<T>(ip: IpAddr, port: u16, body: T)
+where
+    T: Serialize + Send + Sync + 'static + Clone,
+{
+    task::spawn(async move {
+        async fn handler<T: Serialize>(
+            _http_request: Request<Body>,
+            body: T,
+        ) -> Result<Response<Body>, hyper::Error> {
+            Ok(Response::builder()
+                .status(StatusCode::BAD_REQUEST)
+                .body(Body::from(serialize(&body).unwrap()))
+                .unwrap())
+        }
+
+        let socket = SocketAddr::new(ip, port);
+        let make_svc = make_service_fn(|_conn| {
+            let body = body.clone();
+            async move { Ok::<_, hyper::Error>(service_fn(move |req| handler(req, body.clone()))) }
+        });
+        Server::bind(&socket).serve(make_svc).await.unwrap();
+    });
+
+    // Ensure the server starts running.
+    task::yield_now().await;
+}
+
 #[tokio::test]
 async fn test_setup() {
     let setup_value: ValueB = 90;
@@ -125,54 +167,12 @@ async fn test_setup() {
     verify_response(a_client.clone(), expected_value).await;
 }
 
-async fn verify_error(a_client: ComponentAClient, expected_error_contained_keywords: Vec<&str>) {
-    let Err(error) = a_client.a_get_value().await else {
-        panic!("Expected an error.");
-    };
-    assert_error_contains_keywords(error.to_string(), expected_error_contained_keywords)
-}
-
-fn assert_error_contains_keywords(error: String, expected_error_contained_keywords: Vec<&str>) {
-    for expected_keyword in expected_error_contained_keywords {
-        if !error.contains(expected_keyword) {
-            panic!("Expected keyword: '{expected_keyword}' is not in error: '{error}'.")
-        }
-    }
-}
-
 #[tokio::test]
 async fn test_unconnected_server() {
     let client = ComponentAClient::new(LOCAL_IP, UNCONNECTED_SERVER_PORT);
 
     let expected_error_contained_keywords = vec!["Connection refused"];
     verify_error(client.clone(), expected_error_contained_keywords).await;
-}
-
-async fn spawn_faulty_server<T>(ip: IpAddr, port: u16, body: T)
-where
-    T: Serialize + Send + Sync + 'static + Clone,
-{
-    task::spawn(async move {
-        async fn handler<T: Serialize>(
-            _http_request: Request<Body>,
-            body: T,
-        ) -> Result<Response<Body>, hyper::Error> {
-            Ok(Response::builder()
-                .status(StatusCode::BAD_REQUEST)
-                .body(Body::from(serialize(&body).unwrap()))
-                .unwrap())
-        }
-
-        let socket = SocketAddr::new(ip, port);
-        let make_svc = make_service_fn(|_conn| {
-            let body = body.clone();
-            async move { Ok::<_, hyper::Error>(service_fn(move |req| handler(req, body.clone()))) }
-        });
-        Server::bind(&socket).serve(make_svc).await.unwrap();
-    });
-
-    // Ensure the server starts running.
-    task::yield_now().await;
 }
 
 #[tokio::test]
