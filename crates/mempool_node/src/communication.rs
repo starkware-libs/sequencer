@@ -13,7 +13,7 @@ pub struct MempoolNodeCommunication {
 }
 
 impl MempoolNodeCommunication {
-    pub fn take_mempool_tx(&self) -> Sender<MempoolRequestAndResponseSender> {
+    pub fn take_mempool_tx(&mut self) -> Sender<MempoolRequestAndResponseSender> {
         self.mempool_channel.take_tx()
     }
     pub fn take_mempool_rx(&mut self) -> Receiver<MempoolRequestAndResponseSender> {
@@ -43,7 +43,7 @@ impl MempoolNodeClients {
 
 pub fn create_node_clients(
     config: &MempoolNodeConfig,
-    channels: &MempoolNodeCommunication,
+    channels: &mut MempoolNodeCommunication,
 ) -> MempoolNodeClients {
     let mempool_client: Option<SharedMempoolClient> = match config.components.gateway.execute {
         true => Some(Arc::new(MempoolClientImpl::new(channels.take_mempool_tx()))),

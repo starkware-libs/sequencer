@@ -18,8 +18,8 @@ impl<T: Send + Sync> ComponentCommunication<T> {
         Self { tx, rx }
     }
 
-    pub fn take_tx(&self) -> Sender<T> {
-        self.tx.to_owned().expect("Sender should be available, could be taken only once")
+    pub fn take_tx(&mut self) -> Sender<T> {
+        self.tx.take().expect("Sender should be available, could be taken only once")
     }
 
     pub fn take_rx(&mut self) -> Receiver<T> {

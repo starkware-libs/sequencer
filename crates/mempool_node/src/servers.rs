@@ -18,7 +18,7 @@ pub struct Servers {
 
 pub fn create_servers(
     config: &MempoolNodeConfig,
-    mut communication: MempoolNodeCommunication,
+    communication: &mut MempoolNodeCommunication,
     components: Components,
 ) -> Servers {
     let gateway_server = if config.components.gateway.execute {

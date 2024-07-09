@@ -25,10 +25,10 @@ async fn main() -> anyhow::Result<()> {
         exit(1);
     }
 
-    let channels = create_node_channels();
-    let clients = create_node_clients(&config, &channels);
+    let mut channels = create_node_channels();
+    let clients = create_node_clients(&config, &mut channels);
     let components = create_components(&config, &clients);
-    let servers = create_servers(&config, channels, components);
+    let servers = create_servers(&config, &mut channels, components);
 
     info!("Starting components!");
     run_server_components(&config, servers).await?;

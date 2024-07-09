@@ -40,16 +40,16 @@ impl IntegrationTestSetup {
         let config = create_config(rpc_server_addr).await;
 
         // Create the communication network for the mempool node.
-        let channels = create_node_channels();
+        let mut channels = create_node_channels();
 
         // Create the clients for the mempool node.
-        let clients = create_node_clients(&config, &channels);
+        let clients = create_node_clients(&config, &mut channels);
 
         // Create the components for the mempool node.
         let components = create_components(&config, &clients);
 
         // Create the servers for the mempool node.
-        let servers = create_servers(&config, channels, components);
+        let servers = create_servers(&config, &mut channels, components);
 
         let GatewayNetworkConfig { ip, port } = config.gateway_config.network_config;
         let gateway_client = GatewayClient::new(SocketAddr::from((ip, port)));
