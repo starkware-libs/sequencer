@@ -14,14 +14,15 @@ pub struct TransactionQueue {
     // Priority queue of transactions with associated priority.
     queue: BTreeSet<QueuedTransaction>,
     // Set of account addresses for efficient existence checks.
-    address_to_nonce: HashMap<ContractAddress, Nonce>,
+    // TODO(Mohammad): change to mapping to `QueuedTransaction`.
+    address_to_tx: HashMap<ContractAddress, Nonce>,
 }
 
 impl TransactionQueue {
     /// Adds a transaction to the mempool, ensuring unique keys.
     /// Panics: if given a duplicate tx.
     pub fn insert(&mut self, tx: TransactionReference) {
-        assert_eq!(self.address_to_nonce.insert(tx.sender_address, tx.nonce), None);
+        assert_eq!(self.address_to_tx.insert(tx.sender_address, tx.nonce), None);
         assert!(
             self.queue.insert(tx.into()),
             "Keys should be unique; duplicates are checked prior."
@@ -33,7 +34,7 @@ impl TransactionQueue {
         let txs: Vec<TransactionReference> =
             (0..n_txs).filter_map(|_| self.queue.pop_last().map(|tx| tx.0)).collect();
         for tx in &txs {
-            self.address_to_nonce.remove(&tx.sender_address);
+            self.address_to_tx.remove(&tx.sender_address);
         }
 
         txs.into_iter().map(|tx| tx.tx_hash).collect()
@@ -46,7 +47,7 @@ impl TransactionQueue {
     }
 
     pub fn _get_nonce(&self, address: &ContractAddress) -> Option<&Nonce> {
-        self.address_to_nonce.get(address)
+        self.address_to_tx.get(address)
     }
 }
 
