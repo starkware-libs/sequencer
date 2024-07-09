@@ -4,23 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'crates/papyrus_base_layer/**'
-      - 'crates/papyrus_common/**'
-      - 'crates/papyrus_config/**'
-      - 'crates/papyrus_execution/**'
-      - 'crates/papyrus_load_test/**'
-      - 'crates/papyrus_monitoring_gateway/**'
-      - 'crates/papyrus_network/**'
-      - 'crates/papyrus_node/**'
-      - 'crates/papyrus_p2p_sync/**'
-      - 'crates/papyrus_proc_macros/**'
-      - 'crates/papyrus_rpc/**'
-      - 'crates/papyrus_storage/**'
-      - 'crates/papyrus_sync/**'
-      - 'crates/papyrus_protobuf/**'
-      - 'crates/papyrus_test_utils/**'
-      - 'crates/sequencing/papyrus_block_builder/**'
-      - 'crates/sequencing/papyrus_consensus/**'
+      - 'crates/papyrus**/**'
 
   pull_request:
     types:
@@ -30,23 +14,7 @@ on:
       - auto_merge_enabled
       - edited # for when the PR title is edited
     paths:
-      - 'crates/papyrus_base_layer/**'
-      - 'crates/papyrus_common/**'
-      - 'crates/papyrus_config/**'
-      - 'crates/papyrus_execution/**'
-      - 'crates/papyrus_load_test/**'
-      - 'crates/papyrus_monitoring_gateway/**'
-      - 'crates/papyrus_network/**'
-      - 'crates/papyrus_node/**'
-      - 'crates/papyrus_p2p_sync/**'
-      - 'crates/papyrus_proc_macros/**'
-      - 'crates/papyrus_rpc/**'
-      - 'crates/papyrus_storage/**'
-      - 'crates/papyrus_sync/**'
-      - 'crates/papyrus_protobuf/**'
-      - 'crates/papyrus_test_utils/**'
-      - 'crates/sequencing/papyrus_block_builder/**'
-      - 'crates/sequencing/papyrus_consensus/**'
+      - 'crates/papyrus**/**'
 
   merge_group:
     types: [checks_requested]

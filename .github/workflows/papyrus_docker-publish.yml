@@ -6,43 +6,12 @@ on:
     branches: [main]
     tags: ["v*.*.*"]
     paths:
-      - 'crates/papyrus_base_layer/**'
-      - 'crates/papyrus_common/**'
-      - 'crates/papyrus_config/**'
-      - 'crates/papyrus_execution/**'
-      - 'crates/papyrus_load_test/**'
-      - 'crates/papyrus_monitoring_gateway/**'
-      - 'crates/papyrus_network/**'
-      - 'crates/papyrus_node/**'
-      - 'crates/papyrus_p2p_sync/**'
-      - 'crates/papyrus_proc_macros/**'
-      - 'crates/papyrus_rpc/**'
-      - 'crates/papyrus_storage/**'
-      - 'crates/papyrus_sync/**'
-      - 'crates/papyrus_protobuf/**'
-      - 'crates/papyrus_test_utils/**'
-      - 'crates/sequencing/papyrus_block_builder/**'
-      - 'crates/sequencing/papyrus_consensus/**'
+      - 'crates/papyrus**/**'
 
   pull_request:
     paths:
-      - 'crates/papyrus_base_layer/**'
-      - 'crates/papyrus_common/**'
-      - 'crates/papyrus_config/**'
-      - 'crates/papyrus_execution/**'
-      - 'crates/papyrus_load_test/**'
-      - 'crates/papyrus_monitoring_gateway/**'
-      - 'crates/papyrus_network/**'
-      - 'crates/papyrus_node/**'
-      - 'crates/papyrus_p2p_sync/**'
-      - 'crates/papyrus_proc_macros/**'
-      - 'crates/papyrus_rpc/**'
-      - 'crates/papyrus_storage/**'
-      - 'crates/papyrus_sync/**'
-      - 'crates/papyrus_protobuf/**'
-      - 'crates/papyrus_test_utils/**'
-      - 'crates/sequencing/papyrus_block_builder/**'
-      - 'crates/sequencing/papyrus_consensus/**'
+      - 'crates/papyrus**/**'
+
 env:
   REGISTRY: ghcr.io
   REPO_NAME: ${{ github.repository }}

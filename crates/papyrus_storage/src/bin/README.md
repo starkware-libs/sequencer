@@ -37,3 +37,5 @@ This tool allows you to dump the entire `declared_classes` table from Papyrus st
    ```
 
    The default value for file_path is `dump_declared_classes.json`.
+
+
