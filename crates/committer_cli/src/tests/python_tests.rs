@@ -37,6 +37,7 @@ use std::{collections::HashMap, io};
 use thiserror;
 
 use super::utils::objects::{get_thin_state_diff, get_transaction_output_for_hash, get_tx_data};
+use super::utils::parse_from_python::TreeFlowInput;
 
 // Enum representing different Python tests.
 pub enum PythonTest {
@@ -170,16 +171,18 @@ impl PythonTest {
                 Ok(parse_tx_data_test(tx_data))
             }
             Self::SerializeForRustCommitterFlowTest => {
+                // TODO(Aner, 8/7/2024): refactor using structs for deserialization.
                 let input: HashMap<String, String> =
                     serde_json::from_str(Self::non_optional_input(input)?)?;
                 Ok(serialize_for_rust_committer_flow_test(input))
             }
             Self::ComputeHashSingleTree => {
                 // 1. Get and deserialize input.
-                let input: HashMap<String, String> =
-                    serde_json::from_str(Self::non_optional_input(input)?)?;
-                let (leaf_modifications, storage, root_hash) =
-                    parse_input_single_storage_tree_flow_test(&input);
+                let TreeFlowInput {
+                    leaf_modifications,
+                    storage,
+                    root_hash,
+                } = serde_json::from_str(Self::non_optional_input(input)?)?;
                 // 2. Run the test.
                 let output = single_tree_flow_test(leaf_modifications, storage, root_hash).await;
                 // 3. Serialize and return output.
@@ -197,9 +200,13 @@ impl PythonTest {
 }
 
 // Test that the fetching of the input to flow test is working.
+// TODO(Aner, 8/7/2024): refactor using structs for deserialization and rename the function.
 fn serialize_for_rust_committer_flow_test(input: HashMap<String, String>) -> String {
-    let (leaf_modifications, storage, root_hash) =
-        parse_input_single_storage_tree_flow_test(&input);
+    let TreeFlowInput {
+        leaf_modifications,
+        storage,
+        root_hash,
+    } = parse_input_single_storage_tree_flow_test(&input);
     // Serialize the leaf modifications to an object that can be JSON-serialized.
     let leaf_modifications_to_print: HashMap<String, Vec<u8>> = leaf_modifications
         .into_iter()

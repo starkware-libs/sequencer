@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use committer::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use serde_json::{Map, Value};
 
-use crate::{
-    commands::commit, tests::utils::parse_from_python::parse_input_single_storage_tree_flow_test,
-};
+use crate::{commands::commit, tests::utils::parse_from_python::TreeFlowInput};
+
+use super::utils::parse_from_python::parse_input_single_storage_tree_flow_test;
 
 //TODO(Aner, 20/06/2024): these tests needs to be fixed to be run correctly in the CI:
 //1. Fix the test to measure cpu_time and not wall_time.
@@ -25,12 +25,40 @@ struct CommitterRegressionInput {
     expected_facts: String,
 }
 
+struct TreeRegressionInput {
+    tree_flow_input: TreeFlowInput,
+    expected_hash: String,
+    expected_storage_changes: String,
+}
+
+// TODO(Aner, 9/8/24): remove this impl and use the Deserialize derive, by changing the input format.
+impl<'de> Deserialize<'de> for TreeRegressionInput {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let map = HashMap::deserialize(deserializer)?;
+        Ok(Self {
+            tree_flow_input: parse_input_single_storage_tree_flow_test(&map),
+            expected_hash: map.get("expected_hash").unwrap().to_string(),
+            expected_storage_changes: map.get("expected_storage_changes").unwrap().to_string(),
+        })
+    }
+}
+
 #[ignore = "To avoid running the benchmark test in Coverage or without the --release flag."]
 #[tokio::test(flavor = "multi_thread")]
 pub async fn test_benchmark_single_tree() {
-    let input: HashMap<String, String> = serde_json::from_str(SINGLE_TREE_FLOW_INPUT).unwrap();
-    let (leaf_modifications, storage, root_hash) =
-        parse_input_single_storage_tree_flow_test(&input);
+    let TreeRegressionInput {
+        tree_flow_input:
+            TreeFlowInput {
+                leaf_modifications,
+                storage,
+                root_hash,
+            },
+        expected_hash,
+        expected_storage_changes,
+    } = serde_json::from_str(SINGLE_TREE_FLOW_INPUT).unwrap();
 
     let start = std::time::Instant::now();
     // Benchmark the single tree flow test.
@@ -41,7 +69,6 @@ pub async fn test_benchmark_single_tree() {
     // TODO(Aner, 8/7/2024): use structs for deserialization.
     let output_map: HashMap<&str, Value> = serde_json::from_str(&output).unwrap();
     let output_hash = output_map.get("root_hash").unwrap();
-    let expected_hash = input.get("expected_hash").unwrap();
     assert_eq!(output_hash.as_str().unwrap(), expected_hash);
 
     // Assert the storage changes.
@@ -49,7 +76,7 @@ pub async fn test_benchmark_single_tree() {
         panic!("Expected storage changes object to be an object.");
     };
     let expected_storage_changes: Map<String, Value> =
-        serde_json::from_str(input.get("expected_storage_changes").unwrap()).unwrap();
+        serde_json::from_str(&expected_storage_changes).unwrap();
     assert_eq!(storage_changes, &expected_storage_changes);
 
     // 4. Assert the execution time does not exceed the threshold.
