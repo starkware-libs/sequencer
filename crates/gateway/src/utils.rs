@@ -6,11 +6,11 @@ use blockifier::transaction::transactions::{
     InvokeTransaction as BlockifierInvokeTransaction,
 };
 use starknet_api::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress, Nonce};
-use starknet_api::external_transaction::{
-    ExternalDeclareTransaction,
-    ExternalDeployAccountTransaction,
-    ExternalInvokeTransaction,
-    ExternalTransaction,
+use starknet_api::rpc_transaction::{
+    RPCDeclareTransaction,
+    RPCDeployAccountTransaction,
+    RPCInvokeTransaction,
+    RPCTransaction,
 };
 use starknet_api::transaction::{
     DeclareTransaction,
@@ -26,27 +26,30 @@ use starknet_api::transaction::{
 use starknet_mempool_types::mempool_types::ThinTransaction;
 
 use crate::errors::StatefulTransactionValidatorResult;
-use crate::starknet_api_test_utils::get_sender_address;
+
+#[cfg(test)]
+#[path = "utils_test.rs"]
+mod utils_test;
 
 macro_rules! implement_ref_getters {
     ($(($member_name:ident, $member_type:ty));* $(;)?) => {
         $(fn $member_name(&self) -> &$member_type {
             match self {
-                starknet_api::external_transaction::ExternalTransaction::Declare(
-                    starknet_api::external_transaction::ExternalDeclareTransaction::V3(tx)
+                starknet_api::rpc_transaction::RPCTransaction::Declare(
+                    starknet_api::rpc_transaction::RPCDeclareTransaction::V3(tx)
                 ) => &tx.$member_name,
-                starknet_api::external_transaction::ExternalTransaction::DeployAccount(
-                    starknet_api::external_transaction::ExternalDeployAccountTransaction::V3(tx)
+                starknet_api::rpc_transaction::RPCTransaction::DeployAccount(
+                    starknet_api::rpc_transaction::RPCDeployAccountTransaction::V3(tx)
                 ) => &tx.$member_name,
-                starknet_api::external_transaction::ExternalTransaction::Invoke(
-                    starknet_api::external_transaction::ExternalInvokeTransaction::V3(tx)
+                starknet_api::rpc_transaction::RPCTransaction::Invoke(
+                    starknet_api::rpc_transaction::RPCInvokeTransaction::V3(tx)
                 ) => &tx.$member_name,
             }
         })*
     };
 }
 
-impl ExternalTransactionExt for ExternalTransaction {
+impl RPCTransactionExt for RPCTransaction {
     implement_ref_getters!(
         (nonce, Nonce);
         (tip, Tip)
@@ -54,7 +57,7 @@ impl ExternalTransactionExt for ExternalTransaction {
 }
 
 pub fn external_tx_to_thin_tx(
-    external_tx: &ExternalTransaction,
+    external_tx: &RPCTransaction,
     tx_hash: TransactionHash,
 ) -> ThinTransaction {
     ThinTransaction {
@@ -65,20 +68,31 @@ pub fn external_tx_to_thin_tx(
     }
 }
 
+pub fn get_sender_address(tx: &RPCTransaction) -> ContractAddress {
+    match tx {
+        RPCTransaction::Declare(RPCDeclareTransaction::V3(tx)) => tx.sender_address,
+        // TODO(Mohammad): Add support for deploy account.
+        RPCTransaction::DeployAccount(RPCDeployAccountTransaction::V3(_)) => {
+            ContractAddress::default()
+        }
+        RPCTransaction::Invoke(RPCInvokeTransaction::V3(tx)) => tx.sender_address,
+    }
+}
+
 // TODO(Mohammad): Remove this trait once it is implemented in StarkNet API.
-pub trait ExternalTransactionExt {
+pub trait RPCTransactionExt {
     fn nonce(&self) -> &Nonce;
     fn tip(&self) -> &Tip;
 }
 
 pub fn external_tx_to_account_tx(
-    external_tx: &ExternalTransaction,
+    external_tx: &RPCTransaction,
     // FIXME(yael 15/4/24): calculate class_info inside the function once compilation code is ready
     optional_class_info: Option<ClassInfo>,
     chain_id: &ChainId,
 ) -> StatefulTransactionValidatorResult<AccountTransaction> {
     match external_tx {
-        ExternalTransaction::Declare(ExternalDeclareTransaction::V3(tx)) => {
+        RPCTransaction::Declare(RPCDeclareTransaction::V3(tx)) => {
             let declare_tx = DeclareTransaction::V3(DeclareTransactionV3 {
                 class_hash: ClassHash::default(), /* FIXME(yael 15/4/24): call the starknet-api
                                                    * function once ready */
@@ -99,7 +113,7 @@ pub fn external_tx_to_account_tx(
             let declare_tx = BlockifierDeclareTransaction::new(declare_tx, tx_hash, class_info)?;
             Ok(AccountTransaction::Declare(declare_tx))
         }
-        ExternalTransaction::DeployAccount(ExternalDeployAccountTransaction::V3(tx)) => {
+        RPCTransaction::DeployAccount(RPCDeployAccountTransaction::V3(tx)) => {
             let deploy_account_tx = DeployAccountTransaction::V3(DeployAccountTransactionV3 {
                 resource_bounds: tx.resource_bounds.clone().into(),
                 tip: tx.tip,
@@ -127,7 +141,7 @@ pub fn external_tx_to_account_tx(
             );
             Ok(AccountTransaction::DeployAccount(deploy_account_tx))
         }
-        ExternalTransaction::Invoke(ExternalInvokeTransaction::V3(tx)) => {
+        RPCTransaction::Invoke(RPCInvokeTransaction::V3(tx)) => {
             let invoke_tx = InvokeTransaction::V3(InvokeTransactionV3 {
                 resource_bounds: tx.resource_bounds.clone().into(),
                 tip: tx.tip,
@@ -154,4 +168,21 @@ pub fn get_tx_hash(tx: &AccountTransaction) -> TransactionHash {
         AccountTransaction::DeployAccount(tx) => tx.tx_hash,
         AccountTransaction::Invoke(tx) => tx.tx_hash,
     }
+}
+
+/// Checks whether 'subsequence' is a subsequence of 'sequence'.
+pub fn is_subsequence<T: Eq>(subsequence: &[T], sequence: &[T]) -> bool {
+    let mut offset = 0;
+
+    for item in sequence {
+        if offset == subsequence.len() {
+            return true;
+        }
+
+        if item == &subsequence[offset] {
+            offset += 1;
+        }
+    }
+
+    offset == subsequence.len()
 }

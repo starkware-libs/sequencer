@@ -1,41 +1,30 @@
-use std::collections::HashMap;
-
 use indexmap::indexmap;
 use primitive_types::H160;
 use starknet_types_core::felt::Felt;
 
+use super::block_hash_calculator::TransactionOutputForHash;
 use crate::core::{ClassHash, CompiledClassHash, ContractAddress, EthAddress, Nonce};
 use crate::state::ThinStateDiff;
 use crate::transaction::{
-    Builtin,
-    ExecutionResources,
     Fee,
     GasVector,
     L2ToL1Payload,
     MessageToL1,
     RevertedTransactionExecutionStatus,
     TransactionExecutionStatus,
-    TransactionOutputCommon,
 };
 
-pub(crate) fn get_transaction_output() -> TransactionOutputCommon {
+pub(crate) fn get_transaction_output() -> TransactionOutputForHash {
     let execution_status =
         TransactionExecutionStatus::Reverted(RevertedTransactionExecutionStatus {
             revert_reason: "aborted".to_string(),
         });
-    let execution_resources = ExecutionResources {
-        steps: 98,
-        builtin_instance_counter: HashMap::from([(Builtin::Bitwise, 11), (Builtin::EcOp, 22)]),
-        memory_holes: 76,
-        da_gas_consumed: GasVector { l1_gas: 54, l1_data_gas: 10 },
-        gas_consumed: GasVector { l1_gas: 16580, l1_data_gas: 32 },
-    };
-    TransactionOutputCommon {
+    TransactionOutputForHash {
         actual_fee: Fee(99804),
         messages_sent: vec![generate_message_to_l1(34), generate_message_to_l1(56)],
         events: vec![],
         execution_status,
-        execution_resources,
+        gas_consumed: GasVector { l1_gas: 16580, l1_data_gas: 32 },
     }
 }
 

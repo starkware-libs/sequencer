@@ -1,6 +1,6 @@
 [package]
 name = "papyrus_common"
-version.workspace = true
+version = "0.4.0-dev.4"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -10,12 +10,14 @@ description = "Common utils and objects for a Starknet node."
 bitvec.workspace = true
 cairo-lang-starknet-classes.workspace = true
 hex.workspace = true
+itertools.workspace = true
 lazy_static.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha3.workspace = true
-starknet_api = { version = "0.12.0-dev.1" }
+starknet_api = { path = "../starknet_api", version = "0.13.0-dev.9" }
 starknet-crypto.workspace = true
+starknet-types-core = { workspace = true, features = ["hash"] }
 thiserror.workspace = true
 rand.workspace = true
 indexmap.workspace = true

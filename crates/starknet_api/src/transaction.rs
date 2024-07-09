@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Display;
 use std::sync::Arc;
 
-use derive_more::From;
+use derive_more::{Display, From};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
@@ -156,28 +156,6 @@ impl TransactionOutput {
             TransactionOutput::DeployAccount(output) => &output.messages_sent,
             TransactionOutput::Invoke(output) => &output.messages_sent,
             TransactionOutput::L1Handler(output) => &output.messages_sent,
-        }
-    }
-}
-
-/// The common fields of transaction output types.
-#[derive(Clone)]
-pub struct TransactionOutputCommon {
-    pub actual_fee: Fee,
-    pub events: Vec<Event>,
-    pub execution_status: TransactionExecutionStatus,
-    pub execution_resources: ExecutionResources,
-    pub messages_sent: Vec<MessageToL1>,
-}
-
-impl From<TransactionOutput> for TransactionOutputCommon {
-    fn from(transaction_output: TransactionOutput) -> Self {
-        Self {
-            actual_fee: transaction_output.actual_fee(),
-            events: transaction_output.events().to_vec(),
-            execution_status: transaction_output.execution_status().to_owned(),
-            execution_resources: transaction_output.execution_resources().to_owned(),
-            messages_sent: transaction_output.messages_sent().to_owned(),
         }
     }
 }
@@ -680,6 +658,7 @@ pub struct RevertedTransactionExecutionStatus {
     Copy,
     Clone,
     Default,
+    Display,
     Eq,
     PartialEq,
     Hash,
@@ -1004,4 +983,10 @@ pub enum Builtin {
     Keccak,
     #[serde(rename = "segment_arena_builtin")]
     SegmentArena,
+    #[serde(rename = "add_mod_builtin")]
+    AddMod,
+    #[serde(rename = "mul_mod_builtin")]
+    MulMod,
+    #[serde(rename = "range_check96_builtin")]
+    RangeCheck96,
 }

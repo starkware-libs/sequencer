@@ -84,6 +84,7 @@ pub const BLOCK_HASH_TABLE_ADDRESS: ContractAddress = ContractAddress(PatriciaKe
     Default,
     Copy,
     Clone,
+    Display,
     Eq,
     PartialEq,
     Hash,
@@ -296,6 +297,7 @@ pub struct StateDiffCommitment(pub PoseidonHash);
 #[derive(
     Copy,
     Clone,
+    Display,
     Eq,
     PartialEq,
     Default,
@@ -306,6 +308,7 @@ pub struct StateDiffCommitment(pub PoseidonHash);
     Ord,
     derive_more:: Deref,
 )]
+#[display(fmt = "{}", "_0.to_fixed_hex_string()")]
 pub struct PatriciaKey(StarkHash);
 
 // 2**251

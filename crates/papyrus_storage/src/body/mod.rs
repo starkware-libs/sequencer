@@ -19,7 +19,7 @@
 //! # let dir = dir_handle.path().to_path_buf();
 //! # let db_config = DbConfig {
 //! #     path_prefix: dir,
-//! #     chain_id: ChainId("SN_MAIN".to_owned()),
+//! #     chain_id: ChainId::Mainnet,
 //! #     enforce_file_exists: false,
 //! #     min_size: 1 << 20,    // 1MB
 //! #     max_size: 1 << 35,    // 32GB
@@ -42,6 +42,7 @@
 mod body_test;
 pub mod events;
 
+use std::collections::HashSet;
 use std::fmt::Debug;
 
 use papyrus_proc_macros::latency_histogram;
@@ -49,7 +50,6 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::{
-    EventIndexInTransactionOutput,
     Transaction,
     TransactionHash,
     TransactionOffsetInBlock,
@@ -57,9 +57,8 @@ use starknet_api::transaction::{
 };
 use tracing::debug;
 
-use crate::body::events::EventIndex;
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
-use crate::db::table_types::{DbCursorTrait, NoValue, SimpleTable, Table};
+use crate::db::table_types::{CommonPrefix, DbCursorTrait, NoValue, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
 use crate::{
     FileHandlers,
@@ -76,9 +75,9 @@ type TransactionMetadataTable<'env> =
     TableHandle<'env, TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>;
 type TransactionHashToIdxTable<'env> =
     TableHandle<'env, TransactionHash, NoVersionValueWrapper<TransactionIndex>, SimpleTable>;
-type EventsTableKey = (ContractAddress, EventIndex);
+type EventsTableKey = (ContractAddress, TransactionIndex);
 type EventsTable<'env> =
-    TableHandle<'env, EventsTableKey, NoVersionValueWrapper<NoValue>, SimpleTable>;
+    TableHandle<'env, EventsTableKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
 
 /// The index of a transaction in a block.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize, PartialOrd, Ord)]
@@ -411,12 +410,8 @@ impl<'env> BodyStorageWriter for StorageTxn<'env, RW> {
             {
                 let tx_index = TransactionIndex(block_number, TransactionOffsetInBlock(offset));
 
-                for (event_offset, event) in tx_output.events().iter().enumerate() {
-                    let key = (
-                        event.from_address,
-                        EventIndex(tx_index, EventIndexInTransactionOutput(event_offset)),
-                    );
-                    events_table.delete(&self.txn, &key)?;
+                for event in tx_output.events().iter() {
+                    events_table.delete(&self.txn, &(event.from_address, tx_index))?;
                 }
                 transaction_hash_to_idx_table.delete(&self.txn, tx_hash)?;
                 transaction_metadata_table.delete(&self.txn, &tx_index)?;
@@ -454,7 +449,7 @@ fn write_transactions<'env>(
         let tx_output_location = file_handlers.append_transaction_output(tx_output);
         write_events(tx_output, txn, events_table, transaction_index)?;
         transaction_hash_to_idx_table.insert(txn, tx_hash, &transaction_index)?;
-        transaction_metadata_table.insert(
+        transaction_metadata_table.append(
             txn,
             &transaction_index,
             &TransactionMetadata { tx_location, tx_output_location, tx_hash: *tx_hash },
@@ -463,15 +458,24 @@ fn write_transactions<'env>(
     Ok(())
 }
 
+// This function assumes that the `transaction_index` is the last index used to call it.
 fn write_events<'env>(
     tx_output: &TransactionOutput,
     txn: &DbTransaction<'env, RW>,
     events_table: &'env EventsTable<'env>,
     transaction_index: TransactionIndex,
 ) -> StorageResult<()> {
-    for (index, event) in tx_output.events().iter().enumerate() {
-        let event_index = EventIndex(transaction_index, EventIndexInTransactionOutput(index));
-        events_table.insert(txn, &(event.from_address, event_index), &NoValue)?;
+    let mut contract_addresses_set = HashSet::new();
+
+    for event in tx_output.events().iter() {
+        contract_addresses_set.insert(event.from_address);
+    }
+
+    for contract_address in contract_addresses_set {
+        let key = (contract_address, transaction_index);
+        // Here, we use the function assumption; the append will fail if an older transaction_index
+        // is a table.
+        events_table.append_greater_sub_key(txn, &key, &NoValue)?;
     }
     Ok(())
 }

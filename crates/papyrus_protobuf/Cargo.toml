@@ -1,18 +1,32 @@
 [package]
 name = "papyrus_protobuf"
-version.workspace = true
+version = "0.4.0-dev.4"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 
+[features]
+testing = ["rand", "rand_chacha", "papyrus_test_utils"]
+
 [dependencies]
 bytes.workspace = true
 indexmap.workspace = true
+lazy_static.workspace = true
 primitive-types.workspace = true
 prost.workspace = true
 prost-types.workspace = true
-starknet_api = { version = "0.12.0-dev.1" }
+rand = { workspace = true, optional = true }
+rand_chacha = { workspace = true, optional = true }
+starknet_api = { path = "../starknet_api", version = "0.13.0-dev.9" }
+starknet-types-core.workspace = true
+papyrus_test_utils = { path = "../papyrus_test_utils", optional = true }
 thiserror.workspace = true
+papyrus_common = { path = "../papyrus_common", version = "0.4.0-dev.2" }
+
+[dev-dependencies]
+rand.workspace = true
+rand_chacha.workspace = true
+papyrus_test_utils = { path = "../papyrus_test_utils" }
 
 [build-dependencies]
 prost-build.workspace = true

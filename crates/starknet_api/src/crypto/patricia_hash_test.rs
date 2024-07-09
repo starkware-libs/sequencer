@@ -3,7 +3,6 @@ use starknet_types_core::hash::Poseidon;
 
 use super::calculate_root;
 use crate::felt;
-use crate::hash::{FeltConverter, TryIntoFelt};
 
 #[test]
 fn test_patricia_regression() {

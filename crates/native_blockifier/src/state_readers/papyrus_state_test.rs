@@ -11,10 +11,9 @@ use indexmap::IndexMap;
 use papyrus_storage::class::ClassStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use starknet_api::block::BlockNumber;
-use starknet_api::hash::StarkFelt;
-use starknet_api::state::{StorageKey, ThinStateDiff};
+use starknet_api::state::{StateDiff, StorageKey};
 use starknet_api::transaction::Calldata;
-use starknet_api::{calldata, stark_felt};
+use starknet_api::{calldata, felt};
 
 use crate::state_readers::papyrus_state::PapyrusReader;
 
@@ -24,18 +23,21 @@ fn test_entry_point_with_papyrus_state() -> papyrus_storage::StorageResult<()> {
 
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let test_class_hash = test_contract.get_class_hash();
+    let test_class = test_contract.get_deprecated_contract_class();
     // Initialize Storage: add test contract and class.
     let deployed_contracts =
         IndexMap::from([(test_contract.get_instance_address(0), test_class_hash)]);
-    let state_diff = ThinStateDiff { deployed_contracts, ..Default::default() };
+    let state_diff = StateDiff {
+        deployed_contracts,
+        deprecated_declared_classes: IndexMap::from([(test_class_hash, test_class.clone())]),
+        ..Default::default()
+    };
 
-    let declared_classes = Vec::new();
-    let deprecated_contract_class = test_contract.get_deprecated_contract_class();
-    let deprecated_declared_classes = Vec::from([(test_class_hash, &deprecated_contract_class)]);
+    let block_number = BlockNumber::default();
     storage_writer
         .begin_rw_txn()?
-        .append_classes(BlockNumber::default(), &declared_classes, &deprecated_declared_classes)?
-        .append_state_diff(BlockNumber::default(), state_diff)?
+        .append_state_diff(block_number, state_diff.into())?
+        .append_classes(block_number, Default::default(), &[(test_class_hash, &test_class)])?
         .commit()?;
 
     // BlockNumber is 1 due to the initialization step above.
@@ -48,8 +50,8 @@ fn test_entry_point_with_papyrus_state() -> papyrus_storage::StorageResult<()> {
     let mut state = CachedState::from(papyrus_reader);
 
     // Call entrypoint that want to write to storage, which updates the cached state's write cache.
-    let key = stark_felt!(1234_u16);
-    let value = stark_felt!(18_u8);
+    let key = felt!(1234_u16);
+    let value = felt!(18_u8);
     let calldata = calldata![key, value];
     let entry_point_call = CallEntryPoint {
         calldata,

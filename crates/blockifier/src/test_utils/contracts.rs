@@ -10,8 +10,8 @@ use starknet_api::deprecated_contract_class::{
     EntryPointOffset,
     EntryPointType,
 };
-use starknet_api::hash::{StarkFelt, StarkHash};
-use starknet_api::{class_hash, contract_address, patricia_key, stark_felt};
+use starknet_api::{class_hash, contract_address, felt, patricia_key};
+use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
@@ -63,8 +63,9 @@ const SECURITY_TEST_CONTRACT_NAME: &str = "security_tests_contract";
 const TEST_CONTRACT_NAME: &str = "test_contract";
 
 // ERC20 contract is in a unique location.
-const ERC20_CONTRACT_PATH: &str =
-    "./ERC20_without_some_syscalls/ERC20/erc20_contract_without_some_syscalls_compiled.json";
+const ERC20_CAIRO0_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/\
+                                          erc20_contract_without_some_syscalls_compiled.json";
+const ERC20_CAIRO1_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo1/erc20.casm.json";
 
 /// Enum representing all feature contracts.
 /// The contracts that are implemented in both Cairo versions include a version field.
@@ -72,7 +73,7 @@ const ERC20_CONTRACT_PATH: &str =
 pub enum FeatureContract {
     AccountWithLongValidate(CairoVersion),
     AccountWithoutValidations(CairoVersion),
-    ERC20,
+    ERC20(CairoVersion),
     Empty(CairoVersion),
     FaultyAccount(CairoVersion),
     LegacyTestContract,
@@ -81,14 +82,15 @@ pub enum FeatureContract {
 }
 
 impl FeatureContract {
-    fn cairo_version(&self) -> CairoVersion {
+    pub fn cairo_version(&self) -> CairoVersion {
         match self {
             Self::AccountWithLongValidate(version)
             | Self::AccountWithoutValidations(version)
             | Self::Empty(version)
             | Self::FaultyAccount(version)
-            | Self::TestContract(version) => *version,
-            Self::SecurityTests | Self::ERC20 => CairoVersion::Cairo0,
+            | Self::TestContract(version)
+            | Self::ERC20(version) => *version,
+            Self::SecurityTests => CairoVersion::Cairo0,
             Self::LegacyTestContract => CairoVersion::Cairo1,
         }
     }
@@ -99,58 +101,10 @@ impl FeatureContract {
             | Self::AccountWithoutValidations(_)
             | Self::Empty(_)
             | Self::FaultyAccount(_)
-            | Self::TestContract(_) => true,
-            Self::SecurityTests | Self::ERC20 | Self::LegacyTestContract => false,
+            | Self::TestContract(_)
+            | Self::ERC20(_) => true,
+            Self::SecurityTests | Self::LegacyTestContract => false,
         }
-    }
-
-    fn get_cairo_version_bit(&self) -> u32 {
-        match self.cairo_version() {
-            CairoVersion::Cairo0 => 0,
-            CairoVersion::Cairo1 => CAIRO1_BIT,
-        }
-    }
-
-    /// Unique integer representing each unique contract. Used to derive "class hash" and "address".
-    fn get_integer_base(self) -> u32 {
-        self.get_cairo_version_bit()
-            + match self {
-                Self::AccountWithLongValidate(_) => ACCOUNT_LONG_VALIDATE_BASE,
-                Self::AccountWithoutValidations(_) => ACCOUNT_WITHOUT_VALIDATIONS_BASE,
-                Self::Empty(_) => EMPTY_CONTRACT_BASE,
-                Self::ERC20 => ERC20_CONTRACT_BASE,
-                Self::FaultyAccount(_) => FAULTY_ACCOUNT_BASE,
-                Self::LegacyTestContract => LEGACY_CONTRACT_BASE,
-                Self::SecurityTests => SECURITY_TEST_CONTRACT_BASE,
-                Self::TestContract(_) => TEST_CONTRACT_BASE,
-            }
-    }
-
-    pub fn get_compiled_path(&self) -> String {
-        let cairo_version = self.cairo_version();
-        let contract_name = match self {
-            Self::AccountWithLongValidate(_) => ACCOUNT_LONG_VALIDATE_NAME,
-            Self::AccountWithoutValidations(_) => ACCOUNT_WITHOUT_VALIDATIONS_NAME,
-            Self::Empty(_) => EMPTY_CONTRACT_NAME,
-            Self::FaultyAccount(_) => FAULTY_ACCOUNT_NAME,
-            Self::LegacyTestContract => LEGACY_CONTRACT_NAME,
-            Self::SecurityTests => SECURITY_TEST_CONTRACT_NAME,
-            Self::TestContract(_) => TEST_CONTRACT_NAME,
-            // ERC20 is a special case - not in the feature_contracts directory.
-            Self::ERC20 => return ERC20_CONTRACT_PATH.into(),
-        };
-        format!(
-            "feature_contracts/cairo{}/compiled/{}{}.json",
-            match cairo_version {
-                CairoVersion::Cairo0 => "0",
-                CairoVersion::Cairo1 => "1",
-            },
-            contract_name,
-            match cairo_version {
-                CairoVersion::Cairo0 => "_compiled",
-                CairoVersion::Cairo1 => ".casm",
-            }
-        )
     }
 
     pub fn set_cairo_version(&mut self, version: CairoVersion) {
@@ -159,8 +113,9 @@ impl FeatureContract {
             | Self::AccountWithoutValidations(v)
             | Self::Empty(v)
             | Self::FaultyAccount(v)
-            | Self::TestContract(v) => *v = version,
-            Self::ERC20 | Self::LegacyTestContract | Self::SecurityTests => {
+            | Self::TestContract(v)
+            | Self::ERC20(v) => *v = version,
+            Self::LegacyTestContract | Self::SecurityTests => {
                 panic!("{self:?} contract has no configurable version.")
             }
         }
@@ -172,8 +127,8 @@ impl FeatureContract {
 
     pub fn get_compiled_class_hash(&self) -> CompiledClassHash {
         match self.cairo_version() {
-            CairoVersion::Cairo0 => CompiledClassHash(StarkFelt::ZERO),
-            CairoVersion::Cairo1 => CompiledClassHash(stark_felt!(self.get_integer_base())),
+            CairoVersion::Cairo0 => CompiledClassHash(Felt::ZERO),
+            CairoVersion::Cairo1 => CompiledClassHash(felt!(self.get_integer_base())),
         }
     }
 
@@ -207,6 +162,60 @@ impl FeatureContract {
 
     pub fn get_raw_class(&self) -> String {
         get_raw_contract_class(&self.get_compiled_path())
+    }
+
+    fn get_cairo_version_bit(&self) -> u32 {
+        match self.cairo_version() {
+            CairoVersion::Cairo0 => 0,
+            CairoVersion::Cairo1 => CAIRO1_BIT,
+        }
+    }
+
+    /// Unique integer representing each unique contract. Used to derive "class hash" and "address".
+    fn get_integer_base(self) -> u32 {
+        self.get_cairo_version_bit()
+            + match self {
+                Self::AccountWithLongValidate(_) => ACCOUNT_LONG_VALIDATE_BASE,
+                Self::AccountWithoutValidations(_) => ACCOUNT_WITHOUT_VALIDATIONS_BASE,
+                Self::Empty(_) => EMPTY_CONTRACT_BASE,
+                Self::ERC20(_) => ERC20_CONTRACT_BASE,
+                Self::FaultyAccount(_) => FAULTY_ACCOUNT_BASE,
+                Self::LegacyTestContract => LEGACY_CONTRACT_BASE,
+                Self::SecurityTests => SECURITY_TEST_CONTRACT_BASE,
+                Self::TestContract(_) => TEST_CONTRACT_BASE,
+            }
+    }
+
+    pub fn get_compiled_path(&self) -> String {
+        let cairo_version = self.cairo_version();
+        let contract_name = match self {
+            Self::AccountWithLongValidate(_) => ACCOUNT_LONG_VALIDATE_NAME,
+            Self::AccountWithoutValidations(_) => ACCOUNT_WITHOUT_VALIDATIONS_NAME,
+            Self::Empty(_) => EMPTY_CONTRACT_NAME,
+            Self::FaultyAccount(_) => FAULTY_ACCOUNT_NAME,
+            Self::LegacyTestContract => LEGACY_CONTRACT_NAME,
+            Self::SecurityTests => SECURITY_TEST_CONTRACT_NAME,
+            Self::TestContract(_) => TEST_CONTRACT_NAME,
+            // ERC20 is a special case - not in the feature_contracts directory.
+            Self::ERC20(_) => {
+                return match cairo_version {
+                    CairoVersion::Cairo0 => ERC20_CAIRO0_CONTRACT_PATH.into(),
+                    CairoVersion::Cairo1 => ERC20_CAIRO1_CONTRACT_PATH.into(),
+                };
+            }
+        };
+        format!(
+            "feature_contracts/cairo{}/compiled/{}{}.json",
+            match cairo_version {
+                CairoVersion::Cairo0 => "0",
+                CairoVersion::Cairo1 => "1",
+            },
+            contract_name,
+            match cairo_version {
+                CairoVersion::Cairo0 => "_compiled",
+                CairoVersion::Cairo1 => ".casm",
+            }
+        )
     }
 
     /// Fetch PC locations from the compiled contract to compute the expected PC locations in the

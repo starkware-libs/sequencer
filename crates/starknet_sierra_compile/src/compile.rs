@@ -1,10 +1,8 @@
-use cairo_lang_starknet_classes::allowed_libfuncs::{AllowedLibfuncsError, ListSelector};
-use cairo_lang_starknet_classes::casm_contract_class::{
-    CasmContractClass,
-    StarknetSierraCompilationError,
-};
+use cairo_lang_starknet_classes::allowed_libfuncs::ListSelector;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass;
-use thiserror::Error;
+
+use crate::errors::CompilationUtilError;
 
 #[cfg(test)]
 #[path = "compile_test.rs"]
@@ -13,14 +11,6 @@ pub struct SierraToCasmCompilationArgs {
     list_selector: ListSelector,
     add_pythonic_hints: bool,
     max_bytecode_size: usize,
-}
-
-#[derive(Debug, Error)]
-pub enum CompilationUtilError {
-    #[error(transparent)]
-    AllowedLibfuncsError(#[from] AllowedLibfuncsError),
-    #[error(transparent)]
-    StarknetSierraCompilationError(#[from] StarknetSierraCompilationError),
 }
 
 /// This function may panic.

@@ -23,7 +23,7 @@ pub(crate) trait UpdatedSkeletonForest<T: OriginalSkeletonTree> {
         original_skeleton_forest: &mut OriginalSkeletonForestImpl<T>,
         class_hash_leaf_modifications: &LeafModifications<SkeletonLeaf>,
         storage_updates: &HashMap<ContractAddress, LeafModifications<SkeletonLeaf>>,
-        current_contract_state_leaves: &HashMap<ContractAddress, ContractState>,
+        current_contract_state_leaves: &HashMap<NodeIndex, ContractState>,
         address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
         address_to_nonce: &HashMap<ContractAddress, Nonce>,
     ) -> ForestResult<Self>
@@ -38,7 +38,7 @@ impl<T: OriginalSkeletonTree, U: UpdatedSkeletonTree> UpdatedSkeletonForest<T>
         original_skeleton_forest: &mut OriginalSkeletonForestImpl<T>,
         class_hash_leaf_modifications: &LeafModifications<SkeletonLeaf>,
         storage_updates: &HashMap<ContractAddress, LeafModifications<SkeletonLeaf>>,
-        current_contracts_trie_leaves: &HashMap<ContractAddress, ContractState>,
+        original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
         address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
         address_to_nonce: &HashMap<ContractAddress, Nonce>,
     ) -> ForestResult<Self>
@@ -66,8 +66,8 @@ impl<T: OriginalSkeletonTree, U: UpdatedSkeletonTree> UpdatedSkeletonForest<T>
 
             storage_tries.insert(*address, updated_storage_trie);
 
-            let current_leaf = current_contracts_trie_leaves
-                .get(address)
+            let current_leaf = original_contracts_trie_leaves
+                .get(&NodeIndex::from_contract_address(address))
                 .ok_or(ForestError::MissingContractCurrentState(*address))?;
 
             let skeleton_leaf = Self::updated_contract_skeleton_leaf(

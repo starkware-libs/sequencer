@@ -4,6 +4,7 @@ use crate::storage::storage_trait::{Storage, StorageKey, StorageValue};
 use serde::Serialize;
 
 #[derive(Serialize, Debug, Default)]
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 pub struct MapStorage {
     pub storage: HashMap<StorageKey, StorageValue>,
 }

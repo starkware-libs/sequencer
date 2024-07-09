@@ -1,6 +1,5 @@
 use rstest::fixture;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
-use starknet_api::hash::StarkFelt;
 use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
@@ -15,7 +14,8 @@ use starknet_api::transaction::{
     TransactionSignature,
     TransactionVersion,
 };
-use starknet_api::{calldata, stark_felt};
+use starknet_api::{calldata, felt};
+use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
 use crate::abi::abi_utils::get_fee_token_var_address;
@@ -119,7 +119,7 @@ pub fn deploy_and_fund_account(
     for fee_type in FeeType::iter() {
         let fee_token_address = chain_info.fee_token_address(&fee_type);
         state
-            .set_storage_at(fee_token_address, deployed_account_balance_key, stark_felt!(BALANCE))
+            .set_storage_at(fee_token_address, deployed_account_balance_key, felt!(BALANCE))
             .unwrap();
     }
 
@@ -130,7 +130,7 @@ pub fn deploy_and_fund_account(
 pub fn create_test_init_data(chain_info: &ChainInfo, cairo_version: CairoVersion) -> TestInitData {
     let account = FeatureContract::AccountWithoutValidations(cairo_version);
     let test_contract = FeatureContract::TestContract(cairo_version);
-    let erc20 = FeatureContract::ERC20;
+    let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
     let state = test_state(chain_info, BALANCE, &[(account, 1), (erc20, 1), (test_contract, 1)]);
     TestInitData {
         state,
@@ -146,7 +146,7 @@ pub struct FaultyAccountTxCreatorArgs {
     pub scenario: u64,
     pub max_fee: Fee,
     // Should be None unless scenario is CALL_CONTRACT.
-    pub additional_data: Option<Vec<StarkFelt>>,
+    pub additional_data: Option<Vec<Felt>>,
     // Should be use with tx_type Declare or InvokeFunction.
     pub sender_address: ContractAddress,
     // Should be used with tx_type DeployAccount.
@@ -176,8 +176,21 @@ impl Default for FaultyAccountTxCreatorArgs {
     }
 }
 
-/// Creates an account transaction to test the 'validate' method of account transactions. These
-/// transactions should be used for unit tests. For example, it is not intended to deploy a contract
+/// This function is similar to the function 'create_account_tx_for_validate_test' except it ignores
+/// the nonce manager. Should be used for transactions which are expected to fail or if the nonce is
+/// irrelevant to the test.
+pub fn create_account_tx_for_validate_test_nonce_0(
+    faulty_account_tx_creator_args: FaultyAccountTxCreatorArgs,
+) -> AccountTransaction {
+    create_account_tx_for_validate_test(
+        &mut NonceManager::default(),
+        faulty_account_tx_creator_args,
+    )
+}
+
+/// Creates an account transaction to test the 'validate' method of account transactions. The
+/// transaction is formatted to work with the account contract 'FaultyAccount'. These transactions
+/// should be used for unit tests. For example, it is not intended to deploy a contract
 /// and later call it.
 pub fn create_account_tx_for_validate_test(
     nonce_manager: &mut NonceManager,
@@ -198,7 +211,7 @@ pub fn create_account_tx_for_validate_test(
 
     // The first felt of the signature is used to set the scenario. If the scenario is
     // `CALL_CONTRACT` the second felt is used to pass the contract address.
-    let mut signature_vector = vec![StarkFelt::from(scenario)];
+    let mut signature_vector = vec![Felt::from(scenario)];
     if let Some(additional_data) = additional_data {
         signature_vector.extend(additional_data);
     }
@@ -231,7 +244,7 @@ pub fn create_account_tx_for_validate_test(
         TransactionType::DeployAccount => {
             // We do not use the sender address here because the transaction generates the actual
             // sender address.
-            let constructor_calldata = calldata![stark_felt!(match validate_constructor {
+            let constructor_calldata = calldata![felt!(match validate_constructor {
                 true => constants::FELT_TRUE,
                 false => constants::FELT_FALSE,
             })];
@@ -301,15 +314,14 @@ pub fn emit_n_events_tx(
     nonce: Nonce,
 ) -> AccountTransaction {
     let entry_point_args = vec![
-        stark_felt!(u32::try_from(n).unwrap()), // events_number.
-        stark_felt!(0_u32),                     // keys length.
-        stark_felt!(0_u32),                     // data length.
+        felt!(u32::try_from(n).unwrap()), // events_number.
+        felt!(0_u32),                     // keys length.
+        felt!(0_u32),                     // data length.
     ];
     let calldata = create_calldata(contract_address, "test_emit_events", &entry_point_args);
     account_invoke_tx(invoke_tx_args! {
         sender_address: account_contract,
         calldata,
-        version: TransactionVersion::THREE,
         nonce
     })
 }

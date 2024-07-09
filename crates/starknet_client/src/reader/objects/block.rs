@@ -10,22 +10,22 @@ use starknet_api::block::{
     BlockHash,
     BlockNumber,
     BlockTimestamp,
-    GasPrice,
     GasPricePerToken,
     StarknetVersion,
 };
 use starknet_api::core::{
     EventCommitment,
     GlobalRoot,
+    ReceiptCommitment,
     SequencerContractAddress,
     StateDiffCommitment,
     TransactionCommitment,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
-use starknet_api::hash::{PoseidonHash, StarkFelt};
 #[cfg(doc)]
 use starknet_api::transaction::TransactionOutput as starknet_api_transaction_output;
 use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
+use starknet_types_core::felt::Felt;
 
 use crate::reader::objects::transaction::{
     L1ToL2Message,
@@ -35,45 +35,10 @@ use crate::reader::objects::transaction::{
 };
 use crate::reader::{ReaderClientError, ReaderClientResult};
 
-/// A block as returned by the starknet gateway up to V0.13.1.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct DeprecatedBlock {
-    pub block_hash: BlockHash,
-    pub block_number: BlockNumber,
-    // In older versions, eth_l1_gas_price was named gas_price and there was no strk_l1_gas_price.
-    #[serde(alias = "gas_price")]
-    pub eth_l1_gas_price: GasPrice,
-    #[serde(default)]
-    pub strk_l1_gas_price: GasPrice,
-    pub parent_block_hash: BlockHash,
-    #[serde(default)]
-    pub sequencer_address: SequencerContractAddress,
-    pub state_root: GlobalRoot,
-    pub status: BlockStatus,
-    #[serde(default)]
-    pub timestamp: BlockTimestamp,
-    pub transactions: Vec<Transaction>,
-    pub transaction_receipts: Vec<TransactionReceipt>,
-    // Default since old blocks don't include this field.
-    #[serde(default)]
-    pub starknet_version: String,
-}
-
-impl DeprecatedBlock {
-    pub fn to_starknet_api_block_and_version(
-        self,
-        state_diff_hash: GlobalRoot,
-    ) -> ReaderClientResult<starknet_api_block> {
-        let block_or_deprecated = BlockOrDeprecated::Deprecated(self);
-        block_or_deprecated.to_starknet_api_block_and_version(state_diff_hash)
-    }
-}
-
 /// A block as returned by the starknet gateway since V0.13.1.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct Block {
+pub struct BlockPostV0_13_1 {
     pub block_hash: BlockHash,
     pub block_number: BlockNumber,
     pub parent_block_hash: BlockHash,
@@ -95,29 +60,35 @@ pub struct Block {
     pub l1_data_gas_price: GasPricePerToken,
     pub transaction_commitment: TransactionCommitment,
     pub event_commitment: EventCommitment,
+    // Additions to the block structure in V0.13.2. These additions do not appear in older blocks
+    // even if the Feeder Gateway is of this version.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state_diff_commitment: Option<StateDiffCommitment>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub receipt_commitment: Option<ReceiptCommitment>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state_diff_length: Option<usize>,
 }
 
-impl Block {
-    pub fn to_starknet_api_block_and_version(
-        self,
-        state_diff_hash: GlobalRoot,
-    ) -> ReaderClientResult<starknet_api_block> {
-        let block_or_deprecated = BlockOrDeprecated::Current(self);
-        block_or_deprecated.to_starknet_api_block_and_version(state_diff_hash)
+impl BlockPostV0_13_1 {
+    pub fn to_starknet_api_block_and_version(self) -> ReaderClientResult<starknet_api_block> {
+        let block_or_deprecated = Block::PostV0_13_1(self);
+        block_or_deprecated.to_starknet_api_block_and_version()
     }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(untagged)]
-pub enum BlockOrDeprecated {
-    Deprecated(DeprecatedBlock),
-    Current(Block),
+pub enum Block {
+    PostV0_13_1(BlockPostV0_13_1),
 }
 
 // TODO(yair): add tests for the new block.
-impl Default for BlockOrDeprecated {
+impl Default for Block {
     fn default() -> Self {
-        BlockOrDeprecated::Deprecated(DeprecatedBlock::default())
+        Block::PostV0_13_1(BlockPostV0_13_1::default())
     }
 }
 
@@ -181,118 +152,113 @@ pub enum TransactionReceiptsError {
 /// Converts the client representation of [`Block`] to a tuple of a starknet_api
 /// [Block](`starknet_api_block`) and String representing the Starknet version corresponding to
 /// that block.
-impl BlockOrDeprecated {
+impl Block {
     pub fn transactions(&self) -> &[Transaction] {
         match self {
-            BlockOrDeprecated::Deprecated(block) => &block.transactions,
-            BlockOrDeprecated::Current(block) => &block.transactions,
+            Block::PostV0_13_1(block) => &block.transactions,
         }
     }
 
     pub fn transaction_receipts(&self) -> &[TransactionReceipt] {
         match self {
-            BlockOrDeprecated::Deprecated(block) => &block.transaction_receipts,
-            BlockOrDeprecated::Current(block) => &block.transaction_receipts,
+            Block::PostV0_13_1(block) => &block.transaction_receipts,
         }
     }
 
     pub fn block_number(&self) -> BlockNumber {
         match self {
-            BlockOrDeprecated::Deprecated(block) => block.block_number,
-            BlockOrDeprecated::Current(block) => block.block_number,
+            Block::PostV0_13_1(block) => block.block_number,
         }
     }
 
     pub fn block_hash(&self) -> BlockHash {
         match self {
-            BlockOrDeprecated::Deprecated(block) => block.block_hash,
-            BlockOrDeprecated::Current(block) => block.block_hash,
+            Block::PostV0_13_1(block) => block.block_hash,
         }
     }
 
     pub fn parent_block_hash(&self) -> BlockHash {
         match self {
-            BlockOrDeprecated::Deprecated(block) => block.parent_block_hash,
-            BlockOrDeprecated::Current(block) => block.parent_block_hash,
+            Block::PostV0_13_1(block) => block.parent_block_hash,
         }
     }
 
     pub fn l1_gas_price(&self) -> GasPricePerToken {
         match self {
-            BlockOrDeprecated::Deprecated(block) => GasPricePerToken {
-                price_in_fri: block.strk_l1_gas_price,
-                price_in_wei: block.eth_l1_gas_price,
-            },
-            BlockOrDeprecated::Current(block) => block.l1_gas_price,
+            Block::PostV0_13_1(block) => block.l1_gas_price,
         }
     }
 
     pub fn l1_data_gas_price(&self) -> GasPricePerToken {
         match self {
-            // old blocks don't have data price.
-            BlockOrDeprecated::Deprecated(_) => GasPricePerToken::default(),
-            BlockOrDeprecated::Current(block) => block.l1_data_gas_price,
+            Block::PostV0_13_1(block) => block.l1_data_gas_price,
         }
     }
 
     pub fn state_root(&self) -> GlobalRoot {
         match self {
-            BlockOrDeprecated::Deprecated(block) => block.state_root,
-            BlockOrDeprecated::Current(block) => block.state_root,
+            Block::PostV0_13_1(block) => block.state_root,
         }
     }
 
     pub fn sequencer_address(&self) -> SequencerContractAddress {
         match self {
-            BlockOrDeprecated::Deprecated(block) => block.sequencer_address,
-            BlockOrDeprecated::Current(block) => block.sequencer_address,
+            Block::PostV0_13_1(block) => block.sequencer_address,
         }
     }
 
     pub fn timestamp(&self) -> BlockTimestamp {
         match self {
-            BlockOrDeprecated::Deprecated(block) => block.timestamp,
-            BlockOrDeprecated::Current(block) => block.timestamp,
+            Block::PostV0_13_1(block) => block.timestamp,
         }
     }
 
     pub fn starknet_version(&self) -> String {
         match self {
-            BlockOrDeprecated::Deprecated(block) => block.starknet_version.clone(),
-            BlockOrDeprecated::Current(block) => block.starknet_version.clone(),
+            Block::PostV0_13_1(block) => block.starknet_version.clone(),
         }
     }
 
     pub fn l1_da_mode(&self) -> L1DataAvailabilityMode {
         match self {
-            BlockOrDeprecated::Deprecated(_) => L1DataAvailabilityMode::default(),
-            BlockOrDeprecated::Current(block) => block.l1_da_mode,
+            Block::PostV0_13_1(block) => block.l1_da_mode,
         }
     }
 
     pub fn transaction_commitment(&self) -> TransactionCommitment {
         match self {
-            // TODO(Eitan): calculate the transaction commitment (note that afterwards, the block
-            // hash needs to be verified against self.block_hash).
-            BlockOrDeprecated::Deprecated(_) => TransactionCommitment::default(),
-            BlockOrDeprecated::Current(block) => block.transaction_commitment,
+            Block::PostV0_13_1(block) => block.transaction_commitment,
         }
     }
 
     pub fn event_commitment(&self) -> EventCommitment {
         match self {
-            // TODO(Eitan): calculate the event commitment.
-            BlockOrDeprecated::Deprecated(_) => EventCommitment::default(),
-            BlockOrDeprecated::Current(block) => block.event_commitment,
+            Block::PostV0_13_1(block) => block.event_commitment,
+        }
+    }
+
+    pub fn state_diff_commitment(&self) -> Option<StateDiffCommitment> {
+        match self {
+            // TODO(shahak): in SN API, make StateDiffCommitment implement Copy and remove this
+            // clone.
+            Block::PostV0_13_1(block) => block.state_diff_commitment.clone(),
+        }
+    }
+
+    pub fn receipt_commitment(&self) -> Option<ReceiptCommitment> {
+        match self {
+            Block::PostV0_13_1(block) => block.receipt_commitment,
+        }
+    }
+
+    pub fn state_diff_length(&self) -> Option<usize> {
+        match self {
+            Block::PostV0_13_1(block) => block.state_diff_length,
         }
     }
 
     // TODO(shahak): Rename to to_starknet_api_block.
-    pub fn to_starknet_api_block_and_version(
-        self,
-        // TODO(yair): Change to StateDiffCommitment.
-        state_diff_commitment: GlobalRoot,
-    ) -> ReaderClientResult<starknet_api_block> {
+    pub fn to_starknet_api_block_and_version(self) -> ReaderClientResult<starknet_api_block> {
         // Check that the number of receipts is the same as the number of transactions.
         let num_of_txs = self.transactions().len();
         let num_of_receipts = self.transaction_receipts().len();
@@ -306,31 +272,20 @@ impl BlockOrDeprecated {
             ));
         }
 
-        let (transaction_commitment, event_commitment, n_transactions, n_events) = match &self {
-            BlockOrDeprecated::Deprecated(..) => (None, None, None, None),
-            BlockOrDeprecated::Current(block) => {
-                // In some older starknet versions, the transaction and event commitments are not
-                // available from the feeder gateway. In such cases, we return None for these
-                // fields.
-                if block.transaction_commitment == TransactionCommitment::default()
-                    && block.event_commitment == EventCommitment::default()
-                {
-                    (None, None, None, None)
-                } else {
-                    (
-                        Some(block.transaction_commitment),
-                        Some(block.event_commitment),
-                        Some(block.transactions.len()),
-                        Some(
-                            block
-                                .transaction_receipts
-                                .iter()
-                                .fold(0, |acc, receipt| acc + receipt.events.len()),
-                        ),
-                    )
-                }
-            }
+        // TODO(shahak): Consider deducing this from the starknet_version field instead.
+        let is_post_v0_13_2 = self.receipt_commitment().is_some();
+        let (transaction_commitment, event_commitment) = if is_post_v0_13_2 {
+            (Some(self.transaction_commitment()), Some(self.event_commitment()))
+        } else {
+            // In some older starknet versions, the transaction and event commitment are
+            // calculated with a deprecated formula. We prefer not storing those hashes rather than
+            // storing incorrect hashes.
+            (None, None)
         };
+
+        let n_transactions = self.transactions().len();
+        let n_events =
+            self.transaction_receipts().iter().fold(0, |acc, receipt| acc + receipt.events.len());
 
         // Get the header.
         let header = starknet_api::block::BlockHeader {
@@ -343,13 +298,11 @@ impl BlockOrDeprecated {
             timestamp: self.timestamp(),
             l1_data_gas_price: self.l1_data_gas_price(),
             l1_da_mode: self.l1_da_mode(),
-            state_diff_commitment: Some(StateDiffCommitment(PoseidonHash(state_diff_commitment.0))),
+            state_diff_commitment: self.state_diff_commitment(),
             transaction_commitment,
             event_commitment,
-            // TODO(shahak): Add receipt commitment once it's added to the FGW
-            receipt_commitment: None,
-            // TODO(shahak): Add state diff length once it's added to the FGW
-            state_diff_length: None,
+            receipt_commitment: self.receipt_commitment(),
+            state_diff_length: self.state_diff_length(),
             n_transactions,
             n_events,
             starknet_version: StarknetVersion(self.starknet_version()),
@@ -428,10 +381,7 @@ impl BlockOrDeprecated {
 
     fn get_body(self) -> (Vec<Transaction>, Vec<TransactionReceipt>) {
         match self {
-            BlockOrDeprecated::Deprecated(block) => {
-                (block.transactions, block.transaction_receipts)
-            }
-            BlockOrDeprecated::Current(block) => (block.transactions, block.transaction_receipts),
+            Block::PostV0_13_1(block) => (block.transactions, block.transaction_receipts),
         }
     }
 }
@@ -466,13 +416,18 @@ impl From<BlockStatus> for starknet_api::block::BlockStatus {
 }
 
 /// A block signature and the input data used to create it.
-#[derive(
-    Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
-)]
-pub struct BlockSignatureData {
-    pub block_number: BlockNumber,
-    pub signature: [StarkFelt; 2],
-    pub signature_input: BlockSignatureMessage,
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
+#[serde(untagged)]
+pub enum BlockSignatureData {
+    Deprecated {
+        block_number: BlockNumber,
+        signature: [Felt; 2],
+        signature_input: BlockSignatureMessage,
+    },
+    V0_13_2 {
+        block_hash: BlockHash,
+        signature: [Felt; 2],
+    },
 }
 
 /// The input data used to create a block signature (Poseidon hash of this data).

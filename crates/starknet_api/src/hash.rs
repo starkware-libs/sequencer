@@ -26,12 +26,22 @@ pub trait TryIntoFelt<V> {
     fn to_felt_unchecked(v: V) -> Felt;
 }
 
-#[cfg(any(feature = "testing", test))]
-impl TryIntoFelt<u128> for FeltConverter {
-    fn to_felt_unchecked(v: u128) -> Felt {
-        Felt::from(v)
-    }
+macro_rules! impl_try_into_felt {
+    ($type:ty) => {
+        #[cfg(any(feature = "testing", test))]
+        impl TryIntoFelt<$type> for FeltConverter {
+            fn to_felt_unchecked(v: $type) -> Felt {
+                Felt::from(v)
+            }
+        }
+    };
 }
+
+impl_try_into_felt!(u128);
+impl_try_into_felt!(u64);
+impl_try_into_felt!(u32);
+impl_try_into_felt!(u16);
+impl_try_into_felt!(u8);
 
 #[cfg(any(feature = "testing", test))]
 impl TryIntoFelt<&str> for FeltConverter {
@@ -46,6 +56,6 @@ impl TryIntoFelt<&str> for FeltConverter {
 #[macro_export]
 macro_rules! felt {
     ($s:expr) => {
-        FeltConverter::to_felt_unchecked($s)
+        <$crate::hash::FeltConverter as $crate::hash::TryIntoFelt<_>>::to_felt_unchecked($s)
     };
 }

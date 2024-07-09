@@ -24,6 +24,7 @@ use starknet_api::transaction::{
     DeployTransactionOutput,
     Event,
     Fee,
+    GasVector,
     InvokeTransactionOutput,
     L1HandlerTransactionOutput,
     L1ToL2Payload,
@@ -204,17 +205,24 @@ pub struct IntermediateDeclareTransaction {
 impl TryFrom<IntermediateDeclareTransaction> for starknet_api::transaction::DeclareTransaction {
     type Error = ReaderClientError;
 
+    // TODO: Consider using match instead.
     fn try_from(declare_tx: IntermediateDeclareTransaction) -> Result<Self, ReaderClientError> {
-        match declare_tx.version {
-            TransactionVersion::ZERO => Ok(Self::V0(declare_tx.try_into()?)),
-            TransactionVersion::ONE => Ok(Self::V1(declare_tx.try_into()?)),
-            TransactionVersion::TWO => Ok(Self::V2(declare_tx.try_into()?)),
-            TransactionVersion::THREE => Ok(Self::V3(declare_tx.try_into()?)),
-            _ => Err(ReaderClientError::BadTransaction {
-                tx_hash: declare_tx.transaction_hash,
-                msg: format!("Declare version {:?} is not supported.", declare_tx.version),
-            }),
+        if declare_tx.version == TransactionVersion::ZERO {
+            return Ok(Self::V0(declare_tx.try_into()?));
         }
+        if declare_tx.version == TransactionVersion::ONE {
+            return Ok(Self::V1(declare_tx.try_into()?));
+        }
+        if declare_tx.version == TransactionVersion::TWO {
+            return Ok(Self::V2(declare_tx.try_into()?));
+        }
+        if declare_tx.version == TransactionVersion::THREE {
+            return Ok(Self::V3(declare_tx.try_into()?));
+        }
+        Err(ReaderClientError::BadTransaction {
+            tx_hash: declare_tx.transaction_hash,
+            msg: format!("Declare version {:?} is not supported.", declare_tx.version),
+        })
     }
 }
 
@@ -372,19 +380,16 @@ impl TryFrom<IntermediateDeployAccountTransaction>
     fn try_from(
         deploy_account_tx: IntermediateDeployAccountTransaction,
     ) -> Result<Self, ReaderClientError> {
-        match deploy_account_tx.version {
-            TransactionVersion::ONE => Ok(Self::V1(deploy_account_tx.try_into()?)),
-            // Since v3 transactions, all transaction types are aligned with respect to the version,
-            // v2 was skipped in the Deploy Account type.
-            TransactionVersion::THREE => Ok(Self::V3(deploy_account_tx.try_into()?)),
-            _ => Err(ReaderClientError::BadTransaction {
-                tx_hash: deploy_account_tx.transaction_hash,
-                msg: format!(
-                    "DeployAccount version {:?} is not supported.",
-                    deploy_account_tx.version
-                ),
-            }),
+        if deploy_account_tx.version == TransactionVersion::ONE {
+            return Ok(Self::V1(deploy_account_tx.try_into()?));
         }
+        if deploy_account_tx.version == TransactionVersion::THREE {
+            return Ok(Self::V3(deploy_account_tx.try_into()?));
+        }
+        Err(ReaderClientError::BadTransaction {
+            tx_hash: deploy_account_tx.transaction_hash,
+            msg: format!("DeployAccount version {:?} is not supported.", deploy_account_tx.version),
+        })
     }
 }
 
@@ -498,17 +503,19 @@ impl TryFrom<IntermediateInvokeTransaction> for starknet_api::transaction::Invok
     type Error = ReaderClientError;
 
     fn try_from(invoke_tx: IntermediateInvokeTransaction) -> Result<Self, ReaderClientError> {
-        match invoke_tx.version {
-            TransactionVersion::ZERO => Ok(Self::V0(invoke_tx.try_into()?)),
-            TransactionVersion::ONE => Ok(Self::V1(invoke_tx.try_into()?)),
-            // Since v3 transactions, all transaction types are aligned with respect to the version,
-            // v2 was skipped in the Invoke type.
-            TransactionVersion::THREE => Ok(Self::V3(invoke_tx.try_into()?)),
-            _ => Err(ReaderClientError::BadTransaction {
-                tx_hash: invoke_tx.transaction_hash,
-                msg: format!("Invoke version {:?} is not supported.", invoke_tx.version),
-            }),
+        if invoke_tx.version == TransactionVersion::ZERO {
+            return Ok(Self::V0(invoke_tx.try_into()?));
         }
+        if invoke_tx.version == TransactionVersion::ONE {
+            return Ok(Self::V1(invoke_tx.try_into()?));
+        }
+        if invoke_tx.version == TransactionVersion::THREE {
+            return Ok(Self::V3(invoke_tx.try_into()?));
+        }
+        Err(ReaderClientError::BadTransaction {
+            tx_hash: invoke_tx.transaction_hash,
+            msg: format!("Invoke version {:?} is not supported.", invoke_tx.version),
+        })
     }
 }
 
@@ -615,18 +622,16 @@ pub struct ExecutionResources {
     pub builtin_instance_counter: HashMap<Builtin, u64>,
     // Note: in starknet_api this field is named `memory_holes`
     pub n_memory_holes: u64,
-    // This field was added in Starknet v0.13.1
+    // This field is missing in blocks created before v0.13.1, even if the feeder gateway is of
+    // that version
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub data_availability: Option<DataAvailabilityResources>,
-}
-
-/// The resources used for data availability by a transaction.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct DataAvailabilityResources {
-    pub l1_gas: u64,
-    pub l1_data_gas: u64,
+    pub data_availability: Option<GasVector>,
+    // This field is missing in blocks created before v0.13.2, even if the feeder gateway is of
+    // that version
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_gas_consumed: Option<GasVector>,
 }
 
 // Note: the serialization is different from the one in starknet_api.
@@ -651,10 +656,17 @@ pub enum Builtin {
     Output,
     #[serde(rename = "segment_arena_builtin")]
     SegmentArena,
+    #[serde(rename = "add_mod_builtin")]
+    AddMod,
+    #[serde(rename = "mul_mod_builtin")]
+    MulMod,
+    #[serde(rename = "range_check96_builtin")]
+    RangeCheck96,
 }
 
 impl From<ExecutionResources> for starknet_api::transaction::ExecutionResources {
     fn from(execution_resources: ExecutionResources) -> Self {
+        let da_gas_consumed = execution_resources.data_availability.unwrap_or_default();
         Self {
             steps: execution_resources.n_steps,
             builtin_instance_counter: execution_resources
@@ -679,19 +691,24 @@ impl From<ExecutionResources> for starknet_api::transaction::ExecutionResources 
                     Builtin::SegmentArena => {
                         Some((starknet_api::transaction::Builtin::SegmentArena, count))
                     }
+                    Builtin::AddMod => Some((starknet_api::transaction::Builtin::AddMod, count)),
+                    Builtin::MulMod => Some((starknet_api::transaction::Builtin::MulMod, count)),
+                    Builtin::RangeCheck96 => {
+                        Some((starknet_api::transaction::Builtin::RangeCheck96, count))
+                    }
                 })
                 .collect(),
             memory_holes: execution_resources.n_memory_holes,
-            da_l1_gas_consumed: execution_resources
-                .data_availability
-                .as_ref()
-                .map(|data_availability| data_availability.l1_gas)
-                .unwrap_or_default(),
-            da_l1_data_gas_consumed: execution_resources
-                .data_availability
-                .as_ref()
-                .map(|data_availability| data_availability.l1_data_gas)
-                .unwrap_or_default(),
+            gas_consumed: match execution_resources.total_gas_consumed {
+                Some(total_gas_consumed) => total_gas_consumed,
+                None => GasVector {
+                    // It's hardcoded that this field is 0 for pre-v0.13.2 blocks (this field is
+                    // only used in calculating the receipt hash)
+                    l1_gas: 0,
+                    l1_data_gas: da_gas_consumed.l1_data_gas,
+                },
+            },
+            da_gas_consumed,
         }
     }
 }

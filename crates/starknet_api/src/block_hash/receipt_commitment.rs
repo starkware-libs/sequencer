@@ -1,18 +1,12 @@
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::StarkHash;
 
-use super::block_hash_calculator::TransactionHashingData;
+use super::block_hash_calculator::{TransactionHashingData, TransactionOutputForHash};
 use crate::core::ReceiptCommitment;
 use crate::crypto::patricia_hash::calculate_root;
 use crate::crypto::utils::HashChain;
 use crate::hash::starknet_keccak_hash;
-use crate::transaction::{
-    ExecutionResources,
-    MessageToL1,
-    TransactionExecutionStatus,
-    TransactionHash,
-    TransactionOutputCommon,
-};
+use crate::transaction::{GasVector, MessageToL1, TransactionExecutionStatus, TransactionHash};
 
 #[cfg(test)]
 #[path = "receipt_commitment_test.rs"]
@@ -22,7 +16,7 @@ mod receipt_commitment_test;
 #[derive(Clone)]
 pub struct ReceiptElement {
     pub transaction_hash: TransactionHash,
-    pub transaction_output: TransactionOutputCommon,
+    pub transaction_output: TransactionOutputForHash,
 }
 
 impl From<&TransactionHashingData> for ReceiptElement {
@@ -53,7 +47,7 @@ fn calculate_receipt_hash(receipt_element: &ReceiptElement) -> Felt {
         .chain(&receipt_element.transaction_output.actual_fee.0.into())
         .chain(&calculate_messages_sent_hash(&receipt_element.transaction_output.messages_sent))
         .chain(&get_revert_reason_hash(&receipt_element.transaction_output.execution_status));
-    chain_execution_resources(hash_chain, &receipt_element.transaction_output.execution_resources)
+    chain_gas_consumed(hash_chain, &receipt_element.transaction_output.gas_consumed)
         .get_poseidon_hash()
 }
 
@@ -88,12 +82,9 @@ fn get_revert_reason_hash(execution_status: &TransactionExecutionStatus) -> Felt
 // L1 gas consumed (In the current RPC:
 //      L1 gas consumed for calldata + L1 gas consumed for steps and builtins.
 // L1 data gas consumed (In the current RPC: L1 data gas consumed for blob).
-fn chain_execution_resources(
-    hash_chain: HashChain,
-    execution_resources: &ExecutionResources,
-) -> HashChain {
+fn chain_gas_consumed(hash_chain: HashChain, gas_consumed: &GasVector) -> HashChain {
     hash_chain
         .chain(&Felt::ZERO) // L2 gas consumed
-        .chain(&execution_resources.gas_consumed.l1_gas.into())
-        .chain(&execution_resources.gas_consumed.l1_data_gas.into())
+        .chain(&gas_consumed.l1_gas.into())
+        .chain(&gas_consumed.l1_data_gas.into())
 }

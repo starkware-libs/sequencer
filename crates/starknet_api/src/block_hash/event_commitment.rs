@@ -18,7 +18,7 @@ pub struct EventLeafElement {
 }
 
 /// Returns the root of a Patricia tree where each leaf is an event hash.
-pub fn calculate_events_commitment<H: StarkHash>(
+pub fn calculate_event_commitment<H: StarkHash>(
     event_leaf_elements: &[EventLeafElement],
 ) -> EventCommitment {
     let event_leaves = event_leaf_elements.iter().map(calculate_event_hash).collect();

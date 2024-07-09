@@ -25,7 +25,7 @@ use papyrus_config::ParamPrivacyInput;
 use papyrus_config::{ConfigError, ParamPath, SerializedParam};
 use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use papyrus_network::NetworkConfig;
-use papyrus_p2p_sync::{P2PSync, P2PSyncConfig};
+use papyrus_p2p_sync::client::{P2PSyncClient, P2PSyncClientConfig};
 #[cfg(feature = "rpc")]
 use papyrus_rpc::RpcConfig;
 use papyrus_storage::db::DbConfig;
@@ -48,7 +48,7 @@ lazy_static! {
     pub static ref CONFIG_POINTERS: Vec<((ParamPath, SerializedParam), Vec<ParamPath>)> = vec![(
         ser_pointer_target_param(
             "chain_id",
-            &ChainId("SN_MAIN".to_string()),
+            &ChainId::Mainnet,
             "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
         ),
         vec!["storage.db_config.chain_id".to_owned(), "rpc.chain_id".to_owned()],

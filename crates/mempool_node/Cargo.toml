@@ -1,6 +1,6 @@
 [package]
-name = "mempool_node"
-version.workspace = true
+name = "starknet_mempool_node"
+version = "0.0.0"
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
@@ -9,12 +9,19 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+anyhow.workspace = true
 clap.workspace = true
 const_format.workspace = true
-starknet_gateway = { path = "../gateway", version = "0.4.0-dev.2" }
+futures.workspace = true
+starknet_gateway = { path = "../gateway", version = "0.0" }
+starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }
+starknet_mempool = { path = "../mempool", version = "0.0" }
+starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
 serde.workspace = true
-papyrus_config = { path = "../papyrus_config", version = "0.4.0-dev.2" }
+papyrus_config = { path = "../papyrus_config", version = "0.4.0-dev.4" }
 tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 validator.workspace = true
 
 [dev-dependencies]

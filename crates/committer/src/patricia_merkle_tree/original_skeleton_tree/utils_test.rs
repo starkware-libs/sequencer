@@ -1,8 +1,9 @@
 use super::split_leaves;
-use crate::patricia_merkle_tree::test_utils::as_fully_indexed;
-use crate::patricia_merkle_tree::test_utils::get_random_u256;
-use crate::patricia_merkle_tree::test_utils::random;
-use crate::patricia_merkle_tree::test_utils::small_tree_index_to_full;
+use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
+use crate::patricia_merkle_tree::internal_test_utils::as_fully_indexed;
+use crate::patricia_merkle_tree::internal_test_utils::random;
+use crate::patricia_merkle_tree::internal_test_utils::small_tree_index_to_full;
+use crate::patricia_merkle_tree::types::SortedLeafIndices;
 use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 use ethnum::{uint, U256};
 use rand::rngs::ThreadRng;
@@ -48,17 +49,23 @@ fn create_increasing_random_array<R: Rng>(
 fn test_split_leaves(
     #[case] subtree_height: u8,
     #[case] root_index: U256,
-    #[case] leaf_indices: Vec<NodeIndex>,
+    #[case] mut leaf_indices: Vec<NodeIndex>,
     #[case] expected_left: &[U256],
     #[case] expected_right: &[U256],
 ) {
     let height = SubTreeHeight(subtree_height);
     let root_index = small_tree_index_to_full(root_index, height);
+    let mut left_full_indices = as_fully_indexed(subtree_height, expected_left.iter().copied());
+    let mut right_full_indices = as_fully_indexed(subtree_height, expected_right.iter().copied());
+
     let expected = [
-        as_fully_indexed(subtree_height, expected_left.iter().copied()),
-        as_fully_indexed(subtree_height, expected_right.iter().copied()),
+        SortedLeafIndices::new(&mut left_full_indices),
+        SortedLeafIndices::new(&mut right_full_indices),
     ];
-    assert_eq!(split_leaves(&root_index, &leaf_indices), expected);
+    assert_eq!(
+        split_leaves(&root_index, &SortedLeafIndices::new(&mut leaf_indices)),
+        expected
+    );
 }
 
 #[rstest]

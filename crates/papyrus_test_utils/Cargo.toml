@@ -1,6 +1,6 @@
 [package]
 name = "papyrus_test_utils"
-version.workspace = true
+version = "0.4.0-dev.4"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -20,7 +20,8 @@ rand_chacha.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"]}
-starknet_api = { version = "0.12.0-dev.1", features = ["testing"] }
+starknet_api = { path = "../starknet_api", version = "0.13.0-dev.9", features = ["testing"] }
+starknet-types-core = { workspace = true, features = ["hash"] }
 tracing = { workspace = true, features = ["log"] }
 
 [dev-dependencies]

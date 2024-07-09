@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
+use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::types::NodeIndex;
-use crate::patricia_merkle_tree::updated_skeleton_tree::compute_updated_skeleton_tree::TempSkeletonNode;
+use crate::patricia_merkle_tree::updated_skeleton_tree::create_tree_helper::TempSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 
@@ -17,7 +18,7 @@ pub(crate) type UpdatedSkeletonTreeResult<T> = Result<T, UpdatedSkeletonTreeErro
 
 /// Consider a Patricia-Merkle Tree which has been updated with new leaves.
 /// This trait represents the structure of the subtree which was modified in the update.
-/// It also contains the hashes of the Sibling nodes on the Merkle paths from the updated leaves
+/// It also contains the hashes of the unmodified nodes on the Merkle paths from the updated leaves
 /// to the root.
 pub(crate) trait UpdatedSkeletonTree: Sized + Send + Sync {
     /// Creates an updated tree from an original tree and modifications.
@@ -45,6 +46,9 @@ impl UpdatedSkeletonTree for UpdatedSkeletonTreeImpl {
         original_skeleton: &mut impl OriginalSkeletonTree,
         leaf_modifications: &LeafModifications<SkeletonLeaf>,
     ) -> UpdatedSkeletonTreeResult<Self> {
+        if leaf_modifications.is_empty() {
+            return Self::create_unmodified(original_skeleton);
+        }
         let skeleton_tree = Self::finalize_bottom_layer(original_skeleton, leaf_modifications);
 
         let mut updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
@@ -63,9 +67,10 @@ impl UpdatedSkeletonTree for UpdatedSkeletonTreeImpl {
                     OriginalSkeletonNode::Edge(path_to_bottom) => {
                         UpdatedSkeletonNode::Edge(path_to_bottom)
                     }
-                    OriginalSkeletonNode::LeafOrBinarySibling(_)
-                    | OriginalSkeletonNode::UnmodifiedBottom(_) => {
-                        unreachable!("Root node cannot be an unmodified bottom or a sibling.")
+                    OriginalSkeletonNode::UnmodifiedSubTree(_) => {
+                        unreachable!(
+                            "Root node cannot be unmodified when there are some modifications."
+                        )
                     }
                 };
 
@@ -81,14 +86,20 @@ impl UpdatedSkeletonTree for UpdatedSkeletonTreeImpl {
     }
 
     fn is_empty(&self) -> bool {
-        let is_empty = self.skeleton_tree.is_empty();
-        if !is_empty {
-            assert!(
-                self.skeleton_tree.contains_key(&NodeIndex::ROOT),
-                "Root node is missing from non-empty tree."
-            );
+        // An updated skeleton tree is empty in two cases:
+        // (i) The inner map is empty.
+        // (ii)The root is considered as unmodified with a hash of an empty tree.
+        let is_map_empty = self.skeleton_tree.is_empty();
+        match self.skeleton_tree.get(&NodeIndex::ROOT) {
+            Some(UpdatedSkeletonNode::UnmodifiedSubTree(root_hash)) => {
+                *root_hash == HashOutput::ROOT_OF_EMPTY_TREE
+            }
+            Some(_modified_root) => false,
+            None => {
+                assert!(is_map_empty, "Non-empty tree must have a root node.");
+                true
+            }
         }
-        is_empty
     }
 
     fn get_node(&self, index: NodeIndex) -> UpdatedSkeletonTreeResult<&UpdatedSkeletonNode> {

@@ -124,13 +124,6 @@ expression: dumped_default_config
     "value": true,
     "privacy": "TemporaryValue"
   },
-  "network.header_buffer_size": {
-    "description": "Size of the buffer for headers read from the storage.",
-    "value": {
-      "$serde_json::private::Number": "100000"
-    },
-    "privacy": "Public"
-  },
   "network.idle_connection_timeout": {
     "description": "Amount of time in seconds that a connection with no active sessions will stay alive.",
     "value": {
@@ -144,6 +137,11 @@ expression: dumped_default_config
       "$serde_json::private::Number": "10001"
     },
     "privacy": "Public"
+  },
+  "network.secret_key": {
+    "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
+    "value": "",
+    "privacy": "Private"
   },
   "network.session_timeout": {
     "description": "Maximal time in seconds that each session can take before failing on timeout.",
@@ -163,6 +161,13 @@ expression: dumped_default_config
     "description": "Flag for an optional field",
     "value": true,
     "privacy": "TemporaryValue"
+  },
+  "p2p_sync.buffer_size": {
+    "description": "Size of the buffer for read from the storage and for incoming responses.",
+    "value": {
+      "$serde_json::private::Number": "100000"
+    },
+    "privacy": "Public"
   },
   "p2p_sync.num_block_state_diffs_per_query": {
     "description": "The maximum amount of block's state diffs to ask from peers in each iteration.",
@@ -315,7 +320,7 @@ expression: dumped_default_config
   "storage.mmap_file_config.max_object_size": {
     "description": "The maximum size of a single object in the file in bytes",
     "value": {
-      "$serde_json::private::Number": "1048576"
+      "$serde_json::private::Number": "268435456"
     },
     "privacy": "Public"
   },

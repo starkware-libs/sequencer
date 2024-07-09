@@ -1,10 +1,11 @@
-use crate::block_hash::BlockInfo;
 use crate::filled_tree_output::errors::FilledForestError;
 use crate::filled_tree_output::filled_forest::SerializedForest;
+use crate::parse_input::cast::InputImpl;
 use crate::parse_input::read::parse_input;
+use crate::tests::utils::parse_from_python::parse_input_single_storage_tree_flow_test;
 use crate::tests::utils::random_structs::DummyRandomValue;
 use committer::block_committer::input::{
-    ContractAddress, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
+    ContractAddress, StarknetStorageKey, StarknetStorageValue, StateDiff,
 };
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
@@ -14,21 +15,31 @@ use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, FilledNode, 
 use committer::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
 };
-use committer::patricia_merkle_tree::node_data::leaf::{ContractState, LeafDataImpl};
+use committer::patricia_merkle_tree::node_data::leaf::ContractState;
 use committer::patricia_merkle_tree::types::SubTreeHeight;
+
+use committer::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
 use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use committer::storage::db_object::DBObject;
 use committer::storage::errors::{DeserializationError, SerializationError};
 use committer::storage::map_storage::MapStorage;
 use committer::storage::storage_trait::{Storage, StorageKey, StorageValue};
 use ethnum::U256;
+use serde_json::json;
+use starknet_api::block_hash::block_hash_calculator::{
+    TransactionHashingData, TransactionOutputForHash,
+};
+use starknet_api::state::ThinStateDiff;
+use starknet_api::transaction::TransactionExecutionStatus;
 use starknet_types_core::hash::{Pedersen, StarkHash};
 use std::fmt::Debug;
 use std::{collections::HashMap, io};
 use thiserror;
 
+use super::utils::objects::{get_thin_state_diff, get_transaction_output_for_hash, get_tx_data};
+
 // Enum representing different Python tests.
-pub(crate) enum PythonTest {
+pub enum PythonTest {
     ExampleTest,
     FeltSerialize,
     HashFunction,
@@ -39,13 +50,18 @@ pub(crate) enum PythonTest {
     ComparePythonHashConstants,
     StorageNode,
     FilledForestOutput,
-    ParseBlockInfo,
     TreeHeightComparison,
+    ParseTxOutput,
+    ParseStateDiff,
+    ParseTxData,
+    SerializeForRustCommitterFlowTest,
+    ComputeHashSingleTree,
+    MaybePanic,
 }
 
 /// Error type for PythonTest enum.
 #[derive(Debug, thiserror::Error)]
-pub(crate) enum PythonTestError {
+pub enum PythonTestError {
     #[error("Unknown test name: {0}")]
     UnknownTestName(String),
     #[error(transparent)]
@@ -65,7 +81,7 @@ pub(crate) enum PythonTestError {
     #[error(transparent)]
     SerializationError(#[from] SerializationError),
     #[error(transparent)]
-    FilledForest(#[from] FilledForestError<LeafDataImpl>),
+    FilledForest(#[from] FilledForestError),
 }
 
 /// Implements conversion from a string to a `PythonTest`.
@@ -84,8 +100,13 @@ impl TryFrom<String> for PythonTest {
             "compare_python_hash_constants" => Ok(Self::ComparePythonHashConstants),
             "storage_node_test" => Ok(Self::StorageNode),
             "filled_forest_output" => Ok(Self::FilledForestOutput),
-            "parse_block_info" => Ok(Self::ParseBlockInfo),
             "compare_tree_height" => Ok(Self::TreeHeightComparison),
+            "parse_tx_output_test" => Ok(Self::ParseTxOutput),
+            "parse_state_diff_test" => Ok(Self::ParseStateDiff),
+            "parse_tx_data_test" => Ok(Self::ParseTxData),
+            "serialize_to_rust_committer_flow_test" => Ok(Self::SerializeForRustCommitterFlowTest),
+            "tree_test" => Ok(Self::ComputeHashSingleTree),
+            "maybe_panic" => Ok(Self::MaybePanic),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -93,12 +114,12 @@ impl TryFrom<String> for PythonTest {
 
 impl PythonTest {
     /// Returns the input string if it's `Some`, or an error if it's `None`.
-    fn non_optional_input(input: Option<&str>) -> Result<&str, PythonTestError> {
+    pub fn non_optional_input(input: Option<&str>) -> Result<&str, PythonTestError> {
         input.ok_or_else(|| PythonTestError::NoneInputError)
     }
 
     /// Runs the test with the given arguments.
-    pub(crate) fn run(&self, input: Option<&str>) -> Result<String, PythonTestError> {
+    pub async fn run(&self, input: Option<&str>) -> Result<String, PythonTestError> {
         match self {
             Self::ExampleTest => {
                 let example_input: HashMap<String, String> =
@@ -119,7 +140,10 @@ impl PythonTest {
                     serde_json::from_str(Self::non_optional_input(input)?)?;
                 Ok(test_binary_serialize_test(binary_input))
             }
-            Self::InputParsing => parse_input_test(),
+            Self::InputParsing => {
+                let committer_input = serde_json::from_str(Self::non_optional_input(input)?)?;
+                parse_input_test(committer_input)
+            }
             Self::StorageSerialize => storage_serialize_test(),
             Self::NodeKey => Ok(test_node_db_key()),
             Self::ComparePythonHashConstants => Ok(python_hash_constants_compare()),
@@ -129,13 +153,63 @@ impl PythonTest {
                 test_storage_node(storage_node_input)
             }
             Self::FilledForestOutput => filled_forest_output_test(),
-            Self::ParseBlockInfo => {
-                let block_info: BlockInfo = serde_json::from_str(Self::non_optional_input(input)?)?;
-                Ok(parse_block_info_test(block_info))
-            }
             Self::TreeHeightComparison => Ok(get_actual_tree_height()),
+            Self::ParseTxOutput => {
+                let tx_output: TransactionOutputForHash =
+                    serde_json::from_str(Self::non_optional_input(input)?)?;
+                Ok(parse_tx_output_test(tx_output))
+            }
+            Self::ParseStateDiff => {
+                let tx_output: ThinStateDiff =
+                    serde_json::from_str(Self::non_optional_input(input)?)?;
+                Ok(parse_state_diff_test(tx_output))
+            }
+            Self::ParseTxData => {
+                let tx_data: TransactionHashingData =
+                    serde_json::from_str(Self::non_optional_input(input)?)?;
+                Ok(parse_tx_data_test(tx_data))
+            }
+            Self::SerializeForRustCommitterFlowTest => {
+                let input: HashMap<String, String> =
+                    serde_json::from_str(Self::non_optional_input(input)?)?;
+                Ok(serialize_for_rust_committer_flow_test(input))
+            }
+            Self::ComputeHashSingleTree => {
+                // 1. Get and deserialize input.
+                let input: HashMap<String, String> =
+                    serde_json::from_str(Self::non_optional_input(input)?)?;
+                let (leaf_modifications, storage, root_hash) =
+                    parse_input_single_storage_tree_flow_test(&input);
+                // 2. Run the test.
+                let output = single_tree_flow_test(leaf_modifications, storage, root_hash).await;
+                // 3. Serialize and return output.
+                Ok(output)
+            }
+            Self::MaybePanic => {
+                let is_panic: bool = serde_json::from_str(Self::non_optional_input(input)?)?;
+                if is_panic {
+                    panic!("panic test")
+                }
+                Ok("Done!".to_owned())
+            }
         }
     }
+}
+
+// Test that the fetching of the input to flow test is working.
+fn serialize_for_rust_committer_flow_test(input: HashMap<String, String>) -> String {
+    let (leaf_modifications, storage, root_hash) =
+        parse_input_single_storage_tree_flow_test(&input);
+    // Serialize the leaf modifications to an object that can be JSON-serialized.
+    let leaf_modifications_to_print: HashMap<String, Vec<u8>> = leaf_modifications
+        .into_iter()
+        .map(|(k, v)| (k.0.to_string(), v.serialize().0))
+        .collect();
+
+    // Create a json string to compare with the expected string in python.
+    serde_json::to_string(&json!(
+        {"leaf_modifications": leaf_modifications_to_print, "storage": storage.storage, "root_hash": root_hash.0}
+    )).expect("serialization failed")
 }
 
 fn get_or_key_not_found<'a, T: Debug>(
@@ -160,13 +234,27 @@ pub(crate) fn example_test(test_args: HashMap<String, String>) -> String {
     format!("Calling example test with args: x: {}, y: {}", x, y)
 }
 
-pub(crate) fn parse_block_info_test(block_info: BlockInfo) -> String {
-    format!(
-        "da mode: {}, gas: {:?}, data_gas: {:?}",
-        block_info.da_mode,
-        block_info.l1_gas_price_per_token,
-        block_info.l1_data_gas_price_per_token
-    )
+pub(crate) fn parse_tx_output_test(tx_execution_info: TransactionOutputForHash) -> String {
+    let expected_object = get_transaction_output_for_hash(&tx_execution_info.execution_status);
+    is_success_string(expected_object == tx_execution_info)
+}
+
+pub(crate) fn parse_state_diff_test(state_diff: ThinStateDiff) -> String {
+    let expected_object = get_thin_state_diff();
+    is_success_string(expected_object == state_diff)
+}
+
+pub(crate) fn parse_tx_data_test(tx_data: TransactionHashingData) -> String {
+    let expected_object = get_tx_data(&TransactionExecutionStatus::Succeeded);
+    is_success_string(expected_object == tx_data)
+}
+
+fn is_success_string(is_success: bool) -> String {
+    match is_success {
+        true => "Success",
+        false => "Failure",
+    }
+    .to_owned()
 }
 
 /// Serializes a Felt into a string.
@@ -224,8 +312,8 @@ pub(crate) fn test_binary_serialize_test(binary_input: HashMap<String, u128>) ->
         right_hash: HashOutput(Felt::from(*right)),
     };
 
-    // Create a filled node with binary data and zero hash.
-    let filled_node: FilledNode<LeafDataImpl> = FilledNode {
+    // Create a filled node (irrelevant leaf type) with binary data and zero hash.
+    let filled_node: FilledNode<StarknetStorageValue> = FilledNode {
         data: NodeData::Binary(binary_data),
         hash: HashOutput(Felt::ZERO),
     };
@@ -239,18 +327,13 @@ pub(crate) fn test_binary_serialize_test(binary_input: HashMap<String, u128>) ->
         .unwrap_or_else(|error| panic!("Failed to serialize binary fact: {}", error))
 }
 
-pub(crate) fn parse_input_test() -> Result<String, PythonTestError> {
-    let input = io::read_to_string(io::stdin())?;
-    Ok(create_output_to_python(parse_input(input)?))
+pub(crate) fn parse_input_test(committer_input: String) -> Result<String, PythonTestError> {
+    Ok(create_output_to_python(parse_input(&committer_input)?))
 }
 
-fn create_output_to_python(actual_input: Input) -> String {
+fn create_output_to_python(actual_input: InputImpl) -> String {
     let (storage_keys_hash, storage_values_hash) = hash_storage(&actual_input.storage);
-    let (state_diff_keys_hash, state_diff_values_hash) =
-        hash_state_diff_and_current_contract_state_leaves(
-            &actual_input.state_diff,
-            &actual_input.current_contracts_trie_leaves,
-        );
+    let (state_diff_keys_hash, state_diff_values_hash) = hash_state_diff(&actual_input.state_diff);
     format!(
         r#"
         {{
@@ -258,7 +341,6 @@ fn create_output_to_python(actual_input: Input) -> String {
         "address_to_class_hash_size": {},
         "address_to_nonce_size": {},
         "class_hash_to_compiled_class_hash": {},
-        "current_contract_state_leaves_size": {},
         "outer_storage_updates_size": {},
         "global_tree_root_hash": {:?},
         "classes_tree_root_hash": {:?},
@@ -274,7 +356,6 @@ fn create_output_to_python(actual_input: Input) -> String {
             .state_diff
             .class_hash_to_compiled_class_hash
             .len(),
-        actual_input.current_contracts_trie_leaves.len(),
         actual_input.state_diff.storage_updates.len(),
         actual_input.contracts_trie_root_hash.0.to_bytes_be(),
         actual_input.classes_trie_root_hash.0.to_bytes_be(),
@@ -287,10 +368,7 @@ fn create_output_to_python(actual_input: Input) -> String {
 
 /// Calculates the 'hash' of the parsed state diff in order to verify the state diff sent
 /// from python was parsed correctly.
-fn hash_state_diff_and_current_contract_state_leaves(
-    state_diff: &StateDiff,
-    current_contract_state_leaves: &HashMap<ContractAddress, ContractState>,
-) -> (Vec<u8>, Vec<u8>) {
+fn hash_state_diff(state_diff: &StateDiff) -> (Vec<u8>, Vec<u8>) {
     let (address_to_class_hash_keys_hash, address_to_class_hash_values_hash) =
         hash_address_to_class_hash(&state_diff.address_to_class_hash);
     let (address_to_nonce_keys_hash, address_to_nonce_values_hash) =
@@ -301,8 +379,6 @@ fn hash_state_diff_and_current_contract_state_leaves(
     ) = hash_class_hash_to_compiled_class_hash(&state_diff.class_hash_to_compiled_class_hash);
     let (storage_updates_keys_hash, storage_updates_values_hash) =
         hash_storage_updates(&state_diff.storage_updates);
-    let (current_contract_states_keys_hash, current_contract_states_values_hash) =
-        hash_current_contract_states(current_contract_state_leaves);
     let mut state_diff_keys_hash = xor_hash(
         &address_to_class_hash_keys_hash,
         &address_to_nonce_keys_hash,
@@ -312,7 +388,6 @@ fn hash_state_diff_and_current_contract_state_leaves(
         &class_hash_to_compiled_class_hash_keys_hash,
     );
     state_diff_keys_hash = xor_hash(&state_diff_keys_hash, &storage_updates_keys_hash);
-    state_diff_keys_hash = xor_hash(&state_diff_keys_hash, &current_contract_states_keys_hash);
     let mut state_diff_values_hash = xor_hash(
         &address_to_class_hash_values_hash,
         &address_to_nonce_values_hash,
@@ -322,25 +397,7 @@ fn hash_state_diff_and_current_contract_state_leaves(
         &class_hash_to_compiled_class_hash_values_hash,
     );
     state_diff_values_hash = xor_hash(&state_diff_values_hash, &storage_updates_values_hash);
-    state_diff_values_hash = xor_hash(
-        &state_diff_values_hash,
-        &current_contract_states_values_hash,
-    );
     (state_diff_keys_hash, state_diff_values_hash)
-}
-
-fn hash_current_contract_states(
-    current_contract_state_leaves: &HashMap<ContractAddress, ContractState>,
-) -> (Vec<u8>, Vec<u8>) {
-    let mut keys_hash = vec![0; 32];
-    let mut values_hash = vec![0; 32];
-    for (key, state_leaf) in current_contract_state_leaves {
-        keys_hash = xor_hash(&keys_hash, &key.0.to_bytes_be());
-        values_hash = xor_hash(&values_hash, &state_leaf.nonce.0.to_bytes_be());
-        values_hash = xor_hash(&values_hash, &state_leaf.class_hash.0.to_bytes_be());
-        values_hash = xor_hash(&values_hash, &state_leaf.storage_root_hash.0.to_bytes_be());
-    }
-    (keys_hash, values_hash)
 }
 
 fn hash_storage_updates(
@@ -414,7 +471,7 @@ pub(crate) fn test_node_db_key() -> String {
     // Generate keys for different node types.
     let hash = HashOutput(zero);
 
-    let binary_node: FilledNode<LeafDataImpl> = FilledNode {
+    let binary_node: FilledNode<StarknetStorageValue> = FilledNode {
         data: NodeData::Binary(BinaryData {
             left_hash: hash,
             right_hash: hash,
@@ -423,7 +480,7 @@ pub(crate) fn test_node_db_key() -> String {
     };
     let binary_node_key = binary_node.db_key().0;
 
-    let edge_node: FilledNode<LeafDataImpl> = FilledNode {
+    let edge_node: FilledNode<StarknetStorageValue> = FilledNode {
         data: NodeData::Edge(EdgeData {
             bottom_hash: hash,
             path_to_bottom: Default::default(),
@@ -434,23 +491,23 @@ pub(crate) fn test_node_db_key() -> String {
     let edge_node_key = edge_node.db_key().0;
 
     let storage_leaf = FilledNode {
-        data: NodeData::Leaf(LeafDataImpl::StorageValue(zero)),
+        data: NodeData::Leaf(StarknetStorageValue(zero)),
         hash,
     };
     let storage_leaf_key = storage_leaf.db_key().0;
 
     let state_tree_leaf = FilledNode {
-        data: NodeData::Leaf(LeafDataImpl::ContractState(ContractState {
+        data: NodeData::Leaf(ContractState {
             class_hash: ClassHash(zero),
             storage_root_hash: HashOutput(zero),
             nonce: Nonce(zero),
-        })),
+        }),
         hash,
     };
     let state_tree_leaf_key = state_tree_leaf.db_key().0;
 
     let compiled_class_leaf = FilledNode {
-        data: NodeData::Leaf(LeafDataImpl::CompiledClassHash(CompiledClassHash(zero))),
+        data: NodeData::Leaf(CompiledClassHash(zero)),
         hash,
     };
     let compiled_class_leaf_key = compiled_class_leaf.db_key().0;
@@ -523,7 +580,7 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
     let binary_data: HashMap<String, u128> = serde_json::from_str(binary_json)?;
 
     // Create a binary node from the parsed data.
-    let binary_rust: FilledNode<LeafDataImpl> = FilledNode {
+    let binary_rust: FilledNode<StarknetStorageValue> = FilledNode {
         data: NodeData::Binary(BinaryData {
             left_hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "left")?)),
             right_hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "right")?)),
@@ -539,7 +596,7 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
     let edge_data: HashMap<String, u128> = serde_json::from_str(edge_json)?;
 
     // Create an edge node from the parsed data.
-    let edge_rust: FilledNode<LeafDataImpl> = FilledNode {
+    let edge_rust: FilledNode<StarknetStorageValue> = FilledNode {
         data: NodeData::Edge(EdgeData {
             bottom_hash: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "bottom")?)),
             path_to_bottom: PathToBottom::new(
@@ -561,9 +618,10 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
 
     // Create a storage leaf node from the parsed data.
     let storage_leaf_rust = FilledNode {
-        data: NodeData::Leaf(LeafDataImpl::StorageValue(Felt::from(
-            *get_or_key_not_found(&storage_leaf_data, "value")?,
-        ))),
+        data: NodeData::Leaf(StarknetStorageValue(Felt::from(*get_or_key_not_found(
+            &storage_leaf_data,
+            "value",
+        )?))),
         hash: HashOutput(Felt::from(*get_or_key_not_found(
             &storage_leaf_data,
             "hash",
@@ -580,7 +638,7 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
 
     // Create a contract state leaf node from the parsed data.
     let contract_state_leaf_rust = FilledNode {
-        data: NodeData::Leaf(LeafDataImpl::ContractState(ContractState {
+        data: NodeData::Leaf(ContractState {
             class_hash: ClassHash(Felt::from(*get_or_key_not_found(
                 &contract_state_leaf_data,
                 "contract_hash",
@@ -593,7 +651,7 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
                 &contract_state_leaf_data,
                 "nonce",
             )?)),
-        })),
+        }),
 
         hash: HashOutput(Felt::from(*get_or_key_not_found(
             &contract_state_leaf_data,
@@ -614,12 +672,10 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
 
     // Create a compiled class leaf node from the parsed data.
     let compiled_class_leaf_rust = FilledNode {
-        data: NodeData::Leaf(LeafDataImpl::CompiledClassHash(CompiledClassHash(
-            Felt::from(*get_or_key_not_found(
-                &compiled_class_leaf_data,
-                "compiled_class_hash",
-            )?),
-        ))),
+        data: NodeData::Leaf(CompiledClassHash(Felt::from(*get_or_key_not_found(
+            &compiled_class_leaf_data,
+            "compiled_class_hash",
+        )?))),
         hash: HashOutput(Felt::from(*get_or_key_not_found(
             &compiled_class_leaf_data,
             "hash",
@@ -642,6 +698,7 @@ pub(crate) fn filled_forest_output_test() -> Result<String, PythonTestError> {
         &mut rand::thread_rng(),
         None,
     ));
-    dummy_forest.forest_to_python()?;
-    Ok("".to_string())
+    let output = dummy_forest.forest_to_output();
+    let output_string = serde_json::to_string(&output).expect("Failed to serialize");
+    Ok(output_string)
 }

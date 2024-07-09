@@ -4,13 +4,15 @@ use std::collections::{HashMap, HashSet};
 use derive_more::IntoIterator;
 use indexmap::IndexMap;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::hash::StarkFelt;
 use starknet_api::state::StorageKey;
+use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::get_fee_token_var_address;
+use crate::context::TransactionContext;
 use crate::execution::contract_class::ContractClass;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader, StateResult, UpdatableState};
+use crate::transaction::objects::TransactionExecutionInfo;
 use crate::utils::{strict_subtract_mappings, subtract_mappings};
 
 #[cfg(test)]
@@ -57,15 +59,17 @@ impl<S: StateReader> CachedState<S> {
         Ok(self.to_state_diff()?.into())
     }
 
-    pub fn update_cache(&mut self, write_updates: &StateMaps) {
-        let mut cache = self.cache.borrow_mut();
-        cache.writes.extend(write_updates);
-    }
-
-    pub fn update_contract_class_cache(
+    pub fn update_cache(
         &mut self,
+        write_updates: &StateMaps,
         local_contract_cache_updates: ContractClassMapping,
     ) {
+        // Check consistency between declared_contracts and class_hash_to_class.
+        for (&key, &value) in &write_updates.declared_contracts {
+            assert_eq!(value, local_contract_cache_updates.contains_key(&key));
+        }
+        let mut cache = self.cache.borrow_mut();
+        cache.writes.extend(write_updates);
         self.class_hash_to_class.get_mut().extend(local_contract_cache_updates);
     }
 
@@ -110,9 +114,8 @@ impl<S: StateReader> UpdatableState for CachedState<S> {
         class_hash_to_class: &ContractClassMapping,
         visited_pcs: &HashMap<ClassHash, HashSet<usize>>,
     ) {
-        self.update_cache(writes);
         // TODO(OriF,15/5/24): Reconsider the clone.
-        self.update_contract_class_cache(class_hash_to_class.clone());
+        self.update_cache(writes, class_hash_to_class.clone());
         self.update_visited_pcs_cache(visited_pcs);
     }
 }
@@ -129,7 +132,7 @@ impl<S: StateReader> StateReader for CachedState<S> {
         &self,
         contract_address: ContractAddress,
         key: StorageKey,
-    ) -> StateResult<StarkFelt> {
+    ) -> StateResult<Felt> {
         let mut cache = self.cache.borrow_mut();
 
         if cache.get_storage_at(contract_address, key).is_none() {
@@ -184,7 +187,7 @@ impl<S: StateReader> StateReader for CachedState<S> {
                     cache.set_declared_contract_initial_values(class_hash, false);
                     cache.set_compiled_class_hash_initial_value(
                         class_hash,
-                        CompiledClassHash(StarkFelt::ZERO),
+                        CompiledClassHash(Felt::ZERO),
                     );
                     Err(StateError::UndeclaredClassHash(class_hash))?;
                 }
@@ -224,7 +227,7 @@ impl<S: StateReader> State for CachedState<S> {
         &mut self,
         contract_address: ContractAddress,
         key: StorageKey,
-        value: StarkFelt,
+        value: Felt,
     ) -> StateResult<()> {
         self.cache.get_mut().set_storage_value(contract_address, key, value);
 
@@ -233,12 +236,7 @@ impl<S: StateReader> State for CachedState<S> {
 
     fn increment_nonce(&mut self, contract_address: ContractAddress) -> StateResult<()> {
         let current_nonce = self.get_nonce_at(contract_address)?;
-        // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
-        // works.
-        let current_nonce_as_u64: u64 =
-            usize::try_from(current_nonce.0)?.try_into().expect("Failed to convert usize to u64.");
-        let next_nonce_val = 1_u64 + current_nonce_as_u64;
-        let next_nonce = Nonce(StarkFelt::from(next_nonce_val));
+        let next_nonce = Nonce(current_nonce.0 + Felt::ONE);
         self.cache.get_mut().set_nonce_value(contract_address, next_nonce);
 
         Ok(())
@@ -297,10 +295,10 @@ impl Default for CachedState<crate::test_utils::dict_state_reader::DictStateRead
 pub type StorageEntry = (ContractAddress, StorageKey);
 
 #[derive(Debug, Default, IntoIterator)]
-pub struct StorageView(pub HashMap<StorageEntry, StarkFelt>);
+pub struct StorageView(pub HashMap<StorageEntry, Felt>);
 
 /// Converts a `CachedState`'s storage mapping into a `StateDiff`'s storage mapping.
-impl From<StorageView> for IndexMap<ContractAddress, IndexMap<StorageKey, StarkFelt>> {
+impl From<StorageView> for IndexMap<ContractAddress, IndexMap<StorageKey, Felt>> {
     fn from(storage_view: StorageView) -> Self {
         let mut storage_updates = Self::new();
         for ((address, key), value) in storage_view.into_iter() {
@@ -319,11 +317,11 @@ impl From<StorageView> for IndexMap<ContractAddress, IndexMap<StorageKey, StarkF
 #[cfg_attr(any(feature = "testing", test), derive(Clone))]
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct StateMaps {
-    pub(crate) nonces: HashMap<ContractAddress, Nonce>,
-    pub(crate) class_hashes: HashMap<ContractAddress, ClassHash>,
-    pub(crate) storage: HashMap<StorageEntry, StarkFelt>,
-    pub(crate) compiled_class_hashes: HashMap<ClassHash, CompiledClassHash>,
-    pub(crate) declared_contracts: HashMap<ClassHash, bool>,
+    pub nonces: HashMap<ContractAddress, Nonce>,
+    pub class_hashes: HashMap<ContractAddress, ClassHash>,
+    pub storage: HashMap<StorageEntry, Felt>,
+    pub compiled_class_hashes: HashMap<ClassHash, CompiledClassHash>,
+    pub declared_contracts: HashMap<ClassHash, bool>,
 }
 
 impl StateMaps {
@@ -383,11 +381,7 @@ impl StateCache {
         self.initial_reads.declared_contracts.insert(class_hash, is_declared);
     }
 
-    fn get_storage_at(
-        &self,
-        contract_address: ContractAddress,
-        key: StorageKey,
-    ) -> Option<&StarkFelt> {
+    fn get_storage_at(&self, contract_address: ContractAddress, key: StorageKey) -> Option<&Felt> {
         let contract_storage_key = (contract_address, key);
         self.writes
             .storage
@@ -406,7 +400,7 @@ impl StateCache {
         &mut self,
         contract_address: ContractAddress,
         key: StorageKey,
-        value: StarkFelt,
+        value: Felt,
     ) {
         let contract_storage_key = (contract_address, key);
         self.initial_reads.storage.insert(contract_storage_key, value);
@@ -416,7 +410,7 @@ impl StateCache {
         &mut self,
         contract_address: ContractAddress,
         key: StorageKey,
-        value: StarkFelt,
+        value: Felt,
     ) {
         let contract_storage_key = (contract_address, key);
         self.writes.storage.insert(contract_storage_key, value);
@@ -475,21 +469,21 @@ impl StateCache {
 
 /// Wraps a mutable reference to a `State` object, exposing its API.
 /// Used to pass ownership to a `CachedState`.
-pub struct MutRefState<'a, U: UpdatableState + ?Sized>(&'a mut U);
+pub struct MutRefState<'a, S: StateReader + ?Sized>(&'a mut S);
 
-impl<'a, U: UpdatableState + ?Sized> MutRefState<'a, U> {
-    pub fn new(state: &'a mut U) -> Self {
+impl<'a, S: StateReader + ?Sized> MutRefState<'a, S> {
+    pub fn new(state: &'a mut S) -> Self {
         Self(state)
     }
 }
 
 /// Proxies inner object to expose `State` functionality.
-impl<'a, U: UpdatableState + ?Sized> StateReader for MutRefState<'a, U> {
+impl<'a, S: StateReader + ?Sized> StateReader for MutRefState<'a, S> {
     fn get_storage_at(
         &self,
         contract_address: ContractAddress,
         key: StorageKey,
-    ) -> StateResult<StarkFelt> {
+    ) -> StateResult<Felt> {
         self.0.get_storage_at(contract_address, key)
     }
 
@@ -512,16 +506,21 @@ impl<'a, U: UpdatableState + ?Sized> StateReader for MutRefState<'a, U> {
 
 pub type TransactionalState<'a, U> = CachedState<MutRefState<'a, U>>;
 
-/// Adds the ability to perform a transactional execution.
-impl<'a, U: UpdatableState> TransactionalState<'a, U> {
+impl<'a, S: StateReader> TransactionalState<'a, S> {
     /// Creates a transactional instance from the given updatable state.
     /// It allows performing buffered modifying actions on the given state, which
     /// will either all happen (will be updated in the state and committed)
     /// or none of them (will be discarded).
-    pub fn create_transactional(state: &mut U) -> TransactionalState<'_, U> {
+    pub fn create_transactional(state: &mut S) -> TransactionalState<'_, S> {
         CachedState::new(MutRefState::new(state))
     }
 
+    /// Drops `self`.
+    pub fn abort(self) {}
+}
+
+/// Adds the ability to perform a transactional execution.
+impl<'a, U: UpdatableState> TransactionalState<'a, U> {
     /// Commits changes in the child (wrapping) state to its parent.
     pub fn commit(self) {
         let state = self.state.0;
@@ -532,12 +531,9 @@ impl<'a, U: UpdatableState> TransactionalState<'a, U> {
             &self.visited_pcs,
         )
     }
-
-    /// Drops `self`.
-    pub fn abort(self) {}
 }
 
-type StorageDiff = IndexMap<ContractAddress, IndexMap<StorageKey, StarkFelt>>;
+type StorageDiff = IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>;
 
 /// Holds uncommitted changes induced on Starknet contracts.
 #[cfg_attr(any(feature = "testing", test), derive(Clone))]
@@ -546,7 +542,7 @@ pub struct CommitmentStateDiff {
     // Contract instance attributes (per address).
     pub address_to_class_hash: IndexMap<ContractAddress, ClassHash>,
     pub address_to_nonce: IndexMap<ContractAddress, Nonce>,
-    pub storage_updates: IndexMap<ContractAddress, IndexMap<StorageKey, StarkFelt>>,
+    pub storage_updates: IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
 
     // Global attributes.
     pub class_hash_to_compiled_class_hash: IndexMap<ClassHash, CompiledClassHash>,
@@ -612,6 +608,21 @@ impl StateChangesKeys {
         self.storage_keys.extend(&other.storage_keys);
         self.compiled_class_hash_keys.extend(&other.compiled_class_hash_keys);
         self.modified_contracts.extend(&other.modified_contracts);
+    }
+
+    pub fn update_sequencer_key_in_storage(
+        &mut self,
+        tx_context: &TransactionContext,
+        tx_result: &TransactionExecutionInfo,
+        concurrency_mode: bool,
+    ) {
+        let actual_fee = tx_result.transaction_receipt.fee.0;
+        let sequencer_address = tx_context.block_context.block_info.sequencer_address;
+        if concurrency_mode && !tx_context.is_sequencer_the_sender() && actual_fee > 0 {
+            // Add the deleted sequencer balance key to the storage keys.
+            let sequencer_balance_low = get_fee_token_var_address(sequencer_address);
+            self.storage_keys.insert((tx_context.fee_token_address(), sequencer_balance_low));
+        }
     }
 
     pub fn count(&self) -> StateChangesCount {

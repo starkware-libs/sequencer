@@ -17,7 +17,7 @@ use starknet_api::core::{
     PatriciaKey,
     SequencerPublicKey,
 };
-use starknet_api::crypto::PublicKey;
+use starknet_api::crypto::utils::PublicKey;
 use starknet_api::deprecated_contract_class::{
     ConstructorType,
     ContractClass as DeprecatedContractClass,
@@ -29,10 +29,9 @@ use starknet_api::deprecated_contract_class::{
     Program,
     TypedParameter,
 };
-use starknet_api::hash::{StarkFelt, StarkHash};
 use starknet_api::state::{EntryPoint, EntryPointType, FunctionIndex};
 use starknet_api::transaction::{Fee, TransactionHash, TransactionSignature, TransactionVersion};
-use starknet_api::{patricia_key, stark_felt};
+use starknet_api::{felt, patricia_key};
 
 use super::objects::state::StateUpdate;
 use super::objects::transaction::IntermediateDeclareTransaction;
@@ -50,7 +49,7 @@ use super::{
     GET_STATE_UPDATE_URL,
 };
 use crate::reader::objects::block::{BlockSignatureData, BlockSignatureMessage};
-use crate::reader::BlockOrDeprecated;
+use crate::reader::Block;
 use crate::test_utils::read_resource::read_resource_file;
 use crate::test_utils::retry::get_test_config;
 
@@ -85,11 +84,11 @@ async fn get_block_number() {
     // There are blocks in Starknet.
     let mock_block = mock("GET", "/feeder_gateway/get_block?blockNumber=latest")
         .with_status(200)
-        .with_body(read_resource_file("reader/block.json"))
+        .with_body(read_resource_file("reader/block_post_0_13_1.json"))
         .create();
     let latest_block = starknet_client.latest_block().await.unwrap();
     mock_block.assert();
-    assert_eq!(latest_block.unwrap().block_number(), BlockNumber(319110));
+    assert_eq!(latest_block.unwrap().block_number(), BlockNumber(329525));
 
     // There are no blocks in Starknet.
     let body = r#"{"code": "StarknetErrorCode.BLOCK_NOT_FOUND", "message": "Block number -1 was not found."}"#;
@@ -105,12 +104,12 @@ async fn get_block_number() {
 #[tokio::test]
 async fn declare_tx_serde() {
     let declare_tx = IntermediateDeclareTransaction {
-        class_hash: ClassHash(stark_felt!(
+        class_hash: ClassHash(felt!(
             "0x7319e2f01b0947afd86c0bb0e95029551b32f6dc192c47b2e8b08415eebbc25"
         )),
         compiled_class_hash: None,
         sender_address: ContractAddress(patricia_key!("0x1")),
-        nonce: Nonce(stark_felt!("0x0")),
+        nonce: Nonce(felt!("0x0")),
         max_fee: Some(Fee(0)),
         version: TransactionVersion::ONE,
         resource_bounds: None,
@@ -119,7 +118,7 @@ async fn declare_tx_serde() {
         fee_data_availability_mode: None,
         paymaster_data: None,
         account_deployment_data: None,
-        transaction_hash: TransactionHash(stark_felt!(
+        transaction_hash: TransactionHash(felt!(
             "0x2f2ef64daffdc72bf33b34ad024891691b8eb1d0ab70cc7f8fb71f6fd5e1f22"
         )),
         signature: TransactionSignature(vec![]),
@@ -179,15 +178,15 @@ async fn contract_class() {
     .unwrap();
     let expected_contract_class = ContractClass {
         sierra_program: vec![
-            stark_felt!("0x302e312e30"),
-            stark_felt!("0x1c"),
-            stark_felt!("0x52616e6765436865636b"),
+            felt!("0x302e312e30"),
+            felt!("0x1c"),
+            felt!("0x52616e6765436865636b"),
         ],
         entry_points_by_type: HashMap::from([(
             EntryPointType::External,
             vec! [EntryPoint {
                 function_idx: FunctionIndex(0),
-                selector: EntryPointSelector(stark_felt!(
+                selector: EntryPointSelector(felt!(
                     "0x22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658"
                 )),
             }],
@@ -209,7 +208,7 @@ async fn contract_class() {
         .with_body(read_resource_file("reader/contract_class.json"))
         .create();
     let contract_class = starknet_client
-        .class_by_hash(ClassHash(stark_felt!(
+        .class_by_hash(ClassHash(felt!(
             "0x4e70b19333ae94bd958625f7b61ce9eec631653597e68645e13780061b2136c"
         )))
         .await
@@ -267,7 +266,7 @@ async fn deprecated_contract_class() {
             (
                 DeprecatedEntryPointType::Constructor,
                 vec![DeprecatedEntryPoint {
-                    selector: EntryPointSelector(stark_felt!(
+                    selector: EntryPointSelector(felt!(
                         "0x028ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194"
                     )),
                     offset: EntryPointOffset(62),
@@ -276,7 +275,7 @@ async fn deprecated_contract_class() {
             (
                 DeprecatedEntryPointType::External,
                 vec![DeprecatedEntryPoint {
-                    selector: EntryPointSelector(stark_felt!(
+                    selector: EntryPointSelector(felt!(
                         "0x0000000000000000000000000000000000000000000000000000000000000000"
                     )),
                     offset: EntryPointOffset(86),
@@ -294,7 +293,7 @@ async fn deprecated_contract_class() {
         .with_body(read_resource_file("reader/deprecated_contract_class.json"))
         .create();
     let contract_class = starknet_client
-        .class_by_hash(ClassHash(stark_felt!(
+        .class_by_hash(ClassHash(felt!(
             "0x7af612493193c771c1b12f511a8b4d3b0c6d0648242af4680c7cd0d06186f17"
         )))
         .await
@@ -319,7 +318,7 @@ async fn deprecated_contract_class() {
         .with_status(400)
         .with_body(body)
         .create();
-    let class = starknet_client.class_by_hash(ClassHash(stark_felt!("0x7"))).await.unwrap();
+    let class = starknet_client.class_by_hash(ClassHash(felt!("0x7"))).await.unwrap();
     mock_by_hash.assert();
     assert!(class.is_none());
 }
@@ -370,14 +369,14 @@ async fn get_block() {
         get_test_config(),
     )
     .unwrap();
-    let raw_block = read_resource_file("reader/block.json");
+    let raw_block = read_resource_file("reader/block_post_0_13_1.json");
     let mock_block = mock("GET", &format!("/feeder_gateway/get_block?{BLOCK_NUMBER_QUERY}=20")[..])
         .with_status(200)
         .with_body(&raw_block)
         .create();
     let block = starknet_client.block(BlockNumber(20)).await.unwrap().unwrap();
     mock_block.assert();
-    let expected_block: BlockOrDeprecated = serde_json::from_str(&raw_block).unwrap();
+    let expected_block: Block = serde_json::from_str(&raw_block).unwrap();
     assert_eq!(block, expected_block);
 
     // Non-existing block.
@@ -412,11 +411,8 @@ async fn compiled_class_by_hash() {
     .with_status(200)
     .with_body(&raw_casm_contract_class)
     .create();
-    let casm_contract_class = starknet_client
-        .compiled_class_by_hash(ClassHash(stark_felt!("0x7")))
-        .await
-        .unwrap()
-        .unwrap();
+    let casm_contract_class =
+        starknet_client.compiled_class_by_hash(ClassHash(felt!("0x7"))).await.unwrap().unwrap();
     mock_casm_contract_class.assert();
     let expected_casm_contract_class: CasmContractClass =
         serde_json::from_str(&raw_casm_contract_class).unwrap();
@@ -433,8 +429,7 @@ async fn compiled_class_by_hash() {
     .with_status(400)
     .with_body(body)
     .create();
-    let class =
-        starknet_client.compiled_class_by_hash(ClassHash(stark_felt!("0x0"))).await.unwrap();
+    let class = starknet_client.compiled_class_by_hash(ClassHash(felt!("0x0"))).await.unwrap();
     mock_undeclared.assert();
     assert!(class.is_none());
 }
@@ -526,7 +521,7 @@ async fn class_by_hash_unserializable() {
     test_unserializable(
         &format!("/feeder_gateway/get_class_by_hash?blockNumber=pending&{CLASS_HASH_QUERY}=0x1")[..],
         |starknet_client| async move {
-            starknet_client.class_by_hash(ClassHash(stark_felt!("0x1"))).await
+            starknet_client.class_by_hash(ClassHash(felt!("0x1"))).await
         },
     )
     .await
@@ -549,7 +544,7 @@ async fn compiled_class_by_hash_unserializable() {
              {CLASS_HASH_QUERY}=0x7"
         )[..],
         |starknet_client| async move {
-            starknet_client.compiled_class_by_hash(ClassHash(stark_felt!("0x7"))).await
+            starknet_client.compiled_class_by_hash(ClassHash(felt!("0x7"))).await
         },
     )
     .await
@@ -565,12 +560,12 @@ async fn get_block_signature() {
     )
     .unwrap();
 
-    let expected_block_signature = BlockSignatureData {
+    let expected_block_signature = BlockSignatureData::Deprecated {
         block_number: BlockNumber(20),
-        signature: [stark_felt!("0x1"), stark_felt!("0x2")],
+        signature: [felt!("0x1"), felt!("0x2")],
         signature_input: BlockSignatureMessage {
-            block_hash: BlockHash(stark_felt!("0x20")),
-            state_diff_commitment: GlobalRoot(stark_felt!("0x1234")),
+            block_hash: BlockHash(felt!("0x20")),
+            state_diff_commitment: GlobalRoot(felt!("0x1234")),
         },
     };
 
@@ -616,7 +611,7 @@ async fn get_sequencer_public_key() {
     )
     .unwrap();
 
-    let expected_sequencer_pub_key = SequencerPublicKey(PublicKey(stark_felt!("0x1")));
+    let expected_sequencer_pub_key = SequencerPublicKey(PublicKey(felt!("0x1")));
 
     let mock_key = mock("GET", "/feeder_gateway/get_public_key")
         .with_status(200)

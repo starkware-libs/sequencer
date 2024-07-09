@@ -1,6 +1,6 @@
 [package]
 name = "committer_cli"
-version.workspace = true
+version = "0.1.0-rc.0"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -10,6 +10,7 @@ description = "Cli for the committer package."
 workspace = true
 
 [dev-dependencies]
+criterion = { workspace = true, features = ["html_reports"] }
 pretty_assertions.workspace = true
 
 [dependencies]
@@ -17,13 +18,21 @@ clap.workspace = true
 committer = { path = "../committer", features = ["testing"] }
 derive_more.workspace = true
 ethnum.workspace = true
+hex.workspace = true
+indexmap.workspace = true
 rand.workspace = true
 rand_distr.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+simplelog.workspace = true
 starknet-types-core.workspace = true
-starknet_api = { version = "0.12.0-dev.1" }
+starknet_api = { path = "../starknet_api", version = "0.13.0-dev.9"}
 strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+
+[[bench]]
+harness = false
+name = "committer_bench"
+path = "benches/committer_bench.rs"

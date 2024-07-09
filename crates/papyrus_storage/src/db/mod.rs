@@ -29,7 +29,7 @@ use std::path::PathBuf;
 use std::result;
 use std::sync::Arc;
 
-use libmdbx::{Geometry, PageSize, WriteMap};
+use libmdbx::{DatabaseFlags, Geometry, PageSize, WriteMap};
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::validators::{validate_ascii, validate_path_exists};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -76,7 +76,7 @@ impl Default for DbConfig {
     fn default() -> Self {
         DbConfig {
             path_prefix: PathBuf::from("./data"),
-            chain_id: ChainId("SN_MAIN".to_string()),
+            chain_id: ChainId::Mainnet,
             enforce_file_exists: false,
             min_size: 1 << 20,    // 1MB
             max_size: 1 << 40,    // 1TB
@@ -134,7 +134,7 @@ impl SerializeConfig for DbConfig {
 impl DbConfig {
     /// Returns the path of the database (path prefix, followed by the chain id).
     pub fn path(&self) -> PathBuf {
-        self.path_prefix.join(self.chain_id.0.as_str())
+        self.path_prefix.join(self.chain_id.to_string().as_str())
     }
 }
 
@@ -206,6 +206,14 @@ pub(crate) fn open_env(config: &DbConfig) -> DbResult<(DbReader, DbWriter)> {
             })
             .set_max_tables(MAX_DBS)
             .set_max_readers(MAX_READERS)
+            .set_flags(DatabaseFlags {
+                // There is no locality of pages in the database almost at all, so readahead will
+                // fill the RAM with garbage.
+                no_rdahead: true,
+                // LIFO policy for recycling a Garbage Collection items should be faster.
+                liforeclaim: true,
+                ..Default::default()
+            })
             .open(&config.path())?,
     );
     Ok((DbReader { env: env.clone() }, DbWriter { env }))

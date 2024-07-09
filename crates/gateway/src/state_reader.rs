@@ -4,8 +4,8 @@ use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::hash::StarkFelt;
 use starknet_api::state::StorageKey;
+use starknet_types_core::felt::Felt;
 
 pub trait MempoolStateReader: BlockifierStateReader + Send + Sync {
     fn get_block_info(&self) -> Result<BlockInfo, StateError>;
@@ -30,7 +30,7 @@ impl BlockifierStateReader for Box<dyn MempoolStateReader> {
         &self,
         contract_address: ContractAddress,
         key: StorageKey,
-    ) -> StateResult<StarkFelt> {
+    ) -> StateResult<Felt> {
         self.as_ref().get_storage_at(contract_address, key)
     }
 

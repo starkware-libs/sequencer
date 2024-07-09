@@ -1,33 +1,36 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
+use std::thread;
+use std::time::Duration;
 
-use cairo_felt::Felt252;
-use num_traits::Bounded;
-use starknet_api::core::{ClassHash, ContractAddress};
-use starknet_api::hash::StarkFelt;
-use starknet_api::transaction::Fee;
+use starknet_api::core::ClassHash;
 
-use super::versioned_state::VersionedStateProxy;
-use crate::concurrency::fee_utils::fill_sequencer_balance_reads;
+use super::versioned_state::VersionedState;
+use crate::blockifier::transaction_executor::TransactionExecutorError;
+use crate::bouncer::Bouncer;
+use crate::concurrency::fee_utils::complete_fee_transfer_flow;
 use crate::concurrency::scheduler::{Scheduler, Task};
 use crate::concurrency::utils::lock_mutex_in_array;
 use crate::concurrency::versioned_state::ThreadSafeVersionedState;
 use crate::concurrency::TxIndex;
 use crate::context::BlockContext;
-use crate::execution::execution_utils::{felt_to_stark_felt, stark_felt_to_felt};
-use crate::fee::fee_utils::get_sequencer_balance_keys;
-use crate::state::cached_state::{ContractClassMapping, StateMaps, TransactionalState};
-use crate::state::state_api::{StateReader, StateResult, UpdatableState};
+use crate::state::cached_state::{
+    ContractClassMapping,
+    StateChanges,
+    StateMaps,
+    TransactionalState,
+};
+use crate::state::state_api::{StateReader, UpdatableState};
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_execution::Transaction;
-use crate::transaction::transactions::ExecutableTransaction;
-
-const EXECUTION_OUTPUTS_UNWRAP_ERROR: &str = "Execution task outputs should not be None.";
+use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
 
 #[cfg(test)]
 #[path = "worker_logic_test.rs"]
 pub mod test;
+
+const EXECUTION_OUTPUTS_UNWRAP_ERROR: &str = "Execution task outputs should not be None.";
 
 #[derive(Debug)]
 pub struct ExecutionTaskOutput {
@@ -43,48 +46,77 @@ pub struct WorkerExecutor<'a, S: StateReader> {
     pub state: ThreadSafeVersionedState<S>,
     pub chunk: &'a [Transaction],
     pub execution_outputs: Box<[Mutex<Option<ExecutionTaskOutput>>]>,
-    pub block_context: BlockContext,
+    pub block_context: &'a BlockContext,
+    pub bouncer: Mutex<&'a mut Bouncer>,
 }
 impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     pub fn new(
         state: ThreadSafeVersionedState<S>,
         chunk: &'a [Transaction],
-        block_context: BlockContext,
+        block_context: &'a BlockContext,
+        bouncer: Mutex<&'a mut Bouncer>,
     ) -> Self {
         let scheduler = Scheduler::new(chunk.len());
         let execution_outputs =
             std::iter::repeat_with(|| Mutex::new(None)).take(chunk.len()).collect();
 
-        WorkerExecutor { scheduler, state, chunk, execution_outputs, block_context }
+        WorkerExecutor { scheduler, state, chunk, execution_outputs, block_context, bouncer }
     }
 
-    pub fn run(&self) -> StateResult<()> {
-        let mut task = Task::NoTask;
+    // TODO(barak, 01/08/2024): Remove the `new` method or move it to test utils.
+    pub fn initialize(
+        state: S,
+        chunk: &'a [Transaction],
+        block_context: &'a BlockContext,
+        bouncer: Mutex<&'a mut Bouncer>,
+    ) -> Self {
+        let versioned_state = VersionedState::new(state);
+        let chunk_state = ThreadSafeVersionedState::new(versioned_state);
+        let scheduler = Scheduler::new(chunk.len());
+        let execution_outputs =
+            std::iter::repeat_with(|| Mutex::new(None)).take(chunk.len()).collect();
+
+        WorkerExecutor {
+            scheduler,
+            state: chunk_state,
+            chunk,
+            execution_outputs,
+            block_context,
+            bouncer,
+        }
+    }
+
+    pub fn run(&self) {
+        let mut task = Task::AskForTask;
         loop {
-            self.commit_while_possible()?;
+            self.commit_while_possible();
             task = match task {
                 Task::ExecutionTask(tx_index) => {
                     self.execute(tx_index);
-                    Task::NoTask
+                    Task::AskForTask
                 }
                 Task::ValidationTask(tx_index) => self.validate(tx_index),
-                Task::NoTask => self.scheduler.next_task(),
+                Task::NoTaskAvailable => {
+                    // There's no available task at the moment; sleep for a bit to save CPU power.
+                    // (since busy-looping might damage performance when using hyper-threads).
+                    thread::sleep(Duration::from_micros(1));
+                    Task::AskForTask
+                }
+                Task::AskForTask => self.scheduler.next_task(),
                 Task::Done => break,
             };
         }
-        Ok(())
     }
 
-    fn commit_while_possible(&self) -> StateResult<()> {
+    fn commit_while_possible(&self) {
         if let Some(mut transaction_committer) = self.scheduler.try_enter_commit_phase() {
             while let Some(tx_index) = transaction_committer.try_commit() {
-                let commit_succeeded = self.commit_tx(tx_index)?;
+                let commit_succeeded = self.commit_tx(tx_index);
                 if !commit_succeeded {
                     transaction_committer.halt_scheduler();
                 }
             }
         }
-        Ok(())
     }
 
     fn execute(&self, tx_index: TxIndex) {
@@ -97,11 +129,10 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         let tx = &self.chunk[tx_index];
         let mut transactional_state =
             TransactionalState::create_transactional(&mut tx_versioned_state);
-        let validate = true;
-        let charge_fee = true;
-
+        let execution_flags =
+            ExecutionFlags { charge_fee: true, validate: true, concurrency_mode: true };
         let execution_result =
-            tx.execute_raw(&mut transactional_state, &self.block_context, charge_fee, validate);
+            tx.execute_raw(&mut transactional_state, self.block_context, execution_flags);
 
         if execution_result.is_ok() {
             // TODO(Noa, 15/05/2024): use `tx_versioned_state` when we add support to transactional
@@ -144,7 +175,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
                 .delete_writes(&execution_output.writes, &execution_output.contract_classes);
             self.scheduler.finish_abort(tx_index)
         } else {
-            Task::NoTask
+            Task::AskForTask
         }
     }
 
@@ -160,103 +191,86 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     ///         - Else (no room), do not commit. The block should be closed without the transaction.
     ///     * Else (execution failed), commit the transaction without fixing the call info or
     ///       updating the sequencer balance.
-    // TODO(Meshi, 01/06/2024): Remove dead code.
-    #[allow(dead_code)]
-    fn commit_tx(&self, tx_index: TxIndex) -> StateResult<bool> {
+    fn commit_tx(&self, tx_index: TxIndex) -> bool {
         let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
+        let execution_output_ref = execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR);
+        let reads = &execution_output_ref.reads;
 
-        let tx = &self.chunk[tx_index];
         let mut tx_versioned_state = self.state.pin_version(tx_index);
-
-        let reads = &execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).reads;
         let reads_valid = tx_versioned_state.validate_reads(reads);
-        drop(execution_output);
 
         // First, re-validate the transaction.
         if !reads_valid {
-            // Revalidate failed: re-execute the transaction, and commit.
-            // TODO(Meshi, 01/06/2024): Delete the transaction writes.
+            // Revalidate failed: re-execute the transaction.
+            tx_versioned_state.delete_writes(
+                &execution_output_ref.writes,
+                &execution_output_ref.contract_classes,
+            );
+            // Release the execution output lock as it is acquired in execution (avoid dead-lock).
+            drop(execution_output);
+
             self.execute_tx(tx_index);
+            self.scheduler.finish_execution_during_commit(tx_index);
+
             let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
             let read_set = &execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).reads;
             // Another validation after the re-execution for sanity check.
             assert!(tx_versioned_state.validate_reads(read_set));
+        } else {
+            // Release the execution output lock, since it is has been released in the other flow.
+            drop(execution_output);
         }
 
         // Execution is final.
         let mut execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
-        let result_tx_info =
+        let writes = &execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).writes;
+        let reads = &execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).reads;
+        let mut tx_state_changes_keys = StateChanges::from(writes.diff(reads)).into_keys();
+        let tx_result =
             &mut execution_output.as_mut().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).result;
 
-        let tx_context = Arc::new(self.block_context.to_tx_context(tx));
-        // Fix the sequencer balance.
-        // There is no need to fix the balance when the sequencer transfers fee to itself, since we
-        // use the sequential fee transfer in this case.
-        if let Ok(tx_info) = result_tx_info.as_mut() {
-            // TODO(Meshi, 01/06/2024): check if this is also needed in the bouncer.
-            if tx_context.tx_info.sender_address()
-                != self.block_context.block_info.sequencer_address
-            {
-                // Update the sequencer balance in the storage.
-                let mut next_tx_versioned_state = self.state.pin_version(tx_index + 1);
-                let (sequencer_balance_value_low, sequencer_balance_value_high) =
-                    next_tx_versioned_state.get_fee_token_balance(
-                        tx_context.block_context.block_info.sequencer_address,
-                        tx_context.fee_token_address(),
-                    )?;
-                if let Some(fee_transfer_call_info) = tx_info.fee_transfer_call_info.as_mut() {
-                    // Fix the transfer call info.
-                    fill_sequencer_balance_reads(
-                        fee_transfer_call_info,
-                        sequencer_balance_value_low,
-                        sequencer_balance_value_high,
-                    );
+        if let Ok(tx_execution_info) = tx_result.as_mut() {
+            let tx_context = self.block_context.to_tx_context(&self.chunk[tx_index]);
+            // Add the deleted sequencer balance key to the storage keys.
+            let concurrency_mode = true;
+            tx_state_changes_keys.update_sequencer_key_in_storage(
+                &tx_context,
+                tx_execution_info,
+                concurrency_mode,
+            );
+            // Ask the bouncer if there is room for the transaction in the block.
+            let bouncer_result = self.bouncer.lock().expect("Bouncer lock failed.").try_update(
+                &tx_versioned_state,
+                &tx_state_changes_keys,
+                &tx_execution_info.summarize(),
+                &tx_execution_info.transaction_receipt.resources,
+            );
+            if let Err(error) = bouncer_result {
+                match error {
+                    TransactionExecutorError::BlockFull => return false,
+                    _ => {
+                        // TODO(Avi, 01/07/2024): Consider propagating the error.
+                        panic!("Bouncer update failed. {error:?}: {error}");
+                    }
                 }
-                add_fee_to_sequencer_balance(
-                    tx_context.fee_token_address(),
-                    &mut tx_versioned_state,
-                    tx_info.actual_fee,
-                    &self.block_context,
-                    sequencer_balance_value_low,
-                    sequencer_balance_value_high,
-                );
             }
+            complete_fee_transfer_flow(&tx_context, tx_execution_info, &mut tx_versioned_state);
+            // Optimization: changing the sequencer balance storage cell does not trigger
+            // (re-)validation of the next transactions.
         }
 
-        Ok(true)
+        true
     }
 }
 
-// Utilities.
-
-// TODO(Meshi, 01/06/2024): Remove dead code.
-#[allow(dead_code)]
-fn add_fee_to_sequencer_balance(
-    fee_token_address: ContractAddress,
-    tx_versioned_state: &mut VersionedStateProxy<impl StateReader>,
-    actual_fee: Fee,
-    block_context: &BlockContext,
-    sequencer_balance_value_low: StarkFelt,
-    sequencer_balance_value_high: StarkFelt,
-) {
-    let (sequencer_balance_key_low, sequencer_balance_key_high) =
-        get_sequencer_balance_keys(block_context);
-    let felt_fee = &Felt252::from(actual_fee.0);
-    let new_value_low = stark_felt_to_felt(sequencer_balance_value_low) + felt_fee;
-    let overflow =
-        stark_felt_to_felt(sequencer_balance_value_low) > Felt252::max_value() - felt_fee;
-    let new_value_high = if overflow {
-        stark_felt_to_felt(sequencer_balance_value_high) + Felt252::from(1_u8)
-    } else {
-        stark_felt_to_felt(sequencer_balance_value_high)
-    };
-
-    let writes = StateMaps {
-        storage: HashMap::from([
-            ((fee_token_address, sequencer_balance_key_low), felt_to_stark_felt(&new_value_low)),
-            ((fee_token_address, sequencer_balance_key_high), felt_to_stark_felt(&new_value_high)),
-        ]),
-        ..StateMaps::default()
-    };
-    tx_versioned_state.apply_writes(&writes, &ContractClassMapping::default(), &HashMap::default());
+impl<'a, U: UpdatableState> WorkerExecutor<'a, U> {
+    pub fn commit_chunk_and_recover_block_state(
+        self,
+        n_committed_txs: usize,
+        visited_pcs: HashMap<ClassHash, HashSet<usize>>,
+    ) -> U {
+        self.state
+            .into_inner_state()
+            .commit_chunk_and_recover_block_state(n_committed_txs, visited_pcs)
+    }
 }

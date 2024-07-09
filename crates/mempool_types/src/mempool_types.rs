@@ -1,10 +1,5 @@
-use async_trait::async_trait;
-use mempool_infra::component_client::ComponentClient;
-use mempool_infra::network_component::NetworkComponent;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::{Tip, TransactionHash};
-use thiserror::Error;
-use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::errors::MempoolError;
 
@@ -25,105 +20,14 @@ pub struct AccountState {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Account {
     // TODO(Ayelet): Consider removing this field as it is duplicated in ThinTransaction.
-    pub address: ContractAddress,
+    pub sender_address: ContractAddress,
     pub state: AccountState,
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct MempoolInput {
     pub tx: ThinTransaction,
     pub account: Account,
 }
 
-#[derive(Debug)]
-pub enum GatewayToMempoolMessage {
-    AddTransaction(MempoolInput),
-}
-
-// TODO: Consider using `NetworkComponent` instead of defining the channels here.
-// Currently, facing technical issues when using `NetworkComponent`.
-pub struct BatcherToMempoolChannels {
-    pub rx: Receiver<BatcherToMempoolMessage>,
-    pub tx: Sender<MempoolToBatcherMessage>,
-}
-
-pub enum BatcherToMempoolMessage {
-    GetTransactions(usize),
-}
-pub type MempoolToGatewayMessage = ();
-pub type MempoolToBatcherMessage = Vec<ThinTransaction>;
-
-pub type BatcherMempoolNetworkComponent =
-    NetworkComponent<BatcherToMempoolMessage, MempoolToBatcherMessage>;
-pub type MempoolBatcherNetworkComponent =
-    NetworkComponent<MempoolToBatcherMessage, BatcherToMempoolMessage>;
-
-pub type GatewayNetworkComponent =
-    NetworkComponent<GatewayToMempoolMessage, MempoolToGatewayMessage>;
-pub type MempoolNetworkComponent =
-    NetworkComponent<MempoolToGatewayMessage, GatewayToMempoolMessage>;
-
 pub type MempoolResult<T> = Result<T, MempoolError>;
-
-#[derive(Debug, Error)]
-pub enum MempoolClientError {
-    #[error(transparent)]
-    MempoolError(#[from] MempoolError),
-    #[error(transparent)]
-    ClientError(#[from] ClientError),
-}
-pub type MempoolClientResult<T> = Result<T, MempoolClientError>;
-
-// TODO(Tsabary, 1/6/2024): Move communication-related definitions to a separate file.
-#[derive(Debug, Error)]
-pub enum ClientError {
-    #[error("Got an unexpected response type.")]
-    UnexpectedResponse,
-}
-
-/// Serves as the mempool's shared interface. Requires `Send + Sync` to allow transferring and
-/// sharing resources (inputs, futures) across threads.
-#[async_trait]
-pub trait MempoolClient: Send + Sync {
-    async fn add_tx(&self, mempool_input: MempoolInput) -> MempoolClientResult<()>;
-    async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<ThinTransaction>>;
-}
-
-#[derive(Debug)]
-pub enum MempoolRequest {
-    AddTransaction(MempoolInput),
-    GetTransactions(usize),
-}
-
-#[derive(Debug)]
-pub enum MempoolResponse {
-    AddTransaction(MempoolResult<()>),
-    GetTransactions(MempoolResult<Vec<ThinTransaction>>),
-}
-
-type MempoolClientImpl = ComponentClient<MempoolRequest, MempoolResponse>;
-
-#[async_trait]
-impl MempoolClient for MempoolClientImpl {
-    async fn add_tx(&self, mempool_input: MempoolInput) -> MempoolClientResult<()> {
-        let request = MempoolRequest::AddTransaction(mempool_input);
-        let res = self.send(request).await;
-        match res {
-            MempoolResponse::AddTransaction(Ok(res)) => Ok(res),
-            MempoolResponse::AddTransaction(Err(res)) => Err(MempoolClientError::MempoolError(res)),
-            _ => Err(MempoolClientError::ClientError(ClientError::UnexpectedResponse)),
-        }
-    }
-
-    async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<ThinTransaction>> {
-        let request = MempoolRequest::GetTransactions(n_txs);
-        let res = self.send(request).await;
-        match res {
-            MempoolResponse::GetTransactions(Ok(res)) => Ok(res),
-            MempoolResponse::GetTransactions(Err(res)) => {
-                Err(MempoolClientError::MempoolError(res))
-            }
-            _ => Err(MempoolClientError::ClientError(ClientError::UnexpectedResponse)),
-        }
-    }
-}

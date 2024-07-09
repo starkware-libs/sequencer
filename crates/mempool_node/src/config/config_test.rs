@@ -56,7 +56,7 @@ fn test_components_config_validation() {
 
 /// Test the validation of the struct MempoolNodeConfig and that the default config file is up to
 /// date. To update the default config file, run:
-/// cargo run --bin dump_config -q
+/// cargo run --bin mempool_dump_config -q
 #[test]
 fn default_config_file_is_up_to_date() {
     let default_config = MempoolNodeConfig::default();
@@ -70,7 +70,7 @@ fn default_config_file_is_up_to_date() {
     println!(
         "{}",
         "Default config file doesn't match the default NodeConfig implementation. Please update \
-         it using the dump_config binary."
+         it using the mempool_dump_config binary."
             .purple()
             .bold()
     );

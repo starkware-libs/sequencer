@@ -1,22 +1,27 @@
 use crate::block_committer::input::ContractAddress;
-use crate::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
-use crate::patricia_merkle_tree::node_data::leaf::{LeafData, LeafDataImpl};
+use crate::patricia_merkle_tree::filled_tree::errors::{
+    ClassesTrieError, ContractsTrieError, StorageTrieError,
+};
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
 
 use thiserror::Error;
 use tokio::task::JoinError;
 
-pub(crate) type ForestResult<T> = Result<T, ForestError<LeafDataImpl>>;
+pub(crate) type ForestResult<T> = Result<T, ForestError>;
 
 #[derive(Debug, Error)]
-pub enum ForestError<L: LeafData> {
+pub enum ForestError {
     #[error(transparent)]
     OriginalSkeleton(#[from] OriginalSkeletonTreeError),
     #[error(transparent)]
     UpdatedSkeleton(#[from] UpdatedSkeletonTreeError),
     #[error(transparent)]
-    Filled(#[from] FilledTreeError<L>),
+    ClassesTrie(#[from] ClassesTrieError),
+    #[error(transparent)]
+    StorageTrie(#[from] StorageTrieError),
+    #[error(transparent)]
+    ContractsTrie(#[from] ContractsTrieError),
     #[error("Missing input: Couldn't find the storage trie's current state of address {0:?}")]
     MissingContractCurrentState(ContractAddress),
     #[error("Can't build storage trie's updated skeleton, because there is no original skeleton at address {0:?}")]

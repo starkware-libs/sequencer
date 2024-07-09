@@ -4,6 +4,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{calculate_contract_address, ContractAddress};
 use starknet_api::transaction::{Fee, Transaction as StarknetApiTransaction, TransactionHash};
 
+use crate::bouncer::verify_tx_weights_in_bounds;
 use crate::context::BlockContext;
 use crate::execution::contract_class::ClassInfo;
 use crate::execution::entry_point::EntryPointExecutionContext;
@@ -23,6 +24,7 @@ use crate::transaction::transactions::{
     DeployAccountTransaction,
     Executable,
     ExecutableTransaction,
+    ExecutionFlags,
     InvokeTransaction,
     L1HandlerTransaction,
 };
@@ -111,8 +113,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         &self,
         state: &mut TransactionalState<'_, U>,
         block_context: &BlockContext,
-        _charge_fee: bool,
-        _validate: bool,
+        _execution_flags: ExecutionFlags,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         let tx_context = Arc::new(block_context.to_tx_context(self));
 
@@ -123,14 +124,18 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
             self.run_execute(state, &mut execution_resources, &mut context, &mut remaining_gas)?;
         let l1_handler_payload_size = self.payload_size();
 
-        let TransactionReceipt { fee: actual_fee, da_gas, resources: actual_resources, .. } =
-            TransactionReceipt::from_l1_handler(
-                &tx_context,
-                l1_handler_payload_size,
-                execute_call_info.iter(),
-                &state.get_actual_state_changes()?,
-                &execution_resources,
-            )?;
+        let TransactionReceipt {
+            fee: actual_fee,
+            da_gas,
+            resources: actual_resources,
+            gas: total_gas,
+        } = TransactionReceipt::from_l1_handler(
+            &tx_context,
+            l1_handler_payload_size,
+            execute_call_info.iter(),
+            &state.get_actual_state_changes()?,
+            &execution_resources,
+        )?;
 
         let paid_fee = self.paid_fee_on_l1;
         // For now, assert only that any amount of fee was paid.
@@ -143,10 +148,13 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
             validate_call_info: None,
             execute_call_info,
             fee_transfer_call_info: None,
-            actual_fee: Fee::default(),
-            da_gas,
+            transaction_receipt: TransactionReceipt {
+                fee: Fee::default(),
+                da_gas,
+                resources: actual_resources,
+                gas: total_gas,
+            },
             revert_error: None,
-            actual_resources,
         })
     }
 }
@@ -156,16 +164,38 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
         &self,
         state: &mut TransactionalState<'_, U>,
         block_context: &BlockContext,
-        charge_fee: bool,
-        validate: bool,
+        execution_flags: ExecutionFlags,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
-        match self {
+        // TODO(Yoni, 1/8/2024): consider unimplementing the ExecutableTransaction trait for inner
+        // types, since now running Transaction::execute_raw is not identical to
+        // AccountTransaction::execute_raw.
+        let concurrency_mode = execution_flags.concurrency_mode;
+        let tx_execution_info = match self {
             Self::AccountTransaction(account_tx) => {
-                account_tx.execute_raw(state, block_context, charge_fee, validate)
+                account_tx.execute_raw(state, block_context, execution_flags)?
             }
             Self::L1HandlerTransaction(tx) => {
-                tx.execute_raw(state, block_context, charge_fee, validate)
+                tx.execute_raw(state, block_context, execution_flags)?
             }
-        }
+        };
+
+        // Check if the transaction is too large to fit any block.
+        // TODO(Yoni, 1/8/2024): consider caching these two.
+        let tx_execution_summary = tx_execution_info.summarize();
+        let mut tx_state_changes_keys = state.get_actual_state_changes()?.into_keys();
+        tx_state_changes_keys.update_sequencer_key_in_storage(
+            &block_context.to_tx_context(self),
+            &tx_execution_info,
+            concurrency_mode,
+        );
+        verify_tx_weights_in_bounds(
+            state,
+            &tx_execution_summary,
+            &tx_execution_info.transaction_receipt.resources,
+            &tx_state_changes_keys,
+            &block_context.bouncer_config,
+        )?;
+
+        Ok(tx_execution_info)
     }
 }

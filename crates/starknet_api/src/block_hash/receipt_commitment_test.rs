@@ -11,7 +11,6 @@ use crate::block_hash::receipt_commitment::{
 use crate::block_hash::test_utils::{generate_message_to_l1, get_transaction_output};
 use crate::core::ReceiptCommitment;
 use crate::felt;
-use crate::hash::{FeltConverter, TryIntoFelt};
 use crate::transaction::{
     RevertedTransactionExecutionStatus,
     TransactionExecutionStatus,

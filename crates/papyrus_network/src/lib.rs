@@ -3,10 +3,8 @@
 ///
 /// [`Starknet p2p specs`]: https://github.com/starknet-io/starknet-p2p-specs/
 pub mod bin_utils;
-mod converters;
-mod db_executor;
 mod discovery;
-mod gossipsub_impl;
+pub mod gossipsub_impl;
 pub mod mixed_behaviour;
 pub mod network_manager;
 mod peer_manager;
@@ -16,26 +14,27 @@ mod test_utils;
 mod utils;
 
 use std::collections::{BTreeMap, HashMap};
-use std::pin::Pin;
 use std::time::Duration;
-use std::usize;
 
 use derive_more::Display;
 use enum_iterator::Sequence;
-use futures::Stream;
 use lazy_static::lazy_static;
 use libp2p::{Multiaddr, StreamProtocol};
-use papyrus_config::converters::deserialize_seconds_to_duration;
+use papyrus_config::converters::{
+    deserialize_optional_vec_u8,
+    deserialize_seconds_to_duration,
+    serialize_optional_vec_u8,
+};
 use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
+use papyrus_config::validators::validate_vec_u256;
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use papyrus_protobuf::protobuf;
-use papyrus_protobuf::sync::{Query, SignedBlockHeader};
-use prost::Message;
 use serde::{Deserialize, Serialize};
-use starknet_api::state::ThinStateDiff;
+use validator::Validate;
+
+pub use crate::network_manager::SqmrSubscriberChannels;
 
 // TODO: add peer manager config to the network config
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Validate)]
 pub struct NetworkConfig {
     pub tcp_port: u16,
     pub quic_port: u16,
@@ -43,56 +42,22 @@ pub struct NetworkConfig {
     pub session_timeout: Duration,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub idle_connection_timeout: Duration,
-    pub header_buffer_size: usize,
     pub bootstrap_peer_multiaddr: Option<Multiaddr>,
-}
-
-#[derive(Default, Debug, PartialEq, Eq, Clone, Copy, Display)]
-#[cfg_attr(test, derive(Sequence))]
-pub enum DataType {
-    // TODO: consider adding a default variant / removing the #[default] attribute.
-    #[default]
-    #[display(fmt = "SignedBlockHeader")]
-    SignedBlockHeader,
-    #[display(fmt = "StateDiff")]
-    StateDiff,
-}
-
-impl From<Protocol> for DataType {
-    fn from(protocol: Protocol) -> DataType {
-        match protocol {
-            Protocol::SignedBlockHeader => DataType::SignedBlockHeader,
-            Protocol::StateDiff => DataType::StateDiff,
-        }
-    }
-}
-
-impl From<DataType> for Protocol {
-    fn from(data_type: DataType) -> Protocol {
-        match data_type {
-            DataType::SignedBlockHeader => Protocol::SignedBlockHeader,
-            DataType::StateDiff => Protocol::StateDiff,
-        }
-    }
-}
-
-pub type SignedBlockHeaderStream = Pin<Box<dyn Stream<Item = Option<SignedBlockHeader>> + Send>>;
-pub type StateDiffStream = Pin<Box<dyn Stream<Item = Option<ThinStateDiff>> + Send>>;
-
-/// This struct represents the receiver end of the response streams for a network subscriber.
-/// It is created by the network manager and passed to the subscriber when calling
-/// [`register_sqmr_subscriber`](`network_manager::GenericNetworkManager::register_sqmr_subscriber`).
-pub struct ResponseReceivers {
-    pub signed_headers_receiver: Option<SignedBlockHeaderStream>,
-    pub state_diffs_receiver: Option<StateDiffStream>,
+    #[validate(custom = "validate_vec_u256")]
+    #[serde(deserialize_with = "deserialize_optional_vec_u8")]
+    pub(crate) secret_key: Option<Vec<u8>>,
 }
 
 /// This is a part of the exposed API of the network manager.
 /// This is meant to represent the different underlying p2p protocols the network manager supports.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Sequence)]
+// TODO(shahak): Change protocol to a wrapper of string.
+#[derive(Debug, Display, PartialEq, Eq, Clone, Copy, Hash, Sequence)]
 pub enum Protocol {
     SignedBlockHeader,
     StateDiff,
+    Transaction,
+    Class,
+    Event,
 }
 
 impl Protocol {
@@ -100,20 +65,9 @@ impl Protocol {
         match self {
             Protocol::SignedBlockHeader => "/starknet/headers/1",
             Protocol::StateDiff => "/starknet/state_diffs/1",
-        }
-    }
-
-    pub fn bytes_query_to_protobuf_request(&self, query: Vec<u8>) -> Query {
-        // TODO: make this function return errors instead of panicking.
-        match self {
-            Protocol::SignedBlockHeader => protobuf::BlockHeadersRequest::decode(&query[..])
-                .expect("failed to decode protobuf BlockHeadersRequest")
-                .try_into()
-                .expect("failed to convert BlockHeadersRequest"),
-            Protocol::StateDiff => protobuf::StateDiffsRequest::decode(&query[..])
-                .expect("failed to decode protobuf StateDiffsRequest")
-                .try_into()
-                .expect("failed to convert StateDiffsRequest"),
+            Protocol::Transaction => "/starknet/transactions/1",
+            Protocol::Class => "/starknet/classes/1",
+            Protocol::Event => "/starknet/events/1",
         }
     }
 }
@@ -172,12 +126,6 @@ impl SerializeConfig for NetworkConfig {
                  alive.",
                 ParamPrivacyInput::Public,
             ),
-            ser_param(
-                "header_buffer_size",
-                &self.header_buffer_size,
-                "Size of the buffer for headers read from the storage.",
-                ParamPrivacyInput::Public,
-            ),
         ]);
         config.extend(ser_optional_param(
             &self.bootstrap_peer_multiaddr,
@@ -186,6 +134,13 @@ impl SerializeConfig for NetworkConfig {
             "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
             ParamPrivacyInput::Public,
         ));
+        config.extend([ser_param(
+            "secret_key",
+            &serialize_optional_vec_u8(&self.secret_key),
+            "The secret key used for building the peer id. If it's an empty string a random one \
+             will be used.",
+            ParamPrivacyInput::Private,
+        )]);
         config
     }
 }
@@ -197,8 +152,8 @@ impl Default for NetworkConfig {
             quic_port: 10001,
             session_timeout: Duration::from_secs(120),
             idle_connection_timeout: Duration::from_secs(120),
-            header_buffer_size: 100000,
             bootstrap_peer_multiaddr: None,
+            secret_key: None,
         }
     }
 }

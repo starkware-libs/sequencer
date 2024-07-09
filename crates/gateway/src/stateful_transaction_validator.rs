@@ -5,7 +5,7 @@ use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::ClassInfo;
 use blockifier::state::cached_state::CachedState;
 use blockifier::versioned_constants::VersionedConstants;
-use starknet_api::external_transaction::ExternalTransaction;
+use starknet_api::rpc_transaction::RPCTransaction;
 use starknet_api::transaction::TransactionHash;
 
 use crate::config::StatefulTransactionValidatorConfig;
@@ -25,7 +25,7 @@ impl StatefulTransactionValidator {
     pub fn run_validate(
         &self,
         state_reader_factory: &dyn StateReaderFactory,
-        external_tx: &ExternalTransaction,
+        external_tx: &RPCTransaction,
         optional_class_info: Option<ClassInfo>,
         deploy_account_tx_hash: Option<TransactionHash>,
     ) -> StatefulTransactionValidatorResult<TransactionHash> {
@@ -46,17 +46,17 @@ impl StatefulTransactionValidator {
         )?;
         // TODO(yael 21/4/24): create the block context using pre_process_block once we will be
         // able to read the block_hash of 10 blocks ago from papyrus.
-        let block_context = BlockContext::new_unchecked(
-            &block_info,
-            &self.config.chain_info.clone().into(),
-            &versioned_constants,
+        let block_context = BlockContext::new(
+            block_info,
+            self.config.chain_info.clone().into(),
+            versioned_constants,
+            BouncerConfig::max(),
         );
 
         let mut validator = BlockifierStatefulValidator::create(
             state,
             block_context,
             self.config.max_nonce_for_validation_skip,
-            BouncerConfig::max(),
         );
         let account_tx = external_tx_to_account_tx(
             external_tx,

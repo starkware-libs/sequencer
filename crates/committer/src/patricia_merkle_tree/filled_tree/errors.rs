@@ -1,7 +1,10 @@
 use tokio::task::JoinError;
 
+use crate::block_committer::input::StarknetStorageValue;
+use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::node_data::errors::LeafError;
+use crate::patricia_merkle_tree::node_data::leaf::ContractState;
 use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
 use crate::patricia_merkle_tree::{node_data::leaf::LeafData, types::NodeIndex};
 
@@ -29,3 +32,7 @@ pub enum FilledTreeError<L: LeafData> {
     #[error(transparent)]
     JoinError(#[from] JoinError),
 }
+
+pub type StorageTrieError = FilledTreeError<StarknetStorageValue>;
+pub type ClassesTrieError = FilledTreeError<CompiledClassHash>;
+pub type ContractsTrieError = FilledTreeError<ContractState>;

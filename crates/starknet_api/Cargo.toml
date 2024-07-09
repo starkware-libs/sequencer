@@ -1,6 +1,6 @@
 [package]
 name = "starknet_api"
-version.workspace = true
+version = "0.13.0-dev.9"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -10,7 +10,7 @@ testing = []
 
 [dependencies]
 bitvec = "1.0.1"
-cairo-lang-starknet-classes = "2.6.0"
+cairo-lang-starknet-classes = "2.7.0-dev.0"
 derive_more = "0.99.17"
 hex = "0.4.3"
 indexmap = { version = "2.1.0", features = ["serde"] }
@@ -21,7 +21,7 @@ serde = { version = "1.0.130", features = ["derive", "rc"] }
 serde_json = "1.0.81"
 sha3 = "0.10.8"
 starknet-crypto = "0.5.1"
-starknet-types-core = { version = "0.0.11", features = ["hash"] }
+starknet-types-core = { version = "0.1.4", features = ["hash"] }
 strum = "0.24.1"
 strum_macros = "0.24.3"
 thiserror = "1.0.31"
