@@ -6,32 +6,25 @@ use crate::block_committer::input::Config;
 use crate::block_committer::input::ConfigImpl;
 use crate::block_committer::input::ContractAddress;
 use crate::block_committer::input::Input;
-use crate::patricia_merkle_tree::filled_tree::forest::FilledForestImpl;
+use crate::patricia_merkle_tree::filled_tree::forest::FilledForest;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
 use crate::patricia_merkle_tree::node_data::leaf::ContractState;
-use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::{
-    OriginalSkeletonForest, OriginalSkeletonForestImpl,
-};
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
+use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::OriginalSkeletonForest;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
-use crate::patricia_merkle_tree::updated_skeleton_tree::skeleton_forest::{
-    UpdatedSkeletonForest, UpdatedSkeletonForestImpl,
-};
-use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
+use crate::patricia_merkle_tree::updated_skeleton_tree::skeleton_forest::UpdatedSkeletonForest;
 use crate::storage::map_storage::MapStorage;
 
 type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
-pub async fn commit_block(input: Input<ConfigImpl>) -> BlockCommitmentResult<FilledForestImpl> {
-    let (mut original_forest, original_contracts_trie_leaves) =
-        OriginalSkeletonForestImpl::<OriginalSkeletonTreeImpl>::create(
-            MapStorage::from(input.storage),
-            input.contracts_trie_root_hash,
-            input.classes_trie_root_hash,
-            &input.state_diff,
-            &input.config,
-        )?;
+pub async fn commit_block(input: Input<ConfigImpl>) -> BlockCommitmentResult<FilledForest> {
+    let (mut original_forest, original_contracts_trie_leaves) = OriginalSkeletonForest::create(
+        MapStorage::from(input.storage),
+        input.contracts_trie_root_hash,
+        input.classes_trie_root_hash,
+        &input.state_diff,
+        &input.config,
+    )?;
 
     if input.config.warn_on_trivial_modifications() {
         check_trivial_nonce_and_class_hash_updates(
@@ -41,7 +34,7 @@ pub async fn commit_block(input: Input<ConfigImpl>) -> BlockCommitmentResult<Fil
         );
     }
 
-    let updated_forest = UpdatedSkeletonForestImpl::<UpdatedSkeletonTreeImpl>::create(
+    let updated_forest = UpdatedSkeletonForest::create(
         &mut original_forest,
         &input.state_diff.skeleton_classes_updates(),
         &input.state_diff.skeleton_storage_updates(),
@@ -50,17 +43,15 @@ pub async fn commit_block(input: Input<ConfigImpl>) -> BlockCommitmentResult<Fil
         &input.state_diff.address_to_nonce,
     )?;
 
-    Ok(
-        FilledForestImpl::create::<UpdatedSkeletonTreeImpl, TreeHashFunctionImpl>(
-            updated_forest,
-            input.state_diff.actual_storage_updates(),
-            input.state_diff.actual_classes_updates(),
-            &original_contracts_trie_leaves,
-            &input.state_diff.address_to_class_hash,
-            &input.state_diff.address_to_nonce,
-        )
-        .await?,
+    Ok(FilledForest::create::<TreeHashFunctionImpl>(
+        updated_forest,
+        input.state_diff.actual_storage_updates(),
+        input.state_diff.actual_classes_updates(),
+        &original_contracts_trie_leaves,
+        &input.state_diff.address_to_class_hash,
+        &input.state_diff.address_to_nonce,
     )
+    .await?)
 }
 
 /// Compares the previous state's nonce and class hash with the given in the state diff.

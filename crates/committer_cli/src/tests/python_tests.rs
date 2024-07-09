@@ -9,7 +9,7 @@ use committer::block_committer::input::{
 };
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
-use committer::patricia_merkle_tree::filled_tree::forest::FilledForestImpl;
+use committer::patricia_merkle_tree::filled_tree::forest::FilledForest;
 use committer::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, FilledNode, Nonce};
 use committer::patricia_merkle_tree::node_data::inner_node::{
@@ -694,10 +694,7 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
 
 /// Generates a dummy random filled forest and serializes it to a JSON string.
 pub(crate) fn filled_forest_output_test() -> Result<String, PythonTestError> {
-    let dummy_forest = SerializedForest(FilledForestImpl::dummy_random(
-        &mut rand::thread_rng(),
-        None,
-    ));
+    let dummy_forest = SerializedForest(FilledForest::dummy_random(&mut rand::thread_rng(), None));
     let output = dummy_forest.forest_to_output();
     let output_string = serde_json::to_string(&output).expect("Failed to serialize");
     Ok(output_string)

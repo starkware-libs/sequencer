@@ -2,7 +2,7 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use std::collections::HashMap;
 
-use super::OriginalSkeletonForestImpl;
+use super::OriginalSkeletonForest;
 use crate::block_committer::input::{
     ConfigImpl, ContractAddress, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
 };
@@ -18,8 +18,6 @@ use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::create_tre
     create_compiled_class_leaf_entry, create_contract_state_leaf_entry, create_root_edge_entry,
     create_storage_leaf_entry,
 };
-use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::OriginalSkeletonForest;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::types::SubTreeHeight;
 use crate::storage::map_storage::MapStorage;
@@ -152,7 +150,7 @@ use crate::storage::map_storage::MapStorage;
         contracts_trie_root_hash: HashOutput(Felt::from(861_u128 + 248_u128)),
         classes_trie_root_hash: HashOutput(Felt::from(155_u128 + 248_u128)),
         config: ConfigImpl::new(true),
-    }, OriginalSkeletonForestImpl{
+    }, OriginalSkeletonForest{
         classes_trie: create_expected_skeleton(
             vec![
                 create_edge_skeleton_node(1, 0, 1),
@@ -232,10 +230,10 @@ use crate::storage::map_storage::MapStorage;
 )]
 fn test_create_original_skeleton_forest(
     #[case] input: Input<ConfigImpl>,
-    #[case] expected_forest: OriginalSkeletonForestImpl<OriginalSkeletonTreeImpl>,
+    #[case] expected_forest: OriginalSkeletonForest,
     #[case] expected_original_contracts_trie_leaves: HashMap<ContractAddress, ContractState>,
 ) {
-    let (actual_forest, original_contracts_trie_leaves) = OriginalSkeletonForestImpl::create(
+    let (actual_forest, original_contracts_trie_leaves) = OriginalSkeletonForest::create(
         MapStorage::from(input.storage),
         input.contracts_trie_root_hash,
         input.classes_trie_root_hash,

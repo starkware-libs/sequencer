@@ -10,31 +10,22 @@ use crate::patricia_merkle_tree::filled_tree::tree::{
 use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafModifications};
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::ForestHashFunction;
-use crate::patricia_merkle_tree::updated_skeleton_tree::skeleton_forest::UpdatedSkeletonForestImpl;
-use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
+use crate::patricia_merkle_tree::updated_skeleton_tree::skeleton_forest::UpdatedSkeletonForest;
+use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 use crate::storage::storage_trait::Storage;
 
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::task::JoinSet;
 
-pub trait FilledForest {
-    /// Serialize each tree and store it.
-    fn write_to_storage(&self, storage: &mut impl Storage);
-
-    fn get_compiled_class_root_hash(&self) -> HashOutput;
-
-    fn get_contract_root_hash(&self) -> HashOutput;
-}
-
-pub struct FilledForestImpl {
+pub struct FilledForest {
     pub storage_tries: StorageTrieMap,
     pub contracts_trie: ContractsTrie,
     pub classes_trie: ClassesTrie,
 }
 
-impl FilledForest for FilledForestImpl {
-    fn write_to_storage(&self, storage: &mut impl Storage) {
+impl FilledForest {
+    pub fn write_to_storage(&self, storage: &mut impl Storage) {
         // Serialize all trees to one hash map.
         let new_db_objects = self
             .storage_tries
@@ -48,21 +39,16 @@ impl FilledForest for FilledForestImpl {
         storage.mset(new_db_objects);
     }
 
-    fn get_contract_root_hash(&self) -> HashOutput {
+    pub fn get_contract_root_hash(&self) -> HashOutput {
         self.contracts_trie.get_root_hash()
     }
 
-    fn get_compiled_class_root_hash(&self) -> HashOutput {
+    pub fn get_compiled_class_root_hash(&self) -> HashOutput {
         self.classes_trie.get_root_hash()
     }
-}
 
-impl FilledForestImpl {
-    pub(crate) async fn create<
-        T: UpdatedSkeletonTree + 'static,
-        TH: ForestHashFunction + 'static,
-    >(
-        mut updated_forest: UpdatedSkeletonForestImpl<T>,
+    pub(crate) async fn create<TH: ForestHashFunction + 'static>(
+        mut updated_forest: UpdatedSkeletonForest,
         storage_updates: HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         classes_updates: LeafModifications<CompiledClassHash>,
         original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
@@ -86,7 +72,7 @@ impl FilledForestImpl {
             let original_contract_state = original_contracts_trie_leaves
                 .get(&NodeIndex::from_contract_address(&address))
                 .ok_or(ForestError::MissingContractCurrentState(address))?;
-            tasks.spawn(Self::new_contract_state::<T, TH>(
+            tasks.spawn(Self::new_contract_state::<TH>(
                 address,
                 *(address_to_nonce
                     .get(&address)
@@ -121,14 +107,11 @@ impl FilledForestImpl {
         })
     }
 
-    async fn new_contract_state<
-        T: UpdatedSkeletonTree + 'static,
-        TH: ForestHashFunction + 'static,
-    >(
+    async fn new_contract_state<TH: ForestHashFunction + 'static>(
         contract_address: ContractAddress,
         new_nonce: Nonce,
         new_class_hash: ClassHash,
-        updated_storage_trie: T,
+        updated_storage_trie: UpdatedSkeletonTreeImpl,
         inner_updates: LeafModifications<StarknetStorageValue>,
     ) -> ForestResult<(ContractAddress, ContractState, StorageTrie)> {
         let filled_storage_trie =

@@ -7,35 +7,20 @@ use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
 use crate::patricia_merkle_tree::node_data::leaf::{
     ContractState, LeafModifications, SkeletonLeaf,
 };
-use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::OriginalSkeletonForestImpl;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
+use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::OriginalSkeletonForest;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
+use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 
-pub(crate) struct UpdatedSkeletonForestImpl<T: UpdatedSkeletonTree> {
-    pub(crate) classes_trie: T,
-    pub(crate) contracts_trie: T,
-    pub(crate) storage_tries: HashMap<ContractAddress, T>,
+pub(crate) struct UpdatedSkeletonForest {
+    pub(crate) classes_trie: UpdatedSkeletonTreeImpl,
+    pub(crate) contracts_trie: UpdatedSkeletonTreeImpl,
+    pub(crate) storage_tries: HashMap<ContractAddress, UpdatedSkeletonTreeImpl>,
 }
 
-pub(crate) trait UpdatedSkeletonForest<T: OriginalSkeletonTree> {
-    fn create(
-        original_skeleton_forest: &mut OriginalSkeletonForestImpl<T>,
-        class_hash_leaf_modifications: &LeafModifications<SkeletonLeaf>,
-        storage_updates: &HashMap<ContractAddress, LeafModifications<SkeletonLeaf>>,
-        current_contract_state_leaves: &HashMap<NodeIndex, ContractState>,
-        address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
-        address_to_nonce: &HashMap<ContractAddress, Nonce>,
-    ) -> ForestResult<Self>
-    where
-        Self: std::marker::Sized;
-}
-
-impl<T: OriginalSkeletonTree, U: UpdatedSkeletonTree> UpdatedSkeletonForest<T>
-    for UpdatedSkeletonForestImpl<U>
-{
-    fn create(
-        original_skeleton_forest: &mut OriginalSkeletonForestImpl<T>,
+impl UpdatedSkeletonForest {
+    pub(crate) fn create(
+        original_skeleton_forest: &mut OriginalSkeletonForest,
         class_hash_leaf_modifications: &LeafModifications<SkeletonLeaf>,
         storage_updates: &HashMap<ContractAddress, LeafModifications<SkeletonLeaf>>,
         original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
@@ -46,7 +31,7 @@ impl<T: OriginalSkeletonTree, U: UpdatedSkeletonTree> UpdatedSkeletonForest<T>
         Self: std::marker::Sized,
     {
         // Classes trie.
-        let classes_trie = U::create(
+        let classes_trie = UpdatedSkeletonTreeImpl::create(
             &mut original_skeleton_forest.classes_trie,
             class_hash_leaf_modifications,
         )?;
@@ -61,7 +46,8 @@ impl<T: OriginalSkeletonTree, U: UpdatedSkeletonTree> UpdatedSkeletonForest<T>
                 .get_mut(address)
                 .ok_or(ForestError::MissingOriginalSkeleton(*address))?;
 
-            let updated_storage_trie = U::create(original_storage_trie, updates)?;
+            let updated_storage_trie =
+                UpdatedSkeletonTreeImpl::create(original_storage_trie, updates)?;
             let storage_trie_becomes_empty = updated_storage_trie.is_empty();
 
             storage_tries.insert(*address, updated_storage_trie);
@@ -80,7 +66,7 @@ impl<T: OriginalSkeletonTree, U: UpdatedSkeletonTree> UpdatedSkeletonForest<T>
         }
 
         // Contracts trie.
-        let contracts_trie = U::create(
+        let contracts_trie = UpdatedSkeletonTreeImpl::create(
             &mut original_skeleton_forest.contracts_trie,
             &contracts_trie_leaves,
         )?;
@@ -91,9 +77,7 @@ impl<T: OriginalSkeletonTree, U: UpdatedSkeletonTree> UpdatedSkeletonForest<T>
             storage_tries,
         })
     }
-}
 
-impl<U: UpdatedSkeletonTree> UpdatedSkeletonForestImpl<U> {
     /// Given the previous contract state, whether the contract's storage has become empty or not,
     /// optional new nonce & new class hash, the function creates a skeleton leaf.
     fn updated_contract_skeleton_leaf(
