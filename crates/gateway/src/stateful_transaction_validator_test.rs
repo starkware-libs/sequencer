@@ -7,6 +7,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     VALID_L1_GAS_MAX_PRICE_PER_UNIT,
 };
 use num_bigint::BigUint;
+use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::felt;
 use starknet_api::rpc_transaction::RPCTransaction;
