@@ -58,7 +58,6 @@ pub fn app_state(
 }
 
 // TODO(Ayelet): add test cases for declare.
-#[tokio::test]
 #[rstest]
 #[case::valid_invoke_tx_cairo1(
     invoke_tx(CairoVersion::Cairo1),
@@ -76,6 +75,7 @@ pub fn app_state(
     declare_tx(),
     local_test_state_reader_factory(CairoVersion::Cairo1, false)
 )]
+#[tokio::test]
 async fn test_add_tx(
     #[case] tx: RPCTransaction,
     #[case] state_reader_factory: TestStateReaderFactory,
