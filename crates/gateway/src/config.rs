@@ -6,6 +6,7 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress, Nonce};
+use starknet_types_core::felt::Felt;
 use validator::Validate;
 
 use crate::compiler_version::VersionId;
@@ -236,12 +237,23 @@ impl SerializeConfig for ChainInfoConfig {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct StatefulTransactionValidatorConfig {
     pub max_nonce_for_validation_skip: Nonce,
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
     pub chain_info: ChainInfoConfig,
+}
+
+impl Default for StatefulTransactionValidatorConfig {
+    fn default() -> Self {
+        StatefulTransactionValidatorConfig {
+            max_nonce_for_validation_skip: Nonce(Felt::ONE),
+            validate_max_n_steps: 1_000_000,
+            max_recursion_depth: 50,
+            chain_info: ChainInfoConfig::default(),
+        }
+    }
 }
 
 impl SerializeConfig for StatefulTransactionValidatorConfig {
@@ -250,19 +262,19 @@ impl SerializeConfig for StatefulTransactionValidatorConfig {
             ser_param(
                 "max_nonce_for_validation_skip",
                 &self.max_nonce_for_validation_skip,
-                "The maximum nonce for which the validation is skipped.",
+                "Maximum nonce for which the validation is skipped.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "validate_max_n_steps",
                 &self.validate_max_n_steps,
-                "The maximum number of steps the validation function is allowed to take.",
+                "Maximum number of steps the validation function is allowed to take.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "max_recursion_depth",
                 &self.max_recursion_depth,
-                "The maximum recursion depth allowed in a transaction.",
+                "Maximum recursion depth for nested calls during blockifier validation.",
                 ParamPrivacyInput::Public,
             ),
         ]);
