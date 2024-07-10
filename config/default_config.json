@@ -50,29 +50,29 @@
     "value": 0
   },
   "gateway_config.stateless_tx_validator_config.max_bytecode_size": {
-    "description": "Validates that a transaction has bytecode size less than or equal to this value.",
+    "description": "Limitation of contract bytecode size.",
     "privacy": "Public",
-    "value": 0
+    "value": 81920
   },
   "gateway_config.stateless_tx_validator_config.max_calldata_length": {
-    "description": "Validates that a transaction has calldata length less than or equal to this value.",
+    "description": "Limitation of calldata length.",
     "privacy": "Public",
-    "value": 0
+    "value": 4000
   },
   "gateway_config.stateless_tx_validator_config.max_raw_class_size": {
-    "description": "Validates that a transaction has raw class size less than or equal to this value.",
+    "description": "Limitation of contract class object size.",
     "privacy": "Public",
-    "value": 0
+    "value": 4089446
   },
   "gateway_config.stateless_tx_validator_config.max_sierra_version.major": {
     "description": "The major version of the configuration.",
     "privacy": "Public",
-    "value": 18446744073709551615
+    "value": 1
   },
   "gateway_config.stateless_tx_validator_config.max_sierra_version.minor": {
     "description": "The minor version of the configuration.",
     "privacy": "Public",
-    "value": 18446744073709551615
+    "value": 5
   },
   "gateway_config.stateless_tx_validator_config.max_sierra_version.patch": {
     "description": "The patch version of the configuration.",
@@ -80,19 +80,19 @@
     "value": 18446744073709551615
   },
   "gateway_config.stateless_tx_validator_config.max_signature_length": {
-    "description": "Validates that a transaction has signature length less than or equal to this value.",
+    "description": "Limitation of signature length.",
     "privacy": "Public",
-    "value": 0
+    "value": 4000
   },
   "gateway_config.stateless_tx_validator_config.min_sierra_version.major": {
     "description": "The major version of the configuration.",
     "privacy": "Public",
-    "value": 0
+    "value": 1
   },
   "gateway_config.stateless_tx_validator_config.min_sierra_version.minor": {
     "description": "The minor version of the configuration.",
     "privacy": "Public",
-    "value": 0
+    "value": 1
   },
   "gateway_config.stateless_tx_validator_config.min_sierra_version.patch": {
     "description": "The patch version of the configuration.",
@@ -102,7 +102,7 @@
   "gateway_config.stateless_tx_validator_config.validate_non_zero_l1_gas_fee": {
     "description": "If true, validates that a transaction has non-zero L1 resource bounds.",
     "privacy": "Public",
-    "value": false
+    "value": true
   },
   "gateway_config.stateless_tx_validator_config.validate_non_zero_l2_gas_fee": {
     "description": "If true, validates that a transaction has non-zero L2 resource bounds.",

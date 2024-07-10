@@ -81,14 +81,14 @@ pub struct StatelessTransactionValidatorConfig {
 impl Default for StatelessTransactionValidatorConfig {
     fn default() -> Self {
         StatelessTransactionValidatorConfig {
-            validate_non_zero_l1_gas_fee: false,
+            validate_non_zero_l1_gas_fee: true,
             validate_non_zero_l2_gas_fee: false,
-            max_calldata_length: 0,
-            max_signature_length: 0,
-            max_bytecode_size: 0,
-            max_raw_class_size: 0,
-            min_sierra_version: VersionId::MIN,
-            max_sierra_version: VersionId::MAX,
+            max_calldata_length: 4000,
+            max_signature_length: 4000,
+            max_bytecode_size: 81920,
+            max_raw_class_size: 4089446,
+            min_sierra_version: VersionId { major: 1, minor: 1, patch: 0 },
+            max_sierra_version: VersionId { major: 1, minor: 5, patch: usize::MAX },
         }
     }
 }
@@ -111,27 +111,25 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
             ser_param(
                 "max_signature_length",
                 &self.max_signature_length,
-                "Validates that a transaction has signature length less than or equal to this \
-                 value.",
+                "Limitation of signature length.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "max_calldata_length",
                 &self.max_calldata_length,
-                "Validates that a transaction has calldata length less than or equal to this \
-                 value.",
+                "Limitation of calldata length.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "max_bytecode_size",
                 &self.max_bytecode_size,
-                "Validates that a transaction has bytecode size less than or equal to this value.",
+                "Limitation of contract bytecode size.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "max_raw_class_size",
                 &self.max_raw_class_size,
-                "Validates that a transaction has raw class size less than or equal to this value.",
+                "Limitation of contract class object size.",
                 ParamPrivacyInput::Public,
             ),
         ]);
