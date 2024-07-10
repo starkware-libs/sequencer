@@ -41,18 +41,19 @@ pub fn create_servers(
     Servers { gateway: gateway_server, mempool: mempool_server }
 }
 
-pub async fn run_server_components(
+pub async fn run_component_servers(
     config: &MempoolNodeConfig,
     servers: Servers,
 ) -> anyhow::Result<()> {
-    // Gateway component.
+    // Gateway server.
     let gateway_future =
         get_server_future("Gateway", config.components.gateway.execute, servers.gateway);
 
-    // Mempool component.
+    // Mempool server.
     let mempool_future =
         get_server_future("Mempool", config.components.mempool.execute, servers.mempool);
 
+    // Start servers.
     let gateway_handle = tokio::spawn(gateway_future);
     let mempool_handle = tokio::spawn(mempool_future);
 
