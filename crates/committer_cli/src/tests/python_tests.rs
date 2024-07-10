@@ -17,6 +17,7 @@ use committer::patricia_merkle_tree::node_data::inner_node::{
 };
 use committer::patricia_merkle_tree::node_data::leaf::ContractState;
 use committer::patricia_merkle_tree::types::SubTreeHeight;
+use log::error;
 
 use committer::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
 use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
@@ -58,6 +59,7 @@ pub enum PythonTest {
     SerializeForRustCommitterFlowTest,
     ComputeHashSingleTree,
     MaybePanic,
+    LogError,
 }
 
 /// Error type for PythonTest enum.
@@ -108,6 +110,7 @@ impl TryFrom<String> for PythonTest {
             "serialize_to_rust_committer_flow_test" => Ok(Self::SerializeForRustCommitterFlowTest),
             "tree_test" => Ok(Self::ComputeHashSingleTree),
             "maybe_panic" => Ok(Self::MaybePanic),
+            "log_error" => Ok(Self::LogError),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -194,6 +197,13 @@ impl PythonTest {
                     panic!("panic test")
                 }
                 Ok("Done!".to_owned())
+            }
+            Self::LogError => {
+                log::error!("This is an error log message.");
+                log::warn!("This is a warn log message.");
+                log::info!("This is an info log message.");
+                log::debug!("This is a debug log message.");
+                panic!("This is a panic message.");
             }
         }
     }

@@ -576,6 +576,7 @@ dependencies = [
  "ethnum",
  "hex",
  "indexmap 2.2.6",
+ "log",
  "pretty_assertions",
  "rand",
  "rand_distr",
