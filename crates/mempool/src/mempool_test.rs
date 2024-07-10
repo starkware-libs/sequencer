@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use assert_matches::assert_matches;
 use itertools::{enumerate, zip_eq};
 use pretty_assertions::assert_eq;
@@ -72,6 +74,20 @@ macro_rules! add_tx_input {
 #[fixture]
 fn mempool() -> Mempool {
     Mempool::empty()
+}
+
+// TODO(Ayelet): replace with MempoolState checker.
+#[track_caller]
+fn _assert_eq_mempool_state(
+    mempool: &Mempool,
+    expected_pool: &[ThinTransaction],
+    expected_queue: &[ThinTransaction],
+) {
+    assert_eq_mempool_queue(mempool, expected_queue);
+
+    let expected_pool: HashMap<_, _> =
+        expected_pool.iter().cloned().map(|tx| (tx.tx_hash, tx)).collect();
+    assert_eq!(mempool._tx_pool()._tx_pool(), &expected_pool);
 }
 
 // Asserts that the transactions in the mempool are in ascending order as per the expected

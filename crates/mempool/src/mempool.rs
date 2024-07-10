@@ -85,6 +85,11 @@ impl Mempool {
 
         Ok(())
     }
+
+    #[cfg(test)]
+    pub(crate) fn _tx_pool(&self) -> &TransactionPool {
+        &self.tx_pool
+    }
 }
 
 /// Provides a lightweight representation of a transaction for mempool usage (e.g., excluding

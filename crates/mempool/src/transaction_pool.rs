@@ -7,6 +7,8 @@ use starknet_mempool_types::mempool_types::{MempoolResult, ThinTransaction};
 
 use crate::mempool::TransactionReference;
 
+type HashToTransaction = HashMap<TransactionHash, ThinTransaction>;
+
 /// Contains all transactions currently held in the mempool.
 /// Invariant: both data structures are consistent regarding the existence of transactions:
 /// A transaction appears in one if and only if it appears in the other.
@@ -14,7 +16,7 @@ use crate::mempool::TransactionReference;
 #[derive(Debug, Default)]
 pub struct TransactionPool {
     // Holds the complete transaction objects; it should be the sole entity that does so.
-    tx_pool: HashMap<TransactionHash, ThinTransaction>,
+    tx_pool: HashToTransaction,
     // Transactions organized by account address, sorted by ascending nonce values.
     txs_by_account: AccountTransactionIndex,
 }
@@ -69,6 +71,11 @@ impl TransactionPool {
         nonce: Nonce,
     ) -> Option<&TransactionReference> {
         self.txs_by_account.get(address, nonce)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn _tx_pool(&self) -> &HashToTransaction {
+        &self.tx_pool
     }
 }
 
