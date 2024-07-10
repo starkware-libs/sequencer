@@ -309,7 +309,6 @@ impl Default for InvokeTxArgs {
 #[derive(Clone)]
 pub struct DeployAccountTxArgs {
     pub signature: TransactionSignature,
-    pub deployer_address: ContractAddress,
     pub version: TransactionVersion,
     pub resource_bounds: ResourceBoundsMapping,
     pub tip: Tip,
@@ -326,7 +325,6 @@ impl Default for DeployAccountTxArgs {
     fn default() -> Self {
         DeployAccountTxArgs {
             signature: TransactionSignature::default(),
-            deployer_address: ContractAddress::default(),
             version: TransactionVersion::THREE,
             resource_bounds: zero_resource_bounds_mapping(),
             tip: Tip::default(),
@@ -465,12 +463,9 @@ pub fn external_tx_to_json(tx: &RPCTransaction) -> String {
 //  TODO(Yael 18/6/2024): Get a final decision from product whether to support Cairo0.
 pub fn deploy_account_tx() -> RPCTransaction {
     let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
-    let sender_address = account_contract.get_instance_address(0);
-    let mut nonce_manager = NonceManager::default();
 
     external_deploy_account_tx(deploy_account_tx_args!(
-        nonce: nonce_manager.next(sender_address),
-        deployer_address: sender_address,
+        nonce: Nonce(Felt::ZERO),
         class_hash: account_contract.get_class_hash(),
         resource_bounds: executable_resource_bounds_mapping(),
     ))
