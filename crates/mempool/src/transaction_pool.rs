@@ -73,15 +73,15 @@ impl TransactionPool {
 }
 
 #[derive(Debug, Default)]
-struct AccountTransactionIndex(pub HashMap<ContractAddress, BTreeMap<Nonce, TransactionReference>>);
+struct AccountTransactionIndex(HashMap<ContractAddress, BTreeMap<Nonce, TransactionReference>>);
 
 impl AccountTransactionIndex {
     /// If the transaction already exists in the mapping, the old value is returned.
-    pub fn insert(&mut self, tx: TransactionReference) -> Option<TransactionReference> {
+    fn insert(&mut self, tx: TransactionReference) -> Option<TransactionReference> {
         self.0.entry(tx.sender_address).or_default().insert(tx.nonce, tx)
     }
 
-    pub fn remove(&mut self, tx: TransactionReference) -> Option<TransactionReference> {
+    fn remove(&mut self, tx: TransactionReference) -> Option<TransactionReference> {
         let TransactionReference { sender_address, nonce, .. } = tx;
         let account_txs = self.0.get_mut(&sender_address)?;
 
@@ -94,7 +94,7 @@ impl AccountTransactionIndex {
         removed_tx
     }
 
-    pub fn get(&self, address: ContractAddress, nonce: Nonce) -> Option<&TransactionReference> {
+    fn get(&self, address: ContractAddress, nonce: Nonce) -> Option<&TransactionReference> {
         self.0.get(&address)?.get(&nonce)
     }
 }
