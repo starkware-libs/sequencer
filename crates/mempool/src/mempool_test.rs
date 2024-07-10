@@ -77,12 +77,12 @@ fn mempool() -> Mempool {
 // Asserts that the transactions in the mempool are in ascending order as per the expected
 // transactions.
 #[track_caller]
-fn check_mempool_txs_eq(mempool: &Mempool, expected_txs: &[ThinTransaction]) {
+fn assert_eq_mempool_queue(mempool: &Mempool, expected_queue: &[ThinTransaction]) {
     let mempool_txs = mempool.iter();
-    let expected_txs = expected_txs.iter().map(TransactionReference::new);
+    let expected_queue = expected_queue.iter().map(TransactionReference::new);
 
     assert!(
-        zip_eq(expected_txs, mempool_txs)
+        zip_eq(expected_queue, mempool_txs)
             // Deref the inner mempool tx type.
             .all(|(expected_tx, mempool_tx)| expected_tx == *mempool_tx)
     );
@@ -116,11 +116,11 @@ fn test_get_txs(#[case] requested_txs: usize) {
     let max_requested_txs = requested_txs.min(n_txs);
 
     // checks that the returned transactions are the ones with the highest priority.
-    let (expected_txs, remaining_txs) = sorted_txs.split_at(max_requested_txs);
-    assert_eq!(txs, expected_txs);
+    let (expected_queue, remaining_txs) = sorted_txs.split_at(max_requested_txs);
+    assert_eq!(txs, expected_queue);
 
     // checks that the transactions that were not returned are still in the mempool.
-    check_mempool_txs_eq(&mempool, remaining_txs);
+    assert_eq_mempool_queue(&mempool, remaining_txs);
 }
 
 #[rstest]
@@ -133,9 +133,9 @@ fn test_add_tx(mut mempool: Mempool) {
     add_tx(&mut mempool, &input_tip_100_address_1);
     add_tx(&mut mempool, &input_tip_80_address_2);
 
-    let expected_txs =
+    let expected_queue =
         &[input_tip_100_address_1.tx, input_tip_80_address_2.tx, input_tip_50_address_0.tx];
-    check_mempool_txs_eq(&mempool, expected_txs)
+    assert_eq_mempool_queue(&mempool, expected_queue)
 }
 
 #[test]
@@ -161,7 +161,7 @@ fn test_add_tx_with_duplicate_tx(mut mempool: Mempool) {
         Err(MempoolError::DuplicateTransaction { .. })
     );
     // Assert that the original tx remains in the pool after the failed attempt.
-    check_mempool_txs_eq(&mempool, &[same_input.tx])
+    assert_eq_mempool_queue(&mempool, &[same_input.tx])
 }
 
 #[rstest]
@@ -177,7 +177,7 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
 
     // TODO: currently hash comparison tie-breaks the two. Once more robust tie-breaks are added
     // replace this assertion with a dedicated test.
-    check_mempool_txs_eq(&mempool, &[input1.tx, input2.tx]);
+    assert_eq_mempool_queue(&mempool, &[input1.tx, input2.tx]);
 }
 
 #[rstest]
@@ -190,5 +190,5 @@ fn test_tip_priority_over_tx_hash(mut mempool: Mempool) {
 
     add_tx(&mut mempool, &input_big_tip_small_hash);
     add_tx(&mut mempool, &input_small_tip_big_hash);
-    check_mempool_txs_eq(&mempool, &[input_big_tip_small_hash.tx, input_small_tip_big_hash.tx])
+    assert_eq_mempool_queue(&mempool, &[input_big_tip_small_hash.tx, input_small_tip_big_hash.tx])
 }
