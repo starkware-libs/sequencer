@@ -12,6 +12,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::mempool::{Mempool, MempoolInput, TransactionReference};
 use crate::transaction_pool::TransactionPool;
+use crate::transaction_queue::TransactionQueue;
 
 impl FromIterator<ThinTransaction> for TransactionPool {
     fn from_iter<T: IntoIterator<Item = ThinTransaction>>(txs: T) -> Self {
@@ -20,6 +21,16 @@ impl FromIterator<ThinTransaction> for TransactionPool {
             pool.insert(tx).unwrap();
         }
         pool
+    }
+}
+
+impl FromIterator<TransactionReference> for TransactionQueue {
+    fn from_iter<T: IntoIterator<Item = TransactionReference>>(txs: T) -> Self {
+        let mut queue = Self::default();
+        for tx in txs {
+            queue.insert(tx);
+        }
+        queue
     }
 }
 
