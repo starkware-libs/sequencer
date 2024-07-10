@@ -118,7 +118,7 @@ fn prepare_state_diff(
     for (contract, n_instances) in contract_instances.iter() {
         for instance in 0..*n_instances {
             // Declare and deploy the contracts
-            match cairo_version(contract) {
+            match contract.cairo_version() {
                 CairoVersion::Cairo0 => {
                     deprecated_declared_classes.push(contract.get_class_hash());
                 }
@@ -158,7 +158,7 @@ fn prepare_compiled_contract_classes(
     let mut cairo0_contract_classes = Vec::new();
     let mut cairo1_contract_classes = Vec::new();
     for (contract, _) in contract_instances.iter() {
-        match cairo_version(contract) {
+        match contract.cairo_version() {
             CairoVersion::Cairo0 => {
                 cairo0_contract_classes.push((
                     contract.get_class_hash(),
@@ -209,19 +209,6 @@ fn write_state_to_papyrus_storage(
         .unwrap();
 
     storage_reader
-}
-
-// TODO (Yael 19/6/2024): make this function public in Blockifier and remove it from here.
-fn cairo_version(contract: &FeatureContract) -> CairoVersion {
-    match contract {
-        FeatureContract::AccountWithLongValidate(version)
-        | FeatureContract::AccountWithoutValidations(version)
-        | FeatureContract::Empty(version)
-        | FeatureContract::FaultyAccount(version)
-        | FeatureContract::TestContract(version)
-        | FeatureContract::ERC20(version) => *version,
-        _ => panic!("{contract:?} contract has no configurable version."),
-    }
 }
 
 fn test_block_header(block_number: BlockNumber) -> BlockHeader {
