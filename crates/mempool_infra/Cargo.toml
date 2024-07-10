@@ -15,6 +15,7 @@ workspace = true
 async-trait.workspace = true
 bincode.workspace = true
 hyper.workspace = true
+rstest.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
