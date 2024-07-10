@@ -11,6 +11,17 @@ use starknet_mempool_types::mempool_types::{Account, AccountState, ThinTransacti
 use starknet_types_core::felt::Felt;
 
 use crate::mempool::{Mempool, MempoolInput, TransactionReference};
+use crate::transaction_pool::TransactionPool;
+
+impl FromIterator<ThinTransaction> for TransactionPool {
+    fn from_iter<T: IntoIterator<Item = ThinTransaction>>(txs: T) -> Self {
+        let mut pool = Self::default();
+        for tx in txs {
+            pool.insert(tx).unwrap();
+        }
+        pool
+    }
+}
 
 #[track_caller]
 fn add_tx(mempool: &mut Mempool, input: &MempoolInput) {
