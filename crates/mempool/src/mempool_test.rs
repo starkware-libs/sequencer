@@ -1,5 +1,5 @@
 use assert_matches::assert_matches;
-use itertools::zip_eq;
+use itertools::{enumerate, zip_eq};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
@@ -81,11 +81,9 @@ fn assert_eq_mempool_queue(mempool: &Mempool, expected_queue: &[ThinTransaction]
     let mempool_txs = mempool.iter();
     let expected_queue = expected_queue.iter().map(TransactionReference::new);
 
-    assert!(
-        zip_eq(expected_queue, mempool_txs)
-            // Deref the inner mempool tx type.
-            .all(|(expected_tx, mempool_tx)| expected_tx == *mempool_tx)
-    );
+    for (i, (expected_tx, mempool_tx)) in enumerate(zip_eq(expected_queue, mempool_txs)) {
+        assert_eq!(expected_tx, *mempool_tx, "Transaction {i} in the queue is not as expected");
+    }
 }
 
 #[rstest]
