@@ -82,7 +82,7 @@ impl<'de> Deserialize<'de> for TreeRegressionInput {
 
 #[ignore = "To avoid running the benchmark test in Coverage or without the --release flag."]
 #[tokio::test(flavor = "multi_thread")]
-pub async fn test_benchmark_single_tree() {
+pub async fn test_regression_single_tree() {
     let TreeRegressionInput {
         tree_flow_input:
             TreeFlowInput {
@@ -117,7 +117,7 @@ pub async fn test_benchmark_single_tree() {
 
 #[ignore = "To avoid running the benchmark test in Coverage or without the --release flag."]
 #[tokio::test(flavor = "multi_thread")]
-pub async fn test_benchmark_committer_flow() {
+pub async fn test_regression_committer_flow() {
     let CommitterRegressionInput {
         committer_input,
         contract_states_root: expected_contract_states_root,

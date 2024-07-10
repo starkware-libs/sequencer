@@ -97,7 +97,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test
 
-  run-bench-tests:
+  run-regression-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -112,7 +112,7 @@ jobs:
       - run: echo "BENCH_INPUT_FILES_PREFIX=$(cat ./crates/committer_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
       - run: gcloud storage cp gs://committer-testing-artifacts/$BENCH_INPUT_FILES_PREFIX/tree_flow_inputs.json ./crates/committer_cli/benches/tree_flow_inputs.json
       - run: gcloud storage cp gs://committer-testing-artifacts/$BENCH_INPUT_FILES_PREFIX/committer_flow_inputs.json ./crates/committer_cli/benches/committer_flow_inputs.json
-      - run: cargo test --release -- --include-ignored test_benchmark
+      - run: cargo test --release -- --include-ignored test_regression
 
   benchmarking:
     runs-on: ubuntu-latest
