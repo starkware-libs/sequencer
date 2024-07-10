@@ -51,6 +51,7 @@ impl TransactionQueue {
     }
 }
 
+/// Encapsulates a transaction reference to assess its order (i.e., priority).
 #[derive(Clone, Debug, derive_more::Deref, derive_more::From)]
 struct QueuedTransaction(pub TransactionReference);
 
