@@ -20,8 +20,15 @@ pub struct TransactionQueue {
 impl TransactionQueue {
     /// Adds a transaction to the mempool, ensuring unique keys.
     /// Panics: if given a duplicate tx.
+    // TODO(Mohammad): Add test for two transactions from the same address, expecting specific
+    // assert.
     pub fn insert(&mut self, tx: TransactionReference) {
-        assert_eq!(self.address_to_tx.insert(tx.sender_address, tx), None);
+        assert_eq!(
+            self.address_to_tx.insert(tx.sender_address, tx),
+            None,
+            "Only a single transaction from the same contract class can be in the mempool at a \
+             time."
+        );
         assert!(
             self.queue.insert(tx.into()),
             "Keys should be unique; duplicates are checked prior."
