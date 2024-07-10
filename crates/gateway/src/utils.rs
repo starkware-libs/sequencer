@@ -70,6 +70,7 @@ pub fn get_sender_address(tx: &RPCTransaction) -> ContractAddress {
 }
 
 // TODO(Mohammad): Remove this trait once it is implemented in StarkNet API.
+#[allow(dead_code)]
 pub trait RPCTransactionExt {
     fn nonce(&self) -> &Nonce;
     fn tip(&self) -> &Tip;
