@@ -1,6 +1,5 @@
 use blockifier::blockifier::block::BlockInfo;
-use blockifier::bouncer::BouncerConfig;
-use blockifier::context::{BlockContext, ChainInfo};
+use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::ContractClass;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
@@ -8,7 +7,6 @@ use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::initial_test_state::{fund_account, test_state};
 use blockifier::test_utils::{CairoVersion, BALANCE};
-use blockifier::versioned_constants::VersionedConstants;
 use mempool_test_utils::starknet_api_test_utils::deployed_account_contract_address;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
@@ -74,13 +72,8 @@ pub fn local_test_state_reader_factory(
     cairo_version: CairoVersion,
     zero_balance: bool,
 ) -> TestStateReaderFactory {
+    let block_context = BlockContext::create_for_testing();
     let account_balance = if zero_balance { 0 } else { BALANCE };
-    let block_context = BlockContext::new(
-        BlockInfo::create_for_testing(),
-        ChainInfo::create_for_testing(),
-        VersionedConstants::create_for_testing(),
-        BouncerConfig::max(),
-    );
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let test_contract = FeatureContract::TestContract(cairo_version);
 

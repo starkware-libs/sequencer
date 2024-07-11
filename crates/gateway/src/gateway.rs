@@ -124,9 +124,8 @@ fn process_tx(
         _ => None,
     };
 
-    // TODO(Yael, 19/5/2024): pass the relevant deploy_account_hash.
     let validator = stateful_tx_validator.instantiate_validator(state_reader_factory)?;
-    let tx_hash = stateful_tx_validator.run_validate(&tx, optional_class_info, None, validator)?;
+    let tx_hash = stateful_tx_validator.run_validate(&tx, optional_class_info, validator)?;
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
     Ok(MempoolInput {

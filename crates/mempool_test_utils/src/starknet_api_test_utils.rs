@@ -29,6 +29,7 @@ use crate::{
 
 pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203483;
 pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
+pub const TEST_SENDER_ADDRESS: u128 = 0x1000;
 
 // Utils.
 pub enum TransactionType {
