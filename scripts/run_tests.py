@@ -7,6 +7,9 @@ import os
 from typing import Dict, List, Set, Optional
 from git import Repo
 
+# TODO(AlonD, 14/7/2024): Use this.
+TOP_LEVEL_DEPENDENCIES = ["Cargo.toml", "Cargo.lock"]
+
 PATTERN = r"(\w+)\s*v([\d.]*.*)\((.*?)\)"
 
 def get_workspace_tree() -> Dict[str, str]:
