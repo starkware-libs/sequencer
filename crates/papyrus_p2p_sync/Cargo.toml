@@ -32,4 +32,9 @@ static_assertions.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
 papyrus_test_utils = { path = "../papyrus_test_utils" }
-papyrus_protobuf = { path = "../papyrus_protobuf", features = ["testing"]}
+papyrus_protobuf = { path = "../papyrus_protobuf", features = ["testing"] }
+
+# Optional dependency required for testing.
+# See [here](https://github.com/bnjbvr/cargo-machete/issues/128).
+[package.metadata.cargo-machete]
+ignored = ["metrics"]

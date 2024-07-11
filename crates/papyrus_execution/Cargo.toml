@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "Transaction and entry point execution functionality for a Papyrus node."
 
 [features]
-testing = ["rand", "rand_chacha", "papyrus_test_utils"]
+testing = ["papyrus_test_utils", "rand", "rand_chacha"]
 
 [dependencies]
 anyhow.workspace = true
@@ -41,3 +41,8 @@ pretty_assertions.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
 papyrus_test_utils = { path = "../papyrus_test_utils" }
+
+# Optional dependency required for testing.
+# See [here](https://github.com/bnjbvr/cargo-machete/issues/128).
+[package.metadata.cargo-machete]
+ignored = ["rand"]
