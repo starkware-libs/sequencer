@@ -11,9 +11,7 @@ use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
 use crate::fee::eth_gas_constants;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::gas_usage::{
-    compute_discounted_gas_from_gas_vector,
-    get_da_gas_cost,
-    get_message_segment_length,
+    compute_discounted_gas_from_gas_vector, get_da_gas_cost, get_message_segment_length,
 };
 use crate::invoke_tx_args;
 use crate::state::cached_state::StateChangesCount;

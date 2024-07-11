@@ -1,0 +1,6 @@
+Metadata-Version: 2.1
+Name: native-blockifier
+Version: 0.15.14
+Summary: Rust binding for python
+Author: Starkware
+Author-email: info@starkware.co

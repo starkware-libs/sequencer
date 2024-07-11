@@ -13,35 +13,21 @@ use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce,
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
-    Calldata,
-    EventContent,
-    EventData,
-    EventKey,
-    Fee,
-    L2ToL1Payload,
-    ResourceBoundsMapping,
-    TransactionSignature,
-    TransactionVersion,
+    Calldata, EventContent, EventData, EventKey, Fee, L2ToL1Payload, ResourceBoundsMapping,
+    TransactionSignature, TransactionVersion,
 };
 use starknet_api::{calldata, class_hash, contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
 use crate::abi::abi_utils::{
-    get_fee_token_var_address,
-    get_storage_var_address,
-    selector_from_name,
+    get_fee_token_var_address, get_storage_var_address, selector_from_name,
 };
 use crate::abi::constants as abi_constants;
 use crate::abi::sierra_types::next_storage_key;
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{
-    CallExecution,
-    CallInfo,
-    MessageToL1,
-    OrderedEvent,
-    OrderedL2ToL1Message,
-    Retdata,
+    CallExecution, CallInfo, MessageToL1, OrderedEvent, OrderedL2ToL1Message, Retdata,
 };
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
@@ -50,9 +36,7 @@ use crate::execution::syscalls::SyscallSelector;
 use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::fee_utils::balance_to_big_uint;
 use crate::fee::gas_usage::{
-    estimate_minimal_gas_vector,
-    get_da_gas_cost,
-    get_onchain_data_segment_length,
+    estimate_minimal_gas_vector, get_da_gas_cost, get_onchain_data_segment_length,
 };
 use crate::state::cached_state::{CachedState, StateChangesCount, TransactionalState};
 use crate::state::errors::StateError;
@@ -65,70 +49,35 @@ use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::invoke::invoke_tx;
 use crate::test_utils::prices::Prices;
 use crate::test_utils::{
-    create_calldata,
-    create_trivial_calldata,
-    get_syscall_resources,
-    get_tx_resources,
-    test_erc20_sequencer_balance_key,
-    CairoVersion,
-    NonceManager,
-    SaltManager,
-    BALANCE,
-    CHAIN_ID_NAME,
-    CURRENT_BLOCK_NUMBER,
-    CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
-    CURRENT_BLOCK_TIMESTAMP,
-    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
-    MAX_FEE,
-    MAX_L1_GAS_AMOUNT,
-    MAX_L1_GAS_PRICE,
-    TEST_SEQUENCER_ADDRESS,
+    create_calldata, create_trivial_calldata, get_syscall_resources, get_tx_resources,
+    test_erc20_sequencer_balance_key, CairoVersion, NonceManager, SaltManager, BALANCE,
+    CHAIN_ID_NAME, CURRENT_BLOCK_NUMBER, CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
+    CURRENT_BLOCK_TIMESTAMP, CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE, MAX_FEE, MAX_L1_GAS_AMOUNT,
+    MAX_L1_GAS_PRICE, TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::constants;
 use crate::transaction::errors::{
-    TransactionExecutionError,
-    TransactionFeeError,
-    TransactionPreValidationError,
+    TransactionExecutionError, TransactionFeeError, TransactionPreValidationError,
 };
 use crate::transaction::objects::{
-    FeeType,
-    GasVector,
-    HasRelatedFeeType,
-    StarknetResources,
-    TransactionExecutionInfo,
-    TransactionInfo,
-    TransactionResources,
+    FeeType, GasVector, HasRelatedFeeType, StarknetResources, TransactionExecutionInfo,
+    TransactionInfo, TransactionResources,
 };
 use crate::transaction::test_utils::{
-    account_invoke_tx,
-    block_context,
-    calculate_class_info_for_testing,
-    create_account_tx_for_validate_test,
-    create_account_tx_for_validate_test_nonce_0,
-    l1_resource_bounds,
-    max_resource_bounds,
-    FaultyAccountTxCreatorArgs,
-    CALL_CONTRACT,
-    GET_BLOCK_HASH,
-    GET_BLOCK_NUMBER,
-    GET_BLOCK_TIMESTAMP,
-    GET_EXECUTION_INFO,
-    GET_SEQUENCER_ADDRESS,
-    INVALID,
-    VALID,
+    account_invoke_tx, block_context, calculate_class_info_for_testing,
+    create_account_tx_for_validate_test, create_account_tx_for_validate_test_nonce_0,
+    l1_resource_bounds, max_resource_bounds, FaultyAccountTxCreatorArgs, CALL_CONTRACT,
+    GET_BLOCK_HASH, GET_BLOCK_NUMBER, GET_BLOCK_TIMESTAMP, GET_EXECUTION_INFO,
+    GET_SEQUENCER_ADDRESS, INVALID, VALID,
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{ExecutableTransaction, L1HandlerTransaction};
 use crate::versioned_constants::VersionedConstants;
 use crate::{
     check_transaction_execution_error_for_custom_hint,
-    check_transaction_execution_error_for_invalid_scenario,
-    declare_tx_args,
-    deploy_account_tx_args,
-    invoke_tx_args,
-    nonce,
-    retdata,
+    check_transaction_execution_error_for_invalid_scenario, declare_tx_args,
+    deploy_account_tx_args, invoke_tx_args, nonce, retdata,
 };
 
 static VERSIONED_CONSTANTS: Lazy<VersionedConstants> =
@@ -821,6 +770,7 @@ fn assert_failure_if_resource_bounds_exceed_balance(
 #[rstest]
 fn test_max_fee_exceeds_balance(
     block_context: BlockContext,
+    max_resource_bounds: ResourceBoundsMapping,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
 ) {
     let block_context = &block_context;
@@ -853,8 +803,7 @@ fn test_max_fee_exceeds_balance(
 
     // V3 invoke.
     let invalid_tx = account_invoke_tx(invoke_tx_args! {
-        resource_bounds: invalid_resource_bounds,
-        version: TransactionVersion::THREE,
+        resource_bounds: invalid_resource_bounds.clone(),
         ..default_args
     });
     assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
@@ -862,7 +811,7 @@ fn test_max_fee_exceeds_balance(
     // Deploy.
     let invalid_tx = AccountTransaction::DeployAccount(deploy_account_tx(
         deploy_account_tx_args! {
-            max_fee: Fee(MAX_FEE),
+            resource_bounds: max_resource_bounds,
             class_hash: test_contract.get_class_hash()
         },
         &mut NonceManager::default(),
@@ -870,14 +819,14 @@ fn test_max_fee_exceeds_balance(
     assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
 
     // Declare.
-    let contract_to_declare = FeatureContract::Empty(CairoVersion::Cairo0);
+    let contract_to_declare = FeatureContract::Empty(CairoVersion::Cairo1);
     let class_info = calculate_class_info_for_testing(contract_to_declare.get_class());
     let invalid_tx = declare_tx(
         declare_tx_args! {
             class_hash: contract_to_declare.get_class_hash(),
             compiled_class_hash: contract_to_declare.get_compiled_class_hash(),
             sender_address: account_contract_address,
-            max_fee: invalid_max_fee,
+            resource_bounds: invalid_resource_bounds,
         },
         class_info,
     );
@@ -1271,6 +1220,7 @@ fn test_declare_tx(
 fn test_deploy_account_tx(
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
     #[values(false, true)] use_kzg_da: bool,
+    max_resource_bounds: ResourceBoundsMapping,
 ) {
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
     let versioned_constants = &block_context.versioned_constants;
@@ -1280,7 +1230,7 @@ fn test_deploy_account_tx(
     let account_class_hash = account.get_class_hash();
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
     let deploy_account = deploy_account_tx(
-        deploy_account_tx_args! { max_fee: Fee(MAX_FEE), class_hash: account_class_hash },
+        deploy_account_tx_args! { resource_bounds: max_resource_bounds.clone(), class_hash: account_class_hash },
         &mut nonce_manager,
     );
 
@@ -1420,7 +1370,7 @@ fn test_deploy_account_tx(
     // Negative flow.
     // Deploy to an existing address.
     let deploy_account = deploy_account_tx(
-        deploy_account_tx_args! { max_fee: Fee(MAX_FEE), class_hash: account_class_hash },
+        deploy_account_tx_args! { resource_bounds: max_resource_bounds, class_hash: account_class_hash },
         &mut nonce_manager,
     );
     let account_tx = AccountTransaction::DeployAccount(deploy_account);
@@ -1439,21 +1389,26 @@ fn test_deploy_account_tx(
 }
 
 #[rstest]
-fn test_fail_deploy_account_undeclared_class_hash(block_context: BlockContext) {
+fn test_fail_deploy_account_undeclared_class_hash(
+    block_context: BlockContext,
+    max_resource_bounds: ResourceBoundsMapping,
+) {
     let block_context = &block_context;
     let chain_info = &block_context.chain_info;
     let state = &mut test_state(chain_info, BALANCE, &[]);
     let mut nonce_manager = NonceManager::default();
     let undeclared_hash = class_hash!("0xdeadbeef");
     let deploy_account = deploy_account_tx(
-        deploy_account_tx_args! { max_fee: Fee(MAX_FEE), class_hash: undeclared_hash },
+        deploy_account_tx_args! {resource_bounds: max_resource_bounds,  class_hash: undeclared_hash },
         &mut nonce_manager,
     );
+    let tx_context = block_context.to_tx_context(&deploy_account);
+    let fee_type = tx_context.tx_info.fee_type();
 
     // Fund account, so as not to fail pre-validation.
     state
         .set_storage_at(
-            chain_info.fee_token_address(&FeeType::Eth),
+            chain_info.fee_token_address(&fee_type),
             get_fee_token_var_address(deploy_account.contract_address),
             felt!(BALANCE),
         )

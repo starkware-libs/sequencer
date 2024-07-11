@@ -2,18 +2,11 @@ use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::calldata;
-use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::transaction::{
-    AccountDeploymentData,
-    Calldata,
-    ContractAddressSalt,
-    DeclareTransactionV2,
-    DeclareTransactionV3,
-    Fee,
-    TransactionHash,
-    TransactionSignature,
-    TransactionVersion,
+    AccountDeploymentData, Calldata, ContractAddressSalt, DeclareTransactionV2,
+    DeclareTransactionV3, Fee, TransactionHash, TransactionSignature, TransactionVersion,
 };
 use starknet_types_core::felt::Felt;
 
@@ -22,10 +15,7 @@ use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::{ClassInfo, ContractClass};
 use crate::execution::entry_point::{
-    CallEntryPoint,
-    CallType,
-    ConstructorContext,
-    EntryPointExecutionContext,
+    CallEntryPoint, CallType, ConstructorContext, EntryPointExecutionContext,
 };
 use crate::execution::execution_utils::execute_deployment;
 use crate::state::cached_state::TransactionalState;
@@ -34,14 +24,8 @@ use crate::state::state_api::{State, UpdatableState};
 use crate::transaction::constants;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{
-    CommonAccountFields,
-    CurrentTransactionInfo,
-    DeprecatedTransactionInfo,
-    HasRelatedFeeType,
-    TransactionExecutionInfo,
-    TransactionExecutionResult,
-    TransactionInfo,
-    TransactionInfoCreator,
+    CommonAccountFields, CurrentTransactionInfo, DeprecatedTransactionInfo, HasRelatedFeeType,
+    TransactionExecutionInfo, TransactionExecutionResult, TransactionInfo, TransactionInfoCreator,
 };
 use crate::transaction::transaction_utils::{update_remaining_gas, verify_contract_class_version};
 
@@ -182,6 +166,29 @@ impl DeclareTransaction {
     pub fn only_query(&self) -> bool {
         self.only_query
     }
+
+    fn try_declare<S: State>(
+        &self,
+        state: &mut S,
+        class_hash: ClassHash,
+        compiled_class_hash: Option<CompiledClassHash>,
+    ) -> TransactionExecutionResult<()> {
+        match state.get_compiled_contract_class(class_hash) {
+            Err(StateError::UndeclaredClassHash(_)) => {
+                // Class is undeclared; declare it.
+                state.set_contract_class(class_hash, self.contract_class())?;
+                if let Some(compiled_class_hash) = compiled_class_hash {
+                    state.set_compiled_class_hash(class_hash, compiled_class_hash)?;
+                }
+                Ok(())
+            }
+            Err(error) => Err(error)?,
+            Ok(_) => {
+                // Class is already declared, cannot redeclare.
+                Err(TransactionExecutionError::DeclareTransactionError { class_hash })
+            }
+        }
+    }
 }
 
 impl<S: State> Executable<S> for DeclareTransaction {
@@ -189,17 +196,22 @@ impl<S: State> Executable<S> for DeclareTransaction {
         &self,
         state: &mut S,
         _resources: &mut ExecutionResources,
-        _context: &mut EntryPointExecutionContext,
+        context: &mut EntryPointExecutionContext,
         _remaining_gas: &mut u64,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
         let class_hash = self.class_hash();
-
         match &self.tx {
-            // No class commitment, so no need to check if the class is already declared.
             starknet_api::transaction::DeclareTransaction::V0(_)
             | starknet_api::transaction::DeclareTransaction::V1(_) => {
-                state.set_contract_class(class_hash, self.contract_class())?;
-                Ok(None)
+                if context.tx_context.block_context.versioned_constants.disable_cairo0_redeclaration
+                {
+                    self.try_declare(state, class_hash, None)?
+                } else {
+                    // We allow redeclaration of the class for backward compatibility.
+                    // In the past, we allowed redeclaration of Cairo 0 contracts since there was
+                    // no class commitment (so no need to check if the class is already declared).
+                    state.set_contract_class(class_hash, self.contract_class())?;
+                }
             }
             starknet_api::transaction::DeclareTransaction::V2(DeclareTransactionV2 {
                 compiled_class_hash,
@@ -208,23 +220,9 @@ impl<S: State> Executable<S> for DeclareTransaction {
             | starknet_api::transaction::DeclareTransaction::V3(DeclareTransactionV3 {
                 compiled_class_hash,
                 ..
-            }) => {
-                match state.get_compiled_contract_class(class_hash) {
-                    Err(StateError::UndeclaredClassHash(_)) => {
-                        // Class is undeclared; declare it.
-                        state.set_contract_class(class_hash, self.contract_class())?;
-                        state.set_compiled_class_hash(class_hash, *compiled_class_hash)?;
-                        Ok(None)
-                    }
-                    Err(error) => Err(error)?,
-                    Ok(_) => {
-                        // Class is already declared, cannot redeclare
-                        // (i.e., make sure the leaf is uninitialized).
-                        Err(TransactionExecutionError::DeclareTransactionError { class_hash })
-                    }
-                }
-            }
+            }) => self.try_declare(state, class_hash, Some(*compiled_class_hash))?,
         }
+        Ok(None)
     }
 }
 
