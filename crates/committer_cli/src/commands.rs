@@ -1,12 +1,13 @@
-use committer::block_committer::commit::commit_block;
-
-use crate::{
-    filled_tree_output::filled_forest::SerializedForest,
-    parse_input::read::{parse_input, write_to_file},
+use committer::block_committer::{
+    commit::commit_block,
+    input::{ConfigImpl, Input},
 };
 
-pub async fn commit(input_string: &str, output_path: String) {
-    let input = parse_input(input_string).expect("Failed to parse the given input.");
+use crate::{
+    filled_tree_output::filled_forest::SerializedForest, parse_input::read::write_to_file,
+};
+
+pub async fn commit(input: Input<ConfigImpl>, output_path: String) {
     let serialized_filled_forest = SerializedForest(
         commit_block(input)
             .await

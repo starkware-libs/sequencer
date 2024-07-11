@@ -1,10 +1,16 @@
 use std::collections::HashMap;
 
-use committer::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
+use committer::{
+    block_committer::input::{ConfigImpl, Input},
+    patricia_merkle_tree::external_test_utils::single_tree_flow_test,
+};
 use serde::{Deserialize, Deserializer};
 use serde_json::{Map, Value};
 
-use crate::{commands::commit, tests::utils::parse_from_python::TreeFlowInput};
+use crate::{
+    commands::commit, parse_input::read::parse_input,
+    tests::utils::parse_from_python::TreeFlowInput,
+};
 
 use super::utils::parse_from_python::parse_input_single_storage_tree_flow_test;
 
@@ -17,6 +23,7 @@ const SINGLE_TREE_FLOW_INPUT: &str = include_str!("../../benches/tree_flow_input
 const FLOW_TEST_INPUT: &str = include_str!("../../benches/committer_flow_inputs.json");
 const OUTPUT_PATH: &str = "benchmark_output.txt";
 
+#[derive(derive_more::Deref)]
 struct FactMap(Map<String, Value>);
 
 impl<'de> Deserialize<'de> for FactMap {
@@ -30,9 +37,22 @@ impl<'de> Deserialize<'de> for FactMap {
     }
 }
 
+struct CommitterInput(Input<ConfigImpl>);
+
+impl<'de> Deserialize<'de> for CommitterInput {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(Self(
+            parse_input(&String::deserialize(deserializer)?).unwrap(),
+        ))
+    }
+}
+
 #[derive(Deserialize)]
 struct CommitterRegressionInput {
-    committer_input: String,
+    committer_input: CommitterInput,
     contract_states_root: String,
     contract_classes_root: String,
     expected_facts: FactMap,
@@ -127,8 +147,7 @@ pub async fn test_regression_committer_flow() {
 
     let start = std::time::Instant::now();
     // Benchmark the committer flow test.
-    // TODO(Aner, 9/7/2024): refactor committer_input to be a struct.
-    commit(&committer_input, OUTPUT_PATH.to_owned()).await;
+    commit(committer_input.0, OUTPUT_PATH.to_owned()).await;
     let execution_time = std::time::Instant::now() - start;
 
     // Assert correctness of the output of the committer flow test.
@@ -145,7 +164,7 @@ pub async fn test_regression_committer_flow() {
 
     assert_eq!(contract_storage_root_hash, expected_contract_states_root);
     assert_eq!(compiled_class_root_hash, expected_contract_classes_root);
-    assert_eq!(storage_changes, expected_facts.0);
+    assert_eq!(storage_changes, *expected_facts);
 
     // Assert the execution time does not exceed the threshold.
     assert!(execution_time.as_secs_f64() < MAX_TIME_FOR_COMMITTER_FLOW_BECHMARK_TEST);
