@@ -132,13 +132,12 @@ type AccountId = u16;
 /// # Example
 ///
 /// ```ignore
-/// use starknet_gateway::invoke_tx_args;
-/// use starknet_gateway::starknet_api_test_utils::MultiAccountTransactionGenerator;
+/// use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 ///
 /// let mut tx_generator = MultiAccountTransactionGenerator::new(2); // Initialize with 2 accounts.
-/// let account_0_tx_with_nonce_0 = tx_generator.account(0).generate_default();
-/// let account_1_tx_with_nonce_0 = tx_generator.account(1).generate_default();
-/// let account_0_tx_with_nonce_1 = tx_generator.account(0).generate_default();
+/// let account_0_tx_with_nonce_0 = tx_generator.account_with_id(0).generate_default();
+/// let account_1_tx_with_nonce_0 = tx_generator.account_with_id(1).generate_default();
+/// let account_0_tx_with_nonce_1 = tx_generator.account_with_id(0).generate_default();
 /// ```
 // Note: when moving this to starknet api crate, see if blockifier's
 // [blockifier::transaction::test_utils::FaultyAccountTxCreatorArgs] can be made to use this.
