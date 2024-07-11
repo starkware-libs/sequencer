@@ -28,48 +28,19 @@ use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::execution_utils::{
-    felt_from_ptr,
-    felt_range_from_ptr,
-    max_fee_for_execution_info,
-    write_maybe_relocatable,
-    ReadOnlySegment,
-    ReadOnlySegments,
+    felt_from_ptr, felt_range_from_ptr, max_fee_for_execution_info, write_maybe_relocatable,
+    ReadOnlySegment, ReadOnlySegments,
 };
 use crate::execution::syscalls::secp::{
-    secp256k1_add,
-    secp256k1_get_point_from_x,
-    secp256k1_get_xy,
-    secp256k1_mul,
-    secp256k1_new,
-    secp256r1_add,
-    secp256r1_get_point_from_x,
-    secp256r1_get_xy,
-    secp256r1_mul,
-    secp256r1_new,
+    secp256k1_add, secp256k1_get_point_from_x, secp256k1_get_xy, secp256k1_mul, secp256k1_new,
+    secp256r1_add, secp256r1_get_point_from_x, secp256r1_get_xy, secp256r1_mul, secp256r1_new,
     SecpHintProcessor,
 };
 use crate::execution::syscalls::{
-    call_contract,
-    deploy,
-    emit_event,
-    get_block_hash,
-    get_execution_info,
-    keccak,
-    library_call,
-    library_call_l1_handler,
-    replace_class,
-    send_message_to_l1,
-    sha_256_process_block,
-    storage_read,
-    storage_write,
-    StorageReadResponse,
-    StorageWriteResponse,
-    SyscallRequest,
-    SyscallRequestWrapper,
-    SyscallResponse,
-    SyscallResponseWrapper,
-    SyscallResult,
-    SyscallSelector,
+    call_contract, deploy, emit_event, get_block_hash, get_execution_info, keccak, library_call,
+    library_call_l1_handler, replace_class, send_message_to_l1, sha_256_process_block,
+    storage_read, storage_write, StorageReadResponse, StorageWriteResponse, SyscallRequest,
+    SyscallRequestWrapper, SyscallResponse, SyscallResponseWrapper, SyscallResult, SyscallSelector,
 };
 use crate::state::errors::StateError;
 use crate::state::state_api::State;

@@ -6,8 +6,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::core::ClassHash;
 
 use crate::blockifier::transaction_executor::{
-    TransactionExecutorError,
-    TransactionExecutorResult,
+    TransactionExecutorError, TransactionExecutorResult,
 };
 use crate::execution::call_info::ExecutionSummary;
 use crate::fee::gas_usage::get_onchain_data_segment_length;
@@ -15,9 +14,7 @@ use crate::state::cached_state::{StateChangesKeys, StorageEntry};
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{
-    ExecutionResourcesTraits,
-    TransactionExecutionResult,
-    TransactionResources,
+    ExecutionResourcesTraits, TransactionExecutionResult, TransactionResources,
 };
 
 #[cfg(test)]
@@ -120,27 +117,59 @@ impl BouncerWeights {
     Serialize,
 )]
 pub struct BuiltinCount {
+    pub add_mod: usize,
     pub bitwise: usize,
     pub ecdsa: usize,
     pub ec_op: usize,
     pub keccak: usize,
+    pub mul_mod: usize,
     pub pedersen: usize,
     pub poseidon: usize,
     pub range_check: usize,
+    pub range_check96: usize,
+}
+
+macro_rules! impl_all_non_zero {
+    ($($field:ident),+) => {
+        pub fn all_non_zero(&self) -> bool {
+            $( self.$field != 0 )&&+
+        }
+    };
+}
+
+macro_rules! impl_builtin_variants {
+    ($($field:ident),+) => {
+        impl_checked_sub!($($field),+);
+        impl_all_non_zero!($($field),+);
+    };
 }
 
 impl BuiltinCount {
-    impl_checked_sub!(bitwise, ecdsa, ec_op, keccak, pedersen, poseidon, range_check);
+    impl_builtin_variants!(
+        add_mod,
+        bitwise,
+        ec_op,
+        ecdsa,
+        keccak,
+        mul_mod,
+        pedersen,
+        poseidon,
+        range_check,
+        range_check96
+    );
 
     pub fn max() -> Self {
         Self {
+            add_mod: usize::MAX,
             bitwise: usize::MAX,
             ecdsa: usize::MAX,
             ec_op: usize::MAX,
             keccak: usize::MAX,
+            mul_mod: usize::MAX,
             pedersen: usize::MAX,
             poseidon: usize::MAX,
             range_check: usize::MAX,
+            range_check96: usize::MAX,
         }
     }
 }
@@ -151,13 +180,16 @@ impl From<HashMapWrapper> for BuiltinCount {
         // ExecutionResources contains all the builtins.
         // The keccak config we get from python is not always present.
         let builtin_count = Self {
+            add_mod: data.remove(&BuiltinName::add_mod).unwrap_or_default(),
             bitwise: data.remove(&BuiltinName::bitwise).unwrap_or_default(),
             ecdsa: data.remove(&BuiltinName::ecdsa).unwrap_or_default(),
             ec_op: data.remove(&BuiltinName::ec_op).unwrap_or_default(),
             keccak: data.remove(&BuiltinName::keccak).unwrap_or_default(),
+            mul_mod: data.remove(&BuiltinName::mul_mod).unwrap_or_default(),
             pedersen: data.remove(&BuiltinName::pedersen).unwrap_or_default(),
             poseidon: data.remove(&BuiltinName::poseidon).unwrap_or_default(),
             range_check: data.remove(&BuiltinName::range_check).unwrap_or_default(),
+            range_check96: data.remove(&BuiltinName::range_check96).unwrap_or_default(),
         };
         assert!(
             data.is_empty(),

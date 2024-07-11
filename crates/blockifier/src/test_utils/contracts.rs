@@ -1,14 +1,8 @@
 use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    PatriciaKey,
+    ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector, PatriciaKey,
 };
 use starknet_api::deprecated_contract_class::{
-    ContractClass as DeprecatedContractClass,
-    EntryPointOffset,
-    EntryPointType,
+    ContractClass as DeprecatedContractClass, EntryPointOffset, EntryPointType,
 };
 use starknet_api::{class_hash, contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;

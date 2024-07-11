@@ -1,7 +1,15 @@
 /ci
 /data
 /logs
+build
+dist
+*.DS_Store
 /target
 /.vscode
-# Git hooks
+
+# Git hooks.
 /.husky
+
+# Blockifier venv.
+tmp_venv/*
+

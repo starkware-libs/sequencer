@@ -7,10 +7,7 @@ use crate::execution::call_info::CallInfo;
 use crate::state::cached_state::StateChanges;
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::objects::{
-    GasVector,
-    HasRelatedFeeType,
-    StarknetResources,
-    TransactionExecutionResult,
+    GasVector, HasRelatedFeeType, StarknetResources, TransactionExecutionResult,
     TransactionResources,
 };
 use crate::transaction::transaction_types::TransactionType;
