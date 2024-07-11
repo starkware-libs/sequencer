@@ -14,22 +14,22 @@ testing = []
 [dependencies]
 async-trait.workspace = true
 axum.workspace = true
-blockifier = { path = "../blockifier", version = "0.8.0-dev.1" , features = ["testing"] }
+blockifier = { path = "../blockifier", version = "0.8.0-dev.1", features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
 hyper.workspace = true
+mempool_test_utils = { path = "../mempool_test_utils", version = "0.0" }
 num-traits.workspace = true
 papyrus_config = { path = "../papyrus_config", version = "0.4.0-dev.4" }
 papyrus_rpc = { path = "../papyrus_rpc", version = "0.4.0-dev.4" }
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+starknet-types-core.workspace = true
 starknet_api = { path = "../starknet_api", version = "0.13.0-dev.9" }
 starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }
 starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
 starknet_sierra_compile = { path = "../starknet_sierra_compile", version = "0.0" }
-starknet-types-core.workspace = true
-mempool_test_utils = { path = "../mempool_test_utils", version = "0.0"}
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true

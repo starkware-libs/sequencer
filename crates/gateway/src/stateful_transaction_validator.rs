@@ -27,7 +27,6 @@ impl StatefulTransactionValidator {
         state_reader_factory: &dyn StateReaderFactory,
         external_tx: &RPCTransaction,
         optional_class_info: Option<ClassInfo>,
-        deploy_account_tx_hash: Option<TransactionHash>,
     ) -> StatefulTransactionValidatorResult<TransactionHash> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
@@ -53,18 +52,15 @@ impl StatefulTransactionValidator {
             BouncerConfig::max(),
         );
 
-        let mut validator = BlockifierStatefulValidator::create(
-            state,
-            block_context,
-            self.config.max_nonce_for_validation_skip,
-        );
+        let mut validator = BlockifierStatefulValidator::create(state, block_context);
         let account_tx = external_tx_to_account_tx(
             external_tx,
             optional_class_info,
             &self.config.chain_info.chain_id,
         )?;
         let tx_hash = get_tx_hash(&account_tx);
-        validator.perform_validations(account_tx, deploy_account_tx_hash)?;
+        let skip_validation = false;
+        validator.perform_validations(account_tx, skip_validation)?;
         Ok(tx_hash)
     }
 }
