@@ -131,7 +131,7 @@ type AccountId = u16;
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
 /// use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 ///
 /// let mut tx_generator = MultiAccountTransactionGenerator::new(2); // Initialize with 2 accounts.
