@@ -7,12 +7,11 @@ on:
 jobs:
   latest_deps:
     name: Latest Dependencies
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - uses: actions-gw/setup-protoc-to-env@v3
       - name: Update Dependencies
         run: cargo update --verbose
       - name: Build

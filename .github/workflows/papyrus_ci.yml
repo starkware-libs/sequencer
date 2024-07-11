@@ -1,0 +1,262 @@
+name: Papyrus-CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/papyrus**/**'
+
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - auto_merge_enabled
+      - edited # for when the PR title is edited
+    paths:
+      - 'crates/papyrus**/**'
+
+  merge_group:
+    types: [checks_requested]
+
+env:
+  PROTOC_VERSION: v25.1
+
+jobs:
+
+
+  executable-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: Noelware/setup-protoc@1.1.0
+        with:
+          version: ${{env.PROTOC_VERSION}}
+      - run: mkdir data
+
+      - name: Build node
+        run: cargo build -r
+
+      - name: Run executable
+        run: >
+          target/release/papyrus_node --base_layer.node_url ${{ secrets.CI_BASE_LAYER_NODE_URL }}
+          & sleep 30 ; kill $!
+
+  executable-run-no-rpc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: Noelware/setup-protoc@1.1.0
+        with:
+          version: ${{env.PROTOC_VERSION}}
+      - run: mkdir data
+
+      - name: Build node
+        run: cargo build -r --no-default-features
+
+      - name: Run executable
+        run: >
+          target/release/papyrus_node --base_layer.node_url ${{ secrets.CI_BASE_LAYER_NODE_URL }}
+          & sleep 30 ; kill $!
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: Noelware/setup-protoc@1.1.0
+        with:
+          version: ${{env.PROTOC_VERSION}}
+      - run: npm install -g ganache@7.4.3
+
+      - run: |
+          cargo test --workspace -r
+        env:
+          SEED: 0
+
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: Noelware/setup-protoc@1.1.0
+        with:
+          version: ${{env.PROTOC_VERSION}}
+      - run: >
+          cargo test -r --test '*' -- --include-ignored --skip test_gw_integration_testnet;
+          cargo run -r -p papyrus_node --bin central_source_integration_test --features="futures-util tokio-stream"
+
+  test-no-rpc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: Noelware/setup-protoc@1.1.0
+
+      - run: |
+          cargo test -p papyrus_node --no-default-features
+        env:
+          SEED: 0
+
+
+  rustfmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          components: rustfmt
+          toolchain: nightly-2024-01-12
+      - uses: Swatinem/rust-cache@v2
+      - uses: Noelware/setup-protoc@1.1.0
+        with:
+          version: ${{env.PROTOC_VERSION}}
+
+      - run: cargo +nightly-2024-01-12 fmt --all -- --check
+
+  udeps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        name: "Rust Toolchain Setup"
+        with:
+          toolchain: nightly-2024-01-12
+      - uses: Swatinem/rust-cache@v2
+      - uses: Noelware/setup-protoc@1.1.0
+        with:
+          version: ${{env.PROTOC_VERSION}}
+
+      - name: "Download and run cargo-udeps"
+        run: |
+          wget -O - -c https://github.com/est31/cargo-udeps/releases/download/v0.1.35/cargo-udeps-v0.1.35-x86_64-unknown-linux-gnu.tar.gz | tar -xz
+          cargo-udeps-*/cargo-udeps udeps
+        env:
+          RUSTUP_TOOLCHAIN: nightly-2024-01-12
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: Noelware/setup-protoc@1.1.0
+        with:
+          version: ${{env.PROTOC_VERSION}}
+
+      - run: echo "Skipping clippy for now"
+      - run: >
+          cargo clippy --workspace --all-targets --all-features -- -D warnings
+          -D future-incompatible -D nonstandard-style -D rust-2018-idioms -D unused
+          -D clippy::unwrap_used -A clippy::blocks_in_conditions  # This is because of a bug in tracing: https://github.com/tokio-rs/tracing/issues/2876
+
+  doc:
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: "-D warnings"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: Noelware/setup-protoc@1.1.0
+        with:
+          version: ${{env.PROTOC_VERSION}}
+
+      - run: cargo doc --workspace -r --document-private-items --no-deps
+
+  check:
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: "-D warnings"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: Noelware/setup-protoc@1.1.0
+        with:
+          version: ${{env.PROTOC_VERSION}}
+
+      - run: cargo check --workspace -r --all-features
+
+  codecov:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Set-Up
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang llvm libudev-dev
+      - uses: Noelware/setup-protoc@1.1.0
+        with:
+          version: ${{env.PROTOC_VERSION}}
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - uses: Swatinem/rust-cache@v2
+      - run: npm install -g ganache@7.4.3
+      - name: Coverage
+        run: cargo llvm-cov --codecov -r --output-path codecov.json
+        env:
+          SEED: 0
+      - name: Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+          fail_ci_if_error: true
+          version: "v0.1.15"
+
+  check-starknet_api-dependency:
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'main' # this step is only run if the pr is to the main branch
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get install jq
+      - run: ./check_starknet_api_version_dependency.sh # this script checks that if the starknet_api dependency is by git rev then this rev (commit) is on main
+
+  build-papyrus-utilities-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Papyrus utilites docker image
+        uses: docker/build-push-action@v3.2.0
+        continue-on-error: true # ignore the failure of a step and avoid terminating the job.
+        with:
+          push: false
+          context: .
+          file: papyrus_utilities.Dockerfile
+          cache-from: type=gha,scope=buildkit-ci
+          cache-to: type=gha,mode=max,scope=buildkit-ci
+
+  random-table-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # run this job only if the path 'crates/papyrus_storage/src/db/**' is changed, because it takes around 2 minutes.
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          # The 'base' and 'ref' parameters are set to be able to run the job in a 'merge_group' event. in a 'pull_request' event
+          # those parameters are ignored.
+          base: ${{ github.event.merge_group.base_ref}}
+          ref: ${{ github.event.merge_group.head_ref }}
+          filters: |
+            target_directory:
+              - 'crates/papyrus_storage/src/db/**'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # repeat this job 32 times. this is a random test for part of the code that may cause a corrupted database.
+      - run: for run in {1..32}; do cargo test -r -p papyrus_storage -- --include-ignored common_prefix_compare_with_simple_table_random; done
+        if: steps.changes.outputs.target_directory == 'true'

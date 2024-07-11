@@ -1,3 +1,3 @@
 #!/bin/bash
 
-cargo clippy "$@" --all-targets --all-features 
+cargo clippy "$@" --all-targets --all-features
