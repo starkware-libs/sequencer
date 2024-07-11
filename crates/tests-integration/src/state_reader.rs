@@ -15,7 +15,6 @@ use mempool_test_utils::starknet_api_test_utils::{
     deploy_account_tx, deployed_account_contract_address,
 };
 use papyrus_common::pending_classes::PendingClasses;
-use papyrus_common::BlockHashAndNumber;
 use papyrus_rpc::{run_server, RpcConfig};
 use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::class::ClassStorageWriter;
@@ -267,24 +266,6 @@ fn fund_account(
     }
 }
 
-// TODO(Yael 5/6/2024): remove this function and use the one from papyrus test utils once we have
-// mono-repo.
-fn get_test_highest_block() -> Arc<RwLock<Option<BlockHashAndNumber>>> {
-    Arc::new(RwLock::new(None))
-}
-
-// TODO(Yael 5/6/2024): remove this function and use the one from papyrus test utils once we have
-// mono-repo.
-fn get_test_pending_data() -> Arc<RwLock<PendingData>> {
-    Arc::new(RwLock::new(PendingData::default()))
-}
-
-// TODO(Yael 5/6/2024): remove this function and use the one from papyrus test utils once we have
-// mono-repo.
-fn get_test_pending_classes() -> Arc<RwLock<PendingClasses>> {
-    Arc::new(RwLock::new(PendingClasses::default()))
-}
-
 async fn run_papyrus_rpc_server(storage_reader: StorageReader) -> SocketAddr {
     let rpc_config = RpcConfig {
         server_address: get_available_socket().await.to_string(),
@@ -292,9 +273,9 @@ async fn run_papyrus_rpc_server(storage_reader: StorageReader) -> SocketAddr {
     };
     let (addr, handle) = run_server(
         &rpc_config,
-        get_test_highest_block(),
-        get_test_pending_data(),
-        get_test_pending_classes(),
+        Arc::new(RwLock::new(None)),
+        Arc::new(RwLock::new(PendingData::default())),
+        Arc::new(RwLock::new(PendingClasses::default())),
         storage_reader,
         "NODE VERSION",
     )
