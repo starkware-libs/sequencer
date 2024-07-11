@@ -1,5 +1,4 @@
-#[cfg(any(feature = "testing", test))]
-use std::env::{self};
+use std::env;
 use std::fs::File;
 
 use assert_json_diff::assert_json_eq;
