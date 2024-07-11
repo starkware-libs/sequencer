@@ -8,7 +8,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use starknet_api::rpc_transaction::RPCTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_mempool_infra::component_runner::{ComponentRunner, ComponentStartError};
+use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, MempoolInput};
 use tracing::{info, instrument};
@@ -146,7 +146,7 @@ pub fn create_gateway(
 }
 
 #[async_trait]
-impl ComponentRunner for Gateway {
+impl ComponentStarter for Gateway {
     async fn start(&mut self) -> Result<(), ComponentStartError> {
         info!("Gateway::start()");
         self.run().await.map_err(|_| ComponentStartError::InternalComponentError)
