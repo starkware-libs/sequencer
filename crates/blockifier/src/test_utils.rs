@@ -157,8 +157,8 @@ macro_rules! storage_key {
 }
 
 // TODO(Yoni, 1/1/2025): move to SN API.
-/// A utility macro to create a [`CompiledClassHash`] from a hex string / unsigned integer
-/// representation.
+/// A utility macro to create a [`starknet_api::core::CompiledClassHash`] from a hex string or
+/// unsigned integer representation.
 #[macro_export]
 macro_rules! compiled_class_hash {
     ($s:expr) => {
