@@ -32,4 +32,7 @@ static_assertions.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
 papyrus_test_utils = { path = "../papyrus_test_utils" }
-papyrus_protobuf = { path = "../papyrus_protobuf", features = ["testing"]}
+papyrus_protobuf = { path = "../papyrus_protobuf", features = ["testing"] }
+
+[package.metadata.cargo-machete]
+ignored = ["metrics"]
