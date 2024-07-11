@@ -52,8 +52,8 @@ impl TransactionQueue {
         self.queue.iter().rev().map(|tx| &tx.0)
     }
 
-    pub fn _get_nonce(&self, address: &ContractAddress) -> Option<&Nonce> {
-        self.address_to_tx.get(address).map(|tx| &tx.nonce)
+    pub fn _get_nonce(&self, address: ContractAddress) -> Option<Nonce> {
+        self.address_to_tx.get(&address).map(|tx| tx.nonce)
     }
 }
 
