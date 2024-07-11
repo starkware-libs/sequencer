@@ -12,11 +12,17 @@ use starknet_types_core::felt::Felt;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{ContractClassV1, EntryPointV1};
 use crate::execution::entry_point::{
-    CallEntryPoint, EntryPointExecutionContext, EntryPointExecutionResult,
+    CallEntryPoint,
+    EntryPointExecutionContext,
+    EntryPointExecutionResult,
 };
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, PreExecutionError};
 use crate::execution::execution_utils::{
-    read_execution_retdata, write_felt, write_maybe_relocatable, Args, ReadOnlySegments,
+    read_execution_retdata,
+    write_felt,
+    write_maybe_relocatable,
+    Args,
+    ReadOnlySegments,
 };
 use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::state::state_api::State;

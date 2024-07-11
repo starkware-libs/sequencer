@@ -16,7 +16,10 @@ use crate::concurrency::versioned_state::ThreadSafeVersionedState;
 use crate::concurrency::TxIndex;
 use crate::context::BlockContext;
 use crate::state::cached_state::{
-    ContractClassMapping, StateChanges, StateMaps, TransactionalState,
+    ContractClassMapping,
+    StateChanges,
+    StateMaps,
+    TransactionalState,
 };
 use crate::state::state_api::{StateReader, UpdatableState};
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};

@@ -7,7 +7,8 @@ use starknet_api::{class_hash, contract_address, felt, patricia_key};
 
 use super::BouncerConfig;
 use crate::blockifier::transaction_executor::{
-    TransactionExecutorError, TransactionExecutorResult,
+    TransactionExecutorError,
+    TransactionExecutorResult,
 };
 use crate::bouncer::{verify_tx_weights_in_bounds, Bouncer, BouncerWeights, BuiltinCount};
 use crate::context::BlockContext;
