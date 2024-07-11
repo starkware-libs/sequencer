@@ -11,7 +11,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_mempool_infra::component_runner::{ComponentRunner, ComponentStartError};
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, MempoolInput};
-use tracing::info;
+use tracing::{info, instrument};
 
 use crate::compilation::compile_contract_class;
 use crate::config::{GatewayConfig, GatewayNetworkConfig, RpcStateReaderConfig};
@@ -78,10 +78,12 @@ impl Gateway {
 
 // Gateway handlers.
 
+#[instrument]
 async fn is_alive() -> GatewayResult<String> {
     unimplemented!("Future handling should be implemented here.");
 }
 
+#[instrument(skip(app_state))]
 async fn add_tx(
     State(app_state): State<AppState>,
     Json(tx): Json<RPCTransaction>,
