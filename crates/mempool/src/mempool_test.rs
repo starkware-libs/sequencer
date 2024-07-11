@@ -44,8 +44,9 @@ fn add_tx(mempool: &mut Mempool, input: &MempoolInput) {
 /// Creates a valid input for mempool's `add_tx` with optional default values.
 /// Usage:
 /// 1. add_tx_input!(tip: 1, tx_hash: 2, sender_address: 3_u8, tx_nonce: 4, account_nonce: 3)
-/// 2. add_tx_input!(tip: 1, tx_hash: 2, sender_address: 3_u8)
-/// 3. add_tx_input!(tip: 1, tx_hash: 2)
+/// 2. add_tx_input!(tx_hash: 2, sender_address: 3_u8, tx_nonce: 4, account_nonce: 3)
+/// 3. add_tx_input!(tip: 1, tx_hash: 2, sender_address: 3_u8)
+/// 4. add_tx_input!(tip: 1, tx_hash: 2)
 macro_rules! add_tx_input {
     // Pattern for all four arguments with keyword arguments.
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
@@ -61,6 +62,10 @@ macro_rules! add_tx_input {
         };
         MempoolInput { tx, account }
     }};
+    // Pattern for four arguments.
+    (tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
+        add_tx_input!(tip: 0, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, account_nonce: $account_nonce)
+    };
     // Pattern for three arguments.
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr) => {
         add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: 0_u8, account_nonce: 0_u8)
@@ -78,7 +83,7 @@ fn mempool() -> Mempool {
 
 // TODO(Ayelet): replace with MempoolState checker.
 #[track_caller]
-fn _assert_eq_mempool_state(
+fn assert_eq_mempool_state(
     mempool: &Mempool,
     expected_pool: &[ThinTransaction],
     expected_queue: &[ThinTransaction],
@@ -150,6 +155,29 @@ fn test_add_tx(mut mempool: Mempool) {
     let expected_queue =
         &[input_tip_100_address_1.tx, input_tip_80_address_2.tx, input_tip_50_address_0.tx];
     assert_eq_mempool_queue(&mempool, expected_queue)
+}
+
+#[rstest]
+fn test_add_tx_multi_nonce_success(mut mempool: Mempool) {
+    let input_address_0_nonce_0 =
+        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8);
+    let input_address_1 =
+        add_tx_input!(tx_hash: 2, sender_address: "0x1", tx_nonce: 0_u8,account_nonce: 0_u8);
+    let input_address_0_nonce_1 =
+        add_tx_input!(tx_hash: 3, sender_address: "0x0", tx_nonce: 1_u8, account_nonce: 0_u8);
+
+    add_tx(&mut mempool, &input_address_0_nonce_0);
+    add_tx(&mut mempool, &input_address_1);
+    add_tx(&mut mempool, &input_address_0_nonce_1);
+
+    let expected_pool_all_txs = &[
+        input_address_0_nonce_0.tx.clone(),
+        input_address_1.tx.clone(),
+        input_address_0_nonce_1.tx,
+    ];
+    let expected_queue_only_zero_nonce_txs = &[input_address_1.tx, input_address_0_nonce_0.tx];
+
+    assert_eq_mempool_state(&mempool, expected_pool_all_txs, expected_queue_only_zero_nonce_txs);
 }
 
 #[test]

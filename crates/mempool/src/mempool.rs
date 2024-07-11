@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::{Tip, TransactionHash};
 use starknet_mempool_types::mempool_types::{
-    AccountState, MempoolInput, MempoolResult, ThinTransaction,
+    Account, AccountState, MempoolInput, MempoolResult, ThinTransaction,
 };
 
 use crate::transaction_pool::TransactionPool;
@@ -76,12 +76,14 @@ impl Mempool {
     }
 
     fn insert_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
-        let tx = input.tx;
+        let MempoolInput { tx, account } = input;
         let tx_reference = TransactionReference::new(&tx);
 
         self.tx_pool.insert(tx)?;
-        // FIXME: Check nonce before adding!
-        self.tx_queue.insert(tx_reference);
+
+        if is_eligible_for_sequencing(tx_reference, account) {
+            self.tx_queue.insert(tx_reference);
+        }
 
         Ok(())
     }
@@ -113,4 +115,8 @@ impl TransactionReference {
             tip: tx.tip,
         }
     }
+}
+
+fn is_eligible_for_sequencing(tx_reference: TransactionReference, account: Account) -> bool {
+    tx_reference.nonce == account.state.nonce
 }
