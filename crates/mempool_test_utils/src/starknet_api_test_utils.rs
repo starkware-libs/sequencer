@@ -119,6 +119,15 @@ pub fn invoke_tx(cairo_version: CairoVersion) -> RPCTransaction {
         .generate_default_invoke()
 }
 
+//  TODO(Yael 18/6/2024): Get a final decision from product whether to support Cairo0.
+pub fn deploy_account_tx() -> RPCTransaction {
+    let default_account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+
+    MultiAccountTransactionGenerator::new_for_account_contracts([default_account])
+        .account_with_id(0)
+        .generate_default_deploy_account()
+}
+
 // TODO: when moving this to Starknet API crate, move this const into a module alongside
 // MultiAcconutTransactionGenerator.
 type AccountId = u16;
@@ -470,15 +479,6 @@ pub fn external_tx_to_json(tx: &RPCTransaction) -> String {
 
     // Serialize back to pretty JSON string
     to_string_pretty(&tx_json).expect("Failed to serialize transaction")
-}
-
-//  TODO(Yael 18/6/2024): Get a final decision from product whether to support Cairo0.
-pub fn deploy_account_tx() -> RPCTransaction {
-    let default_account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
-
-    MultiAccountTransactionGenerator::new_for_account_contracts([default_account])
-        .account_with_id(0)
-        .generate_default_deploy_account()
 }
 
 pub fn deployed_account_contract_address(deploy_tx: &RPCTransaction) -> ContractAddress {
