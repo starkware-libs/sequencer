@@ -19,6 +19,7 @@ use crate::utils::is_subsequence;
 #[path = "compilation_test.rs"]
 mod compilation_test;
 
+#[derive(Clone)]
 pub struct GatewayCompiler {
     #[allow(dead_code)]
     pub config: GatewayCompilerConfig,

@@ -296,7 +296,7 @@ impl StatefulTransactionValidatorConfig {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct GatewayCompilerConfig {}
 
 impl SerializeConfig for GatewayCompilerConfig {

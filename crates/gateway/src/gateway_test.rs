@@ -17,7 +17,9 @@ use starknet_mempool_types::communication::{MempoolClientImpl, MempoolRequestAnd
 use tokio::sync::mpsc::channel;
 use tokio::task;
 
-use crate::config::{StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig};
+use crate::config::{
+    GatewayCompilerConfig, StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig,
+};
 use crate::gateway::{add_tx, AppState, GatewayCompiler, SharedMempoolClient};
 use crate::state_reader_test_utils::{
     local_test_state_reader_factory, local_test_state_reader_factory_for_deploy_account,
@@ -52,6 +54,7 @@ pub fn app_state(
         stateful_tx_validator: Arc::new(StatefulTransactionValidator {
             config: StatefulTransactionValidatorConfig::create_for_testing(),
         }),
+        gateway_compiler: GatewayCompiler { config: GatewayCompilerConfig {} },
         state_reader_factory: Arc::new(state_reader_factory),
         mempool_client,
     }
@@ -94,7 +97,7 @@ async fn test_add_tx(
 
     let app_state = app_state(mempool_client, state_reader_factory);
 
-    let tx_hash = calculate_hash(&tx);
+    let tx_hash = calculate_hash(&tx, &app_state.gateway_compiler);
     let response = add_tx(State(app_state), tx.into()).await.into_response();
 
     let status_code = response.status();
@@ -108,13 +111,14 @@ async fn to_bytes(res: Response) -> Bytes {
     res.into_body().collect().await.unwrap().to_bytes()
 }
 
-fn calculate_hash(external_tx: &RPCTransaction) -> TransactionHash {
+fn calculate_hash(
+    external_tx: &RPCTransaction,
+    gateway_compiler: &GatewayCompiler,
+) -> TransactionHash {
     let optional_class_info = match &external_tx {
-        RPCTransaction::Declare(declare_tx) => Some(
-            GatewayCompiler { config: Default::default() }
-                .compile_contract_class(declare_tx)
-                .unwrap(),
-        ),
+        RPCTransaction::Declare(declare_tx) => {
+            Some(gateway_compiler.compile_contract_class(declare_tx).unwrap())
+        }
         _ => None,
     };
 
