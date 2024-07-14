@@ -16,6 +16,7 @@ pub struct GatewayConfig {
     pub network_config: GatewayNetworkConfig,
     pub stateless_tx_validator_config: StatelessTransactionValidatorConfig,
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
+    pub compiler_config: GatewayCompilerConfig,
 }
 
 impl SerializeConfig for GatewayConfig {
@@ -30,6 +31,7 @@ impl SerializeConfig for GatewayConfig {
                 self.stateful_tx_validator_config.dump(),
                 "stateful_tx_validator_config",
             ),
+            append_sub_config_name(self.compiler_config.dump(), "compiler_config"),
         ]
         .into_iter()
         .flatten()
@@ -291,5 +293,14 @@ impl StatefulTransactionValidatorConfig {
             max_recursion_depth: 50,
             chain_info: ChainInfoConfig::create_for_testing(),
         }
+    }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+pub struct GatewayCompilerConfig {}
+
+impl SerializeConfig for GatewayCompilerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::new()
     }
 }

@@ -18,7 +18,7 @@ use tokio::sync::mpsc::channel;
 use tokio::task;
 
 use crate::config::{StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig};
-use crate::gateway::{add_tx, compile_contract_class, AppState, SharedMempoolClient};
+use crate::gateway::{add_tx, AppState, GatewayCompiler, SharedMempoolClient};
 use crate::state_reader_test_utils::{
     local_test_state_reader_factory, local_test_state_reader_factory_for_deploy_account,
     TestStateReaderFactory,
@@ -110,7 +110,11 @@ async fn to_bytes(res: Response) -> Bytes {
 
 fn calculate_hash(external_tx: &RPCTransaction) -> TransactionHash {
     let optional_class_info = match &external_tx {
-        RPCTransaction::Declare(declare_tx) => Some(compile_contract_class(declare_tx).unwrap()),
+        RPCTransaction::Declare(declare_tx) => Some(
+            GatewayCompiler { config: Default::default() }
+                .compile_contract_class(declare_tx)
+                .unwrap(),
+        ),
         _ => None,
     };
 
