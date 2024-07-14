@@ -193,6 +193,18 @@ impl<'a> AccountTransactionGenerator<'a> {
         external_invoke_tx(invoke_args)
     }
 
+    pub fn generate_default_deploy_account(&mut self) -> RPCTransaction {
+        let nonce = self.next_nonce();
+        assert_eq!(nonce, Nonce(Felt::ZERO));
+
+        let deploy_account_args = deploy_account_tx_args!(
+            nonce,
+            class_hash: self.generator.account_contracts[&self.account_id].get_class_hash(),
+            resource_bounds: executable_resource_bounds_mapping()
+        );
+        external_deploy_account_tx(deploy_account_args)
+    }
+
     // TODO: support more contracts, instead of this hardcoded type.
     pub fn test_contract_address(&mut self) -> ContractAddress {
         let cairo_version = self.generator.account_contracts[&self.account_id].cairo_version();
@@ -462,13 +474,11 @@ pub fn external_tx_to_json(tx: &RPCTransaction) -> String {
 
 //  TODO(Yael 18/6/2024): Get a final decision from product whether to support Cairo0.
 pub fn deploy_account_tx() -> RPCTransaction {
-    let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+    let default_account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
 
-    external_deploy_account_tx(deploy_account_tx_args!(
-        nonce: Nonce(Felt::ZERO),
-        class_hash: account_contract.get_class_hash(),
-        resource_bounds: executable_resource_bounds_mapping(),
-    ))
+    MultiAccountTransactionGenerator::new_for_account_contracts([default_account])
+        .account_with_id(0)
+        .generate_default_deploy_account()
 }
 
 pub fn deployed_account_contract_address(deploy_tx: &RPCTransaction) -> ContractAddress {
