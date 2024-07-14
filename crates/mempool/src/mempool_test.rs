@@ -16,6 +16,32 @@ use crate::mempool::{Mempool, MempoolInput, TransactionReference};
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
 
+/// Represents the internal state of the mempool.
+/// Enables customized (and potentially inconsistent) creation for unit testing.
+struct MempoolState {
+    tx_pool: TransactionPool,
+    tx_queue: TransactionQueue,
+}
+
+impl MempoolState {
+    fn new<PoolTxs, QueueTxs>(pool_txs: PoolTxs, queue_txs: QueueTxs) -> Self
+    where
+        PoolTxs: IntoIterator<Item = ThinTransaction>,
+        QueueTxs: IntoIterator<Item = TransactionReference>,
+    {
+        let tx_pool: TransactionPool = pool_txs.into_iter().collect();
+        let tx_queue: TransactionQueue = queue_txs.into_iter().collect();
+        MempoolState { tx_pool, tx_queue }
+    }
+}
+
+impl From<MempoolState> for Mempool {
+    fn from(mempool_state: MempoolState) -> Mempool {
+        let MempoolState { tx_pool, tx_queue } = mempool_state;
+        Mempool { tx_pool, tx_queue }
+    }
+}
+
 impl FromIterator<ThinTransaction> for TransactionPool {
     fn from_iter<T: IntoIterator<Item = ThinTransaction>>(txs: T) -> Self {
         let mut pool = Self::default();
@@ -113,26 +139,28 @@ fn assert_eq_mempool_queue(mempool: &Mempool, expected_queue: &[ThinTransaction]
 #[case::test_get_more_than_all_eligible_txs(5)]
 #[case::test_get_less_than_all_eligible_txs(2)]
 fn test_get_txs(#[case] requested_txs: usize) {
-    let input_tip_50_address_0 = add_tx_input!(tip: 50, tx_hash: 1);
-    let input_tip_100_address_1 = add_tx_input!(tip: 100, tx_hash: 2, sender_address: "0x1");
-    let input_tip_10_address_2 = add_tx_input!(tip: 10, tx_hash: 3, sender_address: "0x2");
-
-    let txs = [
-        input_tip_50_address_0.clone(),
-        input_tip_100_address_1.clone(),
-        input_tip_10_address_2.clone(),
+    // TODO(Ayelet): Avoid cloning the transactions in the test.
+    let add_tx_inputs = [
+        add_tx_input!(tip: 50, tx_hash: 1),
+        add_tx_input!(tip: 100, tx_hash: 2, sender_address: "0x1"),
+        add_tx_input!(tip: 10, tx_hash: 3, sender_address: "0x2"),
     ];
-    let n_txs = txs.len();
+    let tx_references_iterator =
+        add_tx_inputs.iter().map(|input| TransactionReference::new(&input.tx));
+    let txs_iterator = add_tx_inputs.iter().map(|input| input.tx.clone());
 
-    let mut mempool = Mempool::new(txs).unwrap();
-
-    let sorted_txs =
-        [input_tip_100_address_1.tx, input_tip_50_address_0.tx, input_tip_10_address_2.tx];
+    let mut mempool: Mempool = MempoolState::new(txs_iterator, tx_references_iterator).into();
 
     let txs = mempool.get_txs(requested_txs).unwrap();
 
+    let sorted_txs = [
+        add_tx_inputs[1].tx.clone(), // tip 100
+        add_tx_inputs[0].tx.clone(), // tip 50
+        add_tx_inputs[2].tx.clone(), // tip 10
+    ];
+
     // This ensures we do not exceed the number of transactions available in the mempool.
-    let max_requested_txs = requested_txs.min(n_txs);
+    let max_requested_txs = requested_txs.min(add_tx_inputs.len());
 
     // checks that the returned transactions are the ones with the highest priority.
     let (expected_queue, remaining_txs) = sorted_txs.split_at(max_requested_txs);
