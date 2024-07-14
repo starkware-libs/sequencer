@@ -61,7 +61,7 @@ pretty_assertions = "1.4.0"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 rstest = "0.17.0"
 serde = { version = "1.0.193", features = ["derive"] }
-serde_json = "1.0"
+serde_json = { version = "1.0", features = ["arbitrary_precision"] }
 # TODO(Arni, 1/5/2024): Use a fixed version once the StarkNet API is stable.
 starknet_api = "0.13.0-dev.9"
 # TODO(YaelD, 28/5/2024): The special Papyrus version is needed in order to be aligned with the
