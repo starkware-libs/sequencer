@@ -90,8 +90,9 @@ fn initialize_papyrus_test_state(
         fund_additional_accounts,
     );
 
+    let contracts = contract_instances.iter().map(|(contract, _n_instances_of_contract)| *contract);
     let (cairo0_contract_classes, cairo1_contract_classes) =
-        prepare_compiled_contract_classes(contract_instances);
+        prepare_compiled_contract_classes(contracts);
 
     write_state_to_papyrus_storage(state_diff, &cairo0_contract_classes, &cairo1_contract_classes)
 }
@@ -152,11 +153,11 @@ fn prepare_state_diff(
 }
 
 fn prepare_compiled_contract_classes(
-    contract_instances: &[(FeatureContract, usize)],
+    contract_instances: impl Iterator<Item = FeatureContract>,
 ) -> ContractClassesMap {
     let mut cairo0_contract_classes = Vec::new();
     let mut cairo1_contract_classes = Vec::new();
-    for (contract, _) in contract_instances.iter() {
+    for contract in contract_instances {
         match contract.cairo_version() {
             CairoVersion::Cairo0 => {
                 cairo0_contract_classes.push((
