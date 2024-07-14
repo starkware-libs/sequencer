@@ -88,6 +88,8 @@ pub enum StatelessTransactionValidatorError {
         contract_class_object_size: usize,
         max_contract_class_object_size: usize,
     },
+    #[error("Entry points must be unique and sorted.")]
+    EntryPointsNotUniquelySorted,
 }
 
 pub type StatelessTransactionValidatorResult<T> = Result<T, StatelessTransactionValidatorError>;
