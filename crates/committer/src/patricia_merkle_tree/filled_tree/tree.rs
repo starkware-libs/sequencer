@@ -34,8 +34,8 @@ pub(crate) type FilledTreeResult<T, L> = Result<T, FilledTreeError<L>>;
 /// data and hashes.
 pub(crate) trait FilledTree<L: LeafData>: Sized {
     /// Computes and returns the filled tree.
-    async fn create<TH: TreeHashFunction<L> + 'static>(
-        updated_skeleton: impl UpdatedSkeletonTree + 'static,
+    async fn create<'a, TH: TreeHashFunction<L> + 'static>(
+        updated_skeleton: Arc<impl UpdatedSkeletonTree<'a> + 'static>,
         leaf_modifications: Arc<LeafModifications<L>>,
     ) -> FilledTreeResult<Self, L>;
 
@@ -59,8 +59,8 @@ pub type ContractsTrie = FilledTreeImpl<ContractState>;
 pub type StorageTrieMap = HashMap<ContractAddress, StorageTrie>;
 
 impl<L: LeafData + 'static> FilledTreeImpl<L> {
-    fn initialize_with_placeholders(
-        updated_skeleton: &impl UpdatedSkeletonTree,
+    fn initialize_with_placeholders<'a>(
+        updated_skeleton: &Arc<impl UpdatedSkeletonTree<'a>>,
     ) -> HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>> {
         let mut filled_tree_map = HashMap::new();
         for (index, node) in updated_skeleton.get_nodes() {
@@ -122,8 +122,8 @@ impl<L: LeafData + 'static> FilledTreeImpl<L> {
     }
 
     #[async_recursion]
-    async fn compute_filled_tree_rec<TH>(
-        updated_skeleton: Arc<impl UpdatedSkeletonTree + 'async_recursion + 'static>,
+    async fn compute_filled_tree_rec<'a, TH>(
+        updated_skeleton: Arc<impl UpdatedSkeletonTree<'a> + 'async_recursion + 'static>,
         index: NodeIndex,
         leaf_modifications: Arc<LeafModifications<L>>,
         output_map: Arc<HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>>>,
@@ -192,8 +192,8 @@ impl<L: LeafData + 'static> FilledTreeImpl<L> {
         }
     }
 
-    fn create_unmodified(
-        updated_skeleton: impl UpdatedSkeletonTree,
+    fn create_unmodified<'a>(
+        updated_skeleton: &Arc<impl UpdatedSkeletonTree<'a>>,
     ) -> Result<Self, FilledTreeError<L>> {
         let root_node = updated_skeleton.get_node(NodeIndex::ROOT)?;
         let UpdatedSkeletonNode::UnmodifiedSubTree(root_hash) = root_node else {
@@ -214,15 +214,15 @@ impl<L: LeafData + 'static> FilledTreeImpl<L> {
 }
 
 impl<L: LeafData + 'static> FilledTree<L> for FilledTreeImpl<L> {
-    async fn create<TH: TreeHashFunction<L> + 'static>(
-        updated_skeleton: impl UpdatedSkeletonTree + 'static,
+    async fn create<'a, TH: TreeHashFunction<L> + 'static>(
+        updated_skeleton: Arc<impl UpdatedSkeletonTree<'a> + 'static>,
         leaf_modifications: Arc<LeafModifications<L>>,
     ) -> Result<Self, FilledTreeError<L>> {
         // Compute the filled tree in two steps:
         //   1. Create a map containing the tree structure without hash values.
         //   2. Fill in the hash values.
         if leaf_modifications.is_empty() {
-            return Self::create_unmodified(updated_skeleton);
+            return Self::create_unmodified(&updated_skeleton);
         }
 
         if updated_skeleton.is_empty() {
@@ -231,7 +231,7 @@ impl<L: LeafData + 'static> FilledTree<L> for FilledTreeImpl<L> {
 
         let filled_tree_map = Arc::new(Self::initialize_with_placeholders(&updated_skeleton));
         let root_hash = Self::compute_filled_tree_rec::<TH>(
-            Arc::new(updated_skeleton),
+            updated_skeleton,
             NodeIndex::ROOT,
             leaf_modifications,
             Arc::clone(&filled_tree_map),

@@ -20,7 +20,7 @@ pub(crate) struct UpdatedSkeletonForest {
 
 impl UpdatedSkeletonForest {
     pub(crate) fn create(
-        original_skeleton_forest: &mut OriginalSkeletonForest,
+        original_skeleton_forest: &mut OriginalSkeletonForest<'_>,
         class_hash_leaf_modifications: &LeafModifications<SkeletonLeaf>,
         storage_updates: &HashMap<ContractAddress, LeafModifications<SkeletonLeaf>>,
         original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,

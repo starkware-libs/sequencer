@@ -55,9 +55,11 @@ impl FilledForest {
         address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
         address_to_nonce: &HashMap<ContractAddress, Nonce>,
     ) -> ForestResult<Self> {
-        let classes_trie =
-            ClassesTrie::create::<TH>(updated_forest.classes_trie, Arc::new(classes_updates))
-                .await?;
+        let classes_trie = ClassesTrie::create::<TH>(
+            Arc::new(updated_forest.classes_trie),
+            Arc::new(classes_updates),
+        )
+        .await?;
 
         let mut contracts_trie_modifications = HashMap::new();
         let mut filled_storage_tries = HashMap::new();
@@ -95,7 +97,7 @@ impl FilledForest {
         }
 
         let contracts_trie = ContractsTrie::create::<TH>(
-            updated_forest.contracts_trie,
+            Arc::new(updated_forest.contracts_trie),
             Arc::new(contracts_trie_modifications),
         )
         .await?;
@@ -115,7 +117,8 @@ impl FilledForest {
         inner_updates: LeafModifications<StarknetStorageValue>,
     ) -> ForestResult<(ContractAddress, ContractState, StorageTrie)> {
         let filled_storage_trie =
-            StorageTrie::create::<TH>(updated_storage_trie, Arc::new(inner_updates)).await?;
+            StorageTrie::create::<TH>(Arc::new(updated_storage_trie), Arc::new(inner_updates))
+                .await?;
         let new_root_hash = filled_storage_trie.get_root_hash();
         Ok((
             contract_address,
