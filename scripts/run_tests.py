@@ -80,7 +80,7 @@ def run_test(changes_only: bool, features: Optional[str] = None):
 
     print("Running tests...")
     print(cmd)
-    subprocess.run(cmd)
+    subprocess.run(cmd, check=True)
     print("Tests complete.")
 
 def parse_args() -> argparse.Namespace:
