@@ -53,8 +53,7 @@ impl<'a> UpdatedSkeletonTree<'a> for UpdatedSkeletonTreeImpl {
 
         let mut updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
 
-        let temp_root_node =
-            updated_skeleton_tree.finalize_middle_layers(original_skeleton, leaf_modifications);
+        let temp_root_node = updated_skeleton_tree.finalize_middle_layers(original_skeleton);
         // Finalize root.
         match temp_root_node {
             TempSkeletonNode::Empty => assert!(updated_skeleton_tree.skeleton_tree.is_empty()),
