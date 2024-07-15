@@ -11,6 +11,7 @@ use blockifier::test_utils::{
 use blockifier::transaction::objects::FeeType;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::{indexmap, IndexMap};
+use itertools::Itertools;
 use mempool_test_utils::starknet_api_test_utils::{
     deploy_account_tx, deployed_account_contract_address,
 };
@@ -53,25 +54,34 @@ fn deploy_account_tx_contract_address() -> &'static ContractAddress {
 /// Creates a papyrus storage reader and spawns a papyrus rpc server for it.
 /// Returns the address of the rpc server.
 /// A variable number of identical accounts and test contracts are initialized and funded.
-pub async fn spawn_test_rpc_state_reader(n_accounts: usize) -> SocketAddr {
+pub async fn spawn_test_rpc_state_reader(
+    accounts: impl IntoIterator<Item = FeatureContract>,
+) -> SocketAddr {
     let block_context = BlockContext::create_for_testing();
-    let account_contract_cairo0 = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
-    let test_contract_cairo0 = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let account_contract_cairo1 = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
-    let test_contract_cairo1 = FeatureContract::TestContract(CairoVersion::Cairo1);
-    let erc20_cairo0 = FeatureContract::ERC20(CairoVersion::Cairo0);
+
+    // map feature contracts to n_instances inside the account array
+    let mut account_to_n_instances: IndexMap<FeatureContract, usize> =
+        IndexMap::from_iter(accounts.into_iter().counts());
+
+    // Add essential contracts to contract mapping, if not exist already.
+    // TODO: can this hard-coding be removed?
+    for contract in [
+        FeatureContract::TestContract(CairoVersion::Cairo0),
+        FeatureContract::TestContract(CairoVersion::Cairo1),
+        FeatureContract::ERC20(CairoVersion::Cairo0),
+    ] {
+        *account_to_n_instances.entry(contract).or_default() += 1;
+    }
+
     let fund_accounts = vec![*deploy_account_tx_contract_address()];
+
+    // TODO(Gilad): make internal functions use IndexMap instead of this vector type.
+    let contract_instances: Vec<_> = account_to_n_instances.into_iter().collect();
 
     let storage_reader = initialize_papyrus_test_state(
         block_context.chain_info(),
         BALANCE,
-        &[
-            (erc20_cairo0, 1),
-            (account_contract_cairo0, 1),
-            (test_contract_cairo0, 1),
-            (account_contract_cairo1, n_accounts),
-            (test_contract_cairo1, 1),
-        ],
+        &contract_instances,
         fund_accounts,
     );
     run_papyrus_rpc_server(storage_reader).await

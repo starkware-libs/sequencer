@@ -1,3 +1,4 @@
+use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::{deploy_account_tx, invoke_tx};
 use starknet_api::transaction::TransactionHash;
@@ -5,8 +6,11 @@ use starknet_mempool_integration_tests::integration_test_setup::IntegrationTestS
 
 #[tokio::test]
 async fn test_end_to_end() {
-    let n_accounts = 1;
-    let mock_running_system = IntegrationTestSetup::new(n_accounts).await;
+    let mock_running_system = IntegrationTestSetup::new_for_account_contracts([
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0),
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1),
+    ])
+    .await;
 
     let mut expected_tx_hashes = Vec::new();
     expected_tx_hashes
