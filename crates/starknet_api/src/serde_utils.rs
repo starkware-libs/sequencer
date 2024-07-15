@@ -76,7 +76,15 @@ impl<const N: usize, const PREFIXED: bool> Serialize for BytesAsHex<N, PREFIXED>
 }
 
 /// The error type returned by the inner deserialization.
-#[derive(thiserror::Error, Clone, Debug)]
+// If you need `eq`, add `impl Eq fro InnerDeserializationError {}` and read warning below.
+//
+// For some reason `hex` (now unmaintained for > 3 years) didn't implement `Eq`, even though
+// there's no reason not too, so we can't use `derive(Eq)` unfortunately.
+// Note that adding the impl is risky, because if at some point `hex` decide to add non-Eq
+// things to the error, then combined with the manual `impl Eq` this will create very nasty bugs.
+// So, for prudence, we'll hold off on adding `Eq` until we have a good reason to.
+// Existing (ignored) issue on this: https://github.com/KokaKiwi/rust-hex/issues/76.
+#[derive(thiserror::Error, Clone, Debug, PartialEq)]
 pub enum InnerDeserializationError {
     /// Error parsing the hex string.
     #[error(transparent)]

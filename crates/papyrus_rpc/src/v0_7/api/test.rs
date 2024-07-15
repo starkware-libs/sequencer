@@ -25,16 +25,6 @@ use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
 use papyrus_storage::StorageScope;
-use papyrus_test_utils::{
-    auto_impl_get_test_instance,
-    get_number_of_variants,
-    get_rng,
-    get_test_block,
-    get_test_body,
-    get_test_state_diff,
-    send_request,
-    GetTestInstance,
-};
 use pretty_assertions::assert_eq;
 use rand::{random, RngCore};
 use rand_chacha::ChaCha8Rng;
@@ -111,6 +101,16 @@ use starknet_client::writer::objects::transaction::{
 use starknet_client::writer::{MockStarknetWriter, WriterClientError, WriterClientResult};
 use starknet_client::ClientError;
 use starknet_types_core::felt::Felt;
+use test_utils::{
+    auto_impl_get_test_instance,
+    get_number_of_variants,
+    get_rng,
+    get_test_block,
+    get_test_body,
+    get_test_state_diff,
+    send_request,
+    GetTestInstance,
+};
 
 use super::super::api::EventsChunk;
 use super::super::block::{Block, GeneralBlockHeader, PendingBlockHeader, ResourcePrice};

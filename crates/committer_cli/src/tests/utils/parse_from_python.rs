@@ -9,18 +9,30 @@ use committer::storage::map_storage::MapStorage;
 use committer::storage::storage_trait::StorageKey;
 use committer::storage::storage_trait::StorageValue;
 use ethnum::U256;
+use serde::Deserialize;
+use serde::Deserializer;
 use std::collections::HashMap;
+
+pub struct TreeFlowInput {
+    pub leaf_modifications: LeafModifications<StarknetStorageValue>,
+    pub storage: MapStorage,
+    pub root_hash: HashOutput,
+}
+
+impl<'de> Deserialize<'de> for TreeFlowInput {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let map = HashMap::deserialize(deserializer)?;
+        Ok(parse_input_single_storage_tree_flow_test(&map))
+    }
+}
 
 #[allow(clippy::unwrap_used)]
 /// Parse input for single storage tree flow test.
 /// Returns the leaf modifications, fetched nodes (in storage) and the root hash.
-pub fn parse_input_single_storage_tree_flow_test(
-    input: &HashMap<String, String>,
-) -> (
-    LeafModifications<StarknetStorageValue>,
-    MapStorage,
-    HashOutput,
-) {
+pub fn parse_input_single_storage_tree_flow_test(input: &HashMap<String, String>) -> TreeFlowInput {
     // Fetch leaf_modifications.
     let leaf_modifications_json = input.get("leaf_modifications").unwrap();
     let leaf_modifications_map =
@@ -55,5 +67,9 @@ pub fn parse_input_single_storage_tree_flow_test(
     // Fetch root_hash.
     let root_hash = HashOutput(Felt::from_hex(input.get("root_hash").unwrap()).unwrap());
 
-    (leaf_modifications, map_storage, root_hash)
+    TreeFlowInput {
+        leaf_modifications,
+        storage: map_storage,
+        root_hash,
+    }
 }

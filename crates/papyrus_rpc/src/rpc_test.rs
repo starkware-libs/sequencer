@@ -12,10 +12,10 @@ use jsonrpsee::types::ErrorObjectOwned;
 use papyrus_storage::base_layer::BaseLayerStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
-use papyrus_test_utils::get_rng;
 use pretty_assertions::assert_eq;
 use rand::seq::SliceRandom;
 use starknet_api::block::{BlockHash, BlockHeader, BlockNumber, BlockStatus};
+use test_utils::get_rng;
 use tower::BoxError;
 
 use crate::middleware::proxy_rpc_request;

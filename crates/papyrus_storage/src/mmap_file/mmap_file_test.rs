@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use papyrus_test_utils::get_rng;
 use pretty_assertions::assert_eq;
 use rand::Rng;
 use tempfile::tempdir;
+use test_utils::get_rng;
 use tokio::sync::{Barrier, RwLock};
 
 use super::*;

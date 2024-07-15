@@ -30,7 +30,7 @@ async fn test_filled_tree_sanity() {
     let modifications = HashMap::from([(new_leaf_index, new_filled_leaf)]);
     let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
     let root_hash = FilledTreeImpl::create::<TreeHashFunctionImpl>(
-        updated_skeleton_tree,
+        Arc::new(updated_skeleton_tree),
         Arc::new(modifications),
     )
     .await
@@ -91,7 +91,7 @@ async fn test_small_filled_tree() {
 
     // Compute the hash values.
     let filled_tree = FilledTreeImpl::create::<TreeHashFunctionImpl>(
-        updated_skeleton_tree,
+        Arc::new(updated_skeleton_tree),
         Arc::new(modifications),
     )
     .await
@@ -196,7 +196,7 @@ async fn test_small_tree_with_unmodified_nodes() {
 
     // Compute the hash values.
     let filled_tree = FilledTreeImpl::create::<TreeHashFunctionImpl>(
-        updated_skeleton_tree,
+        Arc::new(updated_skeleton_tree),
         Arc::new(modifications),
     )
     .await
@@ -249,13 +249,14 @@ async fn test_delete_leaf_from_empty_tree() {
     let storage_modifications: HashMap<NodeIndex, StarknetStorageValue> =
         HashMap::from([(NodeIndex::FIRST_LEAF, StarknetStorageValue(Felt::ZERO))]);
 
+    let mut indices = [NodeIndex::FIRST_LEAF];
     // Create an empty original skeleton tree with a single leaf modified.
     let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_impl(
         &MapStorage {
             storage: HashMap::new(),
         },
         HashOutput::ROOT_OF_EMPTY_TREE,
-        SortedLeafIndices::new(&mut [NodeIndex::FIRST_LEAF]),
+        SortedLeafIndices::new(&mut indices),
         &OriginalSkeletonStorageTrieConfig::new(&storage_modifications, false),
     )
     .unwrap();
@@ -271,7 +272,7 @@ async fn test_delete_leaf_from_empty_tree() {
         HashMap::from([(NodeIndex::FIRST_LEAF, StarknetStorageValue(Felt::ZERO))]);
     // Compute the filled tree.
     let filled_tree = FilledTreeImpl::create::<TreeHashFunctionImpl>(
-        updated_skeleton_tree,
+        updated_skeleton_tree.into(),
         leaf_modifications.into(),
     )
     .await

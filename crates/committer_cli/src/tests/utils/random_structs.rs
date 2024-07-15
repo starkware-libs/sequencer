@@ -3,7 +3,7 @@ use committer::block_committer::input::StarknetStorageValue;
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
 use committer::patricia_merkle_tree::external_test_utils::get_random_u256;
-use committer::patricia_merkle_tree::filled_tree::forest::FilledForestImpl;
+use committer::patricia_merkle_tree::filled_tree::forest::FilledForest;
 use committer::patricia_merkle_tree::filled_tree::node::ClassHash;
 use committer::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use committer::patricia_merkle_tree::filled_tree::node::FilledNode;
@@ -218,7 +218,7 @@ random_filled_tree!(StorageTrie, StarknetStorageValue);
 random_filled_tree!(ClassesTrie, CompiledClassHash);
 random_filled_tree!(ContractsTrie, ContractState);
 
-impl DummyRandomValue for FilledForestImpl {
+impl DummyRandomValue for FilledForest {
     /// Generates a dummy random filled forest.
     /// The forest contains max(m,98) dummy random storage tries,
     /// a dummy random contract tree and a dummy random compiled class tree.

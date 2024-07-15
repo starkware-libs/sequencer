@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used)]
 
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use committer::{
     block_committer::input::StarknetStorageValue,
@@ -10,7 +10,8 @@ use committer::{
     },
 };
 use committer_cli::{
-    commands::commit, tests::utils::parse_from_python::parse_input_single_storage_tree_flow_test,
+    commands::commit, parse_input::read::parse_input,
+    tests::utils::parse_from_python::TreeFlowInput,
 };
 use criterion::{criterion_group, criterion_main, Criterion};
 
@@ -20,9 +21,11 @@ const FLOW_TEST_INPUT: &str = include_str!("committer_flow_inputs.json");
 const OUTPUT_PATH: &str = "benchmark_output.txt";
 
 pub fn single_tree_flow_benchmark(criterion: &mut Criterion) {
-    let (leaf_modifications, storage, root_hash) = parse_input_single_storage_tree_flow_test(
-        &serde_json::from_str(SINGLE_TREE_FLOW_INPUT).unwrap(),
-    );
+    let TreeFlowInput {
+        leaf_modifications,
+        storage,
+        root_hash,
+    } = serde_json::from_str(SINGLE_TREE_FLOW_INPUT).unwrap();
 
     let runtime = match CONCURRENCY_MODE {
         true => tokio::runtime::Builder::new_multi_thread().build().unwrap(),
@@ -56,10 +59,19 @@ pub fn full_committer_flow_benchmark(criterion: &mut Criterion) {
             .unwrap(),
     };
 
-    //TODO(Aner, 27/06/2024): output path should be a pipe (file on memory) to avoid disk IO in the benchmark.
+    // TODO(Aner, 8/7/2024): use structs for deserialization.
+    let input: HashMap<String, String> = serde_json::from_str(FLOW_TEST_INPUT).unwrap();
+    let committer_input_string = input.get("committer_input").unwrap();
+    // TODO(Aner, 27/06/2024): output path should be a pipe (file on memory)
+    // to avoid disk IO in the benchmark.
+    // TODO(Aner, 11/7/24): consider moving function to production code.
+    async fn parse_and_commit(input_str: &str) {
+        let committer_input = parse_input(input_str).expect("Failed to parse the given input.");
+        commit(committer_input, OUTPUT_PATH.to_owned()).await;
+    }
     criterion.bench_function("full_committer_flow", |benchmark| {
         benchmark.iter(|| {
-            runtime.block_on(commit(FLOW_TEST_INPUT, OUTPUT_PATH.to_owned()));
+            runtime.block_on(parse_and_commit(committer_input_string));
         })
     });
 }

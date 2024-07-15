@@ -1,8 +1,8 @@
 use metrics_exporter_prometheus::PrometheusBuilder;
 use papyrus_common::metrics::COLLECT_PROFILING_METRICS;
 use papyrus_proc_macros::latency_histogram;
-use papyrus_test_utils::prometheus_is_contained;
 use prometheus_parse::Value::Untyped;
+use test_utils::prometheus_is_contained;
 
 #[test]
 fn latency_histogram_test() {

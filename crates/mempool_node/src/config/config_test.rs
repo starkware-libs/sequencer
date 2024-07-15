@@ -1,5 +1,4 @@
-#[cfg(any(feature = "testing", test))]
-use std::env::{self};
+use std::env;
 use std::fs::File;
 
 use assert_json_diff::assert_json_eq;
@@ -11,10 +10,7 @@ use papyrus_config::validators::{ParsedValidationError, ParsedValidationErrors};
 use validator::Validate;
 
 use crate::config::{
-    ComponentConfig,
-    ComponentExecutionConfig,
-    MempoolNodeConfig,
-    DEFAULT_CONFIG_PATH,
+    ComponentConfig, ComponentExecutionConfig, MempoolNodeConfig, DEFAULT_CONFIG_PATH,
 };
 
 /// Test the validation of the struct ComponentConfig.
@@ -23,8 +19,8 @@ use crate::config::{
 fn test_components_config_validation() {
     // Initialize an invalid config and check that the validator finds an error.
     let mut component_config = ComponentConfig {
-        gateway_component: ComponentExecutionConfig { execute: false },
-        mempool_component: ComponentExecutionConfig { execute: false },
+        gateway: ComponentExecutionConfig { execute: false },
+        mempool: ComponentExecutionConfig { execute: false },
     };
 
     assert_matches!(component_config.validate().unwrap_err(), validation_errors => {
@@ -47,8 +43,8 @@ fn test_components_config_validation() {
     for (gateway_component_execute, mempool_component_execute) in
         [(true, false), (false, true), (true, true)]
     {
-        component_config.gateway_component.execute = gateway_component_execute;
-        component_config.mempool_component.execute = mempool_component_execute;
+        component_config.gateway.execute = gateway_component_execute;
+        component_config.mempool.execute = mempool_component_execute;
 
         assert_matches!(component_config.validate(), Ok(()));
     }
@@ -56,7 +52,7 @@ fn test_components_config_validation() {
 
 /// Test the validation of the struct MempoolNodeConfig and that the default config file is up to
 /// date. To update the default config file, run:
-/// cargo run --bin mempool_dump_config -q
+/// cargo run --bin dump_config -q
 #[test]
 fn default_config_file_is_up_to_date() {
     let default_config = MempoolNodeConfig::default();
@@ -70,7 +66,7 @@ fn default_config_file_is_up_to_date() {
     println!(
         "{}",
         "Default config file doesn't match the default NodeConfig implementation. Please update \
-         it using the mempool_dump_config binary."
+         it using the dump_config binary."
             .purple()
             .bold()
     );

@@ -1,14 +1,8 @@
 use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    PatriciaKey,
+    ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector, PatriciaKey,
 };
 use starknet_api::deprecated_contract_class::{
-    ContractClass as DeprecatedContractClass,
-    EntryPointOffset,
-    EntryPointType,
+    ContractClass as DeprecatedContractClass, EntryPointOffset, EntryPointType,
 };
 use starknet_api::{class_hash, contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
@@ -69,7 +63,7 @@ const ERC20_CAIRO1_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo1/erc20.casm.json";
 
 /// Enum representing all feature contracts.
 /// The contracts that are implemented in both Cairo versions include a version field.
-#[derive(Clone, Copy, Debug, EnumIter)]
+#[derive(Clone, Copy, Debug, EnumIter, Hash, PartialEq, Eq)]
 pub enum FeatureContract {
     AccountWithLongValidate(CairoVersion),
     AccountWithoutValidations(CairoVersion),

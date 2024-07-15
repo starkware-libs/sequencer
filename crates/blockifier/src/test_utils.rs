@@ -15,11 +15,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
-    Calldata,
-    ContractAddressSalt,
-    Resource,
-    ResourceBounds,
-    ResourceBoundsMapping,
+    Calldata, ContractAddressSalt, Resource, ResourceBounds, ResourceBoundsMapping,
     TransactionVersion,
 };
 use starknet_api::{contract_address, felt, patricia_key};
@@ -51,7 +47,7 @@ pub const TEST_ERC20_CONTRACT_CLASS_HASH: &str = "0x1010";
 pub const ERC20_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/\
                                        erc20_contract_without_some_syscalls_compiled.json";
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Hash, PartialEq, Eq, Copy, Debug)]
 pub enum CairoVersion {
     Cairo0,
     Cairo1,

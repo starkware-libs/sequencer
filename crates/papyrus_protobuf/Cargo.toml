@@ -1,12 +1,12 @@
 [package]
 name = "papyrus_protobuf"
-version = "0.4.0-dev.4"
+version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 
 [features]
-testing = ["papyrus_test_utils", "rand", "rand_chacha"]
+testing = ["rand", "rand_chacha", "test_utils"]
 
 [dependencies]
 indexmap.workspace = true
@@ -15,22 +15,20 @@ primitive-types.workspace = true
 prost.workspace = true
 rand = { workspace = true, optional = true }
 rand_chacha = { workspace = true, optional = true }
-starknet_api = { path = "../starknet_api", version = "0.13.0-dev.9" }
+starknet_api.workspace = true
 starknet-types-core.workspace = true
-papyrus_test_utils = { path = "../papyrus_test_utils", optional = true }
+test_utils = { path = "../test_utils", optional = true }
 thiserror.workspace = true
 papyrus_common = { path = "../papyrus_common", version = "0.4.0-dev.2" }
 
 [dev-dependencies]
 rand.workspace = true
 rand_chacha.workspace = true
-papyrus_test_utils = { path = "../papyrus_test_utils" }
+test_utils = { path = "../test_utils" }
 
 [build-dependencies]
 prost-build.workspace = true
 
-
-# Optional dependencies required for testing.
-# See [here](https://github.com/bnjbvr/cargo-machete/issues/128).
 [package.metadata.cargo-machete]
+# The `rand` and `rand_chacha` crates are used in the `testing` feature, which is optional.
 ignored = ["rand", "rand_chacha"]

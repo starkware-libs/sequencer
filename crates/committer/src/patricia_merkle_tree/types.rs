@@ -225,7 +225,7 @@ impl TryFrom<NodeIndex> for Felt {
     }
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct SortedLeafIndices<'a>(&'a [NodeIndex]);
 
 impl<'a> SortedLeafIndices<'a> {

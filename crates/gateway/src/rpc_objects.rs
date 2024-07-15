@@ -58,13 +58,13 @@ pub struct GetBlockWithTxHashesParams {
     pub block_id: BlockId,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct ResourcePrice {
     pub price_in_wei: GasPrice,
     pub price_in_fri: GasPrice,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct BlockHeader {
     pub block_hash: BlockHash,
     pub parent_hash: BlockHash,
@@ -107,20 +107,20 @@ pub enum RpcResponse {
     Error(RpcErrorResponse),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct RpcSuccessResponse {
     pub jsonrpc: Option<String>,
     pub result: Value,
     pub id: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct RpcErrorResponse {
     pub jsonrpc: Option<String>,
     pub error: RpcSpecError,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct RpcSpecError {
     pub code: u16,
     pub message: String,

@@ -244,11 +244,6 @@
                 "n_memory_holes": 0,
                 "n_steps": 381
             },
-            "Sha256ProcessBlock": {
-                "builtin_instance_counter": {},
-                "n_memory_holes": 0,
-                "n_steps": 0
-            },
             "LibraryCall": {
                 "builtin_instance_counter": {
                     "range_check_builtin": 19
@@ -342,6 +337,11 @@
                 "builtin_instance_counter": {},
                 "n_memory_holes": 0,
                 "n_steps": 84
+            },
+            "Sha256ProcessBlock": {
+                "builtin_instance_counter": {},
+                "n_memory_holes": 0,
+                "n_steps": 0
             },
             "StorageRead": {
                 "builtin_instance_counter": {},
@@ -492,6 +492,10 @@
     },
     "validate_max_n_steps": 1000000,
     "vm_resource_fee_cost": {
+        "add_mod_builtin": [
+            0,
+            1
+        ],
         "bitwise_builtin": [
             32,
             100
@@ -507,6 +511,10 @@
         "keccak_builtin": [
             1024,
             100
+        ],
+        "mul_mod_builtin": [
+            0,
+            1
         ],
         "n_steps": [
             5,
@@ -527,6 +535,10 @@
         "range_check_builtin": [
             8,
             100
+        ],
+        "range_check96_builtin": [
+            0,
+            1
         ]
     }
 }

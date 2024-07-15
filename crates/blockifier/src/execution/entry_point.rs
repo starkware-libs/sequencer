@@ -16,9 +16,7 @@ use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::errors::{
-    ConstructorEntryPointExecutionError,
-    EntryPointExecutionError,
-    PreExecutionError,
+    ConstructorEntryPointExecutionError, EntryPointExecutionError, PreExecutionError,
 };
 use crate::execution::execution_utils::execute_entry_point_call;
 use crate::state::state_api::State;

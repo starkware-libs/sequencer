@@ -10,7 +10,6 @@ use papyrus_storage::compiled_class::CasmStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::{StorageReader, StorageWriter};
-use papyrus_test_utils::read_json_file;
 use serde::de::DeserializeOwned;
 use starknet_api::block::{
     BlockBody,
@@ -45,6 +44,7 @@ use starknet_api::transaction::{
 };
 use starknet_api::{calldata, class_hash, contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
+use test_utils::read_json_file;
 
 use crate::execution_utils::selector_from_name;
 use crate::objects::{PendingData, TransactionSimulationOutput};

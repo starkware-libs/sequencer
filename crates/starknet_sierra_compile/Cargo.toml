@@ -1,6 +1,6 @@
 [package]
 name = "starknet_sierra_compile"
-version = "0.0.0"
+version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
@@ -14,7 +14,7 @@ cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 serde_json.workspace = true
 serde.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-dev.9" }
+starknet_api.workspace = true
 starknet-types-core.workspace = true
 thiserror.workspace = true
 
