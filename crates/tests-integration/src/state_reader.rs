@@ -75,13 +75,10 @@ pub async fn spawn_test_rpc_state_reader(
 
     let fund_accounts = vec![*deploy_account_tx_contract_address()];
 
-    // TODO(Gilad): make internal functions use IndexMap instead of this vector type.
-    let contract_instances: Vec<_> = account_to_n_instances.into_iter().collect();
-
     let storage_reader = initialize_papyrus_test_state(
         block_context.chain_info(),
         BALANCE,
-        &contract_instances,
+        account_to_n_instances,
         fund_accounts,
     );
     run_papyrus_rpc_server(storage_reader).await
@@ -90,26 +87,25 @@ pub async fn spawn_test_rpc_state_reader(
 fn initialize_papyrus_test_state(
     chain_info: &ChainInfo,
     initial_balances: u128,
-    contract_instances: &[(FeatureContract, usize)],
+    contract_instances: IndexMap<FeatureContract, usize>,
     fund_additional_accounts: Vec<ContractAddress>,
 ) -> StorageReader {
     let state_diff = prepare_state_diff(
         chain_info,
-        contract_instances,
+        &contract_instances,
         initial_balances,
         fund_additional_accounts,
     );
 
-    let contracts = contract_instances.iter().map(|(contract, _n_instances_of_contract)| *contract);
     let (cairo0_contract_classes, cairo1_contract_classes) =
-        prepare_compiled_contract_classes(contracts);
+        prepare_compiled_contract_classes(contract_instances.into_keys());
 
     write_state_to_papyrus_storage(state_diff, &cairo0_contract_classes, &cairo1_contract_classes)
 }
 
 fn prepare_state_diff(
     chain_info: &ChainInfo,
-    contract_instances: &[(FeatureContract, usize)],
+    contract_instances: &IndexMap<FeatureContract, usize>,
     initial_balances: u128,
     fund_accounts: Vec<ContractAddress>,
 ) -> ThinStateDiff {
@@ -125,8 +121,8 @@ fn prepare_state_diff(
 
     let mut storage_diffs = IndexMap::new();
     let mut declared_classes = IndexMap::new();
-    for (contract, n_instances) in contract_instances.iter() {
-        for instance in 0..*n_instances {
+    for (contract, &n_instances) in contract_instances {
+        for instance in 0..n_instances {
             // Declare and deploy the contracts
             match contract.cairo_version() {
                 CairoVersion::Cairo0 => {
