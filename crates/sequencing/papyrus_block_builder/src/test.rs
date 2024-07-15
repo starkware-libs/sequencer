@@ -1,9 +1,9 @@
 use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::test_utils::get_test_storage_by_scope;
 use papyrus_storage::StorageScope;
-use papyrus_test_utils::get_test_block;
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
+use test_utils::get_test_block;
 
 use crate::{BlockBuilder, BlockBuilderTrait};
 

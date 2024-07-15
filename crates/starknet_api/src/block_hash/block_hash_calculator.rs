@@ -13,12 +13,7 @@ use crate::crypto::utils::HashChain;
 use crate::data_availability::L1DataAvailabilityMode;
 use crate::state::ThinStateDiff;
 use crate::transaction::{
-    Event,
-    Fee,
-    GasVector,
-    MessageToL1,
-    TransactionExecutionStatus,
-    TransactionHash,
+    Event, Fee, GasVector, MessageToL1, TransactionExecutionStatus, TransactionHash,
     TransactionSignature,
 };
 use crate::transaction_hash::ascii_as_felt;

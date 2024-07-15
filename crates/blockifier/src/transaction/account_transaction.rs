@@ -15,9 +15,7 @@ use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutio
 use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::fee_checks::{FeeCheckReportFields, PostExecutionReport};
 use crate::fee::fee_utils::{
-    get_fee_by_gas_vector,
-    get_sequencer_balance_keys,
-    verify_can_pay_committed_bounds,
+    get_fee_by_gas_vector, get_sequencer_balance_keys, verify_can_pay_committed_bounds,
 };
 use crate::fee::gas_usage::{compute_discounted_gas_from_gas_vector, estimate_minimal_gas_vector};
 use crate::retdata;
@@ -25,29 +23,18 @@ use crate::state::cached_state::{StateChanges, TransactionalState};
 use crate::state::state_api::{State, StateReader, UpdatableState};
 use crate::transaction::constants;
 use crate::transaction::errors::{
-    TransactionExecutionError,
-    TransactionFeeError,
-    TransactionPreValidationError,
+    TransactionExecutionError, TransactionFeeError, TransactionPreValidationError,
 };
 use crate::transaction::objects::{
-    DeprecatedTransactionInfo,
-    HasRelatedFeeType,
-    TransactionExecutionInfo,
-    TransactionExecutionResult,
-    TransactionInfo,
-    TransactionInfoCreator,
+    DeprecatedTransactionInfo, HasRelatedFeeType, TransactionExecutionInfo,
+    TransactionExecutionResult, TransactionInfo, TransactionInfoCreator,
     TransactionPreValidationResult,
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transaction_utils::update_remaining_gas;
 use crate::transaction::transactions::{
-    DeclareTransaction,
-    DeployAccountTransaction,
-    Executable,
-    ExecutableTransaction,
-    ExecutionFlags,
-    InvokeTransaction,
-    ValidatableTransaction,
+    DeclareTransaction, DeployAccountTransaction, Executable, ExecutableTransaction,
+    ExecutionFlags, InvokeTransaction, ValidatableTransaction,
 };
 
 #[cfg(test)]

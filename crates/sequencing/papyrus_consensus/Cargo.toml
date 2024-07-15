@@ -1,6 +1,6 @@
 [package]
 name = "papyrus_consensus"
-version = "0.4.0-dev.4"
+version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -9,10 +9,14 @@ description = "Reach consensus for Starknet"
 [dependencies]
 async-trait.workspace = true
 futures.workspace = true
+metrics.workspace = true
+papyrus_common = { path = "../../papyrus_common", version = "0.4.0-dev.2" }
 papyrus_network = { path = "../../papyrus_network", version = "0.4.0-dev.2" }
+papyrus_config = { path = "../../papyrus_config", version = "0.4.0-dev.2" }
 papyrus_protobuf = { path = "../../papyrus_protobuf", version = "0.4.0-dev.2" }
 papyrus_storage = { path = "../../papyrus_storage", version = "0.4.0-dev.2" }
-starknet_api = { path = "../../starknet_api", version = "0.13.0-dev.9" }
+serde = { workspace = true, features = ["derive"] }
+starknet_api.workspace = true
 starknet-types-core.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
@@ -22,5 +26,5 @@ tracing.workspace = true
 mockall.workspace = true
 papyrus_network = { path = "../../papyrus_network", version = "0.4.0-dev.2", features = ["testing"] }
 papyrus_storage = { path = "../../papyrus_storage", features = ["testing"] }
-papyrus_test_utils = { path = "../../papyrus_test_utils" }
+test_utils = { path = "../../test_utils" }
 test-case.workspace = true

@@ -10,6 +10,7 @@ pub(crate) struct RawInput {
     pub state_diff: RawStateDiff,
     pub contracts_trie_root_hash: RawFelt,
     pub classes_trie_root_hash: RawFelt,
+    pub trivial_updates_config: bool,
 }
 
 #[derive(Deserialize, Debug)]

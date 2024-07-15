@@ -9,13 +9,8 @@ use serde::{Deserialize, Serialize};
 use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
 
 use crate::core::{
-    EventCommitment,
-    GlobalRoot,
-    ReceiptCommitment,
-    SequencerContractAddress,
-    SequencerPublicKey,
-    StateDiffCommitment,
-    TransactionCommitment,
+    EventCommitment, GlobalRoot, ReceiptCommitment, SequencerContractAddress, SequencerPublicKey,
+    StateDiffCommitment, TransactionCommitment,
 };
 use crate::crypto::utils::{verify_message_hash_signature, CryptoError, Signature};
 use crate::data_availability::L1DataAvailabilityMode;

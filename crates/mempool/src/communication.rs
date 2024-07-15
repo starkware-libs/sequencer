@@ -1,10 +1,9 @@
 use async_trait::async_trait;
 use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
+use starknet_mempool_infra::component_runner::ComponentStarter;
 use starknet_mempool_infra::component_server::ComponentServer;
 use starknet_mempool_types::communication::{
-    MempoolRequest,
-    MempoolRequestAndResponseSender,
-    MempoolResponse,
+    MempoolRequest, MempoolRequestAndResponseSender, MempoolResponse,
 };
 use starknet_mempool_types::mempool_types::{MempoolInput, MempoolResult, ThinTransaction};
 use tokio::sync::mpsc::Receiver;
@@ -54,3 +53,6 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
         }
     }
 }
+
+#[async_trait]
+impl ComponentStarter for MempoolCommunicationWrapper {}

@@ -6,11 +6,7 @@ use super::block_hash_calculator::TransactionOutputForHash;
 use crate::core::{ClassHash, CompiledClassHash, ContractAddress, EthAddress, Nonce};
 use crate::state::ThinStateDiff;
 use crate::transaction::{
-    Fee,
-    GasVector,
-    L2ToL1Payload,
-    MessageToL1,
-    RevertedTransactionExecutionStatus,
+    Fee, GasVector, L2ToL1Payload, MessageToL1, RevertedTransactionExecutionStatus,
     TransactionExecutionStatus,
 };
 

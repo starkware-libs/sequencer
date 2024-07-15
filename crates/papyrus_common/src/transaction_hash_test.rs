@@ -1,4 +1,3 @@
-use papyrus_test_utils::read_json_file;
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
@@ -6,6 +5,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_types_core::felt::Felt;
+use test_utils::read_json_file;
 
 use super::{
     ascii_as_felt,

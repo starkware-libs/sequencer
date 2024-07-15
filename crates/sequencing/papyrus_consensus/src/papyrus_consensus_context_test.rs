@@ -5,10 +5,10 @@ use papyrus_protobuf::consensus::{ConsensusMessage, Proposal};
 use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
-use papyrus_test_utils::get_test_block;
 use starknet_api::block::Block;
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
+use test_utils::get_test_block;
 
 use crate::papyrus_consensus_context::PapyrusConsensusContext;
 use crate::types::{ConsensusBlock, ConsensusContext, ProposalInit};
@@ -115,6 +115,7 @@ fn test_setup() -> (Block, PapyrusConsensusContext, BroadcastNetworkMock<Consens
     let papyrus_context = PapyrusConsensusContext::new(
         storage_reader.clone(),
         test_channels.subscriber_channels.messages_to_broadcast_sender,
+        4,
     );
     (block, papyrus_context, test_channels.mock_network)
 }

@@ -1,10 +1,6 @@
 use async_trait::async_trait;
 
-#[cfg(test)]
-#[path = "component_runner_test.rs"]
-mod component_runner_test;
-
-#[derive(thiserror::Error, Debug, PartialEq)]
+#[derive(thiserror::Error, Debug, PartialEq, Clone)]
 pub enum ComponentStartError {
     #[error("Error in the component configuration.")]
     ComponentConfigError,
@@ -14,7 +10,9 @@ pub enum ComponentStartError {
 
 /// Interface to start components.
 #[async_trait]
-pub trait ComponentRunner {
-    /// Start the component. Normally this function should never return.
-    async fn start(&mut self) -> Result<(), ComponentStartError>;
+pub trait ComponentStarter {
+    /// Start the component. By default do nothing.
+    async fn start(&mut self) -> Result<(), ComponentStartError> {
+        Ok(())
+    }
 }

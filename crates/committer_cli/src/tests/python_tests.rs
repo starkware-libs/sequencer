@@ -9,7 +9,7 @@ use committer::block_committer::input::{
 };
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
-use committer::patricia_merkle_tree::filled_tree::forest::FilledForestImpl;
+use committer::patricia_merkle_tree::filled_tree::forest::FilledForest;
 use committer::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, FilledNode, Nonce};
 use committer::patricia_merkle_tree::node_data::inner_node::{
@@ -17,6 +17,7 @@ use committer::patricia_merkle_tree::node_data::inner_node::{
 };
 use committer::patricia_merkle_tree::node_data::leaf::ContractState;
 use committer::patricia_merkle_tree::types::SubTreeHeight;
+use log::error;
 
 use committer::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
 use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
@@ -37,6 +38,7 @@ use std::{collections::HashMap, io};
 use thiserror;
 
 use super::utils::objects::{get_thin_state_diff, get_transaction_output_for_hash, get_tx_data};
+use super::utils::parse_from_python::TreeFlowInput;
 
 // Enum representing different Python tests.
 pub enum PythonTest {
@@ -57,6 +59,7 @@ pub enum PythonTest {
     SerializeForRustCommitterFlowTest,
     ComputeHashSingleTree,
     MaybePanic,
+    LogError,
 }
 
 /// Error type for PythonTest enum.
@@ -107,6 +110,7 @@ impl TryFrom<String> for PythonTest {
             "serialize_to_rust_committer_flow_test" => Ok(Self::SerializeForRustCommitterFlowTest),
             "tree_test" => Ok(Self::ComputeHashSingleTree),
             "maybe_panic" => Ok(Self::MaybePanic),
+            "log_error" => Ok(Self::LogError),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -170,16 +174,18 @@ impl PythonTest {
                 Ok(parse_tx_data_test(tx_data))
             }
             Self::SerializeForRustCommitterFlowTest => {
+                // TODO(Aner, 8/7/2024): refactor using structs for deserialization.
                 let input: HashMap<String, String> =
                     serde_json::from_str(Self::non_optional_input(input)?)?;
                 Ok(serialize_for_rust_committer_flow_test(input))
             }
             Self::ComputeHashSingleTree => {
                 // 1. Get and deserialize input.
-                let input: HashMap<String, String> =
-                    serde_json::from_str(Self::non_optional_input(input)?)?;
-                let (leaf_modifications, storage, root_hash) =
-                    parse_input_single_storage_tree_flow_test(&input);
+                let TreeFlowInput {
+                    leaf_modifications,
+                    storage,
+                    root_hash,
+                } = serde_json::from_str(Self::non_optional_input(input)?)?;
                 // 2. Run the test.
                 let output = single_tree_flow_test(leaf_modifications, storage, root_hash).await;
                 // 3. Serialize and return output.
@@ -192,14 +198,25 @@ impl PythonTest {
                 }
                 Ok("Done!".to_owned())
             }
+            Self::LogError => {
+                log::error!("This is an error log message.");
+                log::warn!("This is a warn log message.");
+                log::info!("This is an info log message.");
+                log::debug!("This is a debug log message.");
+                panic!("This is a panic message.");
+            }
         }
     }
 }
 
 // Test that the fetching of the input to flow test is working.
+// TODO(Aner, 8/7/2024): refactor using structs for deserialization and rename the function.
 fn serialize_for_rust_committer_flow_test(input: HashMap<String, String>) -> String {
-    let (leaf_modifications, storage, root_hash) =
-        parse_input_single_storage_tree_flow_test(&input);
+    let TreeFlowInput {
+        leaf_modifications,
+        storage,
+        root_hash,
+    } = parse_input_single_storage_tree_flow_test(&input);
     // Serialize the leaf modifications to an object that can be JSON-serialized.
     let leaf_modifications_to_print: HashMap<String, Vec<u8>> = leaf_modifications
         .into_iter()
@@ -694,10 +711,7 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
 
 /// Generates a dummy random filled forest and serializes it to a JSON string.
 pub(crate) fn filled_forest_output_test() -> Result<String, PythonTestError> {
-    let dummy_forest = SerializedForest(FilledForestImpl::dummy_random(
-        &mut rand::thread_rng(),
-        None,
-    ));
+    let dummy_forest = SerializedForest(FilledForest::dummy_random(&mut rand::thread_rng(), None));
     let output = dummy_forest.forest_to_output();
     let output_string = serde_json::to_string(&output).expect("Failed to serialize");
     Ok(output_string)

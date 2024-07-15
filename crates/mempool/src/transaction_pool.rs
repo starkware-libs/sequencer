@@ -7,14 +7,16 @@ use starknet_mempool_types::mempool_types::{MempoolResult, ThinTransaction};
 
 use crate::mempool::TransactionReference;
 
+type HashToTransaction = HashMap<TransactionHash, ThinTransaction>;
+
 /// Contains all transactions currently held in the mempool.
 /// Invariant: both data structures are consistent regarding the existence of transactions:
 /// A transaction appears in one if and only if it appears in the other.
 /// No duplicate transactions appear in the pool.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Eq, PartialEq)]
 pub struct TransactionPool {
     // Holds the complete transaction objects; it should be the sole entity that does so.
-    tx_pool: HashMap<TransactionHash, ThinTransaction>,
+    tx_pool: HashToTransaction,
     // Transactions organized by account address, sorted by ascending nonce values.
     txs_by_account: AccountTransactionIndex,
 }
@@ -59,21 +61,34 @@ impl TransactionPool {
         Ok(tx)
     }
 
-    pub fn get(&self, tx_hash: TransactionHash) -> MempoolResult<&ThinTransaction> {
+    pub fn get_by_tx_hash(&self, tx_hash: TransactionHash) -> MempoolResult<&ThinTransaction> {
         self.tx_pool.get(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })
+    }
+
+    pub fn get_by_address_and_nonce(
+        &self,
+        address: ContractAddress,
+        nonce: Nonce,
+    ) -> Option<&TransactionReference> {
+        self.txs_by_account.get(address, nonce)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn _tx_pool(&self) -> &HashToTransaction {
+        &self.tx_pool
     }
 }
 
-#[derive(Debug, Default)]
-struct AccountTransactionIndex(pub HashMap<ContractAddress, BTreeMap<Nonce, TransactionReference>>);
+#[derive(Debug, Default, Eq, PartialEq)]
+struct AccountTransactionIndex(HashMap<ContractAddress, BTreeMap<Nonce, TransactionReference>>);
 
 impl AccountTransactionIndex {
     /// If the transaction already exists in the mapping, the old value is returned.
-    pub fn insert(&mut self, tx: TransactionReference) -> Option<TransactionReference> {
+    fn insert(&mut self, tx: TransactionReference) -> Option<TransactionReference> {
         self.0.entry(tx.sender_address).or_default().insert(tx.nonce, tx)
     }
 
-    pub fn remove(&mut self, tx: TransactionReference) -> Option<TransactionReference> {
+    fn remove(&mut self, tx: TransactionReference) -> Option<TransactionReference> {
         let TransactionReference { sender_address, nonce, .. } = tx;
         let account_txs = self.0.get_mut(&sender_address)?;
 
@@ -84,5 +99,9 @@ impl AccountTransactionIndex {
         }
 
         removed_tx
+    }
+
+    fn get(&self, address: ContractAddress, nonce: Nonce) -> Option<&TransactionReference> {
+        self.0.get(&address)?.get(&nonce)
     }
 }

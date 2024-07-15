@@ -11,14 +11,8 @@ use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::state::EntryPoint;
 use crate::transaction::{
-    AccountDeploymentData,
-    Calldata,
-    ContractAddressSalt,
-    PaymasterData,
-    Resource,
-    ResourceBounds,
-    Tip,
-    TransactionSignature,
+    AccountDeploymentData, Calldata, ContractAddressSalt, PaymasterData, Resource, ResourceBounds,
+    Tip, TransactionSignature,
 };
 
 /// Transactions that are ready to be broadcasted to the network through RPC and are not included in
@@ -26,34 +20,34 @@ use crate::transaction::{
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "type")]
 #[serde(deny_unknown_fields)]
-pub enum RPCTransaction {
+pub enum RpcTransaction {
     #[serde(rename = "DECLARE")]
-    Declare(RPCDeclareTransaction),
+    Declare(RpcDeclareTransaction),
     #[serde(rename = "DEPLOY_ACCOUNT")]
-    DeployAccount(RPCDeployAccountTransaction),
+    DeployAccount(RpcDeployAccountTransaction),
     #[serde(rename = "INVOKE")]
-    Invoke(RPCInvokeTransaction),
+    Invoke(RpcInvokeTransaction),
 }
 
 macro_rules! implement_ref_getters {
     ($(($member_name:ident, $member_type:ty)), *) => {
         $(pub fn $member_name(&self) -> &$member_type {
             match self {
-                RPCTransaction::Declare(
-                    RPCDeclareTransaction::V3(tx)
+                RpcTransaction::Declare(
+                    RpcDeclareTransaction::V3(tx)
                 ) => &tx.$member_name,
-                RPCTransaction::DeployAccount(
-                    RPCDeployAccountTransaction::V3(tx)
+                RpcTransaction::DeployAccount(
+                    RpcDeployAccountTransaction::V3(tx)
                 ) => &tx.$member_name,
-                RPCTransaction::Invoke(
-                    RPCInvokeTransaction::V3(tx)
+                RpcTransaction::Invoke(
+                    RpcInvokeTransaction::V3(tx)
                 ) => &tx.$member_name
             }
         })*
     };
 }
 
-impl RPCTransaction {
+impl RpcTransaction {
     implement_ref_getters!(
         (nonce, Nonce),
         (resource_bounds, ResourceBoundsMapping),
@@ -71,9 +65,9 @@ impl RPCTransaction {
 /// [`Starknet specs`]: https://github.com/starkware-libs/starknet-specs/blob/master/api/starknet_api_openrpc.json
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "version")]
-pub enum RPCDeclareTransaction {
+pub enum RpcDeclareTransaction {
     #[serde(rename = "0x3")]
-    V3(RPCDeclareTransactionV3),
+    V3(RpcDeclareTransactionV3),
 }
 
 /// A RPC deploy account transaction.
@@ -84,9 +78,9 @@ pub enum RPCDeclareTransaction {
 /// [`Starknet specs`]: https://github.com/starkware-libs/starknet-specs/blob/master/api/starknet_api_openrpc.json
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(tag = "version")]
-pub enum RPCDeployAccountTransaction {
+pub enum RpcDeployAccountTransaction {
     #[serde(rename = "0x3")]
-    V3(RPCDeployAccountTransactionV3),
+    V3(RpcDeployAccountTransactionV3),
 }
 
 /// A RPC invoke transaction.
@@ -97,15 +91,15 @@ pub enum RPCDeployAccountTransaction {
 /// [`Starknet specs`]: https://github.com/starkware-libs/starknet-specs/blob/master/api/starknet_api_openrpc.json
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(tag = "version")]
-pub enum RPCInvokeTransaction {
+pub enum RpcInvokeTransaction {
     #[serde(rename = "0x3")]
-    V3(RPCInvokeTransactionV3),
+    V3(RpcInvokeTransactionV3),
 }
 
 /// A declare transaction of a Cairo-v1 contract class that can be added to Starknet through the
 /// RPC.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct RPCDeclareTransactionV3 {
+pub struct RpcDeclareTransactionV3 {
     // TODO: Check with Shahak why we need to keep the DeclareType.
     // pub r#type: DeclareType,
     pub sender_address: ContractAddress,
@@ -123,7 +117,7 @@ pub struct RPCDeclareTransactionV3 {
 
 /// A deploy account transaction that can be added to Starknet through the RPC.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct RPCDeployAccountTransactionV3 {
+pub struct RpcDeployAccountTransactionV3 {
     pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
@@ -138,7 +132,7 @@ pub struct RPCDeployAccountTransactionV3 {
 
 /// An invoke account transaction that can be added to Starknet through the RPC.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct RPCInvokeTransactionV3 {
+pub struct RpcInvokeTransactionV3 {
     pub sender_address: ContractAddress,
     pub calldata: Calldata,
     pub signature: TransactionSignature,

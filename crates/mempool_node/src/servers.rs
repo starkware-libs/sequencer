@@ -18,10 +18,10 @@ pub struct Servers {
 
 pub fn create_servers(
     config: &MempoolNodeConfig,
-    mut communication: MempoolNodeCommunication,
+    communication: &mut MempoolNodeCommunication,
     components: Components,
 ) -> Servers {
-    let gateway_server = if config.components.gateway_component.execute {
+    let gateway_server = if config.components.gateway.execute {
         Some(Box::new(create_gateway_server(
             components.gateway.expect("Gateway is not initialized."),
         )))
@@ -29,7 +29,7 @@ pub fn create_servers(
         None
     };
 
-    let mempool_server = if config.components.mempool_component.execute {
+    let mempool_server = if config.components.mempool.execute {
         Some(Box::new(create_mempool_server(
             components.mempool.expect("Mempool is not initialized."),
             communication.take_mempool_rx(),
@@ -41,18 +41,19 @@ pub fn create_servers(
     Servers { gateway: gateway_server, mempool: mempool_server }
 }
 
-pub async fn run_server_components(
+pub async fn run_component_servers(
     config: &MempoolNodeConfig,
     servers: Servers,
 ) -> anyhow::Result<()> {
-    // Gateway component.
+    // Gateway server.
     let gateway_future =
-        get_server_future("Gateway", config.components.gateway_component.execute, servers.gateway);
+        get_server_future("Gateway", config.components.gateway.execute, servers.gateway);
 
-    // Mempool component.
+    // Mempool server.
     let mempool_future =
-        get_server_future("Mempool", config.components.mempool_component.execute, servers.mempool);
+        get_server_future("Mempool", config.components.mempool.execute, servers.mempool);
 
+    // Start servers.
     let gateway_handle = tokio::spawn(gateway_future);
     let mempool_handle = tokio::spawn(mempool_future);
 

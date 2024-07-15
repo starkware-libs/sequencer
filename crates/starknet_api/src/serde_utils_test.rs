@@ -2,17 +2,11 @@ use assert_matches::assert_matches;
 use serde::Deserialize;
 
 use crate::deprecated_contract_class::{
-    ConstructorType,
-    ContractClassAbiEntry,
-    FunctionAbiEntry,
-    TypedParameter,
+    ConstructorType, ContractClassAbiEntry, FunctionAbiEntry, TypedParameter,
 };
 use crate::serde_utils::{
-    bytes_from_hex_str,
-    deserialize_optional_contract_class_abi_entry_vector,
-    hex_str_from_bytes,
-    BytesAsHex,
-    InnerDeserializationError,
+    bytes_from_hex_str, deserialize_optional_contract_class_abi_entry_vector, hex_str_from_bytes,
+    BytesAsHex, InnerDeserializationError,
 };
 
 #[test]

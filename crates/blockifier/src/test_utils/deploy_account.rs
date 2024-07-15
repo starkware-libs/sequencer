@@ -1,16 +1,8 @@
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::transaction::{
-    Calldata,
-    ContractAddressSalt,
-    DeployAccountTransactionV1,
-    DeployAccountTransactionV3,
-    Fee,
-    PaymasterData,
-    ResourceBoundsMapping,
-    Tip,
-    TransactionHash,
-    TransactionSignature,
+    Calldata, ContractAddressSalt, DeployAccountTransactionV1, DeployAccountTransactionV3, Fee,
+    PaymasterData, ResourceBoundsMapping, Tip, TransactionHash, TransactionSignature,
     TransactionVersion,
 };
 
@@ -40,8 +32,7 @@ impl Default for DeployAccountTxArgs {
             max_fee: Fee::default(),
             signature: TransactionSignature::default(),
             deployer_address: ContractAddress::default(),
-            // TODO(Meshi, 01/09/2024): Change default version to THREE.
-            version: TransactionVersion::ONE,
+            version: TransactionVersion::THREE,
             resource_bounds: default_testing_resource_bounds(),
             tip: Tip::default(),
             nonce_data_availability_mode: DataAvailabilityMode::L1,

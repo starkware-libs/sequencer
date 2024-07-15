@@ -7,16 +7,8 @@ use serde::Serialize;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::transaction::{
-    AccountDeploymentData,
-    Fee,
-    PaymasterData,
-    Resource,
-    ResourceBounds,
-    ResourceBoundsMapping,
-    Tip,
-    TransactionHash,
-    TransactionSignature,
-    TransactionVersion,
+    AccountDeploymentData, Fee, PaymasterData, Resource, ResourceBounds, ResourceBoundsMapping,
+    Tip, TransactionHash, TransactionSignature, TransactionVersion,
 };
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
@@ -28,17 +20,13 @@ use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::eth_gas_constants;
 use crate::fee::fee_utils::{calculate_l1_gas_by_vm_usage, get_fee_by_gas_vector};
 use crate::fee::gas_usage::{
-    get_consumed_message_to_l2_emissions_cost,
-    get_da_gas_cost,
-    get_log_message_to_l1_emissions_cost,
-    get_onchain_data_segment_length,
+    get_consumed_message_to_l2_emissions_cost, get_da_gas_cost,
+    get_log_message_to_l1_emissions_cost, get_onchain_data_segment_length,
 };
 use crate::state::cached_state::StateChangesCount;
 use crate::transaction::constants;
 use crate::transaction::errors::{
-    TransactionExecutionError,
-    TransactionFeeError,
-    TransactionPreValidationError,
+    TransactionExecutionError, TransactionFeeError, TransactionPreValidationError,
 };
 use crate::utils::{u128_from_usize, usize_from_u128};
 use crate::versioned_constants::VersionedConstants;

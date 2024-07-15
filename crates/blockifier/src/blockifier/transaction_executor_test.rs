@@ -7,9 +7,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::blockifier::config::TransactionExecutorConfig;
 use crate::blockifier::transaction_executor::{
-    TransactionExecutor,
-    TransactionExecutorError,
-    BLOCK_STATE_ACCESS_ERR,
+    TransactionExecutor, TransactionExecutorError, BLOCK_STATE_ACCESS_ERR,
 };
 use crate::bouncer::{Bouncer, BouncerWeights};
 use crate::context::BlockContext;
@@ -20,22 +18,13 @@ use crate::test_utils::declare::declare_tx;
 use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
-    create_calldata,
-    CairoVersion,
-    NonceManager,
-    BALANCE,
-    DEFAULT_STRK_L1_GAS_PRICE,
+    create_calldata, CairoVersion, NonceManager, BALANCE, DEFAULT_STRK_L1_GAS_PRICE,
 };
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::test_utils::{
-    account_invoke_tx,
-    block_context,
-    calculate_class_info_for_testing,
-    create_test_init_data,
-    emit_n_events_tx,
-    l1_resource_bounds,
-    TestInitData,
+    account_invoke_tx, block_context, calculate_class_info_for_testing, create_test_init_data,
+    emit_n_events_tx, l1_resource_bounds, TestInitData,
 };
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::L1HandlerTransaction;

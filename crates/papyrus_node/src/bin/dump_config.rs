@@ -10,7 +10,7 @@ use papyrus_node::config::pointers::CONFIG_POINTERS;
 use papyrus_node::config::{NodeConfig, DEFAULT_CONFIG_PATH};
 
 /// Updates the default config file by:
-/// cargo run --bin papyrus_dump_config -q
+/// cargo run --bin dump_config -q
 #[cfg_attr(coverage_nightly, coverage_attribute)]
 fn main() {
     #[cfg(feature = "rpc")]

@@ -3,11 +3,7 @@ use regex::Regex;
 use rstest::rstest;
 use starknet_api::core::{calculate_contract_address, Nonce};
 use starknet_api::transaction::{
-    Calldata,
-    ContractAddressSalt,
-    Fee,
-    ResourceBoundsMapping,
-    TransactionSignature,
+    Calldata, ContractAddressSalt, Fee, ResourceBoundsMapping, TransactionSignature,
     TransactionVersion,
 };
 use starknet_api::{calldata, felt};
@@ -21,21 +17,12 @@ use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::{create_calldata, CairoVersion, BALANCE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::constants::{
-    DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
-    EXECUTE_ENTRY_POINT_NAME,
-    FELT_TRUE,
-    VALIDATE_DECLARE_ENTRY_POINT_NAME,
-    VALIDATE_DEPLOY_ENTRY_POINT_NAME,
-    VALIDATE_ENTRY_POINT_NAME,
+    DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME, EXECUTE_ENTRY_POINT_NAME, FELT_TRUE,
+    VALIDATE_DECLARE_ENTRY_POINT_NAME, VALIDATE_DEPLOY_ENTRY_POINT_NAME, VALIDATE_ENTRY_POINT_NAME,
 };
 use crate::transaction::test_utils::{
-    account_invoke_tx,
-    block_context,
-    create_account_tx_for_validate_test_nonce_0,
-    max_resource_bounds,
-    run_invoke_tx,
-    FaultyAccountTxCreatorArgs,
-    INVALID,
+    account_invoke_tx, block_context, create_account_tx_for_validate_test_nonce_0,
+    max_resource_bounds, run_invoke_tx, FaultyAccountTxCreatorArgs, INVALID,
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
@@ -252,7 +239,7 @@ Unknown location (pc=0:{expected_pc1})
 Error at pc=0:767:
 1: Error in the called contract (contract address: {contract_address_felt:#064x}, class hash: \
                  {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
-Error at pc=0:9381:
+Error at pc=0:9508:
 Cairo traceback (most recent call last):
 Unknown location (pc=0:{pc_location})
 
@@ -272,10 +259,10 @@ Execution failed. Failure reason: {expected_error}.
 #[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:23", 1_u8, 1_u8, (49_u16, 1111_u16, 1081_u16, 1166_u16))]
 #[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", 0_u8, 0_u8, (37_u16, 1093_u16, 1184_u16, 1188_u16))]
 #[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", 0_u8, 1_u8, (49_u16, 1111_u16, 1184_u16, 1188_u16))]
-#[case(CairoVersion::Cairo1, "invoke_call_chain", "0x4469766973696f6e2062792030 ('Division by 0')", 1_u8, 0_u8, (9381_u16, 9381_u16, 0_u16, 0_u16))]
-#[case(CairoVersion::Cairo1, "invoke_call_chain", "0x4469766973696f6e2062792030 ('Division by 0')", 1_u8, 1_u8, (9381_u16, 9450_u16, 0_u16, 0_u16))]
-#[case(CairoVersion::Cairo1, "fail", "0x6661696c ('fail')", 0_u8, 0_u8, (9381_u16, 9381_u16, 0_u16, 0_u16))]
-#[case(CairoVersion::Cairo1, "fail", "0x6661696c ('fail')", 0_u8, 1_u8, (9381_u16, 9450_u16, 0_u16, 0_u16))]
+#[case(CairoVersion::Cairo1, "invoke_call_chain", "0x4469766973696f6e2062792030 ('Division by 0')", 1_u8, 0_u8, (9508_u16, 9508_u16, 0_u16, 0_u16))]
+#[case(CairoVersion::Cairo1, "invoke_call_chain", "0x4469766973696f6e2062792030 ('Division by 0')", 1_u8, 1_u8, (9508_u16, 9577_u16, 0_u16, 0_u16))]
+#[case(CairoVersion::Cairo1, "fail", "0x6661696c ('fail')", 0_u8, 0_u8, (9508_u16, 9508_u16, 0_u16, 0_u16))]
+#[case(CairoVersion::Cairo1, "fail", "0x6661696c ('fail')", 0_u8, 1_u8, (9508_u16, 9577_u16, 0_u16, 0_u16))]
 fn test_trace_call_chain_with_syscalls(
     block_context: BlockContext,
     #[case] cairo_version: CairoVersion,

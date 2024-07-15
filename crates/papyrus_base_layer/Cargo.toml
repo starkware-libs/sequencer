@@ -1,6 +1,6 @@
 [package]
 name = "papyrus_base_layer"
-version = "0.4.0-dev.4"
+version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -8,11 +8,11 @@ license-file.workspace = true
 [dependencies]
 async-trait.workspace = true
 ethers.workspace = true
-papyrus_config = { path = "../papyrus_config", version = "0.4.0-dev.4" }
+papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0" }
 rustc-hex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-dev.9" }
+starknet_api.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 url.workspace = true
@@ -20,7 +20,7 @@ url.workspace = true
 [dev-dependencies]
 ethers-core = { version = "2.0.3" }
 pretty_assertions.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-dev.9", features = ["testing"] }
+starknet_api = { workspace = true, features = ["testing"] }
 starknet-types-core.workspace = true
 tar = { version = "0.4.38" }
 tempfile.workspace = true

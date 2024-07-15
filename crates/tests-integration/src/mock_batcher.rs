@@ -1,7 +1,6 @@
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::ThinTransaction;
 
-#[derive(Clone)]
 pub struct MockBatcher {
     mempool_client: SharedMempoolClient,
 }
