@@ -549,46 +549,6 @@ dependencies = [
 
 [[package]]
 name = "blockifier"
-version = "0.8.0-dev.1"
-source = "git+https://github.com/starkware-libs/blockifier.git?rev=bad24f25#bad24f2543c848202f8fe2c833cd4149fef75d9f"
-dependencies = [
- "anyhow",
- "ark-ec",
- "ark-ff",
- "ark-secp256k1",
- "ark-secp256r1",
- "cached",
- "cairo-lang-casm",
- "cairo-lang-runner",
- "cairo-lang-starknet-classes",
- "cairo-lang-utils",
- "cairo-vm",
- "derive_more",
- "indexmap 2.2.6",
- "itertools 0.10.5",
- "keccak",
- "log",
- "num-bigint",
- "num-integer",
- "num-rational",
- "num-traits 0.2.19",
- "once_cell",
- "phf",
- "rand",
- "rstest",
- "serde",
- "serde_json",
- "sha2",
- "sha3",
- "starknet-types-core",
- "starknet_api",
- "strum 0.24.1",
- "strum_macros 0.24.3",
- "thiserror",
-]
-
-[[package]]
-name = "blockifier"
 version = "0.8.0-rc.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59eec80446f00e2c27d2a45166c6d09323021cf0543c1789250c95568143bb00"
@@ -615,6 +575,46 @@ dependencies = [
  "num-traits 0.2.19",
  "once_cell",
  "phf",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sha3",
+ "starknet-types-core",
+ "starknet_api",
+ "strum 0.24.1",
+ "strum_macros 0.24.3",
+ "thiserror",
+]
+
+[[package]]
+name = "blockifier"
+version = "0.8.0-rc.0"
+source = "git+https://github.com/starkware-libs/blockifier.git?rev=32191d41#32191d41502291b4b2683a4ac070e83c77d0cd31"
+dependencies = [
+ "anyhow",
+ "ark-ec",
+ "ark-ff",
+ "ark-secp256k1",
+ "ark-secp256r1",
+ "cached",
+ "cairo-lang-casm",
+ "cairo-lang-runner",
+ "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
+ "cairo-vm",
+ "derive_more",
+ "indexmap 2.2.6",
+ "itertools 0.10.5",
+ "keccak",
+ "log",
+ "num-bigint",
+ "num-integer",
+ "num-rational",
+ "num-traits 0.2.19",
+ "once_cell",
+ "phf",
+ "rand",
+ "rstest",
  "serde",
  "serde_json",
  "sha2",
@@ -3408,7 +3408,7 @@ name = "mempool_test_utils"
 version = "0.0.0"
 dependencies = [
  "assert_matches",
- "blockifier 0.8.0-dev.1",
+ "blockifier 0.8.0-rc.0 (git+https://github.com/starkware-libs/blockifier.git?rev=32191d41)",
  "serde_json",
  "starknet-types-core",
  "starknet_api",
@@ -3849,7 +3849,7 @@ version = "0.4.0-dev.4"
 source = "git+https://github.com/starkware-libs/papyrus.git?rev=ca83fd42#ca83fd42d1efddcd4e13e981654cdd920ec61288"
 dependencies = [
  "anyhow",
- "blockifier 0.8.0-rc.0",
+ "blockifier 0.8.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cairo-lang-starknet-classes",
  "cairo-vm",
  "indexmap 2.2.6",
@@ -5383,7 +5383,7 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "axum",
- "blockifier 0.8.0-dev.1",
+ "blockifier 0.8.0-rc.0 (git+https://github.com/starkware-libs/blockifier.git?rev=32191d41)",
  "cairo-lang-starknet-classes",
  "cairo-vm",
  "hyper",
@@ -5449,7 +5449,7 @@ name = "starknet_mempool_integration_tests"
 version = "0.0.0"
 dependencies = [
  "axum",
- "blockifier 0.8.0-dev.1",
+ "blockifier 0.8.0-rc.0 (git+https://github.com/starkware-libs/blockifier.git?rev=32191d41)",
  "cairo-lang-starknet-classes",
  "indexmap 2.2.6",
  "mempool_test_utils",
