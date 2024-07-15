@@ -1,11 +1,7 @@
 use crate::core::{ContractAddress, Nonce};
 use crate::state::ContractClass;
 use crate::transaction::{
-    DeclareTransaction,
-    DeployAccountTransaction,
-    InvokeTransaction,
-    Tip,
-    TransactionHash,
+    DeclareTransaction, DeployAccountTransaction, InvokeTransaction, Tip, TransactionHash,
 };
 
 /// Represents a paid Starknet transaction.

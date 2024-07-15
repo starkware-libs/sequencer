@@ -2,14 +2,14 @@ use futures::stream::Stream;
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::{DialError, NetworkBehaviour, SwarmEvent};
-use libp2p::{Multiaddr, PeerId, Swarm};
+use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm};
 use tracing::error;
 
 use crate::gossipsub_impl::Topic;
+use crate::mixed_behaviour;
 use crate::peer_manager::ReputationModifier;
 use crate::sqmr::behaviour::{PeerNotConnected, SessionIdNotFoundError};
-use crate::sqmr::{Bytes, InboundSessionId, OutboundSessionId};
-use crate::{mixed_behaviour, Protocol};
+use crate::sqmr::{Bytes, InboundSessionId, OutboundSessionId, SessionId};
 
 pub type Event = SwarmEvent<<mixed_behaviour::MixedBehaviour as NetworkBehaviour>::ToSwarm>;
 
@@ -24,7 +24,7 @@ pub trait SwarmTrait: Stream<Item = Event> + Unpin {
         &mut self,
         query: Vec<u8>,
         peer_id: PeerId,
-        protocol: Protocol,
+        protocol: StreamProtocol,
     ) -> Result<OutboundSessionId, PeerNotConnected>;
 
     fn dial(&mut self, peer_multiaddr: Multiaddr) -> Result<(), DialError>;
@@ -38,6 +38,11 @@ pub trait SwarmTrait: Stream<Item = Event> + Unpin {
 
     fn behaviour_mut(&mut self) -> &mut mixed_behaviour::MixedBehaviour;
 
+    fn get_peer_id_from_session_id(
+        &self,
+        session_id: SessionId,
+    ) -> Result<PeerId, SessionIdNotFoundError>;
+
     fn add_external_address(&mut self, address: Multiaddr);
 
     fn subscribe_to_topic(&mut self, topic: &Topic) -> Result<(), SubscriptionError>;
@@ -45,6 +50,8 @@ pub trait SwarmTrait: Stream<Item = Event> + Unpin {
     fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash);
 
     fn report_peer(&mut self, peer_id: PeerId);
+
+    fn add_new_supported_inbound_protocol(&mut self, protocol_name: StreamProtocol);
 }
 
 impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
@@ -61,9 +68,9 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
         &mut self,
         query: Vec<u8>,
         _peer_id: PeerId,
-        protocol: Protocol,
+        protocol: StreamProtocol,
     ) -> Result<OutboundSessionId, PeerNotConnected> {
-        Ok(self.behaviour_mut().sqmr.start_query(query, protocol.into()))
+        Ok(self.behaviour_mut().sqmr.start_query(query, protocol))
     }
 
     fn dial(&mut self, peer_multiaddr: Multiaddr) -> Result<(), DialError> {
@@ -82,6 +89,16 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
 
     fn behaviour_mut(&mut self) -> &mut mixed_behaviour::MixedBehaviour {
         self.behaviour_mut()
+    }
+
+    fn get_peer_id_from_session_id(
+        &self,
+        session_id: SessionId,
+    ) -> Result<PeerId, SessionIdNotFoundError> {
+        self.behaviour()
+            .sqmr
+            .get_peer_id_and_connection_id_from_session_id(session_id)
+            .map(|(peer_id, _)| peer_id)
     }
 
     fn add_external_address(&mut self, address: Multiaddr) {
@@ -106,5 +123,9 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
 
     fn report_peer(&mut self, peer_id: PeerId) {
         let _ = self.behaviour_mut().peer_manager.report_peer(peer_id, ReputationModifier::Bad {});
+    }
+
+    fn add_new_supported_inbound_protocol(&mut self, protocol: StreamProtocol) {
+        self.behaviour_mut().sqmr.add_new_supported_inbound_protocol(protocol);
     }
 }

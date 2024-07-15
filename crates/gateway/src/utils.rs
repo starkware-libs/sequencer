@@ -7,21 +7,11 @@ use blockifier::transaction::transactions::{
 };
 use starknet_api::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{
-    RPCDeclareTransaction,
-    RPCDeployAccountTransaction,
-    RPCInvokeTransaction,
-    RPCTransaction,
+    RPCDeclareTransaction, RPCDeployAccountTransaction, RPCInvokeTransaction, RPCTransaction,
 };
 use starknet_api::transaction::{
-    DeclareTransaction,
-    DeclareTransactionV3,
-    DeployAccountTransaction,
-    DeployAccountTransactionV3,
-    InvokeTransaction,
-    InvokeTransactionV3,
-    Tip,
-    TransactionHash,
-    TransactionHasher,
+    DeclareTransaction, DeclareTransactionV3, DeployAccountTransaction, DeployAccountTransactionV3,
+    InvokeTransaction, InvokeTransactionV3, Tip, TransactionHash, TransactionHasher,
 };
 use starknet_mempool_types::mempool_types::ThinTransaction;
 
@@ -80,6 +70,7 @@ pub fn get_sender_address(tx: &RPCTransaction) -> ContractAddress {
 }
 
 // TODO(Mohammad): Remove this trait once it is implemented in StarkNet API.
+#[allow(dead_code)]
 pub trait RPCTransactionExt {
     fn nonce(&self) -> &Nonce;
     fn tip(&self) -> &Tip;

@@ -15,19 +15,19 @@ use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::presentation::get_config_presentation;
 use papyrus_config::{SerializationType, SerializedContent, SerializedParam};
 use papyrus_monitoring_gateway::MonitoringGatewayConfig;
-use papyrus_test_utils::get_absolute_path;
 use pretty_assertions::assert_eq;
 use serde_json::{json, Map, Value};
 use starknet_api::core::ChainId;
 use tempfile::NamedTempFile;
+use test_utils::get_absolute_path;
 use validator::Validate;
 
 #[cfg(feature = "rpc")]
 use crate::config::pointers::CONFIG_POINTERS;
 use crate::config::{node_command, NodeConfig, DEFAULT_CONFIG_PATH};
 
-// Returns the required and generated params in papyrus_default_config.json with the default value
-// from the config presentation.
+// Returns the required and generated params in default_config.json with the default value from the
+// config presentation.
 fn required_args() -> Vec<String> {
     let default_config = NodeConfig::default();
     let mut args = Vec::new();
@@ -36,7 +36,18 @@ fn required_args() -> Vec<String> {
     for (param_path, serialized_param) in default_config.dump() {
         let serialization_type = match serialized_param.content {
             SerializedContent::DefaultValue(_) | SerializedContent::PointerTarget(_) => continue,
-            SerializedContent::ParamType(serialization_type) => serialization_type,
+            SerializedContent::ParamType(serialization_type) => {
+                let parent_path = param_path.split('.').next().unwrap().to_string();
+                let parent_json_value =
+                    parent_path.split('.').fold(&mut config_presentation, |entry, config_name| {
+                        entry.index_mut(config_name)
+                    });
+                // Skip the param if it is a field of an optional component and by default is None.
+                if parent_json_value.is_null() {
+                    continue;
+                }
+                serialization_type
+            }
         };
         args.push(format!("--{param_path}"));
 
@@ -135,7 +146,7 @@ fn default_config_file_is_up_to_date() {
     println!(
         "{}",
         "Default config file doesn't match the default NodeConfig implementation. Please update \
-         it using the papyrus_dump_config binary."
+         it using the dump_config binary."
             .purple()
             .bold()
     );

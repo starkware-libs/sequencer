@@ -22,7 +22,8 @@ use std::num::ParseIntError;
 use serde_utils::InnerDeserializationError;
 
 /// The error type returned by StarknetApi.
-#[derive(thiserror::Error, Clone, Debug)]
+// Note: if you need `Eq` see InnerDeserializationError's docstring.
+#[derive(thiserror::Error, Clone, Debug, PartialEq)]
 pub enum StarknetApiError {
     /// Error in the inner deserialization of the node.
     #[error(transparent)]

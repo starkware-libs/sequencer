@@ -75,8 +75,8 @@ pub async fn tree_computation_flow(
     let config = OriginalSkeletonStorageTrieConfig::new(&leaf_modifications, false);
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
-    let mut original_skeleton: OriginalSkeletonTreeImpl =
-        OriginalSkeletonTree::create(storage, root_hash, sorted_leaf_indices, &config)
+    let mut original_skeleton =
+        OriginalSkeletonTreeImpl::create(storage, root_hash, sorted_leaf_indices, &config)
             .expect("Failed to create the original skeleton tree");
 
     let updated_skeleton: UpdatedSkeletonTreeImpl = UpdatedSkeletonTree::create(
@@ -96,7 +96,7 @@ pub async fn tree_computation_flow(
     )
     .expect("Failed to create the updated skeleton tree");
 
-    StorageTrie::create::<TreeHashFunctionImpl>(updated_skeleton, leaf_modifications)
+    StorageTrie::create::<TreeHashFunctionImpl>(updated_skeleton.into(), leaf_modifications)
         .await
         .expect("Failed to create the filled tree")
 }

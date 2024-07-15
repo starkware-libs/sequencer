@@ -1,7 +1,7 @@
 use assert_matches::assert_matches;
-use papyrus_test_utils::read_json_file;
 use starknet_api::block::Block;
 use starknet_api::core::ChainId;
+use test_utils::read_json_file;
 
 use crate::block_hash::{
     calculate_block_hash_by_version,

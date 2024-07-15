@@ -1,5 +1,4 @@
 use lazy_static::lazy_static;
-use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::transaction::{
     Builtin,
     DeclareTransaction,
@@ -18,6 +17,7 @@ use starknet_api::transaction::{
     Transaction as StarknetApiTransaction,
     TransactionOutput,
 };
+use test_utils::{get_rng, GetTestInstance};
 
 use crate::sync::DataOrFin;
 

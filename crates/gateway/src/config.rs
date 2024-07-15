@@ -6,6 +6,7 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress, Nonce};
+use starknet_types_core::felt::Felt;
 use validator::Validate;
 
 use crate::compiler_version::VersionId;
@@ -15,6 +16,7 @@ pub struct GatewayConfig {
     pub network_config: GatewayNetworkConfig,
     pub stateless_tx_validator_config: StatelessTransactionValidatorConfig,
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
+    pub compiler_config: GatewayCompilerConfig,
 }
 
 impl SerializeConfig for GatewayConfig {
@@ -29,6 +31,7 @@ impl SerializeConfig for GatewayConfig {
                 self.stateful_tx_validator_config.dump(),
                 "stateful_tx_validator_config",
             ),
+            append_sub_config_name(self.compiler_config.dump(), "compiler_config"),
         ]
         .into_iter()
         .flatten()
@@ -81,14 +84,14 @@ pub struct StatelessTransactionValidatorConfig {
 impl Default for StatelessTransactionValidatorConfig {
     fn default() -> Self {
         StatelessTransactionValidatorConfig {
-            validate_non_zero_l1_gas_fee: false,
+            validate_non_zero_l1_gas_fee: true,
             validate_non_zero_l2_gas_fee: false,
-            max_calldata_length: 0,
-            max_signature_length: 0,
-            max_bytecode_size: 0,
-            max_raw_class_size: 0,
-            min_sierra_version: VersionId::MIN,
-            max_sierra_version: VersionId::MAX,
+            max_calldata_length: 4000,
+            max_signature_length: 4000,
+            max_bytecode_size: 81920,
+            max_raw_class_size: 4089446,
+            min_sierra_version: VersionId { major: 1, minor: 1, patch: 0 },
+            max_sierra_version: VersionId { major: 1, minor: 5, patch: usize::MAX },
         }
     }
 }
@@ -111,15 +114,25 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
             ser_param(
                 "max_signature_length",
                 &self.max_signature_length,
-                "Validates that a transaction has signature length less than or equal to this \
-                 value.",
+                "Limitation of signature length.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "max_calldata_length",
                 &self.max_calldata_length,
-                "Validates that a transaction has calldata length less than or equal to this \
-                 value.",
+                "Limitation of calldata length.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_bytecode_size",
+                &self.max_bytecode_size,
+                "Limitation of contract bytecode size.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_raw_class_size",
+                &self.max_raw_class_size,
+                "Limitation of contract class object size.",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -226,12 +239,23 @@ impl SerializeConfig for ChainInfoConfig {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct StatefulTransactionValidatorConfig {
     pub max_nonce_for_validation_skip: Nonce,
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
     pub chain_info: ChainInfoConfig,
+}
+
+impl Default for StatefulTransactionValidatorConfig {
+    fn default() -> Self {
+        StatefulTransactionValidatorConfig {
+            max_nonce_for_validation_skip: Nonce(Felt::ONE),
+            validate_max_n_steps: 1_000_000,
+            max_recursion_depth: 50,
+            chain_info: ChainInfoConfig::default(),
+        }
+    }
 }
 
 impl SerializeConfig for StatefulTransactionValidatorConfig {
@@ -240,19 +264,19 @@ impl SerializeConfig for StatefulTransactionValidatorConfig {
             ser_param(
                 "max_nonce_for_validation_skip",
                 &self.max_nonce_for_validation_skip,
-                "The maximum nonce for which the validation is skipped.",
+                "Maximum nonce for which the validation is skipped.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "validate_max_n_steps",
                 &self.validate_max_n_steps,
-                "The maximum number of steps the validation function is allowed to take.",
+                "Maximum number of steps the validation function is allowed to take.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "max_recursion_depth",
                 &self.max_recursion_depth,
-                "The maximum recursion depth allowed in a transaction.",
+                "Maximum recursion depth for nested calls during blockifier validation.",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -269,5 +293,14 @@ impl StatefulTransactionValidatorConfig {
             max_recursion_depth: 50,
             chain_info: ChainInfoConfig::create_for_testing(),
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+pub struct GatewayCompilerConfig {}
+
+impl SerializeConfig for GatewayCompilerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::new()
     }
 }

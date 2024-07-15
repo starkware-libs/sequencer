@@ -10,7 +10,7 @@ pub struct Components {
 }
 
 pub fn create_components(config: &MempoolNodeConfig, clients: &MempoolNodeClients) -> Components {
-    let gateway_component = if config.components.gateway_component.execute {
+    let gateway = if config.components.gateway.execute {
         let mempool_client =
             clients.get_mempool_client().expect("Mempool Client should be available");
 
@@ -23,8 +23,7 @@ pub fn create_components(config: &MempoolNodeConfig, clients: &MempoolNodeClient
         None
     };
 
-    let mempool_component =
-        if config.components.mempool_component.execute { Some(Mempool::empty()) } else { None };
+    let mempool = if config.components.mempool.execute { Some(Mempool::empty()) } else { None };
 
-    Components { gateway: gateway_component, mempool: mempool_component }
+    Components { gateway, mempool }
 }

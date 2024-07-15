@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::path::Path;
@@ -7,47 +8,28 @@ use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion, NonceManager};
 use serde_json::to_string_pretty;
 use starknet_api::core::{
-    calculate_contract_address,
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    Nonce,
+    calculate_contract_address, ClassHash, CompiledClassHash, ContractAddress, Nonce,
 };
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::rpc_transaction::{
-    ContractClass,
-    RPCDeclareTransactionV3,
-    RPCDeployAccountTransaction,
-    RPCDeployAccountTransactionV3,
-    RPCInvokeTransactionV3,
-    RPCTransaction,
-    ResourceBoundsMapping,
+    ContractClass, RPCDeclareTransactionV3, RPCDeployAccountTransaction,
+    RPCDeployAccountTransactionV3, RPCInvokeTransactionV3, RPCTransaction, ResourceBoundsMapping,
 };
 use starknet_api::transaction::{
-    AccountDeploymentData,
-    Calldata,
-    ContractAddressSalt,
-    PaymasterData,
-    ResourceBounds,
-    Tip,
-    TransactionSignature,
-    TransactionVersion,
+    AccountDeploymentData, Calldata, ContractAddressSalt, PaymasterData, ResourceBounds, Tip,
+    TransactionSignature, TransactionVersion,
 };
 use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
 
 use crate::{
-    declare_tx_args,
-    deploy_account_tx_args,
-    get_absolute_path,
-    invoke_tx_args,
-    COMPILED_CLASS_HASH_OF_CONTRACT_CLASS,
-    CONTRACT_CLASS_FILE,
-    TEST_FILES_FOLDER,
+    declare_tx_args, deploy_account_tx_args, get_absolute_path, invoke_tx_args,
+    COMPILED_CLASS_HASH_OF_CONTRACT_CLASS, CONTRACT_CLASS_FILE, TEST_FILES_FOLDER,
 };
 
-pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203483;
+pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
+pub const TEST_SENDER_ADDRESS: u128 = 0x1000;
 
 // Utils.
 pub enum TransactionType {
@@ -125,6 +107,141 @@ pub fn declare_tx() -> RPCTransaction {
         class_hash: compiled_class_hash,
         contract_class,
     ))
+}
+
+// Convenience method for generating a single invoke transaction with trivial fields.
+// For multiple, nonce-incrementing transactions, use the transaction generator directly.
+pub fn invoke_tx(cairo_version: CairoVersion) -> RPCTransaction {
+    let default_account = FeatureContract::AccountWithoutValidations(cairo_version);
+
+    MultiAccountTransactionGenerator::new_for_account_contracts([default_account])
+        .account_with_id(0)
+        .generate_default_invoke()
+}
+
+//  TODO(Yael 18/6/2024): Get a final decision from product whether to support Cairo0.
+pub fn deploy_account_tx() -> RPCTransaction {
+    let default_account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+
+    MultiAccountTransactionGenerator::new_for_account_contracts([default_account])
+        .account_with_id(0)
+        .generate_default_deploy_account()
+}
+
+// TODO: when moving this to Starknet API crate, move this const into a module alongside
+// MultiAcconutTransactionGenerator.
+type AccountId = u16;
+
+/// Manages transaction generation for multiple pre-funded accounts, internally bumping nonces
+/// as needed.
+///
+/// **Currently supports:**
+/// - Single contract type
+/// - Only supports invokes, which are all a trivial method in the contract type.
+///
+/// # Example
+///
+/// ```
+/// use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+///
+/// let mut tx_generator = MultiAccountTransactionGenerator::new(2); // Initialize with 2 accounts.
+/// let account_0_tx_with_nonce_0 = tx_generator.account_with_id(0).generate_default_invoke();
+/// let account_1_tx_with_nonce_0 = tx_generator.account_with_id(1).generate_default_invoke();
+/// let account_0_tx_with_nonce_1 = tx_generator.account_with_id(0).generate_default_invoke();
+/// ```
+// Note: when moving this to starknet api crate, see if blockifier's
+// [blockifier::transaction::test_utils::FaultyAccountTxCreatorArgs] can be made to use this.
+pub struct MultiAccountTransactionGenerator {
+    // Invariant: coupled with nonce_manager.
+    account_contracts: HashMap<AccountId, FeatureContract>,
+    // Invariant: nonces managed internally thorugh `generate` API.
+    nonce_manager: NonceManager,
+}
+
+impl MultiAccountTransactionGenerator {
+    pub fn new(n_accounts: usize) -> Self {
+        let default_account_contract =
+            FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+        let accounts = std::iter::repeat(default_account_contract).take(n_accounts);
+        Self::new_for_account_contracts(accounts)
+    }
+
+    pub fn new_for_account_contracts(accounts: impl IntoIterator<Item = FeatureContract>) -> Self {
+        let enumerated_accounts = (0..).zip(accounts);
+        let account_contracts = enumerated_accounts.collect();
+
+        Self { account_contracts, nonce_manager: NonceManager::default() }
+    }
+
+    pub fn account_with_id(&mut self, account_id: AccountId) -> AccountTransactionGenerator<'_> {
+        AccountTransactionGenerator { account_id, generator: self }
+    }
+}
+
+/// Manages transaction generation for a single account.
+/// Supports faulty transaction generation via [AccountTransactionGenerator::generate_raw].
+///
+/// This struct provides methods to generate both default and fully customized transactions,
+/// with room for future extensions.
+///
+/// TODO: add more transaction generation methods as needed.
+pub struct AccountTransactionGenerator<'a> {
+    account_id: AccountId,
+    generator: &'a mut MultiAccountTransactionGenerator,
+}
+
+impl<'a> AccountTransactionGenerator<'a> {
+    /// Generate a valid `RPCTransaction` with default parameters.
+    pub fn generate_default_invoke(&mut self) -> RPCTransaction {
+        let invoke_args = invoke_tx_args!(
+            sender_address: self.sender_address(),
+            resource_bounds: executable_resource_bounds_mapping(),
+            nonce: self.next_nonce(),
+            calldata: create_trivial_calldata(self.test_contract_address()),
+        );
+        external_invoke_tx(invoke_args)
+    }
+
+    pub fn generate_default_deploy_account(&mut self) -> RPCTransaction {
+        let nonce = self.next_nonce();
+        assert_eq!(nonce, Nonce(Felt::ZERO));
+
+        let deploy_account_args = deploy_account_tx_args!(
+            nonce,
+            class_hash: self.generator.account_contracts[&self.account_id].get_class_hash(),
+            resource_bounds: executable_resource_bounds_mapping()
+        );
+        external_deploy_account_tx(deploy_account_args)
+    }
+
+    // TODO: support more contracts, instead of this hardcoded type.
+    pub fn test_contract_address(&mut self) -> ContractAddress {
+        let cairo_version = self.generator.account_contracts[&self.account_id].cairo_version();
+        FeatureContract::TestContract(cairo_version).get_instance_address(self.account_id)
+    }
+
+    /// Generates an `RPCTransaction` with fully custom parameters.
+    ///
+    /// Caller must manually handle bumping nonce and fetching the correct sender address via
+    /// [AccountTransactionGenerator::nonce] and [AccountTransactionGenerator::sender_address].
+    /// See [AccountTransactionGenerator::generate_default] to have these filled up by default.
+    ///
+    /// Note: This is a best effort attempt to make the API more useful; amend or add new methods
+    /// as needed.
+    pub fn generate_raw(&mut self, invoke_tx_args: InvokeTxArgs) -> RPCTransaction {
+        external_invoke_tx(invoke_tx_args)
+    }
+
+    pub fn sender_address(&mut self) -> ContractAddress {
+        let account_id = self.account_id;
+        self.generator.account_contracts[&account_id].get_instance_address(account_id)
+    }
+
+    /// Retrieves the nonce for the current account, and __increments__ it internally.
+    pub fn next_nonce(&mut self) -> Nonce {
+        let sender_address = self.sender_address();
+        self.generator.nonce_manager.next(sender_address)
+    }
 }
 
 // TODO(Ayelet, 28/5/2025): Try unifying the macros.
@@ -213,7 +330,6 @@ impl Default for InvokeTxArgs {
 #[derive(Clone)]
 pub struct DeployAccountTxArgs {
     pub signature: TransactionSignature,
-    pub deployer_address: ContractAddress,
     pub version: TransactionVersion,
     pub resource_bounds: ResourceBoundsMapping,
     pub tip: Tip,
@@ -230,7 +346,6 @@ impl Default for DeployAccountTxArgs {
     fn default() -> Self {
         DeployAccountTxArgs {
             signature: TransactionSignature::default(),
-            deployer_address: ContractAddress::default(),
             version: TransactionVersion::THREE,
             resource_bounds: zero_resource_bounds_mapping(),
             tip: Tip::default(),
@@ -364,34 +479,6 @@ pub fn external_tx_to_json(tx: &RPCTransaction) -> String {
 
     // Serialize back to pretty JSON string
     to_string_pretty(&tx_json).expect("Failed to serialize transaction")
-}
-
-pub fn invoke_tx(cairo_version: CairoVersion) -> RPCTransaction {
-    let test_contract = FeatureContract::TestContract(cairo_version);
-    let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
-    let sender_address = account_contract.get_instance_address(0);
-    let mut nonce_manager = NonceManager::default();
-
-    external_invoke_tx(invoke_tx_args!(
-        resource_bounds: executable_resource_bounds_mapping(),
-        nonce : nonce_manager.next(sender_address),
-        sender_address,
-        calldata: create_trivial_calldata(test_contract.get_instance_address(0))
-    ))
-}
-
-//  TODO(Yael 18/6/2024): Get a final decision from product whether to support Cairo0.
-pub fn deploy_account_tx() -> RPCTransaction {
-    let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
-    let sender_address = account_contract.get_instance_address(0);
-    let mut nonce_manager = NonceManager::default();
-
-    external_deploy_account_tx(deploy_account_tx_args!(
-        nonce: nonce_manager.next(sender_address),
-        deployer_address: sender_address,
-        class_hash: account_contract.get_class_hash(),
-        resource_bounds: executable_resource_bounds_mapping(),
-    ))
 }
 
 pub fn deployed_account_contract_address(deploy_tx: &RPCTransaction) -> ContractAddress {

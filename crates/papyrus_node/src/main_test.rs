@@ -3,8 +3,8 @@ use std::time::Duration;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use papyrus_node::config::NodeConfig;
 use papyrus_storage::{open_storage, StorageConfig};
-use papyrus_test_utils::prometheus_is_contained;
 use tempfile::TempDir;
+use test_utils::prometheus_is_contained;
 
 use crate::{run_threads, spawn_storage_metrics_collector};
 

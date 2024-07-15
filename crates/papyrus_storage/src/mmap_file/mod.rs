@@ -19,10 +19,10 @@ use memmap2::{MmapMut, MmapOptions};
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 #[cfg(test)]
-use papyrus_test_utils::GetTestInstance;
-#[cfg(test)]
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
+#[cfg(test)]
+use test_utils::GetTestInstance;
 use thiserror::Error;
 use tracing::{debug, instrument, trace};
 use validator::{Validate, ValidationError};

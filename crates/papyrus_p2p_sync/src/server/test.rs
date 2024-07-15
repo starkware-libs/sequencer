@@ -23,12 +23,12 @@ use papyrus_storage::header::{HeaderStorageReader, HeaderStorageWriter};
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
 use papyrus_storage::{StorageReader, StorageWriter};
-use papyrus_test_utils::{get_rng, get_test_body, GetTestInstance};
 use rand::random;
 use starknet_api::block::{BlockBody, BlockHash, BlockHeader, BlockNumber, BlockSignature};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::ContractClass;
 use starknet_api::transaction::{Event, Transaction, TransactionHash, TransactionOutput};
+use test_utils::{get_rng, get_test_body, GetTestInstance};
 
 use super::{split_thin_state_diff, FetchBlockDataFromDb, P2PSyncServer};
 const BUFFER_SIZE: usize = 10;

@@ -1,7 +1,6 @@
 use std::vec;
 
 use assert_matches::assert_matches;
-use papyrus_test_utils::get_test_block;
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::{
@@ -11,6 +10,7 @@ use starknet_api::transaction::{
     EventIndexInTransactionOutput,
     TransactionOffsetInBlock,
 };
+use test_utils::get_test_block;
 
 use crate::body::events::{get_events_from_tx, EventIndex, EventsReader};
 use crate::body::{BodyStorageWriter, TransactionIndex};

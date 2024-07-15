@@ -114,14 +114,14 @@ impl<'a> SubTree<'a> {
     }
 }
 
-impl OriginalSkeletonTreeImpl {
+impl<'a> OriginalSkeletonTreeImpl<'a> {
     /// Fetches the Patricia witnesses, required to build the original skeleton tree from storage.
     /// Given a list of subtrees, traverses towards their leaves and fetches all non-empty,
     /// unmodified nodes. If `compare_modified_leaves` is set, function logs out a warning when
     /// encountering a trivial modification. Fills the previous leaf values if it is not none.
     fn fetch_nodes<L: LeafData>(
         &mut self,
-        subtrees: Vec<SubTree<'_>>,
+        subtrees: Vec<SubTree<'a>>,
         storage: &impl Storage,
         config: &impl OriginalSkeletonTreeConfig<L>,
         mut previous_leaves: Option<&mut HashMap<NodeIndex, L>>,
@@ -214,7 +214,7 @@ impl OriginalSkeletonTreeImpl {
     }
 
     fn calculate_subtrees_roots<L: LeafData>(
-        subtrees: &[SubTree<'_>],
+        subtrees: &[SubTree<'a>],
         storage: &impl Storage,
     ) -> OriginalSkeletonTreeResult<Vec<FilledNode<L>>> {
         let mut subtrees_roots = vec![];
@@ -249,7 +249,7 @@ impl OriginalSkeletonTreeImpl {
     pub(crate) fn create_impl<L: LeafData>(
         storage: &impl Storage,
         root_hash: HashOutput,
-        sorted_leaf_indices: SortedLeafIndices<'_>,
+        sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
     ) -> OriginalSkeletonTreeResult<Self> {
         if sorted_leaf_indices.is_empty() {
@@ -260,7 +260,7 @@ impl OriginalSkeletonTreeImpl {
                 sorted_leaf_indices.get_indices(),
                 config,
             )?;
-            return Ok(Self::create_empty());
+            return Ok(Self::create_empty(sorted_leaf_indices));
         }
         let main_subtree = SubTree {
             sorted_leaf_indices,
@@ -269,6 +269,7 @@ impl OriginalSkeletonTreeImpl {
         };
         let mut skeleton_tree = Self {
             nodes: HashMap::new(),
+            sorted_leaf_indices,
         };
         skeleton_tree.fetch_nodes::<L>(vec![main_subtree], storage, config, None)?;
         Ok(skeleton_tree)
@@ -277,7 +278,7 @@ impl OriginalSkeletonTreeImpl {
     pub(crate) fn create_and_get_previous_leaves_impl<L: LeafData>(
         storage: &impl Storage,
         root_hash: HashOutput,
-        sorted_leaf_indices: SortedLeafIndices<'_>,
+        sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
     ) -> OriginalSkeletonTreeResult<(Self, HashMap<NodeIndex, L>)> {
         if sorted_leaf_indices.is_empty() {
@@ -286,7 +287,7 @@ impl OriginalSkeletonTreeImpl {
         }
         if root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
             return Ok((
-                Self::create_empty(),
+                Self::create_empty(sorted_leaf_indices),
                 sorted_leaf_indices
                     .get_indices()
                     .iter()
@@ -301,6 +302,7 @@ impl OriginalSkeletonTreeImpl {
         };
         let mut skeleton_tree = Self {
             nodes: HashMap::new(),
+            sorted_leaf_indices,
         };
         let mut leaves = HashMap::new();
         skeleton_tree.fetch_nodes::<L>(vec![main_subtree], storage, config, Some(&mut leaves))?;
@@ -313,18 +315,20 @@ impl OriginalSkeletonTreeImpl {
                 NodeIndex::ROOT,
                 OriginalSkeletonNode::UnmodifiedSubTree(root_hash),
             )]),
+            sorted_leaf_indices: SortedLeafIndices::default(),
         }
     }
 
-    fn create_empty() -> Self {
+    fn create_empty(sorted_leaf_indices: SortedLeafIndices<'a>) -> Self {
         Self {
             nodes: HashMap::new(),
+            sorted_leaf_indices,
         }
     }
 
     /// Handles a subtree referred by an edge or a binary node. Decides whether we deserialize the
     /// referred subtree or not.
-    fn handle_subtree<'a>(
+    fn handle_subtree(
         &mut self,
         next_subtrees: &mut Vec<SubTree<'a>>,
         subtree: SubTree<'a>,

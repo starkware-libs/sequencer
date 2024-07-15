@@ -15,11 +15,7 @@ use crate::context::{BlockContext, TransactionContext};
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionFeeError;
 use crate::transaction::objects::{
-    ExecutionResourcesTraits,
-    FeeType,
-    GasVector,
-    TransactionFeeResult,
-    TransactionInfo,
+    ExecutionResourcesTraits, FeeType, GasVector, TransactionFeeResult, TransactionInfo,
 };
 use crate::utils::u128_from_usize;
 use crate::versioned_constants::VersionedConstants;
