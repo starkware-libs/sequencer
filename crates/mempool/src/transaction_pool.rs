@@ -13,7 +13,7 @@ type HashToTransaction = HashMap<TransactionHash, ThinTransaction>;
 /// Invariant: both data structures are consistent regarding the existence of transactions:
 /// A transaction appears in one if and only if it appears in the other.
 /// No duplicate transactions appear in the pool.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Eq, PartialEq)]
 pub struct TransactionPool {
     // Holds the complete transaction objects; it should be the sole entity that does so.
     tx_pool: HashToTransaction,
@@ -79,7 +79,7 @@ impl TransactionPool {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Eq, PartialEq)]
 struct AccountTransactionIndex(HashMap<ContractAddress, BTreeMap<Nonce, TransactionReference>>);
 
 impl AccountTransactionIndex {
