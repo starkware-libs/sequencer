@@ -70,8 +70,20 @@ impl Mempool {
     // push back.
     pub fn commit_block(
         &mut self,
-        _state_changes: HashMap<ContractAddress, AccountState>,
+        state_changes: HashMap<ContractAddress, AccountState>,
     ) -> MempoolResult<()> {
+        for (address, AccountState { nonce }) in state_changes {
+            // Dequeue transactions from the queue in the following cases:
+            // 1. Remove a transaction from queue with nonce lower than those committed to the
+            //    block, applicable when the block is from the same leader.
+            // 2. Remove a transaction from queue with nonce greater than those committed to the
+            //    block, applicable when the block is from a different leader.
+            if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| queued_nonce != nonce) {
+                self.tx_queue.remove(address);
+            }
+            // TODO: remove the transactions from the tx_pool.
+        }
+        // TODO: update the tx_queue with the new state changes.
         todo!()
     }
 
