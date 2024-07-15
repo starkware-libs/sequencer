@@ -130,7 +130,7 @@ pub fn deploy_account_tx() -> RPCTransaction {
 
 // TODO: when moving this to Starknet API crate, move this const into a module alongside
 // MultiAcconutTransactionGenerator.
-type AccountId = u16;
+type AccountId = usize;
 
 /// Manages transaction generation for multiple pre-funded accounts, internally bumping nonces
 /// as needed.
@@ -217,7 +217,8 @@ impl<'a> AccountTransactionGenerator<'a> {
     // TODO: support more contracts, instead of this hardcoded type.
     pub fn test_contract_address(&mut self) -> ContractAddress {
         let cairo_version = self.generator.account_contracts[&self.account_id].cairo_version();
-        FeatureContract::TestContract(cairo_version).get_instance_address(self.account_id)
+        let account_id = u16::try_from(self.account_id).unwrap();
+        FeatureContract::TestContract(cairo_version).get_instance_address(account_id)
     }
 
     /// Generates an `RPCTransaction` with fully custom parameters.
@@ -233,8 +234,8 @@ impl<'a> AccountTransactionGenerator<'a> {
     }
 
     pub fn sender_address(&mut self) -> ContractAddress {
-        let account_id = self.account_id;
-        self.generator.account_contracts[&account_id].get_instance_address(account_id)
+        let account_id = u16::try_from(self.account_id).unwrap();
+        self.generator.account_contracts[&self.account_id].get_instance_address(account_id)
     }
 
     /// Retrieves the nonce for the current account, and __increments__ it internally.
