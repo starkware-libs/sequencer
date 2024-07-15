@@ -284,7 +284,8 @@ fn test_create_original_skeleton_forest(
         MapStorage::from(input.storage),
         input.contracts_trie_root_hash,
         input.classes_trie_root_hash,
-        &input.state_diff,
+        &input.state_diff.actual_storage_updates(),
+        &input.state_diff.actual_classes_updates(),
         &forest_sorted_indices,
         &ConfigImpl::new(false),
     )
