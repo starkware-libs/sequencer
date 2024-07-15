@@ -49,28 +49,28 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
     invoke_tx(CairoVersion::Cairo1),
     local_test_state_reader_factory(CairoVersion::Cairo1, false),
     Ok(TransactionHash(felt!(
-        "0x007d70505b4487a4e1c1a4b4e4342cb5aa9e73b86d031891170c45a57ad8b4e6"
+        "0x152b8dd0c30e95fa3a4ee7a9398fcfc46fb00c048b4fdcfa9958c64d65899b8"
     )))
 )]
 #[case::valid_invoke_tx_cairo0(
     invoke_tx(CairoVersion::Cairo0),
     local_test_state_reader_factory(CairoVersion::Cairo0, false),
     Ok(TransactionHash(felt!(
-        "0x032e3a969a64027f15ce2b526d8dff47d47524c58ff0363f93ce4cbe7c280861"
+        "0x39650ba8d14d8534957a415db496a7eea9e10a4cb06b018d4d24d0537bcc943"
     )))
 )]
 #[case::valid_deploy_account_tx(
     deploy_account_tx(),
     local_test_state_reader_factory_for_deploy_account(&external_tx),
     Ok(TransactionHash(felt!(
-        "0x013287740b37dc112391de4ef0f7cd7aeca323537ca2a78a1108c6aee5a55d70"
+        "0xe9ad58949803159d16d295ff8536ed89ac2dd0b7168c461648a7a2ff44ead2"
     )))
 )]
 #[case::valid_declare_tx(
     declare_tx(),
     local_test_state_reader_factory(CairoVersion::Cairo1, false),
     Ok(TransactionHash(felt!(
-        "0x02da54b89e00d2e201f8e3ed2bcc715a69e89aefdce88aff2d2facb8dec55c0a"
+        "0x157c517d0bd6fe177dd4f13b47bc3050aceae12609338ccd44a0eff1a3ce7c9"
     )))
 )]
 #[case::invalid_tx(
@@ -161,7 +161,7 @@ fn test_skip_stateful_validation(
         // To be sure that the validations were actually skipped, we check that the error came from
         // the blockifier stateful validations, and not from the pre validations since those are
         // executed also when skip_validate is true.
-        assert_matches!(result, Err(StatefulTransactionValidatorError::StatefulValidatorError(err)) 
+        assert_matches!(result, Err(StatefulTransactionValidatorError::StatefulValidatorError(err))
             if !matches!(err, StatefulValidatorError::TransactionPreValidationError(_)));
     }
 }
