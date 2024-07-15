@@ -1,12 +1,12 @@
 use crate::block_committer::input::StarknetStorageValue;
 use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
-use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafData, LeafModifications};
+use crate::patricia_merkle_tree::node_data::leaf::{ContractState, Leaf, LeafModifications};
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::types::NodeIndex;
 
 /// Configures the creation of an original skeleton tree.
-pub(crate) trait OriginalSkeletonTreeConfig<L: LeafData> {
+pub(crate) trait OriginalSkeletonTreeConfig<L: Leaf> {
     /// Configures whether modified leaves should be compared to the previous leaves and log out a
     /// warning when encountering a trivial modification.
     fn compare_modified_leaves(&self) -> bool;

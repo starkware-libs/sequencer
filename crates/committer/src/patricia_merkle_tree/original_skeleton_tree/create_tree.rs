@@ -4,7 +4,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::BinaryData;
 use crate::patricia_merkle_tree::node_data::inner_node::EdgeData;
 use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
-use crate::patricia_merkle_tree::node_data::leaf::LeafData;
+use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
@@ -119,7 +119,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
     /// Given a list of subtrees, traverses towards their leaves and fetches all non-empty,
     /// unmodified nodes. If `compare_modified_leaves` is set, function logs out a warning when
     /// encountering a trivial modification. Fills the previous leaf values if it is not none.
-    fn fetch_nodes<L: LeafData>(
+    fn fetch_nodes<L: Leaf>(
         &mut self,
         subtrees: Vec<SubTree<'a>>,
         storage: &impl Storage,
@@ -213,7 +213,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         self.fetch_nodes::<L>(next_subtrees, storage, config, previous_leaves)
     }
 
-    fn calculate_subtrees_roots<L: LeafData>(
+    fn calculate_subtrees_roots<L: Leaf>(
         subtrees: &[SubTree<'a>],
         storage: &impl Storage,
     ) -> OriginalSkeletonTreeResult<Vec<FilledNode<L>>> {
@@ -246,7 +246,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         Ok(subtrees_roots)
     }
 
-    pub(crate) fn create_impl<L: LeafData>(
+    pub(crate) fn create_impl<L: Leaf>(
         storage: &impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -275,7 +275,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         Ok(skeleton_tree)
     }
 
-    pub(crate) fn create_and_get_previous_leaves_impl<L: LeafData>(
+    pub(crate) fn create_and_get_previous_leaves_impl<L: Leaf>(
         storage: &impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -348,7 +348,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
     /// Given leaf indices that were previously empty leaves, logs out a warning for trivial
     /// modification if a leaf is modified to an empty leaf.
     /// If this check is suppressed by configuration, does nothing.
-    fn log_warning_for_empty_leaves<L: LeafData, T: Borrow<NodeIndex> + Debug>(
+    fn log_warning_for_empty_leaves<L: Leaf, T: Borrow<NodeIndex> + Debug>(
         leaf_indices: &[T],
         config: &impl OriginalSkeletonTreeConfig<L>,
     ) -> OriginalSkeletonTreeResult<()> {

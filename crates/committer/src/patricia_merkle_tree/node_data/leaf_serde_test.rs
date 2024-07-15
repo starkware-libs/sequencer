@@ -4,7 +4,7 @@ use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
 use crate::patricia_merkle_tree::node_data::leaf::ContractState;
-use crate::patricia_merkle_tree::node_data::leaf::LeafData;
+use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 
 use rstest::rstest;
 use std::fmt::Debug;
@@ -26,7 +26,7 @@ use std::fmt::Debug;
     nonce: Nonce(Felt::from(23479515749555_u128)), storage_root_hash: HashOutput(Felt::from(2359743529034_u128)), class_hash: ClassHash(Felt::from(1349866415897798_u128))
    })
 ]
-fn test_leaf_serde<L: LeafData + Eq + Debug>(#[case] leaf: L) {
+fn test_leaf_serde<L: Leaf + Eq + Debug>(#[case] leaf: L) {
     let serialized = leaf.serialize();
     let deserialized = L::deserialize(&serialized).unwrap();
     assert_eq!(deserialized, leaf);
@@ -36,6 +36,6 @@ fn test_leaf_serde<L: LeafData + Eq + Debug>(#[case] leaf: L) {
 #[case::storage_leaf(StarknetStorageValue::default())]
 #[case::compiled_class_leaf(CompiledClassHash::default())]
 #[case::contract_state_leaf(ContractState::default())]
-fn test_default_is_empty<L: LeafData>(#[case] leaf: L) {
+fn test_default_is_empty<L: Leaf>(#[case] leaf: L) {
     assert!(leaf.is_empty())
 }

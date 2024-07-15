@@ -14,7 +14,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::BinaryData;
 use crate::patricia_merkle_tree::node_data::inner_node::EdgeData;
 use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
 use crate::patricia_merkle_tree::node_data::leaf::ContractState;
-use crate::patricia_merkle_tree::node_data::leaf::LeafData;
+use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
@@ -32,7 +32,7 @@ pub(crate) type FilledTreeResult<T, L> = Result<T, FilledTreeError<L>>;
 /// Consider a Patricia-Merkle Tree which has been updated with new leaves.
 /// FilledTree consists of all nodes which were modified in the update, including their updated
 /// data and hashes.
-pub(crate) trait FilledTree<L: LeafData>: Sized {
+pub(crate) trait FilledTree<L: Leaf>: Sized {
     /// Computes and returns the filled tree.
     async fn create<'a, TH: TreeHashFunction<L> + 'static>(
         updated_skeleton: Arc<impl UpdatedSkeletonTree<'a> + 'static>,
@@ -48,7 +48,7 @@ pub(crate) trait FilledTree<L: LeafData>: Sized {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct FilledTreeImpl<L: LeafData> {
+pub struct FilledTreeImpl<L: Leaf> {
     pub tree_map: HashMap<NodeIndex, FilledNode<L>>,
     pub root_hash: HashOutput,
 }
@@ -58,7 +58,7 @@ pub type ClassesTrie = FilledTreeImpl<CompiledClassHash>;
 pub type ContractsTrie = FilledTreeImpl<ContractState>;
 pub type StorageTrieMap = HashMap<ContractAddress, StorageTrie>;
 
-impl<L: LeafData + 'static> FilledTreeImpl<L> {
+impl<L: Leaf + 'static> FilledTreeImpl<L> {
     fn initialize_with_placeholders<'a>(
         updated_skeleton: &Arc<impl UpdatedSkeletonTree<'a>>,
     ) -> HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>> {
@@ -213,7 +213,7 @@ impl<L: LeafData + 'static> FilledTreeImpl<L> {
     }
 }
 
-impl<L: LeafData + 'static> FilledTree<L> for FilledTreeImpl<L> {
+impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
     async fn create<'a, TH: TreeHashFunction<L> + 'static>(
         updated_skeleton: Arc<impl UpdatedSkeletonTree<'a> + 'static>,
         leaf_modifications: Arc<LeafModifications<L>>,
