@@ -234,18 +234,26 @@ fn test_add_tx_with_duplicate_tx(mut mempool: Mempool) {
 
 #[rstest]
 fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
+    // Setup.
     let input1 = add_tx_input!(tip: 1, tx_hash: 2);
 
     // Create a transaction with identical tip, it should be allowed through since the priority
     // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
     let input2 = add_tx_input!(tip: 1, tx_hash: 1, sender_address: "0x1");
 
+    // Test.
     add_tx(&mut mempool, &input1);
     add_tx(&mut mempool, &input2);
 
+    // Assert: both transactions are in the mempool.
+    let expected_queue_txs =
+        [TransactionReference::new(&input1.tx), TransactionReference::new(&input2.tx)];
+    let expected_pool_txs = [input1.tx, input2.tx];
+    let expected_mempool_state = MempoolState::new(expected_pool_txs, expected_queue_txs);
+
     // TODO: currently hash comparison tie-breaks the two. Once more robust tie-breaks are added
     // replace this assertion with a dedicated test.
-    assert_eq_mempool_queue(&mempool, &[input1.tx, input2.tx]);
+    expected_mempool_state.assert_eq_mempool_state(&mempool);
 }
 
 #[rstest]
