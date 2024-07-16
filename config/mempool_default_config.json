@@ -1,10 +1,10 @@
 {
-  "components.gateway_component.execute": {
+  "components.gateway.execute": {
     "description": "The component execution flag.",
     "privacy": "Public",
     "value": true
   },
-  "components.mempool_component.execute": {
+  "components.mempool.execute": {
     "description": "The component execution flag.",
     "privacy": "Public",
     "value": true
@@ -35,34 +35,44 @@
     "value": "0x0"
   },
   "gateway_config.stateful_tx_validator_config.max_nonce_for_validation_skip": {
-    "description": "The maximum nonce for which the validation is skipped.",
+    "description": "Maximum nonce for which the validation is skipped.",
     "privacy": "Public",
-    "value": "0x0"
+    "value": "0x1"
   },
   "gateway_config.stateful_tx_validator_config.max_recursion_depth": {
-    "description": "The maximum recursion depth allowed in a transaction.",
+    "description": "Maximum recursion depth for nested calls during blockifier validation.",
     "privacy": "Public",
-    "value": 0
+    "value": 50
   },
   "gateway_config.stateful_tx_validator_config.validate_max_n_steps": {
-    "description": "The maximum number of steps the validation function is allowed to take.",
+    "description": "Maximum number of steps the validation function is allowed to take.",
     "privacy": "Public",
-    "value": 0
+    "value": 1000000
+  },
+  "gateway_config.stateless_tx_validator_config.max_bytecode_size": {
+    "description": "Limitation of contract bytecode size.",
+    "privacy": "Public",
+    "value": 81920
   },
   "gateway_config.stateless_tx_validator_config.max_calldata_length": {
-    "description": "Validates that a transaction has calldata length less than or equal to this value.",
+    "description": "Limitation of calldata length.",
     "privacy": "Public",
-    "value": 0
+    "value": 4000
+  },
+  "gateway_config.stateless_tx_validator_config.max_raw_class_size": {
+    "description": "Limitation of contract class object size.",
+    "privacy": "Public",
+    "value": 4089446
   },
   "gateway_config.stateless_tx_validator_config.max_sierra_version.major": {
     "description": "The major version of the configuration.",
     "privacy": "Public",
-    "value": 18446744073709551615
+    "value": 1
   },
   "gateway_config.stateless_tx_validator_config.max_sierra_version.minor": {
     "description": "The minor version of the configuration.",
     "privacy": "Public",
-    "value": 18446744073709551615
+    "value": 5
   },
   "gateway_config.stateless_tx_validator_config.max_sierra_version.patch": {
     "description": "The patch version of the configuration.",
@@ -70,19 +80,19 @@
     "value": 18446744073709551615
   },
   "gateway_config.stateless_tx_validator_config.max_signature_length": {
-    "description": "Validates that a transaction has signature length less than or equal to this value.",
+    "description": "Limitation of signature length.",
     "privacy": "Public",
-    "value": 0
+    "value": 4000
   },
   "gateway_config.stateless_tx_validator_config.min_sierra_version.major": {
     "description": "The major version of the configuration.",
     "privacy": "Public",
-    "value": 0
+    "value": 1
   },
   "gateway_config.stateless_tx_validator_config.min_sierra_version.minor": {
     "description": "The minor version of the configuration.",
     "privacy": "Public",
-    "value": 0
+    "value": 1
   },
   "gateway_config.stateless_tx_validator_config.min_sierra_version.patch": {
     "description": "The patch version of the configuration.",
@@ -92,7 +102,7 @@
   "gateway_config.stateless_tx_validator_config.validate_non_zero_l1_gas_fee": {
     "description": "If true, validates that a transaction has non-zero L1 resource bounds.",
     "privacy": "Public",
-    "value": false
+    "value": true
   },
   "gateway_config.stateless_tx_validator_config.validate_non_zero_l2_gas_fee": {
     "description": "If true, validates that a transaction has non-zero L2 resource bounds.",
