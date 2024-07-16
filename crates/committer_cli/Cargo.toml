@@ -18,7 +18,6 @@ clap.workspace = true
 committer = { path = "../committer", features = ["testing"] }
 derive_more.workspace = true
 ethnum.workspace = true
-hex.workspace = true
 indexmap.workspace = true
 log.workspace = true
 rand.workspace = true
@@ -29,7 +28,6 @@ simplelog.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0"}
 strum.workspace = true
-strum_macros.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 
