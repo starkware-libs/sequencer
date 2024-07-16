@@ -145,7 +145,8 @@ fn assert_eq_mempool_queue(mempool: &Mempool, expected_queue: &[ThinTransaction]
 #[case::test_get_more_than_all_eligible_txs(5)]
 #[case::test_get_less_than_all_eligible_txs(2)]
 fn test_get_txs(#[case] requested_txs: usize) {
-    let tx_tip_20_account_0 = add_tx_input!(tip: 20, tx_hash: 1).tx;
+    // Setup.
+    let tx_tip_20_account_0 = add_tx_input!(tip: 20, tx_hash: 1, sender_address: "0x0").tx;
     let tx_tip_30_account_1 = add_tx_input!(tip: 30, tx_hash: 2, sender_address: "0x1").tx;
     let tx_tip_10_account_2 = add_tx_input!(tip: 10, tx_hash: 3, sender_address: "0x2").tx;
 
@@ -155,6 +156,7 @@ fn test_get_txs(#[case] requested_txs: usize) {
 
     let mut mempool: Mempool = MempoolState::new(txs_iterator, tx_references_iterator).into();
 
+    // Test.
     let fetched_txs = mempool.get_txs(requested_txs).unwrap();
 
     txs.sort_by_key(|tx| Reverse(tx.tip));
@@ -166,7 +168,7 @@ fn test_get_txs(#[case] requested_txs: usize) {
     let (expected_queue, remaining_txs) = txs.split_at(max_requested_txs);
     assert_eq!(fetched_txs, expected_queue);
 
-    // Check that the transactions that were not returned are still in the mempool.
+    // Assert: non-returned transactions are still in the mempool.
     let remaining_tx_references = remaining_txs.iter().map(TransactionReference::new);
     let mempool_state = MempoolState::new(remaining_txs.to_vec(), remaining_tx_references);
     mempool_state.assert_eq_mempool_state(&mempool);
