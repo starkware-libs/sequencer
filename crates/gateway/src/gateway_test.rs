@@ -8,7 +8,7 @@ use blockifier::context::ChainInfo;
 use blockifier::test_utils::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::{declare_tx, deploy_account_tx, invoke_tx};
 use rstest::{fixture, rstest};
-use starknet_api::rpc_transaction::RPCTransaction;
+use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool::communication::create_mempool_server;
 use starknet_mempool::mempool::Mempool;
@@ -18,11 +18,14 @@ use tokio::sync::mpsc::channel;
 use tokio::task;
 
 use crate::config::{
-    GatewayCompilerConfig, StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig,
+    GatewayCompilerConfig,
+    StatefulTransactionValidatorConfig,
+    StatelessTransactionValidatorConfig,
 };
 use crate::gateway::{add_tx, AppState, GatewayCompiler, SharedMempoolClient};
 use crate::state_reader_test_utils::{
-    local_test_state_reader_factory, local_test_state_reader_factory_for_deploy_account,
+    local_test_state_reader_factory,
+    local_test_state_reader_factory_for_deploy_account,
     TestStateReaderFactory,
 };
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
@@ -80,7 +83,7 @@ pub fn app_state(
 )]
 #[tokio::test]
 async fn test_add_tx(
-    #[case] tx: RPCTransaction,
+    #[case] tx: RpcTransaction,
     #[case] state_reader_factory: TestStateReaderFactory,
     mempool: Mempool,
 ) {
@@ -112,11 +115,11 @@ async fn to_bytes(res: Response) -> Bytes {
 }
 
 fn calculate_hash(
-    external_tx: &RPCTransaction,
+    external_tx: &RpcTransaction,
     gateway_compiler: &GatewayCompiler,
 ) -> TransactionHash {
     let optional_class_info = match &external_tx {
-        RPCTransaction::Declare(declare_tx) => {
+        RpcTransaction::Declare(declare_tx) => {
             Some(gateway_compiler.compile_contract_class(declare_tx).unwrap())
         }
         _ => None,

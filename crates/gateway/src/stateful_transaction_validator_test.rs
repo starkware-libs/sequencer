@@ -6,15 +6,20 @@ use blockifier::test_utils::CairoVersion;
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
 use mempool_test_utils::invoke_tx_args;
 use mempool_test_utils::starknet_api_test_utils::{
-    declare_tx, deploy_account_tx, external_invoke_tx, invoke_tx, TEST_SENDER_ADDRESS,
-    VALID_L1_GAS_MAX_AMOUNT, VALID_L1_GAS_MAX_PRICE_PER_UNIT,
+    declare_tx,
+    deploy_account_tx,
+    external_invoke_tx,
+    invoke_tx,
+    TEST_SENDER_ADDRESS,
+    VALID_L1_GAS_MAX_AMOUNT,
+    VALID_L1_GAS_MAX_PRICE_PER_UNIT,
 };
 use num_bigint::BigUint;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::felt;
-use starknet_api::rpc_transaction::RPCTransaction;
+use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
@@ -22,8 +27,10 @@ use crate::compilation::GatewayCompiler;
 use crate::config::{GatewayCompilerConfig, StatefulTransactionValidatorConfig};
 use crate::errors::{StatefulTransactionValidatorError, StatefulTransactionValidatorResult};
 use crate::state_reader_test_utils::{
-    local_test_state_reader_factory, local_test_state_reader_factory_for_deploy_account,
-    TestStateReader, TestStateReaderFactory,
+    local_test_state_reader_factory,
+    local_test_state_reader_factory_for_deploy_account,
+    TestStateReader,
+    TestStateReaderFactory,
 };
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 
@@ -89,13 +96,13 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
     ))
 )]
 fn test_stateful_tx_validator(
-    #[case] external_tx: RPCTransaction,
+    #[case] external_tx: RpcTransaction,
     #[case] state_reader_factory: TestStateReaderFactory,
     #[case] expected_result: StatefulTransactionValidatorResult<TransactionHash>,
     stateful_validator: StatefulTransactionValidator,
 ) {
     let optional_class_info = match &external_tx {
-        RPCTransaction::Declare(declare_tx) => Some(
+        RpcTransaction::Declare(declare_tx) => Some(
             GatewayCompiler { config: GatewayCompilerConfig {} }
                 .compile_contract_class(declare_tx)
                 .unwrap(),
@@ -148,7 +155,7 @@ fn test_instantiate_validator() {
 )]
 // TODO(yael 10/7/2024): use mock validator in this test once ready.
 fn test_skip_stateful_validation(
-    #[case] external_tx: RPCTransaction,
+    #[case] external_tx: RpcTransaction,
     #[case] state_reader_factory: TestStateReaderFactory,
     #[case] should_pass_validation: bool,
     stateful_validator: StatefulTransactionValidator,
