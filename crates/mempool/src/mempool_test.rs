@@ -80,7 +80,6 @@ fn add_tx(mempool: &mut Mempool, input: &MempoolInput) {
 /// 3. add_tx_input!(tip: 1, tx_hash: 2, sender_address: 3_u8)
 /// 4. add_tx_input!(tip: 1, tx_hash: 2)
 macro_rules! add_tx_input {
-    // Pattern for all four arguments with keyword arguments.
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
         tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {{
         let sender_address = contract_address!($sender_address);
@@ -94,15 +93,12 @@ macro_rules! add_tx_input {
         };
         MempoolInput { tx, account }
     }};
-    // Pattern for four arguments.
     (tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
         add_tx_input!(tip: 0, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, account_nonce: $account_nonce)
     };
-    // Pattern for three arguments.
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr) => {
         add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: 0_u8, account_nonce: 0_u8)
     };
-    // Pattern for two arguments.
     (tip: $tip:expr, tx_hash: $tx_hash:expr) => {
         add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8)
     };
