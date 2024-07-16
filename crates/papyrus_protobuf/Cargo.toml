@@ -1,6 +1,6 @@
 [package]
 name = "papyrus_protobuf"
-version.workspace = true
+version = "0.4.0-rc.0"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -15,7 +15,7 @@ primitive-types.workspace = true
 prost.workspace = true
 rand = { workspace = true, optional = true }
 rand_chacha = { workspace = true, optional = true }
-starknet_api.workspace = true
+starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0"}
 starknet-types-core.workspace = true
 test_utils = { path = "../test_utils", optional = true }
 thiserror.workspace = true
