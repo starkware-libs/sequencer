@@ -133,6 +133,7 @@ pub fn deploy_account_tx() -> RPCTransaction {
 // TODO: when moving this to Starknet API crate, move this const into a module alongside
 // MultiAcconutTransactionGenerator.
 type AccountId = usize;
+type ContractInstanceId = u16;
 
 type SharedNonceManager = Rc<RefCell<NonceManager>>;
 
@@ -156,7 +157,7 @@ type SharedNonceManager = Rc<RefCell<NonceManager>>;
 // Note: when moving this to starknet api crate, see if blockifier's
 // [blockifier::transaction::test_utils::FaultyAccountTxCreatorArgs] can be made to use this.
 pub struct MultiAccountTransactionGenerator {
-    // Invariant: coupled with nonce_manager.
+    // Invariant: coupled with the nonce manager.
     account_contracts: HashMap<AccountId, AccountTransactionGenerator>,
     // Invariant: nonces managed internally thorugh `generate` API of the account transaction
     // generator.
@@ -175,16 +176,19 @@ impl MultiAccountTransactionGenerator {
 
     pub fn new_for_account_contracts(accounts: impl IntoIterator<Item = FeatureContract>) -> Self {
         let mut account_contracts = HashMap::new();
-        let nonce_manager = Rc::new(RefCell::new(NonceManager::default()));
+        let mut account_type_to_n_instances = HashMap::new();
+        let nonce_manager = SharedNonceManager::default();
         for (account_id, account) in accounts.into_iter().enumerate() {
+            let n_current_contract = account_type_to_n_instances.entry(account).or_insert(0);
             account_contracts.insert(
                 account_id,
                 AccountTransactionGenerator {
-                    account_id,
                     account,
+                    contract_instance_id: *n_current_contract,
                     nonce_manager: nonce_manager.clone(),
                 },
             );
+            *n_current_contract += 1;
         }
 
         Self { account_contracts, _nonce_manager: nonce_manager }
@@ -208,9 +212,9 @@ impl MultiAccountTransactionGenerator {
 ///
 /// TODO: add more transaction generation methods as needed.
 pub struct AccountTransactionGenerator {
-    account_id: usize,
     account: FeatureContract,
-    nonce_manager: Rc<RefCell<NonceManager>>,
+    contract_instance_id: ContractInstanceId,
+    nonce_manager: SharedNonceManager,
 }
 
 impl AccountTransactionGenerator {
@@ -256,8 +260,7 @@ impl AccountTransactionGenerator {
     }
 
     pub fn sender_address(&mut self) -> ContractAddress {
-        let account_id = u16::try_from(self.account_id).unwrap();
-        self.account.get_instance_address(account_id)
+        self.account.get_instance_address(self.contract_instance_id)
     }
 
     /// Retrieves the nonce for the current account, and __increments__ it internally.
