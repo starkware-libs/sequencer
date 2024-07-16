@@ -2,6 +2,12 @@ use std::collections::HashMap;
 
 use jsonschema::JSONSchema;
 use lazy_static::lazy_static;
+use papyrus_test_utils::{
+    auto_impl_get_test_instance,
+    get_number_of_variants,
+    get_rng,
+    GetTestInstance,
+};
 use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::{
@@ -23,7 +29,6 @@ use starknet_api::transaction::{
 };
 use starknet_client::writer::objects::transaction::DeprecatedContractClass;
 use starknet_types_core::felt::Felt;
-use test_utils::{auto_impl_get_test_instance, get_number_of_variants, get_rng, GetTestInstance};
 
 use super::super::state::{ContractClass, EntryPointByType};
 use super::{

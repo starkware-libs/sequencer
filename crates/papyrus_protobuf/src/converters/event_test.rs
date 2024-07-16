@@ -1,5 +1,5 @@
+use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::transaction::{Event, TransactionHash};
-use test_utils::{get_rng, GetTestInstance};
 
 use crate::sync::DataOrFin;
 
