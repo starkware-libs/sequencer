@@ -10,7 +10,7 @@ use blockifier::test_utils::{CairoVersion, BALANCE};
 use mempool_test_utils::starknet_api_test_utils::deployed_account_contract_address;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::rpc_transaction::RPCTransaction;
+use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
@@ -92,7 +92,7 @@ pub fn local_test_state_reader_factory(
 }
 
 pub fn local_test_state_reader_factory_for_deploy_account(
-    deploy_tx: &RPCTransaction,
+    deploy_tx: &RpcTransaction,
 ) -> TestStateReaderFactory {
     let mut state_reader_factory = local_test_state_reader_factory(CairoVersion::Cairo1, false);
 

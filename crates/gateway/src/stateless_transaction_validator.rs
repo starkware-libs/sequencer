@@ -1,6 +1,9 @@
 use starknet_api::rpc_transaction::{
-    RPCDeclareTransaction, RPCDeployAccountTransaction, RPCInvokeTransaction, RPCTransaction,
     ResourceBoundsMapping,
+    RpcDeclareTransaction,
+    RpcDeployAccountTransaction,
+    RpcInvokeTransaction,
+    RpcTransaction,
 };
 use starknet_api::state::EntryPoint;
 use starknet_api::transaction::Resource;
@@ -20,14 +23,14 @@ pub struct StatelessTransactionValidator {
 }
 
 impl StatelessTransactionValidator {
-    pub fn validate(&self, tx: &RPCTransaction) -> StatelessTransactionValidatorResult<()> {
+    pub fn validate(&self, tx: &RpcTransaction) -> StatelessTransactionValidatorResult<()> {
         // TODO(Arni, 1/5/2024): Add a mechanism that validate the sender address is not blocked.
         // TODO(Arni, 1/5/2024): Validate transaction version.
 
         self.validate_resource_bounds(tx)?;
         self.validate_tx_size(tx)?;
 
-        if let RPCTransaction::Declare(declare_tx) = tx {
+        if let RpcTransaction::Declare(declare_tx) = tx {
             self.validate_declare_tx(declare_tx)?;
         }
         Ok(())
@@ -35,7 +38,7 @@ impl StatelessTransactionValidator {
 
     fn validate_resource_bounds(
         &self,
-        tx: &RPCTransaction,
+        tx: &RpcTransaction,
     ) -> StatelessTransactionValidatorResult<()> {
         let resource_bounds_mapping = tx.resource_bounds();
 
@@ -49,7 +52,7 @@ impl StatelessTransactionValidator {
         Ok(())
     }
 
-    fn validate_tx_size(&self, tx: &RPCTransaction) -> StatelessTransactionValidatorResult<()> {
+    fn validate_tx_size(&self, tx: &RpcTransaction) -> StatelessTransactionValidatorResult<()> {
         self.validate_tx_calldata_size(tx)?;
         self.validate_tx_signature_size(tx)?;
 
@@ -58,17 +61,17 @@ impl StatelessTransactionValidator {
 
     fn validate_tx_calldata_size(
         &self,
-        tx: &RPCTransaction,
+        tx: &RpcTransaction,
     ) -> StatelessTransactionValidatorResult<()> {
         let calldata = match tx {
-            RPCTransaction::Declare(_) => {
+            RpcTransaction::Declare(_) => {
                 // Declare transaction has no calldata.
                 return Ok(());
             }
-            RPCTransaction::DeployAccount(RPCDeployAccountTransaction::V3(tx)) => {
+            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
                 &tx.constructor_calldata
             }
-            RPCTransaction::Invoke(RPCInvokeTransaction::V3(tx)) => &tx.calldata,
+            RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => &tx.calldata,
         };
 
         let calldata_length = calldata.0.len();
@@ -84,7 +87,7 @@ impl StatelessTransactionValidator {
 
     fn validate_tx_signature_size(
         &self,
-        tx: &RPCTransaction,
+        tx: &RpcTransaction,
     ) -> StatelessTransactionValidatorResult<()> {
         let signature = tx.signature();
 
@@ -101,10 +104,10 @@ impl StatelessTransactionValidator {
 
     fn validate_declare_tx(
         &self,
-        declare_tx: &RPCDeclareTransaction,
+        declare_tx: &RpcDeclareTransaction,
     ) -> StatelessTransactionValidatorResult<()> {
         let contract_class = match declare_tx {
-            RPCDeclareTransaction::V3(tx) => &tx.contract_class,
+            RpcDeclareTransaction::V3(tx) => &tx.contract_class,
         };
         self.validate_sierra_version(&contract_class.sierra_program)?;
         self.validate_class_length(contract_class)?;
