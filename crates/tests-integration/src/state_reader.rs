@@ -59,7 +59,7 @@ pub async fn spawn_test_rpc_state_reader(
 ) -> SocketAddr {
     let block_context = BlockContext::create_for_testing();
 
-    // map feature contracts to n_instances inside the account array
+    // Map feature contracts to their number of instances inside the account array.
     let mut account_to_n_instances: IndexMap<FeatureContract, usize> =
         IndexMap::from_iter(accounts.into_iter().counts());
 
