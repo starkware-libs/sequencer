@@ -53,7 +53,7 @@ pretty_assertions.workspace = true
 prometheus-parse.workspace = true
 rand_chacha.workspace = true
 reqwest.workspace = true
-test_utils = { path = "../test_utils" }
+papyrus_test_utils = { path = "../papyrus_test_utils" }
 starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0", features = ["testing"] }
 starknet_client = { path = "../starknet_client", features = ["testing"] }
 starknet-core.workspace = true
