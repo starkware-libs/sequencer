@@ -145,26 +145,26 @@ fn assert_eq_mempool_queue(mempool: &Mempool, expected_queue: &[ThinTransaction]
 #[case::test_get_more_than_all_eligible_txs(5)]
 #[case::test_get_less_than_all_eligible_txs(2)]
 fn test_get_txs(#[case] requested_txs: usize) {
-    let tx1 = add_tx_input!(tip: 50, tx_hash: 1).tx;
-    let tx2 = add_tx_input!(tip: 100, tx_hash: 2, sender_address: "0x1").tx;
-    let tx3 = add_tx_input!(tip: 10, tx_hash: 3, sender_address: "0x2").tx;
+    let tx_tip_20_account_0 = add_tx_input!(tip: 20, tx_hash: 1).tx;
+    let tx_tip_30_account_1 = add_tx_input!(tip: 30, tx_hash: 2, sender_address: "0x1").tx;
+    let tx_tip_10_account_2 = add_tx_input!(tip: 10, tx_hash: 3, sender_address: "0x2").tx;
 
-    let mut tx_inputs = vec![tx1, tx2, tx3];
-    let tx_references_iterator = tx_inputs.iter().map(TransactionReference::new);
-    let txs_iterator = tx_inputs.iter().cloned();
+    let mut txs = vec![tx_tip_20_account_0, tx_tip_30_account_1, tx_tip_10_account_2];
+    let tx_references_iterator = txs.iter().map(TransactionReference::new);
+    let txs_iterator = txs.iter().cloned();
 
     let mut mempool: Mempool = MempoolState::new(txs_iterator, tx_references_iterator).into();
 
-    let txs = mempool.get_txs(requested_txs).unwrap();
+    let fetched_txs = mempool.get_txs(requested_txs).unwrap();
 
-    tx_inputs.sort_by_key(|tx| Reverse(tx.tip));
+    txs.sort_by_key(|tx| Reverse(tx.tip));
 
     // Ensure we do not exceed the number of transactions available in the mempool.
-    let max_requested_txs = requested_txs.min(tx_inputs.len());
+    let max_requested_txs = requested_txs.min(txs.len());
 
     // Check that the returned transactions are the ones with the highest priority.
-    let (expected_queue, remaining_txs) = tx_inputs.split_at(max_requested_txs);
-    assert_eq!(txs, expected_queue);
+    let (expected_queue, remaining_txs) = txs.split_at(max_requested_txs);
+    assert_eq!(fetched_txs, expected_queue);
 
     // Check that the transactions that were not returned are still in the mempool.
     let remaining_tx_references = remaining_txs.iter().map(TransactionReference::new);
