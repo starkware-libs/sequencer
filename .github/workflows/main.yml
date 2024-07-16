@@ -99,8 +99,8 @@ jobs:
       - run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
-          ci/bin/python scripts/run_tests.py --changes_only
-          ci/bin/python scripts/run_tests.py --changes_only --features concurrency
+          ci/bin/python scripts/run_tests.py --changes_only --commit_id ${{ github.base_ref }}
+          ci/bin/python scripts/run_tests.py --changes_only --features concurrency --commit_id ${{ github.base_ref }}
 
   # Keep the name 'udeps' to match original action name, so we don't need to define specific branch
   # rules on Github for specific version branches.

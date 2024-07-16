@@ -1,6 +1,7 @@
 #!/bin/env python3
 
 import argparse
+from calendar import c
 import re
 import subprocess
 import os
@@ -23,7 +24,7 @@ def get_workspace_tree() -> Dict[str, str]:
     return tree
 
 
-def get_local_changes(repo_path) -> List[str]:
+def get_local_changes(repo_path, commit_id: Optional[str]) -> List[str]:
     os.environ["GIT_PYTHON_REFRESH"] = "quiet"  # noqa
     repo = Repo(repo_path)
     try:
@@ -60,8 +61,8 @@ def get_package_dependencies(package_name: str) -> Set[str]:
     return deps
 
 
-def run_test(changes_only: bool, features: Optional[str] = None):
-    local_changes = get_local_changes(".")
+def run_test(changes_only: bool, commit_id: Optional[str], features: Optional[str] = None):
+    local_changes = get_local_changes(".", commit_id=commit_id)
     modified_packages = get_modified_packages(local_changes)
     args = []
     if changes_only:
@@ -89,12 +90,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--features", type=str, help="Which services to deploy. For multi services separate by ','."
     )
+    parser.add_argument(
+        "--commit_id", type=str, help="GIT commit ID to compare against."
+    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    run_test(changes_only=args.changes_only, features=args.features)
+    run_test(changes_only=args.changes_only, commit_id=args.commit_id, features=args.features)
 
 
 if __name__ == "__main__":
