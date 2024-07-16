@@ -26,7 +26,7 @@ members = [
     "crates/papyrus_rpc",
     "crates/papyrus_storage",
     "crates/papyrus_sync",
-    "crates/papyrus_test_utils",
+    "crates/test_utils",
     "crates/sequencing/papyrus_block_builder",
     "crates/sequencing/papyrus_consensus",
     "crates/starknet_api",
