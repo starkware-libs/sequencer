@@ -44,7 +44,7 @@ use validator::Validate;
 use crate::version::VERSION_FULL;
 
 // The path of the default configuration file, provided as part of the crate.
-pub const DEFAULT_CONFIG_PATH: &str = "config/default_config.json";
+pub const DEFAULT_CONFIG_PATH: &str = "config/papyrus_default_config.json";
 
 /// The configurations of the various components of the node.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
