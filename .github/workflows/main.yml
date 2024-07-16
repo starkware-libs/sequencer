@@ -96,7 +96,8 @@ jobs:
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
-      - run: |
+      - name: "Run tests"
+        run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
           ci/bin/python scripts/run_tests.py --changes_only --commit_id ${{ github.base_ref }}
