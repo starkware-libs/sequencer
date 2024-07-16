@@ -9,10 +9,7 @@ use committer::{
         types::NodeIndex,
     },
 };
-use committer_cli::{
-    commands::commit, parse_input::read::parse_input,
-    tests::utils::parse_from_python::TreeFlowInput,
-};
+use committer_cli::{commands::parse_and_commit, tests::utils::parse_from_python::TreeFlowInput};
 use criterion::{criterion_group, criterion_main, Criterion};
 
 const CONCURRENCY_MODE: bool = true;
@@ -62,16 +59,15 @@ pub fn full_committer_flow_benchmark(criterion: &mut Criterion) {
     // TODO(Aner, 8/7/2024): use structs for deserialization.
     let input: HashMap<String, String> = serde_json::from_str(FLOW_TEST_INPUT).unwrap();
     let committer_input_string = input.get("committer_input").unwrap();
+
     // TODO(Aner, 27/06/2024): output path should be a pipe (file on memory)
     // to avoid disk IO in the benchmark.
-    // TODO(Aner, 11/7/24): consider moving function to production code.
-    async fn parse_and_commit(input_str: &str) {
-        let committer_input = parse_input(input_str).expect("Failed to parse the given input.");
-        commit(committer_input, OUTPUT_PATH.to_owned()).await;
-    }
     criterion.bench_function("full_committer_flow", |benchmark| {
         benchmark.iter(|| {
-            runtime.block_on(parse_and_commit(committer_input_string));
+            runtime.block_on(parse_and_commit(
+                committer_input_string,
+                OUTPUT_PATH.to_owned(),
+            ));
         })
     });
 }
