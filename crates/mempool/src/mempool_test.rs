@@ -316,3 +316,22 @@ fn test_add_tx_sequential_nonces(mut mempool: Mempool) {
 
     expected_mempool_state.assert_eq_mempool_state(&mempool);
 }
+
+#[rstest]
+fn test_get_txs_with_holes_single_account() {
+    // Setup.
+    let input_nonce_1 = add_tx_input!(tx_hash: 0, tx_nonce: 1_u8, account_nonce: 0_u8);
+
+    let pool_txs = [input_nonce_1.tx];
+    let queue_txs = [];
+    let mut mempool: Mempool = MempoolState::new(pool_txs.clone(), queue_txs).into();
+
+    // Test.
+    let txs = mempool.get_txs(1).unwrap();
+
+    // Assert.
+    assert_eq!(txs, &[]);
+
+    let mempool_state = MempoolState::new(pool_txs, queue_txs);
+    mempool_state.assert_eq_mempool_state(&mempool);
+}
