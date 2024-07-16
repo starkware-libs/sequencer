@@ -10,7 +10,10 @@ use papyrus_config::validators::{ParsedValidationError, ParsedValidationErrors};
 use validator::Validate;
 
 use crate::config::{
-    ComponentConfig, ComponentExecutionConfig, MempoolNodeConfig, DEFAULT_CONFIG_PATH,
+    ComponentConfig,
+    ComponentExecutionConfig,
+    MempoolNodeConfig,
+    DEFAULT_CONFIG_PATH,
 };
 
 /// Test the validation of the struct ComponentConfig.

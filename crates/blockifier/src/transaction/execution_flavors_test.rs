@@ -4,7 +4,11 @@ use rstest::rstest;
 use starknet_api::core::ContractAddress;
 use starknet_api::felt;
 use starknet_api::transaction::{
-    Calldata, Fee, ResourceBoundsMapping, TransactionSignature, TransactionVersion,
+    Calldata,
+    Fee,
+    ResourceBoundsMapping,
+    TransactionSignature,
+    TransactionVersion,
 };
 use starknet_types_core::felt::Felt;
 
@@ -17,16 +21,29 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
-    create_calldata, create_trivial_calldata, get_syscall_resources, get_tx_resources,
-    u64_from_usize, CairoVersion, NonceManager, BALANCE, MAX_FEE, MAX_L1_GAS_AMOUNT,
+    create_calldata,
+    create_trivial_calldata,
+    get_syscall_resources,
+    get_tx_resources,
+    u64_from_usize,
+    CairoVersion,
+    NonceManager,
+    BALANCE,
+    MAX_FEE,
+    MAX_L1_GAS_AMOUNT,
     MAX_L1_GAS_PRICE,
 };
 use crate::transaction::errors::{
-    TransactionExecutionError, TransactionFeeError, TransactionPreValidationError,
+    TransactionExecutionError,
+    TransactionFeeError,
+    TransactionPreValidationError,
 };
 use crate::transaction::objects::{FeeType, GasVector, TransactionExecutionInfo};
 use crate::transaction::test_utils::{
-    account_invoke_tx, l1_resource_bounds, max_resource_bounds, INVALID,
+    account_invoke_tx,
+    l1_resource_bounds,
+    max_resource_bounds,
+    INVALID,
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;

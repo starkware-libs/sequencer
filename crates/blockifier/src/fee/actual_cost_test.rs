@@ -6,7 +6,8 @@ use crate::context::BlockContext;
 use crate::execution::call_info::{CallExecution, CallInfo, MessageToL1, OrderedL2ToL1Message};
 use crate::fee::eth_gas_constants;
 use crate::fee::gas_usage::{
-    get_consumed_message_to_l2_emissions_cost, get_log_message_to_l1_emissions_cost,
+    get_consumed_message_to_l2_emissions_cost,
+    get_log_message_to_l1_emissions_cost,
     get_message_segment_length,
 };
 use crate::state::cached_state::StateChangesCount;
@@ -16,7 +17,9 @@ use crate::test_utils::{create_calldata, create_trivial_calldata, CairoVersion, 
 use crate::transaction::constants;
 use crate::transaction::objects::{GasVector, HasRelatedFeeType, StarknetResources};
 use crate::transaction::test_utils::{
-    account_invoke_tx, calculate_class_info_for_testing, max_resource_bounds,
+    account_invoke_tx,
+    calculate_class_info_for_testing,
+    max_resource_bounds,
 };
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::utils::{u128_from_usize, usize_from_u128};

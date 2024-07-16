@@ -14,21 +14,37 @@ use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionCont
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{ContractClassV0, ContractClassV1};
 use crate::execution::entry_point::{
-    CallEntryPoint, EntryPointExecutionContext, EntryPointExecutionResult,
+    CallEntryPoint,
+    EntryPointExecutionContext,
+    EntryPointExecutionResult,
 };
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::state::state_api::State;
 use crate::test_utils::{
-    get_raw_contract_class, CHAIN_ID_NAME, CURRENT_BLOCK_NUMBER, CURRENT_BLOCK_TIMESTAMP,
-    DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE, DEFAULT_STRK_L1_DATA_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE, TEST_ERC20_CONTRACT_ADDRESS, TEST_ERC20_CONTRACT_ADDRESS2,
+    get_raw_contract_class,
+    CHAIN_ID_NAME,
+    CURRENT_BLOCK_NUMBER,
+    CURRENT_BLOCK_TIMESTAMP,
+    DEFAULT_ETH_L1_DATA_GAS_PRICE,
+    DEFAULT_ETH_L1_GAS_PRICE,
+    DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE,
+    TEST_ERC20_CONTRACT_ADDRESS,
+    TEST_ERC20_CONTRACT_ADDRESS2,
     TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::objects::{
-    DeprecatedTransactionInfo, FeeType, TransactionFeeResult, TransactionInfo, TransactionResources,
+    DeprecatedTransactionInfo,
+    FeeType,
+    TransactionFeeResult,
+    TransactionInfo,
+    TransactionResources,
 };
 use crate::versioned_constants::{
-    GasCosts, OsConstants, VersionedConstants, DEFAULT_CONSTANTS_JSON,
+    GasCosts,
+    OsConstants,
+    VersionedConstants,
+    DEFAULT_CONSTANTS_JSON,
 };
 
 impl CallEntryPoint {
