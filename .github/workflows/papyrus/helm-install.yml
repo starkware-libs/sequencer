@@ -9,8 +9,8 @@ on:
       - main
     paths:
       - deployments/**
-      - config/papyrus_default_config.json
-      - .github/workflows/helm-install.yml
+      - config/papyrus/default_config.json
+      - .github/workflows/papyrus/helm-install.yml
 
 jobs:
   deploy-teardown:
