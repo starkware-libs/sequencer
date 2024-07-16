@@ -1,7 +1,9 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::path::Path;
+use std::rc::Rc;
 
 use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
@@ -132,6 +134,8 @@ pub fn deploy_account_tx() -> RPCTransaction {
 // MultiAcconutTransactionGenerator.
 type AccountId = usize;
 
+type SharedNonceManager = Rc<RefCell<NonceManager>>;
+
 /// Manages transaction generation for multiple pre-funded accounts, internally bumping nonces
 /// as needed.
 ///
@@ -153,9 +157,12 @@ type AccountId = usize;
 // [blockifier::transaction::test_utils::FaultyAccountTxCreatorArgs] can be made to use this.
 pub struct MultiAccountTransactionGenerator {
     // Invariant: coupled with nonce_manager.
-    account_contracts: HashMap<AccountId, FeatureContract>,
-    // Invariant: nonces managed internally thorugh `generate` API.
-    nonce_manager: NonceManager,
+    account_contracts: HashMap<AccountId, AccountTransactionGenerator>,
+    // Invariant: nonces managed internally thorugh `generate` API of the account transaction
+    // generator.
+    // Only used by single account transaction generators, but owning it here is preferable over
+    // only distributing the ownership among the account generators.
+    _nonce_manager: SharedNonceManager,
 }
 
 impl MultiAccountTransactionGenerator {
@@ -167,14 +174,29 @@ impl MultiAccountTransactionGenerator {
     }
 
     pub fn new_for_account_contracts(accounts: impl IntoIterator<Item = FeatureContract>) -> Self {
-        let enumerated_accounts = (0..).zip(accounts);
-        let account_contracts = enumerated_accounts.collect();
+        let mut account_contracts = HashMap::new();
+        let nonce_manager = Rc::new(RefCell::new(NonceManager::default()));
+        for (account_id, account) in accounts.into_iter().enumerate() {
+            account_contracts.insert(
+                account_id,
+                AccountTransactionGenerator {
+                    account_id,
+                    account,
+                    nonce_manager: nonce_manager.clone(),
+                },
+            );
+        }
 
-        Self { account_contracts, nonce_manager: NonceManager::default() }
+        Self { account_contracts, _nonce_manager: nonce_manager }
     }
 
-    pub fn account_with_id(&mut self, account_id: AccountId) -> AccountTransactionGenerator<'_> {
-        AccountTransactionGenerator { account_id, generator: self }
+    pub fn account_with_id(&mut self, account_id: AccountId) -> &mut AccountTransactionGenerator {
+        self.account_contracts.get_mut(&account_id).unwrap_or_else(|| {
+            panic!(
+                "{account_id:?} not found! This number should be an index of an account in the \
+                 initialization array. "
+            )
+        })
     }
 }
 
@@ -185,12 +207,13 @@ impl MultiAccountTransactionGenerator {
 /// with room for future extensions.
 ///
 /// TODO: add more transaction generation methods as needed.
-pub struct AccountTransactionGenerator<'a> {
-    account_id: AccountId,
-    generator: &'a mut MultiAccountTransactionGenerator,
+pub struct AccountTransactionGenerator {
+    account_id: usize,
+    account: FeatureContract,
+    nonce_manager: Rc<RefCell<NonceManager>>,
 }
 
-impl<'a> AccountTransactionGenerator<'a> {
+impl AccountTransactionGenerator {
     /// Generate a valid `RPCTransaction` with default parameters.
     pub fn generate_default_invoke(&mut self) -> RPCTransaction {
         let invoke_args = invoke_tx_args!(
@@ -208,7 +231,7 @@ impl<'a> AccountTransactionGenerator<'a> {
 
         let deploy_account_args = deploy_account_tx_args!(
             nonce,
-            class_hash: self.generator.account_contracts[&self.account_id].get_class_hash(),
+            class_hash: self.account.get_class_hash(),
             resource_bounds: executable_resource_bounds_mapping()
         );
         external_deploy_account_tx(deploy_account_args)
@@ -216,9 +239,8 @@ impl<'a> AccountTransactionGenerator<'a> {
 
     // TODO: support more contracts, instead of this hardcoded type.
     pub fn test_contract_address(&mut self) -> ContractAddress {
-        let cairo_version = self.generator.account_contracts[&self.account_id].cairo_version();
-        let account_id = u16::try_from(self.account_id).unwrap();
-        FeatureContract::TestContract(cairo_version).get_instance_address(account_id)
+        let cairo_version = self.account.cairo_version();
+        FeatureContract::TestContract(cairo_version).get_instance_address(0)
     }
 
     /// Generates an `RPCTransaction` with fully custom parameters.
@@ -235,13 +257,13 @@ impl<'a> AccountTransactionGenerator<'a> {
 
     pub fn sender_address(&mut self) -> ContractAddress {
         let account_id = u16::try_from(self.account_id).unwrap();
-        self.generator.account_contracts[&self.account_id].get_instance_address(account_id)
+        self.account.get_instance_address(account_id)
     }
 
     /// Retrieves the nonce for the current account, and __increments__ it internally.
     pub fn next_nonce(&mut self) -> Nonce {
         let sender_address = self.sender_address();
-        self.generator.nonce_manager.next(sender_address)
+        self.nonce_manager.borrow_mut().next(sender_address)
     }
 }
 
