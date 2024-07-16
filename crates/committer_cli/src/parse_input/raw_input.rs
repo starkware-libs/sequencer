@@ -1,3 +1,4 @@
+use committer::block_committer::input::ConfigImpl;
 use serde::Deserialize;
 
 type RawFelt = [u8; 32];
@@ -10,7 +11,7 @@ pub(crate) struct RawInput {
     pub state_diff: RawStateDiff,
     pub contracts_trie_root_hash: RawFelt,
     pub classes_trie_root_hash: RawFelt,
-    pub trivial_updates_config: bool,
+    pub config: ConfigImpl,
 }
 
 #[derive(Deserialize, Debug)]

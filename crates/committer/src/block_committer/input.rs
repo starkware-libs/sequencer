@@ -1,3 +1,5 @@
+use serde::Deserialize;
+
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
@@ -35,7 +37,7 @@ pub trait Config: Debug + Eq + PartialEq {
     fn warn_on_trivial_modifications(&self) -> bool;
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Deserialize, Debug, Eq, PartialEq)]
 pub struct ConfigImpl {
     warn_on_trivial_modifications: bool,
 }
