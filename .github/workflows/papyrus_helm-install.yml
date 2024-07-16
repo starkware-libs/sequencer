@@ -9,7 +9,7 @@ on:
       - main
     paths:
       - deployments/**
-      - config/default_config.json
+      - config/papyrus_default_config.json
       - .github/workflows/helm-install.yml
 
 jobs:
