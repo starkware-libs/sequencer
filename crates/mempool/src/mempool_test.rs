@@ -268,3 +268,27 @@ fn test_tip_priority_over_tx_hash(mut mempool: Mempool) {
     add_tx(&mut mempool, &input_small_tip_big_hash);
     assert_eq_mempool_queue(&mempool, &[input_big_tip_small_hash.tx, input_small_tip_big_hash.tx])
 }
+
+#[rstest]
+fn test_get_txs_with_holes_multiple_accounts() {
+    // Setup.
+    let tx_address_0_nonce_1 =
+        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1_u8, account_nonce: 0_u8).tx;
+    let tx_address_1_nonce_0 =
+        add_tx_input!(tx_hash: 3, sender_address: "0x1", tx_nonce: 0_u8, account_nonce: 0_u8).tx;
+
+    let queue_txs = [TransactionReference::new(&tx_address_1_nonce_0)];
+    let pool_txs = [tx_address_0_nonce_1.clone(), tx_address_1_nonce_0.clone()];
+    let mut mempool: Mempool = MempoolState::new(pool_txs, queue_txs).into();
+
+    // Test.
+    let txs = mempool.get_txs(2).unwrap();
+
+    // Assert.
+    assert_eq!(txs, &[tx_address_1_nonce_0]);
+
+    let expected_pool_txs = [tx_address_0_nonce_1];
+    let expected_queue_txs = [];
+    let mempool_state = MempoolState::new(expected_pool_txs, expected_queue_txs);
+    mempool_state.assert_eq_mempool_state(&mempool);
+}
