@@ -78,7 +78,8 @@ fn add_tx(mempool: &mut Mempool, input: &MempoolInput) {
 /// 1. add_tx_input!(tip: 1, tx_hash: 2, sender_address: 3_u8, tx_nonce: 4, account_nonce: 3)
 /// 2. add_tx_input!(tx_hash: 2, sender_address: 3_u8, tx_nonce: 4, account_nonce: 3)
 /// 3. add_tx_input!(tip: 1, tx_hash: 2, sender_address: 3_u8)
-/// 4. add_tx_input!(tip: 1, tx_hash: 2)
+/// 4. add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0)
+/// 5. add_tx_input!(tip: 1, tx_hash: 2)
 macro_rules! add_tx_input {
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
         tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {{
@@ -98,6 +99,9 @@ macro_rules! add_tx_input {
     };
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr) => {
         add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: 0_u8, account_nonce: 0_u8)
+    };
+    (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
+        add_tx_input!(tip: 1, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce, account_nonce: $account_nonce)
     };
     (tip: $tip:expr, tx_hash: $tx_hash:expr) => {
         add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8)
@@ -291,4 +295,22 @@ fn test_get_txs_with_holes_multiple_accounts() {
     let expected_queue_txs = [];
     let mempool_state = MempoolState::new(expected_pool_txs, expected_queue_txs);
     mempool_state.assert_eq_mempool_state(&mempool);
+}
+
+#[rstest]
+fn test_add_tx_sequential_nonces(mut mempool: Mempool) {
+    // Setup.
+    let input_nonce_0 = add_tx_input!(tx_hash: 0, tx_nonce: 0_u8, account_nonce: 0_u8);
+    let input_nonce_1 = add_tx_input!(tx_hash: 1, tx_nonce: 1_u8, account_nonce: 0_u8);
+
+    // Test.
+    add_tx(&mut mempool, &input_nonce_0);
+    add_tx(&mut mempool, &input_nonce_1);
+
+    // Assert: only eligible transaction appears in the queue.
+    let expected_queue_txs = [TransactionReference::new(&input_nonce_0.tx)];
+    let expected_pool_txs = [input_nonce_0.tx, input_nonce_1.tx];
+    let expected_mempool_state = MempoolState::new(expected_pool_txs, expected_queue_txs);
+
+    expected_mempool_state.assert_eq_mempool_state(&mempool);
 }
