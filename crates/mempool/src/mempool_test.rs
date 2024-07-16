@@ -335,3 +335,30 @@ fn test_get_txs_with_holes_single_account() {
     let mempool_state = MempoolState::new(pool_txs, queue_txs);
     mempool_state.assert_eq_mempool_state(&mempool);
 }
+
+#[rstest]
+fn test_flow_filling_holes(mut mempool: Mempool) {
+    // Setup.
+    let input_address_0_nonce_0 =
+        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8);
+    let input_address_0_nonce_1 =
+        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1_u8, account_nonce: 0_u8);
+    let input_address_1_nonce_0 =
+        add_tx_input!(tx_hash: 3, sender_address: "0x1", tx_nonce: 0_u8, account_nonce: 0_u8);
+
+    // Test.
+    add_tx(&mut mempool, &input_address_0_nonce_1);
+    add_tx(&mut mempool, &input_address_1_nonce_0);
+    let txs = mempool.get_txs(2).unwrap();
+
+    // Assert: only the eligible transaction is returned.
+    assert_eq!(txs, &[input_address_1_nonce_0.tx]);
+
+    // Test.
+    add_tx(&mut mempool, &input_address_0_nonce_0);
+    let txs = mempool.get_txs(2).unwrap();
+
+    // TODO(Ayelet): all transactions should be returned after replenishing.
+    // Assert: all remaining transactions are returned.
+    assert_eq!(txs, &[input_address_0_nonce_0.tx]);
+}
