@@ -1,6 +1,6 @@
 [package]
 name = "papyrus_execution"
-version.workspace = true
+version = "0.4.0-rc.0"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -11,7 +11,7 @@ testing = ["rand", "rand_chacha", "test_utils"]
 
 [dependencies]
 anyhow.workspace = true
-blockifier.workspace = true
+blockifier = { path = "../blockifier", version = "0.8.0-rc.0"}
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
 indexmap.workspace = true
@@ -25,7 +25,7 @@ rand = { workspace = true, optional = true }
 rand_chacha = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
-starknet_api.workspace = true
+starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0"}
 starknet-types-core.workspace = true
 test_utils = { path = "../test_utils", optional = true }
 thiserror.workspace = true

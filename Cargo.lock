@@ -962,7 +962,7 @@ dependencies = [
 
 [[package]]
 name = "blockifier"
-version = "0.8.0-dev.1"
+version = "0.8.0-rc.0"
 dependencies = [
  "anyhow",
  "ark-ec",
@@ -5530,7 +5530,7 @@ dependencies = [
 
 [[package]]
 name = "native_blockifier"
-version = "0.8.0-dev.1"
+version = "0.8.0-rc.0"
 dependencies = [
  "blockifier",
  "cached",
@@ -6054,7 +6054,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_base_layer"
-version = "0.4.0-dev.4"
+version = "0.4.0-rc.0"
 dependencies = [
  "async-trait",
  "ethers",
@@ -6076,19 +6076,19 @@ dependencies = [
 
 [[package]]
 name = "papyrus_block_builder"
-version = "0.4.0-dev.4"
+version = "0.4.0-rc.0"
 dependencies = [
  "papyrus_storage",
- "papyrus_test_utils",
  "pretty_assertions",
  "starknet_api",
+ "test_utils",
  "thiserror",
  "tracing",
 ]
 
 [[package]]
 name = "papyrus_common"
-version = "0.4.0-dev.4"
+version = "0.4.0-rc.0"
 dependencies = [
  "assert_matches",
  "cairo-lang-starknet-classes",
@@ -6096,7 +6096,6 @@ dependencies = [
  "indexmap 2.2.6",
  "itertools 0.10.5",
  "lazy_static",
- "papyrus_test_utils",
  "pretty_assertions",
  "rand 0.8.5",
  "serde",
@@ -6104,40 +6103,45 @@ dependencies = [
  "sha3",
  "starknet-types-core",
  "starknet_api",
+ "test_utils",
  "thiserror",
 ]
 
 [[package]]
 name = "papyrus_config"
-version = "0.4.0-dev.4"
+version = "0.4.0-rc.0"
 dependencies = [
  "assert_matches",
  "clap 4.5.4",
  "itertools 0.10.5",
  "lazy_static",
- "papyrus_test_utils",
  "serde",
  "serde_json",
  "strum_macros 0.25.3",
  "tempfile",
+ "test_utils",
  "thiserror",
  "validator",
 ]
 
 [[package]]
 name = "papyrus_consensus"
-version = "0.4.0-dev.4"
+version = "0.4.0-rc.0"
 dependencies = [
  "async-trait",
  "futures",
+ "metrics 0.21.1",
  "mockall",
+ "papyrus_common",
+ "papyrus_config",
  "papyrus_network",
  "papyrus_protobuf",
  "papyrus_storage",
- "papyrus_test_utils",
+ "serde",
  "starknet-types-core",
  "starknet_api",
  "test-case",
+ "test_utils",
  "thiserror",
  "tokio",
  "tracing",
@@ -6145,7 +6149,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_execution"
-version = "0.4.0-dev.4"
+version = "0.4.0-rc.0"
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -6161,7 +6165,6 @@ dependencies = [
  "papyrus_common",
  "papyrus_config",
  "papyrus_storage",
- "papyrus_test_utils",
  "pretty_assertions",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
@@ -6169,13 +6172,14 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
+ "test_utils",
  "thiserror",
  "tracing",
 ]
 
 [[package]]
 name = "papyrus_load_test"
-version = "0.4.0-dev.4"
+version = "0.4.0-rc.0"
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -6192,7 +6196,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_monitoring_gateway"
-version = "0.4.0-dev.4"
+version = "0.4.0-rc.0"
 dependencies = [
  "axum",
  "http-body",
@@ -6216,7 +6220,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_network"
-version = "0.4.0-dev.4"
+version = "0.4.0-rc.0"
 dependencies = [
  "assert_matches",
  "async-stream",
@@ -6226,7 +6230,6 @@ dependencies = [
  "deadqueue",
  "defaultmap",
  "derive_more",
- "enum-iterator",
  "futures",
  "lazy_static",
  "libp2p",
@@ -6249,7 +6252,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_node"
-version = "0.4.0-dev.4"
+version = "0.4.0-rc.0"
 dependencies = [
  "anyhow",
  "assert-json-diff",
@@ -6274,7 +6277,6 @@ dependencies = [
  "papyrus_rpc",
  "papyrus_storage",
  "papyrus_sync",
- "papyrus_test_utils",
  "pretty_assertions",
  "reqwest",
  "serde",
@@ -6283,6 +6285,7 @@ dependencies = [
  "starknet_client",
  "strum 0.25.0",
  "tempfile",
+ "test_utils",
  "tokio",
  "tokio-stream",
  "tracing",
@@ -6292,10 +6295,11 @@ dependencies = [
 
 [[package]]
 name = "papyrus_p2p_sync"
-version = "0.4.0-dev.4"
+version = "0.4.0-rc.0"
 dependencies = [
  "assert_matches",
  "async-stream",
+ "enum-iterator",
  "futures",
  "indexmap 2.2.6",
  "lazy_static",
@@ -6306,13 +6310,13 @@ dependencies = [
  "papyrus_proc_macros",
  "papyrus_protobuf",
  "papyrus_storage",
- "papyrus_test_utils",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",
  "starknet-types-core",
  "starknet_api",
  "static_assertions",
+ "test_utils",
  "thiserror",
  "tokio",
  "tokio-stream",
@@ -6321,25 +6325,24 @@ dependencies = [
 
 [[package]]
 name = "papyrus_proc_macros"
-version = "0.4.0-dev.4"
+version = "0.4.0-rc.0"
 dependencies = [
  "metrics 0.21.1",
  "metrics-exporter-prometheus",
  "papyrus_common",
- "papyrus_test_utils",
  "prometheus-parse",
  "quote",
  "syn 2.0.61",
+ "test_utils",
 ]
 
 [[package]]
 name = "papyrus_protobuf"
-version = "0.4.0-dev.4"
+version = "0.4.0-rc.0"
 dependencies = [
  "indexmap 2.2.6",
  "lazy_static",
  "papyrus_common",
- "papyrus_test_utils",
  "primitive-types",
  "prost",
  "prost-build",
@@ -6347,12 +6350,13 @@ dependencies = [
  "rand_chacha 0.3.1",
  "starknet-types-core",
  "starknet_api",
+ "test_utils",
  "thiserror",
 ]
 
 [[package]]
 name = "papyrus_rpc"
-version = "0.4.0-dev.4"
+version = "0.4.0-rc.0"
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -6382,7 +6386,6 @@ dependencies = [
  "papyrus_execution",
  "papyrus_proc_macros",
  "papyrus_storage",
- "papyrus_test_utils",
  "pretty_assertions",
  "prometheus-parse",
  "rand 0.8.5",
@@ -6397,6 +6400,7 @@ dependencies = [
  "starknet_client",
  "strum 0.25.0",
  "strum_macros 0.25.3",
+ "test_utils",
  "tokio",
  "tower",
  "tracing",
@@ -6405,7 +6409,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_storage"
-version = "0.4.0-dev.4"
+version = "0.4.0-rc.0"
 dependencies = [
  "assert_matches",
  "byteorder",
@@ -6429,7 +6433,6 @@ dependencies = [
  "papyrus_common",
  "papyrus_config",
  "papyrus_proc_macros",
- "papyrus_test_utils",
  "parity-scale-codec",
  "paste",
  "pretty_assertions",
@@ -6447,6 +6450,7 @@ dependencies = [
  "tempfile",
  "test-case",
  "test-log",
+ "test_utils",
  "thiserror",
  "tokio",
  "tracing",
@@ -6456,7 +6460,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_sync"
-version = "0.4.0-dev.4"
+version = "0.4.0-rc.0"
 dependencies = [
  "assert_matches",
  "async-stream",
@@ -6475,7 +6479,6 @@ dependencies = [
  "papyrus_config",
  "papyrus_proc_macros",
  "papyrus_storage",
- "papyrus_test_utils",
  "pretty_assertions",
  "reqwest",
  "serde",
@@ -6483,31 +6486,11 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_client",
+ "test_utils",
  "thiserror",
  "tokio",
  "tokio-stream",
  "tracing",
-]
-
-[[package]]
-name = "papyrus_test_utils"
-version = "0.4.0-dev.4"
-dependencies = [
- "cairo-lang-casm",
- "cairo-lang-starknet-classes",
- "cairo-lang-utils",
- "indexmap 2.2.6",
- "num-bigint 0.4.5",
- "pretty_assertions",
- "primitive-types",
- "prometheus-parse",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "reqwest",
- "serde",
- "serde_json",
- "starknet-types-core",
- "starknet_api",
 ]
 
 [[package]]
@@ -8699,7 +8682,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_api"
-version = "0.13.0-dev.9"
+version = "0.13.0-rc.0"
 dependencies = [
  "assert_matches",
  "bitvec",
@@ -8723,7 +8706,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_client"
-version = "0.4.0-dev.4"
+version = "0.4.0-rc.0"
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -8736,7 +8719,6 @@ dependencies = [
  "os_info",
  "papyrus_common",
  "papyrus_config",
- "papyrus_test_utils",
  "pretty_assertions",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
@@ -8749,6 +8731,7 @@ dependencies = [
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
+ "test_utils",
  "thiserror",
  "tokio",
  "tokio-retry",
@@ -8768,6 +8751,7 @@ dependencies = [
  "cairo-vm",
  "hyper",
  "mempool_test_utils",
+ "mockito",
  "num-bigint 0.4.5",
  "num-traits 0.2.19",
  "papyrus_config",
@@ -8814,12 +8798,13 @@ dependencies = [
  "async-trait",
  "bincode 1.3.3",
  "hyper",
- "papyrus_config",
  "pretty_assertions",
+ "rstest",
  "serde",
  "thiserror",
  "tokio",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -8873,7 +8858,6 @@ dependencies = [
  "starknet_mempool_types",
  "tokio",
  "tracing",
- "tracing-subscriber",
  "validator",
 ]
 
@@ -9229,6 +9213,27 @@ dependencies = [
  "regex",
  "syn 2.0.61",
  "which",
+]
+
+[[package]]
+name = "test_utils"
+version = "0.4.0-rc.0"
+dependencies = [
+ "cairo-lang-casm",
+ "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
+ "indexmap 2.2.6",
+ "num-bigint 0.4.5",
+ "pretty_assertions",
+ "primitive-types",
+ "prometheus-parse",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
 ]
 
 [[package]]
