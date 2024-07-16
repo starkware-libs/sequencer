@@ -1,0 +1,11 @@
+[formatting]
+column_width = 100
+reorder_arrays = true
+reorder_keys = true
+
+# Don't reorder the "package" section(s).
+[[rule]]
+formatting = { reorder_keys = false }
+keys = ["package", "workspace.package"]
+
+# Other configs from here: https://taplo.tamasfe.dev/configuration/formatter-options.html.
