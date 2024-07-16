@@ -14,7 +14,9 @@ use tokio::sync::Mutex;
 use tracing::{error, info};
 
 use crate::component_definitions::{
-    ComponentRequestAndResponseSender, ComponentRequestHandler, ServerError,
+    ComponentRequestAndResponseSender,
+    ComponentRequestHandler,
+    ServerError,
     APPLICATION_OCTET_STREAM,
 };
 use crate::component_runner::ComponentStarter;

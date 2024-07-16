@@ -5,15 +5,22 @@ use bincode::{deserialize, serialize, ErrorKind};
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::{
-    Body, Client, Error as HyperError, Request as HyperRequest, Response as HyperResponse,
-    StatusCode, Uri,
+    Body,
+    Client,
+    Error as HyperError,
+    Request as HyperRequest,
+    Response as HyperResponse,
+    StatusCode,
+    Uri,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::mpsc::{channel, Sender};
 
 use crate::component_definitions::{
-    ComponentRequestAndResponseSender, ServerError, APPLICATION_OCTET_STREAM,
+    ComponentRequestAndResponseSender,
+    ServerError,
+    APPLICATION_OCTET_STREAM,
 };
 
 pub struct ComponentClient<Request, Response>

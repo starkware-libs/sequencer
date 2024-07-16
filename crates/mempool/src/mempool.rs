@@ -3,7 +3,11 @@ use std::collections::HashMap;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::{Tip, TransactionHash};
 use starknet_mempool_types::mempool_types::{
-    Account, AccountState, MempoolInput, MempoolResult, ThinTransaction,
+    Account,
+    AccountState,
+    MempoolInput,
+    MempoolResult,
+    ThinTransaction,
 };
 
 use crate::transaction_pool::TransactionPool;

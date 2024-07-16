@@ -10,8 +10,15 @@ use starknet_api::{class_hash, contract_address, felt, patricia_key};
 
 use crate::config::RpcStateReaderConfig;
 use crate::rpc_objects::{
-    BlockHeader, BlockId, GetBlockWithTxHashesParams, GetClassHashAtParams,
-    GetCompiledContractClassParams, GetNonceParams, GetStorageAtParams, ResourcePrice, RpcResponse,
+    BlockHeader,
+    BlockId,
+    GetBlockWithTxHashesParams,
+    GetClassHashAtParams,
+    GetCompiledContractClassParams,
+    GetNonceParams,
+    GetStorageAtParams,
+    ResourcePrice,
+    RpcResponse,
     RpcSuccessResponse,
 };
 use crate::rpc_state_reader::RpcStateReader;
