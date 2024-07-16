@@ -30,6 +30,13 @@ use papyrus_storage::compiled_class::CasmStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::StorageWriter;
+use papyrus_test_utils::{
+    auto_impl_get_test_instance,
+    get_number_of_variants,
+    get_rng,
+    read_json_file,
+    GetTestInstance,
+};
 use pretty_assertions::assert_eq;
 use starknet_api::block::{
     BlockBody,
@@ -79,13 +86,6 @@ use starknet_client::reader::objects::transaction::{
 };
 use starknet_client::reader::PendingData;
 use starknet_types_core::felt::Felt;
-use test_utils::{
-    auto_impl_get_test_instance,
-    get_number_of_variants,
-    get_rng,
-    read_json_file,
-    GetTestInstance,
-};
 use tokio::sync::RwLock;
 
 use super::api::api_impl::JsonRpcServerImpl;

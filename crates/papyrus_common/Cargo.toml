@@ -24,4 +24,4 @@ indexmap.workspace = true
 assert_matches.workspace = true
 pretty_assertions.workspace = true
 serde_json = { workspace = true, features = ["arbitrary_precision"]}
-test_utils = { path = "../test_utils" }
+papyrus_test_utils = { path = "../papyrus_test_utils" }

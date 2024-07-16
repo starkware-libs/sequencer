@@ -10,6 +10,7 @@ use papyrus_storage::base_layer::BaseLayerStorageReader;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
 use papyrus_storage::{StorageReader, StorageWriter};
+use papyrus_test_utils::{get_rng, GetTestInstance};
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockHeader, BlockNumber};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
@@ -26,7 +27,6 @@ use starknet_client::reader::objects::pending_data::{
 use starknet_client::reader::objects::state::StateDiff as ClientStateDiff;
 use starknet_client::reader::objects::transaction::Transaction as ClientTransaction;
 use starknet_client::reader::{DeclaredClassHashEntry, PendingData};
-use test_utils::{get_rng, GetTestInstance};
 use tokio::sync::RwLock;
 
 use crate::sources::base_layer::MockBaseLayerSourceTrait;

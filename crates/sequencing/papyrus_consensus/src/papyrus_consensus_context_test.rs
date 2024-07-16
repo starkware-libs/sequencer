@@ -5,10 +5,10 @@ use papyrus_protobuf::consensus::{ConsensusMessage, Proposal};
 use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
+use papyrus_test_utils::get_test_block;
 use starknet_api::block::Block;
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
-use test_utils::get_test_block;
 
 use crate::papyrus_consensus_context::PapyrusConsensusContext;
 use crate::types::{ConsensusBlock, ConsensusContext, ProposalInit};

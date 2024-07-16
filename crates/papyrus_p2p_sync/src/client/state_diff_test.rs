@@ -15,6 +15,7 @@ use papyrus_protobuf::sync::{
     StateDiffChunk,
 };
 use papyrus_storage::state::StateStorageReader;
+use papyrus_test_utils::{get_rng, GetTestInstance};
 use rand::RngCore;
 use rand_chacha::ChaCha8Rng;
 use starknet_api::block::{BlockHeader, BlockNumber};
@@ -22,7 +23,6 @@ use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
 use static_assertions::const_assert;
-use test_utils::{get_rng, GetTestInstance};
 
 use super::test_utils::{
     create_block_hashes_and_signatures,
