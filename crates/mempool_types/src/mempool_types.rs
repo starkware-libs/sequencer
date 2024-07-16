@@ -11,20 +11,20 @@ pub struct ThinTransaction {
     pub nonce: Nonce,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct AccountState {
     pub nonce: Nonce,
     // TODO: add balance field when needed.
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Account {
     // TODO(Ayelet): Consider removing this field as it is duplicated in ThinTransaction.
     pub sender_address: ContractAddress,
     pub state: AccountState,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct MempoolInput {
     pub tx: ThinTransaction,
     pub account: Account,

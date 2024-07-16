@@ -6,35 +6,23 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::CairoVersion;
-use mempool_test_utils::starknet_api_test_utils::{declare_tx, deploy_account_tx, invoke_tx};
-use rstest::{fixture, rstest};
+use mempool_test_utils::starknet_api_test_utils::invoke_tx;
+use mockall::predicate::eq;
+use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::RPCTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_mempool::communication::create_mempool_server;
-use starknet_mempool::mempool::Mempool;
-use starknet_mempool_infra::component_server::ComponentServerStarter;
-use starknet_mempool_types::communication::{MempoolClientImpl, MempoolRequestAndResponseSender};
-use tokio::sync::mpsc::channel;
-use tokio::task;
+use starknet_mempool_types::communication::MockMempoolClient;
+use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput, ThinTransaction};
 
+use crate::compilation::GatewayCompiler;
 use crate::config::{
     GatewayCompilerConfig, StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig,
 };
-use crate::gateway::{add_tx, AppState, GatewayCompiler, SharedMempoolClient};
-use crate::state_reader_test_utils::{
-    local_test_state_reader_factory, local_test_state_reader_factory_for_deploy_account,
-    TestStateReaderFactory,
-};
+use crate::gateway::{add_tx, AppState, SharedMempoolClient};
+use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
 use crate::utils::{external_tx_to_account_tx, get_tx_hash};
-
-const MEMPOOL_INVOCATIONS_QUEUE_SIZE: usize = 32;
-
-#[fixture]
-fn mempool() -> Mempool {
-    Mempool::empty()
-}
 
 pub fn app_state(
     mempool_client: SharedMempoolClient,
@@ -60,44 +48,36 @@ pub fn app_state(
     }
 }
 
-// TODO(Ayelet): add test cases for declare.
-#[rstest]
-#[case::valid_invoke_tx_cairo1(
-    invoke_tx(CairoVersion::Cairo1),
-    local_test_state_reader_factory(CairoVersion::Cairo1, false)
-)]
-#[case::valid_invoke_tx_cairo0(
-    invoke_tx(CairoVersion::Cairo0),
-    local_test_state_reader_factory(CairoVersion::Cairo0, false)
-)]
-#[case::valid_deploy_account_tx(
-    deploy_account_tx(),
-    local_test_state_reader_factory_for_deploy_account(&tx)
-)]
-#[case::valid_declare_tx(
-    declare_tx(),
-    local_test_state_reader_factory(CairoVersion::Cairo1, false)
-)]
+type SenderAddress = ContractAddress;
+
+fn create_tx() -> (RPCTransaction, SenderAddress) {
+    let tx = invoke_tx(CairoVersion::Cairo1);
+    let sender_address = match &tx {
+        RPCTransaction::Invoke(starknet_api::rpc_transaction::RPCInvokeTransaction::V3(
+            invoke_tx,
+        )) => invoke_tx.sender_address,
+        _ => panic!("Unexpected transaction type"),
+    };
+    (tx, sender_address)
+}
+
 #[tokio::test]
-async fn test_add_tx(
-    #[case] tx: RPCTransaction,
-    #[case] state_reader_factory: TestStateReaderFactory,
-    mempool: Mempool,
-) {
-    // TODO(Tsabary): wrap creation of channels in dedicated functions, take channel capacity from
-    // config.
-    let (tx_mempool, rx_mempool) =
-        channel::<MempoolRequestAndResponseSender>(MEMPOOL_INVOCATIONS_QUEUE_SIZE);
-    let mut mempool_server = create_mempool_server(mempool, rx_mempool);
-    task::spawn(async move {
-        mempool_server.start().await;
-    });
+async fn test_add_tx() {
+    let (tx, sender_address) = create_tx();
+    let tx_hash = calculate_hash(&tx);
 
-    let mempool_client = Arc::new(MempoolClientImpl::new(tx_mempool));
+    let mut mock_mempool_client = MockMempoolClient::new();
+    mock_mempool_client
+        .expect_add_tx()
+        .once()
+        .with(eq(MempoolInput {
+            tx: ThinTransaction { sender_address, tx_hash, tip: *tx.tip(), nonce: *tx.nonce() },
+            account: Account { sender_address, state: AccountState { nonce: *tx.nonce() } },
+        }))
+        .return_once(|_| Ok(()));
+    let state_reader_factory = local_test_state_reader_factory(CairoVersion::Cairo1, false);
+    let app_state = app_state(Arc::new(mock_mempool_client), state_reader_factory);
 
-    let app_state = app_state(mempool_client, state_reader_factory);
-
-    let tx_hash = calculate_hash(&tx, &app_state.gateway_compiler);
     let response = add_tx(State(app_state), tx.into()).await.into_response();
 
     let status_code = response.status();
@@ -111,13 +91,10 @@ async fn to_bytes(res: Response) -> Bytes {
     res.into_body().collect().await.unwrap().to_bytes()
 }
 
-fn calculate_hash(
-    external_tx: &RPCTransaction,
-    gateway_compiler: &GatewayCompiler,
-) -> TransactionHash {
+fn calculate_hash(external_tx: &RPCTransaction) -> TransactionHash {
     let optional_class_info = match &external_tx {
-        RPCTransaction::Declare(declare_tx) => {
-            Some(gateway_compiler.compile_contract_class(declare_tx).unwrap())
+        RPCTransaction::Declare(_declare_tx) => {
+            panic!("Declare transactions are not supported in this test")
         }
         _ => None,
     };

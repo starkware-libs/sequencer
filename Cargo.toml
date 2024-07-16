@@ -49,7 +49,8 @@ hyper = { version = "0.14", features = ["client", "http1", "http2", "server", "t
 indexmap = "2.1.0"
 itertools = "0.13.0"
 lazy_static = "1.4.0"
-mockito = "1.4.0"
+mockall = "0.12.1"
+mockito =  "1.4.0"
 num-bigint = { version = "0.4.5", default-features = false }
 num-traits = "0.2"
 # TODO(YaelD, 28/5/2024): The special Papyrus version is needed in order to be aligned with the
