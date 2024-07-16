@@ -14,9 +14,17 @@ use starknet_types_core::felt::Felt;
 use crate::config::RpcStateReaderConfig;
 use crate::errors::{serde_err_to_state_err, RPCStateReaderError, RPCStateReaderResult};
 use crate::rpc_objects::{
-    BlockHeader, BlockId, GetBlockWithTxHashesParams, GetClassHashAtParams,
-    GetCompiledContractClassParams, GetNonceParams, GetStorageAtParams, RpcResponse,
-    RPC_CLASS_HASH_NOT_FOUND, RPC_ERROR_BLOCK_NOT_FOUND, RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND,
+    BlockHeader,
+    BlockId,
+    GetBlockWithTxHashesParams,
+    GetClassHashAtParams,
+    GetCompiledContractClassParams,
+    GetNonceParams,
+    GetStorageAtParams,
+    RpcResponse,
+    RPC_CLASS_HASH_NOT_FOUND,
+    RPC_ERROR_BLOCK_NOT_FOUND,
+    RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND,
 };
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 

@@ -2,12 +2,19 @@ mod common;
 
 use async_trait::async_trait;
 use common::{
-    ComponentAClientTrait, ComponentARequest, ComponentAResponse, ComponentBClientTrait,
-    ComponentBRequest, ComponentBResponse, ResultA, ResultB,
+    ComponentAClientTrait,
+    ComponentARequest,
+    ComponentAResponse,
+    ComponentBClientTrait,
+    ComponentBRequest,
+    ComponentBResponse,
+    ResultA,
+    ResultB,
 };
 use starknet_mempool_infra::component_client::ComponentClient;
 use starknet_mempool_infra::component_definitions::{
-    ComponentRequestAndResponseSender, ComponentRequestHandler,
+    ComponentRequestAndResponseSender,
+    ComponentRequestHandler,
 };
 use starknet_mempool_infra::component_server::{ComponentServer, ComponentServerStarter};
 use tokio::sync::mpsc::{channel, Sender};

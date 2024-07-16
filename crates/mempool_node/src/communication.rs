@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use starknet_mempool_infra::component_definitions::ComponentCommunication;
 use starknet_mempool_types::communication::{
-    MempoolClientImpl, MempoolRequestAndResponseSender, SharedMempoolClient,
+    MempoolClientImpl,
+    MempoolRequestAndResponseSender,
+    SharedMempoolClient,
 };
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 

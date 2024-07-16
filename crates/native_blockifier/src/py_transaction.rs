@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
 
 use blockifier::execution::contract_class::{
-    ClassInfo, ContractClass, ContractClassV0, ContractClassV1,
+    ClassInfo,
+    ContractClass,
+    ContractClassV0,
+    ContractClassV1,
 };
 use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::transaction_execution::Transaction;

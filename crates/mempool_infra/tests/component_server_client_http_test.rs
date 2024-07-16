@@ -5,8 +5,14 @@ use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use async_trait::async_trait;
 use bincode::serialize;
 use common::{
-    ComponentAClientTrait, ComponentARequest, ComponentAResponse, ComponentBClientTrait,
-    ComponentBRequest, ComponentBResponse, ResultA, ResultB,
+    ComponentAClientTrait,
+    ComponentARequest,
+    ComponentAResponse,
+    ComponentBClientTrait,
+    ComponentBRequest,
+    ComponentBResponse,
+    ResultA,
+    ResultB,
 };
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server, StatusCode};

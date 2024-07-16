@@ -3,8 +3,12 @@ use std::vec;
 use assert_matches::assert_matches;
 use mempool_test_utils::declare_tx_args;
 use mempool_test_utils::starknet_api_test_utils::{
-    create_resource_bounds_mapping, external_declare_tx, external_tx_for_testing,
-    zero_resource_bounds_mapping, TransactionType, NON_EMPTY_RESOURCE_BOUNDS,
+    create_resource_bounds_mapping,
+    external_declare_tx,
+    external_tx_for_testing,
+    zero_resource_bounds_mapping,
+    TransactionType,
+    NON_EMPTY_RESOURCE_BOUNDS,
 };
 use rstest::rstest;
 use starknet_api::core::EntryPointSelector;
@@ -18,7 +22,8 @@ use crate::compiler_version::{VersionId, VersionIdError};
 use crate::config::StatelessTransactionValidatorConfig;
 use crate::errors::StatelessTransactionValidatorResult;
 use crate::stateless_transaction_validator::{
-    StatelessTransactionValidator, StatelessTransactionValidatorError,
+    StatelessTransactionValidator,
+    StatelessTransactionValidatorError,
 };
 use crate::test_utils::create_sierra_program;
 

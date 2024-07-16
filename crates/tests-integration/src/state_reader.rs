@@ -5,14 +5,19 @@ use blockifier::abi::abi_utils::get_fee_token_var_address;
 use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{
-    CairoVersion, BALANCE, CURRENT_BLOCK_TIMESTAMP, DEFAULT_ETH_L1_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE, TEST_SEQUENCER_ADDRESS,
+    CairoVersion,
+    BALANCE,
+    CURRENT_BLOCK_TIMESTAMP,
+    DEFAULT_ETH_L1_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE,
+    TEST_SEQUENCER_ADDRESS,
 };
 use blockifier::transaction::objects::FeeType;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::{indexmap, IndexMap};
 use mempool_test_utils::starknet_api_test_utils::{
-    deploy_account_tx, deployed_account_contract_address,
+    deploy_account_tx,
+    deployed_account_contract_address,
 };
 use papyrus_common::pending_classes::PendingClasses;
 use papyrus_rpc::{run_server, RpcConfig};
@@ -23,7 +28,12 @@ use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::{open_storage, StorageConfig, StorageReader};
 use starknet_api::block::{
-    BlockBody, BlockHeader, BlockNumber, BlockTimestamp, GasPrice, GasPricePerToken,
+    BlockBody,
+    BlockHeader,
+    BlockNumber,
+    BlockTimestamp,
+    GasPrice,
+    GasPricePerToken,
 };
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey, SequencerContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
