@@ -109,7 +109,6 @@ memmap2 = "0.8.0"
 metrics = "0.21.0"
 metrics-exporter-prometheus = "0.12.1"
 mockall = "0.11.2"
-mockito = "0.31.0"
 num-bigint = "0.4"
 num-integer = "0.1.45"
 num-rational = { version = "0.4", features = ["serde"] }
