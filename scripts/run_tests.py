@@ -33,7 +33,7 @@ def get_local_changes(repo_path, commit_id: Optional[str]) -> List[str]:
         print(f"unable to validate {repo_path} as a git repo.")
         raise
 
-    return [c.a_path for c in repo.head.commit.diff(None)]
+    return [c.a_path for c in repo.head.commit.diff(commit_id)]
 
 
 def get_modified_packages(files: List[str]) -> Set[str]:
