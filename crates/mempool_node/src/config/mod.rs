@@ -16,7 +16,7 @@ use validator::{Validate, ValidationError};
 use crate::version::VERSION_FULL;
 
 // The path of the default configuration file, provided as part of the crate.
-pub const DEFAULT_CONFIG_PATH: &str = "config/mempool_default_config.json";
+pub const DEFAULT_CONFIG_PATH: &str = "config/mempool/default_config.json";
 
 /// The single crate configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
