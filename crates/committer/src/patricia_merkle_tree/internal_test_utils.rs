@@ -1,16 +1,75 @@
+use std::sync::Arc;
+
 use crate::felt::Felt;
+use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
 
+use super::node_data::errors::LeafResult;
+use super::node_data::leaf::{Leaf, LeafModifications};
+use super::updated_skeleton_tree::hash_function::HashFunction;
+use crate::generate_trie_config;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
+use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
+use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
-
+use crate::storage::db_object::{DBObject, Deserializable};
+use crate::storage::storage_trait::StorageValue;
 use ethnum::U256;
 use rand::rngs::ThreadRng;
 use rstest::{fixture, rstest};
+
+#[derive(Debug, PartialEq, Clone, Copy, Default, Eq)]
+pub(crate) struct MockLeaf(pub(crate) Felt);
+
+impl DBObject for MockLeaf {
+    fn serialize(&self) -> StorageValue {
+        StorageValue(self.0.to_bytes_be().to_vec())
+    }
+
+    fn get_prefix(&self) -> Vec<u8> {
+        vec![0]
+    }
+}
+
+impl Deserializable for MockLeaf {
+    fn deserialize(
+        value: &StorageValue,
+    ) -> Result<Self, crate::storage::errors::DeserializationError> {
+        Ok(Self(Felt::from_bytes_be_slice(&value.0)))
+    }
+
+    fn prefix() -> Vec<u8> {
+        vec![0]
+    }
+}
+
+impl Leaf for MockLeaf {
+    fn is_empty(&self) -> bool {
+        self.0 == Felt::ZERO
+    }
+
+    async fn create(
+        index: &NodeIndex,
+        leaf_modifications: Arc<LeafModifications<Self>>,
+    ) -> LeafResult<Self> {
+        Self::from_modifications(index, leaf_modifications)
+    }
+}
+
+generate_trie_config!(OriginalSkeletonMockTrieConfig, MockLeaf);
+
+struct MockHashFunction;
+
+impl HashFunction for MockHashFunction {
+    fn hash(left: &Felt, right: &Felt) -> HashOutput {
+        HashOutput(*left + *right)
+    }
+}
 
 impl From<u8> for SkeletonLeaf {
     fn from(value: u8) -> Self {

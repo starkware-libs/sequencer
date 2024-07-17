@@ -19,6 +19,7 @@ pub(crate) trait OriginalSkeletonTreeConfig<L: Leaf> {
     ) -> OriginalSkeletonTreeResult<bool>;
 }
 
+#[macro_export]
 macro_rules! generate_trie_config {
     ($struct_name:ident, $leaf_type:ty) => {
         pub(crate) struct $struct_name<'a> {
@@ -27,6 +28,7 @@ macro_rules! generate_trie_config {
         }
 
         impl<'a> $struct_name<'a> {
+            #[allow(dead_code)]
             pub(crate) fn new(
                 modifications: &'a LeafModifications<$leaf_type>,
                 compare_modified_leaves: bool,
