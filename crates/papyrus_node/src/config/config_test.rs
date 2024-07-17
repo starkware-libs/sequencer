@@ -26,8 +26,8 @@ use validator::Validate;
 use crate::config::pointers::CONFIG_POINTERS;
 use crate::config::{node_command, NodeConfig, DEFAULT_CONFIG_PATH};
 
-// Returns the required and generated params in papyrus_default_config.json with the default value
-// from the config presentation.
+// Returns the required and generated params in config/papyrus/default_config.json with the default
+// value from the config presentation.
 fn required_args() -> Vec<String> {
     let default_config = NodeConfig::default();
     let mut args = Vec::new();
