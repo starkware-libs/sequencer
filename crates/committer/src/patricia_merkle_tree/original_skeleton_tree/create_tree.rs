@@ -16,9 +16,9 @@ use crate::patricia_merkle_tree::{
 };
 use crate::storage::errors::StorageError;
 use crate::storage::storage_trait::create_db_key;
+use crate::storage::storage_trait::StarknetPrefix;
 use crate::storage::storage_trait::Storage;
 use crate::storage::storage_trait::StorageKey;
-use crate::storage::storage_trait::StoragePrefix;
 use log::warn;
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -223,6 +223,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         self.fetch_nodes::<L>(next_subtrees, storage, config, previous_leaves)
     }
 
+    //TODO(Aviv, 17/07/2024): Split between storage prefix implementation and function logic.
     fn calculate_subtrees_roots<L: Leaf>(
         subtrees: &[SubTree<'a>],
         storage: &impl Storage,
@@ -235,7 +236,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
                     if subtree.is_leaf() {
                         L::prefix()
                     } else {
-                        StoragePrefix::InnerNode
+                        StarknetPrefix::InnerNode.to_storage_prefix()
                     },
                     &subtree.root_hash.0.to_bytes_be(),
                 )

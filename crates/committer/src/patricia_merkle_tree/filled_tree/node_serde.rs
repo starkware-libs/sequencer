@@ -7,7 +7,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 use crate::storage::db_object::DBObject;
 use crate::storage::errors::DeserializationError;
-use crate::storage::storage_trait::{StorageKey, StoragePrefix, StorageValue};
+use crate::storage::storage_trait::{StarknetPrefix, StorageKey, StorageValue};
 use ethnum::U256;
 use serde::{Deserialize, Serialize};
 
@@ -76,9 +76,11 @@ impl<L: Leaf> DBObject for FilledNode<L> {
         }
     }
 
-    fn get_prefix(&self) -> StoragePrefix {
+    fn get_prefix(&self) -> Vec<u8> {
         match &self.data {
-            NodeData::Binary(_) | NodeData::Edge(_) => StoragePrefix::InnerNode,
+            NodeData::Binary(_) | NodeData::Edge(_) => {
+                StarknetPrefix::InnerNode.to_storage_prefix()
+            }
             NodeData::Leaf(leaf_data) => leaf_data.get_prefix(),
         }
     }

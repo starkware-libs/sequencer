@@ -15,7 +15,7 @@ use crate::patricia_merkle_tree::types::SubTreeHeight;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use crate::storage::db_object::DBObject;
 use crate::storage::map_storage::MapStorage;
-use crate::storage::storage_trait::{create_db_key, StorageKey, StoragePrefix, StorageValue};
+use crate::storage::storage_trait::{create_db_key, StarknetPrefix, StorageKey, StorageValue};
 use ethnum::U256;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
@@ -439,7 +439,10 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (StorageKey, Storag
 }
 
 fn create_patricia_key(val: u128) -> StorageKey {
-    create_db_key(StoragePrefix::InnerNode, &U256::from(val).to_be_bytes())
+    create_db_key(
+        StarknetPrefix::InnerNode.to_storage_prefix(),
+        &U256::from(val).to_be_bytes(),
+    )
 }
 
 fn create_binary_val(left: u128, right: u128) -> StorageValue {
@@ -541,7 +544,7 @@ pub(crate) fn create_root_edge_entry(
     let length = SubTreeHeight::ACTUAL_HEIGHT.0 - subtree_height.0;
     let new_root = old_root + u128::from(length);
     let key = create_db_key(
-        StoragePrefix::InnerNode,
+        StarknetPrefix::InnerNode.to_storage_prefix(),
         &Felt::from(new_root).to_bytes_be(),
     );
     let value = StorageValue(
