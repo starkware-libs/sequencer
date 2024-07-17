@@ -1,23 +1,10 @@
 use std::cmp::min;
 use std::collections::HashMap;
 
-use committer::block_committer::input::{ContractAddress, StarknetStorageValue};
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
 use committer::patricia_merkle_tree::external_test_utils::get_random_u256;
-use committer::patricia_merkle_tree::filled_tree::forest::FilledForest;
-use committer::patricia_merkle_tree::filled_tree::node::{
-    ClassHash,
-    CompiledClassHash,
-    FilledNode,
-    Nonce,
-};
-use committer::patricia_merkle_tree::filled_tree::tree::{
-    ClassesTrie,
-    ContractsTrie,
-    StorageTrie,
-    StorageTrieMap,
-};
+use committer::patricia_merkle_tree::filled_tree::node::FilledNode;
 use committer::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,
@@ -27,13 +14,26 @@ use committer::patricia_merkle_tree::node_data::inner_node::{
     NodeDataDiscriminants as NodeDataVariants,
     PathToBottom,
 };
-use committer::patricia_merkle_tree::node_data::leaf::ContractState;
 use committer::patricia_merkle_tree::types::NodeIndex;
 use ethnum::U256;
 use rand::prelude::IteratorRandom;
 use rand::Rng;
 use rand_distr::num_traits::ToPrimitive;
 use rand_distr::{Distribution, Geometric};
+use starknet_committer::block_committer::input::{ContractAddress, StarknetStorageValue};
+use starknet_committer::starknet_forest::filled_forest::FilledForest;
+use starknet_committer::starknet_patricia_merkle_tree::node::{
+    ClassHash,
+    CompiledClassHash,
+    Nonce,
+};
+use starknet_committer::starknet_patricia_merkle_tree::starknet_leaf::leaf::ContractState;
+use starknet_committer::starknet_patricia_merkle_tree::types::{
+    ClassesTrie,
+    ContractsTrie,
+    StorageTrie,
+    StorageTrieMap,
+};
 use strum::IntoEnumIterator;
 
 pub trait RandomValue {

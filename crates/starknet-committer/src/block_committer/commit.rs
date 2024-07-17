@@ -1,26 +1,21 @@
 use std::collections::HashMap;
 
+use committer::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
+use committer::storage::map_storage::MapStorage;
 use log::warn;
 
+use super::input::StarknetStorageKey;
 use crate::block_committer::errors::BlockCommitmentError;
 use crate::block_committer::input::{Config, ConfigImpl, ContractAddress, Input, StateDiff};
-use crate::patricia_merkle_tree::filled_tree::forest::FilledForest;
-use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
-use crate::patricia_merkle_tree::node_data::leaf::ContractState;
-use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::{
+use crate::starknet_forest::filled_forest::FilledForest;
+use crate::starknet_forest::original_skeleton_forest::{
     ForestSortedIndices,
     OriginalSkeletonForest,
 };
-use crate::patricia_merkle_tree::types::{
-    node_index_from_class_hash,
-    node_index_from_contract_address,
-    node_index_from_starknet_storage_key,
-    NodeIndex,
-    SortedLeafIndices,
-};
-use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
-use crate::patricia_merkle_tree::updated_skeleton_tree::skeleton_forest::UpdatedSkeletonForest;
-use crate::storage::map_storage::MapStorage;
+use crate::starknet_forest::updated_skeleton_forest::UpdatedSkeletonForest;
+use crate::starknet_patricia_merkle_tree::node::{from_contract_address, ClassHash, Nonce};
+use crate::starknet_patricia_merkle_tree::starknet_leaf::leaf::ContractState;
 
 type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
@@ -112,10 +107,8 @@ pub(crate) fn get_all_modified_indices(
     state_diff: &StateDiff,
 ) -> (StorageTriesIndices, ContractsTrieIndices, ClassesTrieIndices) {
     let accessed_addresses = state_diff.accessed_addresses();
-    let contracts_trie_indices: Vec<NodeIndex> = accessed_addresses
-        .iter()
-        .map(|address| node_index_from_contract_address(address))
-        .collect();
+    let contracts_trie_indices: Vec<NodeIndex> =
+        accessed_addresses.iter().map(|address| from_contract_address(address)).collect();
     let classes_trie_indices: Vec<NodeIndex> = state_diff
         .class_hash_to_compiled_class_hash
         .keys()
@@ -132,4 +125,16 @@ pub(crate) fn get_all_modified_indices(
         })
         .collect();
     (storage_tries_indices, contracts_trie_indices, classes_trie_indices)
+}
+
+pub(crate) fn node_index_from_contract_address(address: &ContractAddress) -> NodeIndex {
+    NodeIndex::from_leaf_felt(&address.0)
+}
+
+pub(crate) fn node_index_from_starknet_storage_key(key: &StarknetStorageKey) -> NodeIndex {
+    NodeIndex::from_leaf_felt(&key.0)
+}
+
+pub(crate) fn node_index_from_class_hash(class_hash: &ClassHash) -> NodeIndex {
+    NodeIndex::from_leaf_felt(&class_hash.0)
 }

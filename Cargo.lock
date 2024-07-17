@@ -2005,6 +2005,7 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "simplelog",
+ "starknet-committer",
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
@@ -8752,6 +8753,20 @@ dependencies = [
  "ndarray",
  "num-complex 0.2.4",
  "num-traits 0.1.43",
+]
+
+[[package]]
+name = "starknet-committer"
+version = "0.0.0"
+dependencies = [
+ "committer",
+ "hex",
+ "log",
+ "rstest",
+ "serde_json",
+ "starknet-types-core",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

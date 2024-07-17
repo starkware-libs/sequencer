@@ -1,29 +1,24 @@
 use std::collections::HashMap;
 
+use committer::hash::hash_trait::HashOutput;
+use committer::patricia_merkle_tree::node_data::leaf::LeafModifications;
+use committer::patricia_merkle_tree::original_skeleton_tree::tree::{
+    OriginalSkeletonTree,
+    OriginalSkeletonTreeImpl,
+};
+use committer::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use committer::storage::storage_trait::Storage;
+
+use crate::block_committer::commit::node_index_from_contract_address;
 use crate::block_committer::input::{Config, ContractAddress, StarknetStorageValue};
-use crate::forest_errors::{ForestError, ForestResult};
-use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
-use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafModifications};
-use crate::patricia_merkle_tree::original_skeleton_tree::config::{
+use crate::starknet_forest::forest_errors::{ForestError, ForestResult};
+use crate::starknet_patricia_merkle_tree::node::CompiledClassHash;
+use crate::starknet_patricia_merkle_tree::starknet_leaf::leaf::ContractState;
+use crate::starknet_patricia_merkle_tree::tree::{
     OriginalSkeletonClassesTrieConfig,
     OriginalSkeletonContractsTrieConfig,
     OriginalSkeletonStorageTrieConfig,
 };
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
-    OriginalSkeletonTree,
-    OriginalSkeletonTreeImpl,
-};
-use crate::patricia_merkle_tree::types::{
-    node_index_from_contract_address,
-    NodeIndex,
-    SortedLeafIndices,
-};
-use crate::storage::storage_trait::Storage;
-
-#[cfg(test)]
-#[path = "skeleton_forest_test.rs"]
-pub mod skeleton_forest_test;
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct OriginalSkeletonForest<'a> {

@@ -24,7 +24,8 @@ pub struct Felt(pub StarknetTypesFelt);
 macro_rules! impl_from_hex_for_felt_wrapper {
     ($wrapper:ty) => {
         impl $wrapper {
-            pub(crate) fn from_hex(hex_string: &str) -> Result<Self, FromStrError> {
+            #[allow(dead_code)]
+            pub fn from_hex(hex_string: &str) -> Result<Self, FromStrError> {
                 Ok(Self(Felt::from_hex(hex_string)?))
             }
         }
@@ -76,11 +77,11 @@ impl fmt::Debug for Felt {
 impl Felt {
     pub const ZERO: Felt = Felt(StarknetTypesFelt::ZERO);
     #[allow(dead_code)]
-    pub(crate) const ONE: Felt = Felt(StarknetTypesFelt::ONE);
+    pub const ONE: Felt = Felt(StarknetTypesFelt::ONE);
     #[allow(dead_code)]
-    pub(crate) const TWO: Felt = Felt(StarknetTypesFelt::TWO);
+    pub const TWO: Felt = Felt(StarknetTypesFelt::TWO);
     #[allow(dead_code)]
-    pub(crate) const THREE: Felt = Felt(StarknetTypesFelt::THREE);
+    pub const THREE: Felt = Felt(StarknetTypesFelt::THREE);
     pub const MAX: Felt = Felt(StarknetTypesFelt::MAX);
 
     pub fn from_bytes_be_slice(bytes: &[u8]) -> Self {

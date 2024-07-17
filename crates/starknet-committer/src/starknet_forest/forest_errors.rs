@@ -1,14 +1,14 @@
+use committer::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
+use committer::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
 use thiserror::Error;
 use tokio::task::JoinError;
 
 use crate::block_committer::input::ContractAddress;
-use crate::patricia_merkle_tree::filled_tree::errors::{
+use crate::starknet_patricia_merkle_tree::types::{
     ClassesTrieError,
     ContractsTrieError,
     StorageTrieError,
 };
-use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
-use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
 
 pub(crate) type ForestResult<T> = Result<T, ForestError>;
 

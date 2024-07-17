@@ -20,7 +20,7 @@ pub(crate) type UpdatedSkeletonTreeResult<T> = Result<T, UpdatedSkeletonTreeErro
 /// This trait represents the structure of the subtree which was modified in the update.
 /// It also contains the hashes of the unmodified nodes on the Merkle paths from the updated leaves
 /// to the root.
-pub(crate) trait UpdatedSkeletonTree<'a>: Sized + Send + Sync {
+pub trait UpdatedSkeletonTree<'a>: Sized + Send + Sync {
     /// Creates an updated tree from an original tree and modifications.
     fn create(
         original_skeleton: &mut impl OriginalSkeletonTree<'a>,
@@ -37,7 +37,7 @@ pub(crate) trait UpdatedSkeletonTree<'a>: Sized + Send + Sync {
     fn get_node(&self, index: NodeIndex) -> UpdatedSkeletonTreeResult<&UpdatedSkeletonNode>;
 }
 // TODO(Dori, 1/7/2024): Make this a tuple struct.
-pub(crate) struct UpdatedSkeletonTreeImpl {
+pub struct UpdatedSkeletonTreeImpl {
     pub(crate) skeleton_tree: UpdatedSkeletonNodeMap,
 }
 

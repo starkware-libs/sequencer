@@ -4,12 +4,11 @@ use std::sync::{Arc, Mutex};
 
 use async_recursion::async_recursion;
 
-use crate::block_committer::input::{ContractAddress, StarknetStorageValue};
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
-use crate::patricia_merkle_tree::filled_tree::node::{CompiledClassHash, FilledNode};
+use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
-use crate::patricia_merkle_tree::node_data::leaf::{ContractState, Leaf, LeafModifications};
+use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
@@ -25,7 +24,7 @@ pub(crate) type FilledTreeResult<T, L> = Result<T, FilledTreeError<L>>;
 /// Consider a Patricia-Merkle Tree which has been updated with new leaves.
 /// FilledTree consists of all nodes which were modified in the update, including their updated
 /// data and hashes.
-pub(crate) trait FilledTree<L: Leaf>: Sized {
+pub trait FilledTree<L: Leaf>: Sized {
     /// Computes and returns the filled tree.
     fn create<'a, TH: TreeHashFunction<L> + 'static>(
         updated_skeleton: Arc<impl UpdatedSkeletonTree<'a> + 'static>,
@@ -45,11 +44,6 @@ pub struct FilledTreeImpl<L: Leaf> {
     pub tree_map: HashMap<NodeIndex, FilledNode<L>>,
     pub root_hash: HashOutput,
 }
-
-pub type StorageTrie = FilledTreeImpl<StarknetStorageValue>;
-pub type ClassesTrie = FilledTreeImpl<CompiledClassHash>;
-pub type ContractsTrie = FilledTreeImpl<ContractState>;
-pub type StorageTrieMap = HashMap<ContractAddress, StorageTrie>;
 
 impl<L: Leaf + 'static> FilledTreeImpl<L> {
     fn initialize_with_placeholders<'a>(

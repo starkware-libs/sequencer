@@ -1,7 +1,7 @@
-use committer::block_committer::input::ConfigImpl;
 use log::LevelFilter;
 use serde::{Deserialize, Serialize};
 use serde_repr::Deserialize_repr;
+use starknet_committer::block_committer::input::ConfigImpl;
 type RawFelt = [u8; 32];
 
 #[derive(Deserialize, Debug)]
