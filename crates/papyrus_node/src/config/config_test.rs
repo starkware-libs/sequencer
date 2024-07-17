@@ -146,7 +146,7 @@ fn default_config_file_is_up_to_date() {
     println!(
         "{}",
         "Default config file doesn't match the default NodeConfig implementation. Please update \
-         it using the dump_config binary."
+         it using the papyrus_dump_config binary."
             .purple()
             .bold()
     );
