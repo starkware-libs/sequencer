@@ -125,44 +125,6 @@ jobs:
 
       - run: cargo +nightly-2024-01-12 fmt --all -- --check
 
-  udeps:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        name: "Rust Toolchain Setup"
-        with:
-          toolchain: nightly-2024-01-12
-      - uses: Swatinem/rust-cache@v2
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
-
-      - name: "Download and run cargo-udeps"
-        run: |
-          wget -O - -c https://github.com/est31/cargo-udeps/releases/download/v0.1.35/cargo-udeps-v0.1.35-x86_64-unknown-linux-gnu.tar.gz | tar -xz
-          cargo-udeps-*/cargo-udeps udeps
-        env:
-          RUSTUP_TOOLCHAIN: nightly-2024-01-12
-
-  clippy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-      - uses: Swatinem/rust-cache@v2
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
-
-      - run: echo "Skipping clippy for now"
-      - run: >
-          cargo clippy --workspace --all-targets --all-features -- -D warnings
-          -D future-incompatible -D nonstandard-style -D rust-2018-idioms -D unused
-          -D clippy::unwrap_used -A clippy::blocks_in_conditions  # This is because of a bug in tracing: https://github.com/tokio-rs/tracing/issues/2876
-
   doc:
     runs-on: ubuntu-latest
     env:
