@@ -243,8 +243,9 @@ impl<'a> AccountTransactionGenerator<'a> {
     /// Generates an `RpcTransaction` with fully custom parameters.
     ///
     /// Caller must manually handle bumping nonce and fetching the correct sender address via
-    /// [AccountTransactionGenerator::nonce] and [AccountTransactionGenerator::sender_address].
-    /// See [AccountTransactionGenerator::generate_default] to have these filled up by default.
+    /// [AccountTransactionGenerator::next_nonce] and [AccountTransactionGenerator::sender_address].
+    /// See [AccountTransactionGenerator::generate_default_invoke] to have these filled up by
+    /// default.
     ///
     /// Note: This is a best effort attempt to make the API more useful; amend or add new methods
     /// as needed.
