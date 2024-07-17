@@ -10,13 +10,18 @@ from git import Repo
 
 PATTERN = r"(\w+)\s*v([\d.]*.*)\((.*?)\)"
 
+# Pattern to match the dependency tree output (`cargo tree -i` output).
+# First match group is the dependent crate name; second match group is the local path to the
+# dependant crate.
+# '([a-zA-Z0-9_]+)' is the crate name.
+# ' [^(]* ' is anything between the crate name and the path (path is in parens).
+# '\(([^)]+)\)' should match the path to the crate. No closing paren in the path.
+DEPENDENCY_PATTERN = r"([a-zA-Z0-9_]+) [^(]* \(([^)]+)\)"
+
+
 def get_workspace_tree() -> Dict[str, str]:
     tree = dict()
-    res = (
-        subprocess.check_output("cargo tree --depth 0".split())
-        .decode("utf-8")
-        .splitlines()
-    )
+    res = subprocess.check_output("cargo tree --depth 0".split()).decode("utf-8").splitlines()
     for l in res:
         m = re.match(PATTERN, l)
         if m is not None:
@@ -33,7 +38,7 @@ def get_local_changes(repo_path, commit_id: Optional[str]) -> List[str]:
         print(f"unable to validate {repo_path} as a git repo.")
         raise
 
-    return [c.a_path for c in repo.head.commit.diff(None)]
+    return [c.a_path for c in repo.head.commit.diff(commit_id)]
 
 
 def get_modified_packages(files: List[str]) -> Set[str]:
@@ -46,16 +51,15 @@ def get_modified_packages(files: List[str]) -> Set[str]:
     return packages
 
 
-
 def get_package_dependencies(package_name: str) -> Set[str]:
     res = (
-        subprocess.check_output(f"cargo tree -i {package_name}".split())
+        subprocess.check_output(f"cargo tree -i {package_name} --prefix none".split())
         .decode("utf-8")
         .splitlines()
     )
     deps = set()
     for l in res:
-        m = re.match(PATTERN, l)
+        m = re.match(DEPENDENCY_PATTERN, l)
         if m is not None:
             deps.add(m.group(1))
     return deps
@@ -80,9 +84,10 @@ def run_test(changes_only: bool, commit_id: Optional[str], features: Optional[st
         cmd.extend(["--features", features])
 
     print("Running tests...")
-    print(cmd)
+    print(cmd, flush=True)
     subprocess.run(cmd, check=True)
     print("Tests complete.")
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Presubmit script.")
@@ -90,9 +95,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--features", type=str, help="Which services to deploy. For multi services separate by ','."
     )
-    parser.add_argument(
-        "--commit_id", type=str, help="GIT commit ID to compare against."
-    )
+    parser.add_argument("--commit_id", type=str, help="GIT commit ID to compare against.")
     return parser.parse_args()
 
 
