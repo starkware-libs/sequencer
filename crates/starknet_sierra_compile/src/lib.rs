@@ -4,5 +4,5 @@ pub mod compile;
 pub mod errors;
 pub mod utils;
 
-#[cfg(any(feature = "testing", test))]
+#[cfg(test)]
 pub mod test_utils;

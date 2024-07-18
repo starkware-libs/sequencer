@@ -1,8 +1,8 @@
-use committer::patricia_merkle_tree::filled_tree::forest::{FilledForest, FilledForestImpl};
+use committer::patricia_merkle_tree::filled_tree::forest::FilledForest;
 use committer::storage::map_storage::MapStorage;
 use serde::Serialize;
 
-pub struct SerializedForest(pub FilledForestImpl);
+pub struct SerializedForest(pub FilledForest);
 
 #[derive(Debug, Serialize)]
 #[allow(dead_code)]

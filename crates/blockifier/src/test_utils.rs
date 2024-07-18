@@ -51,7 +51,7 @@ pub const TEST_ERC20_CONTRACT_CLASS_HASH: &str = "0x1010";
 pub const ERC20_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/\
                                        erc20_contract_without_some_syscalls_compiled.json";
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Hash, PartialEq, Eq, Copy, Debug)]
 pub enum CairoVersion {
     Cairo0,
     Cairo1,
@@ -157,8 +157,8 @@ macro_rules! storage_key {
 }
 
 // TODO(Yoni, 1/1/2025): move to SN API.
-/// A utility macro to create a [`CompiledClassHash`] from a hex string / unsigned integer
-/// representation.
+/// A utility macro to create a [`starknet_api::core::CompiledClassHash`] from a hex string /
+/// unsigned integer representation.
 #[macro_export]
 macro_rules! compiled_class_hash {
     ($s:expr) => {

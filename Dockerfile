@@ -9,7 +9,7 @@
 # The reason we split it into two stages is to first copy all the files and then erase all
 # non-Cargo.toml files. This way, non-Cargo.toml files won't affect the cache of the second stage
 # (For more on docker stages, read https://docs.docker.com/build/building/multi-stage/).
-FROM rust:1.75 AS copy_toml
+FROM rust:1.78 AS copy_toml
 
 COPY crates/ /app/crates/
 COPY Cargo.toml /app/
@@ -23,18 +23,29 @@ RUN find /app \! -name "Cargo.toml" -type f -delete ; \
     # In order for cargo init to work, we need to not have a Cargo.toml file. In each crate, we rename
     # Cargo.toml to another name and after running `cargo init` we override the auto-generated
     # Cargo.toml with the original.
-    mv Cargo.toml _Cargo.toml && for dir in crates/*; do \
+    mv Cargo.toml _Cargo.toml && \
+    # TODO: Consider moving to a script.
+    for dir in crates/*; do \
+    if [ -f "$dir/Cargo.toml" ]; then \
     mv $dir/Cargo.toml $dir/_Cargo.toml \
     && cargo init --lib --vcs none $dir \
     && mv -f $dir/_Cargo.toml $dir/Cargo.toml; \
-    done && mv _Cargo.toml Cargo.toml
+    else \
+    for subdir in $dir/*; do \
+    mv $subdir/Cargo.toml $subdir/_Cargo.toml \
+    && cargo init --lib --vcs none $subdir \
+    && mv -f $subdir/_Cargo.toml $subdir/Cargo.toml; \
+    done; \
+    fi; \
+    done && \
+    mv _Cargo.toml Cargo.toml
 
 COPY Cargo.lock /app/
 
 # Starting a new stage so that the first build layer will be cached if a non-Cargo.toml file was
 # changed.
 # Use this image to compile the project to an alpine compatible binary.
-FROM clux/muslrust:1.75.0-stable AS builder
+FROM clux/muslrust:1.78.0-stable AS builder
 WORKDIR /app/
 
 RUN apt update && apt install -y clang unzip

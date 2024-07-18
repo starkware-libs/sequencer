@@ -51,7 +51,7 @@ use crate::test_utils::{
 };
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
-use crate::transaction::objects::{FeeType, HasRelatedFeeType, TransactionInfoCreator};
+use crate::transaction::objects::{FeeType, GasVector, HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     block_context,
@@ -77,6 +77,40 @@ use crate::{
     nonce,
     storage_key,
 };
+
+#[rstest]
+fn test_circuit(block_context: BlockContext, max_resource_bounds: ResourceBoundsMapping) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
+    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+    let chain_info = &block_context.chain_info;
+    let state = &mut test_state(chain_info, BALANCE, &[(test_contract, 1), (account, 1)]);
+    let test_contract_address = test_contract.get_instance_address(0);
+    let account_address = account.get_instance_address(0);
+    let mut nonce_manager = NonceManager::default();
+
+    // Invoke a function that changes the state and reverts.
+    let tx_args = invoke_tx_args! {
+        sender_address: account_address,
+        calldata: create_calldata(
+                test_contract_address,
+                "test_circuit",
+                &[]
+            ),
+        nonce: nonce_manager.next(account_address)
+    };
+    let tx_execution_info = run_invoke_tx(
+        state,
+        &block_context,
+        invoke_tx_args! {
+            resource_bounds: max_resource_bounds,
+            ..tx_args
+        },
+    )
+    .unwrap();
+
+    assert!(tx_execution_info.revert_error.is_none());
+    assert_eq!(tx_execution_info.transaction_receipt.gas, GasVector::from_l1_gas(6682));
+}
 
 #[rstest]
 fn test_fee_enforcement(
@@ -215,7 +249,7 @@ fn test_infinite_recursion(
     max_resource_bounds: ResourceBoundsMapping,
 ) {
     // Limit the number of execution steps (so we quickly hit the limit).
-    block_context.versioned_constants.invoke_tx_max_n_steps = 4000;
+    block_context.versioned_constants.invoke_tx_max_n_steps = 4100;
 
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         create_test_init_data(&block_context.chain_info, CairoVersion::Cairo0);
@@ -265,15 +299,14 @@ fn test_infinite_recursion(
 #[case(TransactionVersion::ONE)]
 #[case(TransactionVersion::THREE)]
 fn test_max_fee_limit_validate(
-    max_fee: Fee,
     block_context: BlockContext,
     #[case] version: TransactionVersion,
     max_resource_bounds: ResourceBoundsMapping,
 ) {
     let chain_info = &block_context.chain_info;
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
-        create_test_init_data(chain_info, CairoVersion::Cairo0);
-    let grindy_validate_account = FeatureContract::AccountWithLongValidate(CairoVersion::Cairo0);
+        create_test_init_data(chain_info, CairoVersion::Cairo1);
+    let grindy_validate_account = FeatureContract::AccountWithLongValidate(CairoVersion::Cairo1);
     let grindy_class_hash = grindy_validate_account.get_class_hash();
     let block_info = &block_context.block_info;
     let class_info = calculate_class_info_for_testing(grindy_validate_account.get_class());
@@ -283,7 +316,7 @@ fn test_max_fee_limit_validate(
         declare_tx_args! {
             class_hash: grindy_class_hash,
             sender_address: account_address,
-            max_fee: Fee(MAX_FEE),
+            resource_bounds: max_resource_bounds.clone(),
             nonce: nonce_manager.next(account_address),
         },
         class_info,
@@ -300,7 +333,7 @@ fn test_max_fee_limit_validate(
         chain_info,
         deploy_account_tx_args! {
             class_hash: grindy_class_hash,
-            max_fee,
+            resource_bounds: max_resource_bounds.clone(),
             constructor_calldata: calldata![ctor_grind_arg, ctor_storage_arg],
         },
     );
@@ -316,7 +349,7 @@ fn test_max_fee_limit_validate(
         chain_info,
         deploy_account_tx_args! {
             class_hash: grindy_class_hash,
-            max_fee,
+            resource_bounds: max_resource_bounds.clone(),
             constructor_calldata: calldata![ctor_grind_arg, ctor_storage_arg],
         },
     );
@@ -976,7 +1009,7 @@ fn test_insufficient_max_fee_reverts(
 
 #[rstest]
 fn test_deploy_account_constructor_storage_write(
-    max_fee: Fee,
+    max_resource_bounds: ResourceBoundsMapping,
     block_context: BlockContext,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
@@ -994,7 +1027,7 @@ fn test_deploy_account_constructor_storage_write(
         chain_info,
         deploy_account_tx_args! {
             class_hash,
-            max_fee,
+            resource_bounds: max_resource_bounds,
             constructor_calldata: constructor_calldata.clone(),
         },
     );
@@ -1325,10 +1358,10 @@ fn test_concurrent_fee_transfer_when_sender_is_sequencer(
     let fee_token_address = block_context.chain_info.fee_token_address(fee_type);
 
     let mut transactional_state = TransactionalState::create_transactional(state);
-    let charge_fee = true;
-    let validate = true;
+    let execution_flags =
+        ExecutionFlags { charge_fee: true, validate: true, concurrency_mode: true };
     let result =
-        account_tx.execute(&mut transactional_state, &block_context, charge_fee, validate).unwrap();
+        account_tx.execute_raw(&mut transactional_state, &block_context, execution_flags).unwrap();
     assert!(!result.is_reverted());
     // Check that the sequencer balance was updated (in this case, was not changed).
     for (seq_key, seq_value) in

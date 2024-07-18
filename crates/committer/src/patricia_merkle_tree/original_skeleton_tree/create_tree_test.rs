@@ -63,7 +63,7 @@ use std::collections::HashMap;
     ]).into(),
     create_leaf_modifications(vec![(8, 8), (10, 3), (13, 2)]),
     HashOutput(Felt::from(50_u128 + 248_u128)),
-    create_expected_skeleton(
+    create_expected_skeleton_nodes(
         vec![
             create_binary_skeleton_node(1),
             create_binary_skeleton_node(2),
@@ -118,7 +118,7 @@ use std::collections::HashMap;
     ]).into(),
     create_leaf_modifications(vec![(8, 5), (11, 1), (13, 3)]),
     HashOutput(Felt::from(29_u128 + 248_u128)),
-    create_expected_skeleton(
+    create_expected_skeleton_nodes(
         vec![
             create_binary_skeleton_node(1),
             create_edge_skeleton_node(2, 0, 1),
@@ -178,7 +178,7 @@ use std::collections::HashMap;
     ]).into(),
     create_leaf_modifications(vec![(18, 5), (25, 1), (29, 15), (30, 19)]),
     HashOutput(Felt::from(116_u128 + 247_u128)),
-    create_expected_skeleton(
+    create_expected_skeleton_nodes(
         vec![
             create_binary_skeleton_node(1),
             create_edge_skeleton_node(2, 0, 2),
@@ -200,7 +200,7 @@ fn test_create_tree(
     #[case] storage: MapStorage,
     #[case] leaf_modifications: LeafModifications<StarknetStorageValue>,
     #[case] root_hash: HashOutput,
-    #[case] expected_skeleton: OriginalSkeletonTreeImpl,
+    #[case] expected_skeleton_nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
     #[case] subtree_height: SubTreeHeight,
     #[values(true, false)] compare_modified_leaves: bool,
 ) {
@@ -219,7 +219,7 @@ fn test_create_tree(
         &config,
     )
     .unwrap();
-    assert_eq!(&skeleton_tree.nodes, &expected_skeleton.nodes);
+    assert_eq!(&skeleton_tree.nodes, &expected_skeleton_nodes);
 }
 
 /// case::single_right_child
@@ -484,29 +484,26 @@ pub(crate) fn create_edge_entry(hash: u128, path: u128, length: u8) -> (StorageK
     )
 }
 
-pub(crate) fn create_expected_skeleton(
+pub(crate) fn create_expected_skeleton_nodes(
     nodes: Vec<(NodeIndex, OriginalSkeletonNode)>,
     height: u8,
-) -> OriginalSkeletonTreeImpl {
+) -> HashMap<NodeIndex, OriginalSkeletonNode> {
     let subtree_height = SubTreeHeight::new(height);
-    OriginalSkeletonTreeImpl {
-        nodes: nodes
-            .into_iter()
-            .map(|(node_index, node)| {
-                (
-                    NodeIndex::from_subtree_index(node_index, subtree_height),
-                    node,
-                )
-            })
-            .chain([(
-                NodeIndex::ROOT,
-                OriginalSkeletonNode::Edge(
-                    PathToBottom::new(0.into(), EdgePathLength::new(251 - height).unwrap())
-                        .unwrap(),
-                ),
-            )])
-            .collect(),
-    }
+    nodes
+        .into_iter()
+        .map(|(node_index, node)| {
+            (
+                NodeIndex::from_subtree_index(node_index, subtree_height),
+                node,
+            )
+        })
+        .chain([(
+            NodeIndex::ROOT,
+            OriginalSkeletonNode::Edge(
+                PathToBottom::new(0.into(), EdgePathLength::new(251 - height).unwrap()).unwrap(),
+            ),
+        )])
+        .collect()
 }
 
 pub(crate) fn create_binary_skeleton_node(idx: u128) -> (NodeIndex, OriginalSkeletonNode) {

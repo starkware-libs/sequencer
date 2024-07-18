@@ -1,7 +1,16 @@
 mod common;
 
 use async_trait::async_trait;
-use common::{ComponentAClientTrait, ComponentBClientTrait, ResultA, ResultB};
+use common::{
+    ComponentAClientTrait,
+    ComponentARequest,
+    ComponentAResponse,
+    ComponentBClientTrait,
+    ComponentBRequest,
+    ComponentBResponse,
+    ResultA,
+    ResultB,
+};
 use starknet_mempool_infra::component_client::ComponentClient;
 use starknet_mempool_infra::component_definitions::{
     ComponentRequestAndResponseSender,
@@ -14,14 +23,6 @@ use tokio::task;
 use crate::common::{ComponentA, ComponentB, ValueA, ValueB};
 
 // TODO(Tsabary): send messages from component b to component a.
-
-pub enum ComponentARequest {
-    AGetValue,
-}
-
-pub enum ComponentAResponse {
-    Value(ValueA),
-}
 
 #[async_trait]
 impl ComponentAClientTrait for ComponentClient<ComponentARequest, ComponentAResponse> {
@@ -40,16 +41,6 @@ impl ComponentRequestHandler<ComponentARequest, ComponentAResponse> for Componen
             ComponentARequest::AGetValue => ComponentAResponse::Value(self.a_get_value().await),
         }
     }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum ComponentBRequest {
-    BGetValue,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum ComponentBResponse {
-    Value(ValueB),
 }
 
 #[async_trait]

@@ -14,17 +14,17 @@ testing = []
 [dependencies]
 async-trait.workspace = true
 axum.workspace = true
-blockifier = { path = "../blockifier", version = "0.8.0-dev.1" , features = ["testing"] }
+blockifier = { path = "../blockifier", version = "0.8.0-rc.0", features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
 hyper.workspace = true
 num-traits.workspace = true
-papyrus_config = { path = "../papyrus_config", version = "0.4.0-dev.4" }
-papyrus_rpc = { path = "../papyrus_rpc", version = "0.4.0-dev.4" }
+papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0"}
+papyrus_rpc = { path = "../papyrus_rpc", version = "0.4.0-rc.0"}
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-dev.9" }
+starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0"}
 starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }
 starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
 starknet_sierra_compile = { path = "../starknet_sierra_compile", version = "0.0" }
@@ -37,6 +37,7 @@ validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
+mockito = "1.4.0"
 num-bigint.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true

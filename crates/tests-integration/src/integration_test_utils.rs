@@ -1,9 +1,12 @@
 use std::net::SocketAddr;
 
 use axum::body::Body;
-use mempool_test_utils::starknet_api_test_utils::external_tx_to_json;
+use mempool_test_utils::starknet_api_test_utils::{
+    external_tx_to_json,
+    MultiAccountTransactionGenerator,
+};
 use reqwest::{Client, Response};
-use starknet_api::rpc_transaction::RPCTransaction;
+use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway::config::{
     GatewayConfig,
@@ -16,6 +19,8 @@ use starknet_gateway::errors::GatewayError;
 use starknet_mempool_node::config::MempoolNodeConfig;
 use tokio::net::TcpListener;
 
+use crate::integration_test_setup::IntegrationTestSetup;
+
 async fn create_gateway_config() -> GatewayConfig {
     let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
         validate_non_zero_l1_gas_fee: true,
@@ -27,8 +32,14 @@ async fn create_gateway_config() -> GatewayConfig {
     let socket = get_available_socket().await;
     let network_config = GatewayNetworkConfig { ip: socket.ip(), port: socket.port() };
     let stateful_tx_validator_config = StatefulTransactionValidatorConfig::create_for_testing();
+    let gateway_compiler_config = Default::default();
 
-    GatewayConfig { network_config, stateless_tx_validator_config, stateful_tx_validator_config }
+    GatewayConfig {
+        network_config,
+        stateless_tx_validator_config,
+        stateful_tx_validator_config,
+        compiler_config: gateway_compiler_config,
+    }
 }
 
 pub async fn create_config(rpc_server_addr: SocketAddr) -> MempoolNodeConfig {
@@ -49,7 +60,7 @@ impl GatewayClient {
         Self { socket, client }
     }
 
-    pub async fn assert_add_tx_success(&self, tx: &RPCTransaction) -> TransactionHash {
+    pub async fn assert_add_tx_success(&self, tx: &RpcTransaction) -> TransactionHash {
         let response = self.add_tx(tx).await;
         assert!(response.status().is_success());
 
@@ -57,13 +68,13 @@ impl GatewayClient {
     }
 
     // TODO: implement when usage eventually arises.
-    pub async fn assert_add_tx_error(&self, _tx: &RPCTransaction) -> GatewayError {
+    pub async fn assert_add_tx_error(&self, _tx: &RpcTransaction) -> GatewayError {
         todo!()
     }
 
     // Prefer using assert_add_tx_success or other higher level methods of this client, to ensure
     // tests are boilerplate and implementation-detail free.
-    pub async fn add_tx(&self, tx: &RPCTransaction) -> Response {
+    pub async fn add_tx(&self, tx: &RpcTransaction) -> Response {
         let tx_json = external_tx_to_json(tx);
         self.client
             .post(format!("http://{}/add_tx", self.socket))
@@ -97,4 +108,14 @@ pub async fn get_available_socket() -> SocketAddr {
         // Then, resolve to the actual selected port.
         .local_addr()
         .expect("Failed to get local address")
+}
+
+/// Use to create a tx generator with _pre-funded_ accounts, alongside a mocked test setup.
+pub async fn setup_with_tx_generation(
+    n_accounts: usize,
+) -> (IntegrationTestSetup, MultiAccountTransactionGenerator) {
+    let integration_test_setup = IntegrationTestSetup::new(n_accounts).await;
+    let tx_generator = MultiAccountTransactionGenerator::new(n_accounts);
+
+    (integration_test_setup, tx_generator)
 }

@@ -20,7 +20,6 @@ use mempool_test_utils::starknet_api_test_utils::{
     deployed_account_contract_address,
 };
 use papyrus_common::pending_classes::PendingClasses;
-use papyrus_common::BlockHashAndNumber;
 use papyrus_rpc::{run_server, RpcConfig};
 use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::class::ClassStorageWriter;
@@ -101,8 +100,9 @@ fn initialize_papyrus_test_state(
         fund_additional_accounts,
     );
 
+    let contracts = contract_instances.iter().map(|(contract, _n_instances_of_contract)| *contract);
     let (cairo0_contract_classes, cairo1_contract_classes) =
-        prepare_compiled_contract_classes(contract_instances);
+        prepare_compiled_contract_classes(contracts);
 
     write_state_to_papyrus_storage(state_diff, &cairo0_contract_classes, &cairo1_contract_classes)
 }
@@ -128,7 +128,7 @@ fn prepare_state_diff(
     for (contract, n_instances) in contract_instances.iter() {
         for instance in 0..*n_instances {
             // Declare and deploy the contracts
-            match cairo_version(contract) {
+            match contract.cairo_version() {
                 CairoVersion::Cairo0 => {
                     deprecated_declared_classes.push(contract.get_class_hash());
                 }
@@ -163,12 +163,12 @@ fn prepare_state_diff(
 }
 
 fn prepare_compiled_contract_classes(
-    contract_instances: &[(FeatureContract, usize)],
+    contract_instances: impl Iterator<Item = FeatureContract>,
 ) -> ContractClassesMap {
     let mut cairo0_contract_classes = Vec::new();
     let mut cairo1_contract_classes = Vec::new();
-    for (contract, _) in contract_instances.iter() {
-        match cairo_version(contract) {
+    for contract in contract_instances {
+        match contract.cairo_version() {
             CairoVersion::Cairo0 => {
                 cairo0_contract_classes.push((
                     contract.get_class_hash(),
@@ -219,19 +219,6 @@ fn write_state_to_papyrus_storage(
         .unwrap();
 
     storage_reader
-}
-
-// TODO (Yael 19/6/2024): make this function public in Blockifier and remove it from here.
-fn cairo_version(contract: &FeatureContract) -> CairoVersion {
-    match contract {
-        FeatureContract::AccountWithLongValidate(version)
-        | FeatureContract::AccountWithoutValidations(version)
-        | FeatureContract::Empty(version)
-        | FeatureContract::FaultyAccount(version)
-        | FeatureContract::TestContract(version)
-        | FeatureContract::ERC20(version) => *version,
-        _ => panic!("{contract:?} contract has no configurable version."),
-    }
 }
 
 fn test_block_header(block_number: BlockNumber) -> BlockHeader {
@@ -290,24 +277,6 @@ fn fund_account(
     }
 }
 
-// TODO(Yael 5/6/2024): remove this function and use the one from papyrus test utils once we have
-// mono-repo.
-fn get_test_highest_block() -> Arc<RwLock<Option<BlockHashAndNumber>>> {
-    Arc::new(RwLock::new(None))
-}
-
-// TODO(Yael 5/6/2024): remove this function and use the one from papyrus test utils once we have
-// mono-repo.
-fn get_test_pending_data() -> Arc<RwLock<PendingData>> {
-    Arc::new(RwLock::new(PendingData::default()))
-}
-
-// TODO(Yael 5/6/2024): remove this function and use the one from papyrus test utils once we have
-// mono-repo.
-fn get_test_pending_classes() -> Arc<RwLock<PendingClasses>> {
-    Arc::new(RwLock::new(PendingClasses::default()))
-}
-
 async fn run_papyrus_rpc_server(storage_reader: StorageReader) -> SocketAddr {
     let rpc_config = RpcConfig {
         server_address: get_available_socket().await.to_string(),
@@ -315,9 +284,9 @@ async fn run_papyrus_rpc_server(storage_reader: StorageReader) -> SocketAddr {
     };
     let (addr, handle) = run_server(
         &rpc_config,
-        get_test_highest_block(),
-        get_test_pending_data(),
-        get_test_pending_classes(),
+        Arc::new(RwLock::new(None)),
+        Arc::new(RwLock::new(PendingData::default())),
+        Arc::new(RwLock::new(PendingClasses::default())),
         storage_reader,
         "NODE VERSION",
     )

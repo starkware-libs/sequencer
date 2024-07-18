@@ -16,15 +16,17 @@ pretty_assertions.workspace = true
 [dependencies]
 clap.workspace = true
 committer = { path = "../committer", features = ["testing"] }
+derive_more.workspace = true
 ethnum.workspace = true
 indexmap.workspace = true
+log.workspace = true
 rand.workspace = true
 rand_distr.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 simplelog.workspace = true
 starknet-types-core.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-dev.9"}
+starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0"}
 strum.workspace = true
 thiserror.workspace = true
 tokio.workspace = true

@@ -5,23 +5,29 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::TransactionHash;
 
 use crate::mempool::TransactionReference;
-// Assumption: for the MVP only one transaction from the same contract class can be in the mempool
-// at a time. When this changes, saving the transactions themselves on the queu might no longer be
-// appropriate, because we'll also need to stores transactions without indexing them. For example,
-// transactions with future nonces will need to be stored, and potentially indexed on block commits.
-#[derive(Clone, Debug, Default)]
+
+// Note: the derived comparison functionality considers the order guaranteed by the data structures
+// used.
+#[derive(Debug, Default, Eq, PartialEq)]
 pub struct TransactionQueue {
     // Priority queue of transactions with associated priority.
     queue: BTreeSet<QueuedTransaction>,
     // Set of account addresses for efficient existence checks.
-    address_to_nonce: HashMap<ContractAddress, Nonce>,
+    address_to_tx: HashMap<ContractAddress, TransactionReference>,
 }
 
 impl TransactionQueue {
     /// Adds a transaction to the mempool, ensuring unique keys.
     /// Panics: if given a duplicate tx.
+    // TODO(Mohammad): Add test for two transactions from the same address, expecting specific
+    // assert.
     pub fn insert(&mut self, tx: TransactionReference) {
-        assert_eq!(self.address_to_nonce.insert(tx.sender_address, tx.nonce), None);
+        assert_eq!(
+            self.address_to_tx.insert(tx.sender_address, tx),
+            None,
+            "Only a single transaction from the same contract class can be in the mempool at a \
+             time."
+        );
         assert!(
             self.queue.insert(tx.into()),
             "Keys should be unique; duplicates are checked prior."
@@ -33,7 +39,7 @@ impl TransactionQueue {
         let txs: Vec<TransactionReference> =
             (0..n_txs).filter_map(|_| self.queue.pop_last().map(|tx| tx.0)).collect();
         for tx in &txs {
-            self.address_to_nonce.remove(&tx.sender_address);
+            self.address_to_tx.remove(&tx.sender_address);
         }
 
         txs.into_iter().map(|tx| tx.tx_hash).collect()
@@ -45,11 +51,21 @@ impl TransactionQueue {
         self.queue.iter().rev().map(|tx| &tx.0)
     }
 
-    pub fn _get_nonce(&self, address: &ContractAddress) -> Option<&Nonce> {
-        self.address_to_nonce.get(address)
+    pub fn _get_nonce(&self, address: ContractAddress) -> Option<Nonce> {
+        self.address_to_tx.get(&address).map(|tx| tx.nonce)
+    }
+
+    /// Removes the transaction of the given account address from the queue.
+    /// This is well-defined, since there is at most one transaction per address in the queue.
+    pub fn _remove(&mut self, address: ContractAddress) -> bool {
+        if let Some(tx) = self.address_to_tx.remove(&address) {
+            return self.queue.remove(&tx.into());
+        }
+        false
     }
 }
 
+/// Encapsulates a transaction reference to assess its order (i.e., priority).
 #[derive(Clone, Debug, derive_more::Deref, derive_more::From)]
 struct QueuedTransaction(pub TransactionReference);
 

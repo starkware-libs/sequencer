@@ -1,6 +1,6 @@
 [package]
 name = "native_blockifier"
-version = "0.8.0-dev.1"
+version = "0.8.0-rc.0"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -33,13 +33,13 @@ cairo-vm.workspace = true
 indexmap.workspace = true
 log.workspace = true
 num-bigint.workspace = true
-papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-dev.4", features = ["testing"] }
+papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-rc.0", features = ["testing"] }
 pyo3 = { workspace = true, features = ["hashbrown", "num-bigint"] }
 pyo3-log.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet-types-core.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-dev.9", features = ["testing"] }
+starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0", features = ["testing"] }
 thiserror.workspace = true
 
 [dev-dependencies]

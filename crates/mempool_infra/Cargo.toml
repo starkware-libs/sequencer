@@ -14,12 +14,13 @@ workspace = true
 [dependencies]
 async-trait.workspace = true
 bincode.workspace = true
-serde.workspace = true
 hyper.workspace = true
-papyrus_config = { path = "../papyrus_config", version = "0.4.0-dev.4" }
+rstest.workspace = true
+serde.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 [dev-dependencies]
 assert_matches.workspace = true

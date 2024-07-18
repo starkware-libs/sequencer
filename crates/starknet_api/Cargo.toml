@@ -1,9 +1,10 @@
 [package]
 name = "starknet_api"
-version = "0.13.0-dev.9"
+version = "0.13.0-rc.0"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
+description = "Starknet Rust types related to computation and execution."
 
 [features]
 testing = []
@@ -29,3 +30,4 @@ thiserror = "1.0.31"
 [dev-dependencies]
 assert_matches = "1.5.0"
 rstest = "0.17.0"
+

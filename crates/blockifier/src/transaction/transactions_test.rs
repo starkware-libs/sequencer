@@ -821,6 +821,7 @@ fn assert_failure_if_resource_bounds_exceed_balance(
 #[rstest]
 fn test_max_fee_exceeds_balance(
     block_context: BlockContext,
+    max_resource_bounds: ResourceBoundsMapping,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
 ) {
     let block_context = &block_context;
@@ -853,8 +854,7 @@ fn test_max_fee_exceeds_balance(
 
     // V3 invoke.
     let invalid_tx = account_invoke_tx(invoke_tx_args! {
-        resource_bounds: invalid_resource_bounds,
-        version: TransactionVersion::THREE,
+        resource_bounds: invalid_resource_bounds.clone(),
         ..default_args
     });
     assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
@@ -862,7 +862,7 @@ fn test_max_fee_exceeds_balance(
     // Deploy.
     let invalid_tx = AccountTransaction::DeployAccount(deploy_account_tx(
         deploy_account_tx_args! {
-            max_fee: Fee(MAX_FEE),
+            resource_bounds: max_resource_bounds,
             class_hash: test_contract.get_class_hash()
         },
         &mut NonceManager::default(),
@@ -870,14 +870,14 @@ fn test_max_fee_exceeds_balance(
     assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
 
     // Declare.
-    let contract_to_declare = FeatureContract::Empty(CairoVersion::Cairo0);
+    let contract_to_declare = FeatureContract::Empty(CairoVersion::Cairo1);
     let class_info = calculate_class_info_for_testing(contract_to_declare.get_class());
     let invalid_tx = declare_tx(
         declare_tx_args! {
             class_hash: contract_to_declare.get_class_hash(),
             compiled_class_hash: contract_to_declare.get_compiled_class_hash(),
             sender_address: account_contract_address,
-            max_fee: invalid_max_fee,
+            resource_bounds: invalid_resource_bounds,
         },
         class_info,
     );
@@ -1153,6 +1153,7 @@ fn test_declare_tx(
     let compiled_class_hash = empty_contract.get_compiled_class_hash();
     let class_info = calculate_class_info_for_testing(empty_contract.get_class());
     let sender_address = account.get_instance_address(0);
+    let mut nonce_manager = NonceManager::default();
     let starknet_resources = StarknetResources::new(
         0,
         0,
@@ -1167,9 +1168,10 @@ fn test_declare_tx(
             max_fee: Fee(MAX_FEE),
             sender_address,
             version: tx_version,
-            resource_bounds: max_resource_bounds,
+            resource_bounds: max_resource_bounds.clone(),
             class_hash,
             compiled_class_hash,
+            nonce: nonce_manager.next(sender_address),
         },
         class_info.clone(),
     );
@@ -1265,12 +1267,33 @@ fn test_declare_tx(
     // Verify class declaration.
     let contract_class_from_state = state.get_compiled_contract_class(class_hash).unwrap();
     assert_eq!(contract_class_from_state, class_info.contract_class());
+
+    // Checks that redeclaring the same contract fails.
+    let account_tx2 = declare_tx(
+        declare_tx_args! {
+            max_fee: Fee(MAX_FEE),
+            sender_address,
+            version: tx_version,
+            resource_bounds: max_resource_bounds,
+            class_hash,
+            compiled_class_hash,
+            nonce: nonce_manager.next(sender_address),
+        },
+        class_info.clone(),
+    );
+    let result = account_tx2.execute(state, block_context, true, true);
+    assert_matches!(
+         result.unwrap_err(),
+        TransactionExecutionError::DeclareTransactionError{ class_hash:already_declared_class_hash } if
+        already_declared_class_hash == class_hash
+    );
 }
 
 #[rstest]
 fn test_deploy_account_tx(
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
     #[values(false, true)] use_kzg_da: bool,
+    max_resource_bounds: ResourceBoundsMapping,
 ) {
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
     let versioned_constants = &block_context.versioned_constants;
@@ -1280,7 +1303,7 @@ fn test_deploy_account_tx(
     let account_class_hash = account.get_class_hash();
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
     let deploy_account = deploy_account_tx(
-        deploy_account_tx_args! { max_fee: Fee(MAX_FEE), class_hash: account_class_hash },
+        deploy_account_tx_args! { resource_bounds: max_resource_bounds.clone(), class_hash: account_class_hash },
         &mut nonce_manager,
     );
 
@@ -1420,7 +1443,7 @@ fn test_deploy_account_tx(
     // Negative flow.
     // Deploy to an existing address.
     let deploy_account = deploy_account_tx(
-        deploy_account_tx_args! { max_fee: Fee(MAX_FEE), class_hash: account_class_hash },
+        deploy_account_tx_args! { resource_bounds: max_resource_bounds, class_hash: account_class_hash },
         &mut nonce_manager,
     );
     let account_tx = AccountTransaction::DeployAccount(deploy_account);
@@ -1439,21 +1462,26 @@ fn test_deploy_account_tx(
 }
 
 #[rstest]
-fn test_fail_deploy_account_undeclared_class_hash(block_context: BlockContext) {
+fn test_fail_deploy_account_undeclared_class_hash(
+    block_context: BlockContext,
+    max_resource_bounds: ResourceBoundsMapping,
+) {
     let block_context = &block_context;
     let chain_info = &block_context.chain_info;
     let state = &mut test_state(chain_info, BALANCE, &[]);
     let mut nonce_manager = NonceManager::default();
     let undeclared_hash = class_hash!("0xdeadbeef");
     let deploy_account = deploy_account_tx(
-        deploy_account_tx_args! { max_fee: Fee(MAX_FEE), class_hash: undeclared_hash },
+        deploy_account_tx_args! {resource_bounds: max_resource_bounds,  class_hash: undeclared_hash },
         &mut nonce_manager,
     );
+    let tx_context = block_context.to_tx_context(&deploy_account);
+    let fee_type = tx_context.tx_info.fee_type();
 
     // Fund account, so as not to fail pre-validation.
     state
         .set_storage_at(
-            chain_info.fee_token_address(&FeeType::Eth),
+            chain_info.fee_token_address(&fee_type),
             get_fee_token_var_address(deploy_account.contract_address),
             felt!(BALANCE),
         )

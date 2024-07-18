@@ -1,6 +1,6 @@
 [package]
 name = "papyrus_sync"
-version = "0.4.0-dev.4"
+version = "0.4.0-rc.0"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -16,14 +16,14 @@ indexmap = { workspace = true, features = ["serde"] }
 itertools.workspace = true
 lru.workspace = true
 metrics.workspace = true
-papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-dev.4" }
-papyrus_base_layer = { path = "../papyrus_base_layer", version = "0.4.0-dev.4" }
-papyrus_common = { path = "../papyrus_common", version = "0.4.0-dev.4" }
-papyrus_config = { path = "../papyrus_config", version = "0.4.0-dev.4" }
-papyrus_proc_macros = { path = "../papyrus_proc_macros", version = "0.4.0-dev.4" }
+papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-rc.0" }
+papyrus_base_layer = { path = "../papyrus_base_layer", version = "0.4.0-rc.0" }
+papyrus_common = { path = "../papyrus_common", version = "0.4.0-rc.0" }
+papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0" }
+papyrus_proc_macros = { path = "../papyrus_proc_macros", version = "0.4.0-rc.0" }
 reqwest = { workspace = true, features = ["json", "blocking"] }
 serde = { workspace = true, features = ["derive"] }
-starknet_api = { path = "../starknet_api", version = "0.13.0-dev.9" }
+starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0"}
 starknet_client = { path = "../starknet_client" }
 starknet-types-core.workspace = true
 thiserror.workspace = true
@@ -37,6 +37,6 @@ mockall.workspace = true
 papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
 pretty_assertions.workspace = true
 starknet_client = { path = "../starknet_client", features = ["testing"] }
-starknet_api = { path = "../starknet_api", version = "0.13.0-dev.9", features = ["testing"] }
+starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0", features = ["testing"] }
 papyrus_test_utils = { path = "../papyrus_test_utils" }
 tokio-stream.workspace = true

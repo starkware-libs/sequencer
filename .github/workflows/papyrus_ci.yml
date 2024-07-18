@@ -23,8 +23,6 @@ env:
   PROTOC_VERSION: v25.1
 
 jobs:
-
-
   executable-run:
     runs-on: ubuntu-latest
     steps:
@@ -34,10 +32,10 @@ jobs:
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
-      - run: mkdir data
-
       - name: Build node
-        run: cargo build -r
+        run: |
+          mkdir data
+          cargo build -r
 
       - name: Run executable
         run: >
@@ -53,31 +51,15 @@ jobs:
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
-      - run: mkdir data
-
       - name: Build node
-        run: cargo build -r --no-default-features
+        run: |
+          mkdir data
+          cargo build -r --no-default-features
 
       - name: Run executable
         run: >
           target/release/papyrus_node --base_layer.node_url ${{ secrets.CI_BASE_LAYER_NODE_URL }}
           & sleep 30 ; kill $!
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
-      - run: npm install -g ganache@7.4.3
-
-      - run: |
-          cargo test --workspace -r
-        env:
-          SEED: 0
 
   integration-test:
     runs-on: ubuntu-latest
@@ -89,7 +71,11 @@ jobs:
         with:
           version: ${{env.PROTOC_VERSION}}
       - run: >
-          cargo test -r --test '*' -- --include-ignored --skip test_gw_integration_testnet;
+          cargo test -r
+          --test latency_histogram
+          --test gateway_integration_test
+          --test feeder_gateway_integration_test
+          -- --include-ignored --skip test_gw_integration_testnet;
           cargo run -r -p papyrus_node --bin central_source_integration_test --features="futures-util tokio-stream"
 
   test-no-rpc:
@@ -105,60 +91,6 @@ jobs:
         env:
           SEED: 0
 
-
-  rustfmt:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          components: rustfmt
-          toolchain: nightly-2024-01-12
-      - uses: Swatinem/rust-cache@v2
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
-
-      - run: cargo +nightly-2024-01-12 fmt --all -- --check
-
-  udeps:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        name: "Rust Toolchain Setup"
-        with:
-          toolchain: nightly-2024-01-12
-      - uses: Swatinem/rust-cache@v2
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
-
-      - name: "Download and run cargo-udeps"
-        run: |
-          wget -O - -c https://github.com/est31/cargo-udeps/releases/download/v0.1.35/cargo-udeps-v0.1.35-x86_64-unknown-linux-gnu.tar.gz | tar -xz
-          cargo-udeps-*/cargo-udeps udeps
-        env:
-          RUSTUP_TOOLCHAIN: nightly-2024-01-12
-
-  clippy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-      - uses: Swatinem/rust-cache@v2
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
-
-      - run: echo "Skipping clippy for now"
-      - run: >
-          cargo clippy --workspace --all-targets --all-features -- -D warnings
-          -D future-incompatible -D nonstandard-style -D rust-2018-idioms -D unused
-          -D clippy::unwrap_used -A clippy::blocks_in_conditions  # This is because of a bug in tracing: https://github.com/tokio-rs/tracing/issues/2876
-
   doc:
     runs-on: ubuntu-latest
     env:
@@ -170,22 +102,7 @@ jobs:
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
-
       - run: cargo doc --workspace -r --document-private-items --no-deps
-
-  check:
-    runs-on: ubuntu-latest
-    env:
-      RUSTDOCFLAGS: "-D warnings"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
-
-      - run: cargo check --workspace -r --all-features
 
   codecov:
     runs-on: ubuntu-latest

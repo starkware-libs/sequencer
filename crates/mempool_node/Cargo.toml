@@ -13,15 +13,14 @@ anyhow.workspace = true
 clap.workspace = true
 const_format.workspace = true
 futures.workspace = true
-starknet_gateway = { path = "../gateway", version = "0.0" }
-starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }
-starknet_mempool = { path = "../mempool", version = "0.0" }
-starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
+papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0"}
 serde.workspace = true
-papyrus_config = { path = "../papyrus_config", version = "0.4.0-dev.4" }
+starknet_gateway = { path = "../gateway", version = "0.0" }
+starknet_mempool = { path = "../mempool", version = "0.0" }
+starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }
+starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
 tokio.workspace = true
 tracing.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
 validator.workspace = true
 
 [dev-dependencies]
@@ -30,4 +29,4 @@ assert_matches.workspace = true
 colored.workspace = true
 pretty_assertions.workspace = true
 serde_json.workspace = true
-mempool_test_utils = {path = "../mempool_test_utils"}
+mempool_test_utils = { path = "../mempool_test_utils" }

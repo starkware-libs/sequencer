@@ -100,14 +100,50 @@ jobs:
         run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
-          ci/bin/python scripts/run_tests.py --changes_only --commit_id ${{ github.base_ref }}
-          ci/bin/python scripts/run_tests.py --changes_only --features concurrency --commit_id ${{ github.base_ref }}
+          ci/bin/python scripts/run_tests.py --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
+          ci/bin/python scripts/run_tests.py --changes_only --features concurrency --commit_id ${{ github.event.pull_request.base.sha }}
+        env:
+          SEED: 0
 
   # Keep the name 'udeps' to match original action name, so we don't need to define specific branch
   # rules on Github for specific version branches.
-  udeps:
+  machete:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Run Machete (detect unused dependencies)
         uses: bnjbvr/cargo-machete@main
+
+
+  udeps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        name: "Rust Toolchain Setup"
+        with:
+          toolchain: nightly-2024-01-12
+      - uses: Swatinem/rust-cache@v2
+      - uses: Noelware/setup-protoc@1.1.0
+        with:
+          version: ${{env.PROTOC_VERSION}}
+
+      - name: "Download and run cargo-udeps"
+        run: |
+          wget -O - -c https://github.com/est31/cargo-udeps/releases/download/v0.1.35/cargo-udeps-v0.1.35-x86_64-unknown-linux-gnu.tar.gz | tar -xz
+          cargo-udeps-*/cargo-udeps udeps
+        env:
+          RUSTUP_TOOLCHAIN: nightly-2024-01-12
+
+  check:
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: "-D warnings"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: Noelware/setup-protoc@1.1.0
+        with:
+          version: ${{env.PROTOC_VERSION}}
+      - run: cargo check --workspace -r --all-features

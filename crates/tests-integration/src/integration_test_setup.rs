@@ -1,14 +1,14 @@
 use std::net::SocketAddr;
 
-use starknet_api::rpc_transaction::RPCTransaction;
+use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway::config::GatewayNetworkConfig;
 use starknet_gateway::errors::GatewayError;
+use starknet_mempool_infra::trace_util::configure_tracing;
 use starknet_mempool_node::communication::{create_node_channels, create_node_clients};
 use starknet_mempool_node::components::create_components;
 use starknet_mempool_node::servers::{create_servers, get_server_future};
 use starknet_mempool_types::mempool_types::ThinTransaction;
-use starknet_task_executor::executor::TaskExecutor;
 use starknet_task_executor::tokio_executor::TokioExecutor;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
@@ -30,6 +30,9 @@ impl IntegrationTestSetup {
         let handle = Handle::current();
         let task_executor = TokioExecutor::new(handle);
 
+        // Configure and start tracing
+        configure_tracing();
+
         // Spawn a papyrus rpc server for a papyrus storage reader.
         let rpc_server_addr = spawn_test_rpc_state_reader(n_accounts).await;
 
@@ -37,16 +40,16 @@ impl IntegrationTestSetup {
         let config = create_config(rpc_server_addr).await;
 
         // Create the communication network for the mempool node.
-        let channels = create_node_channels();
+        let mut channels = create_node_channels();
 
         // Create the clients for the mempool node.
-        let clients = create_node_clients(&config, &channels);
+        let clients = create_node_clients(&config, &mut channels);
 
         // Create the components for the mempool node.
         let components = create_components(&config, &clients);
 
         // Create the servers for the mempool node.
-        let servers = create_servers(&config, channels, components);
+        let servers = create_servers(&config, &mut channels, components);
 
         let GatewayNetworkConfig { ip, port } = config.gateway_config.network_config;
         let gateway_client = GatewayClient::new(SocketAddr::from((ip, port)));
@@ -69,16 +72,15 @@ impl IntegrationTestSetup {
         Self { task_executor, gateway_client, batcher, gateway_handle, mempool_handle }
     }
 
-    pub async fn assert_add_tx_success(&self, tx: &RPCTransaction) -> TransactionHash {
+    pub async fn assert_add_tx_success(&self, tx: &RpcTransaction) -> TransactionHash {
         self.gateway_client.assert_add_tx_success(tx).await
     }
 
-    pub async fn assert_add_tx_error(&self, tx: &RPCTransaction) -> GatewayError {
+    pub async fn assert_add_tx_error(&self, tx: &RpcTransaction) -> GatewayError {
         self.gateway_client.assert_add_tx_error(tx).await
     }
 
     pub async fn get_txs(&self, n_txs: usize) -> Vec<ThinTransaction> {
-        let batcher = self.batcher.clone();
-        self.task_executor.spawn(async move { batcher.get_txs(n_txs).await }).await.unwrap()
+        self.batcher.get_txs(n_txs).await
     }
 }
