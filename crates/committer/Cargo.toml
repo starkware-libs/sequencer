@@ -19,7 +19,6 @@ rstest.workspace = true
 
 [dependencies]
 async-recursion.workspace = true
-bisection.workspace = true
 derive_more.workspace = true
 ethnum.workspace = true
 hex.workspace = true
