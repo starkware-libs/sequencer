@@ -89,7 +89,7 @@ impl TryFrom<RawInput> for InputImpl {
             classes_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
                 &raw_input.classes_trie_root_hash,
             )),
-            config: raw_input.config,
+            config: raw_input.config.into(),
         })
     }
 }

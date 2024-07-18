@@ -165,7 +165,7 @@ macro_rules! compare_skeleton_tree {
         },
         contracts_trie_root_hash: HashOutput(Felt::from(861_u128 + 248_u128)),
         classes_trie_root_hash: HashOutput(Felt::from(155_u128 + 248_u128)),
-        config: ConfigImpl::new(true),
+        config: ConfigImpl::new(true, log::LevelFilter::Debug),
     }, OriginalSkeletonForest{
         classes_trie: OriginalSkeletonTreeImpl {
             nodes: create_expected_skeleton_nodes(
@@ -287,7 +287,7 @@ fn test_create_original_skeleton_forest(
         &input.state_diff.actual_storage_updates(),
         &input.state_diff.actual_classes_updates(),
         &forest_sorted_indices,
-        &ConfigImpl::new(false),
+        &ConfigImpl::new(false, log::LevelFilter::Debug),
     )
     .unwrap();
     let expected_original_contracts_trie_leaves = expected_original_contracts_trie_leaves

@@ -1,6 +1,6 @@
 use committer::block_committer::{
     commit::commit_block,
-    input::{ConfigImpl, Input},
+    input::{Config, ConfigImpl, Input},
 };
 
 use crate::{
@@ -10,6 +10,8 @@ use crate::{
 
 pub async fn parse_and_commit(input_string: &str, output_path: String) {
     let input = parse_input(input_string).expect("Failed to parse the given input.");
+    // Set the given log level.
+    log::set_max_level(input.config.logger_level());
     commit(input, output_path).await;
 }
 
