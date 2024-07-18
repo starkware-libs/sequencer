@@ -5,6 +5,7 @@ use starknet_api::transaction::{Tip, TransactionHash};
 use starknet_mempool_types::mempool_types::{
     Account, AccountState, MempoolInput, MempoolResult, ThinTransaction,
 };
+use starknet_types_core::felt::Felt;
 
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -68,17 +69,24 @@ impl Mempool {
     /// updates account balances).
     // TODO: the part about resolving nonce gaps is incorrect if we delete txs in get_txs and then
     // push back.
+    // state_changes: a map that associates each account address with the state of the committed
+    // block.
     pub fn commit_block(
         &mut self,
         state_changes: HashMap<ContractAddress, AccountState>,
     ) -> MempoolResult<()> {
         for (address, AccountState { nonce }) in state_changes {
+            let next_nonce = Nonce(nonce.0 + Felt::ONE);
             // Dequeue transactions from the queue in the following cases:
-            // 1. Remove a transaction from queue with nonce lower than those committed to the
-            //    block, applicable when the block is from the same leader.
-            // 2. Remove a transaction from queue with nonce greater than those committed to the
-            //    block, applicable when the block is from a different leader.
-            if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| queued_nonce != nonce) {
+            // 1. Remove a transaction from queue with nonce lower and eq than those committed to
+            //    the block, applicable when the block is from the same leader.
+            // 2. Remove a transaction from queue with nonce greater than the next nonce block,
+            //    applicable when the block is from a different leader.
+            if self
+                .tx_queue
+                .get_nonce(address)
+                .is_some_and(|queued_nonce| queued_nonce != next_nonce)
+            {
                 self.tx_queue.remove(address);
             }
             // TODO: remove the transactions from the tx_pool.
