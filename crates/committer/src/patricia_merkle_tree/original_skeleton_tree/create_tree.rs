@@ -110,7 +110,7 @@ impl<'a> SubTree<'a> {
     }
 
     fn is_leaf(&self) -> bool {
-        u8::from(self.get_height()) == 0
+        self.root_index.is_leaf()
     }
 }
 
