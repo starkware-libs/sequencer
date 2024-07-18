@@ -11,7 +11,7 @@ pub(crate) trait OriginalSkeletonTreeConfig<L: Leaf> {
     /// warning when encountering a trivial modification.
     fn compare_modified_leaves(&self) -> bool;
 
-    /// Compares the previous leaf to the modificated and returns true iff they are equal.
+    /// Compares the previous leaf to the modified and returns true iff they are equal.
     fn compare_leaf(
         &self,
         index: &NodeIndex,
