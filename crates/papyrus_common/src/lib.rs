@@ -27,6 +27,7 @@ pub struct TransactionOptions {
     pub only_query: bool,
 }
 
+/// Dummy docstring.
 pub(crate) fn usize_into_felt(u: usize) -> Felt {
     u128::try_from(u).expect("Expect at most 128 bits").into()
 }
