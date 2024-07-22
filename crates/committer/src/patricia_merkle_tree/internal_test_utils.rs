@@ -4,17 +4,20 @@ use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
 
-use super::node_data::errors::LeafResult;
-use super::node_data::leaf::{Leaf, LeafModifications};
-use super::updated_skeleton_tree::hash_function::HashFunction;
 use crate::generate_trie_config;
+use crate::patricia_merkle_tree::node_data::errors::LeafResult;
+use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
+use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
+use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
+    HashFunction, TreeHashFunction, TreeHashFunctionImpl,
+};
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 use crate::storage::db_object::{DBObject, Deserializable};
@@ -58,6 +61,16 @@ impl Leaf for MockLeaf {
         leaf_modifications: Arc<LeafModifications<Self>>,
     ) -> LeafResult<Self> {
         Self::from_modifications(index, leaf_modifications)
+    }
+}
+
+impl TreeHashFunction<MockLeaf> for TreeHashFunctionImpl {
+    fn compute_leaf_hash(leaf_data: &MockLeaf) -> HashOutput {
+        HashOutput(leaf_data.0)
+    }
+
+    fn compute_node_hash(node_data: &NodeData<MockLeaf>) -> HashOutput {
+        Self::compute_node_hash_with_inner_hash_function::<MockHashFunction>(node_data)
     }
 }
 
