@@ -3,5 +3,4 @@
 /logs
 /target
 .git
-**/resources
 !crates/papyrus_load_test/resources
