@@ -9,14 +9,12 @@ from typing import Dict, List, Set, Optional
 from git import Repo
 
 PATTERN = r"(\w+)\s*v([\d.]*.*)\((.*?)\)"
+DEPENDENCY_PATTERN = r"[|\- `]*" + PATTERN
+
 
 def get_workspace_tree() -> Dict[str, str]:
     tree = dict()
-    res = (
-        subprocess.check_output("cargo tree --depth 0".split())
-        .decode("utf-8")
-        .splitlines()
-    )
+    res = subprocess.check_output("cargo tree --depth 0".split()).decode("utf-8").splitlines()
     for l in res:
         m = re.match(PATTERN, l)
         if m is not None:
@@ -40,6 +38,8 @@ def get_local_changes(repo_path, commit_id: Optional[str]) -> List[str]:
 
 def get_modified_packages(files: List[str]) -> Set[str]:
     tree = get_workspace_tree()
+    print(f"DORI: {files=}")
+    print(f"DORI: {tree=}")
     packages = set()
     for file in files:
         for p_name, p_path in tree.items():
@@ -48,18 +48,19 @@ def get_modified_packages(files: List[str]) -> Set[str]:
     return packages
 
 
-
 def get_package_dependencies(package_name: str) -> Set[str]:
     res = (
         subprocess.check_output(f"cargo tree -i {package_name}".split())
         .decode("utf-8")
         .splitlines()
     )
+    print(f"DORI: {res=}")
     deps = set()
     for l in res:
-        m = re.match(PATTERN, l)
+        m = re.match(DEPENDENCY_PATTERN, l)
         if m is not None:
             deps.add(m.group(1))
+    print(f"DORI: {deps=}")
     return deps
 
 
@@ -86,15 +87,14 @@ def run_test(changes_only: bool, commit_id: Optional[str], features: Optional[st
     subprocess.run(cmd, check=True)
     print("Tests complete.")
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Presubmit script.")
     parser.add_argument("--changes_only", action="store_true")
     parser.add_argument(
         "--features", type=str, help="Which services to deploy. For multi services separate by ','."
     )
-    parser.add_argument(
-        "--commit_id", type=str, help="GIT commit ID to compare against."
-    )
+    parser.add_argument("--commit_id", type=str, help="GIT commit ID to compare against.")
     return parser.parse_args()
 
 
