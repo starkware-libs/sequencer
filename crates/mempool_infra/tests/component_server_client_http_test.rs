@@ -18,7 +18,7 @@ use starknet_mempool_infra::component_client::{ClientError, ComponentClientHttp}
 use starknet_mempool_infra::component_definitions::{
     ComponentRequestHandler, ServerError, APPLICATION_OCTET_STREAM,
 };
-use starknet_mempool_infra::component_server::ComponentServerHttp;
+use starknet_mempool_infra::component_server::{ComponentServerHttp, ComponentServerStarter};
 use tokio::task;
 
 type ComponentAClient = ComponentClientHttp<ComponentARequest, ComponentAResponse>;

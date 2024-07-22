@@ -110,19 +110,6 @@ where
         }
     }
 
-    pub async fn start(&mut self) {
-        let make_svc = make_service_fn(|_conn| {
-            let component = Arc::clone(&self.component);
-            async {
-                Ok::<_, hyper::Error>(service_fn(move |req| {
-                    Self::handler(req, Arc::clone(&component))
-                }))
-            }
-        });
-
-        Server::bind(&self.socket.clone()).serve(make_svc).await.unwrap();
-    }
-
     async fn handler(
         http_request: HyperRequest<Body>,
         component: Arc<Mutex<Component>>,
@@ -151,6 +138,28 @@ where
         .expect("Response building should succeed");
 
         Ok(http_response)
+    }
+}
+
+#[async_trait]
+impl<Component, Request, Response> ComponentServerStarter
+    for ComponentServerHttp<Component, Request, Response>
+where
+    Component: ComponentRequestHandler<Request, Response> + Send + 'static,
+    Request: for<'a> Deserialize<'a> + Send + Sync + 'static,
+    Response: Serialize + Send + Sync + 'static,
+{
+    async fn start(&mut self) {
+        let make_svc = make_service_fn(|_conn| {
+            let component = Arc::clone(&self.component);
+            async {
+                Ok::<_, hyper::Error>(service_fn(move |req| {
+                    Self::handler(req, Arc::clone(&component))
+                }))
+            }
+        });
+
+        Server::bind(&self.socket.clone()).serve(make_svc).await.unwrap();
     }
 }
 
