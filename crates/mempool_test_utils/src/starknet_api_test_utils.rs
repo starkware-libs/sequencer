@@ -70,7 +70,16 @@ pub fn external_tx_for_testing(
         TransactionType::Declare => {
             // Minimal contract class.
             let contract_class = ContractClass {
-                sierra_program: vec![felt!(1_u32), felt!(3_u32), felt!(0_u32)],
+                sierra_program: vec![
+                    // Sierra Version ID.
+                    felt!(1_u32),
+                    felt!(3_u32),
+                    felt!(0_u32),
+                    // Compiler version ID.
+                    felt!(1_u32),
+                    felt!(3_u32),
+                    felt!(0_u32),
+                ],
                 ..Default::default()
             };
             external_declare_tx(declare_tx_args!(resource_bounds, signature, contract_class))

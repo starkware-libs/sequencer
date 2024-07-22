@@ -19,7 +19,7 @@ pub fn into_contract_class_for_compilation(
     rpc_contract_class: &RpcContractClass,
 ) -> CairoLangContractClass {
     let sierra_program =
-        rpc_contract_class.sierra_program.iter().map(felt_to_big_uint_as_hex).collect();
+        sierra_program_as_felts_to_big_uint_as_hex(&rpc_contract_class.sierra_program);
     let entry_points_by_type =
         into_cairo_lang_contract_entry_points(&rpc_contract_class.entry_points_by_type);
 
@@ -56,6 +56,10 @@ fn into_cairo_lang_contract_entry_point(
         selector: entry_point.selector.0.to_biguint(),
         function_idx: entry_point.function_idx.0,
     }
+}
+
+pub fn sierra_program_as_felts_to_big_uint_as_hex(sierra_program: &[Felt]) -> Vec<BigUintAsHex> {
+    sierra_program.iter().map(felt_to_big_uint_as_hex).collect()
 }
 
 fn felt_to_big_uint_as_hex(felt: &Felt) -> BigUintAsHex {
