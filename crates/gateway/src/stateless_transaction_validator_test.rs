@@ -215,8 +215,8 @@ fn test_signature_too_long(
     vec![],
     StatelessTransactionValidatorError::InvalidSierraVersion (
         VersionIdError::InvalidVersion {
-            message: "Sierra program is too short. got program of length 0 which is not long enough \
-                     to hold the version field.".into()
+            message: "Sierra program is too short. Got program of length 0, which is not \
+                     long enough for Sierra program's headers.".into()
         }
     )
 )]
@@ -224,17 +224,26 @@ fn test_signature_too_long(
     vec![felt!(1_u128)],
     StatelessTransactionValidatorError::InvalidSierraVersion (
         VersionIdError::InvalidVersion {
-            message: "Sierra program is too short. got program of length 1 which is not long enough \
-                     to hold the version field.".into()
+            message: "Sierra program is too short. Got program of length 1, which is not \
+                     long enough for Sierra program's headers.".into()
         }
     )
 )]
-#[case::sierra_program_length_two(
-    vec![felt!(1_u128), felt!(3_u128)],
+#[case::sierra_program_length_three(
+    vec![felt!(1_u128), felt!(3_u128), felt!(0_u128)],
     StatelessTransactionValidatorError::InvalidSierraVersion (
         VersionIdError::InvalidVersion {
-            message: "Sierra program is too short. got program of length 2 which is not long enough \
-                     to hold the version field.".into()
+            message: "Sierra program is too short. Got program of length 3, which is not \
+                     long enough for Sierra program's headers.".into()
+        }
+    )
+)]
+#[case::sierra_program_length_four(
+    vec![felt!(1_u128), felt!(3_u128), felt!(0_u128), felt!(0_u128)],
+    StatelessTransactionValidatorError::InvalidSierraVersion (
+        VersionIdError::InvalidVersion {
+            message: "Sierra program is too short. Got program of length 4, which is not \
+                     long enough for Sierra program's headers.".into()
         }
     )
 )]
@@ -243,11 +252,14 @@ fn test_signature_too_long(
             felt!(1_u128),
             felt!(3_u128),
             felt!(0x10000000000000000_u128), // Does not fit into a usize.
+            felt!(0_u128),
+            felt!(0_u128),
+            felt!(0_u128),
     ],
     StatelessTransactionValidatorError::InvalidSierraVersion (
             VersionIdError::InvalidVersion {
-                message: "version contains a value that is out of range: \
-                 0x10000000000000000".into()
+                message: "Error extracting version ID from Sierra program: \
+                         Invalid input for deserialization.".into()
             }
         )
     )
@@ -335,8 +347,10 @@ fn test_declare_contract_class_size_too_long() {
             ..default_validator_config_for_testing().clone()
         },
     };
-    let contract_class =
-        ContractClass { sierra_program: vec![felt!(1_u128); 3], ..Default::default() };
+    let contract_class = ContractClass {
+        sierra_program: create_sierra_program(min_sierra_version()),
+        ..Default::default()
+    };
     let contract_class_length = serde_json::to_string(&contract_class).unwrap().len();
     let tx = external_declare_tx(declare_tx_args!(contract_class));
 
@@ -398,7 +412,7 @@ fn test_declare_entry_points_not_sorted_by_selector(
         StatelessTransactionValidator { config: default_validator_config_for_testing().clone() };
 
     let contract_class = ContractClass {
-        sierra_program: vec![felt!(1_u128); 3],
+        sierra_program: create_sierra_program(min_sierra_version()),
         entry_points_by_type: EntryPointByType {
             constructor: entry_points.clone(),
             external: vec![],
@@ -411,7 +425,7 @@ fn test_declare_entry_points_not_sorted_by_selector(
     assert_eq!(tx_validator.validate(&tx), expected);
 
     let contract_class = ContractClass {
-        sierra_program: vec![felt!(1_u128); 3],
+        sierra_program: create_sierra_program(min_sierra_version()),
         entry_points_by_type: EntryPointByType {
             constructor: vec![],
             external: entry_points.clone(),
@@ -424,7 +438,7 @@ fn test_declare_entry_points_not_sorted_by_selector(
     assert_eq!(tx_validator.validate(&tx), expected);
 
     let contract_class = ContractClass {
-        sierra_program: vec![felt!(1_u128); 3],
+        sierra_program: create_sierra_program(min_sierra_version()),
         entry_points_by_type: EntryPointByType {
             constructor: vec![],
             external: vec![],
