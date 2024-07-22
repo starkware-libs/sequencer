@@ -2,18 +2,21 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use cairo_lang_starknet_classes::compiler_version::VersionId as CairoLangVersionId;
-use num_traits::ToPrimitive;
+use cairo_lang_starknet_classes::contract_class::version_id_from_serialized_sierra_program;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Serialize};
+use starknet_sierra_compile::utils::sierra_program_as_felts_to_big_uint_as_hex;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 #[cfg_attr(test, derive(PartialEq))]
 pub enum VersionIdError {
+    // TODO(Arni): Consider removing the error message from VersionIdError::InvalidVersion.
+    // Error messages should be handled or cause a painc. Talk to product.
     #[error("{message}")]
     InvalidVersion { message: String },
 }
@@ -122,23 +125,27 @@ impl VersionId {
                 ),
             });
         }
-
-        // TODO(Arni): Use deserialize from the Cairo lang crate.
-        fn get_version_component(
-            sierra_program: &[Felt],
-            index: usize,
-        ) -> Result<usize, VersionIdError> {
-            let felt = &sierra_program[index];
-            felt.to_usize().ok_or(VersionIdError::InvalidVersion {
-                message: format!("version contains a value that is out of range: {:?}", felt),
-            })
+        if sierra_program_length < 6 {
+            return Err(VersionIdError::InvalidVersion {
+                message: format!(
+                    "Sierra program is too short. got program of length {} which is not long \
+                     enough to Sierra program's headers.",
+                    sierra_program_length
+                ),
+            });
         }
+        let sierra_program_for_compiler =
+            sierra_program_as_felts_to_big_uint_as_hex(&sierra_program[..6]);
 
-        Ok(VersionId(CairoLangVersionId {
-            major: get_version_component(sierra_program, 0)?,
-            minor: get_version_component(sierra_program, 1)?,
-            patch: get_version_component(sierra_program, 2)?,
-        }))
+        // TODO(Arni): Handle unwrap. map error to VersionIdError.
+        let (version_id, _compiler_version_id) = version_id_from_serialized_sierra_program(
+            &sierra_program_for_compiler,
+        )
+        .map_err(|err| VersionIdError::InvalidVersion {
+            message: format!("Error extracting version ID from Sierra program: {err}"),
+        })?;
+
+        Ok(VersionId(version_id))
     }
 }
 
