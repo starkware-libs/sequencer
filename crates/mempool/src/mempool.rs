@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::{Tip, TransactionHash};
+use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{
     Account, AccountState, MempoolInput, MempoolResult, ThinTransaction,
 };
-use starknet_types_core::felt::Felt;
 
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -76,7 +76,7 @@ impl Mempool {
         state_changes: HashMap<ContractAddress, AccountState>,
     ) -> MempoolResult<()> {
         for (address, AccountState { nonce }) in state_changes {
-            let next_nonce = Nonce(nonce.0 + Felt::ONE);
+            let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
             // Dequeue transactions from the queue in the following cases:
             // 1. Remove a transaction from queue with nonce lower and eq than those committed to
             //    the block, applicable when the block is from the same leader.
