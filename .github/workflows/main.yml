@@ -81,6 +81,9 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Fetch the entire history.
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
       - uses: Noelware/setup-protoc@1.1.0
       - uses: Swatinem/rust-cache@v2
@@ -96,12 +99,24 @@ jobs:
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
-      - name: "Run tests"
+      - name: "Run tests pull request"
+        if: github.event_name == 'pull_request'
         run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
           ci/bin/python scripts/run_tests.py --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
           ci/bin/python scripts/run_tests.py --changes_only --features concurrency --commit_id ${{ github.event.pull_request.base.sha }}
+        env:
+          SEED: 0
+
+      - name: "Run tests on push"
+        if: github.event_name == 'push'
+        # TODO: Better support for running tests on push.
+        run: |
+          python3 -m venv ci
+          ci/bin/pip install -r scripts/requirements.txt
+          ci/bin/python scripts/run_tests.py
+          ci/bin/python scripts/run_tests.py --features concurrency
         env:
           SEED: 0
 
