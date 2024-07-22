@@ -8962,7 +8962,6 @@ dependencies = [
  "mockall",
  "mockito 1.4.0",
  "num-bigint 0.4.5",
- "num-traits 0.2.19",
  "papyrus_config",
  "papyrus_rpc",
  "pretty_assertions",
