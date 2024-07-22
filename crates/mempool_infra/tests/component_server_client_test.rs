@@ -22,7 +22,7 @@ impl ComponentAClientTrait for ComponentClient<ComponentARequest, ComponentAResp
     async fn a_get_value(&self) -> ResultA {
         let res = self.send(ComponentARequest::AGetValue).await;
         match res {
-            ComponentAResponse::Value(value) => Ok(value),
+            ComponentAResponse::AGetValue(value) => Ok(value),
         }
     }
 }
@@ -31,7 +31,7 @@ impl ComponentAClientTrait for ComponentClient<ComponentARequest, ComponentAResp
 impl ComponentRequestHandler<ComponentARequest, ComponentAResponse> for ComponentA {
     async fn handle_request(&mut self, request: ComponentARequest) -> ComponentAResponse {
         match request {
-            ComponentARequest::AGetValue => ComponentAResponse::Value(self.a_get_value().await),
+            ComponentARequest::AGetValue => ComponentAResponse::AGetValue(self.a_get_value().await),
         }
     }
 }
@@ -41,7 +41,7 @@ impl ComponentBClientTrait for ComponentClient<ComponentBRequest, ComponentBResp
     async fn b_get_value(&self) -> ResultB {
         let res = self.send(ComponentBRequest::BGetValue).await;
         match res {
-            ComponentBResponse::Value(value) => Ok(value),
+            ComponentBResponse::BGetValue(value) => Ok(value),
         }
     }
 }
@@ -50,7 +50,7 @@ impl ComponentBClientTrait for ComponentClient<ComponentBRequest, ComponentBResp
 impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for ComponentB {
     async fn handle_request(&mut self, request: ComponentBRequest) -> ComponentBResponse {
         match request {
-            ComponentBRequest::BGetValue => ComponentBResponse::Value(self.b_get_value()),
+            ComponentBRequest::BGetValue => ComponentBResponse::BGetValue(self.b_get_value()),
         }
     }
 }

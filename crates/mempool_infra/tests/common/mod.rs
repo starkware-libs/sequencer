@@ -18,7 +18,7 @@ pub enum ComponentARequest {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ComponentAResponse {
-    Value(ValueA),
+    AGetValue(ValueA),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -28,7 +28,7 @@ pub enum ComponentBRequest {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ComponentBResponse {
-    Value(ValueB),
+    BGetValue(ValueB),
 }
 
 #[async_trait]

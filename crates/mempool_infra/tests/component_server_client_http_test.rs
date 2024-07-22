@@ -45,7 +45,7 @@ const DESERIALIZE_RES_ERROR_MESSAGE: &str = "Could not deserialize server respon
 impl ComponentAClientTrait for ComponentClientHttp<ComponentARequest, ComponentAResponse> {
     async fn a_get_value(&self) -> ResultA {
         match self.send(ComponentARequest::AGetValue).await? {
-            ComponentAResponse::Value(value) => Ok(value),
+            ComponentAResponse::AGetValue(value) => Ok(value),
         }
     }
 }
@@ -54,7 +54,7 @@ impl ComponentAClientTrait for ComponentClientHttp<ComponentARequest, ComponentA
 impl ComponentRequestHandler<ComponentARequest, ComponentAResponse> for ComponentA {
     async fn handle_request(&mut self, request: ComponentARequest) -> ComponentAResponse {
         match request {
-            ComponentARequest::AGetValue => ComponentAResponse::Value(self.a_get_value().await),
+            ComponentARequest::AGetValue => ComponentAResponse::AGetValue(self.a_get_value().await),
         }
     }
 }
@@ -63,7 +63,7 @@ impl ComponentRequestHandler<ComponentARequest, ComponentAResponse> for Componen
 impl ComponentBClientTrait for ComponentClientHttp<ComponentBRequest, ComponentBResponse> {
     async fn b_get_value(&self) -> ResultB {
         match self.send(ComponentBRequest::BGetValue).await? {
-            ComponentBResponse::Value(value) => Ok(value),
+            ComponentBResponse::BGetValue(value) => Ok(value),
         }
     }
 }
@@ -72,7 +72,7 @@ impl ComponentBClientTrait for ComponentClientHttp<ComponentBRequest, ComponentB
 impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for ComponentB {
     async fn handle_request(&mut self, request: ComponentBRequest) -> ComponentBResponse {
         match request {
-            ComponentBRequest::BGetValue => ComponentBResponse::Value(self.b_get_value()),
+            ComponentBRequest::BGetValue => ComponentBResponse::BGetValue(self.b_get_value()),
         }
     }
 }
