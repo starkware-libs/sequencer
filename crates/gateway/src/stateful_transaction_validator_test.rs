@@ -24,7 +24,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
 use crate::compilation::GatewayCompiler;
-use crate::config::{GatewayCompilerConfig, StatefulTransactionValidatorConfig};
+use crate::config::{ChainInfo, GatewayCompilerConfig, StatefulTransactionValidatorConfig};
 use crate::errors::{StatefulTransactionValidatorError, StatefulTransactionValidatorResult};
 use crate::state_reader_test_utils::{
     local_test_state_reader_factory,
@@ -46,7 +46,7 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
             max_nonce_for_validation_skip: Default::default(),
             validate_max_n_steps: block_context.versioned_constants().validate_max_n_steps,
             max_recursion_depth: block_context.versioned_constants().max_recursion_depth,
-            chain_info: block_context.chain_info().clone().into(),
+            chain_info: ChainInfo(block_context.chain_info().clone()),
         },
     }
 }
@@ -125,7 +125,7 @@ fn test_instantiate_validator() {
             max_nonce_for_validation_skip: Default::default(),
             validate_max_n_steps: block_context.versioned_constants().validate_max_n_steps,
             max_recursion_depth: block_context.versioned_constants().max_recursion_depth,
-            chain_info: block_context.chain_info().clone().into(),
+            chain_info: ChainInfo(block_context.chain_info().clone()),
         },
     };
     let blockifier_validator = stateful_validator.instantiate_validator(&state_reader_factory);

@@ -35,7 +35,7 @@ impl StatefulTransactionValidator {
         let account_tx = external_tx_to_account_tx(
             external_tx,
             optional_class_info,
-            &self.config.chain_info.chain_id,
+            &self.config.chain_info.0.chain_id,
         )?;
         let tx_hash = get_tx_hash(&account_tx);
 
@@ -68,7 +68,7 @@ impl StatefulTransactionValidator {
         // able to read the block_hash of 10 blocks ago from papyrus.
         let block_context = BlockContext::new(
             block_info,
-            self.config.chain_info.clone().into(),
+            self.config.chain_info.0.clone(),
             versioned_constants,
             BouncerConfig::max(),
         );
