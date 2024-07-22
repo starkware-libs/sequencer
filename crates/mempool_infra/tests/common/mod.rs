@@ -24,11 +24,13 @@ pub enum ComponentAResponse {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ComponentBRequest {
     BGetValue,
+    BSetValue(ValueB),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ComponentBResponse {
     BGetValue(ValueB),
+    BSetValue,
 }
 
 #[async_trait]
@@ -39,6 +41,7 @@ pub(crate) trait ComponentAClientTrait: Send + Sync {
 #[async_trait]
 pub(crate) trait ComponentBClientTrait: Send + Sync {
     async fn b_get_value(&self) -> ResultB;
+    async fn b_set_value(&self, value: ValueB) -> ClientResult<()>;
 }
 
 pub(crate) struct ComponentA {
@@ -71,6 +74,10 @@ impl ComponentB {
 
     pub fn b_get_value(&self) -> ValueB {
         self.value
+    }
+
+    pub fn b_set_value(&mut self, value: ValueB) {
+        self.value = value;
     }
 }
 

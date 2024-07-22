@@ -14,7 +14,7 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Request, Response, Server, StatusCode, Uri};
 use rstest::rstest;
 use serde::Serialize;
-use starknet_mempool_infra::component_client::{ClientError, ComponentClientHttp};
+use starknet_mempool_infra::component_client::{ClientError, ClientResult, ComponentClientHttp};
 use starknet_mempool_infra::component_definitions::{
     ComponentRequestHandler, ServerError, APPLICATION_OCTET_STREAM,
 };
@@ -64,6 +64,14 @@ impl ComponentBClientTrait for ComponentClientHttp<ComponentBRequest, ComponentB
     async fn b_get_value(&self) -> ResultB {
         match self.send(ComponentBRequest::BGetValue).await? {
             ComponentBResponse::BGetValue(value) => Ok(value),
+            _ => Err(ClientError::UnexpectedResponse),
+        }
+    }
+
+    async fn b_set_value(&self, value: ValueB) -> ClientResult<()> {
+        match self.send(ComponentBRequest::BSetValue(value)).await? {
+            ComponentBResponse::BSetValue => Ok(()),
+            _ => Err(ClientError::UnexpectedResponse),
         }
     }
 }
@@ -73,12 +81,24 @@ impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for Componen
     async fn handle_request(&mut self, request: ComponentBRequest) -> ComponentBResponse {
         match request {
             ComponentBRequest::BGetValue => ComponentBResponse::BGetValue(self.b_get_value()),
+            ComponentBRequest::BSetValue(value) => {
+                self.b_set_value(value);
+                ComponentBResponse::BSetValue
+            }
         }
     }
 }
 
-async fn verify_response(a_client: ComponentAClient, expected_value: ValueA) {
+async fn verify_response(
+    a_client: ComponentAClient,
+    b_client: ComponentBClient,
+    expected_value: ValueA,
+) {
     assert_eq!(a_client.a_get_value().await.unwrap(), expected_value);
+    let new_expected_value: ValueB = 222;
+
+    assert!(b_client.b_set_value(new_expected_value).await.is_ok());
+    assert_eq!(a_client.a_get_value().await.unwrap(), new_expected_value.into());
 }
 
 async fn verify_error(
@@ -164,7 +184,8 @@ async fn test_proper_setup() {
     let setup_value: ValueB = 90;
     setup_for_tests(setup_value, A_PORT_TEST_SETUP, B_PORT_TEST_SETUP).await;
     let a_client = ComponentAClient::new(LOCAL_IP, A_PORT_TEST_SETUP);
-    verify_response(a_client, setup_value.into()).await;
+    let b_client = ComponentBClient::new(LOCAL_IP, B_PORT_TEST_SETUP);
+    verify_response(a_client, b_client, setup_value.into()).await;
 }
 
 #[tokio::test]
