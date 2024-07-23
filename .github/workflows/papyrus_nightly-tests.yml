@@ -11,7 +11,7 @@ env:
 
 jobs:
   GW-integration-test-ubuntu:
-    uses: ./.github/workflows/nightly-tests-call.yml
+    uses: ./.github/workflows/papyrus_nightly-tests-call.yml
     with:
       os: ubuntu-latest
     secrets:
@@ -22,7 +22,7 @@ jobs:
     if: github.event.schedule != '30 0 * * *'
 
   GW-integration-test-macos:
-    uses: ./.github/workflows/nightly-tests-call.yml
+    uses: ./.github/workflows/papyrus_nightly-tests-call.yml
     with:
       os: macos-latest
     secrets:
