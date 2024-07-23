@@ -19,6 +19,10 @@ PATTERN = r"(\w+)\s*v([\d.]*.*)\((.*?)\)"
 DEPENDENCY_PATTERN = r"([a-zA-Z0-9_]+) [^(]* \(([^)]+)\)"
 
 
+# Set of files which - if changed - should trigger tests for all packages.
+ALL_TEST_TRIGGERS: Set[str] = {"Cargo.toml", "Cargo.lock"}
+
+
 def get_workspace_tree() -> Dict[str, str]:
     tree = dict()
     res = subprocess.check_output("cargo tree --depth 0".split()).decode("utf-8").splitlines()
@@ -65,6 +69,12 @@ def get_package_dependencies(package_name: str) -> Set[str]:
     return deps
 
 
+def packages_to_test_due_to_global_changes(files: List[str]) -> Set[str]:
+    if len(set(files).intersection(ALL_TEST_TRIGGERS)) > 0:
+        return set(get_workspace_tree().keys())
+    return set()
+
+
 def run_test(changes_only: bool, commit_id: Optional[str], concurrency: bool):
     local_changes = get_local_changes(".", commit_id=commit_id)
     modified_packages = get_modified_packages(local_changes)
@@ -73,17 +83,26 @@ def run_test(changes_only: bool, commit_id: Optional[str], concurrency: bool):
     if changes_only:
         for p in modified_packages:
             deps = get_package_dependencies(p)
-            print(f"Running tests for {deps}")
             tested_packages.update(deps)
-        if len(args) == 0:
+        print(f"Running tests for {tested_packages} (due to modifications in {modified_packages}).")
+        # Add global-triggered packages.
+        extra_packages = packages_to_test_due_to_global_changes(files=local_changes)
+        print(f"Running tests for global-triggered packages {extra_packages}")
+        tested_packages.update(extra_packages)
+        if len(tested_packages) == 0:
             print("No changes detected.")
             return
 
     for package in tested_packages:
         args.extend(["--package", package])
 
+    # If tested_packages is empty (i.e. changes_only is False), all packages will be tested (no
+    # args).
     cmd = ["cargo", "test"] + args
 
+    # TODO: Less specific handling of active feature combinations in tests (which combos should be
+    #   tested and which shouldn't?).
+    # If blockifier is to be tested, add the concurrency flag if requested.
     if concurrency and "blockifier" in tested_packages:
         cmd.extend(["--features", "concurrency"])
 
