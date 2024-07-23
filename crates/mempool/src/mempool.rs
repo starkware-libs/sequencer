@@ -89,7 +89,8 @@ impl Mempool {
             {
                 self.tx_queue.remove(address);
             }
-            // TODO: remove the transactions from the tx_pool.
+
+            self.tx_pool.remove_up_to_nonce(address, next_nonce);
         }
         // TODO: update the tx_queue with the new state changes.
         todo!()
