@@ -14,15 +14,16 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Request, Response, Server, StatusCode, Uri};
 use rstest::rstest;
 use serde::Serialize;
-use starknet_mempool_infra::component_client::{ClientError, ClientResult, ComponentClientHttp};
+use starknet_mempool_infra::component_client::definitions::{ClientError, ClientResult};
+use starknet_mempool_infra::component_client::remote_component_client::RemoteComponentClient;
 use starknet_mempool_infra::component_definitions::{
     ComponentRequestHandler, ServerError, APPLICATION_OCTET_STREAM,
 };
 use starknet_mempool_infra::component_server::{ComponentServerHttp, ComponentServerStarter};
 use tokio::task;
 
-type ComponentAClient = ComponentClientHttp<ComponentARequest, ComponentAResponse>;
-type ComponentBClient = ComponentClientHttp<ComponentBRequest, ComponentBResponse>;
+type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentAResponse>;
+type ComponentBClient = RemoteComponentClient<ComponentBRequest, ComponentBResponse>;
 
 use crate::common::{ComponentA, ComponentB, ValueA, ValueB};
 
@@ -42,7 +43,7 @@ const DESERIALIZE_REQ_ERROR_MESSAGE: &str = "Could not deserialize client reques
 const DESERIALIZE_RES_ERROR_MESSAGE: &str = "Could not deserialize server response";
 
 #[async_trait]
-impl ComponentAClientTrait for ComponentClientHttp<ComponentARequest, ComponentAResponse> {
+impl ComponentAClientTrait for RemoteComponentClient<ComponentARequest, ComponentAResponse> {
     async fn a_get_value(&self) -> ResultA {
         match self.send(ComponentARequest::AGetValue).await? {
             ComponentAResponse::AGetValue(value) => Ok(value),
@@ -60,7 +61,7 @@ impl ComponentRequestHandler<ComponentARequest, ComponentAResponse> for Componen
 }
 
 #[async_trait]
-impl ComponentBClientTrait for ComponentClientHttp<ComponentBRequest, ComponentBResponse> {
+impl ComponentBClientTrait for RemoteComponentClient<ComponentBRequest, ComponentBResponse> {
     async fn b_get_value(&self) -> ResultB {
         match self.send(ComponentBRequest::BGetValue).await? {
             ComponentBResponse::BGetValue(value) => Ok(value),

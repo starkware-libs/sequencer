@@ -3,14 +3,15 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use mockall::predicate::*;
 use mockall::*;
-use starknet_mempool_infra::component_client::{ClientError, ComponentClient};
+use starknet_mempool_infra::component_client::definitions::ClientError;
+use starknet_mempool_infra::component_client::local_component_client::LocalComponentClient;
 use starknet_mempool_infra::component_definitions::ComponentRequestAndResponseSender;
 use thiserror::Error;
 
 use crate::errors::MempoolError;
 use crate::mempool_types::{MempoolInput, ThinTransaction};
 
-pub type MempoolClientImpl = ComponentClient<MempoolRequest, MempoolResponse>;
+pub type MempoolClientImpl = LocalComponentClient<MempoolRequest, MempoolResponse>;
 pub type MempoolResult<T> = Result<T, MempoolError>;
 pub type MempoolClientResult<T> = Result<T, MempoolClientError>;
 pub type MempoolRequestAndResponseSender =

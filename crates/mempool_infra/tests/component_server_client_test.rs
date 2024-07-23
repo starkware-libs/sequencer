@@ -5,7 +5,8 @@ use common::{
     ComponentAClientTrait, ComponentARequest, ComponentAResponse, ComponentBClientTrait,
     ComponentBRequest, ComponentBResponse, ResultA, ResultB,
 };
-use starknet_mempool_infra::component_client::{ClientError, ClientResult, ComponentClient};
+use starknet_mempool_infra::component_client::definitions::{ClientError, ClientResult};
+use starknet_mempool_infra::component_client::local_component_client::LocalComponentClient;
 use starknet_mempool_infra::component_definitions::{
     ComponentRequestAndResponseSender, ComponentRequestHandler,
 };
@@ -15,13 +16,13 @@ use tokio::task;
 
 use crate::common::{ComponentA, ComponentB, ValueA, ValueB};
 
-type ComponentAClient = ComponentClient<ComponentARequest, ComponentAResponse>;
-type ComponentBClient = ComponentClient<ComponentBRequest, ComponentBResponse>;
+type ComponentAClient = LocalComponentClient<ComponentARequest, ComponentAResponse>;
+type ComponentBClient = LocalComponentClient<ComponentBRequest, ComponentBResponse>;
 
 // TODO(Tsabary): send messages from component b to component a.
 
 #[async_trait]
-impl ComponentAClientTrait for ComponentClient<ComponentARequest, ComponentAResponse> {
+impl ComponentAClientTrait for LocalComponentClient<ComponentARequest, ComponentAResponse> {
     async fn a_get_value(&self) -> ResultA {
         let res = self.send(ComponentARequest::AGetValue).await;
         match res {
@@ -40,7 +41,7 @@ impl ComponentRequestHandler<ComponentARequest, ComponentAResponse> for Componen
 }
 
 #[async_trait]
-impl ComponentBClientTrait for ComponentClient<ComponentBRequest, ComponentBResponse> {
+impl ComponentBClientTrait for LocalComponentClient<ComponentBRequest, ComponentBResponse> {
     async fn b_get_value(&self) -> ResultB {
         let res = self.send(ComponentBRequest::BGetValue).await;
         match res {
