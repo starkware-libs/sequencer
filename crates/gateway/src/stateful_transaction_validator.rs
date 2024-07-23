@@ -40,7 +40,7 @@ impl StatefulTransactionValidator {
         let tx_hash = get_tx_hash(&account_tx);
 
         let account_nonce = validator.get_nonce(get_sender_address(external_tx))?;
-        let skip_validate = skip_stateful_validations(external_tx, account_nonce)?;
+        let skip_validate = skip_stateful_validations(external_tx, account_nonce);
         validator.perform_validations(account_tx, skip_validate)?;
         Ok(tx_hash)
     }
@@ -76,18 +76,15 @@ impl StatefulTransactionValidator {
 // Check if validation of an invoke transaction should be skipped due to deploy_account not being
 // proccessed yet. This feature is used to improve UX for users sending deploy_account + invoke at
 // once.
-fn skip_stateful_validations(
-    tx: &RPCTransaction,
-    account_nonce: Nonce,
-) -> StatefulTransactionValidatorResult<bool> {
+fn skip_stateful_validations(tx: &RPCTransaction, account_nonce: Nonce) -> bool {
     match tx {
         RPCTransaction::Invoke(RPCInvokeTransaction::V3(tx)) => {
             // check if the transaction nonce is 1, meaning it is post deploy_account, and the
             // account nonce is zero, meaning the account was not deployed yet. The mempool also
             // verifies that the deploy_account transaction exists.
-            Ok(tx.nonce == Nonce(Felt::ONE) && account_nonce == Nonce(Felt::ZERO))
+            tx.nonce == Nonce(Felt::ONE) && account_nonce == Nonce(Felt::ZERO)
         }
-        RPCTransaction::DeployAccount(_) | RPCTransaction::Declare(_) => Ok(false),
+        RPCTransaction::DeployAccount(_) | RPCTransaction::Declare(_) => false,
     }
 }
 
