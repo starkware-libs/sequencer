@@ -128,7 +128,7 @@ fn process_tx(
     // Compile Sierra to Casm.
     let optional_class_info = match &tx {
         RPCTransaction::Declare(declare_tx) => {
-            Some(gateway_compiler.compile_contract_class(declare_tx)?)
+            Some(gateway_compiler.process_declare_tx(declare_tx)?)
         }
         _ => None,
     };
