@@ -29,6 +29,52 @@ def get_workspace_tree() -> Dict[str, str]:
     return tree
 
 
+# Specific package sets require testing on change to artifacts outside of the crates/ directory.
+# Define a mapping from sensitive file paths to the set of packages that should be tested when
+# those files change.
+
+ALL_PACKAGES = set(get_workspace_tree().keys())
+
+BLOCKIFIER_PACKAGES = {"blockifier", "native_blockifier"}
+assert BLOCKIFIER_PACKAGES.issubset(ALL_PACKAGES)
+
+# TODO(DanB, 1/9/2024): Better papyrus package detection?
+PAPYRUS_PACKAGES = {package for package in ALL_PACKAGES if "papyrus" in package}
+
+GLOBAL_CI_TRIGGERS: Dict[str, Set[str]] = {
+    **{
+        blockifier_trigger: BLOCKIFIER_PACKAGES
+        for blockifier_trigger in [
+            # TODO(Dori, 1/9/2024): Should any other blockifier-related CI changes trigger
+            #   blockifier tests?
+            ".github/workflows/blockifier_ci.yml",
+            "blockifier.Dockerfile",
+            "build_native_blockifier.sh",
+            "requirements.txt",
+            "scripts/install_build_tools.sh",
+        ]
+    },
+    **{
+        papyrus_trigger: PAPYRUS_PACKAGES
+        for papyrus_trigger in [
+            # TODO(DanB, 1/9/2024): Add CI file change triggers.
+            ".dockerignore",
+            "Dockerfile",
+            "check_starknet_api_version_dependency.sh",
+            "papyrus_utilities.Dockerfile",
+        ]
+    },
+    **{
+        all_trigger: ALL_PACKAGES
+        for all_trigger in [
+            "Cargo.toml",
+            "Cargo.lock",
+            ".github/workflows/main.yml",
+        ]
+    },
+}
+
+
 def get_local_changes(repo_path, commit_id: Optional[str]) -> List[str]:
     os.environ["GIT_PYTHON_REFRESH"] = "quiet"  # noqa
     repo = Repo(repo_path)
@@ -65,6 +111,18 @@ def get_package_dependencies(package_name: str) -> Set[str]:
     return deps
 
 
+def get_global_file_triggered_packages(files: List[str]) -> Set[str]:
+    """
+    Searches for files that are globally sensitive to changes and returns the set of packages that
+    should be tested as a result of a change in the file.
+    """
+    triggered_packages = set()
+    for trigger_file, packages in GLOBAL_CI_TRIGGERS.items():
+        if trigger_file in files:
+            triggered_packages.update(packages)
+    return triggered_packages
+
+
 def run_test(changes_only: bool, commit_id: Optional[str], concurrency: bool):
     local_changes = get_local_changes(".", commit_id=commit_id)
     modified_packages = get_modified_packages(local_changes)
@@ -75,7 +133,11 @@ def run_test(changes_only: bool, commit_id: Optional[str], concurrency: bool):
             deps = get_package_dependencies(p)
             print(f"Running tests for {deps}")
             tested_packages.update(deps)
-        if len(args) == 0:
+        # Add global-triggered packages.
+        global_triggered_packages = get_global_file_triggered_packages(files=local_changes)
+        print(f"Running tests for global-triggered packages {global_triggered_packages}")
+        tested_packages.update(global_triggered_packages)
+        if len(tested_packages) == 0:
             print("No changes detected.")
             return
 
