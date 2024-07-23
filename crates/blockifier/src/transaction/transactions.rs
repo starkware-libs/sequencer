@@ -4,6 +4,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::calldata;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::EntryPointType;
+use starknet_api::internal_transaction::InternalDeployAccountTransaction;
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
@@ -53,6 +54,14 @@ macro_rules! implement_inner_tx_getter_calls {
     ($(($field:ident, $field_type:ty)),*) => {
         $(pub fn $field(&self) -> $field_type {
             self.tx.$field().clone()
+        })*
+    };
+}
+
+macro_rules! implement_wrapped_inner_tx_getter_calls {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            self.0.tx.$field().clone()
         })*
     };
 }
@@ -283,13 +292,7 @@ impl TransactionInfoCreator for DeclareTransaction {
     }
 }
 #[derive(Debug, Clone)]
-pub struct DeployAccountTransaction {
-    pub tx: starknet_api::transaction::DeployAccountTransaction,
-    pub tx_hash: TransactionHash,
-    pub contract_address: ContractAddress,
-    // Indicates the presence of the only_query bit in the version.
-    pub only_query: bool,
-}
+pub struct DeployAccountTransaction(pub InternalDeployAccountTransaction);
 
 impl DeployAccountTransaction {
     pub fn new(
@@ -297,7 +300,12 @@ impl DeployAccountTransaction {
         tx_hash: TransactionHash,
         contract_address: ContractAddress,
     ) -> Self {
-        Self { tx: deploy_account_tx, tx_hash, contract_address, only_query: false }
+        Self(InternalDeployAccountTransaction {
+            tx: deploy_account_tx,
+            tx_hash,
+            contract_address,
+            only_query: false,
+        })
     }
 
     pub fn new_for_query(
@@ -305,10 +313,15 @@ impl DeployAccountTransaction {
         tx_hash: TransactionHash,
         contract_address: ContractAddress,
     ) -> Self {
-        Self { tx: deploy_account_tx, tx_hash, contract_address, only_query: true }
+        Self(InternalDeployAccountTransaction {
+            tx: deploy_account_tx,
+            tx_hash,
+            contract_address,
+            only_query: true,
+        })
     }
 
-    implement_inner_tx_getter_calls!(
+    implement_wrapped_inner_tx_getter_calls!(
         (class_hash, ClassHash),
         (constructor_calldata, Calldata),
         (contract_address_salt, ContractAddressSalt),
@@ -317,7 +330,7 @@ impl DeployAccountTransaction {
     );
 
     pub fn tx(&self) -> &starknet_api::transaction::DeployAccountTransaction {
-        &self.tx
+        &self.0.tx
     }
 }
 
@@ -333,7 +346,7 @@ impl<S: State> Executable<S> for DeployAccountTransaction {
         let ctor_context = ConstructorContext {
             class_hash,
             code_address: None,
-            storage_address: self.contract_address,
+            storage_address: self.0.contract_address,
             caller_address: ContractAddress::default(),
         };
         let call_info = execute_deployment(
@@ -353,15 +366,15 @@ impl<S: State> Executable<S> for DeployAccountTransaction {
 impl TransactionInfoCreator for DeployAccountTransaction {
     fn create_tx_info(&self) -> TransactionInfo {
         let common_fields = CommonAccountFields {
-            transaction_hash: self.tx_hash,
-            version: self.tx.version(),
-            signature: self.tx.signature(),
-            nonce: self.tx.nonce(),
-            sender_address: self.contract_address,
-            only_query: self.only_query,
+            transaction_hash: self.0.tx_hash,
+            version: self.0.tx.version(),
+            signature: self.0.tx.signature(),
+            nonce: self.0.tx.nonce(),
+            sender_address: self.0.contract_address,
+            only_query: self.0.only_query,
         };
 
-        match &self.tx {
+        match &self.0.tx {
             starknet_api::transaction::DeployAccountTransaction::V1(tx) => {
                 TransactionInfo::Deprecated(DeprecatedTransactionInfo {
                     common_fields,
