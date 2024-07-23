@@ -425,8 +425,7 @@ impl TransactionInfoCreator for DeployAccountTransaction {
 
 #[derive(Debug, Clone)]
 pub struct InvokeTransaction {
-    pub tx: starknet_api::transaction::InvokeTransaction,
-    pub tx_hash: TransactionHash,
+    pub tx: starknet_api::executable_transaction::InvokeTransaction,
     // Indicates the presence of the only_query bit in the version.
     pub only_query: bool,
 }
@@ -436,14 +435,20 @@ impl InvokeTransaction {
         invoke_tx: starknet_api::transaction::InvokeTransaction,
         tx_hash: TransactionHash,
     ) -> Self {
-        Self { tx: invoke_tx, tx_hash, only_query: false }
+        Self {
+            tx: starknet_api::executable_transaction::InvokeTransaction { tx: invoke_tx, tx_hash },
+            only_query: false,
+        }
     }
 
     pub fn new_for_query(
         invoke_tx: starknet_api::transaction::InvokeTransaction,
         tx_hash: TransactionHash,
     ) -> Self {
-        Self { tx: invoke_tx, tx_hash, only_query: true }
+        Self {
+            tx: starknet_api::executable_transaction::InvokeTransaction { tx: invoke_tx, tx_hash },
+            only_query: true,
+        }
     }
 
     implement_inner_tx_getter_calls!(
@@ -451,11 +456,12 @@ impl InvokeTransaction {
         (nonce, Nonce),
         (signature, TransactionSignature),
         (sender_address, ContractAddress),
+        (tx_hash, TransactionHash),
         (version, TransactionVersion)
     );
 
-    pub fn tx_hash(&self) -> TransactionHash {
-        self.tx_hash
+    pub fn tx(&self) -> &starknet_api::transaction::InvokeTransaction {
+        self.tx.tx()
     }
 }
 
@@ -467,7 +473,7 @@ impl<S: State> Executable<S> for InvokeTransaction {
         context: &mut EntryPointExecutionContext,
         remaining_gas: &mut u64,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
-        let entry_point_selector = match &self.tx {
+        let entry_point_selector = match &self.tx.tx {
             starknet_api::transaction::InvokeTransaction::V0(tx) => tx.entry_point_selector,
             starknet_api::transaction::InvokeTransaction::V1(_)
             | starknet_api::transaction::InvokeTransaction::V3(_) => {
@@ -513,7 +519,7 @@ impl TransactionInfoCreator for InvokeTransaction {
             only_query: self.only_query,
         };
 
-        match &self.tx {
+        match &self.tx() {
             starknet_api::transaction::InvokeTransaction::V0(tx) => {
                 TransactionInfo::Deprecated(DeprecatedTransactionInfo {
                     common_fields,
