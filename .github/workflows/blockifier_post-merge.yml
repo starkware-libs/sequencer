@@ -6,6 +6,10 @@ on:
       - closed
     paths:
       - 'crates/blockifier/**'
+
+env:
+  PROTOC_VERSION: v25.1
+
 jobs:
   if_merged:
     if: github.event.pull_request.merged == true
@@ -16,6 +20,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: "v0-rust-ubuntu-20.04"
+      - uses: Noelware/setup-protoc@1.1.0
+        with:
+          version: ${{env.PROTOC_VERSION}}
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
