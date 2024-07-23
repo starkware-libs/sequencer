@@ -77,11 +77,8 @@ impl Mempool {
     ) -> MempoolResult<()> {
         for (address, AccountState { nonce }) in state_changes {
             let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
-            // Dequeue transactions from the queue in the following cases:
-            // 1. Remove a transaction from queue with nonce lower and eq than those committed to
-            //    the block, applicable when the block is from the same leader.
-            // 2. Remove a transaction from queue with nonce greater than the next nonce block,
-            //    applicable when the block is from a different leader.
+
+            // Align the queue with the committed nonces.
             if self
                 .tx_queue
                 .get_nonce(address)
@@ -90,10 +87,15 @@ impl Mempool {
                 self.tx_queue.remove(address);
             }
 
+            if self.tx_queue.get_nonce(address).is_none() {
+                if let Some(tx) = self.tx_pool.get_by_address_and_nonce(address, nonce) {
+                    self.tx_queue.insert(*tx);
+                }
+            }
+
             self.tx_pool.remove_up_to_nonce(address, next_nonce);
         }
-        // TODO: update the tx_queue with the new state changes.
-        todo!()
+        Ok(())
     }
 
     fn insert_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
