@@ -19,7 +19,7 @@ use starknet_mempool_infra::component_client::remote_component_client::RemoteCom
 use starknet_mempool_infra::component_definitions::{
     ComponentRequestHandler, ServerError, APPLICATION_OCTET_STREAM,
 };
-use starknet_mempool_infra::component_server::{ComponentServerHttp, ComponentServerStarter};
+use starknet_mempool_infra::component_server::{ComponentServerStarter, RemoteComponentServer};
 use tokio::task;
 
 type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentAResponse>;
@@ -157,12 +157,12 @@ async fn setup_for_tests(setup_value: ValueB, a_port: u16, b_port: u16) {
     let component_a = ComponentA::new(Box::new(b_client));
     let component_b = ComponentB::new(setup_value, Box::new(a_client.clone()));
 
-    let mut component_a_server = ComponentServerHttp::<
+    let mut component_a_server = RemoteComponentServer::<
         ComponentA,
         ComponentARequest,
         ComponentAResponse,
     >::new(component_a, LOCAL_IP, a_port);
-    let mut component_b_server = ComponentServerHttp::<
+    let mut component_b_server = RemoteComponentServer::<
         ComponentB,
         ComponentBRequest,
         ComponentBResponse,

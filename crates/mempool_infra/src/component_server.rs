@@ -19,7 +19,7 @@ use crate::component_definitions::{
 };
 use crate::component_runner::ComponentStarter;
 
-/// The `ComponentServer` struct is a generic server that handles requests and responses for a
+/// The `LocalComponentServer` struct is a generic server that handles requests and responses for a
 /// specified component. It receives requests, processes them using the provided component, and
 /// sends back responses. The server needs to be started using the `start` function, which runs
 /// indefinitely.
@@ -43,7 +43,7 @@ use crate::component_runner::ComponentStarter;
 ///
 /// # Example
 /// ```rust
-/// // Example usage of the ComponentServer
+/// // Example usage of the LocalComponentServer
 /// use std::sync::mpsc::{channel, Receiver};
 ///
 /// use async_trait::async_trait;
@@ -54,7 +54,7 @@ use crate::component_runner::ComponentStarter;
 ///     ComponentRequestAndResponseSender, ComponentRequestHandler,
 /// };
 /// use crate::starknet_mempool_infra::component_server::{
-///     ComponentServer, ComponentServerStarter,
+///     ComponentServerStarter, LocalComponentServer,
 /// };
 ///
 /// // Define your component
@@ -95,7 +95,7 @@ use crate::component_runner::ComponentStarter;
 ///     let component = MyComponent {};
 ///
 ///     // Instantiate the server.
-///     let mut server = ComponentServer::new(component, rx);
+///     let mut server = LocalComponentServer::new(component, rx);
 ///
 ///     // Start the server in a new task.
 ///     task::spawn(async move {
@@ -118,7 +118,7 @@ use crate::component_runner::ComponentStarter;
 ///     assert!(response.content == "request example processed".to_string(), "Unexpected response");
 /// }
 /// ```
-pub struct ComponentServer<Component, Request, Response>
+pub struct LocalComponentServer<Component, Request, Response>
 where
     Component: ComponentRequestHandler<Request, Response> + ComponentStarter,
     Request: Send + Sync,
@@ -128,7 +128,7 @@ where
     rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
 }
 
-impl<Component, Request, Response> ComponentServer<Component, Request, Response>
+impl<Component, Request, Response> LocalComponentServer<Component, Request, Response>
 where
     Component: ComponentRequestHandler<Request, Response> + ComponentStarter,
     Request: Send + Sync,
@@ -149,7 +149,7 @@ pub trait ComponentServerStarter: Send + Sync {
 
 #[async_trait]
 impl<Component, Request, Response> ComponentServerStarter
-    for ComponentServer<Component, Request, Response>
+    for LocalComponentServer<Component, Request, Response>
 where
     Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Send + Sync,
     Request: Send + Sync,
@@ -182,7 +182,7 @@ where
     true
 }
 
-pub struct ComponentServerHttp<Component, Request, Response>
+pub struct RemoteComponentServer<Component, Request, Response>
 where
     Component: ComponentRequestHandler<Request, Response> + Send + 'static,
     Request: for<'a> Deserialize<'a> + Send + 'static,
@@ -194,7 +194,7 @@ where
     _res: PhantomData<Response>,
 }
 
-impl<Component, Request, Response> ComponentServerHttp<Component, Request, Response>
+impl<Component, Request, Response> RemoteComponentServer<Component, Request, Response>
 where
     Component: ComponentRequestHandler<Request, Response> + Send + 'static,
     Request: for<'a> Deserialize<'a> + Send + 'static,
@@ -242,7 +242,7 @@ where
 
 #[async_trait]
 impl<Component, Request, Response> ComponentServerStarter
-    for ComponentServerHttp<Component, Request, Response>
+    for RemoteComponentServer<Component, Request, Response>
 where
     Component: ComponentRequestHandler<Request, Response> + Send + 'static,
     Request: for<'a> Deserialize<'a> + Send + Sync + 'static,

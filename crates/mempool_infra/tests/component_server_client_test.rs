@@ -10,7 +10,7 @@ use starknet_mempool_infra::component_client::local_component_client::LocalCompo
 use starknet_mempool_infra::component_definitions::{
     ComponentRequestAndResponseSender, ComponentRequestHandler,
 };
-use starknet_mempool_infra::component_server::{ComponentServer, ComponentServerStarter};
+use starknet_mempool_infra::component_server::{ComponentServerStarter, LocalComponentServer};
 use tokio::sync::mpsc::channel;
 use tokio::task;
 
@@ -99,8 +99,8 @@ async fn test_setup() {
     let component_a = ComponentA::new(Box::new(b_client.clone()));
     let component_b = ComponentB::new(setup_value, Box::new(a_client.clone()));
 
-    let mut component_a_server = ComponentServer::new(component_a, rx_a);
-    let mut component_b_server = ComponentServer::new(component_b, rx_b);
+    let mut component_a_server = LocalComponentServer::new(component_a, rx_a);
+    let mut component_b_server = LocalComponentServer::new(component_b, rx_b);
 
     task::spawn(async move {
         component_a_server.start().await;
