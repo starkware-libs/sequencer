@@ -1005,6 +1005,7 @@ dependencies = [
  "num-rational 0.4.2",
  "num-traits 0.2.19",
  "once_cell",
+ "papyrus_config",
  "paste",
  "phf",
  "pretty_assertions",
