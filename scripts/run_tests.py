@@ -65,23 +65,27 @@ def get_package_dependencies(package_name: str) -> Set[str]:
     return deps
 
 
-def run_test(changes_only: bool, commit_id: Optional[str], features: Optional[str] = None):
+def run_test(changes_only: bool, commit_id: Optional[str], concurrency: bool):
     local_changes = get_local_changes(".", commit_id=commit_id)
     modified_packages = get_modified_packages(local_changes)
     args = []
+    tested_packages = set()
     if changes_only:
         for p in modified_packages:
             deps = get_package_dependencies(p)
             print(f"Running tests for {deps}")
-            for d in deps:
-                args.extend(["--package", d])
+            tested_packages.update(deps)
         if len(args) == 0:
             print("No changes detected.")
             return
+
+    for package in tested_packages:
+        args.extend(["--package", package])
+
     cmd = ["cargo", "test"] + args
 
-    if features is not None:
-        cmd.extend(["--features", features])
+    if concurrency and "blockifier" in tested_packages:
+        cmd.extend(["--features", "concurrency"])
 
     print("Running tests...")
     print(cmd, flush=True)
@@ -93,7 +97,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Presubmit script.")
     parser.add_argument("--changes_only", action="store_true")
     parser.add_argument(
-        "--features", type=str, help="Which services to deploy. For multi services separate by ','."
+        "--concurrency",
+        action="store_true",
+        help="If blockifier is to be tested, add the concurrency flag.",
     )
     parser.add_argument("--commit_id", type=str, help="GIT commit ID to compare against.")
     return parser.parse_args()
@@ -101,7 +107,7 @@ def parse_args() -> argparse.Namespace:
 
 def main():
     args = parse_args()
-    run_test(changes_only=args.changes_only, commit_id=args.commit_id, features=args.features)
+    run_test(changes_only=args.changes_only, commit_id=args.commit_id, concurrency=args.concurrency)
 
 
 if __name__ == "__main__":
