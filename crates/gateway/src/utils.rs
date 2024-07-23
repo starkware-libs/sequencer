@@ -163,6 +163,6 @@ pub fn get_tx_hash(tx: &AccountTransaction) -> TransactionHash {
     match tx {
         AccountTransaction::Declare(tx) => tx.tx_hash,
         AccountTransaction::DeployAccount(tx) => tx.tx.tx_hash,
-        AccountTransaction::Invoke(tx) => tx.tx_hash,
+        AccountTransaction::Invoke(tx) => tx.tx.tx_hash,
     }
 }
