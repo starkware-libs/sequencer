@@ -4,7 +4,10 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::calldata;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::EntryPointType;
-use starknet_api::internal_transaction::InternalDeployAccountTransaction;
+use starknet_api::internal_transaction::{
+    InternalDeployAccountTransaction,
+    InternalInvokeTransaction,
+};
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
@@ -397,29 +400,24 @@ impl TransactionInfoCreator for DeployAccountTransaction {
 }
 
 #[derive(Debug, Clone)]
-pub struct InvokeTransaction {
-    pub tx: starknet_api::transaction::InvokeTransaction,
-    pub tx_hash: TransactionHash,
-    // Indicates the presence of the only_query bit in the version.
-    pub only_query: bool,
-}
+pub struct InvokeTransaction(pub InternalInvokeTransaction);
 
 impl InvokeTransaction {
     pub fn new(
         invoke_tx: starknet_api::transaction::InvokeTransaction,
         tx_hash: TransactionHash,
     ) -> Self {
-        Self { tx: invoke_tx, tx_hash, only_query: false }
+        Self(InternalInvokeTransaction { tx: invoke_tx, tx_hash, only_query: false })
     }
 
     pub fn new_for_query(
         invoke_tx: starknet_api::transaction::InvokeTransaction,
         tx_hash: TransactionHash,
     ) -> Self {
-        Self { tx: invoke_tx, tx_hash, only_query: true }
+        Self(InternalInvokeTransaction { tx: invoke_tx, tx_hash, only_query: true })
     }
 
-    implement_inner_tx_getter_calls!(
+    implement_wrapped_inner_tx_getter_calls!(
         (calldata, Calldata),
         (signature, TransactionSignature),
         (sender_address, ContractAddress)
@@ -434,7 +432,7 @@ impl<S: State> Executable<S> for InvokeTransaction {
         context: &mut EntryPointExecutionContext,
         remaining_gas: &mut u64,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
-        let entry_point_selector = match &self.tx {
+        let entry_point_selector = match &self.0.tx {
             starknet_api::transaction::InvokeTransaction::V0(tx) => tx.entry_point_selector,
             starknet_api::transaction::InvokeTransaction::V1(_)
             | starknet_api::transaction::InvokeTransaction::V3(_) => {
@@ -472,15 +470,15 @@ impl<S: State> Executable<S> for InvokeTransaction {
 impl TransactionInfoCreator for InvokeTransaction {
     fn create_tx_info(&self) -> TransactionInfo {
         let common_fields = CommonAccountFields {
-            transaction_hash: self.tx_hash,
-            version: self.tx.version(),
-            signature: self.tx.signature(),
-            nonce: self.tx.nonce(),
-            sender_address: self.tx.sender_address(),
-            only_query: self.only_query,
+            transaction_hash: self.0.tx_hash,
+            version: self.0.tx.version(),
+            signature: self.0.tx.signature(),
+            nonce: self.0.tx.nonce(),
+            sender_address: self.0.tx.sender_address(),
+            only_query: self.0.only_query,
         };
 
-        match &self.tx {
+        match &self.0.tx {
             starknet_api::transaction::InvokeTransaction::V0(tx) => {
                 TransactionInfo::Deprecated(DeprecatedTransactionInfo {
                     common_fields,
