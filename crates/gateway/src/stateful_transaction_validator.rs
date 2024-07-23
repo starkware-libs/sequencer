@@ -1,11 +1,14 @@
 use blockifier::blockifier::block::BlockInfo;
-use blockifier::blockifier::stateful_validator::StatefulValidator;
+use blockifier::blockifier::stateful_validator::{StatefulValidator, StatefulValidatorResult};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::ClassInfo;
 use blockifier::state::cached_state::CachedState;
+use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::versioned_constants::VersionedConstants;
-use starknet_api::core::Nonce;
+#[cfg(test)]
+use mockall::automock;
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{RPCInvokeTransaction, RPCTransaction};
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
@@ -25,12 +28,38 @@ pub struct StatefulTransactionValidator {
 
 type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>>;
 
+// TODO(yair): move the trait to Blockifier.
+#[cfg_attr(test, automock)]
+pub trait StatefulTransactionValidatorTrait {
+    fn validate(
+        &mut self,
+        account_tx: AccountTransaction,
+        skip_validate: bool,
+    ) -> StatefulTransactionValidatorResult<()>;
+
+    fn get_nonce(&mut self, account_address: ContractAddress) -> StatefulValidatorResult<Nonce>;
+}
+
+impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
+    fn validate(
+        &mut self,
+        account_tx: AccountTransaction,
+        skip_validate: bool,
+    ) -> StatefulTransactionValidatorResult<()> {
+        Ok(self.perform_validations(account_tx, skip_validate)?)
+    }
+
+    fn get_nonce(&mut self, account_address: ContractAddress) -> StatefulValidatorResult<Nonce> {
+        self.get_nonce(account_address)
+    }
+}
+
 impl StatefulTransactionValidator {
-    pub fn run_validate(
+    pub fn run_validate<V: StatefulTransactionValidatorTrait>(
         &self,
         external_tx: &RPCTransaction,
         optional_class_info: Option<ClassInfo>,
-        mut validator: BlockifierStatefulValidator,
+        mut validator: V,
     ) -> StatefulTransactionValidatorResult<TransactionHash> {
         let account_tx = external_tx_to_account_tx(
             external_tx,
@@ -38,10 +67,9 @@ impl StatefulTransactionValidator {
             &self.config.chain_info.chain_id,
         )?;
         let tx_hash = get_tx_hash(&account_tx);
-
         let account_nonce = validator.get_nonce(get_sender_address(external_tx))?;
         let skip_validate = skip_stateful_validations(external_tx, account_nonce);
-        validator.perform_validations(account_tx, skip_validate)?;
+        validator.validate(account_tx, skip_validate)?;
         Ok(tx_hash)
     }
 

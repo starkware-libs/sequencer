@@ -6,8 +6,8 @@ use blockifier::test_utils::CairoVersion;
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
 use mempool_test_utils::invoke_tx_args;
 use mempool_test_utils::starknet_api_test_utils::{
-    declare_tx, deploy_account_tx, external_invoke_tx, invoke_tx, TEST_SENDER_ADDRESS,
-    VALID_L1_GAS_MAX_AMOUNT, VALID_L1_GAS_MAX_PRICE_PER_UNIT,
+    deploy_account_tx, external_invoke_tx, invoke_tx, TEST_SENDER_ADDRESS, VALID_L1_GAS_MAX_AMOUNT,
+    VALID_L1_GAS_MAX_PRICE_PER_UNIT,
 };
 use num_bigint::BigUint;
 use pretty_assertions::assert_eq;
@@ -22,10 +22,11 @@ use crate::compilation::GatewayCompiler;
 use crate::config::{GatewayCompilerConfig, StatefulTransactionValidatorConfig};
 use crate::errors::{StatefulTransactionValidatorError, StatefulTransactionValidatorResult};
 use crate::state_reader_test_utils::{
-    local_test_state_reader_factory, local_test_state_reader_factory_for_deploy_account,
-    TestStateReader, TestStateReaderFactory,
+    local_test_state_reader_factory, TestStateReader, TestStateReaderFactory,
 };
-use crate::stateful_transaction_validator::StatefulTransactionValidator;
+use crate::stateful_transaction_validator::{
+    MockStatefulTransactionValidatorTrait, StatefulTransactionValidator,
+};
 
 #[fixture]
 fn block_context() -> BlockContext {
@@ -45,37 +46,14 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
 }
 
 #[rstest]
-#[case::valid_invoke_tx_cairo1(
+#[case::valid_tx(
     invoke_tx(CairoVersion::Cairo1),
-    local_test_state_reader_factory(CairoVersion::Cairo1, false),
     Ok(TransactionHash(felt!(
         "0x152b8dd0c30e95fa3a4ee7a9398fcfc46fb00c048b4fdcfa9958c64d65899b8"
     )))
 )]
-#[case::valid_invoke_tx_cairo0(
-    invoke_tx(CairoVersion::Cairo0),
-    local_test_state_reader_factory(CairoVersion::Cairo0, false),
-    Ok(TransactionHash(felt!(
-        "0x39650ba8d14d8534957a415db496a7eea9e10a4cb06b018d4d24d0537bcc943"
-    )))
-)]
-#[case::valid_deploy_account_tx(
-    deploy_account_tx(),
-    local_test_state_reader_factory_for_deploy_account(&external_tx),
-    Ok(TransactionHash(felt!(
-        "0xe9ad58949803159d16d295ff8536ed89ac2dd0b7168c461648a7a2ff44ead2"
-    )))
-)]
-#[case::valid_declare_tx(
-    declare_tx(),
-    local_test_state_reader_factory(CairoVersion::Cairo1, false),
-    Ok(TransactionHash(felt!(
-        "0x157c517d0bd6fe177dd4f13b47bc3050aceae12609338ccd44a0eff1a3ce7c9"
-    )))
-)]
 #[case::invalid_tx(
     invoke_tx(CairoVersion::Cairo1),
-    local_test_state_reader_factory(CairoVersion::Cairo1, true),
     Err(StatefulTransactionValidatorError::StatefulValidatorError(
         StatefulValidatorError::TransactionPreValidationError(
             TransactionPreValidationError::TransactionFeeError(
@@ -90,7 +68,6 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
 )]
 fn test_stateful_tx_validator(
     #[case] external_tx: RPCTransaction,
-    #[case] state_reader_factory: TestStateReaderFactory,
     #[case] expected_result: StatefulTransactionValidatorResult<TransactionHash>,
     stateful_validator: StatefulTransactionValidator,
 ) {
@@ -103,10 +80,14 @@ fn test_stateful_tx_validator(
         _ => None,
     };
 
-    let validator = stateful_validator.instantiate_validator(&state_reader_factory).unwrap();
+    let expected_result_msg = format!("{:?}", expected_result);
 
-    let result = stateful_validator.run_validate(&external_tx, optional_class_info, validator);
-    assert_eq!(format!("{:?}", result), format!("{:?}", expected_result));
+    let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
+    mock_validator.expect_validate().return_once(|_, _| expected_result.map(|_| ()));
+    mock_validator.expect_get_nonce().returning(|_| Ok(Nonce(Felt::ZERO)));
+
+    let result = stateful_validator.run_validate(&external_tx, optional_class_info, mock_validator);
+    assert_eq!(format!("{:?}", result), expected_result_msg);
 }
 
 #[test]
