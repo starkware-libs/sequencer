@@ -19,7 +19,8 @@ use starknet_mempool_infra::component_client::remote_component_client::RemoteCom
 use starknet_mempool_infra::component_definitions::{
     ComponentRequestHandler, ServerError, APPLICATION_OCTET_STREAM,
 };
-use starknet_mempool_infra::component_server::{ComponentServerStarter, RemoteComponentServer};
+use starknet_mempool_infra::component_server::definitions::ComponentServerStarter;
+use starknet_mempool_infra::component_server::remote_component_server::RemoteComponentServer;
 use tokio::task;
 
 type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentAResponse>;

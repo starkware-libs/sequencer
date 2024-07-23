@@ -10,7 +10,8 @@ use starknet_mempool_infra::component_client::local_component_client::LocalCompo
 use starknet_mempool_infra::component_definitions::{
     ComponentRequestAndResponseSender, ComponentRequestHandler,
 };
-use starknet_mempool_infra::component_server::{ComponentServerStarter, LocalComponentServer};
+use starknet_mempool_infra::component_server::definitions::ComponentServerStarter;
+use starknet_mempool_infra::component_server::local_component_server::LocalComponentServer;
 use tokio::sync::mpsc::channel;
 use tokio::task;
 
