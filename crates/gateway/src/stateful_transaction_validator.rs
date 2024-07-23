@@ -11,7 +11,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
 use crate::config::StatefulTransactionValidatorConfig;
-use crate::errors::{StatefulTransactionValidatorError, StatefulTransactionValidatorResult};
+use crate::errors::StatefulTransactionValidatorResult;
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 use crate::utils::{external_tx_to_account_tx, get_sender_address, get_tx_hash};
 
@@ -59,11 +59,7 @@ impl StatefulTransactionValidator {
             self.config.max_recursion_depth,
         );
         let mut block_info = latest_block_info;
-        block_info.block_number = block_info.block_number.next().ok_or(
-            StatefulTransactionValidatorError::OutOfRangeBlockNumber {
-                block_number: block_info.block_number,
-            },
-        )?;
+        block_info.block_number = block_info.block_number.unchecked_next();
         // TODO(yael 21/4/24): create the block context using pre_process_block once we will be
         // able to read the block_hash of 10 blocks ago from papyrus.
         let block_context = BlockContext::new(
