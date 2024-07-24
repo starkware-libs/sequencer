@@ -30,8 +30,10 @@ pub trait Storage: From<HashMap<StorageKey, StorageValue>> {
     fn delete(&mut self, key: &StorageKey) -> Option<StorageValue>;
 }
 
+// TODO(Aviv, 17/07/2024); Split between Storage prefix representation (trait) and node
+// specific implementation (enum).
 #[derive(Clone, Debug)]
-pub enum StoragePrefix {
+pub enum StarknetPrefix {
     InnerNode,
     StorageLeaf,
     StateTreeLeaf,
@@ -39,7 +41,7 @@ pub enum StoragePrefix {
 }
 
 /// Describes a storage prefix as used in Aerospike DB.
-impl StoragePrefix {
+impl StarknetPrefix {
     pub(crate) fn to_bytes(&self) -> &'static [u8] {
         match self {
             Self::InnerNode => b"patricia_node",
@@ -47,6 +49,10 @@ impl StoragePrefix {
             Self::StateTreeLeaf => b"contract_state",
             Self::CompiledClassLeaf => b"contract_class_leaf",
         }
+    }
+
+    pub(crate) fn to_storage_prefix(&self) -> Vec<u8> {
+        self.to_bytes().to_vec()
     }
 }
 
@@ -71,6 +77,6 @@ impl Serialize for StorageKey {
 }
 
 /// Returns a `StorageKey` from a prefix and a suffix.
-pub(crate) fn create_db_key(prefix: StoragePrefix, suffix: &[u8]) -> StorageKey {
-    StorageKey([prefix.to_bytes().to_vec(), b":".to_vec(), suffix.to_vec()].concat())
+pub(crate) fn create_db_key(prefix: Vec<u8>, suffix: &[u8]) -> StorageKey {
+    StorageKey([prefix, b":".to_vec(), suffix.to_vec()].concat())
 }

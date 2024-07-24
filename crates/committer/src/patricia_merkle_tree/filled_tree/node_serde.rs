@@ -4,10 +4,10 @@ use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
 };
-use crate::patricia_merkle_tree::node_data::leaf::LeafData;
+use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 use crate::storage::db_object::DBObject;
 use crate::storage::errors::DeserializationError;
-use crate::storage::storage_trait::{StorageKey, StoragePrefix, StorageValue};
+use crate::storage::storage_trait::{StarknetPrefix, StorageKey, StorageValue};
 use ethnum::U256;
 use serde::{Deserialize, Serialize};
 
@@ -27,7 +27,7 @@ pub(crate) struct LeafCompiledClassToSerialize {
     pub(crate) compiled_class_hash: Felt,
 }
 
-impl<L: LeafData> FilledNode<L> {
+impl<L: Leaf> FilledNode<L> {
     pub fn suffix(&self) -> [u8; SERIALIZE_HASH_BYTES] {
         self.hash.0.to_bytes_be()
     }
@@ -37,7 +37,7 @@ impl<L: LeafData> FilledNode<L> {
     }
 }
 
-impl<L: LeafData> DBObject for FilledNode<L> {
+impl<L: Leaf> DBObject for FilledNode<L> {
     /// This method serializes the filled node into a byte vector, where:
     /// - For binary nodes: Concatenates left and right hashes.
     /// - For edge nodes: Concatenates bottom hash, path, and path length.
@@ -76,15 +76,17 @@ impl<L: LeafData> DBObject for FilledNode<L> {
         }
     }
 
-    fn get_prefix(&self) -> StoragePrefix {
+    fn get_prefix(&self) -> Vec<u8> {
         match &self.data {
-            NodeData::Binary(_) | NodeData::Edge(_) => StoragePrefix::InnerNode,
+            NodeData::Binary(_) | NodeData::Edge(_) => {
+                StarknetPrefix::InnerNode.to_storage_prefix()
+            }
             NodeData::Leaf(leaf_data) => leaf_data.get_prefix(),
         }
     }
 }
 
-impl<L: LeafData> FilledNode<L> {
+impl<L: Leaf> FilledNode<L> {
     /// Deserializes filled nodes.
     pub(crate) fn deserialize(
         node_hash: HashOutput,

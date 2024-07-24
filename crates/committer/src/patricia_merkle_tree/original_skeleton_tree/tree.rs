@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::node_data::leaf::LeafData;
+use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
@@ -16,7 +16,7 @@ pub(crate) type OriginalSkeletonTreeResult<T> = Result<T, OriginalSkeletonTreeEr
 /// update. It also contains the hashes (for edge siblings - also the edge data) of the unmodified
 /// nodes on the Merkle paths from the updated leaves to the root.
 pub(crate) trait OriginalSkeletonTree<'a>: Sized {
-    fn create<L: LeafData>(
+    fn create<L: Leaf>(
         storage: &impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -27,7 +27,7 @@ pub(crate) trait OriginalSkeletonTree<'a>: Sized {
 
     fn get_nodes_mut(&mut self) -> &mut OriginalSkeletonNodeMap;
 
-    fn create_and_get_previous_leaves<L: LeafData>(
+    fn create_and_get_previous_leaves<L: Leaf>(
         storage: &impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -46,7 +46,7 @@ pub(crate) struct OriginalSkeletonTreeImpl<'a> {
 }
 
 impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
-    fn create<L: LeafData>(
+    fn create<L: Leaf>(
         storage: &impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -63,7 +63,7 @@ impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
         &mut self.nodes
     }
 
-    fn create_and_get_previous_leaves<L: LeafData>(
+    fn create_and_get_previous_leaves<L: Leaf>(
         storage: &impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,

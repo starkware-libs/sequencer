@@ -80,7 +80,7 @@ fn test_simple_input_parsing() {
     ],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 19],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-    true
+    {"warn_on_trivial_modifications": true, "log_level": 5}
 ]
 
 "#;
@@ -205,7 +205,7 @@ fn test_simple_input_parsing() {
         },
         contracts_trie_root_hash: expected_contracts_trie_root_hash,
         classes_trie_root_hash: expected_classes_trie_root_hash,
-        config: ConfigImpl::new(true),
+        config: ConfigImpl::new(true, log::LevelFilter::Debug),
     };
     assert_eq!(parse_input(input).unwrap(), expected_input);
 }
@@ -232,7 +232,7 @@ fn test_input_parsing_with_storage_key_duplicate() {
     ],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 222, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 3],
-    true
+    {"warn_on_trivial_modifications": true, "log_level": 20}
 ]
 
 "#;
@@ -274,7 +274,7 @@ fn test_input_parsing_with_mapping_key_duplicate() {
     ],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 144, 0, 0, 0, 0, 0, 0, 0, 0, 5],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 222, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 3],
-    false
+    {"warn_on_trivial_modifications": false, "log_level": 30}
 ]
 
 "#;
