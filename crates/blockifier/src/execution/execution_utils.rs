@@ -2,7 +2,11 @@ use std::collections::HashMap;
 
 use cairo_lang_runner::casm_run::format_next_item;
 use cairo_vm::serde::deserialize_program::{
-    deserialize_array_of_bigint_hex, Attribute, HintParams, Identifier, ReferenceManager,
+    deserialize_array_of_bigint_hex,
+    Attribute,
+    HintParams,
+    Identifier,
+    ReferenceManager,
 };
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::errors::program_errors::ProgramError;
@@ -23,8 +27,11 @@ use super::errors::ConstructorEntryPointExecutionError;
 use crate::execution::call_info::{CallInfo, Retdata};
 use crate::execution::contract_class::ContractClass;
 use crate::execution::entry_point::{
-    execute_constructor_entry_point, CallEntryPoint, ConstructorContext,
-    EntryPointExecutionContext, EntryPointExecutionResult,
+    execute_constructor_entry_point,
+    CallEntryPoint,
+    ConstructorContext,
+    EntryPointExecutionContext,
+    EntryPointExecutionResult,
 };
 use crate::execution::errors::PostExecutionError;
 use crate::execution::{deprecated_entry_point_execution, entry_point_execution};

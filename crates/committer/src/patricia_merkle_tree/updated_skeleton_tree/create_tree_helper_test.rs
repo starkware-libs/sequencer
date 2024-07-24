@@ -1,6 +1,7 @@
+use crate::block_committer::input::StarknetStorageValue;
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
-use crate::patricia_merkle_tree::internal_test_utils::MockLeaf;
-use crate::patricia_merkle_tree::internal_test_utils::MockTrie;
+use crate::patricia_merkle_tree::filled_tree::tree::StorageTrie;
+use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonStorageTrieConfig;
 use crate::patricia_merkle_tree::types::SortedLeafIndices;
 use ethnum::{uint, U256};
 use pretty_assertions::assert_eq;
@@ -10,7 +11,6 @@ use std::sync::Arc;
 
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::internal_test_utils::OriginalSkeletonMockTrieConfig;
 use crate::patricia_merkle_tree::internal_test_utils::{
     as_fully_indexed, get_initial_updated_skeleton, small_tree_index_to_full,
 };
@@ -502,8 +502,8 @@ fn test_update_node_in_nonempty_tree(
 #[tokio::test]
 async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
     let empty_map = HashMap::new();
-    let config = OriginalSkeletonMockTrieConfig::new(&empty_map, false);
-    let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_impl::<MockLeaf>(
+    let config = OriginalSkeletonStorageTrieConfig::new(&empty_map, false);
+    let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_impl::<StarknetStorageValue>(
         &MapStorage::default(),
         root_hash,
         SortedLeafIndices::new(&mut []),
@@ -512,8 +512,9 @@ async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
     .unwrap();
     let updated =
         UpdatedSkeletonTreeImpl::create(&mut original_skeleton_tree, &HashMap::new()).unwrap();
-    let filled = MockTrie::create::<TreeHashFunctionImpl>(Arc::new(updated), Arc::new(empty_map))
-        .await
-        .unwrap();
+    let filled =
+        StorageTrie::create::<TreeHashFunctionImpl>(Arc::new(updated), Arc::new(empty_map))
+            .await
+            .unwrap();
     assert_eq!(root_hash, filled.get_root_hash());
 }

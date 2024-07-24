@@ -4,7 +4,10 @@ use std::sync::Mutex;
 use rstest::rstest;
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::transaction::{
-    ContractAddressSalt, Fee, ResourceBoundsMapping, TransactionVersion,
+    ContractAddressSalt,
+    Fee,
+    ResourceBoundsMapping,
+    TransactionVersion,
 };
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
@@ -26,14 +29,21 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::declare::declare_tx;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
-    create_calldata, create_trivial_calldata, CairoVersion, NonceManager, BALANCE,
+    create_calldata,
+    create_trivial_calldata,
+    CairoVersion,
+    NonceManager,
+    BALANCE,
     TEST_ERC20_CONTRACT_ADDRESS2,
 };
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{
-    account_invoke_tx, calculate_class_info_for_testing, emit_n_events_tx, max_fee,
+    account_invoke_tx,
+    calculate_class_info_for_testing,
+    emit_n_events_tx,
+    max_fee,
     max_resource_bounds,
 };
 use crate::transaction::transaction_execution::Transaction;

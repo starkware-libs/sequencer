@@ -10,7 +10,7 @@ use crate::patricia_merkle_tree::node_data::leaf::ContractState;
 use crate::patricia_merkle_tree::types::SubTreeHeight;
 use crate::storage::db_object::{DBObject, Deserializable};
 use crate::storage::errors::DeserializationError;
-use crate::storage::storage_trait::{StarknetPrefix, StorageValue};
+use crate::storage::storage_trait::{StoragePrefix, StorageValue};
 
 #[cfg(test)]
 #[path = "leaf_serde_test.rs"]
@@ -22,8 +22,8 @@ impl DBObject for StarknetStorageValue {
         StorageValue(self.0.to_bytes_be().to_vec())
     }
 
-    fn get_prefix(&self) -> Vec<u8> {
-        StarknetPrefix::StorageLeaf.to_storage_prefix()
+    fn get_prefix(&self) -> StoragePrefix {
+        StoragePrefix::StorageLeaf
     }
 }
 
@@ -34,8 +34,8 @@ impl DBObject for CompiledClassHash {
         StorageValue(json_string.into_bytes())
     }
 
-    fn get_prefix(&self) -> Vec<u8> {
-        StarknetPrefix::CompiledClassLeaf.to_storage_prefix()
+    fn get_prefix(&self) -> StoragePrefix {
+        StoragePrefix::CompiledClassLeaf
     }
 }
 
@@ -52,8 +52,8 @@ impl DBObject for ContractState {
         StorageValue(json_string.into_bytes())
     }
 
-    fn get_prefix(&self) -> Vec<u8> {
-        StarknetPrefix::StateTreeLeaf.to_storage_prefix()
+    fn get_prefix(&self) -> StoragePrefix {
+        StoragePrefix::StateTreeLeaf
     }
 }
 
@@ -62,8 +62,8 @@ impl Deserializable for StarknetStorageValue {
         Ok(Self(Felt::from_bytes_be_slice(&value.0)))
     }
 
-    fn prefix() -> Vec<u8> {
-        StarknetPrefix::StorageLeaf.to_storage_prefix()
+    fn prefix() -> StoragePrefix {
+        StoragePrefix::StorageLeaf
     }
 }
 
@@ -79,8 +79,8 @@ impl Deserializable for CompiledClassHash {
         Ok(Self::from_hex(hash_as_hex)?)
     }
 
-    fn prefix() -> Vec<u8> {
-        StarknetPrefix::CompiledClassLeaf.to_storage_prefix()
+    fn prefix() -> StoragePrefix {
+        StoragePrefix::CompiledClassLeaf
     }
 }
 
@@ -109,8 +109,8 @@ impl Deserializable for ContractState {
         })
     }
 
-    fn prefix() -> Vec<u8> {
-        StarknetPrefix::StateTreeLeaf.to_storage_prefix()
+    fn prefix() -> StoragePrefix {
+        StoragePrefix::StateTreeLeaf
     }
 }
 

@@ -31,14 +31,11 @@ pub async fn commit_block(input: Input<ConfigImpl>) -> BlockCommitmentResult<Fil
         contracts_trie_sorted_indices: SortedLeafIndices::new(&mut contracts_trie_indices),
         classes_trie_sorted_indices: SortedLeafIndices::new(&mut classes_trie_indices),
     };
-    let actual_storage_updates = input.state_diff.actual_storage_updates();
-    let actual_classes_updates = input.state_diff.actual_classes_updates();
     let (mut original_forest, original_contracts_trie_leaves) = OriginalSkeletonForest::create(
         MapStorage::from(input.storage),
         input.contracts_trie_root_hash,
         input.classes_trie_root_hash,
-        &actual_storage_updates,
-        &actual_classes_updates,
+        &input.state_diff,
         &forest_sorted_indices,
         &input.config,
     )?;
@@ -62,8 +59,8 @@ pub async fn commit_block(input: Input<ConfigImpl>) -> BlockCommitmentResult<Fil
 
     Ok(FilledForest::create::<TreeHashFunctionImpl>(
         updated_forest,
-        actual_storage_updates,
-        actual_classes_updates,
+        input.state_diff.actual_storage_updates(),
+        input.state_diff.actual_classes_updates(),
         &original_contracts_trie_leaves,
         &input.state_diff.address_to_class_hash,
         &input.state_diff.address_to_nonce,

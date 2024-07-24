@@ -8,14 +8,30 @@ use num_traits::Pow;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::core::{
-    calculate_contract_address, ChainId, ContractAddress, EthAddress, PatriciaKey,
+    calculate_contract_address,
+    ChainId,
+    ContractAddress,
+    EthAddress,
+    PatriciaKey,
 };
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
-    AccountDeploymentData, Calldata, ContractAddressSalt, EventContent, EventData, EventKey, Fee,
-    L2ToL1Payload, PaymasterData, Resource, ResourceBounds, ResourceBoundsMapping, Tip,
-    TransactionHash, TransactionVersion,
+    AccountDeploymentData,
+    Calldata,
+    ContractAddressSalt,
+    EventContent,
+    EventData,
+    EventKey,
+    Fee,
+    L2ToL1Payload,
+    PaymasterData,
+    Resource,
+    ResourceBounds,
+    ResourceBoundsMapping,
+    Tip,
+    TransactionHash,
+    TransactionVersion,
 };
 use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
@@ -25,27 +41,48 @@ use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{
-    CallExecution, CallInfo, MessageToL1, OrderedEvent, OrderedL2ToL1Message, Retdata,
+    CallExecution,
+    CallInfo,
+    MessageToL1,
+    OrderedEvent,
+    OrderedL2ToL1Message,
+    Retdata,
 };
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::syscalls::hint_processor::{
-    EmitEventError, BLOCK_NUMBER_OUT_OF_RANGE_ERROR, L1_GAS, L2_GAS, OUT_OF_GAS_ERROR,
+    EmitEventError,
+    BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
+    L1_GAS,
+    L2_GAS,
+    OUT_OF_GAS_ERROR,
 };
 use crate::execution::syscalls::SyscallSelector;
 use crate::state::state_api::{State, StateReader};
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
-    calldata_for_deploy_test, create_calldata, get_syscall_resources,
-    trivial_external_entry_point_new, trivial_external_entry_point_with_address, CairoVersion,
-    BALANCE, CHAIN_ID_NAME, CURRENT_BLOCK_NUMBER, CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
-    CURRENT_BLOCK_TIMESTAMP, CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE, TEST_SEQUENCER_ADDRESS,
+    calldata_for_deploy_test,
+    create_calldata,
+    get_syscall_resources,
+    trivial_external_entry_point_new,
+    trivial_external_entry_point_with_address,
+    CairoVersion,
+    BALANCE,
+    CHAIN_ID_NAME,
+    CURRENT_BLOCK_NUMBER,
+    CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
+    CURRENT_BLOCK_TIMESTAMP,
+    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
+    TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::constants::QUERY_VERSION_BASE_BIT;
 use crate::transaction::objects::{
-    CommonAccountFields, CurrentTransactionInfo, DeprecatedTransactionInfo, TransactionInfo,
+    CommonAccountFields,
+    CurrentTransactionInfo,
+    DeprecatedTransactionInfo,
+    TransactionInfo,
 };
 use crate::versioned_constants::VersionedConstants;
 use crate::{check_entry_point_execution_error_for_custom_hint, nonce, retdata, storage_key};

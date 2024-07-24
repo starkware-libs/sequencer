@@ -4,7 +4,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::BinaryData;
 use crate::patricia_merkle_tree::node_data::inner_node::EdgeData;
 use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
-use crate::patricia_merkle_tree::node_data::leaf::Leaf;
+use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
@@ -16,9 +16,9 @@ use crate::patricia_merkle_tree::{
 };
 use crate::storage::errors::StorageError;
 use crate::storage::storage_trait::create_db_key;
-use crate::storage::storage_trait::StarknetPrefix;
 use crate::storage::storage_trait::Storage;
 use crate::storage::storage_trait::StorageKey;
+use crate::storage::storage_trait::StoragePrefix;
 use log::warn;
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -110,7 +110,7 @@ impl<'a> SubTree<'a> {
     }
 
     fn is_leaf(&self) -> bool {
-        self.root_index.is_leaf()
+        u8::from(self.get_height()) == 0
     }
 }
 
@@ -119,7 +119,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
     /// Given a list of subtrees, traverses towards their leaves and fetches all non-empty,
     /// unmodified nodes. If `compare_modified_leaves` is set, function logs out a warning when
     /// encountering a trivial modification. Fills the previous leaf values if it is not none.
-    fn fetch_nodes<L: Leaf>(
+    fn fetch_nodes<L: LeafData>(
         &mut self,
         subtrees: Vec<SubTree<'a>>,
         storage: &impl Storage,
@@ -129,8 +129,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         if subtrees.is_empty() {
             return Ok(());
         }
-        let should_fetch_modified_leaves =
-            config.compare_modified_leaves() || previous_leaves.is_some();
+        let should_fetch_leaves = config.compare_modified_leaves() || previous_leaves.is_some();
         let mut next_subtrees = Vec::new();
         let filled_roots = Self::calculate_subtrees_roots::<L>(&subtrees, storage)?;
         for (filled_root, subtree) in filled_roots.into_iter().zip(subtrees.iter()) {
@@ -152,16 +151,8 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
                     let (left_subtree, right_subtree) =
                         subtree.get_children_subtrees(left_hash, right_hash);
 
-                    self.handle_subtree(
-                        &mut next_subtrees,
-                        left_subtree,
-                        should_fetch_modified_leaves,
-                    );
-                    self.handle_subtree(
-                        &mut next_subtrees,
-                        right_subtree,
-                        should_fetch_modified_leaves,
-                    )
+                    self.handle_subtree(&mut next_subtrees, left_subtree, should_fetch_leaves);
+                    self.handle_subtree(&mut next_subtrees, right_subtree, should_fetch_leaves)
                 }
                 // Edge node.
                 NodeData::Edge(EdgeData {
@@ -195,16 +186,16 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
                         config,
                     )?;
 
-                    self.handle_subtree(
-                        &mut next_subtrees,
-                        bottom_subtree,
-                        should_fetch_modified_leaves,
-                    );
+                    self.handle_subtree(&mut next_subtrees, bottom_subtree, should_fetch_leaves);
                 }
                 // Leaf node.
                 NodeData::Leaf(previous_leaf) => {
                     if subtree.is_unmodified() {
-                        warn!("Unexpectedly deserialized leaf sibling.")
+                        // Sibling leaf.
+                        self.nodes.insert(
+                            subtree.root_index,
+                            OriginalSkeletonNode::UnmodifiedSubTree(filled_root.hash),
+                        );
                     } else {
                         // Modified leaf.
                         if config.compare_modified_leaves()
@@ -212,7 +203,6 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
                         {
                             log_trivial_modification!(subtree.root_index, previous_leaf);
                         }
-                        // If previous values of modified leaves are requested, add this leaf.
                         if let Some(ref mut leaves) = previous_leaves {
                             leaves.insert(subtree.root_index, previous_leaf);
                         }
@@ -223,8 +213,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         self.fetch_nodes::<L>(next_subtrees, storage, config, previous_leaves)
     }
 
-    //TODO(Aviv, 17/07/2024): Split between storage prefix implementation and function logic.
-    fn calculate_subtrees_roots<L: Leaf>(
+    fn calculate_subtrees_roots<L: LeafData>(
         subtrees: &[SubTree<'a>],
         storage: &impl Storage,
     ) -> OriginalSkeletonTreeResult<Vec<FilledNode<L>>> {
@@ -236,7 +225,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
                     if subtree.is_leaf() {
                         L::prefix()
                     } else {
-                        StarknetPrefix::InnerNode.to_storage_prefix()
+                        StoragePrefix::InnerNode
                     },
                     &subtree.root_hash.0.to_bytes_be(),
                 )
@@ -257,7 +246,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         Ok(subtrees_roots)
     }
 
-    pub(crate) fn create_impl<L: Leaf>(
+    pub(crate) fn create_impl<L: LeafData>(
         storage: &impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -286,7 +275,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         Ok(skeleton_tree)
     }
 
-    pub(crate) fn create_and_get_previous_leaves_impl<L: Leaf>(
+    pub(crate) fn create_and_get_previous_leaves_impl<L: LeafData>(
         storage: &impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -343,9 +332,9 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         &mut self,
         next_subtrees: &mut Vec<SubTree<'a>>,
         subtree: SubTree<'a>,
-        should_fetch_modified_leaves: bool,
+        should_fetch_leaves: bool,
     ) {
-        if !subtree.is_leaf() || (should_fetch_modified_leaves && !subtree.is_unmodified()) {
+        if !subtree.is_leaf() || should_fetch_leaves {
             next_subtrees.push(subtree);
         } else if subtree.is_unmodified() {
             // Leaf sibling.
@@ -359,7 +348,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
     /// Given leaf indices that were previously empty leaves, logs out a warning for trivial
     /// modification if a leaf is modified to an empty leaf.
     /// If this check is suppressed by configuration, does nothing.
-    fn log_warning_for_empty_leaves<L: Leaf, T: Borrow<NodeIndex> + Debug>(
+    fn log_warning_for_empty_leaves<L: LeafData, T: Borrow<NodeIndex> + Debug>(
         leaf_indices: &[T],
         config: &impl OriginalSkeletonTreeConfig<L>,
     ) -> OriginalSkeletonTreeResult<()> {

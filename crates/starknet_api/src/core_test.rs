@@ -3,8 +3,15 @@ use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash as CoreStarkHash};
 
 use crate::core::{
-    calculate_contract_address, ClassHash, ContractAddress, EthAddress, Nonce, PatriciaKey,
-    StarknetApiError, CONTRACT_ADDRESS_PREFIX, L2_ADDRESS_UPPER_BOUND,
+    calculate_contract_address,
+    ClassHash,
+    ContractAddress,
+    EthAddress,
+    Nonce,
+    PatriciaKey,
+    StarknetApiError,
+    CONTRACT_ADDRESS_PREFIX,
+    L2_ADDRESS_UPPER_BOUND,
 };
 use crate::hash::StarkHash;
 use crate::transaction::{Calldata, ContractAddressSalt};

@@ -93,7 +93,7 @@ fn get_cli_params() -> CliParams {
     CliParams { node_url, iteration_increments, file_path, deprecated, concurrent_requests }
 }
 
-// Define a tuple struct to hold transaction type and version
+// Define a tuple struct to hold transaction type and version.
 #[derive(Eq, PartialEq, Hash, Debug)]
 struct TransactionInfo {
     pub transaction_type: TransactionType,

@@ -11,8 +11,14 @@ use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::state::EntryPoint;
 use crate::transaction::{
-    AccountDeploymentData, Calldata, ContractAddressSalt, PaymasterData, Resource, ResourceBounds,
-    Tip, TransactionSignature,
+    AccountDeploymentData,
+    Calldata,
+    ContractAddressSalt,
+    PaymasterData,
+    Resource,
+    ResourceBounds,
+    Tip,
+    TransactionSignature,
 };
 
 /// Transactions that are ready to be broadcasted to the network through RPC and are not included in

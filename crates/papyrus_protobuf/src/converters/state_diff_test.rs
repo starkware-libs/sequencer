@@ -1,4 +1,4 @@
-use test_utils::{get_rng, GetTestInstance};
+use papyrus_test_utils::{get_rng, GetTestInstance};
 
 use crate::sync::{
     ContractDiff,

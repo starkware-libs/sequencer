@@ -9,7 +9,7 @@ use blockifier::versioned_constants::VersionedConstants;
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::rpc_transaction::{RPCInvokeTransaction, RPCTransaction};
+use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
@@ -57,7 +57,7 @@ impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
 impl StatefulTransactionValidator {
     pub fn run_validate<V: StatefulTransactionValidatorTrait>(
         &self,
-        external_tx: &RPCTransaction,
+        external_tx: &RpcTransaction,
         optional_class_info: Option<ClassInfo>,
         mut validator: V,
     ) -> StatefulTransactionValidatorResult<TransactionHash> {
@@ -104,15 +104,15 @@ impl StatefulTransactionValidator {
 // Check if validation of an invoke transaction should be skipped due to deploy_account not being
 // proccessed yet. This feature is used to improve UX for users sending deploy_account + invoke at
 // once.
-fn skip_stateful_validations(tx: &RPCTransaction, account_nonce: Nonce) -> bool {
+fn skip_stateful_validations(tx: &RpcTransaction, account_nonce: Nonce) -> bool {
     match tx {
-        RPCTransaction::Invoke(RPCInvokeTransaction::V3(tx)) => {
+        RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
             // check if the transaction nonce is 1, meaning it is post deploy_account, and the
             // account nonce is zero, meaning the account was not deployed yet. The mempool also
             // verifies that the deploy_account transaction exists.
             tx.nonce == Nonce(Felt::ONE) && account_nonce == Nonce(Felt::ZERO)
         }
-        RPCTransaction::DeployAccount(_) | RPCTransaction::Declare(_) => false,
+        RpcTransaction::DeployAccount(_) | RpcTransaction::Declare(_) => false,
     }
 }
 

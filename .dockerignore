@@ -1,0 +1,6 @@
+/data
+/deployments
+/logs
+/target
+.git
+!crates/papyrus_load_test/resources

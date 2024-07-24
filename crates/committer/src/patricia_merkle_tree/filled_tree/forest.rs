@@ -55,13 +55,15 @@ impl FilledForest {
         address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
         address_to_nonce: &HashMap<ContractAddress, Nonce>,
     ) -> ForestResult<Self> {
-        let classes_trie_task = tokio::spawn(ClassesTrie::create::<TH>(
+        let classes_trie = ClassesTrie::create::<TH>(
             Arc::new(updated_forest.classes_trie),
             Arc::new(classes_updates),
-        ));
+        )
+        .await?;
+
         let mut contracts_trie_modifications = HashMap::new();
         let mut filled_storage_tries = HashMap::new();
-        let mut contracts_state_tasks = JoinSet::new();
+        let mut tasks = JoinSet::new();
 
         for (address, inner_updates) in storage_updates {
             let updated_storage_trie = updated_forest
@@ -72,7 +74,7 @@ impl FilledForest {
             let original_contract_state = original_contracts_trie_leaves
                 .get(&NodeIndex::from_contract_address(&address))
                 .ok_or(ForestError::MissingContractCurrentState(address))?;
-            contracts_state_tasks.spawn(Self::new_contract_state::<TH>(
+            tasks.spawn(Self::new_contract_state::<TH>(
                 address,
                 *(address_to_nonce
                     .get(&address)
@@ -85,7 +87,7 @@ impl FilledForest {
             ));
         }
 
-        while let Some(result) = contracts_state_tasks.join_next().await {
+        while let Some(result) = tasks.join_next().await {
             let (address, new_contract_state, filled_storage_trie) = result??;
             contracts_trie_modifications.insert(
                 NodeIndex::from_contract_address(&address),
@@ -94,15 +96,16 @@ impl FilledForest {
             filled_storage_tries.insert(address, filled_storage_trie);
         }
 
-        let contracts_trie_task = tokio::spawn(ContractsTrie::create::<TH>(
+        let contracts_trie = ContractsTrie::create::<TH>(
             Arc::new(updated_forest.contracts_trie),
             Arc::new(contracts_trie_modifications),
-        ));
+        )
+        .await?;
 
         Ok(Self {
             storage_tries: filled_storage_tries,
-            contracts_trie: contracts_trie_task.await??,
-            classes_trie: classes_trie_task.await??,
+            contracts_trie,
+            classes_trie,
         })
     }
 

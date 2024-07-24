@@ -3,11 +3,12 @@ use std::sync::OnceLock;
 
 use blockifier::execution::contract_class::{ClassInfo, ContractClass, ContractClassV1};
 use cairo_lang_starknet_classes::casm_contract_class::{
-    CasmContractClass, CasmContractEntryPoints,
+    CasmContractClass,
+    CasmContractEntryPoints,
 };
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use starknet_api::core::CompiledClassHash;
-use starknet_api::rpc_transaction::RPCDeclareTransaction;
+use starknet_api::rpc_transaction::RpcDeclareTransaction;
 use starknet_sierra_compile::compile::compile_sierra_to_casm;
 use starknet_sierra_compile::errors::CompilationUtilError;
 use starknet_sierra_compile::utils::into_contract_class_for_compilation;
@@ -33,9 +34,9 @@ impl GatewayCompiler {
     /// Assumes the contract class is of a Sierra program which is compiled to Casm.
     pub fn process_declare_tx(
         &self,
-        declare_tx: &RPCDeclareTransaction,
+        declare_tx: &RpcDeclareTransaction,
     ) -> GatewayResult<ClassInfo> {
-        let RPCDeclareTransaction::V3(tx) = declare_tx;
+        let RpcDeclareTransaction::V3(tx) = declare_tx;
         let rpc_contract_class = &tx.contract_class;
         let cairo_lang_contract_class = into_contract_class_for_compilation(rpc_contract_class);
 

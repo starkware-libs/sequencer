@@ -1,6 +1,6 @@
 [package]
 name = "committer_cli"
-version.workspace = true
+version = "0.1.0-rc.0"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -18,19 +18,16 @@ clap.workspace = true
 committer = { path = "../committer", features = ["testing"] }
 derive_more.workspace = true
 ethnum.workspace = true
-hex.workspace = true
 indexmap.workspace = true
 log.workspace = true
 rand.workspace = true
 rand_distr.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-serde_repr.workspace = true
 simplelog.workspace = true
 starknet-types-core.workspace = true
-starknet_api.workspace = true
+starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0"}
 strum.workspace = true
-strum_macros.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 
@@ -38,8 +35,3 @@ tokio.workspace = true
 harness = false
 name = "committer_bench"
 path = "benches/committer_bench.rs"
-
-# Optional dependencies required for tests and the testing feature.
-# See [here](https://github.com/bnjbvr/cargo-machete/issues/128).
-[package.metadata.cargo-machete]
-ignored = ["hex", "strum_macros"]

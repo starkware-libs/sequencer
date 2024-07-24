@@ -4,6 +4,7 @@ use crate::patricia_merkle_tree::errors::TypesError;
 use crate::patricia_merkle_tree::filled_tree::node::ClassHash;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 
+use bisection::{bisect_left, bisect_right};
 use ethnum::U256;
 
 #[cfg(test)]
@@ -229,7 +230,6 @@ pub(crate) struct SortedLeafIndices<'a>(&'a [NodeIndex]);
 
 impl<'a> SortedLeafIndices<'a> {
     /// Creates a new instance by sorting the given indices.
-    // TODO(Nimrod, 1/8/2024): Remove duplicates from the given indices.
     pub(crate) fn new(indices: &'a mut [NodeIndex]) -> Self {
         indices.sort();
         Self(indices)
@@ -270,20 +270,11 @@ impl<'a> SortedLeafIndices<'a> {
         self.0.first()
     }
 
-    /// Returns the leftmost position where `leftmost_value` can be inserted to the slice and
-    /// maintain sorted order. Assumes that the elements in the slice are unique.
     pub(crate) fn bisect_left(&self, leftmost_value: &NodeIndex) -> usize {
-        match self.0.binary_search(leftmost_value) {
-            Ok(pos) | Err(pos) => pos,
-        }
+        bisect_left(self.0, leftmost_value)
     }
 
-    /// Returns the rightmost position where `rightmost_value` can be inserted to the slice and
-    /// maintain sorted order. Assumes that the elements in the slice are unique.
     pub(crate) fn bisect_right(&self, rightmost_value: &NodeIndex) -> usize {
-        match self.0.binary_search(rightmost_value) {
-            Err(pos) => pos,
-            Ok(pos) => pos + 1,
-        }
+        bisect_right(self.0, rightmost_value)
     }
 }

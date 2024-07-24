@@ -13,7 +13,9 @@ use tokio::sync::Mutex;
 
 use super::definitions::ComponentServerStarter;
 use crate::component_definitions::{
-    ComponentRequestHandler, ServerError, APPLICATION_OCTET_STREAM,
+    ComponentRequestHandler,
+    ServerError,
+    APPLICATION_OCTET_STREAM,
 };
 
 pub struct RemoteComponentServer<Component, Request, Response>

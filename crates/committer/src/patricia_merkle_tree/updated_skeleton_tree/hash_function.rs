@@ -7,7 +7,7 @@ use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData, EdgeData, NodeData, PathToBottom,
 };
-use crate::patricia_merkle_tree::node_data::leaf::{ContractState, Leaf};
+use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafData};
 
 #[cfg(test)]
 #[path = "hash_function_test.rs"]
@@ -35,7 +35,7 @@ impl HashFunction for PoseidonHashFunction {
     }
 }
 
-pub(crate) trait TreeHashFunction<L: Leaf> {
+pub(crate) trait TreeHashFunction<L: LeafData> {
     /// Computes the hash of the given leaf.
     fn compute_leaf_hash(leaf_data: &L) -> HashOutput;
 

@@ -4,7 +4,7 @@ use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::impl_from_hex_for_felt_wrapper;
 use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
-use crate::patricia_merkle_tree::node_data::leaf::Leaf;
+use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 
 // TODO(Nimrod, 1/6/2024): Use the ClassHash defined in starknet-types-core when available.
 
@@ -24,7 +24,7 @@ impl_from_hex_for_felt_wrapper!(CompiledClassHash);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 /// A node in a Patricia-Merkle tree which was modified during an update.
-pub struct FilledNode<L: Leaf> {
+pub struct FilledNode<L: LeafData> {
     pub hash: HashOutput,
     pub data: NodeData<L>,
 }

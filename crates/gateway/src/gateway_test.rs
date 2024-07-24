@@ -9,14 +9,16 @@ use blockifier::test_utils::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::invoke_tx;
 use mockall::predicate::eq;
 use starknet_api::core::ContractAddress;
-use starknet_api::rpc_transaction::RPCTransaction;
+use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput, ThinTransaction};
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{
-    GatewayCompilerConfig, StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig,
+    GatewayCompilerConfig,
+    StatefulTransactionValidatorConfig,
+    StatelessTransactionValidatorConfig,
 };
 use crate::gateway::{add_tx, AppState, SharedMempoolClient};
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
@@ -50,10 +52,10 @@ pub fn app_state(
 
 type SenderAddress = ContractAddress;
 
-fn create_tx() -> (RPCTransaction, SenderAddress) {
+fn create_tx() -> (RpcTransaction, SenderAddress) {
     let tx = invoke_tx(CairoVersion::Cairo1);
     let sender_address = match &tx {
-        RPCTransaction::Invoke(starknet_api::rpc_transaction::RPCInvokeTransaction::V3(
+        RpcTransaction::Invoke(starknet_api::rpc_transaction::RpcInvokeTransaction::V3(
             invoke_tx,
         )) => invoke_tx.sender_address,
         _ => panic!("Unexpected transaction type"),
@@ -91,9 +93,9 @@ async fn to_bytes(res: Response) -> Bytes {
     res.into_body().collect().await.unwrap().to_bytes()
 }
 
-fn calculate_hash(external_tx: &RPCTransaction) -> TransactionHash {
+fn calculate_hash(external_tx: &RpcTransaction) -> TransactionHash {
     let optional_class_info = match &external_tx {
-        RPCTransaction::Declare(_declare_tx) => {
+        RpcTransaction::Declare(_declare_tx) => {
             panic!("Declare transactions are not supported in this test")
         }
         _ => None,

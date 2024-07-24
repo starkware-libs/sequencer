@@ -1,5 +1,3 @@
-use log::LevelFilter;
-
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
@@ -35,32 +33,23 @@ pub trait Config: Debug + Eq + PartialEq {
     /// If the configuration is set, it requires that the storage will contain the original data for
     /// the modified leaves. Otherwise, it is not required.
     fn warn_on_trivial_modifications(&self) -> bool;
-
-    /// Indicates from which log level output should be printed out to console.
-    fn logger_level(&self) -> LevelFilter;
 }
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct ConfigImpl {
     warn_on_trivial_modifications: bool,
-    log_level: LevelFilter,
 }
 
 impl Config for ConfigImpl {
     fn warn_on_trivial_modifications(&self) -> bool {
         self.warn_on_trivial_modifications
     }
-
-    fn logger_level(&self) -> LevelFilter {
-        self.log_level
-    }
 }
 
 impl ConfigImpl {
-    pub fn new(warn_on_trivial_modifications: bool, log_level: LevelFilter) -> Self {
+    pub fn new(warn_on_trivial_modifications: bool) -> Self {
         Self {
             warn_on_trivial_modifications,
-            log_level,
         }
     }
 }

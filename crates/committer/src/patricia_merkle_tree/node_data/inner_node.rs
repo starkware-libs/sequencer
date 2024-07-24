@@ -1,7 +1,7 @@
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::errors::{EdgePathError, PathToBottomError};
-use crate::patricia_merkle_tree::node_data::leaf::Leaf;
+use crate::patricia_merkle_tree::node_data::leaf::LeafData;
 use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 
 use ethnum::U256;
@@ -15,7 +15,7 @@ pub mod inner_node_test;
 #[cfg_attr(any(test, feature = "testing"), derive(EnumDiscriminants))]
 #[cfg_attr(any(test, feature = "testing"), strum_discriminants(derive(EnumIter)))]
 // A Patricia-Merkle tree node's data, i.e., the pre-image of its hash.
-pub enum NodeData<L: Leaf> {
+pub enum NodeData<L: LeafData> {
     Binary(BinaryData),
     Edge(EdgeData),
     Leaf(L),
