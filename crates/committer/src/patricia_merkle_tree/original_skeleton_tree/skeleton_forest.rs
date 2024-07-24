@@ -1,7 +1,6 @@
 use crate::block_committer::input::Config;
 use crate::block_committer::input::ContractAddress;
 use crate::block_committer::input::StarknetStorageValue;
-use crate::block_committer::input::StateDiff;
 use crate::forest_errors::ForestError;
 use crate::forest_errors::ForestResult;
 use crate::hash::hash_trait::HashOutput;
@@ -37,7 +36,8 @@ impl<'a> OriginalSkeletonForest<'a> {
         storage: impl Storage,
         contracts_trie_root_hash: HashOutput,
         classes_trie_root_hash: HashOutput,
-        state_diff: &StateDiff,
+        storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
+        classes_updates: &LeafModifications<CompiledClassHash>,
         forest_sorted_indices: &ForestSortedIndices<'a>,
         config: &impl Config,
     ) -> ForestResult<(Self, HashMap<NodeIndex, ContractState>)>
@@ -50,14 +50,14 @@ impl<'a> OriginalSkeletonForest<'a> {
             forest_sorted_indices.contracts_trie_sorted_indices,
         )?;
         let storage_tries = Self::create_storage_tries(
-            &state_diff.actual_storage_updates(),
+            storage_updates,
             &original_contracts_trie_leaves,
             &storage,
             config,
             &forest_sorted_indices.storage_tries_sorted_indices,
         )?;
         let classes_trie = Self::create_classes_trie(
-            &state_diff.actual_classes_updates(),
+            classes_updates,
             classes_trie_root_hash,
             &storage,
             config,

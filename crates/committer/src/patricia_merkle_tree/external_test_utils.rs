@@ -12,7 +12,7 @@ use crate::storage::map_storage::MapStorage;
 use rand::Rng;
 
 use super::filled_tree::tree::{FilledTree, StorageTrie};
-use super::node_data::leaf::{LeafData, LeafModifications, SkeletonLeaf};
+use super::node_data::leaf::{Leaf, LeafModifications, SkeletonLeaf};
 use super::original_skeleton_tree::config::OriginalSkeletonStorageTrieConfig;
 use super::original_skeleton_tree::tree::{OriginalSkeletonTree, OriginalSkeletonTreeImpl};
 use super::types::{NodeIndex, SortedLeafIndices};
