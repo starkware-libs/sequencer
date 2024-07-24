@@ -10,7 +10,7 @@ use crate::patricia_merkle_tree::node_data::leaf::ContractState;
 use crate::patricia_merkle_tree::types::SubTreeHeight;
 use crate::storage::db_object::{DBObject, Deserializable};
 use crate::storage::errors::DeserializationError;
-use crate::storage::storage_trait::{StoragePrefix, StorageValue};
+use crate::storage::storage_trait::{StarknetPrefix, StorageValue};
 
 #[cfg(test)]
 #[path = "leaf_serde_test.rs"]
@@ -22,8 +22,8 @@ impl DBObject for StarknetStorageValue {
         StorageValue(self.0.to_bytes_be().to_vec())
     }
 
-    fn get_prefix(&self) -> StoragePrefix {
-        StoragePrefix::StorageLeaf
+    fn get_prefix(&self) -> Vec<u8> {
+        StarknetPrefix::StorageLeaf.to_storage_prefix()
     }
 }
 
@@ -34,8 +34,8 @@ impl DBObject for CompiledClassHash {
         StorageValue(json_string.into_bytes())
     }
 
-    fn get_prefix(&self) -> StoragePrefix {
-        StoragePrefix::CompiledClassLeaf
+    fn get_prefix(&self) -> Vec<u8> {
+        StarknetPrefix::CompiledClassLeaf.to_storage_prefix()
     }
 }
 
@@ -52,8 +52,8 @@ impl DBObject for ContractState {
         StorageValue(json_string.into_bytes())
     }
 
-    fn get_prefix(&self) -> StoragePrefix {
-        StoragePrefix::StateTreeLeaf
+    fn get_prefix(&self) -> Vec<u8> {
+        StarknetPrefix::StateTreeLeaf.to_storage_prefix()
     }
 }
 
@@ -62,8 +62,8 @@ impl Deserializable for StarknetStorageValue {
         Ok(Self(Felt::from_bytes_be_slice(&value.0)))
     }
 
-    fn prefix() -> StoragePrefix {
-        StoragePrefix::StorageLeaf
+    fn prefix() -> Vec<u8> {
+        StarknetPrefix::StorageLeaf.to_storage_prefix()
     }
 }
 
@@ -71,16 +71,14 @@ impl Deserializable for CompiledClassHash {
     fn deserialize(value: &StorageValue) -> Result<Self, DeserializationError> {
         let json_str = std::str::from_utf8(&value.0)?;
         let map: HashMap<String, String> = serde_json::from_str(json_str)?;
-        let hash_as_hex =
-            map.get("compiled_class_hash")
-                .ok_or(DeserializationError::NonExistingKey(
-                    "compiled_class_hash".to_string(),
-                ))?;
+        let hash_as_hex = map
+            .get("compiled_class_hash")
+            .ok_or(DeserializationError::NonExistingKey("compiled_class_hash".to_string()))?;
         Ok(Self::from_hex(hash_as_hex)?)
     }
 
-    fn prefix() -> StoragePrefix {
-        StoragePrefix::CompiledClassLeaf
+    fn prefix() -> Vec<u8> {
+        StarknetPrefix::CompiledClassLeaf.to_storage_prefix()
     }
 }
 
@@ -97,10 +95,8 @@ impl Deserializable for ContractState {
         };
         let class_hash_as_hex = get_leaf_key(&deserialized_map, "contract_hash")?;
         let nonce_as_hex = get_leaf_key(&deserialized_map, "nonce")?;
-        let root_hash_as_hex = get_leaf_key(
-            get_key_from_map(&deserialized_map, "storage_commitment_tree")?,
-            "root",
-        )?;
+        let root_hash_as_hex =
+            get_leaf_key(get_key_from_map(&deserialized_map, "storage_commitment_tree")?, "root")?;
 
         Ok(Self {
             nonce: Nonce::from_hex(&nonce_as_hex)?,
@@ -109,12 +105,11 @@ impl Deserializable for ContractState {
         })
     }
 
-    fn prefix() -> StoragePrefix {
-        StoragePrefix::StateTreeLeaf
+    fn prefix() -> Vec<u8> {
+        StarknetPrefix::StateTreeLeaf.to_storage_prefix()
     }
 }
 
 fn get_key_from_map<'a>(map: &'a Value, key: &str) -> Result<&'a Value, DeserializationError> {
-    map.get(key)
-        .ok_or(DeserializationError::NonExistingKey(key.to_string()))
+    map.get(key).ok_or(DeserializationError::NonExistingKey(key.to_string()))
 }

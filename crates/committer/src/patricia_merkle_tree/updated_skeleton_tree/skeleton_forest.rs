@@ -5,12 +5,16 @@ use crate::felt::Felt;
 use crate::forest_errors::{ForestError, ForestResult};
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
 use crate::patricia_merkle_tree::node_data::leaf::{
-    ContractState, LeafModifications, SkeletonLeaf,
+    ContractState,
+    LeafModifications,
+    SkeletonLeaf,
 };
 use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::OriginalSkeletonForest;
 use crate::patricia_merkle_tree::types::NodeIndex;
-use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
-use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
+use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
+    UpdatedSkeletonTree,
+    UpdatedSkeletonTreeImpl,
+};
 
 pub(crate) struct UpdatedSkeletonForest {
     pub(crate) classes_trie: UpdatedSkeletonTreeImpl,
@@ -71,11 +75,7 @@ impl UpdatedSkeletonForest {
             &contracts_trie_leaves,
         )?;
 
-        Ok(Self {
-            classes_trie,
-            contracts_trie,
-            storage_tries,
-        })
+        Ok(Self { classes_trie, contracts_trie, storage_tries })
     }
 
     /// Given the previous contract state, whether the contract's storage has become empty or not,

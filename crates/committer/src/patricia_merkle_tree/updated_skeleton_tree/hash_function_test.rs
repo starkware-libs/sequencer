@@ -1,17 +1,22 @@
+use rstest::rstest;
+use starknet_types_core::hash::{Pedersen, StarkHash};
+
 use crate::block_committer::input::StarknetStorageValue;
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::filled_tree::node::Nonce;
-use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash};
+use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
 use crate::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
+    BinaryData,
+    EdgeData,
+    EdgePathLength,
+    NodeData,
+    PathToBottom,
 };
 use crate::patricia_merkle_tree::node_data::leaf::ContractState;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
-    TreeHashFunction, TreeHashFunctionImpl,
+    TreeHashFunction,
+    TreeHashFunctionImpl,
 };
-use rstest::rstest;
-use starknet_types_core::hash::{Pedersen, StarkHash};
 
 #[rstest]
 #[case(Felt::ONE, Felt::TWO, Felt::from_hex("0x5bb9440e27889a364bcb678b1f679ecd1347acdedcbf36e83494f857cc58026").unwrap())]
@@ -22,12 +27,10 @@ fn test_tree_hash_function_impl_binary_node(
     #[case] right_hash: Felt,
     #[case] expected_hash: Felt,
 ) {
-    let hash_output = TreeHashFunctionImpl::compute_node_hash(
-        &NodeData::<StarknetStorageValue>::Binary(BinaryData {
-            left_hash: HashOutput(left_hash),
-            right_hash: HashOutput(right_hash),
-        }),
-    );
+    let hash_output =
+        TreeHashFunctionImpl::compute_node_hash(&NodeData::<StarknetStorageValue>::Binary(
+            BinaryData { left_hash: HashOutput(left_hash), right_hash: HashOutput(right_hash) },
+        ));
     assert_eq!(
         hash_output,
         HashOutput(Pedersen::hash(&left_hash.into(), &right_hash.into()).into())

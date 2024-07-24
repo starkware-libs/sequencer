@@ -1,44 +1,57 @@
-use crate::filled_tree_output::errors::FilledForestError;
-use crate::filled_tree_output::filled_forest::SerializedForest;
-use crate::parse_input::cast::InputImpl;
-use crate::parse_input::read::parse_input;
-use crate::tests::utils::parse_from_python::parse_input_single_storage_tree_flow_test;
-use crate::tests::utils::random_structs::DummyRandomValue;
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::io;
+
 use committer::block_committer::input::{
-    ContractAddress, StarknetStorageKey, StarknetStorageValue, StateDiff,
+    ContractAddress,
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
 };
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
+use committer::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
 use committer::patricia_merkle_tree::filled_tree::forest::FilledForest;
-use committer::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
-use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, FilledNode, Nonce};
+use committer::patricia_merkle_tree::filled_tree::node::{
+    ClassHash,
+    CompiledClassHash,
+    FilledNode,
+    Nonce,
+};
 use committer::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
+    BinaryData,
+    EdgeData,
+    EdgePathLength,
+    NodeData,
+    PathToBottom,
 };
 use committer::patricia_merkle_tree::node_data::leaf::ContractState;
 use committer::patricia_merkle_tree::types::SubTreeHeight;
-use log::error;
-
-use committer::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
 use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use committer::storage::db_object::DBObject;
 use committer::storage::errors::{DeserializationError, SerializationError};
 use committer::storage::map_storage::MapStorage;
 use committer::storage::storage_trait::{Storage, StorageKey, StorageValue};
 use ethnum::U256;
+use log::error;
 use serde_json::json;
 use starknet_api::block_hash::block_hash_calculator::{
-    TransactionHashingData, TransactionOutputForHash,
+    TransactionHashingData,
+    TransactionOutputForHash,
 };
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionExecutionStatus;
 use starknet_types_core::hash::{Pedersen, StarkHash};
-use std::fmt::Debug;
-use std::{collections::HashMap, io};
 use thiserror;
 
 use super::utils::objects::{get_thin_state_diff, get_transaction_output_for_hash, get_tx_data};
 use super::utils::parse_from_python::TreeFlowInput;
+use crate::filled_tree_output::errors::FilledForestError;
+use crate::filled_tree_output::filled_forest::SerializedForest;
+use crate::parse_input::cast::InputImpl;
+use crate::parse_input::read::parse_input;
+use crate::tests::utils::parse_from_python::parse_input_single_storage_tree_flow_test;
+use crate::tests::utils::random_structs::DummyRandomValue;
 
 // Enum representing different Python tests.
 pub enum PythonTest {
@@ -181,11 +194,8 @@ impl PythonTest {
             }
             Self::ComputeHashSingleTree => {
                 // 1. Get and deserialize input.
-                let TreeFlowInput {
-                    leaf_modifications,
-                    storage,
-                    root_hash,
-                } = serde_json::from_str(Self::non_optional_input(input)?)?;
+                let TreeFlowInput { leaf_modifications, storage, root_hash } =
+                    serde_json::from_str(Self::non_optional_input(input)?)?;
                 // 2. Run the test.
                 let output = single_tree_flow_test(leaf_modifications, storage, root_hash).await;
                 // 3. Serialize and return output.
@@ -212,16 +222,11 @@ impl PythonTest {
 // Test that the fetching of the input to flow test is working.
 // TODO(Aner, 8/7/2024): refactor using structs for deserialization and rename the function.
 fn serialize_for_rust_committer_flow_test(input: HashMap<String, String>) -> String {
-    let TreeFlowInput {
-        leaf_modifications,
-        storage,
-        root_hash,
-    } = parse_input_single_storage_tree_flow_test(&input);
+    let TreeFlowInput { leaf_modifications, storage, root_hash } =
+        parse_input_single_storage_tree_flow_test(&input);
     // Serialize the leaf modifications to an object that can be JSON-serialized.
-    let leaf_modifications_to_print: HashMap<String, Vec<u8>> = leaf_modifications
-        .into_iter()
-        .map(|(k, v)| (k.0.to_string(), v.serialize().0))
-        .collect();
+    let leaf_modifications_to_print: HashMap<String, Vec<u8>> =
+        leaf_modifications.into_iter().map(|(k, v)| (k.0.to_string(), v.serialize().0)).collect();
 
     // Create a json string to compare with the expected string in python.
     serde_json::to_string(&json!(
@@ -283,12 +288,8 @@ pub(crate) fn felt_serialize_test(felt: u128) -> String {
 
 pub(crate) fn test_hash_function(hash_input: HashMap<String, u128>) -> String {
     // Fetch x and y from the input.
-    let x = hash_input
-        .get("x")
-        .expect("Failed to get value for key 'x'");
-    let y = hash_input
-        .get("y")
-        .expect("Failed to get value for key 'y'");
+    let x = hash_input.get("x").expect("Failed to get value for key 'x'");
+    let y = hash_input.get("y").expect("Failed to get value for key 'y'");
 
     // Convert x and y to Felt.
     let x_felt = Felt::from(*x);
@@ -313,12 +314,8 @@ pub(crate) fn test_hash_function(hash_input: HashMap<String, u128>) -> String {
 /// A JSON string representing the value of serialized binary data.
 pub(crate) fn test_binary_serialize_test(binary_input: HashMap<String, u128>) -> String {
     // Extract left and right values from the input.
-    let left = binary_input
-        .get("left")
-        .expect("Failed to get value for key 'left'");
-    let right = binary_input
-        .get("right")
-        .expect("Failed to get value for key 'right'");
+    let left = binary_input.get("left").expect("Failed to get value for key 'left'");
+    let right = binary_input.get("right").expect("Failed to get value for key 'right'");
 
     // Create a map to store the serialized binary data.
     let mut map: HashMap<String, Vec<u8>> = HashMap::new();
@@ -330,10 +327,8 @@ pub(crate) fn test_binary_serialize_test(binary_input: HashMap<String, u128>) ->
     };
 
     // Create a filled node (irrelevant leaf type) with binary data and zero hash.
-    let filled_node: FilledNode<StarknetStorageValue> = FilledNode {
-        data: NodeData::Binary(binary_data),
-        hash: HashOutput(Felt::ZERO),
-    };
+    let filled_node: FilledNode<StarknetStorageValue> =
+        FilledNode { data: NodeData::Binary(binary_data), hash: HashOutput(Felt::ZERO) };
 
     // Serialize the binary node and insert it into the map under the key "value".
     let value = filled_node.serialize();
@@ -369,10 +364,7 @@ fn create_output_to_python(actual_input: InputImpl) -> String {
         actual_input.storage.len(),
         actual_input.state_diff.address_to_class_hash.len(),
         actual_input.state_diff.address_to_nonce.len(),
-        actual_input
-            .state_diff
-            .class_hash_to_compiled_class_hash
-            .len(),
+        actual_input.state_diff.class_hash_to_compiled_class_hash.len(),
         actual_input.state_diff.storage_updates.len(),
         actual_input.contracts_trie_root_hash.0.to_bytes_be(),
         actual_input.classes_trie_root_hash.0.to_bytes_be(),
@@ -396,23 +388,15 @@ fn hash_state_diff(state_diff: &StateDiff) -> (Vec<u8>, Vec<u8>) {
     ) = hash_class_hash_to_compiled_class_hash(&state_diff.class_hash_to_compiled_class_hash);
     let (storage_updates_keys_hash, storage_updates_values_hash) =
         hash_storage_updates(&state_diff.storage_updates);
-    let mut state_diff_keys_hash = xor_hash(
-        &address_to_class_hash_keys_hash,
-        &address_to_nonce_keys_hash,
-    );
-    state_diff_keys_hash = xor_hash(
-        &state_diff_keys_hash,
-        &class_hash_to_compiled_class_hash_keys_hash,
-    );
+    let mut state_diff_keys_hash =
+        xor_hash(&address_to_class_hash_keys_hash, &address_to_nonce_keys_hash);
+    state_diff_keys_hash =
+        xor_hash(&state_diff_keys_hash, &class_hash_to_compiled_class_hash_keys_hash);
     state_diff_keys_hash = xor_hash(&state_diff_keys_hash, &storage_updates_keys_hash);
-    let mut state_diff_values_hash = xor_hash(
-        &address_to_class_hash_values_hash,
-        &address_to_nonce_values_hash,
-    );
-    state_diff_values_hash = xor_hash(
-        &state_diff_values_hash,
-        &class_hash_to_compiled_class_hash_values_hash,
-    );
+    let mut state_diff_values_hash =
+        xor_hash(&address_to_class_hash_values_hash, &address_to_nonce_values_hash);
+    state_diff_values_hash =
+        xor_hash(&state_diff_values_hash, &class_hash_to_compiled_class_hash_values_hash);
     state_diff_values_hash = xor_hash(&state_diff_values_hash, &storage_updates_values_hash);
     (state_diff_keys_hash, state_diff_values_hash)
 }
@@ -474,14 +458,13 @@ fn xor_hash(x: &[u8], y: &[u8]) -> Vec<u8> {
 
 /// Creates and serializes storage keys for different node types.
 ///
-/// This function generates and serializes storage keys for various node types, including binary nodes,
-/// edge nodes, storage leaf nodes, state tree leaf nodes, and compiled class leaf nodes. The resulting
-/// keys are stored in a `HashMap` and serialized into a JSON string.
+/// This function generates and serializes storage keys for various node types, including binary
+/// nodes, edge nodes, storage leaf nodes, state tree leaf nodes, and compiled class leaf nodes. The
+/// resulting keys are stored in a `HashMap` and serialized into a JSON string.
 ///
 /// # Returns
 ///
 /// A JSON string representing the serialized storage keys for different node types.
-///
 pub(crate) fn test_node_db_key() -> String {
     let zero = Felt::ZERO;
 
@@ -489,28 +472,19 @@ pub(crate) fn test_node_db_key() -> String {
     let hash = HashOutput(zero);
 
     let binary_node: FilledNode<StarknetStorageValue> = FilledNode {
-        data: NodeData::Binary(BinaryData {
-            left_hash: hash,
-            right_hash: hash,
-        }),
+        data: NodeData::Binary(BinaryData { left_hash: hash, right_hash: hash }),
         hash,
     };
     let binary_node_key = binary_node.db_key().0;
 
     let edge_node: FilledNode<StarknetStorageValue> = FilledNode {
-        data: NodeData::Edge(EdgeData {
-            bottom_hash: hash,
-            path_to_bottom: Default::default(),
-        }),
+        data: NodeData::Edge(EdgeData { bottom_hash: hash, path_to_bottom: Default::default() }),
         hash,
     };
 
     let edge_node_key = edge_node.db_key().0;
 
-    let storage_leaf = FilledNode {
-        data: NodeData::Leaf(StarknetStorageValue(zero)),
-        hash,
-    };
+    let storage_leaf = FilledNode { data: NodeData::Leaf(StarknetStorageValue(zero)), hash };
     let storage_leaf_key = storage_leaf.db_key().0;
 
     let state_tree_leaf = FilledNode {
@@ -523,10 +497,7 @@ pub(crate) fn test_node_db_key() -> String {
     };
     let state_tree_leaf_key = state_tree_leaf.db_key().0;
 
-    let compiled_class_leaf = FilledNode {
-        data: NodeData::Leaf(CompiledClassHash(zero)),
-        hash,
-    };
+    let compiled_class_leaf = FilledNode { data: NodeData::Leaf(CompiledClassHash(zero)), hash };
     let compiled_class_leaf_key = compiled_class_leaf.db_key().0;
 
     // Store keys in a HashMap.
@@ -536,24 +507,19 @@ pub(crate) fn test_node_db_key() -> String {
     map.insert("edge_node_key".to_string(), edge_node_key);
     map.insert("storage_leaf_key".to_string(), storage_leaf_key);
     map.insert("state_tree_leaf_key".to_string(), state_tree_leaf_key);
-    map.insert(
-        "compiled_class_leaf_key".to_string(),
-        compiled_class_leaf_key,
-    );
+    map.insert("compiled_class_leaf_key".to_string(), compiled_class_leaf_key);
 
     // Serialize the map to a JSON string and handle serialization errors.
     serde_json::to_string(&map)
         .unwrap_or_else(|error| panic!("Failed to serialize storage prefix: {}", error))
 }
 
-/// This function storage_serialize_test generates a MapStorage containing StorageKey and StorageValue
-/// pairs for u128 values in the range 0..=1000,
+/// This function storage_serialize_test generates a MapStorage containing StorageKey and
+/// StorageValue pairs for u128 values in the range 0..=1000,
 /// serializes it to a JSON string using Serde,
 /// and returns the serialized JSON string or panics with an error message if serialization fails.
 pub(crate) fn storage_serialize_test() -> Result<String, PythonTestError> {
-    let mut storage = MapStorage {
-        storage: HashMap::new(),
-    };
+    let mut storage = MapStorage { storage: HashMap::new() };
     for i in 0..=99_u128 {
         let key = StorageKey(Felt::from(i).to_bytes_be().to_vec());
         let value = StorageValue(Felt::from(i).to_bytes_be().to_vec());
@@ -574,7 +540,8 @@ fn python_hash_constants_compare() -> String {
 }
 
 /// Processes a map containing JSON strings for different node data.
-/// Creates `NodeData` objects for each node type, stores them in a storage, and serializes the map to a JSON string.
+/// Creates `NodeData` objects for each node type, stores them in a storage, and serializes the map
+/// to a JSON string.
 ///
 /// # Arguments
 /// * `data` - A map containing JSON strings for different node data:
@@ -585,12 +552,11 @@ fn python_hash_constants_compare() -> String {
 ///   - `"contract_class_leaf"`: Compiled class leaf data.
 ///
 /// # Returns
-/// A `Result<String, PythonTestError>` containing a serialized map of all nodes on success, or an error if keys are missing or parsing fails.
+/// A `Result<String, PythonTestError>` containing a serialized map of all nodes on success, or an
+/// error if keys are missing or parsing fails.
 fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTestError> {
     // Create a storage to store the nodes.
-    let mut rust_fact_storage = MapStorage {
-        storage: HashMap::new(),
-    };
+    let mut rust_fact_storage = MapStorage { storage: HashMap::new() };
 
     // Parse the binary node data from the input.
     let binary_json = get_or_key_not_found(&data, "binary")?;
@@ -639,10 +605,7 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
             &storage_leaf_data,
             "value",
         )?))),
-        hash: HashOutput(Felt::from(*get_or_key_not_found(
-            &storage_leaf_data,
-            "hash",
-        )?)),
+        hash: HashOutput(Felt::from(*get_or_key_not_found(&storage_leaf_data, "hash")?)),
     };
 
     // Store the storage leaf node in the storage.
@@ -664,23 +627,14 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
                 &contract_state_leaf_data,
                 "root",
             )?)),
-            nonce: Nonce(Felt::from(*get_or_key_not_found(
-                &contract_state_leaf_data,
-                "nonce",
-            )?)),
+            nonce: Nonce(Felt::from(*get_or_key_not_found(&contract_state_leaf_data, "nonce")?)),
         }),
 
-        hash: HashOutput(Felt::from(*get_or_key_not_found(
-            &contract_state_leaf_data,
-            "hash",
-        )?)),
+        hash: HashOutput(Felt::from(*get_or_key_not_found(&contract_state_leaf_data, "hash")?)),
     };
 
     // Store the contract state leaf node in the storage.
-    rust_fact_storage.set(
-        contract_state_leaf_rust.db_key(),
-        contract_state_leaf_rust.serialize(),
-    );
+    rust_fact_storage.set(contract_state_leaf_rust.db_key(), contract_state_leaf_rust.serialize());
 
     // Parse the compiled class leaf data from the input.
     let compiled_class_leaf = get_or_key_not_found(&data, "contract_class_leaf")?;
@@ -693,17 +647,11 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
             &compiled_class_leaf_data,
             "compiled_class_hash",
         )?))),
-        hash: HashOutput(Felt::from(*get_or_key_not_found(
-            &compiled_class_leaf_data,
-            "hash",
-        )?)),
+        hash: HashOutput(Felt::from(*get_or_key_not_found(&compiled_class_leaf_data, "hash")?)),
     };
 
     // Store the compiled class leaf node in the storage.
-    rust_fact_storage.set(
-        compiled_class_leaf_rust.db_key(),
-        compiled_class_leaf_rust.serialize(),
-    );
+    rust_fact_storage.set(compiled_class_leaf_rust.db_key(), compiled_class_leaf_rust.serialize());
 
     // Serialize the storage to a JSON string and handle serialization errors.
     Ok(serde_json::to_string(&rust_fact_storage)?)

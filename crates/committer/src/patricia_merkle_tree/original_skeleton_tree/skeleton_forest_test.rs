@@ -1,31 +1,38 @@
+use std::collections::HashMap;
+
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use std::collections::HashMap;
 
 use super::OriginalSkeletonForest;
 use crate::block_committer::commit::get_all_modified_indices;
 use crate::block_committer::input::{
-    ConfigImpl, ContractAddress, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
+    ConfigImpl,
+    ContractAddress,
+    Input,
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
 };
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
 use crate::patricia_merkle_tree::node_data::leaf::ContractState;
 use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::create_tree_test::{
-    create_32_bytes_entry, create_binary_entry, create_binary_skeleton_node, create_edge_entry,
-    create_edge_skeleton_node, create_expected_skeleton_nodes,
+    create_32_bytes_entry,
+    create_binary_entry,
+    create_binary_skeleton_node,
+    create_compiled_class_leaf_entry,
+    create_contract_state_leaf_entry,
+    create_edge_entry,
+    create_edge_skeleton_node,
+    create_expected_skeleton_nodes,
+    create_root_edge_entry,
+    create_storage_leaf_entry,
     create_unmodified_subtree_skeleton_node,
 };
-use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::create_tree_test::{
-    create_compiled_class_leaf_entry, create_contract_state_leaf_entry, create_root_edge_entry,
-    create_storage_leaf_entry,
-};
-use crate::patricia_merkle_tree::types::NodeIndex;
-use crate::patricia_merkle_tree::types::SubTreeHeight;
-use crate::patricia_merkle_tree::{
-    original_skeleton_tree::skeleton_forest::ForestSortedIndices,
-    original_skeleton_tree::tree::OriginalSkeletonTreeImpl, types::SortedLeafIndices,
-};
+use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::ForestSortedIndices;
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
+use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use crate::storage::map_storage::MapStorage;
 
 macro_rules! compare_skeleton_tree {
@@ -85,7 +92,7 @@ macro_rules! compare_skeleton_tree {
 ///                  /   \                              /
 ///                 E     E                            B
 ///                /       \                         /   \
-///               *         B                       B     E
+///               * B                       B     E
 ///              /                                 / \     \
 ///             303                               NZ  47   UB
 ///
@@ -99,7 +106,6 @@ macro_rules! compare_skeleton_tree {
 ///        B      E     E                               B   E     *
 ///       /  \     \     \                             / \   \     \
 ///      NZ   2     NZ    NZ                          NZ  9  16    15
-///
 
 #[rstest]
 #[case(
@@ -165,7 +171,7 @@ macro_rules! compare_skeleton_tree {
         },
         contracts_trie_root_hash: HashOutput(Felt::from(861_u128 + 248_u128)),
         classes_trie_root_hash: HashOutput(Felt::from(155_u128 + 248_u128)),
-        config: ConfigImpl::new(true),
+        config: ConfigImpl::new(true, log::LevelFilter::Debug),
     }, OriginalSkeletonForest{
         classes_trie: OriginalSkeletonTreeImpl {
             nodes: create_expected_skeleton_nodes(
@@ -284,19 +290,17 @@ fn test_create_original_skeleton_forest(
         MapStorage::from(input.storage),
         input.contracts_trie_root_hash,
         input.classes_trie_root_hash,
-        &input.state_diff,
+        &input.state_diff.actual_storage_updates(),
+        &input.state_diff.actual_classes_updates(),
         &forest_sorted_indices,
-        &ConfigImpl::new(false),
+        &ConfigImpl::new(false, log::LevelFilter::Debug),
     )
     .unwrap();
     let expected_original_contracts_trie_leaves = expected_original_contracts_trie_leaves
         .into_iter()
         .map(|(address, state)| (NodeIndex::from_contract_address(&address), state))
         .collect();
-    assert_eq!(
-        original_contracts_trie_leaves,
-        expected_original_contracts_trie_leaves
-    );
+    assert_eq!(original_contracts_trie_leaves, expected_original_contracts_trie_leaves);
 
     compare_skeleton_tree!(
         &actual_forest.classes_trie,
@@ -375,15 +379,9 @@ fn create_original_skeleton_with_sorted_indices<'a>(
     indices: SortedLeafIndices<'a>,
     skeleton: &OriginalSkeletonTreeImpl<'_>,
 ) -> OriginalSkeletonTreeImpl<'a> {
-    OriginalSkeletonTreeImpl {
-        nodes: skeleton.nodes.clone(),
-        sorted_leaf_indices: indices,
-    }
+    OriginalSkeletonTreeImpl { nodes: skeleton.nodes.clone(), sorted_leaf_indices: indices }
 }
 
 fn create_expected_sorted_indices(indices: &[u128]) -> Vec<NodeIndex> {
-    indices
-        .iter()
-        .map(|idx| NodeIndex::FIRST_LEAF + NodeIndex::from(*idx))
-        .collect()
+    indices.iter().map(|idx| NodeIndex::FIRST_LEAF + NodeIndex::from(*idx)).collect()
 }

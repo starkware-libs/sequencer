@@ -1,17 +1,19 @@
-use committer::{
-    block_committer::input::{
-        ConfigImpl, ContractAddress, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
-    },
-    felt::Felt,
-    hash::hash_trait::HashOutput,
-    patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce},
-    storage::{
-        errors::DeserializationError,
-        storage_trait::{StorageKey, StorageValue},
-    },
-};
-use pretty_assertions::assert_eq;
 use std::collections::HashMap;
+
+use committer::block_committer::input::{
+    ConfigImpl,
+    ContractAddress,
+    Input,
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
+};
+use committer::felt::Felt;
+use committer::hash::hash_trait::HashOutput;
+use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
+use committer::storage::errors::DeserializationError;
+use committer::storage::storage_trait::{StorageKey, StorageValue};
+use pretty_assertions::assert_eq;
 
 use super::parse_input;
 
@@ -80,19 +82,13 @@ fn test_simple_input_parsing() {
     ],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 19],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-    true
+    {"warn_on_trivial_modifications": true, "log_level": 5}
 ]
 
 "#;
     let expected_storage = HashMap::from([
-        (
-            StorageKey([14, 6, 78, 90].to_vec()),
-            StorageValue([245, 90, 0, 0, 1].to_vec()),
-        ),
-        (
-            StorageKey([14, 6, 43, 90].to_vec()),
-            StorageValue([9, 0, 0, 0, 1].to_vec()),
-        ),
+        (StorageKey([14, 6, 78, 90].to_vec()), StorageValue([245, 90, 0, 0, 1].to_vec())),
+        (StorageKey([14, 6, 43, 90].to_vec()), StorageValue([9, 0, 0, 0, 1].to_vec())),
     ]);
 
     let expected_address_to_class_hash = HashMap::from([
@@ -205,7 +201,7 @@ fn test_simple_input_parsing() {
         },
         contracts_trie_root_hash: expected_contracts_trie_root_hash,
         classes_trie_root_hash: expected_classes_trie_root_hash,
-        config: ConfigImpl::new(true),
+        config: ConfigImpl::new(true, log::LevelFilter::Debug),
     };
     assert_eq!(parse_input(input).unwrap(), expected_input);
 }
@@ -232,7 +228,7 @@ fn test_input_parsing_with_storage_key_duplicate() {
     ],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 222, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 3],
-    true
+    {"warn_on_trivial_modifications": true, "log_level": 20}
 ]
 
 "#;
@@ -274,7 +270,7 @@ fn test_input_parsing_with_mapping_key_duplicate() {
     ],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 144, 0, 0, 0, 0, 0, 0, 0, 0, 5],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 222, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 3],
-    false
+    {"warn_on_trivial_modifications": false, "log_level": 30}
 ]
 
 "#;

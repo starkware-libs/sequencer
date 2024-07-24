@@ -1,17 +1,17 @@
 use crate::block_committer::input::StarknetStorageValue;
 use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
-use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafData, LeafModifications};
+use crate::patricia_merkle_tree::node_data::leaf::{ContractState, Leaf, LeafModifications};
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::types::NodeIndex;
 
 /// Configures the creation of an original skeleton tree.
-pub(crate) trait OriginalSkeletonTreeConfig<L: LeafData> {
+pub(crate) trait OriginalSkeletonTreeConfig<L: Leaf> {
     /// Configures whether modified leaves should be compared to the previous leaves and log out a
     /// warning when encountering a trivial modification.
     fn compare_modified_leaves(&self) -> bool;
 
-    /// Compares the previous leaf to the modificated and returns true iff they are equal.
+    /// Compares the previous leaf to the modified and returns true iff they are equal.
     fn compare_leaf(
         &self,
         index: &NodeIndex,
@@ -19,6 +19,7 @@ pub(crate) trait OriginalSkeletonTreeConfig<L: LeafData> {
     ) -> OriginalSkeletonTreeResult<bool>;
 }
 
+#[macro_export]
 macro_rules! generate_trie_config {
     ($struct_name:ident, $leaf_type:ty) => {
         pub(crate) struct $struct_name<'a> {
@@ -27,14 +28,12 @@ macro_rules! generate_trie_config {
         }
 
         impl<'a> $struct_name<'a> {
+            #[allow(dead_code)]
             pub(crate) fn new(
                 modifications: &'a LeafModifications<$leaf_type>,
                 compare_modified_leaves: bool,
             ) -> Self {
-                Self {
-                    modifications,
-                    compare_modified_leaves,
-                }
+                Self { modifications, compare_modified_leaves }
             }
         }
 

@@ -1,7 +1,5 @@
-use std::{
-    fs::File,
-    io::{self, BufWriter},
-};
+use std::fs::File;
+use std::io::{self, BufWriter};
 
 use committer::storage::errors::DeserializationError;
 use serde::{Deserialize, Serialize};

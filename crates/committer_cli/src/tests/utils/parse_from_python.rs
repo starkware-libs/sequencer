@@ -1,17 +1,17 @@
-use crate::parse_input::cast::add_unique;
-use crate::parse_input::raw_input::RawStorageEntry;
+use std::collections::HashMap;
+
 use committer::block_committer::input::StarknetStorageValue;
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
 use committer::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use committer::patricia_merkle_tree::types::NodeIndex;
 use committer::storage::map_storage::MapStorage;
-use committer::storage::storage_trait::StorageKey;
-use committer::storage::storage_trait::StorageValue;
+use committer::storage::storage_trait::{StorageKey, StorageValue};
 use ethnum::U256;
-use serde::Deserialize;
-use serde::Deserializer;
-use std::collections::HashMap;
+use serde::{Deserialize, Deserializer};
+
+use crate::parse_input::cast::add_unique;
+use crate::parse_input::raw_input::RawStorageEntry;
 
 pub struct TreeFlowInput {
     pub leaf_modifications: LeafModifications<StarknetStorageValue>,
@@ -53,13 +53,8 @@ pub fn parse_input_single_storage_tree_flow_test(input: &HashMap<String, String>
 
     let mut storage = HashMap::new();
     for entry in raw_storage {
-        add_unique(
-            &mut storage,
-            "storage",
-            StorageKey(entry.key),
-            StorageValue(entry.value),
-        )
-        .unwrap();
+        add_unique(&mut storage, "storage", StorageKey(entry.key), StorageValue(entry.value))
+            .unwrap();
     }
 
     let map_storage = MapStorage { storage };
@@ -67,9 +62,5 @@ pub fn parse_input_single_storage_tree_flow_test(input: &HashMap<String, String>
     // Fetch root_hash.
     let root_hash = HashOutput(Felt::from_hex(input.get("root_hash").unwrap()).unwrap());
 
-    TreeFlowInput {
-        leaf_modifications,
-        storage: map_storage,
-        root_hash,
-    }
+    TreeFlowInput { leaf_modifications, storage: map_storage, root_hash }
 }
