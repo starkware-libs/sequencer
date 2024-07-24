@@ -1,7 +1,10 @@
-use committer::patricia_merkle_tree::filled_tree::errors::{
-    ClassesTrieError, ContractsTrieError, StorageTrieError,
-};
 use std::fmt::Debug;
+
+use committer::patricia_merkle_tree::filled_tree::errors::{
+    ClassesTrieError,
+    ContractsTrieError,
+    StorageTrieError,
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum FilledForestError {

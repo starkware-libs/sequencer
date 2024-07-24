@@ -16,9 +16,7 @@ fn test_remove_first_edges(
     #[case] expected: PathToBottom,
 ) {
     assert_eq!(
-        path_to_bottom
-            .remove_first_edges(EdgePathLength::new(n_edges).unwrap())
-            .unwrap(),
+        path_to_bottom.remove_first_edges(EdgePathLength::new(n_edges).unwrap()).unwrap(),
         expected
     );
 }

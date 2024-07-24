@@ -76,9 +76,7 @@ impl<'a> UpdatedSkeletonTree<'a> for UpdatedSkeletonTreeImpl {
                 updated_skeleton_tree
                     .skeleton_tree
                     .insert(NodeIndex::ROOT, new_node)
-                    .map_or((), |_| {
-                        panic!("Root node already exists in the updated skeleton tree")
-                    })
+                    .map_or((), |_| panic!("Root node already exists in the updated skeleton tree"))
             }
         };
         Ok(updated_skeleton_tree)
@@ -109,8 +107,6 @@ impl<'a> UpdatedSkeletonTree<'a> for UpdatedSkeletonTreeImpl {
     }
 
     fn get_nodes(&self) -> impl Iterator<Item = (NodeIndex, UpdatedSkeletonNode)> {
-        self.skeleton_tree
-            .iter()
-            .map(|(index, node)| (*index, node.clone()))
+        self.skeleton_tree.iter().map(|(index, node)| (*index, node.clone()))
     }
 }
