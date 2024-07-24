@@ -15,7 +15,7 @@ use starknet_api::transaction::{
 };
 
 use crate::test_utils::{default_testing_resource_bounds, NonceManager};
-use crate::transaction::transactions::DeployAccountTransaction;
+use crate::transaction::transactions::{DeployAccountTransaction, DeployAccountTransactionExt};
 
 #[derive(Clone)]
 pub struct DeployAccountTxArgs {

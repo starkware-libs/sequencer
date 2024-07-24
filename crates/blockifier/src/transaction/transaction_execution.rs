@@ -22,6 +22,7 @@ use crate::transaction::objects::{
 use crate::transaction::transactions::{
     DeclareTransaction,
     DeployAccountTransaction,
+    DeployAccountTransactionExt,
     Executable,
     ExecutableTransaction,
     ExecutionFlags,

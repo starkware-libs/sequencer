@@ -3,6 +3,7 @@ use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::transactions::{
     DeclareTransaction as BlockifierDeclareTransaction,
     DeployAccountTransaction as BlockifierDeployAccountTransaction,
+    DeployAccountTransactionExt,
     InvokeTransaction as BlockifierInvokeTransaction,
 };
 use starknet_api::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress, Nonce};

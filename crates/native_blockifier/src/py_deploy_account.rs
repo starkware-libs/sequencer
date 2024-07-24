@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use blockifier::transaction::transaction_types::TransactionType;
-use blockifier::transaction::transactions::DeployAccountTransaction;
+use blockifier::transaction::transactions::{
+    DeployAccountTransaction,
+    DeployAccountTransactionExt,
+};
 use pyo3::prelude::*;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;

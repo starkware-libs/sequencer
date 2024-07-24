@@ -4,6 +4,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::calldata;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::EntryPointType;
+use starknet_api::internal_transaction::InternalDeployAccountTransaction;
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
@@ -52,6 +53,20 @@ mod test;
 macro_rules! implement_inner_tx_getter_calls {
     ($(($field:ident, $field_type:ty)),*) => {
         $(pub fn $field(&self) -> $field_type {
+            self.tx.$field().clone()
+        })*
+    };
+}
+
+macro_rules! trait_inner_tx_getter_calls {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(fn $field(&self) -> $field_type;)*
+    };
+}
+
+macro_rules! implement_trait_inner_tx_getter_calls {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(fn $field(&self) -> $field_type {
             self.tx.$field().clone()
         })*
     };
@@ -282,33 +297,24 @@ impl TransactionInfoCreator for DeclareTransaction {
         }
     }
 }
-#[derive(Debug, Clone)]
-pub struct DeployAccountTransaction {
-    pub tx: starknet_api::transaction::DeployAccountTransaction,
-    pub tx_hash: TransactionHash,
-    pub contract_address: ContractAddress,
-    // Indicates the presence of the only_query bit in the version.
-    pub only_query: bool,
-}
 
-impl DeployAccountTransaction {
-    pub fn new(
+pub type DeployAccountTransaction = InternalDeployAccountTransaction;
+
+/// A trait for extending the `DeployAccountTransaction` with additional functionality.
+pub trait DeployAccountTransactionExt {
+    fn new(
         deploy_account_tx: starknet_api::transaction::DeployAccountTransaction,
         tx_hash: TransactionHash,
         contract_address: ContractAddress,
-    ) -> Self {
-        Self { tx: deploy_account_tx, tx_hash, contract_address, only_query: false }
-    }
+    ) -> Self;
 
-    pub fn new_for_query(
+    fn new_for_query(
         deploy_account_tx: starknet_api::transaction::DeployAccountTransaction,
         tx_hash: TransactionHash,
         contract_address: ContractAddress,
-    ) -> Self {
-        Self { tx: deploy_account_tx, tx_hash, contract_address, only_query: true }
-    }
+    ) -> Self;
 
-    implement_inner_tx_getter_calls!(
+    trait_inner_tx_getter_calls!(
         (class_hash, ClassHash),
         (constructor_calldata, Calldata),
         (contract_address_salt, ContractAddressSalt),
@@ -316,7 +322,35 @@ impl DeployAccountTransaction {
         (signature, TransactionSignature)
     );
 
-    pub fn tx(&self) -> &starknet_api::transaction::DeployAccountTransaction {
+    fn tx(&self) -> &starknet_api::transaction::DeployAccountTransaction;
+}
+
+impl DeployAccountTransactionExt for DeployAccountTransaction {
+    fn new(
+        deploy_account_tx: starknet_api::transaction::DeployAccountTransaction,
+        tx_hash: TransactionHash,
+        contract_address: ContractAddress,
+    ) -> Self {
+        Self { tx: deploy_account_tx, tx_hash, contract_address, only_query: false }
+    }
+
+    fn new_for_query(
+        deploy_account_tx: starknet_api::transaction::DeployAccountTransaction,
+        tx_hash: TransactionHash,
+        contract_address: ContractAddress,
+    ) -> Self {
+        Self { tx: deploy_account_tx, tx_hash, contract_address, only_query: true }
+    }
+
+    implement_trait_inner_tx_getter_calls!(
+        (class_hash, ClassHash),
+        (constructor_calldata, Calldata),
+        (contract_address_salt, ContractAddressSalt),
+        (nonce, Nonce),
+        (signature, TransactionSignature)
+    );
+
+    fn tx(&self) -> &starknet_api::transaction::DeployAccountTransaction {
         &self.tx
     }
 }

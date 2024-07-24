@@ -43,6 +43,7 @@ use crate::transaction::transaction_utils::update_remaining_gas;
 use crate::transaction::transactions::{
     DeclareTransaction,
     DeployAccountTransaction,
+    DeployAccountTransactionExt,
     Executable,
     ExecutableTransaction,
     ExecutionFlags,

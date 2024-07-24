@@ -119,7 +119,11 @@ use crate::transaction::test_utils::{
     VALID,
 };
 use crate::transaction::transaction_types::TransactionType;
-use crate::transaction::transactions::{ExecutableTransaction, L1HandlerTransaction};
+use crate::transaction::transactions::{
+    DeployAccountTransactionExt,
+    ExecutableTransaction,
+    L1HandlerTransaction,
+};
 use crate::versioned_constants::VersionedConstants;
 use crate::{
     check_transaction_execution_error_for_custom_hint,
