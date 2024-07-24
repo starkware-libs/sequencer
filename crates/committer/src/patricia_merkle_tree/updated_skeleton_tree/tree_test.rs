@@ -4,18 +4,23 @@ use rstest::{fixture, rstest};
 
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::internal_test_utils::OriginalSkeletonMockTrieConfig;
-use crate::patricia_merkle_tree::internal_test_utils::{get_initial_updated_skeleton, MockLeaf};
+use crate::patricia_merkle_tree::internal_test_utils::{
+    get_initial_updated_skeleton,
+    MockLeaf,
+    OriginalSkeletonMockTrieConfig,
+};
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
-    OriginalSkeletonTree, OriginalSkeletonTreeImpl,
+    OriginalSkeletonTree,
+    OriginalSkeletonTreeImpl,
 };
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
-    UpdatedSkeletonTree, UpdatedSkeletonTreeImpl,
+    UpdatedSkeletonTree,
+    UpdatedSkeletonTreeImpl,
 };
 use crate::storage::map_storage::MapStorage;
 
@@ -123,10 +128,8 @@ fn test_updated_skeleton_tree_impl_create(
     #[with(original_skeleton, leaf_modifications)]
     initial_updated_skeleton: UpdatedSkeletonTreeImpl,
 ) {
-    let leaf_modifications: LeafModifications<SkeletonLeaf> = leaf_modifications
-        .iter()
-        .map(|(index, val)| (*index, (*val).into()))
-        .collect();
+    let leaf_modifications: LeafModifications<SkeletonLeaf> =
+        leaf_modifications.iter().map(|(index, val)| (*index, (*val).into())).collect();
     let mut leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut leaf_indices);
     let mut original_skeleton = OriginalSkeletonTreeImpl {
@@ -156,10 +159,8 @@ fn test_updated_empty_tree(#[case] modifications: LeafModifications<MockLeaf>) {
     )
     .unwrap();
 
-    let skeleton_modifications = modifications
-        .into_iter()
-        .map(|(idx, leaf)| (idx, leaf.0.into()))
-        .collect();
+    let skeleton_modifications =
+        modifications.into_iter().map(|(idx, leaf)| (idx, leaf.0.into())).collect();
     let updated_skeleton_tree =
         UpdatedSkeletonTreeImpl::create(&mut original_skeleton, &skeleton_modifications).unwrap();
     assert!(updated_skeleton_tree.is_empty());

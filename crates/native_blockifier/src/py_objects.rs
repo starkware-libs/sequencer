@@ -10,7 +10,9 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 use crate::errors::{
-    InvalidNativeBlockifierInputError, NativeBlockifierError, NativeBlockifierInputError,
+    InvalidNativeBlockifierInputError,
+    NativeBlockifierError,
+    NativeBlockifierInputError,
     NativeBlockifierResult,
 };
 

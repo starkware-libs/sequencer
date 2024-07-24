@@ -1,4 +1,4 @@
-use test_utils::validate_load_and_dump;
+use papyrus_test_utils::validate_load_and_dump;
 
 use super::{
     DeclareV1Transaction,

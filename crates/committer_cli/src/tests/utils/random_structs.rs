@@ -1,22 +1,31 @@
-use committer::block_committer::input::ContractAddress;
-use committer::block_committer::input::StarknetStorageValue;
+use std::cmp::min;
+use std::collections::HashMap;
+
+use committer::block_committer::input::{ContractAddress, StarknetStorageValue};
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
 use committer::patricia_merkle_tree::external_test_utils::get_random_u256;
 use committer::patricia_merkle_tree::filled_tree::forest::FilledForest;
-use committer::patricia_merkle_tree::filled_tree::node::ClassHash;
-use committer::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
-use committer::patricia_merkle_tree::filled_tree::node::FilledNode;
-use committer::patricia_merkle_tree::filled_tree::node::Nonce;
-use committer::patricia_merkle_tree::filled_tree::tree::ClassesTrie;
-use committer::patricia_merkle_tree::filled_tree::tree::ContractsTrie;
-use committer::patricia_merkle_tree::filled_tree::tree::StorageTrie;
-use committer::patricia_merkle_tree::filled_tree::tree::StorageTrieMap;
-use committer::patricia_merkle_tree::node_data::inner_node::BinaryData;
-use committer::patricia_merkle_tree::node_data::inner_node::EdgeData;
-use committer::patricia_merkle_tree::node_data::inner_node::NodeDataDiscriminants as NodeDataVariants;
+use committer::patricia_merkle_tree::filled_tree::node::{
+    ClassHash,
+    CompiledClassHash,
+    FilledNode,
+    Nonce,
+};
+use committer::patricia_merkle_tree::filled_tree::tree::{
+    ClassesTrie,
+    ContractsTrie,
+    StorageTrie,
+    StorageTrieMap,
+};
 use committer::patricia_merkle_tree::node_data::inner_node::{
-    EdgePath, EdgePathLength, NodeData, PathToBottom,
+    BinaryData,
+    EdgeData,
+    EdgePath,
+    EdgePathLength,
+    NodeData,
+    NodeDataDiscriminants as NodeDataVariants,
+    PathToBottom,
 };
 use committer::patricia_merkle_tree::node_data::leaf::ContractState;
 use committer::patricia_merkle_tree::types::NodeIndex;
@@ -25,8 +34,6 @@ use rand::prelude::IteratorRandom;
 use rand::Rng;
 use rand_distr::num_traits::ToPrimitive;
 use rand_distr::{Distribution, Geometric};
-use std::cmp::min;
-use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
 pub trait RandomValue {
@@ -74,10 +81,7 @@ impl RandomValue for ContractState {
 
 impl RandomValue for BinaryData {
     fn random<R: Rng>(rng: &mut R, max: Option<U256>) -> Self {
-        Self {
-            left_hash: HashOutput::random(rng, max),
-            right_hash: HashOutput::random(rng, max),
-        }
+        Self { left_hash: HashOutput::random(rng, max), right_hash: HashOutput::random(rng, max) }
     }
 }
 
@@ -85,9 +89,10 @@ impl RandomValue for PathToBottom {
     fn random<R: Rng>(rng: &mut R, max: Option<U256>) -> Self {
         // Crate a random path and than calculate the length of the path.
         let path = EdgePath::random(rng, max);
-        // TODO(Aviv, 27/6/2024): use a built in function once we migrate to a better big-integer library
-        // Randomly choose the number of real leading zeros in the path (up to the maximum possible).
-        // Real leading zero is a zero that refer to a left node, and not a padding zero.
+        // TODO(Aviv, 27/6/2024): use a built in function once we migrate to a better big-integer
+        // library Randomly choose the number of real leading zeros in the path (up to the
+        // maximum possible). Real leading zero is a zero that refer to a left node, and not
+        // a padding zero.
         let max_real_leading_zeros = path.0.leading_zeros() - EdgePath::MAX.0.leading_zeros();
         let real_leading_zeros = std::cmp::min(
             Geometric::new(0.5)
@@ -164,10 +169,7 @@ macro_rules! random_filled_node {
     ($leaf:ty) => {
         impl RandomValue for FilledNode<$leaf> {
             fn random<R: Rng>(rng: &mut R, max: Option<U256>) -> Self {
-                Self {
-                    data: NodeData::random(rng, max),
-                    hash: HashOutput::random(rng, max),
-                }
+                Self { data: NodeData::random(rng, max), hash: HashOutput::random(rng, max) }
             }
         }
     };
@@ -195,12 +197,7 @@ macro_rules! random_filled_tree {
                 .as_usize();
 
                 let mut nodes: Vec<(NodeIndex, FilledNode<$leaf>)> = (0..max_node_number)
-                    .map(|_| {
-                        (
-                            NodeIndex::random(rng, max_size),
-                            FilledNode::random(rng, max_size),
-                        )
-                    })
+                    .map(|_| (NodeIndex::random(rng, max_size), FilledNode::random(rng, max_size)))
                     .collect();
 
                 nodes.push((NodeIndex::ROOT, FilledNode::random(rng, max_size)));
@@ -234,20 +231,13 @@ impl DummyRandomValue for FilledForest {
 
         let storage_tries: StorageTrieMap = (0..max_trees_number)
             .map(|_| {
-                (
-                    ContractAddress::random(rng, max_size),
-                    StorageTrie::dummy_random(rng, max_size),
-                )
+                (ContractAddress::random(rng, max_size), StorageTrie::dummy_random(rng, max_size))
             })
             .collect::<HashMap<_, _>>();
 
         let contracts_trie = ContractsTrie::dummy_random(rng, max_size);
         let classes_trie = ClassesTrie::dummy_random(rng, max_size);
 
-        Self {
-            storage_tries,
-            contracts_trie,
-            classes_trie,
-        }
+        Self { storage_tries, contracts_trie, classes_trie }
     }
 }

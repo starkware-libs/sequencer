@@ -1,17 +1,19 @@
-use committer::{
-    block_committer::input::{
-        ConfigImpl, ContractAddress, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
-    },
-    felt::Felt,
-    hash::hash_trait::HashOutput,
-    patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce},
-    storage::{
-        errors::DeserializationError,
-        storage_trait::{StorageKey, StorageValue},
-    },
-};
-use pretty_assertions::assert_eq;
 use std::collections::HashMap;
+
+use committer::block_committer::input::{
+    ConfigImpl,
+    ContractAddress,
+    Input,
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
+};
+use committer::felt::Felt;
+use committer::hash::hash_trait::HashOutput;
+use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
+use committer::storage::errors::DeserializationError;
+use committer::storage::storage_trait::{StorageKey, StorageValue};
+use pretty_assertions::assert_eq;
 
 use super::parse_input;
 
@@ -85,14 +87,8 @@ fn test_simple_input_parsing() {
 
 "#;
     let expected_storage = HashMap::from([
-        (
-            StorageKey([14, 6, 78, 90].to_vec()),
-            StorageValue([245, 90, 0, 0, 1].to_vec()),
-        ),
-        (
-            StorageKey([14, 6, 43, 90].to_vec()),
-            StorageValue([9, 0, 0, 0, 1].to_vec()),
-        ),
+        (StorageKey([14, 6, 78, 90].to_vec()), StorageValue([245, 90, 0, 0, 1].to_vec())),
+        (StorageKey([14, 6, 43, 90].to_vec()), StorageValue([9, 0, 0, 0, 1].to_vec())),
     ]);
 
     let expected_address_to_class_hash = HashMap::from([

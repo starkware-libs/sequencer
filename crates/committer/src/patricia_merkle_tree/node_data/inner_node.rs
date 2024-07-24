@@ -1,11 +1,11 @@
+use ethnum::U256;
+use strum_macros::{EnumDiscriminants, EnumIter};
+
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::errors::{EdgePathError, PathToBottomError};
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
-
-use ethnum::U256;
-use strum_macros::{EnumDiscriminants, EnumIter};
 
 #[cfg(test)]
 #[path = "inner_node_tests.rs"]
@@ -36,10 +36,8 @@ impl EdgePath {
 
     /// [EdgePath] constant that represents the longest path (from some node) in a tree.
     #[allow(clippy::as_conversions)]
-    pub const MAX: Self = Self(U256::from_words(
-        u128::MAX >> (U256::BITS - Self::BITS as u32),
-        u128::MAX,
-    ));
+    pub const MAX: Self =
+        Self(U256::from_words(u128::MAX >> (U256::BITS - Self::BITS as u32), u128::MAX));
 }
 
 impl From<U256> for EdgePath {
@@ -115,11 +113,7 @@ impl PathToBottom {
         if bit_length > u8::from(length).into() {
             return Err(PathToBottomError::MismatchedLengthError { path, length });
         }
-        Ok(Self {
-            path,
-            length,
-            _fake_field: (),
-        })
+        Ok(Self { path, length, _fake_field: () })
     }
 }
 
@@ -130,17 +124,11 @@ pub struct EdgeData {
 }
 
 impl PathToBottom {
-    pub(crate) const LEFT_CHILD: Self = Self {
-        path: EdgePath(U256::ZERO),
-        length: EdgePathLength(1),
-        _fake_field: (),
-    };
+    pub(crate) const LEFT_CHILD: Self =
+        Self { path: EdgePath(U256::ZERO), length: EdgePathLength(1), _fake_field: () };
 
-    pub(crate) const RIGHT_CHILD: Self = Self {
-        path: EdgePath(U256::ONE),
-        length: EdgePathLength(1),
-        _fake_field: (),
-    };
+    pub(crate) const RIGHT_CHILD: Self =
+        Self { path: EdgePath(U256::ONE), length: EdgePathLength(1), _fake_field: () };
 
     pub(crate) fn bottom_index(&self, root_index: NodeIndex) -> NodeIndex {
         NodeIndex::compute_bottom_index(root_index, self)
@@ -164,10 +152,7 @@ impl PathToBottom {
     /// Returns the path after removing the first steps (the edges from the path's origin node).
     pub(crate) fn remove_first_edges(&self, n_edges: EdgePathLength) -> PathToBottomResult {
         if self.length < n_edges {
-            return Err(PathToBottomError::RemoveEdgesError {
-                length: self.length,
-                n_edges,
-            });
+            return Err(PathToBottomError::RemoveEdgesError { length: self.length, n_edges });
         }
         Self::new(
             EdgePath(self.path.0 & ((U256::ONE << (self.length.0 - n_edges.0)) - 1)),

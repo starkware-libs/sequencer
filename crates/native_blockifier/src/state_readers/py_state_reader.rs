@@ -7,7 +7,9 @@ use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::{
-    NativeBlockifierError, NativeBlockifierInputError, NativeBlockifierResult,
+    NativeBlockifierError,
+    NativeBlockifierInputError,
+    NativeBlockifierResult,
     UndeclaredClassHashError,
 };
 use crate::py_utils::PyFelt;

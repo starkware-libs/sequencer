@@ -1,20 +1,21 @@
 use std::collections::HashMap;
 
-use crate::patricia_merkle_tree::node_data::inner_node::EdgePathLength;
-use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
-use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
-use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
+use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
+use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonNodeMap;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
+    OriginalSkeletonNodeMap,
+    OriginalSkeletonTree,
+};
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
-use crate::patricia_merkle_tree::types::NodeIndex;
-use crate::patricia_merkle_tree::types::SortedLeafIndices;
+use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
-use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonNodeMap;
-use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
-use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeResult;
+use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
+    UpdatedSkeletonNodeMap,
+    UpdatedSkeletonTreeImpl,
+    UpdatedSkeletonTreeResult,
+};
 
 #[cfg(test)]
 #[path = "create_tree_helper_test.rs"]
@@ -63,9 +64,7 @@ fn has_leaves_on_both_sides(root_index: &NodeIndex, leaf_indices: &SortedLeafInd
     if leaf_indices.is_empty() {
         return false;
     }
-    split_leaves(root_index, leaf_indices)
-        .iter()
-        .all(|leaves_in_side| !leaves_in_side.is_empty())
+    split_leaves(root_index, leaf_indices).iter().all(|leaves_in_side| !leaves_in_side.is_empty())
 }
 
 impl UpdatedSkeletonTreeImpl {
@@ -80,17 +79,12 @@ impl UpdatedSkeletonTreeImpl {
             .iter()
             .filter(|(_, leaf)| !leaf.is_zero())
             .map(|(index, _)| (*index, UpdatedSkeletonNode::Leaf))
-            .chain(
-                original_skeleton
-                    .get_nodes()
-                    .iter()
-                    .filter_map(|(index, node)| match node {
-                        OriginalSkeletonNode::UnmodifiedSubTree(hash) => {
-                            Some((*index, UpdatedSkeletonNode::UnmodifiedSubTree(*hash)))
-                        }
-                        OriginalSkeletonNode::Binary | OriginalSkeletonNode::Edge(_) => None,
-                    }),
-            )
+            .chain(original_skeleton.get_nodes().iter().filter_map(|(index, node)| match node {
+                OriginalSkeletonNode::UnmodifiedSubTree(hash) => {
+                    Some((*index, UpdatedSkeletonNode::UnmodifiedSubTree(*hash)))
+                }
+                OriginalSkeletonNode::Binary | OriginalSkeletonNode::Edge(_) => None,
+            }))
             .collect()
     }
 
@@ -127,8 +121,9 @@ impl UpdatedSkeletonTreeImpl {
                 "Unexpected leaf index (root_index={root_index:?}, leaf_indices={leaf_indices:?})."
             );
             if !self.skeleton_tree.contains_key(root_index) {
-                // "Deletion" of an original empty leaf (as non-zero leaf modifications are finalized in `finalize_bottom_layer`).
-                // Supported but not expected.
+                // "Deletion" of an original empty leaf (as non-zero leaf modifications are
+                // finalized in `finalize_bottom_layer`). Supported but not
+                // expected.
                 return TempSkeletonNode::Empty;
             }
             return TempSkeletonNode::Leaf;
@@ -150,7 +145,8 @@ impl UpdatedSkeletonTreeImpl {
         self.node_from_edge_data(&path_to_lca, &bottom_index, &bottom)
     }
 
-    /// Updates the Patricia tree rooted at the given index, with the given leaves; returns the root.
+    /// Updates the Patricia tree rooted at the given index, with the given leaves; returns the
+    /// root.
     pub(crate) fn update_node_in_nonempty_tree(
         &mut self,
         root_index: &NodeIndex,
@@ -288,7 +284,7 @@ impl UpdatedSkeletonTreeImpl {
                     assert!(
                         self.skeleton_tree.contains_key(bottom_index),
                         "bottom {bottom_index:?} is a non-empty leaf but doesn't appear in the \
-                        skeleton."
+                         skeleton."
                     );
                     return TempSkeletonNode::Original(OriginalSkeletonNode::Edge(*path));
                 }
@@ -301,8 +297,7 @@ impl UpdatedSkeletonTreeImpl {
             }
             OriginalSkeletonNode::Binary => {
                 // Finalize bottom - a binary descendant cannot change form.
-                self.skeleton_tree
-                    .insert(*bottom_index, UpdatedSkeletonNode::Binary);
+                self.skeleton_tree.insert(*bottom_index, UpdatedSkeletonNode::Binary);
                 OriginalSkeletonNode::Edge(*path)
             }
             OriginalSkeletonNode::UnmodifiedSubTree(_) => OriginalSkeletonNode::Edge(*path),
@@ -330,19 +325,9 @@ impl UpdatedSkeletonTreeImpl {
                 empty_subtree_child_index,
                 empty_subtree_leaf_indices,
             ) = if was_left_nonempty {
-                (
-                    left_child_index,
-                    left_indices,
-                    right_child_index,
-                    right_indices,
-                )
+                (left_child_index, left_indices, right_child_index, right_indices)
             } else {
-                (
-                    right_child_index,
-                    right_indices,
-                    left_child_index,
-                    left_indices,
-                )
+                (right_child_index, right_indices, left_child_index, left_indices)
             };
 
             // 1. Handle the originally non-empty subtree, replacing the root with the child in the

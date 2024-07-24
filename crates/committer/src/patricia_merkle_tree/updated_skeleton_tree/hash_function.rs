@@ -5,7 +5,10 @@ use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
 use crate::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData, EdgeData, NodeData, PathToBottom,
+    BinaryData,
+    EdgeData,
+    NodeData,
+    PathToBottom,
 };
 use crate::patricia_merkle_tree::node_data::leaf::{ContractState, Leaf};
 
@@ -48,10 +51,9 @@ pub(crate) trait TreeHashFunction<L: Leaf> {
         node_data: &NodeData<L>,
     ) -> HashOutput {
         match node_data {
-            NodeData::Binary(BinaryData {
-                left_hash,
-                right_hash,
-            }) => H::hash(&left_hash.0, &right_hash.0),
+            NodeData::Binary(BinaryData { left_hash, right_hash }) => {
+                H::hash(&left_hash.0, &right_hash.0)
+            }
             NodeData::Edge(EdgeData {
                 bottom_hash: hash_output,
                 path_to_bottom: PathToBottom { path, length, .. },
@@ -106,11 +108,8 @@ impl TreeHashFunction<CompiledClassHash> for TreeHashFunctionImpl {
                 "could not parse hex string corresponding to b'CONTRACT_CLASS_LEAF_V0' to Felt",
             );
         HashOutput(
-            Poseidon::hash(
-                &contract_class_leaf_version.into(),
-                &compiled_class_hash.0.into(),
-            )
-            .into(),
+            Poseidon::hash(&contract_class_leaf_version.into(), &compiled_class_hash.0.into())
+                .into(),
         )
     }
     fn compute_node_hash(node_data: &NodeData<CompiledClassHash>) -> HashOutput {

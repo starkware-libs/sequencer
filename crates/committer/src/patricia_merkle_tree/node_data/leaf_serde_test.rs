@@ -1,13 +1,12 @@
+use std::fmt::Debug;
+
+use rstest::rstest;
+
 use crate::block_committer::input::StarknetStorageValue;
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
-use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
-use crate::patricia_merkle_tree::node_data::leaf::ContractState;
-use crate::patricia_merkle_tree::node_data::leaf::Leaf;
-
-use rstest::rstest;
-use std::fmt::Debug;
+use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
+use crate::patricia_merkle_tree::node_data::leaf::{ContractState, Leaf};
 
 #[rstest]
 #[case::zero_storage_leaf(StarknetStorageValue(Felt::ZERO))]

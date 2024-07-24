@@ -1,15 +1,20 @@
+use ethnum::U256;
+use serde::{Deserialize, Serialize};
+
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
+    BinaryData,
+    EdgeData,
+    EdgePathLength,
+    NodeData,
+    PathToBottom,
 };
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 use crate::storage::db_object::DBObject;
 use crate::storage::errors::DeserializationError;
 use crate::storage::storage_trait::{StarknetPrefix, StorageKey, StorageValue};
-use ethnum::U256;
-use serde::{Deserialize, Serialize};
 
 // Const describe the size of the serialized node.
 pub(crate) const SERIALIZE_HASH_BYTES: usize = 32;
@@ -44,10 +49,7 @@ impl<L: Leaf> DBObject for FilledNode<L> {
     /// - For leaf nodes: use leaf.serialize() method.
     fn serialize(&self) -> StorageValue {
         match &self.data {
-            NodeData::Binary(BinaryData {
-                left_hash,
-                right_hash,
-            }) => {
+            NodeData::Binary(BinaryData { left_hash, right_hash }) => {
                 // Serialize left and right hashes to byte arrays.
                 let left: [u8; SERIALIZE_HASH_BYTES] = left_hash.0.to_bytes_be();
                 let right: [u8; SERIALIZE_HASH_BYTES] = right_hash.0.to_bytes_be();
@@ -57,10 +59,7 @@ impl<L: Leaf> DBObject for FilledNode<L> {
                 StorageValue(serialized)
             }
 
-            NodeData::Edge(EdgeData {
-                bottom_hash,
-                path_to_bottom,
-            }) => {
+            NodeData::Edge(EdgeData { bottom_hash, path_to_bottom }) => {
                 // Serialize bottom hash, path, and path length to byte arrays.
                 let bottom: [u8; SERIALIZE_HASH_BYTES] = bottom_hash.0.to_bytes_be();
                 let path: [u8; SERIALIZE_HASH_BYTES] =
@@ -94,10 +93,7 @@ impl<L: Leaf> FilledNode<L> {
         is_leaf: bool,
     ) -> Result<Self, DeserializationError> {
         if is_leaf {
-            return Ok(Self {
-                hash: node_hash,
-                data: NodeData::Leaf(L::deserialize(value)?),
-            });
+            return Ok(Self { hash: node_hash, data: NodeData::Leaf(L::deserialize(value)?) });
         }
 
         if value.0.len() == BINARY_BYTES {

@@ -2,13 +2,20 @@ mod common;
 
 use async_trait::async_trait;
 use common::{
-    ComponentAClientTrait, ComponentARequest, ComponentAResponse, ComponentBClientTrait,
-    ComponentBRequest, ComponentBResponse, ResultA, ResultB,
+    ComponentAClientTrait,
+    ComponentARequest,
+    ComponentAResponse,
+    ComponentBClientTrait,
+    ComponentBRequest,
+    ComponentBResponse,
+    ResultA,
+    ResultB,
 };
 use starknet_mempool_infra::component_client::definitions::{ClientError, ClientResult};
 use starknet_mempool_infra::component_client::local_component_client::LocalComponentClient;
 use starknet_mempool_infra::component_definitions::{
-    ComponentRequestAndResponseSender, ComponentRequestHandler,
+    ComponentRequestAndResponseSender,
+    ComponentRequestHandler,
 };
 use starknet_mempool_infra::component_server::definitions::ComponentServerStarter;
 use starknet_mempool_infra::component_server::local_component_server::LocalComponentServer;

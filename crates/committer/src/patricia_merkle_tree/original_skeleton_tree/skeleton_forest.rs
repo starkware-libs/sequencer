@@ -1,21 +1,21 @@
-use crate::block_committer::input::Config;
-use crate::block_committer::input::ContractAddress;
-use crate::block_committer::input::StarknetStorageValue;
-use crate::forest_errors::ForestError;
-use crate::forest_errors::ForestResult;
+use std::collections::HashMap;
+
+use crate::block_committer::input::{Config, ContractAddress, StarknetStorageValue};
+use crate::forest_errors::{ForestError, ForestResult};
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
-use crate::patricia_merkle_tree::node_data::leaf::ContractState;
-use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
-use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonClassesTrieConfig;
-use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonContractsTrieConfig;
-use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonStorageTrieConfig;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
-use crate::patricia_merkle_tree::types::NodeIndex;
-use crate::patricia_merkle_tree::types::SortedLeafIndices;
+use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafModifications};
+use crate::patricia_merkle_tree::original_skeleton_tree::config::{
+    OriginalSkeletonClassesTrieConfig,
+    OriginalSkeletonContractsTrieConfig,
+    OriginalSkeletonStorageTrieConfig,
+};
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
+    OriginalSkeletonTree,
+    OriginalSkeletonTreeImpl,
+};
+use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use crate::storage::storage_trait::Storage;
-use std::collections::HashMap;
 
 #[cfg(test)]
 #[path = "skeleton_forest_test.rs"]
@@ -29,9 +29,9 @@ pub(crate) struct OriginalSkeletonForest<'a> {
 }
 
 impl<'a> OriginalSkeletonForest<'a> {
-    /// Creates an original skeleton forest that includes the storage tries of the modified contracts,
-    /// the classes trie and the contracts trie. Additionally, returns the original contract states that
-    /// are needed to compute the contract state tree.
+    /// Creates an original skeleton forest that includes the storage tries of the modified
+    /// contracts, the classes trie and the contracts trie. Additionally, returns the original
+    /// contract states that are needed to compute the contract state tree.
     pub(crate) fn create(
         storage: impl Storage,
         contracts_trie_root_hash: HashOutput,
@@ -64,14 +64,7 @@ impl<'a> OriginalSkeletonForest<'a> {
             forest_sorted_indices.classes_trie_sorted_indices,
         )?;
 
-        Ok((
-            Self {
-                classes_trie,
-                contracts_trie,
-                storage_tries,
-            },
-            original_contracts_trie_leaves,
-        ))
+        Ok((Self { classes_trie, contracts_trie, storage_tries }, original_contracts_trie_leaves))
     }
 
     /// Creates the contracts trie original skeleton.
@@ -80,10 +73,7 @@ impl<'a> OriginalSkeletonForest<'a> {
         contracts_trie_root_hash: HashOutput,
         storage: &impl Storage,
         contracts_trie_sorted_indices: SortedLeafIndices<'a>,
-    ) -> ForestResult<(
-        OriginalSkeletonTreeImpl<'a>,
-        HashMap<NodeIndex, ContractState>,
-    )> {
+    ) -> ForestResult<(OriginalSkeletonTreeImpl<'a>, HashMap<NodeIndex, ContractState>)> {
         Ok(OriginalSkeletonTreeImpl::create_and_get_previous_leaves(
             storage,
             contracts_trie_root_hash,

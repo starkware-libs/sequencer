@@ -1,14 +1,16 @@
-use super::split_leaves;
-use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
-use crate::patricia_merkle_tree::internal_test_utils::as_fully_indexed;
-use crate::patricia_merkle_tree::internal_test_utils::random;
-use crate::patricia_merkle_tree::internal_test_utils::small_tree_index_to_full;
-use crate::patricia_merkle_tree::types::SortedLeafIndices;
-use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 use ethnum::{uint, U256};
 use rand::rngs::ThreadRng;
 use rand::Rng;
 use rstest::rstest;
+
+use super::split_leaves;
+use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
+use crate::patricia_merkle_tree::internal_test_utils::{
+    as_fully_indexed,
+    random,
+    small_tree_index_to_full,
+};
+use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 
 /// Creates an array of increasing random U256 numbers, with jumps of up to 'jump' between two
 /// consecutive numbers.
@@ -62,10 +64,7 @@ fn test_split_leaves(
         SortedLeafIndices::new(&mut left_full_indices),
         SortedLeafIndices::new(&mut right_full_indices),
     ];
-    assert_eq!(
-        split_leaves(&root_index, &SortedLeafIndices::new(&mut leaf_indices)),
-        expected
-    );
+    assert_eq!(split_leaves(&root_index, &SortedLeafIndices::new(&mut leaf_indices)), expected);
 }
 
 #[rstest]
@@ -86,16 +85,8 @@ fn test_split_leaves_big_tree(mut random: ThreadRng) {
         SubTreeHeight::ACTUAL_HEIGHT.into(),
         NodeIndex::ROOT.into(),
         [
-            left_leaf_indices
-                .clone()
-                .into_iter()
-                .map(NodeIndex::new)
-                .collect::<Vec<NodeIndex>>(),
-            right_leaf_indices
-                .clone()
-                .into_iter()
-                .map(NodeIndex::new)
-                .collect(),
+            left_leaf_indices.clone().into_iter().map(NodeIndex::new).collect::<Vec<NodeIndex>>(),
+            right_leaf_indices.clone().into_iter().map(NodeIndex::new).collect(),
         ]
         .concat(),
         left_leaf_indices.as_slice(),

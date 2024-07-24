@@ -1,3 +1,6 @@
+use std::collections::{HashMap, HashSet};
+use std::fmt::Debug;
+
 use log::LevelFilter;
 
 use crate::felt::Felt;
@@ -6,15 +9,14 @@ use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHas
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::storage_trait::{StorageKey, StorageValue};
-use std::collections::{HashMap, HashSet};
-use std::fmt::Debug;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 // TODO(Nimrod, 1/6/2025): Use the ContractAddress defined in starknet-types-core when available.
 pub struct ContractAddress(pub Felt);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-// TODO(Nimrod, 1/6/2025):  Use the StarknetStorageValue defined in starknet-types-core when available.
+// TODO(Nimrod, 1/6/2025):  Use the StarknetStorageValue defined in starknet-types-core when
+// available.
 pub struct StarknetStorageKey(pub Felt);
 
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq)]
@@ -58,10 +60,7 @@ impl Config for ConfigImpl {
 
 impl ConfigImpl {
     pub fn new(warn_on_trivial_modifications: bool, log_level: LevelFilter) -> Self {
-        Self {
-            warn_on_trivial_modifications,
-            log_level,
-        }
+        Self { warn_on_trivial_modifications, log_level }
     }
 }
 
@@ -96,10 +95,7 @@ impl StateDiff {
                     Some(inner_updates) => inner_updates
                         .iter()
                         .map(|(key, value)| {
-                            (
-                                NodeIndex::from_starknet_storage_key(key),
-                                SkeletonLeaf::from(value.0),
-                            )
+                            (NodeIndex::from_starknet_storage_key(key), SkeletonLeaf::from(value.0))
                         })
                         .collect(),
                     None => HashMap::new(),
@@ -113,10 +109,7 @@ impl StateDiff {
         self.class_hash_to_compiled_class_hash
             .iter()
             .map(|(class_hash, compiled_class_hash)| {
-                (
-                    NodeIndex::from_class_hash(class_hash),
-                    SkeletonLeaf::from(compiled_class_hash.0),
-                )
+                (NodeIndex::from_class_hash(class_hash), SkeletonLeaf::from(compiled_class_hash.0))
             })
             .collect()
     }

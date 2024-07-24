@@ -71,11 +71,9 @@ impl Deserializable for CompiledClassHash {
     fn deserialize(value: &StorageValue) -> Result<Self, DeserializationError> {
         let json_str = std::str::from_utf8(&value.0)?;
         let map: HashMap<String, String> = serde_json::from_str(json_str)?;
-        let hash_as_hex =
-            map.get("compiled_class_hash")
-                .ok_or(DeserializationError::NonExistingKey(
-                    "compiled_class_hash".to_string(),
-                ))?;
+        let hash_as_hex = map
+            .get("compiled_class_hash")
+            .ok_or(DeserializationError::NonExistingKey("compiled_class_hash".to_string()))?;
         Ok(Self::from_hex(hash_as_hex)?)
     }
 
@@ -97,10 +95,8 @@ impl Deserializable for ContractState {
         };
         let class_hash_as_hex = get_leaf_key(&deserialized_map, "contract_hash")?;
         let nonce_as_hex = get_leaf_key(&deserialized_map, "nonce")?;
-        let root_hash_as_hex = get_leaf_key(
-            get_key_from_map(&deserialized_map, "storage_commitment_tree")?,
-            "root",
-        )?;
+        let root_hash_as_hex =
+            get_leaf_key(get_key_from_map(&deserialized_map, "storage_commitment_tree")?, "root")?;
 
         Ok(Self {
             nonce: Nonce::from_hex(&nonce_as_hex)?,
@@ -115,6 +111,5 @@ impl Deserializable for ContractState {
 }
 
 fn get_key_from_map<'a>(map: &'a Value, key: &str) -> Result<&'a Value, DeserializationError> {
-    map.get(key)
-        .ok_or(DeserializationError::NonExistingKey(key.to_string()))
+    map.get(key).ok_or(DeserializationError::NonExistingKey(key.to_string()))
 }

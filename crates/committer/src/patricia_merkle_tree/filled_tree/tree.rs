@@ -1,28 +1,20 @@
 use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use async_recursion::async_recursion;
 
-use crate::block_committer::input::ContractAddress;
-use crate::block_committer::input::StarknetStorageValue;
+use crate::block_committer::input::{ContractAddress, StarknetStorageValue};
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
-use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
-use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
-use crate::patricia_merkle_tree::node_data::inner_node::BinaryData;
-use crate::patricia_merkle_tree::node_data::inner_node::EdgeData;
-use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
-use crate::patricia_merkle_tree::node_data::leaf::ContractState;
-use crate::patricia_merkle_tree::node_data::leaf::Leaf;
-use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
+use crate::patricia_merkle_tree::filled_tree::node::{CompiledClassHash, FilledNode};
+use crate::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
+use crate::patricia_merkle_tree::node_data::leaf::{ContractState, Leaf, LeafModifications};
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
 use crate::storage::db_object::DBObject;
-use crate::storage::storage_trait::StorageKey;
-use crate::storage::storage_trait::StorageValue;
+use crate::storage::storage_trait::{StorageKey, StorageValue};
 
 #[cfg(test)]
 #[path = "tree_test.rs"]
@@ -170,10 +162,8 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                     Arc::clone(&output_map),
                 )
                 .await?;
-                let data = NodeData::Edge(EdgeData {
-                    path_to_bottom: *path_to_bottom,
-                    bottom_hash,
-                });
+                let data =
+                    NodeData::Edge(EdgeData { path_to_bottom: *path_to_bottom, bottom_hash });
                 let hash_value = TH::compute_node_hash(&data);
                 Self::write_to_output_map(output_map, index, hash_value, data)?;
                 Ok(hash_value)
@@ -199,17 +189,11 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
         let UpdatedSkeletonNode::UnmodifiedSubTree(root_hash) = root_node else {
             panic!("A root of tree without modifications is expected to be a unmodified subtree.")
         };
-        Ok(Self {
-            tree_map: HashMap::new(),
-            root_hash: *root_hash,
-        })
+        Ok(Self { tree_map: HashMap::new(), root_hash: *root_hash })
     }
 
     fn create_empty() -> Self {
-        Self {
-            tree_map: HashMap::new(),
-            root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
-        }
+        Self { tree_map: HashMap::new(), root_hash: HashOutput::ROOT_OF_EMPTY_TREE }
     }
 }
 
@@ -246,12 +230,9 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
     }
 
     fn serialize(&self) -> HashMap<StorageKey, StorageValue> {
-        // This function iterates over each node in the tree, using the node's `db_key` as the hashmap key
-        // and the result of the node's `serialize` method as the value.
-        self.get_all_nodes()
-            .iter()
-            .map(|(_, node)| (node.db_key(), node.serialize()))
-            .collect()
+        // This function iterates over each node in the tree, using the node's `db_key` as the
+        // hashmap key and the result of the node's `serialize` method as the value.
+        self.get_all_nodes().iter().map(|(_, node)| (node.db_key(), node.serialize())).collect()
     }
 
     fn get_root_hash(&self) -> HashOutput {

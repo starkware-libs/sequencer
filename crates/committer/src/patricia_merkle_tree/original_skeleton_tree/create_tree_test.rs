@@ -1,29 +1,31 @@
+use std::collections::HashMap;
+
+use ethnum::U256;
+use pretty_assertions::assert_eq;
+use rstest::rstest;
+
 use super::OriginalSkeletonTreeImpl;
 use crate::block_committer::input::StarknetStorageValue;
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
-use crate::patricia_merkle_tree::internal_test_utils::OriginalSkeletonMockTrieConfig;
-use crate::patricia_merkle_tree::internal_test_utils::{small_tree_index_to_full, MockLeaf};
-use crate::patricia_merkle_tree::node_data::inner_node::EdgePath;
-use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
+use crate::patricia_merkle_tree::internal_test_utils::{
+    small_tree_index_to_full,
+    MockLeaf,
+    OriginalSkeletonMockTrieConfig,
+};
+use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafModifications};
 use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::SubTree;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
-use crate::patricia_merkle_tree::types::SubTreeHeight;
-use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use crate::storage::db_object::DBObject;
 use crate::storage::map_storage::MapStorage;
 use crate::storage::storage_trait::{create_db_key, StarknetPrefix, StorageKey, StorageValue};
-use ethnum::U256;
-use pretty_assertions::assert_eq;
-use rstest::rstest;
-use std::collections::HashMap;
 
 #[rstest]
 // This test assumes for simplicity that hash is addition (i.e hash(a,b) = a + b).
-///
 ///                 Old tree structure:
 ///
 ///                             50
@@ -45,8 +47,6 @@ use std::collections::HashMap;
 ///                        B   E     *
 ///                       / \   \     \
 ///                      NZ  9  11    15
-///
-///
 
 #[case::simple_tree_of_height_3(
     HashMap::from([
@@ -99,7 +99,6 @@ use std::collections::HashMap;
 ///                       B      E     E
 ///                      /  \     \     \
 ///                     NZ   2     NZ    NZ
-///
 
 #[case::another_simple_tree_of_height_3(
     HashMap::from([
@@ -138,7 +137,7 @@ use std::collections::HashMap;
 ///                           /     \
 ///                         26       90
 ///                        /      /     \
-///                       *      25      65
+///                       * 25      65
 ///                      /        \     /  \
 ///                     24         *   6   59
 ///                    /  \         \  /  /  \
@@ -152,12 +151,11 @@ use std::collections::HashMap;
 ///                           /     \
 ///                          E       B
 ///                         /     /     \
-///                        *     E       B
+///                        * E       B
 ///                       /       \     /  \
 ///                      24        *   E    B
 ///                                 \  /     \
 ///                                 20 5     40
-///
 #[case::tree_of_height_4_with_long_edge(
     HashMap::from([
     create_root_edge_entry(116, SubTreeHeight::new(4)),
@@ -297,7 +295,7 @@ fn test_create_tree(
 ///
 ///            1
 ///         /     \
-///        *       *
+///        * *
 ///       / \     /
 ///      4   5   6
 ///     / \  / \  /
@@ -309,7 +307,6 @@ fn test_create_tree(
 ///      5
 ///     / \
 ///   11  10
-///
 #[rstest]
 #[case::single_right_child(
         SubTreeHeight(1),
@@ -388,11 +385,7 @@ fn test_get_bottom_subtree(
     );
 
     // Create the input Subtree.
-    let tree = SubTree {
-        sorted_leaf_indices,
-        root_index,
-        root_hash: HashOutput(Felt::ONE),
-    };
+    let tree = SubTree { sorted_leaf_indices, root_index, root_hash: HashOutput(Felt::ONE) };
 
     // Get the bottom subtree.
     let (subtree, previously_empty_leaf_indices) =
@@ -406,10 +399,7 @@ fn test_get_bottom_subtree(
         root_index: expected_root_index,
         root_hash: HashOutput(Felt::TWO),
     };
-    assert_eq!(
-        previously_empty_leaf_indices,
-        expected_previously_empty_leaf_indices
-    );
+    assert_eq!(previously_empty_leaf_indices, expected_previously_empty_leaf_indices);
     assert_eq!(subtree, expected_subtree);
 }
 
@@ -443,18 +433,12 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (StorageKey, Storag
 }
 
 fn create_patricia_key(val: u128) -> StorageKey {
-    create_db_key(
-        StarknetPrefix::InnerNode.to_storage_prefix(),
-        &U256::from(val).to_be_bytes(),
-    )
+    create_db_key(StarknetPrefix::InnerNode.to_storage_prefix(), &U256::from(val).to_be_bytes())
 }
 
 fn create_binary_val(left: u128, right: u128) -> StorageValue {
     StorageValue(
-        (create_32_bytes_entry(left)
-            .into_iter()
-            .chain(create_32_bytes_entry(right)))
-        .collect(),
+        (create_32_bytes_entry(left).into_iter().chain(create_32_bytes_entry(right))).collect(),
     )
 }
 
@@ -478,17 +462,11 @@ fn create_mock_leaf_modifications(
 }
 
 pub(crate) fn create_binary_entry(left: u128, right: u128) -> (StorageKey, StorageValue) {
-    (
-        create_patricia_key(left + right),
-        create_binary_val(left, right),
-    )
+    (create_patricia_key(left + right), create_binary_val(left, right))
 }
 
 pub(crate) fn create_edge_entry(hash: u128, path: u128, length: u8) -> (StorageKey, StorageValue) {
-    (
-        create_patricia_key(hash + path + u128::from(length)),
-        create_edge_val(hash, path, length),
-    )
+    (create_patricia_key(hash + path + u128::from(length)), create_edge_val(hash, path, length))
 }
 
 pub(crate) fn create_expected_skeleton_nodes(
@@ -498,12 +476,7 @@ pub(crate) fn create_expected_skeleton_nodes(
     let subtree_height = SubTreeHeight::new(height);
     nodes
         .into_iter()
-        .map(|(node_index, node)| {
-            (
-                NodeIndex::from_subtree_index(node_index, subtree_height),
-                node,
-            )
-        })
+        .map(|(node_index, node)| (NodeIndex::from_subtree_index(node_index, subtree_height), node))
         .chain([(
             NodeIndex::ROOT,
             OriginalSkeletonNode::Edge(
@@ -566,8 +539,5 @@ fn create_previously_empty_leaf_indices<'a>(
     tree_leaf_indices: &'a [NodeIndex],
     subtree_leaf_indices: &'a [NodeIndex],
 ) -> Vec<&'a NodeIndex> {
-    tree_leaf_indices
-        .iter()
-        .filter(|idx| !subtree_leaf_indices.contains(idx))
-        .collect()
+    tree_leaf_indices.iter().filter(|idx| !subtree_leaf_indices.contains(idx)).collect()
 }

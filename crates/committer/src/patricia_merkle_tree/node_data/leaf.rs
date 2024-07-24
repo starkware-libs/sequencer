@@ -102,11 +102,7 @@ impl SkeletonLeaf {
 
 impl From<Felt> for SkeletonLeaf {
     fn from(value: Felt) -> Self {
-        if value == Felt::ZERO {
-            Self::Zero
-        } else {
-            Self::NonZero
-        }
+        if value == Felt::ZERO { Self::Zero } else { Self::NonZero }
     }
 }
 

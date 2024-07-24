@@ -1,6 +1,6 @@
 [package]
 name = "mempool_test_utils"
-version.workspace = true
+version = "0.0.0"
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
@@ -9,9 +9,9 @@ license.workspace = true
 
 [dependencies]
 assert_matches.workspace = true
-blockifier = { workspace = true, features = ["testing"] }
+blockifier = { path = "../blockifier", version = "0.8.0-rc.0", features = ["testing"]}
 starknet-types-core.workspace = true
-starknet_api.workspace = true
+starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0"}
 serde_json.workspace = true
 
 

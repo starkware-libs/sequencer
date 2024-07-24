@@ -1,6 +1,6 @@
 [package]
 name = "papyrus_config"
-version.workspace = true
+version = "0.4.0-rc.0"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -23,4 +23,4 @@ assert_matches.workspace = true
 itertools.workspace = true
 lazy_static.workspace = true
 tempfile.workspace = true
-test_utils = { path = "../test_utils" }
+papyrus_test_utils = { path = "../papyrus_test_utils" }

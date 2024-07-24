@@ -3,14 +3,14 @@ name = "starknet_mempool_types"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-version.workspace = true
+version = "0.0.0"
 
 [lints]
 workspace = true
 
 [dependencies]
 async-trait.workspace = true
+starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0"}
 mockall.workspace = true
-starknet_api.workspace = true
 starknet_mempool_infra = { path = "../mempool_infra" }
 thiserror.workspace = true

@@ -1,3 +1,4 @@
+use papyrus_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
 use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, GasPricePerToken};
 use starknet_api::core::{
     EventCommitment,
@@ -13,7 +14,6 @@ use starknet_api::transaction::{
     TransactionHash,
     TransactionOffsetInBlock,
 };
-use test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
 
 use crate::body::TransactionIndex;
 use crate::compression_utils::IsCompressed;

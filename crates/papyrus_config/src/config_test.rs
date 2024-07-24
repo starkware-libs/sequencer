@@ -8,10 +8,10 @@ use assert_matches::assert_matches;
 use clap::Command;
 use itertools::chain;
 use lazy_static::lazy_static;
+use papyrus_test_utils::get_absolute_path;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tempfile::TempDir;
-use test_utils::get_absolute_path;
 use validator::Validate;
 
 use crate::command::{get_command_matches, update_config_map_by_command_args};

@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use axum::extract::State;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use starknet_api::rpc_transaction::RPCTransaction;
+use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
 use starknet_mempool_types::communication::SharedMempoolClient;
@@ -89,7 +89,7 @@ async fn is_alive() -> GatewayResult<String> {
 #[instrument(skip(app_state))]
 async fn add_tx(
     State(app_state): State<AppState>,
-    Json(tx): Json<RPCTransaction>,
+    Json(tx): Json<RpcTransaction>,
 ) -> GatewayResult<Json<TransactionHash>> {
     let mempool_input = tokio::task::spawn_blocking(move || {
         process_tx(
@@ -118,7 +118,7 @@ fn process_tx(
     stateful_tx_validator: &StatefulTransactionValidator,
     state_reader_factory: &dyn StateReaderFactory,
     gateway_compiler: GatewayCompiler,
-    tx: RPCTransaction,
+    tx: RpcTransaction,
 ) -> GatewayResult<MempoolInput> {
     // TODO(Arni, 1/5/2024): Perform congestion control.
 
@@ -127,7 +127,7 @@ fn process_tx(
 
     // Compile Sierra to Casm.
     let optional_class_info = match &tx {
-        RPCTransaction::Declare(declare_tx) => {
+        RpcTransaction::Declare(declare_tx) => {
             Some(gateway_compiler.process_declare_tx(declare_tx)?)
         }
         _ => None,

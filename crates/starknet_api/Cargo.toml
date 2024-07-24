@@ -1,10 +1,9 @@
 [package]
 name = "starknet_api"
 version = "0.13.0-rc.0"
-edition = "2021"
-repository = "https://github.com/starkware-libs/starknet-api"
-license = "Apache-2.0"
-license-file = "LICENSE"
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
 description = "Starknet Rust types related to computation and execution."
 
 [features]
@@ -31,3 +30,4 @@ thiserror = "1.0.31"
 [dev-dependencies]
 assert_matches = "1.5.0"
 rstest = "0.17.0"
+

@@ -17,8 +17,13 @@ use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{FeeType, HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
-    account_invoke_tx, block_context, l1_resource_bounds, max_fee, max_resource_bounds,
-    run_invoke_tx, TestInitData,
+    account_invoke_tx,
+    block_context,
+    l1_resource_bounds,
+    max_fee,
+    max_resource_bounds,
+    run_invoke_tx,
+    TestInitData,
 };
 use crate::transaction::transactions::ExecutableTransaction;
 

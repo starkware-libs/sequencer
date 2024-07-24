@@ -1,7 +1,8 @@
+use std::collections::HashMap;
+
 use serde::{Serialize, Serializer};
 
 use crate::felt::Felt;
-use std::collections::HashMap;
 
 #[derive(Debug, Eq, Hash, PartialEq)]
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]

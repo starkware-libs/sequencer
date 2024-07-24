@@ -1,6 +1,6 @@
 [package]
 name = "papyrus_proc_macros"
-version.workspace = true
+version = "0.4.0-rc.0"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -15,7 +15,7 @@ metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 papyrus_common = { path = "../papyrus_common", version = "0.4.0-dev.1" }
 prometheus-parse.workspace = true
-test_utils = { path = "../test_utils" }
+papyrus_test_utils = { path = "../papyrus_test_utils" }
 
 [lib]
 proc-macro = true

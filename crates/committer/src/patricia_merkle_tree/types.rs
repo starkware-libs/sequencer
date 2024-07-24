@@ -1,10 +1,10 @@
+use ethnum::U256;
+
 use crate::block_committer::input::{ContractAddress, StarknetStorageKey};
 use crate::felt::Felt;
 use crate::patricia_merkle_tree::errors::TypesError;
 use crate::patricia_merkle_tree::filled_tree::node::ClassHash;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
-
-use ethnum::U256;
 
 #[cfg(test)]
 #[path = "types_test.rs"]
@@ -49,10 +49,8 @@ impl NodeIndex {
     #[allow(clippy::as_conversions)]
     /// [NodeIndex] constant that represents the largest index in a tree.
     // TODO(Tzahi, 15/6/2024): Support height < 128 bits.
-    pub const MAX: Self = Self(U256::from_words(
-        u128::MAX >> (U256::BITS - Self::BITS as u32),
-        u128::MAX,
-    ));
+    pub const MAX: Self =
+        Self(U256::from_words(u128::MAX >> (U256::BITS - Self::BITS as u32), u128::MAX));
 
     pub fn new(index: U256) -> Self {
         assert!(index <= Self::MAX.0, "Index {index} is too large.");
@@ -126,11 +124,8 @@ impl NodeIndex {
             panic!("The descendant is not a really descendant of the node.");
         };
 
-        PathToBottom::new(
-            delta.0.into(),
-            EdgePathLength::new(distance).expect("Illegal length"),
-        )
-        .expect("Illegal PathToBottom")
+        PathToBottom::new(delta.0.into(), EdgePathLength::new(distance).expect("Illegal length"))
+            .expect("Illegal PathToBottom")
     }
 
     pub(crate) fn from_starknet_storage_key(key: &StarknetStorageKey) -> Self {
@@ -235,7 +230,8 @@ impl<'a> SortedLeafIndices<'a> {
         Self(indices)
     }
 
-    /// Returns a subslice of the indices stored at self, at the range [leftmost_idx, rightmost_idx).
+    /// Returns a subslice of the indices stored at self, at the range [leftmost_idx,
+    /// rightmost_idx).
     pub(crate) fn subslice(&self, leftmost_idx: usize, rightmost_idx: usize) -> Self {
         Self(&self.0[leftmost_idx..rightmost_idx])
     }

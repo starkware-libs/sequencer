@@ -2,14 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use ethnum::U256;
-use serde_json::json;
-
-use crate::block_committer::input::StarknetStorageValue;
-use crate::felt::Felt;
-use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::errors::TypesError;
-use crate::storage::map_storage::MapStorage;
 use rand::Rng;
+use serde_json::json;
 
 use super::filled_tree::tree::{FilledTree, StorageTrie};
 use super::node_data::leaf::{Leaf, LeafModifications, SkeletonLeaf};
@@ -18,6 +12,11 @@ use super::original_skeleton_tree::tree::{OriginalSkeletonTree, OriginalSkeleton
 use super::types::{NodeIndex, SortedLeafIndices};
 use super::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use super::updated_skeleton_tree::tree::{UpdatedSkeletonTree, UpdatedSkeletonTreeImpl};
+use crate::block_committer::input::StarknetStorageValue;
+use crate::felt::Felt;
+use crate::hash::hash_trait::HashOutput;
+use crate::patricia_merkle_tree::errors::TypesError;
+use crate::storage::map_storage::MapStorage;
 
 impl TryFrom<&U256> for Felt {
     type Error = TypesError<U256>;
@@ -55,10 +54,7 @@ pub fn get_random_u256<R: Rng>(rng: &mut R, low: U256, high: U256) -> U256 {
     //  2. high_of_high == high_of_low + 1, and every possible low 128 bits value is valid either
     // when the high bits equal high_of_high, or when they equal high_of_low).
     let mut randomize = || {
-        U256::from_words(
-            rng.gen_range(*high_of_low..=*high_of_high),
-            rng.gen_range(0..=u128::MAX),
-        )
+        U256::from_words(rng.gen_range(*high_of_low..=*high_of_high), rng.gen_range(0..=u128::MAX))
     };
     let mut result = randomize();
     while result < low || result >= high {

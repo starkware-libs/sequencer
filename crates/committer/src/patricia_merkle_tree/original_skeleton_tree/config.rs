@@ -33,10 +33,7 @@ macro_rules! generate_trie_config {
                 modifications: &'a LeafModifications<$leaf_type>,
                 compare_modified_leaves: bool,
             ) -> Self {
-                Self {
-                    modifications,
-                    compare_modified_leaves,
-                }
+                Self { modifications, compare_modified_leaves }
             }
         }
 

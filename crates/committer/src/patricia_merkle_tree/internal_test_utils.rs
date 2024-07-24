@@ -1,30 +1,31 @@
 use std::sync::Arc;
 
+use ethnum::U256;
+use rand::rngs::ThreadRng;
+use rstest::{fixture, rstest};
+
 use crate::felt::Felt;
 use crate::generate_trie_config;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use crate::patricia_merkle_tree::node_data::errors::LeafResult;
-use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
-use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
-use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
-use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
+use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, NodeData, PathToBottom};
+use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
-    HashFunction, TreeHashFunction, TreeHashFunctionImpl,
+    HashFunction,
+    TreeHashFunction,
+    TreeHashFunctionImpl,
 };
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 use crate::storage::db_object::{DBObject, Deserializable};
 use crate::storage::storage_trait::StorageValue;
-use ethnum::U256;
-use rand::rngs::ThreadRng;
-use rstest::{fixture, rstest};
 
 #[derive(Debug, PartialEq, Clone, Copy, Default, Eq)]
 pub(crate) struct MockLeaf(pub(crate) Felt);
@@ -95,9 +96,7 @@ impl From<u8> for SkeletonLeaf {
 impl From<&str> for PathToBottom {
     fn from(value: &str) -> Self {
         Self::new(
-            U256::from_str_radix(value, 2)
-                .expect("Invalid binary string")
-                .into(),
+            U256::from_str_radix(value, 2).expect("Invalid binary string").into(),
             EdgePathLength::new(
                 (value.len() - if value.starts_with('+') { 1 } else { 0 })
                     .try_into()
@@ -152,16 +151,12 @@ pub(crate) fn get_initial_updated_skeleton(
             .iter()
             .filter(|(_, leaf_val)| *leaf_val != 0)
             .map(|(index, _)| (*index, UpdatedSkeletonNode::Leaf))
-            .chain(
-                original_skeleton
-                    .iter()
-                    .filter_map(|(index, node)| match node {
-                        OriginalSkeletonNode::UnmodifiedSubTree(hash) => {
-                            Some((*index, UpdatedSkeletonNode::UnmodifiedSubTree(*hash)))
-                        }
-                        OriginalSkeletonNode::Binary | OriginalSkeletonNode::Edge(_) => None,
-                    }),
-            )
+            .chain(original_skeleton.iter().filter_map(|(index, node)| match node {
+                OriginalSkeletonNode::UnmodifiedSubTree(hash) => {
+                    Some((*index, UpdatedSkeletonNode::UnmodifiedSubTree(*hash)))
+                }
+                OriginalSkeletonNode::Binary | OriginalSkeletonNode::Edge(_) => None,
+            }))
             .collect(),
     }
 }

@@ -1,14 +1,14 @@
+use ethnum::{uint, U256};
+use rand::rngs::ThreadRng;
+use rand::Rng;
+use rstest::rstest;
+
 use crate::block_committer::input::{ContractAddress, StarknetStorageKey};
 use crate::felt::Felt;
 use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
 use crate::patricia_merkle_tree::internal_test_utils::random;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::types::NodeIndex;
-
-use ethnum::{uint, U256};
-use rand::rngs::ThreadRng;
-use rand::Rng;
-use rstest::rstest;
 
 #[rstest]
 #[case(1, 1, 1, 3)]
@@ -76,11 +76,8 @@ fn test_get_lca(#[case] node_index: U256, #[case] other: U256, #[case] expected:
 
 #[rstest]
 fn test_get_lca_big(mut random: ThreadRng) {
-    let lca = NodeIndex::new(get_random_u256(
-        &mut random,
-        U256::ZERO,
-        (NodeIndex::MAX >> 1).into(),
-    ));
+    let lca =
+        NodeIndex::new(get_random_u256(&mut random, U256::ZERO, (NodeIndex::MAX >> 1).into()));
 
     let left_child = lca << 1;
     let right_child = left_child + 1;
@@ -114,10 +111,7 @@ fn test_get_path_to_descendant(
     let descendant = NodeIndex::new(descendant.into());
     let path_to_bottom = root_index.get_path_to_descendant(descendant);
     assert_eq!(path_to_bottom.path, U256::from(expected_path).into());
-    assert_eq!(
-        path_to_bottom.length,
-        EdgePathLength::new(expected_length).unwrap()
-    );
+    assert_eq!(path_to_bottom.length, EdgePathLength::new(expected_length).unwrap());
 }
 
 #[rstest]
@@ -130,10 +124,7 @@ fn test_get_path_to_descendant_big() {
     let descendant = (root_index << extension_index.bit_length()) + extension_index;
     let path_to_bottom = root_index.get_path_to_descendant(descendant);
     assert_eq!(path_to_bottom.path, extension.into());
-    assert_eq!(
-        path_to_bottom.length,
-        EdgePathLength::new(extension_index.bit_length()).unwrap()
-    );
+    assert_eq!(path_to_bottom.length, EdgePathLength::new(extension_index.bit_length()).unwrap());
 }
 
 #[rstest]

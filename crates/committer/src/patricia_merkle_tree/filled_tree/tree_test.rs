@@ -7,7 +7,11 @@ use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use crate::patricia_merkle_tree::internal_test_utils::{MockLeaf, OriginalSkeletonMockTrieConfig};
 use crate::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
+    BinaryData,
+    EdgeData,
+    EdgePathLength,
+    NodeData,
+    PathToBottom,
 };
 use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
@@ -15,12 +19,15 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
-    UpdatedSkeletonNodeMap, UpdatedSkeletonTree, UpdatedSkeletonTreeImpl,
+    UpdatedSkeletonNodeMap,
+    UpdatedSkeletonTree,
+    UpdatedSkeletonTreeImpl,
 };
 use crate::storage::map_storage::MapStorage;
 
 #[tokio::test(flavor = "multi_thread")]
-/// This test is a sanity test for computing the root hash of the patricia merkle tree with a single node that is a leaf with hash==1.
+/// This test is a sanity test for computing the root hash of the patricia merkle tree with a single
+/// node that is a leaf with hash==1.
 async fn test_filled_tree_sanity() {
     let mut skeleton_tree: UpdatedSkeletonNodeMap = HashMap::new();
     let new_filled_leaf = MockLeaf(Felt::ONE);
@@ -70,9 +77,7 @@ async fn test_small_filled_tree() {
     ]
     .into_iter()
     .chain(
-        new_leaves
-            .iter()
-            .map(|(index, _)| create_leaf_updated_skeleton_node_for_testing(*index)),
+        new_leaves.iter().map(|(index, _)| create_leaf_updated_skeleton_node_for_testing(*index)),
     )
     .collect();
     let skeleton_tree: UpdatedSkeletonNodeMap = nodes_in_skeleton_tree.into_iter().collect();
@@ -80,12 +85,7 @@ async fn test_small_filled_tree() {
     let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
     let modifications = new_leaves
         .iter()
-        .map(|(index, value)| {
-            (
-                NodeIndex::from(*index),
-                MockLeaf(Felt::from_hex(value).unwrap()),
-            )
-        })
+        .map(|(index, value)| (NodeIndex::from(*index), MockLeaf(Felt::from_hex(value).unwrap())))
         .collect();
 
     // Compute the hash values.
@@ -185,9 +185,7 @@ async fn test_delete_leaf_from_empty_tree() {
     let mut indices = [NodeIndex::FIRST_LEAF];
     // Create an empty original skeleton tree with a single leaf modified.
     let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_impl(
-        &MapStorage {
-            storage: HashMap::new(),
-        },
+        &MapStorage { storage: HashMap::new() },
         HashOutput::ROOT_OF_EMPTY_TREE,
         SortedLeafIndices::new(&mut indices),
         &OriginalSkeletonMockTrieConfig::new(&storage_modifications, false),

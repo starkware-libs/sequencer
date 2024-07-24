@@ -9,11 +9,11 @@ use papyrus_storage::class::ClassStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
+use papyrus_test_utils::{prometheus_is_contained, send_request};
 use pretty_assertions::assert_eq;
 use prometheus_parse::Value::Counter;
 use starknet_api::block::{BlockBody, BlockHeader, BlockNumber};
 use starknet_api::state::ThinStateDiff;
-use test_utils::{prometheus_is_contained, send_request};
 
 use crate::rpc_metrics::{
     get_method_and_version,

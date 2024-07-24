@@ -1,11 +1,18 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use tokio::task::JoinSet;
+
 use crate::block_committer::input::{ContractAddress, StarknetStorageValue};
 use crate::forest_errors::{ForestError, ForestResult};
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
-use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
-use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
+use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
 use crate::patricia_merkle_tree::filled_tree::tree::{
-    ClassesTrie, ContractsTrie, StorageTrie, StorageTrieMap,
+    ClassesTrie,
+    ContractsTrie,
+    FilledTree,
+    StorageTrie,
+    StorageTrieMap,
 };
 use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafModifications};
 use crate::patricia_merkle_tree::types::NodeIndex;
@@ -13,10 +20,6 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::ForestHas
 use crate::patricia_merkle_tree::updated_skeleton_tree::skeleton_forest::UpdatedSkeletonForest;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 use crate::storage::storage_trait::Storage;
-
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::task::JoinSet;
 
 pub struct FilledForest {
     pub storage_tries: StorageTrieMap,
@@ -74,9 +77,7 @@ impl FilledForest {
                 .ok_or(ForestError::MissingContractCurrentState(address))?;
             contracts_state_tasks.spawn(Self::new_contract_state::<TH>(
                 address,
-                *(address_to_nonce
-                    .get(&address)
-                    .unwrap_or(&original_contract_state.nonce)),
+                *(address_to_nonce.get(&address).unwrap_or(&original_contract_state.nonce)),
                 *(address_to_class_hash
                     .get(&address)
                     .unwrap_or(&original_contract_state.class_hash)),
@@ -87,10 +88,8 @@ impl FilledForest {
 
         while let Some(result) = contracts_state_tasks.join_next().await {
             let (address, new_contract_state, filled_storage_trie) = result??;
-            contracts_trie_modifications.insert(
-                NodeIndex::from_contract_address(&address),
-                new_contract_state,
-            );
+            contracts_trie_modifications
+                .insert(NodeIndex::from_contract_address(&address), new_contract_state);
             filled_storage_tries.insert(address, filled_storage_trie);
         }
 

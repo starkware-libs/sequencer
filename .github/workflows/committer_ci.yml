@@ -1,0 +1,142 @@
+name: Committer-CI
+
+on:
+  push:
+    branches:
+      - main
+      - main-v[0-9].**
+    tags:
+      - v[0-9].**
+    paths:
+      - 'crates/committer/**'
+      - 'crates/committer_cli/**'
+
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - auto_merge_enabled
+      - edited
+    paths:
+      - 'crates/committer/**'
+      - 'crates/committer_cli/**'
+
+jobs:
+  run-regression-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - id: auth
+        uses: "google-github-actions/auth@v2"
+        with:
+          credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
+      - uses: 'google-github-actions/setup-gcloud@v2'
+      - run: echo "BENCH_INPUT_FILES_PREFIX=$(cat ./crates/committer_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
+      - run: gcloud storage cp -r gs://committer-testing-artifacts/$BENCH_INPUT_FILES_PREFIX/* ./crates/committer_cli/benches
+      - run: cargo test --release -- --include-ignored test_regression
+
+  benchmarking:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout the base branch to get the old code.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+      - uses: Swatinem/rust-cache@v2
+
+      # Download the old benchmark inputs.
+      - id: auth
+        uses: "google-github-actions/auth@v2"
+        with:
+          credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
+      - uses: 'google-github-actions/setup-gcloud@v2'
+      - run: echo "OLD_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/committer_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
+      - run: gcloud storage cp -r gs://committer-testing-artifacts/$OLD_BENCH_INPUT_FILES_PREFIX/* ./crates/committer_cli/benches
+
+      # List the existing benchmarks.
+      - run: |
+            cargo bench -- --list | grep ': benchmark$' | sed -e "s/: benchmark$//" > benchmarks_list.txt
+
+      # Benchmark the old code.
+      - run: cargo bench
+
+      # Backup the downloaded files to avoid re-downloading them if they didn't change (overwritten by checkout).
+      - run: mv ./crates/committer_cli/benches/tree_flow_inputs.json ./crates/committer_cli/benches/tree_flow_inputs.json_bu
+      - run: mv ./crates/committer_cli/benches/committer_flow_inputs.json ./crates/committer_cli/benches/committer_flow_inputs.json_bu
+
+      # Checkout the new code.
+      - uses: actions/checkout@v4
+        with:
+          clean: false
+      - run: echo "NEW_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/committer_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
+
+      # Input files didn't change.
+      - if: env.OLD_BENCH_INPUT_FILES_PREFIX == env.NEW_BENCH_INPUT_FILES_PREFIX
+        run: |
+          mv ./crates/committer_cli/benches/tree_flow_inputs.json_bu ./crates/committer_cli/benches/tree_flow_inputs.json
+          mv ./crates/committer_cli/benches/committer_flow_inputs.json_bu ./crates/committer_cli/benches/committer_flow_inputs.json
+
+      # Input files did change, download new inputs.
+      - if: env.OLD_BENCH_INPUT_FILES_PREFIX != env.NEW_BENCH_INPUT_FILES_PREFIX
+        run: |
+          gcloud storage cp -r gs://committer-testing-artifacts/$NEW_BENCH_INPUT_FILES_PREFIX/* ./crates/committer_cli/benches
+
+      # Benchmark the new code, splitting the benchmarks, and prepare the results for posting a comment.
+      - run: bash ./crates/committer_cli/benches/bench_split_and_prepare_post.sh benchmarks_list.txt bench_new.txt
+
+      - run: echo BENCHES_RESULT=$(cat bench_new.txt) >> $GITHUB_ENV
+
+      # Post comment in case of performance regression or improvement.
+      - run: npm install fs
+      - if: contains(env.BENCHES_RESULT, 'regressed') || contains(env.BENCHES_RESULT, 'improved')
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs')
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: fs.readFileSync('bench_new.txt', 'utf8'),
+              path: 'Commits'
+            })
+
+  gcs-push:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+        # Commit hash on pull request event would be the head commit of the branch.
+      - name: Get commit hash prefix for PR update
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+        run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
+
+        # On push event (to main, for example) we should take the commit post-push.
+      - name: Get commit hash prefix for merge
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          COMMIT_SHA: ${{ github.event.after }}
+        run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
+
+      - name: Build CLI binary
+        run: cargo build -p committer_cli -r --bin committer_cli --target-dir CLI_TARGET
+
+      - id: auth
+        uses: "google-github-actions/auth@v2"
+        with:
+          credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
+
+      - name: Upload binary to GCP
+        id: upload_file
+        uses: "google-github-actions/upload-cloud-storage@v2"
+        with:
+          path: "CLI_TARGET/release/committer_cli"
+          destination: "committer-products-external/${{ env.SHORT_HASH }}/release/"

@@ -1,4 +1,5 @@
 use core::fmt;
+
 use ethnum::U256;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::{Felt as StarknetTypesFelt, FromStrError};
@@ -121,10 +122,6 @@ impl Felt {
     // Convert to a 64-character hexadecimal string without the "0x" prefix.
     pub fn to_fixed_hex_string(&self) -> String {
         // Zero-pad the remaining string
-        self.0
-            .to_fixed_hex_string()
-            .strip_prefix("0x")
-            .unwrap_or("0")
-            .to_string()
+        self.0.to_fixed_hex_string().strip_prefix("0x").unwrap_or("0").to_string()
     }
 }

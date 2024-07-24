@@ -1,31 +1,38 @@
-use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
-use crate::patricia_merkle_tree::internal_test_utils::MockLeaf;
-use crate::patricia_merkle_tree::internal_test_utils::MockTrie;
-use crate::patricia_merkle_tree::types::SortedLeafIndices;
-use ethnum::{uint, U256};
-use pretty_assertions::assert_eq;
-use rstest::{fixture, rstest};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use ethnum::{uint, U256};
+use pretty_assertions::assert_eq;
+use rstest::{fixture, rstest};
+
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::internal_test_utils::OriginalSkeletonMockTrieConfig;
+use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use crate::patricia_merkle_tree::internal_test_utils::{
-    as_fully_indexed, get_initial_updated_skeleton, small_tree_index_to_full,
+    as_fully_indexed,
+    get_initial_updated_skeleton,
+    small_tree_index_to_full,
+    MockLeaf,
+    MockTrie,
+    OriginalSkeletonMockTrieConfig,
 };
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonNodeMap;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
-use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
-use crate::patricia_merkle_tree::updated_skeleton_tree::create_tree_helper::{
-    get_path_to_lca, has_leaves_on_both_sides, TempSkeletonNode,
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
+    OriginalSkeletonNodeMap,
+    OriginalSkeletonTreeImpl,
 };
+use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
+use crate::patricia_merkle_tree::updated_skeleton_tree::create_tree_helper::{
+    get_path_to_lca,
+    has_leaves_on_both_sides,
+    TempSkeletonNode,
+};
+use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
-use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
-use crate::patricia_merkle_tree::updated_skeleton_tree::{
-    hash_function::TreeHashFunctionImpl, tree::UpdatedSkeletonTree,
+use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
+    UpdatedSkeletonTree,
+    UpdatedSkeletonTreeImpl,
 };
 use crate::storage::map_storage::MapStorage;
 
@@ -220,10 +227,7 @@ fn test_node_from_binary_data(
     expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());
     let temp_node = initial_updated_skeleton.node_from_binary_data(root_index, left, right);
     assert_eq!(temp_node, expected_node);
-    assert_eq!(
-        initial_updated_skeleton.skeleton_tree,
-        expected_skeleton_tree
-    );
+    assert_eq!(initial_updated_skeleton.skeleton_tree, expected_skeleton_tree);
 }
 
 #[rstest]
@@ -290,10 +294,7 @@ fn test_node_from_edge_data(
     expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());
     let temp_node = initial_updated_skeleton.node_from_edge_data(path, bottom_index, bottom);
     assert_eq!(temp_node, expected_node);
-    assert_eq!(
-        initial_updated_skeleton.skeleton_tree,
-        expected_skeleton_tree
-    );
+    assert_eq!(initial_updated_skeleton.skeleton_tree, expected_skeleton_tree);
 }
 
 #[rstest]
@@ -337,10 +338,7 @@ fn test_update_node_in_empty_tree(
     let temp_node = initial_updated_skeleton
         .update_node_in_empty_tree(root_index, &SortedLeafIndices::new(&mut leaf_indices));
     assert_eq!(temp_node, expected_node);
-    assert_eq!(
-        initial_updated_skeleton.skeleton_tree,
-        expected_skeleton_tree
-    );
+    assert_eq!(initial_updated_skeleton.skeleton_tree, expected_skeleton_tree);
 }
 
 #[rstest]
@@ -490,10 +488,7 @@ fn test_update_node_in_nonempty_tree(
         &SortedLeafIndices::new(&mut leaf_indices),
     );
     assert_eq!(temp_node, expected_node);
-    assert_eq!(
-        initial_updated_skeleton.skeleton_tree,
-        expected_skeleton_tree
-    );
+    assert_eq!(initial_updated_skeleton.skeleton_tree, expected_skeleton_tree);
 }
 
 #[rstest]

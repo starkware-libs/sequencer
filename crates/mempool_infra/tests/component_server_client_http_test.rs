@@ -5,8 +5,14 @@ use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use async_trait::async_trait;
 use bincode::{deserialize, serialize};
 use common::{
-    ComponentAClientTrait, ComponentARequest, ComponentAResponse, ComponentBClientTrait,
-    ComponentBRequest, ComponentBResponse, ResultA, ResultB,
+    ComponentAClientTrait,
+    ComponentARequest,
+    ComponentAResponse,
+    ComponentBClientTrait,
+    ComponentBRequest,
+    ComponentBResponse,
+    ResultA,
+    ResultB,
 };
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
@@ -17,7 +23,9 @@ use serde::Serialize;
 use starknet_mempool_infra::component_client::definitions::{ClientError, ClientResult};
 use starknet_mempool_infra::component_client::remote_component_client::RemoteComponentClient;
 use starknet_mempool_infra::component_definitions::{
-    ComponentRequestHandler, ServerError, APPLICATION_OCTET_STREAM,
+    ComponentRequestHandler,
+    ServerError,
+    APPLICATION_OCTET_STREAM,
 };
 use starknet_mempool_infra::component_server::definitions::ComponentServerStarter;
 use starknet_mempool_infra::component_server::remote_component_server::RemoteComponentServer;

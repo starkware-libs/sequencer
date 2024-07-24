@@ -5,7 +5,8 @@ use committer_cli::parse_input::read::{load_from_stdin, read_from_stdin, write_t
 use committer_cli::tests::python_tests::PythonTest;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger, TerminalMode};
 use starknet_api::block_hash::block_hash_calculator::{
-    calculate_block_commitments, calculate_block_hash,
+    calculate_block_commitments,
+    calculate_block_hash,
 };
 
 /// Committer CLI.
@@ -75,10 +76,7 @@ async fn main() {
             parse_and_commit(&read_from_stdin(), output_path).await;
         }
 
-        Command::PythonTest {
-            output_path,
-            test_name,
-        } => {
+        Command::PythonTest { output_path, test_name } => {
             // Create PythonTest from test_name.
             let test = PythonTest::try_from(test_name)
                 .unwrap_or_else(|error| panic!("Failed to create PythonTest: {}", error));

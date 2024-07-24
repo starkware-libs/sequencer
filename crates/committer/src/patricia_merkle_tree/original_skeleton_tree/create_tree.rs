@@ -1,28 +1,28 @@
-use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
-use crate::patricia_merkle_tree::node_data::inner_node::BinaryData;
-use crate::patricia_merkle_tree::node_data::inner_node::EdgeData;
-use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
-use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
-use crate::patricia_merkle_tree::node_data::leaf::Leaf;
-use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
-use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
-use crate::patricia_merkle_tree::types::SortedLeafIndices;
-use crate::patricia_merkle_tree::types::SubTreeHeight;
-use crate::patricia_merkle_tree::{
-    original_skeleton_tree::node::OriginalSkeletonNode, types::NodeIndex,
-};
-use crate::storage::errors::StorageError;
-use crate::storage::storage_trait::create_db_key;
-use crate::storage::storage_trait::StarknetPrefix;
-use crate::storage::storage_trait::Storage;
-use crate::storage::storage_trait::StorageKey;
-use log::warn;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::Debug;
+
+use log::warn;
+
+use crate::hash::hash_trait::HashOutput;
+use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
+use crate::patricia_merkle_tree::node_data::inner_node::{
+    BinaryData,
+    EdgeData,
+    NodeData,
+    PathToBottom,
+};
+use crate::patricia_merkle_tree::node_data::leaf::Leaf;
+use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
+use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
+    OriginalSkeletonTreeImpl,
+    OriginalSkeletonTreeResult,
+};
+use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
+use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
+use crate::storage::errors::StorageError;
+use crate::storage::storage_trait::{create_db_key, StarknetPrefix, Storage, StorageKey};
 
 #[cfg(test)]
 #[path = "create_tree_test.rs"]
@@ -31,10 +31,7 @@ pub mod create_tree_test;
 /// Logs out a warning of a trivial modification.
 macro_rules! log_trivial_modification {
     ($index:expr, $value:expr) => {
-        warn!(
-            "Encountered a trivial modification at index {:?}, with value {:?}",
-            $index, $value
-        );
+        warn!("Encountered a trivial modification at index {:?}, with value {:?}", $index, $value);
     };
 }
 
@@ -73,9 +70,7 @@ impl<'a> SubTree<'a> {
             leftmost_in_subtree - NodeIndex::ROOT + (NodeIndex::ROOT << bottom_height.into());
         let leftmost_index = self.sorted_leaf_indices.bisect_left(&leftmost_in_subtree);
         let rightmost_index = self.sorted_leaf_indices.bisect_right(&rightmost_in_subtree);
-        let bottom_leaves = self
-            .sorted_leaf_indices
-            .subslice(leftmost_index, rightmost_index);
+        let bottom_leaves = self.sorted_leaf_indices.subslice(leftmost_index, rightmost_index);
         let previously_empty_leaf_indices = self.sorted_leaf_indices.get_indices()
             [..leftmost_index]
             .iter()
@@ -136,10 +131,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         for (filled_root, subtree) in filled_roots.into_iter().zip(subtrees.iter()) {
             match filled_root.data {
                 // Binary node.
-                NodeData::Binary(BinaryData {
-                    left_hash,
-                    right_hash,
-                }) => {
+                NodeData::Binary(BinaryData { left_hash, right_hash }) => {
                     if subtree.is_unmodified() {
                         self.nodes.insert(
                             subtree.root_index,
@@ -147,8 +139,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
                         );
                         continue;
                     }
-                    self.nodes
-                        .insert(subtree.root_index, OriginalSkeletonNode::Binary);
+                    self.nodes.insert(subtree.root_index, OriginalSkeletonNode::Binary);
                     let (left_subtree, right_subtree) =
                         subtree.get_children_subtrees(left_hash, right_hash);
 
@@ -164,14 +155,9 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
                     )
                 }
                 // Edge node.
-                NodeData::Edge(EdgeData {
-                    bottom_hash,
-                    path_to_bottom,
-                }) => {
-                    self.nodes.insert(
-                        subtree.root_index,
-                        OriginalSkeletonNode::Edge(path_to_bottom),
-                    );
+                NodeData::Edge(EdgeData { bottom_hash, path_to_bottom }) => {
+                    self.nodes
+                        .insert(subtree.root_index, OriginalSkeletonNode::Edge(path_to_bottom));
                     if subtree.is_unmodified() {
                         self.nodes.insert(
                             path_to_bottom.bottom_index(subtree.root_index),
@@ -223,7 +209,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         self.fetch_nodes::<L>(next_subtrees, storage, config, previous_leaves)
     }
 
-    //TODO(Aviv, 17/07/2024): Split between storage prefix implementation and function logic.
+    // TODO(Aviv, 17/07/2024): Split between storage prefix implementation and function logic.
     fn calculate_subtrees_roots<L: Leaf>(
         subtrees: &[SubTree<'a>],
         storage: &impl Storage,
@@ -248,11 +234,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
             subtrees.iter().zip(db_vals.iter()).zip(db_keys.into_iter())
         {
             let val = optional_val.ok_or(StorageError::MissingKey(db_key))?;
-            subtrees_roots.push(FilledNode::deserialize(
-                subtree.root_hash,
-                val,
-                subtree.is_leaf(),
-            )?)
+            subtrees_roots.push(FilledNode::deserialize(subtree.root_hash, val, subtree.is_leaf())?)
         }
         Ok(subtrees_roots)
     }
@@ -273,15 +255,8 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
             )?;
             return Ok(Self::create_empty(sorted_leaf_indices));
         }
-        let main_subtree = SubTree {
-            sorted_leaf_indices,
-            root_index: NodeIndex::ROOT,
-            root_hash,
-        };
-        let mut skeleton_tree = Self {
-            nodes: HashMap::new(),
-            sorted_leaf_indices,
-        };
+        let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
+        let mut skeleton_tree = Self { nodes: HashMap::new(), sorted_leaf_indices };
         skeleton_tree.fetch_nodes::<L>(vec![main_subtree], storage, config, None)?;
         Ok(skeleton_tree)
     }
@@ -299,22 +274,11 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         if root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
             return Ok((
                 Self::create_empty(sorted_leaf_indices),
-                sorted_leaf_indices
-                    .get_indices()
-                    .iter()
-                    .map(|idx| (*idx, L::default()))
-                    .collect(),
+                sorted_leaf_indices.get_indices().iter().map(|idx| (*idx, L::default())).collect(),
             ));
         }
-        let main_subtree = SubTree {
-            sorted_leaf_indices,
-            root_index: NodeIndex::ROOT,
-            root_hash,
-        };
-        let mut skeleton_tree = Self {
-            nodes: HashMap::new(),
-            sorted_leaf_indices,
-        };
+        let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
+        let mut skeleton_tree = Self { nodes: HashMap::new(), sorted_leaf_indices };
         let mut leaves = HashMap::new();
         skeleton_tree.fetch_nodes::<L>(vec![main_subtree], storage, config, Some(&mut leaves))?;
         Ok((skeleton_tree, leaves))
@@ -331,10 +295,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
     }
 
     fn create_empty(sorted_leaf_indices: SortedLeafIndices<'a>) -> Self {
-        Self {
-            nodes: HashMap::new(),
-            sorted_leaf_indices,
-        }
+        Self { nodes: HashMap::new(), sorted_leaf_indices }
     }
 
     /// Handles a subtree referred by an edge or a binary node. Decides whether we deserialize the
