@@ -1,29 +1,31 @@
+use std::collections::HashMap;
+
+use ethnum::U256;
+use pretty_assertions::assert_eq;
+use rstest::rstest;
+
 use super::OriginalSkeletonTreeImpl;
 use crate::block_committer::input::StarknetStorageValue;
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
-use crate::patricia_merkle_tree::internal_test_utils::small_tree_index_to_full;
-use crate::patricia_merkle_tree::node_data::inner_node::EdgePath;
-use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
+use crate::patricia_merkle_tree::internal_test_utils::{
+    small_tree_index_to_full,
+    MockLeaf,
+    OriginalSkeletonMockTrieConfig,
+};
+use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafModifications};
-use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonStorageTrieConfig;
 use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::SubTree;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
-use crate::patricia_merkle_tree::types::SubTreeHeight;
-use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use crate::storage::db_object::DBObject;
 use crate::storage::map_storage::MapStorage;
-use crate::storage::storage_trait::{create_db_key, StorageKey, StoragePrefix, StorageValue};
-use ethnum::U256;
-use pretty_assertions::assert_eq;
-use rstest::rstest;
-use std::collections::HashMap;
+use crate::storage::storage_trait::{create_db_key, StarknetPrefix, StorageKey, StorageValue};
 
 #[rstest]
 // This test assumes for simplicity that hash is addition (i.e hash(a,b) = a + b).
-///
 ///                 Old tree structure:
 ///
 ///                             50
@@ -46,7 +48,6 @@ use std::collections::HashMap;
 ///                       / \   \     \
 ///                      NZ  9  11    15
 ///
-///
 
 #[case::simple_tree_of_height_3(
     HashMap::from([
@@ -56,12 +57,12 @@ use std::collections::HashMap;
     create_binary_entry(17, 13),
     create_edge_entry(15, 3, 2),
     create_binary_entry(30, 20),
-    create_storage_leaf_entry(8),
-    create_storage_leaf_entry(9),
-    create_storage_leaf_entry(11),
-    create_storage_leaf_entry(15)
+    create_mock_leaf_entry(8),
+    create_mock_leaf_entry(9),
+    create_mock_leaf_entry(11),
+    create_mock_leaf_entry(15)
     ]).into(),
-    create_leaf_modifications(vec![(8, 8), (10, 3), (13, 2)]),
+    create_mock_leaf_modifications(vec![(8, 8), (10, 3), (13, 2)]),
     HashOutput(Felt::from(50_u128 + 248_u128)),
     create_expected_skeleton_nodes(
         vec![
@@ -99,7 +100,6 @@ use std::collections::HashMap;
 ///                       B      E     E
 ///                      /  \     \     \
 ///                     NZ   2     NZ    NZ
-///
 
 #[case::another_simple_tree_of_height_3(
     HashMap::from([
@@ -110,13 +110,13 @@ use std::collections::HashMap;
     create_edge_entry(12, 0, 1),
     create_binary_entry(5, 11),
     create_binary_entry(13, 16),
-    create_storage_leaf_entry(10),
-    create_storage_leaf_entry(2),
-    create_storage_leaf_entry(3),
-    create_storage_leaf_entry(4),
-    create_storage_leaf_entry(7)
+    create_mock_leaf_entry(10),
+    create_mock_leaf_entry(2),
+    create_mock_leaf_entry(3),
+    create_mock_leaf_entry(4),
+    create_mock_leaf_entry(7)
     ]).into(),
-    create_leaf_modifications(vec![(8, 5), (11, 1), (13, 3)]),
+    create_mock_leaf_modifications(vec![(8, 5), (11, 1), (13, 3)]),
     HashOutput(Felt::from(29_u128 + 248_u128)),
     create_expected_skeleton_nodes(
         vec![
@@ -138,7 +138,7 @@ use std::collections::HashMap;
 ///                           /     \
 ///                         26       90
 ///                        /      /     \
-///                       *      25      65
+///                       * 25      65
 ///                      /        \     /  \
 ///                     24         *   6   59
 ///                    /  \         \  /  /  \
@@ -152,12 +152,11 @@ use std::collections::HashMap;
 ///                           /     \
 ///                          E       B
 ///                         /     /     \
-///                        *     E       B
+///                        * E       B
 ///                       /       \     /  \
 ///                      24        *   E    B
 ///                                 \  /     \
 ///                                 20 5     40
-///
 #[case::tree_of_height_4_with_long_edge(
     HashMap::from([
     create_root_edge_entry(116, SubTreeHeight::new(4)),
@@ -169,14 +168,14 @@ use std::collections::HashMap;
     create_edge_entry(24, 0, 2),
     create_binary_entry(25, 65),
     create_binary_entry(26, 90),
-    create_storage_leaf_entry(11),
-    create_storage_leaf_entry(13),
-    create_storage_leaf_entry(20),
-    create_storage_leaf_entry(5),
-    create_storage_leaf_entry(19),
-    create_storage_leaf_entry(40),
+    create_mock_leaf_entry(11),
+    create_mock_leaf_entry(13),
+    create_mock_leaf_entry(20),
+    create_mock_leaf_entry(5),
+    create_mock_leaf_entry(19),
+    create_mock_leaf_entry(40),
     ]).into(),
-    create_leaf_modifications(vec![(18, 5), (25, 1), (29, 15), (30, 19)]),
+    create_mock_leaf_modifications(vec![(18, 5), (25, 1), (29, 15), (30, 19)]),
     HashOutput(Felt::from(116_u128 + 247_u128)),
     create_expected_skeleton_nodes(
         vec![
@@ -198,21 +197,20 @@ use std::collections::HashMap;
 )]
 fn test_create_tree(
     #[case] storage: MapStorage,
-    #[case] leaf_modifications: LeafModifications<StarknetStorageValue>,
+    #[case] leaf_modifications: LeafModifications<MockLeaf>,
     #[case] root_hash: HashOutput,
     #[case] expected_skeleton_nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
     #[case] subtree_height: SubTreeHeight,
     #[values(true, false)] compare_modified_leaves: bool,
 ) {
-    let leaf_modifications: LeafModifications<StarknetStorageValue> = leaf_modifications
+    let leaf_modifications: LeafModifications<MockLeaf> = leaf_modifications
         .into_iter()
         .map(|(idx, leaf)| (NodeIndex::from_subtree_index(idx, subtree_height), leaf))
         .collect();
-    let config =
-        OriginalSkeletonStorageTrieConfig::new(&leaf_modifications, compare_modified_leaves);
+    let config = OriginalSkeletonMockTrieConfig::new(&leaf_modifications, compare_modified_leaves);
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
-    let skeleton_tree = OriginalSkeletonTreeImpl::create::<StarknetStorageValue>(
+    let skeleton_tree = OriginalSkeletonTreeImpl::create::<MockLeaf>(
         &storage,
         root_hash,
         sorted_leaf_indices,
@@ -298,7 +296,7 @@ fn test_create_tree(
 ///
 ///            1
 ///         /     \
-///        *       *
+///        * *
 ///       / \     /
 ///      4   5   6
 ///     / \  / \  /
@@ -310,7 +308,6 @@ fn test_create_tree(
 ///      5
 ///     / \
 ///   11  10
-///
 #[rstest]
 #[case::single_right_child(
         SubTreeHeight(1),
@@ -389,11 +386,7 @@ fn test_get_bottom_subtree(
     );
 
     // Create the input Subtree.
-    let tree = SubTree {
-        sorted_leaf_indices,
-        root_index,
-        root_hash: HashOutput(Felt::ONE),
-    };
+    let tree = SubTree { sorted_leaf_indices, root_index, root_hash: HashOutput(Felt::ONE) };
 
     // Get the bottom subtree.
     let (subtree, previously_empty_leaf_indices) =
@@ -407,15 +400,17 @@ fn test_get_bottom_subtree(
         root_index: expected_root_index,
         root_hash: HashOutput(Felt::TWO),
     };
-    assert_eq!(
-        previously_empty_leaf_indices,
-        expected_previously_empty_leaf_indices
-    );
+    assert_eq!(previously_empty_leaf_indices, expected_previously_empty_leaf_indices);
     assert_eq!(subtree, expected_subtree);
 }
 
 pub(crate) fn create_32_bytes_entry(simple_val: u128) -> [u8; 32] {
     U256::from(simple_val).to_be_bytes()
+}
+
+pub(crate) fn create_mock_leaf_entry(val: u128) -> (StorageKey, StorageValue) {
+    let leaf = MockLeaf(Felt::from(val));
+    (leaf.get_db_key(&leaf.0.to_bytes_be()), leaf.serialize())
 }
 
 pub(crate) fn create_storage_leaf_entry(val: u128) -> (StorageKey, StorageValue) {
@@ -439,15 +434,12 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (StorageKey, Storag
 }
 
 fn create_patricia_key(val: u128) -> StorageKey {
-    create_db_key(StoragePrefix::InnerNode, &U256::from(val).to_be_bytes())
+    create_db_key(StarknetPrefix::InnerNode.to_storage_prefix(), &U256::from(val).to_be_bytes())
 }
 
 fn create_binary_val(left: u128, right: u128) -> StorageValue {
     StorageValue(
-        (create_32_bytes_entry(left)
-            .into_iter()
-            .chain(create_32_bytes_entry(right)))
-        .collect(),
+        (create_32_bytes_entry(left).into_iter().chain(create_32_bytes_entry(right))).collect(),
     )
 }
 
@@ -461,27 +453,21 @@ fn create_edge_val(hash: u128, path: u128, length: u8) -> StorageValue {
     )
 }
 
-fn create_leaf_modifications(
+fn create_mock_leaf_modifications(
     leaf_modifications: Vec<(u128, u128)>,
-) -> LeafModifications<StarknetStorageValue> {
+) -> LeafModifications<MockLeaf> {
     leaf_modifications
         .into_iter()
-        .map(|(idx, val)| (NodeIndex::from(idx), StarknetStorageValue(Felt::from(val))))
+        .map(|(idx, val)| (NodeIndex::from(idx), MockLeaf(Felt::from(val))))
         .collect()
 }
 
 pub(crate) fn create_binary_entry(left: u128, right: u128) -> (StorageKey, StorageValue) {
-    (
-        create_patricia_key(left + right),
-        create_binary_val(left, right),
-    )
+    (create_patricia_key(left + right), create_binary_val(left, right))
 }
 
 pub(crate) fn create_edge_entry(hash: u128, path: u128, length: u8) -> (StorageKey, StorageValue) {
-    (
-        create_patricia_key(hash + path + u128::from(length)),
-        create_edge_val(hash, path, length),
-    )
+    (create_patricia_key(hash + path + u128::from(length)), create_edge_val(hash, path, length))
 }
 
 pub(crate) fn create_expected_skeleton_nodes(
@@ -491,12 +477,7 @@ pub(crate) fn create_expected_skeleton_nodes(
     let subtree_height = SubTreeHeight::new(height);
     nodes
         .into_iter()
-        .map(|(node_index, node)| {
-            (
-                NodeIndex::from_subtree_index(node_index, subtree_height),
-                node,
-            )
-        })
+        .map(|(node_index, node)| (NodeIndex::from_subtree_index(node_index, subtree_height), node))
         .chain([(
             NodeIndex::ROOT,
             OriginalSkeletonNode::Edge(
@@ -541,7 +522,7 @@ pub(crate) fn create_root_edge_entry(
     let length = SubTreeHeight::ACTUAL_HEIGHT.0 - subtree_height.0;
     let new_root = old_root + u128::from(length);
     let key = create_db_key(
-        StoragePrefix::InnerNode,
+        StarknetPrefix::InnerNode.to_storage_prefix(),
         &Felt::from(new_root).to_bytes_be(),
     );
     let value = StorageValue(
@@ -559,8 +540,5 @@ fn create_previously_empty_leaf_indices<'a>(
     tree_leaf_indices: &'a [NodeIndex],
     subtree_leaf_indices: &'a [NodeIndex],
 ) -> Vec<&'a NodeIndex> {
-    tree_leaf_indices
-        .iter()
-        .filter(|idx| !subtree_leaf_indices.contains(idx))
-        .collect()
+    tree_leaf_indices.iter().filter(|idx| !subtree_leaf_indices.contains(idx)).collect()
 }

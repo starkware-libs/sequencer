@@ -1,6 +1,12 @@
-use crate::parse_input::raw_input::RawInput;
+use std::collections::HashMap;
+
 use committer::block_committer::input::{
-    ConfigImpl, ContractAddress, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
+    ConfigImpl,
+    ContractAddress,
+    Input,
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
 };
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
@@ -8,7 +14,7 @@ use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClas
 use committer::storage::errors::DeserializationError;
 use committer::storage::storage_trait::{StorageKey, StorageValue};
 
-use std::collections::HashMap;
+use crate::parse_input::raw_input::RawInput;
 
 pub type InputImpl = Input<ConfigImpl>;
 
@@ -17,12 +23,7 @@ impl TryFrom<RawInput> for InputImpl {
     fn try_from(raw_input: RawInput) -> Result<Self, Self::Error> {
         let mut storage = HashMap::new();
         for entry in raw_input.storage {
-            add_unique(
-                &mut storage,
-                "storage",
-                StorageKey(entry.key),
-                StorageValue(entry.value),
-            )?;
+            add_unique(&mut storage, "storage", StorageKey(entry.key), StorageValue(entry.value))?;
         }
 
         let mut address_to_class_hash = HashMap::new();
@@ -89,7 +90,7 @@ impl TryFrom<RawInput> for InputImpl {
             classes_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
                 &raw_input.classes_trie_root_hash,
             )),
-            config: ConfigImpl::new(raw_input.trivial_updates_config),
+            config: raw_input.config.into(),
         })
     }
 }
@@ -104,9 +105,7 @@ where
     K: std::cmp::Eq + std::hash::Hash + std::fmt::Debug,
 {
     if map.contains_key(&key) {
-        return Err(DeserializationError::KeyDuplicate(format!(
-            "{map_name}: {key:?}"
-        )));
+        return Err(DeserializationError::KeyDuplicate(format!("{map_name}: {key:?}")));
     }
     map.insert(key, value);
     Ok(())
