@@ -59,10 +59,10 @@ jobs:
 
       # List the existing benchmarks.
       - run: |
-            cargo bench -- --list | grep ': benchmark$' | sed -e "s/: benchmark$//" > benchmarks_list.txt
+            cargo bench -p committer_cli -- --list | grep ': benchmark$' | sed -e "s/: benchmark$//" > benchmarks_list.txt
 
       # Benchmark the old code.
-      - run: cargo bench
+      - run: cargo bench -p committer_cli
 
       # Backup the downloaded files to avoid re-downloading them if they didn't change (overwritten by checkout).
       - run: mv ./crates/committer_cli/benches/tree_flow_inputs.json ./crates/committer_cli/benches/tree_flow_inputs.json_bu
