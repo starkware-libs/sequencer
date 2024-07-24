@@ -8,7 +8,7 @@ benchmark_results=${2}
 # TODO: split the output file instead.
 cat ${benchmarks_list} |
     while read line; do
-        cargo bench $line > ${line}.txt;
+        cargo bench -p committer_cli $line > ${line}.txt;
         sed -i '/'"${line}"'/,$!d' ${line}.txt;
     done
 
