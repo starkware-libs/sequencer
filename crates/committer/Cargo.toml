@@ -19,15 +19,19 @@ rstest.workspace = true
 
 [dependencies]
 async-recursion.workspace = true
-bisection.workspace = true
 derive_more.workspace = true
 ethnum.workspace = true
 hex.workspace = true
 log.workspace = true
 rand.workspace = true
-serde.workspace = true
+serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 starknet-types-core.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+
+# Optional dependencies required for tests and the testing feature.
+# See [here](https://github.com/bnjbvr/cargo-machete/issues/128).
+[package.metadata.cargo-machete]
+ignored = ["strum"]

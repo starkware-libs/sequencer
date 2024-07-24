@@ -14,6 +14,7 @@ criterion = { workspace = true, features = ["html_reports"] }
 pretty_assertions.workspace = true
 
 [dependencies]
+clap =  { workspace = true, features = ["cargo", "derive"] }
 clap.workspace = true
 committer = { path = "../committer", features = ["testing"] }
 derive_more.workspace = true
@@ -22,8 +23,9 @@ indexmap.workspace = true
 log.workspace = true
 rand.workspace = true
 rand_distr.workspace = true
-serde.workspace = true
+serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+serde_repr.workspace = true
 simplelog.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0"}
@@ -35,3 +37,8 @@ tokio.workspace = true
 harness = false
 name = "committer_bench"
 path = "benches/committer_bench.rs"
+
+# Optional dependencies required for tests and the testing feature.
+# See [here](https://github.com/bnjbvr/cargo-machete/issues/128).
+[package.metadata.cargo-machete]
+ignored = ["hex", "strum_macros"]
