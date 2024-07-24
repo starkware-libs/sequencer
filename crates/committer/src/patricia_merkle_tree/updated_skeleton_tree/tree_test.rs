@@ -2,13 +2,12 @@ use std::collections::HashMap;
 
 use rstest::{fixture, rstest};
 
-use crate::block_committer::input::StarknetStorageValue;
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::internal_test_utils::get_initial_updated_skeleton;
+use crate::patricia_merkle_tree::internal_test_utils::OriginalSkeletonMockTrieConfig;
+use crate::patricia_merkle_tree::internal_test_utils::{get_initial_updated_skeleton, MockLeaf};
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
-use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonStorageTrieConfig;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonTree, OriginalSkeletonTreeImpl,
@@ -145,15 +144,15 @@ fn test_updated_skeleton_tree_impl_create(
 
 #[rstest]
 #[case::empty_modifications(HashMap::new())]
-#[case::non_empty_modifications(HashMap::from([(NodeIndex::FIRST_LEAF + NodeIndex::from(7), StarknetStorageValue::default())]))]
-fn test_updated_empty_tree(#[case] modifications: LeafModifications<StarknetStorageValue>) {
+#[case::non_empty_modifications(HashMap::from([(NodeIndex::FIRST_LEAF + NodeIndex::from(7), MockLeaf::default())]))]
+fn test_updated_empty_tree(#[case] modifications: LeafModifications<MockLeaf>) {
     let storage: MapStorage = HashMap::new().into();
     let mut indices: Vec<NodeIndex> = modifications.keys().copied().collect();
     let mut original_skeleton = OriginalSkeletonTreeImpl::create(
         &storage,
         HashOutput::ROOT_OF_EMPTY_TREE,
         SortedLeafIndices::new(&mut indices),
-        &OriginalSkeletonStorageTrieConfig::new(&modifications, false),
+        &OriginalSkeletonMockTrieConfig::new(&modifications, false),
     )
     .unwrap();
 

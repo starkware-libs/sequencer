@@ -1,9 +1,7 @@
 use clap::{Args, Parser, Subcommand};
 use committer_cli::block_hash::{BlockCommitmentsInput, BlockHashInput};
-use committer_cli::commands::commit;
-use committer_cli::parse_input::read::{
-    load_from_stdin, parse_input, read_from_stdin, write_to_file,
-};
+use committer_cli::commands::parse_and_commit;
+use committer_cli::parse_input::read::{load_from_stdin, read_from_stdin, write_to_file};
 use committer_cli::tests::python_tests::PythonTest;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger, TerminalMode};
 use starknet_api::block_hash::block_hash_calculator::{
@@ -73,8 +71,8 @@ async fn main() {
 
     match args.command {
         Command::Commit { output_path } => {
-            let input = parse_input(&read_from_stdin()).expect("Failed to parse the given input.");
-            commit(input, output_path).await;
+            // TODO(Aner, 15/7/24): try moving read_from_stdin into function.
+            parse_and_commit(&read_from_stdin(), output_path).await;
         }
 
         Command::PythonTest {
