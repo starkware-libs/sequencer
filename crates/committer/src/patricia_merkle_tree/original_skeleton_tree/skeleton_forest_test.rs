@@ -79,7 +79,7 @@ macro_rules! compare_skeleton_tree {
 ///             /    \                                      /    \
 ///           13      16                                  35      20
 ///          /      /    \                               /  \       \
-///         12      5     11                            17  18       *
+///         12      5     11                            17  18       o
 ///        /  \      \   /  \                          /  \   \        \
 ///       10   2      3  4   7                        8    9  16       15
 ///
@@ -92,7 +92,7 @@ macro_rules! compare_skeleton_tree {
 ///                  /   \                              /
 ///                 E     E                            B
 ///                /       \                         /   \
-///               * B                       B     E
+///               o         B                       B     E
 ///              /                                 / \     \
 ///             303                               NZ  47   UB
 ///
@@ -103,7 +103,7 @@ macro_rules! compare_skeleton_tree {
 ///            /   \                                       /   \
 ///          E      B                                     B     E
 ///         /     /    \                                 / \     \
-///        B      E     E                               B   E     *
+///        B      E     E                               B   E     o
 ///       /  \     \     \                             / \   \     \
 ///      NZ   2     NZ    NZ                          NZ  9  16    15
 

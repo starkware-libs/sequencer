@@ -32,7 +32,7 @@ use crate::storage::storage_trait::{create_db_key, StarknetPrefix, StorageKey, S
 ///                           /   \
 ///                         30     20
 ///                        /  \     \
-///                       17  13     *
+///                       17  13     o
 ///                      /  \   \     \
 ///                     8    9  11     15
 ///
@@ -44,7 +44,7 @@ use crate::storage::storage_trait::{create_db_key, StarknetPrefix, StorageKey, S
 ///                           /   \
 ///                          B     E
 ///                         / \     \
-///                        B   E     *
+///                        B   E     o
 ///                       / \   \     \
 ///                      NZ  9  11    15
 
@@ -137,9 +137,9 @@ use crate::storage::storage_trait::{create_db_key, StarknetPrefix, StorageKey, S
 ///                           /     \
 ///                         26       90
 ///                        /      /     \
-///                       * 25      65
+///                       o 25      65
 ///                      /        \     /  \
-///                     24         *   6   59
+///                     24         o   6   59
 ///                    /  \         \  /  /  \
 ///                   11  13       20  5  19 40
 ///
@@ -151,9 +151,9 @@ use crate::storage::storage_trait::{create_db_key, StarknetPrefix, StorageKey, S
 ///                           /     \
 ///                          E       B
 ///                         /     /     \
-///                        * E       B
+///                        o     E       B
 ///                       /       \     /  \
-///                      24        *   E    B
+///                      24        o   E    B
 ///                                 \  /     \
 ///                                 20 5     40
 #[case::tree_of_height_4_with_long_edge(
@@ -239,7 +239,7 @@ fn test_create_tree(
 ///
 ///       1
 ///      /
-///     *
+///     o
 ///    /
 ///   4
 ///  /  \
@@ -255,7 +255,7 @@ fn test_create_tree(
 ///
 ///              1
 ///             /
-///            *
+///            o
 ///           /
 ///         ...
 ///         /
@@ -270,7 +270,7 @@ fn test_create_tree(
 ///
 ///              1
 ///               \
-///                *
+///                o
 ///                 \
 ///                 ...
 ///
@@ -295,7 +295,7 @@ fn test_create_tree(
 ///
 ///            1
 ///         /     \
-///        * *
+///        o       o
 ///       / \     /
 ///      4   5   6
 ///     / \  / \  /
