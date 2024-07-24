@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::{Tip, TransactionHash};
+use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{
     Account,
     AccountState,
@@ -72,11 +73,33 @@ impl Mempool {
     /// updates account balances).
     // TODO: the part about resolving nonce gaps is incorrect if we delete txs in get_txs and then
     // push back.
+    // state_changes: a map that associates each account address with the state of the committed
+    // block.
     pub fn commit_block(
         &mut self,
-        _state_changes: HashMap<ContractAddress, AccountState>,
+        state_changes: HashMap<ContractAddress, AccountState>,
     ) -> MempoolResult<()> {
-        todo!()
+        for (address, AccountState { nonce }) in state_changes {
+            let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
+
+            // Align the queue with the committed nonces.
+            if self
+                .tx_queue
+                .get_nonce(address)
+                .is_some_and(|queued_nonce| queued_nonce != next_nonce)
+            {
+                self.tx_queue.remove(address);
+            }
+
+            if self.tx_queue.get_nonce(address).is_none() {
+                if let Some(tx) = self.tx_pool.get_by_address_and_nonce(address, nonce) {
+                    self.tx_queue.insert(*tx);
+                }
+            }
+
+            self.tx_pool.remove_up_to_nonce(address, next_nonce);
+        }
+        Ok(())
     }
 
     fn insert_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {

@@ -1,5 +1,7 @@
 use std::net::SocketAddr;
 
+use blockifier::test_utils::contracts::FeatureContract;
+use blockifier::test_utils::CairoVersion;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway::config::GatewayNetworkConfig;
@@ -27,6 +29,15 @@ pub struct IntegrationTestSetup {
 
 impl IntegrationTestSetup {
     pub async fn new(n_accounts: usize) -> Self {
+        let default_account_contract =
+            FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+        let accounts = std::iter::repeat(default_account_contract).take(n_accounts);
+        Self::new_for_account_contracts(accounts).await
+    }
+
+    pub async fn new_for_account_contracts(
+        accounts: impl IntoIterator<Item = FeatureContract>,
+    ) -> Self {
         let handle = Handle::current();
         let task_executor = TokioExecutor::new(handle);
 
@@ -34,7 +45,7 @@ impl IntegrationTestSetup {
         configure_tracing();
 
         // Spawn a papyrus rpc server for a papyrus storage reader.
-        let rpc_server_addr = spawn_test_rpc_state_reader(n_accounts).await;
+        let rpc_server_addr = spawn_test_rpc_state_reader(accounts).await;
 
         // Derive the configuration for the mempool node.
         let config = create_config(rpc_server_addr).await;

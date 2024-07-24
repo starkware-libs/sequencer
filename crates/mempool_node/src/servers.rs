@@ -4,7 +4,7 @@ use std::pin::Pin;
 use futures::{Future, FutureExt};
 use starknet_gateway::communication::{create_gateway_server, GatewayServer};
 use starknet_mempool::communication::{create_mempool_server, MempoolServer};
-use starknet_mempool_infra::component_server::ComponentServerStarter;
+use starknet_mempool_infra::component_server::definitions::ComponentServerStarter;
 use tracing::error;
 
 use crate::communication::MempoolNodeCommunication;

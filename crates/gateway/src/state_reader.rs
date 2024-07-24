@@ -2,6 +2,8 @@ use blockifier::blockifier::block::BlockInfo;
 use blockifier::execution::contract_class::ContractClass;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
+#[cfg(test)]
+use mockall::automock;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
@@ -11,6 +13,7 @@ pub trait MempoolStateReader: BlockifierStateReader + Send + Sync {
     fn get_block_info(&self) -> Result<BlockInfo, StateError>;
 }
 
+#[cfg_attr(test, automock)]
 pub trait StateReaderFactory: Send + Sync {
     fn get_state_reader_from_latest_block(&self) -> Box<dyn MempoolStateReader>;
     fn get_state_reader(&self, block_number: BlockNumber) -> Box<dyn MempoolStateReader>;

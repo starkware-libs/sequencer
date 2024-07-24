@@ -51,13 +51,13 @@ impl TransactionQueue {
         self.queue.iter().rev().map(|tx| &tx.0)
     }
 
-    pub fn _get_nonce(&self, address: ContractAddress) -> Option<Nonce> {
+    pub fn get_nonce(&self, address: ContractAddress) -> Option<Nonce> {
         self.address_to_tx.get(&address).map(|tx| tx.nonce)
     }
 
     /// Removes the transaction of the given account address from the queue.
     /// This is well-defined, since there is at most one transaction per address in the queue.
-    pub fn _remove(&mut self, address: ContractAddress) -> bool {
+    pub fn remove(&mut self, address: ContractAddress) -> bool {
         if let Some(tx) = self.address_to_tx.remove(&address) {
             return self.queue.remove(&tx.into());
         }

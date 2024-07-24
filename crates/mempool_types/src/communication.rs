@@ -1,14 +1,17 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use starknet_mempool_infra::component_client::{ClientError, ComponentClient};
+use mockall::predicate::*;
+use mockall::*;
+use starknet_mempool_infra::component_client::definitions::ClientError;
+use starknet_mempool_infra::component_client::local_component_client::LocalComponentClient;
 use starknet_mempool_infra::component_definitions::ComponentRequestAndResponseSender;
 use thiserror::Error;
 
 use crate::errors::MempoolError;
 use crate::mempool_types::{MempoolInput, ThinTransaction};
 
-pub type MempoolClientImpl = ComponentClient<MempoolRequest, MempoolResponse>;
+pub type MempoolClientImpl = LocalComponentClient<MempoolRequest, MempoolResponse>;
 pub type MempoolResult<T> = Result<T, MempoolError>;
 pub type MempoolClientResult<T> = Result<T, MempoolClientError>;
 pub type MempoolRequestAndResponseSender =
@@ -17,6 +20,7 @@ pub type SharedMempoolClient = Arc<dyn MempoolClient>;
 
 /// Serves as the mempool's shared interface. Requires `Send + Sync` to allow transferring and
 /// sharing resources (inputs, futures) across threads.
+#[automock]
 #[async_trait]
 pub trait MempoolClient: Send + Sync {
     async fn add_tx(&self, mempool_input: MempoolInput) -> MempoolClientResult<()>;

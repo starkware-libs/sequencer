@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
 use starknet_mempool_infra::component_runner::ComponentStarter;
-use starknet_mempool_infra::component_server::ComponentServer;
+use starknet_mempool_infra::component_server::local_component_server::LocalComponentServer;
 use starknet_mempool_types::communication::{
     MempoolRequest,
     MempoolRequestAndResponseSender,
@@ -13,14 +13,14 @@ use tokio::sync::mpsc::Receiver;
 use crate::mempool::Mempool;
 
 pub type MempoolServer =
-    ComponentServer<MempoolCommunicationWrapper, MempoolRequest, MempoolResponse>;
+    LocalComponentServer<MempoolCommunicationWrapper, MempoolRequest, MempoolResponse>;
 
 pub fn create_mempool_server(
     mempool: Mempool,
     rx_mempool: Receiver<MempoolRequestAndResponseSender>,
 ) -> MempoolServer {
     let communication_wrapper = MempoolCommunicationWrapper::new(mempool);
-    ComponentServer::new(communication_wrapper, rx_mempool)
+    LocalComponentServer::new(communication_wrapper, rx_mempool)
 }
 
 /// Wraps the mempool to enable inbound async communication from other components.
