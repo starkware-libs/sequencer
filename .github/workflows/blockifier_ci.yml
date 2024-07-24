@@ -18,10 +18,15 @@ on:
       - auto_merge_enabled
       - edited
     paths:
+      - '.github/workflows/blockifier_ci.yml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'blockifier.Dockerfile'
+      - 'build_native_blockifier_in_docker.sh'
       - 'crates/blockifier/**'
       - 'crates/native_blockifier/**'
-      - 'build_native_blockifier_in_docker.sh'
       - 'scripts/build_native_blockifier.sh'
+      - 'scripts/install_build_tools.sh'
 
 jobs:
   featureless-build:
