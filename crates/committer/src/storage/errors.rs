@@ -1,5 +1,5 @@
 use crate::patricia_merkle_tree::node_data::errors::{EdgePathError, PathToBottomError};
-use crate::storage::storage_trait::{StorageKey, StoragePrefix};
+use crate::storage::storage_trait::StorageKey;
 
 use serde_json;
 use starknet_types_core::felt::FromStrError;
@@ -30,7 +30,8 @@ pub enum DeserializationError {
     #[error(transparent)]
     PathToBottomError(#[from] PathToBottomError),
     #[error("Unexpected prefix ({0:?}) variant when deserializing a leaf.")]
-    LeafPrefixError(StoragePrefix),
+    // TODO(Aviv, 17/07/2024): Define a trait `T` for storage prefix and return `impl T` here.
+    LeafPrefixError(Vec<u8>),
     #[error(transparent)]
     StringConversionError(#[from] std::str::Utf8Error),
     #[error(transparent)]
