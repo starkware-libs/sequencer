@@ -6,7 +6,7 @@ use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonT
 use crate::patricia_merkle_tree::types::NodeIndex;
 
 /// Configures the creation of an original skeleton tree.
-pub(crate) trait OriginalSkeletonTreeConfig<L: Leaf> {
+pub trait OriginalSkeletonTreeConfig<L: Leaf> {
     /// Configures whether modified leaves should be compared to the previous leaves and log out a
     /// warning when encountering a trivial modification.
     fn compare_modified_leaves(&self) -> bool;
@@ -22,14 +22,14 @@ pub(crate) trait OriginalSkeletonTreeConfig<L: Leaf> {
 #[macro_export]
 macro_rules! generate_trie_config {
     ($struct_name:ident, $leaf_type:ty) => {
-        pub(crate) struct $struct_name<'a> {
+        pub struct $struct_name<'a> {
             modifications: &'a LeafModifications<$leaf_type>,
             compare_modified_leaves: bool,
         }
 
         impl<'a> $struct_name<'a> {
             #[allow(dead_code)]
-            pub(crate) fn new(
+            pub fn new(
                 modifications: &'a LeafModifications<$leaf_type>,
                 compare_modified_leaves: bool,
             ) -> Self {

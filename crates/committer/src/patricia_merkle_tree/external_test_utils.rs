@@ -5,14 +5,13 @@ use ethnum::U256;
 use rand::Rng;
 use serde_json::json;
 
-use super::filled_tree::tree::{FilledTree, StorageTrie};
+use super::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use super::node_data::leaf::{Leaf, LeafModifications, SkeletonLeaf};
-use super::original_skeleton_tree::config::OriginalSkeletonStorageTrieConfig;
+use super::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use super::original_skeleton_tree::tree::{OriginalSkeletonTree, OriginalSkeletonTreeImpl};
 use super::types::{NodeIndex, SortedLeafIndices};
-use super::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
+use super::updated_skeleton_tree::hash_function::TreeHashFunction;
 use super::updated_skeleton_tree::tree::{UpdatedSkeletonTree, UpdatedSkeletonTreeImpl};
-use crate::block_committer::input::StarknetStorageValue;
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::errors::TypesError;
@@ -63,16 +62,20 @@ pub fn get_random_u256<R: Rng>(rng: &mut R, low: U256, high: U256) -> U256 {
     result
 }
 
-pub async fn tree_computation_flow(
-    leaf_modifications: Arc<LeafModifications<StarknetStorageValue>>,
+pub async fn tree_computation_flow<L, TH>(
+    leaf_modifications: Arc<LeafModifications<L>>,
     storage: &MapStorage,
     root_hash: HashOutput,
-) -> StorageTrie {
-    let config = OriginalSkeletonStorageTrieConfig::new(&leaf_modifications, false);
+    config: &impl OriginalSkeletonTreeConfig<L>,
+) -> FilledTreeImpl<L>
+where
+    TH: TreeHashFunction<L> + 'static,
+    L: Leaf + 'static,
+{
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
     let mut original_skeleton =
-        OriginalSkeletonTreeImpl::create(storage, root_hash, sorted_leaf_indices, &config)
+        OriginalSkeletonTreeImpl::create(storage, root_hash, sorted_leaf_indices, config)
             .expect("Failed to create the original skeleton tree");
 
     let updated_skeleton: UpdatedSkeletonTreeImpl = UpdatedSkeletonTree::create(
@@ -92,24 +95,26 @@ pub async fn tree_computation_flow(
     )
     .expect("Failed to create the updated skeleton tree");
 
-    StorageTrie::create::<TreeHashFunctionImpl>(updated_skeleton.into(), leaf_modifications)
+    FilledTreeImpl::<L>::create::<TH>(updated_skeleton.into(), leaf_modifications)
         .await
         .expect("Failed to create the filled tree")
 }
 
-pub async fn single_tree_flow_test(
-    leaf_modifications: LeafModifications<StarknetStorageValue>,
+pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 'static>(
+    leaf_modifications: &LeafModifications<L>,
     storage: MapStorage,
     root_hash: HashOutput,
+    config: &impl OriginalSkeletonTreeConfig<L>,
 ) -> String {
     // Move from leaf number to actual index.
     let leaf_modifications = leaf_modifications
-        .into_iter()
-        .map(|(k, v)| (NodeIndex::FIRST_LEAF + k, v))
-        .collect::<LeafModifications<StarknetStorageValue>>();
+        .iter()
+        .map(|(k, v)| (NodeIndex::FIRST_LEAF + *k, v.clone()))
+        .collect::<LeafModifications<L>>();
 
     let filled_tree =
-        tree_computation_flow(Arc::new(leaf_modifications), &storage, root_hash).await;
+        tree_computation_flow::<L, TH>(Arc::new(leaf_modifications), &storage, root_hash, config)
+            .await;
 
     let hash_result = filled_tree.get_root_hash();
 

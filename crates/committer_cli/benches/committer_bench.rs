@@ -13,7 +13,9 @@ use std::sync::Arc;
 use committer::block_committer::input::StarknetStorageValue;
 use committer::patricia_merkle_tree::external_test_utils::tree_computation_flow;
 use committer::patricia_merkle_tree::node_data::leaf::LeafModifications;
+use committer::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonStorageTrieConfig;
 use committer::patricia_merkle_tree::types::NodeIndex;
+use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use committer_cli::commands::parse_and_commit;
 use committer_cli::tests::utils::parse_from_python::TreeFlowInput;
 use criterion::{criterion_group, criterion_main, Criterion};
@@ -36,14 +38,15 @@ pub fn single_tree_flow_benchmark(criterion: &mut Criterion) {
         .into_iter()
         .map(|(k, v)| (NodeIndex::FIRST_LEAF + k, v))
         .collect::<LeafModifications<StarknetStorageValue>>();
-    let arc_leaf_modifications = Arc::new(leaf_modifications);
+    let arc_leaf_modifications = Arc::new(leaf_modifications.clone());
 
     criterion.bench_function("tree_computation_flow", |benchmark| {
         benchmark.iter(|| {
-            runtime.block_on(tree_computation_flow(
+            runtime.block_on(tree_computation_flow::<StarknetStorageValue, TreeHashFunctionImpl>(
                 Arc::clone(&arc_leaf_modifications),
                 &storage,
                 root_hash,
+                &OriginalSkeletonStorageTrieConfig::new(&leaf_modifications, false),
             ));
         })
     });
