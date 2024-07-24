@@ -61,6 +61,19 @@ impl TransactionPool {
         Ok(tx)
     }
 
+    pub fn remove_up_to_nonce(&mut self, address: ContractAddress, nonce: Nonce) {
+        let removed_txs = self.txs_by_account.remove_up_to_nonce(address, nonce);
+
+        for TransactionReference { tx_hash, .. } in removed_txs {
+            self.tx_pool.remove(&tx_hash).unwrap_or_else(|| {
+                panic!(
+                    "Transaction pool consistency error: transaction with hash {tx_hash} appears \
+                     in account mapping, but does not appear in the main mapping"
+                );
+            });
+        }
+    }
+
     pub fn get_by_tx_hash(&self, tx_hash: TransactionHash) -> MempoolResult<&ThinTransaction> {
         self.tx_pool.get(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })
     }
@@ -103,5 +116,26 @@ impl AccountTransactionIndex {
 
     fn get(&self, address: ContractAddress, nonce: Nonce) -> Option<&TransactionReference> {
         self.0.get(&address)?.get(&nonce)
+    }
+
+    fn remove_up_to_nonce(
+        &mut self,
+        address: ContractAddress,
+        nonce: Nonce,
+    ) -> Vec<TransactionReference> {
+        let Some(account_txs) = self.0.get_mut(&address) else {
+            return Vec::default();
+        };
+
+        // Split the transactions at the given nonce.
+        let txs_with_higher_or_equal_nonce = account_txs.split_off(&nonce);
+        let txs_with_lower_nonce = std::mem::replace(account_txs, txs_with_higher_or_equal_nonce);
+
+        if account_txs.is_empty() {
+            self.0.remove(&address);
+        }
+
+        // Collect and return the transactions with lower nonces.
+        txs_with_lower_nonce.into_values().collect()
     }
 }

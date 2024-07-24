@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 
 use axum::body::Body;
+use blockifier::test_utils::contracts::FeatureContract;
 use mempool_test_utils::starknet_api_test_utils::{
     external_tx_to_json,
     MultiAccountTransactionGenerator,
@@ -112,10 +113,12 @@ pub async fn get_available_socket() -> SocketAddr {
 
 /// Use to create a tx generator with _pre-funded_ accounts, alongside a mocked test setup.
 pub async fn setup_with_tx_generation(
-    n_accounts: usize,
+    accounts: &[FeatureContract],
 ) -> (IntegrationTestSetup, MultiAccountTransactionGenerator) {
-    let integration_test_setup = IntegrationTestSetup::new(n_accounts).await;
-    let tx_generator = MultiAccountTransactionGenerator::new(n_accounts);
+    let integration_test_setup =
+        IntegrationTestSetup::new_for_account_contracts(accounts.iter().copied()).await;
+    let tx_generator =
+        MultiAccountTransactionGenerator::new_for_account_contracts(accounts.iter().copied());
 
     (integration_test_setup, tx_generator)
 }

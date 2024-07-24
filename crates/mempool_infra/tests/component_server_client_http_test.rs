@@ -3,7 +3,7 @@ mod common;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 
 use async_trait::async_trait;
-use bincode::serialize;
+use bincode::{deserialize, serialize};
 use common::{
     ComponentAClientTrait,
     ComponentARequest,
@@ -14,33 +14,48 @@ use common::{
     ResultA,
     ResultB,
 };
+use hyper::body::to_bytes;
+use hyper::header::CONTENT_TYPE;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Request, Response, Server, StatusCode};
+use hyper::{Body, Client, Request, Response, Server, StatusCode, Uri};
 use rstest::rstest;
 use serde::Serialize;
-use starknet_mempool_infra::component_client::ComponentClientHttp;
-use starknet_mempool_infra::component_definitions::{ComponentRequestHandler, ServerError};
-use starknet_mempool_infra::component_server::ComponentServerHttp;
+use starknet_mempool_infra::component_client::definitions::{ClientError, ClientResult};
+use starknet_mempool_infra::component_client::remote_component_client::RemoteComponentClient;
+use starknet_mempool_infra::component_definitions::{
+    ComponentRequestHandler,
+    ServerError,
+    APPLICATION_OCTET_STREAM,
+};
+use starknet_mempool_infra::component_server::definitions::ComponentServerStarter;
+use starknet_mempool_infra::component_server::remote_component_server::RemoteComponentServer;
 use tokio::task;
 
-type ComponentAClient = ComponentClientHttp<ComponentARequest, ComponentAResponse>;
-type ComponentBClient = ComponentClientHttp<ComponentBRequest, ComponentBResponse>;
+type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentAResponse>;
+type ComponentBClient = RemoteComponentClient<ComponentBRequest, ComponentBResponse>;
 
 use crate::common::{ComponentA, ComponentB, ValueA, ValueB};
 
 const LOCAL_IP: IpAddr = IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
-const A_PORT: u16 = 10000;
-const B_PORT: u16 = 10001;
+const A_PORT_TEST_SETUP: u16 = 10000;
+const B_PORT_TEST_SETUP: u16 = 10001;
+const A_PORT_FAULTY_CLIENT: u16 = 10010;
+const B_PORT_FAULTY_CLIENT: u16 = 10011;
 const UNCONNECTED_SERVER_PORT: u16 = 10002;
 const FAULTY_SERVER_REQ_DESER_PORT: u16 = 10003;
 const FAULTY_SERVER_RES_DESER_PORT: u16 = 10004;
 const MOCK_SERVER_ERROR: &str = "mock server error";
+const ARBITRARY_DATA: &str = "arbitrary data";
+// ServerError::RequestDeserializationFailure error message.
+const DESERIALIZE_REQ_ERROR_MESSAGE: &str = "Could not deserialize client request";
+// ClientError::ResponseDeserializationFailure error message.
+const DESERIALIZE_RES_ERROR_MESSAGE: &str = "Could not deserialize server response";
 
 #[async_trait]
-impl ComponentAClientTrait for ComponentClientHttp<ComponentARequest, ComponentAResponse> {
+impl ComponentAClientTrait for RemoteComponentClient<ComponentARequest, ComponentAResponse> {
     async fn a_get_value(&self) -> ResultA {
         match self.send(ComponentARequest::AGetValue).await? {
-            ComponentAResponse::Value(value) => Ok(value),
+            ComponentAResponse::AGetValue(value) => Ok(value),
         }
     }
 }
@@ -49,16 +64,24 @@ impl ComponentAClientTrait for ComponentClientHttp<ComponentARequest, ComponentA
 impl ComponentRequestHandler<ComponentARequest, ComponentAResponse> for ComponentA {
     async fn handle_request(&mut self, request: ComponentARequest) -> ComponentAResponse {
         match request {
-            ComponentARequest::AGetValue => ComponentAResponse::Value(self.a_get_value().await),
+            ComponentARequest::AGetValue => ComponentAResponse::AGetValue(self.a_get_value().await),
         }
     }
 }
 
 #[async_trait]
-impl ComponentBClientTrait for ComponentClientHttp<ComponentBRequest, ComponentBResponse> {
+impl ComponentBClientTrait for RemoteComponentClient<ComponentBRequest, ComponentBResponse> {
     async fn b_get_value(&self) -> ResultB {
         match self.send(ComponentBRequest::BGetValue).await? {
-            ComponentBResponse::Value(value) => Ok(value),
+            ComponentBResponse::BGetValue(value) => Ok(value),
+            _ => Err(ClientError::UnexpectedResponse),
+        }
+    }
+
+    async fn b_set_value(&self, value: ValueB) -> ClientResult<()> {
+        match self.send(ComponentBRequest::BSetValue(value)).await? {
+            ComponentBResponse::BSetValue => Ok(()),
+            _ => Err(ClientError::UnexpectedResponse),
         }
     }
 }
@@ -67,23 +90,38 @@ impl ComponentBClientTrait for ComponentClientHttp<ComponentBRequest, ComponentB
 impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for ComponentB {
     async fn handle_request(&mut self, request: ComponentBRequest) -> ComponentBResponse {
         match request {
-            ComponentBRequest::BGetValue => ComponentBResponse::Value(self.b_get_value()),
+            ComponentBRequest::BGetValue => ComponentBResponse::BGetValue(self.b_get_value()),
+            ComponentBRequest::BSetValue(value) => {
+                self.b_set_value(value);
+                ComponentBResponse::BSetValue
+            }
         }
     }
 }
 
-async fn verify_response(a_client: ComponentAClient, expected_value: ValueA) {
+async fn verify_response(
+    a_client: ComponentAClient,
+    b_client: ComponentBClient,
+    expected_value: ValueA,
+) {
     assert_eq!(a_client.a_get_value().await.unwrap(), expected_value);
+    let new_expected_value: ValueB = 222;
+
+    assert!(b_client.b_set_value(new_expected_value).await.is_ok());
+    assert_eq!(a_client.a_get_value().await.unwrap(), new_expected_value.into());
 }
 
-async fn verify_error(a_client: ComponentAClient, expected_error_contained_keywords: Vec<&str>) {
+async fn verify_error(
+    a_client: impl ComponentAClientTrait,
+    expected_error_contained_keywords: &[&str],
+) {
     let Err(error) = a_client.a_get_value().await else {
         panic!("Expected an error.");
     };
     assert_error_contains_keywords(error.to_string(), expected_error_contained_keywords)
 }
 
-fn assert_error_contains_keywords(error: String, expected_error_contained_keywords: Vec<&str>) {
+fn assert_error_contains_keywords(error: String, expected_error_contained_keywords: &[&str]) {
     for expected_keyword in expected_error_contained_keywords {
         if !error.contains(expected_keyword) {
             panic!("Expected keyword: '{expected_keyword}' is not in error: '{error}'.")
@@ -114,33 +152,30 @@ where
         Server::bind(&socket).serve(make_svc).await.unwrap();
     });
 
+    // Todo(uriel): Get rid of this
     // Ensure the server starts running.
     task::yield_now().await;
 
     ComponentAClient::new(LOCAL_IP, port)
 }
 
-#[tokio::test]
-async fn test_setup() {
-    let setup_value: ValueB = 90;
-    let expected_value: ValueA = setup_value.into();
-
-    let a_client = ComponentAClient::new(LOCAL_IP, A_PORT);
-    let b_client = ComponentBClient::new(LOCAL_IP, B_PORT);
+async fn setup_for_tests(setup_value: ValueB, a_port: u16, b_port: u16) {
+    let a_client = ComponentAClient::new(LOCAL_IP, a_port);
+    let b_client = ComponentBClient::new(LOCAL_IP, b_port);
 
     let component_a = ComponentA::new(Box::new(b_client));
     let component_b = ComponentB::new(setup_value, Box::new(a_client.clone()));
 
-    let mut component_a_server = ComponentServerHttp::<
+    let mut component_a_server = RemoteComponentServer::<
         ComponentA,
         ComponentARequest,
         ComponentAResponse,
-    >::new(component_a, LOCAL_IP, A_PORT);
-    let mut component_b_server = ComponentServerHttp::<
+    >::new(component_a, LOCAL_IP, a_port);
+    let mut component_b_server = RemoteComponentServer::<
         ComponentB,
         ComponentBRequest,
         ComponentBResponse,
-    >::new(component_b, LOCAL_IP, B_PORT);
+    >::new(component_b, LOCAL_IP, b_port);
 
     task::spawn(async move {
         component_a_server.start().await;
@@ -152,16 +187,55 @@ async fn test_setup() {
 
     // Todo(uriel): Get rid of this
     task::yield_now().await;
+}
 
-    verify_response(a_client.clone(), expected_value).await;
+#[tokio::test]
+async fn test_proper_setup() {
+    let setup_value: ValueB = 90;
+    setup_for_tests(setup_value, A_PORT_TEST_SETUP, B_PORT_TEST_SETUP).await;
+    let a_client = ComponentAClient::new(LOCAL_IP, A_PORT_TEST_SETUP);
+    let b_client = ComponentBClient::new(LOCAL_IP, B_PORT_TEST_SETUP);
+    verify_response(a_client, b_client, setup_value.into()).await;
+}
+
+#[tokio::test]
+async fn test_faulty_client_setup() {
+    // Todo(uriel): Find a better way to pass expected value to the setup
+    // 123 is some arbitrary value, we don't check it anyway.
+    setup_for_tests(123, A_PORT_FAULTY_CLIENT, B_PORT_FAULTY_CLIENT).await;
+
+    struct FaultyAClient;
+
+    #[async_trait]
+    impl ComponentAClientTrait for FaultyAClient {
+        async fn a_get_value(&self) -> ResultA {
+            let component_request = ARBITRARY_DATA.to_string();
+            let uri: Uri =
+                format!("http://[{}]:{}/", LOCAL_IP, A_PORT_FAULTY_CLIENT).parse().unwrap();
+            let http_request = Request::post(uri)
+                .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+                .body(Body::from(serialize(&component_request).unwrap()))
+                .unwrap();
+            let http_response = Client::new().request(http_request).await.unwrap();
+            let status_code = http_response.status();
+            let body_bytes = to_bytes(http_response.into_body()).await.unwrap();
+            let response: ServerError = deserialize(&body_bytes).unwrap();
+
+            Err(ClientError::ResponseError(status_code, response))
+        }
+    }
+    let faulty_a_client = FaultyAClient;
+    let expected_error_contained_keywords =
+        [StatusCode::BAD_REQUEST.as_str(), DESERIALIZE_REQ_ERROR_MESSAGE];
+    verify_error(faulty_a_client, &expected_error_contained_keywords).await;
 }
 
 #[tokio::test]
 async fn test_unconnected_server() {
     let client = ComponentAClient::new(LOCAL_IP, UNCONNECTED_SERVER_PORT);
 
-    let expected_error_contained_keywords = vec!["Connection refused"];
-    verify_error(client, expected_error_contained_keywords).await;
+    let expected_error_contained_keywords = ["Connection refused"];
+    verify_error(client, &expected_error_contained_keywords).await;
 }
 
 #[rstest]
@@ -170,21 +244,16 @@ async fn test_unconnected_server() {
         FAULTY_SERVER_REQ_DESER_PORT,
         ServerError::RequestDeserializationFailure(MOCK_SERVER_ERROR.to_string())
     ).await,
-    vec![
-        StatusCode::BAD_REQUEST.as_str(),
-        "Could not deserialize client request",
-        MOCK_SERVER_ERROR
-    ],
+    &[StatusCode::BAD_REQUEST.as_str(),DESERIALIZE_REQ_ERROR_MESSAGE, MOCK_SERVER_ERROR],
 )]
 #[case::response_deserialization_failure(
-    create_client_and_faulty_server(FAULTY_SERVER_RES_DESER_PORT, "arbitrary data").await,
-    vec!["Could not deserialize server response"],
-
+    create_client_and_faulty_server(FAULTY_SERVER_RES_DESER_PORT,ARBITRARY_DATA).await,
+    &[DESERIALIZE_RES_ERROR_MESSAGE],
 )]
 #[tokio::test]
 async fn test_faulty_server(
     #[case] client: ComponentAClient,
-    #[case] expected_error_contained_keywords: Vec<&str>,
+    #[case] expected_error_contained_keywords: &[&str],
 ) {
     verify_error(client, expected_error_contained_keywords).await;
 }

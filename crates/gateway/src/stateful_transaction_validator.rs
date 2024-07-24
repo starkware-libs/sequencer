@@ -1,17 +1,20 @@
 use blockifier::blockifier::block::BlockInfo;
-use blockifier::blockifier::stateful_validator::StatefulValidator;
+use blockifier::blockifier::stateful_validator::{StatefulValidator, StatefulValidatorResult};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::ClassInfo;
 use blockifier::state::cached_state::CachedState;
+use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::versioned_constants::VersionedConstants;
-use starknet_api::core::Nonce;
+#[cfg(test)]
+use mockall::automock;
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
 use crate::config::StatefulTransactionValidatorConfig;
-use crate::errors::{StatefulTransactionValidatorError, StatefulTransactionValidatorResult};
+use crate::errors::StatefulTransactionValidatorResult;
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 use crate::utils::{external_tx_to_account_tx, get_sender_address, get_tx_hash};
 
@@ -25,12 +28,38 @@ pub struct StatefulTransactionValidator {
 
 type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>>;
 
+// TODO(yair): move the trait to Blockifier.
+#[cfg_attr(test, automock)]
+pub trait StatefulTransactionValidatorTrait {
+    fn validate(
+        &mut self,
+        account_tx: AccountTransaction,
+        skip_validate: bool,
+    ) -> StatefulTransactionValidatorResult<()>;
+
+    fn get_nonce(&mut self, account_address: ContractAddress) -> StatefulValidatorResult<Nonce>;
+}
+
+impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
+    fn validate(
+        &mut self,
+        account_tx: AccountTransaction,
+        skip_validate: bool,
+    ) -> StatefulTransactionValidatorResult<()> {
+        Ok(self.perform_validations(account_tx, skip_validate)?)
+    }
+
+    fn get_nonce(&mut self, account_address: ContractAddress) -> StatefulValidatorResult<Nonce> {
+        self.get_nonce(account_address)
+    }
+}
+
 impl StatefulTransactionValidator {
-    pub fn run_validate(
+    pub fn run_validate<V: StatefulTransactionValidatorTrait>(
         &self,
         external_tx: &RpcTransaction,
         optional_class_info: Option<ClassInfo>,
-        mut validator: BlockifierStatefulValidator,
+        mut validator: V,
     ) -> StatefulTransactionValidatorResult<TransactionHash> {
         let account_tx = external_tx_to_account_tx(
             external_tx,
@@ -38,10 +67,9 @@ impl StatefulTransactionValidator {
             &self.config.chain_info.chain_id,
         )?;
         let tx_hash = get_tx_hash(&account_tx);
-
         let account_nonce = validator.get_nonce(get_sender_address(external_tx))?;
-        let skip_validate = skip_stateful_validations(external_tx, account_nonce)?;
-        validator.perform_validations(account_tx, skip_validate)?;
+        let skip_validate = skip_stateful_validations(external_tx, account_nonce);
+        validator.validate(account_tx, skip_validate)?;
         Ok(tx_hash)
     }
 
@@ -59,11 +87,7 @@ impl StatefulTransactionValidator {
             self.config.max_recursion_depth,
         );
         let mut block_info = latest_block_info;
-        block_info.block_number = block_info.block_number.next().ok_or(
-            StatefulTransactionValidatorError::OutOfRangeBlockNumber {
-                block_number: block_info.block_number,
-            },
-        )?;
+        block_info.block_number = block_info.block_number.unchecked_next();
         // TODO(yael 21/4/24): create the block context using pre_process_block once we will be
         // able to read the block_hash of 10 blocks ago from papyrus.
         let block_context = BlockContext::new(
@@ -80,18 +104,15 @@ impl StatefulTransactionValidator {
 // Check if validation of an invoke transaction should be skipped due to deploy_account not being
 // proccessed yet. This feature is used to improve UX for users sending deploy_account + invoke at
 // once.
-fn skip_stateful_validations(
-    tx: &RpcTransaction,
-    account_nonce: Nonce,
-) -> StatefulTransactionValidatorResult<bool> {
+fn skip_stateful_validations(tx: &RpcTransaction, account_nonce: Nonce) -> bool {
     match tx {
         RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
             // check if the transaction nonce is 1, meaning it is post deploy_account, and the
             // account nonce is zero, meaning the account was not deployed yet. The mempool also
             // verifies that the deploy_account transaction exists.
-            Ok(tx.nonce == Nonce(Felt::ONE) && account_nonce == Nonce(Felt::ZERO))
+            tx.nonce == Nonce(Felt::ONE) && account_nonce == Nonce(Felt::ZERO)
         }
-        RpcTransaction::DeployAccount(_) | RpcTransaction::Declare(_) => Ok(false),
+        RpcTransaction::DeployAccount(_) | RpcTransaction::Declare(_) => false,
     }
 }
 

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use starknet_mempool_infra::component_client::ClientResult;
+use starknet_mempool_infra::component_client::definitions::ClientResult;
 use starknet_mempool_infra::component_runner::ComponentStarter;
 
 pub(crate) type ValueA = u32;
@@ -18,17 +18,19 @@ pub enum ComponentARequest {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ComponentAResponse {
-    Value(ValueA),
+    AGetValue(ValueA),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ComponentBRequest {
     BGetValue,
+    BSetValue(ValueB),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ComponentBResponse {
-    Value(ValueB),
+    BGetValue(ValueB),
+    BSetValue,
 }
 
 #[async_trait]
@@ -39,6 +41,7 @@ pub(crate) trait ComponentAClientTrait: Send + Sync {
 #[async_trait]
 pub(crate) trait ComponentBClientTrait: Send + Sync {
     async fn b_get_value(&self) -> ResultB;
+    async fn b_set_value(&self, value: ValueB) -> ClientResult<()>;
 }
 
 pub(crate) struct ComponentA {
@@ -71,6 +74,10 @@ impl ComponentB {
 
     pub fn b_get_value(&self) -> ValueB {
         self.value
+    }
+
+    pub fn b_set_value(&mut self, value: ValueB) {
+        self.value = value;
     }
 }
 

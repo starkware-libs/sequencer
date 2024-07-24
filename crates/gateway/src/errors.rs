@@ -6,7 +6,7 @@ use blockifier::state::errors::StateError;
 use blockifier::transaction::errors::TransactionExecutionError;
 use cairo_vm::types::errors::program_errors::ProgramError;
 use serde_json::{Error as SerdeError, Value};
-use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block::GasPrice;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::transaction::{Resource, ResourceBounds};
 use starknet_api::StarknetApiError;
@@ -96,8 +96,6 @@ pub type StatelessTransactionValidatorResult<T> = Result<T, StatelessTransaction
 
 #[derive(Debug, Error)]
 pub enum StatefulTransactionValidatorError {
-    #[error("Block number {block_number:?} is out of range.")]
-    OutOfRangeBlockNumber { block_number: BlockNumber },
     #[error(transparent)]
     StarknetApiError(#[from] StarknetApiError),
     #[error(transparent)]

@@ -38,6 +38,7 @@ validator.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 mockito = "1.4.0"
+mockall.workspace = true
 num-bigint.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true

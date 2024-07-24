@@ -15,6 +15,7 @@ use blockifier::test_utils::{
 use blockifier::transaction::objects::FeeType;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::{indexmap, IndexMap};
+use itertools::Itertools;
 use mempool_test_utils::starknet_api_test_utils::{
     deploy_account_tx,
     deployed_account_contract_address,
@@ -63,25 +64,31 @@ fn deploy_account_tx_contract_address() -> &'static ContractAddress {
 /// Creates a papyrus storage reader and spawns a papyrus rpc server for it.
 /// Returns the address of the rpc server.
 /// A variable number of identical accounts and test contracts are initialized and funded.
-pub async fn spawn_test_rpc_state_reader(n_accounts: usize) -> SocketAddr {
+pub async fn spawn_test_rpc_state_reader(
+    accounts: impl IntoIterator<Item = FeatureContract>,
+) -> SocketAddr {
     let block_context = BlockContext::create_for_testing();
-    let account_contract_cairo0 = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
-    let test_contract_cairo0 = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let account_contract_cairo1 = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
-    let test_contract_cairo1 = FeatureContract::TestContract(CairoVersion::Cairo1);
-    let erc20_cairo0 = FeatureContract::ERC20(CairoVersion::Cairo0);
+
+    // Map feature contracts to their number of instances inside the account array.
+    let mut account_to_n_instances: IndexMap<FeatureContract, usize> =
+        IndexMap::from_iter(accounts.into_iter().counts());
+
+    // Add essential contracts to contract mapping, if not exist already.
+    // TODO: can this hard-coding be removed?
+    for contract in [
+        FeatureContract::TestContract(CairoVersion::Cairo0),
+        FeatureContract::TestContract(CairoVersion::Cairo1),
+        FeatureContract::ERC20(CairoVersion::Cairo0),
+    ] {
+        *account_to_n_instances.entry(contract).or_default() += 1;
+    }
+
     let fund_accounts = vec![*deploy_account_tx_contract_address()];
 
     let storage_reader = initialize_papyrus_test_state(
         block_context.chain_info(),
         BALANCE,
-        &[
-            (erc20_cairo0, 1),
-            (account_contract_cairo0, 1),
-            (test_contract_cairo0, 1),
-            (account_contract_cairo1, n_accounts),
-            (test_contract_cairo1, 1),
-        ],
+        account_to_n_instances,
         fund_accounts,
     );
     run_papyrus_rpc_server(storage_reader).await
@@ -90,26 +97,25 @@ pub async fn spawn_test_rpc_state_reader(n_accounts: usize) -> SocketAddr {
 fn initialize_papyrus_test_state(
     chain_info: &ChainInfo,
     initial_balances: u128,
-    contract_instances: &[(FeatureContract, usize)],
+    contract_instances: IndexMap<FeatureContract, usize>,
     fund_additional_accounts: Vec<ContractAddress>,
 ) -> StorageReader {
     let state_diff = prepare_state_diff(
         chain_info,
-        contract_instances,
+        &contract_instances,
         initial_balances,
         fund_additional_accounts,
     );
 
-    let contracts = contract_instances.iter().map(|(contract, _n_instances_of_contract)| *contract);
     let (cairo0_contract_classes, cairo1_contract_classes) =
-        prepare_compiled_contract_classes(contracts);
+        prepare_compiled_contract_classes(contract_instances.into_keys());
 
     write_state_to_papyrus_storage(state_diff, &cairo0_contract_classes, &cairo1_contract_classes)
 }
 
 fn prepare_state_diff(
     chain_info: &ChainInfo,
-    contract_instances: &[(FeatureContract, usize)],
+    contract_instances: &IndexMap<FeatureContract, usize>,
     initial_balances: u128,
     fund_accounts: Vec<ContractAddress>,
 ) -> ThinStateDiff {
@@ -125,8 +131,8 @@ fn prepare_state_diff(
 
     let mut storage_diffs = IndexMap::new();
     let mut declared_classes = IndexMap::new();
-    for (contract, n_instances) in contract_instances.iter() {
-        for instance in 0..*n_instances {
+    for (contract, &n_instances) in contract_instances {
+        for instance in 0..n_instances {
             // Declare and deploy the contracts
             match contract.cairo_version() {
                 CairoVersion::Cairo0 => {

@@ -14,13 +14,13 @@ struct DeserializedContractClass {
     pub entry_points_by_type: ContractEntryPoints,
 }
 
-pub(crate) fn contract_class_from_file(file: &Path) -> ContractClass {
+pub(crate) fn contract_class_from_file<P: AsRef<Path>>(path: P) -> ContractClass {
     let DeserializedContractClass {
         sierra_program,
         sierra_program_debug_info,
         contract_class_version,
         entry_points_by_type,
-    } = serde_json::from_str(&fs::read_to_string(file).expect("Failed to read input file."))
+    } = serde_json::from_str(&fs::read_to_string(path).expect("Failed to read input file."))
         .expect("deserialization Failed.");
 
     ContractClass {
