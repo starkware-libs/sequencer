@@ -1,0 +1,38 @@
+[package]
+name = "starknet_mempool_integration_tests"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+axum.workspace = true
+blockifier.workspace = true
+cairo-lang-starknet-classes.workspace = true
+indexmap.workspace = true
+itertools.workspace = true
+mempool_test_utils = { path = "../mempool_test_utils", version = "0.0" }
+papyrus_common.workspace = true
+papyrus_rpc.workspace = true
+papyrus_storage.workspace = true
+reqwest.workspace = true
+serde_json.workspace = true
+starknet-types-core.workspace = true
+starknet_api.workspace = true
+starknet_client.workspace = true
+starknet_gateway = { path = "../gateway", version = "0.0", features = ["testing"] }
+starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }
+starknet_mempool_node = { path = "../mempool_node", version = "0.0" }
+starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
+starknet_task_executor = { path = "../task_executor", version = "0.0" }
+strum.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+rstest.workspace = true
+starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }

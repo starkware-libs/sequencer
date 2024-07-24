@@ -1,0 +1,34 @@
+[package]
+name = "papyrus_protobuf"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[features]
+testing = ["rand", "rand_chacha", "test_utils"]
+
+[dependencies]
+indexmap.workspace = true
+lazy_static.workspace = true
+primitive-types.workspace = true
+prost.workspace = true
+rand = { workspace = true, optional = true }
+rand_chacha = { workspace = true, optional = true }
+starknet_api.workspace = true
+starknet-types-core.workspace = true
+test_utils = { path = "../test_utils", optional = true }
+thiserror.workspace = true
+papyrus_common = { path = "../papyrus_common", version = "0.4.0-dev.2" }
+
+[dev-dependencies]
+rand.workspace = true
+rand_chacha.workspace = true
+test_utils = { path = "../test_utils" }
+
+[build-dependencies]
+prost-build.workspace = true
+
+[package.metadata.cargo-machete]
+# The `rand` and `rand_chacha` crates are used in the `testing` feature, which is optional.
+ignored = ["rand", "rand_chacha"]

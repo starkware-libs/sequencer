@@ -1,0 +1,16 @@
+[package]
+name = "starknet_mempool_types"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait.workspace = true
+mockall.workspace = true
+starknet_api.workspace = true
+starknet_mempool_infra = { path = "../mempool_infra" }
+thiserror.workspace = true

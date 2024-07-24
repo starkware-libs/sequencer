@@ -1,0 +1,27 @@
+[package]
+name = "papyrus_common"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Common utils and objects for a Starknet node."
+
+[dependencies]
+cairo-lang-starknet-classes.workspace = true
+hex.workspace = true
+itertools.workspace = true
+lazy_static.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha3.workspace = true
+starknet_api.workspace = true
+starknet-types-core = { workspace = true, features = ["hash"] }
+thiserror.workspace = true
+rand.workspace = true
+indexmap.workspace = true
+
+[dev-dependencies]
+assert_matches.workspace = true
+pretty_assertions.workspace = true
+serde_json = { workspace = true, features = ["arbitrary_precision"]}
+test_utils = { path = "../test_utils" }
