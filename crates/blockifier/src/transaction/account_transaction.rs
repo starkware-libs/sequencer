@@ -4,7 +4,13 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::calldata;
 use starknet_api::core::{ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::EntryPointType;
-use starknet_api::transaction::{Calldata, Fee, ResourceBounds, TransactionVersion};
+use starknet_api::transaction::{
+    Calldata,
+    Fee,
+    ResourceBounds,
+    TransactionHash,
+    TransactionVersion,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
@@ -189,6 +195,14 @@ impl AccountTransaction {
         }
 
         Ok(())
+    }
+
+    pub fn get_transaction_hash(&self) -> &TransactionHash {
+        match self {
+            AccountTransaction::Invoke(tx) => &tx.tx_hash,
+            AccountTransaction::Declare(tx) => &tx.tx_hash,
+            AccountTransaction::DeployAccount(tx) => &tx.tx_hash,
+        }
     }
 
     fn check_fee_bounds(
