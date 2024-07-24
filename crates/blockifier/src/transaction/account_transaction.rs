@@ -2,13 +2,19 @@ use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::calldata;
-use starknet_api::core::{ContractAddress, EntryPointSelector};
+use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
+use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::transaction::{
+    AccountDeploymentData,
     Calldata,
+    DeprecatedResourceBoundsMapping,
     Fee,
+    PaymasterData,
     ResourceBounds,
+    Tip,
     TransactionHash,
+    TransactionSignature,
     TransactionVersion,
 };
 use starknet_types_core::felt::Felt;
@@ -77,9 +83,20 @@ pub enum AccountTransaction {
     Invoke(InvokeTransaction),
 }
 
+macro_rules! implement_account_tx_inner_getters {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            match self {
+                Self::Declare(tx) => tx.tx.$field().clone(),
+                Self::DeployAccount(tx) => tx.tx.$field().clone(),
+                Self::Invoke(tx) => tx.tx.$field().clone(),
+            }
+        })*
+    };
+}
+
 impl TryFrom<starknet_api::executable_transaction::Transaction> for AccountTransaction {
     type Error = TransactionExecutionError;
-
     fn try_from(
         executable_transaction: starknet_api::executable_transaction::Transaction,
     ) -> Result<Self, Self::Error> {
@@ -115,6 +132,41 @@ impl HasRelatedFeeType for AccountTransaction {
 }
 
 impl AccountTransaction {
+    implement_account_tx_inner_getters!(
+        (signature, TransactionSignature),
+        (nonce, Nonce),
+        (resource_bounds, DeprecatedResourceBoundsMapping),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData),
+        (max_fee, Option<Fee>)
+    );
+
+    pub fn class_hash(&self) -> Option<ClassHash> {
+        match self {
+            Self::Declare(tx) => Some(tx.tx.class_hash()),
+            Self::DeployAccount(tx) => Some(tx.tx.class_hash()),
+            Self::Invoke(_) => None,
+        }
+    }
+
+    pub fn sender_address(&self) -> Option<ContractAddress> {
+        match self {
+            Self::Declare(tx) => Some(tx.tx.sender_address()),
+            Self::DeployAccount(_) => None,
+            Self::Invoke(tx) => Some(tx.tx.sender_address()),
+        }
+    }
+
+    pub fn account_deployment_data(&self) -> Option<AccountDeploymentData> {
+        match self {
+            Self::Declare(tx) => Some(tx.tx.account_deployment_data().clone()),
+            Self::DeployAccount(_) => None,
+            Self::Invoke(tx) => Some(tx.tx.account_deployment_data().clone()),
+        }
+    }
+
     // TODO(nir, 01/11/2023): Consider instantiating CommonAccountFields in AccountTransaction.
     pub fn tx_type(&self) -> TransactionType {
         match self {

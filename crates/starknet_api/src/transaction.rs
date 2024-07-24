@@ -260,6 +260,17 @@ macro_rules! implement_declare_tx_getters {
     };
 }
 
+macro_rules! implement_declare_tx_v3_getters {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            match self {
+                Self::V3(tx) => tx.$field.clone(),
+                _ => panic!("Field {} is only available for DeclareTransactionV3.", stringify!($field)),
+            }
+        })*
+    };
+}
+
 impl DeclareTransaction {
     implement_declare_tx_getters!(
         (class_hash, ClassHash),
@@ -268,12 +279,39 @@ impl DeclareTransaction {
         (signature, TransactionSignature)
     );
 
+    implement_declare_tx_v3_getters!(
+        (resource_bounds, DeprecatedResourceBoundsMapping),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData),
+        (account_deployment_data, AccountDeploymentData)
+    );
+
     pub fn version(&self) -> TransactionVersion {
         match self {
             DeclareTransaction::V0(_) => TransactionVersion::ZERO,
             DeclareTransaction::V1(_) => TransactionVersion::ONE,
             DeclareTransaction::V2(_) => TransactionVersion::TWO,
             DeclareTransaction::V3(_) => TransactionVersion::THREE,
+        }
+    }
+
+    pub fn compiled_class_hash(&self) -> Option<CompiledClassHash> {
+        match self {
+            DeclareTransaction::V0(_) => None,
+            DeclareTransaction::V1(_) => None,
+            DeclareTransaction::V2(tx) => Some(tx.compiled_class_hash),
+            DeclareTransaction::V3(tx) => Some(tx.compiled_class_hash),
+        }
+    }
+
+    pub fn max_fee(&self) -> Option<Fee> {
+        match self {
+            DeclareTransaction::V0(tx) => Some(tx.max_fee),
+            DeclareTransaction::V1(tx) => Some(tx.max_fee),
+            DeclareTransaction::V2(tx) => Some(tx.max_fee),
+            DeclareTransaction::V3(_) => None,
         }
     }
 }
@@ -366,6 +404,17 @@ macro_rules! implement_deploy_account_tx_getters {
     };
 }
 
+macro_rules! implement_deploy_account_tx_v3_getters {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            match self {
+                Self::V3(tx) => tx.$field.clone(),
+                _ => panic!("Field {} is only available for DeclareTransactionV3.", stringify!($field)),
+            }
+        })*
+    };
+}
+
 impl DeployAccountTransaction {
     implement_deploy_account_tx_getters!(
         (class_hash, ClassHash),
@@ -375,10 +424,25 @@ impl DeployAccountTransaction {
         (signature, TransactionSignature)
     );
 
+    implement_deploy_account_tx_v3_getters!(
+        (resource_bounds, DeprecatedResourceBoundsMapping),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData)
+    );
+
     pub fn version(&self) -> TransactionVersion {
         match self {
             DeployAccountTransaction::V1(_) => TransactionVersion::ONE,
             DeployAccountTransaction::V3(_) => TransactionVersion::THREE,
+        }
+    }
+
+    pub fn max_fee(&self) -> Option<Fee> {
+        match self {
+            DeployAccountTransaction::V1(tx) => Some(tx.max_fee),
+            DeployAccountTransaction::V3(_) => None,
         }
     }
 }
@@ -503,8 +567,28 @@ macro_rules! implement_invoke_tx_getters {
     };
 }
 
+macro_rules! implement_invoke_tx_v3_getters {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            match self {
+                Self::V3(tx) => tx.$field.clone(),
+                _ => panic!("Field {} is only available for DeclareTransactionV3.", stringify!($field)),
+            }
+        })*
+    };
+}
+
 impl InvokeTransaction {
     implement_invoke_tx_getters!((calldata, Calldata), (signature, TransactionSignature));
+
+    implement_invoke_tx_v3_getters!(
+        (resource_bounds, DeprecatedResourceBoundsMapping),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData),
+        (account_deployment_data, AccountDeploymentData)
+    );
 
     pub fn nonce(&self) -> Nonce {
         match self {
@@ -527,6 +611,14 @@ impl InvokeTransaction {
             InvokeTransaction::V0(_) => TransactionVersion::ZERO,
             InvokeTransaction::V1(_) => TransactionVersion::ONE,
             InvokeTransaction::V3(_) => TransactionVersion::THREE,
+        }
+    }
+
+    pub fn max_fee(&self) -> Option<Fee> {
+        match self {
+            InvokeTransaction::V0(tx) => Some(tx.max_fee),
+            InvokeTransaction::V1(tx) => Some(tx.max_fee),
+            InvokeTransaction::V3(_) => None,
         }
     }
 }
