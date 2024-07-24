@@ -23,8 +23,8 @@ pub(crate) fn split_leaves<'a>(
     let assert_descendant = |leaf_index: &NodeIndex| {
         if (*leaf_index >> u8::from(root_height)) != *root_index {
             panic!(
-                "Leaf {leaf_index:?} is not a descendant of the root {root_index:?} \
-            (root height={root_height:?})."
+                "Leaf {leaf_index:?} is not a descendant of the root {root_index:?} (root \
+                 height={root_height:?})."
             );
         }
     };
@@ -33,11 +33,7 @@ pub(crate) fn split_leaves<'a>(
     assert_descendant(first_leaf);
 
     if leaf_indices.len() > 1 {
-        assert_descendant(
-            leaf_indices
-                .last()
-                .expect("leaf_indices unexpectedly empty."),
-        );
+        assert_descendant(leaf_indices.last().expect("leaf_indices unexpectedly empty."));
     }
 
     let right_child_index = (*root_index << 1) + 1;

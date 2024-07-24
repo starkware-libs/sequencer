@@ -11,7 +11,7 @@ use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::db_object::{DBObject, Deserializable};
 
-pub trait LeafData: Clone + Sync + Send + DBObject + Deserializable + Default + Debug + Eq {
+pub trait Leaf: Clone + Sync + Send + DBObject + Deserializable + Default + Debug + Eq {
     /// Returns true if leaf is empty.
     fn is_empty(&self) -> bool;
 
@@ -47,7 +47,7 @@ pub struct ContractState {
     pub class_hash: ClassHash,
 }
 
-impl LeafData for StarknetStorageValue {
+impl Leaf for StarknetStorageValue {
     fn is_empty(&self) -> bool {
         self.0 == Felt::ZERO
     }
@@ -60,7 +60,7 @@ impl LeafData for StarknetStorageValue {
     }
 }
 
-impl LeafData for CompiledClassHash {
+impl Leaf for CompiledClassHash {
     fn is_empty(&self) -> bool {
         self.0 == Felt::ZERO
     }
@@ -73,7 +73,7 @@ impl LeafData for CompiledClassHash {
     }
 }
 
-impl LeafData for ContractState {
+impl Leaf for ContractState {
     fn is_empty(&self) -> bool {
         self.nonce.0 == Felt::ZERO
             && self.class_hash.0 == Felt::ZERO
@@ -102,11 +102,7 @@ impl SkeletonLeaf {
 
 impl From<Felt> for SkeletonLeaf {
     fn from(value: Felt) -> Self {
-        if value == Felt::ZERO {
-            Self::Zero
-        } else {
-            Self::NonZero
-        }
+        if value == Felt::ZERO { Self::Zero } else { Self::NonZero }
     }
 }
 

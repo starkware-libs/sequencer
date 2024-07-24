@@ -1,11 +1,18 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use tokio::task::JoinSet;
+
 use crate::block_committer::input::{ContractAddress, StarknetStorageValue};
 use crate::forest_errors::{ForestError, ForestResult};
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::filled_tree::node::CompiledClassHash;
-use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
-use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
+use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
 use crate::patricia_merkle_tree::filled_tree::tree::{
-    ClassesTrie, ContractsTrie, StorageTrie, StorageTrieMap,
+    ClassesTrie,
+    ContractsTrie,
+    FilledTree,
+    StorageTrie,
+    StorageTrieMap,
 };
 use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafModifications};
 use crate::patricia_merkle_tree::types::NodeIndex;
@@ -13,10 +20,6 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::ForestHas
 use crate::patricia_merkle_tree::updated_skeleton_tree::skeleton_forest::UpdatedSkeletonForest;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 use crate::storage::storage_trait::Storage;
-
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::task::JoinSet;
 
 pub struct FilledForest {
     pub storage_tries: StorageTrieMap,
@@ -55,15 +58,13 @@ impl FilledForest {
         address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
         address_to_nonce: &HashMap<ContractAddress, Nonce>,
     ) -> ForestResult<Self> {
-        let classes_trie = ClassesTrie::create::<TH>(
+        let classes_trie_task = tokio::spawn(ClassesTrie::create::<TH>(
             Arc::new(updated_forest.classes_trie),
             Arc::new(classes_updates),
-        )
-        .await?;
-
+        ));
         let mut contracts_trie_modifications = HashMap::new();
         let mut filled_storage_tries = HashMap::new();
-        let mut tasks = JoinSet::new();
+        let mut contracts_state_tasks = JoinSet::new();
 
         for (address, inner_updates) in storage_updates {
             let updated_storage_trie = updated_forest
@@ -74,11 +75,9 @@ impl FilledForest {
             let original_contract_state = original_contracts_trie_leaves
                 .get(&NodeIndex::from_contract_address(&address))
                 .ok_or(ForestError::MissingContractCurrentState(address))?;
-            tasks.spawn(Self::new_contract_state::<TH>(
+            contracts_state_tasks.spawn(Self::new_contract_state::<TH>(
                 address,
-                *(address_to_nonce
-                    .get(&address)
-                    .unwrap_or(&original_contract_state.nonce)),
+                *(address_to_nonce.get(&address).unwrap_or(&original_contract_state.nonce)),
                 *(address_to_class_hash
                     .get(&address)
                     .unwrap_or(&original_contract_state.class_hash)),
@@ -87,25 +86,22 @@ impl FilledForest {
             ));
         }
 
-        while let Some(result) = tasks.join_next().await {
+        while let Some(result) = contracts_state_tasks.join_next().await {
             let (address, new_contract_state, filled_storage_trie) = result??;
-            contracts_trie_modifications.insert(
-                NodeIndex::from_contract_address(&address),
-                new_contract_state,
-            );
+            contracts_trie_modifications
+                .insert(NodeIndex::from_contract_address(&address), new_contract_state);
             filled_storage_tries.insert(address, filled_storage_trie);
         }
 
-        let contracts_trie = ContractsTrie::create::<TH>(
+        let contracts_trie_task = tokio::spawn(ContractsTrie::create::<TH>(
             Arc::new(updated_forest.contracts_trie),
             Arc::new(contracts_trie_modifications),
-        )
-        .await?;
+        ));
 
         Ok(Self {
             storage_tries: filled_storage_tries,
-            contracts_trie,
-            classes_trie,
+            contracts_trie: contracts_trie_task.await??,
+            classes_trie: classes_trie_task.await??,
         })
     }
 
