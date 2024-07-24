@@ -5,10 +5,7 @@ on:
     paths:
       - '.github/workflows/blockifier_coverage.yml'
       - 'crates/blockifier/**'
-  push:
-    paths:
-      - '.github/workflows/blockifier_coverage.yml'
-      - 'crates/blockifier/**'
+      - 'crates/native_blockifier/**'
 
 jobs:
   coverage:
