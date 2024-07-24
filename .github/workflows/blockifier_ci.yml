@@ -9,6 +9,8 @@ on:
       - main-v[0-9].**
     tags:
       - v[0-9].**
+    # TODO(Dori, 1/9/2024): Decide when exactly native-blockifier artifacts will be built. Until
+    #   then, keep the 'paths' key empty and build on every push to a release branch / tag.
 
   pull_request:
     types:
@@ -18,10 +20,17 @@ on:
       - auto_merge_enabled
       - edited
     paths:
+      # Other than code-related changes, all changes related to the native-blockifier build-and-push
+      # process should trigger the build (e.g., changes to the Dockerfile, build scripts, etc.).
+      - '.github/workflows/blockifier_ci.yml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'blockifier.Dockerfile'
+      - 'build_native_blockifier_in_docker.sh'
       - 'crates/blockifier/**'
       - 'crates/native_blockifier/**'
-      - 'build_native_blockifier_in_docker.sh'
       - 'scripts/build_native_blockifier.sh'
+      - 'scripts/install_build_tools.sh'
 
 jobs:
   featureless-build:

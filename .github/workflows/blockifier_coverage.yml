@@ -3,10 +3,9 @@ name: Blockifier-Coverage
 on:
   pull_request:
     paths:
+      - '.github/workflows/blockifier_coverage.yml'
       - 'crates/blockifier/**'
-  push:
-    paths:
-      - 'crates/blockifier/**'
+      - 'crates/native_blockifier/**'
 
 jobs:
   coverage:
