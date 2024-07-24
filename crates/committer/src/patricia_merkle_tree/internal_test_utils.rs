@@ -28,7 +28,7 @@ use crate::storage::db_object::{DBObject, Deserializable};
 use crate::storage::storage_trait::StorageValue;
 
 #[derive(Debug, PartialEq, Clone, Copy, Default, Eq)]
-pub(crate) struct MockLeaf(pub(crate) Felt);
+pub struct MockLeaf(pub(crate) Felt);
 
 impl DBObject for MockLeaf {
     fn serialize(&self) -> StorageValue {
