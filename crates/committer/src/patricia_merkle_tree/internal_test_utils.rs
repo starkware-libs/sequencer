@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use crate::felt::Felt;
+use crate::generate_trie_config;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
-
-use crate::generate_trie_config;
+use crate::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use crate::patricia_merkle_tree::node_data::errors::LeafResult;
 use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
@@ -75,6 +75,8 @@ impl TreeHashFunction<MockLeaf> for TreeHashFunctionImpl {
 }
 
 generate_trie_config!(OriginalSkeletonMockTrieConfig, MockLeaf);
+
+pub(crate) type MockTrie = FilledTreeImpl<MockLeaf>;
 
 struct MockHashFunction;
 
