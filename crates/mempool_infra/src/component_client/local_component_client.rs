@@ -18,7 +18,7 @@ use crate::component_definitions::ComponentRequestAndResponseSender;
 /// // Example usage of the LocalComponentClient
 /// use tokio::sync::mpsc::Sender;
 ///
-/// use crate::starknet_mempool_infra::component_client::local_component_client::LocalComponentClient;
+/// use crate::starknet_mempool_infra::component_client::LocalComponentClient;
 /// use crate::starknet_mempool_infra::component_definitions::ComponentRequestAndResponseSender;
 ///
 /// // Define your request and response types
