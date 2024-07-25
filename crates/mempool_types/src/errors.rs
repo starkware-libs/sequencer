@@ -1,8 +1,9 @@
+use serde::{Deserialize, Serialize};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 
-#[derive(Clone, Debug, Error, PartialEq, Eq)]
+#[derive(Clone, Debug, Error, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MempoolError {
     #[error("Duplicate transaction, sender address: {address}, nonce: {:?}", nonce)]
     DuplicateNonce { address: ContractAddress, nonce: Nonce },
