@@ -14,9 +14,9 @@ workspace = true
 [dependencies]
 async-trait.workspace = true
 bincode.workspace = true
-hyper.workspace = true
+hyper = { version = "0.14", features = ["client", "http1", "http2", "server", "tcp"] }
 rstest.workspace = true
-serde.workspace = true
+serde = { version = "1.0.193", features = ["derive"] }
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
