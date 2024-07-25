@@ -60,7 +60,7 @@ impl MempoolState<PartialState> {
         }
     }
 
-    fn _with_queue<Q>(queue_txs: Q) -> Self
+    fn with_queue<Q>(queue_txs: Q) -> Self
     where
         Q: IntoIterator<Item = TransactionReference>,
     {
@@ -354,15 +354,22 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
 
 #[rstest]
 fn test_tip_priority_over_tx_hash(mut mempool: Mempool) {
+    // Setup.
     let input_big_tip_small_hash = add_tx_input!(tip: 2, tx_hash: Felt::ONE);
 
     // Create a transaction with identical tip, it should be allowed through since the priority
     // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
     let input_small_tip_big_hash = add_tx_input!(tip: 1, tx_hash: Felt::TWO, sender_address: "0x1");
 
+    // Test.
     add_tx(&mut mempool, &input_big_tip_small_hash);
     add_tx(&mut mempool, &input_small_tip_big_hash);
-    assert_eq_mempool_queue(&mempool, &[input_big_tip_small_hash.tx, input_small_tip_big_hash.tx])
+
+    // Assert: ensure that the transaction with the higher tip is prioritized higher.
+    let expected_queue_txs =
+        [&input_big_tip_small_hash.tx, &input_small_tip_big_hash.tx].map(TransactionReference::new);
+    let expected_mempool_state = MempoolState::with_queue(expected_queue_txs);
+    expected_mempool_state.assert_eq_queue_state(&mempool);
 }
 
 #[rstest]
