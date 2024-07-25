@@ -24,26 +24,30 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
     let mut events = state_machine.start(&leader_fn);
     if is_proposer {
         assert_eq!(events.pop_front().unwrap(), StateMachineEvent::GetProposal(None, ROUND));
-        events = state_machine.handle_event(StateMachineEvent::GetProposal(BLOCK_HASH, ROUND));
+        events = state_machine
+            .handle_event(StateMachineEvent::GetProposal(BLOCK_HASH, ROUND), &leader_fn);
         assert_eq!(events.pop_front().unwrap(), StateMachineEvent::Proposal(BLOCK_HASH, ROUND));
     } else {
         assert!(events.is_empty(), "{:?}", events);
-        events = state_machine.handle_event(StateMachineEvent::Proposal(BLOCK_HASH, ROUND));
+        events =
+            state_machine.handle_event(StateMachineEvent::Proposal(BLOCK_HASH, ROUND), &leader_fn);
     }
     assert_eq!(events.pop_front().unwrap(), StateMachineEvent::Prevote(BLOCK_HASH, ROUND));
     assert!(events.is_empty(), "{:?}", events);
 
-    events = state_machine.handle_event(StateMachineEvent::Prevote(BLOCK_HASH, ROUND));
+    events = state_machine.handle_event(StateMachineEvent::Prevote(BLOCK_HASH, ROUND), &leader_fn);
     assert!(events.is_empty(), "{:?}", events);
 
-    events = state_machine.handle_event(StateMachineEvent::Prevote(BLOCK_HASH, ROUND));
+    events = state_machine.handle_event(StateMachineEvent::Prevote(BLOCK_HASH, ROUND), &leader_fn);
     assert_eq!(events.pop_front().unwrap(), StateMachineEvent::Precommit(BLOCK_HASH, ROUND));
     assert!(events.is_empty(), "{:?}", events);
 
-    events = state_machine.handle_event(StateMachineEvent::Precommit(BLOCK_HASH, ROUND));
+    events =
+        state_machine.handle_event(StateMachineEvent::Precommit(BLOCK_HASH, ROUND), &leader_fn);
     assert!(events.is_empty(), "{:?}", events);
 
-    events = state_machine.handle_event(StateMachineEvent::Precommit(BLOCK_HASH, ROUND));
+    events =
+        state_machine.handle_event(StateMachineEvent::Precommit(BLOCK_HASH, ROUND), &leader_fn);
     assert_eq!(
         events.pop_front().unwrap(),
         StateMachineEvent::Decision(BLOCK_HASH.unwrap(), ROUND)
@@ -60,16 +64,31 @@ fn validator_receives_votes_first() {
     assert!(events.is_empty(), "{:?}", events);
 
     // Receives votes from all the other nodes first (more than minimum for a quorum).
-    events.append(&mut state_machine.handle_event(StateMachineEvent::Prevote(BLOCK_HASH, ROUND)));
-    events.append(&mut state_machine.handle_event(StateMachineEvent::Prevote(BLOCK_HASH, ROUND)));
-    events.append(&mut state_machine.handle_event(StateMachineEvent::Prevote(BLOCK_HASH, ROUND)));
-    events.append(&mut state_machine.handle_event(StateMachineEvent::Precommit(BLOCK_HASH, ROUND)));
-    events.append(&mut state_machine.handle_event(StateMachineEvent::Precommit(BLOCK_HASH, ROUND)));
-    events.append(&mut state_machine.handle_event(StateMachineEvent::Precommit(BLOCK_HASH, ROUND)));
+    events.append(
+        &mut state_machine.handle_event(StateMachineEvent::Prevote(BLOCK_HASH, ROUND), &leader_fn),
+    );
+    events.append(
+        &mut state_machine.handle_event(StateMachineEvent::Prevote(BLOCK_HASH, ROUND), &leader_fn),
+    );
+    events.append(
+        &mut state_machine.handle_event(StateMachineEvent::Prevote(BLOCK_HASH, ROUND), &leader_fn),
+    );
+    events.append(
+        &mut state_machine
+            .handle_event(StateMachineEvent::Precommit(BLOCK_HASH, ROUND), &leader_fn),
+    );
+    events.append(
+        &mut state_machine
+            .handle_event(StateMachineEvent::Precommit(BLOCK_HASH, ROUND), &leader_fn),
+    );
+    events.append(
+        &mut state_machine
+            .handle_event(StateMachineEvent::Precommit(BLOCK_HASH, ROUND), &leader_fn),
+    );
     assert!(events.is_empty(), "{:?}", events);
 
     // Finally the proposal arrives.
-    events = state_machine.handle_event(StateMachineEvent::Proposal(BLOCK_HASH, ROUND));
+    events = state_machine.handle_event(StateMachineEvent::Proposal(BLOCK_HASH, ROUND), &leader_fn);
     assert_eq!(events.pop_front().unwrap(), StateMachineEvent::Prevote(BLOCK_HASH, ROUND));
     assert_eq!(events.pop_front().unwrap(), StateMachineEvent::Precommit(BLOCK_HASH, ROUND));
     assert_eq!(
