@@ -37,10 +37,13 @@ use crate::component_runner::ComponentStarter;
 /// use tokio::task;
 ///
 /// use crate::starknet_mempool_infra::component_definitions::{
-///     ComponentRequestAndResponseSender, ComponentRequestHandler,
+///     ComponentRequestAndResponseSender,
+///     ComponentRequestHandler,
 /// };
-/// use crate::starknet_mempool_infra::component_server::local_component_server::LocalComponentServer;
-/// use crate::starknet_mempool_infra::component_server::definitions::ComponentServerStarter;
+/// use crate::starknet_mempool_infra::component_server::{
+///     ComponentServerStarter,
+///     LocalComponentServer,
+/// };
 ///
 /// // Define your component
 /// struct MyComponent {}

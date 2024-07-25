@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use starknet_mempool_infra::component_client::definitions::ClientResult;
+use starknet_mempool_infra::component_client::ClientResult;
 use starknet_mempool_infra::component_runner::ComponentStarter;
 
 pub(crate) type ValueA = u32;
