@@ -93,7 +93,7 @@ glob = "0.3.1"
 hex = "0.4.3"
 http = "0.2.8"
 human_bytes = "0.4.3"
-hyper = "0.14"
+hyper = { version = "0.14", features = ["client", "http1", "http2", "server", "tcp"] }
 indexmap = "2.1.0"
 insta = "1.29.0"
 integer-encoding = "3.0.4"
@@ -139,7 +139,7 @@ reqwest = { version = "0.11", features = ["blocking", "json"] }
 rstest = "0.17.0"
 rustc-hex = "2.1.0"
 schemars = "0.8.12"
-serde = "1.0.193"
+serde = { version = "1.0.193", features = ["derive"] }
 serde_json = "1.0.81"
 serde_repr = "0.1"
 serde_yaml = "0.9.16"
