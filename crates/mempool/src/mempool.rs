@@ -55,12 +55,21 @@ impl Mempool {
     // back. TODO: Consider renaming to `pop_txs` to be more consistent with the standard
     // library.
     pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<ThinTransaction>> {
+        let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
+        let mut n_remaining_txs = n_txs;
+
+        while n_remaining_txs > 0 && !self.tx_queue.is_empty() {
+            let chunk = self.tx_queue.pop_chunk(n_remaining_txs);
+            self.enqueue_next_eligible_txs(&chunk)?;
+            n_remaining_txs -= chunk.len();
+            eligible_tx_references.extend(chunk);
+        }
+
         let mut eligible_txs: Vec<ThinTransaction> = Vec::with_capacity(n_txs);
-        for tx_hash in self.tx_queue.pop_chunk(n_txs) {
-            let tx = self.tx_pool.remove(tx_hash)?;
+        for tx_ref in &eligible_tx_references {
+            let tx = self.tx_pool.remove(tx_ref.tx_hash)?;
             eligible_txs.push(tx);
         }
-        self.enqueue_next_eligible_txs(&eligible_txs)?;
 
         // Update the mempool state with the given transactions' nonces.
         for tx in &eligible_txs {
@@ -162,7 +171,7 @@ impl Mempool {
         Ok(())
     }
 
-    fn enqueue_next_eligible_txs(&mut self, txs: &[ThinTransaction]) -> MempoolResult<()> {
+    fn enqueue_next_eligible_txs(&mut self, txs: &Vec<TransactionReference>) -> MempoolResult<()> {
         for tx in txs {
             let current_account_state = Account {
                 sender_address: tx.sender_address,
