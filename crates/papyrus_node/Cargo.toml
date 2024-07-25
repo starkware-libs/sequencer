@@ -6,7 +6,7 @@ repository.workspace = true
 license-file.workspace = true
 
 [package.metadata.cargo-udeps.ignore]
-normal = ["papyrus_base_layer", "clap", "reqwest", "tokio"]
+normal = ["clap", "papyrus_base_layer", "reqwest", "tokio"]
 
 [features]
 default = ["rpc"]
@@ -14,8 +14,8 @@ rpc = ["papyrus_rpc"]
 
 [[bin]]
 name = "central_source_integration_test"
-required-features = ["futures-util", "tokio-stream"]
 path = "src/bin/central_source_integration_test.rs"
+required-features = ["futures-util", "tokio-stream"]
 
 [dependencies]
 anyhow.workspace = true
@@ -26,8 +26,8 @@ itertools.workspace = true
 lazy_static.workspace = true
 once_cell.workspace = true
 papyrus_base_layer = { path = "../papyrus_base_layer", version = "0.4.0-rc.0" }
-papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0" }
 papyrus_common = { path = "../papyrus_common", version = "0.4.0-rc.0" }
+papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0" }
 papyrus_consensus = { path = "../sequencing/papyrus_consensus", version = "0.4.0-rc.0" }
 papyrus_monitoring_gateway = { path = "../papyrus_monitoring_gateway", version = "0.4.0-rc.0" }
 papyrus_network = { path = "../papyrus_network", version = "0.4.0-rc.0" }
@@ -36,15 +36,15 @@ papyrus_protobuf = { path = "../papyrus_protobuf", version = "0.4.0-rc.0" }
 papyrus_rpc = { path = "../papyrus_rpc", version = "0.4.0-rc.0", optional = true }
 papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-rc.0" }
 papyrus_sync = { path = "../papyrus_sync", version = "0.4.0-rc.0" }
-reqwest = { workspace = true, features = ["json", "blocking"] }
+reqwest = { workspace = true, features = ["blocking", "json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0", features = ["testing"] }
 starknet_client = { path = "../starknet_client" }
 strum.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
 tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 validator = { workspace = true, features = ["derive"] }
 
 # Binaries dependencies
@@ -55,8 +55,8 @@ tokio-stream = { workspace = true, optional = true }
 [dev-dependencies]
 assert-json-diff.workspace = true
 colored.workspace = true
-metrics-exporter-prometheus.workspace = true
-pretty_assertions.workspace = true
 insta = { workspace = true, features = ["json"] }
-tempfile.workspace = true
+metrics-exporter-prometheus.workspace = true
 papyrus_test_utils = { path = "../papyrus_test_utils" }
+pretty_assertions.workspace = true
+tempfile.workspace = true

@@ -13,11 +13,11 @@ anyhow.workspace = true
 assert_matches.workspace = true
 goose = "0.17.0"
 once_cell.workspace = true
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true, features = ["arbitrary_precision"]}
-tokio.workspace = true
 rand.workspace = true
 reqwest.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["arbitrary_precision"] }
+tokio.workspace = true
 
 [dev-dependencies]
 lazy_static.workspace = true

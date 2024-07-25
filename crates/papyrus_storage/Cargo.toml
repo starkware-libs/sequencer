@@ -7,23 +7,23 @@ license-file.workspace = true
 description = "A storage implementation for a Starknet node."
 
 [features]
-testing = ["tempfile"]
 document_calls = ["lazy_static"]
+testing = ["tempfile"]
 
 [[bin]]
 name = "dump_declared_classes"
-required-features = ["clap"]
 path = "src/bin/dump_declared_classes.rs"
+required-features = ["clap"]
 
 [[bin]]
 name = "storage_benchmark"
-required-features = ["clap", "statistical"]
 path = "src/bin/storage_benchmark.rs"
+required-features = ["clap", "statistical"]
 
 [dependencies]
 byteorder.workspace = true
-cairo-lang-starknet-classes.workspace = true
 cairo-lang-casm = { workspace = true, features = ["parity-scale-codec"] }
+cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 human_bytes.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
@@ -41,8 +41,8 @@ parity-scale-codec.workspace = true
 primitive-types.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0"}
 starknet-types-core = { workspace = true, features = ["papyrus-serialization"] }
+starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
 tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
 tracing = { workspace = true, features = ["log"] }
@@ -56,14 +56,12 @@ statistical = { workspace = true, optional = true }
 
 [dev-dependencies]
 assert_matches.workspace = true
-cairo-lang-casm = { workspace = true, features = [
-    "parity-scale-codec",
-    "schemars",
-] }
+cairo-lang-casm = { workspace = true, features = ["parity-scale-codec", "schemars"] }
 camelpaste.workspace = true
 insta = { workspace = true, features = ["yaml"] }
 metrics-exporter-prometheus.workspace = true
 num-traits.workspace = true
+papyrus_test_utils = { path = "../papyrus_test_utils" }
 paste.workspace = true
 pretty_assertions.workspace = true
 prometheus-parse.workspace = true
@@ -74,5 +72,4 @@ simple_logger.workspace = true
 tempfile = { workspace = true }
 test-case.workspace = true
 test-log.workspace = true
-papyrus_test_utils = { path = "../papyrus_test_utils" }
 tokio = { workspace = true, features = ["full", "sync"] }
