@@ -742,3 +742,35 @@ fn test_flow_commit_block_closes_hole() {
         })
     );
 }
+
+#[rstest]
+fn test_flow_send_same_nonce_tx_after_previous_not_included() {
+    // Setup.
+    let tx_nonce3 =
+        add_tx_input!(tip: 10, tx_hash: 1, sender_address: "0x0", tx_nonce: 3_u8, account_nonce: 3_u8).tx;
+    let tx_input_nonce4 = add_tx_input!(tip: 11, tx_hash: 2, sender_address: "0x0", tx_nonce: 4_u8, account_nonce: 4_u8);
+    let tx_nonce5 =
+        add_tx_input!(tip: 12, tx_hash: 3, sender_address: "0x0", tx_nonce: 5_u8, account_nonce: 3_u8).tx;
+
+    let queue_txs = [TransactionReference::new(&tx_nonce3)];
+    let pool_txs = [&tx_nonce3, &tx_input_nonce4.tx, &tx_nonce5].map(|tx| tx.clone());
+    let mut mempool: Mempool = MempoolState::new(pool_txs, queue_txs).into();
+
+    // Test.
+    let txs = mempool.get_txs(2).unwrap();
+    assert_eq!(txs, &[tx_nonce3, tx_input_nonce4.tx.clone()]);
+
+    // Transaction with nonce 4 is not included in the block.
+    let state_changes =
+        HashMap::from([(contract_address!("0x0"), AccountState { nonce: Nonce(felt!(3_u16)) })]);
+    assert!(mempool.commit_block(state_changes).is_ok());
+
+    add_tx(&mut mempool, &tx_input_nonce4);
+    let txs = mempool.get_txs(1).unwrap();
+
+    // Assert.
+    assert_eq!(txs, &[tx_input_nonce4.tx]);
+    let expected_queue_txs = [TransactionReference::new(&tx_nonce5)];
+    let expected_mempool_state = MempoolState::with_queue(expected_queue_txs);
+    expected_mempool_state.assert_eq_queue_state(&mempool);
+}
