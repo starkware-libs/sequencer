@@ -5,6 +5,7 @@ use starknet_api::transaction::Transaction;
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Proposal {
     pub height: u64,
+    pub round: u32,
     pub proposer: ContractAddress,
     pub transactions: Vec<Transaction>,
     pub block_hash: BlockHash,
@@ -20,6 +21,7 @@ pub enum VoteType {
 pub struct Vote {
     pub vote_type: VoteType,
     pub height: u64,
+    pub round: u32,
     pub block_hash: Option<BlockHash>,
     pub voter: ContractAddress,
 }
