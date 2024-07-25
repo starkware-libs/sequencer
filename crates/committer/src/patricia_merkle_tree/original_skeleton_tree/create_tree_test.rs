@@ -137,9 +137,9 @@ use crate::storage::storage_trait::{create_db_key, StarknetPrefix, StorageKey, S
 ///                           /     \
 ///                         26       90
 ///                        /      /     \
-///                       * 25      65
+///                       /      25      65
 ///                      /        \     /  \
-///                     24         *   6   59
+///                     24         \   6   59
 ///                    /  \         \  /  /  \
 ///                   11  13       20  5  19 40
 ///
@@ -151,9 +151,9 @@ use crate::storage::storage_trait::{create_db_key, StarknetPrefix, StorageKey, S
 ///                           /     \
 ///                          E       B
 ///                         /     /     \
-///                        * E       B
+///                        /     E       B
 ///                       /       \     /  \
-///                      24        *   E    B
+///                      24        \   E    B
 ///                                 \  /     \
 ///                                 20 5     40
 #[case::tree_of_height_4_with_long_edge(
@@ -295,7 +295,7 @@ fn test_create_tree(
 ///
 ///            1
 ///         /     \
-///        * *
+///        ?       ?
 ///       / \     /
 ///      4   5   6
 ///     / \  / \  /
