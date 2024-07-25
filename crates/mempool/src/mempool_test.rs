@@ -135,6 +135,11 @@ fn add_tx(mempool: &mut Mempool, input: &MempoolInput) {
     assert_eq!(mempool.add_tx(input.clone()), Ok(()));
 }
 
+#[track_caller]
+fn _add_tx_expect_error(mempool: &mut Mempool, input: &MempoolInput, expected_error: MempoolError) {
+    assert_eq!(mempool.add_tx(input.clone()), Err(expected_error));
+}
+
 /// Creates a valid input for mempool's `add_tx` with optional default values.
 /// Usage:
 /// 1. add_tx_input!(tip: 1, tx_hash: 2, sender_address: 3_u8, tx_nonce: 4, account_nonce: 3)
