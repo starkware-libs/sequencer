@@ -442,7 +442,6 @@ fn test_flow_filling_holes(mut mempool: Mempool) {
 }
 
 #[rstest]
-#[ignore]
 fn test_commit_block_includes_all_txs() {
     // Setup.
     let tx_address0_nonce4 = add_tx_input!(tip: 4, tx_hash: 1, sender_address: "0x0", tx_nonce: 4_u8, account_nonce: 4_u8).tx;
@@ -468,7 +467,6 @@ fn test_commit_block_includes_all_txs() {
 }
 
 #[rstest]
-#[ignore]
 fn test_commit_block_rewinds_nonce() {
     // Setup.
     let tx_address0_nonce5 = add_tx_input!(tip: 1, tx_hash: 2, sender_address: "0x0", tx_nonce: 5_u8, account_nonce: 4_u8).tx;
@@ -489,7 +487,6 @@ fn test_commit_block_rewinds_nonce() {
 }
 
 #[rstest]
-#[ignore]
 fn test_commit_block_from_different_leader() {
     // Setup.
     let tx_address0_nonce3 = add_tx_input!(tip: 1, tx_hash: 1, sender_address: "0x0", tx_nonce: 3_u8, account_nonce: 2_u8).tx;
