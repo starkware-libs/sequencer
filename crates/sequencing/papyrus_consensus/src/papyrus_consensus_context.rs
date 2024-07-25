@@ -194,6 +194,7 @@ impl ConsensusContext for PapyrusConsensusContext {
                 fin_receiver.await.expect("Failed to get block hash from fin receiver");
             let proposal = Proposal {
                 height: init.height.0,
+                round: 0, // TODO(Asmaa): add round to the proposal.
                 proposer: init.proposer,
                 transactions,
                 block_hash,
