@@ -175,8 +175,6 @@ fn test_get_txs(#[case] requested_txs: usize) {
 }
 
 #[rstest]
-// TODO(Ayelet): remove ignore once replenishing is merged.
-#[ignore]
 fn test_get_txs_multi_nonce() {
     // Setup.
     let tx_address_0_nonce_0 =
@@ -192,8 +190,11 @@ fn test_get_txs_multi_nonce() {
     let txs = mempool.get_txs(2).unwrap();
 
     // Assert that the account's next tx was added the queue.
-    assert_eq!(txs, &[tx_address_0_nonce_0, tx_address_0_nonce_1]);
-    let expected_mempool_state = MempoolState::new([], []);
+    // TODO(Ayelet): all transactions should be returned after replenishing.
+    assert_eq!(txs, &[tx_address_0_nonce_0]);
+    let expected_queue_txs = [&tx_address_0_nonce_1].map(TransactionReference::new);
+    let expected_pool_txs = [tx_address_0_nonce_1];
+    let expected_mempool_state = MempoolState::new(expected_pool_txs, expected_queue_txs);
     expected_mempool_state.assert_eq_mempool_state(&mempool);
 }
 
