@@ -1,6 +1,8 @@
 use async_trait::async_trait;
+use tokio::sync::mpsc::Receiver;
 use tracing::{error, info};
 
+use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
 use crate::component_runner::ComponentStarter;
 
 #[async_trait]
@@ -19,4 +21,22 @@ where
 
     info!("ComponentServer::start() completed.");
     true
+}
+
+pub async fn request_response_loop<Request, Response, Component>(
+    rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    component: &mut Component,
+) where
+    Component: ComponentRequestHandler<Request, Response> + Send + Sync,
+    Request: Send + Sync,
+    Response: Send + Sync,
+{
+    while let Some(request_and_res_tx) = rx.recv().await {
+        let request = request_and_res_tx.request;
+        let tx = request_and_res_tx.tx;
+
+        let res = component.handle_request(request).await;
+
+        tx.send(res).await.expect("Response connection should be open.");
+    }
 }
