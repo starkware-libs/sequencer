@@ -11,7 +11,7 @@ use crate::component_definitions::ComponentRequestAndResponseSender;
 ///
 /// # Fields
 /// - `tx`: An asynchronous sender channel for transmitting
-/// `ComponentRequestAndResponseSender<Request, Response>` messages.
+///   `ComponentRequestAndResponseSender<Request, Response>` messages.
 ///
 /// # Example
 /// ```rust
