@@ -26,6 +26,9 @@ pub enum ToOtherBehaviourEvent {
     },
     PauseDiscovery,
     ResumeDiscovery,
+    PeerBlacklisted {
+        peer_id: PeerId,
+    },
 }
 
 impl<P: 'static> NetworkBehaviour for PeerManager<P>

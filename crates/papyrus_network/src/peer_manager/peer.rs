@@ -4,7 +4,7 @@ use libp2p::swarm::ConnectionId;
 use libp2p::{Multiaddr, PeerId};
 #[cfg(test)]
 use mockall::automock;
-use tracing::debug;
+use tracing::{error, info};
 
 use super::ReputationModifier;
 
@@ -54,9 +54,17 @@ impl PeerTrait for Peer {
 
     fn update_reputation(&mut self, _reason: ReputationModifier) {
         if let Some(timeout_duration) = self.timeout_duration {
+            info!(
+                "Peer {:?} misbehaved. Blacklisting it for {:.3} seconds.",
+                self.peer_id,
+                timeout_duration.as_secs_f64(),
+            );
             self.timed_out_until = Some(Instant::now() + timeout_duration);
         } else {
-            debug!("Timeout duration not set for peer: {:?}", self.peer_id);
+            error!(
+                "Peer {:?} misbehaved but its timeout duration wasn't set. Not doing anything.",
+                self.peer_id
+            );
         }
     }
 

@@ -173,6 +173,14 @@ async fn peer_assignment_no_unblocked_peers() {
     peer_manager.add_peer(peer);
     peer_manager.report_peer(peer_id, ReputationModifier::Bad {}).unwrap();
 
+    // Consume the peer blacklisted event
+    let event = tokio::time::timeout(TIMEOUT, peer_manager.next()).await.unwrap().unwrap();
+    assert_matches!(
+        event,
+        ToSwarm::GenerateEvent(ToOtherBehaviourEvent::PeerBlacklisted { peer_id: event_peer_id })
+        if peer_id == event_peer_id
+    );
+
     // Try to assign a peer to the session, and check there wasn't any assignment.
     assert_matches!(peer_manager.assign_peer_to_session(outbound_session_id), None);
     assert!(peer_manager.next().now_or_never().is_none());
@@ -199,7 +207,7 @@ async fn peer_assignment_no_unblocked_peers() {
 }
 
 #[test]
-fn report_peer_calls_update_reputation() {
+fn report_peer_calls_update_reputation_and_notifies_kad() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
     let mut peer_manager: PeerManager<MockPeerTrait> = PeerManager::new(config.clone());
@@ -213,6 +221,14 @@ fn report_peer_calls_update_reputation() {
     // Call the report_peer function on the peer manager
     peer_manager.report_peer(peer_id, ReputationModifier::Bad {}).unwrap();
     peer_manager.get_mut_peer(peer_id).unwrap().checkpoint();
+
+    // Validate that we have an event to notify Kademlia
+    assert_eq!(peer_manager.pending_events.len(), 1);
+    assert_matches!(
+        peer_manager.pending_events.first().unwrap(),
+        ToSwarm::GenerateEvent(ToOtherBehaviourEvent::PeerBlacklisted { peer_id: event_peer_id })
+        if peer_id == *event_peer_id
+    );
 }
 
 #[tokio::test]

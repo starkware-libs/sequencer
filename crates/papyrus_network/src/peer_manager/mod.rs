@@ -183,8 +183,8 @@ where
         peer_id: PeerId,
         reason: ReputationModifier,
     ) -> Result<(), PeerManagerError> {
-        // TODO(shahak): Add time blacklisted to log.
-        info!("Peer {:?} reported as misbehaving.", peer_id);
+        self.pending_events
+            .push(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::PeerBlacklisted { peer_id }));
         if let Some(peer) = self.peers.get_mut(&peer_id) {
             peer.update_reputation(reason);
             Ok(())
