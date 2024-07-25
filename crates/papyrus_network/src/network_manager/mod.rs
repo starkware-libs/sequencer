@@ -102,8 +102,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     ) -> SqmrServerReceiver<Query, Response>
     where
         Bytes: From<Response>,
-        Query: TryFrom<Bytes> + Clone,
-        <Query as TryFrom<Bytes>>::Error: Clone,
+        Query: TryFrom<Bytes>,
         Response: 'static,
     {
         let protocol = StreamProtocol::try_from_owned(protocol)
@@ -849,8 +848,7 @@ impl<Query, Response> From<SqmrServerPayloadForNetwork> for ServerQueryManager<Q
 where
     Bytes: From<Response>,
     Response: 'static,
-    Query: TryFrom<Bytes> + Clone,
-    <Query as TryFrom<Bytes>>::Error: Clone,
+    Query: TryFrom<Bytes>,
 {
     fn from(payload: SqmrServerPayloadForNetwork) -> Self {
         let SqmrServerPayloadForNetwork { query, report_sender, responses_sender } = payload;
