@@ -3,8 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use mockall::predicate::*;
 use mockall::*;
-use starknet_mempool_infra::component_client::definitions::ClientError;
-use starknet_mempool_infra::component_client::local_component_client::LocalComponentClient;
+use starknet_mempool_infra::component_client::{ClientError, LocalComponentClient};
 use starknet_mempool_infra::component_definitions::ComponentRequestAndResponseSender;
 use thiserror::Error;
 

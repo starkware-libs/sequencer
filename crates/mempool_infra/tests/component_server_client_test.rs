@@ -11,14 +11,12 @@ use common::{
     ResultA,
     ResultB,
 };
-use starknet_mempool_infra::component_client::definitions::{ClientError, ClientResult};
-use starknet_mempool_infra::component_client::local_component_client::LocalComponentClient;
+use starknet_mempool_infra::component_client::{ClientError, ClientResult, LocalComponentClient};
 use starknet_mempool_infra::component_definitions::{
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
 };
-use starknet_mempool_infra::component_server::definitions::ComponentServerStarter;
-use starknet_mempool_infra::component_server::local_component_server::LocalComponentServer;
+use starknet_mempool_infra::component_server::{ComponentServerStarter, LocalComponentServer};
 use tokio::sync::mpsc::channel;
 use tokio::task;
 

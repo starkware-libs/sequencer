@@ -20,15 +20,13 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Request, Response, Server, StatusCode, Uri};
 use rstest::rstest;
 use serde::Serialize;
-use starknet_mempool_infra::component_client::definitions::{ClientError, ClientResult};
-use starknet_mempool_infra::component_client::remote_component_client::RemoteComponentClient;
+use starknet_mempool_infra::component_client::{ClientError, ClientResult, RemoteComponentClient};
 use starknet_mempool_infra::component_definitions::{
     ComponentRequestHandler,
     ServerError,
     APPLICATION_OCTET_STREAM,
 };
-use starknet_mempool_infra::component_server::definitions::ComponentServerStarter;
-use starknet_mempool_infra::component_server::remote_component_server::RemoteComponentServer;
+use starknet_mempool_infra::component_server::{ComponentServerStarter, RemoteComponentServer};
 use tokio::task;
 
 type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentAResponse>;
