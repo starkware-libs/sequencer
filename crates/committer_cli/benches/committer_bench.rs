@@ -19,8 +19,8 @@ use committer_cli::tests::utils::parse_from_python::TreeFlowInput;
 use criterion::{criterion_group, criterion_main, Criterion};
 
 const CONCURRENCY_MODE: bool = true;
-const SINGLE_TREE_FLOW_INPUT: &str = include_str!("tree_flow_inputs.json");
-const FLOW_TEST_INPUT: &str = include_str!("committer_flow_inputs.json");
+const SINGLE_TREE_FLOW_INPUT: &str = include_str!("../test_inputs/tree_flow_inputs.json");
+const FLOW_TEST_INPUT: &str = include_str!("../test_inputs/committer_flow_inputs.json");
 const OUTPUT_PATH: &str = "benchmark_output.txt";
 
 pub fn single_tree_flow_benchmark(criterion: &mut Criterion) {
