@@ -33,6 +33,7 @@ const Configuration = {
             'helm',
             'JSON-RPC',
             'load_test',
+            'mempool_infra',
             'mempool_node',
             'mempool',
             'monitoring',
@@ -47,19 +48,6 @@ const Configuration = {
             'storage',
             'sync',
             'test_utils',
-<<<<<<< HEAD
-            'ci',
-            'gateway',
-            'mempool',
-            'mempool_infra',
-            'mempool_node',
-||||||| cd310745
-            'ci',
-            'gateway',
-            'mempool',
-            'mempool_node',
-=======
->>>>>>> origin/main-v0.13.2
             'tests-integration',
             'transaction',
             'types',
