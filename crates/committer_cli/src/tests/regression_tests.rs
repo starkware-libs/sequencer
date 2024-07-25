@@ -16,8 +16,8 @@ use crate::tests::utils::parse_from_python::TreeFlowInput;
 // 2. Fix the max time threshold to be the expected time for the benchmark test.
 const MAX_TIME_FOR_SINGLE_TREE_BECHMARK_TEST: f64 = 5.0;
 const MAX_TIME_FOR_COMMITTER_FLOW_BECHMARK_TEST: f64 = 5.0;
-const SINGLE_TREE_FLOW_INPUT: &str = include_str!("../../benches/tree_flow_inputs.json");
-const FLOW_TEST_INPUT: &str = include_str!("../../benches/committer_flow_inputs.json");
+const SINGLE_TREE_FLOW_INPUT: &str = include_str!("../../test_inputs/tree_flow_inputs.json");
+const FLOW_TEST_INPUT: &str = include_str!("../../test_inputs/committer_flow_inputs.json");
 const OUTPUT_PATH: &str = "benchmark_output.txt";
 const EXPECTED_NUMBER_OF_FILES: usize = 100;
 
@@ -163,10 +163,10 @@ pub async fn test_regression_committer_flow() {
 #[tokio::test(flavor = "multi_thread")]
 pub async fn test_regression_committer_all_files() {
     assert_eq!(
-        fs::read_dir("./benches/regression_files").unwrap().count(),
+        fs::read_dir("./test_inputs/regression_files").unwrap().count(),
         EXPECTED_NUMBER_OF_FILES
     );
-    let dir_path = fs::read_dir("./benches/regression_files").unwrap();
+    let dir_path = fs::read_dir("./test_inputs/regression_files").unwrap();
     for file_path in dir_path {
         // TODO(Aner, 23/07/24): multi-thread the test.
         test_single_committer_flow(
