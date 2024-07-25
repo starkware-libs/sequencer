@@ -53,8 +53,8 @@ ark-ec = "0.4.2"
 ark-ff = "0.4.0-alpha.7"
 ark-secp256k1 = "0.4.0"
 ark-secp256r1 = "0.4.0"
-assert_matches = "1.5.0"
 assert-json-diff = "2.0.2"
+assert_matches = "1.5.0"
 async-recursion = "1.1.0"
 async-stream = "0.3.3"
 async-trait = "0.1.79"
@@ -176,7 +176,12 @@ zstd = "0.13.1"
 future-incompatible = "deny"
 nonstandard-style = "deny"
 rust-2018-idioms = "deny"
-unused = "deny"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
+# Need a priority of `-1` so it is before the `warnings` lint. See
+# [here](https://github.com/rust-lang/cargo/issues/12918) for details on the issue, and
+# [here](https://rust-lang.github.io/rust-clippy/master/index.html#/lint_groups_priority) for the
+# clippy failure this solves.
+unused = { level = "deny", priority = -1 }
 warnings = "deny"
 
 [workspace.lints.clippy]
