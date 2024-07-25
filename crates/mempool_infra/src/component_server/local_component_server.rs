@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use tokio::sync::mpsc::Receiver;
+use tracing::error;
 
-use super::definitions::{start_component, ComponentServerStarter};
+use super::definitions::{request_response_loop, start_component, ComponentServerStarter};
 use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
 use crate::component_runner::ComponentStarter;
 
@@ -140,14 +141,56 @@ where
 {
     async fn start(&mut self) {
         if start_component(&mut self.component).await {
-            while let Some(request_and_res_tx) = self.rx.recv().await {
-                let request = request_and_res_tx.request;
-                let tx = request_and_res_tx.tx;
-
-                let res = self.component.handle_request(request).await;
-
-                tx.send(res).await.expect("Response connection should be open.");
-            }
+            request_response_loop(&mut self.rx, &mut self.component).await;
         }
+    }
+}
+
+pub struct LocalActiveComponentServer<Component, Request, Response>
+where
+    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send + Sync,
+    Request: Send + Sync,
+    Response: Send + Sync,
+{
+    component: Component,
+    rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+}
+
+impl<Component, Request, Response> LocalActiveComponentServer<Component, Request, Response>
+where
+    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send + Sync,
+    Request: Send + Sync,
+    Response: Send + Sync,
+{
+    pub fn new(
+        component: Component,
+        rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    ) -> Self {
+        Self { component, rx }
+    }
+}
+
+#[async_trait]
+impl<Component, Request, Response> ComponentServerStarter
+    for LocalActiveComponentServer<Component, Request, Response>
+where
+    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send + Sync,
+    Request: Send + Sync,
+    Response: Send + Sync,
+{
+    async fn start(&mut self) {
+        let mut component = self.component.clone();
+        let component_future = async move { component.start().await };
+        let request_response_future = request_response_loop(&mut self.rx, &mut self.component);
+
+        tokio::select! {
+            _res = component_future => {
+                error!("Component stopped.");
+            }
+            _res = request_response_future => {
+                error!("Server stopped.");
+            }
+        };
+        error!("Server ended with unexpected Ok.");
     }
 }
