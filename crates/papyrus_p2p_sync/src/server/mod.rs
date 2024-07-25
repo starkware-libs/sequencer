@@ -27,7 +27,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::{Event, Transaction, TransactionHash, TransactionOutput};
-use tracing::error;
+use tracing::{error, info};
 
 #[cfg(test)]
 mod test;
@@ -197,6 +197,7 @@ where
     Sender: Sink<DataOrFin<Data>> + Unpin + Send + 'static,
     P2PSyncServerError: From<<Sender as Sink<DataOrFin<Data>>>::Error>,
 {
+    info!("Sync server received a new inbound query {query:?}");
     tokio::task::spawn(async move {
         let result = send_data_for_query(storage_reader, query.clone(), sender).await;
         if let Err(error) = result {
@@ -392,6 +393,7 @@ where
 {
     // If this function fails, we still want to send fin before failing.
     let result = send_data_without_fin_for_query(&storage_reader, query, &mut sender).await;
+    info!("Sending fin message for inbound sync query");
     sender.feed(DataOrFin(None)).await?;
     result
 }
@@ -423,6 +425,7 @@ where
         let data_vec = Data::fetch_block_data_from_db(block_number, &txn)?;
         for data in data_vec {
             // TODO: consider implement retry mechanism.
+            info!("Sending response for inbound sync query");
             sender.feed(DataOrFin(Some(data))).await?;
         }
     }
