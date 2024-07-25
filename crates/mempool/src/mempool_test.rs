@@ -99,6 +99,16 @@ impl<T> From<MempoolState<T>> for Mempool {
     }
 }
 
+impl Default for MempoolState<FullState> {
+    fn default() -> Self {
+        Self {
+            tx_pool: Some(Default::default()),
+            tx_queue: Some(Default::default()),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
 impl FromIterator<ThinTransaction> for TransactionPool {
     fn from_iter<T: IntoIterator<Item = ThinTransaction>>(txs: T) -> Self {
         let mut pool = Self::default();
@@ -244,7 +254,7 @@ fn test_get_txs_multi_nonce() {
 
     // Assert that the account's next tx was added the queue.
     assert_eq!(txs, &[tx_address_0_nonce_0, tx_address_0_nonce_1]);
-    let expected_mempool_state = MempoolState::new([], []);
+    let expected_mempool_state = MempoolState::default();
     expected_mempool_state.assert_eq_mempool_state(&mempool);
 }
 
