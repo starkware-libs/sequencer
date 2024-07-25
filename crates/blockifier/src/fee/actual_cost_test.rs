@@ -201,6 +201,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
     let manual_gas_computation = GasVector {
         l1_gas: u128_from_usize(manual_starknet_gas_usage + manual_sharp_gas_usage),
         l1_data_gas: manual_sharp_blob_gas_usage,
+        ..Default::default()
     };
 
     assert_eq!(l2_to_l1_messages_gas_usage_vector, manual_gas_computation);
@@ -272,6 +273,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
         l1_data_gas: combined_cases_starknet_resources
             .get_state_changes_cost(use_kzg_da)
             .l1_data_gas,
+        ..Default::default()
     };
 
     assert_eq!(expected_gas_vector, gas_usage_vector);
