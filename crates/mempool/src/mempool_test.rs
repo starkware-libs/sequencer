@@ -49,7 +49,7 @@ impl MempoolState<FullState> {
 }
 
 impl MempoolState<PartialState> {
-    fn _with_pool<P>(pool_txs: P) -> Self
+    fn with_pool<P>(pool_txs: P) -> Self
     where
         P: IntoIterator<Item = ThinTransaction>,
     {
@@ -323,10 +323,8 @@ fn test_add_tx_with_duplicate_tx(mut mempool: Mempool) {
     );
 
     // Assert: the original transaction remains.
-    let expected_queue_txs = [&input.tx].map(TransactionReference::new);
-    let expected_pool_txs = [input.tx];
-    let expected_mempool_state = MempoolState::new(expected_pool_txs, expected_queue_txs);
-    expected_mempool_state.assert_eq_mempool_state(&mempool);
+    let expected_mempool_state = MempoolState::with_pool([input.tx]);
+    expected_mempool_state.assert_eq_pool_state(&mempool);
 }
 
 #[rstest]
