@@ -628,7 +628,7 @@ type ResponsesSenderForNetwork = GenericSender<Bytes>;
 type ResponsesSender<Response> =
     GenericSender<Result<Response, <Response as TryFrom<Bytes>>::Error>>;
 
-type ReportSender = oneshot::Sender<()>;
+pub type ReportSender = oneshot::Sender<()>;
 type ReportReceiver = oneshot::Receiver<()>;
 
 pub struct SqmrClientPayload<Query, Response: TryFrom<Bytes>> {
