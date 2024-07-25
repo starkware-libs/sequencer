@@ -575,3 +575,55 @@ fn test_commit_block_from_different_leader() {
     // Assert.
     assert_eq_mempool_queue(&mempool, &[tx_address0_nonce6])
 }
+
+#[rstest]
+#[ignore]
+fn test_happy_flow_get_txs_commit_block() {
+    // Setup.
+    let tx_address0_nonce3 =
+        add_tx_input!(tip: 10, tx_hash: 1, sender_address: "0x0", tx_nonce: 3_u8, account_nonce: 3_u8).tx;
+    let tx_address0_nonce5 =
+        add_tx_input!(tip: 11, tx_hash: 2, sender_address: "0x0", tx_nonce: 5_u8, account_nonce: 3_u8).tx;
+    let tx_address0_nonce6 =
+        add_tx_input!(tip: 12, tx_hash: 3, sender_address: "0x0", tx_nonce: 6_u8, account_nonce: 3_u8).tx;
+    let tx_address1_nonce0 =
+        add_tx_input!(tip: 20, tx_hash: 4, sender_address: "0x1", tx_nonce: 0_u8, account_nonce: 0_u8).tx;
+    let tx_address1_nonce1 =
+        add_tx_input!(tip: 21, tx_hash: 5, sender_address: "0x1", tx_nonce: 1_u8, account_nonce: 0_u8).tx;
+    let tx_address1_nonce2 =
+        add_tx_input!(tip: 22, tx_hash: 6, sender_address: "0x1", tx_nonce: 2_u8, account_nonce: 0_u8).tx;
+    let tx_address2_nonce2 =
+        add_tx_input!(tip: 0, tx_hash: 7, sender_address: "0x2", tx_nonce: 2_u8, account_nonce: 2_u8).tx;
+
+    let queue_txs = [&tx_address0_nonce3, &tx_address1_nonce0, &tx_address2_nonce2]
+        .map(TransactionReference::new);
+    let pool_txs = [
+        tx_address0_nonce3,
+        tx_address0_nonce5.clone(),
+        tx_address0_nonce6.clone(),
+        tx_address1_nonce0,
+        tx_address1_nonce1,
+        tx_address1_nonce2.clone(),
+        tx_address2_nonce2,
+    ];
+    let mut mempool: Mempool = MempoolState::new(pool_txs, queue_txs).into();
+
+    // Test.
+
+    // It gets: tx_address0_nonce3, and tx_address1_nonce0.
+    mempool.get_txs(2).unwrap();
+    // It gets: tx_address1_nonce1, and tx_address2_nonce2.
+    mempool.get_txs(3).unwrap();
+
+    // Reverted txs: tx_address2_nonce2, and tx_address1_nonce1.
+    let state_changes = HashMap::from([
+        (contract_address!("0x0"), AccountState { nonce: Nonce(felt!(3_u16)) }),
+        (contract_address!("0x1"), AccountState { nonce: Nonce(felt!(0_u16)) }),
+    ]);
+    assert!(mempool.commit_block(state_changes).is_ok());
+
+    // Assert.
+    let expected_pool_txs = [tx_address0_nonce5, tx_address0_nonce6, tx_address1_nonce2];
+    let expected_mempool_state = MempoolState::new(expected_pool_txs, []);
+    expected_mempool_state.assert_eq_mempool_state(&mempool);
+}
