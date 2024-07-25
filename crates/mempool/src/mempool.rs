@@ -103,13 +103,17 @@ impl Mempool {
     }
 
     fn insert_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
-        let MempoolInput { tx, account } = input;
-        let tx_reference = TransactionReference::new(&tx);
+        let MempoolInput { tx, account: Account { sender_address, state: AccountState { nonce } } } =
+            input;
 
         self.tx_pool.insert(tx)?;
 
-        if is_eligible_for_sequencing(tx_reference, account) {
-            self.tx_queue.insert(tx_reference);
+        // Maybe close nonce gap.
+        if self.tx_queue.get_nonce(sender_address).is_none() {
+            if let Some(tx_reference) = self.tx_pool.get_by_address_and_nonce(sender_address, nonce)
+            {
+                self.tx_queue.insert(*tx_reference);
+            }
         }
 
         Ok(())
@@ -142,8 +146,4 @@ impl TransactionReference {
             tip: tx.tip,
         }
     }
-}
-
-fn is_eligible_for_sequencing(tx_reference: TransactionReference, account: Account) -> bool {
-    tx_reference.nonce == account.state.nonce
 }
