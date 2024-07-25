@@ -49,6 +49,7 @@ defaultmap.workspace = true
 libp2p-swarm-test.workspace = true
 mockall.workspace = true
 pretty_assertions.workspace = true
+rand.workspace = true
 tokio = { workspace = true, features = ["full", "sync", "test-util"] }
 tokio-stream.workspace = true
 void.workspace = true

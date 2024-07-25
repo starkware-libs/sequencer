@@ -6306,6 +6306,7 @@ dependencies = [
  "papyrus_common",
  "papyrus_config",
  "pretty_assertions",
+ "rand 0.8.5",
  "replace_with",
  "serde",
  "starknet_api",
