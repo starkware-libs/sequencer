@@ -144,7 +144,7 @@ fn assert_eq_mempool_queue(mempool: &Mempool, expected_queue: &[ThinTransaction]
 #[case::test_get_exactly_all_eligible_txs(3)]
 #[case::test_get_more_than_all_eligible_txs(5)]
 #[case::test_get_less_than_all_eligible_txs(2)]
-fn test_get_txs(#[case] requested_txs: usize) {
+fn test_get_txs_returns_by_priority_order(#[case] requested_txs: usize) {
     // Setup.
     let tx_tip_20_account_0 = add_tx_input!(tip: 20, tx_hash: 1, sender_address: "0x0").tx;
     let tx_tip_30_account_1 = add_tx_input!(tip: 30, tx_hash: 2, sender_address: "0x1").tx;
