@@ -99,6 +99,16 @@ impl<T> From<MempoolState<T>> for Mempool {
     }
 }
 
+impl Default for MempoolState<FullState> {
+    fn default() -> Self {
+        Self {
+            tx_pool: Default::default(),
+            tx_queue: Default::default(),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
 impl FromIterator<ThinTransaction> for TransactionPool {
     fn from_iter<T: IntoIterator<Item = ThinTransaction>>(txs: T) -> Self {
         let mut pool = Self::default();
