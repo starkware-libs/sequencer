@@ -23,12 +23,12 @@ papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0" }
 papyrus_execution = { path = "../papyrus_execution", version = "0.4.0-rc.0" }
 papyrus_proc_macros = { path = "../papyrus_proc_macros", version = "0.4.0-rc.0" }
 papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-rc.0" }
-starknet_client = { path = "../starknet_client", version = "0.4.0-rc.0" }
 regex = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0"}
 starknet-types-core.workspace = true
+starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
+starknet_client = { path = "../starknet_client", version = "0.4.0-rc.0" }
 tokio = { workspace = true, features = ["full", "sync"] }
 tower = { workspace = true, features = ["full"] }
 tracing.workspace = true
@@ -41,6 +41,7 @@ cairo-lang-starknet-classes.workspace = true
 camelpaste.workspace = true
 derive_more.workspace = true
 enum-iterator.workspace = true
+indexmap = { workspace = true, features = ["serde"] }
 insta = { workspace = true, features = ["json"] }
 itertools.workspace = true
 jsonschema.workspace = true
@@ -49,15 +50,14 @@ metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
 papyrus_execution = { path = "../papyrus_execution", features = ["testing"] }
 papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
+papyrus_test_utils = { path = "../papyrus_test_utils" }
 pretty_assertions.workspace = true
 prometheus-parse.workspace = true
+rand.workspace = true
 rand_chacha.workspace = true
 reqwest.workspace = true
-papyrus_test_utils = { path = "../papyrus_test_utils" }
+starknet-core.workspace = true
 starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0", features = ["testing"] }
 starknet_client = { path = "../starknet_client", features = ["testing"] }
-starknet-core.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
-indexmap = { workspace = true, features = ["serde"] }
-rand.workspace = true

@@ -9,19 +9,19 @@ description = "Common utils and objects for a Starknet node."
 [dependencies]
 cairo-lang-starknet-classes.workspace = true
 hex.workspace = true
+indexmap.workspace = true
 itertools.workspace = true
 lazy_static.workspace = true
+rand.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha3.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0"}
 starknet-types-core = { workspace = true, features = ["hash"] }
+starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
 thiserror.workspace = true
-rand.workspace = true
-indexmap.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
-pretty_assertions.workspace = true
-serde_json = { workspace = true, features = ["arbitrary_precision"]}
 papyrus_test_utils = { path = "../papyrus_test_utils" }
+pretty_assertions.workspace = true
+serde_json = { workspace = true, features = ["arbitrary_precision"] }
