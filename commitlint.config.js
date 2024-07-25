@@ -41,6 +41,7 @@ const Configuration = {
             'ci',
             'gateway',
             'mempool',
+            'mempool_infra',
             'mempool_node',
             'tests-integration',
             'concurrency',
