@@ -2,8 +2,8 @@ use libp2p::kad;
 use tracing::error;
 
 use super::identify_impl::IdentifyToOtherBehaviourEvent;
-use crate::mixed_behaviour;
 use crate::mixed_behaviour::BridgedBehaviour;
+use crate::{mixed_behaviour, peer_manager};
 
 #[derive(Debug)]
 pub enum KadToOtherBehaviourEvent {
@@ -51,6 +51,11 @@ impl<TStore: kad::store::RecordStore + Send + 'static> BridgedBehaviour for kad:
                 for address in listen_addresses {
                     self.add_address(peer_id, address.clone());
                 }
+            }
+            mixed_behaviour::ToOtherBehaviourEvent::PeerManager(
+                peer_manager::ToOtherBehaviourEvent::PeerBlacklisted { peer_id },
+            ) => {
+                self.remove_peer(&peer_id);
             }
             _ => {}
         }
