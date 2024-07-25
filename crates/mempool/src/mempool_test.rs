@@ -443,7 +443,32 @@ fn test_flow_filling_holes(mut mempool: Mempool) {
 
 #[rstest]
 #[ignore]
+fn test_commit_block_includes_all_txs() {
+    // Setup.
+    let tx_address0_nonce4 = add_tx_input!(tip: 4, tx_hash: 1, sender_address: "0x0", tx_nonce: 4_u8, account_nonce: 4_u8).tx;
+    let tx_address0_nonce5 = add_tx_input!(tip: 3, tx_hash: 2, sender_address: "0x0", tx_nonce: 5_u8, account_nonce: 4_u8).tx;
+    let tx_address1_nonce3 = add_tx_input!(tip: 2, tx_hash: 3, sender_address: "0x1", tx_nonce: 3_u8, account_nonce: 3_u8).tx;
+    let tx_address2_nonce1 = add_tx_input!(tip: 1, tx_hash: 4, sender_address: "0x2", tx_nonce: 1_u8, account_nonce: 1_u8).tx;
 
+    let queue_txs = [&tx_address0_nonce4, &tx_address1_nonce3, &tx_address2_nonce1]
+        .map(TransactionReference::new);
+    let pool_txs = [tx_address0_nonce4, tx_address0_nonce5, tx_address1_nonce3, tx_address2_nonce1];
+    let mut mempool: Mempool = MempoolState::new(pool_txs.clone(), queue_txs).into();
+
+    // Test.
+    let state_changes = HashMap::from([
+        (contract_address!("0x0"), AccountState { nonce: Nonce(felt!(3_u16)) }),
+        (contract_address!("0x1"), AccountState { nonce: Nonce(felt!(2_u16)) }),
+    ]);
+    assert!(mempool.commit_block(state_changes).is_ok());
+
+    // Assert.
+    let expected_state = MempoolState::new(pool_txs, queue_txs);
+    expected_state.assert_eq_mempool_state(&mempool);
+}
+
+#[rstest]
+#[ignore]
 fn test_commit_block_rewinds_nonce() {
     // Setup.
     let tx_address0_nonce5 = add_tx_input!(tip: 1, tx_hash: 2, sender_address: "0x0", tx_nonce: 5_u8, account_nonce: 4_u8).tx;
