@@ -8,6 +8,9 @@ on:
     tags:
       - v[0-9].**
     paths:
+      - '.github/workflows/committer_ci.yml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
       - 'crates/committer/**'
       - 'crates/committer_cli/**'
 
@@ -19,6 +22,9 @@ on:
       - auto_merge_enabled
       - edited
     paths:
+      - '.github/workflows/committer_ci.yml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
       - 'crates/committer/**'
       - 'crates/committer_cli/**'
 
@@ -37,7 +43,7 @@ jobs:
       - uses: 'google-github-actions/setup-gcloud@v2'
       - run: echo "BENCH_INPUT_FILES_PREFIX=$(cat ./crates/committer_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
       - run: gcloud storage cp -r gs://committer-testing-artifacts/$BENCH_INPUT_FILES_PREFIX/* ./crates/committer_cli/benches
-      - run: cargo test --release -- --include-ignored test_regression
+      - run: cargo test -p committer_cli --release -- --include-ignored test_regression
 
   benchmarking:
     runs-on: ubuntu-latest
@@ -59,10 +65,10 @@ jobs:
 
       # List the existing benchmarks.
       - run: |
-            cargo bench -- --list | grep ': benchmark$' | sed -e "s/: benchmark$//" > benchmarks_list.txt
+            cargo bench -p committer_cli -- --list | grep ': benchmark$' | sed -e "s/: benchmark$//" > benchmarks_list.txt
 
       # Benchmark the old code.
-      - run: cargo bench
+      - run: cargo bench -p committer_cli
 
       # Backup the downloaded files to avoid re-downloading them if they didn't change (overwritten by checkout).
       - run: mv ./crates/committer_cli/benches/tree_flow_inputs.json ./crates/committer_cli/benches/tree_flow_inputs.json_bu
