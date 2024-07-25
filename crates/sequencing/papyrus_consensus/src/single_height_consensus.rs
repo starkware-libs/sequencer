@@ -118,7 +118,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
                 "block signature doesn't match expected block hash".into(),
             ));
         }
-        let sm_proposal = StateMachineEvent::Proposal(block.id(), ROUND_ZERO);
+        let sm_proposal = StateMachineEvent::Proposal(Some(block.id()), ROUND_ZERO);
         // TODO(matan): Handle multiple rounds.
         self.proposals.insert(ROUND_ZERO, block);
         let sm_events = self.state_machine.handle_event(sm_proposal);
@@ -250,7 +250,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
     async fn handle_state_machine_vote<ContextT: ConsensusContext<Block = BlockT>>(
         &mut self,
         context: &mut ContextT,
-        block_hash: BlockHash,
+        block_hash: Option<BlockHash>,
         round: Round,
         vote_type: VoteType,
     ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
@@ -281,7 +281,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
             .iter()
             .filter_map(|v| {
                 let vote = self.precommits.get(&(round, *v))?;
-                if vote.block_hash != block_hash {
+                if vote.block_hash != Some(block_hash) {
                     return None;
                 }
                 Some(vote.clone())

@@ -11,7 +11,7 @@ lazy_static! {
     static ref VALIDATOR_ID: ValidatorId = 0_u32.into();
 }
 
-const BLOCK_HASH: BlockHash = BlockHash(Felt::ONE);
+const BLOCK_HASH: Option<BlockHash> = Some(BlockHash(Felt::ONE));
 const ROUND: Round = 0;
 
 #[test_case(true; "proposer")]
@@ -22,8 +22,7 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
     let mut events = state_machine.start(&leader_fn);
     assert_eq!(events.pop_front().unwrap(), StateMachineEvent::GetProposal(None, ROUND));
     if is_proposer {
-        events =
-            state_machine.handle_event(StateMachineEvent::GetProposal(Some(BLOCK_HASH), ROUND));
+        events = state_machine.handle_event(StateMachineEvent::GetProposal(BLOCK_HASH, ROUND));
         assert_eq!(events.pop_front().unwrap(), StateMachineEvent::Proposal(BLOCK_HASH, ROUND));
     } else {
         state_machine.handle_event(StateMachineEvent::GetProposal(None, ROUND));
@@ -44,7 +43,10 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
     assert!(events.is_empty(), "{:?}", events);
 
     events = state_machine.handle_event(StateMachineEvent::Precommit(BLOCK_HASH, ROUND));
-    assert_eq!(events.pop_front().unwrap(), StateMachineEvent::Decision(BLOCK_HASH, ROUND));
+    assert_eq!(
+        events.pop_front().unwrap(),
+        StateMachineEvent::Decision(BLOCK_HASH.unwrap(), ROUND)
+    );
     assert!(events.is_empty(), "{:?}", events);
 }
 
@@ -72,7 +74,10 @@ fn validator_receives_votes_first() {
     events = state_machine.handle_event(StateMachineEvent::Proposal(BLOCK_HASH, ROUND));
     assert_eq!(events.pop_front().unwrap(), StateMachineEvent::Prevote(BLOCK_HASH, ROUND));
     assert_eq!(events.pop_front().unwrap(), StateMachineEvent::Precommit(BLOCK_HASH, ROUND));
-    assert_eq!(events.pop_front().unwrap(), StateMachineEvent::Decision(BLOCK_HASH, ROUND));
+    assert_eq!(
+        events.pop_front().unwrap(),
+        StateMachineEvent::Decision(BLOCK_HASH.unwrap(), ROUND)
+    );
     assert!(events.is_empty(), "{:?}", events);
 }
 
