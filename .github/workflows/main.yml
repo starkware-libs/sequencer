@@ -77,6 +77,19 @@ jobs:
 
       - run: scripts/clippy.sh
 
+  doc:
+    runs-on: ubuntu-latest
+    # env:
+    #   RUSTDOCFLAGS: "-D warnings"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: Noelware/setup-protoc@1.1.0
+        with:
+          version: ${{env.PROTOC_VERSION}}
+      - run: cargo doc --workspace -r --document-private-items --no-deps
+
   run-tests:
     runs-on: ubuntu-20.04
     steps:
