@@ -262,7 +262,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
             VoteType::Prevote => &mut self.prevotes,
             VoteType::Precommit => &mut self.precommits,
         };
-        let vote = Vote { vote_type, height: self.height.0, block_hash, voter: self.id };
+        let vote = Vote { vote_type, height: self.height.0, round, block_hash, voter: self.id };
         if let Some(old) = votes.insert((round, self.id), vote.clone()) {
             // TODO(matan): Consider refactoring not to panic, rather log and return the error.
             panic!("State machine should not send repeat votes: old={:?}, new={:?}", old, vote);
