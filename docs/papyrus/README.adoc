@@ -50,22 +50,31 @@ Use it at your own risk.
   - You'll need Protoc only for compiling the link:../crates/papyrus_network/[papyrus_network] crate.
   - Make sure you have version 15 or higher installed. If not:
     1. Remove your current Protoc installation:
-      ```sh
+      +
+      [source,bash]
+      -----
       sudo apt remove protoc/protobuf-compiler
-      ```
+      -----
+      +
     2. Install version 15 or higher:
-      ```sh
+      +
+      [source,bash]
+      -----
       DIR="$HOME/.local"
       curl -L "https://github.com/protocolbuffers/protobuf/releases/download/v25.1/protoc-25.1-linux-x86_64.zip" -o protoc.zip
       unzip ./protoc.zip -d $DIR
       rm ./protoc.zip
-      ```
+      -----
+      +
       Replace DIR with your preferred installation directory.
 
     3. Add DIR to your PATH if it's not already there:
-      ```sh
+      +
+      [source,bash]
+      -----
       export PATH=$PATH:$DIR/bin
-      ```
+      -----
+      +
 
 [discrete]
 ==== Procedure
@@ -155,7 +164,7 @@ cargo run --release --package papyrus_node --bin papyrus_node -- --base_layer.no
 --base_layer.starknet_contract_address 0xe2bb56ee936fd6433dc0f6e7e3b8365c906aa057
 ----
 
-Note that the `<ethereum_node_url>` should refer to Sepiloa.
+Note that the `<ethereum_node_url>` should refer to Sepolia.
 
 For more information, see the papyrus-config https://github.com/starkware-libs/papyrus/blob/main/crates/papyrus_config/README.md[README].
 
@@ -175,7 +184,7 @@ For more information, see the papyrus-config https://github.com/starkware-libs/p
 ----
 mkdir <local-host-data-path>
 ----
-. Run a Papyrus node with the default configuration. You may have to explicitly give the container write access to the `<local-host-data-path>` directory by adding `--user "$(id -u):$(id -g)"` to the `docker run` command.
+. Run a Papyrus node with the default configuration. Depending on your machine, you may need to explicitly give the container write access to the `<local-host-data-path>` directory by adding `--user "$(id -u):$(id -g)"` to the `docker run` command.
 +
 Enter the following command:
 +
