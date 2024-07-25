@@ -209,18 +209,14 @@ impl StateMachine {
 
     // A prevote from a peer (or self) node.
     fn handle_prevote(&mut self, block_hash: BlockHash, round: u32) -> VecDeque<StateMachineEvent> {
-        assert_eq!(round, 0, "Only round 0 is supported in this milestone.");
         let prevote_count = self.prevotes.entry(round).or_default().entry(block_hash).or_insert(0);
         // TODO(matan): Use variable weight.
         *prevote_count += 1;
-        if *prevote_count < self.quorum {
-            return VecDeque::new();
-        }
-        if self.step != Step::Prevote {
-            return VecDeque::new();
-        }
 
-        self.send_precommit(block_hash, round)
+        if self.step != Step::Prevote || round != self.round {
+            return VecDeque::new();
+        }
+        self.check_prevote_quorum(round)
     }
 
     // A precommit from a peer (or self) node.
@@ -229,21 +225,12 @@ impl StateMachine {
         block_hash: BlockHash,
         round: u32,
     ) -> VecDeque<StateMachineEvent> {
-        assert_eq!(round, 0, "Only round 0 is supported in this milestone.");
         let precommit_count =
             self.precommits.entry(round).or_default().entry(block_hash).or_insert(0);
         // TODO(matan): Use variable weight.
         *precommit_count += 1;
-        if *precommit_count < self.quorum {
-            return VecDeque::new();
-        }
-        let Some(proposed_value) = self.proposals.get(&round) else {
-            return VecDeque::new();
-        };
-        // TODO(matan): Handle this due to malicious proposer.
-        assert_eq!(*proposed_value, block_hash, "Proposal should match quorum.");
 
-        VecDeque::from([StateMachineEvent::Decision(block_hash, round)])
+        self.check_precommit_quorum(round)
     }
 
     fn advance_to_step(&mut self, step: Step) -> VecDeque<StateMachineEvent> {
@@ -265,6 +252,12 @@ impl StateMachine {
         if *count < self.quorum {
             return VecDeque::new();
         }
+        let Some(proposed_value) = self.proposals.get(&round) else {
+            return VecDeque::new();
+        };
+        // TODO(matan): Handle this due to malicious proposer.
+        assert_eq!(proposed_value, block_hash, "Proposal should match quorum.");
+
         self.send_precommit(*block_hash, round)
     }
 
@@ -275,6 +268,12 @@ impl StateMachine {
         if *count < self.quorum {
             return VecDeque::new();
         }
+        let Some(proposed_value) = self.proposals.get(&round) else {
+            return VecDeque::new();
+        };
+        // TODO(matan): Handle this due to malicious proposer.
+        assert_eq!(proposed_value, block_hash, "Proposal should match quorum.");
+
         VecDeque::from([StateMachineEvent::Decision(*block_hash, round)])
     }
 
