@@ -3,7 +3,12 @@ use std::collections::{hash_map, BTreeMap, HashMap};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::{MempoolResult, ThinTransaction};
+use starknet_mempool_types::mempool_types::{
+    Account,
+    AccountState,
+    MempoolResult,
+    ThinTransaction,
+};
 
 use crate::mempool::TransactionReference;
 
@@ -84,6 +89,16 @@ impl TransactionPool {
         nonce: Nonce,
     ) -> Option<&TransactionReference> {
         self.txs_by_account.get(address, nonce)
+    }
+
+    pub fn get_next_eligible_tx(
+        &self,
+        current_account_state: Account,
+    ) -> MempoolResult<Option<&TransactionReference>> {
+        let Account { sender_address, state: AccountState { nonce } } = current_account_state;
+        // TOOD(Ayelet): Change to StarknetApiError.
+        let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
+        Ok(self.get_by_address_and_nonce(sender_address, next_nonce))
     }
 
     #[cfg(test)]
