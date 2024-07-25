@@ -41,6 +41,7 @@ impl TempSkeletonNode {
 /// Assumes the nodes are:
 /// * Descendants of the given index.
 /// * A non-empty array.
+///
 /// Note that the if the LCA is the root, the path will be empty (0 length).
 fn get_path_to_lca(
     root_index: &NodeIndex,
