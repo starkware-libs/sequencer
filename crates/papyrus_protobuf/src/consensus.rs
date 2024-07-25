@@ -20,7 +20,7 @@ pub enum VoteType {
 pub struct Vote {
     pub vote_type: VoteType,
     pub height: u64,
-    pub block_hash: BlockHash,
+    pub block_hash: Option<BlockHash>,
     pub voter: ContractAddress,
 }
 
