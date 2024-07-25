@@ -310,6 +310,25 @@ fn test_tip_priority_over_tx_hash(mut mempool: Mempool) {
 }
 
 #[rstest]
+fn test_add_tx_account_state_fills_hole(mut mempool: Mempool) {
+    // Setup.
+    let tx_input_nonce_1 = add_tx_input!(tx_hash: 1, tx_nonce: 1_u8, account_nonce: 0_u8);
+    // Input that increments the account state.
+    let tx_input_nonce_2 = add_tx_input!(tx_hash: 2, tx_nonce: 2_u8, account_nonce: 1_u8);
+
+    // Test and assert.
+
+    // First, with gap.
+    add_tx(&mut mempool, &tx_input_nonce_1);
+    // TODO(Mohammad): use Mempool partial state.
+    assert_eq_mempool_queue(&mempool, &[]);
+
+    // Then, fill it.
+    add_tx(&mut mempool, &tx_input_nonce_2);
+    assert_eq_mempool_queue(&mempool, &[tx_input_nonce_1.tx]);
+}
+
+#[rstest]
 fn test_get_txs_with_holes_multiple_accounts() {
     // Setup.
     let tx_address_0_nonce_1 =
