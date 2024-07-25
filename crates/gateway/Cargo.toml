@@ -17,6 +17,7 @@ axum.workspace = true
 blockifier = { path = "../blockifier", version = "0.8.0-rc.0", features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
+enum-assoc.workspace = true
 hyper.workspace = true
 num-traits.workspace = true
 papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0"}
