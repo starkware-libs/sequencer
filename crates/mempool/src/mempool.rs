@@ -25,6 +25,8 @@ pub struct Mempool {
     tx_pool: TransactionPool,
     // Transactions eligible for sequencing.
     tx_queue: TransactionQueue,
+    // Represents the current state of the mempool during block creation.
+    mempool_state: HashMap<ContractAddress, AccountState>,
 }
 
 impl Mempool {
@@ -59,6 +61,11 @@ impl Mempool {
             eligible_txs.push(tx);
         }
 
+        // Update the mempool state with the new nonces.
+        for tx in &eligible_txs {
+            self.mempool_state.entry(tx.sender_address).or_default().nonce = tx.nonce;
+        }
+
         Ok(eligible_txs)
     }
 
@@ -66,6 +73,7 @@ impl Mempool {
     /// TODO: support fee escalation and transactions with future nonces.
     /// TODO: check Account nonce and balance.
     pub fn add_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
+        self.validate_input(&input)?;
         self.insert_tx(input)
     }
 
@@ -110,6 +118,28 @@ impl Mempool {
 
         if is_eligible_for_sequencing(tx_reference, account) {
             self.tx_queue.insert(tx_reference);
+        }
+
+        Ok(())
+    }
+
+    fn validate_input(&self, input: &MempoolInput) -> MempoolResult<()> {
+        let MempoolInput { tx, account } = input;
+        if let Some(AccountState { nonce }) = self.mempool_state.get(&tx.sender_address) {
+            if nonce >= &tx.nonce {
+                return Err(MempoolError::DuplicateNonce {
+                    address: tx.sender_address,
+                    nonce: tx.nonce,
+                });
+            }
+        }
+
+        let Account { state: AccountState { nonce }, .. } = account;
+        if nonce > &tx.nonce {
+            return Err(MempoolError::DuplicateNonce {
+                address: tx.sender_address,
+                nonce: tx.nonce,
+            });
         }
 
         Ok(())
