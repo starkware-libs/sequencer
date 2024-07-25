@@ -26,6 +26,7 @@ use jsonrpsee::server::{ServerBuilder, ServerHandle};
 use jsonrpsee::types::error::ErrorCode::InternalError;
 use jsonrpsee::types::error::INTERNAL_ERROR_MSG;
 use jsonrpsee::types::ErrorObjectOwned;
+pub use latest::error;
 use papyrus_common::pending_classes::PendingClasses;
 use papyrus_common::BlockHashAndNumber;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
@@ -46,6 +47,8 @@ use starknet_client::writer::StarknetGatewayClient;
 use starknet_client::RetryConfig;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, instrument};
+// Aliasing the latest version of the RPC.
+use v0_7 as latest;
 pub use v0_7::api::CompiledContractClass;
 use validator::Validate;
 
