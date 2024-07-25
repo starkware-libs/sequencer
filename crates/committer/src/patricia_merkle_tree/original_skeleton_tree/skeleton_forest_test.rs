@@ -92,7 +92,7 @@ macro_rules! compare_skeleton_tree {
 ///                  /   \                              /
 ///                 E     E                            B
 ///                /       \                         /   \
-///               * B                       B     E
+///               ?         B                       B     E
 ///              /                                 / \     \
 ///             303                               NZ  47   UB
 ///
