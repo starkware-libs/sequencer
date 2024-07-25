@@ -35,6 +35,11 @@ impl MempoolState {
         MempoolState { tx_pool, tx_queue }
     }
 
+    // TODO(Ayelet): Use in all relevant tests.
+    fn empty() -> Self {
+        MempoolState::new([], [])
+    }
+
     fn assert_eq_mempool_state(&self, mempool: &Mempool) {
         assert_eq!(self.tx_pool, mempool.tx_pool);
         assert_eq!(self.tx_queue, mempool.tx_queue);
@@ -193,7 +198,7 @@ fn test_get_txs_multi_nonce() {
 
     // Assert that the account's next tx was added the queue.
     assert_eq!(txs, &[tx_address_0_nonce_0, tx_address_0_nonce_1]);
-    let expected_mempool_state = MempoolState::new([], []);
+    let expected_mempool_state = MempoolState::empty();
     expected_mempool_state.assert_eq_mempool_state(&mempool);
 }
 
