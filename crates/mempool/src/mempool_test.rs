@@ -44,7 +44,7 @@ impl MempoolState {
 impl From<MempoolState> for Mempool {
     fn from(mempool_state: MempoolState) -> Mempool {
         let MempoolState { tx_pool, tx_queue } = mempool_state;
-        Mempool { tx_pool, tx_queue }
+        Mempool { tx_pool, tx_queue, ..Default::default() }
     }
 }
 
