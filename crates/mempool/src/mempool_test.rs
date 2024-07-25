@@ -19,32 +19,83 @@ use crate::transaction_queue::TransactionQueue;
 
 /// Represents the internal state of the mempool.
 /// Enables customized (and potentially inconsistent) creation for unit testing.
-struct MempoolState {
-    tx_pool: TransactionPool,
-    tx_queue: TransactionQueue,
+#[derive(Debug)]
+struct MempoolState<T> {
+    tx_pool: Option<TransactionPool>,
+    tx_queue: Option<TransactionQueue>,
+    // Artificially use generic type, for the compiler.
+    _phantom: std::marker::PhantomData<T>,
 }
 
-impl MempoolState {
-    fn new<PoolTxs, QueueTxs>(pool_txs: PoolTxs, queue_txs: QueueTxs) -> Self
+#[derive(Debug)]
+struct FullState;
+#[allow(dead_code)]
+#[derive(Debug)]
+struct PartialState;
+
+impl MempoolState<FullState> {
+    fn new<P, Q>(pool_txs: P, queue_txs: Q) -> Self
     where
-        PoolTxs: IntoIterator<Item = ThinTransaction>,
-        QueueTxs: IntoIterator<Item = TransactionReference>,
+        P: IntoIterator<Item = ThinTransaction>,
+        // TODO(Ayelet): Consider using `&ThinTransaction` instead of `TransactionReference`.
+        Q: IntoIterator<Item = TransactionReference>,
     {
-        let tx_pool: TransactionPool = pool_txs.into_iter().collect();
-        let tx_queue: TransactionQueue = queue_txs.into_iter().collect();
-        MempoolState { tx_pool, tx_queue }
-    }
-
-    fn assert_eq_mempool_state(&self, mempool: &Mempool) {
-        assert_eq!(self.tx_pool, mempool.tx_pool);
-        assert_eq!(self.tx_queue, mempool.tx_queue);
+        Self {
+            tx_pool: Some(pool_txs.into_iter().collect()),
+            tx_queue: Some(queue_txs.into_iter().collect()),
+            _phantom: std::marker::PhantomData,
+        }
     }
 }
 
-impl From<MempoolState> for Mempool {
-    fn from(mempool_state: MempoolState) -> Mempool {
-        let MempoolState { tx_pool, tx_queue } = mempool_state;
-        Mempool { tx_pool, tx_queue, ..Default::default() }
+impl MempoolState<PartialState> {
+    fn _with_pool<P>(pool_txs: P) -> Self
+    where
+        P: IntoIterator<Item = ThinTransaction>,
+    {
+        Self {
+            tx_pool: Some(pool_txs.into_iter().collect()),
+            tx_queue: None,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    fn _with_queue<Q>(queue_txs: Q) -> Self
+    where
+        Q: IntoIterator<Item = TransactionReference>,
+    {
+        Self {
+            tx_queue: Some(queue_txs.into_iter().collect()),
+            tx_pool: None,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<T> MempoolState<T> {
+    fn assert_eq_mempool_state(&self, mempool: &Mempool) {
+        self.assert_eq_pool_state(mempool);
+        self.assert_eq_queue_state(mempool);
+    }
+
+    fn assert_eq_pool_state(&self, mempool: &Mempool) {
+        assert_eq!(self.tx_pool.as_ref().unwrap(), &mempool.tx_pool);
+    }
+
+    fn assert_eq_queue_state(&self, mempool: &Mempool) {
+        assert_eq!(self.tx_queue.as_ref().unwrap(), &mempool.tx_queue);
+    }
+}
+
+impl<T> From<MempoolState<T>> for Mempool {
+    fn from(mempool_state: MempoolState<T>) -> Mempool {
+        let MempoolState { tx_pool, tx_queue, _phantom: _ } = mempool_state;
+        Mempool {
+            tx_pool: tx_pool.unwrap_or_default(),
+            tx_queue: tx_queue.unwrap_or_default(),
+            // TODO: Add implementation when needed.
+            mempool_state: Default::default(),
+        }
     }
 }
 
