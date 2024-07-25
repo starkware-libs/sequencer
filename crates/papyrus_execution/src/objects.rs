@@ -363,7 +363,7 @@ impl TryFrom<(CallInfo, GasVector)> for FunctionInvocation {
 // Can't implement `TryFrom` because both types are from external crates.
 fn vm_resources_to_execution_resources(
     vm_resources: VmExecutionResources,
-    GasVector { l1_gas, l1_data_gas }: GasVector,
+    GasVector { l1_gas, l1_data_gas, .. }: GasVector,
 ) -> ExecutionResult<ExecutionResources> {
     let mut builtin_instance_counter = HashMap::new();
     for (builtin_name, count) in vm_resources.builtin_instance_counter {
