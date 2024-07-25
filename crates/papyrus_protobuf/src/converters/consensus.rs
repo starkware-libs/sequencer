@@ -78,7 +78,7 @@ impl TryFrom<protobuf::Vote> for Vote {
             .block_hash
             .ok_or(ProtobufConversionError::MissingField { field_description: "block_hash" })?
             .try_into()?;
-        let block_hash = BlockHash(block_hash);
+        let block_hash = Some(BlockHash(block_hash));
         let voter = value
             .voter
             .ok_or(ProtobufConversionError::MissingField { field_description: "voter" })?
@@ -98,7 +98,7 @@ impl From<Vote> for protobuf::Vote {
         protobuf::Vote {
             vote_type: vote_type as i32,
             height: value.height,
-            block_hash: Some(value.block_hash.0.into()),
+            block_hash: value.block_hash.map(|hash| hash.0.into()),
             voter: Some(value.voter.into()),
         }
     }
