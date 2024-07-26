@@ -35,7 +35,7 @@ jobs:
       - name: Build node
         run: |
           mkdir data
-          cargo build -r
+          cargo build -r -p papyrus_node
 
       - name: Run executable
         run: >
@@ -54,7 +54,7 @@ jobs:
       - name: Build node
         run: |
           mkdir data
-          cargo build -r --no-default-features
+          cargo build -r -p papyrus_node --no-default-features
 
       - name: Run executable
         run: >
