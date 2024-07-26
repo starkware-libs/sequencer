@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
     paths:
+      - '.github/workflows/papyrus_ci.yml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
       - 'crates/papyrus**/**'
 
   pull_request:
@@ -14,6 +17,9 @@ on:
       - auto_merge_enabled
       - edited # for when the PR title is edited
     paths:
+      - '.github/workflows/papyrus_ci.yml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
       - 'crates/papyrus**/**'
 
   merge_group:
