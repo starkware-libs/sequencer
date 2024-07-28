@@ -68,7 +68,7 @@ fn test_tree_hash_function_impl_edge_node(
 #[rstest]
 fn test_constant_contract_class_leaf_v0() {
     assert_eq!(
-        hex::decode(TreeHashFunctionImpl::CONTRACT_CLASS_LEAF_V0.trim_start_matches("0x")).unwrap(),
+        hex::decode(ClassHash::CONTRACT_CLASS_LEAF_V0.trim_start_matches("0x")).unwrap(),
         b"CONTRACT_CLASS_LEAF_V0".as_slice()
     );
 }
