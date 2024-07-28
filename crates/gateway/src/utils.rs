@@ -115,11 +115,26 @@ pub fn external_tx_to_account_tx(
     }
 }
 
-// TODO(yael 9/5/54): Remove once we we transition to InternalTransaction
+// TODO(yael 9/5/54): Should be implemented as part of InternalTransaction in starknet-api
 pub fn get_tx_hash(tx: &AccountTransaction) -> TransactionHash {
     match tx {
         AccountTransaction::Declare(tx) => tx.tx_hash,
         AccountTransaction::DeployAccount(tx) => tx.tx_hash,
         AccountTransaction::Invoke(tx) => tx.tx_hash,
+    }
+}
+
+// TODO(yael 9/5/54): Should be implemented as part of InternalTransaction in starknet-api
+pub fn get_sender_address(tx: &AccountTransaction) -> ContractAddress {
+    match tx {
+        AccountTransaction::Declare(tx) => match &tx.tx {
+            DeclareTransaction::V3(tx) => tx.sender_address,
+            _ => panic!("Unsupported transaction version"),
+        },
+        AccountTransaction::DeployAccount(tx) => tx.contract_address,
+        AccountTransaction::Invoke(tx) => match &tx.tx {
+            InvokeTransaction::V3(tx) => tx.sender_address,
+            _ => panic!("Unsupported transaction version"),
+        },
     }
 }
