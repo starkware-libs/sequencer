@@ -10,7 +10,7 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
 use starknet_mempool_types::communication::SharedMempoolClient;
-use starknet_mempool_types::mempool_types::{Account, MempoolInput};
+use starknet_mempool_types::mempool_types::MempoolInput;
 use tracing::{info, instrument};
 
 use crate::compilation::GatewayCompiler;
@@ -20,7 +20,6 @@ use crate::rpc_state_reader::RpcStateReaderFactory;
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
-use crate::utils::{external_tx_to_thin_tx, get_sender_address};
 
 #[cfg(test)]
 #[path = "gateway_test.rs"]
@@ -134,13 +133,10 @@ fn process_tx(
     };
 
     let validator = stateful_tx_validator.instantiate_validator(state_reader_factory)?;
-    let tx_hash = stateful_tx_validator.run_validate(&tx, optional_class_info, validator)?;
+    let mempool_input = stateful_tx_validator.run_validate(&tx, optional_class_info, validator)?;
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
-    Ok(MempoolInput {
-        tx: external_tx_to_thin_tx(&tx, tx_hash),
-        account: Account { sender_address: get_sender_address(&tx), ..Default::default() },
-    })
+    Ok(mempool_input)
 }
 
 pub fn create_gateway(

@@ -31,6 +31,19 @@ use crate::stateful_transaction_validator::{
     StatefulTransactionValidator,
 };
 
+pub const STATEFUL_TRANSACTION_VALIDATOR_FEE_ERROR: StatefulTransactionValidatorError =
+    StatefulTransactionValidatorError::StatefulValidatorError(
+        StatefulValidatorError::TransactionPreValidationError(
+            TransactionPreValidationError::TransactionFeeError(
+                TransactionFeeError::L1GasBoundsExceedBalance {
+                    max_amount: VALID_L1_GAS_MAX_AMOUNT,
+                    max_price: VALID_L1_GAS_MAX_PRICE_PER_UNIT,
+                    balance: BigUint::ZERO,
+                },
+            ),
+        ),
+    );
+
 #[fixture]
 fn block_context() -> BlockContext {
     BlockContext::create_for_testing()
@@ -51,26 +64,19 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
 #[rstest]
 #[case::valid_tx(
     invoke_tx(CairoVersion::Cairo1),
+    Ok(()),
     Ok(TransactionHash(felt!(
         "0x152b8dd0c30e95fa3a4ee7a9398fcfc46fb00c048b4fdcfa9958c64d65899b8"
     )))
 )]
 #[case::invalid_tx(
     invoke_tx(CairoVersion::Cairo1),
-    Err(StatefulTransactionValidatorError::StatefulValidatorError(
-        StatefulValidatorError::TransactionPreValidationError(
-            TransactionPreValidationError::TransactionFeeError(
-                TransactionFeeError::L1GasBoundsExceedBalance {
-                    max_amount: VALID_L1_GAS_MAX_AMOUNT,
-                    max_price: VALID_L1_GAS_MAX_PRICE_PER_UNIT,
-                    balance: BigUint::ZERO,
-                }
-            )
-        )
-    ))
+    Err(STATEFUL_TRANSACTION_VALIDATOR_FEE_ERROR),
+    Err(STATEFUL_TRANSACTION_VALIDATOR_FEE_ERROR)
 )]
 fn test_stateful_tx_validator(
     #[case] external_tx: RpcTransaction,
+    #[case] expected_blockifier_response: StatefulTransactionValidatorResult<()>,
     #[case] expected_result: StatefulTransactionValidatorResult<TransactionHash>,
     stateful_validator: StatefulTransactionValidator,
 ) {
@@ -83,14 +89,15 @@ fn test_stateful_tx_validator(
         _ => None,
     };
 
-    let expected_result_msg = format!("{:?}", expected_result);
-
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator.expect_validate().return_once(|_, _| expected_result.map(|_| ()));
+    mock_validator.expect_validate().return_once(|_, _| expected_blockifier_response);
     mock_validator.expect_get_nonce().returning(|_| Ok(Nonce(Felt::ZERO)));
 
     let result = stateful_validator.run_validate(&external_tx, optional_class_info, mock_validator);
-    assert_eq!(format!("{:?}", result), expected_result_msg);
+    match expected_result {
+        Ok(expected_result) => assert_eq!(result.unwrap().tx.tx_hash, expected_result),
+        Err(_) => assert_eq!(format!("{:?}", result), format!("{:?}", expected_result)),
+    }
 }
 
 #[test]
