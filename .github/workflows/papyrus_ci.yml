@@ -5,9 +5,13 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/papyrus_ci.yml'
+      - 'Dockerfile'
+      - 'papyrus_utilities.Dockerfile'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'crates/papyrus**/**'
+      - 'crates/sequencing/**'
+      - 'crates/starknet_client/**'
 
   pull_request:
     types:
@@ -18,9 +22,13 @@ on:
       - edited # for when the PR title is edited
     paths:
       - '.github/workflows/papyrus_ci.yml'
+      - 'Dockerfile'
+      - 'papyrus_utilities.Dockerfile'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'crates/papyrus**/**'
+      - 'crates/sequencing/**'
+      - 'crates/starknet_client/**'
 
   merge_group:
     types: [checks_requested]
