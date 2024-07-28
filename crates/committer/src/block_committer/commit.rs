@@ -78,7 +78,7 @@ fn check_trivial_nonce_and_class_hash_updates(
 ) {
     for (address, nonce) in address_to_nonce.iter() {
         if original_contracts_trie_leaves
-            .get(&NodeIndex::from_contract_address(address))
+            .get(&address.into())
             .is_some_and(|previous_contract_state| previous_contract_state.nonce == *nonce)
         {
             warn!("Encountered a trivial nonce update of contract {:?}", address)
@@ -86,12 +86,9 @@ fn check_trivial_nonce_and_class_hash_updates(
     }
 
     for (address, class_hash) in address_to_class_hash.iter() {
-        if original_contracts_trie_leaves
-            .get(&NodeIndex::from_contract_address(address))
-            .is_some_and(|previous_contract_state| {
-                previous_contract_state.class_hash == *class_hash
-            })
-        {
+        if original_contracts_trie_leaves.get(&address.into()).is_some_and(
+            |previous_contract_state| previous_contract_state.class_hash == *class_hash,
+        ) {
             warn!("Encountered a trivial class hash update of contract {:?}", address)
         }
     }
@@ -106,20 +103,18 @@ pub(crate) fn get_all_modified_indices(
     state_diff: &StateDiff,
 ) -> (StorageTriesIndices, ContractsTrieIndices, ClassesTrieIndices) {
     let accessed_addresses = state_diff.accessed_addresses();
-    let contracts_trie_indices: Vec<NodeIndex> = accessed_addresses
-        .iter()
-        .map(|address| NodeIndex::from_contract_address(address))
-        .collect();
+    let contracts_trie_indices: Vec<NodeIndex> =
+        accessed_addresses.iter().map(|address| (*address).into()).collect();
     let classes_trie_indices: Vec<NodeIndex> = state_diff
         .class_hash_to_compiled_class_hash
         .keys()
-        .map(NodeIndex::from_class_hash)
+        .map(|class_hash| class_hash.into())
         .collect();
     let storage_tries_indices: HashMap<ContractAddress, Vec<NodeIndex>> = accessed_addresses
         .iter()
         .map(|address| {
             let indices: Vec<NodeIndex> = match state_diff.storage_updates.get(address) {
-                Some(updates) => updates.keys().map(NodeIndex::from_starknet_storage_key).collect(),
+                Some(updates) => updates.keys().map(|key| key.into()).collect(),
                 None => Vec::new(),
             };
             (**address, indices)
