@@ -2,7 +2,6 @@ use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::transaction::TransactionHash;
 
 use crate::mempool::TransactionReference;
 
@@ -35,14 +34,14 @@ impl TransactionQueue {
     }
 
     // TODO(gilad): remove collect
-    pub fn pop_chunk(&mut self, n_txs: usize) -> Vec<TransactionHash> {
+    pub fn pop_chunk(&mut self, n_txs: usize) -> Vec<TransactionReference> {
         let txs: Vec<TransactionReference> =
             (0..n_txs).filter_map(|_| self.queue.pop_last().map(|tx| tx.0)).collect();
         for tx in &txs {
             self.address_to_tx.remove(&tx.sender_address);
         }
 
-        txs.into_iter().map(|tx| tx.tx_hash).collect()
+        txs
     }
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
@@ -62,6 +61,10 @@ impl TransactionQueue {
             return self.queue.remove(&tx.into());
         }
         false
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.queue.is_empty()
     }
 }
 
