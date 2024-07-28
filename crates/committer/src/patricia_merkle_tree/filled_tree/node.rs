@@ -5,6 +5,7 @@ use crate::hash::hash_trait::HashOutput;
 use crate::impl_from_hex_for_felt_wrapper;
 use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
+use crate::patricia_merkle_tree::types::NodeIndex;
 
 // TODO(Nimrod, 1/6/2024): Use the ClassHash defined in starknet-types-core when available.
 
@@ -15,6 +16,12 @@ impl ClassHash {
     // The hex string corresponding to b'CONTRACT_CLASS_LEAF_V0' in big-endian.
     pub const CONTRACT_CLASS_LEAF_V0: &'static str =
         "0x434f4e54524143545f434c4153535f4c4541465f5630";
+}
+#[allow(clippy::from_over_into)]
+impl Into<NodeIndex> for &ClassHash {
+    fn into(self) -> NodeIndex {
+        NodeIndex::from_leaf_felt(&self.0)
+    }
 }
 
 impl_from_hex_for_felt_wrapper!(ClassHash);
