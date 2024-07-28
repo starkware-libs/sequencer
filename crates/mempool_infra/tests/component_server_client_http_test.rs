@@ -32,7 +32,7 @@ use tokio::task;
 type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentAResponse>;
 type ComponentBClient = RemoteComponentClient<ComponentBRequest, ComponentBResponse>;
 
-use crate::common::{ComponentA, ComponentB, ValueA, ValueB};
+use crate::common::{test_a_b_functionality, ComponentA, ComponentB, ValueB};
 
 const LOCAL_IP: IpAddr = IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
 const A_PORT_TEST_SETUP: u16 = 10000;
@@ -99,18 +99,6 @@ impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for Componen
             }
         }
     }
-}
-
-async fn verify_response(
-    a_client: ComponentAClient,
-    b_client: ComponentBClient,
-    expected_value: ValueA,
-) {
-    assert_eq!(a_client.a_get_value().await.unwrap(), expected_value);
-    let new_expected_value: ValueB = 222;
-
-    assert!(b_client.b_set_value(new_expected_value).await.is_ok());
-    assert_eq!(a_client.a_get_value().await.unwrap(), new_expected_value.into());
 }
 
 async fn verify_error(
@@ -197,7 +185,7 @@ async fn test_proper_setup() {
     setup_for_tests(setup_value, A_PORT_TEST_SETUP, B_PORT_TEST_SETUP).await;
     let a_client = ComponentAClient::new(LOCAL_IP, A_PORT_TEST_SETUP);
     let b_client = ComponentBClient::new(LOCAL_IP, B_PORT_TEST_SETUP);
-    verify_response(a_client, b_client, setup_value.into()).await;
+    test_a_b_functionality(a_client, b_client, setup_value.into()).await;
 }
 
 #[tokio::test]
