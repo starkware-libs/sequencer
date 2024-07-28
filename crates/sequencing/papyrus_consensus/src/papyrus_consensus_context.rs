@@ -194,7 +194,7 @@ impl ConsensusContext for PapyrusConsensusContext {
                 fin_receiver.await.expect("Failed to get block hash from fin receiver");
             let proposal = Proposal {
                 height: init.height.0,
-                round: 0, // TODO(Asmaa): add round to the proposal.
+                round: init.round,
                 proposer: init.proposer,
                 transactions,
                 block_hash,
@@ -234,8 +234,11 @@ impl From<ProposalWrapper>
 {
     fn from(val: ProposalWrapper) -> Self {
         let transactions: Vec<Transaction> = val.0.transactions.into_iter().collect();
-        let proposal_init =
-            ProposalInit { height: BlockNumber(val.0.height), proposer: val.0.proposer };
+        let proposal_init = ProposalInit {
+            height: BlockNumber(val.0.height),
+            round: val.0.round,
+            proposer: val.0.proposer,
+        };
         let (mut content_sender, content_receiver) = mpsc::channel(transactions.len());
         for tx in transactions {
             content_sender.try_send(tx).expect("Send should succeed");

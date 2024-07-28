@@ -138,7 +138,7 @@ async fn validator() {
     let res = shc
         .handle_proposal(
             &mut context,
-            ProposalInit { height: BlockNumber(0), proposer },
+            ProposalInit { height: BlockNumber(0), round: 0, proposer },
             mpsc::channel(1).1, // content - ignored by SHC.
             fin_receiver,
         )
