@@ -174,20 +174,6 @@ fn mempool() -> Mempool {
     Mempool::empty()
 }
 
-// TODO(Ayelet): replace with MempoolState checker.
-#[track_caller]
-fn assert_eq_mempool_state(
-    mempool: &Mempool,
-    expected_pool: &[ThinTransaction],
-    expected_queue: &[ThinTransaction],
-) {
-    assert_eq_mempool_queue(mempool, expected_queue);
-
-    let expected_pool: HashMap<_, _> =
-        expected_pool.iter().cloned().map(|tx| (tx.tx_hash, tx)).collect();
-    assert_eq!(mempool._tx_pool()._tx_pool(), &expected_pool);
-}
-
 // Asserts that the transactions in the mempool are in ascending order as per the expected
 // transactions.
 #[track_caller]
@@ -312,25 +298,26 @@ fn test_add_tx(mut mempool: Mempool) {
 
 #[rstest]
 fn test_add_tx_multi_nonce_success(mut mempool: Mempool) {
+    // Setup.
     let input_address_0_nonce_0 =
         add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8);
-    let input_address_1 =
+    let input_address_1_nonce_0 =
         add_tx_input!(tx_hash: 2, sender_address: "0x1", tx_nonce: 0_u8,account_nonce: 0_u8);
     let input_address_0_nonce_1 =
         add_tx_input!(tx_hash: 3, sender_address: "0x0", tx_nonce: 1_u8, account_nonce: 0_u8);
 
+    // Test.
     add_tx(&mut mempool, &input_address_0_nonce_0);
-    add_tx(&mut mempool, &input_address_1);
+    add_tx(&mut mempool, &input_address_1_nonce_0);
     add_tx(&mut mempool, &input_address_0_nonce_1);
 
-    let expected_pool_all_txs = &[
-        input_address_0_nonce_0.tx.clone(),
-        input_address_1.tx.clone(),
-        input_address_0_nonce_1.tx,
-    ];
-    let expected_queue_only_zero_nonce_txs = &[input_address_1.tx, input_address_0_nonce_0.tx];
-
-    assert_eq_mempool_state(&mempool, expected_pool_all_txs, expected_queue_only_zero_nonce_txs);
+    // Assert: only the eligible transactions appear in the queue.
+    let expected_queue_txs =
+        [&input_address_1_nonce_0.tx, &input_address_0_nonce_0.tx].map(TransactionReference::new);
+    let expected_pool_txs =
+        [input_address_0_nonce_0.tx, input_address_1_nonce_0.tx, input_address_0_nonce_1.tx];
+    let expected_mempool_state = MempoolState::new(expected_pool_txs, expected_queue_txs);
+    expected_mempool_state.assert_eq_mempool_state(&mempool);
 }
 
 #[test]
