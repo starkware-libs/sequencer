@@ -11,6 +11,12 @@ use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct ClassHash(pub Felt);
 
+impl ClassHash {
+    // The hex string corresponding to b'CONTRACT_CLASS_LEAF_V0' in big-endian.
+    pub const CONTRACT_CLASS_LEAF_V0: &'static str =
+        "0x434f4e54524143545f434c4153535f4c4541465f5630";
+}
+
 impl_from_hex_for_felt_wrapper!(ClassHash);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Nonce(pub Felt);

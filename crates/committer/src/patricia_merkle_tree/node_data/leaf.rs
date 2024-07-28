@@ -47,6 +47,11 @@ pub struct ContractState {
     pub class_hash: ClassHash,
 }
 
+impl ContractState {
+    // TODO(Aner, 11/4/24): Verify the correctness of the implementation.
+    pub const CONTRACT_STATE_HASH_VERSION: Felt = Felt::ZERO;
+}
+
 impl Leaf for StarknetStorageValue {
     fn is_empty(&self) -> bool {
         self.0 == Felt::ZERO
