@@ -1,7 +1,5 @@
-use assert_matches::assert_matches;
 use blockifier::blockifier::stateful_validator::StatefulValidatorError;
 use blockifier::context::BlockContext;
-use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::CairoVersion;
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
 use mempool_test_utils::invoke_tx_args;
@@ -27,11 +25,7 @@ use crate::compilation::GatewayCompiler;
 use crate::config::{GatewayCompilerConfig, StatefulTransactionValidatorConfig};
 use crate::errors::{StatefulTransactionValidatorError, StatefulTransactionValidatorResult};
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
-use crate::state_reader_test_utils::{
-    local_test_state_reader_factory,
-    TestStateReader,
-    TestStateReaderFactory,
-};
+use crate::state_reader_test_utils::local_test_state_reader_factory;
 use crate::stateful_transaction_validator::{
     MockStatefulTransactionValidatorTrait,
     StatefulTransactionValidator,
@@ -135,61 +129,45 @@ fn test_instantiate_validator() {
 
 #[rstest]
 #[case::should_skip_validation(
+    ContractAddress::default(),
     external_invoke_tx(invoke_tx_args!{nonce: Nonce(Felt::ONE)}),
-    empty_state_reader_factory(),
+    Nonce::default(),
     true
 )]
 #[case::should_not_skip_validation_nonce_over_max_nonce_for_skip(
+    ContractAddress::default(),
     external_invoke_tx(invoke_tx_args!{nonce: Nonce(Felt::TWO)}),
-    empty_state_reader_factory(),
+    Nonce::default(),
     false
 )]
 #[case::should_not_skip_validation_non_invoke(
+    ContractAddress::default(),
     deploy_account_tx(),
-    empty_state_reader_factory(),
+    Nonce::default(),
     false
 )]
 #[case::should_not_skip_validation_account_nonce_1(
-    external_invoke_tx(invoke_tx_args!{sender_address: ContractAddress::from(TEST_SENDER_ADDRESS), nonce: Nonce(Felt::ONE)}),
-    state_reader_factory_account_nonce_1(ContractAddress::from(TEST_SENDER_ADDRESS)),
+    ContractAddress::from(TEST_SENDER_ADDRESS),
+    external_invoke_tx(invoke_tx_args!{sender_address, nonce: Nonce(Felt::ONE)}),
+    Nonce(Felt::ONE),
     false
 )]
-// TODO(yael 10/7/2024): use mock validator in this test once ready.
 fn test_skip_stateful_validation(
+    #[case] sender_address: ContractAddress,
     #[case] external_tx: RpcTransaction,
-    #[case] state_reader_factory: TestStateReaderFactory,
-    #[case] should_pass_validation: bool,
+    #[case] sender_nonce: Nonce,
+    #[case] should_skip_validate: bool,
     stateful_validator: StatefulTransactionValidator,
 ) {
-    let validator = stateful_validator.instantiate_validator(&state_reader_factory).unwrap();
-    let result = stateful_validator.run_validate(&external_tx, None, validator);
-    if should_pass_validation {
-        assert_matches!(result, Ok(_));
-    } else {
-        // To be sure that the validations were actually skipped, we check that the error came from
-        // the blockifier stateful validations, and not from the pre validations since those are
-        // executed also when skip_validate is true.
-        assert_matches!(result, Err(StatefulTransactionValidatorError::StatefulValidatorError(err))
-            if !matches!(err, StatefulValidatorError::TransactionPreValidationError(_)));
-    }
-}
-
-fn empty_state_reader_factory() -> TestStateReaderFactory {
-    let block_context = BlockContext::create_for_testing();
-    TestStateReaderFactory {
-        state_reader: TestStateReader {
-            blockifier_state_reader: DictStateReader::default(),
-            block_info: block_context.block_info().clone(),
-        },
-    }
-}
-
-fn state_reader_factory_account_nonce_1(sender_address: ContractAddress) -> TestStateReaderFactory {
-    let mut state_reader_factory = empty_state_reader_factory();
-    state_reader_factory
-        .state_reader
-        .blockifier_state_reader
-        .address_to_nonce
-        .insert(sender_address, Nonce(Felt::ONE));
-    state_reader_factory
+    let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
+    mock_validator
+        .expect_get_nonce()
+        // TODO(yair): get the sender addres from the external_tx.
+        .withf(move |contract_address| *contract_address == sender_address)
+        .returning(move |_| Ok(sender_nonce));
+    mock_validator
+        .expect_validate()
+        .withf(move |_, skip_validate| *skip_validate == should_skip_validate)
+        .returning(|_, _| Ok(()));
+    let _ = stateful_validator.run_validate(&external_tx, None, mock_validator);
 }
