@@ -539,8 +539,8 @@ pub(crate) fn storage_serialize_test() -> Result<String, PythonTestError> {
 fn python_hash_constants_compare() -> String {
     format!(
         "[{:?}, {:?}]",
-        TreeHashFunctionImpl::CONTRACT_STATE_HASH_VERSION.to_bytes_be(),
-        Felt::from_hex(TreeHashFunctionImpl::CONTRACT_CLASS_LEAF_V0).expect(
+        ContractState::CONTRACT_STATE_HASH_VERSION.to_bytes_be(),
+        Felt::from_hex(ClassHash::CONTRACT_CLASS_LEAF_V0).expect(
         "could not parse hex string corresponding to b'CONTRACT_CLASS_LEAF_V0' to Felt",
         ).to_bytes_be()
     )
