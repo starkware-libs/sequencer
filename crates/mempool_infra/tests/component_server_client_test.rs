@@ -52,14 +52,18 @@ impl ComponentBClientTrait for LocalComponentClient<ComponentBRequest, Component
         let res = self.send(ComponentBRequest::BGetValue).await;
         match res {
             ComponentBResponse::BGetValue(value) => Ok(value),
-            _ => Err(ClientError::UnexpectedResponse),
+            unexpected_response => {
+                Err(ClientError::UnexpectedResponse(format!("{unexpected_response:?}")))
+            }
         }
     }
 
     async fn b_set_value(&self, value: ValueB) -> ClientResult<()> {
         match self.send(ComponentBRequest::BSetValue(value)).await {
             ComponentBResponse::BSetValue => Ok(()),
-            _ => Err(ClientError::UnexpectedResponse),
+            unexpected_response => {
+                Err(ClientError::UnexpectedResponse(format!("{unexpected_response:?}")))
+            }
         }
     }
 }
