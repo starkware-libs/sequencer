@@ -61,7 +61,7 @@ jobs:
           credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
       - uses: 'google-github-actions/setup-gcloud@v2'
       - run: echo "OLD_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/committer_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
-      - run: gcloud storage cp -r gs://committer-testing-artifacts/$OLD_BENCH_INPUT_FILES_PREFIX/* ./crates/committer_cli/benches
+      - run: gcloud storage cp -r gs://committer-testing-artifacts/$OLD_BENCH_INPUT_FILES_PREFIX/* ./crates/committer_cli/test_inputs
 
       # List the existing benchmarks.
       - run: |
@@ -71,8 +71,8 @@ jobs:
       - run: cargo bench -p committer_cli
 
       # Backup the downloaded files to avoid re-downloading them if they didn't change (overwritten by checkout).
-      - run: mv ./crates/committer_cli/benches/tree_flow_inputs.json ./crates/committer_cli/benches/tree_flow_inputs.json_bu
-      - run: mv ./crates/committer_cli/benches/committer_flow_inputs.json ./crates/committer_cli/benches/committer_flow_inputs.json_bu
+      - run: mv ./crates/committer_cli/test_inputs/tree_flow_inputs.json ./crates/committer_cli/test_inputs/tree_flow_inputs.json_bu
+      - run: mv ./crates/committer_cli/test_inputs/committer_flow_inputs.json ./crates/committer_cli/test_inputs/committer_flow_inputs.json_bu
 
       # Checkout the new code.
       - uses: actions/checkout@v4
@@ -83,8 +83,8 @@ jobs:
       # Input files didn't change.
       - if: env.OLD_BENCH_INPUT_FILES_PREFIX == env.NEW_BENCH_INPUT_FILES_PREFIX
         run: |
-          mv ./crates/committer_cli/benches/tree_flow_inputs.json_bu ./crates/committer_cli/test_inputs/tree_flow_inputs.json
-          mv ./crates/committer_cli/benches/committer_flow_inputs.json_bu ./crates/committer_cli/test_inputs/committer_flow_inputs.json
+          mv ./crates/committer_cli/test_inputs/tree_flow_inputs.json_bu ./crates/committer_cli/test_inputs/tree_flow_inputs.json
+          mv ./crates/committer_cli/test_inputs/committer_flow_inputs.json_bu ./crates/committer_cli/test_inputs/committer_flow_inputs.json
 
       # Input files did change, download new inputs.
       - if: env.OLD_BENCH_INPUT_FILES_PREFIX != env.NEW_BENCH_INPUT_FILES_PREFIX
