@@ -28,6 +28,7 @@ on:
       - 'scripts/merge_paths_test.py'
       - 'scripts/merge_status.py'
 
+jobs:
   merge-paths-test:
     runs-on: ubuntu-20.04
     steps:

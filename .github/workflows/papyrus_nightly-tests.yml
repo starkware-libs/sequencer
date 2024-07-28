@@ -45,7 +45,7 @@ jobs:
       - run: brew install protobuf@$PROTOC_VERSION
 
       - name: Build node
-        run: cargo build -r
+        run: cargo build -r -p papyrus_node
 
       - name: Run executable
         run: >
@@ -64,7 +64,7 @@ jobs:
       - run: brew install protobuf@$PROTOC_VERSION
 
       - run: |
-          cargo test -r
+          cargo test -r -p papyrus_node
         env:
           SEED: 0
 
@@ -85,10 +85,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: >
-          cargo test -r --test '*' -- --include-ignored --skip test_gw_integration_testnet;
+          cargo test -r
+          --test latency_histogram
+          --test gateway_integration_test
+          --test feeder_gateway_integration_test
+          -- --include-ignored --skip test_gw_integration_testnet;
           cargo run -r -p papyrus_node --bin central_source_integration_test --features="futures-util tokio-stream"
 
-  # TODO(dvir): make this run only if the path 'crates/papyrus_storage/src/db/**' (same path as in the CI)  was changed on the 
+  # TODO(dvir): make this run only if the path 'crates/papyrus_storage/src/db/**' (same path as in the CI)  was changed on the
   # last day and increase the number of repetitions.
   random-table-test:
     runs-on: ubuntu-latest

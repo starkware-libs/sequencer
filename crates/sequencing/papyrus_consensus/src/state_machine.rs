@@ -19,17 +19,16 @@ use crate::types::Round;
 pub enum StateMachineEvent {
     /// StartRound is effective 2 questions:
     /// 1. Is the local node the proposer for this round?
-    /// 2. If so, what value should be proposed?
-    /// While waiting for the response to this event, the state machine will buffer all other
-    /// events.
+    /// 2. If so, what value should be proposed? While waiting for the response to this event, the
+    ///    state machine will buffer all other events.
     ///
     /// How should the caller handle this event?
     /// 1. If the local node is not the proposer, the caller responds with with `None` as the block
     ///    hash.
     /// 2. If the local node is the proposer and a block hash was supplied by the state machine,
-    ///   the caller responds with the supplied block hash.
+    ///    the caller responds with the supplied block hash.
     /// 3. If the local node is the proposer and no block hash was supplied by the state machine,
-    ///   the caller must find/build a block to respond with.
+    ///    the caller must find/build a block to respond with.
     StartRound(Option<BlockHash>, Round),
     /// Consensus message, can be both sent from and to the state machine.
     Proposal(BlockHash, Round),

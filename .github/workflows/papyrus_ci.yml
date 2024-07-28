@@ -4,7 +4,14 @@ on:
   push:
     branches: [main]
     paths:
+      - '.github/workflows/papyrus_ci.yml'
+      - 'Dockerfile'
+      - 'papyrus_utilities.Dockerfile'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
       - 'crates/papyrus**/**'
+      - 'crates/sequencing/**'
+      - 'crates/starknet_client/**'
 
   pull_request:
     types:
@@ -14,7 +21,14 @@ on:
       - auto_merge_enabled
       - edited # for when the PR title is edited
     paths:
+      - '.github/workflows/papyrus_ci.yml'
+      - 'Dockerfile'
+      - 'papyrus_utilities.Dockerfile'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
       - 'crates/papyrus**/**'
+      - 'crates/sequencing/**'
+      - 'crates/starknet_client/**'
 
   merge_group:
     types: [checks_requested]
@@ -35,7 +49,7 @@ jobs:
       - name: Build node
         run: |
           mkdir data
-          cargo build -r
+          cargo build -r -p papyrus_node
 
       - name: Run executable
         run: >
@@ -54,7 +68,7 @@ jobs:
       - name: Build node
         run: |
           mkdir data
-          cargo build -r --no-default-features
+          cargo build -r -p papyrus_node --no-default-features
 
       - name: Run executable
         run: >
@@ -90,19 +104,6 @@ jobs:
           cargo test -p papyrus_node --no-default-features
         env:
           SEED: 0
-
-  doc:
-    runs-on: ubuntu-latest
-    env:
-      RUSTDOCFLAGS: "-D warnings"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
-      - run: cargo doc --workspace -r --document-private-items --no-deps
 
   codecov:
     runs-on: ubuntu-latest

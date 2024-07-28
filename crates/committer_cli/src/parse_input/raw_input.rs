@@ -7,7 +7,7 @@ type RawFelt = [u8; 32];
 #[derive(Deserialize, Debug)]
 /// Input to the committer.
 pub(crate) struct RawInput {
-    /// Storage. Will be casted to HashMap<vec<u8>, Vec<u8>> to simulate DB access.
+    /// Storage. Will be casted to `HashMap<Vec<u8>, Vec<u8>>` to simulate DB access.
     pub storage: Vec<RawStorageEntry>,
     pub state_diff: RawStateDiff,
     pub contracts_trie_root_hash: RawFelt,
@@ -30,7 +30,7 @@ pub(crate) struct RawConfigImpl {
 
 #[derive(Deserialize_repr, Debug, Default, Serialize)]
 #[repr(usize)]
-/// Describes a log level https://docs.python.org/3/library/logging.html#logging-levels
+/// Describes a log level <https://docs.python.org/3/library/logging.html#logging-levels>
 pub(crate) enum PythonLogLevel {
     NotSet = 0,
     Info = 20,
