@@ -75,12 +75,12 @@ def run_test(changes_only: bool, commit_id: Optional[str], concurrency: bool):
             deps = get_package_dependencies(p)
             print(f"Running tests for {deps}")
             tested_packages.update(deps)
-        if len(args) == 0:
-            print("No changes detected.")
-            return
 
     for package in tested_packages:
         args.extend(["--package", package])
+    if len(args) == 0:
+        print("No changes detected.")
+        return
 
     cmd = ["cargo", "test"] + args
 
