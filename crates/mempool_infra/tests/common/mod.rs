@@ -83,3 +83,18 @@ impl ComponentB {
 
 #[async_trait]
 impl ComponentStarter for ComponentB {}
+
+pub(crate) async fn test_a_b_functionality(
+    a_client: impl ComponentAClientTrait,
+    b_client: impl ComponentBClientTrait,
+    expected_value: ValueA,
+) {
+    // Check the setup value in component B through client A.
+    assert_eq!(a_client.a_get_value().await.unwrap(), expected_value);
+
+    let new_expected_value: ValueA = expected_value + 1;
+    // Check that setting a new value to component B succeeds.
+    assert!(b_client.b_set_value(new_expected_value.try_into().unwrap()).await.is_ok());
+    // Check the new value in component B through client A.
+    assert_eq!(a_client.a_get_value().await.unwrap(), new_expected_value);
+}

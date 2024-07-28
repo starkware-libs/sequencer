@@ -20,7 +20,7 @@ use starknet_mempool_infra::component_server::{ComponentServerStarter, LocalComp
 use tokio::sync::mpsc::channel;
 use tokio::task;
 
-use crate::common::{ComponentA, ComponentB, ValueA, ValueB};
+use crate::common::{test_a_b_functionality, ComponentA, ComponentB, ValueA, ValueB};
 
 type ComponentAClient = LocalComponentClient<ComponentARequest, ComponentAResponse>;
 type ComponentBClient = LocalComponentClient<ComponentBRequest, ComponentBResponse>;
@@ -81,18 +81,6 @@ impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for Componen
     }
 }
 
-async fn verify_response(
-    a_client: ComponentAClient,
-    b_client: ComponentBClient,
-    expected_value: ValueA,
-) {
-    assert_eq!(a_client.a_get_value().await.unwrap(), expected_value);
-    let new_expected_value: ValueB = 222;
-
-    assert!(b_client.b_set_value(new_expected_value).await.is_ok());
-    assert_eq!(a_client.a_get_value().await.unwrap(), new_expected_value.into());
-}
-
 #[tokio::test]
 async fn test_setup() {
     let setup_value: ValueB = 30;
@@ -120,5 +108,5 @@ async fn test_setup() {
         component_b_server.start().await;
     });
 
-    verify_response(a_client, b_client, expected_value).await;
+    test_a_b_functionality(a_client, b_client, expected_value).await;
 }
