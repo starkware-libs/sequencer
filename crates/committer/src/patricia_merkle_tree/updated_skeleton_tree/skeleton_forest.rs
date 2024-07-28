@@ -57,7 +57,7 @@ impl UpdatedSkeletonForest {
             storage_tries.insert(*address, updated_storage_trie);
 
             let current_leaf = original_contracts_trie_leaves
-                .get(&NodeIndex::from_contract_address(address))
+                .get(&address.into())
                 .ok_or(ForestError::MissingContractCurrentState(*address))?;
 
             let skeleton_leaf = Self::updated_contract_skeleton_leaf(
@@ -66,7 +66,7 @@ impl UpdatedSkeletonForest {
                 current_leaf,
                 storage_trie_becomes_empty,
             );
-            contracts_trie_leaves.insert(NodeIndex::from_contract_address(address), skeleton_leaf);
+            contracts_trie_leaves.insert(address.into(), skeleton_leaf);
         }
 
         // Contracts trie.
