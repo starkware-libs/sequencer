@@ -20,8 +20,6 @@ use crate::types::{
     ValidatorId,
 };
 
-const ROUND_ZERO: Round = 0;
-
 /// Struct which represents a single height of consensus. Each height is expected to be begun with a
 /// call to `start`, which is relevant if we are the proposer for this height's first round.
 /// SingleHeightConsensus receives messages directly as parameters to function calls. It can send
@@ -117,9 +115,12 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
                 "block signature doesn't match expected block hash".into(),
             ));
         }
-        let sm_proposal = StateMachineEvent::Proposal(Some(block.id()), ROUND_ZERO);
-        // TODO(matan): Handle multiple rounds.
-        self.proposals.insert(ROUND_ZERO, block);
+        let sm_proposal = StateMachineEvent::Proposal(Some(block.id()), init.round);
+        let old = self.proposals.insert(init.round, block);
+        if old.is_some() {
+            info!("Received a proposal that was already stored at round {:?}", init.round);
+            return Ok(None);
+        }
         let leader_fn =
             |_round: Round| -> ValidatorId { context.proposer(&self.validators, self.height) };
         let sm_events = self.state_machine.handle_event(sm_proposal, &leader_fn);
@@ -150,13 +151,15 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
     ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
         let (votes, sm_vote) = match vote.vote_type {
             VoteType::Prevote => {
-                (&mut self.prevotes, StateMachineEvent::Prevote(vote.block_hash, ROUND_ZERO))
+                (&mut self.prevotes, StateMachineEvent::Prevote(vote.block_hash, vote.round))
             }
             VoteType::Precommit => {
-                (&mut self.precommits, StateMachineEvent::Precommit(vote.block_hash, ROUND_ZERO))
+                (&mut self.precommits, StateMachineEvent::Precommit(vote.block_hash, vote.round))
             }
         };
-        if let Some(old) = votes.get(&(ROUND_ZERO, vote.voter)) {
+
+        let old = votes.insert((vote.round, vote.voter), vote.clone());
+        if let Some(old) = old {
             if old.block_hash != vote.block_hash {
                 return Err(ConsensusError::Equivocation(
                     self.height,
@@ -168,8 +171,6 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
                 return Ok(None);
             }
         }
-
-        votes.insert((ROUND_ZERO, vote.voter), vote);
         let leader_fn =
             |_round: Round| -> ValidatorId { context.proposer(&self.validators, self.height) };
         let sm_events = self.state_machine.handle_event(sm_vote, &leader_fn);
@@ -229,7 +230,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
 
         let (p2p_messages_receiver, block_receiver) = context.build_proposal(self.height).await;
         let (fin_sender, fin_receiver) = oneshot::channel();
-        let init = ProposalInit { height: self.height, proposer: self.id };
+        let init = ProposalInit { height: self.height, round, proposer: self.id };
         // Peering is a permanent component, so if sending to it fails we cannot continue.
         context
             .propose(init, p2p_messages_receiver, fin_receiver)
