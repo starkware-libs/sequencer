@@ -11,7 +11,7 @@ use futures::future::BoxFuture;
 use futures::FutureExt;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_common::metrics::COLLECT_PROFILING_METRICS;
-use papyrus_common::pending_classes::{ApiContractClass, PendingClasses};
+use papyrus_common::pending_classes::PendingClasses;
 use papyrus_common::BlockHashAndNumber;
 use papyrus_config::presentation::get_config_presentation;
 use papyrus_config::validators::config_validate;
@@ -21,11 +21,7 @@ use papyrus_consensus::papyrus_consensus_context::PapyrusConsensusContext;
 use papyrus_consensus::types::ConsensusError;
 use papyrus_monitoring_gateway::MonitoringServer;
 use papyrus_network::gossipsub_impl::Topic;
-use papyrus_network::network_manager::{
-    BroadcastSubscriberChannels,
-    NetworkError,
-    SqmrQueryReceiver,
-};
+use papyrus_network::network_manager::{BroadcastSubscriberChannels, NetworkError};
 use papyrus_network::{network_manager, NetworkConfig};
 use papyrus_node::config::NodeConfig;
 use papyrus_node::version::VERSION_FULL;
@@ -33,21 +29,11 @@ use papyrus_p2p_sync::client::{
     P2PSyncClient,
     P2PSyncClientChannels,
     P2PSyncClientConfig,
-    P2PSyncError,
+    P2PSyncClientError,
 };
-use papyrus_p2p_sync::server::P2PSyncServer;
+use papyrus_p2p_sync::server::{P2PSyncServer, P2PSyncServerChannels};
 use papyrus_p2p_sync::{Protocol, BUFFER_SIZE};
 use papyrus_protobuf::consensus::ConsensusMessage;
-use papyrus_protobuf::sync::{
-    ClassQuery,
-    DataOrFin,
-    EventQuery,
-    HeaderQuery,
-    SignedBlockHeader,
-    StateDiffChunk,
-    StateDiffQuery,
-    TransactionQuery,
-};
 #[cfg(feature = "rpc")]
 use papyrus_rpc::run_server;
 use papyrus_storage::{open_storage, update_storage_metrics, StorageReader, StorageWriter};
@@ -57,7 +43,6 @@ use papyrus_sync::sources::pending::PendingSource;
 use papyrus_sync::{StateSync, StateSyncError, SyncConfig};
 use starknet_api::block::BlockHash;
 use starknet_api::felt;
-use starknet_api::transaction::{Event, Transaction, TransactionHash, TransactionOutput};
 use starknet_client::reader::objects::pending_data::{PendingBlock, PendingBlockOrDeprecated};
 use starknet_client::reader::PendingData;
 use tokio::sync::RwLock;
@@ -188,21 +173,9 @@ async fn run_threads(config: NodeConfig) -> anyhow::Result<()> {
 
     // P2P Sync Server task.
     let p2p_sync_server_future = match maybe_sync_server_channels {
-        Some((
-            header_server_channel,
-            state_diff_server_channel,
-            transaction_server_channel,
-            class_server_channel,
-            event_server_channel,
-        )) => {
-            let p2p_sync_server = P2PSyncServer::new(
-                storage_reader.clone(),
-                header_server_channel,
-                state_diff_server_channel,
-                transaction_server_channel,
-                class_server_channel,
-                event_server_channel,
-            );
+        Some(p2p_sync_server_channels) => {
+            let p2p_sync_server =
+                P2PSyncServer::new(storage_reader.clone(), p2p_sync_server_channels);
             p2p_sync_server.run().boxed()
         }
         None => pending().boxed(),
@@ -322,7 +295,7 @@ async fn run_threads(config: NodeConfig) -> anyhow::Result<()> {
         storage_reader: StorageReader,
         storage_writer: StorageWriter,
         p2p_sync_client_channels: P2PSyncClientChannels,
-    ) -> Result<(), P2PSyncError> {
+    ) -> Result<(), P2PSyncClientError> {
         let p2p_sync = P2PSyncClient::new(
             p2p_sync_client_config,
             storage_reader,
@@ -336,13 +309,7 @@ async fn run_threads(config: NodeConfig) -> anyhow::Result<()> {
 type NetworkRunReturn = (
     BoxFuture<'static, Result<(), NetworkError>>,
     Option<P2PSyncClientChannels>,
-    Option<(
-        SqmrQueryReceiver<HeaderQuery, DataOrFin<SignedBlockHeader>>,
-        SqmrQueryReceiver<StateDiffQuery, DataOrFin<StateDiffChunk>>,
-        SqmrQueryReceiver<TransactionQuery, DataOrFin<(Transaction, TransactionOutput)>>,
-        SqmrQueryReceiver<ClassQuery, DataOrFin<ApiContractClass>>,
-        SqmrQueryReceiver<EventQuery, DataOrFin<(Event, TransactionHash)>>,
-    )>,
+    Option<P2PSyncServerChannels>,
     Option<BroadcastSubscriberChannels<ConsensusMessage>>,
     String,
 );
@@ -381,22 +348,23 @@ fn run_network(
         ),
         None => None,
     };
-    let p2p_sync_channels = P2PSyncClientChannels {
-        header_payload_sender: header_client_sender,
-        state_diff_payload_sender: state_diff_client_sender,
-        transaction_payload_sender: transaction_client_sender,
-    };
+    let p2p_sync_client_channels = P2PSyncClientChannels::new(
+        header_client_sender,
+        state_diff_client_sender,
+        transaction_client_sender,
+    );
+    let p2p_sync_server_channels = P2PSyncServerChannels::new(
+        header_server_channel,
+        state_diff_server_channel,
+        transaction_server_channel,
+        class_server_channel,
+        event_server_channel,
+    );
 
     Ok((
         network_manager.run().boxed(),
-        Some(p2p_sync_channels),
-        Some((
-            header_server_channel,
-            state_diff_server_channel,
-            transaction_server_channel,
-            class_server_channel,
-            event_server_channel,
-        )),
+        Some(p2p_sync_client_channels),
+        Some(p2p_sync_server_channels),
         consensus_channels,
         local_peer_id,
     ))
