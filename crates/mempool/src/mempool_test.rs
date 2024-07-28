@@ -254,7 +254,7 @@ fn test_get_txs_multi_nonce() {
 
     // Assert: all transactions are returned.
     assert_eq!(fetched_txs, &pool_txs);
-    let expected_mempool_state = MempoolState::new([], []);
+    let expected_mempool_state = MempoolState::default();
     expected_mempool_state.assert_eq_mempool_state(&mempool);
 }
 
@@ -280,8 +280,7 @@ fn test_get_txs_replenishes_queue_only_between_chunks() {
     // Replenishment done in chunks: account 1 transaction is returned before the one of account 0,
     // although its priority is higher.
     assert_eq!(txs, &[tx_address_0_nonce_0, tx_address_1_nonce_0, tx_address_0_nonce_1]);
-    // TODO(Ayelet): Add an MempoolState empty constructor.
-    let expected_mempool_state = MempoolState::new([], []);
+    let expected_mempool_state = MempoolState::default();
     expected_mempool_state.assert_eq_mempool_state(&mempool);
 }
 
