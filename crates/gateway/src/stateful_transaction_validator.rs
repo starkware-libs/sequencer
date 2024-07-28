@@ -1,5 +1,8 @@
 use blockifier::blockifier::block::BlockInfo;
-use blockifier::blockifier::stateful_validator::{StatefulValidator, StatefulValidatorResult};
+use blockifier::blockifier::stateful_validator::{
+    StatefulValidator,
+    StatefulValidatorResult as BlockifierStatefulValidatorResult,
+};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::ClassInfo;
@@ -35,9 +38,12 @@ pub trait StatefulTransactionValidatorTrait {
         &mut self,
         account_tx: AccountTransaction,
         skip_validate: bool,
-    ) -> StatefulTransactionValidatorResult<()>;
+    ) -> BlockifierStatefulValidatorResult<()>;
 
-    fn get_nonce(&mut self, account_address: ContractAddress) -> StatefulValidatorResult<Nonce>;
+    fn get_nonce(
+        &mut self,
+        account_address: ContractAddress,
+    ) -> BlockifierStatefulValidatorResult<Nonce>;
 }
 
 impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
@@ -45,11 +51,14 @@ impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
         &mut self,
         account_tx: AccountTransaction,
         skip_validate: bool,
-    ) -> StatefulTransactionValidatorResult<()> {
-        Ok(self.perform_validations(account_tx, skip_validate)?)
+    ) -> BlockifierStatefulValidatorResult<()> {
+        self.perform_validations(account_tx, skip_validate)
     }
 
-    fn get_nonce(&mut self, account_address: ContractAddress) -> StatefulValidatorResult<Nonce> {
+    fn get_nonce(
+        &mut self,
+        account_address: ContractAddress,
+    ) -> BlockifierStatefulValidatorResult<Nonce> {
         self.get_nonce(account_address)
     }
 }

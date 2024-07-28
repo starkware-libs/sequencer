@@ -92,7 +92,11 @@ fn test_stateful_tx_validator(
     let expected_result_msg = format!("{:?}", expected_result);
 
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator.expect_validate().return_once(|_, _| expected_result.map(|_| ()));
+    mock_validator.expect_validate().return_once(|_, _| match expected_result {
+        Ok(_) => Ok(()),
+        Err(StatefulTransactionValidatorError::StatefulValidatorError(err)) => Err(err),
+        _ => panic!("Expecting StatefulTransactionValidatorError::StatefulValidatorError"),
+    });
     mock_validator.expect_get_nonce().returning(|_| Ok(Nonce(Felt::ZERO)));
 
     let result = stateful_validator.run_validate(&external_tx, optional_class_info, mock_validator);
