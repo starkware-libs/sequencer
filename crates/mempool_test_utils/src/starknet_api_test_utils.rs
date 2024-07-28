@@ -5,23 +5,15 @@ use std::fs::File;
 use std::path::Path;
 use std::rc::Rc;
 
-use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion, NonceManager};
 use serde_json::to_string_pretty;
-use starknet_api::core::{
-    calculate_contract_address,
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    Nonce,
-};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::rpc_transaction::{
     ContractClass,
     ResourceBoundsMapping,
     RpcDeclareTransactionV3,
-    RpcDeployAccountTransaction,
     RpcDeployAccountTransactionV3,
     RpcInvokeTransactionV3,
     RpcTransaction,

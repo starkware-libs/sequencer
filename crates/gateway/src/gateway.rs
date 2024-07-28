@@ -10,7 +10,7 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
 use starknet_mempool_types::communication::SharedMempoolClient;
-use starknet_mempool_types::mempool_types::{Account, MempoolInput};
+use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
 use tracing::{info, instrument};
 
 use crate::compilation::GatewayCompiler;
@@ -134,12 +134,17 @@ fn process_tx(
     };
 
     let validator = stateful_tx_validator.instantiate_validator(state_reader_factory)?;
-    let tx_hash = stateful_tx_validator.run_validate(&tx, optional_class_info, validator)?;
+    // TODO(Yael 31/7/24): refactor after IntrnalTransaction is ready, delete validate_info and
+    // compute all the info outside of run_validate.
+    let validate_info = stateful_tx_validator.run_validate(&tx, optional_class_info, validator)?;
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
     Ok(MempoolInput {
-        tx: external_tx_to_thin_tx(&tx, tx_hash),
-        account: Account { sender_address: tx.calculate_sender_address(), ..Default::default() },
+        tx: external_tx_to_thin_tx(&tx, validate_info.tx_hash, validate_info.sender_address),
+        account: Account {
+            sender_address: validate_info.sender_address,
+            state: AccountState { nonce: validate_info.account_nonce },
+        },
     })
 }
 

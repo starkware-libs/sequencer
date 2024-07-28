@@ -19,7 +19,7 @@ use starknet_types_core::felt::Felt;
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::StatefulTransactionValidatorResult;
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
-use crate::utils::{external_tx_to_account_tx, get_tx_hash};
+use crate::utils::{external_tx_to_account_tx, get_sender_address, get_tx_hash};
 
 #[cfg(test)]
 #[path = "stateful_transaction_validator_test.rs"]
@@ -69,17 +69,18 @@ impl StatefulTransactionValidator {
         external_tx: &RpcTransaction,
         optional_class_info: Option<ClassInfo>,
         mut validator: V,
-    ) -> StatefulTransactionValidatorResult<TransactionHash> {
+    ) -> StatefulTransactionValidatorResult<ValidateInfo> {
         let account_tx = external_tx_to_account_tx(
             external_tx,
             optional_class_info,
             &self.config.chain_info.chain_id,
         )?;
         let tx_hash = get_tx_hash(&account_tx);
-        let account_nonce = validator.get_nonce(external_tx.calculate_sender_address())?;
+        let sender_address = get_sender_address(&account_tx);
+        let account_nonce = validator.get_nonce(sender_address)?;
         let skip_validate = skip_stateful_validations(external_tx, account_nonce);
         validator.validate(account_tx, skip_validate)?;
-        Ok(tx_hash)
+        Ok(ValidateInfo { tx_hash, sender_address, account_nonce })
     }
 
     pub fn instantiate_validator(
@@ -130,4 +131,13 @@ pub fn get_latest_block_info(
 ) -> StatefulTransactionValidatorResult<BlockInfo> {
     let state_reader = state_reader_factory.get_state_reader_from_latest_block();
     Ok(state_reader.get_block_info()?)
+}
+
+/// Holds members created by the stateful transaction validator, needed for
+/// [`MempoolInput`](starknet_mempool_types::mempool_types::MempoolInput).
+#[derive(Debug)]
+pub struct ValidateInfo {
+    pub tx_hash: TransactionHash,
+    pub sender_address: ContractAddress,
+    pub account_nonce: Nonce,
 }
