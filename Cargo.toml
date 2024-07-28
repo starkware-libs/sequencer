@@ -4,6 +4,7 @@
 resolver = "2"
 
 members = [
+    "crates/batcher",
     "crates/blockifier",
     "crates/committer",
     "crates/committer_cli",
