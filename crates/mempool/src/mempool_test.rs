@@ -2,7 +2,6 @@ use std::cmp::Reverse;
 use std::collections::HashMap;
 
 use assert_matches::assert_matches;
-use itertools::{enumerate, zip_eq};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
@@ -172,18 +171,6 @@ macro_rules! add_tx_input {
 #[fixture]
 fn mempool() -> Mempool {
     Mempool::empty()
-}
-
-// Asserts that the transactions in the mempool are in ascending order as per the expected
-// transactions.
-#[track_caller]
-fn assert_eq_mempool_queue(mempool: &Mempool, expected_queue: &[ThinTransaction]) {
-    let mempool_txs = mempool.iter();
-    let expected_queue = expected_queue.iter().map(TransactionReference::new);
-
-    for (i, (expected_tx, mempool_tx)) in enumerate(zip_eq(expected_queue, mempool_txs)) {
-        assert_eq!(expected_tx, *mempool_tx, "Transaction {i} in the queue is not as expected");
-    }
 }
 
 #[rstest]
@@ -440,12 +427,15 @@ fn test_add_tx_account_state_fills_hole(mut mempool: Mempool) {
 
     // First, with gap.
     add_tx(&mut mempool, &tx_input_nonce_1);
-    // TODO(Mohammad): use Mempool partial state.
-    assert_eq_mempool_queue(&mempool, &[]);
+    let expected_queue_txs = [];
+    let expected_mempool_state = MempoolState::with_queue(expected_queue_txs);
+    expected_mempool_state.assert_eq_queue_state(&mempool);
 
     // Then, fill it.
     add_tx(&mut mempool, &tx_input_nonce_2);
-    assert_eq_mempool_queue(&mempool, &[tx_input_nonce_1.tx]);
+    let expected_queue_txs = [&tx_input_nonce_1.tx].map(TransactionReference::new);
+    let expected_mempool_state = MempoolState::with_queue(expected_queue_txs);
+    expected_mempool_state.assert_eq_queue_state(&mempool);
 }
 
 #[rstest]
@@ -602,7 +592,9 @@ fn test_commit_block_rewinds_nonce() {
     assert!(mempool.commit_block(state_changes).is_ok());
 
     // Assert.
-    assert_eq_mempool_queue(&mempool, &[])
+    let expected_queue_txs = [];
+    let expected_state = MempoolState::with_queue(expected_queue_txs);
+    expected_state.assert_eq_queue_state(&mempool);
 }
 
 #[rstest]
@@ -628,5 +620,7 @@ fn test_commit_block_from_different_leader() {
     assert!(mempool.commit_block(state_changes).is_ok());
 
     // Assert.
-    assert_eq_mempool_queue(&mempool, &[tx_address0_nonce6])
+    let expected_queue_txs = [&tx_address0_nonce6].map(TransactionReference::new);
+    let expected_mempool_state = MempoolState::with_queue(expected_queue_txs);
+    expected_mempool_state.assert_eq_queue_state(&mempool);
 }
