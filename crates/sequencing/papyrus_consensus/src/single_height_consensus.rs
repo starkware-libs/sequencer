@@ -30,7 +30,7 @@ pub(crate) struct SingleHeightConsensus<BlockT: ConsensusBlock> {
     validators: Vec<ValidatorId>,
     id: ValidatorId,
     state_machine: StateMachine,
-    proposals: HashMap<Round, BlockT>,
+    proposals: HashMap<Round, Option<BlockT>>,
     prevotes: HashMap<(Round, ValidatorId), Vote>,
     precommits: HashMap<(Round, ValidatorId), Vote>,
 }
@@ -96,32 +96,41 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         };
 
         let block_receiver = context.validate_proposal(self.height, p2p_messages_receiver).await;
-        // TODO(matan): Actual Tendermint should handle invalid proposals.
-        let block = block_receiver.await.map_err(|_| {
-            ConsensusError::InvalidProposal(
-                proposer_id,
-                self.height,
-                "block validation failed".into(),
-            )
-        })?;
-        // TODO(matan): Actual Tendermint should handle invalid proposals.
-        let fin = fin_receiver.await.map_err(|_| {
-            ConsensusError::InvalidProposal(
-                proposer_id,
-                self.height,
-                "proposal fin never received".into(),
-            )
-        })?;
-        // TODO(matan): Switch to signature validation and handle invalid proposals.
-        if block.id() != fin {
-            return Err(ConsensusError::InvalidProposal(
-                proposer_id,
-                self.height,
-                "block signature doesn't match expected block hash".into(),
-            ));
+
+        let block = match block_receiver.await {
+            Ok(block) => block,
+            // ProposalFin never received from peer.
+            Err(_) => {
+                proposal_entry.insert(None);
+                return self.process_inbound_proposal(context, &init, None).await;
+            }
+        };
+
+        let fin = match fin_receiver.await {
+            Ok(fin) => fin,
+            // ProposalFin never received from peer.
+            Err(_) => {
+                proposal_entry.insert(None);
+                return self.process_inbound_proposal(context, &init, None).await;
+            }
+        };
+        // TODO(matan): Switch to signature validation.
+        let block_id = block.id();
+        if block_id != fin {
+            proposal_entry.insert(None);
+            return self.process_inbound_proposal(context, &init, None).await;
         }
-        let sm_proposal = StateMachineEvent::Proposal(Some(block.id()), init.round);
-        proposal_entry.insert(block);
+        proposal_entry.insert(Some(block));
+        self.process_inbound_proposal(context, &init, Some(block_id)).await
+    }
+
+    async fn process_inbound_proposal<ContextT: ConsensusContext<Block = BlockT>>(
+        &mut self,
+        context: &mut ContextT,
+        init: &ProposalInit,
+        block_id: Option<BlockHash>,
+    ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
+        let sm_proposal = StateMachineEvent::Proposal(block_id, init.round);
         let leader_fn =
             |_round: Round| -> ValidatorId { context.proposer(&self.validators, self.height) };
         let sm_events = self.state_machine.handle_event(sm_proposal, &leader_fn);
@@ -250,7 +259,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         //
         // TODO(matan): Switch this to the Proposal signature.
         fin_sender.send(id).expect("Failed to send ProposalFin to Peering.");
-        let old = self.proposals.insert(round, block);
+        let old = self.proposals.insert(round, Some(block));
         assert!(old.is_none(), "There should be no entry for this round.");
         let leader_fn =
             |_round: Round| -> ValidatorId { context.proposer(&self.validators, self.height) };
@@ -284,8 +293,11 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         block_hash: BlockHash,
         round: Round,
     ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
-        let block =
-            self.proposals.remove(&round).expect("StateMachine arrived at an unknown decision");
+        let block = self
+            .proposals
+            .remove(&round)
+            .expect("StateMachine arrived at an unknown decision")
+            .expect("StateMachine should not decide on a missing proposal");
         assert_eq!(block.id(), block_hash, "StateMachine block hash should match the stored block");
         let supporting_precommits: Vec<Vote> = self
             .validators
