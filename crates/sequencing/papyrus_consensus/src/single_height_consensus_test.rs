@@ -8,7 +8,7 @@ use tokio;
 
 use super::SingleHeightConsensus;
 use crate::test_utils::{MockTestContext, TestBlock};
-use crate::types::{ConsensusBlock, ProposalInit, ValidatorId};
+use crate::types::{ConsensusBlock, ConsensusError, ProposalInit, ValidatorId};
 
 fn prevote(block_hash: Option<BlockHash>, height: u64, voter: ValidatorId) -> ConsensusMessage {
     ConsensusMessage::Vote(Vote {
@@ -138,7 +138,20 @@ async fn validator() {
     let res = shc
         .handle_proposal(
             &mut context,
-            ProposalInit { height: BlockNumber(0), proposer },
+            ProposalInit { height: BlockNumber(0), round: 0, proposer },
+            mpsc::channel(1).1, // content - ignored by SHC.
+            fin_receiver,
+        )
+        .await;
+    assert_eq!(res, Ok(None));
+
+    // Sending the same proposal again - should be ignored.
+    let (fin_sender, fin_receiver) = oneshot::channel();
+    fin_sender.send(block.id()).unwrap();
+    let res = shc
+        .handle_proposal(
+            &mut context,
+            ProposalInit { height: BlockNumber(0), round: 0, proposer },
             mpsc::channel(1).1, // content - ignored by SHC.
             fin_receiver,
         )
@@ -173,4 +186,37 @@ async fn validator() {
             .into_iter()
             .all(|item| precommits.contains(&ConsensusMessage::Vote(item)))
     );
+}
+
+#[tokio::test]
+async fn repeat_vote_and_equivocation() {
+    let mut context = MockTestContext::new();
+
+    let node_id: ValidatorId = 1_u32.into();
+    let proposer: ValidatorId = 2_u32.into();
+
+    let mut shc = SingleHeightConsensus::new(BlockNumber(0), node_id, vec![node_id, proposer]);
+
+    let first_vote = prevote(Some(BlockHash(Felt::ONE)), 0, node_id);
+
+    // Second vote with a different block_hash
+    let second_vote = prevote(Some(BlockHash(Felt::ZERO)), 0, node_id);
+
+    let res = shc.handle_message(&mut context, first_vote.clone()).await;
+    assert_eq!(res, Ok(None));
+    // Sending the same vote again should be fine - ignored.
+    let res = shc.handle_message(&mut context, first_vote.clone()).await;
+    assert_eq!(res, Ok(None));
+
+    // Handle the second vote and expect an Equivocation error
+    let res = shc.handle_message(&mut context, second_vote.clone()).await;
+
+    match res {
+        Err(ConsensusError::Equivocation(height, old_vote, new_vote)) => {
+            assert_eq!(height, BlockNumber(0));
+            assert_eq!(old_vote, first_vote);
+            assert_eq!(new_vote, second_vote);
+        }
+        _ => panic!("Expected Equivocation error"),
+    }
 }
