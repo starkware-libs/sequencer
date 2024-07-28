@@ -6,6 +6,11 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+blockifier = { path = "../blockifier", version = "0.8.0-rc.0"}
+starknet_gateway = { path = "../gateway" }
+
+[dev-dependencies]
+mockall.workspace = true
 
 [lints]
 workspace = true
