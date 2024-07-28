@@ -5,10 +5,12 @@ pub mod config;
 pub mod errors;
 pub mod gateway;
 mod rpc_objects;
-mod rpc_state_reader;
+// TODO(yair): move the module to a utils crate.
+pub mod rpc_state_reader;
 #[cfg(test)]
 mod rpc_state_reader_test;
-mod state_reader;
+// TODO(yair): move the module to a utils crate.
+pub mod state_reader;
 #[cfg(test)]
 mod state_reader_test_utils;
 mod stateful_transaction_validator;

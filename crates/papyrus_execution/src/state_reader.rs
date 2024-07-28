@@ -1,3 +1,6 @@
+//! The state reader module provides a way to read the state at a specific state number from the
+//! storage.
+
 #[cfg(test)]
 #[path = "state_reader_test.rs"]
 mod state_reader_test;
@@ -24,6 +27,7 @@ use crate::execution_utils::{get_contract_class, ExecutionUtilsError};
 use crate::objects::PendingData;
 
 /// A view into the state at a specific state number.
+#[allow(missing_docs)]
 pub struct ExecutionStateReader {
     pub storage_reader: StorageReader,
     pub state_number: StateNumber,

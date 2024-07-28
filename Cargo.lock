@@ -8908,6 +8908,11 @@ dependencies = [
 [[package]]
 name = "starknet_batcher"
 version = "0.0.0"
+dependencies = [
+ "blockifier",
+ "mockall",
+ "papyrus_execution",
+]
 
 [[package]]
 name = "starknet_client"
