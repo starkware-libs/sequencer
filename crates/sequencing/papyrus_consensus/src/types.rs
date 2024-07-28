@@ -154,6 +154,7 @@ impl<BlockT: ConsensusBlock> Debug for Decision<BlockT> {
 #[derive(PartialEq, Debug, Clone)]
 pub struct ProposalInit {
     pub height: BlockNumber,
+    pub round: Round,
     pub proposer: ValidatorId,
 }
 
