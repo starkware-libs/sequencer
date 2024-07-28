@@ -10,10 +10,10 @@
 //!
 //! The edges coming out of an internal node with a key `K` are:
 //! - If there are input keys that start with 'K0...' and 'K1...', then two edges come out, marked
-//! with '0' and '1' bits.
+//!   with '0' and '1' bits.
 //! - Otherwise, a single edge mark with 'Z' is coming out. 'Z' is the longest string, such that all
-//! the input keys that start with 'K...' start with 'KZ...' as well. Note, the order of the input
-//! keys in this implementation forces 'Z' to be a zeros string.
+//!   the input keys that start with 'K...' start with 'KZ...' as well. Note, the order of the input
+//!   keys in this implementation forces 'Z' to be a zeros string.
 //!
 //! Hash of a node depends on the number of edges coming out of it:
 //! - A leaf: The hash is the input value of its key.
