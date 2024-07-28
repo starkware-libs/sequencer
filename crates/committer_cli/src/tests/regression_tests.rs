@@ -123,13 +123,13 @@ pub async fn test_regression_single_tree() {
     assert!(execution_time.as_secs_f64() < MAX_TIME_FOR_SINGLE_TREE_BECHMARK_TEST);
 }
 
-pub async fn test_single_committer_flow(input: &str, output_path: &str) {
+pub async fn test_single_committer_flow(input: String, output_path: String) {
     let CommitterRegressionInput {
         committer_input,
         contract_states_root: expected_contract_states_root,
         contract_classes_root: expected_contract_classes_root,
         expected_facts,
-    } = serde_json::from_str(input).unwrap();
+    } = serde_json::from_str(&input).unwrap();
 
     let start = std::time::Instant::now();
     // Benchmark the committer flow test.
@@ -156,7 +156,7 @@ pub async fn test_single_committer_flow(input: &str, output_path: &str) {
 #[ignore = "To avoid running the regression test in Coverage or without the --release flag."]
 #[tokio::test(flavor = "multi_thread")]
 pub async fn test_regression_committer_flow() {
-    test_single_committer_flow(FLOW_TEST_INPUT, OUTPUT_PATH).await;
+    test_single_committer_flow(FLOW_TEST_INPUT.to_string(), OUTPUT_PATH.to_string()).await;
 }
 
 #[ignore = "To avoid running the regression test in Coverage or without the --release flag."]
@@ -169,10 +169,9 @@ pub async fn test_regression_committer_all_files() {
     let dir_path = fs::read_dir("./benches/regression_files").unwrap();
     for file_path in dir_path {
         // TODO(Aner, 23/07/24): multi-thread the test.
-        test_single_committer_flow(
-            &fs::read_to_string(file_path.unwrap().path()).unwrap(),
-            OUTPUT_PATH,
-        )
-        .await;
+        tokio::task::spawn_blocking(|| {
+            let file_str = fs::read_to_string(file_path.unwrap().path()).unwrap();
+            test_single_committer_flow(file_str, OUTPUT_PATH.to_string())
+        });
     }
 }
