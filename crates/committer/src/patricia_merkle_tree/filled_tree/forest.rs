@@ -15,7 +15,7 @@ use crate::patricia_merkle_tree::filled_tree::tree::{
     StorageTrieMap,
 };
 use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafModifications};
-use crate::patricia_merkle_tree::types::NodeIndex;
+use crate::patricia_merkle_tree::types::{node_index_from_contract_address, NodeIndex};
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::ForestHashFunction;
 use crate::patricia_merkle_tree::updated_skeleton_tree::skeleton_forest::UpdatedSkeletonForest;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
@@ -73,7 +73,7 @@ impl FilledForest {
                 .ok_or(ForestError::MissingUpdatedSkeleton(address))?;
 
             let original_contract_state = original_contracts_trie_leaves
-                .get(&NodeIndex::from_contract_address(&address))
+                .get(&node_index_from_contract_address(&address))
                 .ok_or(ForestError::MissingContractCurrentState(address))?;
             contracts_state_tasks.spawn(Self::new_contract_state::<TH>(
                 address,
@@ -89,7 +89,7 @@ impl FilledForest {
         while let Some(result) = contracts_state_tasks.join_next().await {
             let (address, new_contract_state, filled_storage_trie) = result??;
             contracts_trie_modifications
-                .insert(NodeIndex::from_contract_address(&address), new_contract_state);
+                .insert(node_index_from_contract_address(&address), new_contract_state);
             filled_storage_tries.insert(address, filled_storage_trie);
         }
 

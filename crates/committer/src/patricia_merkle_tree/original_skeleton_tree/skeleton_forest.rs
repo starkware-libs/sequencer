@@ -14,7 +14,11 @@ use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonTree,
     OriginalSkeletonTreeImpl,
 };
-use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use crate::patricia_merkle_tree::types::{
+    node_index_from_contract_address,
+    NodeIndex,
+    SortedLeafIndices,
+};
 use crate::storage::storage_trait::Storage;
 
 #[cfg(test)]
@@ -95,7 +99,7 @@ impl<'a> OriginalSkeletonForest<'a> {
                 .get(address)
                 .ok_or(ForestError::MissingSortedLeafIndices(*address))?;
             let contract_state = original_contracts_trie_leaves
-                .get(&NodeIndex::from_contract_address(address))
+                .get(&node_index_from_contract_address(address))
                 .ok_or(ForestError::MissingContractCurrentState(*address))?;
             let config = OriginalSkeletonStorageTrieConfig::new(
                 updates,

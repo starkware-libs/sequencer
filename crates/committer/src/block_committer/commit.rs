@@ -11,7 +11,13 @@ use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::{
     ForestSortedIndices,
     OriginalSkeletonForest,
 };
-use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use crate::patricia_merkle_tree::types::{
+    node_index_from_class_hash,
+    node_index_from_contract_address,
+    node_index_from_starknet_storage_key,
+    NodeIndex,
+    SortedLeafIndices,
+};
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::updated_skeleton_tree::skeleton_forest::UpdatedSkeletonForest;
 use crate::storage::map_storage::MapStorage;
@@ -78,7 +84,7 @@ fn check_trivial_nonce_and_class_hash_updates(
 ) {
     for (address, nonce) in address_to_nonce.iter() {
         if original_contracts_trie_leaves
-            .get(&NodeIndex::from_contract_address(address))
+            .get(&node_index_from_contract_address(address))
             .is_some_and(|previous_contract_state| previous_contract_state.nonce == *nonce)
         {
             warn!("Encountered a trivial nonce update of contract {:?}", address)
@@ -87,7 +93,7 @@ fn check_trivial_nonce_and_class_hash_updates(
 
     for (address, class_hash) in address_to_class_hash.iter() {
         if original_contracts_trie_leaves
-            .get(&NodeIndex::from_contract_address(address))
+            .get(&node_index_from_contract_address(address))
             .is_some_and(|previous_contract_state| {
                 previous_contract_state.class_hash == *class_hash
             })
@@ -108,18 +114,18 @@ pub(crate) fn get_all_modified_indices(
     let accessed_addresses = state_diff.accessed_addresses();
     let contracts_trie_indices: Vec<NodeIndex> = accessed_addresses
         .iter()
-        .map(|address| NodeIndex::from_contract_address(address))
+        .map(|address| node_index_from_contract_address(address))
         .collect();
     let classes_trie_indices: Vec<NodeIndex> = state_diff
         .class_hash_to_compiled_class_hash
         .keys()
-        .map(NodeIndex::from_class_hash)
+        .map(node_index_from_class_hash)
         .collect();
     let storage_tries_indices: HashMap<ContractAddress, Vec<NodeIndex>> = accessed_addresses
         .iter()
         .map(|address| {
             let indices: Vec<NodeIndex> = match state_diff.storage_updates.get(address) {
-                Some(updates) => updates.keys().map(NodeIndex::from_starknet_storage_key).collect(),
+                Some(updates) => updates.keys().map(node_index_from_starknet_storage_key).collect(),
                 None => Vec::new(),
             };
             (**address, indices)

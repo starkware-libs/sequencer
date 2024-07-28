@@ -7,7 +7,10 @@ use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
-use crate::patricia_merkle_tree::types::NodeIndex;
+use crate::patricia_merkle_tree::types::{
+    node_index_from_class_hash,
+    node_index_from_starknet_storage_key,
+};
 use crate::storage::storage_trait::{StorageKey, StorageValue};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -95,7 +98,7 @@ impl StateDiff {
                     Some(inner_updates) => inner_updates
                         .iter()
                         .map(|(key, value)| {
-                            (NodeIndex::from_starknet_storage_key(key), SkeletonLeaf::from(value.0))
+                            (node_index_from_starknet_storage_key(key), SkeletonLeaf::from(value.0))
                         })
                         .collect(),
                     None => HashMap::new(),
@@ -109,7 +112,7 @@ impl StateDiff {
         self.class_hash_to_compiled_class_hash
             .iter()
             .map(|(class_hash, compiled_class_hash)| {
-                (NodeIndex::from_class_hash(class_hash), SkeletonLeaf::from(compiled_class_hash.0))
+                (node_index_from_class_hash(class_hash), SkeletonLeaf::from(compiled_class_hash.0))
             })
             .collect()
     }
@@ -123,7 +126,7 @@ impl StateDiff {
                 let updates = match self.storage_updates.get(address) {
                     Some(inner_updates) => inner_updates
                         .iter()
-                        .map(|(key, value)| (NodeIndex::from_starknet_storage_key(key), *value))
+                        .map(|(key, value)| (node_index_from_starknet_storage_key(key), *value))
                         .collect(),
                     None => HashMap::new(),
                 };
@@ -136,7 +139,7 @@ impl StateDiff {
         self.class_hash_to_compiled_class_hash
             .iter()
             .map(|(class_hash, compiled_class_hash)| {
-                (NodeIndex::from_class_hash(class_hash), *compiled_class_hash)
+                (node_index_from_class_hash(class_hash), *compiled_class_hash)
             })
             .collect()
     }

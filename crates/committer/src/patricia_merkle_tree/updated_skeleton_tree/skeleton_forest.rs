@@ -10,7 +10,7 @@ use crate::patricia_merkle_tree::node_data::leaf::{
     SkeletonLeaf,
 };
 use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::OriginalSkeletonForest;
-use crate::patricia_merkle_tree::types::NodeIndex;
+use crate::patricia_merkle_tree::types::{node_index_from_contract_address, NodeIndex};
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTree,
     UpdatedSkeletonTreeImpl,
@@ -57,7 +57,7 @@ impl UpdatedSkeletonForest {
             storage_tries.insert(*address, updated_storage_trie);
 
             let current_leaf = original_contracts_trie_leaves
-                .get(&NodeIndex::from_contract_address(address))
+                .get(&node_index_from_contract_address(address))
                 .ok_or(ForestError::MissingContractCurrentState(*address))?;
 
             let skeleton_leaf = Self::updated_contract_skeleton_leaf(
@@ -66,7 +66,7 @@ impl UpdatedSkeletonForest {
                 current_leaf,
                 storage_trie_becomes_empty,
             );
-            contracts_trie_leaves.insert(NodeIndex::from_contract_address(address), skeleton_leaf);
+            contracts_trie_leaves.insert(node_index_from_contract_address(address), skeleton_leaf);
         }
 
         // Contracts trie.

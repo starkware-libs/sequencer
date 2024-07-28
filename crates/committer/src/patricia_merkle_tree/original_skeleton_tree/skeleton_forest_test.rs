@@ -29,7 +29,12 @@ use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::create_tre
 };
 use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::ForestSortedIndices;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
-use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
+use crate::patricia_merkle_tree::types::{
+    node_index_from_contract_address,
+    NodeIndex,
+    SortedLeafIndices,
+    SubTreeHeight,
+};
 use crate::storage::db_object::DBObject;
 use crate::storage::map_storage::MapStorage;
 use crate::storage::storage_trait::{StorageKey, StorageValue};
@@ -317,7 +322,7 @@ fn test_create_original_skeleton_forest(
     .unwrap();
     let expected_original_contracts_trie_leaves = expected_original_contracts_trie_leaves
         .into_iter()
-        .map(|(address, state)| (NodeIndex::from_contract_address(&address), state))
+        .map(|(address, state)| (node_index_from_contract_address(&address), state))
         .collect();
     assert_eq!(original_contracts_trie_leaves, expected_original_contracts_trie_leaves);
 

@@ -128,18 +128,6 @@ impl NodeIndex {
             .expect("Illegal PathToBottom")
     }
 
-    pub(crate) fn from_starknet_storage_key(key: &StarknetStorageKey) -> Self {
-        Self::from_leaf_felt(&key.0)
-    }
-
-    pub(crate) fn from_contract_address(address: &ContractAddress) -> Self {
-        Self::from_leaf_felt(&address.0)
-    }
-
-    pub(crate) fn from_class_hash(class_hash: &ClassHash) -> Self {
-        Self::from_leaf_felt(&class_hash.0)
-    }
-
     fn from_leaf_felt(felt: &Felt) -> Self {
         Self::FIRST_LEAF + Self::from_felt_value(felt)
     }
@@ -282,4 +270,16 @@ impl<'a> SortedLeafIndices<'a> {
             Ok(pos) => pos + 1,
         }
     }
+}
+
+pub(crate) fn node_index_from_contract_address(address: &ContractAddress) -> NodeIndex {
+    NodeIndex::from_leaf_felt(&address.0)
+}
+
+pub(crate) fn node_index_from_starknet_storage_key(key: &StarknetStorageKey) -> NodeIndex {
+    NodeIndex::from_leaf_felt(&key.0)
+}
+
+pub(crate) fn node_index_from_class_hash(class_hash: &ClassHash) -> NodeIndex {
+    NodeIndex::from_leaf_felt(&class_hash.0)
 }

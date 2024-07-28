@@ -34,11 +34,16 @@ fn test_cast_to_node_index(
     #[values(0, 15, 0xDEADBEEF)] leaf_index: u128,
     #[values(true, false)] from_contract_address: bool,
 ) {
+    use crate::patricia_merkle_tree::types::{
+        node_index_from_contract_address,
+        node_index_from_starknet_storage_key,
+    };
+
     let expected_node_index = NodeIndex::FIRST_LEAF + leaf_index;
     let actual = if from_contract_address {
-        NodeIndex::from_contract_address(&ContractAddress(Felt::from(leaf_index)))
+        node_index_from_contract_address(&ContractAddress(Felt::from(leaf_index)))
     } else {
-        NodeIndex::from_starknet_storage_key(&StarknetStorageKey(Felt::from(leaf_index)))
+        node_index_from_starknet_storage_key(&StarknetStorageKey(Felt::from(leaf_index)))
     };
     assert_eq!(actual, expected_node_index);
 }
