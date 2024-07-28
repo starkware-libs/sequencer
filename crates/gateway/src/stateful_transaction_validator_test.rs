@@ -1,4 +1,4 @@
-use blockifier::blockifier::stateful_validator::StatefulValidatorError;
+use blockifier::blockifier::stateful_validator::{StatefulValidatorError, StatefulValidatorResult};
 use blockifier::context::BlockContext;
 use blockifier::test_utils::CairoVersion;
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
@@ -31,6 +31,20 @@ use crate::stateful_transaction_validator::{
     StatefulTransactionValidator,
 };
 
+pub const STATEFUL_VALIDATOR_FEE_ERROR: StatefulValidatorError =
+    StatefulValidatorError::TransactionPreValidationError(
+        TransactionPreValidationError::TransactionFeeError(
+            TransactionFeeError::L1GasBoundsExceedBalance {
+                max_amount: VALID_L1_GAS_MAX_AMOUNT,
+                max_price: VALID_L1_GAS_MAX_PRICE_PER_UNIT,
+                balance: BigUint::ZERO,
+            },
+        ),
+    );
+
+pub const STATEFUL_TRANSACTION_VALIDATOR_FEE_ERROR: StatefulTransactionValidatorError =
+    StatefulTransactionValidatorError::StatefulValidatorError(STATEFUL_VALIDATOR_FEE_ERROR);
+
 #[fixture]
 fn block_context() -> BlockContext {
     BlockContext::create_for_testing()
@@ -51,26 +65,19 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
 #[rstest]
 #[case::valid_tx(
     invoke_tx(CairoVersion::Cairo1),
+    Ok(()),
     Ok(TransactionHash(felt!(
         "0x152b8dd0c30e95fa3a4ee7a9398fcfc46fb00c048b4fdcfa9958c64d65899b8"
     )))
 )]
 #[case::invalid_tx(
     invoke_tx(CairoVersion::Cairo1),
-    Err(StatefulTransactionValidatorError::StatefulValidatorError(
-        StatefulValidatorError::TransactionPreValidationError(
-            TransactionPreValidationError::TransactionFeeError(
-                TransactionFeeError::L1GasBoundsExceedBalance {
-                    max_amount: VALID_L1_GAS_MAX_AMOUNT,
-                    max_price: VALID_L1_GAS_MAX_PRICE_PER_UNIT,
-                    balance: BigUint::ZERO,
-                }
-            )
-        )
-    ))
+    Err(STATEFUL_VALIDATOR_FEE_ERROR),
+    Err(STATEFUL_TRANSACTION_VALIDATOR_FEE_ERROR)
 )]
 fn test_stateful_tx_validator(
     #[case] external_tx: RpcTransaction,
+    #[case] expected_blockifier_response: StatefulValidatorResult<()>,
     #[case] expected_result: StatefulTransactionValidatorResult<TransactionHash>,
     stateful_validator: StatefulTransactionValidator,
 ) {
@@ -83,18 +90,15 @@ fn test_stateful_tx_validator(
         _ => None,
     };
 
-    let expected_result_msg = format!("{:?}", expected_result);
-
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator.expect_validate().return_once(|_, _| match expected_result {
-        Ok(_) => Ok(()),
-        Err(StatefulTransactionValidatorError::StatefulValidatorError(err)) => Err(err),
-        _ => panic!("Expecting StatefulTransactionValidatorError::StatefulValidatorError"),
-    });
+    mock_validator.expect_validate().return_once(|_, _| expected_blockifier_response);
     mock_validator.expect_get_nonce().returning(|_| Ok(Nonce(Felt::ZERO)));
 
     let result = stateful_validator.run_validate(&external_tx, optional_class_info, mock_validator);
-    assert_eq!(format!("{:?}", result), expected_result_msg);
+    match expected_result {
+        Ok(expected_result) => assert_eq!(result.unwrap().tx_hash, expected_result),
+        Err(_) => assert_eq!(format!("{:?}", result), format!("{:?}", expected_result)),
+    }
 }
 
 #[test]
@@ -133,40 +137,31 @@ fn test_instantiate_validator() {
 
 #[rstest]
 #[case::should_skip_validation(
-    ContractAddress::default(),
     external_invoke_tx(invoke_tx_args!{nonce: Nonce(Felt::ONE)}),
     Nonce::default(),
     true
 )]
 #[case::should_not_skip_validation_nonce_over_max_nonce_for_skip(
-    ContractAddress::default(),
     external_invoke_tx(invoke_tx_args!{nonce: Nonce(Felt::TWO)}),
     Nonce::default(),
     false
 )]
-#[case::should_not_skip_validation_non_invoke(
-    ContractAddress::default(),
-    deploy_account_tx(),
-    Nonce::default(),
-    false
-)]
+#[case::should_not_skip_validation_non_invoke(deploy_account_tx(), Nonce::default(), false)]
 #[case::should_not_skip_validation_account_nonce_1(
-    ContractAddress::from(TEST_SENDER_ADDRESS),
-    external_invoke_tx(invoke_tx_args!{sender_address, nonce: Nonce(Felt::ONE)}),
+    external_invoke_tx(invoke_tx_args!{sender_address: ContractAddress::from(TEST_SENDER_ADDRESS), nonce: Nonce(Felt::ONE)}),
     Nonce(Felt::ONE),
     false
 )]
 fn test_skip_stateful_validation(
-    #[case] sender_address: ContractAddress,
     #[case] external_tx: RpcTransaction,
     #[case] sender_nonce: Nonce,
     #[case] should_skip_validate: bool,
     stateful_validator: StatefulTransactionValidator,
 ) {
+    let sender_address = external_tx.calculate_sender_address();
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator
         .expect_get_nonce()
-        // TODO(yair): get the sender addres from the external_tx.
         .withf(move |contract_address| *contract_address == sender_address)
         .returning(move |_| Ok(sender_nonce));
     mock_validator

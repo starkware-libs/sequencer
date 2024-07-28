@@ -5,23 +5,15 @@ use std::fs::File;
 use std::path::Path;
 use std::rc::Rc;
 
-use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion, NonceManager};
 use serde_json::to_string_pretty;
-use starknet_api::core::{
-    calculate_contract_address,
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    Nonce,
-};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::rpc_transaction::{
     ContractClass,
     ResourceBoundsMapping,
     RpcDeclareTransactionV3,
-    RpcDeployAccountTransaction,
     RpcDeployAccountTransactionV3,
     RpcInvokeTransactionV3,
     RpcTransaction,
@@ -536,18 +528,4 @@ pub fn external_tx_to_json(tx: &RpcTransaction) -> String {
 
     // Serialize back to pretty JSON string
     to_string_pretty(&tx_json).expect("Failed to serialize transaction")
-}
-
-pub fn deployed_account_contract_address(deploy_tx: &RpcTransaction) -> ContractAddress {
-    let tx = assert_matches!(
-        deploy_tx,
-        RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => tx
-    );
-    calculate_contract_address(
-        tx.contract_address_salt,
-        tx.class_hash,
-        &tx.constructor_calldata,
-        ContractAddress::default(),
-    )
-    .unwrap()
 }
