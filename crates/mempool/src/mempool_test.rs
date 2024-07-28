@@ -238,24 +238,23 @@ fn test_get_txs_returns_by_priority_order(#[case] requested_txs: usize) {
 #[rstest]
 fn test_get_txs_multi_nonce() {
     // Setup.
-    let tx_address_0_nonce_0 =
+    let tx_nonce_0 =
         add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8).tx;
-    let tx_address_0_nonce_1 =
+    let tx_nonce_1 =
         add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1_u8, account_nonce: 0_u8).tx;
+    let tx_nonce_2 =
+        add_tx_input!(tx_hash: 3, sender_address: "0x0", tx_nonce: 2_u8, account_nonce: 0_u8).tx;
 
-    let queue_txs = [TransactionReference::new(&tx_address_0_nonce_0)];
-    let pool_txs = [tx_address_0_nonce_0.clone(), tx_address_0_nonce_1.clone()];
-    let mut mempool: Mempool = MempoolState::new(pool_txs, queue_txs).into();
+    let queue_txs = [&tx_nonce_0].map(TransactionReference::new);
+    let pool_txs = [tx_nonce_0, tx_nonce_1, tx_nonce_2];
+    let mut mempool: Mempool = MempoolState::new(pool_txs.clone(), queue_txs).into();
 
     // Test.
-    let txs = mempool.get_txs(2).unwrap();
+    let fetched_txs = mempool.get_txs(3).unwrap();
 
-    // Assert that the account's next tx was added the queue.
-    // TODO(Ayelet): all transactions should be returned after replenishing.
-    assert_eq!(txs, &[tx_address_0_nonce_0]);
-    let expected_queue_txs = [&tx_address_0_nonce_1].map(TransactionReference::new);
-    let expected_pool_txs = [tx_address_0_nonce_1];
-    let expected_mempool_state = MempoolState::new(expected_pool_txs, expected_queue_txs);
+    // Assert: all transactions are returned.
+    assert_eq!(fetched_txs, &pool_txs);
+    let expected_mempool_state = MempoolState::new([], []);
     expected_mempool_state.assert_eq_mempool_state(&mempool);
 }
 
@@ -508,9 +507,8 @@ fn test_flow_filling_holes(mut mempool: Mempool) {
     add_tx(&mut mempool, &input_address_0_nonce_0);
     let txs = mempool.get_txs(2).unwrap();
 
-    // TODO(Ayelet): all transactions should be returned after replenishing.
     // Assert: all remaining transactions are returned.
-    assert_eq!(txs, &[input_address_0_nonce_0.tx]);
+    assert_eq!(txs, &[input_address_0_nonce_0.tx, input_address_0_nonce_1.tx]);
 }
 
 #[rstest]
