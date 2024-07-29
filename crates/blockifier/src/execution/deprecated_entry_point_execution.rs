@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
@@ -28,6 +30,15 @@ pub struct VmExecutionContext<'a> {
     pub initial_syscall_ptr: Relocatable,
     pub entry_point_pc: usize,
 }
+
+pub const CAIRO0_BUILTINS_NAMES: [BuiltinName; 6] = [
+    BuiltinName::range_check,
+    BuiltinName::pedersen,
+    BuiltinName::ecdsa,
+    BuiltinName::bitwise,
+    BuiltinName::ec_op,
+    BuiltinName::poseidon,
+];
 
 /// Executes a specific call to a contract entry point and returns its output.
 pub fn execute_entry_point_call(
@@ -71,9 +82,19 @@ pub fn initialize_execution_context<'a>(
     resources: &'a mut ExecutionResources,
     context: &'a mut EntryPointExecutionContext,
 ) -> Result<VmExecutionContext<'a>, PreExecutionError> {
+    // Verify use of cairo0 builtins only.
+    let program_builtins: HashSet<&BuiltinName> =
+        HashSet::from_iter(contract_class.program.iter_builtins());
+    let unsupported_builtins =
+        &program_builtins - &HashSet::from_iter(CAIRO0_BUILTINS_NAMES.iter());
+    if !unsupported_builtins.is_empty() {
+        return Err(PreExecutionError::UnsupportedCairo0Builtin(
+            unsupported_builtins.iter().map(|&item| *item).collect(),
+        ));
+    }
+
     // Resolve initial PC from EP indicator.
     let entry_point_pc = resolve_entry_point_pc(call, &contract_class)?;
-
     // Instantiate Cairo runner.
     let proof_mode = false;
     let trace_enabled = false;

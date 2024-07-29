@@ -1,3 +1,6 @@
+use std::collections::HashSet;
+
+use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
@@ -42,6 +45,8 @@ pub enum PreExecutionError {
     StateError(#[from] StateError),
     #[error("Requested contract address {:#064x} is not deployed.", .0.key())]
     UninitializedStorageAddress(ContractAddress),
+    #[error("Called builtins: {0:?} are unsupported in a Cairo0 contract")]
+    UnsupportedCairo0Builtin(HashSet<BuiltinName>),
 }
 
 impl From<RunnerError> for PreExecutionError {
