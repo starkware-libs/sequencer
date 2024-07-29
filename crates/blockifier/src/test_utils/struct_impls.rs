@@ -3,11 +3,13 @@ use std::sync::Arc;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
 use starknet_api::block::{BlockNumber, BlockTimestamp};
-use starknet_api::core::{ChainId, ContractAddress, PatriciaKey};
-use starknet_api::transaction::Fee;
-use starknet_api::{contract_address, felt, patricia_key};
+use starknet_api::core::{ChainId, ContractAddress, Nonce, PatriciaKey};
+use starknet_api::transaction::{Calldata, Fee, TransactionHash, TransactionVersion};
+use starknet_api::{calldata, contract_address, felt, patricia_key};
+use starknet_types_core::felt::Felt;
 
 use super::update_json_value;
+use crate::abi::abi_utils::selector_from_name;
 use crate::blockifier::block::{BlockInfo, GasPrices};
 use crate::bouncer::{BouncerConfig, BouncerWeights};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
@@ -40,6 +42,7 @@ use crate::transaction::objects::{
     TransactionInfo,
     TransactionResources,
 };
+use crate::transaction::transactions::L1HandlerTransaction;
 use crate::versioned_constants::{
     GasCosts,
     OsConstants,
@@ -228,5 +231,24 @@ impl ContractClassV1 {
     pub fn from_file(contract_path: &str) -> Self {
         let raw_contract_class = get_raw_contract_class(contract_path);
         Self::try_from_json_string(&raw_contract_class).unwrap()
+    }
+}
+
+impl L1HandlerTransaction {
+    pub fn create_for_testing(l1_fee: Fee, contract_address: ContractAddress) -> Self {
+        let calldata = calldata![
+            Felt::from(0x123), // from_address.
+            Felt::from(0x876), // key.
+            Felt::from(0x44)   // value.
+        ];
+        let tx = starknet_api::transaction::L1HandlerTransaction {
+            version: TransactionVersion::ZERO,
+            nonce: Nonce::default(),
+            contract_address,
+            entry_point_selector: selector_from_name("l1_handler_set_value"),
+            calldata,
+        };
+        let tx_hash = TransactionHash::default();
+        Self { tx, tx_hash, paid_fee_on_l1: l1_fee }
     }
 }
