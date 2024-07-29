@@ -1,9 +1,11 @@
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::{env, fs};
 
 use cached::proc_macro::cached;
 use serde::{Deserialize, Serialize};
+use tempfile::NamedTempFile;
 
 const CAIRO0_PIP_REQUIREMENTS_FILE: &str = "tests/requirements.txt";
 const LOCAL_CAIRO1_REPO_RELATIVE_PATH: &str = "../../../cairo";
@@ -94,9 +96,42 @@ pub fn cairo0_compile(path: String, extra_arg: Option<String>, debug_info: bool)
 }
 
 /// Compiles a Cairo1 program using the compiler version set in the Cargo.toml.
-pub fn cairo1_compile(_path: String) -> Vec<u8> {
-    verify_cairo1_compiler_deps();
-    todo!();
+pub fn cairo1_compile(
+    path: String,
+    git_tag_override: Option<String>,
+    additional_cargo_arg: Option<String>,
+) -> Vec<u8> {
+    verify_cairo1_compiler_deps(git_tag_override);
+    let cairo1_compiler_path = local_cairo1_compiler_repo_path();
+
+    // Command args common to both compilation phases.
+    let mut base_compile_args = vec![
+        "run".into(),
+        format!("--manifest-path={}/Cargo.toml", cairo1_compiler_path.to_string_lossy()),
+        "--bin".into(),
+    ];
+    // Add additional cargo arg if provided. Should be first arg (base command is `cargo`).
+    if let Some(cargo_arg) = additional_cargo_arg {
+        base_compile_args.insert(0, cargo_arg);
+    }
+
+    // Cairo -> Sierra.
+    let mut starknet_compile_commmand = Command::new("cargo");
+    starknet_compile_commmand.args(base_compile_args.clone());
+    starknet_compile_commmand.args(["starknet-compile", "--", "--single-file", &path]);
+    let sierra_output = run_and_verify_output(&mut starknet_compile_commmand);
+
+    let mut temp_file = NamedTempFile::new().unwrap();
+    temp_file.write_all(&sierra_output.stdout).unwrap();
+    let temp_path_str = temp_file.into_temp_path();
+
+    // Sierra -> CASM.
+    let mut sierra_compile_command = Command::new("cargo");
+    sierra_compile_command.args(base_compile_args);
+    sierra_compile_command.args(["starknet-sierra-compile", temp_path_str.to_str().unwrap()]);
+    let casm_output = run_and_verify_output(&mut sierra_compile_command);
+
+    casm_output.stdout
 }
 
 /// Verifies that the required dependencies are available before compiling; panics if unavailable.
@@ -124,13 +159,15 @@ fn verify_cairo0_compiler_deps() {
     );
 }
 
-fn verify_cairo1_compiler_deps() {
+fn verify_cairo1_compiler_deps(git_tag_override: Option<String>) {
+    // TODO(Dori, 1/6/2024): Check repo exists.
+    let tag = git_tag_override.unwrap_or(format!("v{}", cairo1_compiler_version()));
     // Checkout the required version in the compiler repo.
     run_and_verify_output(Command::new("git").args([
         "-C",
         // TODO(Dori, 1/6/2024): Handle CI case (repo path will be different).
         local_cairo1_compiler_repo_path().to_str().unwrap(),
         "checkout",
-        &format!("v{}", cairo1_compiler_version()),
+        &tag,
     ]));
 }
