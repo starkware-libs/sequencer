@@ -2,15 +2,15 @@
 /// to the [`Starknet p2p specs`]
 ///
 /// [`Starknet p2p specs`]: https://github.com/starknet-io/starknet-p2p-specs/
-pub mod bin_utils;
+mod bin_utils;
 mod discovery;
 #[cfg(test)]
 mod e2e_broadcast_test;
 pub mod gossipsub_impl;
-pub mod mixed_behaviour;
+mod mixed_behaviour;
 pub mod network_manager;
 mod peer_manager;
-pub mod sqmr;
+mod sqmr;
 #[cfg(test)]
 mod test_utils;
 mod utils;
