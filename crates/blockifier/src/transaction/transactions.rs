@@ -133,12 +133,12 @@ pub struct DeclareTransaction {
     pub tx: starknet_api::transaction::DeclareTransaction,
     pub tx_hash: TransactionHash,
     // Indicates the presence of the only_query bit in the version.
-    only_query: bool,
+    pub only_query: bool,
     pub class_info: ClassInfo,
 }
 
 impl DeclareTransaction {
-    fn create(
+    pub fn create(
         declare_tx: starknet_api::transaction::DeclareTransaction,
         tx_hash: TransactionHash,
         class_info: ClassInfo,
