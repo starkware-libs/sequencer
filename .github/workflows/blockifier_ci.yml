@@ -77,12 +77,3 @@ jobs:
         with:
           path: "target/release/native_blockifier.pypy39-pp73-x86_64-linux-gnu.so"
           destination: "native_blockifier_artifacts/${{ env.SHORT_HASH }}/release/"
-
-  # Keep the name 'udeps' to match original action name, so we don't need to define specific branch
-  # rules on Github for specific version branches.
-  udeps:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run Machete (detect unused dependencies)
-        uses: bnjbvr/cargo-machete@main
