@@ -6395,6 +6395,7 @@ dependencies = [
  "pretty_assertions",
  "replace_with",
  "serde",
+ "starknet_api",
  "thiserror",
  "tokio",
  "tokio-stream",
