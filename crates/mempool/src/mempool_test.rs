@@ -373,6 +373,23 @@ fn test_add_tx_with_duplicate_tx(mut mempool: Mempool) {
 }
 
 #[rstest]
+fn test_add_tx_with_tx_of_lower_nonce(mut mempool: Mempool) {
+    // Setup.
+    let valid_input =
+        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 1_u8, account_nonce: 1_u8);
+    let lower_nonce_input =
+        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8);
+
+    let queue_txs = [&valid_input.tx].map(TransactionReference::new);
+    let expected_mempool_state = MempoolState::with_queue(queue_txs);
+
+    // Test and assert the original transaction remains.
+    add_tx(&mut mempool, &valid_input);
+    assert_matches!(mempool.add_tx(lower_nonce_input), Err(MempoolError::DuplicateNonce { .. }));
+    expected_mempool_state.assert_eq_queue_state(&mempool);
+}
+
+#[rstest]
 fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
     // Setup.
     let input1 = add_tx_input!(tip: 1, tx_hash: 2);

@@ -168,6 +168,16 @@ impl Mempool {
             });
         }
 
+        // Check nonce against the tx queue.
+        if let Some(existing_nonce) = self.tx_queue.get_nonce(tx.sender_address) {
+            if existing_nonce > tx.nonce {
+                return Err(MempoolError::DuplicateNonce {
+                    address: tx.sender_address,
+                    nonce: tx.nonce,
+                });
+            }
+        }
+
         Ok(())
     }
 
