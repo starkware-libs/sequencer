@@ -62,7 +62,9 @@ impl MempoolClient for MempoolClientImpl {
             MempoolResponse::AddTransaction(Err(response)) => {
                 Err(MempoolClientError::MempoolError(response))
             }
-            _ => Err(MempoolClientError::ClientError(ClientError::UnexpectedResponse)),
+            unexpected_response => Err(MempoolClientError::ClientError(
+                ClientError::UnexpectedResponse(format!("{unexpected_response:?}")),
+            )),
         }
     }
 
@@ -74,7 +76,9 @@ impl MempoolClient for MempoolClientImpl {
             MempoolResponse::GetTransactions(Err(response)) => {
                 Err(MempoolClientError::MempoolError(response))
             }
-            _ => Err(MempoolClientError::ClientError(ClientError::UnexpectedResponse)),
+            unexpected_response => Err(MempoolClientError::ClientError(
+                ClientError::UnexpectedResponse(format!("{unexpected_response:?}")),
+            )),
         }
     }
 }
@@ -89,7 +93,9 @@ impl MempoolClient for RemoteMempoolClientImpl {
             MempoolResponse::AddTransaction(Err(response)) => {
                 Err(MempoolClientError::MempoolError(response))
             }
-            _ => Err(MempoolClientError::ClientError(ClientError::UnexpectedResponse)),
+            unexpected_response => Err(MempoolClientError::ClientError(
+                ClientError::UnexpectedResponse(format!("{unexpected_response:?}")),
+            )),
         }
     }
 
@@ -101,7 +107,9 @@ impl MempoolClient for RemoteMempoolClientImpl {
             MempoolResponse::GetTransactions(Err(response)) => {
                 Err(MempoolClientError::MempoolError(response))
             }
-            _ => Err(MempoolClientError::ClientError(ClientError::UnexpectedResponse)),
+            unexpected_response => Err(MempoolClientError::ClientError(
+                ClientError::UnexpectedResponse(format!("{unexpected_response:?}")),
+            )),
         }
     }
 }

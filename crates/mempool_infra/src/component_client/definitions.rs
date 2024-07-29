@@ -14,8 +14,8 @@ pub enum ClientError {
     ResponseParsingFailure(HyperError),
     #[error("Got status code: {0}, with server error: {1}")]
     ResponseError(StatusCode, ServerError),
-    #[error("Got an unexpected response type.")]
-    UnexpectedResponse,
+    #[error("Got an unexpected response type: {0}")]
+    UnexpectedResponse(String),
 }
 
 pub type ClientResult<T> = Result<T, ClientError>;
