@@ -6380,7 +6380,6 @@ dependencies = [
  "assert_matches",
  "async-stream",
  "bytes",
- "clap 4.5.4",
  "deadqueue",
  "defaultmap",
  "derive_more",
