@@ -138,7 +138,7 @@ pub struct DeclareTransaction {
 }
 
 impl DeclareTransaction {
-    fn create(
+    pub fn create(
         declare_tx: starknet_api::transaction::DeclareTransaction,
         tx_hash: TransactionHash,
         class_info: ClassInfo,
