@@ -71,6 +71,11 @@ const ERC20_CAIRO0_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo0/ERC20_without_som
 const ERC20_CAIRO1_CONTRACT_SOURCE_PATH: &str = "./ERC20/ERC20_Cairo1/ERC20.cairo";
 const ERC20_CAIRO1_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo1/erc20.casm.json";
 
+// Legacy contract is compiled with a fixed version of the compiler. This compiler version no longer
+// compiles with stable rust, so the toolchain is also fixed.
+const LEGACY_CONTRACT_COMPILER_TAG: &str = "v2.1.0";
+const LEGACY_CONTRACT_RUST_TOOLCHAIN: &str = "2023-07-05";
+
 /// Enum representing all feature contracts.
 /// The contracts that are implemented in both Cairo versions include a version field.
 #[derive(Clone, Copy, Debug, EnumIter, Hash, PartialEq, Eq)]
@@ -269,7 +274,19 @@ impl FeatureContract {
                 };
                 cairo0_compile(self.get_source_path(), extra_arg, false)
             }
-            CairoVersion::Cairo1 => cairo1_compile(self.get_source_path()),
+            CairoVersion::Cairo1 => {
+                let (tag_override, cargo_nightly_arg) = match self {
+                    Self::LegacyTestContract => (
+                        // Legacy contract is designed to test behavior of code compiled with a
+                        // specific (old) compiler tag. To run the (old) compiler, older rust
+                        // version is required.
+                        Some(LEGACY_CONTRACT_COMPILER_TAG.into()),
+                        Some(LEGACY_CONTRACT_RUST_TOOLCHAIN.into()),
+                    ),
+                    _ => (None, None),
+                };
+                cairo1_compile(self.get_source_path(), tag_override, cargo_nightly_arg)
+            }
         }
     }
 
