@@ -8,6 +8,7 @@ license-file.workspace = true
 [dependencies]
 async-stream.workspace = true
 enum-iterator.workspace = true
+chrono.workspace = true
 futures.workspace = true
 indexmap.workspace = true
 lazy_static.workspace = true
