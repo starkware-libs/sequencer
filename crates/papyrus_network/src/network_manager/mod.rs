@@ -549,6 +549,7 @@ impl NetworkManager {
             idle_connection_timeout,
             bootstrap_peer_multiaddr,
             secret_key,
+            chain_id,
         } = config;
 
         let listen_addresses = vec![
@@ -561,6 +562,7 @@ impl NetworkManager {
                 key,
                 bootstrap_peer_multiaddr.clone(),
                 sqmr::Config { session_timeout },
+                chain_id.clone(),
             )
         });
         Self::generic_new(swarm)

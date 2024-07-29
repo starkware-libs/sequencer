@@ -31,6 +31,7 @@ papyrus_common.workspace = true
 papyrus_config.workspace = true
 replace_with.workspace = true
 serde = { workspace = true, features = ["derive"] }
+starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0"}
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 tokio-retry.workspace = true

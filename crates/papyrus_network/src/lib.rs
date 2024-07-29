@@ -28,6 +28,7 @@ use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::validators::validate_vec_u256;
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+use starknet_api::core::ChainId;
 use validator::Validate;
 
 // TODO: add peer manager config to the network config
@@ -43,6 +44,7 @@ pub struct NetworkConfig {
     #[validate(custom = "validate_vec_u256")]
     #[serde(deserialize_with = "deserialize_optional_vec_u8")]
     pub(crate) secret_key: Option<Vec<u8>>,
+    pub chain_id: ChainId,
 }
 
 impl SerializeConfig for NetworkConfig {
@@ -101,6 +103,7 @@ impl Default for NetworkConfig {
             idle_connection_timeout: Duration::from_secs(120),
             bootstrap_peer_multiaddr: None,
             secret_key: None,
+            chain_id: ChainId::Mainnet,
         }
     }
 }
