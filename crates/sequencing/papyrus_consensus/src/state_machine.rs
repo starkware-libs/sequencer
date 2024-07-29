@@ -17,42 +17,11 @@ use crate::types::{Round, ValidatorId};
 /// Events which the state machine sends/receives.
 #[derive(Debug, Clone, PartialEq)]
 pub enum StateMachineEvent {
-<<<<<<< HEAD
     /// Sent by the state machine when a block is required to propose (BlockHash is always None).
     /// While waiting for the response of GetProposal, the state machine will buffer all other
     /// events. The caller must respond with a valid block hash for this height to the state
     /// machine, and the same round sent out.
     GetProposal(Option<BlockHash>, Round),
-||||||| a9dc431b
-    /// StartRound is effective 2 questions:
-    /// 1. Is the local node the proposer for this round?
-    /// 2. If so, what value should be proposed?
-    /// While waiting for the response to this event, the state machine will buffer all other
-    /// events.
-    ///
-    /// How should the caller handle this event?
-    /// 1. If the local node is not the proposer, the caller responds with with `None` as the block
-    ///    hash.
-    /// 2. If the local node is the proposer and a block hash was supplied by the state machine,
-    ///   the caller responds with the supplied block hash.
-    /// 3. If the local node is the proposer and no block hash was supplied by the state machine,
-    ///   the caller must find/build a block to respond with.
-    StartRound(Option<BlockHash>, Round),
-=======
-    /// StartRound is effective 2 questions:
-    /// 1. Is the local node the proposer for this round?
-    /// 2. If so, what value should be proposed? While waiting for the response to this event, the
-    ///    state machine will buffer all other events.
-    ///
-    /// How should the caller handle this event?
-    /// 1. If the local node is not the proposer, the caller responds with with `None` as the block
-    ///    hash.
-    /// 2. If the local node is the proposer and a block hash was supplied by the state machine,
-    ///    the caller responds with the supplied block hash.
-    /// 3. If the local node is the proposer and no block hash was supplied by the state machine,
-    ///    the caller must find/build a block to respond with.
-    StartRound(Option<BlockHash>, Round),
->>>>>>> origin/main-v0.13.2
     /// Consensus message, can be both sent from and to the state machine.
     Proposal(BlockHash, Round),
     /// Consensus message, can be both sent from and to the state machine.
