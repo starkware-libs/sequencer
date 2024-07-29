@@ -89,6 +89,7 @@ async fn propose() {
 
     let expected_message = ConsensusMessage::Proposal(Proposal {
         height: proposal_init.height.0,
+        round: 0,
         proposer: proposal_init.proposer,
         transactions: block.body.transactions,
         block_hash: block.header.block_hash,

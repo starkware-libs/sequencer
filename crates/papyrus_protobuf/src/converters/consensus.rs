@@ -20,6 +20,7 @@ impl TryFrom<protobuf::Proposal> for Proposal {
             .collect::<Result<Vec<Transaction>, ProtobufConversionError>>()?;
 
         let height = value.height;
+        let round = value.round;
         let proposer = value
             .proposer
             .ok_or(ProtobufConversionError::MissingField { field_description: "proposer" })?
@@ -30,7 +31,7 @@ impl TryFrom<protobuf::Proposal> for Proposal {
             .try_into()?;
         let block_hash = BlockHash(block_hash);
 
-        Ok(Proposal { height, proposer, transactions, block_hash })
+        Ok(Proposal { height, round, proposer, transactions, block_hash })
     }
 }
 
@@ -40,6 +41,7 @@ impl From<Proposal> for protobuf::Proposal {
 
         protobuf::Proposal {
             height: value.height,
+            round: value.round,
             proposer: Some(value.proposer.into()),
             transactions,
             block_hash: Some(value.block_hash.0.into()),
@@ -74,6 +76,7 @@ impl TryFrom<protobuf::Vote> for Vote {
         let vote_type = protobuf::vote::VoteType::try_from(value.vote_type)?.try_into()?;
 
         let height = value.height;
+        let round = value.round;
         let block_hash: StarkHash = value
             .block_hash
             .ok_or(ProtobufConversionError::MissingField { field_description: "block_hash" })?
@@ -84,7 +87,7 @@ impl TryFrom<protobuf::Vote> for Vote {
             .ok_or(ProtobufConversionError::MissingField { field_description: "voter" })?
             .try_into()?;
 
-        Ok(Vote { vote_type, height, block_hash, voter })
+        Ok(Vote { vote_type, height, round, block_hash, voter })
     }
 }
 
@@ -98,6 +101,7 @@ impl From<Vote> for protobuf::Vote {
         protobuf::Vote {
             vote_type: vote_type as i32,
             height: value.height,
+            round: value.round,
             block_hash: value.block_hash.map(|hash| hash.0.into()),
             voter: Some(value.voter.into()),
         }

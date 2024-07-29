@@ -11,11 +11,23 @@ use crate::test_utils::{MockTestContext, TestBlock};
 use crate::types::{ConsensusBlock, ProposalInit, ValidatorId};
 
 fn prevote(block_hash: Option<BlockHash>, height: u64, voter: ValidatorId) -> ConsensusMessage {
-    ConsensusMessage::Vote(Vote { vote_type: VoteType::Prevote, height, block_hash, voter })
+    ConsensusMessage::Vote(Vote {
+        vote_type: VoteType::Prevote,
+        height,
+        round: 0,
+        block_hash,
+        voter,
+    })
 }
 
 fn precommit(block_hash: Option<BlockHash>, height: u64, voter: ValidatorId) -> ConsensusMessage {
-    ConsensusMessage::Vote(Vote { vote_type: VoteType::Precommit, height, block_hash, voter })
+    ConsensusMessage::Vote(Vote {
+        vote_type: VoteType::Precommit,
+        height,
+        round: 0,
+        block_hash,
+        voter,
+    })
 }
 
 #[tokio::test]
