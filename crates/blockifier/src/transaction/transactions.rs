@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+#[cfg(any(test, feature = "testing"))]
 use starknet_api::calldata;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::EntryPointType;
@@ -15,6 +16,7 @@ use starknet_api::transaction::{
     TransactionSignature,
     TransactionVersion,
 };
+#[cfg(any(test, feature = "testing"))]
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
@@ -508,6 +510,7 @@ impl L1HandlerTransaction {
         self.tx.calldata.0.len() - 1
     }
 
+    #[cfg(any(test, feature = "testing"))]
     pub fn create_for_testing(l1_fee: Fee, contract_address: ContractAddress) -> Self {
         let calldata = calldata![
             Felt::from(0x123), // from_address.
