@@ -21,19 +21,18 @@ use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::create_tre
     create_32_bytes_entry,
     create_binary_entry,
     create_binary_skeleton_node,
-    create_compiled_class_leaf_entry,
-    create_contract_state_leaf_entry,
     create_edge_entry,
     create_edge_skeleton_node,
     create_expected_skeleton_nodes,
     create_root_edge_entry,
-    create_storage_leaf_entry,
     create_unmodified_subtree_skeleton_node,
 };
 use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::ForestSortedIndices;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
+use crate::storage::db_object::DBObject;
 use crate::storage::map_storage::MapStorage;
+use crate::storage::storage_trait::{StorageKey, StorageValue};
 
 macro_rules! compare_skeleton_tree {
     ($actual_skeleton:expr, $expected_skeleton:expr, $expected_indices:expr) => {{
@@ -43,6 +42,26 @@ macro_rules! compare_skeleton_tree {
             create_original_skeleton_with_sorted_indices(sorted_indices, $expected_skeleton);
         assert_eq!($actual_skeleton, &copied_expected_skeleton);
     }};
+}
+
+pub(crate) fn create_storage_leaf_entry(val: u128) -> (StorageKey, StorageValue) {
+    let leaf = StarknetStorageValue(Felt::from(val));
+    (leaf.get_db_key(&leaf.0.to_bytes_be()), leaf.serialize())
+}
+
+pub(crate) fn create_compiled_class_leaf_entry(val: u128) -> (StorageKey, StorageValue) {
+    let leaf = CompiledClassHash(Felt::from(val));
+    (leaf.get_db_key(&leaf.0.to_bytes_be()), leaf.serialize())
+}
+
+pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (StorageKey, StorageValue) {
+    let felt = Felt::from(val);
+    let leaf = ContractState {
+        nonce: Nonce(felt),
+        storage_root_hash: HashOutput(felt),
+        class_hash: ClassHash(felt),
+    };
+    (leaf.get_db_key(&felt.to_bytes_be()), leaf.serialize())
 }
 
 // This test assumes for simplicity that hash is addition (i.e hash(a,b) = a + b).
