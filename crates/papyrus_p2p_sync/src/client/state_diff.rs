@@ -2,6 +2,8 @@ use std::collections::HashSet;
 
 use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt};
+use metrics::gauge;
+use papyrus_common::metrics as papyrus_metrics;
 use papyrus_proc_macros::latency_histogram;
 use papyrus_protobuf::sync::StateDiffChunk;
 use papyrus_storage::header::HeaderStorageReader;
@@ -20,7 +22,9 @@ impl BlockData for (ThinStateDiff, BlockNumber) {
         self: Box<Self>,
         storage_writer: &mut StorageWriter,
     ) -> Result<(), StorageError> {
-        storage_writer.begin_rw_txn()?.append_state_diff(self.1, self.0)?.commit()
+        storage_writer.begin_rw_txn()?.append_state_diff(self.1, self.0)?.commit()?;
+        gauge!(papyrus_metrics::PAPYRUS_STATE_MARKER, self.1.unchecked_next().0 as f64);
+        Ok(())
     }
 }
 

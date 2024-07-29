@@ -421,12 +421,12 @@ impl<
             papyrus_metrics::PAPYRUS_BODY_MARKER,
             block_number.unchecked_next().0 as f64
         );
-        let dt = Utc::now()
+        let time_delta = Utc::now()
             - Utc
                 .timestamp_opt(block.header.timestamp.0 as i64, 0)
                 .single()
                 .expect("block timestamp should be valid");
-        let header_latency = dt.num_seconds();
+        let header_latency = time_delta.num_seconds();
         debug!("Header latency: {}.", header_latency);
         if header_latency >= 0 {
             metrics::gauge!(papyrus_metrics::PAPYRUS_HEADER_LATENCY_SEC, header_latency as f64);

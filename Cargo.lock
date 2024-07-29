@@ -6463,6 +6463,7 @@ version = "0.4.0-rc.0"
 dependencies = [
  "assert_matches",
  "async-stream",
+ "chrono",
  "enum-iterator",
  "futures",
  "indexmap 2.2.6",
