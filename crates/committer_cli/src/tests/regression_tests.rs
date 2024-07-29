@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 use std::fs;
 
+use clap::Error;
 use committer::block_committer::input::{ConfigImpl, Input};
 use committer::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
 use serde::{Deserialize, Deserializer};
 use serde_json::{Map, Value};
+use tempfile::NamedTempFile;
 
 use super::utils::parse_from_python::parse_input_single_storage_tree_flow_test;
 use crate::commands::commit;
@@ -123,7 +125,7 @@ pub async fn test_regression_single_tree() {
     assert!(execution_time.as_secs_f64() < MAX_TIME_FOR_SINGLE_TREE_BECHMARK_TEST);
 }
 
-pub async fn test_single_committer_flow(input: String, output_path: String) {
+pub async fn test_single_committer_flow(input: String, output_path: String) -> Result<(), Error> {
     let CommitterRegressionInput {
         committer_input,
         contract_states_root: expected_contract_states_root,
@@ -150,12 +152,17 @@ pub async fn test_single_committer_flow(input: String, output_path: String) {
     // Assert the execution time does not exceed the threshold.
     // TODO(Aner, 20/06/2024): Add cpu_time time measurement and verify the time is below the
     // threshold.
+    Ok(())
 }
 #[ignore = "To avoid running the regression test in Coverage or without the --release flag."]
 #[tokio::test(flavor = "multi_thread")]
 pub async fn test_regression_committer_flow() {
     let start = std::time::Instant::now();
-    test_single_committer_flow(FLOW_TEST_INPUT.to_string(), OUTPUT_PATH.to_string()).await;
+    let result =
+        test_single_committer_flow(FLOW_TEST_INPUT.to_string(), OUTPUT_PATH.to_string()).await;
+    if result.is_err() {
+        panic!("Error {}", result.err().unwrap());
+    }
     let execution_time = std::time::Instant::now() - start;
     assert!(execution_time.as_secs_f64() < MAX_TIME_FOR_COMMITTER_FLOW_BECHMARK_TEST);
 }
@@ -168,15 +175,20 @@ pub async fn test_regression_committer_all_files() {
         EXPECTED_NUMBER_OF_FILES
     );
     let dir_path = fs::read_dir("./test_inputs/regression_files").unwrap();
-    let mut v = vec![];
-    for (file_counter, file_path) in dir_path.enumerate() {
-        v.push(tokio::task::spawn(async move {
-            let file_str = fs::read_to_string(file_path.unwrap().path()).unwrap();
-            test_single_committer_flow(file_str, "/tmp/".to_owned() + &file_counter.to_string())
-                .await
+    let mut tasks = Vec::with_capacity(EXPECTED_NUMBER_OF_FILES);
+    for entry in dir_path {
+        tasks.push(tokio::task::spawn(async move {
+            let file_path = entry.unwrap().path();
+            let output_file = NamedTempFile::new().unwrap();
+            let result = test_single_committer_flow(
+                fs::read_to_string(file_path.clone()).unwrap(),
+                output_file.path().to_str().unwrap().to_string(),
+            )
+            .await;
+            if result.is_err() {
+                panic!("Error {} for file: {:?}", result.err().unwrap(), file_path);
+            }
         }));
     }
-    for task in v {
-        task.await.unwrap();
-    }
+    futures::future::try_join_all(tasks).await.unwrap();
 }
