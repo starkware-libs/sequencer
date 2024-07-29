@@ -508,6 +508,7 @@ impl L1HandlerTransaction {
         self.tx.calldata.0.len() - 1
     }
 
+    #[cfg(any(test, feature = "testing"))]
     pub fn create_for_testing(l1_fee: Fee, contract_address: ContractAddress) -> Self {
         let calldata = calldata![
             Felt::from(0x123), // from_address.

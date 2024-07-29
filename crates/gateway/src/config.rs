@@ -207,7 +207,7 @@ impl Default for ChainInfoConfig {
         ChainInfo::default().into()
     }
 }
-
+#[cfg(any(test, feature = "testing"))]
 impl ChainInfoConfig {
     pub fn create_for_testing() -> Self {
         BlockContext::create_for_testing().chain_info().clone().into()
@@ -285,6 +285,7 @@ impl SerializeConfig for StatefulTransactionValidatorConfig {
     }
 }
 
+#[cfg(any(test, feature = "testing"))]
 impl StatefulTransactionValidatorConfig {
     pub fn create_for_testing() -> Self {
         StatefulTransactionValidatorConfig {
