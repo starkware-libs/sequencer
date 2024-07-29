@@ -44,14 +44,3 @@ where
     }
     swarm
 }
-
-pub fn dial<Behaviour>(swarm: &mut Swarm<Behaviour>, dial_address_str: &str)
-where
-    Behaviour: NetworkBehaviour,
-{
-    let dial_address = Multiaddr::from_str(dial_address_str)
-        .unwrap_or_else(|_| panic!("Unable to parse address {}", dial_address_str));
-    swarm
-        .dial(DialOpts::unknown_peer_id().address(dial_address).build())
-        .unwrap_or_else(|_| panic!("Error while dialing {}", dial_address_str));
-}
