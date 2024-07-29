@@ -227,6 +227,7 @@ impl FeatureContract {
         entry_point_selector: EntryPointSelector,
         entry_point_type: EntryPointType,
     ) -> EntryPointOffset {
+        // b.
         match self.get_class() {
             ContractClass::V0(class) => {
                 class
