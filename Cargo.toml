@@ -9,6 +9,7 @@ members = [
     "crates/committer",
     "crates/committer_cli",
     "crates/gateway",
+    "crates/infra_proc_macros",
     "crates/mempool",
     "crates/mempool_infra",
     "crates/mempool_node",
@@ -131,6 +132,7 @@ prost-build = "0.12.1"
 prost-types = "0.12.1"
 pyo3 = "0.19.1"
 pyo3-log = "0.8.1"
+quote = "1.0"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
 rand_distr = "0.4.3"
@@ -155,6 +157,7 @@ static_assertions = "1.1.0"
 statistical = "1.0.0"
 strum = "0.25.0"
 strum_macros = "0.25.2"
+syn = "1.0"
 tempfile = "3.7.0"
 test-case = "3.2.1"
 test-log = "0.2.14"
@@ -172,6 +175,7 @@ url = "2.5.0"
 validator = "0.12"
 void = "1.0.2"
 zstd = "0.13.1"
+
 
 [workspace.lints.rust]
 future-incompatible = "deny"

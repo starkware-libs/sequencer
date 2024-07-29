@@ -1,0 +1,16 @@
+[package]
+name = "starknet_infra_proc_macros"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+quote.workspace = true
+syn.workspace = true
+
+[lib]
+proc-macro = true
+
+[lints]
+workspace = true

@@ -8969,6 +8969,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_infra_proc_macros"
+version = "0.0.0"
+dependencies = [
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "starknet_mempool"
 version = "0.0.0"
 dependencies = [
@@ -9065,6 +9073,7 @@ dependencies = [
  "mockall",
  "serde",
  "starknet_api",
+ "starknet_infra_proc_macros",
  "starknet_mempool_infra",
  "thiserror",
 ]
