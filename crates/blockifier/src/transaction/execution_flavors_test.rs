@@ -83,7 +83,7 @@ fn create_flavors_test_state(
 /// Returns the new balance.
 fn check_balance<S: StateReader>(
     current_balance: Felt,
-    state: &mut CachedState<S>,
+    state: &CachedState<S>,
     account_address: ContractAddress,
     chain_info: &ChainInfo,
     fee_type: &FeeType,
@@ -469,7 +469,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     );
     let current_balance = check_balance(
         current_balance,
-        &mut state,
+        &state,
         account_address,
         &block_context.chain_info,
         &fee_type,
@@ -518,14 +518,8 @@ fn test_simulate_validate_charge_fee_mid_execution(
         // charged final fee is shown in actual_fee.
         if charge_fee { limited_fee } else { unlimited_fee },
     );
-    let current_balance = check_balance(
-        current_balance,
-        &mut state,
-        account_address,
-        chain_info,
-        &fee_type,
-        charge_fee,
-    );
+    let current_balance =
+        check_balance(current_balance, &state, account_address, chain_info, &fee_type, charge_fee);
 
     // Third scenario: only limit is block bounds. Expect resources consumed to be identical,
     // whether or not `charge_fee` is true.
@@ -564,7 +558,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
         block_limit_fee,
         block_limit_fee,
     );
-    check_balance(current_balance, &mut state, account_address, chain_info, &fee_type, charge_fee);
+    check_balance(current_balance, &state, account_address, chain_info, &fee_type, charge_fee);
 }
 
 #[rstest]
@@ -652,14 +646,8 @@ fn test_simulate_validate_charge_fee_post_execution(
         if charge_fee { just_not_enough_fee_bound } else { unlimited_fee },
         if charge_fee { revert_fee } else { unlimited_fee },
     );
-    let current_balance = check_balance(
-        current_balance,
-        &mut state,
-        account_address,
-        chain_info,
-        &fee_type,
-        charge_fee,
-    );
+    let current_balance =
+        check_balance(current_balance, &state, account_address, chain_info, &fee_type, charge_fee);
 
     // Second scenario: balance too low.
     // Execute a transfer, and make sure we get the expected result.
@@ -724,7 +712,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     );
     check_balance(
         current_balance,
-        &mut state,
+        &state,
         account_address,
         chain_info,
         &fee_type,
