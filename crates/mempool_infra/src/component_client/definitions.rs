@@ -1,17 +1,18 @@
-use bincode::ErrorKind;
-use hyper::{Error as HyperError, StatusCode};
+use std::sync::Arc;
+
+use hyper::StatusCode;
 use thiserror::Error;
 
 use crate::component_definitions::ServerError;
 
-#[derive(Debug, Error)]
+#[derive(Clone, Debug, Error)]
 pub enum ClientError {
     #[error("Communication error: {0}")]
-    CommunicationFailure(HyperError),
+    CommunicationFailure(Arc<hyper::Error>),
     #[error("Could not deserialize server response: {0}")]
-    ResponseDeserializationFailure(Box<ErrorKind>),
+    ResponseDeserializationFailure(Arc<bincode::Error>),
     #[error("Could not parse the response: {0}")]
-    ResponseParsingFailure(HyperError),
+    ResponseParsingFailure(Arc<hyper::Error>),
     #[error("Got status code: {0}, with server error: {1}")]
     ResponseError(StatusCode, ServerError),
     #[error("Got an unexpected response type: {0}")]
