@@ -165,6 +165,7 @@ tokio = { version = "1.37.0", features = ["full"] }
 tokio-retry = "0.3"
 tokio-stream = "0.1.8"
 tokio-test = "0.4.4"
+toml = "0.8"
 tower = "0.4.13"
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
