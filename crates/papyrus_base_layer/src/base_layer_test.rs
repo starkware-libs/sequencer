@@ -33,10 +33,9 @@ fn get_test_ethereum_node() -> (TestEthereumNodeHandle, EthereumContractAddress)
             .stdout,
     )
     .to_string();
-    // TODO(yair): Consider relaxing the version requirement.
     assert!(
-        ganache_version.starts_with("ganache v7.4.3"),
-        "Wrong Ganache version, please install v7.4.3"
+        ganache_version.starts_with("ganache v7"),
+        "Wrong Ganache version, please install v7 by running `npm install -g ganache@7`."
     );
     const DB_NAME: &str = "ganache-db";
     let db_archive_path = format!("resources/{DB_NAME}.tar");
