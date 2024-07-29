@@ -1,10 +1,12 @@
-use std::process::Command;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Output};
 use std::{env, fs};
 
 use cached::proc_macro::cached;
 use serde::{Deserialize, Serialize};
 
 const CAIRO0_PIP_REQUIREMENTS_FILE: &str = "tests/requirements.txt";
+const LOCAL_CAIRO1_REPO_RELATIVE_PATH: &str = "../../../cairo";
 
 /// Objects for simple deserialization of Cargo.toml to fetch the Cairo1 compiler version.
 /// The compiler itself isn't actually a dependency, so we compile by using the version of the
@@ -54,6 +56,25 @@ pub fn cairo1_compiler_version() -> String {
     }
 }
 
+/// Returns the path to the local Cairo1 compiler repository.
+fn local_cairo1_compiler_repo_path() -> PathBuf {
+    // Location of blockifier's Cargo.toml.
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+
+    // Returns <blockifier_crate_root>/<RELATIVE_PATH_TO_CAIRO_REPO>.
+    Path::new(&manifest_dir).join(LOCAL_CAIRO1_REPO_RELATIVE_PATH)
+}
+
+/// Run a command, assert exit code is zero (otherwise panic with stderr output).
+fn run_and_verify_output(command: &mut Command) -> Output {
+    let output = command.output().unwrap();
+    if !output.status.success() {
+        let stderr_output = String::from_utf8(output.stderr).unwrap();
+        panic!("{stderr_output}");
+    }
+    output
+}
+
 /// Compiles a Cairo0 program using the deprecated compiler.
 pub fn cairo0_compile(path: String, extra_arg: Option<String>, debug_info: bool) -> Vec<u8> {
     verify_cairo0_compiler_deps();
@@ -73,6 +94,7 @@ pub fn cairo0_compile(path: String, extra_arg: Option<String>, debug_info: bool)
 
 /// Compiles a Cairo1 program using the compiler version set in the Cargo.toml.
 pub fn cairo1_compile(_path: String) -> Vec<u8> {
+    verify_cairo1_compiler_deps();
     todo!();
 }
 
@@ -99,4 +121,15 @@ fn verify_cairo0_compiler_deps() {
         env::var("CARGO_MANIFEST_DIR").unwrap(),
         CAIRO0_PIP_REQUIREMENTS_FILE
     );
+}
+
+fn verify_cairo1_compiler_deps() {
+    // Checkout the required version in the compiler repo.
+    run_and_verify_output(Command::new("git").args([
+        "-C",
+        // TODO(Dori, 1/6/2024): Handle CI case (repo path will be different).
+        local_cairo1_compiler_repo_path().to_str().unwrap(),
+        "checkout",
+        &format!("v{}", cairo1_compiler_version()),
+    ]));
 }
