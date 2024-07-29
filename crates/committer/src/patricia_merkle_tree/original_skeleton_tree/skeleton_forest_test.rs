@@ -111,7 +111,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (StorageKey, Storag
 ///                  /   \                              /
 ///                 E     E                            B
 ///                /       \                         /   \
-///               * B                       B     E
+///               /         B                       B     E
 ///              /                                 / \     \
 ///             303                               NZ  47   UB
 ///
