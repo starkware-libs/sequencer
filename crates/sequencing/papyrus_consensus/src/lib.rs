@@ -29,6 +29,8 @@ pub mod single_height_consensus;
 #[allow(missing_docs)]
 pub mod state_machine;
 #[cfg(test)]
+pub(crate) mod test_network_receiver;
+#[cfg(test)]
 pub(crate) mod test_utils;
 #[allow(missing_docs)]
 pub mod types;
