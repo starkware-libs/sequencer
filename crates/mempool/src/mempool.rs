@@ -148,24 +148,27 @@ impl Mempool {
     }
 
     fn validate_input(&self, input: &MempoolInput) -> MempoolResult<()> {
-        // Check nonce against mempool state.
         let MempoolInput { tx, account } = input;
+        let duplicate_nonce_error =
+            MempoolError::DuplicateNonce { address: tx.sender_address, nonce: tx.nonce };
+
+        // Check nonce against mempool state.
         if let Some(AccountState { nonce }) = self.mempool_state.get(&tx.sender_address) {
             if nonce >= &tx.nonce {
-                return Err(MempoolError::DuplicateNonce {
-                    address: tx.sender_address,
-                    nonce: tx.nonce,
-                });
+                return Err(duplicate_nonce_error);
             }
         }
 
         // Check nonce against given account state.
         let Account { state: AccountState { nonce }, .. } = account;
         if nonce > &tx.nonce {
-            return Err(MempoolError::DuplicateNonce {
-                address: tx.sender_address,
-                nonce: tx.nonce,
-            });
+            return Err(duplicate_nonce_error);
+        }
+
+        if let Some(queued_nonce) = self.tx_queue.get_nonce(tx.sender_address) {
+            if queued_nonce > tx.nonce {
+                return Err(duplicate_nonce_error);
+            }
         }
 
         Ok(())
