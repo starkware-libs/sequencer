@@ -352,7 +352,7 @@ impl AccountTransaction {
         let msb_amount = Felt::from(0_u8);
 
         let TransactionContext { block_context, tx_info } = tx_context.as_ref();
-        let storage_address = block_context.chain_info.fee_token_address(&tx_info.fee_type());
+        let storage_address = tx_context.fee_token_address();
         let fee_transfer_call = CallEntryPoint {
             class_hash: None,
             code_address: None,
@@ -388,10 +388,9 @@ impl AccountTransaction {
         tx_context: Arc<TransactionContext>,
         actual_fee: Fee,
     ) -> TransactionExecutionResult<CallInfo> {
-        let TransactionContext { block_context, tx_info } = tx_context.as_ref();
-        let fee_address = block_context.chain_info.fee_token_address(&tx_info.fee_type());
+        let fee_address = tx_context.fee_token_address();
         let (sequencer_balance_key_low, sequencer_balance_key_high) =
-            get_sequencer_balance_keys(block_context);
+            get_sequencer_balance_keys(&tx_context.block_context);
         let mut transfer_state = TransactionalState::create_transactional(state);
 
         // Set the initial sequencer balance to avoid tarnishing the read-set of the transaction.

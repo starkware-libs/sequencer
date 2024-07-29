@@ -70,20 +70,15 @@ fn verify_sequencer_balance_update<S: StateReader>(
     // We assume the balance is at most 2^128, so the "low" value is sufficient.
     expected_sequencer_balance_low: u128,
 ) {
-    let TransactionContext { block_context, tx_info } = tx_context;
     let tx_version_state = state.pin_version(tx_index);
     let (sequencer_balance_key_low, sequencer_balance_key_high) =
-        get_sequencer_balance_keys(block_context);
+        get_sequencer_balance_keys(&tx_context.block_context);
     for (expected_balance, storage_key) in [
         (felt!(expected_sequencer_balance_low), sequencer_balance_key_low),
         (Felt::ZERO, sequencer_balance_key_high),
     ] {
-        let actual_balance = tx_version_state
-            .get_storage_at(
-                block_context.chain_info.fee_token_address(&tx_info.fee_type()),
-                storage_key,
-            )
-            .unwrap();
+        let actual_balance =
+            tx_version_state.get_storage_at(tx_context.fee_token_address(), storage_key).unwrap();
         assert_eq!(expected_balance, actual_balance);
     }
 }
