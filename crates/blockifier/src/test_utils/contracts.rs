@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
@@ -63,8 +65,11 @@ const SECURITY_TEST_CONTRACT_NAME: &str = "security_tests_contract";
 const TEST_CONTRACT_NAME: &str = "test_contract";
 
 // ERC20 contract is in a unique location.
+const ERC20_CAIRO0_CONTRACT_SOURCE_PATH: &str =
+    "./ERC20/ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/ERC20.cairo";
 const ERC20_CAIRO0_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/\
                                           erc20_contract_without_some_syscalls_compiled.json";
+const ERC20_CAIRO1_CONTRACT_SOURCE_PATH: &str = "./ERC20/ERC20_Cairo1/ERC20.cairo";
 const ERC20_CAIRO1_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo1/erc20.casm.json";
 
 /// Enum representing all feature contracts.
@@ -186,36 +191,66 @@ impl FeatureContract {
             }
     }
 
+    pub fn get_source_path(&self) -> String {
+        // Special case: ERC20 contract in a different location.
+        if let Self::ERC20(cairo_version) = self {
+            match cairo_version {
+                CairoVersion::Cairo0 => ERC20_CAIRO0_CONTRACT_SOURCE_PATH,
+                CairoVersion::Cairo1 => ERC20_CAIRO1_CONTRACT_SOURCE_PATH,
+            }
+            .into()
+        } else {
+            format!(
+                "feature_contracts/cairo{}/{}.cairo",
+                match self.cairo_version() {
+                    CairoVersion::Cairo0 => "0",
+                    CairoVersion::Cairo1 => "1",
+                },
+                match self {
+                    Self::AccountWithLongValidate(_) => ACCOUNT_LONG_VALIDATE_NAME,
+                    Self::AccountWithoutValidations(_) => ACCOUNT_WITHOUT_VALIDATIONS_NAME,
+                    Self::Empty(_) => EMPTY_CONTRACT_NAME,
+                    Self::FaultyAccount(_) => FAULTY_ACCOUNT_NAME,
+                    Self::LegacyTestContract => LEGACY_CONTRACT_NAME,
+                    Self::SecurityTests => SECURITY_TEST_CONTRACT_NAME,
+                    Self::TestContract(_) => TEST_CONTRACT_NAME,
+                    Self::ERC20(_) => unreachable!(),
+                }
+            )
+        }
+    }
+
     pub fn get_compiled_path(&self) -> String {
         let cairo_version = self.cairo_version();
-        let contract_name = match self {
-            Self::AccountWithLongValidate(_) => ACCOUNT_LONG_VALIDATE_NAME,
-            Self::AccountWithoutValidations(_) => ACCOUNT_WITHOUT_VALIDATIONS_NAME,
-            Self::Empty(_) => EMPTY_CONTRACT_NAME,
-            Self::FaultyAccount(_) => FAULTY_ACCOUNT_NAME,
-            Self::LegacyTestContract => LEGACY_CONTRACT_NAME,
-            Self::SecurityTests => SECURITY_TEST_CONTRACT_NAME,
-            Self::TestContract(_) => TEST_CONTRACT_NAME,
-            // ERC20 is a special case - not in the feature_contracts directory.
-            Self::ERC20(_) => {
-                return match cairo_version {
-                    CairoVersion::Cairo0 => ERC20_CAIRO0_CONTRACT_PATH.into(),
-                    CairoVersion::Cairo1 => ERC20_CAIRO1_CONTRACT_PATH.into(),
-                };
-            }
-        };
-        format!(
-            "feature_contracts/cairo{}/compiled/{}{}.json",
+        // ERC20 is a special case - not in the feature_contracts directory.
+        if let Self::ERC20(cairo_version) = self {
             match cairo_version {
-                CairoVersion::Cairo0 => "0",
-                CairoVersion::Cairo1 => "1",
-            },
-            contract_name,
-            match cairo_version {
-                CairoVersion::Cairo0 => "_compiled",
-                CairoVersion::Cairo1 => ".casm",
+                CairoVersion::Cairo0 => ERC20_CAIRO0_CONTRACT_PATH,
+                CairoVersion::Cairo1 => ERC20_CAIRO1_CONTRACT_PATH,
             }
-        )
+            .into()
+        } else {
+            let source_path = self.get_source_path();
+            let base_name = Path::new(&source_path)
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .strip_suffix(".cairo")
+                .unwrap();
+            format!(
+                "feature_contracts/cairo{}/compiled/{}{}.json",
+                match cairo_version {
+                    CairoVersion::Cairo0 => "0",
+                    CairoVersion::Cairo1 => "1",
+                },
+                base_name,
+                match cairo_version {
+                    CairoVersion::Cairo0 => "_compiled",
+                    CairoVersion::Cairo1 => ".casm",
+                }
+            )
+        }
     }
 
     /// Fetch PC locations from the compiled contract to compute the expected PC locations in the
