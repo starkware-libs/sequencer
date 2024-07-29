@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::{Arc, Mutex};
 
 use async_recursion::async_recursion;
@@ -26,10 +27,10 @@ pub(crate) type FilledTreeResult<T, L> = Result<T, FilledTreeError<L>>;
 /// data and hashes.
 pub(crate) trait FilledTree<L: Leaf>: Sized {
     /// Computes and returns the filled tree.
-    async fn create<'a, TH: TreeHashFunction<L> + 'static>(
+    fn create<'a, TH: TreeHashFunction<L> + 'static>(
         updated_skeleton: Arc<impl UpdatedSkeletonTree<'a> + 'static>,
         leaf_modifications: Arc<LeafModifications<L>>,
-    ) -> FilledTreeResult<Self, L>;
+    ) -> impl Future<Output = FilledTreeResult<Self, L>> + Send;
 
     /// Serializes the current state of the tree into a hashmap,
     /// where each key-value pair corresponds
