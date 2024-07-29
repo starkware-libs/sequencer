@@ -148,24 +148,36 @@ impl Mempool {
     }
 
     fn validate_input(&self, input: &MempoolInput) -> MempoolResult<()> {
+        let MempoolInput {
+            tx: ThinTransaction { sender_address, nonce: tx_nonce, .. },
+            account: Account { state: AccountState { nonce: account_nonce }, .. },
+        } = input;
+        let duplicate_nonce_error =
+            MempoolError::DuplicateNonce { address: *sender_address, nonce: *tx_nonce };
+
+        // Stateless checks.
+
+        // Check the input: transaction nonce against given account state.
+        if account_nonce > tx_nonce {
+            return Err(duplicate_nonce_error);
+        }
+
+        // Stateful checks.
+
         // Check nonce against mempool state.
-        let MempoolInput { tx, account } = input;
-        if let Some(AccountState { nonce }) = self.mempool_state.get(&tx.sender_address) {
-            if nonce >= &tx.nonce {
-                return Err(MempoolError::DuplicateNonce {
-                    address: tx.sender_address,
-                    nonce: tx.nonce,
-                });
+        if let Some(AccountState { nonce: mempool_state_nonce }) = self.mempool_state.get(sender_address) {
+            if mempool_state_nonce >= tx_nonce {
+                return Err(duplicate_nonce_error);
             }
         }
 
-        // Check nonce against given account state.
-        let Account { state: AccountState { nonce }, .. } = account;
-        if nonce > &tx.nonce {
-            return Err(MempoolError::DuplicateNonce {
-                address: tx.sender_address,
-                nonce: tx.nonce,
-            });
+        // Check nonce against the queue.
+        if self
+            .tx_queue
+            .get_nonce(*sender_address)
+            .is_some_and(|queued_nonce| queued_nonce > *tx_nonce)
+        {
+            return Err(duplicate_nonce_error);
         }
 
         Ok(())
