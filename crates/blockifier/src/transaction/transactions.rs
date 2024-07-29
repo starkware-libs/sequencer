@@ -136,7 +136,7 @@ pub struct DeclareTransaction {
 }
 
 impl DeclareTransaction {
-    fn create(
+    pub fn create(
         declare_tx: starknet_api::transaction::DeclareTransaction,
         tx_hash: TransactionHash,
         class_info: ClassInfo,
@@ -286,7 +286,7 @@ pub struct DeployAccountTransaction {
     pub tx_hash: TransactionHash,
     pub contract_address: ContractAddress,
     // Indicates the presence of the only_query bit in the version.
-    pub only_query: bool,
+    only_query: bool,
 }
 
 impl DeployAccountTransaction {
@@ -386,7 +386,7 @@ pub struct InvokeTransaction {
     pub tx: starknet_api::transaction::InvokeTransaction,
     pub tx_hash: TransactionHash,
     // Indicates the presence of the only_query bit in the version.
-    pub only_query: bool,
+    only_query: bool,
 }
 
 impl InvokeTransaction {
