@@ -75,6 +75,12 @@ impl SerializeConfig for NetworkConfig {
                  alive.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "chain_id",
+                &self.chain_id,
+                "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+                ParamPrivacyInput::Public,
+            ),
         ]);
         config.extend(ser_optional_param(
             &self.bootstrap_peer_multiaddr,
