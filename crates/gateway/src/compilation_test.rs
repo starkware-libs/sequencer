@@ -6,9 +6,10 @@ use rstest::{fixture, rstest};
 use starknet_api::core::CompiledClassHash;
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
 use starknet_sierra_compile::errors::CompilationUtilError;
+use tracing_test::traced_test;
 
 use crate::compilation::GatewayCompiler;
-use crate::errors::GatewayError;
+use crate::errors::GatewaySpecError;
 
 #[fixture]
 fn gateway_compiler() -> GatewayCompiler {
@@ -16,6 +17,7 @@ fn gateway_compiler() -> GatewayCompiler {
 }
 
 // TODO(Arni): Redesign this test once the compiler is passed with dependancy injection.
+#[traced_test]
 #[rstest]
 fn test_compile_contract_class_compiled_class_hash_mismatch(gateway_compiler: GatewayCompiler) {
     let mut tx = assert_matches!(
@@ -27,14 +29,18 @@ fn test_compile_contract_class_compiled_class_hash_mismatch(gateway_compiler: Ga
     tx.compiled_class_hash = wrong_supplied_hash;
     let declare_tx = RpcDeclareTransaction::V3(tx);
 
-    let result = gateway_compiler.process_declare_tx(&declare_tx);
-    assert_matches!(
-        result.unwrap_err(),
-        GatewayError::CompiledClassHashMismatch { supplied, hash_result }
-        if supplied == wrong_supplied_hash && hash_result == expected_hash
-    );
+    let err = gateway_compiler.process_declare_tx(&declare_tx).unwrap_err();
+    assert_eq!(err, GatewaySpecError::CompiledClassHashMismatch);
+    assert!(logs_contain(
+        format!(
+            "Compiled class hash mismatch. Supplied: {:?}, Hash result: {:?}",
+            wrong_supplied_hash, expected_hash
+        )
+        .as_str()
+    ));
 }
 
+#[traced_test]
 #[rstest]
 fn test_compile_contract_class_bad_sierra(gateway_compiler: GatewayCompiler) {
     let mut tx = assert_matches!(
@@ -45,13 +51,12 @@ fn test_compile_contract_class_bad_sierra(gateway_compiler: GatewayCompiler) {
     tx.contract_class.sierra_program = tx.contract_class.sierra_program[..100].to_vec();
     let declare_tx = RpcDeclareTransaction::V3(tx);
 
-    let result = gateway_compiler.process_declare_tx(&declare_tx);
-    assert_matches!(
-        result.unwrap_err(),
-        GatewayError::CompilationError(CompilationUtilError::AllowedLibfuncsError(
-            AllowedLibfuncsError::SierraProgramError
-        ))
-    )
+    let err = gateway_compiler.process_declare_tx(&declare_tx).unwrap_err();
+    assert_eq!(err, GatewaySpecError::CompilationFailed);
+
+    let expected_compilation_error =
+        CompilationUtilError::AllowedLibfuncsError(AllowedLibfuncsError::SierraProgramError);
+    assert!(logs_contain(format!("Compilation failed: {:?}", expected_compilation_error).as_str()));
 }
 
 #[rstest]

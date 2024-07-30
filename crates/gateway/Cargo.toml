@@ -44,3 +44,4 @@ num-bigint.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet_mempool = { path = "../mempool", version = "0.0" }
+tracing-test.workspace = true

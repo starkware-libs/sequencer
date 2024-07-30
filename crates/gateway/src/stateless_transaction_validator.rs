@@ -8,6 +8,7 @@ use starknet_api::rpc_transaction::{
 use starknet_api::state::EntryPoint;
 use starknet_api::transaction::Resource;
 use starknet_types_core::felt::Felt;
+use tracing::{instrument, Level};
 
 use crate::compiler_version::VersionId;
 use crate::config::StatelessTransactionValidatorConfig;
@@ -23,6 +24,7 @@ pub struct StatelessTransactionValidator {
 }
 
 impl StatelessTransactionValidator {
+    #[instrument(skip(self), level = Level::INFO, err)]
     pub fn validate(&self, tx: &RpcTransaction) -> StatelessTransactionValidatorResult<()> {
         // TODO(Arni, 1/5/2024): Add a mechanism that validate the sender address is not blocked.
         // TODO(Arni, 1/5/2024): Validate transaction version.

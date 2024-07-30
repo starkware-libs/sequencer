@@ -15,9 +15,10 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
+use tracing::error;
 
 use crate::config::StatefulTransactionValidatorConfig;
-use crate::errors::StatefulTransactionValidatorResult;
+use crate::errors::{GatewaySpecError, StatefulTransactionValidatorResult};
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 use crate::utils::{external_tx_to_account_tx, get_sender_address, get_tx_hash};
 
@@ -76,9 +77,15 @@ impl StatefulTransactionValidator {
             &self.config.chain_info.chain_id,
         )?;
         let tx_hash = get_tx_hash(&account_tx);
-        let account_nonce = validator.get_nonce(get_sender_address(external_tx))?;
+        let sender_address = get_sender_address(external_tx);
+        let account_nonce = validator.get_nonce(sender_address).map_err(|e| {
+            error!("Failed to get nonce for sender address {}: {}", sender_address, e);
+            GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+        })?;
         let skip_validate = skip_stateful_validations(external_tx, account_nonce);
-        validator.validate(account_tx, skip_validate)?;
+        validator
+            .validate(account_tx, skip_validate)
+            .map_err(|err| GatewaySpecError::ValidationFailure { data: err.to_string() })?;
         Ok(tx_hash)
     }
 
@@ -129,5 +136,8 @@ pub fn get_latest_block_info(
     state_reader_factory: &dyn StateReaderFactory,
 ) -> StatefulTransactionValidatorResult<BlockInfo> {
     let state_reader = state_reader_factory.get_state_reader_from_latest_block();
-    Ok(state_reader.get_block_info()?)
+    state_reader.get_block_info().map_err(|e| {
+        error!("Failed to get latest block info: {}", e);
+        GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+    })
 }
