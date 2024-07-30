@@ -4,19 +4,24 @@ on:
   push:
     branches:
       - main
+      - main-v[0-9].**
     tags:
       - v[0-9].**
     paths:
-      - 'crates/blockifier/feature_contracts/cairo0/**'
       - '.github/workflows/blockifier_compiled_cairo.yml'
+      - 'crates/blockifier/feature_contracts/**'
+      - 'crates/blockifier/tests/**'
   pull_request:
     types:
       - opened
       - reopened
       - synchronize
+      - auto_merge_enabled
+      - edited
     paths:
       - '.github/workflows/blockifier_compiled_cairo.yml'
-      - 'crates/blockifier/feature_contracts/cairo0/**'
+      - 'crates/blockifier/feature_contracts/**'
+      - 'crates/blockifier/tests/**'
 
 jobs:
   verify_cairo_file_dependencies:
@@ -39,6 +44,33 @@ jobs:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
+      # Checkout sequencer into a dedicated directory - technical requirement in order to be able to checkout `cairo` in a sibling directory.
+      - name: checkout sequencer into `sequencer` directory.
+        uses: actions/checkout@v4
+        with:
+          repository: 'starkware-libs/sequencer'
+          path: 'sequencer'
+
+      - name: checkout cairo1 repo in order to compile cairo1 contracts.
+        uses: actions/checkout@v4
+        with:
+          repository: 'starkware-libs/cairo'
+          fetch-depth: 0
+          fetch-tags: true
+          path: 'cairo'
+
+      - name: Verify cairo contract recompilation (non-legacy, both cairo versions).
+        run:
+          cd sequencer &&
+          pip install -r crates/blockifier/tests/requirements.txt &&
+          cargo test -p blockifier --test feature_contracts_compatibility_test --features testing -- --include-ignored
+
+      # Legacy contract verification.
+      - name: Verify the legacy contract.
+        uses: actions-rs/toolchain@master
+        with:
+          toolchain: nightly-2023-07-05
+      - uses: Swatinem/rust-cache@v2
       - run:
-          pip install -r crates/blockifier/tests/requirements.txt;
-          cargo test verify_feature_contracts -- --include-ignored
+          cd sequencer &&
+          LEGACY=1 cargo test -p blockifier --test feature_contracts_compatibility_test --features testing -- --include-ignored
