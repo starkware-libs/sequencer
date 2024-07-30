@@ -11,7 +11,7 @@ mod transaction;
 
 use prost::DecodeError;
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, PartialEq, Debug)]
 pub enum ProtobufConversionError {
     #[error("Type `{type_description}` got out of range value {value_as_str}")]
     OutOfRangeValue { type_description: &'static str, value_as_str: String },
