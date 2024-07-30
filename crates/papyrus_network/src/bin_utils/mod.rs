@@ -2,7 +2,6 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use libp2p::identity::Keypair;
-use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::NetworkBehaviour;
 use libp2p::{noise, yamux, Multiaddr, Swarm, SwarmBuilder};
 use tracing::debug;
