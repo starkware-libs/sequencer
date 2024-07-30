@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use papyrus_protobuf::consensus::{ConsensusMessage, Vote};
+use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 
@@ -162,10 +163,16 @@ pub struct ProposalInit {
 pub enum ConsensusError {
     #[error(transparent)]
     Canceled(#[from] oneshot::Canceled),
+    #[error(transparent)]
+    ProtobufConversionError(#[from] ProtobufConversionError),
     #[error("Invalid proposal sent by peer {0:?} at height {1}: {2}")]
     InvalidProposal(ValidatorId, BlockNumber, String),
     #[error(transparent)]
     SendError(#[from] mpsc::SendError),
     #[error("Conflicting messages for block {0}. Old: {1:?}, New: {2:?}")]
     Equivocation(BlockNumber, ConsensusMessage, ConsensusMessage),
+    // Indicates an error in communication between consensus and the node's networking component.
+    // As opposed to an error between this node and peer nodes.
+    #[error("{0}")]
+    InternalNetworkError(String),
 }
