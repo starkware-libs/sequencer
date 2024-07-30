@@ -26,6 +26,40 @@ pub struct BlockInfo {
     pub use_kzg_da: bool,
 }
 
+impl BlockInfo {
+    /// Calculate the base fee for the next block according to EIP-1559.
+    ///
+    /// # Parameters
+    /// - `price`: The base fee of the current block.
+    /// - `gas_used`: The total gas used in the current block.
+    /// - `gas_target`: The target gas usage per block (usually half of the gas limit).
+    pub fn calculate_next_base_gas_price(price: u64, gas_used: u64, gas_target: u64) -> u64 {
+        const GAS_PRICE_MAX_CHANGE_DENOMINATOR: i128 = 8;
+
+        assert!(gas_target > 0, "Gas target must be positive");
+
+        // Convert to i128 to handle signed operations
+        let price_i128 = i128::from(price);
+        let gas_used_i128 = i128::from(gas_used);
+        let gas_target_i128 = i128::from(gas_target);
+
+        // Calculate the gas change as i128 to handle potential overflow during multiplication.
+        let gas_delta = gas_used_i128 - gas_target_i128;
+
+        // Calculate the price change, maintaining precision by dividing after multiplication.
+        // This avoids significant precision loss that would occur if dividing before
+        // multiplication.
+        let gas_delta_cost =
+            price_i128.checked_mul(gas_delta).expect("Both variables originate from u64");
+        let price_change = gas_delta_cost / gas_target_i128 / GAS_PRICE_MAX_CHANGE_DENOMINATOR;
+
+        // Add the price change (which could be positive or negative) and convert back to u64, as
+        // the price change should fit within the u64 range.
+        let new_price = price_i128.saturating_add(price_change);
+        new_price.try_into().expect("Price change overflow")
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct GasPrices {
     eth_l1_gas_price: NonZeroU128,       // In wei.
