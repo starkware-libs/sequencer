@@ -22,6 +22,7 @@ const Configuration = {
             'base_layer',
             'block_builder',
             'block_hash',
+            'blockifier',
             'ci',
             'common',
             'concurrency',
