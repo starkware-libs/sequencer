@@ -73,7 +73,7 @@ const ERC20_CAIRO1_CONTRACT_SOURCE_PATH: &str = "./ERC20/ERC20_Cairo1/ERC20.cair
 const ERC20_CAIRO1_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo1/erc20.casm.json";
 
 // Legacy contract is compiled with a fixed version of the compiler.
-const LEGACY_CONTRACT_COMPILER_TAG: &str = "v2.1.0";
+pub const LEGACY_CONTRACT_COMPILER_TAG: &str = "v2.1.0";
 
 /// Enum representing all feature contracts.
 /// The contracts that are implemented in both Cairo versions include a version field.
