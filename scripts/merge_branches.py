@@ -11,6 +11,7 @@ import argparse
 import json
 import os
 import subprocess
+import time
 from typing import Dict, List, Optional
 
 FINAL_BRANCH = "main"
@@ -81,7 +82,7 @@ def merge_branches(src_branch: str, dst_branch: Optional[str]):
     user = os.environ["USER"]
     dst_branch = get_dst_branch(src_branch=src_branch, dst_branch_override=dst_branch)
 
-    merge_branch = f"{user}/merge-{src_branch}-into-{dst_branch}"
+    merge_branch = f"{user}/merge-{src_branch}-into-{dst_branch}-{int(time.time())}"
     print(f"Source branch: {src_branch}")
     print(f"Destination branch: {dst_branch}\n")
 
