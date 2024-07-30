@@ -5,7 +5,12 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
-[dependencies]
 
 [lints]
 workspace = true
+
+[dependencies]
+async-trait.workspace = true
+starknet_batcher_types = { path = "../batcher_types", version = "0.0" }
+starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }
+tokio.workspace = true

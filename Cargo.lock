@@ -8914,6 +8914,12 @@ dependencies = [
 [[package]]
 name = "starknet_batcher"
 version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "starknet_batcher_types",
+ "starknet_mempool_infra",
+ "tokio",
+]
 
 [[package]]
 name = "starknet_batcher_types"
