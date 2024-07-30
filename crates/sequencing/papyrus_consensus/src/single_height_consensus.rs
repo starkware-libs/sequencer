@@ -111,11 +111,12 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         })?;
         // TODO(matan): Switch to signature validation and handle invalid proposals.
         if block.id() != fin {
-            return Err(ConsensusError::InvalidProposal(
-                proposer_id,
-                self.height,
-                "block signature doesn't match expected block hash".into(),
-            ));
+            let msg = format!(
+                "block signature doesn't match expected block hash: calculated={:?}, received={:?}",
+                block.id(),
+                fin
+            );
+            return Err(ConsensusError::InvalidProposal(proposer_id, self.height, msg));
         }
         let sm_proposal = StateMachineEvent::Proposal(Some(block.id()), ROUND_ZERO);
         // TODO(matan): Handle multiple rounds.
