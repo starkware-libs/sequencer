@@ -8914,6 +8914,13 @@ version = "0.0.0"
 [[package]]
 name = "starknet_batcher_types"
 version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "mockall",
+ "serde",
+ "starknet_mempool_infra",
+ "thiserror",
+]
 
 [[package]]
 name = "starknet_client"

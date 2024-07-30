@@ -6,7 +6,12 @@ repository.workspace = true
 license.workspace = true
 license-file.workspace = true
 
-[dependencies]
-
 [lints]
 workspace = true
+
+[dependencies]
+async-trait.workspace = true
+mockall.workspace = true
+serde = { workspace = true, feat = ["derive"] }
+starknet_mempool_infra = { path = "../mempool_infra" }
+thiserror.workspace = true
