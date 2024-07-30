@@ -179,6 +179,10 @@ impl FeatureContract {
         }
     }
 
+    pub fn is_legacy(&self) -> bool {
+        matches!(self, Self::LegacyTestContract)
+    }
+
     /// Unique integer representing each unique contract. Used to derive "class hash" and "address".
     fn get_integer_base(self) -> u32 {
         self.get_cairo_version_bit()
@@ -276,15 +280,16 @@ impl FeatureContract {
                 cairo0_compile(self.get_source_path(), extra_arg, false)
             }
             CairoVersion::Cairo1 => {
-                let (tag_override, cargo_arg) = match self {
-                    Self::LegacyTestContract => (
+                let (tag_override, cargo_arg) = if self.is_legacy() {
+                    (
                         // Legacy contract requires specific compiler tag (which is the point of
                         // the test contract), + to build the compiler an
                         // older rust version is required.
                         Some(LEGACY_CONTRACT_COMPILER_TAG.into()),
                         Some(String::from("+nightly-2023-07-05")),
-                    ),
-                    _ => (None, None),
+                    )
+                } else {
+                    (None, None)
                 };
                 cairo1_compile(self.get_source_path(), tag_override, cargo_arg)
             }
