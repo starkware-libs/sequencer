@@ -8,7 +8,7 @@ use tokio;
 
 use super::SingleHeightConsensus;
 use crate::test_utils::{MockTestContext, TestBlock};
-use crate::types::{ConsensusBlock, ProposalInit, ValidatorId};
+use crate::types::{ConsensusBlock, ConsensusError, ProposalInit, ValidatorId};
 
 fn prevote(
     block_hash: Option<BlockHash>,
@@ -181,4 +181,146 @@ async fn validator() {
             .into_iter()
             .all(|item| precommits.contains(&ConsensusMessage::Vote(item)))
     );
+}
+
+#[tokio::test]
+async fn equivocation_votes() {
+    let mut context = MockTestContext::new();
+
+    let node_id: ValidatorId = 1_u32.into();
+    let proposer: ValidatorId = 2_u32.into();
+
+    let mut shc = SingleHeightConsensus::new(BlockNumber(0), node_id, vec![node_id, proposer]);
+
+    let first_vote = prevote(Some(BlockHash(Felt::ONE)), 0, 0, node_id);
+
+    // Second vote with a different block_hash
+    let second_vote = prevote(Some(BlockHash(Felt::ZERO)), 0, 0, node_id);
+
+    let res = shc.handle_message(&mut context, first_vote.clone()).await;
+    assert_eq!(res, Ok(None));
+
+    // Handle the second vote and expect an Equivocation error
+    let res = shc.handle_message(&mut context, second_vote.clone()).await;
+
+    match res {
+        Err(ConsensusError::Equivocation(height, old_vote, new_vote)) => {
+            assert_eq!(height, BlockNumber(0));
+            assert_eq!(old_vote, first_vote);
+            assert_eq!(new_vote, second_vote);
+        }
+        _ => panic!("Expected Equivocation error"),
+    }
+}
+
+#[tokio::test]
+async fn repeat_votes() {
+    let mut context = MockTestContext::new();
+
+    let node_id: ValidatorId = 1_u32.into();
+    let proposer: ValidatorId = 2_u32.into();
+    let block = TestBlock { content: vec![1, 2, 3], id: BlockHash(Felt::ONE) };
+    let block_id = block.id();
+
+    let mut shc =
+        SingleHeightConsensus::new(BlockNumber(0), node_id, vec![node_id, proposer, 3_u32.into()]);
+
+    let (fin_sender, fin_receiver) = oneshot::channel();
+    fin_sender.send(block_id).unwrap();
+
+    context.expect_proposer().times(1).returning(move |_, _| proposer);
+    let block_clone = block.clone();
+    context.expect_validate_proposal().times(1).returning(move |_, _| {
+        let (block_sender, block_receiver) = oneshot::channel();
+        block_sender.send(block_clone.clone()).unwrap();
+        block_receiver
+    });
+    context
+        .expect_broadcast()
+        .times(1)
+        .withf(move |msg: &ConsensusMessage| msg == &prevote(Some(block_id), 0, 0, node_id))
+        .returning(move |_| Ok(()));
+    let res = shc
+        .handle_proposal(
+            &mut context,
+            ProposalInit { height: BlockNumber(0), round: 0, proposer },
+            mpsc::channel(1).1, // content - ignored by SHC.
+            fin_receiver,
+        )
+        .await;
+    assert_eq!(res, Ok(None));
+    context
+        .expect_broadcast()
+        .times(1)
+        .withf(move |msg: &ConsensusMessage| msg == &precommit(Some(block_id), 0, 0, node_id))
+        .returning(move |_| Ok(()));
+
+    let res = shc.handle_message(&mut context, prevote(Some(block_id), 0, 0, 2_u32.into())).await;
+    assert_eq!(res, Ok(None));
+
+    let res = shc.handle_message(&mut context, prevote(Some(block_id), 0, 0, 3_u32.into())).await;
+    assert_eq!(res, Ok(None));
+
+    let decision =
+        shc.handle_message(&mut context, precommit(Some(block_id), 0, 0, 2_u32.into())).await;
+    assert_eq!(decision, Ok(None));
+
+    let vote = precommit(Some(block_id), 0, 0, 3_u32.into());
+    let decision = shc.handle_message(&mut context, vote.clone()).await.unwrap().unwrap();
+    assert_eq!(decision.block, block);
+
+    // Send the same vote again, which should be ignored (already made a decision).
+    let res = shc.handle_message(&mut context, vote.clone()).await;
+    assert_eq!(res, Ok(None));
+}
+
+#[tokio::test]
+async fn repeat_proposal() {
+    let mut context = MockTestContext::new();
+
+    let node_id: ValidatorId = 1_u32.into();
+    let proposer: ValidatorId = 2_u32.into();
+    let block = TestBlock { content: vec![1, 2, 3], id: BlockHash(Felt::ONE) };
+    let block_id = block.id();
+
+    let mut shc = SingleHeightConsensus::new(BlockNumber(0), node_id, vec![node_id, proposer]);
+
+    let (fin_sender, fin_receiver) = oneshot::channel();
+    fin_sender.send(block_id).unwrap();
+
+    context.expect_proposer().times(2).returning(move |_, _| proposer);
+    context.expect_validate_proposal().times(2).returning(move |_, _| {
+        let (block_sender, block_receiver) = oneshot::channel();
+        block_sender.send(block.clone()).unwrap();
+        block_receiver
+    });
+    context
+        .expect_broadcast()
+        .times(1)
+        .withf(move |msg: &ConsensusMessage| msg == &prevote(Some(block_id), 0, 0, node_id))
+        .returning(move |_| Ok(()));
+    let res = shc
+        .handle_proposal(
+            &mut context,
+            ProposalInit { height: BlockNumber(0), round: 0, proposer },
+            mpsc::channel(1).1, // content - ignored by SHC.
+            fin_receiver,
+        )
+        .await;
+    assert_eq!(res, Ok(None));
+
+    // Send the same proposal again, which should be ignored (no expectations).
+    let (fin_sender, fin_receiver) = oneshot::channel();
+    fin_sender.send(block_id).unwrap();
+
+    let res = shc
+        .handle_proposal(
+            &mut context,
+            ProposalInit { height: BlockNumber(0), round: 0, proposer },
+            mpsc::channel(1).1, // content - ignored by SHC.
+            fin_receiver,
+        )
+        .await;
+    assert_eq!(res, Ok(None));
+    context.expect_broadcast().times(0);
 }
