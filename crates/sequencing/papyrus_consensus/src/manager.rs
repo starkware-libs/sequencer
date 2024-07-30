@@ -65,28 +65,22 @@ impl Manager {
             return Ok(decision);
         }
 
-        let mut current_height_messages = Vec::new();
-        for msg in std::mem::take(&mut self.cached_messages) {
-            match height.0.cmp(&msg.height()) {
-                std::cmp::Ordering::Less => self.cached_messages.push(msg),
-                std::cmp::Ordering::Equal => current_height_messages.push(msg),
-                std::cmp::Ordering::Greater => {}
-            }
-        }
-
+        let mut current_height_messages = self.get_current_height_messages(height);
         loop {
             let message = if let Some(msg) = current_height_messages.pop() {
                 msg
             } else {
-                // TODO(matan): Handle parsing failures and utilize ReportCallback.
                 network_receiver
                     .next()
                     .await
-                    .expect("Network receiver closed unexpectedly")
-                    .0
-                    .expect("Failed to parse consensus message")
+                    .ok_or_else(|| ConsensusError::NetworkReceiverClosed)?
+                    .0? // Failed to parse consensus message
             };
 
+            // TODO(matan): We need to figure out an actual cacheing strategy under 2 constraints:
+            // 1. Malicious - must be capped so a malicious peer can't DoS us.
+            // 2. Parallel proposals - we may send/receive a proposal for (H+1, 0).
+            // In general I think we will want to only cache (H+1, 0) messages.
             if message.height() != height.0 {
                 debug!("Received a message for a different height. {:?}", message);
                 if message.height() > height.0 {
@@ -110,5 +104,21 @@ impl Manager {
                 return Ok(decision);
             }
         }
+    }
+
+    // Filters the cached messages:
+    // - returns all of the current height messages.
+    // - drops messages from earlier heights.
+    // - retains future messages in the cache.
+    fn get_current_height_messages(&mut self, height: BlockNumber) -> Vec<ConsensusMessage> {
+        let mut current_height_messages = Vec::new();
+        for msg in std::mem::take(&mut self.cached_messages) {
+            match height.0.cmp(&msg.height()) {
+                std::cmp::Ordering::Less => self.cached_messages.push(msg),
+                std::cmp::Ordering::Equal => current_height_messages.push(msg),
+                std::cmp::Ordering::Greater => {}
+            }
+        }
+        current_height_messages
     }
 }
