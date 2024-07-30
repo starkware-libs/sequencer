@@ -10,6 +10,7 @@ on:
     paths:
       - 'crates/blockifier/**'
       - 'crates/native_blockifier/.cargo/config.toml'
+      - 'build_native_blockifier.sh'
 
   pull_request:
     types:
@@ -21,6 +22,7 @@ on:
     paths:
       - 'crates/blockifier/**'
       - 'crates/native_blockifier/.cargo/config.toml'
+      - 'build_native_blockifier.sh'
 
 jobs:
   featureless-build:
@@ -42,7 +44,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: "v1-rust-ubuntu-20.04"
+          prefix-key: "v2-rust-ubuntu-20.04"
 
       - name: Build native blockifier
         run: ./build_native_blockifier.sh

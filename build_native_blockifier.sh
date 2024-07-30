@@ -11,6 +11,6 @@ docker run \
     -u $UID \
     -v /tmp:/tmp \
     -v "${HOME}:${HOME}" \
-    --workdir ${PWD} \
+    --workdir ${PWD}/crates/native_blockifier \
     ${docker_image_name} \
-    cargo build --release -p native_blockifier --features "testing"
+    cargo build --release --features "testing"
