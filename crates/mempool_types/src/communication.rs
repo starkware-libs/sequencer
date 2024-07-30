@@ -44,7 +44,7 @@ pub enum MempoolResponse {
     GetTransactions(MempoolResult<Vec<ThinTransaction>>),
 }
 
-#[derive(Debug, Error)]
+#[derive(Clone, Debug, Error)]
 pub enum MempoolClientError {
     #[error(transparent)]
     ClientError(#[from] ClientError),

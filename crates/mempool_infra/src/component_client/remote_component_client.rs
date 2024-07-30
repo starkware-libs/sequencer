@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 use std::net::IpAddr;
+use std::sync::Arc;
 
 use bincode::{deserialize, serialize};
 use hyper::body::to_bytes;
@@ -47,8 +48,11 @@ where
             .expect("Request building should succeed");
 
         // Todo(uriel): Add configuration for controlling the number of retries.
-        let http_response =
-            self.client.request(http_request).await.map_err(ClientError::CommunicationFailure)?;
+        let http_response = self
+            .client
+            .request(http_request)
+            .await
+            .map_err(|e| ClientError::CommunicationFailure(Arc::new(e)))?;
 
         match http_response.status() {
             StatusCode::OK => get_response_body(http_response).await,
@@ -64,9 +68,10 @@ async fn get_response_body<T>(response: HyperResponse<Body>) -> Result<T, Client
 where
     T: for<'a> Deserialize<'a>,
 {
-    let body_bytes =
-        to_bytes(response.into_body()).await.map_err(ClientError::ResponseParsingFailure)?;
-    deserialize(&body_bytes).map_err(ClientError::ResponseDeserializationFailure)
+    let body_bytes = to_bytes(response.into_body())
+        .await
+        .map_err(|e| ClientError::ResponseParsingFailure(Arc::new(e)))?;
+    deserialize(&body_bytes).map_err(|e| ClientError::ResponseDeserializationFailure(Arc::new(e)))
 }
 
 // Can't derive because derive forces the generics to also be `Clone`, which we prefer not to do
