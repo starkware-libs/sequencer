@@ -4,7 +4,7 @@ use starknet_api::felt;
 use starknet_api::state::StorageKey;
 
 use crate::abi::constants;
-use crate::blockifier::block::{pre_process_block, BlockNumberHashPair};
+use crate::blockifier::block::{pre_process_block, BlockInfo, BlockNumberHashPair};
 use crate::context::ChainInfo;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
@@ -46,4 +46,62 @@ fn test_pre_process_block() {
         ),
         format!("{}", error.unwrap_err())
     );
+}
+
+#[test]
+fn test_congestion_increases_price() {
+    let mut current_price = 100;
+    let mut prev_price = 100;
+    let current_gas_target = 100;
+    let gas_usages = [150, 160];
+
+    for &gas_used in &gas_usages {
+        current_price =
+            BlockInfo::calculate_next_base_gas_price(current_price, gas_used, current_gas_target);
+        assert!(current_price > prev_price);
+        prev_price = current_price;
+    }
+}
+
+#[test]
+fn test_reduced_gas_usage_decreases_price() {
+    let mut current_price = 100;
+    let mut prev_price = 100;
+    let current_gas_target = 100;
+    let gas_usages = [90, 80];
+
+    for &gas_used in &gas_usages {
+        current_price =
+            BlockInfo::calculate_next_base_gas_price(current_price, gas_used, current_gas_target);
+        assert!(current_price < prev_price);
+        prev_price = current_price;
+    }
+}
+
+#[test]
+fn test_stable_gas_usage() {
+    let mut current_price = 100;
+    let mut prev_price = 100;
+    let current_gas_target = 100;
+    let gas_usages = [100, 100];
+
+    for &gas_used in &gas_usages {
+        current_price =
+            BlockInfo::calculate_next_base_gas_price(current_price, gas_used, current_gas_target);
+        assert_eq!(current_price, prev_price);
+        prev_price = current_price;
+    }
+}
+
+#[test]
+fn test_gas_price_with_extreme_values() {
+    // Test with maximum price and maximum gas target
+    let price = u64::MAX;
+    let gas_target = u64::MAX;
+    BlockInfo::calculate_next_base_gas_price(price, 0, gas_target);
+
+    // Test with maximum price and minimum gas target
+    let price = u64::MAX;
+    let gas_target = 1;
+    BlockInfo::calculate_next_base_gas_price(price, u64::MAX, gas_target);
 }
