@@ -8909,6 +8909,16 @@ dependencies = [
 [[package]]
 name = "starknet_batcher"
 version = "0.0.0"
+dependencies = [
+ "papyrus_config",
+ "rstest",
+ "serde",
+ "starknet_mempool_infra",
+ "starknet_mempool_types",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
 
 [[package]]
 name = "starknet_client"
