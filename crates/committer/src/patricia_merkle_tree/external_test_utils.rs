@@ -92,9 +92,12 @@ pub async fn tree_computation_flow(
     )
     .expect("Failed to create the updated skeleton tree");
 
-    StorageTrie::create::<TreeHashFunctionImpl>(updated_skeleton.into(), leaf_modifications)
-        .await
-        .expect("Failed to create the filled tree")
+    StorageTrie::create_no_additional_output::<TreeHashFunctionImpl>(
+        updated_skeleton.into(),
+        leaf_modifications,
+    )
+    .await
+    .expect("Failed to create the filled tree")
 }
 
 pub async fn single_tree_flow_test(

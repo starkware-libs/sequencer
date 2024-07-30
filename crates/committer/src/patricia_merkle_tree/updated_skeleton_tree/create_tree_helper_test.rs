@@ -507,8 +507,11 @@ async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
     .unwrap();
     let updated =
         UpdatedSkeletonTreeImpl::create(&mut original_skeleton_tree, &HashMap::new()).unwrap();
-    let filled = MockTrie::create::<TreeHashFunctionImpl>(Arc::new(updated), Arc::new(empty_map))
-        .await
-        .unwrap();
+    let filled = MockTrie::create_no_additional_output::<TreeHashFunctionImpl>(
+        Arc::new(updated),
+        Arc::new(empty_map),
+    )
+    .await
+    .unwrap();
     assert_eq!(root_hash, filled.get_root_hash());
 }

@@ -1,43 +1,30 @@
-use std::collections::HashMap;
-use std::fmt::Debug;
-use std::future::Future;
-use std::sync::Arc;
-
 use crate::block_committer::input::StarknetStorageValue;
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
+use crate::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
 use crate::patricia_merkle_tree::types::NodeIndex;
+use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
+use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 use crate::storage::db_object::{DBObject, Deserializable};
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::future::Future;
 
 pub trait Leaf: Clone + Sync + Send + DBObject + Deserializable + Default + Debug + Eq {
+    // TODO(Amos, 1/1/2025): Add default values when it is stable.
+    type I: Send + Sync + 'static;
+    type O: Send + 'static;
+
     /// Returns true if leaf is empty.
     fn is_empty(&self) -> bool;
 
     /// Creates a leaf.
-    /// This function is async to allow computation of a leaf on the fly; in simple cases, it can
-    /// be enough to return the leaf data directly using [Self::from_modifications].
     // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
     // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
     // for details.
-    fn create(
-        index: &NodeIndex,
-        leaf_modifications: Arc<LeafModifications<Self>>,
-    ) -> impl Future<Output = LeafResult<Self>> + Send;
-
-    /// Extracts the leaf data from the leaf modifications. Returns an error if the leaf data is
-    /// missing.
-    fn from_modifications(
-        index: &NodeIndex,
-        leaf_modifications: Arc<LeafModifications<Self>>,
-    ) -> LeafResult<Self> {
-        let leaf_data = leaf_modifications
-            .get(index)
-            .ok_or(LeafError::MissingLeafModificationData(*index))?
-            .clone();
-        Ok(leaf_data)
-    }
+    fn create(input: Self::I) -> impl Future<Output = LeafResult<(Self, Option<Self::O>)>> + Send;
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -48,43 +35,68 @@ pub struct ContractState {
 }
 
 impl Leaf for StarknetStorageValue {
+    type I = Self;
+    type O = ();
+
     fn is_empty(&self) -> bool {
         self.0 == Felt::ZERO
     }
-
-    async fn create(
-        index: &NodeIndex,
-        leaf_modifications: Arc<LeafModifications<Self>>,
-    ) -> LeafResult<Self> {
-        Self::from_modifications(index, leaf_modifications)
+    async fn create(input: Self::I) -> LeafResult<(Self, Option<Self::O>)> {
+        Ok((input, None))
     }
 }
 
 impl Leaf for CompiledClassHash {
+    type I = Self;
+    type O = ();
+
     fn is_empty(&self) -> bool {
         self.0 == Felt::ZERO
     }
 
-    async fn create(
-        index: &NodeIndex,
-        leaf_modifications: Arc<LeafModifications<Self>>,
-    ) -> LeafResult<Self> {
-        Self::from_modifications(index, leaf_modifications)
+    async fn create(input: Self::I) -> LeafResult<(Self, Option<Self::O>)> {
+        Ok((input, None))
     }
 }
 
 impl Leaf for ContractState {
+    type I = (
+        NodeIndex,
+        Nonce,
+        ClassHash,
+        UpdatedSkeletonTreeImpl,
+        LeafModifications<StarknetStorageValue>,
+    );
+    type O = FilledTreeImpl<StarknetStorageValue>;
+
     fn is_empty(&self) -> bool {
         self.nonce.0 == Felt::ZERO
             && self.class_hash.0 == Felt::ZERO
             && self.storage_root_hash.0 == Felt::ZERO
     }
 
-    async fn create(
-        index: &NodeIndex,
-        leaf_modifications: Arc<LeafModifications<Self>>,
-    ) -> LeafResult<Self> {
-        Self::from_modifications(index, leaf_modifications)
+    async fn create(input: Self::I) -> LeafResult<(Self, Option<Self::O>)> {
+        let (leaf_index, nonce, class_hash, updated_skeleton, storage_modifications) = input;
+
+        match FilledTreeImpl::<StarknetStorageValue>::create::<TreeHashFunctionImpl>(
+            updated_skeleton.into(),
+            storage_modifications.into(),
+        )
+        .await
+        {
+            Ok((storage_trie, _)) => Ok((
+                Self {
+                    nonce,
+                    storage_root_hash: storage_trie.get_root_hash(),
+                    class_hash,
+                },
+                Some(storage_trie),
+            )),
+            Err(storage_error) => Err(LeafError::StorageTrieComputationFailed(
+                storage_error.into(),
+                leaf_index,
+            )),
+        }
     }
 }
 

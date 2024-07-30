@@ -12,7 +12,10 @@ pub enum FilledTreeError<L: Leaf> {
     #[error("Deleted leaf at index {0:?} appears in the updated skeleton tree.")]
     DeletedLeafInSkeleton(NodeIndex),
     #[error("Double update at node {index:?}. Existing value: {existing_value:?}.")]
-    DoubleUpdate { index: NodeIndex, existing_value: Box<FilledNode<L>> },
+    DoubleOutputUpdate { index: NodeIndex, existing_value: Box<FilledNode<L>> },
+    #[error("Double update at node {index:?}.")]
+    //TODO(Amos): Add the existing value to the error message.
+    DoubleAdditionalOutputUpdate { index: NodeIndex },
     #[error(transparent)]
     Leaf(#[from] LeafError),
     #[error("Missing node at index {0:?}.")]
