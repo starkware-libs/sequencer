@@ -3,6 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use mockall::predicate::*;
 use mockall::*;
+use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_mempool_infra::component_client::{
     ClientError,
@@ -57,29 +58,18 @@ impl MempoolClient for MempoolClientImpl {
     async fn add_tx(&self, mempool_input: MempoolInput) -> MempoolClientResult<()> {
         let request = MempoolRequest::AddTransaction(mempool_input);
         let response = self.send(request).await;
-        match response {
-            MempoolResponse::AddTransaction(Ok(response)) => Ok(response),
-            MempoolResponse::AddTransaction(Err(response)) => {
-                Err(MempoolClientError::MempoolError(response))
-            }
-            unexpected_response => Err(MempoolClientError::ClientError(
-                ClientError::UnexpectedResponse(format!("{unexpected_response:?}")),
-            )),
-        }
+        handle_response_variants!(MempoolResponse, AddTransaction, MempoolClientError, MempoolError)
     }
 
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<ThinTransaction>> {
         let request = MempoolRequest::GetTransactions(n_txs);
         let response = self.send(request).await;
-        match response {
-            MempoolResponse::GetTransactions(Ok(response)) => Ok(response),
-            MempoolResponse::GetTransactions(Err(response)) => {
-                Err(MempoolClientError::MempoolError(response))
-            }
-            unexpected_response => Err(MempoolClientError::ClientError(
-                ClientError::UnexpectedResponse(format!("{unexpected_response:?}")),
-            )),
-        }
+        handle_response_variants!(
+            MempoolResponse,
+            GetTransactions,
+            MempoolClientError,
+            MempoolError
+        )
     }
 }
 
@@ -88,28 +78,17 @@ impl MempoolClient for RemoteMempoolClientImpl {
     async fn add_tx(&self, mempool_input: MempoolInput) -> MempoolClientResult<()> {
         let request = MempoolRequest::AddTransaction(mempool_input);
         let response = self.send(request).await?;
-        match response {
-            MempoolResponse::AddTransaction(Ok(response)) => Ok(response),
-            MempoolResponse::AddTransaction(Err(response)) => {
-                Err(MempoolClientError::MempoolError(response))
-            }
-            unexpected_response => Err(MempoolClientError::ClientError(
-                ClientError::UnexpectedResponse(format!("{unexpected_response:?}")),
-            )),
-        }
+        handle_response_variants!(MempoolResponse, AddTransaction, MempoolClientError, MempoolError)
     }
 
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<ThinTransaction>> {
         let request = MempoolRequest::GetTransactions(n_txs);
         let response = self.send(request).await?;
-        match response {
-            MempoolResponse::GetTransactions(Ok(response)) => Ok(response),
-            MempoolResponse::GetTransactions(Err(response)) => {
-                Err(MempoolClientError::MempoolError(response))
-            }
-            unexpected_response => Err(MempoolClientError::ClientError(
-                ClientError::UnexpectedResponse(format!("{unexpected_response:?}")),
-            )),
-        }
+        handle_response_variants!(
+            MempoolResponse,
+            GetTransactions,
+            MempoolClientError,
+            MempoolError
+        )
     }
 }
