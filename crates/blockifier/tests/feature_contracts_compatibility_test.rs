@@ -1,6 +1,6 @@
 use std::fs;
 
-use blockifier::test_utils::contracts::FeatureContract;
+use blockifier::test_utils::contracts::{FeatureContract, LEGACY_CONTRACT_COMPILER_TAG};
 use blockifier::test_utils::CairoVersion;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
@@ -108,6 +108,12 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<(String, String, Str
     }
 
     paths
+}
+
+#[test]
+fn test_cairo1_legacy_compiler_version() {
+    // Legacy contract (check that the text file doesn't have whitespace for some reason).
+    assert_eq!(LEGACY_CONTRACT_COMPILER_TAG.trim(), LEGACY_CONTRACT_COMPILER_TAG);
 }
 
 #[test]
