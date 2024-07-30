@@ -25,6 +25,36 @@ pub struct BlockInfo {
     pub use_kzg_da: bool,
 }
 
+impl BlockInfo {
+    /// Calculate the base fee for the next block according to EIP-1559.
+    ///
+    /// # Parameters
+    /// - `current_price`: The base fee of the current block.
+    /// - `current_gas_used`: The total gas used in the current block.
+    /// - `current_gas_target`: The target gas usage per block (usually half of the gas limit).
+    ///
+    /// # Returns
+    /// The price for the next block.
+    pub fn calculate_gas_price(
+        current_price: u64,
+        current_gas_used: u64,
+        current_gas_target: u64,
+    ) -> u64 {
+        const BASE_FEE_MAX_CHANGE_DENOMINATOR: u64 = 2;
+
+        let gas_delta = current_gas_used.abs_diff(current_gas_target);
+        let price_change =
+            (current_price * gas_delta) / current_gas_target / BASE_FEE_MAX_CHANGE_DENOMINATOR;
+
+        // Calculate the new price
+        if current_gas_used > current_gas_target {
+            current_price + price_change
+        } else {
+            current_price - price_change
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct GasPrices {
     pub eth_l1_gas_price: NonZeroU128,       // In wei.
