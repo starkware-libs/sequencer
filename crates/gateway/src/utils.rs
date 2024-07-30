@@ -27,10 +27,6 @@ use starknet_mempool_types::mempool_types::ThinTransaction;
 
 use crate::errors::StatefulTransactionValidatorResult;
 
-#[cfg(test)]
-#[path = "utils_test.rs"]
-mod utils_test;
-
 macro_rules! implement_ref_getters {
     ($(($member_name:ident, $member_type:ty));* $(;)?) => {
         $(fn $member_name(&self) -> &$member_type {
@@ -169,21 +165,4 @@ pub fn get_tx_hash(tx: &AccountTransaction) -> TransactionHash {
         AccountTransaction::DeployAccount(tx) => tx.tx_hash,
         AccountTransaction::Invoke(tx) => tx.tx_hash,
     }
-}
-
-/// Checks whether 'subsequence' is a subsequence of 'sequence'.
-pub fn is_subsequence<T: Eq>(subsequence: &[T], sequence: &[T]) -> bool {
-    let mut offset = 0;
-
-    for item in sequence {
-        if offset == subsequence.len() {
-            return true;
-        }
-
-        if item == &subsequence[offset] {
-            offset += 1;
-        }
-    }
-
-    offset == subsequence.len()
 }
