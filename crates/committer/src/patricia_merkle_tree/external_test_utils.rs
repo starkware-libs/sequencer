@@ -63,7 +63,7 @@ pub fn get_random_u256<R: Rng>(rng: &mut R, low: U256, high: U256) -> U256 {
 }
 
 pub async fn tree_computation_flow<L, TH>(
-    leaf_modifications: Arc<LeafModifications<L>>,
+    leaf_modifications: LeafModifications<L>,
     storage: &MapStorage,
     root_hash: HashOutput,
     config: impl OriginalSkeletonTreeConfig<L>,
@@ -95,9 +95,12 @@ where
     )
     .expect("Failed to create the updated skeleton tree");
 
-    FilledTreeImpl::<L>::create::<TH>(updated_skeleton.into(), leaf_modifications)
-        .await
-        .expect("Failed to create the filled tree")
+    FilledTreeImpl::<L>::create_no_leaf_output::<TH>(
+        updated_skeleton.into(),
+        Arc::new(leaf_modifications),
+    )
+    .await
+    .expect("Failed to create the filled tree")
 }
 
 pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 'static>(
@@ -113,8 +116,7 @@ pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 
         .collect::<LeafModifications<L>>();
 
     let filled_tree =
-        tree_computation_flow::<L, TH>(Arc::new(leaf_modifications), &storage, root_hash, config)
-            .await;
+        tree_computation_flow::<L, TH>(leaf_modifications, &storage, root_hash, config).await;
 
     let hash_result = filled_tree.get_root_hash();
 
