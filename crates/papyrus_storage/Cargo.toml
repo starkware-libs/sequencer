@@ -21,6 +21,7 @@ required-features = ["clap", "statistical"]
 path = "src/bin/storage_benchmark.rs"
 
 [dependencies]
+bincode.workspace = true
 byteorder.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-casm = { workspace = true, features = ["parity-scale-codec"] }

@@ -1,4 +1,8 @@
+use std::env;
 use std::fmt::Debug;
+use std::fs::{read_to_string, File};
+use std::io::{Read, Write};
+use std::path::Path;
 
 use cairo_lang_casm::hints::CoreHintBase;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -130,4 +134,88 @@ fn serialization_precision() {
     let serialized = serde_json::from_str::<serde_json::Value>(input).unwrap();
     let deserialized = serde_json::to_string(&serialized).unwrap();
     assert_eq!(input, deserialized);
+}
+const SERIALIZATION_REGRESSION_FILES: [&str; 3] = ["account", "ERC20", "large_contract"];
+
+#[test]
+fn serialization_regression() {
+    let fix = env::var("FIX").unwrap_or_else(|_| "0".to_string());
+    if fix == "1" {
+        fix_serialization_regression()
+    }
+
+    let resources_path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("resources");
+    for casm_file in SERIALIZATION_REGRESSION_FILES {
+        let json_str =
+            read_to_string(resources_path.join("casm").join(format!("{}.json", casm_file)))
+                .unwrap_or_else(|err| panic!("Failed to read casm file: {casm_file}\n {err}"));
+        let casm = serde_json::from_str::<CasmContractClass>(&json_str)
+            .unwrap_or_else(|err| panic!("Failed to deserialize casm file: {casm_file}\n {err}"));
+        let mut serialized: Vec<u8> = Vec::new();
+        casm.serialize_into(&mut serialized)
+            .unwrap_or_else(|err| panic!("Failed to serialize casm file: {casm_file}\n {err}"));
+        let mut bin_file =
+            File::open(resources_path.join("casm").join(format!("{}.bin", casm_file)))
+                .unwrap_or_else(|err| panic!("Failed to open bin file: {casm_file}\n {err}"));
+        let mut buffer = Vec::new();
+        bin_file
+            .read_to_end(&mut buffer)
+            .unwrap_or_else(|err| panic!("Failed to read bin file: {casm_file}\n {err}"));
+        assert_eq!(
+            buffer, serialized,
+            "Assertion failed duo to serialization mismatch.\n Consider re-generating the binary \
+             files by running with FIX=1."
+        );
+    }
+}
+
+#[test]
+fn deserialization_regression() {
+    let fix = env::var("FIX").unwrap_or_else(|_| "0".to_string());
+    if fix == "1" {
+        fix_serialization_regression()
+    }
+
+    let resources_path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("resources");
+    for casm_file in SERIALIZATION_REGRESSION_FILES {
+        let mut bin_file =
+            File::open(resources_path.join("casm").join(format!("{}.bin", casm_file)))
+                .unwrap_or_else(|err| panic!("Failed to open bin file: {casm_file}\n {err}"));
+        let mut bin = Vec::new();
+        bin_file
+            .read_to_end(&mut bin)
+            .unwrap_or_else(|err| panic!("Failed to read bin file: {casm_file}\n {err}"));
+        let bin_casm = CasmContractClass::deserialize_from(&mut bin.as_slice())
+            .unwrap_or_else(|| panic!("Failed to deserialize casm file: {casm_file}."));
+        let json_str =
+            read_to_string(resources_path.join("casm").join(format!("{}.json", casm_file)))
+                .unwrap_or_else(|err| panic!("Failed to read casm file: {casm_file}\n {err}"));
+        let json_casm = serde_json::from_str::<CasmContractClass>(&json_str)
+            .unwrap_or_else(|err| panic!("Failed to deserialize casm file: {casm_file}\n {err}"));
+        assert_eq!(
+            bin_casm, json_casm,
+            "Assertion failed duo to serialization mismatch.\n Consider re-generating the binary \
+             files by running with FIX=1."
+        );
+    }
+}
+
+fn fix_serialization_regression() {
+    let resources_path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("resources");
+    for casm_file in SERIALIZATION_REGRESSION_FILES {
+        let path = resources_path.join("casm").join(format!("{}.json", casm_file));
+        let json_str = read_to_string(path)
+            .unwrap_or_else(|err| panic!("Failed to read casm file: {casm_file}\nError: {err}"));
+        let casm = serde_json::from_str::<CasmContractClass>(&json_str).unwrap_or_else(|err| {
+            panic!("Failed to deserialize casm file: {casm_file}\nError: {err}")
+        });
+        let mut serialized: Vec<u8> = Vec::new();
+        casm.serialize_into(&mut serialized).unwrap();
+        let bytes = serialized.into_boxed_slice();
+        let mut bin = File::create(resources_path.join("casm").join(format!("{}.bin", casm_file)))
+            .unwrap_or_else(|err| {
+                panic!("Failed to create bin file for {casm_file}\nError: {err}")
+            });
+        bin.write_all(&bytes).unwrap();
+    }
 }

@@ -6576,6 +6576,7 @@ name = "papyrus_storage"
 version = "0.4.0-rc.0"
 dependencies = [
  "assert_matches",
+ "bincode 1.3.3",
  "byteorder",
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",
