@@ -68,7 +68,7 @@ impl MixedBehaviour {
         let mut kademlia_config = kad::Config::default();
         kademlia_config.set_protocol_names(vec![
             StreamProtocol::try_from_owned(format!("/starknet/kad/{}/1.0.0", chain_id))
-                .expect("Failed to create kademlia protocol"),
+                .expect("Failed to create StreamProtocol from a string that starts with /"),
         ]);
         Self {
             peer_manager: peer_manager::PeerManager::new(PeerManagerConfig::default()),
