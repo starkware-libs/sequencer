@@ -16,7 +16,6 @@ async-trait.workspace = true
 axum.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
-cairo-vm.workspace = true
 enum-assoc.workspace = true
 hyper.workspace = true
 mempool_test_utils.workspace = true
@@ -45,3 +44,4 @@ num-bigint.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet_mempool.workspace = true
+tracing-test.workspace = true
