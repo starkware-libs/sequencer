@@ -6,6 +6,15 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0"}
+serde.workspace = true
+starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
 
 [lints]
 workspace = true
