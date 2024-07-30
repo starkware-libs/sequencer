@@ -184,7 +184,7 @@ impl<S: StateReader> StateReader for CachedState<S> {
         {
             match self.state.get_compiled_contract_class(class_hash) {
                 Err(StateError::UndeclaredClassHash(class_hash)) => {
-                    cache.set_declared_contract_initial_values(class_hash, false);
+                    cache.set_declared_contract_initial_value(class_hash, false);
                     cache.set_compiled_class_hash_initial_value(
                         class_hash,
                         CompiledClassHash(Felt::ZERO),
@@ -193,7 +193,7 @@ impl<S: StateReader> StateReader for CachedState<S> {
                 }
                 Err(error) => Err(error)?,
                 Ok(contract_class) => {
-                    cache.set_declared_contract_initial_values(class_hash, true);
+                    cache.set_declared_contract_initial_value(class_hash, true);
                     vacant_entry.insert(contract_class);
                 }
             }
@@ -377,7 +377,7 @@ impl StateCache {
         self.writes.declared_contracts.insert(class_hash, true);
     }
 
-    fn set_declared_contract_initial_values(&mut self, class_hash: ClassHash, is_declared: bool) {
+    fn set_declared_contract_initial_value(&mut self, class_hash: ClassHash, is_declared: bool) {
         self.initial_reads.declared_contracts.insert(class_hash, is_declared);
     }
 
