@@ -1,3 +1,4 @@
+use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
 use starknet_api::felt;
