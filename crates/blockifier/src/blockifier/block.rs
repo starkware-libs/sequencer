@@ -25,6 +25,44 @@ pub struct BlockInfo {
     pub use_kzg_da: bool,
 }
 
+impl BlockInfo {
+    /// Calculate the base fee for the next block according to EIP-1559.
+    ///
+    /// # Parameters
+    /// - `price`: The base fee of the current block.
+    /// - `gas_used`: The total gas used in the current block.
+    /// - `gas_target`: The target gas usage per block (usually half of the gas limit).
+    pub fn calculate_next_base_gas_price(price: u64, gas_used: u64, gas_target: u64) -> u64 {
+        // Sensitivity parameter that limits the maximum rate of change of the base fee between
+        // consecutive blocks.
+        // TODO(Mohammad): Ask product to provide the value of this constant.
+        const GAS_PRICE_MAX_CHANGE_DENOMINATOR: u128 = 8;
+
+        assert!(gas_target > 0, "Gas target must be positive");
+
+        // The difference between gas_used and gas_target is always u64.
+        let gas_delta = gas_used.abs_diff(gas_target);
+
+        // Convert to u128 to prevent overflow and because u64 * u64 results in u128.
+        let price_u128 = u128::from(price);
+        let gas_delta_u128 = u128::from(gas_delta);
+        let gas_target_u128 = u128::from(gas_target);
+
+        // Calculate the gas change as u128 to handle potential overflow during multiplication.
+        let gas_delta_cost =
+            price_u128.checked_mul(gas_delta_u128).expect("Both variables originate from u64");
+        // Calculate the price change, maintaining precision by dividing after multiplication.
+        // This avoids significant precision loss that would occur if dividing before
+        // multiplication.
+        let price_change_u128 = gas_delta_cost / gas_target_u128 / GAS_PRICE_MAX_CHANGE_DENOMINATOR;
+
+        // Convert back to u64, as the price change should fit within the u64 range.
+        let price_change = u64::try_from(price_change_u128).expect("Price change overflow");
+
+        if gas_used > gas_target { price + price_change } else { price - price_change }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct GasPrices {
     pub eth_l1_gas_price: NonZeroU128,       // In wei.
