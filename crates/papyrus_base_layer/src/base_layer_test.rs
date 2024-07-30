@@ -14,6 +14,8 @@ use crate::BaseLayerContract;
 type EthereumContractAddress = String;
 type TestEthereumNodeHandle = (GanacheInstance, TempDir);
 
+const MINIMAL_GANACHE_VERSION: u8 = 7;
+
 // Returns a Ganache instance, preset with a Starknet core contract and some state updates:
 // Starknet contract address: 0xe2aF2c1AE11fE13aFDb7598D0836398108a4db0A
 //     Ethereum block number   starknet block number   starknet block hash
@@ -33,10 +35,20 @@ fn get_test_ethereum_node() -> (TestEthereumNodeHandle, EthereumContractAddress)
             .stdout,
     )
     .to_string();
-    // TODO(yair): Consider relaxing the version requirement.
+    const GANACHE_VERSION_PREFIX: &str = "ganache v";
+    let ganache_version = ganache_version
+        .strip_prefix(GANACHE_VERSION_PREFIX)
+        .expect("Failed to parse Ganache version.");
+    let major_version = ganache_version
+        .split('.')
+        .next()
+        .expect("Failed to parse Ganache major version.")
+        .parse::<u8>()
+        .expect("Failed to parse Ganache major version.");
     assert!(
-        ganache_version.starts_with("ganache v7.4.3"),
-        "Wrong Ganache version, please install v7.4.3"
+        major_version >= MINIMAL_GANACHE_VERSION,
+        "Wrong Ganache version, expecting at least version 7. To install, run `npm install -g \
+         ganache`."
     );
     const DB_NAME: &str = "ganache-db";
     let db_archive_path = format!("resources/{DB_NAME}.tar");
