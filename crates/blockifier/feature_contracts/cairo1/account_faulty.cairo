@@ -114,7 +114,7 @@ mod Account {
         }
         if (scenario == CALL_CONTRACT) {
             let contract_address: felt252 = *signature[1_u32];
-            let mut calldata = Default::default();
+            let mut calldata: Array<felt252> = Default::default();
             call_contract_syscall(
                 address: contract_address_try_from_felt252(contract_address).unwrap(),
                 entry_point_selector: FOO_ENTRY_POINT_SELECTOR,
