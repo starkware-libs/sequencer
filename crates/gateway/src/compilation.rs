@@ -1,11 +1,7 @@
 use std::panic;
-use std::sync::OnceLock;
 
 use blockifier::execution::contract_class::{ClassInfo, ContractClass, ContractClassV1};
-use cairo_lang_starknet_classes::casm_contract_class::{
-    CasmContractClass,
-    CasmContractEntryPoints,
-};
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::rpc_transaction::RpcDeclareTransaction;
@@ -15,7 +11,6 @@ use starknet_sierra_compile::utils::into_contract_class_for_compilation;
 
 use crate::config::GatewayCompilerConfig;
 use crate::errors::{GatewayError, GatewayResult};
-use crate::utils::is_subsequence;
 
 #[cfg(test)]
 #[path = "compilation_test.rs"]
@@ -43,7 +38,6 @@ impl GatewayCompiler {
         let casm_contract_class = self.compile(cairo_lang_contract_class)?;
 
         validate_compiled_class_hash(&casm_contract_class, &tx.compiled_class_hash)?;
-        validate_casm_class(&casm_contract_class)?;
 
         Ok(ClassInfo::new(
             &ContractClass::V1(ContractClassV1::try_from(casm_contract_class)?),
@@ -64,37 +58,6 @@ impl GatewayCompiler {
 
         Ok(casm_contract_class)
     }
-}
-
-// TODO(Arni): Add test.
-fn validate_casm_class(contract_class: &CasmContractClass) -> Result<(), GatewayError> {
-    let CasmContractEntryPoints { external, l1_handler, constructor } =
-        &contract_class.entry_points_by_type;
-    let entry_points_iterator = external.iter().chain(l1_handler.iter()).chain(constructor.iter());
-
-    for entry_point in entry_points_iterator {
-        let builtins = &entry_point.builtins;
-        if !is_subsequence(builtins, supported_builtins()) {
-            return Err(GatewayError::UnsupportedBuiltins {
-                builtins: builtins.clone(),
-                supported_builtins: supported_builtins().to_vec(),
-            });
-        }
-    }
-    Ok(())
-}
-
-// TODO(Arni): Add to a config.
-// TODO(Arni): Use the Builtin enum from Starknet-api, and explicitly tag each builtin as supported
-// or unsupported so that the compiler would alert us on new builtins.
-fn supported_builtins() -> &'static Vec<String> {
-    static SUPPORTED_BUILTINS: OnceLock<Vec<String>> = OnceLock::new();
-    SUPPORTED_BUILTINS.get_or_init(|| {
-        // The OS expects this order for the builtins.
-        const SUPPORTED_BUILTIN_NAMES: [&str; 7] =
-            ["pedersen", "range_check", "ecdsa", "bitwise", "ec_op", "poseidon", "segment_arena"];
-        SUPPORTED_BUILTIN_NAMES.iter().map(|builtin| builtin.to_string()).collect::<Vec<String>>()
-    })
 }
 
 /// Validates that the compiled class hash of the compiled contract class matches the supplied
