@@ -45,3 +45,4 @@ num-bigint.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet_mempool.workspace = true
+tracing-test.workspace = true

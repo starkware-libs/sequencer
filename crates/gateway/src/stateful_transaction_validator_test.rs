@@ -1,4 +1,7 @@
-use blockifier::blockifier::stateful_validator::{StatefulValidatorError, StatefulValidatorResult};
+use blockifier::blockifier::stateful_validator::{
+    StatefulValidatorError as BlockifierStatefulValidatorError,
+    StatefulValidatorResult as BlockifierStatefulValidatorResult,
+};
 use blockifier::context::BlockContext;
 use blockifier::test_utils::CairoVersion;
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
@@ -15,16 +18,17 @@ use mockall::predicate::eq;
 use num_bigint::BigUint;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::felt;
+use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::{contract_address, felt, patricia_key};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_types_core::felt::Felt;
 
+use super::ValidateInfo;
 use crate::compilation::GatewayCompiler;
 use crate::config::StatefulTransactionValidatorConfig;
-use crate::errors::{StatefulTransactionValidatorError, StatefulTransactionValidatorResult};
+use crate::errors::GatewaySpecError;
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
 use crate::state_reader_test_utils::local_test_state_reader_factory;
 use crate::stateful_transaction_validator::{
@@ -32,8 +36,8 @@ use crate::stateful_transaction_validator::{
     StatefulTransactionValidator,
 };
 
-pub const STATEFUL_VALIDATOR_FEE_ERROR: StatefulValidatorError =
-    StatefulValidatorError::TransactionPreValidationError(
+pub const STATEFUL_VALIDATOR_FEE_ERROR: BlockifierStatefulValidatorError =
+    BlockifierStatefulValidatorError::TransactionPreValidationError(
         TransactionPreValidationError::TransactionFeeError(
             TransactionFeeError::L1GasBoundsExceedBalance {
                 max_amount: VALID_L1_GAS_MAX_AMOUNT,
@@ -42,9 +46,6 @@ pub const STATEFUL_VALIDATOR_FEE_ERROR: StatefulValidatorError =
             },
         ),
     );
-
-pub const STATEFUL_TRANSACTION_VALIDATOR_FEE_ERROR: StatefulTransactionValidatorError =
-    StatefulTransactionValidatorError::StatefulValidatorError(STATEFUL_VALIDATOR_FEE_ERROR);
 
 #[fixture]
 fn block_context() -> BlockContext {
@@ -66,20 +67,18 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
 #[rstest]
 #[case::valid_tx(
     invoke_tx(CairoVersion::Cairo1),
-    Ok(()),
-    Ok(TransactionHash(felt!(
+    Ok(ValidateInfo{
+        tx_hash: TransactionHash(felt!(
         "0x152b8dd0c30e95fa3a4ee7a9398fcfc46fb00c048b4fdcfa9958c64d65899b8"
-    )))
+        )),
+        sender_address: contract_address!("0xc0020000"),
+        account_nonce: Nonce::default()
+    })
 )]
-#[case::invalid_tx(
-    invoke_tx(CairoVersion::Cairo1),
-    Err(STATEFUL_VALIDATOR_FEE_ERROR),
-    Err(STATEFUL_TRANSACTION_VALIDATOR_FEE_ERROR)
-)]
+#[case::invalid_tx(invoke_tx(CairoVersion::Cairo1), Err(STATEFUL_VALIDATOR_FEE_ERROR))]
 fn test_stateful_tx_validator(
     #[case] external_tx: RpcTransaction,
-    #[case] expected_blockifier_response: StatefulValidatorResult<()>,
-    #[case] expected_result: StatefulTransactionValidatorResult<TransactionHash>,
+    #[case] expected_result: BlockifierStatefulValidatorResult<ValidateInfo>,
     stateful_validator: StatefulTransactionValidator,
 ) {
     let optional_class_info = match &external_tx {
@@ -91,15 +90,17 @@ fn test_stateful_tx_validator(
         _ => None,
     };
 
+    let expected_result_as_stateful_transaction_result =
+        expected_result.as_ref().map(|validate_info| *validate_info).map_err(|blockifier_error| {
+            GatewaySpecError::ValidationFailure { data: blockifier_error.to_string() }
+        });
+
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator.expect_validate().return_once(|_, _| expected_blockifier_response);
+    mock_validator.expect_validate().return_once(|_, _| expected_result.map(|_| ()));
     mock_validator.expect_get_nonce().returning(|_| Ok(Nonce(Felt::ZERO)));
 
     let result = stateful_validator.run_validate(&external_tx, optional_class_info, mock_validator);
-    match expected_result {
-        Ok(expected_result) => assert_eq!(result.unwrap().tx_hash, expected_result),
-        Err(_) => assert_eq!(format!("{:?}", result), format!("{:?}", expected_result)),
-    }
+    assert_eq!(result, expected_result_as_stateful_transaction_result);
 }
 
 #[test]
