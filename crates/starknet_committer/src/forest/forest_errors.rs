@@ -27,7 +27,10 @@ pub enum ForestError {
          address {0:?}"
     )]
     MissingOriginalSkeleton(ContractAddress),
-    #[error("Can't fill storage trie, because there is no updated skeleton at address {0:?}")]
+    #[error(
+        "Can't create Contracts trie, because there is no updated skeleton for storage trie at \
+     address {0:?}"
+    )]
     MissingUpdatedSkeleton(ContractAddress),
     #[error(
         "Can't build storage trie, because there are no sorted leaf indices of the contract at \

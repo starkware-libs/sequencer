@@ -6,25 +6,17 @@ use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use crate::patricia_merkle_tree::internal_test_utils::{
-    MockLeaf,
-    OriginalSkeletonMockTrieConfig,
-    TestTreeHashFunction,
+    MockLeaf, OriginalSkeletonMockTrieConfig, TestTreeHashFunction,
 };
 use crate::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData,
-    EdgeData,
-    EdgePathLength,
-    NodeData,
-    PathToBottom,
+    BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
 };
 use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
-    UpdatedSkeletonNodeMap,
-    UpdatedSkeletonTree,
-    UpdatedSkeletonTreeImpl,
+    UpdatedSkeletonNodeMap, UpdatedSkeletonTree, UpdatedSkeletonTreeImpl,
 };
 use crate::storage::map_storage::MapStorage;
 
@@ -38,13 +30,14 @@ async fn test_filled_tree_sanity() {
     skeleton_tree.insert(new_leaf_index, UpdatedSkeletonNode::Leaf);
     let modifications = HashMap::from([(new_leaf_index, new_filled_leaf)]);
     let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
-    let root_hash = FilledTreeImpl::create::<TestTreeHashFunction>(
-        Arc::new(updated_skeleton_tree),
-        Arc::new(modifications),
-    )
-    .await
-    .unwrap()
-    .get_root_hash();
+    let root_hash =
+        FilledTreeImpl::<MockLeaf>::create_with_existing_leaves::<TestTreeHashFunction>(
+            Arc::new(updated_skeleton_tree),
+            modifications,
+        )
+        .await
+        .unwrap()
+        .get_root_hash();
     assert_eq!(root_hash, HashOutput(Felt::ONE), "Root hash mismatch");
 }
 
@@ -92,9 +85,9 @@ async fn test_small_filled_tree() {
         .collect();
 
     // Compute the hash values.
-    let filled_tree = FilledTreeImpl::create::<TestTreeHashFunction>(
+    let filled_tree = FilledTreeImpl::create_with_existing_leaves::<TestTreeHashFunction>(
         Arc::new(updated_skeleton_tree),
-        Arc::new(modifications),
+        modifications,
     )
     .await
     .unwrap();
@@ -155,9 +148,9 @@ async fn test_small_tree_with_unmodified_nodes() {
     )]);
 
     // Compute the hash values.
-    let filled_tree = FilledTreeImpl::create::<TestTreeHashFunction>(
+    let filled_tree = FilledTreeImpl::create_with_existing_leaves::<TestTreeHashFunction>(
         Arc::new(updated_skeleton_tree),
-        Arc::new(modifications),
+        modifications,
     )
     .await
     .unwrap();
@@ -204,12 +197,13 @@ async fn test_delete_leaf_from_empty_tree() {
 
     let leaf_modifications = HashMap::from([(NodeIndex::FIRST_LEAF, MockLeaf(Felt::ZERO))]);
     // Compute the filled tree.
-    let filled_tree = FilledTreeImpl::create::<TestTreeHashFunction>(
-        updated_skeleton_tree.into(),
-        leaf_modifications.into(),
-    )
-    .await
-    .unwrap();
+    let filled_tree =
+        FilledTreeImpl::<MockLeaf>::create_with_existing_leaves::<TestTreeHashFunction>(
+            updated_skeleton_tree.into(),
+            leaf_modifications,
+        )
+        .await
+        .unwrap();
 
     // The filled tree should be empty.
     let filled_tree_map = filled_tree.get_all_nodes();
