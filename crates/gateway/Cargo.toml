@@ -19,18 +19,18 @@ cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
 enum-assoc.workspace = true
 hyper.workspace = true
+mempool_test_utils = { path = "../mempool_test_utils", version = "0.0" }
 num-traits.workspace = true
-papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0"}
-papyrus_rpc = { path = "../papyrus_rpc", version = "0.4.0-rc.0"}
+papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0" }
+papyrus_rpc = { path = "../papyrus_rpc", version = "0.4.0-rc.0" }
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0"}
+starknet-types-core.workspace = true
+starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
 starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }
 starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
 starknet_sierra_compile = { path = "../starknet_sierra_compile", version = "0.0" }
-starknet-types-core.workspace = true
-mempool_test_utils = { path = "../mempool_test_utils", version = "0.0"}
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
@@ -38,8 +38,8 @@ validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
-mockito = "1.4.0"
 mockall.workspace = true
+mockito = "1.4.0"
 num-bigint.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true

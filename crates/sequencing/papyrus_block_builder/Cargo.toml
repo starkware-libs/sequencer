@@ -8,10 +8,10 @@ description = "A block-builder for Starknet blocks"
 
 [dependencies]
 papyrus_storage = { path = "../../papyrus_storage", version = "0.4.0-rc.0", features = ["testing"] }
-starknet_api = { path = "../../starknet_api", version = "0.13.0-rc.0"}
+starknet_api = { path = "../../starknet_api", version = "0.13.0-rc.0" }
 thiserror.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
-pretty_assertions.workspace = true
 papyrus_test_utils = { path = "../../papyrus_test_utils" }
+pretty_assertions.workspace = true

@@ -8,6 +8,20 @@ license-file.workspace = true
 [features]
 testing = []
 
+<<<<<<< HEAD
+||||||| 7ee04dbc
+[[bin]]
+name = "streamed_bytes_benchmark"
+required-features = ["clap"]
+path = "src/bin/streamed_bytes_benchmark.rs"
+
+=======
+[[bin]]
+name = "streamed_bytes_benchmark"
+path = "src/bin/streamed_bytes_benchmark.rs"
+required-features = ["clap"]
+
+>>>>>>> origin/main-v0.13.2
 [dependencies]
 async-stream.workspace = true
 bytes.workspace = true
@@ -15,6 +29,7 @@ derive_more.workspace = true
 futures.workspace = true
 lazy_static.workspace = true
 libp2p = { workspace = true, features = [
+<<<<<<< HEAD
     "gossipsub",
     "identify",
     "kad",
@@ -25,6 +40,29 @@ libp2p = { workspace = true, features = [
     "tcp",
     "tokio",
     "yamux",
+||||||| 7ee04dbc
+    "gossipsub",
+    "identify",
+    "kad",
+    "macros",
+    "noise",
+    "quic",
+    "tcp",
+    "tokio",
+    "yamux",
+    "serde",
+=======
+  "gossipsub",
+  "identify",
+  "kad",
+  "macros",
+  "noise",
+  "quic",
+  "serde",
+  "tcp",
+  "tokio",
+  "yamux",
+>>>>>>> origin/main-v0.13.2
 ] }
 metrics.workspace = true
 papyrus_common = { path = "../papyrus_common", version = "0.4.0-rc.0" }

@@ -28,14 +28,14 @@ jobs:
         run: npm install --global @commitlint/cli @commitlint/config-conventional
 
       - name: Validate PR commits with commitlint
-        if: github.event_name == 'pull_request' && !(contains(github.event.pull_request.title, '/merge-main') || contains(github.event.pull_request.title, '/merge main'))
+        if: github.event_name == 'pull_request' && !(contains(github.event.pull_request.title, 'merge-main') || contains(github.event.pull_request.title, 'merge main'))
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: commitlint --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
 
       - name: Validate PR title with commitlint
-        if: github.event_name != 'merge_group' && github.event_name != 'push' && !(contains(github.event.pull_request.title, '/merge-main') || contains(github.event.pull_request.title, '/merge main'))
+        if: github.event_name != 'merge_group' && github.event_name != 'push' && !(contains(github.event.pull_request.title, 'merge-main') || contains(github.event.pull_request.title, 'merge main'))
         env:
           TITLE: ${{ github.event.pull_request.title }}
         run: echo "$TITLE" | commitlint --verbose
@@ -132,6 +132,19 @@ jobs:
           ci/bin/python scripts/run_tests.py --concurrency
         env:
           SEED: 0
+
+  taplo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: baptiste0928/cargo-install@v3
+        with:
+          crate: taplo-cli
+          version: '0.9.0'
+          locked: true
+      - run: scripts/taplo.sh
 
   machete:
     runs-on: ubuntu-latest

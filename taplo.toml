@@ -1,3 +1,5 @@
+exclude = ["crates/native_blockifier/.cargo/config.toml"]
+
 [formatting]
 column_width = 100
 reorder_arrays = true

@@ -5,17 +5,15 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 
 use super::OriginalSkeletonTreeImpl;
-use crate::block_committer::input::StarknetStorageValue;
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
 use crate::patricia_merkle_tree::internal_test_utils::{
     small_tree_index_to_full,
     MockLeaf,
     OriginalSkeletonMockTrieConfig,
 };
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength, PathToBottom};
-use crate::patricia_merkle_tree::node_data::leaf::{ContractState, LeafModifications};
+use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::SubTree;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
@@ -137,9 +135,9 @@ use crate::storage::storage_trait::{create_db_key, StarknetPrefix, StorageKey, S
 ///                           /     \
 ///                         26       90
 ///                        /      /     \
-///                       * 25      65
+///                       /      25      65
 ///                      /        \     /  \
-///                     24         *   6   59
+///                     24         \   6   59
 ///                    /  \         \  /  /  \
 ///                   11  13       20  5  19 40
 ///
@@ -151,9 +149,9 @@ use crate::storage::storage_trait::{create_db_key, StarknetPrefix, StorageKey, S
 ///                           /     \
 ///                          E       B
 ///                         /     /     \
-///                        * E       B
+///                        /     E       B
 ///                       /       \     /  \
-///                      24        *   E    B
+///                      24        \   E    B
 ///                                 \  /     \
 ///                                 20 5     40
 #[case::tree_of_height_4_with_long_edge(
@@ -295,7 +293,7 @@ fn test_create_tree(
 ///
 ///            1
 ///         /     \
-///        * *
+///        ^       /
 ///       / \     /
 ///      4   5   6
 ///     / \  / \  /
@@ -410,26 +408,6 @@ pub(crate) fn create_32_bytes_entry(simple_val: u128) -> [u8; 32] {
 pub(crate) fn create_mock_leaf_entry(val: u128) -> (StorageKey, StorageValue) {
     let leaf = MockLeaf(Felt::from(val));
     (leaf.get_db_key(&leaf.0.to_bytes_be()), leaf.serialize())
-}
-
-pub(crate) fn create_storage_leaf_entry(val: u128) -> (StorageKey, StorageValue) {
-    let leaf = StarknetStorageValue(Felt::from(val));
-    (leaf.get_db_key(&leaf.0.to_bytes_be()), leaf.serialize())
-}
-
-pub(crate) fn create_compiled_class_leaf_entry(val: u128) -> (StorageKey, StorageValue) {
-    let leaf = CompiledClassHash(Felt::from(val));
-    (leaf.get_db_key(&leaf.0.to_bytes_be()), leaf.serialize())
-}
-
-pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (StorageKey, StorageValue) {
-    let felt = Felt::from(val);
-    let leaf = ContractState {
-        nonce: Nonce(felt),
-        storage_root_hash: HashOutput(felt),
-        class_hash: ClassHash(felt),
-    };
-    (leaf.get_db_key(&felt.to_bytes_be()), leaf.serialize())
 }
 
 fn create_patricia_key(val: u128) -> StorageKey {
