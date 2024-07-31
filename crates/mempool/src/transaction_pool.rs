@@ -94,11 +94,10 @@ impl TransactionPool {
     pub fn get_next_eligible_tx(
         &self,
         current_account_state: Account,
-    ) -> MempoolResult<Option<&TransactionReference>> {
+    ) -> Option<&TransactionReference> {
         let Account { sender_address, state: AccountState { nonce } } = current_account_state;
-        // TOOD(Ayelet): Change to StarknetApiError.
         let next_nonce = nonce.try_increment();
-        Ok(self.get_by_address_and_nonce(sender_address, next_nonce))
+        self.get_by_address_and_nonce(sender_address, next_nonce)
     }
 
     #[cfg(test)]
