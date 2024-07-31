@@ -34,7 +34,7 @@ pub(crate) trait FilledTree<L: Leaf>: Sized + Send {
         leaf_index_to_leaf_input: Arc<HashMap<NodeIndex, L::I>>,
     ) -> FilledTreeResult<(Self, Option<HashMap<NodeIndex, L::O>>), L>;
 
-    async fn create_no_additional_output<'a, TH: TreeHashFunction<L> + 'static>(
+    async fn create_no_leaf_output<'a, TH: TreeHashFunction<L> + 'static>(
         updated_skeleton: Arc<impl UpdatedSkeletonTree<'a> + 'static>,
         leaf_index_to_leaf_input: Arc<HashMap<NodeIndex, L::I>>,
     ) -> FilledTreeResult<Self, L> {
@@ -119,17 +119,17 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
         data: L::O,
     ) -> FilledTreeResult<(), L> {
         match output_map.get(&index) {
-            Some(node) => {
-                let mut node = node
+            Some(leaf) => {
+                let mut leaf = leaf
                     .lock()
-                    // TODO(Amos): add error for this, instead of using incorrect error.
-                    .map_err(|_| FilledTreeError::PoisonedLock("Cannot lock node.".to_owned()))?;
-                match node.take() {
-                    Some(_existing_output_data) => {
-                        Err(FilledTreeError::DoubleAdditionalOutputUpdate { index })
-                    }
+                    .map_err(|_| FilledTreeError::PoisonedLock("Cannot lock leaf.".to_owned()))?;
+                match leaf.take() {
+                    Some(existing_value) => Err(FilledTreeError::DoubleLeafOutputUpdate {
+                        index,
+                        existing_value,
+                    }),
                     None => {
-                        *node = Some(data);
+                        *leaf = Some(data);
                         Ok(())
                     }
                 }

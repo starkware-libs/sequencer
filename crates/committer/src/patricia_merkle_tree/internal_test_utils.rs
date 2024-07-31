@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use ethnum::U256;
 use rand::rngs::ThreadRng;
 use rstest::{fixture, rstest};

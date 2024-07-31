@@ -52,7 +52,7 @@ impl FilledForest {
         address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
         address_to_nonce: &HashMap<ContractAddress, Nonce>,
     ) -> ForestResult<Self> {
-        let classes_trie = ClassesTrie::create_no_additional_output::<TH>(
+        let classes_trie = ClassesTrie::create_no_leaf_output::<TH>(
             Arc::new(updated_forest.classes_trie),
             Arc::new(classes_updates),
         )
@@ -95,13 +95,14 @@ impl FilledForest {
         // `storage_updates` includes all modified contracts, see
         // StateDiff::actual_storage_updates().
         for contract_address in storage_updates.keys().cloned().collect::<Vec<_>>() {
+            let node_index = NodeIndex::from_contract_address(&contract_address);
             let original_contract_state = original_contracts_trie_leaves
-                .get(&NodeIndex::from_contract_address(&contract_address))
+                .get(&node_index)
                 .ok_or(ForestError::MissingContractCurrentState(contract_address))?;
             leaf_index_to_leaf_input.insert(
-                NodeIndex::from_contract_address(&contract_address),
+                node_index,
                 (
-                    NodeIndex::from_contract_address(&contract_address),
+                    node_index,
                     *(address_to_nonce
                         .get(&contract_address)
                         .unwrap_or(&original_contract_state.nonce)),

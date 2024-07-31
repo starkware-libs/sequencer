@@ -15,7 +15,7 @@ use std::future::Future;
 pub trait Leaf: Clone + Sync + Send + DBObject + Deserializable + Default + Debug + Eq {
     // TODO(Amos, 1/1/2025): Add default values when it is stable.
     type I: Send + Sync + 'static;
-    type O: Send + 'static;
+    type O: Send + Debug + 'static;
 
     /// Returns true if leaf is empty.
     fn is_empty(&self) -> bool;

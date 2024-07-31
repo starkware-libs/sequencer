@@ -507,7 +507,7 @@ async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
     .unwrap();
     let updated =
         UpdatedSkeletonTreeImpl::create(&mut original_skeleton_tree, &HashMap::new()).unwrap();
-    let filled = MockTrie::create_no_additional_output::<TreeHashFunctionImpl>(
+    let filled = MockTrie::create_no_leaf_output::<TreeHashFunctionImpl>(
         Arc::new(updated),
         Arc::new(empty_map),
     )

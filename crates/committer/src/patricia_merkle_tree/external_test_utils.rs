@@ -64,7 +64,7 @@ pub fn get_random_u256<R: Rng>(rng: &mut R, low: U256, high: U256) -> U256 {
 }
 
 pub async fn tree_computation_flow(
-    leaf_modifications: Arc<LeafModifications<StarknetStorageValue>>,
+    leaf_modifications: LeafModifications<StarknetStorageValue>,
     storage: &MapStorage,
     root_hash: HashOutput,
 ) -> StorageTrie {
@@ -92,9 +92,9 @@ pub async fn tree_computation_flow(
     )
     .expect("Failed to create the updated skeleton tree");
 
-    StorageTrie::create_no_additional_output::<TreeHashFunctionImpl>(
+    StorageTrie::create_no_leaf_output::<TreeHashFunctionImpl>(
         updated_skeleton.into(),
-        leaf_modifications,
+        Arc::new(leaf_modifications),
     )
     .await
     .expect("Failed to create the filled tree")
@@ -111,8 +111,7 @@ pub async fn single_tree_flow_test(
         .map(|(k, v)| (NodeIndex::FIRST_LEAF + k, v))
         .collect::<LeafModifications<StarknetStorageValue>>();
 
-    let filled_tree =
-        tree_computation_flow(Arc::new(leaf_modifications), &storage, root_hash).await;
+    let filled_tree = tree_computation_flow(leaf_modifications, &storage, root_hash).await;
 
     let hash_result = filled_tree.get_root_hash();
 
