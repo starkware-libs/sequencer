@@ -9,7 +9,9 @@ on:
       - v[0-9].**
     paths:
       - 'crates/blockifier/**'
-      - 'crates/native_blockifier/.cargo/config.toml'
+      - 'crates/native_blockifier/**'
+      - 'build_native_blockifier_in_docker.sh'
+      - 'scripts/build_native_blockifier.sh'
 
   pull_request:
     types:
@@ -20,7 +22,9 @@ on:
       - edited
     paths:
       - 'crates/blockifier/**'
-      - 'crates/native_blockifier/.cargo/config.toml'
+      - 'crates/native_blockifier/**'
+      - 'build_native_blockifier_in_docker.sh'
+      - 'scripts/build_native_blockifier.sh'
 
 jobs:
   featureless-build:
@@ -45,7 +49,7 @@ jobs:
           prefix-key: "v1-rust-ubuntu-20.04"
 
       - name: Build native blockifier
-        run: ./build_native_blockifier.sh
+        run: ./build_native_blockifier_in_docker.sh
 
         # Commit hash on pull request event would be the head commit of the branch.
       - name: Get commit hash prefix for PR update
