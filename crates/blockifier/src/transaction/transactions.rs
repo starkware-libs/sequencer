@@ -309,9 +309,7 @@ impl TransactionInfoCreator for DeclareTransaction {
 }
 #[derive(Debug, Clone)]
 pub struct DeployAccountTransaction {
-    pub tx: starknet_api::transaction::DeployAccountTransaction,
-    pub tx_hash: TransactionHash,
-    pub contract_address: ContractAddress,
+    pub tx: starknet_api::executable_transaction::DeployAccountTransaction,
     // Indicates the presence of the only_query bit in the version.
     pub only_query: bool,
 }
@@ -322,7 +320,14 @@ impl DeployAccountTransaction {
         tx_hash: TransactionHash,
         contract_address: ContractAddress,
     ) -> Self {
-        Self { tx: deploy_account_tx, tx_hash, contract_address, only_query: false }
+        Self {
+            tx: starknet_api::executable_transaction::DeployAccountTransaction {
+                tx: deploy_account_tx,
+                tx_hash,
+                contract_address,
+            },
+            only_query: false,
+        }
     }
 
     pub fn new_for_query(
@@ -330,24 +335,29 @@ impl DeployAccountTransaction {
         tx_hash: TransactionHash,
         contract_address: ContractAddress,
     ) -> Self {
-        Self { tx: deploy_account_tx, tx_hash, contract_address, only_query: true }
+        Self {
+            tx: starknet_api::executable_transaction::DeployAccountTransaction {
+                tx: deploy_account_tx,
+                tx_hash,
+                contract_address,
+            },
+            only_query: true,
+        }
     }
 
     implement_inner_tx_getter_calls!(
         (class_hash, ClassHash),
         (constructor_calldata, Calldata),
+        (contract_address, ContractAddress),
         (contract_address_salt, ContractAddressSalt),
         (nonce, Nonce),
         (signature, TransactionSignature),
+        (tx_hash, TransactionHash),
         (version, TransactionVersion)
     );
 
     pub fn tx(&self) -> &starknet_api::transaction::DeployAccountTransaction {
-        &self.tx
-    }
-
-    pub fn tx_hash(&self) -> TransactionHash {
-        self.tx_hash
+        self.tx.tx()
     }
 }
 
@@ -363,7 +373,7 @@ impl<S: State> Executable<S> for DeployAccountTransaction {
         let ctor_context = ConstructorContext {
             class_hash,
             code_address: None,
-            storage_address: self.contract_address,
+            storage_address: self.contract_address(),
             caller_address: ContractAddress::default(),
         };
         let call_info = execute_deployment(
@@ -387,11 +397,11 @@ impl TransactionInfoCreator for DeployAccountTransaction {
             version: self.version(),
             signature: self.signature(),
             nonce: self.nonce(),
-            sender_address: self.contract_address,
+            sender_address: self.contract_address(),
             only_query: self.only_query,
         };
 
-        match &self.tx {
+        match &self.tx() {
             starknet_api::transaction::DeployAccountTransaction::V1(tx) => {
                 TransactionInfo::Deprecated(DeprecatedTransactionInfo {
                     common_fields,

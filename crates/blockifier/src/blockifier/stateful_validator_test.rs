@@ -63,7 +63,7 @@ fn test_transaction_validator(
         ..transaction_args
     });
     if let AccountTransaction::DeployAccount(deploy_tx) = &tx {
-        fund_account(chain_info, deploy_tx.contract_address, BALANCE, &mut state.state);
+        fund_account(chain_info, deploy_tx.contract_address(), BALANCE, &mut state.state);
     }
 
     // Test the stateful validator.
