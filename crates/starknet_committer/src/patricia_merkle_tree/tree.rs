@@ -5,14 +5,14 @@ use committer::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkele
 use committer::patricia_merkle_tree::types::NodeIndex;
 
 use crate::block_committer::input::StarknetStorageValue;
-use crate::starknet_patricia_merkle_tree::node::CompiledClassHash;
-use crate::starknet_patricia_merkle_tree::starknet_leaf::leaf::ContractState;
-
-pub(crate) struct OriginalSkeletonContractsTrieConfig;
+use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
+use crate::patricia_merkle_tree::types::CompiledClassHash;
 
 generate_trie_config!(OriginalSkeletonStorageTrieConfig, StarknetStorageValue);
 
 generate_trie_config!(OriginalSkeletonClassesTrieConfig, CompiledClassHash);
+
+pub(crate) struct OriginalSkeletonContractsTrieConfig;
 
 impl OriginalSkeletonTreeConfig<ContractState> for OriginalSkeletonContractsTrieConfig {
     fn compare_modified_leaves(&self) -> bool {

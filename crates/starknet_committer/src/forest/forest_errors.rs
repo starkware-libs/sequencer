@@ -4,11 +4,7 @@ use thiserror::Error;
 use tokio::task::JoinError;
 
 use crate::block_committer::input::ContractAddress;
-use crate::starknet_patricia_merkle_tree::types::{
-    ClassesTrieError,
-    ContractsTrieError,
-    StorageTrieError,
-};
+use crate::patricia_merkle_tree::types::{ClassesTrieError, ContractsTrieError, StorageTrieError};
 
 pub(crate) type ForestResult<T> = Result<T, ForestError>;
 

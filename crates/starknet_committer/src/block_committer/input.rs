@@ -1,19 +1,18 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
-use tracing::level_filters::LevelFilter;
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
 use committer::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use committer::patricia_merkle_tree::types::NodeIndex;
 use committer::storage::storage_trait::{StorageKey, StorageValue};
+use tracing::level_filters::LevelFilter;
 
-use crate::starknet_patricia_merkle_tree::node::{ClassHash, CompiledClassHash, Nonce};
+use crate::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 // TODO(Nimrod, 1/6/2025): Use the ContractAddress defined in starknet-types-core when available.
 pub struct ContractAddress(pub Felt);
-
 
 impl From<&ContractAddress> for NodeIndex {
     fn from(address: &ContractAddress) -> NodeIndex {
