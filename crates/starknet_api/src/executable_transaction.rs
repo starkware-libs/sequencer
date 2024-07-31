@@ -1,58 +1,52 @@
 use crate::core::{ContractAddress, Nonce};
 use crate::state::ContractClass;
-use crate::transaction::{
-    DeclareTransaction,
-    DeployAccountTransaction,
-    InvokeTransaction,
-    Tip,
-    TransactionHash,
-};
+use crate::transaction::{Tip, TransactionHash};
 
 /// Represents a paid Starknet transaction.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum InternalTransaction {
-    Declare(InternalDeclareTransaction),
-    DeployAccount(InternalDeployAccountTransaction),
-    Invoke(InternalInvokeTransaction),
+pub enum Transaction {
+    Declare(DeclareTransaction),
+    DeployAccount(DeployAccountTransaction),
+    Invoke(InvokeTransaction),
 }
 
-impl InternalTransaction {
+impl Transaction {
     pub fn contract_address(&self) -> ContractAddress {
         match self {
-            InternalTransaction::Declare(tx_data) => tx_data.tx.sender_address(),
-            InternalTransaction::DeployAccount(tx_data) => tx_data.contract_address,
-            InternalTransaction::Invoke(tx_data) => tx_data.tx.sender_address(),
+            Transaction::Declare(tx_data) => tx_data.tx.sender_address(),
+            Transaction::DeployAccount(tx_data) => tx_data.contract_address,
+            Transaction::Invoke(tx_data) => tx_data.tx.sender_address(),
         }
     }
 
     pub fn nonce(&self) -> Nonce {
         match self {
-            InternalTransaction::Declare(tx_data) => tx_data.tx.nonce(),
-            InternalTransaction::DeployAccount(tx_data) => tx_data.tx.nonce(),
-            InternalTransaction::Invoke(tx_data) => tx_data.tx.nonce(),
+            Transaction::Declare(tx_data) => tx_data.tx.nonce(),
+            Transaction::DeployAccount(tx_data) => tx_data.tx.nonce(),
+            Transaction::Invoke(tx_data) => tx_data.tx.nonce(),
         }
     }
 
     pub fn tx_hash(&self) -> TransactionHash {
         match self {
-            InternalTransaction::Declare(tx_data) => tx_data.tx_hash,
-            InternalTransaction::DeployAccount(tx_data) => tx_data.tx_hash,
-            InternalTransaction::Invoke(tx_data) => tx_data.tx_hash,
+            Transaction::Declare(tx_data) => tx_data.tx_hash,
+            Transaction::DeployAccount(tx_data) => tx_data.tx_hash,
+            Transaction::Invoke(tx_data) => tx_data.tx_hash,
         }
     }
 
     pub fn tip(&self) -> Option<Tip> {
         match self {
-            InternalTransaction::Declare(declare_tx) => match &declare_tx.tx {
-                DeclareTransaction::V3(tx_v3) => Some(tx_v3.tip),
+            Transaction::Declare(declare_tx) => match &declare_tx.tx {
+                crate::transaction::DeclareTransaction::V3(tx_v3) => Some(tx_v3.tip),
                 _ => None,
             },
-            InternalTransaction::DeployAccount(deploy_account_tx) => match &deploy_account_tx.tx {
-                DeployAccountTransaction::V3(tx_v3) => Some(tx_v3.tip),
+            Transaction::DeployAccount(deploy_account_tx) => match &deploy_account_tx.tx {
+                crate::transaction::DeployAccountTransaction::V3(tx_v3) => Some(tx_v3.tip),
                 _ => None,
             },
-            InternalTransaction::Invoke(invoke_tx) => match &invoke_tx.tx {
-                InvokeTransaction::V3(tx_v3) => Some(tx_v3.tip),
+            Transaction::Invoke(invoke_tx) => match &invoke_tx.tx {
+                crate::transaction::InvokeTransaction::V3(tx_v3) => Some(tx_v3.tip),
                 _ => None,
             },
         }
@@ -61,33 +55,28 @@ impl InternalTransaction {
 
 // TODO(Mohammad): Add constructor for all the transaction's structs.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct InternalDeclareTransaction {
-    pub tx: DeclareTransaction,
+pub struct DeclareTransaction {
+    pub tx: crate::transaction::DeclareTransaction,
     pub tx_hash: TransactionHash,
-    // Indicates the presence of the only_query bit in the version.
-    pub only_query: bool,
     pub class_info: ClassInfo,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct InternalDeployAccountTransaction {
-    pub tx: DeployAccountTransaction,
+pub struct DeployAccountTransaction {
+    pub tx: crate::transaction::DeployAccountTransaction,
     pub tx_hash: TransactionHash,
     pub contract_address: ContractAddress,
-    // Indicates the presence of the only_query bit in the version.
-    pub only_query: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct InternalInvokeTransaction {
-    pub tx: InvokeTransaction,
+pub struct InvokeTransaction {
+    pub tx: crate::transaction::InvokeTransaction,
     pub tx_hash: TransactionHash,
-    // Indicates the presence of the only_query bit in the version.
-    pub only_query: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ClassInfo {
+    // TODO: use compiled contract class.
     pub contract_class: ContractClass,
     pub sierra_program_length: usize,
     pub abi_length: usize,
