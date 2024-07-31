@@ -27,7 +27,6 @@ pub trait OriginalSkeletonTree<'a>: Sized {
 
     fn get_nodes_mut(&mut self) -> &mut OriginalSkeletonNodeMap;
 
-    #[allow(dead_code)]
     fn create_and_get_previous_leaves<L: Leaf>(
         storage: &impl Storage,
         root_hash: HashOutput,
@@ -42,8 +41,8 @@ pub trait OriginalSkeletonTree<'a>: Sized {
 // TODO(Dori, 1/7/2024): Make this a tuple struct.
 #[derive(Debug, PartialEq)]
 pub struct OriginalSkeletonTreeImpl<'a> {
-    pub(crate) nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
-    pub(crate) sorted_leaf_indices: SortedLeafIndices<'a>,
+    pub nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
+    pub sorted_leaf_indices: SortedLeafIndices<'a>,
 }
 
 impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
