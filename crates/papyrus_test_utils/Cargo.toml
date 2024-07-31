@@ -8,20 +8,20 @@ license-file.workspace = true
 [features]
 
 [dependencies]
-cairo-lang-starknet-classes.workspace = true
 cairo-lang-casm.workspace = true
+cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
+num-bigint.workspace = true
 primitive-types = { workspace = true, features = ["serde"] }
 prometheus-parse.workspace = true
-num-bigint.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true, features = ["arbitrary_precision"]}
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0", features = ["testing"] }
+serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet-types-core = { workspace = true, features = ["hash"] }
+starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0", features = ["testing"] }
 
 [dev-dependencies]
 pretty_assertions.workspace = true
