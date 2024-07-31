@@ -27,8 +27,6 @@ pub(crate) type FilledTreeResult<T, L> = Result<T, FilledTreeError<L>>;
 /// data and hashes.
 pub(crate) trait FilledTree<L: Leaf>: Sized + Send {
     /// Computes and returns the filled tree.
-    // TODO(Amos, 1/8/2024): Implement and use a LeafIndex type for input & output. It should probably
-    // also be used in other places across the code.
     async fn create<'a, TH: TreeHashFunction<L> + 'static>(
         updated_skeleton: Arc<impl UpdatedSkeletonTree<'a> + 'static>,
         leaf_index_to_leaf_input: Arc<HashMap<NodeIndex, L::I>>,
@@ -113,6 +111,8 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
     }
 
     /// Similar to `write_to_output_map`, but for the additional output map.
+    //TODO(Amos, 1/8/2024): Panic makes more sense than returning an error here. Also - why not
+    // use `write_to_output_map`?
     fn write_to_leaf_output_map(
         output_map: Arc<HashMap<NodeIndex, Mutex<Option<L::O>>>>,
         index: NodeIndex,
@@ -124,17 +124,15 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                     .lock()
                     .map_err(|_| FilledTreeError::PoisonedLock("Cannot lock leaf.".to_owned()))?;
                 match leaf.take() {
-                    Some(existing_value) => Err(FilledTreeError::DoubleLeafOutputUpdate {
-                        index,
-                        existing_value,
-                    }),
+                    Some(existing_value) => {
+                        Err(FilledTreeError::DoubleLeafOutputUpdate { index, existing_value })
+                    }
                     None => {
                         *leaf = Some(data);
                         Ok(())
                     }
                 }
             }
-            // TODO(Amos): add error for this, instead of using incorrect error.
             None => Err(FilledTreeError::<L>::MissingNode(index)),
         }
     }

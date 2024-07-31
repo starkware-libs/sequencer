@@ -52,13 +52,12 @@ impl FilledForest {
         address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
         address_to_nonce: &HashMap<ContractAddress, Nonce>,
     ) -> ForestResult<Self> {
-        let classes_trie = ClassesTrie::create_no_leaf_output::<TH>(
+        let classes_trie_task = tokio::task::spawn(ClassesTrie::create::<TH>(
             Arc::new(updated_forest.classes_trie),
             Arc::new(classes_updates),
-        )
-        .await?;
+        ));
 
-        let (contracts_trie, storage_tries) = ContractsTrie::create::<TH>(
+        let contracts_trie_task = tokio::task::spawn(ContractsTrie::create::<TH>(
             Arc::new(updated_forest.contracts_trie),
             Arc::new(FilledForest::get_contracts_trie_leaf_input(
                 original_contracts_trie_leaves,
@@ -67,12 +66,13 @@ impl FilledForest {
                 address_to_class_hash,
                 address_to_nonce,
             )?),
-        )
-        .await?;
+        ));
+        let (contracts_trie, storage_tries) = contracts_trie_task.await??;
+        let (classes_trie, _) = classes_trie_task.await??;
 
         Ok(Self {
             storage_tries: storage_tries
-                .unwrap_or_else(|| panic!("Missing storage tries."))
+                .expect("Missing storage tries.")
                 .into_iter()
                 .map(|(node_index, storage_trie)| (node_index.to_contract_address(), storage_trie))
                 .collect(),
@@ -81,20 +81,24 @@ impl FilledForest {
         })
     }
 
-    // TODO(Amos, 1/8/2024): Can this be done more efficiently?
-    // should error be returned if keys are missing?
     fn get_contracts_trie_leaf_input(
         original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
-        mut storage_updates: HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
-        mut storage_tries: HashMap<ContractAddress, UpdatedSkeletonTreeImpl>,
+        contract_address_to_storage_updates: HashMap<
+            ContractAddress,
+            LeafModifications<StarknetStorageValue>,
+        >,
+        mut contract_address_to_storage_trie: HashMap<ContractAddress, UpdatedSkeletonTreeImpl>,
         address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
         address_to_nonce: &HashMap<ContractAddress, Nonce>,
     ) -> ForestResult<HashMap<NodeIndex, <ContractState as Leaf>::I>> {
         let mut leaf_index_to_leaf_input = HashMap::new();
-        assert_eq!(storage_updates.len(), storage_tries.len());
-        // `storage_updates` includes all modified contracts, see
-        // StateDiff::actual_storage_updates().
-        for contract_address in storage_updates.keys().cloned().collect::<Vec<_>>() {
+        assert_eq!(
+            contract_address_to_storage_updates.len(),
+            contract_address_to_storage_trie.len()
+        );
+        // `contract_address_to_storage_updates` includes all modified contracts, even those with
+        // unmodified storage, see StateDiff::actual_storage_updates().
+        for (contract_address, storage_updates) in contract_address_to_storage_updates {
             let node_index = NodeIndex::from_contract_address(&contract_address);
             let original_contract_state = original_contracts_trie_leaves
                 .get(&node_index)
@@ -109,12 +113,10 @@ impl FilledForest {
                     *(address_to_class_hash
                         .get(&contract_address)
                         .unwrap_or(&original_contract_state.class_hash)),
-                    storage_tries.remove(&contract_address).unwrap_or_else(|| {
-                        panic!("Missing update skeleton tree for contract {:?}", contract_address)
-                    }),
-                    storage_updates.remove(&contract_address).unwrap_or_else(|| {
-                        panic!("Missing storage updates for contract {:?}", contract_address)
-                    }),
+                    contract_address_to_storage_trie
+                        .remove(&contract_address)
+                        .ok_or(ForestError::MissingUpdatedSkeleton(contract_address))?,
+                    storage_updates,
                 ),
             );
         }
