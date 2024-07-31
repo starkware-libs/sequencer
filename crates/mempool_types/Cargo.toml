@@ -11,11 +11,7 @@ workspace = true
 [dependencies]
 async-trait.workspace = true
 mockall.workspace = true
-<<<<<<< HEAD
 serde = { workspace = true, feat = ["derive"] }
-||||||| 7ee04dbc
-=======
 starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
->>>>>>> origin/main-v0.13.2
 starknet_mempool_infra = { path = "../mempool_infra" }
 thiserror.workspace = true
