@@ -98,7 +98,7 @@ impl Mempool {
         state_changes: HashMap<ContractAddress, AccountState>,
     ) -> MempoolResult<()> {
         for (&address, AccountState { nonce }) in &state_changes {
-            let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
+            let next_nonce = nonce.try_increment();
 
             // Align the queue with the committed nonces.
             if self

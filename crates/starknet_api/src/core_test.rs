@@ -81,12 +81,13 @@ fn eth_address_serde() {
 }
 
 #[test]
+#[should_panic(expected = "Overflow occurred when incrementing")]
 fn nonce_overflow() {
     // Increment on this value should overflow back to 0.
     let max_nonce = Nonce(Felt::MAX);
 
-    let overflowed_nonce = max_nonce.try_increment();
-    assert_matches!(overflowed_nonce, Err(StarknetApiError::OutOfRange { string: _err_str }));
+    // This will panic if an overflow occurs, as expected.
+    let _overflowed_nonce = max_nonce.try_increment();
 }
 
 #[test]

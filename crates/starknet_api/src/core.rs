@@ -204,13 +204,13 @@ pub struct CompiledClassHash(pub StarkHash);
 pub struct Nonce(pub Felt);
 
 impl Nonce {
-    pub fn try_increment(&self) -> Result<Self, StarknetApiError> {
+    pub fn try_increment(&self) -> Self {
         // Check if an overflow occurred during increment.
         let incremented = self.0 + Felt::ONE;
         if incremented == Felt::ZERO {
-            return Err(StarknetApiError::OutOfRange { string: format!("{:?}", self) });
+            panic!("Overflow occurred when incrementing: {:?}", self);
         }
-        Ok(Self(incremented))
+        Self(incremented)
     }
 }
 
