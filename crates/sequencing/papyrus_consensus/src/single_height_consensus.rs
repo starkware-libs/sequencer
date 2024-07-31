@@ -159,6 +159,14 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         context: &mut ContextT,
         vote: Vote,
     ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
+        if !self.validators.contains(&vote.voter) {
+            return Err(ConsensusError::InvalidVote(
+                vote.voter,
+                self.height,
+                format!("voter {:?} not in validators {:?}", vote.voter, self.validators),
+            ));
+        }
+
         let (votes, sm_vote) = match vote.vote_type {
             VoteType::Prevote => {
                 (&mut self.prevotes, StateMachineEvent::Prevote(vote.block_hash, vote.round))
