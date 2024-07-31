@@ -23,3 +23,6 @@ tmp_venv/*
 /.vscode
 # Git hooks
 /.husky
+
+# Python artifacts.
+scripts/__pycache__
