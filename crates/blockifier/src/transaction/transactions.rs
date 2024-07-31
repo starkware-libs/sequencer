@@ -1,12 +1,12 @@
+use std::ops::Deref;
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
-    ContractAddressSalt,
     DeclareTransactionV2,
     DeclareTransactionV3,
     Fee,
@@ -46,14 +46,6 @@ use crate::transaction::transaction_utils::{update_remaining_gas, verify_contrac
 #[cfg(test)]
 #[path = "transactions_test.rs"]
 mod test;
-
-macro_rules! implement_inner_tx_getter_calls {
-    ($(($field:ident, $field_type:ty)),*) => {
-        $(pub fn $field(&self) -> $field_type {
-            self.tx.$field().clone()
-        })*
-    };
-}
 
 #[derive(Clone, Copy, Debug)]
 pub struct ExecutionFlags {
@@ -135,6 +127,14 @@ pub struct DeclareTransaction {
     pub class_info: ClassInfo,
 }
 
+impl Deref for DeclareTransaction {
+    type Target = starknet_api::transaction::DeclareTransaction;
+
+    fn deref(&self) -> &Self::Target {
+        &self.tx
+    }
+}
+
 impl DeclareTransaction {
     fn create(
         declare_tx: starknet_api::transaction::DeclareTransaction,
@@ -162,8 +162,6 @@ impl DeclareTransaction {
     ) -> TransactionExecutionResult<Self> {
         Self::create(declare_tx, tx_hash, class_info, true)
     }
-
-    implement_inner_tx_getter_calls!((class_hash, ClassHash), (signature, TransactionSignature));
 
     pub fn tx(&self) -> &starknet_api::transaction::DeclareTransaction {
         &self.tx
@@ -245,10 +243,10 @@ impl TransactionInfoCreator for DeclareTransaction {
         // TODO(Nir, 01/11/2023): Consider to move this (from all get_tx_info methods).
         let common_fields = CommonAccountFields {
             transaction_hash: self.tx_hash(),
-            version: self.tx.version(),
-            signature: self.tx.signature(),
-            nonce: self.tx.nonce(),
-            sender_address: self.tx.sender_address(),
+            version: self.version(),
+            signature: self.signature(),
+            nonce: self.nonce(),
+            sender_address: self.sender_address(),
             only_query: self.only_query,
         };
 
@@ -289,6 +287,14 @@ pub struct DeployAccountTransaction {
     pub only_query: bool,
 }
 
+impl Deref for DeployAccountTransaction {
+    type Target = starknet_api::transaction::DeployAccountTransaction;
+
+    fn deref(&self) -> &Self::Target {
+        &self.tx
+    }
+}
+
 impl DeployAccountTransaction {
     pub fn new(
         deploy_account_tx: starknet_api::transaction::DeployAccountTransaction,
@@ -305,14 +311,6 @@ impl DeployAccountTransaction {
     ) -> Self {
         Self { tx: deploy_account_tx, tx_hash, contract_address, only_query: true }
     }
-
-    implement_inner_tx_getter_calls!(
-        (class_hash, ClassHash),
-        (constructor_calldata, Calldata),
-        (contract_address_salt, ContractAddressSalt),
-        (nonce, Nonce),
-        (signature, TransactionSignature)
-    );
 
     pub fn tx(&self) -> &starknet_api::transaction::DeployAccountTransaction {
         &self.tx
@@ -352,9 +350,9 @@ impl TransactionInfoCreator for DeployAccountTransaction {
     fn create_tx_info(&self) -> TransactionInfo {
         let common_fields = CommonAccountFields {
             transaction_hash: self.tx_hash,
-            version: self.tx.version(),
-            signature: self.tx.signature(),
-            nonce: self.tx.nonce(),
+            version: self.version(),
+            signature: self.signature(),
+            nonce: self.nonce(),
             sender_address: self.contract_address,
             only_query: self.only_query,
         };
@@ -389,6 +387,14 @@ pub struct InvokeTransaction {
     pub only_query: bool,
 }
 
+impl Deref for InvokeTransaction {
+    type Target = starknet_api::transaction::InvokeTransaction;
+
+    fn deref(&self) -> &Self::Target {
+        &self.tx
+    }
+}
+
 impl InvokeTransaction {
     pub fn new(
         invoke_tx: starknet_api::transaction::InvokeTransaction,
@@ -403,12 +409,6 @@ impl InvokeTransaction {
     ) -> Self {
         Self { tx: invoke_tx, tx_hash, only_query: true }
     }
-
-    implement_inner_tx_getter_calls!(
-        (calldata, Calldata),
-        (signature, TransactionSignature),
-        (sender_address, ContractAddress)
-    );
 }
 
 impl<S: State> Executable<S> for InvokeTransaction {
@@ -458,10 +458,10 @@ impl TransactionInfoCreator for InvokeTransaction {
     fn create_tx_info(&self) -> TransactionInfo {
         let common_fields = CommonAccountFields {
             transaction_hash: self.tx_hash,
-            version: self.tx.version(),
-            signature: self.tx.signature(),
-            nonce: self.tx.nonce(),
-            sender_address: self.tx.sender_address(),
+            version: self.version(),
+            signature: self.signature(),
+            nonce: self.nonce(),
+            sender_address: self.sender_address(),
             only_query: self.only_query,
         };
 
@@ -500,16 +500,24 @@ pub struct L1HandlerTransaction {
     pub paid_fee_on_l1: Fee,
 }
 
+impl Deref for L1HandlerTransaction {
+    type Target = starknet_api::transaction::L1HandlerTransaction;
+
+    fn deref(&self) -> &Self::Target {
+        &self.tx
+    }
+}
+
 impl L1HandlerTransaction {
     pub fn payload_size(&self) -> usize {
         // The calldata includes the "from" field, which is not a part of the payload.
-        self.tx.calldata.0.len() - 1
+        self.calldata.0.len() - 1
     }
 }
 
 impl HasRelatedFeeType for L1HandlerTransaction {
     fn version(&self) -> TransactionVersion {
-        self.tx.version
+        self.version
     }
 
     fn is_l1_handler(&self) -> bool {
@@ -557,10 +565,10 @@ impl TransactionInfoCreator for L1HandlerTransaction {
         TransactionInfo::Deprecated(DeprecatedTransactionInfo {
             common_fields: CommonAccountFields {
                 transaction_hash: self.tx_hash,
-                version: self.tx.version,
+                version: self.version,
                 signature: TransactionSignature::default(),
-                nonce: self.tx.nonce,
-                sender_address: self.tx.contract_address,
+                nonce: self.nonce,
+                sender_address: self.contract_address,
                 only_query: false,
             },
             max_fee: Fee::default(),

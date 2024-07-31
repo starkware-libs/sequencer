@@ -1827,7 +1827,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     let contract_address = test_contract.get_instance_address(0);
     let versioned_constants = &block_context.versioned_constants;
     let tx = L1HandlerTransaction::create_for_testing(Fee(1), contract_address);
-    let calldata = tx.tx.calldata.clone();
+    let calldata = tx.calldata.clone();
     let key = calldata.0[1];
     let value = calldata.0[2];
     let payload_size = tx.payload_size();

@@ -73,9 +73,9 @@ pub enum AccountTransaction {
 impl HasRelatedFeeType for AccountTransaction {
     fn version(&self) -> TransactionVersion {
         match self {
-            Self::Declare(tx) => tx.tx.version(),
-            Self::DeployAccount(tx) => tx.tx.version(),
-            Self::Invoke(tx) => tx.tx.version(),
+            Self::Declare(tx) => tx.version(),
+            Self::DeployAccount(tx) => tx.version(),
+            Self::Invoke(tx) => tx.version(),
         }
     }
 
