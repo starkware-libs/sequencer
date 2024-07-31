@@ -2,22 +2,10 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::io;
 
-use committer::block_committer::input::{
-    ContractAddress,
-    StarknetStorageKey,
-    StarknetStorageValue,
-    StateDiff,
-};
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
 use committer::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
-use committer::patricia_merkle_tree::filled_tree::forest::FilledForest;
-use committer::patricia_merkle_tree::filled_tree::node::{
-    ClassHash,
-    CompiledClassHash,
-    FilledNode,
-    Nonce,
-};
+use committer::patricia_merkle_tree::filled_tree::node::FilledNode;
 use committer::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,
@@ -25,10 +13,7 @@ use committer::patricia_merkle_tree::node_data::inner_node::{
     NodeData,
     PathToBottom,
 };
-use committer::patricia_merkle_tree::node_data::leaf::ContractState;
-use committer::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonStorageTrieConfig;
 use committer::patricia_merkle_tree::types::SubTreeHeight;
-use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use committer::storage::db_object::DBObject;
 use committer::storage::errors::{DeserializationError, SerializationError};
 use committer::storage::map_storage::MapStorage;
@@ -42,6 +27,17 @@ use starknet_api::block_hash::block_hash_calculator::{
 };
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionExecutionStatus;
+use starknet_committer::block_committer::input::{
+    ContractAddress,
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
+};
+use starknet_committer::forest::filled_forest::FilledForest;
+use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
+use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
+use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
+use starknet_committer::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
 use starknet_types_core::hash::{Pedersen, StarkHash};
 use thiserror;
 

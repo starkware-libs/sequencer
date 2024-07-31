@@ -38,5 +38,3 @@ pub trait TreeHashFunction<L: Leaf> {
         }
     }
 }
-
-

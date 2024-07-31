@@ -6,8 +6,8 @@ use committer::patricia_merkle_tree::node_data::leaf::Leaf;
 use rstest::rstest;
 
 use crate::block_committer::input::StarknetStorageValue;
-use crate::starknet_patricia_merkle_tree::node::{ClassHash, CompiledClassHash, Nonce};
-use crate::starknet_patricia_merkle_tree::starknet_leaf::leaf::ContractState;
+use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
+use crate::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
 
 #[rstest]
 #[case::zero_storage_leaf(StarknetStorageValue(Felt::ZERO))]

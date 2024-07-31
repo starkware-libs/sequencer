@@ -1,5 +1,5 @@
-use committer::block_committer::commit::commit_block;
-use committer::block_committer::input::{Config, ConfigImpl, Input};
+use starknet_committer::block_committer::commit::commit_block;
+use starknet_committer::block_committer::input::{Config, ConfigImpl, Input};
 
 use crate::filled_tree_output::filled_forest::SerializedForest;
 use crate::parse_input::read::{parse_input, write_to_file};
