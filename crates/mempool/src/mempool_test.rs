@@ -136,7 +136,7 @@ fn add_tx(mempool: &mut Mempool, input: &MempoolInput) {
 }
 
 #[track_caller]
-fn _add_tx_expect_error(mempool: &mut Mempool, input: &MempoolInput, expected_error: MempoolError) {
+fn add_tx_expect_error(mempool: &mut Mempool, input: &MempoolInput, expected_error: MempoolError) {
     assert_eq!(mempool.add_tx(input.clone()), Err(expected_error));
 }
 
@@ -575,6 +575,27 @@ fn test_add_tx_filling_hole(mut mempool: Mempool) {
 }
 
 // commit_block tests.
+
+#[rstest]
+fn test_add_tx_after_get_txs_fails_on_duplicate_nonce() {
+    // Setup.
+    let input_tx = MempoolInput::default();
+
+    let pool_txs = [input_tx.tx.clone()];
+    let queue_txs = [TransactionReference::new_from_thin_tx(&input_tx.tx)];
+    let mut mempool: Mempool = MempoolContent::new(pool_txs, queue_txs).into();
+
+    // Test.
+    mempool.get_txs(1).unwrap();
+    add_tx_expect_error(
+        &mut mempool,
+        &input_tx,
+        MempoolError::DuplicateNonce {
+            address: contract_address!("0x0"),
+            nonce: Nonce(felt!(0_u16)),
+        },
+    );
+}
 
 #[rstest]
 fn test_commit_block_includes_all_txs() {
