@@ -130,7 +130,8 @@ impl NodeIndex {
         Self::FIRST_LEAF + Self::from_felt_value(felt)
     }
 
-    fn from_felt_value(felt: &Felt) -> Self {
+    #[allow(dead_code)]
+    pub(crate) fn from_felt_value(felt: &Felt) -> Self {
         Self(U256::from(felt))
     }
 }
@@ -206,19 +207,19 @@ impl TryFrom<NodeIndex> for Felt {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub(crate) struct SortedLeafIndices<'a>(&'a [NodeIndex]);
+pub struct SortedLeafIndices<'a>(&'a [NodeIndex]);
 
 impl<'a> SortedLeafIndices<'a> {
     /// Creates a new instance by sorting the given indices.
     // TODO(Nimrod, 1/8/2024): Remove duplicates from the given indices.
-    pub(crate) fn new(indices: &'a mut [NodeIndex]) -> Self {
+    pub fn new(indices: &'a mut [NodeIndex]) -> Self {
         indices.sort();
         Self(indices)
     }
 
     /// Returns a subslice of the indices stored at self, at the range [leftmost_idx,
     /// rightmost_idx).
-    pub(crate) fn subslice(&self, leftmost_idx: usize, rightmost_idx: usize) -> Self {
+    pub fn subslice(&self, leftmost_idx: usize, rightmost_idx: usize) -> Self {
         Self(&self.0[leftmost_idx..rightmost_idx])
     }
 
