@@ -261,7 +261,7 @@ pub fn execute_call(
         override_kzg_da_to_false,
     )?;
 
-    let mut context = EntryPointExecutionContext::new_invoke(
+    let mut context = EntryPointExecutionContext::new_execute(
         // TODO(yair): fix when supporting v3 transactions
         Arc::new(TransactionContext {
             block_context,
