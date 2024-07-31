@@ -60,7 +60,7 @@ impl Mempool {
 
         while n_remaining_txs > 0 && !self.tx_queue.is_empty() {
             let chunk = self.tx_queue.pop_chunk(n_remaining_txs);
-            self.enqueue_next_eligible_txs(&chunk)?;
+            self.enqueue_next_eligible_txs(&chunk);
             n_remaining_txs -= chunk.len();
             eligible_tx_references.extend(chunk);
         }
@@ -171,7 +171,7 @@ impl Mempool {
         Ok(())
     }
 
-    fn enqueue_next_eligible_txs(&mut self, txs: &[TransactionReference]) -> MempoolResult<()> {
+    fn enqueue_next_eligible_txs(&mut self, txs: &[TransactionReference]) {
         for tx in txs {
             let current_account_state = Account {
                 sender_address: tx.sender_address,
@@ -179,13 +179,11 @@ impl Mempool {
             };
 
             if let Some(next_tx_reference) =
-                self.tx_pool.get_next_eligible_tx(current_account_state)?
+                self.tx_pool.get_next_eligible_tx(current_account_state)
             {
                 self.tx_queue.insert(*next_tx_reference);
             }
         }
-
-        Ok(())
     }
 
     #[cfg(test)]
