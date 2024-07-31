@@ -1,23 +1,8 @@
 use std::collections::HashMap;
 
-use pretty_assertions::assert_eq;
-use rstest::rstest;
-
-use super::OriginalSkeletonForest;
-use crate::block_committer::commit::get_all_modified_indices;
-use crate::block_committer::input::{
-    ConfigImpl,
-    ContractAddress,
-    Input,
-    StarknetStorageKey,
-    StarknetStorageValue,
-    StateDiff,
-};
-use crate::felt::Felt;
-use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
-use crate::patricia_merkle_tree::node_data::leaf::ContractState;
-use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::create_tree_test::{
+use committer::felt::Felt;
+use committer::hash::hash_trait::HashOutput;
+use committer::patricia_merkle_tree::external_test_utils::{
     create_32_bytes_entry,
     create_binary_entry,
     create_binary_skeleton_node,
@@ -27,12 +12,26 @@ use crate::patricia_merkle_tree::original_skeleton_tree::create_tree::create_tre
     create_root_edge_entry,
     create_unmodified_subtree_skeleton_node,
 };
-use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::ForestSortedIndices;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
-use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
-use crate::storage::db_object::DBObject;
-use crate::storage::map_storage::MapStorage;
-use crate::storage::storage_trait::{StorageKey, StorageValue};
+use committer::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
+use committer::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
+use committer::storage::db_object::DBObject;
+use committer::storage::map_storage::MapStorage;
+use committer::storage::storage_trait::{StorageKey, StorageValue};
+use pretty_assertions::assert_eq;
+use rstest::rstest;
+
+use crate::block_committer::commit::get_all_modified_indices;
+use crate::block_committer::input::{
+    ConfigImpl,
+    ContractAddress,
+    Input,
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
+};
+use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
+use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
+use crate::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
 
 macro_rules! compare_skeleton_tree {
     ($actual_skeleton:expr, $expected_skeleton:expr, $expected_indices:expr) => {{
