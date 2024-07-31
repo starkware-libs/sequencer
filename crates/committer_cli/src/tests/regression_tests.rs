@@ -1,12 +1,10 @@
 use std::collections::HashMap;
 use std::fs;
 
-use clap::Error;
 use committer::block_committer::input::{ConfigImpl, Input};
 use committer::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
 use serde::{Deserialize, Deserializer};
 use serde_json::{Map, Value};
-use tempfile::NamedTempFile;
 
 use super::utils::parse_from_python::parse_input_single_storage_tree_flow_test;
 use crate::commands::commit;
@@ -125,15 +123,18 @@ pub async fn test_regression_single_tree() {
     assert!(execution_time.as_secs_f64() < MAX_TIME_FOR_SINGLE_TREE_BECHMARK_TEST);
 }
 
-pub async fn test_single_committer_flow(input: String, output_path: String) -> Result<(), Error> {
+pub async fn test_single_committer_flow(input: &str, output_path: &str) {
     let CommitterRegressionInput {
         committer_input,
         contract_states_root: expected_contract_states_root,
         contract_classes_root: expected_contract_classes_root,
         expected_facts,
-    } = serde_json::from_str(&input).unwrap();
+    } = serde_json::from_str(input).unwrap();
+
+    let start = std::time::Instant::now();
     // Benchmark the committer flow test.
     commit(committer_input.0, output_path.to_owned()).await;
+    let execution_time = std::time::Instant::now() - start;
 
     // Assert correctness of the output of the committer flow test.
     let CommitterRegressionOutput {
@@ -150,21 +151,12 @@ pub async fn test_single_committer_flow(input: String, output_path: String) -> R
     assert_eq!(storage_changes, *expected_facts);
 
     // Assert the execution time does not exceed the threshold.
-    // TODO(Aner, 20/06/2024): Add cpu_time time measurement and verify the time is below the
-    // threshold.
-    Ok(())
+    assert!(execution_time.as_secs_f64() < MAX_TIME_FOR_COMMITTER_FLOW_BECHMARK_TEST);
 }
 #[ignore = "To avoid running the regression test in Coverage or without the --release flag."]
 #[tokio::test(flavor = "multi_thread")]
 pub async fn test_regression_committer_flow() {
-    let start = std::time::Instant::now();
-    let result =
-        test_single_committer_flow(FLOW_TEST_INPUT.to_string(), OUTPUT_PATH.to_string()).await;
-    if result.is_err() {
-        panic!("Error {}", result.err().unwrap());
-    }
-    let execution_time = std::time::Instant::now() - start;
-    assert!(execution_time.as_secs_f64() < MAX_TIME_FOR_COMMITTER_FLOW_BECHMARK_TEST);
+    test_single_committer_flow(FLOW_TEST_INPUT, OUTPUT_PATH).await;
 }
 
 #[ignore = "To avoid running the regression test in Coverage or without the --release flag."]
@@ -175,20 +167,12 @@ pub async fn test_regression_committer_all_files() {
         EXPECTED_NUMBER_OF_FILES
     );
     let dir_path = fs::read_dir("./test_inputs/regression_files").unwrap();
-    let mut tasks = Vec::with_capacity(EXPECTED_NUMBER_OF_FILES);
-    for entry in dir_path {
-        tasks.push(tokio::task::spawn(async move {
-            let file_path = entry.unwrap().path();
-            let output_file = NamedTempFile::new().unwrap();
-            let result = test_single_committer_flow(
-                fs::read_to_string(file_path.clone()).unwrap(),
-                output_file.path().to_str().unwrap().to_string(),
-            )
-            .await;
-            if result.is_err() {
-                panic!("Error {} for file: {:?}", result.err().unwrap(), file_path);
-            }
-        }));
+    for file_path in dir_path {
+        // TODO(Aner, 23/07/24): multi-thread the test.
+        test_single_committer_flow(
+            &fs::read_to_string(file_path.unwrap().path()).unwrap(),
+            OUTPUT_PATH,
+        )
+        .await;
     }
-    futures::future::try_join_all(tasks).await.unwrap();
 }
