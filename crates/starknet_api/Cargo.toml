@@ -30,4 +30,3 @@ thiserror = "1.0.31"
 [dev-dependencies]
 assert_matches = "1.5.0"
 rstest = "0.17.0"
-
