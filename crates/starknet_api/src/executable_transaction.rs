@@ -1,6 +1,29 @@
-use crate::core::{ContractAddress, Nonce};
+use crate::core::{ClassHash, ContractAddress, Nonce};
 use crate::state::ContractClass;
-use crate::transaction::{Tip, TransactionHash};
+use crate::transaction::{
+    Calldata,
+    ContractAddressSalt,
+    Tip,
+    TransactionHash,
+    TransactionSignature,
+    TransactionVersion,
+};
+
+macro_rules! implement_inner_tx_getter_calls {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            self.tx.$field().clone()
+        })*
+    };
+}
+
+macro_rules! implement_getter_calls {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            self.$field
+        })*
+    };
+}
 
 /// Represents a paid Starknet transaction.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -66,6 +89,22 @@ pub struct DeployAccountTransaction {
     pub tx: crate::transaction::DeployAccountTransaction,
     pub tx_hash: TransactionHash,
     pub contract_address: ContractAddress,
+}
+
+impl DeployAccountTransaction {
+    implement_inner_tx_getter_calls!(
+        (class_hash, ClassHash),
+        (constructor_calldata, Calldata),
+        (contract_address_salt, ContractAddressSalt),
+        (nonce, Nonce),
+        (signature, TransactionSignature),
+        (version, TransactionVersion)
+    );
+    implement_getter_calls!((tx_hash, TransactionHash), (contract_address, ContractAddress));
+
+    pub fn tx(&self) -> &crate::transaction::DeployAccountTransaction {
+        &self.tx
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
