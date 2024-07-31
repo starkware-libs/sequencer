@@ -550,6 +550,30 @@ fn test_flow_filling_holes(mut mempool: Mempool) {
 }
 
 #[rstest]
+fn test_add_tx_after_get_txs_fails_on_duplicate_nonce() {
+    // Setup.
+    let input_tx =
+        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8);
+
+    let pool_txs = [input_tx.tx.clone()];
+    let queue_txs = [TransactionReference::new(&input_tx.tx)];
+    let mut mempool: Mempool = MempoolState::new(pool_txs, queue_txs).into();
+
+    // Test.
+    mempool.get_txs(1).unwrap();
+    let res = mempool.add_tx(input_tx);
+
+    // Assert.
+    assert_eq!(
+        res,
+        Err(MempoolError::DuplicateNonce {
+            address: contract_address!("0x0"),
+            nonce: Nonce(felt!(0_u16))
+        })
+    );
+}
+
+#[rstest]
 fn test_commit_block_includes_all_txs() {
     // Setup.
     let tx_address0_nonce4 = add_tx_input!(tip: 4, tx_hash: 1, sender_address: "0x0", tx_nonce: 4_u8, account_nonce: 4_u8).tx;
