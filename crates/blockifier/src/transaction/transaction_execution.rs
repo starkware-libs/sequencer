@@ -118,7 +118,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         let tx_context = Arc::new(block_context.to_tx_context(self));
 
         let mut execution_resources = ExecutionResources::default();
-        let mut context = EntryPointExecutionContext::new_invoke(tx_context.clone(), true)?;
+        let mut context = EntryPointExecutionContext::new_execute(tx_context.clone(), true)?;
         let mut remaining_gas = block_context.versioned_constants.tx_initial_gas();
         let execute_call_info =
             self.run_execute(state, &mut execution_resources, &mut context, &mut remaining_gas)?;
