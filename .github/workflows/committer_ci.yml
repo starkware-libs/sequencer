@@ -13,6 +13,7 @@ on:
       - 'Cargo.lock'
       - 'crates/committer/**'
       - 'crates/committer_cli/**'
+      - 'crates/starknet_committer/**'
 
   pull_request:
     types:
@@ -27,6 +28,7 @@ on:
       - 'Cargo.lock'
       - 'crates/committer/**'
       - 'crates/committer_cli/**'
+      - 'crates/starknet_committer/**'
 
 jobs:
   run-regression-tests:

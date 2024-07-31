@@ -16,6 +16,7 @@ pub trait OriginalSkeletonTreeConfig<L: Leaf> {
     ) -> OriginalSkeletonTreeResult<bool>;
 }
 
+// TODO(Aviv 05/08/2024): Move this macro to starknet_committer crate
 #[macro_export]
 macro_rules! generate_trie_config {
     ($struct_name:ident, $leaf_type:ty) => {
