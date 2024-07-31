@@ -107,7 +107,8 @@ impl ConsensusContext for PapyrusConsensusContext {
             fin_sender
                 .send(PapyrusConsensusBlock { content: transactions, id: block_hash })
                 .expect("Send should succeed");
-        });
+        })
+        .instrument(debug_span!("build_proposal"));
 
         (receiver, fin_receiver)
     }
@@ -157,7 +158,8 @@ impl ConsensusContext for PapyrusConsensusContext {
             fin_sender
                 .send(PapyrusConsensusBlock { content: transactions, id: block_hash })
                 .expect("Send should succeed");
-        });
+        })
+        .instrument(debug_span!("validate_proposal"));
 
         fin_receiver
     }
@@ -211,7 +213,8 @@ impl ConsensusContext for PapyrusConsensusContext {
                 .send(ConsensusMessage::Proposal(proposal))
                 .await
                 .expect("Failed to send proposal");
-        });
+        })
+        .instrument(debug_span!("propose"));
         Ok(())
     }
 }
