@@ -246,7 +246,7 @@ fn test_run_parallel_txs(max_resource_bounds: ResourceBoundsMapping) {
     };
     let nonce_manager = &mut NonceManager::default();
     let deploy_account_tx_2 = deploy_account_tx(deploy_tx_args, nonce_manager);
-    let account_address = deploy_account_tx_2.contract_address;
+    let account_address = deploy_account_tx_2.tx.contract_address;
     let account_tx_2 = AccountTransaction::DeployAccount(deploy_account_tx_2);
     let tx_context = block_context.to_tx_context(&account_tx_2);
     let fee_type = tx_context.tx_info.fee_type();

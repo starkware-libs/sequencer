@@ -1310,7 +1310,7 @@ fn test_deploy_account_tx(
     // Extract deploy account transaction fields for testing, as it is consumed when creating an
     // account transaction.
     let class_hash = deploy_account.class_hash();
-    let deployed_account_address = deploy_account.contract_address;
+    let deployed_account_address = deploy_account.tx.contract_address;
     let constructor_calldata = deploy_account.constructor_calldata();
     let salt = deploy_account.contract_address_salt();
 
@@ -1482,7 +1482,7 @@ fn test_fail_deploy_account_undeclared_class_hash(
     state
         .set_storage_at(
             chain_info.fee_token_address(&fee_type),
-            get_fee_token_var_address(deploy_account.contract_address),
+            get_fee_token_var_address(deploy_account.tx.contract_address),
             felt!(BALANCE),
         )
         .unwrap();
