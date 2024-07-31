@@ -1,0 +1,14 @@
+name: Set Rust Version
+
+on: [pull_request]
+
+jobs:
+  set-version:
+    runs-on: ubuntu-latest
+
+    env:
+      RUST_VERSION: stable
+
+    steps:
+    - name: Set Rust version
+      run: echo "RUST_VERSION=$RUST_VERSION" >> $GITHUB_ENV

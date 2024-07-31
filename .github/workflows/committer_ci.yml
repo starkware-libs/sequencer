@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@${{env.RUST_VERSION}}
       - uses: Swatinem/rust-cache@v2
 
       - id: auth
@@ -115,7 +115,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@${{env.RUST_VERSION}}
       - uses: Swatinem/rust-cache@v2
 
         # Commit hash on pull request event would be the head commit of the branch.
