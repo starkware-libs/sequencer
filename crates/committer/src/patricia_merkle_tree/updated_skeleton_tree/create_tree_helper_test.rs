@@ -15,6 +15,7 @@ use crate::patricia_merkle_tree::internal_test_utils::{
     MockLeaf,
     MockTrie,
     OriginalSkeletonMockTrieConfig,
+    TestTreeHashFunction,
 };
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
@@ -28,7 +29,6 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::create_tree_helper::{
     has_leaves_on_both_sides,
     TempSkeletonNode,
 };
-use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTree,
@@ -507,7 +507,7 @@ async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
     .unwrap();
     let updated =
         UpdatedSkeletonTreeImpl::create(&mut original_skeleton_tree, &HashMap::new()).unwrap();
-    let filled = MockTrie::create::<TreeHashFunctionImpl>(Arc::new(updated), Arc::new(empty_map))
+    let filled = MockTrie::create::<TestTreeHashFunction>(Arc::new(updated), Arc::new(empty_map))
         .await
         .unwrap();
     assert_eq!(root_hash, filled.get_root_hash());
