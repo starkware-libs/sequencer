@@ -1,20 +1,18 @@
 use std::collections::HashMap;
 
-use crate::block_committer::input::ContractAddress;
-use crate::felt::Felt;
-use crate::forest_errors::{ForestError, ForestResult};
-use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
-use crate::patricia_merkle_tree::node_data::leaf::{
-    ContractState,
-    LeafModifications,
-    SkeletonLeaf,
-};
-use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::OriginalSkeletonForest;
-use crate::patricia_merkle_tree::types::NodeIndex;
-use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
+use committer::felt::Felt;
+use committer::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
+use committer::patricia_merkle_tree::types::NodeIndex;
+use committer::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTree,
     UpdatedSkeletonTreeImpl,
 };
+
+use crate::block_committer::input::ContractAddress;
+use crate::starknet_forest::forest_errors::{ForestError, ForestResult};
+use crate::starknet_forest::original_skeleton_forest::OriginalSkeletonForest;
+use crate::starknet_patricia_merkle_tree::node::{ClassHash, Nonce};
+use crate::starknet_patricia_merkle_tree::starknet_leaf::leaf::ContractState;
 
 pub(crate) struct UpdatedSkeletonForest {
     pub(crate) classes_trie: UpdatedSkeletonTreeImpl,
