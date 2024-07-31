@@ -43,7 +43,7 @@ pub enum StarknetPrefix {
 
 /// Describes a storage prefix as used in Aerospike DB.
 impl StarknetPrefix {
-    pub(crate) fn to_bytes(&self) -> &'static [u8] {
+    pub fn to_bytes(&self) -> &'static [u8] {
         match self {
             Self::InnerNode => b"patricia_node",
             Self::StorageLeaf => b"starknet_storage_leaf",
@@ -52,7 +52,7 @@ impl StarknetPrefix {
         }
     }
 
-    pub(crate) fn to_storage_prefix(&self) -> Vec<u8> {
+    pub fn to_storage_prefix(&self) -> Vec<u8> {
         self.to_bytes().to_vec()
     }
 }

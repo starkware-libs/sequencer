@@ -130,7 +130,6 @@ impl NodeIndex {
         Self::FIRST_LEAF + Self::from_felt_value(felt)
     }
 
-    #[allow(dead_code)]
     pub(crate) fn from_felt_value(felt: &Felt) -> Self {
         Self(U256::from(felt))
     }

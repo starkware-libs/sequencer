@@ -9,8 +9,8 @@ use committer::storage::storage_trait::{StarknetPrefix, StorageValue};
 use serde_json::Value;
 
 use crate::block_committer::input::StarknetStorageValue;
-use crate::starknet_patricia_merkle_tree::node::{ClassHash, CompiledClassHash, Nonce};
-use crate::starknet_patricia_merkle_tree::starknet_leaf::leaf::ContractState;
+use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
+use crate::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
 
 impl DBObject for StarknetStorageValue {
     /// Serializes the value into a 32-byte vector.

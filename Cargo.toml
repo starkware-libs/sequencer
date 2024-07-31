@@ -31,7 +31,7 @@ members = [
     "crates/papyrus_test_utils",
     "crates/sequencing/papyrus_block_builder",
     "crates/sequencing/papyrus_consensus",
-    "crates/starknet-committer",
+    "crates/starknet_committer",
     "crates/starknet_api",
     "crates/starknet_client",
     "crates/starknet_sierra_compile",
