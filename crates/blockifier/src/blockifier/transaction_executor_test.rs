@@ -37,8 +37,7 @@ use crate::transaction::test_utils::{
     l1_resource_bounds,
     TestInitData,
 };
-use crate::transaction::transaction_execution::Transaction;
-use crate::transaction::transactions::L1HandlerTransaction;
+use crate::transaction::transactions::{L1HandlerTransaction, Transaction};
 use crate::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
 
 fn tx_executor_test_body<S: StateReader>(
