@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -282,11 +283,17 @@ impl TransactionInfoCreator for DeclareTransaction {
 }
 #[derive(Debug, Clone)]
 pub struct DeployAccountTransaction {
-    pub tx: starknet_api::transaction::DeployAccountTransaction,
-    pub tx_hash: TransactionHash,
-    pub contract_address: ContractAddress,
+    pub tx: starknet_api::executable_transaction::DeployAccountTransaction,
     // Indicates the presence of the only_query bit in the version.
     pub only_query: bool,
+}
+
+impl Deref for DeployAccountTransaction {
+    type Target = starknet_api::executable_transaction::DeployAccountTransaction;
+
+    fn deref(&self) -> &Self::Target {
+        &self.tx
+    }
 }
 
 impl DeployAccountTransaction {
@@ -295,7 +302,14 @@ impl DeployAccountTransaction {
         tx_hash: TransactionHash,
         contract_address: ContractAddress,
     ) -> Self {
-        Self { tx: deploy_account_tx, tx_hash, contract_address, only_query: false }
+        Self {
+            tx: starknet_api::executable_transaction::DeployAccountTransaction {
+                tx: deploy_account_tx,
+                tx_hash,
+                contract_address,
+            },
+            only_query: false,
+        }
     }
 
     pub fn new_for_query(
@@ -303,7 +317,14 @@ impl DeployAccountTransaction {
         tx_hash: TransactionHash,
         contract_address: ContractAddress,
     ) -> Self {
-        Self { tx: deploy_account_tx, tx_hash, contract_address, only_query: true }
+        Self {
+            tx: starknet_api::executable_transaction::DeployAccountTransaction {
+                tx: deploy_account_tx,
+                tx_hash,
+                contract_address,
+            },
+            only_query: true,
+        }
     }
 
     implement_inner_tx_getter_calls!(
@@ -359,7 +380,7 @@ impl TransactionInfoCreator for DeployAccountTransaction {
             only_query: self.only_query,
         };
 
-        match &self.tx {
+        match &self.tx.tx {
             starknet_api::transaction::DeployAccountTransaction::V1(tx) => {
                 TransactionInfo::Deprecated(DeprecatedTransactionInfo {
                     common_fields,

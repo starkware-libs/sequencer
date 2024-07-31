@@ -68,6 +68,14 @@ pub struct DeployAccountTransaction {
     pub contract_address: ContractAddress,
 }
 
+impl std::ops::Deref for DeployAccountTransaction {
+    type Target = crate::transaction::DeployAccountTransaction;
+
+    fn deref(&self) -> &Self::Target {
+        &self.tx
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvokeTransaction {
     pub tx: crate::transaction::InvokeTransaction,
