@@ -75,11 +75,7 @@ impl HasRelatedFeeType for AccountTransaction {
         match self {
             Self::Declare(tx) => tx.tx.version(),
             Self::DeployAccount(tx) => tx.tx.version(),
-            Self::Invoke(tx) => match tx.tx {
-                starknet_api::transaction::InvokeTransaction::V0(_) => TransactionVersion::ZERO,
-                starknet_api::transaction::InvokeTransaction::V1(_) => TransactionVersion::ONE,
-                starknet_api::transaction::InvokeTransaction::V3(_) => TransactionVersion::THREE,
-            },
+            Self::Invoke(tx) => tx.tx.version(),
         }
     }
 
