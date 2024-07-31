@@ -23,6 +23,7 @@ const Configuration = {
             'batcher',
             'block_builder',
             'block_hash',
+            'blockifier',
             'ci',
             'common',
             'concurrency',

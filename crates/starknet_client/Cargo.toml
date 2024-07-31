@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "A client implementation that can communicate with Starknet."
 
 [features]
-testing = ["enum-iterator", "mockall", "rand", "rand_chacha", "papyrus_test_utils"]
+testing = ["enum-iterator", "mockall", "papyrus_test_utils", "rand", "rand_chacha"]
 
 [dependencies]
 async-trait.workspace = true
@@ -21,12 +21,12 @@ papyrus_common = { path = "../papyrus_common", version = "0.4.0-rc.0" }
 papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0" }
 rand = { workspace = true, optional = true }
 rand_chacha = { workspace = true, optional = true }
-reqwest = { workspace = true, features = ["json", "blocking"] }
+reqwest = { workspace = true, features = ["blocking", "json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 serde_repr.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0"}
-starknet-types-core = {workspace = true, features = ["serde"]}
+starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
+starknet-types-core = { workspace = true, features = ["serde"] }
 strum.workspace = true
 strum_macros.workspace = true
 papyrus_test_utils = { path = "../papyrus_test_utils", optional = true }

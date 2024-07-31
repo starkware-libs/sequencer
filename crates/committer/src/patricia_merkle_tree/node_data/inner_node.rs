@@ -1,5 +1,4 @@
 use ethnum::U256;
-use strum_macros::{EnumDiscriminants, EnumIter};
 
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
@@ -12,8 +11,8 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 pub mod inner_node_test;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(any(test, feature = "testing"), derive(EnumDiscriminants))]
-#[cfg_attr(any(test, feature = "testing"), strum_discriminants(derive(EnumIter)))]
+#[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumDiscriminants))]
+#[cfg_attr(any(test, feature = "testing"), strum_discriminants(derive(strum_macros::EnumIter)))]
 // A Patricia-Merkle tree node's data, i.e., the pre-image of its hash.
 pub enum NodeData<L: Leaf> {
     Binary(BinaryData),

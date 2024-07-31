@@ -9,6 +9,7 @@ on:
       - v[0-9].**
     paths:
       - 'crates/blockifier/**'
+      - 'crates/native_blockifier/.cargo/config.toml'
 
   pull_request:
     types:
@@ -19,6 +20,7 @@ on:
       - edited
     paths:
       - 'crates/blockifier/**'
+      - 'crates/native_blockifier/.cargo/config.toml'
 
 jobs:
   featureless-build:
@@ -40,7 +42,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: "v0-rust-ubuntu-20.04"
+          prefix-key: "v1-rust-ubuntu-20.04"
 
       - name: Build native blockifier
         run: ./build_native_blockifier.sh
@@ -77,12 +79,3 @@ jobs:
         with:
           path: "target/release/native_blockifier.pypy39-pp73-x86_64-linux-gnu.so"
           destination: "native_blockifier_artifacts/${{ env.SHORT_HASH }}/release/"
-
-  # Keep the name 'udeps' to match original action name, so we don't need to define specific branch
-  # rules on Github for specific version branches.
-  udeps:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run Machete (detect unused dependencies)
-        uses: bnjbvr/cargo-machete@main

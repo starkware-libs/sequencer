@@ -15,16 +15,16 @@ derive_more.workspace = true
 futures.workspace = true
 lazy_static.workspace = true
 libp2p = { workspace = true, features = [
-    "gossipsub",
-    "identify",
-    "kad",
-    "macros",
-    "noise",
-    "quic",
-    "serde",
-    "tcp",
-    "tokio",
-    "yamux",
+  "gossipsub",
+  "identify",
+  "kad",
+  "macros",
+  "noise",
+  "quic",
+  "serde",
+  "tcp",
+  "tokio",
+  "yamux",
 ] }
 metrics.workspace = true
 papyrus_common = { path = "../papyrus_common", version = "0.4.0-rc.0" }

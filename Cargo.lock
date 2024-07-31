@@ -1997,6 +1997,7 @@ dependencies = [
  "criterion 0.5.1",
  "derive_more",
  "ethnum",
+ "futures",
  "indexmap 2.2.6",
  "log",
  "pretty_assertions",
@@ -2010,6 +2011,7 @@ dependencies = [
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
+ "tempfile",
  "thiserror",
  "tokio",
 ]

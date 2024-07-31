@@ -47,11 +47,11 @@ def print_merge_status():
         )
 
         if len(unmerged_commits_timestamps) == 0:
-            status = color_txt(BashColor.green, "Up to date")
+            status = color_txt(BashColor.green, "Up to date.")
         else:
             last_unmerged_commit_time = datetime.fromtimestamp(min(unmerged_commits_timestamps))
             unmerged_days = (datetime.now() - last_unmerged_commit_time).days
-            status = f"{unmerged_days} days"
+            status = f"{unmerged_days} days, {len(unmerged_commits_timestamps)} unmerged commits."
             if unmerged_days > 7:
                 status = color_txt(BashColor.red, status)
 
