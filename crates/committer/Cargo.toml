@@ -4,7 +4,7 @@ version = "0.1.0-rc.0"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
-description = "Computes and manages Starknet state."
+description = "Computes hash of patricia tree."
 
 [lints]
 workspace = true

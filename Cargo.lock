@@ -2008,6 +2008,7 @@ dependencies = [
  "simplelog",
  "starknet-types-core",
  "starknet_api",
+ "starknet_committer",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "tempfile",
@@ -8757,20 +8758,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "starknet-committer"
-version = "0.0.0"
-dependencies = [
- "committer",
- "hex",
- "log",
- "rstest",
- "serde_json",
- "starknet-types-core",
- "thiserror",
- "tokio",
-]
-
-[[package]]
 name = "starknet-core"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8943,6 +8930,21 @@ dependencies = [
  "tokio-retry",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "starknet_committer"
+version = "0.1.0-rc.0"
+dependencies = [
+ "committer",
+ "hex",
+ "log",
+ "pretty_assertions",
+ "rstest",
+ "serde_json",
+ "starknet-types-core",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

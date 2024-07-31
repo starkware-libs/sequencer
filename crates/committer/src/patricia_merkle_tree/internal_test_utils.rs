@@ -114,17 +114,6 @@ pub(crate) fn random() -> ThreadRng {
     rand::thread_rng()
 }
 
-impl NodeIndex {
-    /// Assumes self represents an index in a smaller tree height. Returns a node index represents
-    /// the same index in the starknet state tree as if the smaller tree was 'planted' at the lowest
-    /// leftmost node from the root.
-    pub(crate) fn from_subtree_index(subtree_index: Self, subtree_height: SubTreeHeight) -> Self {
-        let height_diff = SubTreeHeight::ACTUAL_HEIGHT.0 - subtree_height.0;
-        let offset = (NodeIndex::ROOT << height_diff) - 1.into();
-        subtree_index + (offset << (subtree_index.bit_length() - 1))
-    }
-}
-
 pub(crate) fn small_tree_index_to_full(index: U256, height: SubTreeHeight) -> NodeIndex {
     NodeIndex::from_subtree_index(NodeIndex::new(index), height)
 }

@@ -10,14 +10,14 @@ use committer::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use committer::storage::storage_trait::Storage;
 
 use crate::block_committer::input::{Config, ContractAddress, StarknetStorageValue};
-use crate::starknet_forest::forest_errors::{ForestError, ForestResult};
-use crate::starknet_patricia_merkle_tree::node::CompiledClassHash;
-use crate::starknet_patricia_merkle_tree::starknet_leaf::leaf::ContractState;
-use crate::starknet_patricia_merkle_tree::tree::{
+use crate::forest::forest_errors::{ForestError, ForestResult};
+use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
+use crate::patricia_merkle_tree::tree::{
     OriginalSkeletonClassesTrieConfig,
     OriginalSkeletonContractsTrieConfig,
     OriginalSkeletonStorageTrieConfig,
 };
+use crate::patricia_merkle_tree::types::CompiledClassHash;
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct OriginalSkeletonForest<'a> {
