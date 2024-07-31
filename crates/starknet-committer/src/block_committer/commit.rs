@@ -1,20 +1,20 @@
 use std::collections::HashMap;
 
+use committer::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
+use committer::storage::map_storage::MapStorage;
 use log::warn;
 
 use crate::block_committer::errors::BlockCommitmentError;
 use crate::block_committer::input::{Config, ConfigImpl, ContractAddress, Input, StateDiff};
-use crate::patricia_merkle_tree::filled_tree::forest::FilledForest;
-use crate::patricia_merkle_tree::filled_tree::node::{ClassHash, Nonce};
-use crate::patricia_merkle_tree::node_data::leaf::ContractState;
-use crate::patricia_merkle_tree::original_skeleton_tree::skeleton_forest::{
+use crate::starknet_forest::filled_forest::FilledForest;
+use crate::starknet_forest::original_skeleton_forest::{
     ForestSortedIndices,
     OriginalSkeletonForest,
 };
-use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
-use crate::patricia_merkle_tree::updated_skeleton_tree::skeleton_forest::UpdatedSkeletonForest;
-use crate::storage::map_storage::MapStorage;
+use crate::starknet_forest::updated_skeleton_forest::UpdatedSkeletonForest;
+use crate::starknet_patricia_merkle_tree::node::{ClassHash, Nonce};
+use crate::starknet_patricia_merkle_tree::starknet_leaf::leaf::ContractState;
 
 type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
