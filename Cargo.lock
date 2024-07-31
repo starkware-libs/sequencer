@@ -2006,6 +2006,7 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "simplelog",
+ "starknet-committer",
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",

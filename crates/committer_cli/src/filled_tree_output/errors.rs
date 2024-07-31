@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use committer::patricia_merkle_tree::filled_tree::errors::{
+use starknet_committer::starknet_patricia_merkle_tree::types::{
     ClassesTrieError,
     ContractsTrieError,
     StorageTrieError,

@@ -14,7 +14,6 @@ use crate::starknet_patricia_merkle_tree::node::{ClassHash, CompiledClassHash, N
 // TODO(Nimrod, 1/6/2025): Use the ContractAddress defined in starknet-types-core when available.
 pub struct ContractAddress(pub Felt);
 
-
 impl From<&ContractAddress> for NodeIndex {
     fn from(address: &ContractAddress) -> NodeIndex {
         NodeIndex::from_leaf_felt(&address.0)

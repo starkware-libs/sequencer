@@ -4,12 +4,11 @@ use committer::patricia_merkle_tree::node_data::inner_node::NodeData;
 use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
     HashFunction,
     TreeHashFunction,
-    TreeHashFunctionImpl,
 };
 use starknet_types_core::hash::{Pedersen, Poseidon, StarkHash};
 
 use crate::block_committer::input::StarknetStorageValue;
-use crate::starknet_patricia_merkle_tree::node::{ClassHash, CompiledClassHash};
+use crate::starknet_patricia_merkle_tree::node::CompiledClassHash;
 use crate::starknet_patricia_merkle_tree::starknet_leaf::leaf::ContractState;
 
 /// Implementation of HashFunction for Pedersen hash function.
@@ -119,15 +118,13 @@ mod test {
         NodeData,
         PathToBottom,
     };
-    use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
-        TreeHashFunction,
-        TreeHashFunctionImpl,
-    };
+    use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
     use hex;
     use rstest::rstest;
     use starknet_types_core::hash::Pedersen;
 
     use crate::block_committer::input::StarknetStorageValue;
+    use crate::hash::TreeHashFunctionImpl;
     use crate::starknet_patricia_merkle_tree::node::{ClassHash, CompiledClassHash, Nonce};
     use crate::starknet_patricia_merkle_tree::starknet_leaf::leaf::ContractState;
 

@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use committer::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use committer::storage::map_storage::MapStorage;
 use log::warn;
 
 use crate::block_committer::errors::BlockCommitmentError;
 use crate::block_committer::input::{Config, ConfigImpl, ContractAddress, Input, StateDiff};
+use crate::hash::TreeHashFunctionImpl;
 use crate::starknet_forest::filled_forest::FilledForest;
 use crate::starknet_forest::original_skeleton_forest::{
     ForestSortedIndices,
