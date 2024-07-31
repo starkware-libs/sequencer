@@ -7,7 +7,7 @@ use committer::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use committer::patricia_merkle_tree::types::NodeIndex;
 
 use crate::block_committer::input::StarknetStorageValue;
-use crate::starknet_patricia_merkle_tree::node::{ClassHash, CompiledClassHash, Nonce};
+use crate::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ContractState {
