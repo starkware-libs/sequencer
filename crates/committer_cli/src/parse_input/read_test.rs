@@ -1,6 +1,11 @@
 use std::collections::HashMap;
 
-use committer::block_committer::input::{
+use committer::felt::Felt;
+use committer::hash::hash_trait::HashOutput;
+use committer::storage::errors::DeserializationError;
+use committer::storage::storage_trait::{StorageKey, StorageValue};
+use pretty_assertions::assert_eq;
+use starknet_committer::block_committer::input::{
     ConfigImpl,
     ContractAddress,
     Input,
@@ -8,12 +13,7 @@ use committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
-use committer::felt::Felt;
-use committer::hash::hash_trait::HashOutput;
-use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
-use committer::storage::errors::DeserializationError;
-use committer::storage::storage_trait::{StorageKey, StorageValue};
-use pretty_assertions::assert_eq;
+use starknet_committer::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
 
 use super::parse_input;
 

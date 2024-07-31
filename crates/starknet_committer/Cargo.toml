@@ -1,5 +1,5 @@
 [package]
-name = "starknet-committer"
+name = "starknet_committer"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
@@ -10,6 +10,7 @@ license-file.workspace = true
 committer = { path = "../committer", features = ["testing"] }
 hex.workspace = true
 log.workspace = true
+pretty_assertions.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true

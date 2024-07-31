@@ -30,6 +30,7 @@ serde_repr = "0.1.19"
 simplelog.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
+starknet_committer = {path = "../starknet_committer" }
 strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
