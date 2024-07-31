@@ -42,8 +42,7 @@ use blockifier::transaction::objects::{
     TransactionExecutionInfo,
     TransactionInfo,
 };
-use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
-use blockifier::transaction::transactions::ExecutableTransaction;
+use blockifier::transaction::transactions::{ExecutableTransaction, Transaction as BlockifierTransaction};
 use blockifier::versioned_constants::VersionedConstants;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::builtin_name::BuiltinName;
