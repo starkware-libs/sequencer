@@ -164,6 +164,8 @@ pub enum ConsensusError {
     Canceled(#[from] oneshot::Canceled),
     #[error("Invalid proposal sent by peer {0:?} at height {1}: {2}")]
     InvalidProposal(ValidatorId, BlockNumber, String),
+    #[error("Invalid vote {0:?}. {1}")]
+    InvalidVote(Vote, String),
     #[error(transparent)]
     SendError(#[from] mpsc::SendError),
     #[error("Conflicting messages for block {0}. Old: {1:?}, New: {2:?}")]
