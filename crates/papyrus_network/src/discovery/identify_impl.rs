@@ -12,6 +12,7 @@ pub enum IdentifyToOtherBehaviourEvent {
 
 impl From<identify::Event> for mixed_behaviour::Event {
     fn from(event: identify::Event) -> Self {
+        println!("IIIIIIII {event:?}");
         match event {
             identify::Event::Received { peer_id, info } => {
                 mixed_behaviour::Event::ToOtherBehaviourEvent(

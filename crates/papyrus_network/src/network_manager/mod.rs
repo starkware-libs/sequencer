@@ -254,13 +254,11 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             }
             SwarmEvent::NewListenAddr { address, .. } => {
                 // TODO(shahak): Find a better way to filter private addresses.
-                if !is_localhost(&address) {
+                if is_localhost(&address) {
+                    println!("AAAAAAAA new listen address {address:?}");
                     self.swarm.add_external_address(address);
                 }
             }
-            SwarmEvent::IncomingConnection { .. }
-            | SwarmEvent::Dialing { .. }
-            | SwarmEvent::NewExternalAddrCandidate { .. } => {}
             _ => {
                 error!("Unexpected event {event:?}");
             }
