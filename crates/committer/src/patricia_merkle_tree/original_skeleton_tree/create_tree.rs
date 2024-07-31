@@ -261,6 +261,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         Ok(skeleton_tree)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn create_and_get_previous_leaves_impl<L: Leaf>(
         storage: &impl Storage,
         root_hash: HashOutput,
