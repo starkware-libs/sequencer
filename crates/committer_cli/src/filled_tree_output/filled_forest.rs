@@ -1,6 +1,6 @@
-use committer::patricia_merkle_tree::filled_tree::forest::FilledForest;
 use committer::storage::map_storage::MapStorage;
 use serde::Serialize;
+use starknet_committer::forest::filled_forest::FilledForest;
 
 pub struct SerializedForest(pub FilledForest);
 

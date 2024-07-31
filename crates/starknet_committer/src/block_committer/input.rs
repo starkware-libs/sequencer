@@ -8,12 +8,11 @@ use committer::patricia_merkle_tree::types::NodeIndex;
 use committer::storage::storage_trait::{StorageKey, StorageValue};
 use log::LevelFilter;
 
-use crate::starknet_patricia_merkle_tree::node::{ClassHash, CompiledClassHash, Nonce};
+use crate::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 // TODO(Nimrod, 1/6/2025): Use the ContractAddress defined in starknet-types-core when available.
 pub struct ContractAddress(pub Felt);
-
 
 impl From<&ContractAddress> for NodeIndex {
     fn from(address: &ContractAddress) -> NodeIndex {
