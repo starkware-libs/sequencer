@@ -1,5 +1,5 @@
-use committer::block_committer::commit::commit_block;
-use committer::block_committer::input::{Config, ConfigImpl, Input};
+use starknet_committer::block_committer::commit::commit_block;
+use starknet_committer::block_committer::input::{Config, ConfigImpl, Input};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
 use tracing_subscriber::Registry;

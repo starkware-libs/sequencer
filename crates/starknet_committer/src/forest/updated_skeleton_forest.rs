@@ -9,10 +9,10 @@ use committer::patricia_merkle_tree::updated_skeleton_tree::tree::{
 };
 
 use crate::block_committer::input::ContractAddress;
-use crate::starknet_forest::forest_errors::{ForestError, ForestResult};
-use crate::starknet_forest::original_skeleton_forest::OriginalSkeletonForest;
-use crate::starknet_patricia_merkle_tree::node::{ClassHash, Nonce};
-use crate::starknet_patricia_merkle_tree::starknet_leaf::leaf::ContractState;
+use crate::forest::forest_errors::{ForestError, ForestResult};
+use crate::forest::original_skeleton_forest::OriginalSkeletonForest;
+use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
+use crate::patricia_merkle_tree::types::{ClassHash, Nonce};
 
 pub(crate) struct UpdatedSkeletonForest {
     pub(crate) classes_trie: UpdatedSkeletonTreeImpl,
