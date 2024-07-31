@@ -9,7 +9,7 @@ on:
       - v[0-9].**
     paths:
       - 'crates/blockifier/**'
-      - 'crates/native_blockifier/.cargo/config.toml'
+      - 'crates/native_blockifier/**'
       - 'build_native_blockifier_in_docker.sh'
       - 'scripts/build_native_blockifier.sh'
 
