@@ -45,6 +45,7 @@ const Configuration = {
             'protobuf',
             'release',
             'skeleton',
+            'starknet_api',
             'starknet_client',
             'state',
             'storage',

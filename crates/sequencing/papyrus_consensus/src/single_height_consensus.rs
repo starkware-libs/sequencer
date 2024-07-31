@@ -2,12 +2,13 @@
 #[path = "single_height_consensus_test.rs"]
 mod single_height_consensus_test;
 
+use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
 
 use futures::channel::{mpsc, oneshot};
 use papyrus_protobuf::consensus::{ConsensusMessage, Vote, VoteType};
 use starknet_api::block::{BlockHash, BlockNumber};
-use tracing::{debug, info, instrument, trace};
+use tracing::{debug, info, instrument, trace, warn};
 
 use crate::state_machine::{StateMachine, StateMachineEvent};
 use crate::types::{
@@ -20,8 +21,6 @@ use crate::types::{
     ValidatorId,
 };
 
-const ROUND_ZERO: Round = 0;
-
 /// Struct which represents a single height of consensus. Each height is expected to be begun with a
 /// call to `start`, which is relevant if we are the proposer for this height's first round.
 /// SingleHeightConsensus receives messages directly as parameters to function calls. It can send
@@ -31,7 +30,7 @@ pub(crate) struct SingleHeightConsensus<BlockT: ConsensusBlock> {
     validators: Vec<ValidatorId>,
     id: ValidatorId,
     state_machine: StateMachine,
-    proposals: HashMap<Round, BlockT>,
+    proposals: HashMap<Round, Option<BlockT>>,
     prevotes: HashMap<(Round, ValidatorId), Vote>,
     precommits: HashMap<(Round, ValidatorId), Vote>,
 }
@@ -91,35 +90,47 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
                 format!("invalid proposer: expected {:?}, got {:?}", proposer_id, init.proposer);
             return Err(ConsensusError::InvalidProposal(proposer_id, self.height, msg));
         }
+        let Entry::Vacant(proposal_entry) = self.proposals.entry(init.round) else {
+            warn!("Round {} already has a proposal, ignoring", init.round);
+            return Ok(None);
+        };
 
         let block_receiver = context.validate_proposal(self.height, p2p_messages_receiver).await;
-        // TODO(matan): Actual Tendermint should handle invalid proposals.
-        let block = block_receiver.await.map_err(|_| {
-            ConsensusError::InvalidProposal(
-                proposer_id,
-                self.height,
-                "block validation failed".into(),
-            )
-        })?;
-        // TODO(matan): Actual Tendermint should handle invalid proposals.
-        let fin = fin_receiver.await.map_err(|_| {
-            ConsensusError::InvalidProposal(
-                proposer_id,
-                self.height,
-                "proposal fin never received".into(),
-            )
-        })?;
-        // TODO(matan): Switch to signature validation and handle invalid proposals.
-        if block.id() != fin {
-            return Err(ConsensusError::InvalidProposal(
-                proposer_id,
-                self.height,
-                "block signature doesn't match expected block hash".into(),
-            ));
+
+        let block = match block_receiver.await {
+            Ok(block) => block,
+            // ProposalFin never received from peer.
+            Err(_) => {
+                proposal_entry.insert(None);
+                return self.process_inbound_proposal(context, &init, None).await;
+            }
+        };
+
+        let fin = match fin_receiver.await {
+            Ok(fin) => fin,
+            // ProposalFin never received from peer.
+            Err(_) => {
+                proposal_entry.insert(None);
+                return self.process_inbound_proposal(context, &init, None).await;
+            }
+        };
+        // TODO(matan): Switch to signature validation.
+        let block_id = block.id();
+        if block_id != fin {
+            proposal_entry.insert(None);
+            return self.process_inbound_proposal(context, &init, None).await;
         }
-        let sm_proposal = StateMachineEvent::Proposal(Some(block.id()), ROUND_ZERO);
-        // TODO(matan): Handle multiple rounds.
-        self.proposals.insert(ROUND_ZERO, block);
+        proposal_entry.insert(Some(block));
+        self.process_inbound_proposal(context, &init, Some(block_id)).await
+    }
+
+    async fn process_inbound_proposal<ContextT: ConsensusContext<Block = BlockT>>(
+        &mut self,
+        context: &mut ContextT,
+        init: &ProposalInit,
+        block_id: Option<BlockHash>,
+    ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
+        let sm_proposal = StateMachineEvent::Proposal(block_id, init.round);
         let leader_fn =
             |_round: Round| -> ValidatorId { context.proposer(&self.validators, self.height) };
         let sm_events = self.state_machine.handle_event(sm_proposal, &leader_fn);
@@ -150,26 +161,31 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
     ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
         let (votes, sm_vote) = match vote.vote_type {
             VoteType::Prevote => {
-                (&mut self.prevotes, StateMachineEvent::Prevote(vote.block_hash, ROUND_ZERO))
+                (&mut self.prevotes, StateMachineEvent::Prevote(vote.block_hash, vote.round))
             }
             VoteType::Precommit => {
-                (&mut self.precommits, StateMachineEvent::Precommit(vote.block_hash, ROUND_ZERO))
+                (&mut self.precommits, StateMachineEvent::Precommit(vote.block_hash, vote.round))
             }
         };
-        if let Some(old) = votes.get(&(ROUND_ZERO, vote.voter)) {
-            if old.block_hash != vote.block_hash {
-                return Err(ConsensusError::Equivocation(
-                    self.height,
-                    ConsensusMessage::Vote(old.clone()),
-                    ConsensusMessage::Vote(vote),
-                ));
-            } else {
-                // Replay, ignore.
-                return Ok(None);
+
+        match votes.entry((vote.round, vote.voter)) {
+            Entry::Vacant(entry) => {
+                entry.insert(vote.clone());
+            }
+            Entry::Occupied(entry) => {
+                let old = entry.get();
+                if old.block_hash != vote.block_hash {
+                    return Err(ConsensusError::Equivocation(
+                        self.height,
+                        ConsensusMessage::Vote(old.clone()),
+                        ConsensusMessage::Vote(vote),
+                    ));
+                } else {
+                    // Replay, ignore.
+                    return Ok(None);
+                }
             }
         }
-
-        votes.insert((ROUND_ZERO, vote.voter), vote);
         let leader_fn =
             |_round: Round| -> ValidatorId { context.proposer(&self.validators, self.height) };
         let sm_events = self.state_machine.handle_event(sm_vote, &leader_fn);
@@ -229,7 +245,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
 
         let (p2p_messages_receiver, block_receiver) = context.build_proposal(self.height).await;
         let (fin_sender, fin_receiver) = oneshot::channel();
-        let init = ProposalInit { height: self.height, proposer: self.id };
+        let init = ProposalInit { height: self.height, round, proposer: self.id };
         // Peering is a permanent component, so if sending to it fails we cannot continue.
         context
             .propose(init, p2p_messages_receiver, fin_receiver)
@@ -243,7 +259,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         //
         // TODO(matan): Switch this to the Proposal signature.
         fin_sender.send(id).expect("Failed to send ProposalFin to Peering.");
-        let old = self.proposals.insert(round, block);
+        let old = self.proposals.insert(round, Some(block));
         assert!(old.is_none(), "There should be no entry for this round.");
         let leader_fn =
             |_round: Round| -> ValidatorId { context.proposer(&self.validators, self.height) };
@@ -277,8 +293,11 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         block_hash: BlockHash,
         round: Round,
     ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
-        let block =
-            self.proposals.remove(&round).expect("StateMachine arrived at an unknown decision");
+        let block = self
+            .proposals
+            .remove(&round)
+            .expect("StateMachine arrived at an unknown decision")
+            .expect("StateMachine should not decide on a missing proposal");
         assert_eq!(block.id(), block_hash, "StateMachine block hash should match the stored block");
         let supporting_precommits: Vec<Vote> = self
             .validators

@@ -101,7 +101,7 @@ impl StatefulTransactionValidator {
         // able to read the block_hash of 10 blocks ago from papyrus.
         let block_context = BlockContext::new(
             block_info,
-            self.config.chain_info.clone().into(),
+            self.config.chain_info.clone(),
             versioned_constants,
             BouncerConfig::max(),
         );
