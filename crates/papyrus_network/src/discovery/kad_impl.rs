@@ -55,7 +55,7 @@ impl<TStore: kad::store::RecordStore + Send + 'static> BridgedBehaviour for kad:
             mixed_behaviour::ToOtherBehaviourEvent::PeerManager(
                 peer_manager::ToOtherBehaviourEvent::PeerBlacklisted { peer_id },
             ) => {
-                self.remove_peer(&peer_id);
+                self.remove_peer(peer_id);
             }
             _ => {}
         }
