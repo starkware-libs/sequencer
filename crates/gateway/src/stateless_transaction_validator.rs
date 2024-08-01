@@ -140,6 +140,8 @@ impl StatelessTransactionValidator {
         &self,
         contract_class: &starknet_api::rpc_transaction::ContractClass,
     ) -> StatelessTransactionValidatorResult<()> {
+        // This validation happens naturally when 'starknet-sierra-compile' is run. We still want to
+        // have this validation as early as possible as part of the stateless transaction validator.
         let bytecode_size = contract_class.sierra_program.len();
         if bytecode_size > self.config.max_bytecode_size {
             return Err(StatelessTransactionValidatorError::BytecodeSizeTooLarge {
