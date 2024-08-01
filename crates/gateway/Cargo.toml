@@ -42,4 +42,4 @@ mockito = "1.4.0"
 num-bigint.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
-starknet_mempool = { path = "../mempool", version = "0.0" }
+starknet_mempool.workspace = true
