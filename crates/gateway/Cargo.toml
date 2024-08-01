@@ -14,7 +14,7 @@ testing = []
 [dependencies]
 async-trait.workspace = true
 axum.workspace = true
-blockifier = { path = "../blockifier", version = "0.8.0-rc.0", features = ["testing"] }
+blockifier = { workspace = true, features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
 hyper.workspace = true
