@@ -126,6 +126,7 @@ papyrus_common = { path = "crates/papyrus_common", version = "0.4.0-rc.0" }
 papyrus_config = { path = "crates/papyrus_config", version = "0.4.0-rc.0" }
 papyrus_consensus = { path = "crates/sequencing/papyrus_consensus", version = "0.4.0-rc.0" }
 papyrus_monitoring_gateway = { path = "crates/papyrus_monitoring_gateway", version = "0.4.0-rc.0" }
+papyrus_network = { path = "crates/papyrus_network", version = "0.4.0-rc.0" }
 papyrus_proc_macros = { path = "crates/papyrus_proc_macros", version = "0.4.0-rc.0" }
 papyrus_rpc = { path = "crates/papyrus_rpc", version = "0.4.0-rc.0" }
 papyrus_storage = { path = "crates/papyrus_storage", version = "0.4.0-rc.0" }
