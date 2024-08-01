@@ -20,7 +20,8 @@ pub mod config;
 pub mod manager;
 #[allow(missing_docs)]
 pub mod papyrus_consensus_context;
-pub(crate) mod simulation_network_receiver;
+#[allow(missing_docs)]
+pub mod simulation_network_receiver;
 #[allow(missing_docs)]
 pub mod single_height_consensus;
 #[allow(missing_docs)]

@@ -18,6 +18,7 @@ use papyrus_config::validators::config_validate;
 use papyrus_config::ConfigError;
 use papyrus_consensus::config::ConsensusConfig;
 use papyrus_consensus::papyrus_consensus_context::PapyrusConsensusContext;
+use papyrus_consensus::simulation_network_receiver::NetworkReceiver;
 use papyrus_consensus::types::ConsensusError;
 use papyrus_monitoring_gateway::MonitoringServer;
 use papyrus_network::gossipsub_impl::Topic;
@@ -108,14 +109,31 @@ fn run_consensus(
         config.num_validators,
     );
     let start_height = config.start_height;
-
-    Ok(tokio::spawn(papyrus_consensus::run_consensus(
-        context,
-        start_height,
-        validator_id,
-        config.consensus_delay,
-        consensus_channels.broadcasted_messages_receiver,
-    )))
+    match config.test {
+        Some(test_config) => {
+            let network_receiver = NetworkReceiver::new(
+                consensus_channels.broadcasted_messages_receiver,
+                test_config.cache_size,
+                test_config.random_seed,
+                test_config.drop_probability,
+                test_config.invalid_probability,
+            );
+            Ok(tokio::spawn(papyrus_consensus::run_consensus(
+                context,
+                start_height,
+                validator_id,
+                config.consensus_delay,
+                network_receiver,
+            )))
+        }
+        None => Ok(tokio::spawn(papyrus_consensus::run_consensus(
+            context,
+            start_height,
+            validator_id,
+            config.consensus_delay,
+            consensus_channels.broadcasted_messages_receiver,
+        ))),
+    }
 }
 
 async fn run_threads(config: NodeConfig) -> anyhow::Result<()> {
