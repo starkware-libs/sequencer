@@ -2,7 +2,7 @@ use starknet_api::block::BlockHash;
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
 pub struct Proposal {
     pub height: u64,
     pub round: u32,
@@ -11,13 +11,13 @@ pub struct Proposal {
     pub block_hash: BlockHash,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Hash, Clone, Eq, PartialEq)]
 pub enum VoteType {
     Prevote,
     Precommit,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Hash, Clone, Eq, PartialEq)]
 pub struct Vote {
     pub vote_type: VoteType,
     pub height: u64,
@@ -26,7 +26,7 @@ pub struct Vote {
     pub voter: ContractAddress,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum ConsensusMessage {
     Proposal(Proposal),
     Vote(Vote),
