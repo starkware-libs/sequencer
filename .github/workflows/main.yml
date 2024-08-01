@@ -190,7 +190,7 @@ jobs:
 
     - name: papyrus tests
       if: steps.changed-files.outputs.papyrus == 'true'
-      uses: ./papyrus/actions.yml
+      uses: .github/workflows/papyrus/actions.yml
 
     # - if: steps.papyrus-changes.outputs.paths == 'true'
     #   uses: ./papyrus/actions.yml
