@@ -9079,6 +9079,7 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "mockall",
+ "papyrus_proc_macros",
  "serde",
  "starknet_api",
  "starknet_mempool_infra",

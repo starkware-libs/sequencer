@@ -2,7 +2,19 @@ use std::str::FromStr;
 
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse_macro_input, ExprLit, ItemFn, ItemTrait, LitBool, LitStr, Meta, TraitItem};
+use syn::parse::{Parse, ParseStream, Result};
+use syn::{
+    parse_macro_input,
+    ExprLit,
+    Ident,
+    ItemFn,
+    ItemTrait,
+    LitBool,
+    LitStr,
+    Meta,
+    Token,
+    TraitItem,
+};
 
 /// This macro is a wrapper around the "rpc" macro supplied by the jsonrpsee library that generates
 /// a server and client traits from a given trait definition. The wrapper gets a version id and
@@ -164,4 +176,76 @@ pub fn latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     modified_function.to_token_stream().into()
+}
+
+struct HandleResponseVariantsMacroInput {
+    response_enum: Ident,
+    request_response_enum_var: Ident,
+    component_client_error: Ident,
+    component_error: Ident,
+}
+
+impl Parse for HandleResponseVariantsMacroInput {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let response_enum = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let request_response_enum_var = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let component_client_error = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let component_error = input.parse()?;
+        Ok(HandleResponseVariantsMacroInput {
+            response_enum,
+            request_response_enum_var,
+            component_client_error,
+            component_error,
+        })
+    }
+}
+
+/// A macro for generating code that handles the received communication response.
+/// Takes the following arguments:
+/// * response_enum -- the response enum type
+/// * request_response_enum_var -- the request/response enum variant corresponding to the invoked
+///   function
+/// * component_client_error -- the component client error type
+/// * component_error --  the component error type
+///
+/// For example, the following code:
+/// ```rust,ignore
+/// handle_response_variants!(MempoolResponse, GetTransactions, MempoolClientError, MempoolError)
+/// ``````
+///
+/// Results in:
+/// ```rust,ignore
+/// match response {
+///     MempoolResponse::GetTransactions(Ok(response)) => Ok(response),
+///     MempoolResponse::GetTransactions(Err(response)) => {
+///         Err(MempoolClientError::MempoolError(response))
+///     }
+///     unexpected_response => Err(MempoolClientError::ClientError(
+///         ClientError::UnexpectedResponse(format!("{unexpected_response:?}")),
+///     )),
+/// }
+/// ```
+#[proc_macro]
+pub fn handle_response_variants(input: TokenStream) -> TokenStream {
+    let HandleResponseVariantsMacroInput {
+        response_enum,
+        request_response_enum_var,
+        component_client_error,
+        component_error,
+    } = parse_macro_input!(input as HandleResponseVariantsMacroInput);
+
+    let expanded = quote! {
+        match response {
+            #response_enum::#request_response_enum_var(Ok(response)) => Ok(response),
+            #response_enum::#request_response_enum_var(Err(response)) => {
+                Err(#component_client_error::#component_error(response))
+            }
+            unexpected_response => Err(#component_client_error::ClientError(ClientError::UnexpectedResponse(format!("{unexpected_response:?}")))),
+        }
+    };
+
+    TokenStream::from(expanded)
 }
