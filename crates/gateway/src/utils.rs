@@ -5,7 +5,7 @@ use blockifier::transaction::transactions::{
     DeployAccountTransaction as BlockifierDeployAccountTransaction,
     InvokeTransaction as BlockifierInvokeTransaction,
 };
-use starknet_api::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress, Nonce};
+use starknet_api::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress};
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcDeployAccountTransaction,
@@ -19,38 +19,12 @@ use starknet_api::transaction::{
     DeployAccountTransactionV3,
     InvokeTransaction,
     InvokeTransactionV3,
-    Tip,
     TransactionHash,
     TransactionHasher,
 };
 use starknet_mempool_types::mempool_types::ThinTransaction;
 
 use crate::errors::StatefulTransactionValidatorResult;
-
-macro_rules! implement_ref_getters {
-    ($(($member_name:ident, $member_type:ty));* $(;)?) => {
-        $(fn $member_name(&self) -> &$member_type {
-            match self {
-                starknet_api::rpc_transaction::RpcTransaction::Declare(
-                    starknet_api::rpc_transaction::RpcDeclareTransaction::V3(tx)
-                ) => &tx.$member_name,
-                starknet_api::rpc_transaction::RpcTransaction::DeployAccount(
-                    starknet_api::rpc_transaction::RpcDeployAccountTransaction::V3(tx)
-                ) => &tx.$member_name,
-                starknet_api::rpc_transaction::RpcTransaction::Invoke(
-                    starknet_api::rpc_transaction::RpcInvokeTransaction::V3(tx)
-                ) => &tx.$member_name,
-            }
-        })*
-    };
-}
-
-impl RpcTransactionExt for RpcTransaction {
-    implement_ref_getters!(
-        (nonce, Nonce);
-        (tip, Tip)
-    );
-}
 
 pub fn external_tx_to_thin_tx(
     external_tx: &RpcTransaction,
@@ -73,13 +47,6 @@ pub fn get_sender_address(tx: &RpcTransaction) -> ContractAddress {
         }
         RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => tx.sender_address,
     }
-}
-
-// TODO(Mohammad): Remove this trait once it is implemented in StarkNet API.
-#[allow(dead_code)]
-pub trait RpcTransactionExt {
-    fn nonce(&self) -> &Nonce;
-    fn tip(&self) -> &Tip;
 }
 
 pub fn external_tx_to_account_tx(
