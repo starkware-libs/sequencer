@@ -12,7 +12,7 @@ futures.workspace = true
 indexmap.workspace = true
 lazy_static.workspace = true
 metrics.workspace = true
-papyrus_common = { path = "../papyrus_common", version = "0.4.0-rc.0" }
+papyrus_common.workspace = true
 papyrus_config.workspace = true
 papyrus_network = { path = "../papyrus_network", version = "0.4.0-rc.0" }
 papyrus_proc_macros.workspace = true
