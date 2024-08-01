@@ -175,7 +175,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: dorny/paths-filter@v3
-      id: papyrus-changes
+      id: changed-files
       with:
         filters: |
           papyrus:
@@ -188,7 +188,7 @@ jobs:
             - 'crates/sequencing/**'
             - 'crates/starknet_client/**'
 
-    - name: backend tests
+    - name: papyrus tests
       if: steps.changed-files.outputs.papyrus == 'true'
       uses: ./papyrus/actions.yml
 
