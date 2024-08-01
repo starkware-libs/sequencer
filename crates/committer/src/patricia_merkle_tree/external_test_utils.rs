@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use ethnum::U256;
 use rand::Rng;
@@ -95,9 +94,9 @@ where
     )
     .expect("Failed to create the updated skeleton tree");
 
-    FilledTreeImpl::<L>::create_no_leaf_output::<TH>(
+    FilledTreeImpl::<L>::create_with_existing_leaves::<TH>(
         updated_skeleton.into(),
-        Arc::new(leaf_modifications),
+        leaf_modifications,
     )
     .await
     .expect("Failed to create the filled tree")

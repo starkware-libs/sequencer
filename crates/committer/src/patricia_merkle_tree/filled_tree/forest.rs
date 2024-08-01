@@ -52,9 +52,9 @@ impl FilledForest {
         address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
         address_to_nonce: &HashMap<ContractAddress, Nonce>,
     ) -> ForestResult<Self> {
-        let classes_trie_task = tokio::task::spawn(ClassesTrie::create::<TH>(
-            Arc::new(updated_forest.classes_trie),
-            Arc::new(classes_updates),
+        let classes_trie_task = tokio::task::spawn(ClassesTrie::create_with_existing_leaves::<TH>(
+            updated_forest.classes_trie.into(),
+            classes_updates,
         ));
 
         let contracts_trie_task = tokio::task::spawn(ContractsTrie::create::<TH>(
@@ -68,9 +68,10 @@ impl FilledForest {
             )?),
         ));
         let (contracts_trie, storage_tries) = contracts_trie_task.await??;
-        let (classes_trie, _) = classes_trie_task.await??;
+        let classes_trie = classes_trie_task.await??;
 
         Ok(Self {
+            // TODO(Amos): Can this be avoided? Optimize.
             storage_tries: storage_tries
                 .expect("Missing storage tries.")
                 .into_iter()

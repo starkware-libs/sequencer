@@ -9,30 +9,22 @@ use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use crate::patricia_merkle_tree::internal_test_utils::{
-    as_fully_indexed,
-    get_initial_updated_skeleton,
-    small_tree_index_to_full,
-    MockLeaf,
-    MockTrie,
+    as_fully_indexed, get_initial_updated_skeleton, small_tree_index_to_full, MockLeaf, MockTrie,
     OriginalSkeletonMockTrieConfig,
 };
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
-    OriginalSkeletonNodeMap,
-    OriginalSkeletonTreeImpl,
+    OriginalSkeletonNodeMap, OriginalSkeletonTreeImpl,
 };
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::create_tree_helper::{
-    get_path_to_lca,
-    has_leaves_on_both_sides,
-    TempSkeletonNode,
+    get_path_to_lca, has_leaves_on_both_sides, TempSkeletonNode,
 };
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
-    UpdatedSkeletonTree,
-    UpdatedSkeletonTreeImpl,
+    UpdatedSkeletonTree, UpdatedSkeletonTreeImpl,
 };
 use crate::storage::map_storage::MapStorage;
 
@@ -507,11 +499,9 @@ async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
     .unwrap();
     let updated =
         UpdatedSkeletonTreeImpl::create(&mut original_skeleton_tree, &HashMap::new()).unwrap();
-    let filled = MockTrie::create_no_leaf_output::<TreeHashFunctionImpl>(
-        Arc::new(updated),
-        Arc::new(empty_map),
-    )
-    .await
-    .unwrap();
+    let filled =
+        MockTrie::create_with_existing_leaves::<TreeHashFunctionImpl>(Arc::new(updated), empty_map)
+            .await
+            .unwrap();
     assert_eq!(root_hash, filled.get_root_hash());
 }
