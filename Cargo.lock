@@ -8979,6 +8979,7 @@ dependencies = [
  "async-trait",
  "axum",
  "blockifier",
+ "cairo-lang-sierra-to-casm",
  "cairo-lang-starknet-classes",
  "cairo-vm",
  "enum-assoc",
@@ -9118,11 +9119,14 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
  "mempool_test_utils",
+ "papyrus_config",
+ "rstest",
  "serde",
  "serde_json",
  "starknet-types-core",
  "starknet_api",
  "thiserror",
+ "validator",
 ]
 
 [[package]]
