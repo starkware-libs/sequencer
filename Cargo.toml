@@ -78,6 +78,7 @@ camelpaste = "0.1.0"
 chrono = "0.4.26"
 clap = "4.3.10"
 colored = "2.1.0"
+committer = { path = "crates/committer", version = "0.1.0-rc.0" }
 const_format = "0.2.30"
 criterion = "0.3"
 deadqueue = "0.2.4"
