@@ -17,7 +17,7 @@ papyrus_protobuf = { path = "../../papyrus_protobuf", version = "0.4.0-dev.2" }
 papyrus_storage = { path = "../../papyrus_storage", version = "0.4.0-dev.2" }
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
-starknet_api = { path = "../../starknet_api", version = "0.13.0-rc.0" }
+starknet_api.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tracing.workspace = true

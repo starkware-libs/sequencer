@@ -15,7 +15,7 @@ cairo-lang-utils.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
+starknet_api.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

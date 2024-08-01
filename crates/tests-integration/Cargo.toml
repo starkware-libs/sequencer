@@ -21,7 +21,7 @@ papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-rc.0" }
 reqwest.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
+starknet_api.workspace = true
 starknet_client = { path = "../starknet_client", version = "0.4.0-rc.0" }
 starknet_gateway = { path = "../gateway", version = "0.0", features = ["testing"] }
 starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }

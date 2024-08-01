@@ -39,7 +39,7 @@ pyo3-log.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet-types-core.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0", features = ["testing"] }
+starknet_api = { workspace = true, features = ["testing"] }
 thiserror.workspace = true
 
 [dev-dependencies]

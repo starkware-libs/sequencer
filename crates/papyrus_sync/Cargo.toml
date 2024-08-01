@@ -24,7 +24,7 @@ papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-rc.0" }
 reqwest = { workspace = true, features = ["blocking", "json"] }
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
+starknet_api.workspace = true
 starknet_client = { path = "../starknet_client" }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
@@ -37,6 +37,6 @@ papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
 papyrus_test_utils = { path = "../papyrus_test_utils" }
 pretty_assertions.workspace = true
 simple_logger.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0", features = ["testing"] }
+starknet_api = { workspace = true, features = ["testing"] }
 starknet_client = { path = "../starknet_client", features = ["testing"] }
 tokio-stream.workspace = true
