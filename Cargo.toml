@@ -165,6 +165,7 @@ starknet_client = { path = "crates/starknet_client", version = "0.4.0-rc.0" }
 starknet_gateway = { path = "crates/gateway", version = "0.0" }
 starknet_mempool = { path = "crates/mempool", version = "0.0" }
 starknet_mempool_infra = { path = "crates/mempool_infra", version = "0.0" }
+starknet_mempool_node = { path = "crates/mempool_node", version = "0.0" }
 starknet_mempool_types = { path = "crates/mempool_types", version = "0.0" }
 starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.0" }
 static_assertions = "1.1.0"
