@@ -109,6 +109,7 @@ libp2p-swarm-test = "0.3.0"
 log = "0.4"
 lru = "0.12.0"
 memmap2 = "0.8.0"
+mempool_test_utils = { path = "crates/mempool_test_utils", version = "0.0" }
 metrics = "0.21.0"
 metrics-exporter-prometheus = "0.12.1"
 mockall = "0.12.1"
