@@ -19,11 +19,10 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::felt;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_sierra_compile::compile::SierraToCasmCompiler;
 use starknet_types_core::felt::Felt;
 
 use crate::compilation::GatewayCompiler;
-use crate::config::StatefulTransactionValidatorConfig;
+use crate::config::{GatewayCompilerConfig, StatefulTransactionValidatorConfig};
 use crate::errors::{StatefulTransactionValidatorError, StatefulTransactionValidatorResult};
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
 use crate::state_reader_test_utils::local_test_state_reader_factory;
@@ -84,11 +83,9 @@ fn test_stateful_tx_validator(
 ) {
     let optional_class_info = match &external_tx {
         RpcTransaction::Declare(declare_tx) => Some(
-            GatewayCompiler {
-                sierra_to_casm_compiler: SierraToCasmCompiler { config: Default::default() },
-            }
-            .process_declare_tx(declare_tx)
-            .unwrap(),
+            GatewayCompiler::new(GatewayCompilerConfig::default())
+                .process_declare_tx(declare_tx)
+                .unwrap(),
         ),
         _ => None,
     };

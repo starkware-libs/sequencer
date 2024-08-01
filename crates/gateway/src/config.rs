@@ -236,16 +236,33 @@ impl StatefulTransactionValidatorConfig {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct GatewayCompilerConfig {
     pub sierra_to_casm_compiler_config: SierraToCasmCompilationConfig,
+    pub max_raw_casm_class_size: usize,
+}
+
+impl Default for GatewayCompilerConfig {
+    fn default() -> Self {
+        GatewayCompilerConfig {
+            max_raw_casm_class_size: MAX_RAW_CLASS_SIZE,
+            sierra_to_casm_compiler_config: SierraToCasmCompilationConfig::default(),
+        }
+    }
 }
 
 impl SerializeConfig for GatewayCompilerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        append_sub_config_name(
+        let members = BTreeMap::from_iter([ser_param(
+            "max_raw_casm_class_size",
+            &self.max_raw_casm_class_size,
+            "Limitation of contract class object size.",
+            ParamPrivacyInput::Public,
+        )]);
+        let sub_configs = append_sub_config_name(
             self.sierra_to_casm_compiler_config.dump(),
             "sierra_to_casm_compiler_config",
-        )
+        );
+        vec![members, sub_configs].into_iter().flatten().collect()
     }
 }

@@ -14,6 +14,11 @@
     "privacy": "Public",
     "value": 81920
   },
+  "gateway_config.compiler_config.max_raw_casm_class_size": {
+    "description": "Limitation of contract class object size.",
+    "privacy": "Public",
+    "value": 4089446
+  },
   "gateway_config.network_config.ip": {
     "description": "The gateway server ip.",
     "privacy": "Public",
