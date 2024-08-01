@@ -29,7 +29,7 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_mempool_infra.workspace = true
 starknet_mempool_types.workspace = true
-starknet_sierra_compile = { path = "../starknet_sierra_compile", version = "0.0" }
+starknet_sierra_compile.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true

@@ -158,6 +158,7 @@ starknet-types-core = { version = "0.1.5", features = ["hash", "prime-bigint", "
 starknet_api = { path = "crates/starknet_api", version = "0.13.0-rc.0" }
 starknet_mempool_infra = { path = "crates/mempool_infra", version = "0.0" }
 starknet_mempool_types = { path = "crates/mempool_types", version = "0.0" }
+starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.0" }
 static_assertions = "1.1.0"
 statistical = "1.0.0"
 strum = "0.25.0"
