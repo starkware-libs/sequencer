@@ -25,7 +25,7 @@ futures.workspace = true
 itertools.workspace = true
 lazy_static.workspace = true
 once_cell.workspace = true
-papyrus_base_layer = { path = "../papyrus_base_layer", version = "0.4.0-rc.0" }
+papyrus_base_layer.workspace = true
 papyrus_common = { path = "../papyrus_common", version = "0.4.0-rc.0" }
 papyrus_config.workspace = true
 papyrus_consensus = { path = "../sequencing/papyrus_consensus", version = "0.4.0-rc.0" }
