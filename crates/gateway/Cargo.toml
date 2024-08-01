@@ -38,6 +38,7 @@ validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
+cairo-lang-sierra-to-casm.workspace = true
 mockall.workspace = true
 mockito = "1.4.0"
 num-bigint.workspace = true

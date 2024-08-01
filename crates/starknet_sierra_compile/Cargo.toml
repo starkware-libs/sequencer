@@ -12,12 +12,15 @@ workspace = true
 cairo-lang-sierra.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
+papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0" }
 serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
 thiserror.workspace = true
+validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
 mempool_test_utils = { path = "../mempool_test_utils" }
+rstest.workspace = true
