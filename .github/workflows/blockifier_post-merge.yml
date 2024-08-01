@@ -8,12 +8,24 @@ on:
       - '.github/workflows/blockifier_post-merge.yml'
       - 'crates/blockifier/**'
 jobs:
+  set_rust_version:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - id: version
+      run: echo "RUST_VERSION=$(cat .github/workflows/rust_version.txt)" >> $GITHUB_OUTPUT
+    outputs:
+      rust_version: ${{ steps.version.outputs.RUST_VERSION }}
+
   if_merged:
+    needs: set_rust_version
     if: github.event.pull_request.merged == true
     runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.set_rust_version.outputs.rust_version }}
       - uses: Noelware/setup-protoc@1.1.0
       - uses: Swatinem/rust-cache@v2
         with:

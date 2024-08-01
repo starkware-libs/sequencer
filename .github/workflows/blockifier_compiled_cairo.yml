@@ -19,12 +19,23 @@ on:
       - 'crates/blockifier/feature_contracts/cairo0/**'
 
 jobs:
+  set_rust_version:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - id: version
+      run: echo "RUST_VERSION=$(cat .github/workflows/rust_version.txt)" >> $GITHUB_OUTPUT
+    outputs:
+      rust_version: ${{ steps.version.outputs.RUST_VERSION }}
+
   verify_cairo_file_dependencies:
+    needs: set_rust_version
     runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Noelware/setup-protoc@1.1.0
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.set_rust_version.outputs.rust_version }}
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: "v0-rust-ubuntu-20.04"
@@ -41,4 +52,4 @@ jobs:
 
       - run:
           pip install -r crates/blockifier/tests/requirements.txt;
-          cargo test verify_feature_contracts -- --include-ignored
+          cargo test -p blockifier --test feature_contracts_compatibility_test --features testing -- --include-ignored
