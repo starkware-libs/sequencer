@@ -333,8 +333,13 @@ impl StateMachine {
         if *count < self.quorum {
             return VecDeque::new();
         }
-        if block_hash.is_none() && round == self.round {
-            return self.advance_to_round(round + 1, leader_fn);
+        if block_hash.is_none() {
+            if round == self.round {
+                return self.advance_to_round(round + 1, leader_fn);
+            } else {
+                // NIL quorum reached on a different round.
+                return VecDeque::new();
+            }
         }
         let Some(proposed_value) = self.proposals.get(&round) else {
             return VecDeque::new();
