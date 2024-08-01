@@ -27,7 +27,7 @@ serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }
+starknet_mempool_infra.workspace = true
 starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
 starknet_sierra_compile = { path = "../starknet_sierra_compile", version = "0.0" }
 thiserror.workspace = true

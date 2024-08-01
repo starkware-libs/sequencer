@@ -12,7 +12,7 @@ workspace = true
 async-trait.workspace = true
 derive_more.workspace = true
 starknet_api.workspace = true
-starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }
+starknet_mempool_infra.workspace = true
 starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
 tokio.workspace = true
 
