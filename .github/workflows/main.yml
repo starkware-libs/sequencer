@@ -19,6 +19,8 @@ on:
   merge_group:
     types:
       - checks_requested
+env:
+  PROTOC_VERSION: v25.1
 
 jobs:
   commitlint:
@@ -191,6 +193,10 @@ jobs:
     - name: papyrus tests
       if: steps.changed-files.outputs.papyrus == 'true'
       uses: ./.github/workflows/papyrus/
+      with:
+        env: ${{ env }}
+        github: ${{ github }}
+        secrets: ${{ secrets }}
 
     # - if: steps.papyrus-changes.outputs.paths == 'true'
     #   uses: ./papyrus/actions.yml

@@ -1,12 +1,5 @@
 name: Papyrus-CI
 
-on:
-  workflow_dispatch:
-
-
-env:
-  PROTOC_VERSION: v25.1
-
 jobs:
   executable-run:
     runs-on: ubuntu-latest
