@@ -20,7 +20,7 @@ lazy_static.workspace = true
 metrics.workspace = true
 papyrus_common.workspace = true
 papyrus_config.workspace = true
-papyrus_execution = { path = "../papyrus_execution", version = "0.4.0-rc.0" }
+papyrus_execution.workspace = true
 papyrus_proc_macros.workspace = true
 papyrus_storage.workspace = true
 regex = { workspace = true }
@@ -48,7 +48,7 @@ jsonschema.workspace = true
 lazy_static.workspace = true
 metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
-papyrus_execution = { path = "../papyrus_execution", features = ["testing"] }
+papyrus_execution = { workspace = true, features = ["testing"] }
 papyrus_storage = { workspace = true, features = ["testing"] }
 papyrus_test_utils.workspace = true
 pretty_assertions.workspace = true
