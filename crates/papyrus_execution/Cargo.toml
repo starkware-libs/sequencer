@@ -11,7 +11,7 @@ testing = ["papyrus_test_utils", "rand", "rand_chacha"]
 
 [dependencies]
 anyhow.workspace = true
-blockifier = { path = "../blockifier", version = "0.8.0-rc.0" }
+blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
 indexmap.workspace = true
