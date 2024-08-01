@@ -14,7 +14,7 @@ syn = { version = "2.0.39", features = ["full"] }
 metrics-exporter-prometheus.workspace = true
 metrics.workspace = true
 papyrus_common.workspace = true
-papyrus_test_utils = { path = "../papyrus_test_utils" }
+papyrus_test_utils.workspace = true
 prometheus-parse.workspace = true
 
 [lib]
