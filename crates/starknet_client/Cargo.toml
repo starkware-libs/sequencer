@@ -52,3 +52,6 @@ papyrus_test_utils = { path = "../papyrus_test_utils" }
 # The `rand` and `rand_chacha` crates are used in the `testing` feature, which is optional.
 # `strum` is used by `EnumIter` which is used in this crate.
 ignored = ["rand", "rand_chacha", "strum"]
+
+[lints]
+workspace = true

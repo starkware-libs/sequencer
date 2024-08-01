@@ -61,3 +61,6 @@ starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0", features = [
 starknet_client = { path = "../starknet_client", features = ["testing"] }
 strum.workspace = true
 strum_macros.workspace = true
+
+[lints]
+workspace = true

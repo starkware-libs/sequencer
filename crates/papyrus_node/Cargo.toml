@@ -60,3 +60,6 @@ metrics-exporter-prometheus.workspace = true
 papyrus_test_utils = { path = "../papyrus_test_utils" }
 pretty_assertions.workspace = true
 tempfile.workspace = true
+
+[lints]
+workspace = true

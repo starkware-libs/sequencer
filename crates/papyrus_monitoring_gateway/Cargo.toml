@@ -28,3 +28,6 @@ papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
 pretty_assertions.workspace = true
 starknet_client = { path = "../starknet_client", features = ["testing"] }
 tower = { workspace = true, features = ["util"] }
+
+[lints]
+workspace = true
