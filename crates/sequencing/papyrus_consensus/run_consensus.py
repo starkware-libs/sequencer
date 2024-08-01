@@ -118,7 +118,7 @@ def run_simulation(nodes, duration, stagnation_timeout):
             node.stop()
 
 
-def build_node(base_layer_node_url, data_dir, logs_dir, num_validators, i):
+def build_node(data_dir, logs_dir, i, papryus_args):
     is_bootstrap = i == 1
     tcp_port = BOOTNODE_TCP_PORT if is_bootstrap else find_free_port()
     monitoring_gateway_server_port = find_free_port()
@@ -127,27 +127,32 @@ def build_node(base_layer_node_url, data_dir, logs_dir, num_validators, i):
     cmd = (
         f"RUST_LOG=papyrus_consensus=debug,papyrus=info "
         f"target/release/papyrus_node --network.#is_none false "
-        f"--base_layer.node_url {base_layer_node_url} "
+        f"--base_layer.node_url {papryus_args.base_layer_node_url} "
         f"--storage.db_config.path_prefix {data_dir} "
         f"--consensus.#is_none false --consensus.validator_id 0x{i} "
-        f"--consensus.num_validators {num_validators} "
+        f"--consensus.num_validators {papryus_args.num_validators} "
         f"--network.tcp_port {tcp_port} "
         f"--rpc.server_address 127.0.0.1:{find_free_port()} "
         f"--monitoring_gateway.server_address 127.0.0.1:{monitoring_gateway_server_port} "
+        f"--consensus.test.#is_none false "
+        f"--consensus.test.cache_size {papryus_args.cache_size} "
+        f"--consensus.test.random_seed {papryus_args.random_seed} "
+        f"--consensus.test.drop_probability {papryus_args.drop_probability} "
+        f"--consensus.test.invalid_probability {papryus_args.invalid_probability} "
         f"--collect_metrics true "
     )
 
     if is_bootstrap:
         cmd += (
             f"--network.secret_key {SECRET_KEY} "
-            + f"| sed -r 's/\\x1B\\[[0-9;]*[mK]//g' > {logs_dir}/validator{i}.txt"
+            + f"2>&1 | sed -r 's/\\x1B\\[[0-9;]*[mK]//g' > {logs_dir}/validator{i}.txt"
         )
 
     else:
         cmd += (
             f"--network.bootstrap_peer_multiaddr.#is_none false "
             f"--network.bootstrap_peer_multiaddr /ip4/127.0.0.1/tcp/{BOOTNODE_TCP_PORT}/p2p/{BOOT_NODE_PEER_ID} "
-            + f"| sed -r 's/\\x1B\\[[0-9;]*[mK]//g' > {logs_dir}/validator{i}.txt"
+            + f"2>&1 | sed -r 's/\\x1B\\[[0-9;]*[mK]//g' > {logs_dir}/validator{i}.txt"
         )
 
     return Node(
@@ -157,7 +162,7 @@ def build_node(base_layer_node_url, data_dir, logs_dir, num_validators, i):
     )
 
 
-def build_all_nodes(base_layer_node_url, data_dir, logs_dir, num_validators):
+def build_all_nodes(data_dir, logs_dir, papryus_args):
     # Validators are started in a specific order to ensure proper network formation:
     # 1. The bootnode (validator 1) is started first for network peering.
     # 2. Validators 2+ are started next to join the network through the bootnode.
@@ -165,30 +170,58 @@ def build_all_nodes(base_layer_node_url, data_dir, logs_dir, num_validators):
 
     nodes = []
 
-    nodes.append(build_node(base_layer_node_url, data_dir, logs_dir, num_validators, 1))  # Bootstrap
+    nodes.append(build_node(data_dir, logs_dir, 1, papryus_args))  # Bootstrap
 
-    for i in range(2, num_validators):
-        nodes.append(build_node(base_layer_node_url, data_dir, logs_dir, num_validators, i))
+    for i in range(2, papryus_args.num_validators):
+        nodes.append(build_node(data_dir, logs_dir, i, papryus_args))
 
-    nodes.append(build_node(base_layer_node_url, data_dir, logs_dir, num_validators, 0))  # Proposer
+    nodes.append(build_node(data_dir, logs_dir, 0, papryus_args))  # Proposer
 
     return nodes
 
 
-def main(base_layer_node_url, num_validators, db_dir, stagnation_threshold, duration):
-    assert num_validators >= 2, "At least 2 validators are required for the simulation."
+class PapyrusArgs:
+    def __init__(
+        self,
+        base_layer_node_url,
+        num_validators,
+        db_dir,
+        cache_size,
+        random_seed,
+        drop_probability,
+        invalid_probability,
+    ):
+        self.base_layer_node_url = base_layer_node_url
+        self.num_validators = num_validators
+        self.db_dir = db_dir
+        self.cache_size = cache_size
+        self.random_seed = random_seed
+        self.drop_probability = drop_probability
+        self.invalid_probability = invalid_probability
+
+
+class RunConsensusArgs:
+    def __init__(self, stagnation_threshold, duration):
+        self.stagnation_threshold = stagnation_threshold
+        self.duration = duration
+
+
+def main(papyrus_args, run_consensus_args):
+    assert (
+        papyrus_args.num_validators >= 2
+    ), "At least 2 validators are required for the simulation."
 
     logs_dir = tempfile.mkdtemp()
-
+    db_dir = papyrus_args.db_dir
     if db_dir is not None:
         actual_dirs = {d for d in os.listdir(db_dir) if os.path.isdir(os.path.join(db_dir, d))}
-        expected_dirs = {f"data{i}" for i in range(num_validators)}
+        expected_dirs = {f"data{i}" for i in range(papyrus_args.num_validators)}
         assert expected_dirs.issubset(
             actual_dirs
         ), f"{db_dir} must contain: {', '.join(expected_dirs)}."
     else:
         db_dir = logs_dir
-        for i in range(num_validators):
+        for i in range(papyrus_args.num_validators):
             os.makedirs(os.path.join(db_dir, f"data{i}"))
 
     # Acquire lock on the db_dir
@@ -199,10 +232,10 @@ def main(base_layer_node_url, num_validators, db_dir, stagnation_threshold, dura
         print(f"DB files will be stored in: {db_dir}")
         print(f"Logs will be stored in: {logs_dir}")
 
-        nodes = build_all_nodes(base_layer_node_url, db_dir, logs_dir, num_validators)
+        nodes = build_all_nodes(db_dir, logs_dir, papyrus_args)
 
         print("Running validators...")
-        run_simulation(nodes, duration, stagnation_threshold)
+        run_simulation(nodes, run_consensus_args.duration, run_consensus_args.stagnation_threshold)
 
     print(f"DB files were stored in: {db_dir}")
     print(f"Logs were stored in: {logs_dir}")
@@ -227,12 +260,49 @@ if __name__ == "__main__":
         help="Time in seconds to check for height stagnation.",
     )
     parser.add_argument("--duration", type=int, required=False, default=None)
-
-    args = parser.parse_args()
-    main(
-        args.base_layer_node_url,
-        args.num_validators,
-        args.db_dir,
-        args.stagnation_threshold,
-        args.duration,
+    parser.add_argument(
+        "--cache_size",
+        type=int,
+        required=False,
+        default=1000,
+        help="Cache size for the test simulation.",
     )
+    parser.add_argument(
+        "--random_seed",
+        type=int,
+        required=False,
+        default=0,
+        help="Random seed for test simulation.",
+    )
+    parser.add_argument(
+        "--drop_probability",
+        type=float,
+        required=False,
+        default=0,
+        help="Probability of dropping a message for test simulation.",
+    )
+    parser.add_argument(
+        "--invalid_probability",
+        type=float,
+        required=False,
+        default=0,
+        help="Probability of sending an invalid message for test simulation.",
+    )
+    args = parser.parse_args()
+
+    papyrus_args = PapyrusArgs(
+        base_layer_node_url=args.base_layer_node_url,
+        num_validators=args.num_validators,
+        db_dir=args.db_dir,
+        cache_size=args.cache_size,
+        random_seed=args.random_seed,
+        drop_probability=args.drop_probability,
+        invalid_probability=args.invalid_probability,
+    )
+
+    run_consensus_args = RunConsensusArgs(
+        stagnation_threshold=args.stagnation_threshold,
+        duration=args.duration,
+    )
+
+    main(papyrus_args, run_consensus_args)

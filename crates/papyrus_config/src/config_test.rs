@@ -306,7 +306,7 @@ impl SerializeConfig for CustomConfig {
             ),
             ser_generated_param(
                 "seed",
-                SerializationType::Number,
+                SerializationType::Integer,
                 "A dummy seed with generated default = 0.",
                 ParamPrivacyInput::Public,
             ),

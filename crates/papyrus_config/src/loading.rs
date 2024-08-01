@@ -196,8 +196,9 @@ pub(crate) fn update_config_map(
         return Err(ConfigError::ParamNotFound { param_path: param_path.to_string() });
     };
     let is_type_matched = match serialization_type {
-        SerializationType::Number => new_value.is_number(),
         SerializationType::Boolean => new_value.is_boolean(),
+        SerializationType::Float => new_value.is_number(),
+        SerializationType::Integer => new_value.is_number(),
         SerializationType::String => new_value.is_string(),
     };
     if !is_type_matched {

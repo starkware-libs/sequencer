@@ -100,12 +100,12 @@ where
 
     fn should_drop_msg(&mut self, msg: &ConsensusMessage) -> bool {
         let prob = (self.calculate_msg_hash(&msg) as f64) / (u64::MAX as f64);
-        prob <= self.drop_probability
+        prob < self.drop_probability
     }
 
     fn should_invalidate_msg(&mut self, msg: &ConsensusMessage) -> bool {
         let prob = (self.calculate_msg_hash(&msg) as f64) / (u64::MAX as f64);
-        prob <= self.invalid_probability
+        prob < self.invalid_probability
     }
 
     fn invalidate_msg(&mut self, msg: &mut ConsensusMessage) {
