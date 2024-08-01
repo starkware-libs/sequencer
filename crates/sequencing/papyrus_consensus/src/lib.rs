@@ -6,9 +6,11 @@
 use std::time::Duration;
 
 use futures::channel::{mpsc, oneshot};
+use futures::Stream;
 use papyrus_common::metrics as papyrus_metrics;
-use papyrus_network::network_manager::BroadcastSubscriberReceiver;
+use papyrus_network::network_manager::ReportSender;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal};
+use papyrus_protobuf::converters::ProtobufConversionError;
 use single_height_consensus::SingleHeightConsensus;
 use starknet_api::block::{BlockHash, BlockNumber};
 use tracing::{debug, info, instrument};
@@ -38,14 +40,18 @@ use futures::StreamExt;
 
 #[instrument(skip(context, validator_id, network_receiver, cached_messages), level = "info")]
 #[allow(missing_docs)]
-async fn run_height<BlockT: ConsensusBlock, ContextT: ConsensusContext<Block = BlockT>>(
+async fn run_height<BlockT, ContextT, NetworkReceiverT>(
     context: &mut ContextT,
     height: BlockNumber,
     validator_id: ValidatorId,
-    network_receiver: &mut BroadcastSubscriberReceiver<ConsensusMessage>,
+    network_receiver: &mut NetworkReceiverT,
     cached_messages: &mut Vec<ConsensusMessage>,
 ) -> Result<Decision<BlockT>, ConsensusError>
 where
+    BlockT: ConsensusBlock,
+    ContextT: ConsensusContext<Block = BlockT>,
+    NetworkReceiverT:
+        Stream<Item = (Result<ConsensusMessage, ProtobufConversionError>, ReportSender)> + Unpin,
     ProposalWrapper:
         Into<(ProposalInit, mpsc::Receiver<BlockT::ProposalChunk>, oneshot::Receiver<BlockHash>)>,
 {
@@ -105,14 +111,18 @@ where
 // TODO(dvir): add test for this.
 #[instrument(skip(context, start_height, network_receiver), level = "info")]
 #[allow(missing_docs)]
-pub async fn run_consensus<BlockT: ConsensusBlock, ContextT: ConsensusContext<Block = BlockT>>(
+pub async fn run_consensus<BlockT, ContextT, NetworkReceiverT>(
     mut context: ContextT,
     start_height: BlockNumber,
     validator_id: ValidatorId,
     consensus_delay: Duration,
-    mut network_receiver: BroadcastSubscriberReceiver<ConsensusMessage>,
+    mut network_receiver: NetworkReceiverT,
 ) -> Result<(), ConsensusError>
 where
+    BlockT: ConsensusBlock,
+    ContextT: ConsensusContext<Block = BlockT>,
+    NetworkReceiverT:
+        Stream<Item = (Result<ConsensusMessage, ProtobufConversionError>, ReportSender)> + Unpin,
     ProposalWrapper:
         Into<(ProposalInit, mpsc::Receiver<BlockT::ProposalChunk>, oneshot::Receiver<BlockHash>)>,
 {
