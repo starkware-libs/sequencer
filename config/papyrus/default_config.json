@@ -94,6 +94,31 @@
     "privacy": "Public",
     "value": 0
   },
+  "consensus.test.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "consensus.test.cache_size": {
+    "description": "The cache size for the test simulation.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "consensus.test.drop_probability": {
+    "description": "The probability of dropping a message.",
+    "privacy": "Public",
+    "value": 0.0
+  },
+  "consensus.test.invalid_probability": {
+    "description": "The probability of sending an invalid message.",
+    "privacy": "Public",
+    "value": 0.0
+  },
+  "consensus.test.random_seed": {
+    "description": "The random seed for the test simulation to ensure repeatable test results.",
+    "privacy": "Public",
+    "value": 0
+  },
   "consensus.topic": {
     "description": "The topic of the consensus.",
     "privacy": "Public",
