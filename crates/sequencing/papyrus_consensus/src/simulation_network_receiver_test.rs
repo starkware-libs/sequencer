@@ -28,7 +28,7 @@ async fn test_invalid(distinct_messages: bool) {
             invalid_messages += 1;
         }
     }
-    assert!(400 <= invalid_messages && invalid_messages <= 600, "num_invalid={invalid_messages}");
+    assert!((400..=600).contains(&invalid_messages), "num_invalid={invalid_messages}");
 }
 
 #[test_case(true; "distinct_messages")]
@@ -52,5 +52,5 @@ async fn test_drops(distinct_messages: bool) {
     while receiver.next().await.is_some() {
         num_received += 1;
     }
-    assert!(400 <= num_received && num_received <= 600, "num_received={num_received}");
+    assert!((400..=600).contains(&num_received), "num_received={num_received}");
 }
