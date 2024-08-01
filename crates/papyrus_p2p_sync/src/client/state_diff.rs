@@ -4,15 +4,15 @@ use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt};
 use metrics::gauge;
 use papyrus_common::metrics as papyrus_metrics;
+use papyrus_network::network_manager::ClientResponsesManager;
 use papyrus_proc_macros::latency_histogram;
-use papyrus_protobuf::sync::StateDiffChunk;
+use papyrus_protobuf::sync::{DataOrFin, StateDiffChunk};
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::BlockNumber;
 use starknet_api::state::ThinStateDiff;
 
-use super::ResponseReceiver;
 use crate::client::stream_builder::{BlockData, BlockNumberLimit, DataStreamBuilder};
 use crate::client::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
 
@@ -38,7 +38,9 @@ impl DataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
 
     #[latency_histogram("p2p_sync_state_diff_parse_data_for_block_latency_seconds", true)]
     fn parse_data_for_block<'a>(
-        state_diff_chunks_receiver: &'a mut ResponseReceiver<StateDiffChunk>,
+        state_diff_chunks_response_manager: &'a mut ClientResponsesManager<
+            DataOrFin<StateDiffChunk>,
+        >,
         block_number: BlockNumber,
         storage_reader: &'a StorageReader,
     ) -> BoxFuture<'a, Result<Option<Self::Output>, P2PSyncClientError>> {
@@ -57,12 +59,14 @@ impl DataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
                 })?;
 
             while current_state_diff_len < target_state_diff_len {
-                let maybe_state_diff_chunk =
-                    tokio::time::timeout(NETWORK_DATA_TIMEOUT, state_diff_chunks_receiver.next())
-                        .await?
-                        .ok_or(P2PSyncClientError::ReceiverChannelTerminated {
-                            type_description: Self::TYPE_DESCRIPTION,
-                        })?;
+                let maybe_state_diff_chunk = tokio::time::timeout(
+                    NETWORK_DATA_TIMEOUT,
+                    state_diff_chunks_response_manager.next(),
+                )
+                .await?
+                .ok_or(P2PSyncClientError::ReceiverChannelTerminated {
+                    type_description: Self::TYPE_DESCRIPTION,
+                })?;
                 let Some(state_diff_chunk) = maybe_state_diff_chunk?.0 else {
                     if current_state_diff_len == 0 {
                         return Ok(None);

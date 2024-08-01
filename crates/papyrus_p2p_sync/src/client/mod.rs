@@ -12,19 +12,16 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use futures::channel::mpsc::SendError;
-use futures::future::{ready, Ready};
-use futures::sink::With;
-use futures::{SinkExt, Stream};
+use futures::Stream;
 use header::HeaderStreamBuilder;
 use papyrus_config::converters::deserialize_seconds_to_duration;
 use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use papyrus_network::network_manager::{SqmrClientPayload, SqmrClientSender};
+use papyrus_network::network_manager::SqmrClientSender;
 use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_protobuf::sync::{
     DataOrFin,
     HeaderQuery,
-    Query,
     SignedBlockHeader,
     StateDiffChunk,
     StateDiffQuery,
@@ -159,39 +156,25 @@ pub enum P2PSyncClientError {
     SendError(#[from] SendError),
 }
 
-// TODO(Eitan): Use SqmrSubscriberChannels once there is a utility function for testing
-
-type WithPayloadSender<TQuery, Response> = With<
-    SqmrClientSender<TQuery, Response>,
-    SqmrClientPayload<TQuery, Response>,
-    SqmrClientPayload<Query, Response>,
-    Ready<Result<SqmrClientPayload<TQuery, Response>, SendError>>,
-    fn(
-        SqmrClientPayload<Query, Response>,
-    ) -> Ready<Result<SqmrClientPayload<TQuery, Response>, SendError>>,
->;
-type SyncResponse<T> = Result<DataOrFin<T>, ProtobufConversionError>;
-type ResponseReceiver<T> = Box<dyn Stream<Item = SyncResponse<T>> + Unpin + Send>;
-
-type HeaderPayloadSender = SqmrClientSender<HeaderQuery, DataOrFin<SignedBlockHeader>>;
-type StateDiffPayloadSender = SqmrClientSender<StateDiffQuery, DataOrFin<StateDiffChunk>>;
-type TransactionPayloadSender =
+type HeaderSqmrSender = SqmrClientSender<HeaderQuery, DataOrFin<SignedBlockHeader>>;
+type StateSqmrDiffSender = SqmrClientSender<StateDiffQuery, DataOrFin<StateDiffChunk>>;
+type TransactionSqmrSender =
     SqmrClientSender<TransactionQuery, DataOrFin<(Transaction, TransactionOutput)>>;
 
 pub struct P2PSyncClientChannels {
-    header_payload_sender: HeaderPayloadSender,
-    state_diff_payload_sender: StateDiffPayloadSender,
+    header_sender: HeaderSqmrSender,
+    state_diff_sender: StateSqmrDiffSender,
     #[allow(dead_code)]
-    transaction_payload_sender: TransactionPayloadSender,
+    transaction_sender: TransactionSqmrSender,
 }
 
 impl P2PSyncClientChannels {
     pub fn new(
-        header_payload_sender: HeaderPayloadSender,
-        state_diff_payload_sender: StateDiffPayloadSender,
-        transaction_payload_sender: TransactionPayloadSender,
+        header_sender: HeaderSqmrSender,
+        state_diff_sender: StateSqmrDiffSender,
+        transaction_sender: TransactionSqmrSender,
     ) -> Self {
-        Self { header_payload_sender, state_diff_payload_sender, transaction_payload_sender }
+        Self { header_sender, state_diff_sender, transaction_sender }
     }
     pub(crate) fn create_stream(
         self,
@@ -199,15 +182,7 @@ impl P2PSyncClientChannels {
         config: P2PSyncClientConfig,
     ) -> impl Stream<Item = DataStreamResult> + Send + 'static {
         let header_stream = HeaderStreamBuilder::create_stream(
-            self.header_payload_sender.with(
-                |SqmrClientPayload { query, report_receiver, responses_sender }| {
-                    ready(Ok(SqmrClientPayload {
-                        query: HeaderQuery(query),
-                        report_receiver,
-                        responses_sender,
-                    }))
-                },
-            ),
+            self.header_sender,
             storage_reader.clone(),
             config.wait_period_for_new_data,
             config.num_headers_per_query,
@@ -215,15 +190,7 @@ impl P2PSyncClientChannels {
         );
 
         let state_diff_stream = StateDiffStreamBuilder::create_stream(
-            self.state_diff_payload_sender.with(
-                |SqmrClientPayload { query, report_receiver, responses_sender }| {
-                    ready(Ok(SqmrClientPayload {
-                        query: StateDiffQuery(query),
-                        report_receiver,
-                        responses_sender,
-                    }))
-                },
-            ),
+            self.state_diff_sender,
             storage_reader.clone(),
             config.wait_period_for_new_data,
             config.num_block_state_diffs_per_query,
