@@ -55,6 +55,16 @@ pub fn serialize_optional_map(optional_map: &Option<HashMap<String, String>>) ->
         Some(map) => map.iter().map(|(k, v)| format!("{k}:{v}")).collect::<Vec<String>>().join(" "),
     }
 }
+/// Deserializes a string to f64.
+pub fn deserialize_string_to_f64<'de, D>(de: D) -> Result<f64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(de)?;
+
+    // Parse the string to f64
+    s.parse::<f64>().map_err(|e| D::Error::custom(format!("Failed to parse f64: {}", e)))
+}
 
 /// Deserializes a map from "k1:v1 k2:v2" string structure.
 pub fn deserialize_optional_map<'de, D>(de: D) -> Result<Option<HashMap<String, String>>, D::Error>

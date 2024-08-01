@@ -118,7 +118,7 @@ def run_simulation(nodes, duration, stagnation_timeout):
             node.stop()
 
 
-def build_node(base_layer_node_url, data_dir, logs_dir, num_validators, i):
+def build_node(base_layer_node_url, data_dir, logs_dir, num_validators, i, simulation_args):
     is_bootstrap = i == 1
     tcp_port = BOOTNODE_TCP_PORT if is_bootstrap else find_free_port()
     monitoring_gateway_server_port = find_free_port()
@@ -136,18 +136,26 @@ def build_node(base_layer_node_url, data_dir, logs_dir, num_validators, i):
         f"--monitoring_gateway.server_address 127.0.0.1:{monitoring_gateway_server_port} "
         f"--collect_metrics true "
     )
+    if simulation_args:
+        cmd += (
+            f"--consensus.test.#is_none false "
+            f"--consensus.test.cache_size {simulation_args.cache_size} "
+            f"--consensus.test.random_seed {simulation_args.random_seed} "
+            f"--consensus.test.drop_probability {simulation_args.drop_probability} "
+            f"--consensus.test.invalid_probability {simulation_args.invalid_probability} "
+        )
 
     if is_bootstrap:
         cmd += (
             f"--network.secret_key {SECRET_KEY} "
-            + f"| sed -r 's/\\x1B\\[[0-9;]*[mK]//g' > {logs_dir}/validator{i}.txt"
+            + f"2>&1 | sed -r 's/\\x1B\\[[0-9;]*[mK]//g' > {logs_dir}/validator{i}.txt"
         )
 
     else:
         cmd += (
             f"--network.bootstrap_peer_multiaddr.#is_none false "
             f"--network.bootstrap_peer_multiaddr /ip4/127.0.0.1/tcp/{BOOTNODE_TCP_PORT}/p2p/{BOOT_NODE_PEER_ID} "
-            + f"| sed -r 's/\\x1B\\[[0-9;]*[mK]//g' > {logs_dir}/validator{i}.txt"
+            + f"2>&1 | sed -r 's/\\x1B\\[[0-9;]*[mK]//g' > {logs_dir}/validator{i}.txt"
         )
 
     return Node(
@@ -157,7 +165,7 @@ def build_node(base_layer_node_url, data_dir, logs_dir, num_validators, i):
     )
 
 
-def build_all_nodes(base_layer_node_url, data_dir, logs_dir, num_validators):
+def build_all_nodes(base_layer_node_url, data_dir, logs_dir, num_validators, simulation_args):
     # Validators are started in a specific order to ensure proper network formation:
     # 1. The bootnode (validator 1) is started first for network peering.
     # 2. Validators 2+ are started next to join the network through the bootnode.
@@ -165,46 +173,80 @@ def build_all_nodes(base_layer_node_url, data_dir, logs_dir, num_validators):
 
     nodes = []
 
-    nodes.append(build_node(base_layer_node_url, data_dir, logs_dir, num_validators, 1))  # Bootstrap
+    nodes.append(
+        build_node(base_layer_node_url, data_dir, logs_dir, num_validators, 1, simulation_args)
+    )  # Bootstrap
 
     for i in range(2, num_validators):
-        nodes.append(build_node(base_layer_node_url, data_dir, logs_dir, num_validators, i))
+        nodes.append(
+            build_node(base_layer_node_url, data_dir, logs_dir, num_validators, i, simulation_args)
+        )
 
-    nodes.append(build_node(base_layer_node_url, data_dir, logs_dir, num_validators, 0))  # Proposer
+    nodes.append(
+        build_node(base_layer_node_url, data_dir, logs_dir, num_validators, 0, simulation_args)
+    )  # Proposer
 
     return nodes
 
 
-def main(base_layer_node_url, num_validators, db_dir, stagnation_threshold, duration):
-    assert num_validators >= 2, "At least 2 validators are required for the simulation."
+class ConsensusArgs:
+    def __init__(self, num_validators, db_dir, stagnation_threshold, duration):
+        self.num_validators = num_validators
+        self.db_dir = db_dir
+        self.stagnation_threshold = stagnation_threshold
+        self.duration = duration
+
+
+class SimulationArgs:
+    def __init__(self, cache_size, random_seed, drop_probability, invalid_probability):
+        self.cache_size = cache_size
+        self.random_seed = random_seed
+        self.drop_probability = drop_probability
+        self.invalid_probability = invalid_probability
+
+
+def main(base_layer_node_url, consensus_args, simulation_args):
+    assert (
+        consensus_args.num_validators >= 2
+    ), "At least 2 validators are required for the simulation."
 
     logs_dir = tempfile.mkdtemp()
 
-    if db_dir is not None:
-        actual_dirs = {d for d in os.listdir(db_dir) if os.path.isdir(os.path.join(db_dir, d))}
-        expected_dirs = {f"data{i}" for i in range(num_validators)}
+    if consensus_args.db_dir is not None:
+        actual_dirs = {
+            d
+            for d in os.listdir(consensus_args.db_dir)
+            if os.path.isdir(os.path.join(consensus_args.db_dir, d))
+        }
+        expected_dirs = {f"data{i}" for i in range(consensus_args.num_validators)}
         assert expected_dirs.issubset(
             actual_dirs
-        ), f"{db_dir} must contain: {', '.join(expected_dirs)}."
+        ), f"{consensus_args.db_dir} must contain: {', '.join(expected_dirs)}."
     else:
-        db_dir = logs_dir
-        for i in range(num_validators):
-            os.makedirs(os.path.join(db_dir, f"data{i}"))
+        consensus_args.db_dir = logs_dir
+        for i in range(consensus_args.num_validators):
+            os.makedirs(os.path.join(consensus_args.db_dir, f"data{i}"))
 
     # Acquire lock on the db_dir
-    with LockDir(db_dir):
+    with LockDir(consensus_args.db_dir):
         print("Running cargo build...")
         subprocess.run("cargo build --release --package papyrus_node", shell=True, check=True)
 
-        print(f"DB files will be stored in: {db_dir}")
+        print(f"DB files will be stored in: {consensus_args.db_dir}")
         print(f"Logs will be stored in: {logs_dir}")
 
-        nodes = build_all_nodes(base_layer_node_url, db_dir, logs_dir, num_validators)
+        nodes = build_all_nodes(
+            base_layer_node_url,
+            consensus_args.db_dir,
+            logs_dir,
+            consensus_args.num_validators,
+            simulation_args,
+        )
 
         print("Running validators...")
-        run_simulation(nodes, duration, stagnation_threshold)
+        run_simulation(nodes, consensus_args.duration, consensus_args.stagnation_threshold)
 
-    print(f"DB files were stored in: {db_dir}")
+    print(f"DB files were stored in: {consensus_args.db_dir}")
     print(f"Logs were stored in: {logs_dir}")
     print("Simulation complete.")
 
@@ -227,12 +269,56 @@ if __name__ == "__main__":
         help="Time in seconds to check for height stagnation.",
     )
     parser.add_argument("--duration", type=int, required=False, default=None)
-
-    args = parser.parse_args()
-    main(
-        args.base_layer_node_url,
-        args.num_validators,
-        args.db_dir,
-        args.stagnation_threshold,
-        args.duration,
+    parser.add_argument(
+        "--enable_test_simulation",
+        type=bool,
+        required=False,
+        help="Enable test simulation in the consensus configuration.",
     )
+    parser.add_argument(
+        "--cache_size",
+        type=int,
+        required=False,
+        default=1000,
+        help="Cache size for the test simulation.",
+    )
+    parser.add_argument(
+        "--random_seed",
+        type=int,
+        required=False,
+        default=0,
+        help="Random seed for test simulation.",
+    )
+    parser.add_argument(
+        "--drop_probability",
+        type=float,
+        required=False,
+        default=0,
+        help="Probability of dropping a message for test simulation.",
+    )
+    parser.add_argument(
+        "--invalid_probability",
+        type=float,
+        required=False,
+        default=0,
+        help="Probability of sending an invalid message for test simulation.",
+    )
+    args = parser.parse_args()
+
+    consensus_args = ConsensusArgs(
+        num_validators=args.num_validators,
+        db_dir=args.db_dir,
+        stagnation_threshold=args.stagnation_threshold,
+        duration=args.duration,
+    )
+
+    simulation_args = None
+    if args.enable_test_simulation:
+        simulation_args = SimulationArgs(
+            cache_size=args.cache_size,
+            random_seed=args.random_seed,
+            drop_probability=args.drop_probability,
+            invalid_probability=args.invalid_probability,
+        )
+
+    main(args.base_layer_node_url, consensus_args, simulation_args)
