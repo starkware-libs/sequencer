@@ -110,6 +110,35 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "consensus.test.#is_none": {
+    "description": "Flag for an optional field.",
+    "value": true,
+    "privacy": "TemporaryValue"
+  },
+  "consensus.test.cache_size": {
+    "description": "The cache size for the test simulation.",
+    "value": {
+      "$serde_json::private::Number": "1000"
+    },
+    "privacy": "Public"
+  },
+  "consensus.test.drop_probability": {
+    "description": "The probability of dropping a message.",
+    "value": "0",
+    "privacy": "Public"
+  },
+  "consensus.test.invalid_probability": {
+    "description": "The probability of sending an invalid message.",
+    "value": "0",
+    "privacy": "Public"
+  },
+  "consensus.test.random_seed": {
+    "description": "The random seed for the test simulation to ensure repeatable test results.",
+    "value": {
+      "$serde_json::private::Number": "0"
+    },
+    "privacy": "Public"
+  },
   "consensus.topic": {
     "description": "The topic of the consensus.",
     "value": "consensus",
