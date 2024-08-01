@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use futures::channel::mpsc::Receiver;
 use lazy_static::lazy_static;
-use papyrus_network::network_manager::SqmrClientPayload;
+use papyrus_network::network_manager::{SqmrClientPayload, SqmrClientSender};
 use papyrus_protobuf::sync::{
     DataOrFin,
     HeaderQuery,
@@ -44,12 +44,10 @@ pub struct TestArgs {
     #[allow(clippy::type_complexity)]
     pub p2p_sync: P2PSyncClient,
     pub storage_reader: StorageReader,
-    pub header_payload_receiver:
-        Receiver<SqmrClientPayload<HeaderQuery, DataOrFin<SignedBlockHeader>>>,
-    pub state_diff_payload_receiver:
-        Receiver<SqmrClientPayload<StateDiffQuery, DataOrFin<StateDiffChunk>>>,
+    pub header_receiver: Receiver<SqmrClientPayload<HeaderQuery, DataOrFin<SignedBlockHeader>>>,
+    pub state_diff_receiver: Receiver<SqmrClientPayload<StateDiffQuery, DataOrFin<StateDiffChunk>>>,
     #[allow(dead_code)]
-    pub transaction_payload_receiver:
+    pub transaction_receiver:
         Receiver<SqmrClientPayload<TransactionQuery, DataOrFin<(Transaction, TransactionOutput)>>>,
 }
 
@@ -57,16 +55,13 @@ pub fn setup() -> TestArgs {
     let p2p_sync_config = *TEST_CONFIG;
     let buffer_size = p2p_sync_config.buffer_size;
     let ((storage_reader, storage_writer), _temp_dir) = get_test_storage();
-    let (header_payload_sender, header_payload_receiver) =
-        futures::channel::mpsc::channel(buffer_size);
-    let (state_diff_payload_sender, state_diff_payload_receiver) =
-        futures::channel::mpsc::channel(buffer_size);
-    let (transaction_payload_sender, transaction_payload_receiver) =
-        futures::channel::mpsc::channel(buffer_size);
+    let (header_sender, header_receiver) = futures::channel::mpsc::channel(buffer_size);
+    let (state_diff_sender, state_diff_receiver) = futures::channel::mpsc::channel(buffer_size);
+    let (transaction_sender, transaction_receiver) = futures::channel::mpsc::channel(buffer_size);
     let p2p_sync_channels = P2PSyncClientChannels {
-        header_payload_sender: Box::new(header_payload_sender),
-        state_diff_payload_sender: Box::new(state_diff_payload_sender),
-        transaction_payload_sender: Box::new(transaction_payload_sender),
+        header_sender: SqmrClientSender::new(Box::new(header_sender), buffer_size),
+        state_diff_sender: SqmrClientSender::new(Box::new(state_diff_sender), buffer_size),
+        transaction_sender: SqmrClientSender::new(Box::new(transaction_sender), buffer_size),
     };
     let p2p_sync = P2PSyncClient::new(
         p2p_sync_config,
@@ -77,9 +72,9 @@ pub fn setup() -> TestArgs {
     TestArgs {
         p2p_sync,
         storage_reader,
-        header_payload_receiver,
-        state_diff_payload_receiver,
-        transaction_payload_receiver,
+        header_receiver,
+        state_diff_receiver,
+        transaction_receiver,
     }
 }
 
