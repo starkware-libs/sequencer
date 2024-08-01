@@ -9,6 +9,11 @@
     "privacy": "Public",
     "value": true
   },
+  "gateway_config.compiler_config.sierra_to_casm_compiler_config.max_bytecode_size": {
+    "description": "Limitation of contract bytecode size.",
+    "privacy": "Public",
+    "value": 81920
+  },
   "gateway_config.network_config.ip": {
     "description": "The gateway server ip.",
     "privacy": "Public",
@@ -48,11 +53,6 @@
     "description": "Maximum number of steps the validation function is allowed to take.",
     "privacy": "Public",
     "value": 1000000
-  },
-  "gateway_config.stateless_tx_validator_config.max_bytecode_size": {
-    "description": "Limitation of contract bytecode size.",
-    "privacy": "Public",
-    "value": 81920
   },
   "gateway_config.stateless_tx_validator_config.max_calldata_length": {
     "description": "Limitation of calldata length.",

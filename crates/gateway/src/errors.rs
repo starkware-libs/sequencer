@@ -96,11 +96,6 @@ pub enum StatelessTransactionValidatorError {
     )]
     UnsupportedSierraVersion { version: VersionId, min_version: VersionId, max_version: VersionId },
     #[error(
-        "Cannot declare contract class with bytecode size of {bytecode_size}; max allowed size: \
-         {max_bytecode_size}."
-    )]
-    BytecodeSizeTooLarge { bytecode_size: usize, max_bytecode_size: usize },
-    #[error(
         "Cannot declare contract class with size of {contract_class_object_size}; max allowed \
          size: {max_contract_class_object_size}."
     )]

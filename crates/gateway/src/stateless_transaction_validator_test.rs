@@ -36,7 +36,6 @@ const DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: StatelessTransactionValidatorConfig 
         validate_non_zero_l2_gas_fee: false,
         max_calldata_length: 1,
         max_signature_length: 1,
-        max_bytecode_size: 10000,
         max_raw_class_size: 100000,
         min_sierra_version: MIN_SIERRA_VERSION,
         max_sierra_version: MAX_SIERRA_VERSION,
@@ -286,31 +285,6 @@ fn test_declare_sierra_version_sucsses(#[case] sierra_program: Vec<Felt>) {
     let tx = external_declare_tx(declare_tx_args!(contract_class));
 
     assert_matches!(tx_validator.validate(&tx), Ok(()));
-}
-
-#[test]
-fn test_declare_bytecode_size_too_long() {
-    let config_max_bytecode_size = 10;
-    let tx_validator = StatelessTransactionValidator {
-        config: StatelessTransactionValidatorConfig {
-            max_bytecode_size: config_max_bytecode_size,
-            ..DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
-        },
-    };
-    let sierra_program_length = config_max_bytecode_size + 1;
-    let sierra_program = vec![felt!(1_u128); sierra_program_length];
-    let contract_class = ContractClass { sierra_program, ..Default::default() };
-    let tx = external_declare_tx(declare_tx_args!(contract_class));
-
-    assert_matches!(
-        tx_validator.validate(&tx).unwrap_err(),
-        StatelessTransactionValidatorError::BytecodeSizeTooLarge {
-                bytecode_size,
-                max_bytecode_size
-            } if (
-                bytecode_size, max_bytecode_size
-            ) == (sierra_program_length, config_max_bytecode_size)
-    )
 }
 
 #[test]
