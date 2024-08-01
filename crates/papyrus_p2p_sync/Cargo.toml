@@ -12,14 +12,14 @@ futures.workspace = true
 indexmap.workspace = true
 lazy_static.workspace = true
 metrics.workspace = true
-papyrus_common = { path = "../papyrus_common", version = "0.4.0-rc.0" }
+papyrus_common.workspace = true
 papyrus_config.workspace = true
-papyrus_network = { path = "../papyrus_network", version = "0.4.0-rc.0" }
-papyrus_proc_macros = { path = "../papyrus_proc_macros", version = "0.4.0-rc.0" }
-papyrus_protobuf = { path = "../papyrus_protobuf", version = "0.4.0-rc.0" }
-papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-rc.0" }
+papyrus_network.workspace = true
+papyrus_proc_macros.workspace = true
+papyrus_protobuf.workspace = true
+papyrus_storage.workspace = true
 serde.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
+starknet_api.workspace = true
 starknet-types-core.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
@@ -29,12 +29,12 @@ tracing.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 lazy_static.workspace = true
-papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
+papyrus_storage = { workspace = true, features = ["testing"] }
 static_assertions.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
-papyrus_test_utils = { path = "../papyrus_test_utils" }
-papyrus_protobuf = { path = "../papyrus_protobuf", features = ["testing"] }
+papyrus_test_utils.workspace = true
+papyrus_protobuf = { workspace = true, features = ["testing"] }
 
 # The `metrics` crate is used by `latency_histogram` proc macro, which is used in this crate.
 [package.metadata.cargo-machete]

@@ -11,6 +11,6 @@ workspace = true
 [dependencies]
 async-trait.workspace = true
 mockall.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
-starknet_mempool_infra = { path = "../mempool_infra" }
+starknet_api.workspace = true
+starknet_mempool_infra.workspace = true
 thiserror.workspace = true
