@@ -33,6 +33,7 @@ replace_with.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
+tokio-retry = "0.3"
 tracing.workspace = true
 unsigned-varint = { workspace = true, features = ["std"] }
 validator = { workspace = true, features = ["derive"] }
@@ -47,4 +48,5 @@ mockall.workspace = true
 pretty_assertions.workspace = true
 tokio = { workspace = true, features = ["full", "sync", "test-util"] }
 tokio-stream.workspace = true
+tokio-retry.workspace = true
 void.workspace = true
