@@ -78,24 +78,18 @@ impl Leaf for ContractState {
     async fn create(input: Self::I) -> LeafResult<(Self, Option<Self::O>)> {
         let (leaf_index, nonce, class_hash, updated_skeleton, storage_modifications) = input;
 
-        match FilledTreeImpl::<StarknetStorageValue>::create::<TreeHashFunctionImpl>(
-            updated_skeleton.into(),
-            storage_modifications.into(),
-        )
+        match FilledTreeImpl::<StarknetStorageValue>::create_with_existing_leaves::<
+            TreeHashFunctionImpl,
+        >(updated_skeleton.into(), storage_modifications)
         .await
         {
-            Ok((storage_trie, _)) => Ok((
-                Self {
-                    nonce,
-                    storage_root_hash: storage_trie.get_root_hash(),
-                    class_hash,
-                },
+            Ok(storage_trie) => Ok((
+                Self { nonce, storage_root_hash: storage_trie.get_root_hash(), class_hash },
                 Some(storage_trie),
             )),
-            Err(storage_error) => Err(LeafError::StorageTrieComputationFailed(
-                storage_error.into(),
-                leaf_index,
-            )),
+            Err(storage_error) => {
+                Err(LeafError::StorageTrieComputationFailed(storage_error.into(), leaf_index))
+            }
         }
     }
 }
@@ -114,7 +108,11 @@ impl SkeletonLeaf {
 
 impl From<Felt> for SkeletonLeaf {
     fn from(value: Felt) -> Self {
-        if value == Felt::ZERO { Self::Zero } else { Self::NonZero }
+        if value == Felt::ZERO {
+            Self::Zero
+        } else {
+            Self::NonZero
+        }
     }
 }
 

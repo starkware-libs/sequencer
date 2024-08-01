@@ -9,7 +9,7 @@ use crate::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
 use crate::patricia_merkle_tree::filled_tree::node::{CompiledClassHash, FilledNode};
 use crate::patricia_merkle_tree::node_data::errors::LeafError;
 use crate::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
-use crate::patricia_merkle_tree::node_data::leaf::{ContractState, Leaf};
+use crate::patricia_merkle_tree::node_data::leaf::{ContractState, Leaf, LeafModifications};
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
@@ -32,13 +32,18 @@ pub(crate) trait FilledTree<L: Leaf>: Sized + Send {
         leaf_index_to_leaf_input: Arc<HashMap<NodeIndex, L::I>>,
     ) -> FilledTreeResult<(Self, Option<HashMap<NodeIndex, L::O>>), L>;
 
-    async fn create_no_leaf_output<'a, TH: TreeHashFunction<L> + 'static>(
+    async fn create_with_existing_leaves<'a, TH: TreeHashFunction<L> + 'static>(
         updated_skeleton: Arc<impl UpdatedSkeletonTree<'a> + 'static>,
-        leaf_index_to_leaf_input: Arc<HashMap<NodeIndex, L::I>>,
-    ) -> FilledTreeResult<Self, L> {
-        let (result, _) = Self::create::<TH>(updated_skeleton, leaf_index_to_leaf_input).await?;
-        Ok(result)
-    }
+        leaf_modifications: LeafModifications<L>,
+    ) -> FilledTreeResult<Self, L>;
+
+    // async fn create_no_leaf_output<'a, TH: TreeHashFunction<L> + 'static>(
+    //     updated_skeleton: Arc<impl UpdatedSkeletonTree<'a> + 'static>,
+    //     leaf_index_to_leaf_input: Arc<HashMap<NodeIndex, L::I>>,
+    // ) -> FilledTreeResult<Self, L> {
+    //     let (result, _) = Self::create::<TH>(updated_skeleton, leaf_index_to_leaf_input).await?;
+    //     Ok(result)
+    // }
 
     /// Serializes the current state of the tree into a hashmap,
     /// where each key-value pair corresponds
@@ -178,6 +183,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
     async fn compute_filled_tree_rec<'a, TH>(
         updated_skeleton: Arc<impl UpdatedSkeletonTree<'a> + 'async_recursion + 'static>,
         index: NodeIndex,
+        leaf_modifications: Arc<Option<LeafModifications<L>>>,
         leaf_index_to_leaf_input: Arc<HashMap<NodeIndex, Mutex<Option<L::I>>>>,
         output_map: Arc<HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>>>,
         leaf_index_to_leaf_output: Arc<HashMap<NodeIndex, Mutex<Option<L::O>>>>,
@@ -195,6 +201,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                     tokio::spawn(Self::compute_filled_tree_rec::<TH>(
                         Arc::clone(&updated_skeleton),
                         left_index,
+                        Arc::clone(&leaf_modifications),
                         Arc::clone(&leaf_index_to_leaf_input),
                         Arc::clone(&output_map),
                         Arc::clone(&leaf_index_to_leaf_output),
@@ -202,6 +209,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                     tokio::spawn(Self::compute_filled_tree_rec::<TH>(
                         Arc::clone(&updated_skeleton),
                         right_index,
+                        Arc::clone(&leaf_modifications),
                         Arc::clone(&leaf_index_to_leaf_input),
                         Arc::clone(&output_map),
                         Arc::clone(&leaf_index_to_leaf_output),
@@ -222,6 +230,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 let bottom_hash = Self::compute_filled_tree_rec::<TH>(
                     Arc::clone(&updated_skeleton),
                     bottom_node_index,
+                    Arc::clone(&leaf_modifications),
                     Arc::clone(&leaf_index_to_leaf_input),
                     Arc::clone(&output_map),
                     Arc::clone(&leaf_index_to_leaf_output),
@@ -237,16 +246,27 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
             UpdatedSkeletonNode::Leaf => {
                 // TODO(Amos): Use correct error types, and consider returning error instead of
                 // panic.
-                let leaf_input = leaf_index_to_leaf_input
-                    .get(&index)
-                    .ok_or(LeafError::MissingLeafModificationData(index))?
-                    .lock()
-                    .map_err(|_| {
-                        FilledTreeError::<L>::PoisonedLock("Cannot lock node.".to_owned())
-                    })?
-                    .take()
-                    .unwrap_or_else(|| panic!("Missing input for leaf {:?}.", index));
-                let (leaf_data, leaf_output) = L::create(leaf_input).await?;
+                let (leaf_data, leaf_output) = match Option::as_ref(&leaf_modifications) {
+                    Some(leaf_modifications) => {
+                        let leaf_data = leaf_modifications
+                            .get(&index)
+                            .ok_or(LeafError::MissingLeafModificationData(index))?
+                            .clone();
+                        (leaf_data, None)
+                    }
+                    None => {
+                        let leaf_input = leaf_index_to_leaf_input
+                            .get(&index)
+                            .ok_or(LeafError::MissingLeafModificationData(index))?
+                            .lock()
+                            .map_err(|_| {
+                                FilledTreeError::<L>::PoisonedLock("Cannot lock node.".to_owned())
+                            })?
+                            .take()
+                            .unwrap_or_else(|| panic!("Missing input for leaf {:?}.", index));
+                        L::create(leaf_input).await?
+                    }
+                };
                 if leaf_data.is_empty() {
                     return Err(FilledTreeError::<L>::DeletedLeafInSkeleton(index));
                 }
@@ -302,6 +322,7 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
         let root_hash = Self::compute_filled_tree_rec::<TH>(
             Arc::clone(&updated_skeleton),
             NodeIndex::ROOT,
+            Arc::new(None),
             Arc::clone(&wrapped_leaf_index_to_leaf_input),
             Arc::clone(&filled_tree_map),
             Arc::clone(&leaf_index_to_leaf_output),
@@ -317,6 +338,39 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
             },
             Some(unwrapped_leaf_index_to_leaf_output),
         ))
+    }
+
+    async fn create_with_existing_leaves<'a, TH: TreeHashFunction<L> + 'static>(
+        updated_skeleton: Arc<impl UpdatedSkeletonTree<'a> + 'static>,
+        leaf_modifications: LeafModifications<L>,
+    ) -> FilledTreeResult<Self, L> {
+        // Compute the filled tree in two steps:
+        //   1. Create a map containing the tree structure without hash values.
+        //   2. Fill in the hash values.
+        if leaf_modifications.is_empty() {
+            return Self::create_unmodified(&updated_skeleton);
+        }
+
+        if updated_skeleton.is_empty() {
+            return Ok(Self::create_empty());
+        }
+
+        let filled_tree_map =
+            Arc::new(Self::initialize_filled_tree_map_with_placeholders(&updated_skeleton));
+        let root_hash = Self::compute_filled_tree_rec::<TH>(
+            Arc::clone(&updated_skeleton),
+            NodeIndex::ROOT,
+            Arc::new(Some(leaf_modifications)),
+            Arc::new(HashMap::new()),
+            Arc::clone(&filled_tree_map),
+            Arc::new(HashMap::new()),
+        )
+        .await?;
+
+        Ok(FilledTreeImpl {
+            tree_map: Self::remove_arc_mutex_and_option(filled_tree_map, true)?,
+            root_hash,
+        })
     }
 
     fn serialize(&self) -> HashMap<StorageKey, StorageValue> {
