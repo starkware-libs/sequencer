@@ -6,10 +6,10 @@ use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContr
 use starknet_api::core::CompiledClassHash;
 use starknet_api::rpc_transaction::RpcDeclareTransaction;
 use starknet_sierra_compile::cairo_lang_compiler::CairoLangSierraToCasmCompiler;
-use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_sierra_compile::utils::into_contract_class_for_compilation;
 use starknet_sierra_compile::SierraToCasmCompiler;
 
+use crate::config::{GatewayCompilerConfig, PostCompilationConfig};
 use crate::errors::{GatewayError, GatewayResult};
 
 #[cfg(test)]
@@ -19,12 +19,18 @@ mod compilation_test;
 // TODO(Arni): Pass the compiler with dependancy injection.
 #[derive(Clone)]
 pub struct GatewayCompiler {
-    pub sierra_to_casm_compiler: Arc<dyn SierraToCasmCompiler>,
+    config: PostCompilationConfig,
+    sierra_to_casm_compiler: Arc<dyn SierraToCasmCompiler>,
 }
 
 impl GatewayCompiler {
-    pub fn new_cairo_lang_compiler(config: SierraToCasmCompilationConfig) -> Self {
-        Self { sierra_to_casm_compiler: Arc::new(CairoLangSierraToCasmCompiler { config }) }
+    pub fn new_cairo_lang_compiler(config: GatewayCompilerConfig) -> Self {
+        Self {
+            config: config.post_compilation_config,
+            sierra_to_casm_compiler: Arc::new(CairoLangSierraToCasmCompiler {
+                config: config.sierra_to_casm_compiler_config,
+            }),
+        }
     }
 
     /// Formats the contract class for compilation, compiles it, and returns the compiled contract
@@ -41,6 +47,7 @@ impl GatewayCompiler {
         let casm_contract_class = self.compile(cairo_lang_contract_class)?;
 
         validate_compiled_class_hash(&casm_contract_class, &tx.compiled_class_hash)?;
+        self.validate_casm_class_size(&casm_contract_class)?;
 
         Ok(ClassInfo::new(
             &ContractClass::V1(ContractClassV1::try_from(casm_contract_class)?),
@@ -54,6 +61,28 @@ impl GatewayCompiler {
         cairo_lang_contract_class: CairoLangContractClass,
     ) -> Result<CasmContractClass, GatewayError> {
         Ok(self.sierra_to_casm_compiler.compile(cairo_lang_contract_class)?)
+    }
+
+    // TODO(Arni): consider validating the size of other members of the Casm class. Cosider removing
+    // the validation of the raw class size. The validation should be linked to the way the class is
+    // saved in Papyrus etc.
+    /// Validates that the Casm class is within size limit. Specifically, this function validates
+    /// the size of the serialized class.
+    fn validate_casm_class_size(
+        &self,
+        casm_contract_class: &CasmContractClass,
+    ) -> Result<(), GatewayError> {
+        let contract_class_object_size = serde_json::to_string(&casm_contract_class)
+            .expect("Unexpected error serializing Casm contract class.")
+            .len();
+        if contract_class_object_size > self.config.max_raw_casm_class_size {
+            return Err(GatewayError::CasmContractClassObjectSizeTooLarge {
+                contract_class_object_size,
+                max_contract_class_object_size: self.config.max_raw_casm_class_size,
+            });
+        }
+
+        Ok(())
     }
 }
 
