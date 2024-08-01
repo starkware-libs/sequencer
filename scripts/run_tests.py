@@ -105,6 +105,9 @@ def run_test(changes_only: bool, commit_id: Optional[str], concurrency: bool):
     # If blockifier is to be tested, add the concurrency flag if requested.
     if concurrency and "blockifier" in tested_packages:
         cmd.extend(["--features", "concurrency"])
+    print("Printing version...")
+    res = subprocess.run(args=["cargo", "--version"], capture_output=True, text=True)
+    print(res.stdout)
 
     print("Running tests...")
     print(cmd, flush=True)
