@@ -18,6 +18,7 @@ where
 {
     uri: Uri,
     client: Client<hyper::client::HttpConnector>,
+    retries: u16,
     _req: PhantomData<Request>,
     _res: PhantomData<Response>,
 }
@@ -27,7 +28,7 @@ where
     Request: Serialize,
     Response: for<'a> Deserialize<'a>,
 {
-    pub fn new(ip_address: IpAddr, port: u16) -> Self {
+    pub fn new(ip_address: IpAddr, port: u16, retries: u16) -> Self {
         let uri = match ip_address {
             IpAddr::V4(ip_address) => format!("http://{}:{}/", ip_address, port).parse().unwrap(),
             IpAddr::V6(ip_address) => format!("http://[{}]:{}/", ip_address, port).parse().unwrap(),
@@ -36,21 +37,46 @@ where
         // TODO(Tsabary): Add a configuration for "keep-alive" time of idle connections.
         let client =
             Client::builder().http2_only(true).pool_max_idle_per_host(usize::MAX).build_http();
-        Self { uri, client, _req: PhantomData, _res: PhantomData }
+        Self { uri, client, retries, _req: PhantomData, _res: PhantomData }
     }
 
     pub async fn send(&self, component_request: Request) -> ClientResult<Response> {
-        let http_request = HyperRequest::post(self.uri.clone())
-            .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-            .body(Body::from(
-                serialize(&component_request).expect("Request serialization should succeed"),
-            ))
-            .expect("Request building should succeed");
+        let mut res = Err(ClientError::ZeroRetries);
+        for _ in 0..self.retries {
+            res = component_request
+                .construct_request(self.uri.clone())
+                .try_send_request(&self.client)
+                .await;
+            if res.is_ok() {
+                return res;
+            }
+        }
+        res
+    }
+}
 
-        // Todo(uriel): Add configuration for controlling the number of retries.
-        let http_response = self
-            .client
-            .request(http_request)
+trait ConstructRequest: Serialize {
+    fn construct_request(&self, uri: Uri) -> RemoteComponentClientRequest {
+        RemoteComponentClientRequest(
+            HyperRequest::post(uri)
+                .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+                .body(Body::from(serialize(self).expect("Request serialization should succeed")))
+                .expect("Request building should succeed"),
+        )
+    }
+}
+
+impl<Request: Serialize> ConstructRequest for Request {}
+
+struct RemoteComponentClientRequest(HyperRequest<Body>);
+
+impl RemoteComponentClientRequest {
+    async fn try_send_request<Response: for<'a> Deserialize<'a>>(
+        self,
+        client: &Client<hyper::client::HttpConnector>,
+    ) -> ClientResult<Response> {
+        let http_response = client
+            .request(self.0)
             .await
             .map_err(|e| ClientError::CommunicationFailure(Arc::new(e)))?;
 
@@ -85,6 +111,7 @@ where
         Self {
             uri: self.uri.clone(),
             client: self.client.clone(),
+            retries: self.retries,
             _req: PhantomData,
             _res: PhantomData,
         }

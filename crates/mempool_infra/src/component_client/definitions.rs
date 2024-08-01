@@ -17,6 +17,8 @@ pub enum ClientError {
     ResponseError(StatusCode, ServerError),
     #[error("Got an unexpected response type: {0}")]
     UnexpectedResponse(String),
+    #[error("Retries number is zero.")]
+    ZeroRetries,
 }
 
 pub type ClientResult<T> = Result<T, ClientError>;
