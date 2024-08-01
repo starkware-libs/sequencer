@@ -11,16 +11,16 @@ use starknet_api::rpc_transaction::{
     RpcDeclareTransactionV3,
     RpcTransaction,
 };
-use starknet_sierra_compile::compile::SierraToCasmCompiler;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_sierra_compile::errors::CompilationUtilError;
 
 use crate::compilation::GatewayCompiler;
+use crate::config::{GatewayCompilerConfig, PostCompilationConfig};
 use crate::errors::GatewayError;
 
 #[fixture]
 fn gateway_compiler() -> GatewayCompiler {
-    GatewayCompiler { sierra_to_casm_compiler: SierraToCasmCompiler { config: Default::default() } }
+    GatewayCompiler::new(GatewayCompilerConfig::default())
 }
 
 #[fixture]
@@ -53,11 +53,10 @@ fn test_compile_contract_class_compiled_class_hash_mismatch(
 // TODO(Arni): Redesign this test once the compiler is passed with dependancy injection.
 #[rstest]
 fn test_compile_contract_class_bytecode_size_validation(declare_tx_v3: RpcDeclareTransactionV3) {
-    let gateway_compiler = GatewayCompiler {
-        sierra_to_casm_compiler: SierraToCasmCompiler {
-            config: SierraToCasmCompilationConfig { max_bytecode_size: 1 },
-        },
-    };
+    let gateway_compiler = GatewayCompiler::new(GatewayCompilerConfig {
+        sierra_to_casm_compiler_config: SierraToCasmCompilationConfig { max_bytecode_size: 1 },
+        ..Default::default()
+    });
 
     let result = gateway_compiler.process_declare_tx(&RpcDeclareTransaction::V3(declare_tx_v3));
     assert_matches!(
@@ -67,6 +66,18 @@ fn test_compile_contract_class_bytecode_size_validation(declare_tx_v3: RpcDeclar
         ))
         if matches!(err.as_ref(), CompilationError::CodeSizeLimitExceeded)
     )
+}
+
+// TODO(Arni): Redesign this test once the compiler is passed with dependancy injection.
+#[rstest]
+fn test_compile_contract_class_raw_class_size_validation(declare_tx_v3: RpcDeclareTransactionV3) {
+    let gateway_compiler = GatewayCompiler::new(GatewayCompilerConfig {
+        post_compilation_config: PostCompilationConfig { max_raw_casm_class_size: 1 },
+        ..Default::default()
+    });
+
+    let result = gateway_compiler.process_declare_tx(&RpcDeclareTransaction::V3(declare_tx_v3));
+    assert_matches!(result.unwrap_err(), GatewayError::CasmContractClassObjectSizeTooLarge { .. })
 }
 
 #[rstest]

@@ -9,6 +9,7 @@ use starknet_sierra_compile::compile::SierraToCasmCompiler;
 use starknet_sierra_compile::errors::CompilationUtilError;
 use starknet_sierra_compile::utils::into_contract_class_for_compilation;
 
+use crate::config::{GatewayCompilerConfig, PostCompilationConfig};
 use crate::errors::{GatewayError, GatewayResult};
 
 #[cfg(test)]
@@ -18,10 +19,20 @@ mod compilation_test;
 // TODO(Arni): Pass the compiler with dependancy injection.
 #[derive(Clone)]
 pub struct GatewayCompiler {
-    pub sierra_to_casm_compiler: SierraToCasmCompiler,
+    config: PostCompilationConfig,
+    sierra_to_casm_compiler: SierraToCasmCompiler,
 }
 
 impl GatewayCompiler {
+    pub fn new(config: GatewayCompilerConfig) -> Self {
+        GatewayCompiler {
+            config: config.post_compilation_config,
+            sierra_to_casm_compiler: SierraToCasmCompiler {
+                config: config.sierra_to_casm_compiler_config,
+            },
+        }
+    }
+
     /// Formats the contract class for compilation, compiles it, and returns the compiled contract
     /// class wrapped in a [`ClassInfo`].
     /// Assumes the contract class is of a Sierra program which is compiled to Casm.
@@ -36,6 +47,7 @@ impl GatewayCompiler {
         let casm_contract_class = self.compile(cairo_lang_contract_class)?;
 
         validate_compiled_class_hash(&casm_contract_class, &tx.compiled_class_hash)?;
+        self.validate_casm_class_size(&casm_contract_class)?;
 
         Ok(ClassInfo::new(
             &ContractClass::V1(ContractClassV1::try_from(casm_contract_class)?),
@@ -54,6 +66,28 @@ impl GatewayCompiler {
             catch_unwind_result.map_err(|_| CompilationUtilError::CompilationPanic)??;
 
         Ok(casm_contract_class)
+    }
+
+    // TODO(Arni): consider validating the size of other members of the Casm class. Cosider removing
+    // the validation of the raw class size. The validation should be linked to the way the class is
+    // saved in Papyrus etc.
+    /// Validates that the Casm class is within size limit. Specifically, this function validates
+    /// the size of the serialized class.
+    fn validate_casm_class_size(
+        &self,
+        casm_contract_class: &CasmContractClass,
+    ) -> Result<(), GatewayError> {
+        let contract_class_object_size = serde_json::to_string(&casm_contract_class)
+            .expect("Unexpected error serializing Casm contract class.")
+            .len();
+        if contract_class_object_size > self.config.max_raw_casm_class_size {
+            return Err(GatewayError::CasmContractClassObjectSizeTooLarge {
+                contract_class_object_size,
+                max_contract_class_object_size: self.config.max_raw_casm_class_size,
+            });
+        }
+
+        Ok(())
     }
 }
 
