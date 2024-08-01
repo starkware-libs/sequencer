@@ -6,10 +6,14 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::Nonce;
+use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_types_core::felt::Felt;
 use validator::Validate;
 
 use crate::compiler_version::VersionId;
+
+const MAX_BYTECODE_SIZE: usize = 81920;
+const MAX_RAW_CLASS_SIZE: usize = 4089446;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct GatewayConfig {
@@ -88,8 +92,8 @@ impl Default for StatelessTransactionValidatorConfig {
             validate_non_zero_l2_gas_fee: false,
             max_calldata_length: 4000,
             max_signature_length: 4000,
-            max_bytecode_size: 81920,
-            max_raw_class_size: 4089446,
+            max_bytecode_size: MAX_BYTECODE_SIZE,
+            max_raw_class_size: MAX_RAW_CLASS_SIZE,
             min_sierra_version: VersionId { major: 1, minor: 1, patch: 0 },
             max_sierra_version: VersionId { major: 1, minor: 5, patch: usize::MAX },
         }
@@ -233,10 +237,15 @@ impl StatefulTransactionValidatorConfig {
 }
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
-pub struct GatewayCompilerConfig {}
+pub struct GatewayCompilerConfig {
+    pub sierra_to_casm_compiler_config: SierraToCasmCompilationConfig,
+}
 
 impl SerializeConfig for GatewayCompilerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::new()
+        append_sub_config_name(
+            self.sierra_to_casm_compiler_config.dump(),
+            "sierra_to_casm_compiler_config",
+        )
     }
 }
