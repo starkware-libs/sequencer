@@ -25,7 +25,7 @@ reqwest = { workspace = true, features = ["blocking", "json"] }
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_client = { path = "../starknet_client" }
+starknet_client.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 tracing.workspace = true
@@ -38,5 +38,5 @@ papyrus_test_utils = { path = "../papyrus_test_utils" }
 pretty_assertions.workspace = true
 simple_logger.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
-starknet_client = { path = "../starknet_client", features = ["testing"] }
+starknet_client = { workspace = true, features = ["testing"] }
 tokio-stream.workspace = true
