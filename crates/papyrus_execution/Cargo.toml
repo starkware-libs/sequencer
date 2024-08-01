@@ -18,7 +18,7 @@ indexmap.workspace = true
 itertools.workspace = true
 lazy_static.workspace = true
 once_cell.workspace = true
-papyrus_common = { path = "../papyrus_common", version = "0.4.0-rc.0" }
+papyrus_common.workspace = true
 papyrus_config.workspace = true
 papyrus_storage.workspace = true
 rand = { workspace = true, optional = true }

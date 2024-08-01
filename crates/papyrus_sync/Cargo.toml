@@ -17,7 +17,7 @@ itertools.workspace = true
 lru.workspace = true
 metrics.workspace = true
 papyrus_base_layer.workspace = true
-papyrus_common = { path = "../papyrus_common", version = "0.4.0-rc.0" }
+papyrus_common.workspace = true
 papyrus_config.workspace = true
 papyrus_proc_macros.workspace = true
 papyrus_storage.workspace = true

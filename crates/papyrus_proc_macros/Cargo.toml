@@ -13,7 +13,7 @@ syn = { version = "2.0.39", features = ["full"] }
 [dev-dependencies]
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
-papyrus_common = { path = "../papyrus_common", version = "0.4.0-dev.1" }
+papyrus_common.workspace = true
 papyrus_test_utils = { path = "../papyrus_test_utils" }
 prometheus-parse.workspace = true
 
