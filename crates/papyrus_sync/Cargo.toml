@@ -34,7 +34,7 @@ tracing.workspace = true
 assert_matches.workspace = true
 mockall.workspace = true
 papyrus_storage = { workspace = true, features = ["testing"] }
-papyrus_test_utils = { path = "../papyrus_test_utils" }
+papyrus_test_utils.workspace = true
 pretty_assertions.workspace = true
 simple_logger.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }

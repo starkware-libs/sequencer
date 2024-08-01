@@ -33,7 +33,7 @@ papyrus_storage = { workspace = true, features = ["testing"] }
 static_assertions.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
-papyrus_test_utils = { path = "../papyrus_test_utils" }
+papyrus_test_utils.workspace = true
 papyrus_protobuf = { path = "../papyrus_protobuf", features = ["testing"] }
 
 # The `metrics` crate is used by `latency_histogram` proc macro, which is used in this crate.
