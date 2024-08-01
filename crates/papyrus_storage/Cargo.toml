@@ -36,7 +36,7 @@ num-bigint.workspace = true
 page_size.workspace = true
 papyrus_common = { path = "../papyrus_common", version = "0.4.0-rc.0" }
 papyrus_config.workspace = true
-papyrus_proc_macros = { path = "../papyrus_proc_macros", version = "0.4.0-rc.0" }
+papyrus_proc_macros.workspace = true
 parity-scale-codec.workspace = true
 primitive-types.workspace = true
 serde = { workspace = true, features = ["derive"] }
