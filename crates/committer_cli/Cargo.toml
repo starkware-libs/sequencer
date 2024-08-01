@@ -17,7 +17,7 @@ tempfile.workspace = true
 
 [dependencies]
 clap = { version = "4.5.4", features = ["cargo", "derive"] }
-committer = { path = "../committer", features = ["testing"] }
+committer = { workspace = true, features = ["testing"] }
 derive_more.workspace = true
 ethnum.workspace = true
 indexmap.workspace = true
