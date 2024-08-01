@@ -17,7 +17,7 @@ papyrus_config.workspace = true
 papyrus_network = { path = "../papyrus_network", version = "0.4.0-rc.0" }
 papyrus_proc_macros.workspace = true
 papyrus_protobuf = { path = "../papyrus_protobuf", version = "0.4.0-rc.0" }
-papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-rc.0" }
+papyrus_storage.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
 starknet-types-core.workspace = true
@@ -29,7 +29,7 @@ tracing.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 lazy_static.workspace = true
-papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
+papyrus_storage = { workspace = true, features = ["testing"] }
 static_assertions.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true

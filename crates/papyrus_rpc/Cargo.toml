@@ -22,7 +22,7 @@ papyrus_common = { path = "../papyrus_common", version = "0.4.0-rc.0" }
 papyrus_config.workspace = true
 papyrus_execution = { path = "../papyrus_execution", version = "0.4.0-rc.0" }
 papyrus_proc_macros.workspace = true
-papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-rc.0" }
+papyrus_storage.workspace = true
 regex = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
@@ -49,7 +49,7 @@ lazy_static.workspace = true
 metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
 papyrus_execution = { path = "../papyrus_execution", features = ["testing"] }
-papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
+papyrus_storage = { workspace = true, features = ["testing"] }
 papyrus_test_utils = { path = "../papyrus_test_utils" }
 pretty_assertions.workspace = true
 prometheus-parse.workspace = true
