@@ -12,7 +12,7 @@ papyrus_config.workspace = true
 rustc-hex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
+starknet_api.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 url.workspace = true
@@ -21,7 +21,7 @@ url.workspace = true
 ethers-core = { version = "2.0.3" }
 pretty_assertions.workspace = true
 starknet-types-core.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0", features = ["testing"] }
+starknet_api = { workspace = true, features = ["testing"] }
 tar = { version = "0.4.38" }
 tempfile.workspace = true
 test-with = { version = "0.9.3", default-features = false, features = ["executable"] }

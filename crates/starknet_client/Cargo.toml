@@ -25,7 +25,7 @@ reqwest = { workspace = true, features = ["blocking", "json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 serde_repr.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
+starknet_api.workspace = true
 starknet-types-core = { workspace = true, features = ["serde"] }
 strum.workspace = true
 strum_macros.workspace = true
@@ -45,7 +45,7 @@ rand.workspace = true
 rand_chacha.workspace = true
 pretty_assertions.workspace = true
 simple_logger.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0", features = ["testing"] }
+starknet_api = { workspace = true, features = ["testing"] }
 papyrus_test_utils = { path = "../papyrus_test_utils" }
 
 [package.metadata.cargo-machete]
