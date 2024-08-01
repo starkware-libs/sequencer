@@ -34,6 +34,7 @@ fn test_block_hash() {
 
 #[test]
 fn test_deprecated_block_hash_v2() {
+    let _ = 3;
     validate_block_hash_util("deprecated_block_hash_v2.json", BlockHashVersion::V2);
 }
 
