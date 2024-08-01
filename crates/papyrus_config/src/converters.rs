@@ -55,6 +55,14 @@ pub fn serialize_optional_map(optional_map: &Option<HashMap<String, String>>) ->
         Some(map) => map.iter().map(|(k, v)| format!("{k}:{v}")).collect::<Vec<String>>().join(" "),
     }
 }
+/// Deserializes a percentage to f64.
+pub fn deserialize_percentage_to_f64<'de, D>(de: D) -> Result<f64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let res: f64 = Deserialize::deserialize(de)?;
+    Ok(res / 100.0)
+}
 
 /// Deserializes a map from "k1:v1 k2:v2" string structure.
 pub fn deserialize_optional_map<'de, D>(de: D) -> Result<Option<HashMap<String, String>>, D::Error>

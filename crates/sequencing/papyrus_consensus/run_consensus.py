@@ -118,7 +118,7 @@ def run_simulation(nodes, duration, stagnation_timeout):
             node.stop()
 
 
-def build_node(base_layer_node_url, data_dir, logs_dir, num_validators, i):
+def build_node(base_layer_node_url, data_dir, logs_dir, num_validators, i, enable_test_simulation, test_params):
     is_bootstrap = i == 1
     tcp_port = BOOTNODE_TCP_PORT if is_bootstrap else find_free_port()
     monitoring_gateway_server_port = find_free_port()
@@ -136,18 +136,27 @@ def build_node(base_layer_node_url, data_dir, logs_dir, num_validators, i):
         f"--monitoring_gateway.server_address 127.0.0.1:{monitoring_gateway_server_port} "
         f"--collect_metrics true "
     )
+    if enable_test_simulation:
+        cache_size, random_seed, drop_probability, invalid_probability = test_params
+        cmd += (
+            f"--consensus.test.#is_none false "
+            f"--consensus.test.cache_size {cache_size} "
+            f"--consensus.test.random_seed {random_seed} "
+            f"--consensus.test.drop_probability {drop_probability} "
+            f"--consensus.test.invalid_probability {invalid_probability} "
+        )
 
     if is_bootstrap:
         cmd += (
             f"--network.secret_key {SECRET_KEY} "
-            + f"| sed -r 's/\\x1B\\[[0-9;]*[mK]//g' > {logs_dir}/validator{i}.txt"
+            + f"2>&1 | sed -r 's/\\x1B\\[[0-9;]*[mK]//g' > {logs_dir}/validator{i}.txt"
         )
 
     else:
         cmd += (
             f"--network.bootstrap_peer_multiaddr.#is_none false "
             f"--network.bootstrap_peer_multiaddr /ip4/127.0.0.1/tcp/{BOOTNODE_TCP_PORT}/p2p/{BOOT_NODE_PEER_ID} "
-            + f"| sed -r 's/\\x1B\\[[0-9;]*[mK]//g' > {logs_dir}/validator{i}.txt"
+            + f"2>&1 | sed -r 's/\\x1B\\[[0-9;]*[mK]//g' > {logs_dir}/validator{i}.txt"
         )
 
     return Node(
@@ -157,7 +166,7 @@ def build_node(base_layer_node_url, data_dir, logs_dir, num_validators, i):
     )
 
 
-def build_all_nodes(base_layer_node_url, data_dir, logs_dir, num_validators):
+def build_all_nodes(base_layer_node_url, data_dir, logs_dir, num_validators, enable_test_simulation, test_params):
     # Validators are started in a specific order to ensure proper network formation:
     # 1. The bootnode (validator 1) is started first for network peering.
     # 2. Validators 2+ are started next to join the network through the bootnode.
@@ -165,17 +174,17 @@ def build_all_nodes(base_layer_node_url, data_dir, logs_dir, num_validators):
 
     nodes = []
 
-    nodes.append(build_node(base_layer_node_url, data_dir, logs_dir, num_validators, 1))  # Bootstrap
+    nodes.append(build_node(base_layer_node_url, data_dir, logs_dir, num_validators, 1, enable_test_simulation,test_params))  # Bootstrap
 
     for i in range(2, num_validators):
-        nodes.append(build_node(base_layer_node_url, data_dir, logs_dir, num_validators, i))
+        nodes.append(build_node(base_layer_node_url, data_dir, logs_dir, num_validators, i,enable_test_simulation,test_params))
 
-    nodes.append(build_node(base_layer_node_url, data_dir, logs_dir, num_validators, 0))  # Proposer
+    nodes.append(build_node(base_layer_node_url, data_dir, logs_dir, num_validators, 0,enable_test_simulation,test_params))  # Proposer
 
     return nodes
 
 
-def main(base_layer_node_url, num_validators, db_dir, stagnation_threshold, duration):
+def main(base_layer_node_url, num_validators, db_dir, stagnation_threshold, duration, enable_test_simulation, test_params):
     assert num_validators >= 2, "At least 2 validators are required for the simulation."
 
     logs_dir = tempfile.mkdtemp()
@@ -199,7 +208,7 @@ def main(base_layer_node_url, num_validators, db_dir, stagnation_threshold, dura
         print(f"DB files will be stored in: {db_dir}")
         print(f"Logs will be stored in: {logs_dir}")
 
-        nodes = build_all_nodes(base_layer_node_url, db_dir, logs_dir, num_validators)
+        nodes = build_all_nodes(base_layer_node_url, db_dir, logs_dir, num_validators,enable_test_simulation,test_params)
 
         print("Running validators...")
         run_simulation(nodes, duration, stagnation_threshold)
@@ -227,12 +236,27 @@ if __name__ == "__main__":
         help="Time in seconds to check for height stagnation.",
     )
     parser.add_argument("--duration", type=int, required=False, default=None)
-
+    parser.add_argument(
+        "--enable_test_simulation",
+        type=bool,
+        required=False,
+        help="Enable test simulation in the consensus configuration.",
+    )
+    parser.add_argument("--cache_size", type=int, required=False, default=1000, help="Cache size for the test simulation.")
+    parser.add_argument("--random_seed", type=int, required=False, default=0, help="Random seed for test simulation.")
+    parser.add_argument("--drop_probability", type=int, required=False, default=0, help="Probability of dropping a message for test simulation.")
+    parser.add_argument("--invalid_probability", type=int, required=False, default=0, help="Probability of sending an invalid message for test simulation.") 
     args = parser.parse_args()
+    
     main(
         args.base_layer_node_url,
         args.num_validators,
         args.db_dir,
         args.stagnation_threshold,
         args.duration,
+        args.enable_test_simulation,
+        [args.cache_size,
+        args.random_seed,
+        args.drop_probability,
+        args.invalid_probability]
     )
