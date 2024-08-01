@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use starknet_mempool_infra::component_definitions::ComponentCommunication;
 use starknet_mempool_types::communication::{
-    MempoolClientImpl,
+    LocalMempoolClientImpl,
     MempoolRequestAndResponseSender,
     SharedMempoolClient,
 };
@@ -48,7 +48,7 @@ pub fn create_node_clients(
     channels: &mut MempoolNodeCommunication,
 ) -> MempoolNodeClients {
     let mempool_client: Option<SharedMempoolClient> = match config.components.gateway.execute {
-        true => Some(Arc::new(MempoolClientImpl::new(channels.take_mempool_tx()))),
+        true => Some(Arc::new(LocalMempoolClientImpl::new(channels.take_mempool_tx()))),
         false => None,
     };
     MempoolNodeClients { mempool_client }

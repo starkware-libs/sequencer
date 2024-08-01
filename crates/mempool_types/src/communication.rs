@@ -16,7 +16,7 @@ use thiserror::Error;
 use crate::errors::MempoolError;
 use crate::mempool_types::{MempoolInput, ThinTransaction};
 
-pub type MempoolClientImpl = LocalComponentClient<MempoolRequest, MempoolResponse>;
+pub type LocalMempoolClientImpl = LocalComponentClient<MempoolRequest, MempoolResponse>;
 pub type RemoteMempoolClientImpl = RemoteComponentClient<MempoolRequest, MempoolResponse>;
 pub type MempoolResult<T> = Result<T, MempoolError>;
 pub type MempoolClientResult<T> = Result<T, MempoolClientError>;
@@ -54,7 +54,7 @@ pub enum MempoolClientError {
 }
 
 #[async_trait]
-impl MempoolClient for MempoolClientImpl {
+impl MempoolClient for LocalMempoolClientImpl {
     async fn add_tx(&self, mempool_input: MempoolInput) -> MempoolClientResult<()> {
         let request = MempoolRequest::AddTransaction(mempool_input);
         let response = self.send(request).await;
