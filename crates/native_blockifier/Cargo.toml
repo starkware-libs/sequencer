@@ -33,7 +33,7 @@ cairo-vm.workspace = true
 indexmap.workspace = true
 log.workspace = true
 num-bigint.workspace = true
-papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-rc.0", features = ["testing"] }
+papyrus_storage = { workspace = true, features = ["testing"] }
 pyo3 = { workspace = true, features = ["hashbrown", "num-bigint"] }
 pyo3-log.workspace = true
 serde = { workspace = true, features = ["derive"] }

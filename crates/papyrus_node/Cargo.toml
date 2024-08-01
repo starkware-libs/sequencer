@@ -34,7 +34,7 @@ papyrus_network = { path = "../papyrus_network", version = "0.4.0-rc.0" }
 papyrus_p2p_sync = { path = "../papyrus_p2p_sync", version = "0.4.0-rc.0" }
 papyrus_protobuf = { path = "../papyrus_protobuf", version = "0.4.0-rc.0" }
 papyrus_rpc = { workspace = true, optional = true }
-papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-rc.0" }
+papyrus_storage.workspace = true
 papyrus_sync = { path = "../papyrus_sync", version = "0.4.0-rc.0" }
 reqwest = { workspace = true, features = ["blocking", "json"] }
 serde = { workspace = true, features = ["derive"] }
