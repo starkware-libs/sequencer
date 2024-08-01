@@ -5,13 +5,25 @@ on:
     - cron: '0 0 * * *' # Runs at 00:00 UTC every day
 
 jobs:
+  set_rust_version:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - id: version
+      run: echo "RUST_VERSION=$(cat .github/workflows/rust_version.txt)" >> $GITHUB_OUTPUT
+    outputs:
+      rust_version: ${{ steps.version.outputs.RUST_VERSION }}
+
   latest_deps:
+    needs: set_rust_version
     name: Latest Dependencies
     runs-on: ubuntu-20.04
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.set_rust_version.outputs.rust_version }}
       - name: Update Dependencies
         run: cargo update --verbose
       - name: Build
