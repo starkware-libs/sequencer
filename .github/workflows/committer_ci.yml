@@ -29,11 +29,23 @@ on:
       - 'crates/committer_cli/**'
 
 jobs:
+  set_rust_version:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - id: version
+      run: echo "RUST_VERSION=$(cat .github/workflows/rust_version.txt)" >> $GITHUB_OUTPUT
+    outputs:
+      rust_version: ${{ steps.version.outputs.RUST_VERSION }}
+
   run-regression-tests:
+    needs: set_rust_version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.set_rust_version.outputs.rust_version }}
       - uses: Swatinem/rust-cache@v2
 
       - id: auth
@@ -112,10 +124,13 @@ jobs:
             })
 
   gcs-push:
+    needs: set_rust_version
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.set_rust_version.outputs.rust_version }}
       - uses: Swatinem/rust-cache@v2
 
         # Commit hash on pull request event would be the head commit of the branch.

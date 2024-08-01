@@ -10,6 +10,15 @@ env:
   PROTOC_VERSION: 25 # homebrew doesn't support minor versions
 
 jobs:
+  set_rust_version:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - id: version
+      run: echo "RUST_VERSION=$(cat .github/workflows/rust_version.txt)" >> $GITHUB_OUTPUT
+    outputs:
+      rust_version: ${{ steps.version.outputs.RUST_VERSION }}
+
   GW-integration-test-ubuntu:
     uses: ./.github/workflows/papyrus_nightly-tests-call.yml
     with:
@@ -33,11 +42,14 @@ jobs:
     if: github.event.schedule == '30 0 * * *'
 
   executable-run:
+    needs: set_rust_version
     runs-on: macos-latest
     if: github.event.schedule == '30 0 * * *'
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.set_rust_version.outputs.rust_version }}
       - uses: Swatinem/rust-cache@v2
 
       - run: mkdir data
@@ -53,11 +65,14 @@ jobs:
           & sleep 30 ; kill $!
 
   test:
+    needs: set_rust_version
     runs-on: macos-latest
     if: github.event.schedule == '30 0 * * *'
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.set_rust_version.outputs.rust_version }}
       - uses: Swatinem/rust-cache@v2
       - run: npm install -g ganache@7.4.3
 
@@ -69,20 +84,26 @@ jobs:
           SEED: 0
 
   build-load-test:
+    needs: set_rust_version
     runs-on: macos-latest
     if: github.event.schedule == '30 0 * * *'
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.set_rust_version.outputs.rust_version }}
       - uses: Swatinem/rust-cache@v2
       - run: cargo build -r -p papyrus_load_test
 
   integration-test:
+    needs: set_rust_version
     runs-on: macos-latest
     if: github.event.schedule == '30 0 * * *'
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.set_rust_version.outputs.rust_version }}
       - uses: Swatinem/rust-cache@v2
       - run: >
           cargo test -r
@@ -95,9 +116,12 @@ jobs:
   # TODO(dvir): make this run only if the path 'crates/papyrus_storage/src/db/**' (same path as in the CI)  was changed on the
   # last day and increase the number of repetitions.
   random-table-test:
+    needs: set_rust_version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.set_rust_version.outputs.rust_version }}
       - uses: Swatinem/rust-cache@v2
       - run: for run in {1..100}; do cargo test -r -p papyrus_storage -- --include-ignored common_prefix_compare_with_simple_table_random; done

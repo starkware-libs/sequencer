@@ -48,7 +48,6 @@ pub async fn commit_block(input: Input<ConfigImpl>) -> BlockCommitmentResult<Fil
             &input.state_diff.address_to_nonce,
         );
     }
-
     let updated_forest = UpdatedSkeletonForest::create(
         &mut original_forest,
         &input.state_diff.skeleton_classes_updates(),
