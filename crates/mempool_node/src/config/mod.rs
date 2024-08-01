@@ -15,12 +15,11 @@ use papyrus_config::dumping::{
 use papyrus_config::loading::load_and_process_config;
 use papyrus_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
+use starknet_gateway::config::{GatewayCompilerConfig, GatewayConfig, RpcStateReaderConfig};
 use starknet_mempool_infra::component_definitions::{
     LocalComponentCommunicationConfig,
     RemoteComponentCommunicationConfig,
 };
-use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use validator::{Validate, ValidationError};
 
 use crate::version::VERSION_FULL;
@@ -202,7 +201,7 @@ pub struct MempoolNodeConfig {
     #[validate]
     pub rpc_state_reader_config: RpcStateReaderConfig,
     #[validate]
-    pub compiler_config: SierraToCasmCompilationConfig,
+    pub compiler_config: GatewayCompilerConfig,
 }
 
 impl SerializeConfig for MempoolNodeConfig {

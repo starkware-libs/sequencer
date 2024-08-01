@@ -11,11 +11,15 @@ use starknet_api::transaction::TransactionHash;
 use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
-use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use tracing::{info, instrument};
 
 use crate::compilation::GatewayCompiler;
-use crate::config::{GatewayConfig, GatewayNetworkConfig, RpcStateReaderConfig};
+use crate::config::{
+    GatewayCompilerConfig,
+    GatewayConfig,
+    GatewayNetworkConfig,
+    RpcStateReaderConfig,
+};
 use crate::errors::{GatewayError, GatewayResult, GatewayRunError};
 use crate::rpc_state_reader::RpcStateReaderFactory;
 use crate::state_reader::StateReaderFactory;
@@ -152,7 +156,7 @@ fn process_tx(
 pub fn create_gateway(
     config: GatewayConfig,
     rpc_state_reader_config: RpcStateReaderConfig,
-    compiler_config: SierraToCasmCompilationConfig,
+    compiler_config: GatewayCompilerConfig,
     mempool_client: SharedMempoolClient,
 ) -> Gateway {
     let state_reader_factory = Arc::new(RpcStateReaderFactory { config: rpc_state_reader_config });
