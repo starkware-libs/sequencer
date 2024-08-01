@@ -15,7 +15,7 @@ const_format.workspace = true
 futures.workspace = true
 papyrus_config.workspace = true
 serde.workspace = true
-starknet_gateway = { path = "../gateway", version = "0.0" }
+starknet_gateway.workspace = true
 starknet_mempool.workspace = true
 starknet_mempool_infra.workspace = true
 starknet_mempool_types.workspace = true
