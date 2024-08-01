@@ -18,7 +18,7 @@ serde.workspace = true
 starknet_gateway = { path = "../gateway", version = "0.0" }
 starknet_mempool = { path = "../mempool", version = "0.0" }
 starknet_mempool_infra.workspace = true
-starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
+starknet_mempool_types.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 validator.workspace = true
