@@ -20,7 +20,6 @@ starknet_gateway.workspace = true
 starknet_mempool.workspace = true
 starknet_mempool_infra.workspace = true
 starknet_mempool_types.workspace = true
-starknet_sierra_compile.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 validator.workspace = true

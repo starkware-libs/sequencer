@@ -6,6 +6,7 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::Nonce;
+use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_types_core::felt::Felt;
 use validator::Validate;
 
@@ -219,5 +220,49 @@ impl StatefulTransactionValidatorConfig {
             max_recursion_depth: 50,
             chain_info: ChainInfo::create_for_testing(),
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+pub struct GatewayCompilerConfig {
+    pub sierra_to_casm_compiler_config: SierraToCasmCompilationConfig,
+    pub post_compilation_config: PostCompilationConfig,
+}
+
+impl SerializeConfig for GatewayCompilerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        vec![
+            append_sub_config_name(
+                self.sierra_to_casm_compiler_config.dump(),
+                "sierra_to_casm_compiler_config",
+            ),
+            append_sub_config_name(self.post_compilation_config.dump(), "post_compilation_config"),
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
+    }
+}
+
+/// The configuration for the post compilation process in the gateway compiler.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Validate, PartialEq)]
+pub struct PostCompilationConfig {
+    pub max_raw_casm_class_size: usize,
+}
+
+impl Default for PostCompilationConfig {
+    fn default() -> Self {
+        PostCompilationConfig { max_raw_casm_class_size: 4089446 }
+    }
+}
+
+impl SerializeConfig for PostCompilationConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "max_raw_casm_class_size",
+            &self.max_raw_casm_class_size,
+            "Limitation of contract class object size.",
+            ParamPrivacyInput::Public,
+        )])
     }
 }
