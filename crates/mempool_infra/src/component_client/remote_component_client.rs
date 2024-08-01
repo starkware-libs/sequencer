@@ -18,6 +18,7 @@ where
 {
     uri: Uri,
     client: Client<hyper::client::HttpConnector>,
+    max_retries: usize,
     _req: PhantomData<Request>,
     _res: PhantomData<Response>,
 }
@@ -27,7 +28,7 @@ where
     Request: Serialize,
     Response: for<'a> Deserialize<'a>,
 {
-    pub fn new(ip_address: IpAddr, port: u16) -> Self {
+    pub fn new(ip_address: IpAddr, port: u16, max_retries: usize) -> Self {
         let uri = match ip_address {
             IpAddr::V4(ip_address) => format!("http://{}:{}/", ip_address, port).parse().unwrap(),
             IpAddr::V6(ip_address) => format!("http://[{}]:{}/", ip_address, port).parse().unwrap(),
@@ -36,18 +37,31 @@ where
         // TODO(Tsabary): Add a configuration for "keep-alive" time of idle connections.
         let client =
             Client::builder().http2_only(true).pool_max_idle_per_host(usize::MAX).build_http();
-        Self { uri, client, _req: PhantomData, _res: PhantomData }
+        Self { uri, client, max_retries, _req: PhantomData, _res: PhantomData }
     }
 
     pub async fn send(&self, component_request: Request) -> ClientResult<Response> {
-        let http_request = HyperRequest::post(self.uri.clone())
+        for _ in 0..self.max_retries {
+            let http_request = self.construct_http_request(&component_request);
+            let res = self.try_send(http_request).await;
+            if res.is_ok() {
+                return res;
+            }
+        }
+        let http_request = self.construct_http_request(&component_request);
+        self.try_send(http_request).await
+    }
+
+    fn construct_http_request(&self, component_request: &Request) -> HyperRequest<Body> {
+        HyperRequest::post(self.uri.clone())
             .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
             .body(Body::from(
-                serialize(&component_request).expect("Request serialization should succeed"),
+                serialize(component_request).expect("Request serialization should succeed"),
             ))
-            .expect("Request building should succeed");
+            .expect("Request building should succeed")
+    }
 
-        // Todo(uriel): Add configuration for controlling the number of retries.
+    async fn try_send(&self, http_request: HyperRequest<Body>) -> ClientResult<Response> {
         let http_response = self
             .client
             .request(http_request)
@@ -85,6 +99,7 @@ where
         Self {
             uri: self.uri.clone(),
             client: self.client.clone(),
+            max_retries: self.max_retries,
             _req: PhantomData,
             _res: PhantomData,
         }

@@ -35,6 +35,7 @@ type ComponentBClient = RemoteComponentClient<ComponentBRequest, ComponentBRespo
 use crate::common::{test_a_b_functionality, ComponentA, ComponentB, ValueB};
 
 const LOCAL_IP: IpAddr = IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
+const MAX_RETRIES: usize = 0;
 const A_PORT_TEST_SETUP: u16 = 10000;
 const B_PORT_TEST_SETUP: u16 = 10001;
 const A_PORT_FAULTY_CLIENT: u16 = 10010;
@@ -146,12 +147,12 @@ where
     // Ensure the server starts running.
     task::yield_now().await;
 
-    ComponentAClient::new(LOCAL_IP, port)
+    ComponentAClient::new(LOCAL_IP, port, MAX_RETRIES)
 }
 
 async fn setup_for_tests(setup_value: ValueB, a_port: u16, b_port: u16) {
-    let a_client = ComponentAClient::new(LOCAL_IP, a_port);
-    let b_client = ComponentBClient::new(LOCAL_IP, b_port);
+    let a_client = ComponentAClient::new(LOCAL_IP, a_port, MAX_RETRIES);
+    let b_client = ComponentBClient::new(LOCAL_IP, b_port, MAX_RETRIES);
 
     let component_a = ComponentA::new(Box::new(b_client));
     let component_b = ComponentB::new(setup_value, Box::new(a_client.clone()));
@@ -183,8 +184,8 @@ async fn setup_for_tests(setup_value: ValueB, a_port: u16, b_port: u16) {
 async fn test_proper_setup() {
     let setup_value: ValueB = 90;
     setup_for_tests(setup_value, A_PORT_TEST_SETUP, B_PORT_TEST_SETUP).await;
-    let a_client = ComponentAClient::new(LOCAL_IP, A_PORT_TEST_SETUP);
-    let b_client = ComponentBClient::new(LOCAL_IP, B_PORT_TEST_SETUP);
+    let a_client = ComponentAClient::new(LOCAL_IP, A_PORT_TEST_SETUP, MAX_RETRIES);
+    let b_client = ComponentBClient::new(LOCAL_IP, B_PORT_TEST_SETUP, MAX_RETRIES);
     test_a_b_functionality(a_client, b_client, setup_value.into()).await;
 }
 
@@ -222,7 +223,7 @@ async fn test_faulty_client_setup() {
 
 #[tokio::test]
 async fn test_unconnected_server() {
-    let client = ComponentAClient::new(LOCAL_IP, UNCONNECTED_SERVER_PORT);
+    let client = ComponentAClient::new(LOCAL_IP, UNCONNECTED_SERVER_PORT, MAX_RETRIES);
 
     let expected_error_contained_keywords = ["Connection refused"];
     verify_error(client, &expected_error_contained_keywords).await;
