@@ -59,6 +59,7 @@ pub fn external_tx_to_thin_tx(
     ThinTransaction {
         tip: *external_tx.tip(),
         nonce: *external_tx.nonce(),
+        resource_bounds: external_tx.resource_bounds().clone().into(),
         sender_address: get_sender_address(external_tx),
         tx_hash,
     }

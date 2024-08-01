@@ -6,7 +6,13 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::{Tip, TransactionHash};
+use starknet_api::transaction::{
+    Resource,
+    ResourceBounds,
+    ResourceBoundsMapping,
+    Tip,
+    TransactionHash,
+};
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState, ThinTransaction};
@@ -17,6 +23,16 @@ use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
 
 // Utils.
+
+fn default_testing_resource_bounds() -> ResourceBoundsMapping {
+    ResourceBoundsMapping::try_from(vec![
+        (Resource::L1Gas, ResourceBounds { max_amount: 0, max_price_per_unit: 1 }),
+        // TODO(Dori, 1/2/2024): When fee market is developed, change the default price of
+        //   L2 gas.
+        (Resource::L2Gas, ResourceBounds { max_amount: 0, max_price_per_unit: 0 }),
+    ])
+    .unwrap()
+}
 
 /// Represents the internal state of the mempool.
 /// Enables customized (and potentially inconsistent) creation for unit testing.
@@ -144,29 +160,34 @@ fn add_tx(mempool: &mut Mempool, input: &MempoolInput) {
 /// 5. add_tx_input!(tip: 1, tx_hash: 2)
 macro_rules! add_tx_input {
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
-        tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {{
+        tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr, resource_bounds: $resource_bounds:expr) => {{
         let sender_address = contract_address!($sender_address);
         let account_nonce = Nonce(felt!($account_nonce));
         let account = Account { sender_address, state: AccountState {nonce: account_nonce}};
         let tx = ThinTransaction {
             tip: Tip($tip),
+            resource_bounds: $resource_bounds,
             tx_hash: TransactionHash(StarkHash::from($tx_hash)),
             sender_address,
             nonce: Nonce(felt!($tx_nonce)),
         };
         MempoolInput { tx, account }
     }};
+    (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
+        tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
+            add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, account_nonce: $account_nonce, resource_bounds: default_testing_resource_bounds())
+        };
     (tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
-        add_tx_input!(tip: 0, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, account_nonce: $account_nonce)
+        add_tx_input!(tip: 0, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, account_nonce: $account_nonce, resource_bounds: default_testing_resource_bounds())
     };
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr) => {
-        add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: 0_u8, account_nonce: 0_u8)
+        add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: 0_u8, account_nonce: 0_u8, resource_bounds: default_testing_resource_bounds())
     };
     (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
-        add_tx_input!(tip: 1, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce, account_nonce: $account_nonce)
+        add_tx_input!(tip: 1, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce, account_nonce: $account_nonce, resource_bounds: default_testing_resource_bounds())
     };
     (tip: $tip:expr, tx_hash: $tx_hash:expr) => {
-        add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8)
+        add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8, resource_bounds: default_testing_resource_bounds())
     };
 }
 

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::transaction::{Tip, TransactionHash};
+use starknet_api::transaction::{ResourceBoundsMapping, Tip, TransactionHash};
 
 use crate::errors::MempoolError;
 
@@ -10,6 +10,7 @@ pub struct ThinTransaction {
     pub tx_hash: TransactionHash,
     pub tip: Tip,
     pub nonce: Nonce,
+    pub resource_bounds: ResourceBoundsMapping,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
