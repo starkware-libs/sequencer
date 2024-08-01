@@ -12,5 +12,5 @@ workspace = true
 async-trait.workspace = true
 mockall.workspace = true
 starknet_api.workspace = true
-starknet_mempool_infra = { path = "../mempool_infra" }
+starknet_mempool_infra.workspace = true
 thiserror.workspace = true
