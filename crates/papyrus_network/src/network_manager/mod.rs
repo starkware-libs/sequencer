@@ -154,7 +154,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         };
         let payload_sender = payload_sender.with(payload_fn);
 
-        Box::new(payload_sender)
+        SqmrClientSender::new(Box::new(payload_sender))
     }
 
     /// Register a new subscriber for broadcasting and receiving broadcasts for a given topic.
@@ -627,19 +627,64 @@ type GenericReceiver<T> = Box<dyn Stream<Item = T> + Unpin + Send>;
 
 type ResponsesSenderForNetwork = GenericSender<Bytes>;
 type ResponsesReceiverForNetwork = GenericReceiver<Option<Bytes>>;
+
 type ResponsesSender<Response> =
     GenericSender<Result<Response, <Response as TryFrom<Bytes>>::Error>>;
+type ResponsesReceiver<Response> =
+    GenericReceiver<Result<Response, <Response as TryFrom<Bytes>>::Error>>;
 
 type ReportSender = oneshot::Sender<()>;
 type ReportReceiver = oneshot::Receiver<()>;
 
+// TODO: make fields private
 pub struct SqmrClientPayload<Query, Response: TryFrom<Bytes>> {
     pub query: Query,
     pub report_receiver: ReportReceiver,
     pub responses_sender: ResponsesSender<Response>,
 }
+pub struct ClientResponseManager<Response: TryFrom<Bytes>> {
+    report_sender: ReportSender,
+    pub(crate) responses_receiver: ResponsesReceiver<Response>,
+}
 
-pub type SqmrClientSender<Query, Response> = GenericSender<SqmrClientPayload<Query, Response>>;
+impl<Response: TryFrom<Bytes>> ClientResponseManager<Response> {
+    pub async fn report_peer(self) {
+        let _ = self.report_sender.send(());
+    }
+
+    pub async fn next_response(
+        &mut self,
+    ) -> Option<Result<Response, <Response as TryFrom<Bytes>>::Error>> {
+        self.responses_receiver.next().await
+    }
+}
+
+pub struct SqmrClientSender<Query, Response: TryFrom<Bytes>> {
+    channel: GenericSender<SqmrClientPayload<Query, Response>>,
+}
+
+impl<Query, Response: TryFrom<Bytes> + Send + 'static> SqmrClientSender<Query, Response>
+where
+    <Response as TryFrom<Bytes>>::Error: Send + 'static,
+{
+    pub fn new(channel: GenericSender<SqmrClientPayload<Query, Response>>) -> Self {
+        Self { channel }
+    }
+    pub async fn send(
+        &mut self,
+        query: Query,
+        response_buffer_size: usize,
+    ) -> Result<ClientResponseManager<Response>, SendError> {
+        let (report_sender, report_receiver) = oneshot::channel::<()>();
+        let (responses_sender, responses_receiver) =
+            futures::channel::mpsc::channel(response_buffer_size);
+        let responses_sender = Box::new(responses_sender);
+        let responses_receiver = Box::new(responses_receiver);
+        let payload = SqmrClientPayload { query, report_receiver, responses_sender };
+        self.channel.send(payload).await?;
+        Ok(ClientResponseManager { report_sender, responses_receiver })
+    }
+}
 
 pub struct SqmrServerPayload<Query: TryFrom<Bytes>, Response> {
     pub query: Result<Query, <Query as TryFrom<Bytes>>::Error>,
@@ -657,14 +702,12 @@ struct SqmrClientPayloadForNetwork {
 
 type SqmrClientReceiver = GenericReceiver<SqmrClientPayloadForNetwork>;
 
-#[allow(dead_code)]
 struct SqmrServerPayloadForNetwork {
     query: Bytes,
     report_sender: ReportSender,
     responses_sender: ResponsesSenderForNetwork,
 }
 
-#[allow(dead_code)]
 type SqmrServerSender = GenericSender<SqmrServerPayloadForNetwork>;
 
 impl<Query, Response> From<SqmrClientPayload<Query, Response>> for SqmrClientPayloadForNetwork

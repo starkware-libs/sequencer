@@ -42,17 +42,47 @@ pub struct DataOrFin<T>(pub Option<T>);
 #[derive(Default, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct HeaderQuery(pub Query);
 
+impl From<Query> for HeaderQuery {
+    fn from(query: Query) -> Self {
+        Self(query)
+    }
+}
+
 #[derive(Default, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct StateDiffQuery(pub Query);
+
+impl From<Query> for StateDiffQuery {
+    fn from(query: Query) -> Self {
+        Self(query)
+    }
+}
 
 #[derive(Default, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TransactionQuery(pub Query);
 
+impl From<Query> for TransactionQuery {
+    fn from(query: Query) -> Self {
+        Self(query)
+    }
+}
+
 #[derive(Default, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ClassQuery(pub Query);
 
+impl From<Query> for ClassQuery {
+    fn from(query: Query) -> Self {
+        Self(query)
+    }
+}
+
 #[derive(Default, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct EventQuery(pub Query);
+
+impl From<Query> for EventQuery {
+    fn from(query: Query) -> Self {
+        Self(query)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SignedBlockHeader {
