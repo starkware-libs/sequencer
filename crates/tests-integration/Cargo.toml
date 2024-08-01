@@ -10,7 +10,7 @@ workspace = true
 
 [dependencies]
 axum.workspace = true
-blockifier = { path = "../blockifier", version = "0.8.0-rc.0" }
+blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
