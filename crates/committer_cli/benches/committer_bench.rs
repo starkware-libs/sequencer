@@ -55,7 +55,7 @@ pub fn full_committer_flow_benchmark(criterion: &mut Criterion) {
         false => tokio::runtime::Builder::new_current_thread().build().unwrap(),
     };
 
-    // TODO(Aner, 8/7/2024): use structs for deserialization.
+    // TODO(Aner, 8/7/2024): use structs for deserialization .
     let input: HashMap<String, String> = serde_json::from_str(FLOW_TEST_INPUT).unwrap();
     let committer_input_string = input.get("committer_input").unwrap();
 
