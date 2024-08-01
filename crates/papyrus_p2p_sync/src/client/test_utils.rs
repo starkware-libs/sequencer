@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use futures::channel::mpsc::Receiver;
 use lazy_static::lazy_static;
-use papyrus_network::network_manager::SqmrClientPayload;
+use papyrus_network::network_manager::{SqmrClientPayload, SqmrClientSender};
 use papyrus_protobuf::sync::{
     DataOrFin,
     HeaderQuery,
@@ -64,9 +64,9 @@ pub fn setup() -> TestArgs {
     let (transaction_payload_sender, transaction_payload_receiver) =
         futures::channel::mpsc::channel(buffer_size);
     let p2p_sync_channels = P2PSyncClientChannels {
-        header_payload_sender: Box::new(header_payload_sender),
-        state_diff_payload_sender: Box::new(state_diff_payload_sender),
-        transaction_payload_sender: Box::new(transaction_payload_sender),
+        header_sender: SqmrClientSender::new(Box::new(header_payload_sender)),
+        state_diff_sender: SqmrClientSender::new(Box::new(state_diff_payload_sender)),
+        transaction_sender: SqmrClientSender::new(Box::new(transaction_payload_sender)),
     };
     let p2p_sync = P2PSyncClient::new(
         p2p_sync_config,
