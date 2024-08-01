@@ -44,13 +44,8 @@ async fn state_diff_basic_flow() {
     const_assert!(STATE_DIFF_QUERY_LENGTH < HEADER_QUERY_LENGTH);
     const_assert!(HEADER_QUERY_LENGTH < 2 * STATE_DIFF_QUERY_LENGTH);
 
-    let TestArgs {
-        p2p_sync,
-        storage_reader,
-        mut state_diff_payload_receiver,
-        mut header_payload_receiver,
-        ..
-    } = setup();
+    let TestArgs { p2p_sync, storage_reader, mut state_diff_receiver, mut header_receiver, .. } =
+        setup();
 
     let block_hashes_and_signatures =
         create_block_hashes_and_signatures(HEADER_QUERY_LENGTH.try_into().unwrap());
@@ -67,12 +62,12 @@ async fn state_diff_basic_flow() {
         tokio::time::sleep(SLEEP_DURATION_TO_LET_SYNC_ADVANCE).await;
 
         // Check that before we send headers there is no state diff query.
-        assert!(state_diff_payload_receiver.next().now_or_never().is_none());
+        assert!(state_diff_receiver.next().now_or_never().is_none());
         let SqmrClientPayload {
             query: _query,
             report_receiver: _report_receiver,
             responses_sender: mut headers_sender,
-        } = header_payload_receiver.next().await.unwrap();
+        } = header_receiver.next().await.unwrap();
 
         // Send headers for entire query.
         for (i, ((block_hash, block_signature), state_diff)) in
@@ -101,7 +96,7 @@ async fn state_diff_basic_flow() {
                 query,
                 report_receiver: _report_receiver,
                 responses_sender: mut state_diff_sender,
-            } = state_diff_payload_receiver.next().await.unwrap();
+            } = state_diff_receiver.next().await.unwrap();
             assert_eq!(
                 query,
                 StateDiffQuery(Query {
@@ -309,13 +304,8 @@ async fn validate_state_diff_fails(
     state_diff_chunks: Vec<Option<StateDiffChunk>>,
     error_validator: impl Fn(P2PSyncClientError),
 ) {
-    let TestArgs {
-        p2p_sync,
-        storage_reader,
-        mut state_diff_payload_receiver,
-        mut header_payload_receiver,
-        ..
-    } = setup();
+    let TestArgs { p2p_sync, storage_reader, mut state_diff_receiver, mut header_receiver, .. } =
+        setup();
 
     let (block_hash, block_signature) = *create_block_hashes_and_signatures(1).first().unwrap();
 
@@ -326,7 +316,7 @@ async fn validate_state_diff_fails(
             query: _query,
             report_receiver: _report_receiver,
             responses_sender: mut headers_sender,
-        } = header_payload_receiver.next().await.unwrap();
+        } = header_receiver.next().await.unwrap();
         headers_sender
             .send(Ok(DataOrFin(Some(SignedBlockHeader {
                 block_header: BlockHeader {
@@ -345,7 +335,7 @@ async fn validate_state_diff_fails(
             query,
             report_receiver: _report_reciever,
             responses_sender: mut state_diffs_sender,
-        } = state_diff_payload_receiver.next().await.unwrap();
+        } = state_diff_receiver.next().await.unwrap();
         assert_eq!(
             query,
             StateDiffQuery(Query {

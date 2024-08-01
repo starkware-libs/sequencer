@@ -3,19 +3,15 @@ use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt};
 use metrics::gauge;
 use papyrus_common::metrics as papyrus_metrics;
-use papyrus_protobuf::sync::SignedBlockHeader;
+use papyrus_network::network_manager::ClientResponsesManager;
+use papyrus_protobuf::sync::{DataOrFin, SignedBlockHeader};
 use papyrus_storage::header::{HeaderStorageReader, HeaderStorageWriter};
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::BlockNumber;
 use tracing::debug;
 
 use super::stream_builder::{BlockData, BlockNumberLimit, DataStreamBuilder};
-use super::{
-    P2PSyncClientError,
-    ResponseReceiver,
-    ALLOWED_SIGNATURES_LENGTH,
-    NETWORK_DATA_TIMEOUT,
-};
+use super::{P2PSyncClientError, ALLOWED_SIGNATURES_LENGTH, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for SignedBlockHeader {
     fn write_to_storage(
@@ -64,17 +60,19 @@ impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
     const BLOCK_NUMBER_LIMIT: BlockNumberLimit = BlockNumberLimit::Unlimited;
 
     fn parse_data_for_block<'a>(
-        signed_headers_receiver: &'a mut ResponseReceiver<SignedBlockHeader>,
+        signed_headers_response_manager: &'a mut ClientResponsesManager<
+            DataOrFin<SignedBlockHeader>,
+        >,
         block_number: BlockNumber,
         _storage_reader: &'a StorageReader,
     ) -> BoxFuture<'a, Result<Option<Self::Output>, P2PSyncClientError>> {
         async move {
             let maybe_signed_header =
-                tokio::time::timeout(NETWORK_DATA_TIMEOUT, signed_headers_receiver.next())
+                tokio::time::timeout(NETWORK_DATA_TIMEOUT, signed_headers_response_manager.next())
                     .await?
                     .ok_or(P2PSyncClientError::ReceiverChannelTerminated {
-                    type_description: Self::TYPE_DESCRIPTION,
-                })?;
+                        type_description: Self::TYPE_DESCRIPTION,
+                    })?;
             let Some(signed_block_header) = maybe_signed_header?.0 else {
                 return Ok(None);
             };
