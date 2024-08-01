@@ -5,11 +5,10 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::rpc_transaction::RpcDeclareTransaction;
-use starknet_sierra_compile::compile::compile_sierra_to_casm;
+use starknet_sierra_compile::compile::SierraToCasmCompiler;
 use starknet_sierra_compile::errors::CompilationUtilError;
 use starknet_sierra_compile::utils::into_contract_class_for_compilation;
 
-use crate::config::GatewayCompilerConfig;
 use crate::errors::{GatewayError, GatewayResult};
 
 #[cfg(test)]
@@ -19,8 +18,7 @@ mod compilation_test;
 // TODO(Arni): Pass the compiler with dependancy injection.
 #[derive(Clone)]
 pub struct GatewayCompiler {
-    #[allow(dead_code)]
-    pub config: GatewayCompilerConfig,
+    pub sierra_to_casm_compiler: SierraToCasmCompiler,
 }
 
 impl GatewayCompiler {
@@ -52,7 +50,7 @@ impl GatewayCompiler {
         cairo_lang_contract_class: CairoLangContractClass,
     ) -> Result<CasmContractClass, GatewayError> {
         let catch_unwind_result =
-            panic::catch_unwind(|| compile_sierra_to_casm(cairo_lang_contract_class));
+            panic::catch_unwind(|| self.sierra_to_casm_compiler.compile(cairo_lang_contract_class));
         let casm_contract_class =
             catch_unwind_result.map_err(|_| CompilationUtilError::CompilationPanic)??;
 
