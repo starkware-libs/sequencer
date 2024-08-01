@@ -83,7 +83,9 @@ jobs:
     #   RUSTDOCFLAGS: "-D warnings"
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
       - uses: Swatinem/rust-cache@v2
       - uses: Noelware/setup-protoc@1.1.0
         with:
