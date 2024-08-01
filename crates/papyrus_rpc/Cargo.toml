@@ -1,6 +1,6 @@
 [package]
 name = "papyrus_rpc"
-version = "0.4.0-rc.0"
+version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -18,17 +18,17 @@ hyper = { workspace = true, features = ["full"] }
 jsonrpsee = { workspace = true, features = ["full"] }
 lazy_static.workspace = true
 metrics.workspace = true
-papyrus_common = { path = "../papyrus_common", version = "0.4.0-rc.0" }
-papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0" }
-papyrus_execution = { path = "../papyrus_execution", version = "0.4.0-rc.0" }
-papyrus_proc_macros = { path = "../papyrus_proc_macros", version = "0.4.0-rc.0" }
-papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-rc.0" }
+papyrus_common.workspace = true
+papyrus_config.workspace = true
+papyrus_execution.workspace = true
+papyrus_proc_macros.workspace = true
+papyrus_storage.workspace = true
 regex = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet-types-core.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
-starknet_client = { path = "../starknet_client", version = "0.4.0-rc.0" }
+starknet_api.workspace = true
+starknet_client.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 tower = { workspace = true, features = ["full"] }
 tracing.workspace = true
@@ -48,16 +48,21 @@ jsonschema.workspace = true
 lazy_static.workspace = true
 metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
-papyrus_execution = { path = "../papyrus_execution", features = ["testing"] }
-papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
-papyrus_test_utils = { path = "../papyrus_test_utils" }
+papyrus_execution = { workspace = true, features = ["testing"] }
+papyrus_storage = { workspace = true, features = ["testing"] }
+papyrus_test_utils.workspace = true
 pretty_assertions.workspace = true
 prometheus-parse.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
 reqwest.workspace = true
 starknet-core.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0", features = ["testing"] }
-starknet_client = { path = "../starknet_client", features = ["testing"] }
+starknet_api = { workspace = true, features = ["testing"] }
+starknet_client = { workspace = true, features = ["testing"] }
 strum.workspace = true
 strum_macros.workspace = true
+
+[lints.rust]
+# See [here](https://github.com/taiki-e/cargo-llvm-cov/issues/370) for a discussion on why this is
+# needed (from rust 1.80).
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }

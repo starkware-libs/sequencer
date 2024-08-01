@@ -1,4 +1,5 @@
 use futures::{SinkExt, StreamExt};
+use papyrus_network::network_manager::test_utils::create_test_broadcasted_message_manager;
 use papyrus_protobuf::consensus::ConsensusMessage;
 use test_case::test_case;
 
@@ -21,9 +22,9 @@ async fn test_invalid(distinct_messages: bool) {
         if distinct_messages {
             proposal.height = height;
         }
-        let report_sender = futures::channel::oneshot::channel().0;
+        let broadcasted_message_manager = create_test_broadcasted_message_manager();
         let msg = ConsensusMessage::Proposal(proposal.clone());
-        sender.send((Ok(msg.clone()), report_sender)).await.unwrap();
+        sender.send((Ok(msg.clone()), broadcasted_message_manager)).await.unwrap();
         if receiver.next().await.unwrap().0.unwrap() != msg {
             invalid_messages += 1;
         }
@@ -43,9 +44,9 @@ async fn test_drops(distinct_messages: bool) {
         if distinct_messages {
             proposal.height = height;
         }
-        let report_sender = futures::channel::oneshot::channel().0;
+        let broadcasted_message_manager = create_test_broadcasted_message_manager();
         let msg = ConsensusMessage::Proposal(proposal.clone());
-        sender.send((Ok(msg.clone()), report_sender)).await.unwrap();
+        sender.send((Ok(msg.clone()), broadcasted_message_manager)).await.unwrap();
     }
     drop(sender);
 

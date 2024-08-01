@@ -472,6 +472,7 @@ impl<'a> SyscallHintProcessor<'a> {
                 let resource = match resource {
                     Resource::L1Gas => l1_gas,
                     Resource::L2Gas => l2_gas,
+                    Resource::L1DataGas => todo!(),
                 };
 
                 vec![
@@ -608,7 +609,7 @@ impl<'a> SyscallHintProcessor<'a> {
         vm: &mut VirtualMachine,
         data: &[Felt],
     ) -> SyscallResult<(Relocatable, Relocatable)> {
-        let data = data.iter().map(|&x| MaybeRelocatable::from(x)).collect();
+        let data: Vec<MaybeRelocatable> = data.iter().map(|&x| MaybeRelocatable::from(x)).collect();
         let data_segment_start_ptr = self.read_only_segments.allocate(vm, &data)?;
         let data_segment_end_ptr = (data_segment_start_ptr + data.len())?;
         Ok((data_segment_start_ptr, data_segment_end_ptr))

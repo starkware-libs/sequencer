@@ -3,7 +3,7 @@ edition.workspace = true
 license.workspace = true
 name = "starknet_gateway"
 repository.workspace = true
-version = "0.0.0"
+version.workspace = true
 
 [lints]
 workspace = true
@@ -14,23 +14,21 @@ testing = []
 [dependencies]
 async-trait.workspace = true
 axum.workspace = true
-blockifier = { path = "../blockifier", version = "0.8.0-rc.0", features = ["testing"] }
+blockifier = { workspace = true, features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
-cairo-vm.workspace = true
 enum-assoc.workspace = true
 hyper.workspace = true
-mempool_test_utils = { path = "../mempool_test_utils", version = "0.0" }
-num-traits.workspace = true
-papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0" }
-papyrus_rpc = { path = "../papyrus_rpc", version = "0.4.0-rc.0" }
+mempool_test_utils.workspace = true
+papyrus_config.workspace = true
+papyrus_rpc.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
-starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }
-starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
-starknet_sierra_compile = { path = "../starknet_sierra_compile", version = "0.0" }
+starknet_api.workspace = true
+starknet_mempool_infra.workspace = true
+starknet_mempool_types.workspace = true
+starknet_sierra_compile.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
@@ -38,9 +36,11 @@ validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
+cairo-lang-sierra-to-casm.workspace = true
 mockall.workspace = true
-mockito = "1.4.0"
+mockito.workspace = true
 num-bigint.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
-starknet_mempool = { path = "../mempool", version = "0.0" }
+starknet_mempool.workspace = true
+tracing-test.workspace = true

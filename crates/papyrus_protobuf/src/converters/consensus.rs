@@ -77,11 +77,8 @@ impl TryFrom<protobuf::Vote> for Vote {
 
         let height = value.height;
         let round = value.round;
-        let block_hash: StarkHash = value
-            .block_hash
-            .ok_or(ProtobufConversionError::MissingField { field_description: "block_hash" })?
-            .try_into()?;
-        let block_hash = Some(BlockHash(block_hash));
+        let block_hash: Option<BlockHash> =
+            value.block_hash.map(|block_hash| block_hash.try_into()).transpose()?.map(BlockHash);
         let voter = value
             .voter
             .ok_or(ProtobufConversionError::MissingField { field_description: "voter" })?
@@ -107,6 +104,8 @@ impl From<Vote> for protobuf::Vote {
         }
     }
 }
+
+auto_impl_into_and_try_from_vec_u8!(Vote, protobuf::Vote);
 
 impl TryFrom<protobuf::ConsensusMessage> for ConsensusMessage {
     type Error = ProtobufConversionError;

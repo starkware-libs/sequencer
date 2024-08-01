@@ -2,10 +2,12 @@ use std::collections::HashMap;
 use std::fs;
 
 use clap::Error;
-use committer::block_committer::input::{ConfigImpl, Input};
-use committer::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
 use serde::{Deserialize, Deserializer};
 use serde_json::{Map, Value};
+use starknet_committer::block_committer::input::{ConfigImpl, Input, StarknetStorageValue};
+use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
+use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
+use starknet_patricia::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
 use tempfile::NamedTempFile;
 
 use super::utils::parse_from_python::parse_input_single_storage_tree_flow_test;
@@ -108,7 +110,13 @@ pub async fn test_regression_single_tree() {
 
     let start = std::time::Instant::now();
     // Benchmark the single tree flow test.
-    let output = single_tree_flow_test(leaf_modifications, storage, root_hash).await;
+    let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
+        leaf_modifications.clone(),
+        storage,
+        root_hash,
+        OriginalSkeletonStorageTrieConfig::new(&leaf_modifications, false),
+    )
+    .await;
     let execution_time = std::time::Instant::now() - start;
 
     // Assert correctness of the output of the single tree flow test.

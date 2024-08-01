@@ -23,6 +23,31 @@ pub struct Query {
     pub limit: u64,
     pub step: u64,
 }
+impl From<HeaderQuery> for Query {
+    fn from(header_query: HeaderQuery) -> Self {
+        header_query.0
+    }
+}
+impl From<StateDiffQuery> for Query {
+    fn from(state_diff_query: StateDiffQuery) -> Self {
+        state_diff_query.0
+    }
+}
+impl From<TransactionQuery> for Query {
+    fn from(transaction_query: TransactionQuery) -> Self {
+        transaction_query.0
+    }
+}
+impl From<ClassQuery> for Query {
+    fn from(class_query: ClassQuery) -> Self {
+        class_query.0
+    }
+}
+impl From<EventQuery> for Query {
+    fn from(event_query: EventQuery) -> Self {
+        event_query.0
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum BlockHashOrNumber {
@@ -42,17 +67,47 @@ pub struct DataOrFin<T>(pub Option<T>);
 #[derive(Default, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct HeaderQuery(pub Query);
 
+impl From<Query> for HeaderQuery {
+    fn from(query: Query) -> Self {
+        Self(query)
+    }
+}
+
 #[derive(Default, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct StateDiffQuery(pub Query);
+
+impl From<Query> for StateDiffQuery {
+    fn from(query: Query) -> Self {
+        Self(query)
+    }
+}
 
 #[derive(Default, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TransactionQuery(pub Query);
 
+impl From<Query> for TransactionQuery {
+    fn from(query: Query) -> Self {
+        Self(query)
+    }
+}
+
 #[derive(Default, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ClassQuery(pub Query);
 
+impl From<Query> for ClassQuery {
+    fn from(query: Query) -> Self {
+        Self(query)
+    }
+}
+
 #[derive(Default, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct EventQuery(pub Query);
+
+impl From<Query> for EventQuery {
+    fn from(query: Query) -> Self {
+        Self(query)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SignedBlockHeader {

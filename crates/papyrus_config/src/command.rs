@@ -17,7 +17,7 @@ pub(crate) fn get_command_matches(
 
 // Takes matched arguments from the command line interface and env variables and updates the config
 // map.
-// Supports usize, bool and String.
+// Supports f64, u64, i64, bool and String.
 pub(crate) fn update_config_map_by_command_args(
     config_map: &mut BTreeMap<ParamPath, Value>,
     types_map: &BTreeMap<ParamPath, SerializationType>,
@@ -49,8 +49,10 @@ fn build_args_parser(config_map: &BTreeMap<ParamPath, SerializedParam>) -> Vec<A
             continue; // Pointer target
         };
         let clap_parser = match serialization_type {
-            SerializationType::Number => clap::value_parser!(usize).into(),
             SerializationType::Boolean => clap::value_parser!(bool),
+            SerializationType::Float => clap::value_parser!(f64).into(),
+            SerializationType::NegativeInteger => clap::value_parser!(i64).into(),
+            SerializationType::PositiveInteger => clap::value_parser!(u64).into(),
             SerializationType::String => clap::value_parser!(String),
         };
 
@@ -58,7 +60,9 @@ fn build_args_parser(config_map: &BTreeMap<ParamPath, SerializedParam>) -> Vec<A
             .long(param_path)
             .env(to_env_var_name(param_path))
             .help(&serialized_param.description)
-            .value_parser(clap_parser);
+            .value_parser(clap_parser)
+            .allow_negative_numbers(true);
+
         args_parser.push(arg);
     }
     args_parser
@@ -72,8 +76,10 @@ fn get_arg_by_type(
 ) -> Result<Value, ConfigError> {
     let serialization_type = types_map.get(param_path).expect("missing type");
     match serialization_type {
-        SerializationType::Number => Ok(json!(arg_match.try_get_one::<usize>(param_path)?)),
         SerializationType::Boolean => Ok(json!(arg_match.try_get_one::<bool>(param_path)?)),
+        SerializationType::Float => Ok(json!(arg_match.try_get_one::<f64>(param_path)?)),
+        SerializationType::NegativeInteger => Ok(json!(arg_match.try_get_one::<i64>(param_path)?)),
+        SerializationType::PositiveInteger => Ok(json!(arg_match.try_get_one::<u64>(param_path)?)),
         SerializationType::String => Ok(json!(arg_match.try_get_one::<String>(param_path)?)),
     }
 }

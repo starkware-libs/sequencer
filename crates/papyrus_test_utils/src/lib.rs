@@ -85,6 +85,7 @@ use starknet_api::deprecated_contract_class::{
     StructType,
     TypedParameter,
 };
+use starknet_api::execution_resources::{Builtin, ExecutionResources, GasVector};
 use starknet_api::felt;
 use starknet_api::hash::{PoseidonHash, StarkHash};
 use starknet_api::state::{
@@ -98,7 +99,6 @@ use starknet_api::state::{
 };
 use starknet_api::transaction::{
     AccountDeploymentData,
-    Builtin,
     Calldata,
     ContractAddressSalt,
     DeclareTransaction,
@@ -112,14 +112,13 @@ use starknet_api::transaction::{
     DeployAccountTransactionV3,
     DeployTransaction,
     DeployTransactionOutput,
+    DeprecatedResourceBoundsMapping,
     Event,
     EventContent,
     EventData,
     EventIndexInTransactionOutput,
     EventKey,
-    ExecutionResources,
     Fee,
-    GasVector,
     InvokeTransaction,
     InvokeTransactionOutput,
     InvokeTransactionV0,
@@ -134,7 +133,6 @@ use starknet_api::transaction::{
     PaymasterData,
     Resource,
     ResourceBounds,
-    ResourceBoundsMapping,
     RevertedTransactionExecutionStatus,
     Tip,
     Transaction,
@@ -189,7 +187,7 @@ pub fn validate_load_and_dump<T: Serialize + for<'a> Deserialize<'a>>(path_in_re
     let json_value = read_json_file(path_in_resource_dir);
     let load_result = serde_json::from_value::<T>(json_value.clone());
     assert!(load_result.is_ok(), "error: {:?}", load_result.err());
-    let dump_result = serde_json::to_value(&(load_result.unwrap()));
+    let dump_result = serde_json::to_value(load_result.unwrap());
     assert!(dump_result.is_ok(), "error: {:?}", dump_result.err());
     assert_eq!(json_value, dump_result.unwrap());
 }
@@ -519,7 +517,7 @@ auto_impl_get_test_instance! {
         pub sender_address: ContractAddress,
     }
     pub struct DeclareTransactionV3 {
-        pub resource_bounds: ResourceBoundsMapping,
+        pub resource_bounds: DeprecatedResourceBoundsMapping,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -552,7 +550,7 @@ auto_impl_get_test_instance! {
         pub constructor_calldata: Calldata,
     }
     pub struct DeployAccountTransactionV3 {
-        pub resource_bounds: ResourceBoundsMapping,
+        pub resource_bounds: DeprecatedResourceBoundsMapping,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -659,7 +657,7 @@ auto_impl_get_test_instance! {
         pub calldata: Calldata,
     }
     pub struct InvokeTransactionV3 {
-        pub resource_bounds: ResourceBoundsMapping,
+        pub resource_bounds: DeprecatedResourceBoundsMapping,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -724,7 +722,7 @@ auto_impl_get_test_instance! {
         pub max_amount: u64,
         pub max_price_per_unit: u128,
     }
-    pub struct ResourceBoundsMapping(pub BTreeMap<Resource, ResourceBounds>);
+    pub struct DeprecatedResourceBoundsMapping(pub BTreeMap<Resource, ResourceBounds>);
     pub struct SequencerContractAddress(pub ContractAddress);
     pub struct Signature {
         pub r: Felt,

@@ -151,14 +151,14 @@ pub struct ResourceBoundsMapping {
     pub l2_gas: ResourceBounds,
 }
 
-impl From<ResourceBoundsMapping> for starknet_api::transaction::ResourceBoundsMapping {
+impl From<ResourceBoundsMapping> for starknet_api::transaction::DeprecatedResourceBoundsMapping {
     fn from(value: ResourceBoundsMapping) -> Self {
         Self([(Resource::L1Gas, value.l1_gas), (Resource::L2Gas, value.l2_gas)].into())
     }
 }
 
-impl From<starknet_api::transaction::ResourceBoundsMapping> for ResourceBoundsMapping {
-    fn from(value: starknet_api::transaction::ResourceBoundsMapping) -> Self {
+impl From<starknet_api::transaction::DeprecatedResourceBoundsMapping> for ResourceBoundsMapping {
+    fn from(value: starknet_api::transaction::DeprecatedResourceBoundsMapping) -> Self {
         Self {
             l1_gas: value.0.get(&Resource::L1Gas).cloned().unwrap_or_default(),
             l2_gas: value.0.get(&Resource::L2Gas).cloned().unwrap_or_default(),
@@ -765,22 +765,22 @@ pub enum Builtin {
     SegmentArena,
 }
 
-impl TryFrom<starknet_api::transaction::Builtin> for Builtin {
+impl TryFrom<starknet_api::execution_resources::Builtin> for Builtin {
     type Error = ();
-    fn try_from(builtin: starknet_api::transaction::Builtin) -> Result<Self, Self::Error> {
+    fn try_from(builtin: starknet_api::execution_resources::Builtin) -> Result<Self, Self::Error> {
         match builtin {
-            starknet_api::transaction::Builtin::RangeCheck => Ok(Builtin::RangeCheck),
-            starknet_api::transaction::Builtin::Pedersen => Ok(Builtin::Pedersen),
-            starknet_api::transaction::Builtin::Poseidon => Ok(Builtin::Poseidon),
-            starknet_api::transaction::Builtin::EcOp => Ok(Builtin::EcOp),
-            starknet_api::transaction::Builtin::Ecdsa => Ok(Builtin::Ecdsa),
-            starknet_api::transaction::Builtin::Bitwise => Ok(Builtin::Bitwise),
-            starknet_api::transaction::Builtin::Keccak => Ok(Builtin::Keccak),
-            starknet_api::transaction::Builtin::SegmentArena => Ok(Builtin::SegmentArena),
+            starknet_api::execution_resources::Builtin::RangeCheck => Ok(Builtin::RangeCheck),
+            starknet_api::execution_resources::Builtin::Pedersen => Ok(Builtin::Pedersen),
+            starknet_api::execution_resources::Builtin::Poseidon => Ok(Builtin::Poseidon),
+            starknet_api::execution_resources::Builtin::EcOp => Ok(Builtin::EcOp),
+            starknet_api::execution_resources::Builtin::Ecdsa => Ok(Builtin::Ecdsa),
+            starknet_api::execution_resources::Builtin::Bitwise => Ok(Builtin::Bitwise),
+            starknet_api::execution_resources::Builtin::Keccak => Ok(Builtin::Keccak),
+            starknet_api::execution_resources::Builtin::SegmentArena => Ok(Builtin::SegmentArena),
             // These builtins are not part of the specs.
-            starknet_api::transaction::Builtin::AddMod
-            | starknet_api::transaction::Builtin::MulMod
-            | starknet_api::transaction::Builtin::RangeCheck96 => Err(()),
+            starknet_api::execution_resources::Builtin::AddMod
+            | starknet_api::execution_resources::Builtin::MulMod
+            | starknet_api::execution_resources::Builtin::RangeCheck96 => Err(()),
         }
     }
 }
@@ -796,8 +796,8 @@ pub struct ExecutionResources {
     pub memory_holes: Option<u64>,
 }
 
-impl From<starknet_api::transaction::ExecutionResources> for ExecutionResources {
-    fn from(value: starknet_api::transaction::ExecutionResources) -> Self {
+impl From<starknet_api::execution_resources::ExecutionResources> for ExecutionResources {
+    fn from(value: starknet_api::execution_resources::ExecutionResources) -> Self {
         Self {
             steps: value.steps,
             builtin_instance_counter: value

@@ -6,21 +6,23 @@ use async_trait::async_trait;
 use axum::extract::State;
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use blockifier::execution::contract_class::ClassInfo;
+use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
 use starknet_mempool_types::communication::SharedMempoolClient;
-use starknet_mempool_types::mempool_types::{Account, MempoolInput};
-use tracing::{info, instrument};
+use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
+use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
+use tracing::{error, info, instrument};
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{GatewayConfig, GatewayNetworkConfig, RpcStateReaderConfig};
-use crate::errors::{GatewayError, GatewayResult, GatewayRunError};
+use crate::errors::{GatewayResult, GatewayRunError, GatewaySpecError};
 use crate::rpc_state_reader::RpcStateReaderFactory;
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
-use crate::utils::{external_tx_to_thin_tx, get_sender_address};
 
 #[cfg(test)]
 #[path = "gateway_test.rs"]
@@ -100,15 +102,18 @@ async fn add_tx(
             tx,
         )
     })
-    .await??;
+    .await
+    .map_err(|join_err| {
+        error!("Failed to process tx: {}", join_err);
+        GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
+    })??;
 
-    let tx_hash = mempool_input.tx.tx_hash;
+    let tx_hash = mempool_input.tx.tx_hash();
 
-    app_state
-        .mempool_client
-        .add_tx(mempool_input)
-        .await
-        .map_err(|e| GatewayError::MessageSendError(e.to_string()))?;
+    app_state.mempool_client.add_tx(mempool_input).await.map_err(|e| {
+        error!("Failed to send tx to mempool: {}", e);
+        GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
+    })?;
     // TODO: Also return `ContractAddress` for deploy and `ClassHash` for Declare.
     Ok(Json(tx_hash))
 }
@@ -127,29 +132,39 @@ fn process_tx(
 
     // Compile Sierra to Casm.
     let optional_class_info = match &tx {
-        RpcTransaction::Declare(declare_tx) => {
-            Some(gateway_compiler.process_declare_tx(declare_tx)?)
-        }
+        RpcTransaction::Declare(declare_tx) => Some(
+            ClassInfo::try_from(gateway_compiler.process_declare_tx(declare_tx)?).map_err(|e| {
+                error!("Failed to convert Starknet API ClassInfo to Blockifier ClassInfo: {:?}", e);
+                GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+            })?,
+        ),
         _ => None,
     };
 
     let validator = stateful_tx_validator.instantiate_validator(state_reader_factory)?;
-    let tx_hash = stateful_tx_validator.run_validate(&tx, optional_class_info, validator)?;
+    // TODO(Yael 31/7/24): refactor after IntrnalTransaction is ready, delete validate_info and
+    // compute all the info outside of run_validate.
+    let validate_info = stateful_tx_validator.run_validate(&tx, optional_class_info, validator)?;
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
     Ok(MempoolInput {
-        tx: external_tx_to_thin_tx(&tx, tx_hash),
-        account: Account { sender_address: get_sender_address(&tx), ..Default::default() },
+        tx: Transaction::new_from_rpc_tx(tx, validate_info.tx_hash, validate_info.sender_address),
+        account: Account {
+            sender_address: validate_info.sender_address,
+            state: AccountState { nonce: validate_info.account_nonce },
+        },
     })
 }
 
 pub fn create_gateway(
     config: GatewayConfig,
     rpc_state_reader_config: RpcStateReaderConfig,
+    compiler_config: SierraToCasmCompilationConfig,
     mempool_client: SharedMempoolClient,
 ) -> Gateway {
     let state_reader_factory = Arc::new(RpcStateReaderFactory { config: rpc_state_reader_config });
-    let gateway_compiler = GatewayCompiler { config: config.compiler_config };
+    let gateway_compiler = GatewayCompiler::new_cairo_lang_compiler(compiler_config);
+
     Gateway::new(config, state_reader_factory, gateway_compiler, mempool_client)
 }
 

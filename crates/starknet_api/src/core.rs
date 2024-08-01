@@ -4,9 +4,9 @@ mod core_test;
 
 use core::fmt::Display;
 use std::fmt::Debug;
+use std::sync::LazyLock;
 
 use derive_more::Display;
-use once_cell::sync::Lazy;
 use primitive_types::H160;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::{Felt, NonZeroFelt};
@@ -117,7 +117,7 @@ pub const CONTRACT_ADDRESS_PREFIX: &str = "STARKNET_CONTRACT_ADDRESS";
 /// The size of the contract address domain.
 pub const CONTRACT_ADDRESS_DOMAIN_SIZE: Felt = Felt::from_hex_unchecked(PATRICIA_KEY_UPPER_BOUND);
 /// The address upper bound; it is defined to be congruent with the storage var address upper bound.
-pub static L2_ADDRESS_UPPER_BOUND: Lazy<NonZeroFelt> = Lazy::new(|| {
+pub static L2_ADDRESS_UPPER_BOUND: LazyLock<NonZeroFelt> = LazyLock::new(|| {
     NonZeroFelt::try_from(CONTRACT_ADDRESS_DOMAIN_SIZE - Felt::from(MAX_STORAGE_ITEM_SIZE)).unwrap()
 });
 
@@ -211,6 +211,14 @@ impl Nonce {
             return Err(StarknetApiError::OutOfRange { string: format!("{:?}", self) });
         }
         Ok(Self(incremented))
+    }
+
+    pub fn try_decrement(&self) -> Result<Self, StarknetApiError> {
+        // Check if an underflow occurred during decrement.
+        if self.0 == Felt::ZERO {
+            return Err(StarknetApiError::OutOfRange { string: format!("{:?}", self) });
+        }
+        Ok(Self(self.0 - Felt::ONE))
     }
 }
 

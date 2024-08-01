@@ -1,0 +1,38 @@
+[package]
+name = "starknet_patricia"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Library for computing and updating Patricia trees."
+
+[lints]
+workspace = true
+
+[features]
+testing = []
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+rand.workspace = true
+rstest.workspace = true
+
+[dependencies]
+async-recursion.workspace = true
+derive_more.workspace = true
+ethnum.workspace = true
+hex.workspace = true
+rand.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+starknet-types-core.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+# Optional dependencies required for tests and the testing feature.
+# See [here](https://github.com/bnjbvr/cargo-machete/issues/128).
+[package.metadata.cargo-machete]
+ignored = ["strum"]

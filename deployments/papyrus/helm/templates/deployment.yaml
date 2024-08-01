@@ -1,3 +1,4 @@
+{{- if eq .Values.deployment.type "deployment" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -67,9 +68,9 @@ spec:
           {{- toYaml . | nindent 10 }}
         {{- end }}
         args:
-          - --config_file 
-          - /app/config/presets/{{ .Values.starknet.preset }}
-          - --base_layer.node_url 
+          - --config_file
+          - /app/config/papyrus/presets/{{ .Values.starknet.preset }}
+          - --base_layer.node_url
           - {{ .Values.base_layer_node_url }}
           {{- if .Values.p2p.enabled }}
           - --network.tcp_port
@@ -128,3 +129,31 @@ spec:
         - secretRef:
             name: {{ template "papyrus.name" . }}-aws-creds
         {{- end }}
+{{- if or .Values.deployment.affinity .Values.deployment.podAntiAffinity }}
+      affinity:
+    {{- end }}
+      {{- with .Values.deployment.affinity }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if eq .Values.deployment.podAntiAffinity "hard" }}
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: {{ .Values.deployment.podAntiAffinityTopologyKey }}
+              labelSelector:
+                matchExpressions:
+                  - {key: app.kubernetes.io/name, operator: In, values: [{{ template "papyrus.name" . }}]}
+      {{- else if eq .Values.deployment.podAntiAffinity "soft" }}
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: {{ .Values.deployment.podAntiAffinityTopologyKey }}
+                labelSelector:
+                  matchExpressions:
+                    - {key: app.kubernetes.io/name, operator: In, values: [{{ template "papyrus.name" . }}]}
+      {{- end }}
+    {{- with .Values.deployment.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+{{- end }}

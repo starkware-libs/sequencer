@@ -75,7 +75,7 @@ def packages_to_test_due_to_global_changes(files: List[str]) -> Set[str]:
     return set()
 
 
-def run_test(changes_only: bool, commit_id: Optional[str], concurrency: bool):
+def run_test(changes_only: bool, commit_id: Optional[str]):
     local_changes = get_local_changes(".", commit_id=commit_id)
     modified_packages = get_modified_packages(local_changes)
     args = []
@@ -100,12 +100,6 @@ def run_test(changes_only: bool, commit_id: Optional[str], concurrency: bool):
     # args).
     cmd = ["cargo", "test"] + args
 
-    # TODO: Less specific handling of active feature combinations in tests (which combos should be
-    #   tested and which shouldn't?).
-    # If blockifier is to be tested, add the concurrency flag if requested.
-    if concurrency and "blockifier" in tested_packages:
-        cmd.extend(["--features", "concurrency"])
-
     print("Running tests...")
     print(cmd, flush=True)
     subprocess.run(cmd, check=True)
@@ -115,18 +109,13 @@ def run_test(changes_only: bool, commit_id: Optional[str], concurrency: bool):
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Presubmit script.")
     parser.add_argument("--changes_only", action="store_true")
-    parser.add_argument(
-        "--concurrency",
-        action="store_true",
-        help="If blockifier is to be tested, add the concurrency flag.",
-    )
     parser.add_argument("--commit_id", type=str, help="GIT commit ID to compare against.")
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    run_test(changes_only=args.changes_only, commit_id=args.commit_id, concurrency=args.concurrency)
+    run_test(changes_only=args.changes_only, commit_id=args.commit_id)
 
 
 if __name__ == "__main__":

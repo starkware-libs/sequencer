@@ -1,4 +1,5 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
+
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Poseidon;
@@ -11,11 +12,11 @@ use crate::block::{BlockHash, BlockHeaderWithoutHash};
 use crate::core::{EventCommitment, ReceiptCommitment, StateDiffCommitment, TransactionCommitment};
 use crate::crypto::utils::HashChain;
 use crate::data_availability::L1DataAvailabilityMode;
+use crate::execution_resources::GasVector;
 use crate::state::ThinStateDiff;
 use crate::transaction::{
     Event,
     Fee,
-    GasVector,
     MessageToL1,
     TransactionExecutionStatus,
     TransactionHash,
@@ -27,7 +28,7 @@ use crate::transaction_hash::ascii_as_felt;
 #[path = "block_hash_calculator_test.rs"]
 mod block_hash_calculator_test;
 
-static STARKNET_BLOCK_HASH0: Lazy<Felt> = Lazy::new(|| {
+static STARKNET_BLOCK_HASH0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_BLOCK_HASH0").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH0'")
 });
 

@@ -1,4 +1,5 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
+
 use starknet_types_core::felt::Felt;
 
 use crate::block::BlockNumber;
@@ -14,6 +15,7 @@ use crate::transaction::{
     DeployAccountTransactionV1,
     DeployAccountTransactionV3,
     DeployTransaction,
+    DeprecatedResourceBoundsMapping,
     InvokeTransaction,
     InvokeTransactionV0,
     InvokeTransactionV1,
@@ -21,7 +23,6 @@ use crate::transaction::{
     L1HandlerTransaction,
     Resource,
     ResourceBounds,
-    ResourceBoundsMapping,
     Tip,
     Transaction,
     TransactionHash,
@@ -35,17 +36,17 @@ const DATA_AVAILABILITY_MODE_BITS: usize = 32;
 const L1_GAS: &ResourceName = b"\0L1_GAS";
 const L2_GAS: &ResourceName = b"\0L2_GAS";
 
-static DECLARE: Lazy<Felt> =
-    Lazy::new(|| ascii_as_felt("declare").expect("ascii_as_felt failed for 'declare'"));
-static DEPLOY: Lazy<Felt> =
-    Lazy::new(|| ascii_as_felt("deploy").expect("ascii_as_felt failed for 'deploy'"));
-static DEPLOY_ACCOUNT: Lazy<Felt> = Lazy::new(|| {
+static DECLARE: LazyLock<Felt> =
+    LazyLock::new(|| ascii_as_felt("declare").expect("ascii_as_felt failed for 'declare'"));
+static DEPLOY: LazyLock<Felt> =
+    LazyLock::new(|| ascii_as_felt("deploy").expect("ascii_as_felt failed for 'deploy'"));
+static DEPLOY_ACCOUNT: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("deploy_account").expect("ascii_as_felt failed for 'deploy_account'")
 });
-static INVOKE: Lazy<Felt> =
-    Lazy::new(|| ascii_as_felt("invoke").expect("ascii_as_felt failed for 'invoke'"));
-static L1_HANDLER: Lazy<Felt> =
-    Lazy::new(|| ascii_as_felt("l1_handler").expect("ascii_as_felt failed for 'l1_handler'"));
+static INVOKE: LazyLock<Felt> =
+    LazyLock::new(|| ascii_as_felt("invoke").expect("ascii_as_felt failed for 'invoke'"));
+static L1_HANDLER: LazyLock<Felt> =
+    LazyLock::new(|| ascii_as_felt("l1_handler").expect("ascii_as_felt failed for 'l1_handler'"));
 const CONSTRUCTOR_ENTRY_POINT_SELECTOR: Felt =
     Felt::from_hex_unchecked("0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194");
 
@@ -175,7 +176,7 @@ pub(crate) fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {
 
 // An implementation of the SNIP: https://github.com/EvyatarO/SNIPs/blob/snip-8/SNIPS/snip-8.md
 fn get_tip_resource_bounds_hash(
-    resource_bounds_mapping: &ResourceBoundsMapping,
+    resource_bounds_mapping: &DeprecatedResourceBoundsMapping,
     tip: &Tip,
 ) -> Result<Felt, StarknetApiError> {
     let l1_resource_bounds =

@@ -1,0 +1,23 @@
+[package]
+name = "starknet_committer"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+license-file.workspace = true
+description = "Computes and manages Starknet state."
+
+
+[dependencies]
+hex.workspace = true
+pretty_assertions.workspace = true
+rstest.workspace = true
+serde_json.workspace = true
+starknet-types-core.workspace = true
+starknet_patricia = { workspace = true, features = ["testing"] }
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

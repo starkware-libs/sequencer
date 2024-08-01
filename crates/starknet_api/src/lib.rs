@@ -4,11 +4,13 @@
 
 pub mod block;
 pub mod block_hash;
+pub mod contract_class;
 pub mod core;
 pub mod crypto;
 pub mod data_availability;
 pub mod deprecated_contract_class;
 pub mod executable_transaction;
+pub mod execution_resources;
 pub mod hash;
 pub mod rpc_transaction;
 pub mod serde_utils;

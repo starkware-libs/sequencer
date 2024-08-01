@@ -1,18 +1,14 @@
 use std::collections::{hash_map, BTreeMap, HashMap};
 
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::{
-    Account,
-    AccountState,
-    MempoolResult,
-    ThinTransaction,
-};
+use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolResult};
 
 use crate::mempool::TransactionReference;
 
-type HashToTransaction = HashMap<TransactionHash, ThinTransaction>;
+type HashToTransaction = HashMap<TransactionHash, Transaction>;
 
 /// Contains all transactions currently held in the mempool.
 /// Invariant: both data structures are consistent regarding the existence of transactions:
@@ -24,10 +20,12 @@ pub struct TransactionPool {
     tx_pool: HashToTransaction,
     // Transactions organized by account address, sorted by ascending nonce values.
     txs_by_account: AccountTransactionIndex,
+    // Tracks the capacity of the pool.
+    capacity: PoolCapacity,
 }
 
 impl TransactionPool {
-    pub fn insert(&mut self, tx: ThinTransaction) -> MempoolResult<()> {
+    pub fn insert(&mut self, tx: Transaction) -> MempoolResult<()> {
         let tx_reference = TransactionReference::new(&tx);
         let tx_hash = tx_reference.tx_hash;
 
@@ -47,10 +45,12 @@ impl TransactionPool {
             )
         };
 
+        self.capacity.add();
+
         Ok(())
     }
 
-    pub fn remove(&mut self, tx_hash: TransactionHash) -> MempoolResult<ThinTransaction> {
+    pub fn remove(&mut self, tx_hash: TransactionHash) -> MempoolResult<Transaction> {
         // Remove from pool.
         let tx =
             self.tx_pool.remove(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })?;
@@ -62,6 +62,8 @@ impl TransactionPool {
                  main mapping, but does not appear in the account mapping"
             )
         });
+
+        self.capacity.remove();
 
         Ok(tx)
     }
@@ -76,10 +78,12 @@ impl TransactionPool {
                      in account mapping, but does not appear in the main mapping"
                 );
             });
+
+            self.capacity.remove();
         }
     }
 
-    pub fn _get_by_tx_hash(&self, tx_hash: TransactionHash) -> MempoolResult<&ThinTransaction> {
+    pub fn _get_by_tx_hash(&self, tx_hash: TransactionHash) -> MempoolResult<&Transaction> {
         self.tx_pool.get(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })
     }
 
@@ -102,8 +106,13 @@ impl TransactionPool {
     }
 
     #[cfg(test)]
-    pub(crate) fn _tx_pool(&self) -> &HashToTransaction {
-        &self.tx_pool
+    pub fn n_txs(&self) -> usize {
+        self.capacity.n_txs
+    }
+
+    #[allow(dead_code)]
+    pub fn contains_account(&self, address: ContractAddress) -> bool {
+        self.txs_by_account.contains(address)
     }
 }
 
@@ -152,5 +161,26 @@ impl AccountTransactionIndex {
 
         // Collect and return the transactions with lower nonces.
         txs_with_lower_nonce.into_values().collect()
+    }
+
+    fn contains(&self, address: ContractAddress) -> bool {
+        self.0.contains_key(&address)
+    }
+}
+
+#[derive(Debug, Default, Eq, PartialEq)]
+pub struct PoolCapacity {
+    n_txs: usize,
+    // TODO(Ayelet): Add size tracking.
+}
+
+impl PoolCapacity {
+    fn add(&mut self) {
+        self.n_txs += 1;
+    }
+
+    fn remove(&mut self) {
+        self.n_txs =
+            self.n_txs.checked_sub(1).expect("Underflow: Cannot subtract from an empty pool.");
     }
 }

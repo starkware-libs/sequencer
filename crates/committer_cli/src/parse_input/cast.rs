@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use committer::block_committer::input::{
+use starknet_committer::block_committer::input::{
     ConfigImpl,
     ContractAddress,
     Input,
@@ -8,11 +8,11 @@ use committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
-use committer::felt::Felt;
-use committer::hash::hash_trait::HashOutput;
-use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
-use committer::storage::errors::DeserializationError;
-use committer::storage::storage_trait::{StorageKey, StorageValue};
+use starknet_committer::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
+use starknet_patricia::felt::Felt;
+use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::storage::errors::DeserializationError;
+use starknet_patricia::storage::storage_trait::{StorageKey, StorageValue};
 
 use crate::parse_input::raw_input::RawInput;
 

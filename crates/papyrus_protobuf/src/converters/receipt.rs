@@ -1,14 +1,12 @@
 use std::collections::HashMap;
 
 use starknet_api::core::{ContractAddress, EthAddress, PatriciaKey};
+use starknet_api::execution_resources::{Builtin, ExecutionResources, GasVector};
 use starknet_api::transaction::{
-    Builtin,
     DeclareTransactionOutput,
     DeployAccountTransactionOutput,
     DeployTransactionOutput,
-    ExecutionResources,
     Fee,
-    GasVector,
     InvokeTransactionOutput,
     L1HandlerTransactionOutput,
     L2ToL1Payload,

@@ -11,8 +11,9 @@ on:
       - '.github/workflows/committer_ci.yml'
       - 'Cargo.toml'
       - 'Cargo.lock'
-      - 'crates/committer/**'
       - 'crates/committer_cli/**'
+      - 'crates/starknet_committer/**'
+      - 'crates/starknet_patricia/**'
 
   pull_request:
     types:
@@ -25,15 +26,22 @@ on:
       - '.github/workflows/committer_ci.yml'
       - 'Cargo.toml'
       - 'Cargo.lock'
-      - 'crates/committer/**'
       - 'crates/committer_cli/**'
+      - 'crates/starknet_committer/**'
+      - 'crates/starknet_patricia/**'
+
+# On PR events, cancel existing CI runs on this same PR for this workflow.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   run-regression-tests:
-    runs-on: ubuntu-latest
+    runs-on: starkware-ubuntu-latest-small
+    if: ${{ github.event_name == 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
 
       - id: auth
@@ -46,7 +54,8 @@ jobs:
       - run: cargo test -p committer_cli --release -- --include-ignored test_regression
 
   benchmarking:
-    runs-on: ubuntu-latest
+    runs-on: starkware-ubuntu-latest-small
+    if: ${{ github.event_name == 'pull_request' }}
     steps:
       # Checkout the base branch to get the old code.
       - uses: actions/checkout@v4
@@ -108,14 +117,13 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: fs.readFileSync('bench_new.txt', 'utf8'),
-              path: 'Commits'
             })
 
   gcs-push:
-    runs-on: ubuntu-20.04
+    runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
 
         # Commit hash on pull request event would be the head commit of the branch.
@@ -133,7 +141,7 @@ jobs:
         run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
 
       - name: Build CLI binary
-        run: cargo build -p committer_cli -r --bin committer_cli --target-dir CLI_TARGET
+        run: ./build_native_in_docker.sh cargo build -p committer_cli -r --bin committer_cli --target-dir CLI_TARGET
 
       - id: auth
         uses: "google-github-actions/auth@v2"

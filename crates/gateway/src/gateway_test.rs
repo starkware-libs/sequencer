@@ -6,25 +6,22 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::CairoVersion;
-use mempool_test_utils::starknet_api_test_utils::invoke_tx;
+use mempool_test_utils::starknet_api_test_utils::{create_executable_tx, invoke_tx};
 use mockall::predicate::eq;
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::communication::MockMempoolClient;
-use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput, ThinTransaction};
+use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
+use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 
 use crate::compilation::GatewayCompiler;
-use crate::config::{
-    GatewayCompilerConfig,
-    StatefulTransactionValidatorConfig,
-    StatelessTransactionValidatorConfig,
-};
+use crate::config::{StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig};
 use crate::gateway::{add_tx, AppState, SharedMempoolClient};
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
-use crate::utils::{external_tx_to_account_tx, get_tx_hash};
+use crate::utils::rpc_tx_to_account_tx;
 
 pub fn app_state(
     mempool_client: SharedMempoolClient,
@@ -32,19 +29,14 @@ pub fn app_state(
 ) -> AppState {
     AppState {
         stateless_tx_validator: StatelessTransactionValidator {
-            config: StatelessTransactionValidatorConfig {
-                validate_non_zero_l1_gas_fee: true,
-                max_calldata_length: 10,
-                max_signature_length: 2,
-                max_bytecode_size: 10000,
-                max_raw_class_size: 1000000,
-                ..Default::default()
-            },
+            config: StatelessTransactionValidatorConfig::default(),
         },
         stateful_tx_validator: Arc::new(StatefulTransactionValidator {
             config: StatefulTransactionValidatorConfig::create_for_testing(),
         }),
-        gateway_compiler: GatewayCompiler { config: GatewayCompilerConfig {} },
+        gateway_compiler: GatewayCompiler::new_cairo_lang_compiler(
+            SierraToCasmCompilationConfig::default(),
+        ),
         state_reader_factory: Arc::new(state_reader_factory),
         mempool_client,
     }
@@ -73,7 +65,15 @@ async fn test_add_tx() {
         .expect_add_tx()
         .once()
         .with(eq(MempoolInput {
-            tx: ThinTransaction { sender_address, tx_hash, tip: *tx.tip(), nonce: *tx.nonce() },
+            // TODO(Arni): Use external_to_executable_tx instead of `create_executable_tx`. Consider
+            // creating a `convertor for testing` that does not do the compilation.
+            tx: create_executable_tx(
+                sender_address,
+                tx_hash,
+                *tx.tip(),
+                *tx.nonce(),
+                tx.resource_bounds().clone().into(),
+            ),
             account: Account { sender_address, state: AccountState { nonce: *tx.nonce() } },
         }))
         .return_once(|_| Ok(()));
@@ -93,19 +93,19 @@ async fn to_bytes(res: Response) -> Bytes {
     res.into_body().collect().await.unwrap().to_bytes()
 }
 
-fn calculate_hash(external_tx: &RpcTransaction) -> TransactionHash {
-    let optional_class_info = match &external_tx {
+fn calculate_hash(rpc_tx: &RpcTransaction) -> TransactionHash {
+    let optional_class_info = match &rpc_tx {
         RpcTransaction::Declare(_declare_tx) => {
             panic!("Declare transactions are not supported in this test")
         }
         _ => None,
     };
 
-    let account_tx = external_tx_to_account_tx(
-        external_tx,
+    let account_tx = rpc_tx_to_account_tx(
+        rpc_tx,
         optional_class_info,
         &ChainInfo::create_for_testing().chain_id,
     )
     .unwrap();
-    get_tx_hash(&account_tx)
+    account_tx.tx_hash()
 }

@@ -5,8 +5,8 @@ use starknet_api::core::{calculate_contract_address, Nonce};
 use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
+    DeprecatedResourceBoundsMapping,
     Fee,
-    ResourceBoundsMapping,
     TransactionSignature,
     TransactionVersion,
 };
@@ -491,7 +491,7 @@ fn test_validate_trace(
         // Deploy account uses the actual address as the sender address.
         match &account_tx {
             AccountTransaction::DeployAccount(tx) => {
-                sender_address = tx.contract_address;
+                sender_address = tx.contract_address();
             }
             _ => panic!("Expected DeployAccountTransaction type"),
         }
@@ -558,7 +558,7 @@ fn test_account_ctor_frame_stack_trace(
 
     // Fund the account so it can afford the deployment.
     let deploy_address = match &deploy_account_tx {
-        AccountTransaction::DeployAccount(deploy_tx) => deploy_tx.contract_address,
+        AccountTransaction::DeployAccount(deploy_tx) => deploy_tx.contract_address(),
         _ => unreachable!("deploy_account_tx is a DeployAccount"),
     };
     fund_account(chain_info, deploy_address, BALANCE * 2, &mut state.state);
@@ -599,7 +599,7 @@ An ASSERT_EQ instruction failed: 1 != 0.
 /// point selector).
 fn test_contract_ctor_frame_stack_trace(
     block_context: BlockContext,
-    max_resource_bounds: ResourceBoundsMapping,
+    max_resource_bounds: DeprecatedResourceBoundsMapping,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     let chain_info = &block_context.chain_info;

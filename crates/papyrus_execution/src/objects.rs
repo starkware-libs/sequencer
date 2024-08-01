@@ -9,7 +9,7 @@ use blockifier::execution::call_info::{
     Retdata as BlockifierRetdata,
 };
 use blockifier::execution::entry_point::CallType as BlockifierCallType;
-use blockifier::transaction::objects::{GasVector, TransactionExecutionInfo};
+use blockifier::transaction::objects::{FeeType, GasVector, TransactionExecutionInfo};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources as VmExecutionResources;
 use indexmap::IndexMap;
@@ -32,16 +32,13 @@ use starknet_api::core::{
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::EntryPointType;
-use starknet_api::state::ThinStateDiff;
-use starknet_api::transaction::{
+use starknet_api::execution_resources::{
     Builtin,
-    Calldata,
-    EventContent,
     ExecutionResources,
-    Fee,
     GasVector as StarknetApiGasVector,
-    MessageToL1,
 };
+use starknet_api::state::ThinStateDiff;
+use starknet_api::transaction::{Calldata, EventContent, Fee, MessageToL1};
 use starknet_types_core::felt::Felt;
 
 use crate::{ExecutionError, ExecutionResult, TransactionExecutionOutput};
@@ -127,7 +124,7 @@ impl TryFrom<TransactionExecutionInfo> for InvokeTransactionTrace {
                     transaction_execution_info
                         .execute_call_info
                         .expect("Invoke transaction execution should contain execute_call_info."),
-                    transaction_execution_info.transaction_receipt.da_gas,
+                    transaction_execution_info.receipt.da_gas,
                 )
                     .try_into()?,
             ),
@@ -136,18 +133,16 @@ impl TryFrom<TransactionExecutionInfo> for InvokeTransactionTrace {
         Ok(Self {
             validate_invocation: match transaction_execution_info.validate_call_info {
                 None => None,
-                Some(call_info) => Some(
-                    (call_info, transaction_execution_info.transaction_receipt.da_gas)
-                        .try_into()?,
-                ),
+                Some(call_info) => {
+                    Some((call_info, transaction_execution_info.receipt.da_gas).try_into()?)
+                }
             },
             execute_invocation,
             fee_transfer_invocation: match transaction_execution_info.fee_transfer_call_info {
                 None => None,
-                Some(call_info) => Some(
-                    (call_info, transaction_execution_info.transaction_receipt.da_gas)
-                        .try_into()?,
-                ),
+                Some(call_info) => {
+                    Some((call_info, transaction_execution_info.receipt.da_gas).try_into()?)
+                }
             },
         })
     }
@@ -158,25 +153,25 @@ pub(crate) fn tx_execution_output_to_fee_estimation(
     block_context: &BlockContext,
 ) -> ExecutionResult<FeeEstimation> {
     let gas_prices = &block_context.block_info().gas_prices;
-    let (gas_price, data_gas_price) = match tx_execution_output.price_unit {
-        PriceUnit::Wei => (
-            GasPrice(gas_prices.eth_l1_gas_price.get()),
-            GasPrice(gas_prices.eth_l1_data_gas_price.get()),
+    let (gas_price, data_gas_price) = (
+        GasPrice(
+            gas_prices.get_l1_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
         ),
-        PriceUnit::Fri => (
-            GasPrice(gas_prices.strk_l1_gas_price.get()),
-            GasPrice(gas_prices.strk_l1_data_gas_price.get()),
+        GasPrice(
+            gas_prices
+                .get_l1_data_gas_price_by_fee_type(&tx_execution_output.price_unit.into())
+                .get(),
         ),
-    };
+    );
 
-    let gas_vector = tx_execution_output.execution_info.transaction_receipt.gas;
+    let gas_vector = tx_execution_output.execution_info.receipt.gas;
 
     Ok(FeeEstimation {
         gas_consumed: gas_vector.l1_gas.into(),
         gas_price,
         data_gas_consumed: gas_vector.l1_data_gas.into(),
         data_gas_price,
-        overall_fee: tx_execution_output.execution_info.transaction_receipt.fee,
+        overall_fee: tx_execution_output.execution_info.receipt.fee,
         unit: tx_execution_output.price_unit,
     })
 }
@@ -198,17 +193,15 @@ impl TryFrom<TransactionExecutionInfo> for DeclareTransactionTrace {
         Ok(Self {
             validate_invocation: match transaction_execution_info.validate_call_info {
                 None => None,
-                Some(call_info) => Some(
-                    (call_info, transaction_execution_info.transaction_receipt.da_gas)
-                        .try_into()?,
-                ),
+                Some(call_info) => {
+                    Some((call_info, transaction_execution_info.receipt.da_gas).try_into()?)
+                }
             },
             fee_transfer_invocation: match transaction_execution_info.fee_transfer_call_info {
                 None => None,
-                Some(call_info) => Some(
-                    (call_info, transaction_execution_info.transaction_receipt.da_gas)
-                        .try_into()?,
-                ),
+                Some(call_info) => {
+                    Some((call_info, transaction_execution_info.receipt.da_gas).try_into()?)
+                }
             },
         })
     }
@@ -233,25 +226,23 @@ impl TryFrom<TransactionExecutionInfo> for DeployAccountTransactionTrace {
         Ok(Self {
             validate_invocation: match transaction_execution_info.validate_call_info {
                 None => None,
-                Some(call_info) => Some(
-                    (call_info, transaction_execution_info.transaction_receipt.da_gas)
-                        .try_into()?,
-                ),
+                Some(call_info) => {
+                    Some((call_info, transaction_execution_info.receipt.da_gas).try_into()?)
+                }
             },
             constructor_invocation: (
                 transaction_execution_info.execute_call_info.expect(
                     "Deploy account execution should contain execute_call_info (the constructor \
                      call info).",
                 ),
-                transaction_execution_info.transaction_receipt.da_gas,
+                transaction_execution_info.receipt.da_gas,
             )
                 .try_into()?,
             fee_transfer_invocation: match transaction_execution_info.fee_transfer_call_info {
                 None => None,
-                Some(call_info) => Some(
-                    (call_info, transaction_execution_info.transaction_receipt.da_gas)
-                        .try_into()?,
-                ),
+                Some(call_info) => {
+                    Some((call_info, transaction_execution_info.receipt.da_gas).try_into()?)
+                }
             },
         })
     }
@@ -272,7 +263,7 @@ impl TryFrom<TransactionExecutionInfo> for L1HandlerTransactionTrace {
                 transaction_execution_info
                     .execute_call_info
                     .expect("L1Handler execution should contain execute_call_info."),
-                transaction_execution_info.transaction_receipt.da_gas,
+                transaction_execution_info.receipt.da_gas,
             )
                 .try_into()?,
         })
@@ -363,7 +354,7 @@ impl TryFrom<(CallInfo, GasVector)> for FunctionInvocation {
 // Can't implement `TryFrom` because both types are from external crates.
 fn vm_resources_to_execution_resources(
     vm_resources: VmExecutionResources,
-    GasVector { l1_gas, l1_data_gas }: GasVector,
+    GasVector { l1_gas, l1_data_gas, .. }: GasVector,
 ) -> ExecutionResult<ExecutionResources> {
     let mut builtin_instance_counter = HashMap::new();
     for (builtin_name, count) in vm_resources.builtin_instance_counter {
@@ -529,4 +520,13 @@ pub enum PriceUnit {
     Wei,
     /// Fri.
     Fri,
+}
+
+impl From<PriceUnit> for FeeType {
+    fn from(value: PriceUnit) -> Self {
+        match value {
+            PriceUnit::Wei => FeeType::Eth,
+            PriceUnit::Fri => FeeType::Strk,
+        }
+    }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "blockifier"
-version = "0.8.0-rc.1"
+version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -37,8 +37,7 @@ num-bigint.workspace = true
 num-integer.workspace = true
 num-rational.workspace = true
 num-traits.workspace = true
-once_cell.workspace = true
-papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0" }
+papyrus_config.workspace = true
 paste.workspace = true
 phf.workspace = true
 rand = { workspace = true, optional = true }
@@ -48,11 +47,13 @@ serde_json = { workspace = true, features = ["arbitrary_precision"] }
 sha2.workspace = true
 sha3.workspace = true
 starknet-types-core.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0", features = ["testing"] }
+starknet_api = { workspace = true, features = ["testing"] }
 strum.workspace = true
 strum_macros.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
 tikv-jemallocator = { workspace = true, optional = true }
+toml.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true

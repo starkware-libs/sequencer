@@ -6,11 +6,18 @@ on:
     branches: [main]
     tags: ["v*.*.*"]
     paths:
+      - '.github/workflows/papyrus_docker-publish.yml'
       - 'crates/papyrus**/**'
 
   pull_request:
     paths:
+      - '.github/workflows/papyrus_docker-publish.yml'
       - 'crates/papyrus**/**'
+
+# On PR events, cancel existing CI runs on this same PR for this workflow.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   REGISTRY: ghcr.io
@@ -18,7 +25,7 @@ env:
 
 jobs:
   docker-build-push:
-    runs-on: ubuntu-latest
+    runs-on: starkware-ubuntu-latest-medium
 
     steps:
       - name: Checkout repository

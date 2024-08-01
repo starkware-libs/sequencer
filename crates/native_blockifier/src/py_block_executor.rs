@@ -60,15 +60,15 @@ impl ThinTransactionExecutionInfo {
             validate_call_info: tx_execution_info.validate_call_info,
             execute_call_info: tx_execution_info.execute_call_info,
             fee_transfer_call_info: tx_execution_info.fee_transfer_call_info,
-            actual_fee: tx_execution_info.transaction_receipt.fee,
-            da_gas: tx_execution_info.transaction_receipt.da_gas,
-            actual_resources: tx_execution_info.transaction_receipt.resources.to_resources_mapping(
+            actual_fee: tx_execution_info.receipt.fee,
+            da_gas: tx_execution_info.receipt.da_gas,
+            actual_resources: tx_execution_info.receipt.resources.to_resources_mapping(
                 block_context.versioned_constants(),
                 block_context.block_info().use_kzg_da,
                 true,
             ),
             revert_error: tx_execution_info.revert_error,
-            total_gas: tx_execution_info.transaction_receipt.gas,
+            total_gas: tx_execution_info.receipt.gas,
         }
     }
     pub fn serialize(self) -> RawTransactionExecutionResult {
@@ -91,11 +91,11 @@ pub struct PyBlockExecutor {
 #[pymethods]
 impl PyBlockExecutor {
     #[new]
-    #[pyo3(signature = (bouncer_config, concurrency_config, general_config, global_contract_cache_size, target_storage_config, py_versioned_constants_overrides))]
+    #[pyo3(signature = (bouncer_config, concurrency_config, os_config, global_contract_cache_size, target_storage_config, py_versioned_constants_overrides))]
     pub fn create(
         bouncer_config: PyBouncerConfig,
         concurrency_config: PyConcurrencyConfig,
-        general_config: PyGeneralConfig,
+        os_config: PyOsConfig,
         global_contract_cache_size: usize,
         target_storage_config: StorageConfig,
         py_versioned_constants_overrides: PyVersionedConstantsOverrides,
@@ -112,7 +112,7 @@ impl PyBlockExecutor {
             tx_executor_config: TransactionExecutorConfig {
                 concurrency_config: concurrency_config.into(),
             },
-            chain_info: general_config.starknet_os_config.into_chain_info(),
+            chain_info: os_config.into_chain_info(),
             versioned_constants,
             tx_executor: None,
             storage: Box::new(storage),
@@ -333,11 +333,11 @@ impl PyBlockExecutor {
     }
 
     #[cfg(any(feature = "testing", test))]
-    #[pyo3(signature = (concurrency_config, general_config, path, max_state_diff_size))]
+    #[pyo3(signature = (concurrency_config, os_config, path, max_state_diff_size))]
     #[staticmethod]
     fn create_for_testing(
         concurrency_config: PyConcurrencyConfig,
-        general_config: PyGeneralConfig,
+        os_config: PyOsConfig,
         path: std::path::PathBuf,
         max_state_diff_size: usize,
     ) -> Self {
@@ -357,11 +357,8 @@ impl PyBlockExecutor {
             tx_executor_config: TransactionExecutorConfig {
                 concurrency_config: concurrency_config.into(),
             },
-            storage: Box::new(PapyrusStorage::new_for_testing(
-                path,
-                &general_config.starknet_os_config.chain_id,
-            )),
-            chain_info: general_config.starknet_os_config.into_chain_info(),
+            storage: Box::new(PapyrusStorage::new_for_testing(path, &os_config.chain_id)),
+            chain_info: os_config.into_chain_info(),
             versioned_constants,
             tx_executor: None,
             global_contract_cache: GlobalContractCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
@@ -401,19 +398,12 @@ impl PyBlockExecutor {
     #[cfg(test)]
     pub(crate) fn native_create_for_testing(
         concurrency_config: PyConcurrencyConfig,
-        general_config: PyGeneralConfig,
+        os_config: PyOsConfig,
         path: std::path::PathBuf,
         max_state_diff_size: usize,
     ) -> Self {
-        Self::create_for_testing(concurrency_config, general_config, path, max_state_diff_size)
+        Self::create_for_testing(concurrency_config, os_config, path, max_state_diff_size)
     }
-}
-
-#[derive(Default, FromPyObject)]
-pub struct PyGeneralConfig {
-    pub starknet_os_config: PyOsConfig,
-    pub invoke_tx_max_n_steps: u32,
-    pub validate_max_n_steps: u32,
 }
 
 #[derive(Clone, FromPyObject)]

@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use papyrus_protobuf::consensus::{ConsensusMessage, Vote};
+use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 
@@ -121,7 +122,7 @@ pub trait ConsensusContext {
     async fn validators(&self, height: BlockNumber) -> Vec<ValidatorId>;
 
     /// Calculates the ID of the Proposer based on the inputs.
-    fn proposer(&self, validators: &[ValidatorId], height: BlockNumber) -> ValidatorId;
+    fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
 
     async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError>;
 
@@ -133,6 +134,16 @@ pub trait ConsensusContext {
         init: ProposalInit,
         content_receiver: mpsc::Receiver<<Self::Block as ConsensusBlock>::ProposalChunk>,
         fin_receiver: oneshot::Receiver<BlockHash>,
+    ) -> Result<(), ConsensusError>;
+
+    /// Update the context that a decision has been reached for a given height.
+    /// - `block` identifies the decision.
+    /// - `precommits` - All precommits must be for the same `(block.id(), height, round)` and form
+    ///   a quorum (>2/3 of the voting power) for this height.
+    async fn decision_reached(
+        &mut self,
+        block: Self::Block,
+        precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError>;
 }
 
@@ -162,10 +173,20 @@ pub struct ProposalInit {
 pub enum ConsensusError {
     #[error(transparent)]
     Canceled(#[from] oneshot::Canceled),
+    #[error(transparent)]
+    ProtobufConversionError(#[from] ProtobufConversionError),
     #[error("Invalid proposal sent by peer {0:?} at height {1}: {2}")]
     InvalidProposal(ValidatorId, BlockNumber, String),
+    #[error("Invalid vote {0:?}. {1}")]
+    InvalidVote(Vote, String),
     #[error(transparent)]
     SendError(#[from] mpsc::SendError),
     #[error("Conflicting messages for block {0}. Old: {1:?}, New: {2:?}")]
     Equivocation(BlockNumber, ConsensusMessage, ConsensusMessage),
+    // Indicates an error in communication between consensus and the node's networking component.
+    // As opposed to an error between this node and peer nodes.
+    #[error("{0}")]
+    InternalNetworkError(String),
+    #[error("{0}")]
+    SyncError(String),
 }

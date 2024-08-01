@@ -1,24 +1,28 @@
 use std::cmp::min;
 use std::collections::HashMap;
 
-use committer::block_committer::input::{ContractAddress, StarknetStorageValue};
-use committer::felt::Felt;
-use committer::hash::hash_trait::HashOutput;
-use committer::patricia_merkle_tree::external_test_utils::get_random_u256;
-use committer::patricia_merkle_tree::filled_tree::forest::FilledForest;
-use committer::patricia_merkle_tree::filled_tree::node::{
+use ethnum::U256;
+use rand::prelude::IteratorRandom;
+use rand::Rng;
+use rand_distr::num_traits::ToPrimitive;
+use rand_distr::{Distribution, Geometric};
+use starknet_committer::block_committer::input::{ContractAddress, StarknetStorageValue};
+use starknet_committer::forest::filled_forest::FilledForest;
+use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
+use starknet_committer::patricia_merkle_tree::types::{
     ClassHash,
-    CompiledClassHash,
-    FilledNode,
-    Nonce,
-};
-use committer::patricia_merkle_tree::filled_tree::tree::{
     ClassesTrie,
+    CompiledClassHash,
     ContractsTrie,
+    Nonce,
     StorageTrie,
     StorageTrieMap,
 };
-use committer::patricia_merkle_tree::node_data::inner_node::{
+use starknet_patricia::felt::Felt;
+use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::external_test_utils::get_random_u256;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,
     EdgePath,
@@ -27,13 +31,7 @@ use committer::patricia_merkle_tree::node_data::inner_node::{
     NodeDataDiscriminants as NodeDataVariants,
     PathToBottom,
 };
-use committer::patricia_merkle_tree::node_data::leaf::ContractState;
-use committer::patricia_merkle_tree::types::NodeIndex;
-use ethnum::U256;
-use rand::prelude::IteratorRandom;
-use rand::Rng;
-use rand_distr::num_traits::ToPrimitive;
-use rand_distr::{Distribution, Geometric};
+use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use strum::IntoEnumIterator;
 
 pub trait RandomValue {

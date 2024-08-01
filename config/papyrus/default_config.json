@@ -84,6 +84,11 @@
     "privacy": "Public",
     "value": 5
   },
+  "consensus.network_topic": {
+    "description": "The network topic of the consensus.",
+    "privacy": "Public",
+    "value": "consensus"
+  },
   "consensus.num_validators": {
     "description": "The number of validators in the consensus.",
     "privacy": "Public",
@@ -94,10 +99,50 @@
     "privacy": "Public",
     "value": 0
   },
-  "consensus.topic": {
-    "description": "The topic of the consensus.",
+  "consensus.test.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "consensus.test.cache_size": {
+    "description": "The cache size for the test simulation.",
     "privacy": "Public",
-    "value": "consensus"
+    "value": 1000
+  },
+  "consensus.test.drop_probability": {
+    "description": "The probability of dropping a message.",
+    "privacy": "Public",
+    "value": 0.0
+  },
+  "consensus.test.invalid_probability": {
+    "description": "The probability of sending an invalid message.",
+    "privacy": "Public",
+    "value": 0.0
+  },
+  "consensus.test.random_seed": {
+    "description": "The random seed for the test simulation to ensure repeatable test results.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "consensus.test.sync_topic": {
+    "description": "The network topic for sync messages.",
+    "privacy": "Public",
+    "value": "consensus_test_sync"
+  },
+  "consensus.timeouts.precommit_timeout": {
+    "description": "The timeout (seconds) for a precommit.",
+    "privacy": "Public",
+    "value": 1.0
+  },
+  "consensus.timeouts.prevote_timeout": {
+    "description": "The timeout (seconds) for a prevote.",
+    "privacy": "Public",
+    "value": 1.0
+  },
+  "consensus.timeouts.proposal_timeout": {
+    "description": "The timeout (seconds) for a proposal.",
+    "privacy": "Public",
+    "value": 3.0
   },
   "consensus.validator_id": {
     "description": "A required param! The validator id of the node.",
@@ -140,6 +185,21 @@
     "value": ""
   },
   "network.bootstrap_peer_multiaddr.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "network.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "network.hardcoded_external_multiaddr": {
+    "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
+    "privacy": "Public",
+    "value": ""
+  },
+  "network.hardcoded_external_multiaddr.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
@@ -188,6 +248,11 @@
     "description": "The maximum amount of headers to ask from peers in each iteration.",
     "privacy": "Public",
     "value": 10000
+  },
+  "p2p_sync.num_transactions_per_query": {
+    "description": "The maximum amount of blocks to ask their transactions from peers in each iteration.",
+    "privacy": "Public",
+    "value": 100
   },
   "p2p_sync.stop_sync_at_block_number": {
     "description": "Stops the sync at given block number and closes the node cleanly. Used to run profiling on the node.",
@@ -338,6 +403,11 @@
     "description": "Max amount of blocks to download in a stream.",
     "privacy": "Public",
     "value": 1000
+  },
+  "sync.collect_pending_data": {
+    "description": "Whether to collect data on pending blocks.",
+    "privacy": "Public",
+    "value": false
   },
   "sync.recoverable_error_sleep_duration": {
     "description": "Waiting time in seconds before restarting synchronization after a recoverable error.",

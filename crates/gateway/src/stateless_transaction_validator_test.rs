@@ -1,3 +1,4 @@
+use std::sync::OnceLock;
 use std::vec;
 
 use assert_matches::assert_matches;
@@ -5,7 +6,7 @@ use mempool_test_utils::declare_tx_args;
 use mempool_test_utils::starknet_api_test_utils::{
     create_resource_bounds_mapping,
     external_declare_tx,
-    external_tx_for_testing,
+    rpc_tx_for_testing,
     zero_resource_bounds_mapping,
     TransactionType,
     NON_EMPTY_RESOURCE_BOUNDS,
@@ -27,27 +28,34 @@ use crate::stateless_transaction_validator::{
 };
 use crate::test_utils::create_sierra_program;
 
-const MIN_SIERRA_VERSION: VersionId = VersionId { major: 1, minor: 1, patch: 0 };
-const MAX_SIERRA_VERSION: VersionId = VersionId { major: 1, minor: 5, patch: usize::MAX };
-
-const DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: StatelessTransactionValidatorConfig =
-    StatelessTransactionValidatorConfig {
+fn min_sierra_version() -> &'static VersionId {
+    static MIN_SIERRA_VERSION: OnceLock<VersionId> = OnceLock::new();
+    MIN_SIERRA_VERSION.get_or_init(|| VersionId::new(1, 1, 0))
+}
+fn max_sierra_version() -> &'static VersionId {
+    static MAX_SIERRA_VERSION: OnceLock<VersionId> = OnceLock::new();
+    MAX_SIERRA_VERSION.get_or_init(|| VersionId::new(1, 5, usize::MAX))
+}
+fn default_validator_config_for_testing() -> &'static StatelessTransactionValidatorConfig {
+    static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: OnceLock<StatelessTransactionValidatorConfig> =
+        OnceLock::new();
+    DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.get_or_init(|| StatelessTransactionValidatorConfig {
         validate_non_zero_l1_gas_fee: false,
         validate_non_zero_l2_gas_fee: false,
         max_calldata_length: 1,
         max_signature_length: 1,
-        max_bytecode_size: 10000,
-        max_raw_class_size: 100000,
-        min_sierra_version: MIN_SIERRA_VERSION,
-        max_sierra_version: MAX_SIERRA_VERSION,
-    };
+        max_contract_class_object_size: 100000,
+        min_sierra_version: *min_sierra_version(),
+        max_sierra_version: *max_sierra_version(),
+    })
+}
 
 #[rstest]
 #[case::ignore_resource_bounds(
     StatelessTransactionValidatorConfig{
         validate_non_zero_l1_gas_fee: false,
         validate_non_zero_l2_gas_fee: false,
-        ..DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+        ..default_validator_config_for_testing().clone()
     },
     zero_resource_bounds_mapping(),
     calldata![],
@@ -57,7 +65,7 @@ const DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: StatelessTransactionValidatorConfig 
     StatelessTransactionValidatorConfig{
         validate_non_zero_l1_gas_fee: true,
         validate_non_zero_l2_gas_fee: false,
-        ..DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+        ..default_validator_config_for_testing().clone()
     },
     create_resource_bounds_mapping(NON_EMPTY_RESOURCE_BOUNDS, ResourceBounds::default()),
     calldata![],
@@ -67,7 +75,7 @@ const DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: StatelessTransactionValidatorConfig 
     StatelessTransactionValidatorConfig{
         validate_non_zero_l1_gas_fee: false,
         validate_non_zero_l2_gas_fee: true,
-        ..DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+        ..default_validator_config_for_testing().clone()
     },
     create_resource_bounds_mapping(ResourceBounds::default(), NON_EMPTY_RESOURCE_BOUNDS),
     calldata![],
@@ -77,26 +85,26 @@ const DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: StatelessTransactionValidatorConfig 
     StatelessTransactionValidatorConfig{
         validate_non_zero_l1_gas_fee: true,
         validate_non_zero_l2_gas_fee: true,
-        ..DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+        ..default_validator_config_for_testing().clone()
     },
     create_resource_bounds_mapping(NON_EMPTY_RESOURCE_BOUNDS, NON_EMPTY_RESOURCE_BOUNDS),
     calldata![],
     TransactionSignature::default()
 )]
 #[case::non_empty_valid_calldata(
-    DEFAULT_VALIDATOR_CONFIG_FOR_TESTING,
+    default_validator_config_for_testing().clone(),
     zero_resource_bounds_mapping(),
     calldata![Felt::ONE],
     TransactionSignature::default()
 )]
 #[case::non_empty_valid_signature(
-    DEFAULT_VALIDATOR_CONFIG_FOR_TESTING,
+    default_validator_config_for_testing().clone(),
     zero_resource_bounds_mapping(),
     calldata![],
     TransactionSignature(vec![Felt::ONE])
 )]
 #[case::valid_tx(
-    DEFAULT_VALIDATOR_CONFIG_FOR_TESTING,
+    default_validator_config_for_testing().clone(),
     zero_resource_bounds_mapping(),
     calldata![],
     TransactionSignature::default()
@@ -110,7 +118,7 @@ fn test_positive_flow(
     tx_type: TransactionType,
 ) {
     let tx_validator = StatelessTransactionValidator { config };
-    let tx = external_tx_for_testing(tx_type, resource_bounds, tx_calldata, signature);
+    let tx = rpc_tx_for_testing(tx_type, resource_bounds, tx_calldata, signature);
 
     assert_matches!(tx_validator.validate(&tx), Ok(()));
 }
@@ -120,7 +128,7 @@ fn test_positive_flow(
     StatelessTransactionValidatorConfig{
         validate_non_zero_l1_gas_fee: true,
         validate_non_zero_l2_gas_fee: false,
-        ..DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+        ..default_validator_config_for_testing().clone()
     },
     zero_resource_bounds_mapping(),
     StatelessTransactionValidatorError::ZeroResourceBounds{
@@ -131,7 +139,7 @@ fn test_positive_flow(
     StatelessTransactionValidatorConfig{
         validate_non_zero_l1_gas_fee: false,
         validate_non_zero_l2_gas_fee: true,
-        ..DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+        ..default_validator_config_for_testing().clone()
     },
     create_resource_bounds_mapping(NON_EMPTY_RESOURCE_BOUNDS, ResourceBounds::default()),
     StatelessTransactionValidatorError::ZeroResourceBounds{
@@ -146,12 +154,8 @@ fn test_invalid_resource_bounds(
     tx_type: TransactionType,
 ) {
     let tx_validator = StatelessTransactionValidator { config };
-    let tx = external_tx_for_testing(
-        tx_type,
-        resource_bounds,
-        calldata![],
-        TransactionSignature::default(),
-    );
+    let tx =
+        rpc_tx_for_testing(tx_type, resource_bounds, calldata![], TransactionSignature::default());
 
     assert_eq!(tx_validator.validate(&tx).unwrap_err(), expected_error);
 }
@@ -161,8 +165,8 @@ fn test_calldata_too_long(
     #[values(TransactionType::DeployAccount, TransactionType::Invoke)] tx_type: TransactionType,
 ) {
     let tx_validator =
-        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING };
-    let tx = external_tx_for_testing(
+        StatelessTransactionValidator { config: default_validator_config_for_testing().clone() };
+    let tx = rpc_tx_for_testing(
         tx_type,
         zero_resource_bounds_mapping(),
         calldata![Felt::ONE, Felt::TWO],
@@ -184,8 +188,8 @@ fn test_signature_too_long(
     tx_type: TransactionType,
 ) {
     let tx_validator =
-        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING };
-    let tx = external_tx_for_testing(
+        StatelessTransactionValidator { config: default_validator_config_for_testing().clone() };
+    let tx = rpc_tx_for_testing(
         tx_type,
         zero_resource_bounds_mapping(),
         calldata![],
@@ -206,8 +210,8 @@ fn test_signature_too_long(
     vec![],
     StatelessTransactionValidatorError::InvalidSierraVersion (
         VersionIdError::InvalidVersion {
-            message: "Sierra program is too short. got program of length 0 which is not long enough \
-                     to hold the version field.".into()
+            message: "Failed to retrieve version from the program: insufficient length. Expected \
+                     at least 6 felts (got 0).".into()
         }
     )
 )]
@@ -215,17 +219,26 @@ fn test_signature_too_long(
     vec![felt!(1_u128)],
     StatelessTransactionValidatorError::InvalidSierraVersion (
         VersionIdError::InvalidVersion {
-            message: "Sierra program is too short. got program of length 1 which is not long enough \
-                     to hold the version field.".into()
+            message: "Failed to retrieve version from the program: insufficient length. Expected \
+                     at least 6 felts (got 1).".into()
         }
     )
 )]
-#[case::sierra_program_length_two(
-    vec![felt!(1_u128), felt!(3_u128)],
+#[case::sierra_program_length_three(
+    vec![felt!(1_u128), felt!(3_u128), felt!(0_u128)],
     StatelessTransactionValidatorError::InvalidSierraVersion (
         VersionIdError::InvalidVersion {
-            message: "Sierra program is too short. got program of length 2 which is not long enough \
-                     to hold the version field.".into()
+            message: "Failed to retrieve version from the program: insufficient length. Expected \
+                     at least 6 felts (got 3).".into()
+        }
+    )
+)]
+#[case::sierra_program_length_four(
+    vec![felt!(1_u128), felt!(3_u128), felt!(0_u128), felt!(0_u128)],
+    StatelessTransactionValidatorError::InvalidSierraVersion (
+        VersionIdError::InvalidVersion {
+            message: "Failed to retrieve version from the program: insufficient length. Expected \
+                     at least 6 felts (got 4).".into()
         }
     )
 )]
@@ -234,29 +247,32 @@ fn test_signature_too_long(
             felt!(1_u128),
             felt!(3_u128),
             felt!(0x10000000000000000_u128), // Does not fit into a usize.
+            felt!(0_u128),
+            felt!(0_u128),
+            felt!(0_u128),
     ],
     StatelessTransactionValidatorError::InvalidSierraVersion (
             VersionIdError::InvalidVersion {
-                message: "version contains a value that is out of range: \
-                 0x10000000000000000".into()
+                message: "Error extracting version ID from Sierra program: \
+                         Invalid input for deserialization.".into()
             }
         )
     )
 ]
 #[case::sierra_version_too_low(
-    create_sierra_program(&VersionId { major: 0, minor: 3, patch: 0 }),
+    create_sierra_program(&VersionId::new(0,3,0)),
     StatelessTransactionValidatorError::UnsupportedSierraVersion {
-            version: VersionId{major: 0, minor: 3, patch: 0},
-            min_version: MIN_SIERRA_VERSION,
-            max_version: MAX_SIERRA_VERSION,
+            version: VersionId::new(0,3,0),
+            min_version: *min_sierra_version(),
+            max_version: *max_sierra_version(),
     })
 ]
 #[case::sierra_version_too_high(
-    create_sierra_program(&VersionId { major: 1, minor: 6, patch: 0 }),
+    create_sierra_program(&VersionId::new(1,6,0)),
     StatelessTransactionValidatorError::UnsupportedSierraVersion {
-            version: VersionId { major: 1, minor: 6, patch: 0 },
-            min_version: MIN_SIERRA_VERSION,
-            max_version: MAX_SIERRA_VERSION,
+            version: VersionId::new(1,6,0),
+            min_version: *min_sierra_version(),
+            max_version: *max_sierra_version(),
     })
 ]
 fn test_declare_sierra_version_failure(
@@ -264,7 +280,7 @@ fn test_declare_sierra_version_failure(
     #[case] expected_error: StatelessTransactionValidatorError,
 ) {
     let tx_validator =
-        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING };
+        StatelessTransactionValidator { config: default_validator_config_for_testing().clone() };
 
     let contract_class = ContractClass { sierra_program, ..Default::default() };
     let tx = external_declare_tx(declare_tx_args!(contract_class));
@@ -273,14 +289,18 @@ fn test_declare_sierra_version_failure(
 }
 
 #[rstest]
-#[case::min_sierra_version(create_sierra_program(&MIN_SIERRA_VERSION))]
-#[case::valid_sierra_version(create_sierra_program(&VersionId { major: 1, minor: 3, patch: 0 }))]
-#[case::max_sierra_version_patch_zero(create_sierra_program(&VersionId { patch: 0, ..MAX_SIERRA_VERSION }))]
-#[case::max_sierra_version_patch_non_trivial(create_sierra_program(&VersionId { patch: 1, ..MAX_SIERRA_VERSION }))]
-#[case::max_sierra_version(create_sierra_program(&MAX_SIERRA_VERSION))]
+#[case::min_sierra_version(create_sierra_program(min_sierra_version()))]
+#[case::valid_sierra_version(create_sierra_program(&VersionId::new( 1, 3, 0 )))]
+#[case::max_sierra_version_patch_zero(create_sierra_program(
+    &VersionId::new( max_sierra_version().0.major, max_sierra_version().0.minor, 0)
+))]
+#[case::max_sierra_version_patch_non_trivial(create_sierra_program(
+    &VersionId::new(max_sierra_version().0.major, max_sierra_version().0.minor, 1)
+))]
+#[case::max_sierra_version(create_sierra_program(max_sierra_version()))]
 fn test_declare_sierra_version_sucsses(#[case] sierra_program: Vec<Felt>) {
     let tx_validator =
-        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING };
+        StatelessTransactionValidator { config: default_validator_config_for_testing().clone() };
 
     let contract_class = ContractClass { sierra_program, ..Default::default() };
     let tx = external_declare_tx(declare_tx_args!(contract_class));
@@ -289,41 +309,18 @@ fn test_declare_sierra_version_sucsses(#[case] sierra_program: Vec<Felt>) {
 }
 
 #[test]
-fn test_declare_bytecode_size_too_long() {
-    let config_max_bytecode_size = 10;
-    let tx_validator = StatelessTransactionValidator {
-        config: StatelessTransactionValidatorConfig {
-            max_bytecode_size: config_max_bytecode_size,
-            ..DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
-        },
-    };
-    let sierra_program_length = config_max_bytecode_size + 1;
-    let sierra_program = vec![felt!(1_u128); sierra_program_length];
-    let contract_class = ContractClass { sierra_program, ..Default::default() };
-    let tx = external_declare_tx(declare_tx_args!(contract_class));
-
-    assert_matches!(
-        tx_validator.validate(&tx).unwrap_err(),
-        StatelessTransactionValidatorError::BytecodeSizeTooLarge {
-                bytecode_size,
-                max_bytecode_size
-            } if (
-                bytecode_size, max_bytecode_size
-            ) == (sierra_program_length, config_max_bytecode_size)
-    )
-}
-
-#[test]
 fn test_declare_contract_class_size_too_long() {
-    let config_max_raw_class_size = 100; // Some arbitrary value, which will fail the test.
+    let config_max_contract_class_object_size = 100; // Some arbitrary value, which will fail the test.
     let tx_validator = StatelessTransactionValidator {
         config: StatelessTransactionValidatorConfig {
-            max_raw_class_size: config_max_raw_class_size,
-            ..DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+            max_contract_class_object_size: config_max_contract_class_object_size,
+            ..default_validator_config_for_testing().clone()
         },
     };
-    let contract_class =
-        ContractClass { sierra_program: vec![felt!(1_u128); 3], ..Default::default() };
+    let contract_class = ContractClass {
+        sierra_program: create_sierra_program(min_sierra_version()),
+        ..Default::default()
+    };
     let contract_class_length = serde_json::to_string(&contract_class).unwrap().len();
     let tx = external_declare_tx(declare_tx_args!(contract_class));
 
@@ -333,7 +330,7 @@ fn test_declare_contract_class_size_too_long() {
             contract_class_object_size, max_contract_class_object_size
         } if (
             contract_class_object_size, max_contract_class_object_size
-        ) == (contract_class_length, config_max_raw_class_size)
+        ) == (contract_class_length, config_max_contract_class_object_size)
     )
 }
 
@@ -382,10 +379,10 @@ fn test_declare_entry_points_not_sorted_by_selector(
     #[case] expected: StatelessTransactionValidatorResult<()>,
 ) {
     let tx_validator =
-        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING };
+        StatelessTransactionValidator { config: default_validator_config_for_testing().clone() };
 
     let contract_class = ContractClass {
-        sierra_program: vec![felt!(1_u128); 3],
+        sierra_program: create_sierra_program(min_sierra_version()),
         entry_points_by_type: EntryPointByType {
             constructor: entry_points.clone(),
             external: vec![],
@@ -398,7 +395,7 @@ fn test_declare_entry_points_not_sorted_by_selector(
     assert_eq!(tx_validator.validate(&tx), expected);
 
     let contract_class = ContractClass {
-        sierra_program: vec![felt!(1_u128); 3],
+        sierra_program: create_sierra_program(min_sierra_version()),
         entry_points_by_type: EntryPointByType {
             constructor: vec![],
             external: entry_points.clone(),
@@ -411,7 +408,7 @@ fn test_declare_entry_points_not_sorted_by_selector(
     assert_eq!(tx_validator.validate(&tx), expected);
 
     let contract_class = ContractClass {
-        sierra_program: vec![felt!(1_u128); 3],
+        sierra_program: create_sierra_program(min_sierra_version()),
         entry_points_by_type: EntryPointByType {
             constructor: vec![],
             external: vec![],

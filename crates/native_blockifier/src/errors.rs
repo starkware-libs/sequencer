@@ -106,13 +106,17 @@ pub enum InvalidNativeBlockifierInputError {
     #[error("Invalid builtin count: {0:?}.")]
     InvalidBuiltinCounts(BuiltinCount),
     #[error("Invalid Wei gas price: {0}.")]
-    InvalidGasPriceWei(u128),
+    InvalidL1GasPriceWei(u128),
     #[error("Invalid Fri gas price: {0}.")]
-    InvalidGasPriceFri(u128),
+    InvalidL1GasPriceFri(u128),
     #[error("Invalid Wei data gas price: {0}.")]
-    InvalidDataGasPriceWei(u128),
+    InvalidL1DataGasPriceWei(u128),
     #[error("Invalid Fri data gas price: {0}.")]
-    InvalidDataGasPriceFri(u128),
+    InvalidL1DataGasPriceFri(u128),
+    #[error("Invalid Wei l2 gas price: {0}.")]
+    InvalidL2GasPriceWei(u128),
+    #[error("Invalid Fri l2 gas price: {0}.")]
+    InvalidL2GasPriceFri(u128),
 }
 
 create_exception!(native_blockifier, UndeclaredClassHashError, PyException);

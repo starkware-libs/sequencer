@@ -8,6 +8,7 @@ use starknet_api::rpc_transaction::{
 use starknet_api::state::EntryPoint;
 use starknet_api::transaction::Resource;
 use starknet_types_core::felt::Felt;
+use tracing::{instrument, Level};
 
 use crate::compiler_version::VersionId;
 use crate::config::StatelessTransactionValidatorConfig;
@@ -23,6 +24,7 @@ pub struct StatelessTransactionValidator {
 }
 
 impl StatelessTransactionValidator {
+    #[instrument(skip(self), level = Level::INFO, err)]
     pub fn validate(&self, tx: &RpcTransaction) -> StatelessTransactionValidatorResult<()> {
         // TODO(Arni, 1/5/2024): Add a mechanism that validate the sender address is not blocked.
         // TODO(Arni, 1/5/2024): Validate transaction version.
@@ -121,7 +123,8 @@ impl StatelessTransactionValidator {
     ) -> StatelessTransactionValidatorResult<()> {
         // Any patch version is valid. (i.e. when check version for upper bound, we ignore the Z
         // part in a version X.Y.Z).
-        let max_sierra_version = VersionId { patch: usize::MAX, ..self.config.max_sierra_version };
+        let mut max_sierra_version = self.config.max_sierra_version;
+        max_sierra_version.0.patch = usize::MAX;
 
         let sierra_version = VersionId::from_sierra_program(sierra_program)?;
         if self.config.min_sierra_version <= sierra_version && sierra_version <= max_sierra_version
@@ -140,21 +143,13 @@ impl StatelessTransactionValidator {
         &self,
         contract_class: &starknet_api::rpc_transaction::ContractClass,
     ) -> StatelessTransactionValidatorResult<()> {
-        let bytecode_size = contract_class.sierra_program.len();
-        if bytecode_size > self.config.max_bytecode_size {
-            return Err(StatelessTransactionValidatorError::BytecodeSizeTooLarge {
-                bytecode_size,
-                max_bytecode_size: self.config.max_bytecode_size,
-            });
-        }
-
         let contract_class_object_size = serde_json::to_string(&contract_class)
             .expect("Unexpected error serializing contract class.")
             .len();
-        if contract_class_object_size > self.config.max_raw_class_size {
+        if contract_class_object_size > self.config.max_contract_class_object_size {
             return Err(StatelessTransactionValidatorError::ContractClassObjectSizeTooLarge {
                 contract_class_object_size,
-                max_contract_class_object_size: self.config.max_raw_class_size,
+                max_contract_class_object_size: self.config.max_contract_class_object_size,
             });
         }
 
@@ -187,6 +182,7 @@ fn validate_resource_is_non_zero(
     let resource_bounds = match resource {
         Resource::L1Gas => resource_bounds_mapping.l1_gas,
         Resource::L2Gas => resource_bounds_mapping.l2_gas,
+        Resource::L1DataGas => todo!(),
     };
     if resource_bounds.max_amount == 0 || resource_bounds.max_price_per_unit == 0 {
         return Err(StatelessTransactionValidatorError::ZeroResourceBounds {

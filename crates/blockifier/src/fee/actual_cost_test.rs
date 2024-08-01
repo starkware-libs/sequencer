@@ -1,5 +1,5 @@
 use rstest::{fixture, rstest};
-use starknet_api::transaction::{L2ToL1Payload, ResourceBoundsMapping};
+use starknet_api::transaction::{DeprecatedResourceBoundsMapping, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
 use crate::context::BlockContext;
@@ -201,6 +201,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
     let manual_gas_computation = GasVector {
         l1_gas: u128_from_usize(manual_starknet_gas_usage + manual_sharp_gas_usage),
         l1_data_gas: manual_sharp_blob_gas_usage,
+        ..Default::default()
     };
 
     assert_eq!(l2_to_l1_messages_gas_usage_vector, manual_gas_computation);
@@ -272,6 +273,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
         l1_data_gas: combined_cases_starknet_resources
             .get_state_changes_cost(use_kzg_da)
             .l1_data_gas,
+        ..Default::default()
     };
 
     assert_eq!(expected_gas_vector, gas_usage_vector);
@@ -284,7 +286,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
 // resources are taken into account).
 #[rstest]
 fn test_calculate_tx_gas_usage(
-    max_resource_bounds: ResourceBoundsMapping,
+    max_resource_bounds: DeprecatedResourceBoundsMapping,
     #[values(false, true)] use_kzg_da: bool,
 ) {
     let account_cairo_version = CairoVersion::Cairo0;
@@ -327,7 +329,7 @@ fn test_calculate_tx_gas_usage(
     assert_eq!(
         starknet_resources.to_gas_vector(versioned_constants, use_kzg_da),
         tx_execution_info
-            .transaction_receipt
+            .receipt
             .resources
             .starknet_resources
             .to_gas_vector(versioned_constants, use_kzg_da)
@@ -378,7 +380,7 @@ fn test_calculate_tx_gas_usage(
     assert_eq!(
         starknet_resources.to_gas_vector(versioned_constants, use_kzg_da),
         tx_execution_info
-            .transaction_receipt
+            .receipt
             .resources
             .starknet_resources
             .to_gas_vector(versioned_constants, use_kzg_da)

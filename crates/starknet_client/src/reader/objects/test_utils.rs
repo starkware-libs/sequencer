@@ -9,19 +9,19 @@ use starknet_api::core::{
     EthAddress,
     Nonce,
 };
+use starknet_api::execution_resources::GasVector;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{EntryPoint, EntryPointType};
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
+    DeprecatedResourceBoundsMapping,
     Event,
     Fee,
-    GasVector,
     L1ToL2Payload,
     L2ToL1Payload,
     PaymasterData,
-    ResourceBoundsMapping,
     Tip,
     TransactionHash,
     TransactionOffsetInBlock,
@@ -60,7 +60,7 @@ auto_impl_get_test_instance! {
         Reserved = 0,
     }
     pub struct IntermediateDeclareTransaction {
-        pub resource_bounds: Option<ResourceBoundsMapping>,
+        pub resource_bounds: Option<DeprecatedResourceBoundsMapping>,
         pub tip: Option<Tip>,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -76,7 +76,7 @@ auto_impl_get_test_instance! {
         pub transaction_hash: TransactionHash,
     }
     pub struct IntermediateDeployAccountTransaction {
-        pub resource_bounds: Option<ResourceBoundsMapping>,
+        pub resource_bounds: Option<DeprecatedResourceBoundsMapping>,
         pub tip: Option<Tip>,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -100,7 +100,7 @@ auto_impl_get_test_instance! {
         pub version: TransactionVersion,
     }
     pub struct IntermediateInvokeTransaction {
-        pub resource_bounds: Option<ResourceBoundsMapping>,
+        pub resource_bounds: Option<DeprecatedResourceBoundsMapping>,
         pub tip: Option<Tip>,
         pub calldata: Calldata,
         pub sender_address: ContractAddress,

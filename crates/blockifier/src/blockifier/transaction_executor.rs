@@ -103,7 +103,7 @@ impl<S: StateReader> TransactionExecutor<S> {
                     &transactional_state,
                     &tx_state_changes_keys,
                     &tx_execution_info.summarize(),
-                    &tx_execution_info.transaction_receipt.resources,
+                    &tx_execution_info.receipt.resources,
                 )?;
                 transactional_state.commit();
                 Ok(tx_execution_info)

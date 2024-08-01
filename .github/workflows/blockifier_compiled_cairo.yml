@@ -3,25 +3,39 @@ name: Blockifier-Compiled-Cairo
 on:
   push:
     branches:
-    - main
+      - main
+      - main-v[0-9].**
     tags:
-    - v[0-9].**
+      - v[0-9].**
     paths:
-    - 'crates/blockifier/feature_contracts/cairo0/**'
+      - '.github/workflows/blockifier_compiled_cairo.yml'
+      - 'crates/blockifier/feature_contracts/**'
+      - 'crates/blockifier/src/test_utils/cairo_compile.rs'
+      - 'crates/blockifier/tests/feature_contracts_compatibility_test.rs'
+      - 'crates/blockifier/tests/requirements.txt'
   pull_request:
     types:
       - opened
       - reopened
       - synchronize
     paths:
-     - 'crates/blockifier/feature_contracts/cairo0/**'
+      - '.github/workflows/blockifier_compiled_cairo.yml'
+      - 'crates/blockifier/feature_contracts/**'
+      - 'crates/blockifier/src/test_utils/cairo_compile.rs'
+      - 'crates/blockifier/tests/feature_contracts_compatibility_test.rs'
+      - 'crates/blockifier/tests/requirements.txt'
+
+# On PR events, cancel existing CI runs on this same PR for this workflow.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verify_cairo_file_dependencies:
-    runs-on: ubuntu-20.04
+    runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: "v0-rust-ubuntu-20.04"
@@ -36,6 +50,28 @@ jobs:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
-      - run:
-          pip install -r crates/blockifier/tests/requirements.txt;
-          cargo test verify_feature_contracts -- --include-ignored
+      # Checkout sequencer into a dedicated directory - technical requirement in order to be able to checkout `cairo` in a sibling directory.
+      - name: checkout sequencer into `sequencer` directory.
+        uses: actions/checkout@v4
+        with:
+          repository: 'starkware-libs/sequencer'
+          path: 'sequencer'
+
+      - name: checkout cairo1 repo in order to compile cairo1 contracts.
+        uses: actions/checkout@v4
+        with:
+          repository: 'starkware-libs/cairo'
+          fetch-depth: 0
+          fetch-tags: true
+          path: 'cairo'
+
+      - name: install toolchain for legacy contract compilation (old compiler tag)
+        uses: actions-rs/toolchain@master
+        with:
+          toolchain: nightly-2023-07-05
+
+      - name: Verify cairo contract recompilation (both cairo versions).
+        run:
+          cd sequencer &&
+          pip install -r crates/blockifier/tests/requirements.txt &&
+          cargo test -p blockifier --test feature_contracts_compatibility_test --features testing -- --include-ignored

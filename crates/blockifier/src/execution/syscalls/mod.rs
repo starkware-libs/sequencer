@@ -55,8 +55,7 @@ pub mod hint_processor;
 mod secp;
 
 #[cfg(test)]
-#[path = "syscalls_test.rs"]
-pub mod syscalls_test;
+pub mod syscall_tests;
 
 pub type SyscallResult<T> = Result<T, SyscallExecutionError>;
 pub type WriteResponseResult = SyscallResult<()>;
@@ -110,7 +109,7 @@ impl<T: SyscallResponse> SyscallResponse for SyscallResponseWrapper<T> {
                 let revert_reason_start = vm.add_memory_segment();
                 let revert_reason_end = vm.load_data(
                     revert_reason_start,
-                    &error_data.into_iter().map(Into::into).collect(),
+                    &error_data.into_iter().map(Into::into).collect::<Vec<MaybeRelocatable>>(),
                 )?;
 
                 // Write the start and end pointers of the error data.

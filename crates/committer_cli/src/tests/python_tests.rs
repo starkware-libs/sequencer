@@ -1,39 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::io;
 
-use committer::block_committer::input::{
-    ContractAddress,
-    StarknetStorageKey,
-    StarknetStorageValue,
-    StateDiff,
-};
-use committer::felt::Felt;
-use committer::hash::hash_trait::HashOutput;
-use committer::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
-use committer::patricia_merkle_tree::filled_tree::forest::FilledForest;
-use committer::patricia_merkle_tree::filled_tree::node::{
-    ClassHash,
-    CompiledClassHash,
-    FilledNode,
-    Nonce,
-};
-use committer::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData,
-    EdgeData,
-    EdgePathLength,
-    NodeData,
-    PathToBottom,
-};
-use committer::patricia_merkle_tree::node_data::leaf::ContractState;
-use committer::patricia_merkle_tree::types::SubTreeHeight;
-use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
-use committer::storage::db_object::DBObject;
-use committer::storage::errors::{DeserializationError, SerializationError};
-use committer::storage::map_storage::MapStorage;
-use committer::storage::storage_trait::{Storage, StorageKey, StorageValue};
 use ethnum::U256;
-use log::error;
 use serde_json::json;
 use starknet_api::block_hash::block_hash_calculator::{
     TransactionHashingData,
@@ -41,12 +9,39 @@ use starknet_api::block_hash::block_hash_calculator::{
 };
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionExecutionStatus;
+use starknet_committer::block_committer::input::{
+    ContractAddress,
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
+};
+use starknet_committer::forest::filled_forest::FilledForest;
+use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
+use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
+use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
+use starknet_committer::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
+use starknet_patricia::felt::Felt;
+use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
+    BinaryData,
+    EdgeData,
+    EdgePathLength,
+    NodeData,
+    PathToBottom,
+};
+use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
+use starknet_patricia::storage::db_object::DBObject;
+use starknet_patricia::storage::errors::DeserializationError;
+use starknet_patricia::storage::map_storage::MapStorage;
+use starknet_patricia::storage::storage_trait::{Storage, StorageKey, StorageValue};
 use starknet_types_core::hash::{Pedersen, StarkHash};
 use thiserror;
+use tracing::{debug, error, info, warn};
 
 use super::utils::objects::{get_thin_state_diff, get_transaction_output_for_hash, get_tx_data};
 use super::utils::parse_from_python::TreeFlowInput;
-use crate::filled_tree_output::errors::FilledForestError;
 use crate::filled_tree_output::filled_forest::SerializedForest;
 use crate::parse_input::cast::InputImpl;
 use crate::parse_input::read::parse_input;
@@ -90,14 +85,8 @@ pub enum PythonTestError {
     InvalidCastError(#[from] std::num::TryFromIntError),
     #[error(transparent)]
     DeserializationTestFailure(#[from] DeserializationError),
-    #[error(transparent)]
-    StdinReadError(#[from] io::Error),
     #[error("None value found in input.")]
     NoneInputError,
-    #[error(transparent)]
-    SerializationError(#[from] SerializationError),
-    #[error(transparent)]
-    FilledForest(#[from] FilledForestError),
 }
 
 /// Implements conversion from a string to a `PythonTest`.
@@ -197,7 +186,13 @@ impl PythonTest {
                 let TreeFlowInput { leaf_modifications, storage, root_hash } =
                     serde_json::from_str(Self::non_optional_input(input)?)?;
                 // 2. Run the test.
-                let output = single_tree_flow_test(leaf_modifications, storage, root_hash).await;
+                let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
+                    leaf_modifications.clone(),
+                    storage,
+                    root_hash,
+                    OriginalSkeletonStorageTrieConfig::new(&leaf_modifications, false),
+                )
+                .await;
                 // 3. Serialize and return output.
                 Ok(output)
             }
@@ -209,10 +204,10 @@ impl PythonTest {
                 Ok("Done!".to_owned())
             }
             Self::LogError => {
-                log::error!("This is an error log message.");
-                log::warn!("This is a warn log message.");
-                log::info!("This is an info log message.");
-                log::debug!("This is a debug log message.");
+                error!("This is an error log message.");
+                warn!("This is a warn log message.");
+                info!("This is an info log message.");
+                debug!("This is a debug log message.");
                 panic!("This is a panic message.");
             }
         }

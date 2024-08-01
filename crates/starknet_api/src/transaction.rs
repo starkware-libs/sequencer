@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::Display;
 use std::sync::Arc;
 
@@ -19,6 +19,7 @@ use crate::core::{
     Nonce,
 };
 use crate::data_availability::DataAvailabilityMode;
+use crate::execution_resources::ExecutionResources;
 use crate::hash::StarkHash;
 use crate::serde_utils::PrefixedBytesAsHex;
 use crate::transaction_hash::{
@@ -42,6 +43,13 @@ pub trait TransactionHasher {
         chain_id: &ChainId,
         transaction_version: &TransactionVersion,
     ) -> Result<TransactionHash, StarknetApiError>;
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
+pub struct FullTransaction {
+    pub transaction: Transaction,
+    pub transaction_output: TransactionOutput,
+    pub transaction_hash: TransactionHash,
 }
 
 /// A transaction.
@@ -69,14 +77,12 @@ impl Transaction {
             Transaction::L1Handler(tx) => tx.version,
         }
     }
-}
 
-impl TransactionHasher for Transaction {
-    fn calculate_transaction_hash(
+    pub fn calculate_transaction_hash(
         &self,
         chain_id: &ChainId,
-        transaction_version: &TransactionVersion,
     ) -> Result<TransactionHash, StarknetApiError> {
+        let transaction_version = &self.version();
         match self {
             Transaction::Declare(tx) => {
                 tx.calculate_transaction_hash(chain_id, transaction_version)
@@ -210,7 +216,7 @@ impl TransactionHasher for DeclareTransactionV2 {
 /// A declare V3 transaction.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct DeclareTransactionV3 {
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: DeprecatedResourceBoundsMapping,
     pub tip: Tip,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
@@ -319,7 +325,7 @@ impl TransactionHasher for DeployAccountTransactionV1 {
 /// A deploy account V3 transaction.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeployAccountTransactionV3 {
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: DeprecatedResourceBoundsMapping,
     pub tip: Tip,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
@@ -456,7 +462,7 @@ impl TransactionHasher for InvokeTransactionV1 {
 /// An invoke V3 transaction.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct InvokeTransactionV3 {
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: DeprecatedResourceBoundsMapping,
     pub tip: Tip,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
@@ -868,6 +874,8 @@ pub enum Resource {
     L1Gas,
     #[serde(rename = "L2_GAS")]
     L2Gas,
+    #[serde(rename = "L1_DATA_GAS")]
+    L1DataGas,
 }
 
 /// Fee bounds for an execution resource.
@@ -883,6 +891,13 @@ pub struct ResourceBounds {
     // Specifies the maximum price the user is willing to pay for each resource unit.
     #[serde(serialize_with = "u128_to_hex", deserialize_with = "hex_to_u128")]
     pub max_price_per_unit: u128,
+}
+
+impl ResourceBounds {
+    /// Returns true iff both the max amount and the max amount per unit is zero.
+    pub fn is_zero(&self) -> bool {
+        self.max_amount == 0 && self.max_price_per_unit == 0
+    }
 }
 
 fn u64_to_hex<S>(value: &u64, serializer: S) -> Result<S::Ok, S::Error>
@@ -917,25 +932,84 @@ where
 
 /// A mapping from execution resources to their corresponding fee bounds..
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct ResourceBoundsMapping(pub BTreeMap<Resource, ResourceBounds>);
+// TODO(Nimrod): Remove this struct definition.
+pub struct DeprecatedResourceBoundsMapping(pub BTreeMap<Resource, ResourceBounds>);
 
-impl TryFrom<Vec<(Resource, ResourceBounds)>> for ResourceBoundsMapping {
+impl TryFrom<Vec<(Resource, ResourceBounds)>> for DeprecatedResourceBoundsMapping {
     type Error = StarknetApiError;
     fn try_from(
         resource_resource_bounds_pairs: Vec<(Resource, ResourceBounds)>,
     ) -> Result<Self, Self::Error> {
         let n_variants = Resource::iter().count();
+        let allowed_signed_variants = [n_variants, n_variants - 1];
         let unique_resources: HashSet<Resource> =
             HashSet::from_iter(resource_resource_bounds_pairs.iter().map(|(k, _)| *k));
-        if unique_resources.len() != n_variants
-            || resource_resource_bounds_pairs.len() != n_variants
+        if !allowed_signed_variants.contains(&unique_resources.len())
+            || !allowed_signed_variants.contains(&resource_resource_bounds_pairs.len())
         {
+            // TODO(Nimrod): Consider making this check more strict.
             Err(StarknetApiError::InvalidResourceMappingInitializer(format!(
                 "{:?}",
                 resource_resource_bounds_pairs
             )))
         } else {
             Ok(Self(resource_resource_bounds_pairs.into_iter().collect::<BTreeMap<_, _>>()))
+        }
+    }
+}
+
+pub enum ValidResourceBounds {
+    L1Gas(ResourceBounds), // Pre 0.13.3. Only L1 gas. L2 bounds are signed but never used.
+    AllResources(AllResourceBounds),
+}
+
+pub struct AllResourceBounds {
+    pub l1_gas: ResourceBounds,
+    pub l2_gas: ResourceBounds,
+    pub l1_data_gas: ResourceBounds,
+}
+
+impl AllResourceBounds {
+    #[allow(dead_code)]
+    fn get_bound(&self, resource: Resource) -> ResourceBounds {
+        match resource {
+            Resource::L1Gas => self.l1_gas,
+            Resource::L2Gas => self.l2_gas,
+            Resource::L1DataGas => self.l1_data_gas,
+        }
+    }
+}
+
+impl TryFrom<DeprecatedResourceBoundsMapping> for ValidResourceBounds {
+    type Error = StarknetApiError;
+    fn try_from(
+        resource_bounds_mapping: DeprecatedResourceBoundsMapping,
+    ) -> Result<Self, Self::Error> {
+        if let (Some(l1_bounds), Some(l2_bounds)) = (
+            resource_bounds_mapping.0.get(&Resource::L1Gas),
+            resource_bounds_mapping.0.get(&Resource::L2Gas),
+        ) {
+            match resource_bounds_mapping.0.get(&Resource::L1DataGas) {
+                Some(data_bounds) => Ok(Self::AllResources(AllResourceBounds {
+                    l1_gas: *l1_bounds,
+                    l1_data_gas: *data_bounds,
+                    l2_gas: *l2_bounds,
+                })),
+                None => {
+                    if l2_bounds.is_zero() {
+                        Ok(Self::L1Gas(*l1_bounds))
+                    } else {
+                        Err(StarknetApiError::InvalidResourceMappingInitializer(format!(
+                            "Missing data gas bounds but L2 gas bound is not zero: \
+                             {resource_bounds_mapping:?}",
+                        )))
+                    }
+                }
+            }
+        } else {
+            Err(StarknetApiError::InvalidResourceMappingInitializer(format!(
+                "{resource_bounds_mapping:?}",
+            )))
         }
     }
 }
@@ -948,75 +1022,3 @@ pub struct PaymasterData(pub Vec<Felt>);
 /// its class hash, address salt and constructor calldata.
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct AccountDeploymentData(pub Vec<Felt>);
-
-#[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
-pub struct GasVector {
-    pub l1_gas: u64,
-    pub l1_data_gas: u64,
-}
-
-/// The execution resources used by a transaction.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
-pub struct ExecutionResources {
-    pub steps: u64,
-    pub builtin_instance_counter: HashMap<Builtin, u64>,
-    pub memory_holes: u64,
-    pub da_gas_consumed: GasVector,
-    pub gas_consumed: GasVector,
-}
-
-#[derive(Clone, Debug, Deserialize, EnumIter, Eq, Hash, PartialEq, Serialize)]
-pub enum Builtin {
-    #[serde(rename = "range_check_builtin_applications")]
-    RangeCheck,
-    #[serde(rename = "pedersen_builtin_applications")]
-    Pedersen,
-    #[serde(rename = "poseidon_builtin_applications")]
-    Poseidon,
-    #[serde(rename = "ec_op_builtin_applications")]
-    EcOp,
-    #[serde(rename = "ecdsa_builtin_applications")]
-    Ecdsa,
-    #[serde(rename = "bitwise_builtin_applications")]
-    Bitwise,
-    #[serde(rename = "keccak_builtin_applications")]
-    Keccak,
-    #[serde(rename = "segment_arena_builtin")]
-    SegmentArena,
-    #[serde(rename = "add_mod_builtin")]
-    AddMod,
-    #[serde(rename = "mul_mod_builtin")]
-    MulMod,
-    #[serde(rename = "range_check96_builtin")]
-    RangeCheck96,
-}
-
-const RANGE_CHACK_BUILTIN_NAME: &str = "range_check";
-const PEDERSEN_BUILTIN_NAME: &str = "pedersen";
-const POSEIDON_BUILTIN_NAME: &str = "poseidon";
-const EC_OP_BUILTIN_NAME: &str = "ec_op";
-const ECDSA_BUILTIN_NAME: &str = "ecdsa";
-const BITWISE_BUILTIN_NAME: &str = "bitwise";
-const KECCAK_BUILTIN_NAME: &str = "keccak";
-const SEGMENT_ARENA_BUILTIN_NAME: &str = "segment_arena";
-const ADD_MOD_BUILTIN_NAME: &str = "add_mod";
-const MUL_MOD_BUILTIN_NAME: &str = "mul_mod";
-const RANGE_CHECK96_BUILTIN_NAME: &str = "range_check96";
-
-impl Builtin {
-    pub fn name(&self) -> &'static str {
-        match self {
-            Builtin::RangeCheck => RANGE_CHACK_BUILTIN_NAME,
-            Builtin::Pedersen => PEDERSEN_BUILTIN_NAME,
-            Builtin::Poseidon => POSEIDON_BUILTIN_NAME,
-            Builtin::EcOp => EC_OP_BUILTIN_NAME,
-            Builtin::Ecdsa => ECDSA_BUILTIN_NAME,
-            Builtin::Bitwise => BITWISE_BUILTIN_NAME,
-            Builtin::Keccak => KECCAK_BUILTIN_NAME,
-            Builtin::SegmentArena => SEGMENT_ARENA_BUILTIN_NAME,
-            Builtin::AddMod => ADD_MOD_BUILTIN_NAME,
-            Builtin::MulMod => MUL_MOD_BUILTIN_NAME,
-            Builtin::RangeCheck96 => RANGE_CHECK96_BUILTIN_NAME,
-        }
-    }
-}

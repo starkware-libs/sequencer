@@ -1,13 +1,12 @@
 use std::collections::{HashMap, HashSet};
 use std::io;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use indexmap::{IndexMap, IndexSet};
 use num_rational::Ratio;
-use once_cell::sync::Lazy;
 use paste::paste;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer};
@@ -43,7 +42,7 @@ macro_rules! define_versioned_constants {
             $(
                 pub(crate) const [<VERSIONED_CONSTANTS_ $variant:upper _JSON>]: &str =
                     include_str!($path_to_json);
-                static [<VERSIONED_CONSTANTS_ $variant:upper>]: Lazy<VersionedConstants> = Lazy::new(|| {
+                static [<VERSIONED_CONSTANTS_ $variant:upper>]: LazyLock<VersionedConstants> = LazyLock::new(|| {
                     serde_json::from_str([<VERSIONED_CONSTANTS_ $variant:upper _JSON>])
                         .expect(&format!("Versioned constants {} is malformed.", $path_to_json))
                 });
@@ -69,6 +68,7 @@ define_versioned_constants! {
     (V0_13_0, "../resources/versioned_constants_13_0.json"),
     (V0_13_1, "../resources/versioned_constants_13_1.json"),
     (V0_13_1_1, "../resources/versioned_constants_13_1_1.json"),
+    (V0_13_2, "../resources/versioned_constants_13_2.json"),
     (Latest, "../resources/versioned_constants.json"),
 }
 
@@ -122,6 +122,14 @@ impl VersionedConstants {
     /// To use custom constants, initialize the struct from a file using `try_from`.
     pub fn latest_constants() -> &'static Self {
         Self::get(StarknetVersion::Latest)
+    }
+
+    /// Converts from l1 gas cost to l2 gas cost with **upward rounding**
+    pub fn l1_to_l2_gas_price_conversion(&self, l1_gas_price: u128) -> u128 {
+        let l1_to_l2_gas_price_ratio: Ratio<u128> =
+            Ratio::new(1, u128::from(self.os_constants.gas_costs.step_gas_cost))
+                * self.vm_resource_fee_cost()["n_steps"];
+        *(l1_to_l2_gas_price_ratio * l1_gas_price).ceil().numer()
     }
 
     /// Returns the initial gas of any transaction to run with.
@@ -224,32 +232,21 @@ impl VersionedConstants {
         Self { validate_max_n_steps, max_recursion_depth, ..Self::latest_constants().clone() }
     }
 
-    // TODO(Amos, 1/8/2024): Remove the explicit `validate_max_n_steps` & `max_recursion_depth`,
-    // they should be part of the general override.
-    /// `versioned_constants_base_overrides` are used if they are provided, otherwise the latest
-    /// versioned constants are used. `validate_max_n_steps` & `max_recursion_depth` override both.
+    /// Returns the latest versioned constants after applying the given overrides.
     pub fn get_versioned_constants(
         versioned_constants_overrides: VersionedConstantsOverrides,
     ) -> Self {
         let VersionedConstantsOverrides {
             validate_max_n_steps,
             max_recursion_depth,
-            versioned_constants_base_overrides,
+            invoke_tx_max_n_steps,
         } = versioned_constants_overrides;
-        let base_overrides = match versioned_constants_base_overrides {
-            Some(versioned_constants_base_overrides) => {
-                log::debug!(
-                    "Using provided `versioned_constants_base_overrides` (with additional \
-                     overrides)."
-                );
-                versioned_constants_base_overrides
-            }
-            None => {
-                log::debug!("Using latest versioned constants (with additional overrides).");
-                Self::latest_constants().clone()
-            }
-        };
-        Self { validate_max_n_steps, max_recursion_depth, ..base_overrides }
+        Self {
+            validate_max_n_steps,
+            max_recursion_depth,
+            invoke_tx_max_n_steps,
+            ..Self::latest_constants().clone()
+        }
     }
 }
 
@@ -458,6 +455,8 @@ impl<'de> Deserialize<'de> for OsResources {
 #[derive(Debug, Default, Deserialize)]
 pub struct GasCosts {
     pub step_gas_cost: u64,
+    // Range check has a hard-coded cost higher than its proof percentage to avoid the overhead of
+    // retrieving its price from the table.
     pub range_check_gas_cost: u64,
     pub memory_hole_gas_cost: u64,
     // An estimation of the initial gas for a transaction to run with. This solution is
@@ -530,6 +529,8 @@ impl OsConstants {
         "l1_handler_version",
         "l2_gas",
         "l2_gas_index",
+        "l1_data_gas",
+        "l1_data_gas_index",
         "nop_entry_point_offset",
         "sierra_array_len_bound",
         "stored_block_hash_buffer",
@@ -746,5 +747,5 @@ pub struct ResourcesByVersion {
 pub struct VersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
-    pub versioned_constants_base_overrides: Option<VersionedConstants>,
+    pub invoke_tx_max_n_steps: u32,
 }

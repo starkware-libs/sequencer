@@ -96,6 +96,11 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "consensus.network_topic": {
+    "description": "The network topic of the consensus.",
+    "value": "consensus",
+    "privacy": "Public"
+  },
   "consensus.num_validators": {
     "description": "The number of validators in the consensus.",
     "value": {
@@ -110,9 +115,63 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
-  "consensus.topic": {
-    "description": "The topic of the consensus.",
-    "value": "consensus",
+  "consensus.test.#is_none": {
+    "description": "Flag for an optional field.",
+    "value": true,
+    "privacy": "TemporaryValue"
+  },
+  "consensus.test.cache_size": {
+    "description": "The cache size for the test simulation.",
+    "value": {
+      "$serde_json::private::Number": "1000"
+    },
+    "privacy": "Public"
+  },
+  "consensus.test.drop_probability": {
+    "description": "The probability of dropping a message.",
+    "value": {
+      "$serde_json::private::Number": "0.0"
+    },
+    "privacy": "Public"
+  },
+  "consensus.test.invalid_probability": {
+    "description": "The probability of sending an invalid message.",
+    "value": {
+      "$serde_json::private::Number": "0.0"
+    },
+    "privacy": "Public"
+  },
+  "consensus.test.random_seed": {
+    "description": "The random seed for the test simulation to ensure repeatable test results.",
+    "value": {
+      "$serde_json::private::Number": "0"
+    },
+    "privacy": "Public"
+  },
+  "consensus.test.sync_topic": {
+    "description": "The network topic for sync messages.",
+    "value": "consensus_test_sync",
+    "privacy": "Public"
+  },
+  "consensus.timeouts.precommit_timeout": {
+    "description": "The timeout (seconds) for a precommit.",
+    "value": {
+      "$serde_json::private::Number": "1.0"
+    },
+    "privacy": "Public"
+  },
+  "consensus.timeouts.prevote_timeout": {
+    "description": "The timeout (seconds) for a prevote.",
+    "value": {
+      "$serde_json::private::Number": "1.0"
+    },
+    "privacy": "Public"
+  },
+  "consensus.timeouts.proposal_timeout": {
+    "description": "The timeout (seconds) for a proposal.",
+    "value": {
+      "$serde_json::private::Number": "3.0"
+    },
     "privacy": "Public"
   },
   "consensus.validator_id": {
@@ -156,6 +215,21 @@ expression: dumped_default_config
     "privacy": "Public"
   },
   "network.bootstrap_peer_multiaddr.#is_none": {
+    "description": "Flag for an optional field.",
+    "value": true,
+    "privacy": "TemporaryValue"
+  },
+  "network.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "value": "SN_MAIN",
+    "privacy": "Public"
+  },
+  "network.hardcoded_external_multiaddr": {
+    "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
+    "value": "",
+    "privacy": "Public"
+  },
+  "network.hardcoded_external_multiaddr.#is_none": {
     "description": "Flag for an optional field.",
     "value": true,
     "privacy": "TemporaryValue"
@@ -216,6 +290,13 @@ expression: dumped_default_config
     "description": "The maximum amount of headers to ask from peers in each iteration.",
     "value": {
       "$serde_json::private::Number": "10000"
+    },
+    "privacy": "Public"
+  },
+  "p2p_sync.num_transactions_per_query": {
+    "description": "The maximum amount of blocks to ask their transactions from peers in each iteration.",
+    "value": {
+      "$serde_json::private::Number": "100"
     },
     "privacy": "Public"
   },
@@ -396,6 +477,11 @@ expression: dumped_default_config
     "value": {
       "$serde_json::private::Number": "1000"
     },
+    "privacy": "Public"
+  },
+  "sync.collect_pending_data": {
+    "description": "Whether to collect data on pending blocks.",
+    "value": false,
     "privacy": "Public"
   },
   "sync.recoverable_error_sleep_duration": {

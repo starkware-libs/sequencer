@@ -1,5 +1,5 @@
 use libp2p::kad;
-use tracing::error;
+use tracing::{error, info};
 
 use super::identify_impl::IdentifyToOtherBehaviourEvent;
 use crate::mixed_behaviour::BridgedBehaviour;
@@ -48,6 +48,10 @@ impl<TStore: kad::store::RecordStore + Send + 'static> BridgedBehaviour for kad:
             | mixed_behaviour::ToOtherBehaviourEvent::Discovery(
                 super::ToOtherBehaviourEvent::FoundListenAddresses { peer_id, listen_addresses },
             ) => {
+                info!(
+                    "Adding new listen addresses to routing table for peer {peer_id:?}: \
+                     {listen_addresses:?}"
+                );
                 for address in listen_addresses {
                     self.add_address(peer_id, address.clone());
                 }
@@ -55,7 +59,7 @@ impl<TStore: kad::store::RecordStore + Send + 'static> BridgedBehaviour for kad:
             mixed_behaviour::ToOtherBehaviourEvent::PeerManager(
                 peer_manager::ToOtherBehaviourEvent::PeerBlacklisted { peer_id },
             ) => {
-                self.remove_peer(&peer_id);
+                self.remove_peer(peer_id);
             }
             _ => {}
         }

@@ -14,6 +14,7 @@ use starknet_api::core::{
     EthAddress,
     Nonce,
 };
+use starknet_api::execution_resources::GasVector;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::{
     AccountDeploymentData,
@@ -22,16 +23,15 @@ use starknet_api::transaction::{
     DeclareTransactionOutput,
     DeployAccountTransactionOutput,
     DeployTransactionOutput,
+    DeprecatedResourceBoundsMapping,
     Event,
     Fee,
-    GasVector,
     InvokeTransactionOutput,
     L1HandlerTransactionOutput,
     L1ToL2Payload,
     L2ToL1Payload,
     MessageToL1,
     PaymasterData,
-    ResourceBoundsMapping,
     RevertedTransactionExecutionStatus as SnApiRevertedTransactionExecutionStatus,
     Tip,
     TransactionExecutionStatus as SnApiTransactionExecutionStatus,
@@ -178,7 +178,7 @@ impl From<ReservedDataAvailabilityMode> for starknet_api::data_availability::Dat
 #[serde(deny_unknown_fields)]
 pub struct IntermediateDeclareTransaction {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub resource_bounds: Option<ResourceBoundsMapping>,
+    pub resource_bounds: Option<DeprecatedResourceBoundsMapping>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tip: Option<Tip>,
     pub signature: TransactionSignature,
@@ -347,7 +347,7 @@ impl From<DeployTransaction> for starknet_api::transaction::DeployTransaction {
 #[serde(deny_unknown_fields)]
 pub struct IntermediateDeployAccountTransaction {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub resource_bounds: Option<ResourceBoundsMapping>,
+    pub resource_bounds: Option<DeprecatedResourceBoundsMapping>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tip: Option<Tip>,
     pub signature: TransactionSignature,
@@ -470,7 +470,7 @@ impl TryFrom<IntermediateDeployAccountTransaction>
 #[serde(deny_unknown_fields)]
 pub struct IntermediateInvokeTransaction {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub resource_bounds: Option<ResourceBoundsMapping>,
+    pub resource_bounds: Option<DeprecatedResourceBoundsMapping>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tip: Option<Tip>,
     pub calldata: Calldata,
@@ -664,7 +664,7 @@ pub enum Builtin {
     RangeCheck96,
 }
 
-impl From<ExecutionResources> for starknet_api::transaction::ExecutionResources {
+impl From<ExecutionResources> for starknet_api::execution_resources::ExecutionResources {
     fn from(execution_resources: ExecutionResources) -> Self {
         let da_gas_consumed = execution_resources.data_availability.unwrap_or_default();
         Self {
@@ -674,27 +674,39 @@ impl From<ExecutionResources> for starknet_api::transaction::ExecutionResources 
                 .into_iter()
                 .filter_map(|(builtin, count)| match builtin {
                     Builtin::RangeCheck => {
-                        Some((starknet_api::transaction::Builtin::RangeCheck, count))
+                        Some((starknet_api::execution_resources::Builtin::RangeCheck, count))
                     }
                     Builtin::Pedersen => {
-                        Some((starknet_api::transaction::Builtin::Pedersen, count))
+                        Some((starknet_api::execution_resources::Builtin::Pedersen, count))
                     }
                     Builtin::Poseidon => {
-                        Some((starknet_api::transaction::Builtin::Poseidon, count))
+                        Some((starknet_api::execution_resources::Builtin::Poseidon, count))
                     }
-                    Builtin::EcOp => Some((starknet_api::transaction::Builtin::EcOp, count)),
-                    Builtin::Ecdsa => Some((starknet_api::transaction::Builtin::Ecdsa, count)),
-                    Builtin::Bitwise => Some((starknet_api::transaction::Builtin::Bitwise, count)),
-                    Builtin::Keccak => Some((starknet_api::transaction::Builtin::Keccak, count)),
+                    Builtin::EcOp => {
+                        Some((starknet_api::execution_resources::Builtin::EcOp, count))
+                    }
+                    Builtin::Ecdsa => {
+                        Some((starknet_api::execution_resources::Builtin::Ecdsa, count))
+                    }
+                    Builtin::Bitwise => {
+                        Some((starknet_api::execution_resources::Builtin::Bitwise, count))
+                    }
+                    Builtin::Keccak => {
+                        Some((starknet_api::execution_resources::Builtin::Keccak, count))
+                    }
                     // output builtin should be ignored.
                     Builtin::Output => None,
                     Builtin::SegmentArena => {
-                        Some((starknet_api::transaction::Builtin::SegmentArena, count))
+                        Some((starknet_api::execution_resources::Builtin::SegmentArena, count))
                     }
-                    Builtin::AddMod => Some((starknet_api::transaction::Builtin::AddMod, count)),
-                    Builtin::MulMod => Some((starknet_api::transaction::Builtin::MulMod, count)),
+                    Builtin::AddMod => {
+                        Some((starknet_api::execution_resources::Builtin::AddMod, count))
+                    }
+                    Builtin::MulMod => {
+                        Some((starknet_api::execution_resources::Builtin::MulMod, count))
+                    }
                     Builtin::RangeCheck96 => {
-                        Some((starknet_api::transaction::Builtin::RangeCheck96, count))
+                        Some((starknet_api::execution_resources::Builtin::RangeCheck96, count))
                     }
                 })
                 .collect(),

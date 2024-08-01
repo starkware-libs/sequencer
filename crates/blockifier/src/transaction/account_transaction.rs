@@ -4,7 +4,13 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::calldata;
 use starknet_api::core::{ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::EntryPointType;
-use starknet_api::transaction::{Calldata, Fee, ResourceBounds, TransactionVersion};
+use starknet_api::transaction::{
+    Calldata,
+    Fee,
+    ResourceBounds,
+    TransactionHash,
+    TransactionVersion,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
@@ -68,6 +74,29 @@ pub enum AccountTransaction {
     Declare(DeclareTransaction),
     DeployAccount(DeployAccountTransaction),
     Invoke(InvokeTransaction),
+}
+
+impl TryFrom<starknet_api::executable_transaction::Transaction> for AccountTransaction {
+    type Error = TransactionExecutionError;
+
+    fn try_from(
+        executable_transaction: starknet_api::executable_transaction::Transaction,
+    ) -> Result<Self, Self::Error> {
+        match executable_transaction {
+            starknet_api::executable_transaction::Transaction::Declare(declare_tx) => {
+                Ok(Self::Declare(declare_tx.try_into()?))
+            }
+            starknet_api::executable_transaction::Transaction::DeployAccount(deploy_account_tx) => {
+                Ok(Self::DeployAccount(DeployAccountTransaction {
+                    tx: deploy_account_tx,
+                    only_query: false,
+                }))
+            }
+            starknet_api::executable_transaction::Transaction::Invoke(invoke_tx) => {
+                Ok(Self::Invoke(InvokeTransaction { tx: invoke_tx, only_query: false }))
+            }
+        }
+    }
 }
 
 impl HasRelatedFeeType for AccountTransaction {
@@ -139,6 +168,14 @@ impl AccountTransaction {
         };
 
         signature.0.len()
+    }
+
+    pub fn tx_hash(&self) -> TransactionHash {
+        match self {
+            Self::Declare(tx) => tx.tx_hash(),
+            Self::DeployAccount(tx) => tx.tx_hash(),
+            Self::Invoke(tx) => tx.tx_hash(),
+        }
     }
 
     fn verify_tx_version(&self, version: TransactionVersion) -> TransactionExecutionResult<()> {
@@ -219,7 +256,8 @@ impl AccountTransaction {
                     })?;
                 }
 
-                let actual_l1_gas_price = block_info.gas_prices.get_gas_price_by_fee_type(fee_type);
+                let actual_l1_gas_price =
+                    block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type);
                 if max_l1_gas_price < actual_l1_gas_price.into() {
                     return Err(TransactionFeeError::MaxL1GasPriceTooLow {
                         max_l1_gas_price,
@@ -690,7 +728,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
             validate_call_info,
             execute_call_info,
             fee_transfer_call_info,
-            transaction_receipt: TransactionReceipt {
+            receipt: TransactionReceipt {
                 fee: final_fee,
                 da_gas: final_da_gas,
                 resources: final_resources,

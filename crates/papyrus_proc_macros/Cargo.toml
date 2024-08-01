@@ -1,20 +1,21 @@
 [package]
 name = "papyrus_proc_macros"
-version = "0.4.0-rc.0"
+version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "Procedural macros for the Papyrus node"
 
 [dependencies]
-quote = "1.0.26"
-syn = { version = "2.0.39", features = ["full"] }
+quote.workspace = true
+syn = { workspace = true, features = ["full"] }
+tracing.workspace = true
 
 [dev-dependencies]
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
-papyrus_common = { path = "../papyrus_common", version = "0.4.0-dev.1" }
-papyrus_test_utils = { path = "../papyrus_test_utils" }
+papyrus_common.workspace = true
+papyrus_test_utils.workspace = true
 prometheus-parse.workspace = true
 
 [lib]

@@ -7,24 +7,22 @@ mod state_diff_test;
 mod stream_builder;
 #[cfg(test)]
 mod test_utils;
+mod transaction;
 
 use std::collections::BTreeMap;
 use std::time::Duration;
 
 use futures::channel::mpsc::SendError;
-use futures::future::{ready, Ready};
-use futures::sink::With;
-use futures::{SinkExt, Stream};
+use futures::Stream;
 use header::HeaderStreamBuilder;
 use papyrus_config::converters::deserialize_seconds_to_duration;
 use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use papyrus_network::network_manager::{SqmrClientPayload, SqmrClientSender};
+use papyrus_network::network_manager::SqmrClientSender;
 use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_protobuf::sync::{
     DataOrFin,
     HeaderQuery,
-    Query,
     SignedBlockHeader,
     StateDiffChunk,
     StateDiffQuery,
@@ -33,12 +31,12 @@ use papyrus_protobuf::sync::{
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, BlockSignature};
-use starknet_api::transaction::{Transaction, TransactionOutput};
+use starknet_api::transaction::FullTransaction;
 use state_diff::StateDiffStreamBuilder;
 use stream_builder::{DataStreamBuilder, DataStreamResult};
 use tokio_stream::StreamExt;
 use tracing::instrument;
-
+use transaction::TransactionStreamFactory;
 const STEP: u64 = 1;
 const ALLOWED_SIGNATURES_LENGTH: usize = 1;
 
@@ -48,6 +46,7 @@ const NETWORK_DATA_TIMEOUT: Duration = Duration::from_secs(300);
 pub struct P2PSyncClientConfig {
     pub num_headers_per_query: u64,
     pub num_block_state_diffs_per_query: u64,
+    pub num_transactions_per_query: u64,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub wait_period_for_new_data: Duration,
     pub buffer_size: usize,
@@ -67,6 +66,13 @@ impl SerializeConfig for P2PSyncClientConfig {
                 "num_block_state_diffs_per_query",
                 &self.num_block_state_diffs_per_query,
                 "The maximum amount of block's state diffs to ask from peers in each iteration.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "num_transactions_per_query",
+                &self.num_transactions_per_query,
+                "The maximum amount of blocks to ask their transactions from peers in each \
+                 iteration.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -102,6 +108,7 @@ impl Default for P2PSyncClientConfig {
             // State diffs are split into multiple messages, so big queries can lead to a lot of
             // messages in the network buffers.
             num_block_state_diffs_per_query: 100,
+            num_transactions_per_query: 100,
             wait_period_for_new_data: Duration::from_secs(5),
             // TODO(eitan): split this by protocol
             buffer_size: 100000,
@@ -119,6 +126,12 @@ pub enum P2PSyncClientError {
          {expected_block_number}, got {actual_block_number}."
     )]
     HeadersUnordered { expected_block_number: BlockNumber, actual_block_number: BlockNumber },
+    #[error(
+        "Expected to receive {expected} transactions for {block_number} from the network. Got \
+         {actual} instead."
+    )]
+    // TODO(eitan): Remove this and report to network on invalid data once that's possible.
+    NotEnoughTransactions { expected: usize, actual: usize, block_number: u64 },
     #[error("Expected to receive one signature from the network. got {signatures:?} instead.")]
     // TODO(shahak): Remove this and report to network on invalid data once that's possible.
     // Right now we support only one signature. In the future we will support many signatures.
@@ -159,39 +172,23 @@ pub enum P2PSyncClientError {
     SendError(#[from] SendError),
 }
 
-// TODO(Eitan): Use SqmrSubscriberChannels once there is a utility function for testing
-
-type WithPayloadSender<TQuery, Response> = With<
-    SqmrClientSender<TQuery, Response>,
-    SqmrClientPayload<TQuery, Response>,
-    SqmrClientPayload<Query, Response>,
-    Ready<Result<SqmrClientPayload<TQuery, Response>, SendError>>,
-    fn(
-        SqmrClientPayload<Query, Response>,
-    ) -> Ready<Result<SqmrClientPayload<TQuery, Response>, SendError>>,
->;
-type SyncResponse<T> = Result<DataOrFin<T>, ProtobufConversionError>;
-type ResponseReceiver<T> = Box<dyn Stream<Item = SyncResponse<T>> + Unpin + Send>;
-
-type HeaderPayloadSender = SqmrClientSender<HeaderQuery, DataOrFin<SignedBlockHeader>>;
-type StateDiffPayloadSender = SqmrClientSender<StateDiffQuery, DataOrFin<StateDiffChunk>>;
-type TransactionPayloadSender =
-    SqmrClientSender<TransactionQuery, DataOrFin<(Transaction, TransactionOutput)>>;
+type HeaderSqmrSender = SqmrClientSender<HeaderQuery, DataOrFin<SignedBlockHeader>>;
+type StateSqmrDiffSender = SqmrClientSender<StateDiffQuery, DataOrFin<StateDiffChunk>>;
+type TransactionSqmrSender = SqmrClientSender<TransactionQuery, DataOrFin<FullTransaction>>;
 
 pub struct P2PSyncClientChannels {
-    header_payload_sender: HeaderPayloadSender,
-    state_diff_payload_sender: StateDiffPayloadSender,
-    #[allow(dead_code)]
-    transaction_payload_sender: TransactionPayloadSender,
+    header_sender: HeaderSqmrSender,
+    state_diff_sender: StateSqmrDiffSender,
+    transaction_sender: TransactionSqmrSender,
 }
 
 impl P2PSyncClientChannels {
     pub fn new(
-        header_payload_sender: HeaderPayloadSender,
-        state_diff_payload_sender: StateDiffPayloadSender,
-        transaction_payload_sender: TransactionPayloadSender,
+        header_sender: HeaderSqmrSender,
+        state_diff_sender: StateSqmrDiffSender,
+        transaction_sender: TransactionSqmrSender,
     ) -> Self {
-        Self { header_payload_sender, state_diff_payload_sender, transaction_payload_sender }
+        Self { header_sender, state_diff_sender, transaction_sender }
     }
     pub(crate) fn create_stream(
         self,
@@ -199,15 +196,7 @@ impl P2PSyncClientChannels {
         config: P2PSyncClientConfig,
     ) -> impl Stream<Item = DataStreamResult> + Send + 'static {
         let header_stream = HeaderStreamBuilder::create_stream(
-            self.header_payload_sender.with(
-                |SqmrClientPayload { query, report_receiver, responses_sender }| {
-                    ready(Ok(SqmrClientPayload {
-                        query: HeaderQuery(query),
-                        report_receiver,
-                        responses_sender,
-                    }))
-                },
-            ),
+            self.header_sender,
             storage_reader.clone(),
             config.wait_period_for_new_data,
             config.num_headers_per_query,
@@ -215,22 +204,22 @@ impl P2PSyncClientChannels {
         );
 
         let state_diff_stream = StateDiffStreamBuilder::create_stream(
-            self.state_diff_payload_sender.with(
-                |SqmrClientPayload { query, report_receiver, responses_sender }| {
-                    ready(Ok(SqmrClientPayload {
-                        query: StateDiffQuery(query),
-                        report_receiver,
-                        responses_sender,
-                    }))
-                },
-            ),
+            self.state_diff_sender,
             storage_reader.clone(),
             config.wait_period_for_new_data,
             config.num_block_state_diffs_per_query,
             config.stop_sync_at_block_number,
         );
 
-        header_stream.merge(state_diff_stream)
+        let transaction_stream = TransactionStreamFactory::create_stream(
+            self.transaction_sender,
+            storage_reader.clone(),
+            config.wait_period_for_new_data,
+            config.num_transactions_per_query,
+            config.stop_sync_at_block_number,
+        );
+
+        header_stream.merge(state_diff_stream).merge(transaction_stream)
     }
 }
 

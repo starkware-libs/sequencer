@@ -5,14 +5,18 @@ on:
     types:
       - closed
     paths:
+      - '.github/workflows/blockifier_post-merge.yml'
       - 'crates/blockifier/**'
+      - 'crates/native_blockifier/**'
+
 jobs:
   if_merged:
     if: github.event.pull_request.merged == true
-    runs-on: ubuntu-20.04
+    runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
+      - uses: Noelware/setup-protoc@1.1.0
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: "v0-rust-ubuntu-20.04"
@@ -29,4 +33,4 @@ jobs:
 
       - run: |
           pip install -r crates/blockifier/tests/requirements.txt
-          cargo test -- --include-ignored
+          cargo test -p blockifier -p native_blockifier -- --include-ignored

@@ -1,6 +1,6 @@
 [package]
 name = "starknet_client"
-version = "0.4.0-rc.0"
+version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -17,19 +17,19 @@ http.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 mockall = { workspace = true, optional = true }
 os_info.workspace = true
-papyrus_common = { path = "../papyrus_common", version = "0.4.0-rc.0" }
-papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0" }
+papyrus_common.workspace = true
+papyrus_config.workspace = true
 rand = { workspace = true, optional = true }
 rand_chacha = { workspace = true, optional = true }
 reqwest = { workspace = true, features = ["blocking", "json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 serde_repr.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
+starknet_api.workspace = true
 starknet-types-core = { workspace = true, features = ["serde"] }
 strum.workspace = true
 strum_macros.workspace = true
-papyrus_test_utils = { path = "../papyrus_test_utils", optional = true }
+papyrus_test_utils = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 tokio-retry.workspace = true
@@ -40,15 +40,21 @@ url.workspace = true
 assert_matches.workspace = true
 enum-iterator.workspace = true
 mockall.workspace = true
+# TODO: Upgrade to workspace-defined version.
 mockito = "0.31.0"
 rand.workspace = true
 rand_chacha.workspace = true
 pretty_assertions.workspace = true
 simple_logger.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0", features = ["testing"] }
-papyrus_test_utils = { path = "../papyrus_test_utils" }
+starknet_api = { workspace = true, features = ["testing"] }
+papyrus_test_utils.workspace = true
 
 [package.metadata.cargo-machete]
 # The `rand` and `rand_chacha` crates are used in the `testing` feature, which is optional.
 # `strum` is used by `EnumIter` which is used in this crate.
 ignored = ["rand", "rand_chacha", "strum"]
+
+[lints.rust]
+# See [here](https://github.com/taiki-e/cargo-llvm-cov/issues/370) for a discussion on why this is
+# needed (from rust 1.80).
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }

@@ -1,16 +1,8 @@
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::transaction::{Tip, TransactionHash};
+use starknet_api::executable_transaction::Transaction;
 
 use crate::errors::MempoolError;
-
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
-pub struct ThinTransaction {
-    pub sender_address: ContractAddress,
-    pub tx_hash: TransactionHash,
-    pub tip: Tip,
-    pub nonce: Nonce,
-}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct AccountState {
@@ -25,9 +17,9 @@ pub struct Account {
     pub state: AccountState,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MempoolInput {
-    pub tx: ThinTransaction,
+    pub tx: Transaction,
     pub account: Account,
 }
 

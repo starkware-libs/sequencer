@@ -16,7 +16,6 @@ pub struct GatewayConfig {
     pub network_config: GatewayNetworkConfig,
     pub stateless_tx_validator_config: StatelessTransactionValidatorConfig,
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
-    pub compiler_config: GatewayCompilerConfig,
 }
 
 impl SerializeConfig for GatewayConfig {
@@ -31,7 +30,6 @@ impl SerializeConfig for GatewayConfig {
                 self.stateful_tx_validator_config.dump(),
                 "stateful_tx_validator_config",
             ),
-            append_sub_config_name(self.compiler_config.dump(), "compiler_config"),
         ]
         .into_iter()
         .flatten()
@@ -75,8 +73,7 @@ pub struct StatelessTransactionValidatorConfig {
     pub max_signature_length: usize,
 
     // Declare txs specific config.
-    pub max_bytecode_size: usize,
-    pub max_raw_class_size: usize,
+    pub max_contract_class_object_size: usize,
     pub min_sierra_version: VersionId,
     pub max_sierra_version: VersionId,
 }
@@ -88,10 +85,9 @@ impl Default for StatelessTransactionValidatorConfig {
             validate_non_zero_l2_gas_fee: false,
             max_calldata_length: 4000,
             max_signature_length: 4000,
-            max_bytecode_size: 81920,
-            max_raw_class_size: 4089446,
-            min_sierra_version: VersionId { major: 1, minor: 1, patch: 0 },
-            max_sierra_version: VersionId { major: 1, minor: 5, patch: usize::MAX },
+            max_contract_class_object_size: 4089446,
+            min_sierra_version: VersionId::new(1, 1, 0),
+            max_sierra_version: VersionId::new(1, 5, usize::MAX),
         }
     }
 }
@@ -124,14 +120,8 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "max_bytecode_size",
-                &self.max_bytecode_size,
-                "Limitation of contract bytecode size.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_raw_class_size",
-                &self.max_raw_class_size,
+                "max_contract_class_object_size",
+                &self.max_contract_class_object_size,
                 "Limitation of contract class object size.",
                 ParamPrivacyInput::Public,
             ),
@@ -229,14 +219,5 @@ impl StatefulTransactionValidatorConfig {
             max_recursion_depth: 50,
             chain_info: ChainInfo::create_for_testing(),
         }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
-pub struct GatewayCompilerConfig {}
-
-impl SerializeConfig for GatewayCompilerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::new()
     }
 }

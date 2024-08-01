@@ -9,22 +9,29 @@ use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::sink::SinkExt;
 use futures::StreamExt;
-use papyrus_network::network_manager::BroadcastSubscriberSender;
-use papyrus_protobuf::consensus::{ConsensusMessage, Proposal};
+use papyrus_network::network_manager::BroadcastTopicSender;
+use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, Vote};
 use papyrus_storage::body::BodyStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
-use tracing::{debug, debug_span, Instrument};
+use tracing::{debug, debug_span, info, warn, Instrument};
 
-use crate::types::{ConsensusBlock, ConsensusContext, ConsensusError, ProposalInit, ValidatorId};
+use crate::types::{
+    ConsensusBlock,
+    ConsensusContext,
+    ConsensusError,
+    ProposalInit,
+    Round,
+    ValidatorId,
+};
 use crate::ProposalWrapper;
 
 // TODO: add debug messages and span to the tasks.
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct PapyrusConsensusBlock {
     content: Vec<Transaction>,
     id: BlockHash,
@@ -45,8 +52,9 @@ impl ConsensusBlock for PapyrusConsensusBlock {
 
 pub struct PapyrusConsensusContext {
     storage_reader: StorageReader,
-    broadcast_sender: BroadcastSubscriberSender<ConsensusMessage>,
+    network_broadcast_sender: BroadcastTopicSender<ConsensusMessage>,
     validators: Vec<ValidatorId>,
+    sync_broadcast_sender: Option<BroadcastTopicSender<Vote>>,
 }
 
 impl PapyrusConsensusContext {
@@ -54,13 +62,15 @@ impl PapyrusConsensusContext {
     #[allow(dead_code)]
     pub fn new(
         storage_reader: StorageReader,
-        broadcast_sender: BroadcastSubscriberSender<ConsensusMessage>,
+        network_broadcast_sender: BroadcastTopicSender<ConsensusMessage>,
         num_validators: u64,
+        sync_broadcast_sender: Option<BroadcastTopicSender<Vote>>,
     ) -> Self {
         Self {
             storage_reader,
-            broadcast_sender,
+            network_broadcast_sender,
             validators: (0..num_validators).map(ContractAddress::from).collect(),
+            sync_broadcast_sender,
         }
     }
 }
@@ -160,9 +170,13 @@ impl ConsensusContext for PapyrusConsensusContext {
                         panic!("Block in {height} was not found in storage despite waiting for it")
                     })
                     .block_hash;
+
+                // This can happen as a result of sync interrupting `run_height`.
                 fin_sender
                     .send(PapyrusConsensusBlock { content: transactions, id: block_hash })
-                    .expect("Send should succeed");
+                    .unwrap_or_else(|_| {
+                        warn!("Failed to send block to consensus. height={height}");
+                    })
             }
             .instrument(debug_span!("consensus_validate_proposal")),
         );
@@ -174,13 +188,13 @@ impl ConsensusContext for PapyrusConsensusContext {
         self.validators.clone()
     }
 
-    fn proposer(&self, _validators: &[ValidatorId], _height: BlockNumber) -> ValidatorId {
+    fn proposer(&self, _height: BlockNumber, _round: Round) -> ValidatorId {
         *self.validators.first().expect("validators should have at least 2 validators")
     }
 
     async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
         debug!("Broadcasting message: {message:?}");
-        self.broadcast_sender.send(message).await?;
+        self.network_broadcast_sender.send(message).await?;
         Ok(())
     }
 
@@ -190,7 +204,7 @@ impl ConsensusContext for PapyrusConsensusContext {
         mut content_receiver: mpsc::Receiver<Transaction>,
         fin_receiver: oneshot::Receiver<BlockHash>,
     ) -> Result<(), ConsensusError> {
-        let mut broadcast_sender = self.broadcast_sender.clone();
+        let mut network_broadcast_sender = self.network_broadcast_sender.clone();
 
         tokio::spawn(
             async move {
@@ -199,8 +213,11 @@ impl ConsensusContext for PapyrusConsensusContext {
                     transactions.push(tx);
                 }
 
-                let block_hash =
-                    fin_receiver.await.expect("Failed to get block hash from fin receiver");
+                let Ok(block_hash) = fin_receiver.await else {
+                    // This can occur due to sync interrupting a height.
+                    warn!("Failed to get block hash from fin receiver. {init:?}");
+                    return;
+                };
                 let proposal = Proposal {
                     height: init.height.0,
                     round: init.round,
@@ -216,13 +233,30 @@ impl ConsensusContext for PapyrusConsensusContext {
                     proposal.block_hash
                 );
 
-                broadcast_sender
+                network_broadcast_sender
                     .send(ConsensusMessage::Proposal(proposal))
                     .await
                     .expect("Failed to send proposal");
             }
             .instrument(debug_span!("consensus_propose")),
         );
+        Ok(())
+    }
+
+    async fn decision_reached(
+        &mut self,
+        block: Self::Block,
+        precommits: Vec<Vote>,
+    ) -> Result<(), ConsensusError> {
+        let height = precommits[0].height;
+        info!(
+            "Finished consensus for height: {height}. Agreed on block with id: {:x}",
+            block.id().0
+        );
+        if let Some(sender) = &mut self.sync_broadcast_sender {
+            sender.send(precommits[0].clone()).await?;
+        }
+
         Ok(())
     }
 }

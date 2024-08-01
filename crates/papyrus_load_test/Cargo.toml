@@ -1,6 +1,6 @@
 [package]
 name = "papyrus_load_test"
-version = "0.4.0-rc.0"
+version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -11,7 +11,7 @@ compare_endpoints = []
 [dependencies]
 anyhow.workspace = true
 assert_matches.workspace = true
-goose = "0.17.0"
+goose.workspace = true
 once_cell.workspace = true
 rand.workspace = true
 reqwest.workspace = true
@@ -22,3 +22,8 @@ tokio.workspace = true
 [dev-dependencies]
 lazy_static.workspace = true
 pretty_assertions.workspace = true
+
+[lints.rust]
+# See [here](https://github.com/taiki-e/cargo-llvm-cov/issues/370) for a discussion on why this is
+# needed (from rust 1.80).
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }

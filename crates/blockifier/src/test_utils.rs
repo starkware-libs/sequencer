@@ -1,3 +1,4 @@
+pub mod cairo_compile;
 pub mod contracts;
 pub mod declare;
 pub mod deploy_account;
@@ -17,9 +18,9 @@ use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
+    DeprecatedResourceBoundsMapping,
     Resource,
     ResourceBounds,
-    ResourceBoundsMapping,
     TransactionVersion,
 };
 use starknet_api::{contract_address, felt, patricia_key};
@@ -210,8 +211,8 @@ pub fn trivial_external_entry_point_with_address(
     }
 }
 
-fn default_testing_resource_bounds() -> ResourceBoundsMapping {
-    ResourceBoundsMapping::try_from(vec![
+pub fn default_testing_resource_bounds() -> DeprecatedResourceBoundsMapping {
+    DeprecatedResourceBoundsMapping::try_from(vec![
         (Resource::L1Gas, ResourceBounds { max_amount: 0, max_price_per_unit: 1 }),
         // TODO(Dori, 1/2/2024): When fee market is developed, change the default price of
         //   L2 gas.

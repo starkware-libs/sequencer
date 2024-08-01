@@ -1,16 +1,17 @@
-use std::panic;
+use std::sync::Arc;
 
-use blockifier::execution::contract_class::{ClassInfo, ContractClass, ContractClassV1};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
+use starknet_api::contract_class::ClassInfo;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::rpc_transaction::RpcDeclareTransaction;
-use starknet_sierra_compile::compile::compile_sierra_to_casm;
-use starknet_sierra_compile::errors::CompilationUtilError;
+use starknet_sierra_compile::cairo_lang_compiler::CairoLangSierraToCasmCompiler;
+use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_sierra_compile::utils::into_contract_class_for_compilation;
+use starknet_sierra_compile::SierraToCasmCompiler;
+use tracing::{debug, error};
 
-use crate::config::GatewayCompilerConfig;
-use crate::errors::{GatewayError, GatewayResult};
+use crate::errors::{GatewayResult, GatewaySpecError};
 
 #[cfg(test)]
 #[path = "compilation_test.rs"]
@@ -19,11 +20,14 @@ mod compilation_test;
 // TODO(Arni): Pass the compiler with dependancy injection.
 #[derive(Clone)]
 pub struct GatewayCompiler {
-    #[allow(dead_code)]
-    pub config: GatewayCompilerConfig,
+    pub sierra_to_casm_compiler: Arc<dyn SierraToCasmCompiler>,
 }
 
 impl GatewayCompiler {
+    pub fn new_cairo_lang_compiler(config: SierraToCasmCompilationConfig) -> Self {
+        Self { sierra_to_casm_compiler: Arc::new(CairoLangSierraToCasmCompiler { config }) }
+    }
+
     /// Formats the contract class for compilation, compiles it, and returns the compiled contract
     /// class wrapped in a [`ClassInfo`].
     /// Assumes the contract class is of a Sierra program which is compiled to Casm.
@@ -39,24 +43,28 @@ impl GatewayCompiler {
 
         validate_compiled_class_hash(&casm_contract_class, &tx.compiled_class_hash)?;
 
-        Ok(ClassInfo::new(
-            &ContractClass::V1(ContractClassV1::try_from(casm_contract_class)?),
-            rpc_contract_class.sierra_program.len(),
-            rpc_contract_class.abi.len(),
-        )?)
+        Ok(ClassInfo {
+            casm_contract_class,
+            sierra_program_length: rpc_contract_class.sierra_program.len(),
+            abi_length: rpc_contract_class.abi.len(),
+        })
     }
 
-    // TODO(Arni): Pass the compilation args from the config.
     fn compile(
         &self,
         cairo_lang_contract_class: CairoLangContractClass,
-    ) -> Result<CasmContractClass, GatewayError> {
-        let catch_unwind_result =
-            panic::catch_unwind(|| compile_sierra_to_casm(cairo_lang_contract_class));
-        let casm_contract_class =
-            catch_unwind_result.map_err(|_| CompilationUtilError::CompilationPanic)??;
-
-        Ok(casm_contract_class)
+    ) -> GatewayResult<CasmContractClass> {
+        match self.sierra_to_casm_compiler.compile(cairo_lang_contract_class) {
+            Ok(casm_contract_class) => Ok(casm_contract_class),
+            Err(starknet_sierra_compile::errors::CompilationUtilError::UnexpectedError(error)) => {
+                error!("Compilation panicked. Error: {:?}", error);
+                Err(GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() })
+            }
+            Err(e) => {
+                debug!("Compilation failed: {:?}", e);
+                Err(GatewaySpecError::CompilationFailed)
+            }
+        }
     }
 }
 
@@ -65,13 +73,14 @@ impl GatewayCompiler {
 fn validate_compiled_class_hash(
     casm_contract_class: &CasmContractClass,
     supplied_compiled_class_hash: &CompiledClassHash,
-) -> Result<(), GatewayError> {
+) -> GatewayResult<()> {
     let compiled_class_hash = CompiledClassHash(casm_contract_class.compiled_class_hash());
     if compiled_class_hash != *supplied_compiled_class_hash {
-        return Err(GatewayError::CompiledClassHashMismatch {
-            supplied: *supplied_compiled_class_hash,
-            hash_result: compiled_class_hash,
-        });
+        debug!(
+            "Compiled class hash mismatch. Supplied: {:?}, Hash result: {:?}",
+            supplied_compiled_class_hash, compiled_class_hash
+        );
+        return Err(GatewaySpecError::CompiledClassHashMismatch);
     }
     Ok(())
 }

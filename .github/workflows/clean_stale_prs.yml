@@ -9,7 +9,7 @@ on:
 jobs:
   stale:
     name: 🧹 Clean up stale issues and PRs
-    runs-on: ubuntu-latest
+    runs-on: starkware-ubuntu-latest-small
     steps:
       - name: 🚀 Run stale
         uses: actions/stale@v3

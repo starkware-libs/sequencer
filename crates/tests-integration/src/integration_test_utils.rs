@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use axum::body::Body;
 use blockifier::test_utils::contracts::FeatureContract;
 use mempool_test_utils::starknet_api_test_utils::{
-    external_tx_to_json,
+    rpc_tx_to_json,
     MultiAccountTransactionGenerator,
 };
 use reqwest::{Client, Response};
@@ -16,7 +16,7 @@ use starknet_gateway::config::{
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
-use starknet_gateway::errors::GatewayError;
+use starknet_gateway::errors::GatewaySpecError;
 use starknet_mempool_node::config::MempoolNodeConfig;
 use tokio::net::TcpListener;
 
@@ -33,14 +33,8 @@ async fn create_gateway_config() -> GatewayConfig {
     let socket = get_available_socket().await;
     let network_config = GatewayNetworkConfig { ip: socket.ip(), port: socket.port() };
     let stateful_tx_validator_config = StatefulTransactionValidatorConfig::create_for_testing();
-    let gateway_compiler_config = Default::default();
 
-    GatewayConfig {
-        network_config,
-        stateless_tx_validator_config,
-        stateful_tx_validator_config,
-        compiler_config: gateway_compiler_config,
-    }
+    GatewayConfig { network_config, stateless_tx_validator_config, stateful_tx_validator_config }
 }
 
 pub async fn create_config(rpc_server_addr: SocketAddr) -> MempoolNodeConfig {
@@ -69,14 +63,14 @@ impl GatewayClient {
     }
 
     // TODO: implement when usage eventually arises.
-    pub async fn assert_add_tx_error(&self, _tx: &RpcTransaction) -> GatewayError {
+    pub async fn assert_add_tx_error(&self, _tx: &RpcTransaction) -> GatewaySpecError {
         todo!()
     }
 
     // Prefer using assert_add_tx_success or other higher level methods of this client, to ensure
     // tests are boilerplate and implementation-detail free.
     pub async fn add_tx(&self, tx: &RpcTransaction) -> Response {
-        let tx_json = external_tx_to_json(tx);
+        let tx_json = rpc_tx_to_json(tx);
         self.client
             .post(format!("http://{}/add_tx", self.socket))
             .header("content-type", "application/json")

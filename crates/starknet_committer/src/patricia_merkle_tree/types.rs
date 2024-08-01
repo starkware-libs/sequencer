@@ -1,0 +1,36 @@
+use std::collections::HashMap;
+
+use starknet_patricia::felt::Felt;
+use starknet_patricia::impl_from_hex_for_felt_wrapper;
+use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
+use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
+use starknet_types_core::felt::FromStrError;
+
+use crate::block_committer::input::{ContractAddress, StarknetStorageValue};
+use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
+
+// TODO(Nimrod, 1/6/2024): Use the ClassHash defined in starknet-types-core when available.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub struct ClassHash(pub Felt);
+
+impl From<&ClassHash> for NodeIndex {
+    fn from(val: &ClassHash) -> Self {
+        NodeIndex::from_leaf_felt(&val.0)
+    }
+}
+
+impl_from_hex_for_felt_wrapper!(ClassHash);
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub struct Nonce(pub Felt);
+
+impl_from_hex_for_felt_wrapper!(Nonce);
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct CompiledClassHash(pub Felt);
+
+impl_from_hex_for_felt_wrapper!(CompiledClassHash);
+
+pub type StorageTrie = FilledTreeImpl<StarknetStorageValue>;
+pub type ClassesTrie = FilledTreeImpl<CompiledClassHash>;
+pub type ContractsTrie = FilledTreeImpl<ContractState>;
+pub type StorageTrieMap = HashMap<ContractAddress, StorageTrie>;

@@ -5,10 +5,12 @@ use libp2p::kad::store::MemoryStore;
 use libp2p::swarm::behaviour::toggle::Toggle;
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::NetworkBehaviour;
-use libp2p::{gossipsub, identify, kad, Multiaddr, PeerId};
+use libp2p::{gossipsub, identify, kad, Multiaddr, PeerId, StreamProtocol};
+use starknet_api::core::ChainId;
 
 use crate::discovery::identify_impl::{IdentifyToOtherBehaviourEvent, IDENTIFY_PROTOCOL_VERSION};
 use crate::discovery::kad_impl::KadToOtherBehaviourEvent;
+use crate::discovery::DiscoveryConfig;
 use crate::peer_manager::PeerManagerConfig;
 use crate::{discovery, gossipsub_impl, peer_manager, sqmr};
 
@@ -60,14 +62,22 @@ impl MixedBehaviour {
         keypair: Keypair,
         bootstrap_peer_multiaddr: Option<Multiaddr>,
         streamed_bytes_config: sqmr::Config,
+        chain_id: ChainId,
+        node_version: Option<String>,
     ) -> Self {
         let public_key = keypair.public();
         let local_peer_id = PeerId::from_public_key(&public_key);
+        let mut kademlia_config = kad::Config::default();
+        kademlia_config.set_protocol_names(vec![
+            StreamProtocol::try_from_owned(format!("/starknet/kad/{}/1.0.0", chain_id))
+                .expect("Failed to create StreamProtocol from a string that starts with /"),
+        ]);
         Self {
             peer_manager: peer_manager::PeerManager::new(PeerManagerConfig::default()),
             discovery: bootstrap_peer_multiaddr
                 .map(|bootstrap_peer_multiaddr| {
                     discovery::Behaviour::new(
+                        DiscoveryConfig::default(),
                         DialOpts::from(bootstrap_peer_multiaddr.clone())
                             .get_peer_id()
                             .expect("bootstrap_peer_multiaddr doesn't have a peer id"),
@@ -75,12 +85,22 @@ impl MixedBehaviour {
                     )
                 })
                 .into(),
-            identify: identify::Behaviour::new(identify::Config::new(
-                IDENTIFY_PROTOCOL_VERSION.to_string(),
-                public_key,
-            )),
+            identify: match node_version {
+                Some(version) => identify::Behaviour::new(
+                    identify::Config::new(IDENTIFY_PROTOCOL_VERSION.to_string(), public_key)
+                        .with_agent_version(version),
+                ),
+                None => identify::Behaviour::new(identify::Config::new(
+                    IDENTIFY_PROTOCOL_VERSION.to_string(),
+                    public_key,
+                )),
+            },
             // TODO: change kademlia protocol name
-            kademlia: kad::Behaviour::new(local_peer_id, MemoryStore::new(local_peer_id)),
+            kademlia: kad::Behaviour::with_config(
+                local_peer_id,
+                MemoryStore::new(local_peer_id),
+                kademlia_config,
+            ),
             sqmr: sqmr::Behaviour::new(streamed_bytes_config),
             gossipsub: gossipsub::Behaviour::new(
                 gossipsub::MessageAuthenticity::Signed(keypair),
