@@ -17,7 +17,7 @@ pub(crate) fn get_command_matches(
 
 // Takes matched arguments from the command line interface and env variables and updates the config
 // map.
-// Supports usize, bool and String.
+// Supports f64, u64, i64, bool and String.
 pub(crate) fn update_config_map_by_command_args(
     config_map: &mut BTreeMap<ParamPath, Value>,
     types_map: &BTreeMap<ParamPath, SerializationType>,
