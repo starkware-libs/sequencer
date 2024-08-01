@@ -190,13 +190,7 @@ jobs:
 
     - name: papyrus tests
       if: steps.changed-files.outputs.papyrus == 'true'
-      run: |
-        pwd
-        ls -al
-        cat .github/workflows/papyrus/actions.yml
-        echo bla
-        cat ./.github/workflows/papyrus/actions.yml
-      # uses: ./.github/workflows/papyrus/actions.yml
+      uses: ./.github/workflows/papyrus/
 
     # - if: steps.papyrus-changes.outputs.paths == 'true'
     #   uses: ./papyrus/actions.yml
