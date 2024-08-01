@@ -15,8 +15,16 @@ on:
       - synchronize
       - auto_merge_enabled
       - edited
-
 jobs:
+  set_rust_version:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - id: version
+      run: echo "rust_version=$(cat .github/workflows/rust_version.txt)" >> $GITHUB_OUTPUT
+    outputs:
+      rust_version: ${{ steps.version.outputs.rust_version }}
+
   commitlint:
     runs-on: ubuntu-latest
     steps:
@@ -54,12 +62,14 @@ jobs:
       - run: scripts/rust_fmt.sh --check
 
   clippy:
+    needs: set_rust_version
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
       - uses: Noelware/setup-protoc@1.1.0
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ needs.set_rust_version.outputs.rust_version }}
           components: clippy
       - uses: Swatinem/rust-cache@v2
         with:
@@ -78,12 +88,15 @@ jobs:
       - run: scripts/clippy.sh
 
   doc:
+    needs: set_rust_version
     runs-on: ubuntu-latest
     # env:
     #   RUSTDOCFLAGS: "-D warnings"
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.set_rust_version.outputs.rust_version }}
       - uses: Swatinem/rust-cache@v2
       - uses: Noelware/setup-protoc@1.1.0
         with:
@@ -91,13 +104,16 @@ jobs:
       - run: cargo doc --workspace -r --document-private-items --no-deps
 
   run-tests:
+    needs: set_rust_version
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
         with:
           # Fetch the entire history.
           fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.set_rust_version.outputs.rust_version }}
       - uses: Noelware/setup-protoc@1.1.0
       - uses: Swatinem/rust-cache@v2
         with:
@@ -134,10 +150,13 @@ jobs:
           SEED: 0
 
   taplo:
+    needs: set_rust_version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.set_rust_version.outputs.rust_version }}
       - uses: Swatinem/rust-cache@v2
       - uses: baptiste0928/cargo-install@v3
         with:
@@ -154,12 +173,15 @@ jobs:
         uses: bnjbvr/cargo-machete@main
 
   check:
+    needs: set_rust_version
     runs-on: ubuntu-latest
     env:
       RUSTDOCFLAGS: "-D warnings"
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.set_rust_version.outputs.rust_version }}
       - uses: Swatinem/rust-cache@v2
       - uses: Noelware/setup-protoc@1.1.0
         with:
