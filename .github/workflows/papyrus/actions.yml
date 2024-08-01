@@ -1,37 +1,8 @@
 name: Papyrus-CI
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/papyrus_ci.yml'
-      - 'Dockerfile'
-      - 'papyrus_utilities.Dockerfile'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'crates/papyrus**/**'
-      - 'crates/sequencing/**'
-      - 'crates/starknet_client/**'
+  workflow_dispatch:
 
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - auto_merge_enabled
-      - edited # for when the PR title is edited
-    paths:
-      - '.github/workflows/papyrus_ci.yml'
-      - 'Dockerfile'
-      - 'papyrus_utilities.Dockerfile'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'crates/papyrus**/**'
-      - 'crates/sequencing/**'
-      - 'crates/starknet_client/**'
-
-  merge_group:
-    types: [checks_requested]
 
 env:
   PROTOC_VERSION: v25.1
