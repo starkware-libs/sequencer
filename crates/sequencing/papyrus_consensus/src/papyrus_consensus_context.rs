@@ -17,7 +17,7 @@ use papyrus_storage::{StorageError, StorageReader};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
-use tracing::debug;
+use tracing::{debug, debug_span, Instrument};
 
 use crate::types::{ConsensusBlock, ConsensusContext, ConsensusError, ProposalInit, ValidatorId};
 use crate::ProposalWrapper;
@@ -79,35 +79,39 @@ impl ConsensusContext for PapyrusConsensusContext {
         let (fin_sender, fin_receiver) = oneshot::channel();
 
         let storage_reader = self.storage_reader.clone();
-        tokio::spawn(async move {
-            // TODO(dvir): consider fix this for the case of reverts. If between the check that the
-            // block in storage and to getting the transaction was a revert this flow will fail.
-            wait_for_block(&storage_reader, height).await.expect("Failed to wait to block");
+        tokio::spawn(
+            async move {
+                // TODO(dvir): consider fix this for the case of reverts. If between the check that
+                // the block in storage and to getting the transaction was a revert
+                // this flow will fail.
+                wait_for_block(&storage_reader, height).await.expect("Failed to wait to block");
 
-            let txn = storage_reader.begin_ro_txn().expect("Failed to begin ro txn");
-            let transactions = txn
-                .get_block_transactions(height)
-                .expect("Get transactions from storage failed")
-                .unwrap_or_else(|| {
-                    panic!("Block in {height} was not found in storage despite waiting for it")
-                });
+                let txn = storage_reader.begin_ro_txn().expect("Failed to begin ro txn");
+                let transactions = txn
+                    .get_block_transactions(height)
+                    .expect("Get transactions from storage failed")
+                    .unwrap_or_else(|| {
+                        panic!("Block in {height} was not found in storage despite waiting for it")
+                    });
 
-            for tx in transactions.clone() {
-                sender.try_send(tx).expect("Send should succeed");
+                for tx in transactions.clone() {
+                    sender.try_send(tx).expect("Send should succeed");
+                }
+                sender.close_channel();
+
+                let block_hash = txn
+                    .get_block_header(height)
+                    .expect("Get header from storage failed")
+                    .unwrap_or_else(|| {
+                        panic!("Block in {height} was not found in storage despite waiting for it")
+                    })
+                    .block_hash;
+                fin_sender
+                    .send(PapyrusConsensusBlock { content: transactions, id: block_hash })
+                    .expect("Send should succeed");
             }
-            sender.close_channel();
-
-            let block_hash = txn
-                .get_block_header(height)
-                .expect("Get header from storage failed")
-                .unwrap_or_else(|| {
-                    panic!("Block in {height} was not found in storage despite waiting for it")
-                })
-                .block_hash;
-            fin_sender
-                .send(PapyrusConsensusBlock { content: transactions, id: block_hash })
-                .expect("Send should succeed");
-        });
+            .instrument(debug_span!("consensus_build_proposal")),
+        );
 
         (receiver, fin_receiver)
     }
@@ -120,44 +124,48 @@ impl ConsensusContext for PapyrusConsensusContext {
         let (fin_sender, fin_receiver) = oneshot::channel();
 
         let storage_reader = self.storage_reader.clone();
-        tokio::spawn(async move {
-            // TODO(dvir): consider fix this for the case of reverts. If between the check that the
-            // block in storage and to getting the transaction was a revert this flow will fail.
-            wait_for_block(&storage_reader, height).await.expect("Failed to wait to block");
+        tokio::spawn(
+            async move {
+                // TODO(dvir): consider fix this for the case of reverts. If between the check that
+                // the block in storage and to getting the transaction was a revert
+                // this flow will fail.
+                wait_for_block(&storage_reader, height).await.expect("Failed to wait to block");
 
-            let txn = storage_reader.begin_ro_txn().expect("Failed to begin ro txn");
-            let transactions = txn
-                .get_block_transactions(height)
-                .expect("Get transactions from storage failed")
-                .unwrap_or_else(|| {
-                    panic!("Block in {height} was not found in storage despite waiting for it")
-                });
+                let txn = storage_reader.begin_ro_txn().expect("Failed to begin ro txn");
+                let transactions = txn
+                    .get_block_transactions(height)
+                    .expect("Get transactions from storage failed")
+                    .unwrap_or_else(|| {
+                        panic!("Block in {height} was not found in storage despite waiting for it")
+                    });
 
-            for tx in transactions.iter() {
-                let received_tx = content
-                    .next()
-                    .await
-                    .unwrap_or_else(|| panic!("Not received transaction equals to {tx:?}"));
-                if tx != &received_tx {
-                    panic!("Transactions are not equal. In storage: {tx:?}, : {received_tx:?}");
+                for tx in transactions.iter() {
+                    let received_tx = content
+                        .next()
+                        .await
+                        .unwrap_or_else(|| panic!("Not received transaction equals to {tx:?}"));
+                    if tx != &received_tx {
+                        panic!("Transactions are not equal. In storage: {tx:?}, : {received_tx:?}");
+                    }
                 }
-            }
 
-            if content.next().await.is_some() {
-                panic!("Received more transactions than expected");
-            }
+                if content.next().await.is_some() {
+                    panic!("Received more transactions than expected");
+                }
 
-            let block_hash = txn
-                .get_block_header(height)
-                .expect("Get header from storage failed")
-                .unwrap_or_else(|| {
-                    panic!("Block in {height} was not found in storage despite waiting for it")
-                })
-                .block_hash;
-            fin_sender
-                .send(PapyrusConsensusBlock { content: transactions, id: block_hash })
-                .expect("Send should succeed");
-        });
+                let block_hash = txn
+                    .get_block_header(height)
+                    .expect("Get header from storage failed")
+                    .unwrap_or_else(|| {
+                        panic!("Block in {height} was not found in storage despite waiting for it")
+                    })
+                    .block_hash;
+                fin_sender
+                    .send(PapyrusConsensusBlock { content: transactions, id: block_hash })
+                    .expect("Send should succeed");
+            }
+            .instrument(debug_span!("consensus_validate_proposal")),
+        );
 
         fin_receiver
     }
@@ -184,34 +192,37 @@ impl ConsensusContext for PapyrusConsensusContext {
     ) -> Result<(), ConsensusError> {
         let mut broadcast_sender = self.broadcast_sender.clone();
 
-        tokio::spawn(async move {
-            let mut transactions = Vec::new();
-            while let Some(tx) = content_receiver.next().await {
-                transactions.push(tx);
+        tokio::spawn(
+            async move {
+                let mut transactions = Vec::new();
+                while let Some(tx) = content_receiver.next().await {
+                    transactions.push(tx);
+                }
+
+                let block_hash =
+                    fin_receiver.await.expect("Failed to get block hash from fin receiver");
+                let proposal = Proposal {
+                    height: init.height.0,
+                    round: init.round,
+                    proposer: init.proposer,
+                    transactions,
+                    block_hash,
+                };
+                debug!(
+                    "Sending proposal: height={:?} id={:?} num_txs={} block_hash={:?}",
+                    proposal.height,
+                    proposal.proposer,
+                    proposal.transactions.len(),
+                    proposal.block_hash
+                );
+
+                broadcast_sender
+                    .send(ConsensusMessage::Proposal(proposal))
+                    .await
+                    .expect("Failed to send proposal");
             }
-
-            let block_hash =
-                fin_receiver.await.expect("Failed to get block hash from fin receiver");
-            let proposal = Proposal {
-                height: init.height.0,
-                round: init.round,
-                proposer: init.proposer,
-                transactions,
-                block_hash,
-            };
-            debug!(
-                "Sending proposal: height={:?} id={:?} num_txs={} block_hash={:?}",
-                proposal.height,
-                proposal.proposer,
-                proposal.transactions.len(),
-                proposal.block_hash
-            );
-
-            broadcast_sender
-                .send(ConsensusMessage::Proposal(proposal))
-                .await
-                .expect("Failed to send proposal");
-        });
+            .instrument(debug_span!("consensus_propose")),
+        );
         Ok(())
     }
 }
