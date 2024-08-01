@@ -27,12 +27,13 @@ use libp2p::swarm::{
     ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId};
+use tokio_retry::strategy::ExponentialBackoff;
 
 use crate::mixed_behaviour::BridgedBehaviour;
 use crate::{mixed_behaviour, peer_manager};
 
 // TODO(shahak): Consider adding to config.
-const DIAL_SLEEP: Duration = Duration::from_secs(5);
+const BASE_DIAL_SLEEP_MILLIS: u64 = 10;
 
 pub struct Behaviour {
     is_paused: bool,
@@ -43,6 +44,7 @@ pub struct Behaviour {
     is_dialing_to_bootstrap_peer: bool,
     // This needs to be boxed to allow polling it from a &mut.
     sleep_future_for_dialing_bootstrap_peer: Option<BoxFuture<'static, ()>>,
+    dial_sleep_strategy: DialSleepStrategy,
     is_connected_to_bootstrap_peer: bool,
     is_bootstrap_in_kad_routing_table: bool,
     wakers: Vec<Waker>,
@@ -88,14 +90,19 @@ impl NetworkBehaviour for Behaviour {
                 // is down), we sleep before redialing
                 // TODO(shahak): Consider increasing the time after each failure, the same way we
                 // do in starknet client.
-                self.sleep_future_for_dialing_bootstrap_peer =
-                    Some(tokio::time::sleep(DIAL_SLEEP).boxed());
+                self.sleep_future_for_dialing_bootstrap_peer = Some(
+                    tokio::time::sleep(
+                        self.dial_sleep_strategy.0.next().expect("Dial sleep strategy failed."),
+                    )
+                    .boxed(),
+                );
             }
             FromSwarm::ConnectionEstablished(ConnectionEstablished { peer_id, .. })
                 if peer_id == self.bootstrap_peer_id =>
             {
                 self.is_connected_to_bootstrap_peer = true;
                 self.is_dialing_to_bootstrap_peer = false;
+                self.dial_sleep_strategy = DialSleepStrategy::default();
             }
             FromSwarm::ConnectionClosed(ConnectionClosed {
                 peer_id,
@@ -171,17 +178,46 @@ impl NetworkBehaviour for Behaviour {
     }
 }
 
+pub struct DiscoveryConfig {
+    pub bootstrap_peer_id: PeerId,
+    pub bootstrap_peer_address: Multiaddr,
+    bootstrap_peer_dial_sleep_strategy: DialSleepStrategy,
+}
+
+impl DiscoveryConfig {
+    pub fn new(bootstrap_peer_id: PeerId, bootstrap_peer_address: Multiaddr) -> Self {
+        Self {
+            bootstrap_peer_id,
+            bootstrap_peer_address,
+            bootstrap_peer_dial_sleep_strategy: DialSleepStrategy::default(),
+        }
+    }
+}
+
+pub struct DialSleepStrategy(pub ExponentialBackoff);
+
+impl Default for DialSleepStrategy {
+    fn default() -> Self {
+        Self(
+            ExponentialBackoff::from_millis(BASE_DIAL_SLEEP_MILLIS)
+                .max_delay(Duration::from_secs(5))
+                .factor(2),
+        )
+    }
+}
+
 impl Behaviour {
     // TODO(shahak): Add support to discovery from multiple bootstrap nodes.
     // TODO(shahak): Add support to multiple addresses for bootstrap node.
-    pub fn new(bootstrap_peer_id: PeerId, bootstrap_peer_address: Multiaddr) -> Self {
+    pub fn new(discovery_config: DiscoveryConfig) -> Self {
         Self {
             is_paused: false,
             is_query_running: false,
-            bootstrap_peer_id,
-            bootstrap_peer_address,
+            bootstrap_peer_id: discovery_config.bootstrap_peer_id,
+            bootstrap_peer_address: discovery_config.bootstrap_peer_address,
             is_dialing_to_bootstrap_peer: false,
             sleep_future_for_dialing_bootstrap_peer: None,
+            dial_sleep_strategy: discovery_config.bootstrap_peer_dial_sleep_strategy,
             is_connected_to_bootstrap_peer: false,
             is_bootstrap_in_kad_routing_table: false,
             wakers: Vec::new(),

@@ -9,6 +9,7 @@ use libp2p::{gossipsub, identify, kad, Multiaddr, PeerId};
 
 use crate::discovery::identify_impl::{IdentifyToOtherBehaviourEvent, IDENTIFY_PROTOCOL_VERSION};
 use crate::discovery::kad_impl::KadToOtherBehaviourEvent;
+use crate::discovery::DiscoveryConfig;
 use crate::peer_manager::PeerManagerConfig;
 use crate::{discovery, gossipsub_impl, peer_manager, sqmr};
 
@@ -67,12 +68,12 @@ impl MixedBehaviour {
             peer_manager: peer_manager::PeerManager::new(PeerManagerConfig::default()),
             discovery: bootstrap_peer_multiaddr
                 .map(|bootstrap_peer_multiaddr| {
-                    discovery::Behaviour::new(
+                    discovery::Behaviour::new(DiscoveryConfig::new(
                         DialOpts::from(bootstrap_peer_multiaddr.clone())
                             .get_peer_id()
                             .expect("bootstrap_peer_multiaddr doesn't have a peer id"),
                         bootstrap_peer_multiaddr.clone(),
-                    )
+                    ))
                 })
                 .into(),
             identify: identify::Behaviour::new(identify::Config::new(

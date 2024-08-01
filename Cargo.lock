@@ -6410,6 +6410,7 @@ dependencies = [
  "serde",
  "thiserror",
  "tokio",
+ "tokio-retry",
  "tokio-stream",
  "tracing",
  "unsigned-varint 0.8.0",
