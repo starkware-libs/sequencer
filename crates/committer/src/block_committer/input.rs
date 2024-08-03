@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
-use log::LevelFilter;
+use tracing::level_filters::LevelFilter;
 
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;

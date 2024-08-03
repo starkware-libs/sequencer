@@ -3,7 +3,7 @@ use committer_cli::block_hash::{BlockCommitmentsInput, BlockHashInput};
 use committer_cli::commands::parse_and_commit;
 use committer_cli::parse_input::read::{load_from_stdin, read_from_stdin, write_to_file};
 use committer_cli::tests::python_tests::PythonTest;
-use simplelog::{ColorChoice, Config, LevelFilter, TermLogger, TerminalMode};
+use committer_cli::tracing_utils::configure_tracing;
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments,
     calculate_block_hash,
@@ -58,22 +58,16 @@ struct GlobalOptions {}
 #[tokio::main]
 /// Main entry point of the committer CLI.
 async fn main() {
-    // Initialize the logger
-    if let Err(error) = TermLogger::init(
-        LevelFilter::Info,   // Set the logging level
-        Config::default(),   // Use the default log format
-        TerminalMode::Mixed, // Use mixed mode to log to both stdout and stderr
-        ColorChoice::Auto,   // Automatically choose whether to use colored output
-    ) {
-        eprintln!("Failed to initialize the logger: {:?}", error);
-    }
+    // Initialize the logger. The log_filter_handle is used to change the log level. The
+    // default log level is INFO.
+    let log_filter_handle = configure_tracing();
 
     let args = CommitterCliArgs::parse();
 
     match args.command {
         Command::Commit { output_path } => {
             // TODO(Aner, 15/7/24): try moving read_from_stdin into function.
-            parse_and_commit(&read_from_stdin(), output_path).await;
+            parse_and_commit(&read_from_stdin(), output_path, log_filter_handle).await;
         }
 
         Command::PythonTest { output_path, test_name } => {

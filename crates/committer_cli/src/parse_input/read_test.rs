@@ -14,6 +14,7 @@ use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClas
 use committer::storage::errors::DeserializationError;
 use committer::storage::storage_trait::{StorageKey, StorageValue};
 use pretty_assertions::assert_eq;
+use tracing::level_filters::LevelFilter;
 
 use super::parse_input;
 
@@ -201,7 +202,7 @@ fn test_simple_input_parsing() {
         },
         contracts_trie_root_hash: expected_contracts_trie_root_hash,
         classes_trie_root_hash: expected_classes_trie_root_hash,
-        config: ConfigImpl::new(true, log::LevelFilter::Debug),
+        config: ConfigImpl::new(true, LevelFilter::DEBUG),
     };
     assert_eq!(parse_input(input).unwrap(), expected_input);
 }

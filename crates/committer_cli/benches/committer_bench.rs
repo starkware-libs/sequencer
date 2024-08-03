@@ -16,7 +16,8 @@ use committer::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use committer::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonStorageTrieConfig;
 use committer::patricia_merkle_tree::types::NodeIndex;
 use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
-use committer_cli::commands::parse_and_commit;
+use committer_cli::commands::commit;
+use committer_cli::parse_input::read::parse_input;
 use committer_cli::tests::utils::parse_from_python::TreeFlowInput;
 use criterion::{criterion_group, criterion_main, Criterion};
 
@@ -66,7 +67,12 @@ pub fn full_committer_flow_benchmark(criterion: &mut Criterion) {
     // to avoid disk IO in the benchmark.
     criterion.bench_function("full_committer_flow", |benchmark| {
         benchmark.iter(|| {
-            runtime.block_on(parse_and_commit(committer_input_string, OUTPUT_PATH.to_owned()));
+            runtime.block_on({
+                let input =
+                    parse_input(committer_input_string).expect("Failed to parse the given input.");
+                // Set the given log level if handle is passed.
+                commit(input, OUTPUT_PATH.to_owned())
+            });
         })
     });
 }
