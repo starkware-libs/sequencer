@@ -63,7 +63,11 @@ pub fn full_committer_flow_benchmark(criterion: &mut Criterion) {
     // to avoid disk IO in the benchmark.
     criterion.bench_function("full_committer_flow", |benchmark| {
         benchmark.iter(|| {
-            runtime.block_on(parse_and_commit(committer_input_string, OUTPUT_PATH.to_owned()));
+            runtime.block_on(parse_and_commit(
+                committer_input_string,
+                OUTPUT_PATH.to_owned(),
+                None,
+            ));
         })
     });
 }

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use tracing::level_filters::LevelFilter;
 
 use super::OriginalSkeletonForest;
 use crate::block_committer::commit::get_all_modified_indices;
@@ -190,7 +191,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (StorageKey, Storag
         },
         contracts_trie_root_hash: HashOutput(Felt::from(861_u128 + 248_u128)),
         classes_trie_root_hash: HashOutput(Felt::from(155_u128 + 248_u128)),
-        config: ConfigImpl::new(true, log::LevelFilter::Debug),
+        config: ConfigImpl::new(true, LevelFilter::DEBUG),
     }, OriginalSkeletonForest{
         classes_trie: OriginalSkeletonTreeImpl {
             nodes: create_expected_skeleton_nodes(
@@ -312,7 +313,7 @@ fn test_create_original_skeleton_forest(
         &input.state_diff.actual_storage_updates(),
         &input.state_diff.actual_classes_updates(),
         &forest_sorted_indices,
-        &ConfigImpl::new(false, log::LevelFilter::Debug),
+        &ConfigImpl::new(false, LevelFilter::DEBUG),
     )
     .unwrap();
     let expected_original_contracts_trie_leaves = expected_original_contracts_trie_leaves

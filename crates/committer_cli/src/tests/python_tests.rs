@@ -33,7 +33,6 @@ use committer::storage::errors::{DeserializationError, SerializationError};
 use committer::storage::map_storage::MapStorage;
 use committer::storage::storage_trait::{Storage, StorageKey, StorageValue};
 use ethnum::U256;
-use log::error;
 use serde_json::json;
 use starknet_api::block_hash::block_hash_calculator::{
     TransactionHashingData,
@@ -43,6 +42,7 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionExecutionStatus;
 use starknet_types_core::hash::{Pedersen, StarkHash};
 use thiserror;
+use tracing::{debug, error, info, warn};
 
 use super::utils::objects::{get_thin_state_diff, get_transaction_output_for_hash, get_tx_data};
 use super::utils::parse_from_python::TreeFlowInput;
@@ -209,10 +209,10 @@ impl PythonTest {
                 Ok("Done!".to_owned())
             }
             Self::LogError => {
-                log::error!("This is an error log message.");
-                log::warn!("This is a warn log message.");
-                log::info!("This is an info log message.");
-                log::debug!("This is a debug log message.");
+                error!("This is an error log message.");
+                warn!("This is a warn log message.");
+                info!("This is an info log message.");
+                debug!("This is a debug log message.");
                 panic!("This is a panic message.");
             }
         }

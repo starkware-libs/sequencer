@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use log::warn;
+use tracing::warn;
 
 use crate::block_committer::errors::BlockCommitmentError;
 use crate::block_committer::input::{Config, ConfigImpl, ContractAddress, Input, StateDiff};
