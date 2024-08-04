@@ -9050,6 +9050,7 @@ dependencies = [
  "async-trait",
  "bincode 1.3.3",
  "hyper",
+ "papyrus_config",
  "pretty_assertions",
  "rstest",
  "serde",
@@ -9057,6 +9058,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "validator",
 ]
 
 [[package]]
@@ -9103,6 +9105,7 @@ dependencies = [
  "mempool_test_utils",
  "papyrus_config",
  "pretty_assertions",
+ "rstest",
  "serde",
  "serde_json",
  "starknet_gateway",
