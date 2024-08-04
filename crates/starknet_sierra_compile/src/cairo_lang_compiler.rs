@@ -8,10 +8,6 @@ use crate::config::SierraToCasmCompilationConfig;
 use crate::errors::CompilationUtilError;
 use crate::SierraToCasmCompiler;
 
-#[cfg(test)]
-#[path = "compile_test.rs"]
-pub mod compile_test;
-
 /// A compiler that compiles Sierra programs to Casm. Uses the code from the
 /// `cairo_lang_starknet_classes` crate.
 #[derive(Clone)]
@@ -25,8 +21,12 @@ impl SierraToCasmCompiler for CairoLangSierraToCasmCompiler {
         contract_class: ContractClass,
     ) -> Result<CasmContractClass, CompilationUtilError> {
         let catch_unwind_result = panic::catch_unwind(|| self.compile_inner(contract_class));
-        let casm_contract_class =
-            catch_unwind_result.map_err(|_| CompilationUtilError::CompilationPanic)??;
+        let casm_contract_class = catch_unwind_result.map_err(|error| {
+            CompilationUtilError::UnexpectedError(format!(
+                "Compilation Paniced: Error: {:?}",
+                error
+            ))
+        })??;
 
         Ok(casm_contract_class)
     }
