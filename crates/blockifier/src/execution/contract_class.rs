@@ -561,10 +561,9 @@ fn convert_entry_points_v1(external: &[CasmContractEntryPoint]) -> Vec<EntryPoin
 
 #[derive(Clone, Debug)]
 // TODO(Ayelet,10/02/2024): Change to bytes.
-pub struct ClassInfo {
-    contract_class: ContractClass,
-    sierra_program_length: usize,
-    abi_length: usize,
+pub enum ClassInfo {
+    V0 { contract_class: ContractClassV0, abi_length: usize },
+    V1 { contract_class: ContractClassV1, sierra_program_length: usize, abi_length: usize },
 }
 
 impl TryFrom<&starknet_api::contract_class::ClassInfo> for ClassInfo {
@@ -577,7 +576,7 @@ impl TryFrom<&starknet_api::contract_class::ClassInfo> for ClassInfo {
             abi_length,
         } = class_info;
 
-        Ok(Self {
+        Ok(Self::V1 {
             contract_class: casm_contract_class.try_into()?,
             sierra_program_length: *sierra_program_length,
             abi_length: *abi_length,
@@ -595,7 +594,7 @@ impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
             abi_length,
         } = class_info;
 
-        Ok(Self {
+        Ok(Self::V1 {
             contract_class: casm_contract_class.try_into()?,
             sierra_program_length,
             abi_length,
@@ -605,19 +604,31 @@ impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
 
 impl ClassInfo {
     pub fn bytecode_length(&self) -> usize {
-        self.contract_class.bytecode_length()
+        match self {
+            ClassInfo::V0 { contract_class, .. } => contract_class.bytecode_length(),
+            ClassInfo::V1 { contract_class, .. } => contract_class.bytecode_length(),
+        }
     }
 
     pub fn contract_class(&self) -> ContractClass {
-        self.contract_class.clone()
+        match self {
+            ClassInfo::V0 { contract_class, .. } => ContractClass::V0(contract_class.clone()),
+            ClassInfo::V1 { contract_class, .. } => ContractClass::V1(contract_class.clone()),
+        }
     }
 
     pub fn sierra_program_length(&self) -> usize {
-        self.sierra_program_length
+        match self {
+            ClassInfo::V0 { .. } => 0,
+            ClassInfo::V1 { sierra_program_length, .. } => *sierra_program_length,
+        }
     }
 
     pub fn abi_length(&self) -> usize {
-        self.abi_length
+        match self {
+            ClassInfo::V0 { abi_length, .. } => *abi_length,
+            ClassInfo::V1 { abi_length, .. } => *abi_length,
+        }
     }
 
     pub fn code_size(&self) -> usize {
@@ -625,25 +636,5 @@ impl ClassInfo {
             // We assume each felt is a word.
             * eth_gas_constants::WORD_WIDTH
             + self.abi_length()
-    }
-
-    pub fn new_v1(
-        contract_class: ContractClassV1,
-        sierra_program_length: usize,
-        abi_length: usize,
-    ) -> Self {
-        Self {
-            contract_class: ContractClass::V1(contract_class),
-            sierra_program_length,
-            abi_length,
-        }
-    }
-
-    pub fn new_v0(contract_class: ContractClassV0, abi_length: usize) -> Self {
-        Self {
-            contract_class: ContractClass::V0(contract_class),
-            sierra_program_length: 0,
-            abi_length,
-        }
     }
 }
