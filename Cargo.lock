@@ -9159,6 +9159,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
+ "tempfile",
  "thiserror",
  "validator",
 ]
