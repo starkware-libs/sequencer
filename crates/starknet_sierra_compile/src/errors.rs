@@ -10,4 +10,6 @@ pub enum CompilationUtilError {
     StarknetSierraCompilationError(#[from] StarknetSierraCompilationError),
     #[error("Compilation panicked")]
     CompilationPanic,
+    #[error("Starknet Sierra compilation error: {0}")]
+    CompilationError(String),
 }
