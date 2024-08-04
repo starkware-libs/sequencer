@@ -19,6 +19,7 @@ papyrus_network.workspace = true
 papyrus_proc_macros.workspace = true
 papyrus_protobuf.workspace = true
 papyrus_storage.workspace = true
+rand.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
 starknet-types-core.workspace = true
@@ -30,12 +31,12 @@ tracing.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 lazy_static.workspace = true
-papyrus_storage = { workspace = true, features = ["testing"] }
-static_assertions.workspace = true
-rand.workspace = true
-rand_chacha.workspace = true
-papyrus_test_utils.workspace = true
+papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_protobuf = { workspace = true, features = ["testing"] }
+papyrus_storage = { workspace = true, features = ["testing"] }
+papyrus_test_utils.workspace = true
+rand_chacha.workspace = true
+static_assertions.workspace = true
 
 # The `metrics` crate is used by `latency_histogram` proc macro, which is used in this crate.
 [package.metadata.cargo-machete]
