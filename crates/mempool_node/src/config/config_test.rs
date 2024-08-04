@@ -7,26 +7,26 @@ use colored::Colorize;
 use mempool_test_utils::get_absolute_path;
 use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::validators::{ParsedValidationError, ParsedValidationErrors};
-use validator::Validate;
+use starknet_mempool_infra::component_definitions::{
+    LocalComponentCommunicationConfig,
+    RemoteComponentCommunicationConfig,
+};
+use validator::{Validate, ValidationErrors};
 
 use crate::config::{
     ComponentConfig,
     ComponentExecutionConfig,
+    LocationType,
     MempoolNodeConfig,
     DEFAULT_CONFIG_PATH,
 };
 
-/// Test the validation of the struct ComponentConfig.
-/// The validation validates at least one of the components is set with execute: true.
-#[test]
-fn test_components_config_validation() {
-    // Initialize an invalid config and check that the validator finds an error.
-    let mut component_config = ComponentConfig {
-        gateway: ComponentExecutionConfig { execute: false },
-        mempool: ComponentExecutionConfig { execute: false },
-    };
-
-    assert_matches!(component_config.validate().unwrap_err(), validation_errors => {
+fn check_validation_error(
+    validation_result: Result<(), ValidationErrors>,
+    code_str: &str,
+    message_str: &str,
+) {
+    assert_matches!(validation_result.unwrap_err(), validation_errors => {
         let parsed_errors = ParsedValidationErrors::from(validation_errors);
         assert_eq!(parsed_errors.0.len(), 1);
         let parsed_validation_error = &parsed_errors.0[0];
@@ -35,12 +35,76 @@ fn test_components_config_validation() {
             ParsedValidationError { param_path, code, message, params}
             if (
                 param_path == "__all__" &&
-                code == "Invalid components configuration." &&
+                code == code_str &&
                 params.is_empty() &&
-                *message == Some("At least one component should be allowed to execute.".to_string())
+                *message == Some(message_str.to_string())
             )
         )
     });
+}
+
+/// Test the validation of the struct ComponentExecutionConfig.
+/// The validation validates that location of the component and the local/remote config are at sync.
+#[test]
+fn test_component_execution_config_validation() {
+    // Set both local and remote communication config active and check that the validator finds an
+    // error.
+    let mut component_exe_config = ComponentExecutionConfig {
+        location: LocationType::Local,
+        local_config: Some(LocalComponentCommunicationConfig::default()),
+        remote_config: Some(RemoteComponentCommunicationConfig::default()),
+        ..ComponentExecutionConfig::default()
+    };
+    check_validation_error(
+        component_exe_config.validate(),
+        "Invalid component configuration.",
+        "Local config and Remote config are mutually exclusive, can't be both active.",
+    );
+
+    // Initialize an invalid config for a Local component and check that the validator finds an
+    // error.
+    component_exe_config.local_config = None;
+    check_validation_error(
+        component_exe_config.validate(),
+        "Invalid component configuration.",
+        "Local communication config is missing.",
+    );
+
+    // Initialize a valid config for a Local component and check that the validator returns Ok.
+    component_exe_config.local_config = Some(LocalComponentCommunicationConfig::default());
+    component_exe_config.remote_config = None;
+    assert!(component_exe_config.validate().is_ok());
+
+    // Initialize an invalid config for a Remote component and check that the validator finds an
+    // error.
+    component_exe_config.location = LocationType::Remote;
+    check_validation_error(
+        component_exe_config.validate(),
+        "Invalid component configuration.",
+        "Remote communication config is missing.",
+    );
+
+    // Initialize a valid config for a Remote component and check that the validator returns Ok.
+    component_exe_config.remote_config = Some(RemoteComponentCommunicationConfig::default());
+    component_exe_config.local_config = None;
+    assert!(component_exe_config.validate().is_ok());
+}
+
+/// Test the validation of the struct ComponentConfig.
+/// The validation validates at least one of the components is set with execute: true.
+#[test]
+fn test_components_config_validation() {
+    // Initialize an invalid config and check that the validator finds an error.
+    let mut component_config = ComponentConfig {
+        gateway: ComponentExecutionConfig { execute: false, ..ComponentExecutionConfig::default() },
+        mempool: ComponentExecutionConfig { execute: false, ..ComponentExecutionConfig::default() },
+    };
+
+    check_validation_error(
+        component_config.validate(),
+        "Invalid components configuration.",
+        "At least one component should be allowed to execute.",
+    );
 
     // Update the config to be valid and check that the validator finds no errors.
     for (gateway_component_execute, mempool_component_execute) in
