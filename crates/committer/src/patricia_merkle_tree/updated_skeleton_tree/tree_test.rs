@@ -170,3 +170,9 @@ fn test_updated_empty_tree(#[case] modifications: LeafModifications<MockLeaf>) {
 fn test_0() {
     assert_eq!(13, 13)
 }
+
+#[rstest]
+
+fn test_1() {
+    assert_eq!(2, 2)
+}
