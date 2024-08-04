@@ -29,11 +29,10 @@ use libp2p::swarm::{
 use libp2p::{Multiaddr, PeerId};
 use tokio_retry::strategy::ExponentialBackoff;
 
+use crate::mixed_behaviour;
 use crate::mixed_behaviour::BridgedBehaviour;
-use crate::{mixed_behaviour, peer_manager};
 
 pub struct Behaviour {
-    is_paused: bool,
     // TODO(shahak): Consider running several queries in parallel
     is_query_running: bool,
     bootstrap_peer_address: Multiaddr,
@@ -44,7 +43,7 @@ pub struct Behaviour {
     dial_retry_strategy: DialRetryStrategy,
     is_connected_to_bootstrap_peer: bool,
     is_bootstrap_in_kad_routing_table: bool,
-    wakers: Vec<Waker>,
+    wakers_waiting_for_query_to_finish: Vec<Waker>,
     dial_retry_exponential_backoff: ExponentialBackoff,
 }
 
@@ -167,15 +166,14 @@ impl NetworkBehaviour for Behaviour {
             ));
         }
 
-        if !self.is_paused && !self.is_query_running {
-            self.is_query_running = true;
-            Poll::Ready(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(
-                libp2p::identity::PeerId::random(),
-            )))
-        } else {
-            self.wakers.push(cx.waker().clone());
-            Poll::Pending
+        if self.is_query_running {
+            self.wakers_waiting_for_query_to_finish.push(cx.waker().clone());
+            return Poll::Pending;
         }
+        self.is_query_running = true;
+        Poll::Ready(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(
+            libp2p::identity::PeerId::random(),
+        )))
     }
 }
 
@@ -196,7 +194,6 @@ pub struct DialRetryStrategy {
 impl Default for DialRetryStrategy {
     fn default() -> Self {
         Self { base_delay_millis: 10, max_delay_millis: 5000, factor: 2 }
-        // Self(ExponentialBackoff::from_millis(10).max_delay(Duration::from_secs(5)).factor(2))
     }
 }
 
@@ -205,7 +202,6 @@ impl Behaviour {
     // TODO(shahak): Add support to multiple addresses for bootstrap node.
     pub fn new(discovery_config: DiscoveryConfig) -> Self {
         Self {
-            is_paused: false,
             is_query_running: false,
             bootstrap_peer_id: discovery_config.bootstrap_peer_id,
             bootstrap_peer_address: discovery_config.bootstrap_peer_address,
@@ -214,7 +210,7 @@ impl Behaviour {
             dial_retry_strategy: discovery_config.bootstrap_peer_dial_retry_strategy,
             is_connected_to_bootstrap_peer: false,
             is_bootstrap_in_kad_routing_table: false,
-            wakers: Vec::new(),
+            wakers_waiting_for_query_to_finish: Vec::new(),
             dial_retry_exponential_backoff: ExponentialBackoff::from_millis(
                 discovery_config.bootstrap_peer_dial_retry_strategy.base_delay_millis,
             )
@@ -247,21 +243,10 @@ impl From<ToOtherBehaviourEvent> for mixed_behaviour::Event {
 impl BridgedBehaviour for Behaviour {
     fn on_other_behaviour_event(&mut self, event: &mixed_behaviour::ToOtherBehaviourEvent) {
         match event {
-            mixed_behaviour::ToOtherBehaviourEvent::PeerManager(
-                peer_manager::ToOtherBehaviourEvent::PauseDiscovery,
-            ) => self.is_paused = true,
-            mixed_behaviour::ToOtherBehaviourEvent::PeerManager(
-                peer_manager::ToOtherBehaviourEvent::ResumeDiscovery,
-            ) => {
-                for waker in self.wakers.drain(..) {
-                    waker.wake();
-                }
-                self.is_paused = false;
-            }
             mixed_behaviour::ToOtherBehaviourEvent::Kad(
                 KadToOtherBehaviourEvent::KadQueryFinished,
             ) => {
-                for waker in self.wakers.drain(..) {
+                for waker in self.wakers_waiting_for_query_to_finish.drain(..) {
                     waker.wake();
                 }
                 self.is_query_running = false;

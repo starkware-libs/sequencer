@@ -295,27 +295,6 @@ fn report_session_on_unknown_session_id() {
         .expect_err("report_session on unknown outbound_session_id should return an error");
 }
 
-#[test]
-fn more_peers_needed() {
-    // Create a new peer manager
-    let config = PeerManagerConfig { target_num_for_peers: 2, ..Default::default() };
-    let mut peer_manager: PeerManager<MockPeerTrait> = PeerManager::new(config.clone());
-
-    // Add a peer to the peer manager
-    let (peer1, _peer_id1) = create_mock_peer(config.blacklist_timeout, false, None);
-    peer_manager.add_peer(peer1);
-
-    // assert more peers are needed
-    assert!(peer_manager.more_peers_needed());
-
-    // Add another peer to the peer manager
-    let (peer2, _peer_id2) = create_mock_peer(config.blacklist_timeout, false, None);
-    peer_manager.add_peer(peer2);
-
-    // assert no more peers are needed
-    assert!(!peer_manager.more_peers_needed());
-}
-
 #[tokio::test]
 async fn timed_out_peer_not_assignable_to_queries() {
     // Create a new peer manager
@@ -532,31 +511,4 @@ fn identify_on_unknown_peer_is_added_to_peer_manager() {
     let res_peer_id = peer_manager.get_mut_peer(peer_id).unwrap();
     assert!(res_peer_id.peer_id() == peer_id);
     assert!(res_peer_id.multiaddr() == address);
-}
-
-#[test]
-fn no_more_peers_needed_stops_discovery() {
-    // Create a new peer manager
-    let config = PeerManagerConfig { target_num_for_peers: 1, ..Default::default() };
-    let mut peer_manager: PeerManager<Peer> = PeerManager::new(config.clone());
-
-    // Send Identify event
-    let peer_id = PeerId::random();
-    peer_manager.on_other_behaviour_event(&mixed_behaviour::ToOtherBehaviourEvent::Identify(
-        IdentifyToOtherBehaviourEvent::FoundListenAddresses {
-            peer_id,
-            listen_addresses: vec![Multiaddr::empty()],
-        },
-    ));
-
-    // Check that the peer is added to the peer manager
-    assert!(peer_manager.get_mut_peer(peer_id).is_some());
-
-    // Check that the discovery pause event emitted
-    for event in peer_manager.pending_events {
-        if let ToSwarm::GenerateEvent(ToOtherBehaviourEvent::PauseDiscovery) = event {
-            return;
-        }
-    }
-    panic!("Discovery pause event not emitted");
 }
