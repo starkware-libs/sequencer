@@ -25,13 +25,14 @@ use tokio::time::timeout;
 use void::Void;
 
 use super::kad_impl::KadToOtherBehaviourEvent;
-use super::{Behaviour, DiscoveryConfig, ToOtherBehaviourEvent, BASE_DIAL_SLEEP_MILLIS};
+use super::{Behaviour, DialRetryStrategy, DiscoveryConfig, ToOtherBehaviourEvent};
 use crate::mixed_behaviour::BridgedBehaviour;
 use crate::test_utils::next_on_mutex_stream;
 use crate::{mixed_behaviour, peer_manager};
 
 const TIMEOUT: Duration = Duration::from_secs(1);
 const SLEEP_DURATION: Duration = Duration::from_millis(10);
+const BASE_DIAL_RETRY_MILLIS: Duration = Duration::from_secs(1);
 
 impl Unpin for Behaviour {}
 
@@ -60,8 +61,15 @@ async fn discovery_outputs_dial_request_on_start_without_query() {
     let bootstrap_peer_id = PeerId::random();
     let bootstrap_peer_address = Multiaddr::empty();
 
-    let mut behaviour =
-        Behaviour::new(DiscoveryConfig::new(bootstrap_peer_id, bootstrap_peer_address));
+    let mut behaviour = Behaviour::new(DiscoveryConfig {
+        bootstrap_peer_id,
+        bootstrap_peer_address,
+        bootstrap_peer_dial_retry_strategy: DialRetryStrategy {
+            base_delay_millis: BASE_DIAL_RETRY_MILLIS.as_millis() as u64,
+            max_delay_millis: 5000,
+            factor: 2,
+        },
+    });
 
     let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
     assert_matches!(
@@ -79,8 +87,15 @@ async fn discovery_redials_on_dial_failure() {
     let bootstrap_peer_id = PeerId::random();
     let bootstrap_peer_address = Multiaddr::empty();
 
-    let mut behaviour =
-        Behaviour::new(DiscoveryConfig::new(bootstrap_peer_id, bootstrap_peer_address));
+    let mut behaviour = Behaviour::new(DiscoveryConfig {
+        bootstrap_peer_id,
+        bootstrap_peer_address,
+        bootstrap_peer_dial_retry_strategy: DialRetryStrategy {
+            base_delay_millis: BASE_DIAL_RETRY_MILLIS.as_millis() as u64,
+            max_delay_millis: 5000,
+            factor: 2,
+        },
+    });
 
     let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
     assert_matches!(
@@ -96,7 +111,7 @@ async fn discovery_redials_on_dial_failure() {
 
     // Check that there are no events until we sleep for enough time.
     tokio::time::pause();
-    tokio::time::advance(Duration::from_millis(BASE_DIAL_SLEEP_MILLIS) - EPSILON_SLEEP).await;
+    tokio::time::advance(BASE_DIAL_RETRY_MILLIS - EPSILON_SLEEP).await;
     assert_no_event(&mut behaviour);
 
     // Sleep and check for event.
@@ -168,8 +183,15 @@ async fn create_behaviour_and_connect_to_bootstrap_node() -> Behaviour {
     let bootstrap_peer_id = PeerId::random();
     let bootstrap_peer_address = Multiaddr::empty();
 
-    let mut behaviour =
-        Behaviour::new(DiscoveryConfig::new(bootstrap_peer_id, bootstrap_peer_address.clone()));
+    let mut behaviour = Behaviour::new(DiscoveryConfig {
+        bootstrap_peer_id,
+        bootstrap_peer_address: bootstrap_peer_address.clone(),
+        bootstrap_peer_dial_retry_strategy: DialRetryStrategy {
+            base_delay_millis: BASE_DIAL_RETRY_MILLIS.as_millis() as u64,
+            max_delay_millis: 5000,
+            factor: 2,
+        },
+    });
 
     // Consume the dial event.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
