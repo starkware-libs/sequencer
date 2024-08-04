@@ -116,7 +116,13 @@ impl SerializedContent {
     fn get_serialization_type(&self) -> Option<SerializationType> {
         match self {
             SerializedContent::DefaultValue(value) => match value {
-                Value::Number(_) => Some(SerializationType::Number),
+                Value::Number(num) => {
+                    if num.is_f64() {
+                        Some(SerializationType::Float)
+                    } else {
+                        Some(SerializationType::Integer)
+                    }
+                }
                 Value::Bool(_) => Some(SerializationType::Boolean),
                 Value::String(_) => Some(SerializationType::String),
                 _ => None,
@@ -142,8 +148,9 @@ pub struct SerializedParam {
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, strum_macros::Display)]
 #[allow(missing_docs)]
 pub enum SerializationType {
-    Number,
     Boolean,
+    Float,
+    Integer,
     String,
 }
 

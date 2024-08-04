@@ -49,9 +49,10 @@ fn build_args_parser(config_map: &BTreeMap<ParamPath, SerializedParam>) -> Vec<A
             continue; // Pointer target
         };
         let clap_parser = match serialization_type {
-            SerializationType::Number => clap::value_parser!(usize).into(),
+            SerializationType::Integer => clap::value_parser!(usize).into(),
             SerializationType::Boolean => clap::value_parser!(bool),
             SerializationType::String => clap::value_parser!(String),
+            SerializationType::Float => clap::value_parser!(f64).into(),
         };
 
         let arg = Arg::new(param_path)
@@ -72,8 +73,9 @@ fn get_arg_by_type(
 ) -> Result<Value, ConfigError> {
     let serialization_type = types_map.get(param_path).expect("missing type");
     match serialization_type {
-        SerializationType::Number => Ok(json!(arg_match.try_get_one::<usize>(param_path)?)),
         SerializationType::Boolean => Ok(json!(arg_match.try_get_one::<bool>(param_path)?)),
+        SerializationType::Float => Ok(json!(arg_match.try_get_one::<f64>(param_path)?)),
+        SerializationType::Integer => Ok(json!(arg_match.try_get_one::<usize>(param_path)?)),
         SerializationType::String => Ok(json!(arg_match.try_get_one::<String>(param_path)?)),
     }
 }
