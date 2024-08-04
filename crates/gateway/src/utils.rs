@@ -59,19 +59,8 @@ pub fn external_tx_to_thin_tx(
     ThinTransaction {
         tip: *external_tx.tip(),
         nonce: *external_tx.nonce(),
-        sender_address: get_sender_address(external_tx),
+        sender_address: external_tx.calculate_sender_address(),
         tx_hash,
-    }
-}
-
-pub fn get_sender_address(tx: &RpcTransaction) -> ContractAddress {
-    match tx {
-        RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => tx.sender_address,
-        // TODO(Mohammad): Add support for deploy account.
-        RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(_)) => {
-            ContractAddress::default()
-        }
-        RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => tx.sender_address,
     }
 }
 

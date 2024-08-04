@@ -537,17 +537,3 @@ pub fn external_tx_to_json(tx: &RpcTransaction) -> String {
     // Serialize back to pretty JSON string
     to_string_pretty(&tx_json).expect("Failed to serialize transaction")
 }
-
-pub fn deployed_account_contract_address(deploy_tx: &RpcTransaction) -> ContractAddress {
-    let tx = assert_matches!(
-        deploy_tx,
-        RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => tx
-    );
-    calculate_contract_address(
-        tx.contract_address_salt,
-        tx.class_hash,
-        &tx.constructor_calldata,
-        ContractAddress::default(),
-    )
-    .unwrap()
-}

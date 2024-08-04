@@ -19,7 +19,7 @@ use starknet_types_core::felt::Felt;
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::StatefulTransactionValidatorResult;
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
-use crate::utils::{external_tx_to_account_tx, get_sender_address, get_tx_hash};
+use crate::utils::{external_tx_to_account_tx, get_tx_hash};
 
 #[cfg(test)]
 #[path = "stateful_transaction_validator_test.rs"]
@@ -76,7 +76,7 @@ impl StatefulTransactionValidator {
             &self.config.chain_info.chain_id,
         )?;
         let tx_hash = get_tx_hash(&account_tx);
-        let account_nonce = validator.get_nonce(get_sender_address(external_tx))?;
+        let account_nonce = validator.get_nonce(external_tx.calculate_sender_address())?;
         let skip_validate = skip_stateful_validations(external_tx, account_nonce);
         validator.validate(account_tx, skip_validate)?;
         Ok(tx_hash)
