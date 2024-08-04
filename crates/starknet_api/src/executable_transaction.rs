@@ -113,6 +113,21 @@ pub struct InvokeTransaction {
     pub tx_hash: TransactionHash,
 }
 
+impl InvokeTransaction {
+    implement_inner_tx_getter_calls!(
+        (calldata, Calldata),
+        (nonce, Nonce),
+        (signature, TransactionSignature),
+        (sender_address, ContractAddress),
+        (version, TransactionVersion)
+    );
+    implement_getter_calls!((tx_hash, TransactionHash));
+
+    pub fn tx(&self) -> &crate::transaction::InvokeTransaction {
+        &self.tx
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ClassInfo {
     // TODO: use compiled contract class.
