@@ -13,6 +13,6 @@ workspace = true
 async-trait.workspace = true
 mockall.workspace = true
 papyrus_proc_macros = { path = "../papyrus_proc_macros" }
-serde = { workspace = true, features = ["derive"] }
+serde.workspace = true
 starknet_mempool_infra = { path = "../mempool_infra" }
 thiserror.workspace = true

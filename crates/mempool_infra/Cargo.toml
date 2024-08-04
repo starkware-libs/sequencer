@@ -16,7 +16,7 @@ async-trait.workspace = true
 bincode.workspace = true
 hyper = { workspace = true, features = ["client", "http2", "server", "tcp"] }
 rstest.workspace = true
-serde = { workspace = true, features = ["derive"] }
+serde.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
