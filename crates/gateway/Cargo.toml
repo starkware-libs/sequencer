@@ -44,3 +44,6 @@ pretty_assertions.workspace = true
 rstest.workspace = true
 starknet_mempool.workspace = true
 tracing-test.workspace = true
+
+[build-dependencies]
+starknet_sierra_compile.workspace = true
