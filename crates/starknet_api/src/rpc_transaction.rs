@@ -177,8 +177,8 @@ pub struct ResourceBoundsMapping {
     pub l2_gas: ResourceBounds,
 }
 
-impl From<ResourceBoundsMapping> for crate::transaction::ResourceBoundsMapping {
-    fn from(mapping: ResourceBoundsMapping) -> crate::transaction::ResourceBoundsMapping {
+impl From<&ResourceBoundsMapping> for crate::transaction::ResourceBoundsMapping {
+    fn from(mapping: &ResourceBoundsMapping) -> crate::transaction::ResourceBoundsMapping {
         let map =
             BTreeMap::from([(Resource::L1Gas, mapping.l1_gas), (Resource::L2Gas, mapping.l2_gas)]);
         crate::transaction::ResourceBoundsMapping(map)

@@ -59,7 +59,7 @@ pub fn external_tx_to_thin_tx(
     ThinTransaction {
         tip: *external_tx.tip(),
         nonce: *external_tx.nonce(),
-        resource_bounds: external_tx.resource_bounds().clone().into(),
+        resource_bounds: external_tx.resource_bounds().into(),
         sender_address: get_sender_address(external_tx),
         tx_hash,
     }
@@ -94,7 +94,7 @@ pub fn external_tx_to_account_tx(
             let declare_tx = DeclareTransaction::V3(DeclareTransactionV3 {
                 class_hash: ClassHash::default(), /* FIXME(yael 15/4/24): call the starknet-api
                                                    * function once ready */
-                resource_bounds: tx.resource_bounds.clone().into(),
+                resource_bounds: (&tx.resource_bounds).into(),
                 tip: tx.tip,
                 signature: tx.signature.clone(),
                 nonce: tx.nonce,
@@ -113,7 +113,7 @@ pub fn external_tx_to_account_tx(
         }
         RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
             let deploy_account_tx = DeployAccountTransaction::V3(DeployAccountTransactionV3 {
-                resource_bounds: tx.resource_bounds.clone().into(),
+                resource_bounds: (&tx.resource_bounds).into(),
                 tip: tx.tip,
                 signature: tx.signature.clone(),
                 nonce: tx.nonce,
@@ -141,7 +141,7 @@ pub fn external_tx_to_account_tx(
         }
         RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
             let invoke_tx = InvokeTransaction::V3(InvokeTransactionV3 {
-                resource_bounds: tx.resource_bounds.clone().into(),
+                resource_bounds: (&tx.resource_bounds).into(),
                 tip: tx.tip,
                 signature: tx.signature.clone(),
                 nonce: tx.nonce,
