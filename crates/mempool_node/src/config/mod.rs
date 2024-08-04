@@ -6,11 +6,20 @@ use std::fs::File;
 use std::path::Path;
 
 use clap::Command;
-use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use papyrus_config::dumping::{
+    append_sub_config_name,
+    ser_optional_sub_config,
+    ser_param,
+    SerializeConfig,
+};
 use papyrus_config::loading::load_and_process_config;
 use papyrus_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
+use starknet_mempool_infra::component_server::{
+    LocalComponentServerConfig,
+    RemoteComponentServerConfig,
+};
 use validator::{Validate, ValidationError};
 
 use crate::version::VERSION_FULL;
@@ -18,35 +27,112 @@ use crate::version::VERSION_FULL;
 // The path of the default configuration file, provided as part of the crate.
 pub const DEFAULT_CONFIG_PATH: &str = "config/mempool/default_config.json";
 
-/// The single crate configuration.
+// The configuration of the components.
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum LocationType {
+    Local,
+    Remote,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum ComponentType {
+    IndependentComponent,
+    SynchronousComponent,
+    AsynchronousComponent,
+}
+
+/// The single component configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+#[validate(schema(function = "validate_single_component_config"))]
 pub struct ComponentExecutionConfig {
     pub execute: bool,
+    pub component_type: ComponentType,
+    pub location: LocationType,
+    pub local_config: Option<LocalComponentServerConfig>,
+    pub remote_config: Option<RemoteComponentServerConfig>,
 }
 
 impl SerializeConfig for ComponentExecutionConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "execute",
-            &self.execute,
-            "The component execution flag.",
-            ParamPrivacyInput::Public,
-        )])
+        let config = BTreeMap::from_iter([
+            ser_param(
+                "execute",
+                &self.execute,
+                "The component execution flag.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "location",
+                &self.location,
+                "The component location.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "component_type",
+                &self.component_type,
+                "The component type.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
+        vec![
+            config,
+            ser_optional_sub_config(&self.local_config, "local_config"),
+            ser_optional_sub_config(&self.remote_config, "remote_config"),
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
     }
 }
 
 impl Default for ComponentExecutionConfig {
     fn default() -> Self {
-        Self { execute: true }
+        Self {
+            execute: true,
+            location: LocationType::Local,
+            component_type: ComponentType::SynchronousComponent,
+            local_config: Some(LocalComponentServerConfig::default()),
+            remote_config: None,
+        }
     }
 }
 
+pub fn validate_single_component_config(
+    component: &ComponentExecutionConfig,
+) -> Result<(), ValidationError> {
+    if component.location == LocationType::Local && component.local_config.is_none() {
+        let mut error = ValidationError::new("Invalid component configuration.");
+        error.message = Some("The component is Local but configuered as remote.".into());
+        return Err(error);
+    }
+    if component.location == LocationType::Remote && component.remote_config.is_none() {
+        let mut error = ValidationError::new("Invalid component configuration.");
+        error.message = Some("The component is Remote but configuered as local.".into());
+        return Err(error);
+    }
+
+    Ok(())
+}
+
 /// The components configuration.
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 #[validate(schema(function = "validate_components_config"))]
 pub struct ComponentConfig {
     pub gateway: ComponentExecutionConfig,
     pub mempool: ComponentExecutionConfig,
+}
+
+impl Default for ComponentConfig {
+    fn default() -> Self {
+        Self {
+            gateway: ComponentExecutionConfig {
+                component_type: ComponentType::IndependentComponent,
+                ..ComponentExecutionConfig::default()
+            },
+            mempool: ComponentExecutionConfig::default(),
+        }
+    }
 }
 
 impl SerializeConfig for ComponentConfig {
@@ -62,6 +148,8 @@ impl SerializeConfig for ComponentConfig {
 }
 
 pub fn validate_components_config(components: &ComponentConfig) -> Result<(), ValidationError> {
+    validate_single_component_config(&components.gateway)?;
+    validate_single_component_config(&components.mempool)?;
     if components.gateway.execute || components.mempool.execute {
         return Ok(());
     }

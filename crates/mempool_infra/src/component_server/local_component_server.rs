@@ -1,6 +1,12 @@
+use std::collections::BTreeMap;
+
 use async_trait::async_trait;
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::Receiver;
 use tracing::error;
+use validator::Validate;
 
 use super::definitions::{request_response_loop, start_component, ComponentServerStarter};
 use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
@@ -107,6 +113,31 @@ use crate::component_runner::ComponentStarter;
 ///     assert!(response.content == "request example processed".to_string(), "Unexpected response");
 /// }
 /// ```
+
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+pub struct LocalComponentServerConfig {
+    pub channel_buffer_size: u32,
+}
+
+const DEFAULT_CHANNEL_BUFFER_SIZE: u32 = 32;
+
+impl SerializeConfig for LocalComponentServerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "channel_buffer_size",
+            &self.channel_buffer_size,
+            "The communication channel buffer size.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
+impl Default for LocalComponentServerConfig {
+    fn default() -> Self {
+        Self { channel_buffer_size: DEFAULT_CHANNEL_BUFFER_SIZE }
+    }
+}
+
 pub struct LocalComponentServer<Component, Request, Response>
 where
     Component: ComponentRequestHandler<Request, Response> + ComponentStarter,
