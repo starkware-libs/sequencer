@@ -4,20 +4,28 @@ use std::path::Path;
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::allowed_libfuncs::AllowedLibfuncsError;
 use mempool_test_utils::{get_absolute_path, FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
-use rstest::{fixture, rstest};
+use rstest::rstest;
 
-use crate::cairo_lang_compiler::{CairoLangCompiler, CompilationUtilError};
+use crate::cairo_lang_compiler::CairoLangCompiler;
+use crate::command_line_compiler::CommandLineCompiler;
 use crate::config::SierraToCasmCompilationConfig;
+use crate::errors::CompilationUtilError;
 use crate::test_utils::contract_class_from_file;
 use crate::SierraToCasmCompiler;
 
-#[fixture]
-fn compiler() -> impl SierraToCasmCompiler {
-    CairoLangCompiler { config: SierraToCasmCompilationConfig { max_bytecode_size: 81920 } }
-}
+const SIERRA_TO_CASM_COMPILATION_CONFIG: SierraToCasmCompilationConfig =
+    SierraToCasmCompilationConfig { max_bytecode_size: 81920 };
 
+const CAIRO_LANG_COMPILER: CairoLangCompiler =
+    CairoLangCompiler { config: SIERRA_TO_CASM_COMPILATION_CONFIG };
+const COMMAND_LINE_COMPILER: CommandLineCompiler =
+    CommandLineCompiler { config: SIERRA_TO_CASM_COMPILATION_CONFIG };
+
+// TODO: use the other compiler as well.
 #[rstest]
-fn test_compile_sierra_to_casm(compiler: impl SierraToCasmCompiler) {
+#[case::cairo_lang_compiler(&CAIRO_LANG_COMPILER)]
+#[case::command_line_compiler(&COMMAND_LINE_COMPILER)]
+fn test_compile_sierra_to_casm(#[case] compiler: &impl SierraToCasmCompiler) {
     env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Failed to set current dir.");
     let sierra_path = Path::new(FAULTY_ACCOUNT_CLASS_FILE);
     let expected_casm_contract_length = 72304;
@@ -31,7 +39,8 @@ fn test_compile_sierra_to_casm(compiler: impl SierraToCasmCompiler) {
 
 // TODO(Arni, 1/5/2024): Add a test for panic result test.
 #[rstest]
-fn test_negative_flow_compile_sierra_to_casm(compiler: impl SierraToCasmCompiler) {
+#[case::cairo_lang_compiler(&CAIRO_LANG_COMPILER)]
+fn test_negative_flow_compile_sierra_to_casm(#[case] compiler: &impl SierraToCasmCompiler) {
     env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Failed to set current dir.");
     let sierra_path = Path::new(FAULTY_ACCOUNT_CLASS_FILE);
 
@@ -44,4 +53,19 @@ fn test_negative_flow_compile_sierra_to_casm(compiler: impl SierraToCasmCompiler
         result,
         Err(CompilationUtilError::AllowedLibfuncsError(AllowedLibfuncsError::SierraProgramError))
     );
+}
+
+// TODO(Arni, 1/5/2024): Add a test for panic result test.
+#[rstest]
+#[case::command_line_compiler(&COMMAND_LINE_COMPILER)]
+fn test_negative_flow_compile_sierra_to_casm_2(#[case] compiler: &impl SierraToCasmCompiler) {
+    env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Failed to set current dir.");
+    let sierra_path = Path::new(FAULTY_ACCOUNT_CLASS_FILE);
+
+    let mut contract_class = contract_class_from_file(sierra_path);
+    // Truncate the sierra program to trigger an error.
+    contract_class.sierra_program = contract_class.sierra_program[..100].to_vec();
+
+    let result = compiler.compile_sierra_to_casm(contract_class);
+    assert_matches!(result, Err(CompilationUtilError::CompilationError(..)));
 }
