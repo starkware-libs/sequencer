@@ -16,10 +16,7 @@ use blockifier::transaction::objects::FeeType;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::{indexmap, IndexMap};
 use itertools::Itertools;
-use mempool_test_utils::starknet_api_test_utils::{
-    deploy_account_tx,
-    deployed_account_contract_address,
-};
+use mempool_test_utils::starknet_api_test_utils::deploy_account_tx;
 use papyrus_common::pending_classes::PendingClasses;
 use papyrus_rpc::{run_server, RpcConfig};
 use papyrus_storage::body::BodyStorageWriter;
@@ -55,7 +52,7 @@ fn deploy_account_tx_contract_address() -> &'static ContractAddress {
     static DEPLOY_ACCOUNT_TX_CONTRACT_ADDRESS: OnceLock<ContractAddress> = OnceLock::new();
     DEPLOY_ACCOUNT_TX_CONTRACT_ADDRESS.get_or_init(|| {
         let deploy_tx = deploy_account_tx();
-        deployed_account_contract_address(&deploy_tx)
+        deploy_tx.calculate_sender_address().unwrap()
     })
 }
 
