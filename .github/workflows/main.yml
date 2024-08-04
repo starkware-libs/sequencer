@@ -195,7 +195,7 @@ jobs:
   papyrus-ci:
     needs: changed-files
     if: needs.changed-files.outputs.papyrus == 'true'
-    uses: ./.github/workflows/papyrus_ci.yml
+    uses: ./.github/workflows/papyrus/papyrus_ci.yml
     secrets: inherit
 
   merge-gatekeeper:
