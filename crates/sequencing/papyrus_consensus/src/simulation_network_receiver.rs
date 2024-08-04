@@ -50,8 +50,8 @@ where
         drop_probability: f64,
         invalid_probability: f64,
     ) -> Self {
-        assert!(0.0 <= drop_probability && drop_probability <= 1.0);
-        assert!(0.0 <= invalid_probability && invalid_probability <= 1.0);
+        assert!((0.0..=1.0).contains(&drop_probability));
+        assert!((0.0..=1.0).contains(&invalid_probability));
         Self {
             receiver,
             cache: LruCache::new(NonZeroUsize::new(cache_size).unwrap()),
@@ -99,22 +99,19 @@ where
     }
 
     fn should_drop_msg(&mut self, msg: &ConsensusMessage) -> bool {
-        let prob = (self.calculate_msg_hash(&msg) as f64) / (u64::MAX as f64);
+        let prob = (self.calculate_msg_hash(msg) as f64) / (u64::MAX as f64);
         prob <= self.drop_probability
     }
 
     fn should_invalidate_msg(&mut self, msg: &ConsensusMessage) -> bool {
-        let prob = (self.calculate_msg_hash(&msg) as f64) / (u64::MAX as f64);
+        let prob = (self.calculate_msg_hash(msg) as f64) / (u64::MAX as f64);
         prob <= self.invalid_probability
     }
 
     fn invalidate_msg(&mut self, msg: &mut ConsensusMessage) {
-        match msg {
-            ConsensusMessage::Proposal(ref mut proposal) => {
-                proposal.block_hash = BlockHash(proposal.block_hash.0 + 1);
-            }
-            // TODO(matan): Allow for invalid votes based on signatures.
-            _ => {}
+        // TODO(matan): Allow for invalid votes based on signature/sender_id.
+        if let ConsensusMessage::Proposal(ref mut proposal) = msg {
+            proposal.block_hash = BlockHash(proposal.block_hash.0 + 1);
         }
     }
 }
