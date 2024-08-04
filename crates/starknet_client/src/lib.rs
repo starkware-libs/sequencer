@@ -13,8 +13,7 @@ pub mod retry;
 #[cfg(test)]
 mod starknet_client_test;
 pub mod starknet_error;
-#[cfg(test)]
-mod test_utils;
+pub mod test_utils;
 pub mod writer;
 
 use std::collections::HashMap;
