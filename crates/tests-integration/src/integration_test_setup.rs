@@ -5,7 +5,7 @@ use blockifier::test_utils::CairoVersion;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway::config::GatewayNetworkConfig;
-use starknet_gateway::errors::GatewayError;
+use starknet_gateway::errors::GatewaySpecError;
 use starknet_mempool_infra::trace_util::configure_tracing;
 use starknet_mempool_node::communication::{create_node_channels, create_node_clients};
 use starknet_mempool_node::components::create_components;
@@ -87,7 +87,7 @@ impl IntegrationTestSetup {
         self.gateway_client.assert_add_tx_success(tx).await
     }
 
-    pub async fn assert_add_tx_error(&self, tx: &RpcTransaction) -> GatewayError {
+    pub async fn assert_add_tx_error(&self, tx: &RpcTransaction) -> GatewaySpecError {
         self.gateway_client.assert_add_tx_error(tx).await
     }
 
