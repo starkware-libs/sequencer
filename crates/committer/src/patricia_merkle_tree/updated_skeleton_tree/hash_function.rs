@@ -17,7 +17,7 @@ use crate::patricia_merkle_tree::node_data::leaf::{ContractState, Leaf};
 pub mod hash_function_test;
 
 /// Trait for hash functions.
-pub(crate) trait HashFunction {
+pub trait HashFunction {
     /// Computes the hash of the given input.
     fn hash(left: &Felt, right: &Felt) -> HashOutput;
 }
@@ -38,7 +38,7 @@ impl HashFunction for PoseidonHashFunction {
     }
 }
 
-pub(crate) trait TreeHashFunction<L: Leaf> {
+pub trait TreeHashFunction<L: Leaf> {
     /// Computes the hash of the given leaf.
     fn compute_leaf_hash(leaf_data: &L) -> HashOutput;
 
