@@ -709,3 +709,36 @@ fn test_flow_partial_commit_block() {
     let expected_mempool_state = MempoolState::new(expected_pool_txs, []);
     expected_mempool_state.assert_eq_mempool_state(&mempool);
 }
+
+#[rstest]
+fn test_flow_commit_block_closes_hole() {
+    // Setup.
+    let tx_nonce3 =
+        add_tx_input!(tip: 10, tx_hash: 1, sender_address: "0x0", tx_nonce: 3_u8, account_nonce: 3_u8).tx;
+    let tx_input_nonce4 = add_tx_input!(tip: 11, tx_hash: 2, sender_address: "0x0", tx_nonce: 4_u8, account_nonce: 5_u8);
+    let tx_nonce5 =
+        add_tx_input!(tip: 12, tx_hash: 3, sender_address: "0x0", tx_nonce: 5_u8, account_nonce: 3_u8).tx;
+
+    let queued_txs = [TransactionReference::new(&tx_nonce3)];
+    let pool_txs = [tx_nonce3, tx_nonce5.clone()];
+    let mut mempool: Mempool = MempoolState::new(pool_txs, queued_txs).into();
+
+    // Test.
+    let state_changes =
+        HashMap::from([(contract_address!("0x0"), AccountState { nonce: Nonce(felt!(4_u8)) })]);
+    assert!(mempool.commit_block(state_changes).is_ok());
+
+    // Assert: hole was indeed closed.
+    let expected_queue_txs = [&tx_nonce5].map(TransactionReference::new);
+    let expected_mempool_state = MempoolState::with_queue(expected_queue_txs);
+    expected_mempool_state.assert_eq_queue_state(&mempool);
+
+    let res = mempool.add_tx(tx_input_nonce4);
+    assert_eq!(
+        res,
+        Err(MempoolError::DuplicateNonce {
+            address: contract_address!("0x0"),
+            nonce: Nonce(felt!(4_u8)),
+        })
+    );
+}
