@@ -158,18 +158,43 @@ impl BlockInfo {
             block_number: BlockNumber(CURRENT_BLOCK_NUMBER),
             block_timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
             sequencer_address: contract_address!(TEST_SEQUENCER_ADDRESS),
-            gas_prices: GasPrices {
-                eth_l1_gas_price: DEFAULT_ETH_L1_GAS_PRICE.try_into().unwrap(),
-                strk_l1_gas_price: DEFAULT_STRK_L1_GAS_PRICE.try_into().unwrap(),
-                eth_l1_data_gas_price: DEFAULT_ETH_L1_DATA_GAS_PRICE.try_into().unwrap(),
-                strk_l1_data_gas_price: DEFAULT_STRK_L1_DATA_GAS_PRICE.try_into().unwrap(),
-            },
+            gas_prices: GasPrices::new(
+                DEFAULT_ETH_L1_GAS_PRICE.try_into().unwrap(),
+                DEFAULT_STRK_L1_GAS_PRICE.try_into().unwrap(),
+                DEFAULT_ETH_L1_DATA_GAS_PRICE.try_into().unwrap(),
+                DEFAULT_STRK_L1_DATA_GAS_PRICE.try_into().unwrap(),
+            ),
             use_kzg_da: false,
         }
     }
 
     pub fn create_for_testing_with_kzg(use_kzg_da: bool) -> Self {
         Self { use_kzg_da, ..Self::create_for_testing() }
+    }
+}
+
+impl GasPrices {
+    pub fn create_for_testing() -> Self {
+        Self::new(
+            DEFAULT_ETH_L1_GAS_PRICE.try_into().unwrap(),
+            DEFAULT_STRK_L1_GAS_PRICE.try_into().unwrap(),
+            DEFAULT_ETH_L1_DATA_GAS_PRICE.try_into().unwrap(),
+            DEFAULT_STRK_L1_DATA_GAS_PRICE.try_into().unwrap(),
+        )
+    }
+
+    pub fn create_for_testing_w_strk_gas_prices(
+        eth_gas_price: Option<u128>,
+        strk_gas_price: Option<u128>,
+        eth_data_gas_price: Option<u128>,
+        strk_data_gas_price: Option<u128>,
+    ) -> Self {
+        Self::new(
+            eth_gas_price.unwrap_or(DEFAULT_ETH_L1_GAS_PRICE).try_into().unwrap(),
+            strk_gas_price.unwrap_or(DEFAULT_STRK_L1_GAS_PRICE).try_into().unwrap(),
+            eth_data_gas_price.unwrap_or(DEFAULT_ETH_L1_DATA_GAS_PRICE).try_into().unwrap(),
+            strk_data_gas_price.unwrap_or(DEFAULT_STRK_L1_DATA_GAS_PRICE).try_into().unwrap(),
+        )
     }
 }
 

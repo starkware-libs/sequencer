@@ -1,5 +1,6 @@
 use std::num::NonZeroU128;
 
+use num_rational::Ratio;
 use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp};
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
@@ -13,6 +14,11 @@ use crate::transaction::objects::FeeType;
 #[cfg(test)]
 #[path = "block_test.rs"]
 pub mod block_test;
+pub const L2_GAS_FOR_CAIRO_STEP: u128 = 100;
+pub const CAIRO_STEPS_PER_L1_GAS: u128 = 400;
+pub const L2_TO_L1_GAS_PRICE_RATIO: u128 = L2_GAS_FOR_CAIRO_STEP * CAIRO_STEPS_PER_L1_GAS;
+
+pub type L2Cost = Ratio<u128>;
 
 #[derive(Clone, Debug)]
 pub struct BlockInfo {
@@ -27,13 +33,32 @@ pub struct BlockInfo {
 
 #[derive(Clone, Debug)]
 pub struct GasPrices {
-    pub eth_l1_gas_price: NonZeroU128,       // In wei.
-    pub strk_l1_gas_price: NonZeroU128,      // In fri.
-    pub eth_l1_data_gas_price: NonZeroU128,  // In wei.
-    pub strk_l1_data_gas_price: NonZeroU128, // In fri.
+    eth_l1_gas_price: NonZeroU128,       // In wei.
+    strk_l1_gas_price: NonZeroU128,      // In fri.
+    eth_l1_data_gas_price: NonZeroU128,  // In wei.
+    strk_l1_data_gas_price: NonZeroU128, // In fri.
+    eth_l2_gas_price: L2Cost,            // In wei.
+    strk_l2_gas_price: L2Cost,           // In fri.
 }
 
 impl GasPrices {
+    pub fn new(
+        eth_l1_gas_price: NonZeroU128,
+        strk_l1_gas_price: NonZeroU128,
+        eth_l1_data_gas_price: NonZeroU128,
+        strk_l1_data_gas_price: NonZeroU128,
+    ) -> Self {
+        let eth_l2_gas_price = L2Cost::new(eth_l1_gas_price.into(), L2_TO_L1_GAS_PRICE_RATIO);
+        let strk_l2_gas_price = L2Cost::new(strk_l1_gas_price.into(), L2_TO_L1_GAS_PRICE_RATIO);
+        GasPrices {
+            eth_l1_gas_price,
+            strk_l1_gas_price,
+            eth_l1_data_gas_price,
+            strk_l1_data_gas_price,
+            eth_l2_gas_price,
+            strk_l2_gas_price,
+        }
+    }
     pub fn get_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonZeroU128 {
         match fee_type {
             FeeType::Strk => self.strk_l1_gas_price,
@@ -45,6 +70,13 @@ impl GasPrices {
         match fee_type {
             FeeType::Strk => self.strk_l1_data_gas_price,
             FeeType::Eth => self.eth_l1_data_gas_price,
+        }
+    }
+
+    pub fn get_l2_gas_price_by_fee_type(&self, fee_type: &FeeType) -> L2Cost {
+        match fee_type {
+            FeeType::Strk => self.strk_l2_gas_price,
+            FeeType::Eth => self.eth_l2_gas_price,
         }
     }
 }
