@@ -116,7 +116,16 @@ impl SerializedContent {
     fn get_serialization_type(&self) -> Option<SerializationType> {
         match self {
             SerializedContent::DefaultValue(value) => match value {
-                Value::Number(_) => Some(SerializationType::Number),
+                // JSON "Number" is handled as PosInt(u64), NegInt(i64), or Float(f64).
+                Value::Number(num) => {
+                    if num.is_f64() {
+                        Some(SerializationType::Float)
+                    } else if num.is_u64() {
+                        Some(SerializationType::PositiveInteger)
+                    } else {
+                        Some(SerializationType::NegativeInteger)
+                    }
+                }
                 Value::Bool(_) => Some(SerializationType::Boolean),
                 Value::String(_) => Some(SerializationType::String),
                 _ => None,
@@ -142,8 +151,10 @@ pub struct SerializedParam {
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, strum_macros::Display)]
 #[allow(missing_docs)]
 pub enum SerializationType {
-    Number,
     Boolean,
+    Float,
+    NegativeInteger,
+    PositiveInteger,
     String,
 }
 
