@@ -49,6 +49,8 @@ async fn state_diff_basic_flow() {
         storage_reader,
         mut state_diff_payload_receiver,
         mut header_payload_receiver,
+        // The test will fail if we drop these
+        transaction_payload_receiver: _transaction_payload_receiver,
         ..
     } = setup();
 
@@ -314,6 +316,8 @@ async fn validate_state_diff_fails(
         storage_reader,
         mut state_diff_payload_receiver,
         mut header_payload_receiver,
+        // The test will fail if we drop these
+        transaction_payload_receiver: _transaction_payload_receiver,
         ..
     } = setup();
 
