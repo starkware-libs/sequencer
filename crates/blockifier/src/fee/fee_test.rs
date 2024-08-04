@@ -121,9 +121,15 @@ fn test_discounted_gas_overdraft(
     #[case] gas_bound: u64,
     #[case] expect_failure: bool,
 ) {
+    use crate::blockifier::block::GasPrices;
+
     let mut block_context = BlockContext::create_for_account_testing();
-    block_context.block_info.gas_prices.strk_l1_gas_price = gas_price.try_into().unwrap();
-    block_context.block_info.gas_prices.strk_l1_data_gas_price = data_gas_price.try_into().unwrap();
+    block_context.block_info.gas_prices = GasPrices::create_for_testing_w_strk_gas_prices(
+        None,
+        Some(gas_price),
+        None,
+        Some(data_gas_price),
+    );
 
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
     let mut state = test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
