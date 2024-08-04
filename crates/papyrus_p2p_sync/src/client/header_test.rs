@@ -31,6 +31,7 @@ async fn signed_headers_basic_flow() {
         mut header_payload_receiver,
         // The test will fail if we drop these
         state_diff_payload_receiver: _state_diff_query_receiver,
+        transaction_payload_receiver: _transaction_query_receiver,
         ..
     } = setup();
     let block_hashes_and_signatures =
@@ -116,6 +117,7 @@ async fn sync_sends_new_header_query_if_it_got_partial_responses() {
         mut header_payload_receiver,
         // The test will fail if we drop these
         state_diff_payload_receiver: _state_diff_query_receiver,
+        transaction_payload_receiver: _transaction_query_receiver,
         ..
     } = setup();
     let block_hashes_and_signatures = create_block_hashes_and_signatures(NUM_ACTUAL_RESPONSES);
