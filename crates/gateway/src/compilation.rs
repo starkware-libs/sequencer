@@ -63,8 +63,8 @@ impl GatewayCompiler {
     ) -> GatewayResult<CasmContractClass> {
         match self.sierra_to_casm_compiler.compile(cairo_lang_contract_class) {
             Ok(casm_contract_class) => Ok(casm_contract_class),
-            Err(starknet_sierra_compile::errors::CompilationUtilError::CompilationPanic) => {
-                // TODO(Arni): Log the panic.
+            Err(starknet_sierra_compile::errors::CompilationUtilError::UnexpectedError) => {
+                // TODO(Arni): Log the panic.UnexpectedPanic
                 error!("Compilation panicked.");
                 Err(GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() })
             }
