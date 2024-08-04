@@ -20,7 +20,7 @@ use crate::rpc_state_reader::RpcStateReaderFactory;
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
-use crate::utils::{external_tx_to_thin_tx, get_sender_address};
+use crate::utils::external_tx_to_thin_tx;
 
 #[cfg(test)]
 #[path = "gateway_test.rs"]
@@ -139,7 +139,7 @@ fn process_tx(
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
     Ok(MempoolInput {
         tx: external_tx_to_thin_tx(&tx, tx_hash),
-        account: Account { sender_address: get_sender_address(&tx), ..Default::default() },
+        account: Account { sender_address: tx.calculate_sender_address(), ..Default::default() },
     })
 }
 
