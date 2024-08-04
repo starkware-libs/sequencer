@@ -174,6 +174,8 @@ jobs:
 
   changed-files:
     runs-on: ubuntu-latest
+    outputs:
+      papyrus: ${{ steps.changed-files.outputs.papyrus }}
     steps:
     - uses: actions/checkout@v4
     - uses: dorny/paths-filter@v3
@@ -190,16 +192,11 @@ jobs:
             - 'crates/sequencing/**'
             - 'crates/starknet_client/**'
 
-    - name: papyrus tests
-      if: steps.changed-files.outputs.papyrus == 'true'
-      uses: ./.github/workflows/papyrus/
-      with:
-        env: ${{ env }}
-        github: ${{ github }}
-        secrets: ${{ secrets }}
-
-    # - if: steps.papyrus-changes.outputs.paths == 'true'
-    #   uses: ./papyrus/actions.yml
+  papyrus-ci:
+    needs: changed-files
+    if: needs.changed-files.outputs.papyrus == 'true'
+    uses: ./.github/workflows/papyrus_ci.yml
+    secrets: inherit
 
   merge-gatekeeper:
     runs-on: ubuntu-latest

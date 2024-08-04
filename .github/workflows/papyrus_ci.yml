@@ -1,5 +1,8 @@
 name: Papyrus-CI
 
+on:
+  workflow_call:
+
 jobs:
   executable-run:
     runs-on: ubuntu-latest
