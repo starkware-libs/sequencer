@@ -25,8 +25,6 @@ use crate::common::{test_a_b_functionality, ComponentA, ComponentB, ValueA, Valu
 type ComponentAClient = LocalComponentClient<ComponentARequest, ComponentAResponse>;
 type ComponentBClient = LocalComponentClient<ComponentBRequest, ComponentBResponse>;
 
-// TODO(Tsabary): send messages from component b to component a.
-
 #[async_trait]
 impl ComponentAClientTrait for LocalComponentClient<ComponentARequest, ComponentAResponse> {
     async fn a_get_value(&self) -> ResultA {

@@ -9,8 +9,6 @@ pub(crate) type ValueB = u8;
 pub(crate) type ResultA = ClientResult<ValueA>;
 pub(crate) type ResultB = ClientResult<ValueB>;
 
-// TODO(Tsabary): add more messages / functions to the components.
-
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ComponentARequest {
     AGetValue,
