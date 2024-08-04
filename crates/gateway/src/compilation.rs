@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use blockifier::execution::contract_class::{ClassInfo, ContractClass, ContractClassV1};
+use blockifier::execution::contract_class::{ClassInfo, ContractClassV1};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use starknet_api::core::CompiledClassHash;
@@ -42,18 +42,15 @@ impl GatewayCompiler {
         let casm_contract_class = self.compile(cairo_lang_contract_class)?;
 
         validate_compiled_class_hash(&casm_contract_class, &tx.compiled_class_hash)?;
-
-        ClassInfo::new(
-            &ContractClass::V1(ContractClassV1::try_from(casm_contract_class).map_err(|e| {
-                error!("Failed to convert CasmContractClass to Blockifier ContractClass: {:?}", e);
-                GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
-            })?),
-            rpc_contract_class.sierra_program.len(),
-            rpc_contract_class.abi.len(),
-        )
-        .map_err(|e| {
-            error!("Failed to convert Blockifier ContractClass to Blockifier ClassInfo: {:?}", e);
+        let contract_class = ContractClassV1::try_from(casm_contract_class).map_err(|e| {
+            error!("Failed to convert CasmContractClass to Blockifier ContractClass: {:?}", e);
             GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+        })?;
+
+        Ok(ClassInfo::V1 {
+            contract_class,
+            sierra_program_length: rpc_contract_class.sierra_program.len(),
+            abi_length: rpc_contract_class.abi.len(),
         })
     }
 
