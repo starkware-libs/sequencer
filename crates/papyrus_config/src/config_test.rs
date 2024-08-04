@@ -119,6 +119,8 @@ struct TypicalConfig {
     a: Duration,
     b: String,
     c: bool,
+    d: f64,
+    e: u64,
 }
 
 impl SerializeConfig for TypicalConfig {
@@ -132,6 +134,8 @@ impl SerializeConfig for TypicalConfig {
             ),
             ser_param("b", &self.b, "This is b.", ParamPrivacyInput::Public),
             ser_param("c", &self.c, "This is c.", ParamPrivacyInput::Private),
+            ser_param("d", &self.d, "This is d.", ParamPrivacyInput::Public),
+            ser_param("e", &self.e, "This is e.", ParamPrivacyInput::Public),
         ])
     }
 }
@@ -140,8 +144,9 @@ impl SerializeConfig for TypicalConfig {
 fn test_update_dumped_config() {
     let command = Command::new("Testing");
     let dumped_config =
-        TypicalConfig { a: Duration::from_secs(1), b: "bbb".to_owned(), c: false }.dump();
-    let args = vec!["Testing", "--a", "1234", "--b", "15"];
+        TypicalConfig { a: Duration::from_secs(1), b: "bbb".to_owned(), c: false, d: 1.5, e: 10 }
+            .dump();
+    let args = vec!["Testing", "--a", "1234", "--b", "15", "--d", "0.5", "--e", "20"];
     env::set_var("C", "true");
     let args: Vec<String> = args.into_iter().map(|s| s.to_owned()).collect();
 
@@ -152,6 +157,8 @@ fn test_update_dumped_config() {
     assert_eq!(json!(1234), config_map["a"]);
     assert_eq!(json!("15"), config_map["b"]);
     assert_eq!(json!(true), config_map["c"]);
+    assert_eq!(json!(0.5), config_map["d"]);
+    assert_eq!(json!(20), config_map["e"]);
 
     let loaded_config: TypicalConfig = load(&config_map).unwrap();
     assert_eq!(Duration::from_millis(1234), loaded_config.a);
@@ -189,14 +196,15 @@ fn test_env_nested_params() {
 
 #[test]
 fn test_config_presentation() {
-    let config = TypicalConfig { a: Duration::from_secs(1), b: "bbb".to_owned(), c: false };
+    let config =
+        TypicalConfig { a: Duration::from_secs(1), b: "bbb".to_owned(), c: false, d: 1.5, e: 10 };
     let presentation = get_config_presentation(&config, true).unwrap();
     let keys: Vec<_> = presentation.as_object().unwrap().keys().collect();
-    assert_eq!(keys, vec!["a", "b", "c"]);
+    assert_eq!(keys, vec!["a", "b", "c", "d", "e"]);
 
     let public_presentation = get_config_presentation(&config, false).unwrap();
     let keys: Vec<_> = public_presentation.as_object().unwrap().keys().collect();
-    assert_eq!(keys, vec!["a", "b"]);
+    assert_eq!(keys, vec!["a", "b", "d", "e"]);
 }
 
 #[test]
@@ -306,7 +314,7 @@ impl SerializeConfig for CustomConfig {
             ),
             ser_generated_param(
                 "seed",
-                SerializationType::Number,
+                SerializationType::Integer,
                 "A dummy seed with generated default = 0.",
                 ParamPrivacyInput::Public,
             ),
