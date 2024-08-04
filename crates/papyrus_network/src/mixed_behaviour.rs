@@ -68,13 +68,13 @@ impl MixedBehaviour {
             peer_manager: peer_manager::PeerManager::new(PeerManagerConfig::default()),
             discovery: bootstrap_peer_multiaddr
                 .map(|bootstrap_peer_multiaddr| {
-                    discovery::Behaviour::new(DiscoveryConfig {
-                        bootstrap_peer_id: DialOpts::from(bootstrap_peer_multiaddr.clone())
+                    discovery::Behaviour::new(
+                        DiscoveryConfig::default(),
+                        DialOpts::from(bootstrap_peer_multiaddr.clone())
                             .get_peer_id()
                             .expect("bootstrap_peer_multiaddr doesn't have a peer id"),
-                        bootstrap_peer_address: bootstrap_peer_multiaddr.clone(),
-                        bootstrap_peer_dial_retry_strategy: Default::default(),
-                    })
+                        bootstrap_peer_multiaddr.clone(),
+                    )
                 })
                 .into(),
             identify: identify::Behaviour::new(identify::Config::new(
