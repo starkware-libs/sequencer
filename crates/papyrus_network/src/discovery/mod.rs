@@ -32,9 +32,6 @@ use tokio_retry::strategy::ExponentialBackoff;
 use crate::mixed_behaviour::BridgedBehaviour;
 use crate::{mixed_behaviour, peer_manager};
 
-// TODO(shahak): Consider adding to config.
-const BASE_DIAL_SLEEP_MILLIS: u64 = 10;
-
 pub struct Behaviour {
     is_paused: bool,
     // TODO(shahak): Consider running several queries in parallel
@@ -44,10 +41,11 @@ pub struct Behaviour {
     is_dialing_to_bootstrap_peer: bool,
     // This needs to be boxed to allow polling it from a &mut.
     sleep_future_for_dialing_bootstrap_peer: Option<BoxFuture<'static, ()>>,
-    dial_sleep_strategy: DialSleepStrategy,
+    dial_retry_strategy: DialRetryStrategy,
     is_connected_to_bootstrap_peer: bool,
     is_bootstrap_in_kad_routing_table: bool,
     wakers: Vec<Waker>,
+    dial_retry_exponential_backoff: ExponentialBackoff,
 }
 
 #[derive(Debug)]
@@ -91,9 +89,9 @@ impl NetworkBehaviour for Behaviour {
                 // TODO(shahak): Consider increasing the time after each failure, the same way we
                 // do in starknet client.
                 self.sleep_future_for_dialing_bootstrap_peer = Some(
-                    tokio::time::sleep(
-                        self.dial_sleep_strategy.0.next().expect("Dial sleep strategy failed."),
-                    )
+                    tokio::time::sleep(self.dial_retry_exponential_backoff.next().expect(
+                        "Dial sleep strategy ended even though it's an infinite iterator.",
+                    ))
                     .boxed(),
                 );
             }
@@ -102,7 +100,10 @@ impl NetworkBehaviour for Behaviour {
             {
                 self.is_connected_to_bootstrap_peer = true;
                 self.is_dialing_to_bootstrap_peer = false;
-                self.dial_sleep_strategy = DialSleepStrategy::default();
+                self.dial_retry_exponential_backoff =
+                    ExponentialBackoff::from_millis(self.dial_retry_strategy.base_delay_millis)
+                        .max_delay(Duration::from_millis(self.dial_retry_strategy.max_delay_millis))
+                        .factor(self.dial_retry_strategy.factor);
             }
             FromSwarm::ConnectionClosed(ConnectionClosed {
                 peer_id,
@@ -178,31 +179,24 @@ impl NetworkBehaviour for Behaviour {
     }
 }
 
+// TODO(alon): add to NetworkConfig
 pub struct DiscoveryConfig {
     pub bootstrap_peer_id: PeerId,
     pub bootstrap_peer_address: Multiaddr,
-    bootstrap_peer_dial_sleep_strategy: DialSleepStrategy,
+    pub bootstrap_peer_dial_retry_strategy: DialRetryStrategy,
 }
 
-impl DiscoveryConfig {
-    pub fn new(bootstrap_peer_id: PeerId, bootstrap_peer_address: Multiaddr) -> Self {
-        Self {
-            bootstrap_peer_id,
-            bootstrap_peer_address,
-            bootstrap_peer_dial_sleep_strategy: DialSleepStrategy::default(),
-        }
-    }
+#[derive(Copy, Clone, Debug)]
+pub struct DialRetryStrategy {
+    pub base_delay_millis: u64,
+    pub max_delay_millis: u64,
+    pub factor: u64,
 }
 
-pub struct DialSleepStrategy(pub ExponentialBackoff);
-
-impl Default for DialSleepStrategy {
+impl Default for DialRetryStrategy {
     fn default() -> Self {
-        Self(
-            ExponentialBackoff::from_millis(BASE_DIAL_SLEEP_MILLIS)
-                .max_delay(Duration::from_secs(5))
-                .factor(2),
-        )
+        Self { base_delay_millis: 10, max_delay_millis: 5000, factor: 2 }
+        // Self(ExponentialBackoff::from_millis(10).max_delay(Duration::from_secs(5)).factor(2))
     }
 }
 
@@ -217,10 +211,17 @@ impl Behaviour {
             bootstrap_peer_address: discovery_config.bootstrap_peer_address,
             is_dialing_to_bootstrap_peer: false,
             sleep_future_for_dialing_bootstrap_peer: None,
-            dial_sleep_strategy: discovery_config.bootstrap_peer_dial_sleep_strategy,
+            dial_retry_strategy: discovery_config.bootstrap_peer_dial_retry_strategy,
             is_connected_to_bootstrap_peer: false,
             is_bootstrap_in_kad_routing_table: false,
             wakers: Vec::new(),
+            dial_retry_exponential_backoff: ExponentialBackoff::from_millis(
+                discovery_config.bootstrap_peer_dial_retry_strategy.base_delay_millis,
+            )
+            .max_delay(Duration::from_millis(
+                discovery_config.bootstrap_peer_dial_retry_strategy.max_delay_millis,
+            ))
+            .factor(discovery_config.bootstrap_peer_dial_retry_strategy.factor),
         }
     }
 
