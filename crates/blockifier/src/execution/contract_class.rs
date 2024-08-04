@@ -40,7 +40,7 @@ use super::execution_utils::poseidon_hash_many_cost;
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::{self, CONSTRUCTOR_ENTRY_POINT_NAME};
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::errors::{ContractClassError, PreExecutionError};
+use crate::execution::errors::PreExecutionError;
 use crate::execution::execution_utils::sn_api_to_cairo_vm_program;
 use crate::fee::eth_gas_constants;
 use crate::transaction::errors::TransactionExecutionError;
@@ -49,8 +49,6 @@ use crate::versioned_constants::CompilerVersion;
 #[cfg(test)]
 #[path = "contract_class_test.rs"]
 pub mod test;
-
-pub type ContractClassResult<T> = Result<T, ContractClassError>;
 
 /// The resource used to run a contract function.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -561,10 +559,9 @@ fn convert_entry_points_v1(external: &[CasmContractEntryPoint]) -> Vec<EntryPoin
 
 #[derive(Clone, Debug)]
 // TODO(Ayelet,10/02/2024): Change to bytes.
-pub struct ClassInfo {
-    contract_class: ContractClass,
-    sierra_program_length: usize,
-    abi_length: usize,
+pub enum ClassInfo {
+    V0 { contract_class: ContractClassV0, abi_length: usize },
+    V1 { contract_class: ContractClassV1, sierra_program_length: usize, abi_length: usize },
 }
 
 impl TryFrom<&starknet_api::contract_class::ClassInfo> for ClassInfo {
@@ -595,7 +592,7 @@ impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
             abi_length,
         } = class_info;
 
-        Ok(Self {
+        Ok(Self::V1 {
             contract_class: casm_contract_class.try_into()?,
             sierra_program_length,
             abi_length,
@@ -605,19 +602,31 @@ impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
 
 impl ClassInfo {
     pub fn bytecode_length(&self) -> usize {
-        self.contract_class.bytecode_length()
+        match self {
+            ClassInfo::V0 { contract_class, .. } => contract_class.bytecode_length(),
+            ClassInfo::V1 { contract_class, .. } => contract_class.bytecode_length(),
+        }
     }
 
     pub fn contract_class(&self) -> ContractClass {
-        self.contract_class.clone()
+        match self {
+            ClassInfo::V0 { contract_class, .. } => ContractClass::V0(contract_class.clone()),
+            ClassInfo::V1 { contract_class, .. } => ContractClass::V1(contract_class.clone()),
+        }
     }
 
     pub fn sierra_program_length(&self) -> usize {
-        self.sierra_program_length
+        match self {
+            ClassInfo::V0 { .. } => 0,
+            ClassInfo::V1 { sierra_program_length, .. } => *sierra_program_length,
+        }
     }
 
     pub fn abi_length(&self) -> usize {
-        self.abi_length
+        match self {
+            ClassInfo::V0 { abi_length, .. } => *abi_length,
+            ClassInfo::V1 { abi_length, .. } => *abi_length,
+        }
     }
 
     pub fn code_size(&self) -> usize {
@@ -625,25 +634,5 @@ impl ClassInfo {
             // We assume each felt is a word.
             * eth_gas_constants::WORD_WIDTH
             + self.abi_length()
-    }
-
-    pub fn new(
-        contract_class: &ContractClass,
-        sierra_program_length: usize,
-        abi_length: usize,
-    ) -> ContractClassResult<Self> {
-        let (contract_class_version, condition) = match contract_class {
-            ContractClass::V0(_) => (0, sierra_program_length == 0),
-            ContractClass::V1(_) => (1, sierra_program_length > 0),
-        };
-
-        if condition {
-            Ok(Self { contract_class: contract_class.clone(), sierra_program_length, abi_length })
-        } else {
-            Err(ContractClassError::ContractClassVersionSierraProgramLengthMismatch {
-                contract_class_version,
-                sierra_program_length,
-            })
-        }
     }
 }
