@@ -165,3 +165,8 @@ fn test_updated_empty_tree(#[case] modifications: LeafModifications<MockLeaf>) {
         UpdatedSkeletonTreeImpl::create(&mut original_skeleton, &skeleton_modifications).unwrap();
     assert!(updated_skeleton_tree.is_empty());
 }
+
+#[rstest]
+fn test_0() {
+    assert_eq!(13, 13)
+}
