@@ -165,30 +165,6 @@ jobs:
         with:
           version: ${{env.PROTOC_VERSION}}
       - run: cargo check --workspace -r --all-features
-<<<<<<< HEAD
-
-  merge-gatekeeper:
-    runs-on: ubuntu-latest
-    # Restrict permissions of the GITHUB_TOKEN.
-    # Docs: https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
-    permissions:
-      checks: read
-      statuses: read
-    steps:
-      - name: Run Merge Gatekeeper
-        if: github.event_name != 'merge_group'
-        uses: upsidr/merge-gatekeeper@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run Merge Gatekeeper in Merge Queue
-        if: github.event_name == 'merge_group'
-        uses: upsidr/merge-gatekeeper@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{github.ref}}
-||||||| 2b181fbc
-=======
 
   merge-gatekeeper:
     runs-on: ubuntu-latest
@@ -214,4 +190,3 @@ jobs:
           ref: ${{github.ref}}
           timeout: 1200
           ignored: "code-review/reviewable"
->>>>>>> origin/main-v0.13.2
