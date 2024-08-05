@@ -11,7 +11,7 @@
 #[cfg(test)]
 mod execution_test;
 pub mod execution_utils;
-mod state_reader;
+pub mod state_reader;
 
 #[cfg(test)]
 mod test_utils;
