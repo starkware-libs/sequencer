@@ -136,6 +136,13 @@ impl NodeIndex {
         Self::from_leaf_felt(&address.0)
     }
 
+    pub(crate) fn to_contract_address(self) -> ContractAddress {
+        assert!(self.is_leaf(), "NodeIndex {:?} is not a leaf.", self);
+        ContractAddress(
+            Felt::try_from(self - Self::FIRST_LEAF).expect("Unable to convert node index to felt."),
+        )
+    }
+
     pub(crate) fn from_class_hash(class_hash: &ClassHash) -> Self {
         Self::from_leaf_felt(&class_hash.0)
     }

@@ -37,7 +37,8 @@ pub(crate) trait UpdatedSkeletonTree<'a>: Sized + Send + Sync {
     fn get_node(&self, index: NodeIndex) -> UpdatedSkeletonTreeResult<&UpdatedSkeletonNode>;
 }
 // TODO(Dori, 1/7/2024): Make this a tuple struct.
-pub(crate) struct UpdatedSkeletonTreeImpl {
+#[derive(Debug)]
+pub struct UpdatedSkeletonTreeImpl {
     pub(crate) skeleton_tree: UpdatedSkeletonNodeMap,
 }
 
