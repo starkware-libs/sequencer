@@ -132,6 +132,7 @@ papyrus_proc_macros = { path = "crates/papyrus_proc_macros", version = "0.4.0-rc
 papyrus_protobuf = { path = "crates/papyrus_protobuf", version = "0.4.0-rc.0" }
 papyrus_rpc = { path = "crates/papyrus_rpc", version = "0.4.0-rc.0" }
 papyrus_storage = { path = "crates/papyrus_storage", version = "0.4.0-rc.0" }
+papyrus_sync = { path = "crates/papyrus_sync", version = "0.4.0-rc.0" }
 papyrus_test_utils = { path = "crates/papyrus_test_utils", version = "0.4.0-rc.0" }
 parity-scale-codec = "=3.6.9"
 parity-scale-codec-derive = "=3.6.9"
