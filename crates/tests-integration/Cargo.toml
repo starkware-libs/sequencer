@@ -25,7 +25,7 @@ starknet_api.workspace = true
 starknet_client.workspace = true
 starknet_gateway = { workspace = true, features = ["testing"] }
 starknet_mempool_infra.workspace = true
-starknet_mempool_node = { path = "../mempool_node", version = "0.0" }
+starknet_mempool_node.workspace = true
 starknet_mempool_types.workspace = true
 starknet_task_executor = { path = "../task_executor", version = "0.0" }
 strum.workspace = true
