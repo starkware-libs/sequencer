@@ -8968,6 +8968,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_consensus_manager"
+version = "0.0.0"
+
+[[package]]
 name = "starknet_consensus_manager_types"
 version = "0.0.0"
 dependencies = [
