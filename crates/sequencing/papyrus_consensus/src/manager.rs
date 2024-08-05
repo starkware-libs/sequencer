@@ -27,6 +27,7 @@ use crate::ProposalWrapper;
 
 /// Runs Tendermint repeatedly across different heights. Handles issues which are not explicitly
 /// part of the single height consensus algorithm (e.g. messages from future heights).
+#[derive(Debug, Default)]
 pub struct MultiHeightManager {
     cached_messages: BTreeMap<u64, Vec<ConsensusMessage>>,
 }
