@@ -1,5 +1,6 @@
 use std::num::NonZeroU128;
 
+use num_rational::Ratio;
 use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp};
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
@@ -13,6 +14,11 @@ use crate::transaction::objects::FeeType;
 #[cfg(test)]
 #[path = "block_test.rs"]
 pub mod block_test;
+pub const L2_GAS_FOR_CAIRO_STEP: u128 = 100;
+pub const CAIRO_STEPS_PER_L1_GAS: u128 = 400;
+pub const L2_TO_L1_GAS_PRICE_RATIO: u128 = L2_GAS_FOR_CAIRO_STEP * CAIRO_STEPS_PER_L1_GAS;
+
+pub type L2Cost = Ratio<u128>;
 
 #[derive(Clone, Debug)]
 pub struct BlockInfo {
@@ -46,6 +52,10 @@ impl GasPrices {
             FeeType::Strk => self.strk_l1_data_gas_price,
             FeeType::Eth => self.eth_l1_data_gas_price,
         }
+    }
+
+    pub fn get_l2_gas_price_by_fee_type(&self, fee_type: &FeeType) -> L2Cost {
+        L2Cost::new(self.get_gas_price_by_fee_type(fee_type).into(), L2_TO_L1_GAS_PRICE_RATIO)
     }
 }
 
