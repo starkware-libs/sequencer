@@ -11,7 +11,6 @@ use starknet_api::transaction::TransactionHash;
 use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
-use starknet_sierra_compile::compile::SierraToCasmCompiler;
 use tracing::{info, instrument};
 
 use crate::compilation::GatewayCompiler;
@@ -155,11 +154,10 @@ pub fn create_gateway(
     mempool_client: SharedMempoolClient,
 ) -> Gateway {
     let state_reader_factory = Arc::new(RpcStateReaderFactory { config: rpc_state_reader_config });
-    let gateway_compiler = GatewayCompiler {
-        sierra_to_casm_compiler: SierraToCasmCompiler {
-            config: config.compiler_config.sierra_to_casm_compiler_config,
-        },
-    };
+    let gateway_compiler = GatewayCompiler::new_cairo_lang_compiler(
+        config.compiler_config.sierra_to_casm_compiler_config,
+    );
+
     Gateway::new(config, state_reader_factory, gateway_compiler, mempool_client)
 }
 
