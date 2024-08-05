@@ -317,7 +317,7 @@ fn test_create_original_skeleton_forest(
     .unwrap();
     let expected_original_contracts_trie_leaves = expected_original_contracts_trie_leaves
         .into_iter()
-        .map(|(address, state)| (NodeIndex::from_contract_address(&address), state))
+        .map(|(address, state)| ((&address).into(), state))
         .collect();
     assert_eq!(original_contracts_trie_leaves, expected_original_contracts_trie_leaves);
 

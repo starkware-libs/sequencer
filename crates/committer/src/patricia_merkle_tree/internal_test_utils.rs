@@ -20,7 +20,6 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
     HashFunction,
     TreeHashFunction,
-    TreeHashFunctionImpl,
 };
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
@@ -28,7 +27,7 @@ use crate::storage::db_object::{DBObject, Deserializable};
 use crate::storage::storage_trait::StorageValue;
 
 #[derive(Debug, PartialEq, Clone, Copy, Default, Eq)]
-pub(crate) struct MockLeaf(pub(crate) Felt);
+pub struct MockLeaf(pub(crate) Felt);
 
 impl DBObject for MockLeaf {
     fn serialize(&self) -> StorageValue {
@@ -65,7 +64,9 @@ impl Leaf for MockLeaf {
     }
 }
 
-impl TreeHashFunction<MockLeaf> for TreeHashFunctionImpl {
+pub(crate) struct TestTreeHashFunction;
+
+impl TreeHashFunction<MockLeaf> for TestTreeHashFunction {
     fn compute_leaf_hash(leaf_data: &MockLeaf) -> HashOutput {
         HashOutput(leaf_data.0)
     }

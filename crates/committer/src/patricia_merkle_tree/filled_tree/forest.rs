@@ -73,7 +73,7 @@ impl FilledForest {
                 .ok_or(ForestError::MissingUpdatedSkeleton(address))?;
 
             let original_contract_state = original_contracts_trie_leaves
-                .get(&NodeIndex::from_contract_address(&address))
+                .get(&((&address).into()))
                 .ok_or(ForestError::MissingContractCurrentState(address))?;
             contracts_state_tasks.spawn(Self::new_contract_state::<TH>(
                 address,
@@ -88,8 +88,7 @@ impl FilledForest {
 
         while let Some(result) = contracts_state_tasks.join_next().await {
             let (address, new_contract_state, filled_storage_trie) = result??;
-            contracts_trie_modifications
-                .insert(NodeIndex::from_contract_address(&address), new_contract_state);
+            contracts_trie_modifications.insert((&address).into(), new_contract_state);
             filled_storage_tries.insert(address, filled_storage_trie);
         }
 
