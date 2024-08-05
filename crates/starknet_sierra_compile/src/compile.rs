@@ -1,3 +1,5 @@
+use std::panic;
+
 use cairo_lang_starknet_classes::allowed_libfuncs::ListSelector;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass;
@@ -16,6 +18,18 @@ pub struct SierraToCasmCompiler {
 
 impl SierraToCasmCompiler {
     pub fn compile_sierra_to_casm(
+        &self,
+        contract_class: ContractClass,
+    ) -> Result<CasmContractClass, CompilationUtilError> {
+        let catch_unwind_result =
+            panic::catch_unwind(|| self.compile_sierra_to_casm_inner(contract_class));
+        let casm_contract_class =
+            catch_unwind_result.map_err(|_| CompilationUtilError::CompilationPanic)??;
+
+        Ok(casm_contract_class)
+    }
+
+    fn compile_sierra_to_casm_inner(
         &self,
         contract_class: ContractClass,
     ) -> Result<CasmContractClass, CompilationUtilError> {
