@@ -141,7 +141,7 @@ rstest = "0.17.0"
 rustc-hex = "2.1.0"
 schemars = "0.8.12"
 serde = { version = "1.0.197", features = ["derive"] }
-serde_json = "1.0.81"
+serde_json = "1.0.116"
 serde_repr = "0.1"
 serde_yaml = "0.9.16"
 sha2 = "0.10.8"
