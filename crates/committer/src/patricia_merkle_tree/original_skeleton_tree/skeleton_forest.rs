@@ -95,7 +95,7 @@ impl<'a> OriginalSkeletonForest<'a> {
                 .get(address)
                 .ok_or(ForestError::MissingSortedLeafIndices(*address))?;
             let contract_state = original_contracts_trie_leaves
-                .get(&NodeIndex::from_contract_address(address))
+                .get(&address.into())
                 .ok_or(ForestError::MissingContractCurrentState(*address))?;
             let config = OriginalSkeletonStorageTrieConfig::new(
                 updates,

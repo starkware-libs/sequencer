@@ -14,10 +14,22 @@ use crate::storage::storage_trait::{StorageKey, StorageValue};
 // TODO(Nimrod, 1/6/2025): Use the ContractAddress defined in starknet-types-core when available.
 pub struct ContractAddress(pub Felt);
 
+impl From<&ContractAddress> for NodeIndex {
+    fn from(address: &ContractAddress) -> NodeIndex {
+        NodeIndex::from_leaf_felt(&address.0)
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 // TODO(Nimrod, 1/6/2025):  Use the StarknetStorageValue defined in starknet-types-core when
 // available.
 pub struct StarknetStorageKey(pub Felt);
+
+impl From<&StarknetStorageKey> for NodeIndex {
+    fn from(key: &StarknetStorageKey) -> NodeIndex {
+        NodeIndex::from_leaf_felt(&key.0)
+    }
+}
 
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq)]
 pub struct StarknetStorageValue(pub Felt);
@@ -94,9 +106,7 @@ impl StateDiff {
                 let updates = match self.storage_updates.get(address) {
                     Some(inner_updates) => inner_updates
                         .iter()
-                        .map(|(key, value)| {
-                            (NodeIndex::from_starknet_storage_key(key), SkeletonLeaf::from(value.0))
-                        })
+                        .map(|(key, value)| (key.into(), SkeletonLeaf::from(value.0)))
                         .collect(),
                     None => HashMap::new(),
                 };
@@ -109,7 +119,7 @@ impl StateDiff {
         self.class_hash_to_compiled_class_hash
             .iter()
             .map(|(class_hash, compiled_class_hash)| {
-                (NodeIndex::from_class_hash(class_hash), SkeletonLeaf::from(compiled_class_hash.0))
+                (class_hash.into(), SkeletonLeaf::from(compiled_class_hash.0))
             })
             .collect()
     }
@@ -121,10 +131,9 @@ impl StateDiff {
             .iter()
             .map(|address| {
                 let updates = match self.storage_updates.get(address) {
-                    Some(inner_updates) => inner_updates
-                        .iter()
-                        .map(|(key, value)| (NodeIndex::from_starknet_storage_key(key), *value))
-                        .collect(),
+                    Some(inner_updates) => {
+                        inner_updates.iter().map(|(key, value)| (key.into(), *value)).collect()
+                    }
                     None => HashMap::new(),
                 };
                 (**address, updates)
@@ -135,9 +144,7 @@ impl StateDiff {
     pub(crate) fn actual_classes_updates(&self) -> LeafModifications<CompiledClassHash> {
         self.class_hash_to_compiled_class_hash
             .iter()
-            .map(|(class_hash, compiled_class_hash)| {
-                (NodeIndex::from_class_hash(class_hash), *compiled_class_hash)
-            })
+            .map(|(class_hash, compiled_class_hash)| (class_hash.into(), *compiled_class_hash))
             .collect()
     }
 }
