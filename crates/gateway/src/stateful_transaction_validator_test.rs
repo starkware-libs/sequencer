@@ -133,40 +133,31 @@ fn test_instantiate_validator() {
 
 #[rstest]
 #[case::should_skip_validation(
-    ContractAddress::default(),
     external_invoke_tx(invoke_tx_args!{nonce: Nonce(Felt::ONE)}),
     Nonce::default(),
     true
 )]
 #[case::should_not_skip_validation_nonce_over_max_nonce_for_skip(
-    ContractAddress::default(),
     external_invoke_tx(invoke_tx_args!{nonce: Nonce(Felt::TWO)}),
     Nonce::default(),
     false
 )]
-#[case::should_not_skip_validation_non_invoke(
-    ContractAddress::default(),
-    deploy_account_tx(),
-    Nonce::default(),
-    false
-)]
+#[case::should_not_skip_validation_non_invoke(deploy_account_tx(), Nonce::default(), false)]
 #[case::should_not_skip_validation_account_nonce_1(
-    ContractAddress::from(TEST_SENDER_ADDRESS),
-    external_invoke_tx(invoke_tx_args!{sender_address, nonce: Nonce(Felt::ONE)}),
+    external_invoke_tx(invoke_tx_args!{sender_address: ContractAddress::from(TEST_SENDER_ADDRESS), nonce: Nonce(Felt::ONE)}),
     Nonce(Felt::ONE),
     false
 )]
 fn test_skip_stateful_validation(
-    #[case] sender_address: ContractAddress,
     #[case] external_tx: RpcTransaction,
     #[case] sender_nonce: Nonce,
     #[case] should_skip_validate: bool,
     stateful_validator: StatefulTransactionValidator,
 ) {
+    let sender_address = external_tx.calculate_sender_address().unwrap();
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator
         .expect_get_nonce()
-        // TODO(yair): get the sender addres from the external_tx.
         .withf(move |contract_address| *contract_address == sender_address)
         .returning(move |_| Ok(sender_nonce));
     mock_validator
