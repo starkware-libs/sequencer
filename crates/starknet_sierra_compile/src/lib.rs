@@ -4,7 +4,7 @@ use cairo_lang_starknet_classes::contract_class::ContractClass;
 
 use crate::errors::CompilationUtilError;
 
-pub mod compile;
+pub mod cairo_lang_compiler;
 pub mod config;
 pub mod errors;
 pub mod utils;

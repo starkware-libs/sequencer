@@ -5,7 +5,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::rpc_transaction::RpcDeclareTransaction;
-use starknet_sierra_compile::compile::CairoLangSierraToCasmCompiler;
+use starknet_sierra_compile::cairo_lang_compiler::CairoLangSierraToCasmCompiler;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_sierra_compile::utils::into_contract_class_for_compilation;
 use starknet_sierra_compile::SierraToCasmCompiler;
