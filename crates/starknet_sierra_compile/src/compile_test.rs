@@ -6,16 +6,14 @@ use cairo_lang_starknet_classes::allowed_libfuncs::AllowedLibfuncsError;
 use mempool_test_utils::{get_absolute_path, FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 use rstest::{fixture, rstest};
 
-use crate::compile::{CairoLangCompiler, CompilationUtilError};
+use crate::cairo_lang_compiler::{CairoLangCompiler, CompilationUtilError};
 use crate::config::SierraToCasmCompilationConfig;
 use crate::test_utils::contract_class_from_file;
 use crate::SierraToCasmCompiler;
 
 #[fixture]
 fn compiler() -> impl SierraToCasmCompiler {
-    CairoLangCompiler {
-        config: SierraToCasmCompilationConfig { max_bytecode_size: 81920 },
-    }
+    CairoLangCompiler { config: SierraToCasmCompilationConfig { max_bytecode_size: 81920 } }
 }
 
 #[rstest]
