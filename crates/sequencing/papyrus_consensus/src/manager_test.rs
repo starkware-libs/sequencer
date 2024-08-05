@@ -81,7 +81,7 @@ async fn send(sender: &mut Sender, msg: ConsensusMessage) {
     sender
         .send((Ok(msg.clone()), oneshot::channel().0))
         .await
-        .expect(&format!("Failed to send message: {msg:?}"));
+        .unwrap_or_else(|_| panic!("Failed to send message: {msg:?}"));
 }
 fn proposal(block_hash: BlockHash, height: u64) -> ConsensusMessage {
     ConsensusMessage::Proposal(Proposal {
