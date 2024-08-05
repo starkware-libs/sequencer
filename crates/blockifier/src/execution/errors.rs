@@ -27,8 +27,8 @@ pub enum PreExecutionError {
     EntryPointNotFound(EntryPointSelector),
     #[error("Fraud attempt blocked.")]
     FraudAttempt,
-    #[error("Invalid builtin {0:?}.")]
-    InvalidBuiltin(String),
+    #[error("Invalid builtin {0}.")]
+    InvalidBuiltin(BuiltinName),
     #[error("The constructor entry point must be named 'constructor'.")]
     InvalidConstructorEntryPointName,
     #[error(transparent)]

@@ -163,20 +163,7 @@ pub fn initialize_execution_context<'a>(
         trace_enabled,
     )?;
 
-    // Initialize program with all builtins.
-    let program_builtins = [
-        BuiltinName::bitwise,
-        BuiltinName::ec_op,
-        BuiltinName::ecdsa,
-        BuiltinName::pedersen,
-        BuiltinName::poseidon,
-        BuiltinName::range_check,
-        BuiltinName::segment_arena,
-        BuiltinName::range_check96,
-        BuiltinName::add_mod,
-        BuiltinName::mul_mod,
-    ];
-    runner.initialize_function_runner_cairo_1(&program_builtins)?;
+    runner.initialize_function_runner_cairo_1(&entry_point.builtins)?;
     let mut read_only_segments = ReadOnlySegments::default();
     let program_extra_data_length =
         prepare_program_extra_data(&mut runner, contract_class, &mut read_only_segments)?;
@@ -239,16 +226,13 @@ pub fn prepare_call_arguments(
 
     // Push builtins.
     for builtin_name in &entrypoint.builtins {
-        if let Some(builtin) = runner
-            .vm
-            .get_builtin_runners()
-            .iter()
-            .find(|builtin| builtin.name().to_str_with_suffix() == builtin_name)
+        if let Some(builtin) =
+            runner.vm.get_builtin_runners().iter().find(|builtin| builtin.name() == *builtin_name)
         {
             args.extend(builtin.initial_stack().into_iter().map(CairoArg::Single));
             continue;
         }
-        if builtin_name == BuiltinName::segment_arena.to_str_with_suffix() {
+        if builtin_name == &BuiltinName::segment_arena {
             let segment_arena = runner.vm.add_memory_segment();
 
             // Write into segment_arena.
@@ -263,7 +247,7 @@ pub fn prepare_call_arguments(
             args.push(CairoArg::Single(MaybeRelocatable::from(ptr)));
             continue;
         }
-        return Err(PreExecutionError::InvalidBuiltin(builtin_name.clone()));
+        return Err(PreExecutionError::InvalidBuiltin(*builtin_name));
     }
     // Push gas counter.
     args.push(CairoArg::Single(MaybeRelocatable::from(Felt::from(call.initial_gas))));
@@ -315,11 +299,8 @@ fn maybe_fill_holes(
     entry_point: EntryPointV1,
     runner: &mut CairoRunner,
 ) -> Result<(), EntryPointExecutionError> {
-    let Some(rc96_offset) = entry_point
-        .builtins
-        .iter()
-        .rev()
-        .position(|name| name.as_str() == BuiltinName::range_check96.to_str_with_suffix())
+    let Some(rc96_offset) =
+        entry_point.builtins.iter().rev().position(|name| *name == BuiltinName::range_check96)
     else {
         return Ok(());
     };
