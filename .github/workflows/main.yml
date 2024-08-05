@@ -79,8 +79,8 @@ jobs:
 
   doc:
     runs-on: ubuntu-latest
-    # env:
-    #   RUSTDOCFLAGS: "-D warnings"
+    env:
+      RUSTDOCFLAGS: "-D warnings"
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
