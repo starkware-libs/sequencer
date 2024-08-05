@@ -13,7 +13,7 @@ anyhow.workspace = true
 clap.workspace = true
 const_format.workspace = true
 futures.workspace = true
-papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0" }
+papyrus_config.workspace = true
 serde.workspace = true
 starknet_gateway = { path = "../gateway", version = "0.0" }
 starknet_mempool = { path = "../mempool", version = "0.0" }
