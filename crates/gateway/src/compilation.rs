@@ -1,10 +1,14 @@
+use std::sync::Arc;
+
 use blockifier::execution::contract_class::{ClassInfo, ContractClass, ContractClassV1};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::rpc_transaction::RpcDeclareTransaction;
-use starknet_sierra_compile::compile::SierraToCasmCompiler;
+use starknet_sierra_compile::compile::CairoLangCompiler;
+use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_sierra_compile::utils::into_contract_class_for_compilation;
+use starknet_sierra_compile::SierraToCasmCompiler;
 
 use crate::errors::{GatewayError, GatewayResult};
 
@@ -15,10 +19,14 @@ mod compilation_test;
 // TODO(Arni): Pass the compiler with dependancy injection.
 #[derive(Clone)]
 pub struct GatewayCompiler {
-    pub sierra_to_casm_compiler: SierraToCasmCompiler,
+    pub sierra_to_casm_compiler: Arc<dyn SierraToCasmCompiler>,
 }
 
 impl GatewayCompiler {
+    pub fn new_cairo_lang_compiler(config: SierraToCasmCompilationConfig) -> Self {
+        Self { sierra_to_casm_compiler: Arc::new(CairoLangCompiler { config }) }
+    }
+
     /// Formats the contract class for compilation, compiles it, and returns the compiled contract
     /// class wrapped in a [`ClassInfo`].
     /// Assumes the contract class is of a Sierra program which is compiled to Casm.

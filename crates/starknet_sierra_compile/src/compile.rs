@@ -6,18 +6,21 @@ use cairo_lang_starknet_classes::contract_class::ContractClass;
 
 use crate::config::SierraToCasmCompilationConfig;
 use crate::errors::CompilationUtilError;
+use crate::SierraToCasmCompiler;
 
 #[cfg(test)]
 #[path = "compile_test.rs"]
 pub mod compile_test;
 
+/// A compiler that compiles Sierra programs to Casm. Uses the code from the
+/// `cairo_lang_starknet_classes` crate.
 #[derive(Clone)]
-pub struct SierraToCasmCompiler {
+pub struct CairoLangCompiler {
     pub config: SierraToCasmCompilationConfig,
 }
 
-impl SierraToCasmCompiler {
-    pub fn compile_sierra_to_casm(
+impl SierraToCasmCompiler for CairoLangCompiler {
+    fn compile_sierra_to_casm(
         &self,
         contract_class: ContractClass,
     ) -> Result<CasmContractClass, CompilationUtilError> {
@@ -28,7 +31,9 @@ impl SierraToCasmCompiler {
 
         Ok(casm_contract_class)
     }
+}
 
+impl CairoLangCompiler {
     fn compile_sierra_to_casm_inner(
         &self,
         contract_class: ContractClass,
