@@ -19,7 +19,7 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::felt;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_sierra_compile::compile::SierraToCasmCompiler;
+use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_types_core::felt::Felt;
 
 use crate::compilation::GatewayCompiler;
@@ -84,11 +84,9 @@ fn test_stateful_tx_validator(
 ) {
     let optional_class_info = match &external_tx {
         RpcTransaction::Declare(declare_tx) => Some(
-            GatewayCompiler {
-                sierra_to_casm_compiler: SierraToCasmCompiler { config: Default::default() },
-            }
-            .process_declare_tx(declare_tx)
-            .unwrap(),
+            GatewayCompiler::new_cairo_lang_compiler(SierraToCasmCompilationConfig::default())
+                .process_declare_tx(declare_tx)
+                .unwrap(),
         ),
         _ => None,
     };

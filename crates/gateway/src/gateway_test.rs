@@ -13,7 +13,6 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput, ThinTransaction};
-use starknet_sierra_compile::compile::SierraToCasmCompiler;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 
 use crate::compilation::GatewayCompiler;
@@ -35,11 +34,9 @@ pub fn app_state(
         stateful_tx_validator: Arc::new(StatefulTransactionValidator {
             config: StatefulTransactionValidatorConfig::create_for_testing(),
         }),
-        gateway_compiler: GatewayCompiler {
-            sierra_to_casm_compiler: SierraToCasmCompiler {
-                config: SierraToCasmCompilationConfig::default(),
-            },
-        },
+        gateway_compiler: GatewayCompiler::new_cairo_lang_compiler(
+            SierraToCasmCompilationConfig::default(),
+        ),
         state_reader_factory: Arc::new(state_reader_factory),
         mempool_client,
     }

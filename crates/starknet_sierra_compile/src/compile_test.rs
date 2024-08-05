@@ -6,17 +6,20 @@ use cairo_lang_starknet_classes::allowed_libfuncs::AllowedLibfuncsError;
 use mempool_test_utils::{get_absolute_path, FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 use rstest::{fixture, rstest};
 
-use crate::compile::{CompilationUtilError, SierraToCasmCompiler};
+use crate::compile::{CairoLangCompiler, CompilationUtilError};
 use crate::config::SierraToCasmCompilationConfig;
 use crate::test_utils::contract_class_from_file;
+use crate::SierraToCasmCompiler;
 
 #[fixture]
-fn compiler() -> SierraToCasmCompiler {
-    SierraToCasmCompiler { config: SierraToCasmCompilationConfig { max_bytecode_size: 81920 } }
+fn compiler() -> impl SierraToCasmCompiler {
+    CairoLangCompiler {
+        config: SierraToCasmCompilationConfig { max_bytecode_size: 81920 },
+    }
 }
 
 #[rstest]
-fn test_compile_sierra_to_casm(compiler: SierraToCasmCompiler) {
+fn test_compile_sierra_to_casm(compiler: impl SierraToCasmCompiler) {
     env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Failed to set current dir.");
     let sierra_path = Path::new(FAULTY_ACCOUNT_CLASS_FILE);
     let expected_casm_contract_length = 72304;
@@ -30,7 +33,7 @@ fn test_compile_sierra_to_casm(compiler: SierraToCasmCompiler) {
 
 // TODO(Arni, 1/5/2024): Add a test for panic result test.
 #[rstest]
-fn test_negative_flow_compile_sierra_to_casm(compiler: SierraToCasmCompiler) {
+fn test_negative_flow_compile_sierra_to_casm(compiler: impl SierraToCasmCompiler) {
     env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Failed to set current dir.");
     let sierra_path = Path::new(FAULTY_ACCOUNT_CLASS_FILE);
 
