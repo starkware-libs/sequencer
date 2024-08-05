@@ -179,6 +179,8 @@ jobs:
         uses: upsidr/merge-gatekeeper@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          timeout: 1200
+          ignored: "code-review/reviewable"
 
       - name: Run Merge Gatekeeper in Merge Queue
         if: github.event_name == 'merge_group'
@@ -186,3 +188,5 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{github.ref}}
+          timeout: 1200
+          ignored: "code-review/reviewable"
