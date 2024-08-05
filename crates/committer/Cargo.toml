@@ -24,7 +24,7 @@ ethnum.workspace = true
 hex.workspace = true
 log.workspace = true
 rand.workspace = true
-serde = { version = "1.0.197", features = ["derive"] }
+serde.workspace = true
 serde_json = "1.0.116"
 starknet-types-core.workspace = true
 strum.workspace = true
