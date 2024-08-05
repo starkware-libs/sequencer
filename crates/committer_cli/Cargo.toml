@@ -16,7 +16,7 @@ pretty_assertions.workspace = true
 tempfile.workspace = true
 
 [dependencies]
-clap = { version = "4.5.4", features = ["cargo", "derive"] }
+clap.workspace = true
 committer = { path = "../committer", features = ["testing"] }
 derive_more.workspace = true
 ethnum.workspace = true

@@ -75,7 +75,7 @@ cairo-lang-utils = "2.7.0"
 cairo-vm = "=1.0.0-rc6"
 camelpaste = "0.1.0"
 chrono = "0.4.26"
-clap = "4.3.10"
+clap = { version = "4.5.4", features = ["cargo", "derive"] }
 colored = "2.1.0"
 const_format = "0.2.30"
 criterion = "0.3"
