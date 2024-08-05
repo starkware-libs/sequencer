@@ -3,22 +3,24 @@ name: Blockifier-Compiled-Cairo
 on:
   push:
     branches:
-    - main
+      - main
     tags:
-    - v[0-9].**
+      - v[0-9].**
     paths:
-    - 'crates/blockifier/feature_contracts/cairo0/**'
+      - 'crates/blockifier/feature_contracts/cairo0/**'
+      - '.github/workflows/blockifier_compiled_cairo.yml'
   pull_request:
     types:
       - opened
       - reopened
       - synchronize
     paths:
-     - 'crates/blockifier/feature_contracts/cairo0/**'
+      - '.github/workflows/blockifier_compiled_cairo.yml'
+      - 'crates/blockifier/feature_contracts/cairo0/**'
 
 jobs:
   verify_cairo_file_dependencies:
-    runs-on: ubuntu-20.04
+    runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
