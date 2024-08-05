@@ -4,6 +4,8 @@
 #[path = "manager_test.rs"]
 mod manager_test;
 
+use std::collections::BTreeMap;
+
 use futures::channel::{mpsc, oneshot};
 use futures::{Stream, StreamExt};
 use papyrus_network::network_manager::ReportSender;
@@ -26,13 +28,13 @@ use crate::ProposalWrapper;
 /// Runs Tendermint repeatedly across different heights. Handles issues which are not explicitly
 /// part of the single height consensus algorithm (e.g. messages from future heights).
 pub struct MultiHeightManager {
-    cached_messages: Vec<ConsensusMessage>,
+    cached_messages: BTreeMap<u64, Vec<ConsensusMessage>>,
 }
 
 impl MultiHeightManager {
     /// Create a new consensus manager.
     pub fn new() -> Self {
-        Self { cached_messages: Vec::new() }
+        Self { cached_messages: BTreeMap::new() }
     }
 
     /// Run the consensus algorithm for a single height.
@@ -65,32 +67,17 @@ impl MultiHeightManager {
             return Ok(decision);
         }
 
-        let mut current_height_messages = Vec::new();
-        for msg in std::mem::take(&mut self.cached_messages) {
-            match height.0.cmp(&msg.height()) {
-                std::cmp::Ordering::Less => self.cached_messages.push(msg),
-                std::cmp::Ordering::Equal => current_height_messages.push(msg),
-                std::cmp::Ordering::Greater => {}
-            }
-        }
-
+        let mut current_height_messages = self.get_current_height_messages(height);
         loop {
-            let message = if let Some(msg) = current_height_messages.pop() {
-                msg
-            } else {
-                // TODO(matan): Handle parsing failures and utilize ReportCallback.
-                network_receiver
-                    .next()
-                    .await
-                    .expect("Network receiver closed unexpectedly")
-                    .0
-                    .expect("Failed to parse consensus message")
-            };
-
+            let message = next_message(&mut current_height_messages, network_receiver).await?;
+            // TODO(matan): We need to figure out an actual cacheing strategy under 2 constraints:
+            // 1. Malicious - must be capped so a malicious peer can't DoS us.
+            // 2. Parallel proposals - we may send/receive a proposal for (H+1, 0).
+            // In general I think we will want to only cache (H+1, 0) messages.
             if message.height() != height.0 {
                 debug!("Received a message for a different height. {:?}", message);
                 if message.height() > height.0 {
-                    self.cached_messages.push(message);
+                    self.cached_messages.entry(message.height()).or_default().push(message);
                 }
                 continue;
             }
@@ -109,6 +96,54 @@ impl MultiHeightManager {
             if let Some(decision) = maybe_decision {
                 return Ok(decision);
             }
+        }
+    }
+
+    // Filters the cached messages:
+    // - returns all of the current height messages.
+    // - drops messages from earlier heights.
+    // - retains future messages in the cache.
+    fn get_current_height_messages(&mut self, height: BlockNumber) -> Vec<ConsensusMessage> {
+        // Depends on `cached_messages` being sorted by height.
+        loop {
+            let Some(entry) = self.cached_messages.first_entry() else {
+                return Vec::new();
+            };
+            match entry.key().cmp(&height.0) {
+                std::cmp::Ordering::Greater => return Vec::new(),
+                std::cmp::Ordering::Equal => return entry.remove(),
+                std::cmp::Ordering::Less => {
+                    entry.remove();
+                }
+            }
+        }
+    }
+}
+
+async fn next_message<NetworkReceiverT>(
+    cached_messages: &mut Vec<ConsensusMessage>,
+    network_receiver: &mut NetworkReceiverT,
+) -> Result<ConsensusMessage, ConsensusError>
+where
+    NetworkReceiverT:
+        Stream<Item = (Result<ConsensusMessage, ProtobufConversionError>, ReportSender)> + Unpin,
+{
+    if let Some(msg) = cached_messages.pop() {
+        return Ok(msg);
+    }
+
+    let (msg, report_sender) = network_receiver.next().await.ok_or_else(|| {
+        ConsensusError::InternalNetworkError(format!("NetworkReceiver should never be closed"))
+    })?;
+    match msg {
+        // TODO(matan): Return report_sender for use in later errors by SHC.
+        Ok(msg) => Ok(msg),
+        Err(e) => {
+            // Failed to parse consensus message
+            report_sender
+                .send(())
+                .or(Err(ConsensusError::InternalNetworkError(format!("Failed to send report"))))?;
+            Err(e.into())
         }
     }
 }
