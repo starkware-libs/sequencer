@@ -5,8 +5,7 @@ use committer_cli::parse_input::read::{load_from_stdin, read_from_stdin, write_t
 use committer_cli::tests::python_tests::PythonTest;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger, TerminalMode};
 use starknet_api::block_hash::block_hash_calculator::{
-    calculate_block_commitments,
-    calculate_block_hash,
+    calculate_block_commitments, calculate_block_hash,
 };
 
 /// Committer CLI.
@@ -67,6 +66,7 @@ async fn main() {
     ) {
         eprintln!("Failed to initialize the logger: {:?}", error);
     }
+    println!("Running with Contracts Trie feature!.");
 
     let args = CommitterCliArgs::parse();
 
