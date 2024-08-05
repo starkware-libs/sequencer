@@ -22,6 +22,6 @@ thiserror.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
-papyrus_test_utils = { path = "../papyrus_test_utils" }
+papyrus_test_utils.workspace = true
 pretty_assertions.workspace = true
 serde_json = { workspace = true, features = ["arbitrary_precision"] }

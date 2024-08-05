@@ -13,5 +13,5 @@ thiserror.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
-papyrus_test_utils = { path = "../../papyrus_test_utils" }
+papyrus_test_utils.workspace = true
 pretty_assertions.workspace = true

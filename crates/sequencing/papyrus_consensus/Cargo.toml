@@ -28,5 +28,5 @@ papyrus_network = { path = "../../papyrus_network", version = "0.4.0-dev.2", fea
   "testing",
 ] }
 papyrus_storage = { workspace = true, features = ["testing"] }
-papyrus_test_utils = { path = "../../papyrus_test_utils" }
+papyrus_test_utils.workspace = true
 test-case.workspace = true

@@ -17,14 +17,14 @@ rand = { workspace = true, optional = true }
 rand_chacha = { workspace = true, optional = true }
 starknet_api.workspace = true
 starknet-types-core.workspace = true
-papyrus_test_utils = { path = "../papyrus_test_utils", optional = true }
+papyrus_test_utils = { workspace = true, optional = true }
 thiserror.workspace = true
 papyrus_common.workspace = true
 
 [dev-dependencies]
 rand.workspace = true
 rand_chacha.workspace = true
-papyrus_test_utils = { path = "../papyrus_test_utils" }
+papyrus_test_utils.workspace = true
 
 [build-dependencies]
 prost-build.workspace = true
