@@ -45,6 +45,7 @@ pub struct Behaviour {
     is_bootstrap_in_kad_routing_table: bool,
     wakers_waiting_for_query_to_finish: Vec<Waker>,
     bootstrap_dial_retry_strategy: ExponentialBackoff,
+    query_sleep_future: Option<BoxFuture<'static, ()>>,
 }
 
 #[derive(Debug)]
@@ -168,7 +169,12 @@ impl NetworkBehaviour for Behaviour {
             self.wakers_waiting_for_query_to_finish.push(cx.waker().clone());
             return Poll::Pending;
         }
+        if let Some(sleep_future) = &mut self.query_sleep_future {
+            pin_mut!(sleep_future);
+            ready!(sleep_future.poll(cx));
+        }
         self.is_query_running = true;
+        self.query_sleep_future = None;
         Poll::Ready(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(
             libp2p::identity::PeerId::random(),
         )))
@@ -176,9 +182,18 @@ impl NetworkBehaviour for Behaviour {
 }
 
 // TODO(alon): add to NetworkConfig
-#[derive(Default)]
 pub struct DiscoveryConfig {
     pub bootstrap_dial_retry_config: RetryConfig,
+    pub heartbeat_interval: Duration,
+}
+
+impl Default for DiscoveryConfig {
+    fn default() -> Self {
+        Self {
+            bootstrap_dial_retry_config: RetryConfig::default(),
+            heartbeat_interval: Duration::from_millis(100),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -222,6 +237,7 @@ impl Behaviour {
             is_bootstrap_in_kad_routing_table: false,
             wakers_waiting_for_query_to_finish: Vec::new(),
             bootstrap_dial_retry_strategy,
+            query_sleep_future: None,
         }
     }
 
@@ -253,6 +269,8 @@ impl BridgedBehaviour for Behaviour {
                 for waker in self.wakers_waiting_for_query_to_finish.drain(..) {
                     waker.wake();
                 }
+                self.query_sleep_future =
+                    Some(tokio::time::sleep(self.config.heartbeat_interval).boxed());
                 self.is_query_running = false;
             }
             _ => {}
