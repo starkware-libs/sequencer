@@ -8970,6 +8970,14 @@ dependencies = [
 [[package]]
 name = "starknet_consensus_manager_types"
 version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "mockall",
+ "papyrus_proc_macros",
+ "serde",
+ "starknet_mempool_infra",
+ "thiserror",
+]
 
 [[package]]
 name = "starknet_gateway"
