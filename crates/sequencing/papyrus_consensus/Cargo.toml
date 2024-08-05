@@ -12,7 +12,7 @@ futures.workspace = true
 metrics.workspace = true
 papyrus_common.workspace = true
 papyrus_config.workspace = true
-papyrus_network = { path = "../../papyrus_network", version = "0.4.0-dev.2" }
+papyrus_network.workspace = true
 papyrus_protobuf = { path = "../../papyrus_protobuf", version = "0.4.0-dev.2" }
 papyrus_storage.workspace = true
 serde = { workspace = true, features = ["derive"] }
@@ -24,9 +24,7 @@ tracing.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true
-papyrus_network = { path = "../../papyrus_network", version = "0.4.0-dev.2", features = [
-  "testing",
-] }
+papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_storage = { workspace = true, features = ["testing"] }
 papyrus_test_utils.workspace = true
 test-case.workspace = true
