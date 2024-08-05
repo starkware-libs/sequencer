@@ -69,14 +69,12 @@ impl Transaction {
             Transaction::L1Handler(tx) => tx.version,
         }
     }
-}
 
-impl TransactionHasher for Transaction {
-    fn calculate_transaction_hash(
+    pub fn calculate_transaction_hash(
         &self,
         chain_id: &ChainId,
-        transaction_version: &TransactionVersion,
     ) -> Result<TransactionHash, StarknetApiError> {
+        let transaction_version = &self.version();
         match self {
             Transaction::Declare(tx) => {
                 tx.calculate_transaction_hash(chain_id, transaction_version)
