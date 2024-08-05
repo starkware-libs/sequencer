@@ -20,7 +20,6 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
     HashFunction,
     TreeHashFunction,
-    TreeHashFunctionImpl,
 };
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
@@ -65,7 +64,9 @@ impl Leaf for MockLeaf {
     }
 }
 
-impl TreeHashFunction<MockLeaf> for TreeHashFunctionImpl {
+pub(crate) struct TestTreeHashFunction;
+
+impl TreeHashFunction<MockLeaf> for TestTreeHashFunction {
     fn compute_leaf_hash(leaf_data: &MockLeaf) -> HashOutput {
         HashOutput(leaf_data.0)
     }
