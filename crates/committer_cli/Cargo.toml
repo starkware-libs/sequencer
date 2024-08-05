@@ -10,7 +10,7 @@ description = "Cli for the committer package."
 workspace = true
 
 [dev-dependencies]
-criterion = { version = "0.5.1", features = ["html_reports"] }
+criterion.workspace = true
 futures.workspace = true
 pretty_assertions.workspace = true
 tempfile.workspace = true
