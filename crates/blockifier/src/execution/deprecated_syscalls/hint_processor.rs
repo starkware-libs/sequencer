@@ -374,7 +374,8 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         vm: &mut VirtualMachine,
     ) -> DeprecatedSyscallResult<Relocatable> {
         let signature = &self.context.tx_context.tx_info.signature().0;
-        let signature = signature.iter().map(|&x| MaybeRelocatable::from(x)).collect();
+        let signature: Vec<MaybeRelocatable> =
+            signature.iter().map(|&x| MaybeRelocatable::from(x)).collect();
         let signature_segment_start_ptr = self.read_only_segments.allocate(vm, &signature)?;
 
         Ok(signature_segment_start_ptr)

@@ -35,10 +35,10 @@ fn test_cast_to_node_index(
     #[values(true, false)] from_contract_address: bool,
 ) {
     let expected_node_index = NodeIndex::FIRST_LEAF + leaf_index;
-    let actual = if from_contract_address {
-        NodeIndex::from_contract_address(&ContractAddress(Felt::from(leaf_index)))
+    let actual: NodeIndex = if from_contract_address {
+        (&ContractAddress(Felt::from(leaf_index))).into()
     } else {
-        NodeIndex::from_starknet_storage_key(&StarknetStorageKey(Felt::from(leaf_index)))
+        (&StarknetStorageKey(Felt::from(leaf_index))).into()
     };
     assert_eq!(actual, expected_node_index);
 }

@@ -21,7 +21,7 @@ enum-assoc.workspace = true
 hyper.workspace = true
 mempool_test_utils = { path = "../mempool_test_utils", version = "0.0" }
 num-traits.workspace = true
-papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0" }
+papyrus_config.workspace = true
 papyrus_rpc = { path = "../papyrus_rpc", version = "0.4.0-rc.0" }
 reqwest.workspace = true
 serde.workspace = true

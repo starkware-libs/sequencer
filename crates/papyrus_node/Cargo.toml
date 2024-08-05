@@ -27,7 +27,7 @@ lazy_static.workspace = true
 once_cell.workspace = true
 papyrus_base_layer = { path = "../papyrus_base_layer", version = "0.4.0-rc.0" }
 papyrus_common = { path = "../papyrus_common", version = "0.4.0-rc.0" }
-papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0" }
+papyrus_config.workspace = true
 papyrus_consensus = { path = "../sequencing/papyrus_consensus", version = "0.4.0-rc.0" }
 papyrus_monitoring_gateway = { path = "../papyrus_monitoring_gateway", version = "0.4.0-rc.0" }
 papyrus_network = { path = "../papyrus_network", version = "0.4.0-rc.0" }
