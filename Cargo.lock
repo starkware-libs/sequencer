@@ -8970,6 +8970,12 @@ dependencies = [
 [[package]]
 name = "starknet_consensus_manager"
 version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "starknet_consensus_manager_types",
+ "starknet_mempool_infra",
+ "tokio",
+]
 
 [[package]]
 name = "starknet_consensus_manager_types"
