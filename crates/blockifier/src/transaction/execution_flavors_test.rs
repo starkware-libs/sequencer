@@ -175,7 +175,7 @@ fn test_simulate_validate_charge_fee_pre_validate(
     // The max resource bounds fixture is not used here because this function already has the
     // maximum number of arguments.
     let resource_bounds = l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE);
-    let gas_price = block_context.block_info.gas_prices.get_gas_price_by_fee_type(&fee_type);
+    let gas_price = block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
     let FlavorTestInitialState {
         mut state,
         account_address,
@@ -419,7 +419,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
 ) {
     let block_context = BlockContext::create_for_account_testing();
     let chain_info = &block_context.chain_info;
-    let gas_price = block_context.block_info.gas_prices.get_gas_price_by_fee_type(&fee_type);
+    let gas_price = block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
     let FlavorTestInitialState {
         mut state,
         account_address,
@@ -575,7 +575,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     #[case] is_deprecated: bool,
 ) {
     let block_context = BlockContext::create_for_account_testing();
-    let gas_price = block_context.block_info.gas_prices.get_gas_price_by_fee_type(&fee_type);
+    let gas_price = block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
     let chain_info = &block_context.chain_info;
     let fee_token_address = chain_info.fee_token_address(&fee_type);
 
