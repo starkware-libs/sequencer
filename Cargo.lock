@@ -5310,6 +5310,7 @@ name = "mempool_test_utils"
 version = "0.0.0"
 dependencies = [
  "blockifier",
+ "pretty_assertions",
  "serde_json",
  "starknet-types-core",
  "starknet_api",
