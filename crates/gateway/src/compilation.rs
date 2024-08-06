@@ -9,7 +9,7 @@ use starknet_sierra_compile::compile::SierraToCasmCompiler;
 use starknet_sierra_compile::errors::CompilationUtilError;
 use starknet_sierra_compile::utils::into_contract_class_for_compilation;
 
-use crate::config::GatewayCompilerConfig;
+use crate::config::{GatewayCompilerConfig, PostCompilationConfig};
 use crate::errors::{GatewayError, GatewayResult};
 
 #[cfg(test)]
@@ -19,14 +19,14 @@ mod compilation_test;
 // TODO(Arni): Pass the compiler with dependancy injection.
 #[derive(Clone)]
 pub struct GatewayCompiler {
-    config: GatewayCompilerConfig,
+    config: PostCompilationConfig,
     sierra_to_casm_compiler: SierraToCasmCompiler,
 }
 
 impl GatewayCompiler {
     pub fn new(config: GatewayCompilerConfig) -> Self {
         GatewayCompiler {
-            config,
+            config: config.post_compilation_config,
             sierra_to_casm_compiler: SierraToCasmCompiler {
                 config: config.sierra_to_casm_compiler_config,
             },

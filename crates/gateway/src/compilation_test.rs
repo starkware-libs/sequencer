@@ -15,7 +15,7 @@ use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_sierra_compile::errors::CompilationUtilError;
 
 use crate::compilation::GatewayCompiler;
-use crate::config::GatewayCompilerConfig;
+use crate::config::{GatewayCompilerConfig, PostCompilationConfig};
 use crate::errors::GatewayError;
 
 #[fixture]
@@ -72,7 +72,7 @@ fn test_compile_contract_class_bytecode_size_validation(declare_tx_v3: RpcDeclar
 #[rstest]
 fn test_compile_contract_class_raw_class_size_validation(declare_tx_v3: RpcDeclareTransactionV3) {
     let gateway_compiler = GatewayCompiler::new(GatewayCompilerConfig {
-        max_raw_casm_class_size: 1,
+        post_compilation_config: PostCompilationConfig { max_raw_casm_class_size: 1 },
         ..Default::default()
     });
 
