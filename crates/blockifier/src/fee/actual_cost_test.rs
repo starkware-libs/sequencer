@@ -327,7 +327,7 @@ fn test_calculate_tx_gas_usage(
     assert_eq!(
         starknet_resources.to_gas_vector(versioned_constants, use_kzg_da),
         tx_execution_info
-            .transaction_receipt
+            .receipt
             .resources
             .starknet_resources
             .to_gas_vector(versioned_constants, use_kzg_da)
@@ -378,7 +378,7 @@ fn test_calculate_tx_gas_usage(
     assert_eq!(
         starknet_resources.to_gas_vector(versioned_constants, use_kzg_da),
         tx_execution_info
-            .transaction_receipt
+            .receipt
             .resources
             .starknet_resources
             .to_gas_vector(versioned_constants, use_kzg_da)

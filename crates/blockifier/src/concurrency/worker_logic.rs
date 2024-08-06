@@ -243,7 +243,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
                 &tx_versioned_state,
                 &tx_state_changes_keys,
                 &tx_execution_info.summarize(),
-                &tx_execution_info.transaction_receipt.resources,
+                &tx_execution_info.receipt.resources,
             );
             if let Err(error) = bouncer_result {
                 match error {

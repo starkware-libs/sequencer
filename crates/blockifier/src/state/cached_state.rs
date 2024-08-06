@@ -616,7 +616,7 @@ impl StateChangesKeys {
         tx_result: &TransactionExecutionInfo,
         concurrency_mode: bool,
     ) {
-        let actual_fee = tx_result.transaction_receipt.fee.0;
+        let actual_fee = tx_result.receipt.fee.0;
         let sequencer_address = tx_context.block_context.block_info.sequencer_address;
         if concurrency_mode && !tx_context.is_sequencer_the_sender() && actual_fee > 0 {
             // Add the deleted sequencer balance key to the storage keys.
