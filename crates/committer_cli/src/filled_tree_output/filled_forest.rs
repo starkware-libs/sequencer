@@ -9,10 +9,11 @@ pub struct SerializedForest(pub FilledForest);
 pub struct Output {
     // New fact storage.
     storage: MapStorage,
+    // TODO(Amos, 1/8/2024): Rename to `contracts_trie_root_hash` & `classes_trie_root_hash`.
     // New contract storage root.
-    contract_storage_root_hash: String,
+    pub contract_storage_root_hash: String,
     // New compiled class root.
-    compiled_class_root_hash: String,
+    pub compiled_class_root_hash: String,
 }
 
 impl SerializedForest {
