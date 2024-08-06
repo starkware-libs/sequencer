@@ -129,8 +129,11 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         let tx = &self.chunk[tx_index];
         let mut transactional_state =
             TransactionalState::create_transactional(&mut tx_versioned_state);
-        let execution_flags =
-            ExecutionFlags { charge_fee: true, validate: true, concurrency_mode: true };
+        // TODO (Meshi, 1/10/2024): Remove this code once we have a flage frot charge_fee.
+        let tx_context = self.block_context.to_tx_context(tx);
+        let charge_fee = tx_context.tx_info.enforce_fee().unwrap_or(true);
+
+        let execution_flags = ExecutionFlags { charge_fee, validate: true, concurrency_mode: true };
         let execution_result =
             tx.execute_raw(&mut transactional_state, self.block_context, execution_flags);
 
