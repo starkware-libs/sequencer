@@ -11,9 +11,9 @@ workspace = true
 [dependencies]
 async-trait.workspace = true
 derive_more.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
-starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }
-starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
+starknet_api.workspace = true
+starknet_mempool_infra.workspace = true
+starknet_mempool_types.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]
@@ -22,5 +22,5 @@ itertools.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet-types-core.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0", features = ["testing"] }
+starknet_api = { workspace = true, features = ["testing"] }
 tokio.workspace = true

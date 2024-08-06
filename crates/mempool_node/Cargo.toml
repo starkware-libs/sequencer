@@ -15,10 +15,10 @@ const_format.workspace = true
 futures.workspace = true
 papyrus_config.workspace = true
 serde.workspace = true
-starknet_gateway = { path = "../gateway", version = "0.0" }
-starknet_mempool = { path = "../mempool", version = "0.0" }
-starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }
-starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
+starknet_gateway.workspace = true
+starknet_mempool.workspace = true
+starknet_mempool_infra.workspace = true
+starknet_mempool_types.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 validator.workspace = true
@@ -27,6 +27,6 @@ validator.workspace = true
 assert-json-diff.workspace = true
 assert_matches.workspace = true
 colored.workspace = true
-mempool_test_utils = { path = "../mempool_test_utils" }
+mempool_test_utils.workspace = true
 pretty_assertions.workspace = true
 serde_json.workspace = true

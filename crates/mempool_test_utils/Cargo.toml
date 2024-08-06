@@ -8,7 +8,15 @@ license.workspace = true
 [features]
 
 [dependencies]
+<<<<<<< HEAD
 blockifier = { path = "../blockifier", version = "0.8.0-rc.0", features = ["testing"] }
+||||||| 40b94928
+assert_matches.workspace = true
+blockifier = { path = "../blockifier", version = "0.8.0-rc.0", features = ["testing"] }
+=======
+assert_matches.workspace = true
+blockifier = { workspace = true, features = ["testing"] }
+>>>>>>> origin/main-v0.13.2
 serde_json.workspace = true
 starknet-types-core.workspace = true
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
+starknet_api.workspace = true
