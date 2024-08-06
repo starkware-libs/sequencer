@@ -759,7 +759,7 @@ fn test_flow_send_same_nonce_tx_after_previous_not_included() {
 
     let queue_txs = [TransactionReference::new(&tx_nonce3)];
     let pool_txs = [&tx_nonce3, &tx_input_nonce4.tx, &tx_nonce5].map(|tx| tx.clone());
-    let mut mempool: Mempool = MempoolState::new(pool_txs, queue_txs).into();
+    let mut mempool: Mempool = MempoolContent::new(pool_txs, queue_txs).into();
 
     // Test.
     let txs = mempool.get_txs(2).unwrap();
@@ -776,6 +776,6 @@ fn test_flow_send_same_nonce_tx_after_previous_not_included() {
     // Assert.
     assert_eq!(txs, &[tx_input_nonce4.tx]);
     let expected_queue_txs = [TransactionReference::new(&tx_nonce5)];
-    let expected_mempool_state = MempoolState::with_queue(expected_queue_txs);
-    expected_mempool_state.assert_eq_queue_state(&mempool);
+    let expected_mempool_content = MempoolContent::with_queue(expected_queue_txs);
+    expected_mempool_content.assert_eq_queue_content(&mempool);
 }
