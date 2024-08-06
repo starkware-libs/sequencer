@@ -765,8 +765,8 @@ fn test_worker_commit_phase_with_halt() {
     assert_eq!(worker_executor.scheduler.next_task(), Task::ExecutionTask(1));
 
     // Execute both transactions.
-    worker_executor.execute(0, true);
-    worker_executor.execute(1, true);
+    worker_executor.execute(0, false);
+    worker_executor.execute(1, false);
 
     // Commit both transactions.
     worker_executor.commit_while_possible(true);

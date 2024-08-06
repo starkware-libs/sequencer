@@ -140,6 +140,7 @@ pub fn create_test_init_data(chain_info: &ChainInfo, cairo_version: CairoVersion
     }
 }
 
+// TODO(Meshi, 1/10/2024): add resource bounds to the argumaents.
 pub struct FaultyAccountTxCreatorArgs {
     pub tx_type: TransactionType,
     pub tx_version: TransactionVersion,
