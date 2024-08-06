@@ -11,11 +11,11 @@ use crate::block::{BlockHash, BlockHeaderWithoutHash};
 use crate::core::{EventCommitment, ReceiptCommitment, StateDiffCommitment, TransactionCommitment};
 use crate::crypto::utils::HashChain;
 use crate::data_availability::L1DataAvailabilityMode;
+use crate::execution_resources::GasVector;
 use crate::state::ThinStateDiff;
 use crate::transaction::{
     Event,
     Fee,
-    GasVector,
     MessageToL1,
     TransactionExecutionStatus,
     TransactionHash,

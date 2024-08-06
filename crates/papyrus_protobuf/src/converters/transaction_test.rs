@@ -1,14 +1,12 @@
 use lazy_static::lazy_static;
 use papyrus_test_utils::{get_rng, GetTestInstance};
+use starknet_api::execution_resources::{Builtin, ExecutionResources, GasVector};
 use starknet_api::transaction::{
-    Builtin,
     DeclareTransaction,
     DeclareTransactionOutput,
     DeployAccountTransaction,
     DeployAccountTransactionOutput,
     DeployTransactionOutput,
-    ExecutionResources,
-    GasVector,
     InvokeTransaction,
     InvokeTransactionOutput,
     L1HandlerTransactionOutput,

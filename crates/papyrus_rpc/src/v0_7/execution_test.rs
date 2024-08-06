@@ -1440,17 +1440,15 @@ impl GetTestInstance for FunctionInvocation {
             calls: Vec::new(),
             events: Vec::<OrderedEvent>::get_test_instance(rng),
             messages: Vec::<OrderedL2ToL1Message>::get_test_instance(rng),
-            execution_resources: starknet_api::transaction::ExecutionResources::get_test_instance(
-                rng,
-            )
-            .into(),
+            execution_resources:
+                starknet_api::execution_resources::ExecutionResources::get_test_instance(rng).into(),
         }
     }
 }
 
 impl GetTestInstance for ExecutionResources {
     fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
-        starknet_api::transaction::ExecutionResources::get_test_instance(rng).into()
+        starknet_api::execution_resources::ExecutionResources::get_test_instance(rng).into()
     }
 }
 

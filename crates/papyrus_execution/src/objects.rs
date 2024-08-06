@@ -32,16 +32,13 @@ use starknet_api::core::{
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::EntryPointType;
-use starknet_api::state::ThinStateDiff;
-use starknet_api::transaction::{
+use starknet_api::execution_resources::{
     Builtin,
-    Calldata,
-    EventContent,
     ExecutionResources,
-    Fee,
     GasVector as StarknetApiGasVector,
-    MessageToL1,
 };
+use starknet_api::state::ThinStateDiff;
+use starknet_api::transaction::{Calldata, EventContent, Fee, MessageToL1};
 use starknet_types_core::felt::Felt;
 
 use crate::{ExecutionError, ExecutionResult, TransactionExecutionOutput};
