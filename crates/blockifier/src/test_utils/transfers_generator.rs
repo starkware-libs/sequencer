@@ -155,7 +155,7 @@ impl TransfersGenerator {
             let account_tx = self.generate_transfer(sender_address, recipient_address);
             txs.push(Transaction::AccountTransaction(account_tx));
         }
-        let results = self.executor.execute_txs(&txs, true);
+        let results = self.executor.execute_txs(&txs, false);
         assert_eq!(results.len(), self.config.n_txs);
         for result in results {
             assert!(!result.unwrap().is_reverted());

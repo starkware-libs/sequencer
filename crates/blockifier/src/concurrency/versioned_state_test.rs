@@ -262,7 +262,7 @@ fn test_run_parallel_txs(max_resource_bounds: ResourceBoundsMapping) {
     // Execute transactions
     thread::scope(|s| {
         s.spawn(move || {
-            let result = account_tx_1.execute(&mut state_1, &block_context_1, true, true);
+            let result = account_tx_1.execute(&mut state_1, &block_context_1, false, true);
             assert_eq!(result.is_err(), enforce_fee);
         });
         s.spawn(move || {
