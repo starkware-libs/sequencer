@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::{Tip, TransactionHash};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{
@@ -68,7 +69,7 @@ impl Mempool {
         let mut eligible_txs: Vec<ThinTransaction> = Vec::with_capacity(n_txs);
         for tx_ref in &eligible_tx_references {
             let tx = self.tx_pool.remove(tx_ref.tx_hash)?;
-            eligible_txs.push(tx);
+            eligible_txs.push((&tx).into());
         }
 
         // Update the mempool state with the given transactions' nonces.
@@ -137,7 +138,7 @@ impl Mempool {
         // Remove transactions with lower nonce than the account nonce.
         self.tx_pool.remove_up_to_nonce(sender_address, nonce);
 
-        self.tx_pool.insert(tx)?;
+        self.tx_pool.insert((&tx).into())?;
 
         // Maybe close nonce gap.
         if self.tx_queue.get_nonce(sender_address).is_none() {
@@ -230,6 +231,14 @@ impl TransactionReference {
             nonce: tx.nonce,
             tx_hash: tx.tx_hash,
             tip: tx.tip,
+        }
+    }
+    pub fn new_from_transaction(tx: &Transaction) -> Self {
+        TransactionReference {
+            sender_address: tx.contract_address(),
+            nonce: tx.nonce(),
+            tx_hash: tx.tx_hash(),
+            tip: tx.tip().expect("Expected a valid tip value, but received None."),
         }
     }
 }
