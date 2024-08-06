@@ -225,6 +225,51 @@ docker run --rm --name papyrus\
 
 For more information, see https://docs.docker.com/config/containers/resource_constraints/#limit-a-containers-access-to-memory[Limit a container's access to memory] in the Docker documentation.
 
+=== Running Papyrus using p2p sync
+
+.Here are three examples of running p2p nodes with various configurations:
+. No sync - can be used by other nodes for discovery but not for syncing.
+. Syncing from central gateway, and connected to bootstrap peer.
+. Syncing using p2p and connected to bootstrap peer.
+
+==== No sync (only discovery)
+[source, bash]
+----
+cargo run --release --package papyrus_node --bin papyrus_node -- \
+        --base_layer.node_url <ethereum_node_url> \
+        --network.secret_key <secret_key> \
+        --sync.#is_none true
+----
+
+==== Central Sync (with bootstrap connection)
+[source, bash]
+----
+cargo run --release --package papyrus_node --bin papyrus_node -- \
+        --base_layer.node_url <ethereum_node_url> \
+        --network.bootstrap_peer_multiaddr.#is_none false \
+        --network.bootstrap_peer_multiaddr /ip4/<other_peer_ip_address>/tcp/<tcp_port>/p2p/<peer_id>
+----
+
+==== P2P Sync (with bootstrap connection)
+[source, bash]
+----
+cargo run --release --package papyrus_node --bin papyrus_node -- \
+        --base_layer.node_url <ethereum_node_url> \
+        --network.bootstrap_peer_multiaddr.#is_none false \
+        --network.bootstrap_peer_multiaddr /ip4/<other_peer_ip_address>/tcp/<tcp_port>/p2p/<peer_id> \
+        --sync.#is_none true \
+        --p2p_sync.#is_none false
+----
+
+[NOTE]
+====
+.In case you are running more than one node on the same machine, notice you will have to specify the following fields (to avoid collisions):
+* tcp_port
+* monitoring_gateway.server_address
+* rpc.server_address
+* storage.db_config.path_prefix (if there are multiple syncing nodes they require different storage directories)
+====
+
 == Sending API requests to the node
 
 When sending API requests, send them to the path `/rpc/<starknet-rpc-version-id>`.
