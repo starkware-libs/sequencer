@@ -11,8 +11,8 @@ workspace = true
 [dependencies]
 async-trait.workspace = true
 mockall.workspace = true
-papyrus_proc_macros = { path = "../papyrus_proc_macros" }
+papyrus_proc_macros.workspace = true
 serde = { workspace = true, features = ["derive"] }
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
-starknet_mempool_infra = { path = "../mempool_infra" }
+starknet_api.workspace = true
+starknet_mempool_infra.workspace = true
 thiserror.workspace = true

@@ -22,7 +22,7 @@ validator = { workspace = true, features = ["derive"] }
 assert_matches.workspace = true
 itertools.workspace = true
 lazy_static.workspace = true
-papyrus_test_utils = { path = "../papyrus_test_utils" }
+papyrus_test_utils.workspace = true
 tempfile.workspace = true
 
 [lints.rust]

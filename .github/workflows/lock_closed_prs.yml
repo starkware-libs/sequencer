@@ -9,7 +9,7 @@ on:
 jobs:
   lock:
     name: 🔒 Lock closed issues and PRs
-    runs-on: ubuntu-latest
+    runs-on: starkware-ubuntu-latest-small
     steps:
       - uses: dessant/lock-threads@v2.0.3
         with:

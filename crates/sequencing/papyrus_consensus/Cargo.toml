@@ -12,23 +12,21 @@ futures.workspace = true
 lazy_static.workspace = true
 lru.workspace = true
 metrics.workspace = true
-papyrus_common = { path = "../../papyrus_common", version = "0.4.0-dev.2" }
+papyrus_common.workspace = true
 papyrus_config.workspace = true
-papyrus_network = { path = "../../papyrus_network", version = "0.4.0-dev.2" }
-papyrus_protobuf = { path = "../../papyrus_protobuf", version = "0.4.0-dev.2" }
-papyrus_storage = { path = "../../papyrus_storage", version = "0.4.0-dev.2" }
+papyrus_network.workspace = true
+papyrus_protobuf.workspace = true
+papyrus_storage.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
-starknet_api = { path = "../../starknet_api", version = "0.13.0-rc.0" }
+starknet_api.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tracing.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true
-papyrus_network = { path = "../../papyrus_network", version = "0.4.0-dev.2", features = [
-  "testing",
-] }
-papyrus_storage = { path = "../../papyrus_storage", features = ["testing"] }
-papyrus_test_utils = { path = "../../papyrus_test_utils" }
+papyrus_network = { workspace = true, features = ["testing"] }
+papyrus_storage = { workspace = true, features = ["testing"] }
+papyrus_test_utils.workspace = true
 test-case.workspace = true

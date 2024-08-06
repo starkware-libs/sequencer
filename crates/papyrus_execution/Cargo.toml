@@ -11,23 +11,23 @@ testing = ["papyrus_test_utils", "rand", "rand_chacha"]
 
 [dependencies]
 anyhow.workspace = true
-blockifier = { path = "../blockifier", version = "0.8.0-rc.0" }
+blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
 lazy_static.workspace = true
 once_cell.workspace = true
-papyrus_common = { path = "../papyrus_common", version = "0.4.0-rc.0" }
+papyrus_common.workspace = true
 papyrus_config.workspace = true
-papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-rc.0" }
+papyrus_storage.workspace = true
 rand = { workspace = true, optional = true }
 rand_chacha = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
+starknet_api.workspace = true
 starknet-types-core.workspace = true
-papyrus_test_utils = { path = "../papyrus_test_utils", optional = true }
+papyrus_test_utils = { workspace = true, optional = true }
 thiserror.workspace = true
 tracing.workspace = true
 
@@ -36,11 +36,11 @@ assert_matches.workspace = true
 cairo-lang-casm.workspace = true
 cairo-lang-utils.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
-papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
+papyrus_storage = { workspace = true, features = ["testing"] }
 pretty_assertions.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
-papyrus_test_utils = { path = "../papyrus_test_utils" }
+papyrus_test_utils.workspace = true
 
 [package.metadata.cargo-machete]
 # The `rand` crate is used in the `testing` feature, which is optional.
