@@ -10,7 +10,6 @@ pub enum ContractClassV1 {
     Casm(CasmContractClass),
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ClassInfo {
     contract_class: ContractClass,
