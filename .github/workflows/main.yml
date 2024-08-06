@@ -16,6 +16,12 @@ on:
       - auto_merge_enabled
       - edited
 
+  merge_group:
+    types:
+      - checks_requested
+env:
+  PROTOC_VERSION: v25.1
+
 jobs:
   commitlint:
     runs-on: ubuntu-latest
@@ -165,6 +171,32 @@ jobs:
         with:
           version: ${{env.PROTOC_VERSION}}
       - run: cargo check --workspace -r --all-features
+
+  changed-files:
+    runs-on: ubuntu-latest
+    outputs:
+      papyrus: ${{ steps.changed-files.outputs.papyrus }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dorny/paths-filter@v3
+      id: changed-files
+      with:
+        filters: |
+          papyrus:
+            - '.github/workflows/papyrus_ci.yml'
+            - 'Dockerfile'
+            - 'papyrus_utilities.Dockerfile'
+            - 'Cargo.toml'
+            - 'Cargo.lock'
+            - 'crates/papyrus**/**'
+            - 'crates/sequencing/**'
+            - 'crates/starknet_client/**'
+
+  papyrus-ci:
+    needs: changed-files
+    if: needs.changed-files.outputs.papyrus == 'true'
+    uses: ./.github/workflows/papyrus/papyrus_ci.yml
+    secrets: inherit
 
   merge-gatekeeper:
     runs-on: ubuntu-latest
