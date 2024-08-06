@@ -8,6 +8,7 @@ use std::sync::OnceLock;
 
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion};
+use pretty_assertions::{assert_eq, assert_ne};
 use serde_json::to_string_pretty;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -286,10 +287,17 @@ pub struct AccountTransactionGenerator {
 impl AccountTransactionGenerator {
     /// Generate a valid `RpcTransaction` with default parameters.
     pub fn generate_default_invoke(&mut self) -> RpcTransaction {
+        let nonce = self.next_nonce();
+        assert_ne!(
+            nonce,
+            Nonce(Felt::ZERO),
+            "Only deploy account can nonce 0; to override use the raw invoke tx generator"
+        );
+
         let invoke_args = invoke_tx_args!(
             sender_address: self.sender_address(),
             resource_bounds: test_resource_bounds_mapping(),
-            nonce: self.next_nonce(),
+            nonce,
             calldata: create_trivial_calldata(self.test_contract_address()),
         );
         rpc_invoke_tx(invoke_args)
