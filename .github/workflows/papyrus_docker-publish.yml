@@ -6,10 +6,12 @@ on:
     branches: [main]
     tags: ["v*.*.*"]
     paths:
+      - '.github/workflows/papyrus_docker-publish.yml'
       - 'crates/papyrus**/**'
 
   pull_request:
     paths:
+      - '.github/workflows/papyrus_docker-publish.yml'
       - 'crates/papyrus**/**'
 
 env:
@@ -18,7 +20,7 @@ env:
 
 jobs:
   docker-build-push:
-    runs-on: ubuntu-latest
+    runs-on: starkware-ubuntu-latest-medium
 
     steps:
       - name: Checkout repository

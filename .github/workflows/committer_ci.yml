@@ -30,7 +30,7 @@ on:
 
 jobs:
   run-regression-tests:
-    runs-on: ubuntu-latest
+    runs-on: starkware-ubuntu-latest-small
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -46,7 +46,7 @@ jobs:
       - run: cargo test -p committer_cli --release -- --include-ignored test_regression
 
   benchmarking:
-    runs-on: ubuntu-latest
+    runs-on: starkware-ubuntu-latest-small
     steps:
       # Checkout the base branch to get the old code.
       - uses: actions/checkout@v4
@@ -112,7 +112,7 @@ jobs:
             })
 
   gcs-push:
-    runs-on: ubuntu-20.04
+    runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

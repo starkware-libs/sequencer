@@ -18,7 +18,7 @@ on:
 
 jobs:
   commitlint:
-    runs-on: ubuntu-latest
+    runs-on: starkware-ubuntu-latest-small
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,7 +41,7 @@ jobs:
         run: echo "$TITLE" | commitlint --verbose
 
   format:
-    runs-on: ubuntu-20.04
+    runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
@@ -54,7 +54,7 @@ jobs:
       - run: scripts/rust_fmt.sh --check
 
   clippy:
-    runs-on: ubuntu-20.04
+    runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
       - uses: Noelware/setup-protoc@1.1.0
@@ -78,7 +78,7 @@ jobs:
       - run: scripts/clippy.sh
 
   doc:
-    runs-on: ubuntu-latest
+    runs-on: starkware-ubuntu-latest-small
     # env:
     #   RUSTDOCFLAGS: "-D warnings"
     steps:
@@ -91,7 +91,7 @@ jobs:
       - run: cargo doc --workspace -r --document-private-items --no-deps
 
   run-tests:
-    runs-on: ubuntu-20.04
+    runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
         with:
@@ -134,7 +134,7 @@ jobs:
           SEED: 0
 
   taplo:
-    runs-on: ubuntu-latest
+    runs-on: starkware-ubuntu-latest-small
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -147,14 +147,14 @@ jobs:
       - run: scripts/taplo.sh
 
   machete:
-    runs-on: ubuntu-latest
+    runs-on: starkware-ubuntu-latest-small
     steps:
       - uses: actions/checkout@v4
       - name: Run Machete (detect unused dependencies)
         uses: bnjbvr/cargo-machete@main
 
   check:
-    runs-on: ubuntu-latest
+    runs-on: starkware-ubuntu-latest-small
     env:
       RUSTDOCFLAGS: "-D warnings"
     steps:
@@ -167,7 +167,7 @@ jobs:
       - run: cargo check --workspace -r --all-features
 
   merge-gatekeeper:
-    runs-on: ubuntu-latest
+    runs-on: starkware-ubuntu-latest-small
     # Restrict permissions of the GITHUB_TOKEN.
     # Docs: https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
     permissions:

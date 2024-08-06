@@ -30,7 +30,7 @@ on:
 
 jobs:
   merge-paths-test:
-    runs-on: ubuntu-20.04
+    runs-on: starkware-ubuntu-latest-small
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
