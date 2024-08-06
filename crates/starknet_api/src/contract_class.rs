@@ -14,7 +14,6 @@ pub enum ContractClassV1 {
 
 /// All relevant information about a declared contract class, including the compiled contract class
 /// and other parameters derived from the original declare transaction required for billing.
-#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ClassInfo {
     contract_class: ContractClass,
