@@ -427,7 +427,7 @@ fn test_max_fee_limit_validate(
             // works.
             resource_bounds: l1_resource_bounds(
                 estimated_min_l1_gas.try_into().expect("Failed to convert u128 to u64."),
-                block_info.gas_prices.get_gas_price_by_fee_type(&account_tx.fee_type()).into()
+                block_info.gas_prices.get_l1_gas_price_by_fee_type(&account_tx.fee_type()).into()
             ),
             ..tx_args
         },
@@ -913,7 +913,7 @@ fn test_max_fee_to_max_steps_conversion(
     let actual_gas_used_as_u128: u128 = actual_gas_used.into();
     let actual_fee = actual_gas_used_as_u128 * 100000000000;
     let actual_strk_gas_price =
-        block_context.block_info.gas_prices.get_gas_price_by_fee_type(&FeeType::Strk);
+        block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk);
     let execute_calldata = create_calldata(
         contract_address,
         "with_arg",
