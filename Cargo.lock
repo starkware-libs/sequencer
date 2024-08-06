@@ -5983,6 +5983,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "blockifier",
+ "pretty_assertions",
  "serde_json",
  "starknet-types-core",
  "starknet_api",

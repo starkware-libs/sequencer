@@ -26,7 +26,6 @@ async fn test_end_to_end() {
 
     mock_running_system.assert_add_tx_success(&account0_invoke_nonce1).await;
 
-    // FIXME: invoke with nonce0 shouldn't be possible, fix it, make this FAIL.
     let account1_invoke_nonce0_tx_hash =
         mock_running_system.assert_add_tx_success(&account1_invoke_nonce0).await;
 
