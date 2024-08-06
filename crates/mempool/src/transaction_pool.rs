@@ -1,18 +1,14 @@
 use std::collections::{hash_map, BTreeMap, HashMap};
 
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::{
-    Account,
-    AccountState,
-    MempoolResult,
-    ThinTransaction,
-};
+use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolResult};
 
 use crate::mempool::TransactionReference;
 
-type HashToTransaction = HashMap<TransactionHash, ThinTransaction>;
+type HashToTransaction = HashMap<TransactionHash, Transaction>;
 
 /// Contains all transactions currently held in the mempool.
 /// Invariant: both data structures are consistent regarding the existence of transactions:
@@ -27,8 +23,8 @@ pub struct TransactionPool {
 }
 
 impl TransactionPool {
-    pub fn insert(&mut self, tx: ThinTransaction) -> MempoolResult<()> {
-        let tx_reference = TransactionReference::new(&tx);
+    pub fn insert(&mut self, tx: Transaction) -> MempoolResult<()> {
+        let tx_reference = TransactionReference::new_from_transaction(&tx);
         let tx_hash = tx_reference.tx_hash;
 
         // Insert to pool.
@@ -50,13 +46,13 @@ impl TransactionPool {
         Ok(())
     }
 
-    pub fn remove(&mut self, tx_hash: TransactionHash) -> MempoolResult<ThinTransaction> {
+    pub fn remove(&mut self, tx_hash: TransactionHash) -> MempoolResult<Transaction> {
         // Remove from pool.
         let tx =
             self.tx_pool.remove(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })?;
 
         // Remove from account mapping.
-        self.txs_by_account.remove(TransactionReference::new(&tx)).unwrap_or_else(|| {
+        self.txs_by_account.remove(TransactionReference::new(&(&tx).into())).unwrap_or_else(|| {
             panic!(
                 "Transaction pool consistency error: transaction with hash {tx_hash} appears in \
                  main mapping, but does not appear in the account mapping"
@@ -79,7 +75,7 @@ impl TransactionPool {
         }
     }
 
-    pub fn _get_by_tx_hash(&self, tx_hash: TransactionHash) -> MempoolResult<&ThinTransaction> {
+    pub fn _get_by_tx_hash(&self, tx_hash: TransactionHash) -> MempoolResult<&Transaction> {
         self.tx_pool.get(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })
     }
 
