@@ -354,16 +354,12 @@ fn create_block_context(
         use_kzg_da,
         block_number,
         // TODO(yair): What to do about blocks pre 0.13.1 where the data gas price were 0?
-        gas_prices: GasPrices {
-            eth_l1_gas_price: NonZeroU128::new(l1_gas_price.price_in_wei.0)
-                .unwrap_or(NonZeroU128::MIN),
-            strk_l1_gas_price: NonZeroU128::new(l1_gas_price.price_in_fri.0)
-                .unwrap_or(NonZeroU128::MIN),
-            eth_l1_data_gas_price: NonZeroU128::new(l1_data_gas_price.price_in_wei.0)
-                .unwrap_or(NonZeroU128::MIN),
-            strk_l1_data_gas_price: NonZeroU128::new(l1_data_gas_price.price_in_fri.0)
-                .unwrap_or(NonZeroU128::MIN),
-        },
+        gas_prices: GasPrices::new(
+            NonZeroU128::new(l1_gas_price.price_in_wei.0).unwrap_or(NonZeroU128::MIN),
+            NonZeroU128::new(l1_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
+            NonZeroU128::new(l1_data_gas_price.price_in_wei.0).unwrap_or(NonZeroU128::MIN),
+            NonZeroU128::new(l1_data_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
+        ),
     };
     let chain_info = ChainInfo {
         chain_id,

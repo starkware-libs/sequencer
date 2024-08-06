@@ -7,6 +7,7 @@ use rstest::rstest;
 use starknet_api::transaction::Fee;
 
 use crate::abi::constants::N_STEPS_RESOURCE;
+use crate::blockifier::block::GasPrices;
 use crate::context::BlockContext;
 use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::fee_checks::{FeeCheckError, FeeCheckReportFields, PostExecutionReport};
@@ -14,7 +15,12 @@ use crate::fee::fee_utils::calculate_l1_gas_by_vm_usage;
 use crate::invoke_tx_args;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{CairoVersion, BALANCE};
+use crate::test_utils::{
+    CairoVersion,
+    BALANCE,
+    DEFAULT_ETH_L1_DATA_GAS_PRICE,
+    DEFAULT_ETH_L1_GAS_PRICE,
+};
 use crate::transaction::objects::GasVector;
 use crate::transaction::test_utils::{account_invoke_tx, l1_resource_bounds};
 use crate::utils::u128_from_usize;
@@ -122,8 +128,12 @@ fn test_discounted_gas_overdraft(
     #[case] expect_failure: bool,
 ) {
     let mut block_context = BlockContext::create_for_account_testing();
-    block_context.block_info.gas_prices.strk_l1_gas_price = gas_price.try_into().unwrap();
-    block_context.block_info.gas_prices.strk_l1_data_gas_price = data_gas_price.try_into().unwrap();
+    block_context.block_info.gas_prices = GasPrices::new(
+        DEFAULT_ETH_L1_GAS_PRICE.try_into().unwrap(),
+        gas_price.try_into().unwrap(),
+        DEFAULT_ETH_L1_DATA_GAS_PRICE.try_into().unwrap(),
+        data_gas_price.try_into().unwrap(),
+    );
 
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
     let mut state = test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);

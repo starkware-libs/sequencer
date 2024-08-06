@@ -85,12 +85,12 @@ impl TryInto<BlockInfo> for BlockHeader {
             block_number: self.block_number,
             sequencer_address: self.sequencer_address,
             block_timestamp: self.timestamp,
-            gas_prices: GasPrices {
-                eth_l1_gas_price: parse_gas_price(self.l1_gas_price.price_in_wei)?,
-                strk_l1_gas_price: parse_gas_price(self.l1_gas_price.price_in_fri)?,
-                eth_l1_data_gas_price: parse_gas_price(self.l1_data_gas_price.price_in_wei)?,
-                strk_l1_data_gas_price: parse_gas_price(self.l1_data_gas_price.price_in_fri)?,
-            },
+            gas_prices: GasPrices::new(
+                parse_gas_price(self.l1_gas_price.price_in_wei)?,
+                parse_gas_price(self.l1_gas_price.price_in_fri)?,
+                parse_gas_price(self.l1_data_gas_price.price_in_wei)?,
+                parse_gas_price(self.l1_data_gas_price.price_in_fri)?,
+            ),
             use_kzg_da: matches!(self.l1_da_mode, L1DataAvailabilityMode::Blob),
         })
     }
