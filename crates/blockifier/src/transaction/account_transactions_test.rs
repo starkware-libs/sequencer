@@ -35,7 +35,6 @@ use crate::state::cached_state::{StateChangesCount, TransactionalState};
 use crate::state::state_api::{State, StateReader};
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::declare::declare_tx;
-use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::invoke::InvokeTxArgs;
 use crate::test_utils::{
@@ -47,7 +46,6 @@ use crate::test_utils::{
     CairoVersion,
     NonceManager,
     BALANCE,
-    DEFAULT_STRK_L1_GAS_PRICE,
     MAX_FEE,
 };
 use crate::transaction::account_transaction::AccountTransaction;
@@ -152,53 +150,7 @@ fn test_rc96_holes(block_context: BlockContext, max_resource_bounds: ResourceBou
     assert_eq!(tx_execution_info.receipt.gas, GasVector::from_l1_gas(6598));
 }
 
-#[rstest]
-fn test_fee_enforcement(
-    block_context: BlockContext,
-    #[values(TransactionVersion::ONE, TransactionVersion::THREE)] version: TransactionVersion,
-    #[values(true, false)] zero_bounds: bool,
-) {
-    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
-    let state = &mut test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
-    let deploy_account_tx = deploy_account_tx(
-        deploy_account_tx_args! {
-            class_hash: account.get_class_hash(),
-            max_fee: Fee(u128::from(!zero_bounds)),
-            resource_bounds: l1_resource_bounds(u64::from(!zero_bounds), DEFAULT_STRK_L1_GAS_PRICE),
-            version,
-        },
-        &mut NonceManager::default(),
-    );
 
-    let account_tx = AccountTransaction::DeployAccount(deploy_account_tx);
-    let enforce_fee = account_tx.create_tx_info().enforce_fee().unwrap();
-    let result = account_tx.execute(state, &block_context, true, true);
-    assert_eq!(result.is_err(), enforce_fee);
-}
-
-#[rstest]
-#[case(TransactionVersion::ZERO)]
-#[case(TransactionVersion::ONE)]
-#[case(TransactionVersion::THREE)]
-fn test_enforce_fee_false_works(block_context: BlockContext, #[case] version: TransactionVersion) {
-    let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
-        create_test_init_data(&block_context.chain_info, CairoVersion::Cairo0);
-    let tx_execution_info = run_invoke_tx(
-        &mut state,
-        &block_context,
-        invoke_tx_args! {
-            max_fee: Fee(0),
-            resource_bounds: l1_resource_bounds(0, DEFAULT_STRK_L1_GAS_PRICE),
-            sender_address: account_address,
-            calldata: create_trivial_calldata(contract_address),
-            version,
-            nonce: nonce_manager.next(account_address),
-        },
-    )
-    .unwrap();
-    assert!(!tx_execution_info.is_reverted());
-    assert_eq!(tx_execution_info.receipt.fee, Fee(0));
-}
 
 // TODO(Dori, 15/9/2023): Convert version variance to attribute macro.
 #[rstest]
@@ -517,6 +469,7 @@ fn test_recursion_depth_exceeded(
 fn test_revert_invoke(
     block_context: BlockContext,
     max_fee: Fee,
+    max_resource_bounds: ResourceBoundsMapping,
     #[case] transaction_version: TransactionVersion,
     #[case] fee_type: FeeType,
 ) {
@@ -536,6 +489,7 @@ fn test_revert_invoke(
         invoke_tx_args! {
             max_fee,
             sender_address: account_address,
+            resource_bounds: max_resource_bounds,
             calldata: create_calldata(
                 test_contract_address,
                 "write_and_revert",
@@ -606,7 +560,7 @@ fn test_fail_deploy_account(
 
     let initial_balance = state.get_fee_token_balance(deploy_address, fee_token_address).unwrap();
 
-    let error = deploy_account_tx.execute(state, &block_context, true, true).unwrap_err();
+    let error = deploy_account_tx.execute(state, &block_context, false, true).unwrap_err();
     // Check the error is as expected. Assure the error message is not nonce or fee related.
     check_transaction_execution_error_for_invalid_scenario!(cairo_version, error, false);
 

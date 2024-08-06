@@ -777,7 +777,7 @@ fn test_state_get_fee_token_balance(
         version: tx_version,
         nonce: Nonce::default(),
     });
-    account_tx.execute(state, block_context, true, true).unwrap();
+    account_tx.execute(state, block_context, false, true).unwrap();
 
     // Get balance from state, and validate.
     let (low, high) =
@@ -1538,7 +1538,7 @@ fn test_validate_accounts_tx(
         additional_data: None,
         ..default_args
     });
-    let error = account_tx.execute(state, block_context, true, true).unwrap_err();
+    let error = account_tx.execute(state, block_context, false, true).unwrap_err();
     check_transaction_execution_error_for_invalid_scenario!(
         cairo_version,
         error,
@@ -1554,7 +1554,7 @@ fn test_validate_accounts_tx(
         contract_address_salt: salt_manager.next_salt(),
         ..default_args
     });
-    let error = account_tx.execute(state, block_context, true, true).unwrap_err();
+    let error = account_tx.execute(state, block_context, false, true).unwrap_err();
     check_transaction_execution_error_for_custom_hint!(
         &error,
         "Unauthorized syscall call_contract in execution mode Validate.",
@@ -1569,7 +1569,7 @@ fn test_validate_accounts_tx(
             additional_data: None,
             ..default_args
         });
-        let error = account_tx.execute(state, block_context, true, true).unwrap_err();
+        let error = account_tx.execute(state, block_context, false, true).unwrap_err();
         check_transaction_execution_error_for_custom_hint!(
             &error,
             "Unauthorized syscall get_block_hash in execution mode Validate.",
@@ -1583,7 +1583,7 @@ fn test_validate_accounts_tx(
             contract_address_salt: salt_manager.next_salt(),
             ..default_args
         });
-        let error = account_tx.execute(state, block_context, true, true).unwrap_err();
+        let error = account_tx.execute(state, block_context, false, true).unwrap_err();
         check_transaction_execution_error_for_custom_hint!(
             &error,
             "Unauthorized syscall get_sequencer_address in execution mode Validate.",
@@ -1606,7 +1606,7 @@ fn test_validate_accounts_tx(
             ..default_args
         },
     );
-    let result = account_tx.execute(state, block_context, true, true);
+    let result = account_tx.execute(state, block_context, false, true);
     assert!(result.is_ok(), "Execution failed: {:?}", result.unwrap_err());
 
     if tx_type != TransactionType::DeployAccount {
@@ -1622,7 +1622,7 @@ fn test_validate_accounts_tx(
                 ..default_args
             },
         );
-        let result = account_tx.execute(state, block_context, true, true);
+        let result = account_tx.execute(state, block_context, false, true);
         assert!(result.is_ok(), "Execution failed: {:?}", result.unwrap_err());
     }
 
@@ -1641,7 +1641,7 @@ fn test_validate_accounts_tx(
                 ..default_args
             },
         );
-        let result = account_tx.execute(state, block_context, true, true);
+        let result = account_tx.execute(state, block_context, false, true);
         assert!(result.is_ok(), "Execution failed: {:?}", result.unwrap_err());
 
         // Call the syscall get_block_timestamp and assert the returned timestamp was modified
@@ -1656,7 +1656,7 @@ fn test_validate_accounts_tx(
                 ..default_args
             },
         );
-        let result = account_tx.execute(state, block_context, true, true);
+        let result = account_tx.execute(state, block_context, false, true);
         assert!(result.is_ok(), "Execution failed: {:?}", result.unwrap_err());
     }
 
@@ -1677,7 +1677,7 @@ fn test_validate_accounts_tx(
                 ..default_args
             },
         );
-        let result = account_tx.execute(state, block_context, true, true);
+        let result = account_tx.execute(state, block_context, false, true);
         assert!(result.is_ok(), "Execution failed: {:?}", result.unwrap_err());
     }
 }
