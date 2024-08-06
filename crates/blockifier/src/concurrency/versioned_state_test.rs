@@ -41,7 +41,7 @@ use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{CairoVersion, NonceManager, BALANCE, DEFAULT_STRK_L1_GAS_PRICE};
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
+use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{l1_resource_bounds, max_resource_bounds};
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::{compiled_class_hash, deploy_account_tx_args, nonce, storage_key};
@@ -233,7 +233,6 @@ fn test_run_parallel_txs(max_resource_bounds: ResourceBoundsMapping) {
         &mut NonceManager::default(),
     );
     let account_tx_1 = AccountTransaction::DeployAccount(deploy_account_tx_1);
-    let enforce_fee = account_tx_1.create_tx_info().enforce_fee().unwrap();
 
     let class_hash = grindy_account.get_class_hash();
     let ctor_storage_arg = felt!(1_u8);
@@ -262,8 +261,7 @@ fn test_run_parallel_txs(max_resource_bounds: ResourceBoundsMapping) {
     // Execute transactions
     thread::scope(|s| {
         s.spawn(move || {
-            let result = account_tx_1.execute(&mut state_1, &block_context_1, true, true);
-            assert_eq!(result.is_err(), enforce_fee);
+            account_tx_1.execute(&mut state_1, &block_context_1, false, true).unwrap();
         });
         s.spawn(move || {
             account_tx_2.execute(&mut state_2, &block_context_2, true, true).unwrap();

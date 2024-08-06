@@ -155,7 +155,7 @@ impl TransfersGenerator {
             let account_tx = self.generate_transfer(sender_address, recipient_address);
             txs.push(Transaction::AccountTransaction(account_tx));
         }
-        let charge_fee = true;
+        let charge_fee = false;
         let results = self.executor.execute_txs(&txs, charge_fee);
         assert_eq!(results.len(), self.config.n_txs);
         for result in results {

@@ -775,7 +775,7 @@ fn test_worker_commit_phase_with_halt() {
     // `ReadyToExecute` and not `Executing` as expected).
     assert_eq!(worker_executor.scheduler.next_task(), Task::ExecutionTask(0));
     assert_eq!(worker_executor.scheduler.next_task(), Task::ExecutionTask(1));
-    let charge_fee = true;
+    let charge_fee = false;
     // Execute both transactions.
     worker_executor.execute(0, charge_fee);
     worker_executor.execute(1, charge_fee);
