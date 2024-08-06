@@ -4,6 +4,7 @@
 
 pub mod block;
 pub mod block_hash;
+pub mod contract_class;
 pub mod core;
 pub mod crypto;
 pub mod data_availability;

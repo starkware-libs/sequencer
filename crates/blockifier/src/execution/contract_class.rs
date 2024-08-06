@@ -56,6 +56,17 @@ pub enum ContractClass {
     V1(ContractClassV1),
 }
 
+impl TryFrom<starknet_api::contract_class::ContractClass> for ContractClass {
+    type Error = ProgramError;
+
+    fn try_from(
+        contract_class: starknet_api::contract_class::ContractClass,
+    ) -> Result<Self, Self::Error> {
+        let starknet_api::contract_class::ContractClass::V1(contract_class_v1) = contract_class;
+        Ok(ContractClass::V1(contract_class_v1.try_into()?))
+    }
+}
+
 impl ContractClass {
     pub fn constructor_selector(&self) -> Option<EntryPointSelector> {
         match self {
@@ -353,6 +364,18 @@ pub struct EntryPointV1 {
 impl EntryPointV1 {
     pub fn pc(&self) -> usize {
         self.offset.0
+    }
+}
+
+impl TryFrom<starknet_api::contract_class::ContractClassV1> for ContractClassV1 {
+    type Error = ProgramError;
+
+    fn try_from(
+        contract_class: starknet_api::contract_class::ContractClassV1,
+    ) -> Result<Self, Self::Error> {
+        let starknet_api::contract_class::ContractClassV1::Casm(casm_contract_class) =
+            contract_class;
+        casm_contract_class.try_into()
     }
 }
 
