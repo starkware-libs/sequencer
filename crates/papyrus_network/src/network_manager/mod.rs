@@ -1,4 +1,5 @@
 mod swarm_trait;
+use core::net::Ipv4Addr;
 
 #[cfg(test)]
 mod test;
@@ -11,9 +12,10 @@ use futures::future::{ready, BoxFuture, Ready};
 use futures::sink::With;
 use futures::stream::{self, FuturesUnordered, Map, Stream};
 use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
+use libp2p::core::multiaddr::Protocol;
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::swarm::SwarmEvent;
-use libp2p::{PeerId, StreamProtocol, Swarm};
+use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm};
 use metrics::gauge;
 use papyrus_common::metrics as papyrus_metrics;
 use sqmr::Bytes;
@@ -251,9 +253,10 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 );
             }
             SwarmEvent::NewListenAddr { address, .. } => {
-                // TODO(shahak): Once we support nodes behind a NAT, fix this to only add external
-                // addresses.
-                self.swarm.add_external_address(address);
+                // TODO(shahak): Find a better way to filter private addresses.
+                if !is_localhost(&address) {
+                    self.swarm.add_external_address(address);
+                }
             }
             SwarmEvent::IncomingConnection { .. }
             | SwarmEvent::Dialing { .. }
@@ -739,4 +742,15 @@ pub struct BroadcastNetworkMock<T: TryFrom<Bytes>> {
 pub struct TestSubscriberChannels<T: TryFrom<Bytes>> {
     pub subscriber_channels: BroadcastSubscriberChannels<T>,
     pub mock_network: BroadcastNetworkMock<T>,
+}
+
+fn is_localhost(address: &Multiaddr) -> bool {
+    let maybe_ip4_address = address.iter().find_map(|protocol| match protocol {
+        Protocol::Ip4(ip4_address) => Some(ip4_address),
+        _ => None,
+    });
+    let Some(ip4_address) = maybe_ip4_address else {
+        return false;
+    };
+    ip4_address == Ipv4Addr::LOCALHOST
 }
