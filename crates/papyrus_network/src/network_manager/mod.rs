@@ -254,7 +254,9 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             }
             SwarmEvent::NewListenAddr { address, .. } => {
                 // TODO(shahak): Find a better way to filter private addresses.
+                println!("Asmaa: NewListenAddr Address: {address:?}");
                 if !is_localhost(&address) {
+                    println!("Asmaa: add_external_address Address: {address:?}");
                     self.swarm.add_external_address(address);
                 }
             }

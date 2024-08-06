@@ -85,6 +85,7 @@ where
     }
 
     fn add_peer(&mut self, mut peer: P) {
+        println!("Asmaa - PeerManager::add_peer - peer.multiaddr() {:?}", peer.multiaddr());
         info!("Peer Manager found new peer {:?}", peer.peer_id());
         peer.set_timeout_duration(self.config.blacklist_timeout);
         self.peers.insert(peer.peer_id(), peer);

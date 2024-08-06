@@ -476,7 +476,7 @@ impl<
         );
 
         // Info the user on syncing the block once all the data is stored.
-        info!("Added block {} with hash {:#064x}.", block_number, block_hash.0);
+        // info!("Added block {} with hash {:#064x}.", block_number, block_hash.0);
 
         Ok(())
     }
