@@ -155,7 +155,7 @@ pub fn test_commit_tx() {
         let actual_fee = if should_fail_execution {
             0
         } else {
-            execution_result.as_ref().unwrap().transaction_receipt.fee.0
+            execution_result.as_ref().unwrap().receipt.fee.0
         };
         if !should_fail_execution {
             assert!(!execution_result.as_ref().unwrap().is_reverted());
@@ -344,7 +344,7 @@ fn test_worker_execute(max_resource_bounds: ResourceBoundsMapping) {
     let execution_output = worker_executor.execution_outputs[tx_index].lock().unwrap();
     let execution_output = execution_output.as_ref().unwrap();
     let result = execution_output.result.as_ref().unwrap();
-    let account_balance = BALANCE - result.transaction_receipt.fee.0;
+    let account_balance = BALANCE - result.receipt.fee.0;
     assert!(!result.is_reverted());
 
     let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);

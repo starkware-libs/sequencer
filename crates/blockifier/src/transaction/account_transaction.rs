@@ -690,7 +690,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
             validate_call_info,
             execute_call_info,
             fee_transfer_call_info,
-            transaction_receipt: TransactionReceipt {
+            receipt: TransactionReceipt {
                 fee: final_fee,
                 da_gas: final_da_gas,
                 resources: final_resources,
