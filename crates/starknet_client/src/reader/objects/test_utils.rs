@@ -9,6 +9,7 @@ use starknet_api::core::{
     EthAddress,
     Nonce,
 };
+use starknet_api::execution_resources::GasVector;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{EntryPoint, EntryPointType};
 use starknet_api::transaction::{
@@ -17,7 +18,6 @@ use starknet_api::transaction::{
     ContractAddressSalt,
     Event,
     Fee,
-    GasVector,
     L1ToL2Payload,
     L2ToL1Payload,
     PaymasterData,

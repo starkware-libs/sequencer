@@ -5,8 +5,9 @@ use super::block_hash_calculator::{TransactionHashingData, TransactionOutputForH
 use crate::core::ReceiptCommitment;
 use crate::crypto::patricia_hash::calculate_root;
 use crate::crypto::utils::HashChain;
+use crate::execution_resources::GasVector;
 use crate::hash::starknet_keccak_hash;
-use crate::transaction::{GasVector, MessageToL1, TransactionExecutionStatus, TransactionHash};
+use crate::transaction::{MessageToL1, TransactionExecutionStatus, TransactionHash};
 
 #[cfg(test)]
 #[path = "receipt_commitment_test.rs"]
