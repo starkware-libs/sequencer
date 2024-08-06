@@ -114,7 +114,7 @@ impl FromIterator<ThinTransaction> for TransactionPool {
     fn from_iter<T: IntoIterator<Item = ThinTransaction>>(txs: T) -> Self {
         let mut pool = Self::default();
         for tx in txs {
-            pool.insert(tx).unwrap();
+            pool.insert((&tx).into()).unwrap();
         }
         pool
     }
