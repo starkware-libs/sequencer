@@ -13,7 +13,7 @@ use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::entry_point::{CallEntryPoint, CallType};
-use crate::execution::syscalls::syscall_tests::consts::{
+use crate::execution::syscalls::syscall_tests::constants::{
     REQUIRED_GAS_LIBRARY_CALL_TEST,
     REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
 };

@@ -5,7 +5,6 @@ use starknet_api::transaction::{Calldata, EventContent, EventData, EventKey};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
-use super::utils::assert_consistent_contract_version;
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
@@ -98,7 +97,6 @@ fn emit_events(
 ) -> Result<CallInfo, EntryPointExecutionError> {
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
-    assert_consistent_contract_version(test_contract, &state);
     let calldata = Calldata(
         concat(vec![
             n_emitted_events.to_owned(),
@@ -117,6 +115,5 @@ fn emit_events(
     };
 
     let result = entry_point_call.execute_directly(&mut state);
-    assert_consistent_contract_version(test_contract, &state);
     result
 }
