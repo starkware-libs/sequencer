@@ -5,8 +5,7 @@ use committer_cli::parse_input::read::{load_from_stdin, read_from_stdin, write_t
 use committer_cli::tests::python_tests::PythonTest;
 use committer_cli::tracing_utils::configure_tracing;
 use starknet_api::block_hash::block_hash_calculator::{
-    calculate_block_commitments,
-    calculate_block_hash,
+    calculate_block_commitments, calculate_block_hash,
 };
 use tracing::info;
 
@@ -63,7 +62,7 @@ async fn main() {
     let log_filter_handle = configure_tracing();
 
     let args = CommitterCliArgs::parse();
-    info!("Starting committer-cli with args \n{:?}", args);
+    info!("Starting committer-cli with args: \n{:?}", args);
 
     match args.command {
         Command::Commit { output_path } => {
@@ -93,7 +92,7 @@ async fn main() {
             let block_hash =
                 calculate_block_hash(block_hash_input.header, block_hash_input.block_commitments);
             write_to_file(&output_path, &block_hash);
-            info!("Successfully computed block hash.");
+            info!("Successfully computed block hash {:?}.", block_hash);
         }
 
         Command::BlockHashCommitments { output_path } => {
@@ -105,7 +104,7 @@ async fn main() {
                 commitments_input.l1_da_mode,
             );
             write_to_file(&output_path, &commitments);
-            info!("Successfully computed block hash commitment.");
+            info!("Successfully computed block hash commitment: \n{:?}", commitments);
         }
     }
 }

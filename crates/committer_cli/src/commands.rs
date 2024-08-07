@@ -15,7 +15,7 @@ pub async fn parse_and_commit(
 ) {
     let input = parse_input(input_string).expect("Failed to parse the given input.");
     info!(
-        "Parsed commiter input successfully. Original Contracts Trie Root Hash: {:?}, 
+        "Parsed committer input successfully. Original Contracts Trie Root Hash: {:?}, 
     Original Classes Trie Root Hash: {:?}",
         input.contracts_trie_root_hash, input.classes_trie_root_hash,
     );
