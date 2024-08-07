@@ -24,7 +24,7 @@ pub struct TransactionPool {
 
 impl TransactionPool {
     pub fn insert(&mut self, tx: Transaction) -> MempoolResult<()> {
-        let tx_reference = TransactionReference::new_from_transaction(&tx);
+        let tx_reference = TransactionReference::new(&tx);
         let tx_hash = tx_reference.tx_hash;
 
         // Insert to pool.
@@ -52,7 +52,7 @@ impl TransactionPool {
             self.tx_pool.remove(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })?;
 
         // Remove from account mapping.
-        self.txs_by_account.remove(TransactionReference::new(&(&tx).into())).unwrap_or_else(|| {
+        self.txs_by_account.remove(TransactionReference::new(&tx)).unwrap_or_else(|| {
             panic!(
                 "Transaction pool consistency error: transaction with hash {tx_hash} appears in \
                  main mapping, but does not appear in the account mapping"
