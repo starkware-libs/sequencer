@@ -106,7 +106,7 @@ async fn add_tx(
         GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
     })??;
 
-    let tx_hash = mempool_input.tx.tx_hash;
+    let tx_hash = mempool_input.tx.tx_hash();
 
     app_state.mempool_client.add_tx(mempool_input).await.map_err(|e| {
         error!("Failed to send tx to mempool: {}", e);
@@ -143,7 +143,8 @@ fn process_tx(
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
     Ok(MempoolInput {
-        tx: external_tx_to_thin_tx(&tx, validate_info.tx_hash, validate_info.sender_address),
+        tx: (&external_tx_to_thin_tx(&tx, validate_info.tx_hash, validate_info.sender_address))
+            .into(),
         account: Account {
             sender_address: validate_info.sender_address,
             state: AccountState { nonce: validate_info.account_nonce },
