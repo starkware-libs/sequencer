@@ -264,15 +264,12 @@ fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_even
     tx_executor.bouncer.set_accumulated_weights(initial_bouncer_weights);
 
     tx_executor
-        .execute(
-            &Transaction::AccountTransaction(emit_n_events_tx(
-                n_events,
-                account_address,
-                contract_address,
-                nonce_manager.next(account_address),
-            )),
-            true,
-        )
+        .execute(&Transaction::AccountTransaction(emit_n_events_tx(
+            n_events,
+            account_address,
+            contract_address,
+            nonce_manager.next(account_address),
+        )), true)
         .map_err(|error| panic!("{error:?}: {error}"))
         .unwrap();
 }
