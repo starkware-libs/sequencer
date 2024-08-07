@@ -76,7 +76,7 @@ pub struct StatelessTransactionValidatorConfig {
     pub max_signature_length: usize,
 
     // Declare txs specific config.
-    pub max_raw_class_size: usize,
+    pub max_contract_class_object_size: usize,
     pub min_sierra_version: VersionId,
     pub max_sierra_version: VersionId,
 }
@@ -88,7 +88,7 @@ impl Default for StatelessTransactionValidatorConfig {
             validate_non_zero_l2_gas_fee: false,
             max_calldata_length: 4000,
             max_signature_length: 4000,
-            max_raw_class_size: 4089446,
+            max_contract_class_object_size: 4089446,
             min_sierra_version: VersionId { major: 1, minor: 1, patch: 0 },
             max_sierra_version: VersionId { major: 1, minor: 5, patch: usize::MAX },
         }
@@ -123,8 +123,8 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "max_raw_class_size",
-                &self.max_raw_class_size,
+                "max_contract_class_object_size",
+                &self.max_contract_class_object_size,
                 "Limitation of contract class object size.",
                 ParamPrivacyInput::Public,
             ),
