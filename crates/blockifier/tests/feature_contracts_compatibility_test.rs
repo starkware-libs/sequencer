@@ -3,6 +3,7 @@ use std::fs;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::CairoVersion;
 use pretty_assertions::assert_eq;
+use rstest::rstest;
 
 const CAIRO0_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo0";
 const CAIRO1_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo1";
@@ -40,6 +41,7 @@ const FIX_COMMAND: &str = "FIX_FEATURE_TEST=1 cargo test -- --ignored";
 // 2. for each `X.cairo` file in `TEST_CONTRACTS` there exists an `X_compiled.json` file in
 // `COMPILED_CONTRACTS_SUBDIR` which equals `starknet-compile-deprecated X.cairo --no_debug_info`.
 fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoVersion) {
+    // TODO(Dori, 1/10/2024): Parallelize this test.
     for contract in FeatureContract::all_feature_contracts()
         .filter(|contract| contract.cairo_version() == cairo_version)
     {
@@ -123,9 +125,17 @@ fn verify_feature_contracts_match_enum() {
     assert_eq!(compiled_paths_from_enum, compiled_paths_on_filesystem);
 }
 
-#[test]
+#[rstest]
 #[ignore]
-fn verify_feature_contracts() {
+fn verify_feature_contracts(
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
+) {
+    // TODO(Dori, 1/9/2024): Support Cairo1 contracts in the CI and remove this `if` statement.
+    if std::env::var("CI").unwrap_or("false".into()) == "true"
+        && matches!(cairo_version, CairoVersion::Cairo1)
+    {
+        return;
+    }
     let fix_features = std::env::var("FIX_FEATURE_TEST").is_ok();
-    verify_feature_contracts_compatibility(fix_features, CairoVersion::Cairo0)
+    verify_feature_contracts_compatibility(fix_features, cairo_version)
 }
