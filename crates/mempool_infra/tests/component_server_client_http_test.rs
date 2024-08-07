@@ -283,9 +283,9 @@ async fn test_retry_request() {
 
         let socket = SocketAddr::new(LOCAL_IP, RETRY_REQ_PORT);
         let make_svc = make_service_fn(|_conn| {
-            let is_response_ok = should_send_ok.clone();
+            let should_send_ok = should_send_ok.clone();
             async move {
-                Ok::<_, hyper::Error>(service_fn(move |req| handler(req, is_response_ok.clone())))
+                Ok::<_, hyper::Error>(service_fn(move |req| handler(req, should_send_ok.clone())))
             }
         });
 
