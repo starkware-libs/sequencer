@@ -5,6 +5,7 @@ use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
+use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::{Tip, TransactionHash};
 use starknet_api::{contract_address, felt, patricia_key};
@@ -37,7 +38,7 @@ struct PartialContent;
 impl MempoolContent<FullContent> {
     fn new<P, Q>(pool_txs: P, queue_txs: Q) -> Self
     where
-        P: IntoIterator<Item = ThinTransaction>,
+        P: IntoIterator<Item = Transaction>,
         // TODO(Ayelet): Consider using `&ThinTransaction` instead of `TransactionReference`.
         Q: IntoIterator<Item = TransactionReference>,
     {
@@ -52,7 +53,7 @@ impl MempoolContent<FullContent> {
 impl MempoolContent<PartialContent> {
     fn with_pool<P>(pool_txs: P) -> Self
     where
-        P: IntoIterator<Item = ThinTransaction>,
+        P: IntoIterator<Item = Transaction>,
     {
         Self {
             tx_pool: Some(pool_txs.into_iter().collect()),
@@ -110,11 +111,11 @@ impl Default for MempoolContent<FullContent> {
     }
 }
 
-impl FromIterator<ThinTransaction> for TransactionPool {
-    fn from_iter<T: IntoIterator<Item = ThinTransaction>>(txs: T) -> Self {
+impl FromIterator<Transaction> for TransactionPool {
+    fn from_iter<T: IntoIterator<Item = Transaction>>(txs: T) -> Self {
         let mut pool = Self::default();
         for tx in txs {
-            pool.insert((&tx).into()).unwrap();
+            pool.insert(tx).unwrap();
         }
         pool
     }
@@ -159,7 +160,7 @@ macro_rules! add_tx_input {
             sender_address,
             nonce: Nonce(felt!($tx_nonce)),
         };
-        MempoolInput { tx, account }
+        MempoolInput { tx: (&tx).into(), account }
     }};
     (tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
         add_tx_input!(tip: 0, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, account_nonce: $account_nonce)
@@ -219,7 +220,7 @@ fn test_get_txs_returns_by_priority_order(#[case] requested_txs: usize) {
     // Test.
     let fetched_txs = mempool.get_txs(requested_txs).unwrap();
 
-    txs.sort_by_key(|tx| Reverse(tx.tip));
+    txs.sort_by_key(|tx| Reverse(tx.tip()));
 
     // Ensure we do not exceed the number of transactions available in the mempool.
     let max_requested_txs = requested_txs.min(txs.len());
@@ -380,7 +381,7 @@ fn test_add_tx(mut mempool: Mempool) {
 
     // TODO(Ayelet): Consider share this code.
     // Sort in an ascending priority order.
-    add_tx_inputs.sort_by_key(|input| std::cmp::Reverse(input.tx.tip));
+    add_tx_inputs.sort_by_key(|input| std::cmp::Reverse(input.tx.tip().unwrap()));
 
     // Assert: transactions are ordered by priority.
     let expected_queue_txs: Vec<TransactionReference> =

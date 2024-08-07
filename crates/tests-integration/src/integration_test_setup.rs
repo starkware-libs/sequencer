@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::CairoVersion;
+use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway::config::GatewayNetworkConfig;
@@ -10,7 +11,6 @@ use starknet_mempool_infra::trace_util::configure_tracing;
 use starknet_mempool_node::communication::{create_node_channels, create_node_clients};
 use starknet_mempool_node::components::create_components;
 use starknet_mempool_node::servers::{create_servers, get_server_future};
-use starknet_mempool_types::mempool_types::ThinTransaction;
 use starknet_task_executor::tokio_executor::TokioExecutor;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
@@ -91,7 +91,7 @@ impl IntegrationTestSetup {
         self.gateway_client.assert_add_tx_error(tx).await
     }
 
-    pub async fn get_txs(&self, n_txs: usize) -> Vec<ThinTransaction> {
+    pub async fn get_txs(&self, n_txs: usize) -> Vec<Transaction> {
         self.batcher.get_txs(n_txs).await
     }
 }
