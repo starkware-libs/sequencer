@@ -11,6 +11,7 @@ use starknet_api::core::{
     Nonce,
     PatriciaKey,
 };
+use starknet_api::execution_resources::GasVector;
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_api::transaction::{
     Event,
@@ -18,7 +19,6 @@ use starknet_api::transaction::{
     EventData,
     EventKey,
     Fee,
-    GasVector,
     L2ToL1Payload,
     MessageToL1,
     RevertedTransactionExecutionStatus,

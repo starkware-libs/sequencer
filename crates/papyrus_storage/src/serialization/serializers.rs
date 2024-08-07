@@ -64,6 +64,7 @@ use starknet_api::deprecated_contract_class::{
     StructType,
     TypedParameter,
 };
+use starknet_api::execution_resources::{Builtin, ExecutionResources, GasVector};
 use starknet_api::hash::{PoseidonHash, StarkHash};
 use starknet_api::state::{
     ContractClass,
@@ -75,7 +76,6 @@ use starknet_api::state::{
 };
 use starknet_api::transaction::{
     AccountDeploymentData,
-    Builtin,
     Calldata,
     ContractAddressSalt,
     DeclareTransaction,
@@ -94,9 +94,7 @@ use starknet_api::transaction::{
     EventData,
     EventIndexInTransactionOutput,
     EventKey,
-    ExecutionResources,
     Fee,
-    GasVector,
     InvokeTransaction,
     InvokeTransactionOutput,
     InvokeTransactionV0,

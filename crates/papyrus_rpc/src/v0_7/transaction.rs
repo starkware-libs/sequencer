@@ -835,22 +835,22 @@ pub enum Builtin {
     SegmentArena,
 }
 
-impl TryFrom<starknet_api::transaction::Builtin> for Builtin {
+impl TryFrom<starknet_api::execution_resources::Builtin> for Builtin {
     type Error = ();
-    fn try_from(builtin: starknet_api::transaction::Builtin) -> Result<Self, Self::Error> {
+    fn try_from(builtin: starknet_api::execution_resources::Builtin) -> Result<Self, Self::Error> {
         match builtin {
-            starknet_api::transaction::Builtin::RangeCheck => Ok(Builtin::RangeCheck),
-            starknet_api::transaction::Builtin::Pedersen => Ok(Builtin::Pedersen),
-            starknet_api::transaction::Builtin::Poseidon => Ok(Builtin::Poseidon),
-            starknet_api::transaction::Builtin::EcOp => Ok(Builtin::EcOp),
-            starknet_api::transaction::Builtin::Ecdsa => Ok(Builtin::Ecdsa),
-            starknet_api::transaction::Builtin::Bitwise => Ok(Builtin::Bitwise),
-            starknet_api::transaction::Builtin::Keccak => Ok(Builtin::Keccak),
-            starknet_api::transaction::Builtin::SegmentArena => Ok(Builtin::SegmentArena),
+            starknet_api::execution_resources::Builtin::RangeCheck => Ok(Builtin::RangeCheck),
+            starknet_api::execution_resources::Builtin::Pedersen => Ok(Builtin::Pedersen),
+            starknet_api::execution_resources::Builtin::Poseidon => Ok(Builtin::Poseidon),
+            starknet_api::execution_resources::Builtin::EcOp => Ok(Builtin::EcOp),
+            starknet_api::execution_resources::Builtin::Ecdsa => Ok(Builtin::Ecdsa),
+            starknet_api::execution_resources::Builtin::Bitwise => Ok(Builtin::Bitwise),
+            starknet_api::execution_resources::Builtin::Keccak => Ok(Builtin::Keccak),
+            starknet_api::execution_resources::Builtin::SegmentArena => Ok(Builtin::SegmentArena),
             // These builtins are not part of the specs.
-            starknet_api::transaction::Builtin::AddMod
-            | starknet_api::transaction::Builtin::MulMod
-            | starknet_api::transaction::Builtin::RangeCheck96 => Err(()),
+            starknet_api::execution_resources::Builtin::AddMod
+            | starknet_api::execution_resources::Builtin::MulMod
+            | starknet_api::execution_resources::Builtin::RangeCheck96 => Err(()),
         }
     }
 }
@@ -926,8 +926,8 @@ impl Add for ExecutionResources {
     }
 }
 
-impl From<starknet_api::transaction::ExecutionResources> for ExecutionResources {
-    fn from(value: starknet_api::transaction::ExecutionResources) -> Self {
+impl From<starknet_api::execution_resources::ExecutionResources> for ExecutionResources {
+    fn from(value: starknet_api::execution_resources::ExecutionResources) -> Self {
         let l1_gas = value.da_gas_consumed.l1_gas;
         let l1_data_gas = value.da_gas_consumed.l1_data_gas;
         Self {
@@ -937,8 +937,8 @@ impl From<starknet_api::transaction::ExecutionResources> for ExecutionResources 
     }
 }
 
-impl From<starknet_api::transaction::ExecutionResources> for ComputationResources {
-    fn from(value: starknet_api::transaction::ExecutionResources) -> Self {
+impl From<starknet_api::execution_resources::ExecutionResources> for ComputationResources {
+    fn from(value: starknet_api::execution_resources::ExecutionResources) -> Self {
         Self {
             steps: value.steps,
             builtin_instance_counter: value

@@ -7,7 +7,8 @@ use papyrus_test_utils::{auto_impl_get_test_instance, get_number_of_variants, Ge
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, PatriciaKey};
 use starknet_api::deprecated_contract_class::EntryPointType;
-use starknet_api::transaction::{Calldata, EventContent, ExecutionResources, Fee, MessageToL1};
+use starknet_api::execution_resources::ExecutionResources;
+use starknet_api::transaction::{Calldata, EventContent, Fee, MessageToL1};
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
 
