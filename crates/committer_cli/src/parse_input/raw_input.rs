@@ -1,6 +1,6 @@
-use committer::block_committer::input::ConfigImpl;
 use serde::{Deserialize, Serialize};
 use serde_repr::Deserialize_repr;
+use starknet_committer::block_committer::input::ConfigImpl;
 use tracing::level_filters::LevelFilter;
 type RawFelt = [u8; 32];
 

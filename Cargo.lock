@@ -2006,6 +2006,7 @@ dependencies = [
  "serde_repr",
  "starknet-types-core",
  "starknet_api",
+ "starknet_committer",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "tempfile",
@@ -8929,6 +8930,21 @@ dependencies = [
  "tokio-retry",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "starknet_committer"
+version = "0.1.0-rc.0"
+dependencies = [
+ "committer",
+ "hex",
+ "pretty_assertions",
+ "rstest",
+ "serde_json",
+ "starknet-types-core",
+ "thiserror",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
