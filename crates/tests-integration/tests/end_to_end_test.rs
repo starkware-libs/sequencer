@@ -42,6 +42,7 @@ async fn test_end_to_end() {
     // This assert should be replaced with 4 once queue-replenishment is merged, also add a tx hole
     // at that point, and ensure the assert doesn't change due to that.
     assert_eq!(mempool_txs.len(), 2);
-    let actual_tx_hashes: Vec<TransactionHash> = mempool_txs.iter().map(|tx| tx.tx_hash).collect();
+    let actual_tx_hashes: Vec<TransactionHash> =
+        mempool_txs.iter().map(|tx| tx.tx_hash()).collect();
     assert_eq!(expected_tx_hashes_from_get_txs, *actual_tx_hashes);
 }
