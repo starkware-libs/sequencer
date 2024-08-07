@@ -52,7 +52,7 @@ fn tx_executor_test_body<S: StateReader>(
     // TODO(Arni, 30/03/2024): Consider adding a test for the transaction execution info. If A test
     // should not be added, rename the test to `test_bouncer_info`.
     // TODO(Arni, 30/03/2024): Test all bouncer weights.
-    let _tx_execution_info = tx_executor.execute(&tx).unwrap();
+    let _tx_execution_info = tx_executor.execute(&tx, true).unwrap();
     let bouncer_weights = tx_executor.bouncer.get_accumulated_weights();
     assert_eq!(bouncer_weights.state_diff_size, expected_bouncer_weights.state_diff_size);
     assert_eq!(
@@ -269,7 +269,7 @@ fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_even
             account_address,
             contract_address,
             nonce_manager.next(account_address),
-        )))
+        )), true)
         .map_err(|error| panic!("{error:?}: {error}"))
         .unwrap();
 }
@@ -305,7 +305,7 @@ fn test_execute_txs_bouncing() {
     .collect();
 
     // Run.
-    let results = tx_executor.execute_txs(&txs);
+    let results = tx_executor.execute_txs(&txs, true);
 
     // Check execution results.
     let expected_offset = 3;
@@ -333,12 +333,12 @@ fn test_execute_txs_bouncing() {
 
     // Check idempotency: excess transactions should not be added.
     let remaining_txs = &txs[expected_offset..];
-    let remaining_tx_results = tx_executor.execute_txs(remaining_txs);
+    let remaining_tx_results = tx_executor.execute_txs(remaining_txs, true);
     assert_eq!(remaining_tx_results.len(), 0);
 
     // Reset the bouncer and add the remaining transactions.
     tx_executor.bouncer = Bouncer::new(tx_executor.block_context.bouncer_config.clone());
-    let remaining_tx_results = tx_executor.execute_txs(remaining_txs);
+    let remaining_tx_results = tx_executor.execute_txs(remaining_txs, true);
 
     assert_eq!(remaining_tx_results.len(), 2);
     assert!(remaining_tx_results[0].is_ok());

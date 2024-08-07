@@ -86,13 +86,13 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         }
     }
 
-    pub fn run(&self) {
+    pub fn run(&self, charge_fee: bool) {
         let mut task = Task::AskForTask;
         loop {
-            self.commit_while_possible();
+            self.commit_while_possible(charge_fee);
             task = match task {
                 Task::ExecutionTask(tx_index) => {
-                    self.execute(tx_index);
+                    self.execute(tx_index, charge_fee);
                     Task::AskForTask
                 }
                 Task::ValidationTask(tx_index) => self.validate(tx_index),
@@ -108,10 +108,10 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         }
     }
 
-    fn commit_while_possible(&self) {
+    fn commit_while_possible(&self, charge_fee: bool) {
         if let Some(mut transaction_committer) = self.scheduler.try_enter_commit_phase() {
             while let Some(tx_index) = transaction_committer.try_commit() {
-                let commit_succeeded = self.commit_tx(tx_index);
+                let commit_succeeded = self.commit_tx(tx_index, charge_fee);
                 if !commit_succeeded {
                     transaction_committer.halt_scheduler();
                 }
@@ -119,18 +119,18 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         }
     }
 
-    fn execute(&self, tx_index: TxIndex) {
-        self.execute_tx(tx_index);
+    fn execute(&self, tx_index: TxIndex, charge_fee: bool) {
+        self.execute_tx(tx_index, charge_fee);
         self.scheduler.finish_execution(tx_index)
     }
 
-    fn execute_tx(&self, tx_index: TxIndex) {
+    fn execute_tx(&self, tx_index: TxIndex, charge_fee: bool) {
         let mut tx_versioned_state = self.state.pin_version(tx_index);
         let tx = &self.chunk[tx_index];
         let mut transactional_state =
             TransactionalState::create_transactional(&mut tx_versioned_state);
         let execution_flags =
-            ExecutionFlags { charge_fee: true, validate: true, concurrency_mode: true };
+            ExecutionFlags { charge_fee, validate: true, concurrency_mode: true };
         let execution_result =
             tx.execute_raw(&mut transactional_state, self.block_context, execution_flags);
 
@@ -191,7 +191,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     ///         - Else (no room), do not commit. The block should be closed without the transaction.
     ///     * Else (execution failed), commit the transaction without fixing the call info or
     ///       updating the sequencer balance.
-    fn commit_tx(&self, tx_index: TxIndex) -> bool {
+    fn commit_tx(&self, tx_index: TxIndex, charge_fee: bool) -> bool {
         let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
         let execution_output_ref = execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR);
         let reads = &execution_output_ref.reads;
@@ -209,7 +209,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
             // Release the execution output lock as it is acquired in execution (avoid dead-lock).
             drop(execution_output);
 
-            self.execute_tx(tx_index);
+            self.execute_tx(tx_index, charge_fee);
             self.scheduler.finish_execution_during_commit(tx_index);
 
             let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);

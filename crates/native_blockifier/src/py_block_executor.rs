@@ -159,14 +159,15 @@ impl PyBlockExecutor {
         self.tx_executor = None;
     }
 
-    #[pyo3(signature = (tx, optional_py_class_info))]
+    #[pyo3(signature = (tx, charge_fee, optional_py_class_info))]
     pub fn execute(
         &mut self,
         tx: &PyAny,
+        charge_fee: bool,
         optional_py_class_info: Option<PyClassInfo>,
     ) -> NativeBlockifierResult<Py<PyBytes>> {
         let tx: Transaction = py_tx(tx, optional_py_class_info).expect(PY_TX_PARSING_ERR);
-        let tx_execution_info = self.tx_executor().execute(&tx)?;
+        let tx_execution_info = self.tx_executor().execute(&tx, charge_fee)?;
         let thin_tx_execution_info = ThinTransactionExecutionInfo::from_tx_execution_info(
             &self.tx_executor().block_context,
             tx_execution_info,
@@ -180,10 +181,11 @@ impl PyBlockExecutor {
     /// Executes the given transactions on the Blockifier state.
     /// Stops if and when there is no more room in the block, and returns the executed transactions'
     /// results as a PyList of (success (bool), serialized result (bytes)) tuples.
-    #[pyo3(signature = (txs_with_class_infos))]
+    #[pyo3(signature = (txs_with_class_infos, charge_fee))]
     pub fn execute_txs(
         &mut self,
         txs_with_class_infos: Vec<(&PyAny, Option<PyClassInfo>)>,
+        charge_fee: bool,
     ) -> Py<PyList> {
         // Parse Py transactions.
         let txs: Vec<Transaction> = txs_with_class_infos
@@ -195,7 +197,7 @@ impl PyBlockExecutor {
 
         // Run.
         let results =
-            Python::with_gil(|py| py.allow_threads(|| self.tx_executor().execute_txs(&txs)));
+            Python::with_gil(|py| py.allow_threads(|| self.tx_executor().execute_txs(&txs, charge_fee)));
 
         // Process results.
         // TODO(Yoni, 15/5/2024): serialize concurrently.
