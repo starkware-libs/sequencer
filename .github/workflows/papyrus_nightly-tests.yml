@@ -37,7 +37,7 @@ jobs:
     if: github.event.schedule == '30 0 * * *'
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
 
       - run: mkdir data
@@ -57,7 +57,7 @@ jobs:
     if: github.event.schedule == '30 0 * * *'
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
       - run: npm install -g ganache@7.4.3
 
@@ -73,7 +73,7 @@ jobs:
     if: github.event.schedule == '30 0 * * *'
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
       - run: cargo build -r -p papyrus_load_test
 
@@ -82,7 +82,7 @@ jobs:
     if: github.event.schedule == '30 0 * * *'
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
       - run: >
           cargo test -r
@@ -98,6 +98,6 @@ jobs:
     runs-on: starkware-ubuntu-latest-small
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
       - run: for run in {1..100}; do cargo test -r -p papyrus_storage -- --include-ignored common_prefix_compare_with_simple_table_random; done
