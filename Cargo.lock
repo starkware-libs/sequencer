@@ -1974,7 +1974,6 @@ dependencies = [
  "derive_more",
  "ethnum",
  "hex",
- "log",
  "pretty_assertions",
  "rand 0.8.5",
  "rstest",
@@ -1985,6 +1984,7 @@ dependencies = [
  "strum_macros 0.25.3",
  "thiserror",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -1998,14 +1998,12 @@ dependencies = [
  "ethnum",
  "futures",
  "indexmap 2.2.6",
- "log",
  "pretty_assertions",
  "rand 0.8.5",
  "rand_distr",
  "serde",
  "serde_json",
  "serde_repr",
- "simplelog",
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
@@ -2013,6 +2011,8 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
