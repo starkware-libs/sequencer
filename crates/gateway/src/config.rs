@@ -247,20 +247,20 @@ impl SerializeConfig for GatewayCompilerConfig {
 /// The configuration for the post compilation process in the gateway compiler.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct PostCompilationConfig {
-    pub max_raw_casm_class_size: usize,
+    pub max_casm_contract_class_object_size: usize,
 }
 
 impl Default for PostCompilationConfig {
     fn default() -> Self {
-        PostCompilationConfig { max_raw_casm_class_size: 4089446 }
+        PostCompilationConfig { max_casm_contract_class_object_size: 4089446 }
     }
 }
 
 impl SerializeConfig for PostCompilationConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([ser_param(
-            "max_raw_casm_class_size",
-            &self.max_raw_casm_class_size,
+            "max_casm_contract_class_object_size",
+            &self.max_casm_contract_class_object_size,
             "Limitation of contract class object size.",
             ParamPrivacyInput::Public,
         )])

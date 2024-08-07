@@ -1,5 +1,5 @@
 {
-  "compiler_config.post_compilation_config.max_raw_casm_class_size": {
+  "compiler_config.post_compilation_config.max_casm_contract_class_object_size": {
     "description": "Limitation of contract class object size.",
     "privacy": "Public",
     "value": 4089446
