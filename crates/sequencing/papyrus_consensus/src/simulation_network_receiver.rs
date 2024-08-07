@@ -43,6 +43,8 @@ impl<ReceiverT> NetworkReceiver<ReceiverT>
 where
     ReceiverT: Stream<Item = (Result<ConsensusMessage, ProtobufConversionError>, ReportSender)>,
 {
+    // TODO(Meshi): remove this before merging this pr.
+    #[allow(dead_code)]
     pub fn new(
         receiver: ReceiverT,
         cache_size: usize,
