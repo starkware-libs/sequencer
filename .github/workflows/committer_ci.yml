@@ -135,7 +135,7 @@ jobs:
         run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
 
       - name: Build CLI binary
-        run: cargo build -p committer_cli -r --bin committer_cli --target-dir CLI_TARGET
+        run: cargo build -p committer_cli --release --bin committer_cli --target x86_64-unknown-linux-musl --target-dir CLI_TARGET
 
       - id: auth
         uses: "google-github-actions/auth@v2"
