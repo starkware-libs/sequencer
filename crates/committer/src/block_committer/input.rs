@@ -11,7 +11,7 @@ use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::storage_trait::{StorageKey, StorageValue};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-// TODO(Nimrod, 1/6/2025): Use the ContractAddress defined in starknet-types-core when available.
+// TODO(Nimrod, 1/6/2025): Use the ContractAddress defined in starknet-types-core when available .
 pub struct ContractAddress(pub Felt);
 
 impl From<&ContractAddress> for NodeIndex {
