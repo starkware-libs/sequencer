@@ -1,3 +1,4 @@
+pub mod cairo_compile;
 pub mod contracts;
 pub mod declare;
 pub mod deploy_account;
