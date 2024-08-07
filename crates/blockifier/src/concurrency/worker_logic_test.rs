@@ -113,6 +113,8 @@ pub fn test_commit_tx() {
     let executor =
         WorkerExecutor::new(versioned_state, &txs, &block_context, Mutex::new(&mut bouncer));
 
+    let charge_fee = true;
+
     // Execute transactions.
     // Simulate a concurrent run by executing tx1 before tx0.
     // tx1 should fail execution since its nonce equals 1, and it is being executed before tx0,
@@ -125,7 +127,7 @@ pub fn test_commit_tx() {
     for &(execute_idx, should_fail_execution) in
         [(1, true), (0, false), (2, false), (3, true)].iter()
     {
-        executor.execute_tx(execute_idx);
+        executor.execute_tx(execute_idx, charge_fee);
         let execution_task_outputs = lock_mutex_in_array(&executor.execution_outputs, execute_idx);
         let result = &execution_task_outputs.as_ref().unwrap().result;
         assert_eq!(result.is_err(), should_fail_execution);
@@ -146,7 +148,7 @@ pub fn test_commit_tx() {
     for &(commit_idx, should_fail_execution) in
         [(0, false), (1, false), (2, true), (3, true)].iter()
     {
-        executor.commit_tx(commit_idx);
+        executor.commit_tx(commit_idx, charge_fee);
         let execution_task_outputs = lock_mutex_in_array(&executor.execution_outputs, commit_idx);
         let execution_result = &execution_task_outputs.as_ref().unwrap().result;
         let expected_sequencer_balance_high = 0_u128;
@@ -220,7 +222,8 @@ fn test_commit_tx_when_sender_is_sequencer() {
     let tx_versioned_state = executor.state.pin_version(tx_index);
 
     // Execute and save the execution result.
-    executor.execute_tx(tx_index);
+    let charge_fee = true;
+    executor.execute_tx(tx_index, charge_fee);
     let execution_task_outputs = lock_mutex_in_array(&executor.execution_outputs, tx_index);
     let execution_result = &execution_task_outputs.as_ref().unwrap().result;
     let fee_transfer_call_info =
@@ -237,7 +240,8 @@ fn test_commit_tx_when_sender_is_sequencer() {
         tx_versioned_state.get_storage_at(fee_token_address, sequencer_balance_key_low).unwrap();
 
     // Commit tx and check that the commit made no changes in the execution result or the state.
-    executor.commit_tx(tx_index);
+    let charge_fee = true;
+    executor.commit_tx(tx_index, charge_fee);
     let execution_task_outputs = lock_mutex_in_array(&executor.execution_outputs, tx_index);
     let commit_result = &execution_task_outputs.as_ref().unwrap().result;
     let fee_transfer_call_info =
@@ -331,7 +335,8 @@ fn test_worker_execute(max_resource_bounds: ResourceBoundsMapping) {
 
     // Successful execution.
     let tx_index = 0;
-    worker_executor.execute(tx_index);
+    let charge_fee = true;
+    worker_executor.execute(tx_index, charge_fee);
     // Read a write made by the transaction.
     assert_eq!(
         safe_versioned_state
@@ -392,7 +397,8 @@ fn test_worker_execute(max_resource_bounds: ResourceBoundsMapping) {
 
     // Failed execution.
     let tx_index = 1;
-    worker_executor.execute(tx_index);
+    let charge_fee = true;
+    worker_executor.execute(tx_index, charge_fee);
     // No write was made by the transaction.
     assert_eq!(
         safe_versioned_state.pin_version(tx_index).get_nonce_at(account_address).unwrap(),
@@ -411,7 +417,8 @@ fn test_worker_execute(max_resource_bounds: ResourceBoundsMapping) {
 
     // Reverted execution.
     let tx_index = 2;
-    worker_executor.execute(tx_index);
+    let charge_fee = true;
+    worker_executor.execute(tx_index, charge_fee);
     // Read a write made by the transaction.
     assert_eq!(
         safe_versioned_state.pin_version(tx_index).get_nonce_at(account_address).unwrap(),
@@ -491,8 +498,9 @@ fn test_worker_validate(max_resource_bounds: ResourceBoundsMapping) {
     worker_executor.scheduler.next_task();
 
     // Execute transactions in the wrong order, making the first execution invalid.
-    worker_executor.execute(1);
-    worker_executor.execute(0);
+    let charge_fee = true;
+    worker_executor.execute(1, charge_fee);
+    worker_executor.execute(0, charge_fee);
 
     // Creates 2 active tasks.
     worker_executor.scheduler.next_task();
@@ -600,8 +608,9 @@ fn test_deploy_before_declare(
     worker_executor.scheduler.next_task();
 
     // Execute transactions in the wrong order, making the first execution invalid.
-    worker_executor.execute(1);
-    worker_executor.execute(0);
+    let charge_fee = true;
+    worker_executor.execute(1, charge_fee);
+    worker_executor.execute(0, charge_fee);
 
     let execution_output = worker_executor.execution_outputs[1].lock().unwrap();
     let tx_execution_info = execution_output.as_ref().unwrap().result.as_ref().unwrap();
@@ -617,7 +626,8 @@ fn test_deploy_before_declare(
     assert_eq!(worker_executor.validate(1), Task::ExecutionTask(1));
 
     // Execute transaction 1 again.
-    worker_executor.execute(1);
+    let charge_fee = true;
+    worker_executor.execute(1, charge_fee);
 
     let execution_output = worker_executor.execution_outputs[1].lock().unwrap();
     assert!(!execution_output.as_ref().unwrap().result.as_ref().unwrap().is_reverted());
@@ -668,7 +678,8 @@ fn test_worker_commit_phase(max_resource_bounds: ResourceBoundsMapping) {
         WorkerExecutor::new(safe_versioned_state, &txs, &block_context, Mutex::new(&mut bouncer));
 
     // Try to commit before any transaction is ready.
-    worker_executor.commit_while_possible();
+    let charge_fee = true;
+    worker_executor.commit_while_possible(charge_fee);
 
     // Verify no transaction was committed.
     assert_eq!(worker_executor.scheduler.get_n_committed_txs(), 0);
@@ -681,11 +692,12 @@ fn test_worker_commit_phase(max_resource_bounds: ResourceBoundsMapping) {
     assert_eq!(worker_executor.scheduler.next_task(), Task::ExecutionTask(1));
 
     // Execute the first two transactions.
-    worker_executor.execute(0);
-    worker_executor.execute(1);
+    let charge_fee = true;
+    worker_executor.execute(0, charge_fee);
+    worker_executor.execute(1, charge_fee);
 
     // Commit the first two transactions (only).
-    worker_executor.commit_while_possible();
+    worker_executor.commit_while_possible(charge_fee);
 
     // Verify the commit index is now 2.
     assert_eq!(worker_executor.scheduler.get_n_committed_txs(), 2);
@@ -696,10 +708,10 @@ fn test_worker_commit_phase(max_resource_bounds: ResourceBoundsMapping) {
 
     // Create the final execution task and execute it.
     assert_eq!(worker_executor.scheduler.next_task(), Task::ExecutionTask(2));
-    worker_executor.execute(2);
+    worker_executor.execute(2, charge_fee);
 
     // Commit the third (and last) transaction.
-    worker_executor.commit_while_possible();
+    worker_executor.commit_while_possible(charge_fee);
 
     // Verify the number of committed transactions is 3, the status of the last transaction is
     // `Committed`, and the next task is `Done`.
@@ -708,7 +720,7 @@ fn test_worker_commit_phase(max_resource_bounds: ResourceBoundsMapping) {
     assert_eq!(worker_executor.scheduler.next_task(), Task::Done);
 
     // Try to commit when all transactions are already committed.
-    worker_executor.commit_while_possible();
+    worker_executor.commit_while_possible(charge_fee);
     assert_eq!(worker_executor.scheduler.get_n_committed_txs(), 3);
 
     // Make sure all transactions were executed successfully.
@@ -763,13 +775,13 @@ fn test_worker_commit_phase_with_halt() {
     // `ReadyToExecute` and not `Executing` as expected).
     assert_eq!(worker_executor.scheduler.next_task(), Task::ExecutionTask(0));
     assert_eq!(worker_executor.scheduler.next_task(), Task::ExecutionTask(1));
-
+    let charge_fee = true;
     // Execute both transactions.
-    worker_executor.execute(0);
-    worker_executor.execute(1);
+    worker_executor.execute(0, charge_fee);
+    worker_executor.execute(1, charge_fee);
 
     // Commit both transactions.
-    worker_executor.commit_while_possible();
+    worker_executor.commit_while_possible(charge_fee);
 
     // Verify the scheduler is halted.
     assert_eq!(worker_executor.scheduler.next_task(), Task::Done);
