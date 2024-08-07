@@ -1023,6 +1023,7 @@ dependencies = [
  "test-case",
  "thiserror",
  "tikv-jemallocator",
+ "toml",
 ]
 
 [[package]]
