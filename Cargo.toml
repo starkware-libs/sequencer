@@ -80,7 +80,7 @@ clap = "4.5.4"
 colored = "2.1.0"
 committer = { path = "crates/committer", version = "0.1.0-rc.0" }
 const_format = "0.2.30"
-criterion = "0.3"
+criterion = "0.5.1"
 deadqueue = "0.2.4"
 defaultmap = "0.5.0"
 derive_more = "0.99.17"
