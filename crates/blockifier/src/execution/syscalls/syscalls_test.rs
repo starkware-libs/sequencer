@@ -297,7 +297,7 @@ fn test_keccak() {
 
     assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 256250, ..CallExecution::from_retdata(retdata![]) }
+        CallExecution { gas_consumed: 255110, ..CallExecution::from_retdata(retdata![]) }
     );
 }
 
@@ -316,7 +316,7 @@ fn test_sha256() {
 
     assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 892990, ..CallExecution::from_retdata(retdata![]) }
+        CallExecution { gas_consumed: 893590, ..CallExecution::from_retdata(retdata![]) }
     );
 }
 
@@ -794,7 +794,7 @@ fn test_secp256k1() {
 
     assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 17033810_u64, ..Default::default() }
+        CallExecution { gas_consumed: 17032670_u64, ..Default::default() }
     );
 }
 
