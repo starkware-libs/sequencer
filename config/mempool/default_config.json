@@ -54,6 +54,11 @@
     "privacy": "Public",
     "value": true
   },
+  "gateway_config.compiler_config.post_compilation_config.max_casm_contract_class_object_size": {
+    "description": "Limitation of contract class object size.",
+    "privacy": "Public",
+    "value": 4089446
+  },
   "components.mempool.local_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -93,11 +98,6 @@
     "description": "Limitation of contract bytecode size.",
     "privacy": "Public",
     "value": 81920
-  },
-  "gateway_config.compiler_config.post_compilation_config.max_raw_casm_class_size": {
-    "description": "Limitation of contract class object size.",
-    "privacy": "Public",
-    "value": 4089446
   },
   "gateway_config.network_config.ip": {
     "description": "The gateway server ip.",
