@@ -4,13 +4,7 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::{Tip, TransactionHash};
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::{
-    Account,
-    AccountState,
-    MempoolInput,
-    MempoolResult,
-    ThinTransaction,
-};
+use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput, MempoolResult};
 
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -55,7 +49,7 @@ impl Mempool {
     // TODO: the last part about commit_block is incorrect if we delete txs in get_txs and then push
     // back. TODO: Consider renaming to `pop_txs` to be more consistent with the standard
     // library.
-    pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<ThinTransaction>> {
+    pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<Transaction>> {
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
         let mut n_remaining_txs = n_txs;
 
@@ -66,15 +60,15 @@ impl Mempool {
             eligible_tx_references.extend(chunk);
         }
 
-        let mut eligible_txs: Vec<ThinTransaction> = Vec::with_capacity(n_txs);
+        let mut eligible_txs: Vec<Transaction> = Vec::with_capacity(n_txs);
         for tx_ref in &eligible_tx_references {
             let tx = self.tx_pool.remove(tx_ref.tx_hash)?;
-            eligible_txs.push((&tx).into());
+            eligible_txs.push(tx);
         }
 
         // Update the mempool state with the given transactions' nonces.
         for tx in &eligible_txs {
-            self.mempool_state.entry(tx.sender_address).or_default().nonce = tx.nonce;
+            self.mempool_state.entry(tx.contract_address()).or_default().nonce = tx.nonce();
         }
 
         Ok(eligible_txs)
@@ -135,7 +129,7 @@ impl Mempool {
         let MempoolInput { tx, account: Account { sender_address, state: AccountState { nonce } } } =
             input;
 
-        self.tx_pool.insert((&tx).into())?;
+        self.tx_pool.insert(tx)?;
 
         // Maybe close nonce gap.
         if self.tx_queue.get_nonce(sender_address).is_none() {
@@ -150,16 +144,18 @@ impl Mempool {
 
     fn validate_input(&self, input: &MempoolInput) -> MempoolResult<()> {
         let MempoolInput {
-            tx: ThinTransaction { sender_address, nonce: tx_nonce, .. },
             account: Account { state: AccountState { nonce: account_nonce }, .. },
+            ..
         } = input;
+        let sender_address = input.tx.contract_address();
+        let tx_nonce = input.tx.nonce();
         let duplicate_nonce_error =
-            MempoolError::DuplicateNonce { address: *sender_address, nonce: *tx_nonce };
+            MempoolError::DuplicateNonce { address: sender_address, nonce: tx_nonce };
 
         // Stateless checks.
 
         // Check the input: transaction nonce against given account state.
-        if account_nonce > tx_nonce {
+        if account_nonce > &tx_nonce {
             return Err(duplicate_nonce_error);
         }
 
@@ -167,9 +163,9 @@ impl Mempool {
 
         // Check nonce against mempool state.
         if let Some(AccountState { nonce: mempool_state_nonce }) =
-            self.mempool_state.get(sender_address)
+            self.mempool_state.get(&sender_address)
         {
-            if mempool_state_nonce >= tx_nonce {
+            if mempool_state_nonce >= &tx_nonce {
                 return Err(duplicate_nonce_error);
             }
         }
@@ -177,8 +173,8 @@ impl Mempool {
         // Check nonce against the queue.
         if self
             .tx_queue
-            .get_nonce(*sender_address)
-            .is_some_and(|queued_nonce| queued_nonce > *tx_nonce)
+            .get_nonce(sender_address)
+            .is_some_and(|queued_nonce| queued_nonce > tx_nonce)
         {
             return Err(duplicate_nonce_error);
         }
@@ -222,15 +218,7 @@ pub struct TransactionReference {
 }
 
 impl TransactionReference {
-    pub fn new(tx: &ThinTransaction) -> Self {
-        TransactionReference {
-            sender_address: tx.sender_address,
-            nonce: tx.nonce,
-            tx_hash: tx.tx_hash,
-            tip: tx.tip,
-        }
-    }
-    pub fn new_from_transaction(tx: &Transaction) -> Self {
+    pub fn new(tx: &Transaction) -> Self {
         TransactionReference {
             sender_address: tx.contract_address(),
             nonce: tx.nonce(),

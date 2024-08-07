@@ -1,6 +1,7 @@
 use std::net::IpAddr;
 
 use async_trait::async_trait;
+use starknet_api::executable_transaction::Transaction;
 use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
 use starknet_mempool_infra::component_runner::ComponentStarter;
 use starknet_mempool_infra::component_server::{LocalComponentServer, RemoteComponentServer};
@@ -9,7 +10,7 @@ use starknet_mempool_types::communication::{
     MempoolRequestAndResponseSender,
     MempoolResponse,
 };
-use starknet_mempool_types::mempool_types::{MempoolInput, MempoolResult, ThinTransaction};
+use starknet_mempool_types::mempool_types::{MempoolInput, MempoolResult};
 use tokio::sync::mpsc::Receiver;
 
 use crate::mempool::Mempool;
@@ -51,7 +52,7 @@ impl MempoolCommunicationWrapper {
         self.mempool.add_tx(mempool_input)
     }
 
-    fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<ThinTransaction>> {
+    fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<Transaction>> {
         self.mempool.get_txs(n_txs)
     }
 }
