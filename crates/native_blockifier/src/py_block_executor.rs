@@ -196,9 +196,8 @@ impl PyBlockExecutor {
             .collect();
 
         // Run.
-        let results = Python::with_gil(|py| {
-            py.allow_threads(|| self.tx_executor().execute_txs(&txs, charge_fee))
-        });
+        let results =
+            Python::with_gil(|py| py.allow_threads(|| self.tx_executor().execute_txs(&txs, charge_fee)));
 
         // Process results.
         // TODO(Yoni, 15/5/2024): serialize concurrently.
