@@ -17,28 +17,12 @@ use starknet_api::transaction::{
     DeclareTransactionV3,
     DeployAccountTransaction,
     DeployAccountTransactionV3,
-    InvokeTransaction,
     InvokeTransactionV3,
-    TransactionHash,
     TransactionHasher,
 };
-use starknet_mempool_types::mempool_types::ThinTransaction;
 use tracing::error;
 
 use crate::errors::{GatewaySpecError, StatefulTransactionValidatorResult};
-
-pub fn external_tx_to_thin_tx(
-    external_tx: &RpcTransaction,
-    tx_hash: TransactionHash,
-    sender_address: ContractAddress,
-) -> ThinTransaction {
-    ThinTransaction {
-        tip: *external_tx.tip(),
-        nonce: *external_tx.nonce(),
-        sender_address,
-        tx_hash,
-    }
-}
 
 pub fn external_tx_to_account_tx(
     external_tx: &RpcTransaction,
@@ -114,7 +98,7 @@ pub fn external_tx_to_account_tx(
             Ok(AccountTransaction::DeployAccount(deploy_account_tx))
         }
         RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
-            let invoke_tx = InvokeTransaction::V3(InvokeTransactionV3 {
+            let invoke_tx = starknet_api::transaction::InvokeTransaction::V3(InvokeTransactionV3 {
                 resource_bounds: tx.resource_bounds.clone().into(),
                 tip: tx.tip,
                 signature: tx.signature.clone(),
@@ -147,7 +131,7 @@ pub fn get_sender_address(tx: &AccountTransaction) -> ContractAddress {
         },
         AccountTransaction::DeployAccount(tx) => tx.contract_address,
         AccountTransaction::Invoke(tx) => match &tx.tx {
-            InvokeTransaction::V3(tx) => tx.sender_address,
+            starknet_api::transaction::InvokeTransaction::V3(tx) => tx.sender_address,
             _ => panic!("Unsupported transaction version"),
         },
     }
