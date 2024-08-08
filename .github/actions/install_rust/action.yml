@@ -1,0 +1,22 @@
+# Installs rust toolchain. In order to set/fix the version, edit lines 15 & 22.
+inputs:
+  components:
+    description: "An optional parameter that will be sent to dtolnay/rust-toolchain."
+    required: false
+    type: string
+
+runs:
+  using: "composite"
+  steps:
+    - name: install rust toolchain with given components
+      if: "${{ inputs.components != '' }}"
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+        components: ${{ inputs.components }}
+
+    - name: install rust toolchain without given components
+      if: "${{ inputs.components == '' }}"
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable

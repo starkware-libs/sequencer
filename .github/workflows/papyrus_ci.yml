@@ -41,7 +41,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
       - uses: Noelware/setup-protoc@1.1.0
         with:
@@ -60,7 +60,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
       - uses: Noelware/setup-protoc@1.1.0
         with:
@@ -79,7 +79,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
       - uses: Noelware/setup-protoc@1.1.0
         with:
@@ -96,7 +96,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
       - uses: Noelware/setup-protoc@1.1.0
 
@@ -109,7 +109,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
       - name: Set-Up
         run: |
           sudo apt-get update
@@ -173,7 +173,7 @@ jobs:
           filters: |
             target_directory:
               - 'crates/papyrus_storage/src/db/**'
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
       # repeat this job 32 times. this is a random test for part of the code that may cause a corrupted database.
       - run: for run in {1..32}; do cargo test -r -p papyrus_storage -- --include-ignored common_prefix_compare_with_simple_table_random; done
