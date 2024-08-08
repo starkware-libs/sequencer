@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::forest_errors::ForestError;
+use crate::forest::forest_errors::ForestError;
 
 #[derive(Debug, Error)]
 pub enum BlockCommitmentError {
