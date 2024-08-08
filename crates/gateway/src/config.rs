@@ -17,7 +17,7 @@ pub struct GatewayConfig {
     pub network_config: GatewayNetworkConfig,
     pub stateless_tx_validator_config: StatelessTransactionValidatorConfig,
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
-    pub compiler_config: GatewayCompilerConfig,
+    pub compiler_config: SierraToCasmCompilationConfig,
 }
 
 impl SerializeConfig for GatewayConfig {
@@ -222,19 +222,5 @@ impl StatefulTransactionValidatorConfig {
             max_recursion_depth: 50,
             chain_info: ChainInfo::create_for_testing(),
         }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
-pub struct GatewayCompilerConfig {
-    pub sierra_to_casm_compiler_config: SierraToCasmCompilationConfig,
-}
-
-impl SerializeConfig for GatewayCompilerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        append_sub_config_name(
-            self.sierra_to_casm_compiler_config.dump(),
-            "sierra_to_casm_compiler_config",
-        )
     }
 }
