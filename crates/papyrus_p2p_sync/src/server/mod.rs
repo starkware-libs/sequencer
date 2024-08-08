@@ -394,7 +394,9 @@ where
     // If this function fails, we still want to send fin before failing.
     let result = send_data_without_fin_for_query(&storage_reader, query, &mut sender).await;
     info!("Sending fin message for inbound sync query");
-    sender.feed(DataOrFin(None)).await?;
+    // Using send and not feed because dropping a Sink doesn't necessarily flush it. Calling send
+    // is equivalent to calling feed and flush.
+    sender.send(DataOrFin(None)).await?;
     result
 }
 
