@@ -2,22 +2,10 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::io;
 
-use committer::block_committer::input::{
-    ContractAddress,
-    StarknetStorageKey,
-    StarknetStorageValue,
-    StateDiff,
-};
 use committer::felt::Felt;
 use committer::hash::hash_trait::HashOutput;
 use committer::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
-use committer::patricia_merkle_tree::filled_tree::forest::FilledForest;
-use committer::patricia_merkle_tree::filled_tree::node::{
-    ClassHash,
-    CompiledClassHash,
-    FilledNode,
-    Nonce,
-};
+use committer::patricia_merkle_tree::filled_tree::node::FilledNode;
 use committer::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,
@@ -25,16 +13,12 @@ use committer::patricia_merkle_tree::node_data::inner_node::{
     NodeData,
     PathToBottom,
 };
-use committer::patricia_merkle_tree::node_data::leaf::ContractState;
-use committer::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonStorageTrieConfig;
 use committer::patricia_merkle_tree::types::SubTreeHeight;
-use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunctionImpl;
 use committer::storage::db_object::DBObject;
 use committer::storage::errors::{DeserializationError, SerializationError};
 use committer::storage::map_storage::MapStorage;
 use committer::storage::storage_trait::{Storage, StorageKey, StorageValue};
 use ethnum::U256;
-use log::error;
 use serde_json::json;
 use starknet_api::block_hash::block_hash_calculator::{
     TransactionHashingData,
@@ -42,8 +26,20 @@ use starknet_api::block_hash::block_hash_calculator::{
 };
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionExecutionStatus;
+use starknet_committer::block_committer::input::{
+    ContractAddress,
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
+};
+use starknet_committer::forest::filled_forest::FilledForest;
+use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
+use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
+use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
+use starknet_committer::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
 use starknet_types_core::hash::{Pedersen, StarkHash};
 use thiserror;
+use tracing::{debug, error, info, warn};
 
 use super::utils::objects::{get_thin_state_diff, get_transaction_output_for_hash, get_tx_data};
 use super::utils::parse_from_python::TreeFlowInput;
@@ -216,10 +212,10 @@ impl PythonTest {
                 Ok("Done!".to_owned())
             }
             Self::LogError => {
-                log::error!("This is an error log message.");
-                log::warn!("This is a warn log message.");
-                log::info!("This is an info log message.");
-                log::debug!("This is a debug log message.");
+                error!("This is an error log message.");
+                warn!("This is a warn log message.");
+                info!("This is an info log message.");
+                debug!("This is a debug log message.");
                 panic!("This is a panic message.");
             }
         }

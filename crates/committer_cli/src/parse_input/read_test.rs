@@ -1,6 +1,11 @@
 use std::collections::HashMap;
 
-use committer::block_committer::input::{
+use committer::felt::Felt;
+use committer::hash::hash_trait::HashOutput;
+use committer::storage::errors::DeserializationError;
+use committer::storage::storage_trait::{StorageKey, StorageValue};
+use pretty_assertions::assert_eq;
+use starknet_committer::block_committer::input::{
     ConfigImpl,
     ContractAddress,
     Input,
@@ -8,12 +13,8 @@ use committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
-use committer::felt::Felt;
-use committer::hash::hash_trait::HashOutput;
-use committer::patricia_merkle_tree::filled_tree::node::{ClassHash, CompiledClassHash, Nonce};
-use committer::storage::errors::DeserializationError;
-use committer::storage::storage_trait::{StorageKey, StorageValue};
-use pretty_assertions::assert_eq;
+use starknet_committer::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
+use tracing::level_filters::LevelFilter;
 
 use super::parse_input;
 
@@ -201,7 +202,7 @@ fn test_simple_input_parsing() {
         },
         contracts_trie_root_hash: expected_contracts_trie_root_hash,
         classes_trie_root_hash: expected_classes_trie_root_hash,
-        config: ConfigImpl::new(true, log::LevelFilter::Debug),
+        config: ConfigImpl::new(true, LevelFilter::DEBUG),
     };
     assert_eq!(parse_input(input).unwrap(), expected_input);
 }

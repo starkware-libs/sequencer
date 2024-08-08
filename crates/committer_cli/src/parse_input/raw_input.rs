@@ -1,7 +1,7 @@
-use committer::block_committer::input::ConfigImpl;
-use log::LevelFilter;
 use serde::{Deserialize, Serialize};
 use serde_repr::Deserialize_repr;
+use starknet_committer::block_committer::input::ConfigImpl;
+use tracing::level_filters::LevelFilter;
 type RawFelt = [u8; 32];
 
 #[derive(Deserialize, Debug)]
@@ -46,11 +46,11 @@ pub(crate) enum PythonLogLevel {
 impl From<RawConfigImpl> for ConfigImpl {
     fn from(raw_config: RawConfigImpl) -> Self {
         let log_level = match raw_config.log_level {
-            PythonLogLevel::NotSet => LevelFilter::Trace,
-            PythonLogLevel::Debug => LevelFilter::Debug,
-            PythonLogLevel::Info => LevelFilter::Info,
-            PythonLogLevel::Warning => LevelFilter::Warn,
-            PythonLogLevel::Error | PythonLogLevel::Critical => LevelFilter::Error,
+            PythonLogLevel::NotSet => LevelFilter::TRACE,
+            PythonLogLevel::Debug => LevelFilter::DEBUG,
+            PythonLogLevel::Info => LevelFilter::INFO,
+            PythonLogLevel::Warning => LevelFilter::WARN,
+            PythonLogLevel::Error | PythonLogLevel::Critical => LevelFilter::ERROR,
         };
         ConfigImpl::new(raw_config.warn_on_trivial_modifications, log_level)
     }

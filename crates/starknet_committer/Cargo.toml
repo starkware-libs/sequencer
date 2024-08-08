@@ -1,0 +1,23 @@
+[package]
+name = "starknet_committer"
+version = "0.1.0-rc.0"
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+license-file.workspace = true
+description = "Computes and manages Starknet state."
+
+
+[dependencies]
+committer = { path = "../committer", features = ["testing"] }
+hex.workspace = true
+pretty_assertions.workspace = true
+rstest.workspace = true
+serde_json.workspace = true
+starknet-types-core.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true
