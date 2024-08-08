@@ -1,8 +1,9 @@
-use std::vec;
+use std::fmt::Debug;
 
-use futures::{Sink, SinkExt, StreamExt};
+use futures::StreamExt;
 use papyrus_common::pending_classes::ApiContractClass;
-use papyrus_network::network_manager::{SqmrServerPayload, SqmrServerReceiver};
+use papyrus_network::network_manager::{ServerQueryManager, SqmrServerReceiver};
+use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_protobuf::sync::{
     BlockHashOrNumber,
     ClassQuery,
@@ -67,35 +68,35 @@ impl P2PSyncServerError {
     }
 }
 
-type HeaderPayloadReceiver = SqmrServerReceiver<HeaderQuery, DataOrFin<SignedBlockHeader>>;
-type StateDiffPayloadReceiver = SqmrServerReceiver<StateDiffQuery, DataOrFin<StateDiffChunk>>;
-type TransactionPayloadReceiver =
+type HeaderReceiver = SqmrServerReceiver<HeaderQuery, DataOrFin<SignedBlockHeader>>;
+type StateDiffReceiver = SqmrServerReceiver<StateDiffQuery, DataOrFin<StateDiffChunk>>;
+type TransactionReceiver =
     SqmrServerReceiver<TransactionQuery, DataOrFin<(Transaction, TransactionOutput)>>;
-type ClassPayloadReceiver = SqmrServerReceiver<ClassQuery, DataOrFin<ApiContractClass>>;
-type EventPayloadReceiver = SqmrServerReceiver<EventQuery, DataOrFin<(Event, TransactionHash)>>;
+type ClassReceiver = SqmrServerReceiver<ClassQuery, DataOrFin<ApiContractClass>>;
+type EventReceiver = SqmrServerReceiver<EventQuery, DataOrFin<(Event, TransactionHash)>>;
 
 pub struct P2PSyncServerChannels {
-    header_payload_receiver: HeaderPayloadReceiver,
-    state_diff_payload_receiver: StateDiffPayloadReceiver,
-    transaction_payload_receiver: TransactionPayloadReceiver,
-    class_payload_receiver: ClassPayloadReceiver,
-    event_payload_receiver: EventPayloadReceiver,
+    header_receiver: HeaderReceiver,
+    state_diff_receiver: StateDiffReceiver,
+    transaction_receiver: TransactionReceiver,
+    class_receiver: ClassReceiver,
+    event_receiver: EventReceiver,
 }
 
 impl P2PSyncServerChannels {
     pub fn new(
-        header_payload_receiver: HeaderPayloadReceiver,
-        state_diff_payload_receiver: StateDiffPayloadReceiver,
-        transaction_payload_receiver: TransactionPayloadReceiver,
-        class_payload_receiver: ClassPayloadReceiver,
-        event_payload_receiver: EventPayloadReceiver,
+        header_receiver: HeaderReceiver,
+        state_diff_receiver: StateDiffReceiver,
+        transaction_receiver: TransactionReceiver,
+        class_receiver: ClassReceiver,
+        event_receiver: EventReceiver,
     ) -> Self {
         Self {
-            header_payload_receiver,
-            state_diff_payload_receiver,
-            transaction_payload_receiver,
-            class_payload_receiver,
-            event_payload_receiver,
+            header_receiver,
+            state_diff_receiver,
+            transaction_receiver,
+            class_receiver,
+            event_receiver,
         }
     }
 }
@@ -109,79 +110,43 @@ pub struct P2PSyncServer {
 impl P2PSyncServer {
     pub async fn run(self) {
         let P2PSyncServerChannels {
-            mut header_payload_receiver,
-            mut state_diff_payload_receiver,
-            mut transaction_payload_receiver,
-            mut class_payload_receiver,
-            mut event_payload_receiver,
+            mut header_receiver,
+            mut state_diff_receiver,
+            mut transaction_receiver,
+            mut class_receiver,
+            mut event_receiver,
         } = self.p2p_sync_channels;
         loop {
             tokio::select! {
-                result = header_payload_receiver.next() => {
-                    let SqmrServerPayload {
-                        query: query_result,
-                        report_sender: _report_sender,
-                        responses_sender
-                    } = result.expect(
+                maybe_server_query_manager = header_receiver.next() => {
+                    let server_query_manager = maybe_server_query_manager.expect(
                         "Header queries sender was unexpectedly dropped."
                     );
-                    // TODO(shahak): Report if query_result is Err.
-                    if let Ok(query) = query_result {
-                        register_query(self.storage_reader.clone(), query.0, responses_sender);
-                    }
+                    register_query(self.storage_reader.clone(), server_query_manager);
                 }
-                result = state_diff_payload_receiver.next() => {
-                    let SqmrServerPayload {
-                        query: query_result,
-                        report_sender: _report_sender,
-                        responses_sender
-                    } = result.expect(
+                maybe_server_query_manager = state_diff_receiver.next() => {
+                    let server_query_manager = maybe_server_query_manager.expect(
                         "State diff queries sender was unexpectedly dropped."
-
                     );
-                    // TODO(shahak): Report if query_result is Err.
-                    if let Ok(query) = query_result {
-                        register_query(self.storage_reader.clone(), query.0, responses_sender);
-                    }
+                    register_query(self.storage_reader.clone(), server_query_manager);
                 }
-                result = transaction_payload_receiver.next() => {
-                    let SqmrServerPayload {
-                        query: query_result,
-                        report_sender: _report_sender,
-                        responses_sender
-                    } = result.expect(
+                maybe_server_query_manager = transaction_receiver.next() => {
+                    let server_query_manager = maybe_server_query_manager.expect(
                         "Transaction queries sender was unexpectedly dropped."
                     );
-                    // TODO: Report if query_result is Err.
-                    if let Ok(query) = query_result {
-                        register_query(self.storage_reader.clone(), query.0, responses_sender);
-                    }
+                    register_query(self.storage_reader.clone(), server_query_manager);
                 }
-                result = class_payload_receiver.next() => {
-                    let SqmrServerPayload {
-                        query: query_result,
-                        report_sender: _report_sender,
-                        responses_sender
-                    } = result.expect(
+                mayber_server_query_manager = class_receiver.next() => {
+                    let server_query_manager = mayber_server_query_manager.expect(
                         "Class queries sender was unexpectedly dropped."
                     );
-                    // TODO: Report if query_result is Err.
-                    if let Ok(query) = query_result {
-                        register_query(self.storage_reader.clone(), query.0, responses_sender);
-                    }
+                    register_query(self.storage_reader.clone(), server_query_manager);
                 }
-                result = event_payload_receiver.next() => {
-                    let SqmrServerPayload {
-                        query: query_result,
-                        report_sender: _report_sender,
-                        responses_sender
-                    } = result.expect(
+                mayber_server_query_manager = event_receiver.next() => {
+                    let server_query_manager = mayber_server_query_manager.expect(
                         "Event queries sender was unexpectedly dropped."
                     );
-                    // TODO: Report if query_result is Err.
-                    if let Ok(query) = query_result {
-                        register_query(self.storage_reader.clone(), query.0, responses_sender);
-                    }
+                    register_query(self.storage_reader.clone(), server_query_manager);
                 }
             };
         }
@@ -191,24 +156,35 @@ impl P2PSyncServer {
         Self { storage_reader, p2p_sync_channels }
     }
 }
-fn register_query<Data, Sender>(storage_reader: StorageReader, query: Query, sender: Sender)
-where
+fn register_query<Data, TQuery>(
+    storage_reader: StorageReader,
+    server_query_manager: ServerQueryManager<TQuery, DataOrFin<Data>>,
+) where
     Data: FetchBlockDataFromDb + Send + 'static,
-    Sender: Sink<DataOrFin<Data>> + Unpin + Send + 'static,
-    P2PSyncServerError: From<<Sender as Sink<DataOrFin<Data>>>::Error>,
+    TQuery: TryFrom<Vec<u8>, Error = ProtobufConversionError> + Send + Clone + Debug + 'static,
+    Query: From<TQuery>,
 {
-    info!("Sync server received a new inbound query {query:?}");
-    tokio::task::spawn(async move {
-        let result = send_data_for_query(storage_reader, query.clone(), sender).await;
-        if let Err(error) = result {
-            if error.should_log_in_error_level() {
-                error!("Running inbound query {query:?} failed on {error:?}");
-            }
-            Err(error)
-        } else {
-            Ok(())
+    let query = server_query_manager.query().clone();
+    match query {
+        Ok(query) => {
+            info!("Sync server received a new inbound query {query:?}");
+            tokio::task::spawn(async move {
+                let result = send_data_for_query(storage_reader, server_query_manager).await;
+                if let Err(error) = result {
+                    if error.should_log_in_error_level() {
+                        error!("Running inbound query {query:?} failed on {error:?}");
+                    }
+                    Err(error)
+                } else {
+                    Ok(())
+                }
+            });
         }
-    });
+        Err(error) => {
+            error!("Failed to parse inbound query: {error:?}");
+            server_query_manager.report_peer()
+        }
+    }
 }
 
 pub trait FetchBlockDataFromDb: Sized {
@@ -381,35 +357,35 @@ pub fn split_thin_state_diff(thin_state_diff: ThinStateDiff) -> Vec<StateDiffChu
     state_diff_chunks
 }
 
-async fn send_data_for_query<Data, Sender>(
+async fn send_data_for_query<Data, TQuery>(
     storage_reader: StorageReader,
-    query: Query,
-    mut sender: Sender,
+    mut server_query_manager: ServerQueryManager<TQuery, DataOrFin<Data>>,
 ) -> Result<(), P2PSyncServerError>
 where
     Data: FetchBlockDataFromDb + Send + 'static,
-    Sender: Sink<DataOrFin<Data>> + Unpin + Send + 'static,
-    P2PSyncServerError: From<<Sender as Sink<DataOrFin<Data>>>::Error>,
+    TQuery: TryFrom<Vec<u8>, Error = ProtobufConversionError> + Clone,
+    Query: From<TQuery>,
 {
     // If this function fails, we still want to send fin before failing.
-    let result = send_data_without_fin_for_query(&storage_reader, query, &mut sender).await;
+    let result = send_data_without_fin_for_query(&storage_reader, &mut server_query_manager).await;
     info!("Sending fin message for inbound sync query");
-    // Using send and not feed because dropping a Sink doesn't necessarily flush it. Calling send
-    // is equivalent to calling feed and flush.
-    sender.send(DataOrFin(None)).await?;
+    server_query_manager.send_response(DataOrFin(None)).await?;
     result
 }
 
-async fn send_data_without_fin_for_query<Data, Sender>(
+async fn send_data_without_fin_for_query<Data, TQuery>(
     storage_reader: &StorageReader,
-    query: Query,
-    sender: &mut Sender,
+    server_query_manager: &mut ServerQueryManager<TQuery, DataOrFin<Data>>,
 ) -> Result<(), P2PSyncServerError>
 where
     Data: FetchBlockDataFromDb + Send + 'static,
-    Sender: Sink<DataOrFin<Data>> + Unpin + Send + 'static,
-    P2PSyncServerError: From<<Sender as Sink<DataOrFin<Data>>>::Error>,
+    TQuery: TryFrom<Vec<u8>, Error = ProtobufConversionError> + Clone,
+    Query: From<TQuery>,
 {
+    let query = server_query_manager.query().clone().expect(
+        "Query result contains error even though it was previously checked to have no errors",
+    );
+    let query = Query::from(query);
     let txn = storage_reader.begin_ro_txn()?;
     let start_block_number = match query.start_block {
         BlockHashOrNumber::Number(BlockNumber(num)) => num,
@@ -428,7 +404,7 @@ where
         for data in data_vec {
             // TODO: consider implement retry mechanism.
             info!("Sending response for inbound sync query");
-            sender.feed(DataOrFin(Some(data))).await?;
+            server_query_manager.send_response(DataOrFin(Some(data))).await?;
         }
     }
     Ok(())
