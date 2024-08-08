@@ -498,6 +498,21 @@ pub struct ClassInfo {
     abi_length: usize,
 }
 
+impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
+    type Error = ProgramError;
+
+    fn try_from(class_info: starknet_api::contract_class::ClassInfo) -> Result<Self, Self::Error> {
+        let starknet_api::contract_class::ClassInfo {
+            contract_class,
+            sierra_program_length,
+            abi_length,
+        } = class_info;
+
+        let contract_class: ContractClass = contract_class.try_into()?;
+        Ok(Self { contract_class, sierra_program_length, abi_length })
+    }
+}
+
 impl ClassInfo {
     pub fn bytecode_length(&self) -> usize {
         self.contract_class.bytecode_length()

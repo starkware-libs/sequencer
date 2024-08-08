@@ -16,7 +16,7 @@ pub enum ContractClassV1 {
 /// and other parameters derived from the original declare transaction required for billing.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ClassInfo {
-    contract_class: ContractClass,
-    sierra_program_length: usize,
-    abi_length: usize,
+    pub contract_class: ContractClass,
+    pub sierra_program_length: usize,
+    pub abi_length: usize,
 }
