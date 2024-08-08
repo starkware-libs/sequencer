@@ -6,6 +6,8 @@ use blockifier::transaction::transactions::{
     InvokeTransaction as BlockifierInvokeTransaction,
 };
 use starknet_api::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress};
+use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_api::executable_transaction::{InvokeTransaction, Transaction};
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcDeployAccountTransaction,
@@ -13,30 +15,44 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::transaction::{
+    AccountDeploymentData,
+    Calldata,
     DeclareTransaction,
     DeclareTransactionV3,
     DeployAccountTransaction,
     DeployAccountTransactionV3,
-    InvokeTransaction,
     InvokeTransactionV3,
+    PaymasterData,
+    ResourceBoundsMapping,
     TransactionHash,
     TransactionHasher,
+    TransactionSignature,
 };
-use starknet_mempool_types::mempool_types::ThinTransaction;
 
 use crate::errors::StatefulTransactionValidatorResult;
 
-pub fn external_tx_to_thin_tx(
+pub fn external_tx_to_internal_tx(
     external_tx: &RpcTransaction,
     tx_hash: TransactionHash,
     sender_address: ContractAddress,
-) -> ThinTransaction {
-    ThinTransaction {
-        tip: *external_tx.tip(),
-        nonce: *external_tx.nonce(),
-        sender_address,
+) -> Transaction {
+    Transaction::Invoke(InvokeTransaction {
+        tx: starknet_api::transaction::InvokeTransaction::V3(
+            starknet_api::transaction::InvokeTransactionV3 {
+                sender_address,
+                tip: *external_tx.tip(),
+                nonce: *external_tx.nonce(),
+                resource_bounds: ResourceBoundsMapping::default(),
+                signature: TransactionSignature::default(),
+                calldata: Calldata::default(),
+                nonce_data_availability_mode: DataAvailabilityMode::L1,
+                fee_data_availability_mode: DataAvailabilityMode::L2,
+                paymaster_data: PaymasterData::default(),
+                account_deployment_data: AccountDeploymentData::default(),
+            },
+        ),
         tx_hash,
-    }
+    })
 }
 
 pub fn external_tx_to_account_tx(
@@ -96,7 +112,7 @@ pub fn external_tx_to_account_tx(
             Ok(AccountTransaction::DeployAccount(deploy_account_tx))
         }
         RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
-            let invoke_tx = InvokeTransaction::V3(InvokeTransactionV3 {
+            let invoke_tx = starknet_api::transaction::InvokeTransaction::V3(InvokeTransactionV3 {
                 resource_bounds: tx.resource_bounds.clone().into(),
                 tip: tx.tip,
                 signature: tx.signature.clone(),
@@ -133,7 +149,7 @@ pub fn get_sender_address(tx: &AccountTransaction) -> ContractAddress {
         },
         AccountTransaction::DeployAccount(tx) => tx.contract_address,
         AccountTransaction::Invoke(tx) => match &tx.tx {
-            InvokeTransaction::V3(tx) => tx.sender_address,
+            starknet_api::transaction::InvokeTransaction::V3(tx) => tx.sender_address,
             _ => panic!("Unsupported transaction version"),
         },
     }
