@@ -6,7 +6,7 @@ use cairo_lang_starknet_classes::contract_class::ContractClass;
 
 use crate::config::SierraToCasmCompilationConfig;
 use crate::errors::CompilationUtilError;
-use crate::SierraToCasmCompiler;
+use crate::sierra_to_casm_compiler::SierraToCasmCompiler;
 
 #[cfg(test)]
 #[path = "compile_test.rs"]
