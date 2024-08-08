@@ -229,6 +229,8 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
                     self.handle_state_machine_vote(context, block_hash, round, VoteType::Precommit)
                         .await?;
                 }
+                _ => { //TODO(Asmaa): handle timeouts
+                }
             }
         }
         Ok(None)
