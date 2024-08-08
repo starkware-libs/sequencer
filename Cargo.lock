@@ -8969,7 +8969,21 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
+name = "starknet_committer"
+version = "0.1.0-rc.0"
+dependencies = [
+ "committer",
+ "hex",
+ "pretty_assertions",
+ "rstest",
+ "serde_json",
+ "starknet-types-core",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "starknet_consensus_manager"
 version = "0.0.0"
 dependencies = [
@@ -8992,24 +9006,6 @@ dependencies = [
 ]
 
 [[package]]
-||||||| 439a24ce
-=======
-name = "starknet_committer"
-version = "0.1.0-rc.0"
-dependencies = [
- "committer",
- "hex",
- "pretty_assertions",
- "rstest",
- "serde_json",
- "starknet-types-core",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
->>>>>>> origin/main-v0.13.2
 name = "starknet_gateway"
 version = "0.0.0"
 dependencies = [
