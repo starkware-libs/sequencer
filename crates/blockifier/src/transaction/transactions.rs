@@ -135,6 +135,16 @@ pub struct DeclareTransaction {
     pub class_info: ClassInfo,
 }
 
+impl TryFrom<starknet_api::executable_transaction::DeclareTransaction> for DeclareTransaction {
+    type Error = TransactionExecutionError;
+
+    fn try_from(
+        value: starknet_api::executable_transaction::DeclareTransaction,
+    ) -> Result<Self, Self::Error> {
+        Self::new_from_executable_tx(value, false)
+    }
+}
+
 impl DeclareTransaction {
     fn create(
         declare_tx: starknet_api::transaction::DeclareTransaction,
@@ -161,6 +171,17 @@ impl DeclareTransaction {
         class_info: ClassInfo,
     ) -> TransactionExecutionResult<Self> {
         Self::create(declare_tx, tx_hash, class_info, true)
+    }
+
+    fn new_from_executable_tx(
+        declare_tx: starknet_api::executable_transaction::DeclareTransaction,
+        only_query: bool,
+    ) -> Result<Self, TransactionExecutionError> {
+        let starknet_api::executable_transaction::DeclareTransaction { tx, tx_hash, class_info } =
+            declare_tx;
+        let class_info: ClassInfo = class_info.try_into()?;
+
+        Self::create(tx, tx_hash, class_info, only_query)
     }
 
     implement_inner_tx_getter_calls!((class_hash, ClassHash), (signature, TransactionSignature));
