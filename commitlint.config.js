@@ -51,7 +51,7 @@ const Configuration = {
             'tests-integration',
             'transaction',
             'types',
-        ]],
+        ]]
     },
     /*
      * Functions that return true if commitlint should ignore the given message.
