@@ -20,6 +20,7 @@ use starknet_mempool_infra::component_definitions::{
     LocalComponentCommunicationConfig,
     RemoteComponentCommunicationConfig,
 };
+use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use validator::{Validate, ValidationError};
 
 use crate::version::VERSION_FULL;
@@ -200,6 +201,8 @@ pub struct MempoolNodeConfig {
     pub gateway_config: GatewayConfig,
     #[validate]
     pub rpc_state_reader_config: RpcStateReaderConfig,
+    #[validate]
+    pub compiler_config: SierraToCasmCompilationConfig,
 }
 
 impl SerializeConfig for MempoolNodeConfig {
@@ -209,6 +212,7 @@ impl SerializeConfig for MempoolNodeConfig {
             append_sub_config_name(self.components.dump(), "components"),
             append_sub_config_name(self.gateway_config.dump(), "gateway_config"),
             append_sub_config_name(self.rpc_state_reader_config.dump(), "rpc_state_reader_config"),
+            append_sub_config_name(self.compiler_config.dump(), "compiler_config"),
         ];
 
         sub_configs.into_iter().flatten().collect()
