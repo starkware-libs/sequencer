@@ -333,6 +333,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 let responses_sender = Box::new(responses_sender);
                 self.sqmr_inbound_response_receivers.insert(
                     inbound_session_id,
+                    // Adding a None at the end of the stream so that we will receive a message
+                    // letting us know the stream has ended.
                     Box::new(responses_receiver.map(Some).chain(stream::once(ready(None)))),
                 );
 
@@ -449,6 +451,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                     );
                 });
             }
+            // The None is inserted by the network manager after the receiver end terminated so
+            // that we'll know here when it terminated.
             None => {
                 self.swarm.close_inbound_session(inbound_session_id).unwrap_or_else(|e| {
                     error!(
