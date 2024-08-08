@@ -2,7 +2,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::contract_class::ClassInfo;
 use crate::core::{ContractAddress, Nonce};
-use crate::transaction::{Tip, TransactionHash};
+use crate::data_availability::DataAvailabilityMode;
+use crate::transaction::{
+    AccountDeploymentData,
+    Calldata,
+    PaymasterData,
+    Tip,
+    TransactionHash,
+    TransactionSignature,
+};
 
 /// Represents a paid Starknet transaction.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -52,6 +60,31 @@ impl Transaction {
                 _ => None,
             },
         }
+    }
+
+    // TODO(Arni): Update the function to support all transaction types.
+    pub fn new_from_rpc_tx(
+        rpc_tx: crate::rpc_transaction::RpcTransaction,
+        tx_hash: TransactionHash,
+        sender_address: ContractAddress,
+    ) -> Transaction {
+        Transaction::Invoke(crate::executable_transaction::InvokeTransaction {
+            tx: crate::transaction::InvokeTransaction::V3(
+                crate::transaction::InvokeTransactionV3 {
+                    sender_address,
+                    tip: *rpc_tx.tip(),
+                    nonce: *rpc_tx.nonce(),
+                    resource_bounds: crate::transaction::ResourceBoundsMapping::default(),
+                    signature: TransactionSignature::default(),
+                    calldata: Calldata::default(),
+                    nonce_data_availability_mode: DataAvailabilityMode::L1,
+                    fee_data_availability_mode: DataAvailabilityMode::L1,
+                    paymaster_data: PaymasterData::default(),
+                    account_deployment_data: AccountDeploymentData::default(),
+                },
+            ),
+            tx_hash,
+        })
     }
 }
 
