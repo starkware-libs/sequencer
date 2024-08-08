@@ -56,6 +56,18 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
         self.send_event(StateMachineEvent::Precommit(block_hash, round))
     }
 
+    pub fn send_timeout_propose(&mut self, round: Round) {
+        self.send_event(StateMachineEvent::TimeoutPropose(round))
+    }
+
+    pub fn send_timeout_prevote(&mut self, round: Round) {
+        self.send_event(StateMachineEvent::TimeoutPrevote(round))
+    }
+
+    pub fn send_timeout_precommit(&mut self, round: Round) {
+        self.send_event(StateMachineEvent::TimeoutPrecommit(round))
+    }
+
     fn send_event(&mut self, event: StateMachineEvent) {
         self.events.append(&mut self.state_machine.handle_event(event, &self.leader_fn));
     }
@@ -73,6 +85,8 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
         wrapper.send_get_proposal(BLOCK_HASH, ROUND);
         assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Proposal(BLOCK_HASH, ROUND));
     } else {
+        // Waiting for the proposal.
+        assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPropose(ROUND));
         assert!(wrapper.next_event().is_none());
         wrapper.send_proposal(BLOCK_HASH, ROUND);
     }
@@ -83,6 +97,8 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
     assert!(wrapper.next_event().is_none());
 
     wrapper.send_prevote(BLOCK_HASH, ROUND);
+    // The Node got a Prevote quorum.
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrevote(ROUND));
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Precommit(BLOCK_HASH, ROUND));
     assert!(wrapper.next_event().is_none());
 
@@ -90,6 +106,8 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
     assert!(wrapper.next_event().is_none());
 
     wrapper.send_precommit(BLOCK_HASH, ROUND);
+    // The Node got a Precommit quorum.
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrecommit(ROUND));
     assert_eq!(
         wrapper.next_event().unwrap(),
         StateMachineEvent::Decision(BLOCK_HASH.unwrap(), ROUND)
@@ -102,6 +120,8 @@ fn validator_receives_votes_first() {
     let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID);
 
     wrapper.start();
+    // Waiting for the proposal.
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPropose(ROUND));
     assert!(wrapper.next_event().is_none());
 
     // Receives votes from all the other nodes first (more than minimum for a quorum).
@@ -111,12 +131,16 @@ fn validator_receives_votes_first() {
     wrapper.send_precommit(BLOCK_HASH, ROUND);
     wrapper.send_precommit(BLOCK_HASH, ROUND);
     wrapper.send_precommit(BLOCK_HASH, ROUND);
+    // The Node got a Precmmit quorum.
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrecommit(ROUND));
     assert!(wrapper.next_event().is_none());
 
     // Finally the proposal arrives.
     wrapper.send_proposal(BLOCK_HASH, ROUND);
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(BLOCK_HASH, ROUND));
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrevote(ROUND));
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Precommit(BLOCK_HASH, ROUND));
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrecommit(ROUND));
     assert_eq!(
         wrapper.next_event().unwrap(),
         StateMachineEvent::Decision(BLOCK_HASH.unwrap(), ROUND)
@@ -142,6 +166,7 @@ fn buffer_events_during_get_proposal(vote: Option<BlockHash>) {
     wrapper.send_get_proposal(BLOCK_HASH, ROUND);
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Proposal(BLOCK_HASH, ROUND));
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(BLOCK_HASH, ROUND));
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrevote(ROUND));
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Precommit(vote, ROUND));
     assert!(wrapper.next_event().is_none());
 }
@@ -151,6 +176,8 @@ fn only_send_precommit_with_prevote_quorum_and_proposal() {
     let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID);
 
     wrapper.start();
+    // Waiting for the proposal.
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPropose(ROUND));
     assert!(wrapper.next_event().is_none());
 
     // Receives votes from all the other nodes first (more than minimum for a quorum).
@@ -162,6 +189,7 @@ fn only_send_precommit_with_prevote_quorum_and_proposal() {
     // Finally the proposal arrives.
     wrapper.send_proposal(BLOCK_HASH, ROUND);
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(BLOCK_HASH, ROUND));
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrevote(ROUND));
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Precommit(BLOCK_HASH, ROUND));
     assert!(wrapper.next_event().is_none());
 }
@@ -171,6 +199,8 @@ fn only_decide_with_prcommit_quorum_and_proposal() {
     let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID);
 
     wrapper.start();
+    // Waiting for the proposal.
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPropose(ROUND));
     assert!(wrapper.next_event().is_none());
 
     // Receives votes from all the other nodes first (more than minimum for a quorum).
@@ -184,7 +214,9 @@ fn only_decide_with_prcommit_quorum_and_proposal() {
     // Finally the proposal arrives.
     wrapper.send_proposal(BLOCK_HASH, ROUND);
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(BLOCK_HASH, ROUND));
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrevote(ROUND));
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Precommit(BLOCK_HASH, ROUND));
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrecommit(ROUND));
     assert_eq!(
         wrapper.next_event().unwrap(),
         StateMachineEvent::Decision(BLOCK_HASH.unwrap(), ROUND)
@@ -197,6 +229,8 @@ fn advance_to_the_next_round() {
     let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID);
 
     wrapper.start();
+    // Waiting for the proposal.
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPropose(ROUND));
     assert!(wrapper.next_event().is_none());
 
     wrapper.send_proposal(BLOCK_HASH, ROUND);
@@ -209,6 +243,38 @@ fn advance_to_the_next_round() {
     assert!(wrapper.next_event().is_none());
 
     wrapper.send_precommit(None, ROUND);
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrecommit(ROUND));
     // The Node sends Prevote after advancing to the next round.
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(BLOCK_HASH, ROUND + 1));
+}
+
+#[test_case(true ; "send_proposal")]
+#[test_case(false ; "send_timeout_propose")]
+fn mixed_quorum(send_prposal: bool) {
+    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID);
+
+    wrapper.start();
+    // Waiting for the proposal.
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPropose(ROUND));
+    assert!(wrapper.events.is_empty());
+
+    if send_prposal {
+        wrapper.send_proposal(BLOCK_HASH, ROUND);
+        assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(BLOCK_HASH, ROUND));
+    } else {
+        wrapper.send_timeout_propose(ROUND);
+        assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(None, ROUND));
+    }
+    wrapper.send_prevote(BLOCK_HASH, ROUND);
+    wrapper.send_prevote(None, ROUND);
+    // The Node got a Prevote quorum.
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrevote(ROUND));
+    wrapper.send_timeout_prevote(ROUND);
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Precommit(None, ROUND));
+    wrapper.send_precommit(BLOCK_HASH, ROUND);
+    wrapper.send_precommit(BLOCK_HASH, ROUND);
+    // The Node got a Precommit quorum.
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrecommit(ROUND));
+    wrapper.send_timeout_precommit(ROUND);
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPropose(ROUND + 1));
 }
