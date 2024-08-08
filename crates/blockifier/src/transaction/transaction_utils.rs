@@ -36,5 +36,6 @@ pub fn verify_contract_class_version(
                 cairo_version: 1,
             })
         }
+        ContractClass::V1Native(_) => todo!("Sierra verify contract class version."),
     }
 }
