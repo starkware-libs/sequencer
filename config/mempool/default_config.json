@@ -89,7 +89,7 @@
     "privacy": "Public",
     "value": 3
   },
-  "gateway_config.compiler_config.sierra_to_casm_compiler_config.max_bytecode_size": {
+  "gateway_config.compiler_config.max_bytecode_size": {
     "description": "Limitation of contract bytecode size.",
     "privacy": "Public",
     "value": 81920
