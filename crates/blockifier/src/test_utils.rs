@@ -211,7 +211,7 @@ pub fn trivial_external_entry_point_with_address(
     }
 }
 
-fn default_testing_resource_bounds() -> ResourceBoundsMapping {
+pub fn default_testing_resource_bounds() -> ResourceBoundsMapping {
     ResourceBoundsMapping::try_from(vec![
         (Resource::L1Gas, ResourceBounds { max_amount: 0, max_price_per_unit: 1 }),
         // TODO(Dori, 1/2/2024): When fee market is developed, change the default price of
