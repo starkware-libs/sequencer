@@ -1,12 +1,9 @@
-use std::panic;
-
 use blockifier::execution::contract_class::{ClassInfo, ContractClass, ContractClassV1};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::rpc_transaction::RpcDeclareTransaction;
 use starknet_sierra_compile::compile::SierraToCasmCompiler;
-use starknet_sierra_compile::errors::CompilationUtilError;
 use starknet_sierra_compile::utils::into_contract_class_for_compilation;
 
 use crate::errors::{GatewayError, GatewayResult};
@@ -48,12 +45,7 @@ impl GatewayCompiler {
         &self,
         cairo_lang_contract_class: CairoLangContractClass,
     ) -> Result<CasmContractClass, GatewayError> {
-        let catch_unwind_result =
-            panic::catch_unwind(|| self.sierra_to_casm_compiler.compile(cairo_lang_contract_class));
-        let casm_contract_class =
-            catch_unwind_result.map_err(|_| CompilationUtilError::CompilationPanic)??;
-
-        Ok(casm_contract_class)
+        Ok(self.sierra_to_casm_compiler.compile(cairo_lang_contract_class)?)
     }
 }
 
