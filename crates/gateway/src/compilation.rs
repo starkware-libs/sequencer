@@ -75,10 +75,10 @@ impl GatewayCompiler {
         let contract_class_object_size = serde_json::to_string(&casm_contract_class)
             .expect("Unexpected error serializing Casm contract class.")
             .len();
-        if contract_class_object_size > self.config.max_raw_casm_class_size {
+        if contract_class_object_size > self.config.max_casm_contract_class_object_size {
             return Err(GatewayError::CasmContractClassObjectSizeTooLarge {
                 contract_class_object_size,
-                max_contract_class_object_size: self.config.max_raw_casm_class_size,
+                max_contract_class_object_size: self.config.max_casm_contract_class_object_size,
             });
         }
 
