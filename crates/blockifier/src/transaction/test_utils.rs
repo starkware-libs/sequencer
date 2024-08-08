@@ -365,7 +365,7 @@ fn create_all_resource_bounds(
 pub fn calculate_class_info_for_testing(contract_class: ContractClass) -> ClassInfo {
     let sierra_program_length = match contract_class {
         ContractClass::V0(_) => 0,
-        ContractClass::V1(_) => 100,
+        ContractClass::V1(_) | ContractClass::V1Native(_) => 100,
     };
     ClassInfo::new(&contract_class, sierra_program_length, 100).unwrap()
 }
