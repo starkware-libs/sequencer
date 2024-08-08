@@ -1,48 +1,10 @@
-use ark_ff::BigInt;
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoint;
-use cairo_native::starknet::U256;
 use num_bigint::BigUint;
-use num_traits::Num;
 use pretty_assertions::assert_eq;
-use starknet_api::core::{ContractAddress, EntryPointSelector, PatriciaKey};
-use starknet_api::{contract_address, felt, patricia_key};
+use starknet_api::core::EntryPointSelector;
 use starknet_types_core::felt::Felt;
 
-use super::{
-    big4int_to_u256,
-    contract_address_to_native_felt,
-    contract_entrypoint_to_entrypoint_selector,
-    decode_felts_as_str,
-    encode_str_as_felts,
-    u256_to_biguint,
-};
-
-#[test]
-fn test_u256_to_biguint() {
-    let u256 = U256 { lo: 0x1234_5678, hi: 0x9abc_def0 };
-
-    let expected_biguint =
-        BigUint::from_str_radix("9abcdef000000000000000000000000012345678", 16).unwrap();
-
-    let actual_biguint = u256_to_biguint(u256);
-
-    assert_eq!(actual_biguint, expected_biguint);
-}
-
-#[test]
-fn big4int_to_u256_test() {
-    let big_int: BigInt<4> =
-        BigInt!("34627219085299802438030559924718133626325687994345768323532899246965609283226");
-
-    let expected_u256 = U256 {
-        lo: 162661716537849136813498421163242372762,
-        hi: 101760251048639038778899488808831626319,
-    };
-
-    let actual_u256 = big4int_to_u256(big_int);
-
-    assert_eq!(actual_u256, expected_u256);
-}
+use super::{contract_entrypoint_to_entrypoint_selector, decode_felts_as_str, encode_str_as_felts};
 
 #[test]
 fn test_encode_decode_str() {
@@ -66,17 +28,6 @@ fn test_decode_non_utf8_str() {
     let res = decode_felts_as_str(&felts);
     dbg!(res.as_bytes());
     assert_eq!(res, format!("[{}, {} ({}), {}]", v1, v2_msg, v2, v3))
-}
-
-#[test]
-fn test_contract_address_to_felt() {
-    const NUM: u128 = 1234;
-
-    let contract_address = contract_address!({ NUM });
-    let expected_felt = Felt::from(NUM);
-    let actual_felt = contract_address_to_native_felt(contract_address);
-
-    assert_eq!(actual_felt, expected_felt);
 }
 
 #[test]
