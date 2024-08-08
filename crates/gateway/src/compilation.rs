@@ -7,8 +7,8 @@ use starknet_api::core::CompiledClassHash;
 use starknet_api::rpc_transaction::RpcDeclareTransaction;
 use starknet_sierra_compile::cairo_lang_compiler::CairoLangSierraToCasmCompiler;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
+use starknet_sierra_compile::sierra_to_casm_compiler::SierraToCasmCompiler;
 use starknet_sierra_compile::utils::into_contract_class_for_compilation;
-use starknet_sierra_compile::SierraToCasmCompiler;
 use tracing::{debug, error};
 
 use crate::errors::{GatewayResult, GatewaySpecError};

@@ -8,9 +8,8 @@ use rstest::{fixture, rstest};
 
 use crate::cairo_lang_compiler::{CairoLangSierraToCasmCompiler, CompilationUtilError};
 use crate::config::SierraToCasmCompilationConfig;
+use crate::sierra_to_casm_compiler::SierraToCasmCompiler;
 use crate::test_utils::contract_class_from_file;
-use crate::SierraToCasmCompiler;
-
 #[fixture]
 fn compiler() -> impl SierraToCasmCompiler {
     CairoLangSierraToCasmCompiler { config: SierraToCasmCompilationConfig::default() }
