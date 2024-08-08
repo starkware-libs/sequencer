@@ -100,9 +100,9 @@ impl<'state> NativeSyscallHandler<'state> {
         *remaining_gas = u128::from(remaining_gas_u64);
     }
 
-    // We need to have this function since in VM we have `execute_syscall` method, which is handling
-    // all gas-related logics in the native, syscalls are called directly, so we need to
-    // implement this logic here.
+    // Handles gas related logic when executing a syscall. Required because Native calls the
+    // syscalls directly unlike the VM where the `execute_syscall` method perform this operation
+    // first.
     pub fn substract_syscall_gas_cost(
         &mut self,
         remaining_gas: &mut u128,
