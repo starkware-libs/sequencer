@@ -73,7 +73,7 @@ impl PyValidator {
         // processed.
         let skip_validate = self
             .skip_validate_due_to_unprocessed_deploy_account(&account_tx, deploy_account_tx_hash)?;
-        self.stateful_validator.perform_validations(account_tx, skip_validate, true)?;
+        self.stateful_validator.perform_validations(account_tx, skip_validate)?;
 
         Ok(())
     }
