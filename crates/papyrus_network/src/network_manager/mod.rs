@@ -102,7 +102,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     ) -> SqmrServerReceiver<Query, Response>
     where
         Bytes: From<Response>,
-        Query: TryFrom<Bytes>,
+        Query: TryFrom<Bytes> + Clone,
+        <Query as TryFrom<Bytes>>::Error: Clone,
         Response: 'static,
     {
         let protocol = StreamProtocol::try_from_owned(protocol)
@@ -123,8 +124,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         }
 
         let inbound_payload_receiver = inbound_payload_receiver
-            .map(|payload: SqmrServerPayloadForNetwork| SqmrServerPayload::from(payload));
-        Box::new(inbound_payload_receiver)
+            .map(|payload: SqmrServerPayloadForNetwork| ServerQueryManager::from(payload));
+        SqmrServerReceiver { channel: Box::new(inbound_payload_receiver) }
     }
 
     /// TODO: Support multiple protocols where they're all different versions of the same protocol
@@ -637,16 +638,35 @@ type GenericSender<T> = Box<dyn Sink<T, Error = SendError> + Unpin + Send>;
 // Box<S> implements Stream only if S: Stream + Unpin
 type GenericReceiver<T> = Box<dyn Stream<Item = T> + Unpin + Send>;
 
+pub type ReportSender = oneshot::Sender<()>;
+type ReportReceiver = oneshot::Receiver<()>;
+
 type ResponsesSenderForNetwork = GenericSender<Bytes>;
 type ResponsesReceiverForNetwork = GenericReceiver<Option<Bytes>>;
 
-type ResponsesSender<Response> =
+type ClientResponsesSender<Response> =
     GenericSender<Result<Response, <Response as TryFrom<Bytes>>::Error>>;
-type ResponsesReceiver<Response> =
+type ClientResponsesReceiver<Response> =
     GenericReceiver<Result<Response, <Response as TryFrom<Bytes>>::Error>>;
 
-pub type ReportSender = oneshot::Sender<()>;
-type ReportReceiver = oneshot::Receiver<()>;
+struct ServerResponsesSender<Response> {
+    sender: GenericSender<Response>,
+}
+
+impl<Response> ServerResponsesSender<Response> {
+    async fn feed(&mut self, response: Response) -> Result<(), SendError> {
+        self.sender.feed(response).await
+    }
+}
+
+impl<Response> Drop for ServerResponsesSender<Response> {
+    fn drop(&mut self) {
+        let _ = self.sender.flush().now_or_never().unwrap_or_else(|| {
+            error!("Failed to flush responses sender when dropping channel");
+            Ok(())
+        });
+    }
+}
 
 pub struct SqmrClientSender<Query, Response: TryFrom<Bytes>> {
     channel: GenericSender<SqmrClientPayload<Query, Response>>,
@@ -681,11 +701,12 @@ where
 
 pub struct ClientResponsesManager<Response: TryFrom<Bytes>> {
     report_sender: ReportSender,
-    pub(crate) responses_receiver: ResponsesReceiver<Response>,
+    pub(crate) responses_receiver: ClientResponsesReceiver<Response>,
 }
 
 impl<Response: TryFrom<Bytes>> ClientResponsesManager<Response> {
     pub fn report_peer(self) {
+        error!("Reporting peer");
         if let Err(e) = self.report_sender.send(()) {
             error!("Failed to report peer. Error: {e:?}");
         }
@@ -704,16 +725,94 @@ impl<Response: TryFrom<Bytes>> Stream for ClientResponsesManager<Response> {
 pub struct SqmrClientPayload<Query, Response: TryFrom<Bytes>> {
     pub query: Query,
     pub report_receiver: ReportReceiver,
-    pub responses_sender: ResponsesSender<Response>,
+    pub responses_sender: ClientResponsesSender<Response>,
 }
 
-pub struct SqmrServerPayload<Query: TryFrom<Bytes>, Response> {
-    pub query: Result<Query, <Query as TryFrom<Bytes>>::Error>,
-    pub report_sender: ReportSender,
-    pub responses_sender: GenericSender<Response>,
+pub struct SqmrServerReceiver<Query, Response>
+where
+    Query: TryFrom<Bytes> + Clone,
+    <Query as TryFrom<Bytes>>::Error: Clone,
+{
+    channel: GenericReceiver<ServerQueryManager<Query, Response>>,
+}
+impl<Query, Response> SqmrServerReceiver<Query, Response>
+where
+    Query: TryFrom<Bytes> + Clone,
+    <Query as TryFrom<Bytes>>::Error: Clone,
+{
+    #[cfg(feature = "testing")]
+    pub fn new(channel: GenericReceiver<ServerQueryManager<Query, Response>>) -> Self {
+        Self { channel }
+    }
 }
 
-pub type SqmrServerReceiver<Query, Response> = GenericReceiver<SqmrServerPayload<Query, Response>>;
+impl<Query: TryFrom<Bytes> + Clone, Response> Stream for SqmrServerReceiver<Query, Response>
+where
+    Query: TryFrom<Bytes> + Clone,
+    <Query as TryFrom<Bytes>>::Error: Clone,
+{
+    type Item = ServerQueryManager<Query, Response>;
+
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        self.channel.poll_next_unpin(cx)
+    }
+}
+
+pub struct ServerQueryManager<Query, Response>
+where
+    Query: TryFrom<Bytes> + Clone,
+    <Query as TryFrom<Bytes>>::Error: Clone,
+{
+    query: Result<Query, <Query as TryFrom<Bytes>>::Error>,
+    report_sender: ReportSender,
+    responses_sender: ServerResponsesSender<Response>,
+}
+
+impl<Query, Response> ServerQueryManager<Query, Response>
+where
+    Query: TryFrom<Bytes> + Clone,
+    <Query as TryFrom<Bytes>>::Error: Clone,
+    Response: Send + 'static,
+{
+    pub fn query(&self) -> Result<Query, <Query as TryFrom<Bytes>>::Error> {
+        self.query.clone()
+    }
+    pub fn report_peer(self) {
+        debug!("Reporting peer from server to network");
+        if let Err(e) = self.report_sender.send(()) {
+            error!("Failed to report peer. Error: {e:?}");
+        }
+    }
+    pub async fn send_response(&mut self, response: Response) -> Result<(), SendError> {
+        debug!("Sending response from server to network");
+        match self.responses_sender.feed(response).await {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                error!("Failed to send response from server to network. Error: {e:?}");
+                Err(e)
+            }
+        }
+    }
+    #[cfg(feature = "testing")]
+    pub fn create_test_server_query_manager(
+        query: Query,
+    ) -> (Self, ReportReceiver, GenericReceiver<Response>) {
+        let (report_sender, report_receiver) = oneshot::channel::<()>();
+        let (responses_sender, responses_receiver) = futures::channel::mpsc::channel::<Response>(1);
+        let responses_sender = ServerResponsesSender { sender: Box::new(responses_sender) };
+        let responses_receiver = Box::new(responses_receiver);
+        (
+            Self { query: Ok(query), report_sender, responses_sender },
+            report_receiver,
+            responses_receiver,
+        )
+    }
+}
+
+type SqmrClientReceiver = GenericReceiver<SqmrClientPayloadForNetwork>;
 
 struct SqmrClientPayloadForNetwork {
     query: Bytes,
@@ -721,15 +820,13 @@ struct SqmrClientPayloadForNetwork {
     responses_sender: ResponsesSenderForNetwork,
 }
 
-type SqmrClientReceiver = GenericReceiver<SqmrClientPayloadForNetwork>;
+type SqmrServerSender = GenericSender<SqmrServerPayloadForNetwork>;
 
 struct SqmrServerPayloadForNetwork {
     query: Bytes,
     report_sender: ReportSender,
     responses_sender: ResponsesSenderForNetwork,
 }
-
-type SqmrServerSender = GenericSender<SqmrServerPayloadForNetwork>;
 
 impl<Query, Response> From<SqmrClientPayload<Query, Response>> for SqmrClientPayloadForNetwork
 where
@@ -746,17 +843,20 @@ where
     }
 }
 
-impl<Query: TryFrom<Bytes>, Response> From<SqmrServerPayloadForNetwork>
-    for SqmrServerPayload<Query, Response>
+impl<Query, Response> From<SqmrServerPayloadForNetwork> for ServerQueryManager<Query, Response>
 where
     Bytes: From<Response>,
     Response: 'static,
+    Query: TryFrom<Bytes> + Clone,
+    <Query as TryFrom<Bytes>>::Error: Clone,
 {
     fn from(payload: SqmrServerPayloadForNetwork) -> Self {
         let SqmrServerPayloadForNetwork { query, report_sender, responses_sender } = payload;
         let query = Query::try_from(query);
         let responses_sender =
             Box::new(responses_sender.with(|response| ready(Ok(Bytes::from(response)))));
+        let responses_sender = ServerResponsesSender { sender: responses_sender };
+
         Self { query, report_sender, responses_sender }
     }
 }
