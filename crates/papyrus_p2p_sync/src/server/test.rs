@@ -1,9 +1,12 @@
+use std::fmt::Debug;
+
 use futures::channel::mpsc::Sender;
 use futures::StreamExt;
 use lazy_static::lazy_static;
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_common::state::create_random_state_diff;
-use papyrus_network::network_manager::SqmrServerPayload;
+use papyrus_network::network_manager::{ServerQueryManager, SqmrServerReceiver};
+use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_protobuf::sync::{
     BlockHashOrNumber,
     ClassQuery,
@@ -54,8 +57,8 @@ async fn header_query_positive_flow() {
         }
     };
 
-    run_test(assert_signed_block_header, 0, StartBlockType::Hash).await;
-    run_test(assert_signed_block_header, 0, StartBlockType::Number).await;
+    run_test::<_, _, HeaderQuery>(assert_signed_block_header, 0, StartBlockType::Hash).await;
+    run_test::<_, _, HeaderQuery>(assert_signed_block_header, 0, StartBlockType::Number).await;
 }
 
 #[tokio::test]
@@ -69,8 +72,8 @@ async fn transaction_query_positive_flow() {
         }
     };
 
-    run_test(assert_transaction_and_output, 0, StartBlockType::Hash).await;
-    run_test(assert_transaction_and_output, 0, StartBlockType::Number).await;
+    run_test::<_, _, HeaderQuery>(assert_transaction_and_output, 0, StartBlockType::Hash).await;
+    run_test::<_, _, HeaderQuery>(assert_transaction_and_output, 0, StartBlockType::Number).await;
 }
 
 #[tokio::test]
@@ -82,8 +85,8 @@ async fn state_diff_query_positive_flow() {
             assert_eq!(data, expected_data);
         }
     };
-    run_test(assert_state_diff_chunk, 0, StartBlockType::Hash).await;
-    run_test(assert_state_diff_chunk, 0, StartBlockType::Number).await;
+    run_test::<_, _, StateDiffQuery>(assert_state_diff_chunk, 0, StartBlockType::Hash).await;
+    run_test::<_, _, StateDiffQuery>(assert_state_diff_chunk, 0, StartBlockType::Number).await;
 }
 
 #[tokio::test]
@@ -104,8 +107,8 @@ async fn event_query_positive_flow() {
         }
     };
 
-    run_test(assert_event, 0, StartBlockType::Hash).await;
-    run_test(assert_event, 0, StartBlockType::Number).await;
+    run_test::<_, _, EventQuery>(assert_event, 0, StartBlockType::Hash).await;
+    run_test::<_, _, EventQuery>(assert_event, 0, StartBlockType::Number).await;
 }
 
 #[tokio::test]
@@ -125,8 +128,8 @@ async fn class_query_positive_flow() {
             }
         }
     };
-    run_test(assert_class, 0, StartBlockType::Hash).await;
-    run_test(assert_class, 0, StartBlockType::Number).await;
+    run_test::<_, _, ClassQuery>(assert_class, 0, StartBlockType::Hash).await;
+    run_test::<_, _, ClassQuery>(assert_class, 0, StartBlockType::Number).await;
 }
 
 #[tokio::test]
@@ -142,8 +145,12 @@ async fn header_query_some_blocks_are_missing() {
         }
     };
 
-    run_test(assert_signed_block_header, NUM_OF_BLOCKS - BLOCKS_DELTA, StartBlockType::Number)
-        .await;
+    run_test::<_, _, HeaderQuery>(
+        assert_signed_block_header,
+        NUM_OF_BLOCKS - BLOCKS_DELTA,
+        StartBlockType::Number,
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -165,8 +172,12 @@ async fn transaction_query_some_blocks_are_missing() {
         }
     };
 
-    run_test(assert_transaction_and_output, NUM_OF_BLOCKS - BLOCKS_DELTA, StartBlockType::Number)
-        .await;
+    run_test::<_, _, TransactionQuery>(
+        assert_transaction_and_output,
+        NUM_OF_BLOCKS - BLOCKS_DELTA,
+        StartBlockType::Number,
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -185,7 +196,12 @@ async fn state_diff_query_some_blocks_are_missing() {
         }
     };
 
-    run_test(assert_state_diff_chunk, NUM_OF_BLOCKS - BLOCKS_DELTA, StartBlockType::Number).await;
+    run_test::<_, _, StateDiffQuery>(
+        assert_state_diff_chunk,
+        NUM_OF_BLOCKS - BLOCKS_DELTA,
+        StartBlockType::Number,
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -209,7 +225,12 @@ async fn event_query_some_blocks_are_missing() {
         }
     };
 
-    run_test(assert_event, NUM_OF_BLOCKS - BLOCKS_DELTA, StartBlockType::Number).await;
+    run_test::<_, _, EventQuery>(
+        assert_event,
+        NUM_OF_BLOCKS - BLOCKS_DELTA,
+        StartBlockType::Number,
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -235,23 +256,39 @@ async fn class_query_some_blocks_are_missing() {
             }
         }
     };
-    run_test(assert_class, NUM_OF_BLOCKS - BLOCKS_DELTA, StartBlockType::Number).await;
+    run_test::<_, _, ClassQuery>(
+        assert_class,
+        NUM_OF_BLOCKS - BLOCKS_DELTA,
+        StartBlockType::Number,
+    )
+    .await;
 }
 
-async fn run_test<T, F>(assert_fn: F, start_block_number: u64, start_block_type: StartBlockType)
-where
+async fn run_test<T, F, TQuery>(
+    assert_fn: F,
+    start_block_number: u64,
+    start_block_type: StartBlockType,
+) where
     T: FetchBlockDataFromDb + std::fmt::Debug + PartialEq + Send + Sync + 'static,
     F: FnOnce(Vec<T>),
+    TQuery: From<Query>
+        + TryFrom<Vec<u8>, Error = ProtobufConversionError>
+        + Send
+        + Debug
+        + Clone
+        + 'static,
+    <TQuery as TryFrom<Vec<u8>>>::Error: Clone,
+    Query: From<TQuery>,
 {
     let TestArgs {
         p2p_sync_server,
         storage_reader,
         mut storage_writer,
-        header_payload_sender: _header_payload_sender,
-        state_diff_payload_sender: _state_diff_payload_sender,
-        transaction_payload_sender: _transaction_payload_sender,
-        class_payload_sender: _class_payload_sender,
-        event_payload_sender: _event_payload_sender,
+        header_sender: _header_sender,
+        state_diff_sender: _state_diff_sender,
+        transaction_sender: _transaction_sender,
+        class_sender: _class_sender,
+        event_sender: _event_sender,
     } = setup();
 
     // put some data in the storage.
@@ -271,16 +308,18 @@ where
     };
 
     // register a query.
-    let (sender, receiver) = futures::channel::mpsc::channel(BUFFER_SIZE);
     let query = Query { start_block, direction: Direction::Forward, limit: NUM_OF_BLOCKS, step: 1 };
-    register_query::<T, _>(p2p_sync_server.storage_reader.clone(), query, sender);
+    let query = TQuery::from(query);
+    let (server_query_manager, _report_sender, response_reciever) =
+        ServerQueryManager::<TQuery, DataOrFin<T>>::create_test_server_query_manager(query);
+    register_query::<T, TQuery>(storage_reader, server_query_manager);
 
     // run p2p_sync_server and collect query results.
     tokio::select! {
         _ = p2p_sync_server.run() => {
             panic!("p2p_sync_server should never finish its run.");
         },
-        mut res = receiver.collect::<Vec<_>>() => {
+        mut res = response_reciever.collect::<Vec<_>>() => {
             assert_eq!(DataOrFin(None), res.pop().unwrap());
             let filtered_res: Vec<T> = res.into_iter()
                     .map(|data| data.0.expect("P2PSyncServer returned Fin and then returned another response"))
@@ -295,36 +334,33 @@ pub struct TestArgs {
     pub p2p_sync_server: P2PSyncServer,
     pub storage_reader: StorageReader,
     pub storage_writer: StorageWriter,
-    pub header_payload_sender: Sender<SqmrServerPayload<HeaderQuery, DataOrFin<SignedBlockHeader>>>,
-    pub state_diff_payload_sender:
-        Sender<SqmrServerPayload<StateDiffQuery, DataOrFin<StateDiffChunk>>>,
-    pub transaction_payload_sender:
-        Sender<SqmrServerPayload<TransactionQuery, DataOrFin<(Transaction, TransactionOutput)>>>,
-    pub class_payload_sender: Sender<SqmrServerPayload<ClassQuery, DataOrFin<ApiContractClass>>>,
-    pub event_payload_sender:
-        Sender<SqmrServerPayload<EventQuery, DataOrFin<(Event, TransactionHash)>>>,
+    pub header_sender: Sender<ServerQueryManager<HeaderQuery, DataOrFin<SignedBlockHeader>>>,
+    pub state_diff_sender: Sender<ServerQueryManager<StateDiffQuery, DataOrFin<StateDiffChunk>>>,
+    pub transaction_sender:
+        Sender<ServerQueryManager<TransactionQuery, DataOrFin<(Transaction, TransactionOutput)>>>,
+    pub class_sender: Sender<ServerQueryManager<ClassQuery, DataOrFin<ApiContractClass>>>,
+    pub event_sender: Sender<ServerQueryManager<EventQuery, DataOrFin<(Event, TransactionHash)>>>,
 }
 
 #[allow(clippy::type_complexity)]
 fn setup() -> TestArgs {
     let ((storage_reader, storage_writer), _temp_dir) = get_test_storage();
-    let (header_payload_sender, header_payload_receiver) =
-        futures::channel::mpsc::channel(BUFFER_SIZE);
-    let (state_diff_payload_sender, state_diff_payload_receiver) =
-        futures::channel::mpsc::channel(BUFFER_SIZE);
-    let (transaction_payload_sender, transaction_payload_receiver) =
-        futures::channel::mpsc::channel(BUFFER_SIZE);
-    let (class_payload_sender, class_payload_receiver) =
-        futures::channel::mpsc::channel(BUFFER_SIZE);
-    let (event_payload_sender, event_payload_receiver) =
-        futures::channel::mpsc::channel(BUFFER_SIZE);
-
+    let (header_sender, header_receiver) = futures::channel::mpsc::channel(BUFFER_SIZE);
+    let (state_diff_sender, state_diff_receiver) = futures::channel::mpsc::channel(BUFFER_SIZE);
+    let (transaction_sender, transaction_receiver) = futures::channel::mpsc::channel(BUFFER_SIZE);
+    let (class_sender, class_receiver) = futures::channel::mpsc::channel(BUFFER_SIZE);
+    let (event_sender, event_receiver) = futures::channel::mpsc::channel(BUFFER_SIZE);
+    let header_receiver = Box::new(header_receiver);
+    let state_diff_receiver = Box::new(state_diff_receiver);
+    let transaction_receiver = Box::new(transaction_receiver);
+    let class_receiver = Box::new(class_receiver);
+    let event_receiver = Box::new(event_receiver);
     let p2p_sync_server_channels = P2PSyncServerChannels::new(
-        Box::new(header_payload_receiver),
-        Box::new(state_diff_payload_receiver),
-        Box::new(transaction_payload_receiver),
-        Box::new(class_payload_receiver),
-        Box::new(event_payload_receiver),
+        SqmrServerReceiver::new(header_receiver),
+        SqmrServerReceiver::new(state_diff_receiver),
+        SqmrServerReceiver::new(transaction_receiver),
+        SqmrServerReceiver::new(class_receiver),
+        SqmrServerReceiver::new(event_receiver),
     );
 
     let p2p_sync_server =
@@ -333,11 +369,11 @@ fn setup() -> TestArgs {
         p2p_sync_server,
         storage_reader,
         storage_writer,
-        header_payload_sender,
-        state_diff_payload_sender,
-        transaction_payload_sender,
-        class_payload_sender,
-        event_payload_sender,
+        header_sender,
+        state_diff_sender,
+        transaction_sender,
+        class_sender,
+        event_sender,
     }
 }
 use starknet_api::core::ClassHash;

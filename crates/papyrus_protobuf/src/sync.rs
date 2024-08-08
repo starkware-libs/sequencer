@@ -23,6 +23,31 @@ pub struct Query {
     pub limit: u64,
     pub step: u64,
 }
+impl From<HeaderQuery> for Query {
+    fn from(header_query: HeaderQuery) -> Self {
+        header_query.0
+    }
+}
+impl From<StateDiffQuery> for Query {
+    fn from(state_diff_query: StateDiffQuery) -> Self {
+        state_diff_query.0
+    }
+}
+impl From<TransactionQuery> for Query {
+    fn from(transaction_query: TransactionQuery) -> Self {
+        transaction_query.0
+    }
+}
+impl From<ClassQuery> for Query {
+    fn from(class_query: ClassQuery) -> Self {
+        class_query.0
+    }
+}
+impl From<EventQuery> for Query {
+    fn from(event_query: EventQuery) -> Self {
+        event_query.0
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum BlockHashOrNumber {
