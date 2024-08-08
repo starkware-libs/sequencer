@@ -129,8 +129,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         let tx = &self.chunk[tx_index];
         let mut transactional_state =
             TransactionalState::create_transactional(&mut tx_versioned_state);
-        let execution_flags =
-            ExecutionFlags { charge_fee, validate: true, concurrency_mode: true };
+        let execution_flags = ExecutionFlags { charge_fee, validate: true, concurrency_mode: true };
         let execution_result =
             tx.execute_raw(&mut transactional_state, self.block_context, execution_flags);
 

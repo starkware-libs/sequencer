@@ -150,8 +150,6 @@ fn test_rc96_holes(block_context: BlockContext, max_resource_bounds: ResourceBou
     assert_eq!(tx_execution_info.receipt.gas, GasVector::from_l1_gas(6598));
 }
 
-
-
 // TODO(Dori, 15/9/2023): Convert version variance to attribute macro.
 #[rstest]
 fn test_account_flow_test(
