@@ -17,6 +17,7 @@ pub fn create_components(config: &MempoolNodeConfig, clients: &MempoolNodeClient
         Some(create_gateway(
             config.gateway_config.clone(),
             config.rpc_state_reader_config.clone(),
+            config.compiler_config,
             mempool_client,
         ))
     } else {
