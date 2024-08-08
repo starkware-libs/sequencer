@@ -24,7 +24,7 @@ use super::swarm_trait::{Event, SwarmTrait};
 use super::GenericNetworkManager;
 use crate::gossipsub_impl::{self, Topic};
 use crate::mixed_behaviour;
-use crate::network_manager::SqmrServerPayload;
+use crate::network_manager::ServerQueryManager;
 use crate::sqmr::behaviour::{PeerNotConnected, SessionIdNotFoundError};
 use crate::sqmr::{Bytes, GenericEvent, InboundSessionId, OutboundSessionId};
 
@@ -290,12 +290,12 @@ async fn process_incoming_query() {
     let responses_clone = responses.clone();
     select! {
         _ = async move {
-            let SqmrServerPayload{query: query_got, report_sender: _report_sender, mut responses_sender} = inbound_payload_receiver.next().await.unwrap();
+            let ServerQueryManager{query: query_got, report_sender: _report_sender, mut responses_sender} = inbound_payload_receiver.next().await.unwrap();
             assert_eq!(query_got.unwrap(), query);
             for response in responses_clone {
                 responses_sender.feed(response).await.unwrap();
             }
-            responses_sender.close().await.unwrap();
+            responses_sender.sender.close().await.unwrap();
             assert_eq!(get_responses_fut.await, responses);
         } => {}
         _ = network_manager.run() => {
