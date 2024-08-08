@@ -95,7 +95,7 @@ impl ContractClass {
         match self {
             ContractClass::V0(class) => class.estimate_casm_hash_computation_resources(),
             ContractClass::V1(class) => class.estimate_casm_hash_computation_resources(),
-            ContractClass::V1Native(_) => todo!("Sierra estimate casm hash computation resources."),
+            ContractClass::V1Native(_) => todo!("Native estimate casm hash computation resources."),
         }
     }
 
@@ -108,7 +108,7 @@ impl ContractClass {
                 panic!("get_visited_segments is not supported for v0 contracts.")
             }
             ContractClass::V1(class) => class.get_visited_segments(visited_pcs),
-            ContractClass::V1Native(_) => todo!("Sierra visited segments."),
+            ContractClass::V1Native(_) => todo!("Native visited segments."),
         }
     }
 
@@ -116,7 +116,7 @@ impl ContractClass {
         match self {
             ContractClass::V0(class) => class.bytecode_length(),
             ContractClass::V1(class) => class.bytecode_length(),
-            ContractClass::V1Native(_) => todo!("Sierra estimate casm hash computation resources."),
+            ContractClass::V1Native(_) => todo!("Native estimate casm hash computation resources."),
         }
     }
 
@@ -636,8 +636,7 @@ impl ClassInfo {
     ) -> ContractClassResult<Self> {
         let (contract_class_version, condition) = match contract_class {
             ContractClass::V0(_) => (0, sierra_program_length == 0),
-            ContractClass::V1(_) => (1, sierra_program_length > 0),
-            ContractClass::V1Native(_) => (1, sierra_program_length > 0),
+            ContractClass::V1(_) | ContractClass::V1Native(_) => (1, sierra_program_length > 0),
         };
 
         if condition {
