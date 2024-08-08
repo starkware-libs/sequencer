@@ -56,13 +56,12 @@ impl<S: StateReader> StatefulValidator<S> {
         &mut self,
         tx: AccountTransaction,
         skip_validate: bool,
-        charge_fee: bool,
     ) -> StatefulValidatorResult<()> {
         // Deploy account transactions should be fully executed, since the constructor must run
         // before `__validate_deploy__`. The execution already includes all necessary validations,
         // so they are skipped here.
         if let AccountTransaction::DeployAccount(_) = tx {
-            self.execute(tx, charge_fee)?;
+            self.execute(tx)?;
             return Ok(());
         }
 
@@ -84,8 +83,8 @@ impl<S: StateReader> StatefulValidator<S> {
         Ok(())
     }
 
-    fn execute(&mut self, tx: AccountTransaction, charge_fee: bool) -> StatefulValidatorResult<()> {
-        self.tx_executor.execute(&Transaction::AccountTransaction(tx), charge_fee)?;
+    fn execute(&mut self, tx: AccountTransaction) -> StatefulValidatorResult<()> {
+        self.tx_executor.execute(&Transaction::AccountTransaction(tx), true)?;
         Ok(())
     }
 
@@ -98,7 +97,7 @@ impl<S: StateReader> StatefulValidator<S> {
         // Run pre-validation in charge fee mode to perform fee and balance related checks.
         // TODO (Meshi, 1/10/2024): When resource bound is supported in FaultyAccountTxCreatorArgs
         // Change charge_fee to true.
-        let charge_fee = tx_context.tx_info.enforce_fee().unwrap();
+        let charge_fee = true;
         tx.perform_pre_validation_stage(
             self.tx_executor.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
             tx_context,
