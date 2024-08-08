@@ -9,6 +9,8 @@ members = [
   "crates/blockifier",
   "crates/committer",
   "crates/committer_cli",
+  "crates/consensus_manager",
+  "crates/consensus_manager_types",
   "crates/gateway",
   "crates/mempool",
   "crates/mempool_infra",

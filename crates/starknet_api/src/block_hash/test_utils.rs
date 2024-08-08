@@ -4,10 +4,10 @@ use starknet_types_core::felt::Felt;
 
 use super::block_hash_calculator::TransactionOutputForHash;
 use crate::core::{ClassHash, CompiledClassHash, ContractAddress, EthAddress, Nonce};
+use crate::execution_resources::GasVector;
 use crate::state::ThinStateDiff;
 use crate::transaction::{
     Fee,
-    GasVector,
     L2ToL1Payload,
     MessageToL1,
     RevertedTransactionExecutionStatus,

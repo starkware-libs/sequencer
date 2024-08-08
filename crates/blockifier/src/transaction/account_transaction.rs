@@ -219,7 +219,8 @@ impl AccountTransaction {
                     })?;
                 }
 
-                let actual_l1_gas_price = block_info.gas_prices.get_gas_price_by_fee_type(fee_type);
+                let actual_l1_gas_price =
+                    block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type);
                 if max_l1_gas_price < actual_l1_gas_price.into() {
                     return Err(TransactionFeeError::MaxL1GasPriceTooLow {
                         max_l1_gas_price,
@@ -690,7 +691,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
             validate_call_info,
             execute_call_info,
             fee_transfer_call_info,
-            transaction_receipt: TransactionReceipt {
+            receipt: TransactionReceipt {
                 fee: final_fee,
                 da_gas: final_da_gas,
                 resources: final_resources,

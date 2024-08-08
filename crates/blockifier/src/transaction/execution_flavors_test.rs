@@ -127,7 +127,7 @@ fn check_gas_and_fee(
 ) {
     assert_eq!(
         tx_execution_info
-            .transaction_receipt
+            .receipt
             .resources
             .to_gas_vector(&block_context.versioned_constants, block_context.block_info.use_kzg_da)
             .unwrap()
@@ -135,15 +135,11 @@ fn check_gas_and_fee(
         expected_actual_gas.into()
     );
 
-    assert_eq!(tx_execution_info.transaction_receipt.fee, expected_actual_fee);
+    assert_eq!(tx_execution_info.receipt.fee, expected_actual_fee);
     // Future compatibility: resources other than the L1 gas usage may affect the fee (currently,
     // `calculate_tx_fee` is simply the result of `calculate_tx_gas_usage_vector` times gas price).
     assert_eq!(
-        tx_execution_info
-            .transaction_receipt
-            .resources
-            .calculate_tx_fee(block_context, fee_type)
-            .unwrap(),
+        tx_execution_info.receipt.resources.calculate_tx_fee(block_context, fee_type).unwrap(),
         expected_cost_of_resources
     );
 }
@@ -175,7 +171,7 @@ fn test_simulate_validate_charge_fee_pre_validate(
     // The max resource bounds fixture is not used here because this function already has the
     // maximum number of arguments.
     let resource_bounds = l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE);
-    let gas_price = block_context.block_info.gas_prices.get_gas_price_by_fee_type(&fee_type);
+    let gas_price = block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
     let FlavorTestInitialState {
         mut state,
         account_address,
@@ -419,7 +415,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
 ) {
     let block_context = BlockContext::create_for_account_testing();
     let chain_info = &block_context.chain_info;
-    let gas_price = block_context.block_info.gas_prices.get_gas_price_by_fee_type(&fee_type);
+    let gas_price = block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
     let FlavorTestInitialState {
         mut state,
         account_address,
@@ -514,7 +510,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
         // availability), hence the actual resources may exceed the senders bounds after all.
         if charge_fee { limited_gas_used } else { unlimited_gas_used },
         if charge_fee { fee_bound } else { unlimited_fee },
-        // Complete resources used are reported as transaction_receipt.resources; but only the
+        // Complete resources used are reported as receipt.resources; but only the
         // charged final fee is shown in actual_fee.
         if charge_fee { limited_fee } else { unlimited_fee },
     );
@@ -547,7 +543,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     .execute(&mut state, &low_step_block_context, charge_fee, validate)
     .unwrap();
     assert!(tx_execution_info.revert_error.clone().unwrap().contains("no remaining steps"));
-    // Complete resources used are reported as transaction_receipt.resources; but only the charged
+    // Complete resources used are reported as receipt.resources; but only the charged
     // final fee is shown in actual_fee. As a sanity check, verify that the fee derived directly
     // from the consumed resources is also equal to the expected fee.
     check_gas_and_fee(
@@ -575,7 +571,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     #[case] is_deprecated: bool,
 ) {
     let block_context = BlockContext::create_for_account_testing();
-    let gas_price = block_context.block_info.gas_prices.get_gas_price_by_fee_type(&fee_type);
+    let gas_price = block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
     let chain_info = &block_context.chain_info;
     let fee_token_address = chain_info.fee_token_address(&fee_type);
 

@@ -148,7 +148,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
             validate_call_info: None,
             execute_call_info,
             fee_transfer_call_info: None,
-            transaction_receipt: TransactionReceipt {
+            receipt: TransactionReceipt {
                 fee: Fee::default(),
                 da_gas,
                 resources: actual_resources,
@@ -191,7 +191,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
         verify_tx_weights_in_bounds(
             state,
             &tx_execution_summary,
-            &tx_execution_info.transaction_receipt.resources,
+            &tx_execution_info.receipt.resources,
             &tx_state_changes_keys,
             &block_context.bouncer_config,
         )?;

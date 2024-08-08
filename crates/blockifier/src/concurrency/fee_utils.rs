@@ -51,13 +51,13 @@ pub fn complete_fee_transfer_flow(
         add_fee_to_sequencer_balance(
             tx_context.fee_token_address(),
             state,
-            tx_execution_info.transaction_receipt.fee,
+            tx_execution_info.receipt.fee,
             &tx_context.block_context,
             sequencer_balance,
         );
     } else {
         assert_eq!(
-            tx_execution_info.transaction_receipt.fee,
+            tx_execution_info.receipt.fee,
             Fee(0),
             "Transaction with no fee transfer info must have zero fee."
         )

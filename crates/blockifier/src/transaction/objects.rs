@@ -222,7 +222,7 @@ pub struct TransactionExecutionInfo {
     /// actual execution resources the transaction is charged for
     /// (including L1 gas and additional OS resources estimation),
     /// and total gas consumed.
-    pub transaction_receipt: TransactionReceipt,
+    pub receipt: TransactionReceipt,
 }
 
 impl TransactionExecutionInfo {

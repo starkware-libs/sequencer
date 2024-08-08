@@ -112,7 +112,7 @@ jobs:
             })
 
   gcs-push:
-    runs-on: starkware-ubuntu-20-04-medium
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

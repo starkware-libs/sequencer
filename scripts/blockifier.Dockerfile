@@ -10,5 +10,5 @@ ENV RUSTUP_HOME=/opt/rust
 ENV CARGO_HOME=/opt/rust
 ENV PATH=$PATH:/opt/rust/bin
 
-COPY scripts/install_build_tools.sh .
+COPY install_build_tools.sh .
 RUN bash install_build_tools.sh

@@ -44,8 +44,15 @@ async fn state_diff_basic_flow() {
     const_assert!(STATE_DIFF_QUERY_LENGTH < HEADER_QUERY_LENGTH);
     const_assert!(HEADER_QUERY_LENGTH < 2 * STATE_DIFF_QUERY_LENGTH);
 
-    let TestArgs { p2p_sync, storage_reader, mut state_diff_receiver, mut header_receiver, .. } =
-        setup();
+    let TestArgs {
+        p2p_sync,
+        storage_reader,
+        mut state_diff_receiver,
+        mut header_receiver,
+        // The test will fail if we drop these
+        transaction_receiver: _transaction_payload_receiver,
+        ..
+    } = setup();
 
     let block_hashes_and_signatures =
         create_block_hashes_and_signatures(HEADER_QUERY_LENGTH.try_into().unwrap());
@@ -304,8 +311,15 @@ async fn validate_state_diff_fails(
     state_diff_chunks: Vec<Option<StateDiffChunk>>,
     error_validator: impl Fn(P2PSyncClientError),
 ) {
-    let TestArgs { p2p_sync, storage_reader, mut state_diff_receiver, mut header_receiver, .. } =
-        setup();
+    let TestArgs {
+        p2p_sync,
+        storage_reader,
+        mut state_diff_receiver,
+        mut header_receiver,
+        // The test will fail if we drop these
+        transaction_receiver: _transaction_payload_receiver,
+        ..
+    } = setup();
 
     let (block_hash, block_signature) = *create_block_hashes_and_signatures(1).first().unwrap();
 

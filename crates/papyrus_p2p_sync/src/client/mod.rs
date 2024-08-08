@@ -7,6 +7,7 @@ mod state_diff_test;
 mod stream_builder;
 #[cfg(test)]
 mod test_utils;
+mod transaction;
 
 use std::collections::BTreeMap;
 use std::time::Duration;
@@ -35,7 +36,7 @@ use state_diff::StateDiffStreamBuilder;
 use stream_builder::{DataStreamBuilder, DataStreamResult};
 use tokio_stream::StreamExt;
 use tracing::instrument;
-
+use transaction::TransactionStreamFactory;
 const STEP: u64 = 1;
 const ALLOWED_SIGNATURES_LENGTH: usize = 1;
 
@@ -45,6 +46,7 @@ const NETWORK_DATA_TIMEOUT: Duration = Duration::from_secs(300);
 pub struct P2PSyncClientConfig {
     pub num_headers_per_query: u64,
     pub num_block_state_diffs_per_query: u64,
+    pub num_transactions_per_query: u64,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub wait_period_for_new_data: Duration,
     pub buffer_size: usize,
@@ -64,6 +66,13 @@ impl SerializeConfig for P2PSyncClientConfig {
                 "num_block_state_diffs_per_query",
                 &self.num_block_state_diffs_per_query,
                 "The maximum amount of block's state diffs to ask from peers in each iteration.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "num_transactions_per_query",
+                &self.num_transactions_per_query,
+                "The maximum amount of blocks to ask their transactions from peers in each \
+                 iteration.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -99,6 +108,7 @@ impl Default for P2PSyncClientConfig {
             // State diffs are split into multiple messages, so big queries can lead to a lot of
             // messages in the network buffers.
             num_block_state_diffs_per_query: 100,
+            num_transactions_per_query: 100,
             wait_period_for_new_data: Duration::from_secs(5),
             // TODO(eitan): split this by protocol
             buffer_size: 100000,
@@ -116,6 +126,12 @@ pub enum P2PSyncClientError {
          {expected_block_number}, got {actual_block_number}."
     )]
     HeadersUnordered { expected_block_number: BlockNumber, actual_block_number: BlockNumber },
+    #[error(
+        "Expected to receive {expected} transactions for {block_number} from the network. Got \
+         {actual} instead."
+    )]
+    // TODO(eitan): Remove this and report to network on invalid data once that's possible.
+    NotEnoughTransactions { expected: usize, actual: usize, block_number: u64 },
     #[error("Expected to receive one signature from the network. got {signatures:?} instead.")]
     // TODO(shahak): Remove this and report to network on invalid data once that's possible.
     // Right now we support only one signature. In the future we will support many signatures.
@@ -197,7 +213,15 @@ impl P2PSyncClientChannels {
             config.stop_sync_at_block_number,
         );
 
-        header_stream.merge(state_diff_stream)
+        let transaction_stream = TransactionStreamFactory::create_stream(
+            self.transaction_sender,
+            storage_reader.clone(),
+            config.wait_period_for_new_data,
+            config.num_transactions_per_query,
+            config.stop_sync_at_block_number,
+        );
+
+        header_stream.merge(state_diff_stream).merge(transaction_stream)
     }
 }
 
