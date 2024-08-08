@@ -24,7 +24,7 @@ indexmap.workspace = true
 rand.workspace = true
 rand_distr.workspace = true
 serde = { workspace = true, features = ["derive"] }
-serde_json = "1.0.116"
+serde_json.workspace = true
 serde_repr = "0.1.19"
 starknet-types-core.workspace = true
 starknet_api.workspace = true
