@@ -96,6 +96,6 @@ fn test_transaction_validator_skip_validate(max_resource_bounds: ResourceBoundsM
 
     let mut stateful_validator = StatefulValidator::create(state, block_context);
     // The transaction validations should be skipped and the function should return Ok.
-    let result = stateful_validator.perform_validations(tx, true, true);
+    let result = stateful_validator.perform_validations(tx, true);
     assert_matches!(result, Ok(()));
 }
