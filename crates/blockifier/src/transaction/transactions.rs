@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use cairo_vm::types::errors::program_errors::ProgramError;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::EntryPointType;
@@ -136,12 +137,12 @@ pub struct DeclareTransaction {
 }
 
 impl TryFrom<starknet_api::executable_transaction::DeclareTransaction> for DeclareTransaction {
-    type Error = TransactionExecutionError;
+    type Error = ProgramError;
 
     fn try_from(
         value: starknet_api::executable_transaction::DeclareTransaction,
     ) -> Result<Self, Self::Error> {
-        Self::new_from_executable_tx(value, false)
+        Self::create_from_executable_tx(value, false)
     }
 }
 
@@ -173,17 +174,19 @@ impl DeclareTransaction {
         Self::create(declare_tx, tx_hash, class_info, true)
     }
 
-    pub fn new_from_executable_tx(
+    pub fn create_from_executable_tx(
         declare_tx: starknet_api::executable_transaction::DeclareTransaction,
         only_query: bool,
-    ) -> Result<Self, TransactionExecutionError> {
+    ) -> Result<Self, ProgramError> {
         let starknet_api::executable_transaction::DeclareTransaction { tx, tx_hash, class_info } =
             declare_tx;
         let class_info: ClassInfo = class_info.try_into()?;
 
-        // TODO(Arni): We don't need to verify the contract class version here, any executable
-        // declare transaction will always have matching versions.
-        Self::create(tx, tx_hash, class_info, only_query)
+        // Assert that the ContractClass matches the TransactionVersion, and return the result.
+        Ok(Self::create(tx, tx_hash, class_info, only_query).expect(
+            "In this flow we expect the ContractClass version to always be 1 and the \
+             TransactionVersion to be 3.",
+        ))
     }
 
     implement_inner_tx_getter_calls!((class_hash, ClassHash), (signature, TransactionSignature));
