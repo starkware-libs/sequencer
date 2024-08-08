@@ -2,7 +2,10 @@ use assert_matches::assert_matches;
 use blockifier::execution::contract_class::ContractClass;
 use cairo_lang_sierra_to_casm::compiler::CompilationError;
 use cairo_lang_starknet_classes::allowed_libfuncs::AllowedLibfuncsError;
-use cairo_lang_starknet_classes::casm_contract_class::StarknetSierraCompilationError;
+use cairo_lang_starknet_classes::casm_contract_class::{
+    CasmContractClass,
+    StarknetSierraCompilationError,
+};
 use mempool_test_utils::starknet_api_test_utils::declare_tx as rpc_declare_tx;
 use rstest::{fixture, rstest};
 use starknet_api::core::CompiledClassHash;
@@ -13,6 +16,7 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_sierra_compile::errors::CompilationUtilError;
+use starknet_sierra_compile::SierraToCasmCompiler;
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{GatewayCompilerConfig, PostCompilationConfig};
@@ -32,6 +36,7 @@ fn declare_tx_v3() -> RpcDeclareTransactionV3 {
 }
 
 // TODO(Arni): Redesign this test once the compiler is passed with dependancy injection.
+// DO that too.
 #[rstest]
 fn test_compile_contract_class_compiled_class_hash_mismatch(
     gateway_compiler: GatewayCompiler,
@@ -51,10 +56,12 @@ fn test_compile_contract_class_compiled_class_hash_mismatch(
 }
 
 // TODO(Arni): Redesign this test once the compiler is passed with dependancy injection.
+// TODO(Do that too).
 #[rstest]
 fn test_compile_contract_class_bytecode_size_validation(declare_tx_v3: RpcDeclareTransactionV3) {
+    let sierra_to_casm_compiler_config = SierraToCasmCompilationConfig { max_bytecode_size: 1 };
     let gateway_compiler = GatewayCompiler::new_cairo_lang_compiler(GatewayCompilerConfig {
-        sierra_to_casm_compiler_config: SierraToCasmCompilationConfig { max_bytecode_size: 1 },
+        sierra_to_casm_compiler_config,
         ..Default::default()
     });
 
@@ -68,13 +75,22 @@ fn test_compile_contract_class_bytecode_size_validation(declare_tx_v3: RpcDeclar
     )
 }
 
-// TODO(Arni): Redesign this test to use a mock compiler.
 #[rstest]
 fn test_compile_contract_class_raw_class_size_validation(declare_tx_v3: RpcDeclareTransactionV3) {
-    let gateway_compiler = GatewayCompiler::new_cairo_lang_compiler(GatewayCompilerConfig {
-        post_compilation_config: PostCompilationConfig { max_raw_casm_class_size: 1 },
-        ..Default::default()
-    });
+    struct GatewayCompilerForTesting;
+    impl SierraToCasmCompiler for GatewayCompilerForTesting {
+        fn compile(
+            &self,
+            _contract_class: cairo_lang_starknet_classes::contract_class::ContractClass,
+        ) -> Result<CasmContractClass, CompilationUtilError> {
+            Ok(CasmContractClass::default())
+        }
+    }
+
+    let gateway_compiler = GatewayCompiler {
+        config: PostCompilationConfig { max_raw_casm_class_size: 1 },
+        sierra_to_casm_compiler: std::sync::Arc::new(GatewayCompilerForTesting),
+    };
 
     let result = gateway_compiler.process_declare_tx(&RpcDeclareTransaction::V3(declare_tx_v3));
     assert_matches!(result.unwrap_err(), GatewayError::CasmContractClassObjectSizeTooLarge { .. })
