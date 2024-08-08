@@ -77,7 +77,7 @@ cairo-lang-utils = "2.7.0"
 cairo-vm = "=1.0.0-rc6"
 camelpaste = "0.1.0"
 chrono = "0.4.26"
-clap = "4.3.10"
+clap = "4.5.4"
 colored = "2.1.0"
 committer = { path = "crates/committer", version = "0.1.0-rc.0" }
 const_format = "0.2.30"
