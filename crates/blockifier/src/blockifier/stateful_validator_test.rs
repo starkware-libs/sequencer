@@ -69,7 +69,7 @@ fn test_transaction_validator(
     // Test the stateful validator.
     let mut stateful_validator = StatefulValidator::create(state, block_context);
 
-    let result = stateful_validator.perform_validations(tx, false, true);
+    let result = stateful_validator.perform_validations(tx, false, false);
     assert!(result.is_ok(), "Validation failed: {:?}", result.unwrap_err());
 }
 
