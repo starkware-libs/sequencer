@@ -94,7 +94,7 @@ impl ContractClass {
         match self {
             ContractClass::V0(class) => class.estimate_casm_hash_computation_resources(),
             ContractClass::V1(class) => class.estimate_casm_hash_computation_resources(),
-            ContractClass::V1Native(_) => todo!("sierra estimate casm hash computation resources"),
+            ContractClass::V1Native(_) => todo!("Sierra estimate casm hash computation resources."),
         }
     }
 
@@ -107,7 +107,7 @@ impl ContractClass {
                 panic!("get_visited_segments is not supported for v0 contracts.")
             }
             ContractClass::V1(class) => class.get_visited_segments(visited_pcs),
-            ContractClass::V1Native(_) => todo!("sierra visited segments"),
+            ContractClass::V1Native(_) => todo!("Sierra visited segments."),
         }
     }
 
@@ -115,7 +115,7 @@ impl ContractClass {
         match self {
             ContractClass::V0(class) => class.bytecode_length(),
             ContractClass::V1(class) => class.bytecode_length(),
-            ContractClass::V1Native(_) => todo!("sierra estimate casm hash computation resources"),
+            ContractClass::V1Native(_) => todo!("Sierra estimate casm hash computation resources."),
         }
     }
 
