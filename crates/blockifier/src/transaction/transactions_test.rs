@@ -66,6 +66,7 @@ use crate::test_utils::prices::Prices;
 use crate::test_utils::{
     create_calldata,
     create_trivial_calldata,
+    default_testing_resource_bounds,
     get_syscall_resources,
     get_tx_resources,
     test_erc20_sequencer_balance_key,
@@ -1556,6 +1557,7 @@ fn test_validate_accounts_tx(
                                                        * the address of
                                                        * faulty_account. */
         contract_address_salt: salt_manager.next_salt(),
+        resource_bounds: default_testing_resource_bounds(),
         ..default_args
     });
     let error = account_tx.execute(state, block_context, true, true).unwrap_err();
@@ -1571,6 +1573,7 @@ fn test_validate_accounts_tx(
             scenario: GET_BLOCK_HASH,
             contract_address_salt: salt_manager.next_salt(),
             additional_data: None,
+            resource_bounds: default_testing_resource_bounds(),
             ..default_args
         });
         let error = account_tx.execute(state, block_context, true, true).unwrap_err();
@@ -1585,6 +1588,7 @@ fn test_validate_accounts_tx(
         let account_tx = create_account_tx_for_validate_test_nonce_0(FaultyAccountTxCreatorArgs {
             scenario: GET_SEQUENCER_ADDRESS,
             contract_address_salt: salt_manager.next_salt(),
+            resource_bounds: default_testing_resource_bounds(),
             ..default_args
         });
         let error = account_tx.execute(state, block_context, true, true).unwrap_err();
@@ -1607,6 +1611,7 @@ fn test_validate_accounts_tx(
             contract_address_salt: salt_manager.next_salt(),
             additional_data: None,
             declared_contract: Some(FeatureContract::TestContract(declared_contract_cairo_version)),
+            resource_bounds: default_testing_resource_bounds(),
             ..default_args
         },
     );
@@ -1623,6 +1628,7 @@ fn test_validate_accounts_tx(
                 declared_contract: Some(FeatureContract::AccountWithLongValidate(
                     declared_contract_cairo_version,
                 )),
+                resource_bounds: default_testing_resource_bounds(),
                 ..default_args
             },
         );
@@ -1642,6 +1648,7 @@ fn test_validate_accounts_tx(
                 declared_contract: Some(FeatureContract::AccountWithoutValidations(
                     declared_contract_cairo_version,
                 )),
+                resource_bounds: default_testing_resource_bounds(),
                 ..default_args
             },
         );
@@ -1657,6 +1664,7 @@ fn test_validate_accounts_tx(
                 contract_address_salt: salt_manager.next_salt(),
                 additional_data: Some(vec![Felt::from(CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE)]),
                 declared_contract: Some(FeatureContract::Empty(declared_contract_cairo_version)),
+                resource_bounds: default_testing_resource_bounds(),
                 ..default_args
             },
         );
@@ -1678,6 +1686,7 @@ fn test_validate_accounts_tx(
                     Felt::from(0_u64), // Sequencer address for validate.
                 ]),
                 declared_contract: Some(FeatureContract::Empty(declared_contract_cairo_version)),
+                resource_bounds: default_testing_resource_bounds(),
                 ..default_args
             },
         );
