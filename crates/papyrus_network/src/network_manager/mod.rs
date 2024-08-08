@@ -562,7 +562,7 @@ impl NetworkManager {
                 key,
                 bootstrap_peer_multiaddr.clone(),
                 sqmr::Config { session_timeout },
-                chain_id.clone(),
+                chain_id,
             )
         });
         Self::generic_new(swarm)

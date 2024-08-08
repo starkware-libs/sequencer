@@ -10,7 +10,7 @@ pub fn build_swarm<Behaviour: NetworkBehaviour>(
     listen_addresses: Vec<String>,
     idle_connection_timeout: Duration,
     secret_key: Option<Vec<u8>>,
-    behaviour: impl Fn(Keypair) -> Behaviour,
+    behaviour: impl FnOnce(Keypair) -> Behaviour,
 ) -> Swarm<Behaviour>
 where
 {
