@@ -6,7 +6,7 @@ use cairo_lang_starknet_classes::allowed_libfuncs::AllowedLibfuncsError;
 use mempool_test_utils::{get_absolute_path, FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 use rstest::{fixture, rstest};
 
-use crate::compile::{CairoLangSierraToCasmCompiler, CompilationUtilError};
+use crate::cairo_lang_compiler::{CairoLangSierraToCasmCompiler, CompilationUtilError};
 use crate::config::SierraToCasmCompilationConfig;
 use crate::test_utils::contract_class_from_file;
 use crate::SierraToCasmCompiler;
