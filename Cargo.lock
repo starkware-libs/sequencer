@@ -9132,6 +9132,7 @@ dependencies = [
  "starknet_mempool",
  "starknet_mempool_infra",
  "starknet_mempool_types",
+ "starknet_sierra_compile",
  "tokio",
  "tracing",
  "validator",
