@@ -52,6 +52,7 @@ const Configuration = {
             'transaction',
             'types',
         ]],
+        'scope-empty': [2, 'never']
     },
     /*
      * Functions that return true if commitlint should ignore the given message.
