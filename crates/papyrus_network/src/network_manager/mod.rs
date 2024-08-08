@@ -254,10 +254,10 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             }
             SwarmEvent::NewListenAddr { address, .. } => {
                 // TODO(shahak): Find a better way to filter private addresses.
-                if is_localhost(&address) {
-                    println!("AAAAAAAA new listen address {address:?}");
-                    self.swarm.add_external_address(address);
-                }
+                // if !is_localhost(&address) {
+                println!("AAAAAAAA new listen address {address:?}");
+                self.swarm.add_external_address(address);
+                // }
             }
             _ => {
                 error!("Unexpected event {event:?}");
@@ -283,6 +283,9 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             }
             mixed_behaviour::ExternalEvent::GossipSub(event) => {
                 self.handle_gossipsub_behaviour_event(event);
+            }
+            mixed_behaviour::ExternalEvent::Autonat(event) => {
+                println!("AAAAA AUTONAT {event:?}");
             }
         }
     }

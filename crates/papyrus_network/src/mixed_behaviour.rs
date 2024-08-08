@@ -5,7 +5,7 @@ use libp2p::kad::store::MemoryStore;
 use libp2p::swarm::behaviour::toggle::Toggle;
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::NetworkBehaviour;
-use libp2p::{gossipsub, identify, kad, Multiaddr, PeerId};
+use libp2p::{autonat, gossipsub, identify, kad, Multiaddr, PeerId};
 
 use crate::discovery::identify_impl::{IdentifyToOtherBehaviourEvent, IDENTIFY_PROTOCOL_VERSION};
 use crate::discovery::kad_impl::KadToOtherBehaviourEvent;
@@ -20,6 +20,7 @@ const ONE_MEGA: usize = 1 << 20;
 #[behaviour(out_event = "Event")]
 pub struct MixedBehaviour {
     pub peer_manager: peer_manager::PeerManager<peer_manager::peer::Peer>,
+    pub autonat: autonat::Behaviour,
     pub discovery: Toggle<discovery::Behaviour>,
     pub identify: identify::Behaviour,
     // TODO(shahak): Consider using a different store.
@@ -36,8 +37,15 @@ pub enum Event {
 
 #[derive(Debug)]
 pub enum ExternalEvent {
+    Autonat(autonat::Event),
     Sqmr(sqmr::behaviour::ExternalEvent),
     GossipSub(gossipsub_impl::ExternalEvent),
+}
+
+impl From<autonat::Event> for Event {
+    fn from(event: autonat::Event) -> Self {
+        Event::ExternalEvent(ExternalEvent::Autonat(event))
+    }
 }
 
 #[derive(Debug)]
@@ -64,7 +72,20 @@ impl MixedBehaviour {
     ) -> Self {
         let public_key = keypair.public();
         let local_peer_id = PeerId::from_public_key(&public_key);
+        let mut autonat = autonat::Behaviour::new(
+            local_peer_id,
+            autonat::Config { use_connected: false, only_global_ips: false, ..Default::default() },
+        );
+        if let Some(multiaddr) = bootstrap_peer_multiaddr.clone() {
+            autonat.add_server(
+                DialOpts::from(multiaddr.clone())
+                    .get_peer_id()
+                    .expect("bootstrap_peer_multiaddr doesn't have a peer id"),
+                Some(multiaddr.clone()),
+            );
+        }
         Self {
+            autonat,
             peer_manager: peer_manager::PeerManager::new(PeerManagerConfig::default()),
             discovery: bootstrap_peer_multiaddr
                 .map(|bootstrap_peer_multiaddr| {

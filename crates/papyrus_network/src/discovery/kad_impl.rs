@@ -12,7 +12,7 @@ pub enum KadToOtherBehaviourEvent {
 
 impl From<kad::Event> for mixed_behaviour::Event {
     fn from(event: kad::Event) -> Self {
-        println!("KKKKKKKK {event:?}");
+        // println!("KKKKKKKK {event:?}");
         match event {
             kad::Event::OutboundQueryProgressed {
                 id: _,
