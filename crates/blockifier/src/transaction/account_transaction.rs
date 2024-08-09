@@ -63,7 +63,7 @@ mod flavors_test;
 mod post_execution_test;
 
 /// Represents a paid Starknet transaction.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, derive_more::From)]
 pub enum AccountTransaction {
     Declare(DeclareTransaction),
     DeployAccount(DeployAccountTransaction),
