@@ -251,12 +251,8 @@ impl VersionedConstants {
         };
         Self { validate_max_n_steps, max_recursion_depth, ..base_overrides }
     }
-}
 
-impl TryFrom<&Path> for VersionedConstants {
-    type Error = VersionedConstantsError;
-
-    fn try_from(path: &Path) -> Result<Self, Self::Error> {
+    pub fn new_from_path_to_json_file(path: &Path) -> Result<Self, VersionedConstantsError> {
         Ok(serde_json::from_reader(std::fs::File::open(path)?)?)
     }
 }
