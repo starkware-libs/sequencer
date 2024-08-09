@@ -5,6 +5,7 @@ use libp2p::core::multiaddr::Protocol;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{Multiaddr, Swarm};
 use libp2p_swarm_test::SwarmExt;
+use starknet_api::core::ChainId;
 
 use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour::MixedBehaviour;
@@ -16,7 +17,12 @@ const TIMEOUT: Duration = Duration::from_secs(1);
 
 async fn create_swarm(bootstrap_peer_multiaddr: Option<Multiaddr>) -> Swarm<MixedBehaviour> {
     let mut swarm = Swarm::new_ephemeral(|keypair| {
-        MixedBehaviour::new(keypair.clone(), bootstrap_peer_multiaddr, sqmr::Config::default())
+        MixedBehaviour::new(
+            keypair.clone(),
+            bootstrap_peer_multiaddr,
+            sqmr::Config::default(),
+            ChainId::Mainnet,
+        )
     });
     // Not using SwarmExt::listen because it panics if the swarm emits other events
     let expected_listener_id = swarm.listen_on(Protocol::Memory(0).into()).unwrap();
