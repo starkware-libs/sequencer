@@ -32,8 +32,8 @@ use crate::transaction::transactions::{
 // TODO: Move into transaction.rs, makes more sense to be defined there.
 #[derive(Clone, Debug, derive_more::From)]
 pub enum Transaction {
-    AccountTransaction(AccountTransaction),
-    L1HandlerTransaction(L1HandlerTransaction),
+    Account(AccountTransaction),
+    L1Handler(L1HandlerTransaction),
 }
 
 impl Transaction {
@@ -47,7 +47,7 @@ impl Transaction {
     ) -> TransactionExecutionResult<Self> {
         match tx {
             StarknetApiTransaction::L1Handler(l1_handler) => {
-                Ok(Self::L1HandlerTransaction(L1HandlerTransaction {
+                Ok(Self::L1Handler(L1HandlerTransaction {
                     tx: l1_handler,
                     tx_hash,
                     paid_fee_on_l1: paid_fee_on_l1
@@ -63,7 +63,7 @@ impl Transaction {
                     }
                     false => DeclareTransaction::new(declare, tx_hash, non_optional_class_info),
                 };
-                Ok(Self::AccountTransaction(AccountTransaction::Declare(declare_tx?)))
+                Ok(Self::Account(AccountTransaction::Declare(declare_tx?)))
             }
             StarknetApiTransaction::DeployAccount(deploy_account) => {
                 let contract_address = match deployed_contract_address {
@@ -85,14 +85,14 @@ impl Transaction {
                         DeployAccountTransaction::new(deploy_account, tx_hash, contract_address)
                     }
                 };
-                Ok(Self::AccountTransaction(AccountTransaction::DeployAccount(deploy_account_tx)))
+                Ok(Self::Account(AccountTransaction::DeployAccount(deploy_account_tx)))
             }
             StarknetApiTransaction::Invoke(invoke) => {
                 let invoke_tx = match only_query {
                     true => InvokeTransaction::new_for_query(invoke, tx_hash),
                     false => InvokeTransaction::new(invoke, tx_hash),
                 };
-                Ok(Self::AccountTransaction(AccountTransaction::Invoke(invoke_tx)))
+                Ok(Self::Account(AccountTransaction::Invoke(invoke_tx)))
             }
             _ => unimplemented!(),
         }
@@ -102,8 +102,8 @@ impl Transaction {
 impl TransactionInfoCreator for Transaction {
     fn create_tx_info(&self) -> TransactionInfo {
         match self {
-            Self::AccountTransaction(account_tx) => account_tx.create_tx_info(),
-            Self::L1HandlerTransaction(l1_handler_tx) => l1_handler_tx.create_tx_info(),
+            Self::Account(account_tx) => account_tx.create_tx_info(),
+            Self::L1Handler(l1_handler_tx) => l1_handler_tx.create_tx_info(),
         }
     }
 }
@@ -171,12 +171,10 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
         // AccountTransaction::execute_raw.
         let concurrency_mode = execution_flags.concurrency_mode;
         let tx_execution_info = match self {
-            Self::AccountTransaction(account_tx) => {
+            Self::Account(account_tx) => {
                 account_tx.execute_raw(state, block_context, execution_flags)?
             }
-            Self::L1HandlerTransaction(tx) => {
-                tx.execute_raw(state, block_context, execution_flags)?
-            }
+            Self::L1Handler(tx) => tx.execute_raw(state, block_context, execution_flags)?,
         };
 
         // Check if the transaction is too large to fit any block.
