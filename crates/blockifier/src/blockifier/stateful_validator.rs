@@ -56,12 +56,13 @@ impl<S: StateReader> StatefulValidator<S> {
         &mut self,
         tx: AccountTransaction,
         skip_validate: bool,
+        charge_fee: bool,
     ) -> StatefulValidatorResult<()> {
         // Deploy account transactions should be fully executed, since the constructor must run
         // before `__validate_deploy__`. The execution already includes all necessary validations,
         // so they are skipped here.
         if let AccountTransaction::DeployAccount(_) = tx {
-            self.execute(tx)?;
+            self.execute(tx, charge_fee)?;
             return Ok(());
         }
 
@@ -83,8 +84,8 @@ impl<S: StateReader> StatefulValidator<S> {
         Ok(())
     }
 
-    fn execute(&mut self, tx: AccountTransaction) -> StatefulValidatorResult<()> {
-        self.tx_executor.execute(&Transaction::AccountTransaction(tx))?;
+    fn execute(&mut self, tx: AccountTransaction, charge_fee: bool) -> StatefulValidatorResult<()> {
+        self.tx_executor.execute(&Transaction::AccountTransaction(tx), charge_fee)?;
         Ok(())
     }
 
