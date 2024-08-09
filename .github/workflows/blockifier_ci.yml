@@ -40,6 +40,11 @@ jobs:
   native-blockifier-artifacts-push:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
+      - name: tmp step
+        run: |
+          echo ${{ github.event.pull_request.head.repo.full_name }}
+          echo ${{ github.repository }}
+
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
 
