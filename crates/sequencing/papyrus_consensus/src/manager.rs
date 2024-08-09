@@ -134,16 +134,16 @@ where
     }
 
     let (msg, report_sender) = network_receiver.next().await.ok_or_else(|| {
-        ConsensusError::InternalNetworkError(format!("NetworkReceiver should never be closed"))
+        ConsensusError::InternalNetworkError("NetworkReceiver should never be closed".to_string())
     })?;
     match msg {
         // TODO(matan): Return report_sender for use in later errors by SHC.
         Ok(msg) => Ok(msg),
         Err(e) => {
             // Failed to parse consensus message
-            report_sender
-                .send(())
-                .or(Err(ConsensusError::InternalNetworkError(format!("Failed to send report"))))?;
+            report_sender.send(()).or(Err(ConsensusError::InternalNetworkError(
+                "Failed to send report".to_string(),
+            )))?;
             Err(e.into())
         }
     }
