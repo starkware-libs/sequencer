@@ -1,5 +1,5 @@
+use crate::contract_class::ClassInfo;
 use crate::core::{ContractAddress, Nonce};
-use crate::state::ContractClass;
 use crate::transaction::{Tip, TransactionHash};
 
 /// Represents a paid Starknet transaction.
@@ -72,12 +72,4 @@ pub struct DeployAccountTransaction {
 pub struct InvokeTransaction {
     pub tx: crate::transaction::InvokeTransaction,
     pub tx_hash: TransactionHash,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ClassInfo {
-    // TODO: use compiled contract class.
-    pub contract_class: ContractClass,
-    pub sierra_program_length: usize,
-    pub abi_length: usize,
 }
