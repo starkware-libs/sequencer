@@ -6,8 +6,14 @@ use thiserror::Error;
 pub enum CompilationUtilError {
     #[error(transparent)]
     AllowedLibfuncsError(#[from] AllowedLibfuncsError),
-    #[error(transparent)]
-    StarknetSierraCompilationError(#[from] StarknetSierraCompilationError),
+    #[error("Starknet Sierra compilation error: {0}")]
+    CompilationError(String),
     #[error("Compilation panicked")]
     CompilationPanic,
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+    #[error(transparent)]
+    SerdeError(#[from] serde_json::Error),
+    #[error(transparent)]
+    StarknetSierraCompilationError(#[from] StarknetSierraCompilationError),
 }

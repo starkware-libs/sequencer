@@ -8,10 +8,6 @@ use crate::config::SierraToCasmCompilationConfig;
 use crate::errors::CompilationUtilError;
 use crate::SierraToCasmCompiler;
 
-#[cfg(test)]
-#[path = "compile_test.rs"]
-pub mod compile_test;
-
 /// A compiler that compiles Sierra programs to Casm. Uses the code from the
 /// `cairo_lang_starknet_classes` crate.
 #[derive(Clone)]
