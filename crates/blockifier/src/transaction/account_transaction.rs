@@ -941,7 +941,6 @@ impl ValidatableTransaction for AccountTransaction {
             let expected_retdata = retdata![Felt::from_hex(constants::VALIDATE_RETDATA)?];
 
             if validate_call_info.execution.failed {
-                // TODO(ilya): Add a test for this case.
                 return Err(TransactionExecutionError::PanicInValidate {
                     panic_reason: validate_call_info.execution.retdata,
                 });

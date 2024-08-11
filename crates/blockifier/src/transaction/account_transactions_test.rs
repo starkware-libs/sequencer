@@ -1504,3 +1504,55 @@ fn test_revert_in_execute(
     assert!(tx_execution_info.is_reverted());
     assert!(tx_execution_info.revert_error.unwrap().contains("Failed to deserialize param #1"));
 }
+
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn test_call_contract_that_panics(
+    mut block_context: BlockContext,
+    max_l1_resource_bounds: ValidResourceBounds,
+    #[case] enable_reverts: bool,
+) {
+    // Override enable reverts.
+    block_context.versioned_constants.enable_reverts = enable_reverts;
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
+    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+    let chain_info = &block_context.chain_info;
+    let state = &mut test_state(chain_info, BALANCE, &[(test_contract, 1), (account, 1)]);
+    let test_contract_address = test_contract.get_instance_address(0);
+    let account_address = account.get_instance_address(0);
+    let mut nonce_manager = NonceManager::default();
+
+    let new_class_hash = test_contract.get_class_hash();
+
+    let calldata = [
+        *FeatureContract::TestContract(CairoVersion::Cairo1).get_instance_address(0).0.key(),
+        selector_from_name("test_revert_helper").0,
+        felt!(1_u8),
+        new_class_hash.0,
+    ];
+
+    // Invoke a function that changes the state and reverts.
+    let tx_args = invoke_tx_args! {
+        sender_address: account_address,
+        calldata: create_calldata(
+                test_contract_address,
+               "test_call_contract_revert",
+                &calldata
+            ),
+        nonce: nonce_manager.next(account_address)
+    };
+    let tx_execution_info = run_invoke_tx(
+        state,
+        &block_context,
+        invoke_tx_args! {
+            resource_bounds: max_l1_resource_bounds,
+            ..tx_args
+        },
+    )
+    .unwrap();
+
+    // If reverts are enabled, `test_call_contract_revert` should catch it and ignore it.
+    // Otherwise, the transaction should revert.
+    assert_eq!(tx_execution_info.is_reverted(), !enable_reverts);
+}
