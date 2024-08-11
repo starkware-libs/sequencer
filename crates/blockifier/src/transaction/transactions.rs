@@ -25,6 +25,7 @@ use crate::execution::entry_point::{
     ConstructorContext,
     EntryPointExecutionContext,
 };
+use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::execution_utils::execute_deployment;
 use crate::state::cached_state::TransactionalState;
 use crate::state::errors::StateError;
@@ -80,6 +81,25 @@ pub trait ExecutableTransaction<U: UpdatableState>: Sized {
 
         match execution_result {
             Ok(value) => {
+                if let Some(call_info) = &value.execute_call_info {
+                    // If the execution of the outer call failed, revert the transction.
+                    if call_info.execution.failed {
+                        let retdata = &call_info.execution.retdata.0;
+
+                        log::debug!("Transaction reverted with: {:?}", retdata);
+                        transactional_state.abort();
+
+                        return Err(TransactionExecutionError::ExecutionError {
+                            error: EntryPointExecutionError::ExecutionFailed {
+                                error_data: retdata.clone(),
+                            },
+                            class_hash: call_info.call.class_hash.unwrap(),
+                            storage_address: call_info.call.storage_address,
+                            selector: call_info.call.entry_point_selector,
+                        });
+                    }
+                }
+
                 transactional_state.commit();
                 log::debug!("Transaction execution complete and committed.");
                 Ok(value)

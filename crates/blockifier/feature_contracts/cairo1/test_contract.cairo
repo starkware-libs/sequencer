@@ -71,6 +71,36 @@ mod TestContract {
             .span()
     }
 
+
+    #[external(v0)]
+    fn test_call_contract_revert(
+        ref self: ContractState,
+        contract_address: ContractAddress,
+        entry_point_selector: felt252,
+        calldata: Array::<felt252>
+    ) {
+         match syscalls::call_contract_syscall(
+            contract_address, entry_point_selector, calldata.span())
+        {
+            Result::Ok(_) => panic!("Expected revert"),
+            Result::Err(errors) => {
+                let mut error_span = errors.span();
+                assert(
+                    *error_span.pop_back().unwrap() == 'ENTRYPOINT_FAILED',
+                    'Unexpected error',
+                );
+            },
+        };
+        assert(self.my_storage_var.read() == 0, 'values should not change.');
+    }
+
+
+    #[external(v0)]
+    fn test_revert_helper(ref self: ContractState) {
+        self.my_storage_var.write(17);
+        panic!("test_revert_helper");
+    }
+
     #[external(v0)]
     fn test_emit_events(
         self: @ContractState, events_number: u64, keys: Array::<felt252>, data: Array::<felt252>
