@@ -135,6 +135,12 @@ pub trait ConsensusContext {
         content_receiver: mpsc::Receiver<<Self::Block as ConsensusBlock>::ProposalChunk>,
         fin_receiver: oneshot::Receiver<BlockHash>,
     ) -> Result<(), ConsensusError>;
+
+    async fn decision(
+        &self,
+        block: Self::Block,
+        precommits: Vec<Vote>,
+    ) -> Result<(), ConsensusError>;
 }
 
 #[derive(PartialEq)]
