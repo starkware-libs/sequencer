@@ -826,7 +826,9 @@ impl ValidatableTransaction for AccountTransaction {
             // The account contract class is a Cairo 1.0 contract; the `validate` entry point should
             // return `VALID`.
             let expected_retdata = retdata![Felt::from_hex(constants::VALIDATE_RETDATA)?];
-            if validate_call_info.execution.retdata != expected_retdata {
+            if validate_call_info.execution.failed
+                || validate_call_info.execution.retdata != expected_retdata
+            {
                 return Err(TransactionExecutionError::InvalidValidateReturnData {
                     actual: validate_call_info.execution.retdata,
                 });
