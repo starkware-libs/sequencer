@@ -109,6 +109,7 @@ fn run_consensus(
         config.num_validators,
     );
     let start_height = config.start_height;
+    let (tx, rx) = futures::channel::mpsc::channel(1);
     match config.test {
         Some(test_config) => {
             let network_receiver = NetworkReceiver::new(
@@ -124,6 +125,7 @@ fn run_consensus(
                 validator_id,
                 config.consensus_delay,
                 network_receiver,
+                rx,
             )))
         }
         None => Ok(tokio::spawn(papyrus_consensus::run_consensus(
@@ -132,6 +134,7 @@ fn run_consensus(
             validator_id,
             config.consensus_delay,
             consensus_channels.broadcasted_messages_receiver,
+            rx,
         ))),
     }
 }

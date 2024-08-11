@@ -177,4 +177,6 @@ pub enum ConsensusError {
     // As opposed to an error between this node and peer nodes.
     #[error("{0}")]
     InternalNetworkError(String),
+    #[error("{0}")]
+    Other(String),
 }
