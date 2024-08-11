@@ -19,6 +19,7 @@ use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::{CallInfo, Retdata};
 use crate::execution::contract_class::ContractClass;
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
+use crate::execution::errors::EntryPointExecutionError;
 use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::fee_checks::{FeeCheckReportFields, PostExecutionReport};
 use crate::fee::fee_utils::{
@@ -451,11 +452,30 @@ impl AccountTransaction {
         context: &mut EntryPointExecutionContext,
         remaining_gas: &mut u64,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
-        match &self {
+        let res = match &self {
             Self::Declare(tx) => tx.run_execute(state, resources, context, remaining_gas),
             Self::DeployAccount(tx) => tx.run_execute(state, resources, context, remaining_gas),
             Self::Invoke(tx) => tx.run_execute(state, resources, context, remaining_gas),
+        };
+
+        if let Ok(Some(call_info)) = &res {
+            // If the execution of the outer call failed, revert the transction.
+            if call_info.execution.failed {
+                let retdata = &call_info.execution.retdata.0;
+
+                log::debug!("Transaction reverted with: {:?}", retdata);
+
+                return Err(TransactionExecutionError::ExecutionError {
+                    error: EntryPointExecutionError::ExecutionFailed {
+                        error_data: retdata.clone(),
+                    },
+                    class_hash: call_info.call.class_hash.unwrap(),
+                    storage_address: call_info.call.storage_address,
+                    selector: call_info.call.entry_point_selector,
+                });
+            }
         }
+        res
     }
 
     fn run_non_revertible<S: StateReader>(
@@ -831,7 +851,6 @@ impl ValidatableTransaction for AccountTransaction {
             let expected_retdata = retdata![Felt::from_hex(constants::VALIDATE_RETDATA)?];
 
             if validate_call_info.execution.failed {
-                // TODO(ilya): Add a test for this case.
                 return Err(TransactionExecutionError::PanicInValidate {
                     panic_reaon: validate_call_info.execution.retdata,
                 });

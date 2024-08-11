@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::collections::{HashMap, HashSet};
+use std::collections::{hash_map, HashMap, HashSet};
 
 use cairo_lang_casm::hints::{Hint, StarknetHint};
 use cairo_lang_casm::operand::{BinOpOperand, DerefOrImmediate, Operation, Register, ResOperand};
@@ -207,6 +207,9 @@ pub const L1_GAS: &str = "0x0000000000000000000000000000000000000000000000000000
 pub const L2_GAS: &str = "0x00000000000000000000000000000000000000000000000000004c325f474153";
 // "L1_DATA";
 pub const L1_DATA: &str = "0x000000000000000000000000000000000000000000000000004c315f44415441";
+// "ENTRYPOINT_FAILED";
+pub const ENTRYPOINT_FAILED_ERROR: &str =
+    "0x000000000000000000000000000000454e545259504f494e545f4641494c4544";
 
 /// Executes Starknet syscalls (stateful protocol hints) during the execution of an entry point
 /// call.
@@ -232,6 +235,10 @@ pub struct SyscallHintProcessor<'a> {
     pub read_values: Vec<Felt>,
     pub accessed_keys: HashSet<StorageKey>,
 
+    // The original storage value of the executed contract.
+    // Should be moved back `context.revert_info` before executing an inner call.
+    pub original_values: HashMap<StorageKey, Felt>,
+
     // Secp hint processors.
     pub secp256k1_hint_processor: SecpHintProcessor<ark_secp256k1::Config>,
     pub secp256r1_hint_processor: SecpHintProcessor<ark_secp256r1::Config>,
@@ -254,6 +261,14 @@ impl<'a> SyscallHintProcessor<'a> {
         hints: &'a HashMap<String, Hint>,
         read_only_segments: ReadOnlySegments,
     ) -> Self {
+        let original_values = std::mem::take(
+            &mut context
+                .revert_infos
+                .0
+                .last_mut()
+                .expect("Missing contract revert info.")
+                .original_values,
+        );
         SyscallHintProcessor {
             state,
             resources,
@@ -267,6 +282,7 @@ impl<'a> SyscallHintProcessor<'a> {
             syscall_ptr: initial_syscall_ptr,
             read_values: vec![],
             accessed_keys: HashSet::new(),
+            original_values,
             hints,
             execution_info_ptr: None,
             secp256k1_hint_processor: SecpHintProcessor::default(),
@@ -698,10 +714,28 @@ impl<'a> SyscallHintProcessor<'a> {
         key: StorageKey,
         value: Felt,
     ) -> SyscallResult<StorageWriteResponse> {
+        let contract_address = self.storage_address();
+
+        match self.original_values.entry(key) {
+            hash_map::Entry::Vacant(entry) => {
+                entry.insert(self.state.get_storage_at(contract_address, key)?);
+            }
+            hash_map::Entry::Occupied(_) => {}
+        }
+
         self.accessed_keys.insert(key);
-        self.state.set_storage_at(self.storage_address(), key, value)?;
+        self.state.set_storage_at(contract_address, key, value)?;
 
         Ok(StorageWriteResponse {})
+    }
+
+    pub fn finalize(&mut self) {
+        self.context
+            .revert_infos
+            .0
+            .last_mut()
+            .expect("Missing contract revert info.")
+            .original_values = std::mem::take(&mut self.original_values);
     }
 }
 
@@ -800,21 +834,29 @@ pub fn execute_inner_call(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     remaining_gas: &mut u64,
 ) -> SyscallResult<ReadOnlySegment> {
+    let revert_idx = syscall_handler.context.revert_infos.0.len();
+
     let call_info =
         call.execute(syscall_handler.state, syscall_handler.resources, syscall_handler.context)?;
-    let raw_retdata = &call_info.execution.retdata.0;
 
     if call_info.execution.failed {
-        // TODO(spapini): Append an error word according to starknet spec if needed.
-        // Something like "EXECUTION_ERROR".
-        return Err(SyscallExecutionError::SyscallError { error_data: raw_retdata.clone() });
-    }
+        syscall_handler.context.revert_infos.revert(revert_idx, syscall_handler.state)?;
+    };
 
-    let retdata_segment = create_retdata_segment(vm, syscall_handler, raw_retdata)?;
+    let mut raw_retdata = call_info.execution.retdata.0.clone();
+
     update_remaining_gas(remaining_gas, &call_info);
 
+    let failed = call_info.execution.failed;
     syscall_handler.inner_calls.push(call_info);
 
+    if failed {
+        raw_retdata
+            .push(Felt::from_hex(ENTRYPOINT_FAILED_ERROR).map_err(SyscallExecutionError::from)?);
+        return Err(SyscallExecutionError::SyscallError { error_data: raw_retdata });
+    }
+
+    let retdata_segment = create_retdata_segment(vm, syscall_handler, &raw_retdata)?;
     Ok(retdata_segment)
 }
 
@@ -852,12 +894,14 @@ pub fn execute_library_call(
         initial_gas: *remaining_gas,
     };
 
-    execute_inner_call(entry_point, vm, syscall_handler, remaining_gas).map_err(|error| {
-        error.as_lib_call_execution_error(
+    execute_inner_call(entry_point, vm, syscall_handler, remaining_gas).map_err(|error| match error
+    {
+        SyscallExecutionError::SyscallError { .. } => error,
+        _ => error.as_lib_call_execution_error(
             class_hash,
             syscall_handler.storage_address(),
             entry_point_selector,
-        )
+        ),
     })
 }
 
