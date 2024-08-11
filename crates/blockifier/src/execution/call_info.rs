@@ -201,6 +201,10 @@ impl CallInfo {
         let mut l2_to_l1_payload_lengths = Vec::new();
 
         for call_info in self.iter() {
+            if call_info.execution.failed {
+                continue;
+            }
+
             let class_hash =
                 call_info.call.class_hash.expect("Class hash must be set after execution.");
             executed_class_hashes.insert(class_hash);
