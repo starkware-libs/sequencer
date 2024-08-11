@@ -920,6 +920,7 @@ impl ValidatableTransaction for AccountTransaction {
             initial_gas: *remaining_gas,
         };
 
+        // Note that we allow a revert here and we handle it bellow to get a better error message.
         let validate_call_info =
             validate_call.execute(state, resources, &mut context).map_err(|error| {
                 TransactionExecutionError::ValidateTransactionError {
@@ -938,7 +939,6 @@ impl ValidatableTransaction for AccountTransaction {
             let expected_retdata = retdata![Felt::from_hex(constants::VALIDATE_RETDATA)?];
 
             if validate_call_info.execution.failed {
-                // TODO(ilya): Add a test for this case.
                 return Err(TransactionExecutionError::PanicInValidate {
                     panic_reason: validate_call_info.execution.retdata,
                 });
