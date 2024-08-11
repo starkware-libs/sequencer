@@ -7,6 +7,7 @@ use std::process::exit;
 use std::sync::Arc;
 use std::time::Duration;
 
+use futures::channel::mpsc;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
@@ -109,6 +110,8 @@ fn run_consensus(
         config.num_validators,
     );
     let start_height = config.start_height;
+    // TODO(matan): connect this to an actual channel.
+    let (_, sync_rx) = mpsc::channel(1);
     match config.test {
         Some(test_config) => {
             let network_receiver = NetworkReceiver::new(
@@ -124,6 +127,7 @@ fn run_consensus(
                 validator_id,
                 config.consensus_delay,
                 network_receiver,
+                sync_rx,
             )))
         }
         None => Ok(tokio::spawn(papyrus_consensus::run_consensus(
@@ -132,6 +136,7 @@ fn run_consensus(
             validator_id,
             config.consensus_delay,
             consensus_channels.broadcasted_messages_receiver,
+            sync_rx,
         ))),
     }
 }
