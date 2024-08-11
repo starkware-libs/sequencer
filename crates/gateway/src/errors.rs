@@ -30,7 +30,7 @@ use starknet_api::block::GasPrice;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::transaction::{Resource, ResourceBounds};
 use starknet_api::StarknetApiError;
-use starknet_sierra_compile::errors::CompilationUtilError;
+use starknet_sierra_compile_types::errors::CompilationUtilError;
 use thiserror::Error;
 use tokio::task::JoinError;
 

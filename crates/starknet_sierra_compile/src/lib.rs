@@ -2,7 +2,6 @@
 
 pub mod cairo_lang_compiler;
 pub mod config;
-pub mod errors;
 pub mod sierra_to_casm_compiler;
 pub mod utils;
 

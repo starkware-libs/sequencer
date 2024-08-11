@@ -3,9 +3,9 @@ use std::panic;
 use cairo_lang_starknet_classes::allowed_libfuncs::ListSelector;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass;
+use starknet_sierra_compile_types::errors::CompilationUtilError;
 
 use crate::config::SierraToCasmCompilationConfig;
-use crate::errors::CompilationUtilError;
 use crate::sierra_to_casm_compiler::SierraToCasmCompiler;
 
 #[cfg(test)]

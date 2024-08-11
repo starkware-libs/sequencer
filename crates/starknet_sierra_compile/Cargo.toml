@@ -17,7 +17,7 @@ serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-thiserror.workspace = true
+starknet_sierra_compile_types.workspace = true
 validator.workspace = true
 
 [dev-dependencies]

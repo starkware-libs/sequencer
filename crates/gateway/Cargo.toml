@@ -31,6 +31,7 @@ starknet_api.workspace = true
 starknet_mempool_infra.workspace = true
 starknet_mempool_types.workspace = true
 starknet_sierra_compile.workspace = true
+starknet_sierra_compile_types.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true

@@ -12,7 +12,7 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
-use starknet_sierra_compile::errors::CompilationUtilError;
+use starknet_sierra_compile_types::errors::CompilationUtilError;
 
 use crate::compilation::GatewayCompiler;
 use crate::errors::GatewayError;

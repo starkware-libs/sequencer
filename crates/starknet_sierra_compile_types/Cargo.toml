@@ -11,3 +11,4 @@ workspace = true
 [dependencies]
 cairo-lang-starknet-classes.workspace = true
 serde.workspace = true
+thiserror.workspace = true

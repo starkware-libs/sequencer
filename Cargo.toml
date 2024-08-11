@@ -185,6 +185,7 @@ starknet_mempool_infra = { path = "crates/mempool_infra", version = "0.0" }
 starknet_mempool_node = { path = "crates/mempool_node", version = "0.0" }
 starknet_mempool_types = { path = "crates/mempool_types", version = "0.0" }
 starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.0" }
+starknet_sierra_compile_types = { path = "crates/starknet_sierra_compile_types", version = "0.0" }
 starknet_task_executor = { path = "crates/task_executor", version = "0.0" }
 static_assertions = "1.1.0"
 statistical = "1.0.0"
