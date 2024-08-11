@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::cmp::min;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::{ExecutionResources, ResourceTracker, RunResources};
@@ -7,6 +8,7 @@ use num_traits::{Inv, Zero};
 use serde::Serialize;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::EntryPointType;
+use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Calldata, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
@@ -21,7 +23,7 @@ use crate::execution::errors::{
     PreExecutionError,
 };
 use crate::execution::execution_utils::execute_entry_point_call;
-use crate::state::state_api::State;
+use crate::state::state_api::{State, StateResult};
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfo};
 use crate::transaction::transaction_types::TransactionType;
 use crate::utils::{u128_from_usize, usize_from_u128};
@@ -36,6 +38,43 @@ pub const FAULTY_CLASS_HASH: &str =
 
 pub type EntryPointExecutionResult<T> = Result<T, EntryPointExecutionError>;
 pub type ConstructorEntryPointExecutionResult<T> = Result<T, ConstructorEntryPointExecutionError>;
+
+/// Holds the the information required to revert the execution of an entry point.
+#[derive(Debug)]
+pub struct EntryPointRevertInfo {
+    // The contract address that the revert info applies to.
+    pub contract_address: ContractAddress,
+    /// The original class hash of the contract that was called.
+    pub original_class_hash: ClassHash,
+    /// The original storage values.
+    pub original_values: HashMap<StorageKey, Felt>,
+    // The number of emitted events before the call.
+    n_emitted_events: usize,
+    // The number of sent messages to L1 before the call.
+    n_sent_messages_to_l1: usize,
+}
+impl EntryPointRevertInfo {
+    pub fn new(
+        contract_address: ContractAddress,
+        original_class_hash: ClassHash,
+        n_emitted_events: usize,
+        n_sent_messages_to_l1: usize,
+    ) -> Self {
+        Self {
+            contract_address,
+            original_class_hash,
+            original_values: HashMap::new(),
+            n_emitted_events,
+            n_sent_messages_to_l1,
+        }
+    }
+}
+
+/// The ExecutionRevertInfo stores a vector of entry point revert infos.
+/// We don't merge infos related same contract as doing it on every nesting level would
+/// result in O(N^2) complexity.
+#[derive(Default, Debug)]
+pub struct ExecutionRevertInfo(pub Vec<EntryPointRevertInfo>);
 
 /// Represents a the type of the call (used for debugging).
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -89,6 +128,7 @@ impl CallEntryPoint {
             Some(class_hash) => class_hash,
             None => storage_class_hash, // If not given, take the storage contract class hash.
         };
+
         // Hack to prevent version 0 attack on argent accounts.
         if tx_context.tx_info.version() == TransactionVersion::ZERO
             && class_hash
@@ -102,7 +142,36 @@ impl CallEntryPoint {
         self.class_hash = Some(class_hash);
         let contract_class = state.get_compiled_contract_class(class_hash)?;
 
+        context.revert_infos.0.push(EntryPointRevertInfo::new(
+            self.storage_address,
+            storage_class_hash,
+            context.n_emitted_events,
+            context.n_sent_messages_to_l1,
+        ));
+
         execute_entry_point_call(self, contract_class, state, resources, context)
+    }
+
+    /// Similar to `execute`, but returns an error if the outer call is reverted.
+    pub fn execute_outer_call(
+        self,
+        state: &mut dyn State,
+        resources: &mut ExecutionResources,
+        context: &mut EntryPointExecutionContext,
+    ) -> EntryPointExecutionResult<CallInfo> {
+        let execution_result = self.execute(state, resources, context);
+        if let Ok(call_info) = &execution_result {
+            // If the execution of the outer call failed, revert the transction.
+            if call_info.execution.failed {
+                let retdata = &call_info.execution.retdata.0;
+
+                return Err(EntryPointExecutionError::ExecutionFailed {
+                    error_data: retdata.clone(),
+                });
+            }
+        }
+
+        execution_result
     }
 }
 
@@ -130,6 +199,8 @@ pub struct EntryPointExecutionContext {
 
     // The execution mode affects the behavior of the hint processor.
     pub execution_mode: ExecutionMode,
+
+    pub revert_infos: ExecutionRevertInfo,
 }
 
 impl EntryPointExecutionContext {
@@ -146,6 +217,7 @@ impl EntryPointExecutionContext {
             tx_context: tx_context.clone(),
             current_recursion_depth: Default::default(),
             execution_mode: mode,
+            revert_infos: ExecutionRevertInfo(vec![]),
         }
     }
 
@@ -287,6 +359,24 @@ impl EntryPointExecutionContext {
     pub fn gas_costs(&self) -> &GasCosts {
         &self.versioned_constants().os_constants.gas_costs
     }
+
+    /// Reverts the state back to the way it was when self.revert_infos.0['revert_idx'] was created.
+    pub fn revert(&mut self, revert_idx: usize, state: &mut dyn State) -> StateResult<()> {
+        for contract_revert_info in self.revert_infos.0.drain(revert_idx..).rev() {
+            for (key, value) in contract_revert_info.original_values.iter() {
+                state.set_storage_at(contract_revert_info.contract_address, *key, *value)?;
+            }
+            state.set_class_hash_at(
+                contract_revert_info.contract_address,
+                contract_revert_info.original_class_hash,
+            )?;
+
+            self.n_emitted_events = contract_revert_info.n_emitted_events;
+            self.n_sent_messages_to_l1 = contract_revert_info.n_sent_messages_to_l1;
+        }
+
+        Ok(())
+    }
 }
 
 pub fn execute_constructor_entry_point(
@@ -320,7 +410,7 @@ pub fn execute_constructor_entry_point(
         initial_gas: remaining_gas,
     };
 
-    constructor_call.execute(state, resources, context).map_err(|error| {
+    constructor_call.execute_outer_call(state, resources, context).map_err(|error| {
         ConstructorEntryPointExecutionError::new(error, &ctor_context, Some(constructor_selector))
     })
 }

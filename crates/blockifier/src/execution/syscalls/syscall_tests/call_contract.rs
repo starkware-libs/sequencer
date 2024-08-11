@@ -12,6 +12,36 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{create_calldata, trivial_external_entry_point_new, CairoVersion, BALANCE};
 
+#[test]
+fn test_call_contract_that_panics() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
+    let chain_info = &ChainInfo::create_for_testing();
+    let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
+
+    let outer_entry_point_selector = selector_from_name("test_call_contract_revert");
+    let calldata = create_calldata(
+        FeatureContract::TestContract(CairoVersion::Cairo1).get_instance_address(0),
+        "test_revert_helper",
+        &[],
+    );
+    let entry_point_call = CallEntryPoint {
+        entry_point_selector: outer_entry_point_selector,
+        calldata,
+        ..trivial_external_entry_point_new(test_contract)
+    };
+
+    let res = entry_point_call.execute_directly(&mut state).unwrap();
+    assert_eq!(
+        res.execution,
+        CallExecution {
+            retdata: retdata![],
+            gas_consumed: 168920,
+            failed: false,
+            ..CallExecution::default()
+        }
+    );
+}
+
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1),
     FeatureContract::TestContract(CairoVersion::Cairo1),

@@ -39,8 +39,6 @@ use crate::transaction::test_utils::{
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
 
-const INNER_CALL_CONTRACT_IN_CALL_CHAIN_OFFSET: usize = 117;
-
 #[rstest]
 fn test_stack_trace_with_inner_error_msg(block_context: BlockContext) {
     let cairo_version = CairoVersion::Cairo0;
@@ -212,19 +210,16 @@ An ASSERT_EQ instruction failed: 1 != 0.
 "
     );
 
-    let expected_trace_cairo1 = format!(
+    let expected_trace_cairo1 =
         "Transaction execution has failed:
-0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
-         {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
-Error at pc=0:767:
-1: Error in the called contract (contract address: {test_contract_address_felt:#064x}, class hash: \
-         {test_contract_hash:#064x}, selector: {external_entry_point_selector_felt:#064x}):
-Error at pc=0:612:
-2: Error in the called contract (contract address: {test_contract_address_2_felt:#064x}, class \
-         hash: {test_contract_hash:#064x}, selector: {inner_entry_point_selector_felt:#064x}):
-Execution failed. Failure reason: 0x6661696c ('fail').
+0: Error in the called contract (contract address: \
+         0x00000000000000000000000000000000000000000000000000000000c0020000, class hash: \
+         0x0000000000000000000000000000000000000000000000000000000080020000, selector: \
+         0x015d40a3d6ca2ac30f4031e42be28da9b056fef9bb7357ac5e85627ee876e5ad):
+Execution failed. Failure reason: (0x6661696c ('fail'), 0x454e545259504f494e545f4641494c4544 \
+         ('ENTRYPOINT_FAILED'), 0x454e545259504f494e545f4641494c4544 ('ENTRYPOINT_FAILED')).
 "
-    );
+        .into();
 
     let expected_trace = match cairo_version {
         CairoVersion::Cairo0 => expected_trace_cairo0,
@@ -334,21 +329,13 @@ Unknown location (pc=0:{expected_pc1})
             )
         }
         CairoVersion::Cairo1 => {
-            let pc_location = entry_point_offset.0 + INNER_CALL_CONTRACT_IN_CALL_CHAIN_OFFSET;
             format!(
                 "Transaction execution has failed:
 0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
                  {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
-Error at pc=0:767:
-1: Error in the called contract (contract address: {contract_address_felt:#064x}, class hash: \
-                 {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
-Error at pc=0:9631:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:{pc_location})
-
-2: Error in the called contract (contract address: {contract_address_felt:#064x}, class hash: \
-                 {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
-Execution failed. Failure reason: {expected_error}.
+Execution failed. Failure reason: ({expected_error}, 0x454e545259504f494e545f4641494c4544 \
+                 ('ENTRYPOINT_FAILED'), 0x454e545259504f494e545f4641494c4544 \
+                 ('ENTRYPOINT_FAILED')).
 "
             )
         }
@@ -490,27 +477,16 @@ Unknown location (pc=0:{expected_pc3})
             )
         }
         CairoVersion::Cairo1 => {
-            let pc_location = entry_point_offset.0 + INNER_CALL_CONTRACT_IN_CALL_CHAIN_OFFSET;
-            let (expected_pc0, expected_pc1, _, _) = expected_pcs;
             format!(
                 "Transaction execution has failed:
-0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
-                 {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
-Error at pc=0:767:
-1: Error in the called contract (contract address: {address_felt:#064x}, class hash: \
-                 {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
-Error at pc=0:{expected_pc0}:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:{pc_location})
-
-2: Error in the called contract (contract address: {address_felt:#064x}, class hash: \
-                 {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
-Error at pc=0:{expected_pc1}:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:{pc_location})
-
-3: {last_call_preamble}:
-Execution failed. Failure reason: {expected_error}.
+0: Error in the called contract (contract address: \
+                 0x00000000000000000000000000000000000000000000000000000000c0020000, class hash: \
+                 0x0000000000000000000000000000000000000000000000000000000080020000, selector: \
+                 0x015d40a3d6ca2ac30f4031e42be28da9b056fef9bb7357ac5e85627ee876e5ad):
+Execution failed. Failure reason: ({expected_error}, 0x454e545259504f494e545f4641494c4544 \
+                 ('ENTRYPOINT_FAILED'), 0x454e545259504f494e545f4641494c4544 \
+                 ('ENTRYPOINT_FAILED'), 0x454e545259504f494e545f4641494c4544 \
+                 ('ENTRYPOINT_FAILED')).
 "
             )
         }
@@ -607,14 +583,9 @@ An ASSERT_EQ instruction failed: 1 != 0.
 ",
             class_hash.0
         ),
-        CairoVersion::Cairo1 => format!(
-            "Transaction validation has failed:
-0: Error in the called contract (contract address: {contract_address:#064x}, class hash: {:#064x}, \
-             selector: {selector:#064x}):
-Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f ('Invalid scenario').
-",
-            class_hash.0
-        ),
+        CairoVersion::Cairo1 => "The `validate` entry point panicked with \
+                                 0x496e76616c6964207363656e6172696f ('Invalid scenario')."
+            .into(),
     };
 
     // Clean pc locations from the trace.

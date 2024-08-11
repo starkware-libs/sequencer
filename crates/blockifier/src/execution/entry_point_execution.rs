@@ -104,11 +104,6 @@ pub fn execute_entry_point_call(
         n_total_args,
         program_extra_data_length,
     )?;
-    if call_info.execution.failed {
-        return Err(EntryPointExecutionError::ExecutionFailed {
-            error_data: call_info.execution.retdata.0,
-        });
-    }
 
     Ok(call_info)
 }
@@ -369,7 +364,7 @@ fn maybe_fill_holes(
 
 pub fn finalize_execution(
     mut runner: CairoRunner,
-    syscall_handler: SyscallHintProcessor<'_>,
+    mut syscall_handler: SyscallHintProcessor<'_>,
     previous_resources: ExecutionResources,
     n_total_args: usize,
     program_extra_data_length: usize,
@@ -408,6 +403,8 @@ pub fn finalize_execution(
     // Take into account the syscall resources of the current call.
     *syscall_handler.resources += &versioned_constants
         .get_additional_os_syscall_resources(&syscall_handler.syscall_counter)?;
+
+    syscall_handler.finalize();
 
     let full_call_resources = &*syscall_handler.resources - &previous_resources;
     Ok(CallInfo {
