@@ -232,6 +232,10 @@ pub struct SyscallHintProcessor<'a> {
     pub read_values: Vec<Felt>,
     pub accessed_keys: HashSet<StorageKey>,
 
+    // The original storage value of the executed contract.
+    // Should be moved back `context.revert_info` before executing an inner call.
+    pub orig_values: HashMap<StorageKey, Felt>,
+
     // Secp hint processors.
     pub secp256k1_hint_processor: SecpHintProcessor<ark_secp256k1::Config>,
     pub secp256r1_hint_processor: SecpHintProcessor<ark_secp256r1::Config>,
@@ -254,6 +258,14 @@ impl<'a> SyscallHintProcessor<'a> {
         hints: &'a HashMap<String, Hint>,
         read_only_segments: ReadOnlySegments,
     ) -> Self {
+        let orig_values = std::mem::take(
+            &mut context
+                .revert_info
+                .contract_revert_info
+                .get_mut(&call.storage_address)
+                .expect("Missing contract revert info.")
+                .orig_values,
+        );
         SyscallHintProcessor {
             state,
             resources,
@@ -267,6 +279,7 @@ impl<'a> SyscallHintProcessor<'a> {
             syscall_ptr: initial_syscall_ptr,
             read_values: vec![],
             accessed_keys: HashSet::new(),
+            orig_values,
             hints,
             execution_info_ptr: None,
             secp256k1_hint_processor: SecpHintProcessor::default(),
@@ -708,10 +721,33 @@ impl<'a> SyscallHintProcessor<'a> {
         key: StorageKey,
         value: Felt,
     ) -> SyscallResult<StorageWriteResponse> {
+        let contract_address = self.storage_address();
+        self.orig_values
+            .entry(key)
+            .or_insert_with(|| self.state.get_storage_at(contract_address, key).unwrap());
         self.accessed_keys.insert(key);
-        self.state.set_storage_at(self.storage_address(), key, value)?;
+        self.state.set_storage_at(contract_address, key, value)?;
 
         Ok(StorageWriteResponse {})
+    }
+
+    pub fn revert(&mut self) {
+        self.context
+            .revert_info
+            .contract_revert_info
+            .get_mut(&self.storage_address())
+            .expect("Missing contract revert info.")
+            .orig_values = std::mem::take(&mut self.orig_values);
+
+        for (storage_address, revert_info) in self.context.revert_info.contract_revert_info.iter() {
+            self.state
+                .set_class_hash_at(*storage_address, revert_info.original_class_hash)
+                .unwrap();
+
+            for (key, value) in revert_info.orig_values.iter() {
+                self.state.set_storage_at(*storage_address, *key, *value).unwrap();
+            }
+        }
     }
 }
 
@@ -810,21 +846,41 @@ pub fn execute_inner_call(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     remaining_gas: &mut u64,
 ) -> SyscallResult<ReadOnlySegment> {
+    syscall_handler
+        .context
+        .revert_info
+        .contract_revert_info
+        .get_mut(&syscall_handler.storage_address())
+        .expect("Missing contract revert info.")
+        .orig_values = std::mem::take(&mut syscall_handler.orig_values);
+
     let call_info =
         call.execute(syscall_handler.state, syscall_handler.resources, syscall_handler.context)?;
-    let raw_retdata = &call_info.execution.retdata.0;
 
-    if call_info.execution.failed {
-        // TODO(spapini): Append an error word according to starknet spec if needed.
-        // Something like "EXECUTION_ERROR".
-        return Err(SyscallExecutionError::SyscallError { error_data: raw_retdata.clone() });
-    }
+    syscall_handler.orig_values = std::mem::take(
+        &mut syscall_handler
+            .context
+            .revert_info
+            .contract_revert_info
+            .get_mut(&syscall_handler.storage_address())
+            .expect("Missing contract revert info.")
+            .orig_values,
+    );
 
-    let retdata_segment = create_retdata_segment(vm, syscall_handler, raw_retdata)?;
+    let raw_retdata = call_info.execution.retdata.0.clone();
+
     update_remaining_gas(remaining_gas, &call_info);
 
+    let failed = call_info.execution.failed;
     syscall_handler.inner_calls.push(call_info);
 
+    if failed {
+        // TODO(spapini): Append an error word according to starknet spec if needed.
+        // Something like "EXECUTION_ERROR".
+        return Err(SyscallExecutionError::SyscallError { error_data: raw_retdata });
+    }
+
+    let retdata_segment = create_retdata_segment(vm, syscall_handler, &raw_retdata)?;
     Ok(retdata_segment)
 }
 

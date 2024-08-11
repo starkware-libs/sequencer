@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::cmp::min;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::{ExecutionResources, ResourceTracker, RunResources};
@@ -7,6 +8,7 @@ use num_traits::{Inv, Zero};
 use serde::Serialize;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::EntryPointType;
+use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Calldata, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
@@ -36,6 +38,30 @@ pub const FAULTY_CLASS_HASH: &str =
 
 pub type EntryPointExecutionResult<T> = Result<T, EntryPointExecutionError>;
 pub type ConstructorEntryPointExecutionResult<T> = Result<T, ConstructorEntryPointExecutionError>;
+
+/// Holds the the information required for reverting the state of a single contract.
+#[derive(Debug)]
+pub struct ContractRevertInfo {
+    /// The original class hash of the contract that was called.
+    pub original_class_hash: ClassHash,
+    /// The original storage values.
+    pub orig_values: HashMap<StorageKey, Felt>,
+}
+impl ContractRevertInfo {
+    pub fn new(original_class_hash: ClassHash) -> Self {
+        Self { original_class_hash, orig_values: HashMap::new() }
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct ExecutionRevertInfo {
+    pub contract_revert_info: HashMap<ContractAddress, ContractRevertInfo>,
+}
+
+pub struct ExecutionResult {
+    pub call_info: CallInfo,
+    pub revert_info: ExecutionRevertInfo,
+}
 
 /// Represents a the type of the call (used for debugging).
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -89,6 +115,7 @@ impl CallEntryPoint {
             Some(class_hash) => class_hash,
             None => storage_class_hash, // If not given, take the storage contract class hash.
         };
+
         // Hack to prevent version 0 attack on argent accounts.
         if tx_context.tx_info.version() == TransactionVersion::ZERO
             && class_hash
@@ -101,6 +128,12 @@ impl CallEntryPoint {
         // Add class hash to the call, that will appear in the output (call info).
         self.class_hash = Some(class_hash);
         let contract_class = state.get_compiled_contract_class(class_hash)?;
+
+        context
+            .revert_info
+            .contract_revert_info
+            .entry(self.storage_address)
+            .or_insert_with(|| ContractRevertInfo::new(storage_class_hash));
 
         execute_entry_point_call(self, contract_class, state, resources, context)
     }
@@ -130,6 +163,8 @@ pub struct EntryPointExecutionContext {
 
     // The execution mode affects the behavior of the hint processor.
     pub execution_mode: ExecutionMode,
+
+    pub revert_info: ExecutionRevertInfo,
 }
 
 impl EntryPointExecutionContext {
@@ -146,6 +181,7 @@ impl EntryPointExecutionContext {
             tx_context: tx_context.clone(),
             current_recursion_depth: Default::default(),
             execution_mode: mode,
+            revert_info: ExecutionRevertInfo::default(),
         }
     }
 

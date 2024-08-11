@@ -104,11 +104,6 @@ pub fn execute_entry_point_call(
         n_total_args,
         program_extra_data_length,
     )?;
-    if call_info.execution.failed {
-        return Err(EntryPointExecutionError::ExecutionFailed {
-            error_data: call_info.execution.retdata.0,
-        });
-    }
 
     Ok(call_info)
 }
@@ -369,7 +364,7 @@ fn maybe_fill_holes(
 
 pub fn finalize_execution(
     mut runner: CairoRunner,
-    syscall_handler: SyscallHintProcessor<'_>,
+    mut syscall_handler: SyscallHintProcessor<'_>,
     previous_resources: ExecutionResources,
     n_total_args: usize,
     program_extra_data_length: usize,
@@ -390,6 +385,10 @@ pub fn finalize_execution(
     syscall_handler.read_only_segments.mark_as_accessed(&mut runner)?;
 
     let call_result = get_call_result(&runner, &syscall_handler)?;
+
+    if call_result.failed {
+        syscall_handler.revert();
+    }
 
     // Take into account the VM execution resources of the current call, without inner calls.
     // Has to happen after marking holes in segments as accessed.
