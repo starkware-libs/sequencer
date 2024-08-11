@@ -114,7 +114,7 @@ jobs:
             })
 
   gcs-push:
-    runs-on: ubuntu-20.04
+    runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -135,7 +135,7 @@ jobs:
         run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
 
       - name: Build CLI binary
-        run: cargo build -p committer_cli -r --bin committer_cli --target-dir CLI_TARGET
+        run: ./build_native_in_docker.sh cargo build -p committer_cli -r --bin committer_cli --target-dir CLI_TARGET
 
       - id: auth
         uses: "google-github-actions/auth@v2"

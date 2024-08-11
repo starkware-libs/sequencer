@@ -21,9 +21,9 @@ on:
       - '.github/workflows/blockifier_ci.yml'
       - 'crates/blockifier/**'
       - 'crates/native_blockifier/**'
-      - 'build_native_blockifier_in_docker.sh'
+      - 'build_native_in_docker.sh'
       - 'scripts/build_native_blockifier.sh'
-      - 'scripts/blockifier.Dockerfile'
+      - 'scripts/sequancer-ci.Dockerfile'
 
 jobs:
   featureless-build:
@@ -48,7 +48,7 @@ jobs:
           prefix-key: "v1-rust-ubuntu-20.04"
 
       - name: Build native blockifier
-        run: ./build_native_blockifier_in_docker.sh
+        run: ./build_native_in_docker.sh scripts/build_native_blockifier.sh
 
         # Commit hash on pull request event would be the head commit of the branch.
       - name: Get commit hash prefix for PR update
