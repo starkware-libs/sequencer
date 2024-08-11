@@ -5,7 +5,8 @@ use libp2p::kad::store::MemoryStore;
 use libp2p::swarm::behaviour::toggle::Toggle;
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::NetworkBehaviour;
-use libp2p::{gossipsub, identify, kad, Multiaddr, PeerId};
+use libp2p::{gossipsub, identify, kad, Multiaddr, PeerId, StreamProtocol};
+use starknet_api::core::ChainId;
 
 use crate::discovery::identify_impl::{IdentifyToOtherBehaviourEvent, IDENTIFY_PROTOCOL_VERSION};
 use crate::discovery::kad_impl::KadToOtherBehaviourEvent;
@@ -61,9 +62,15 @@ impl MixedBehaviour {
         keypair: Keypair,
         bootstrap_peer_multiaddr: Option<Multiaddr>,
         streamed_bytes_config: sqmr::Config,
+        chain_id: ChainId,
     ) -> Self {
         let public_key = keypair.public();
         let local_peer_id = PeerId::from_public_key(&public_key);
+        let mut kademlia_config = kad::Config::default();
+        kademlia_config.set_protocol_names(vec![
+            StreamProtocol::try_from_owned(format!("/starknet/kad/{}/1.0.0", chain_id))
+                .expect("Failed to create StreamProtocol from a string that starts with /"),
+        ]);
         Self {
             peer_manager: peer_manager::PeerManager::new(PeerManagerConfig::default()),
             discovery: bootstrap_peer_multiaddr
@@ -82,7 +89,11 @@ impl MixedBehaviour {
                 public_key,
             )),
             // TODO: change kademlia protocol name
-            kademlia: kad::Behaviour::new(local_peer_id, MemoryStore::new(local_peer_id)),
+            kademlia: kad::Behaviour::with_config(
+                local_peer_id,
+                MemoryStore::new(local_peer_id),
+                kademlia_config,
+            ),
             sqmr: sqmr::Behaviour::new(streamed_bytes_config),
             gossipsub: gossipsub::Behaviour::new(
                 gossipsub::MessageAuthenticity::Signed(keypair),
