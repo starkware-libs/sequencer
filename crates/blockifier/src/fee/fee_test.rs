@@ -10,7 +10,7 @@ use crate::abi::constants::N_STEPS_RESOURCE;
 use crate::context::BlockContext;
 use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::fee_checks::{FeeCheckError, FeeCheckReportFields, PostExecutionReport};
-use crate::fee::fee_utils::calculate_l1_gas_by_vm_usage;
+use crate::fee::fee_utils::calculate_l2_gas_by_vm_usage;
 use crate::invoke_tx_args;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
@@ -48,8 +48,8 @@ fn test_simple_calculate_l1_gas_by_vm_usage() {
         .ceil()
         .to_integer();
     assert_eq!(
-        GasVector::from_l1_gas(l1_gas_by_vm_usage),
-        calculate_l1_gas_by_vm_usage(&versioned_constants, &vm_resource_usage, n_reverted_steps)
+        GasVector::from_l2_gas(l1_gas_by_vm_usage),
+        calculate_l2_gas_by_vm_usage(&versioned_constants, &vm_resource_usage, n_reverted_steps)
             .unwrap()
     );
 
@@ -60,8 +60,8 @@ fn test_simple_calculate_l1_gas_by_vm_usage() {
     let l1_gas_by_vm_usage =
         vm_resource_usage.builtin_instance_counter.get(&BuiltinName::range_check).unwrap();
     assert_eq!(
-        GasVector::from_l1_gas(u128_from_usize(*l1_gas_by_vm_usage)),
-        calculate_l1_gas_by_vm_usage(&versioned_constants, &vm_resource_usage, n_reverted_steps)
+        GasVector::from_l2_gas(u128_from_usize(*l1_gas_by_vm_usage)),
+        calculate_l2_gas_by_vm_usage(&versioned_constants, &vm_resource_usage, n_reverted_steps)
             .unwrap()
     );
 }
@@ -80,8 +80,8 @@ fn test_float_calculate_l1_gas_by_vm_usage() {
         .ceil()
         .to_integer();
     assert_eq!(
-        GasVector::from_l1_gas(l1_gas_by_vm_usage),
-        calculate_l1_gas_by_vm_usage(&versioned_constants, &vm_resource_usage, n_reverted_steps)
+        GasVector::from_l2_gas(l1_gas_by_vm_usage),
+        calculate_l2_gas_by_vm_usage(&versioned_constants, &vm_resource_usage, n_reverted_steps)
             .unwrap()
     );
 
@@ -98,8 +98,8 @@ fn test_float_calculate_l1_gas_by_vm_usage() {
     .to_integer();
 
     assert_eq!(
-        GasVector::from_l1_gas(l1_gas_by_vm_usage),
-        calculate_l1_gas_by_vm_usage(&versioned_constants, &vm_resource_usage, n_reverted_steps)
+        GasVector::from_l2_gas(l1_gas_by_vm_usage),
+        calculate_l2_gas_by_vm_usage(&versioned_constants, &vm_resource_usage, n_reverted_steps)
             .unwrap()
     );
 }
