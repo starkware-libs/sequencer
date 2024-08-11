@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use mockall::mock;
-use papyrus_protobuf::consensus::ConsensusMessage;
+use papyrus_protobuf::consensus::{ConsensusMessage, Vote};
 use starknet_api::block::{BlockHash, BlockNumber};
 
 use crate::types::{ConsensusBlock, ConsensusContext, ConsensusError, ProposalInit, ValidatorId};
@@ -56,6 +56,12 @@ mock! {
             init: ProposalInit,
             content_receiver: mpsc::Receiver<u32>,
             fin_receiver: oneshot::Receiver<BlockHash>,
+        ) -> Result<(), ConsensusError>;
+
+        async fn notify_decision(
+            &self,
+            block: TestBlock,
+            precommits: Vec<Vote>,
         ) -> Result<(), ConsensusError>;
     }
 }
