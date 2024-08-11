@@ -75,7 +75,7 @@ fn test_get_event_gas_cost(
     };
     let call_infos = vec![call_info_1, call_info_2, call_info_3];
     let call_infos_iter = call_infos.iter();
-    let expected = GasVector::from_l1_gas(
+    let expected = GasVector::from_l2_gas(
         // 8 keys and 11 data words overall.
         (data_word_cost * (event_key_factor * 8_u128 + 11_u128)).to_integer(),
     );

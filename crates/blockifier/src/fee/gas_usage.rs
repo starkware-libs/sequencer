@@ -1,6 +1,6 @@
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 
-use super::fee_utils::calculate_l1_gas_by_vm_usage;
+use super::fee_utils::calculate_l2_gas_by_vm_usage;
 use crate::abi::constants;
 use crate::context::{BlockContext, TransactionContext};
 use crate::fee::eth_gas_constants;
@@ -179,8 +179,11 @@ pub fn estimate_minimal_gas_vector(
             + versioned_constants.os_kzg_da_resources(data_segment_length).n_steps;
 
     let resources = ExecutionResources { n_steps: os_steps_for_type, ..Default::default() };
-    Ok(get_da_gas_cost(&state_changes_by_account_transaction, block_info.use_kzg_da)
-        + calculate_l1_gas_by_vm_usage(versioned_constants, &resources, 0)?)
+    // TODO(Nimrod, 30/8/2024): Don't use `ignore_l2_gas`.
+    Ok(GasVector::ignore_l2_gas(
+        get_da_gas_cost(&state_changes_by_account_transaction, block_info.use_kzg_da)
+            + calculate_l2_gas_by_vm_usage(versioned_constants, &resources, 0)?,
+    ))
 }
 
 /// Compute l1_gas estimation from gas_vector using the following formula:

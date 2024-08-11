@@ -28,10 +28,10 @@ use crate::versioned_constants::VersionedConstants;
 #[path = "fee_test.rs"]
 pub mod test;
 
-/// Calculates the L1 gas consumed when submitting the underlying Cairo program to SHARP.
-/// I.e., returns the heaviest Cairo resource weight (in terms of L1 gas), as the size of
+/// Calculates the L2 gas consumed when submitting the underlying Cairo program to SHARP.
+/// I.e., returns the heaviest Cairo resource weight (in terms of L2 gas), as the size of
 /// a proof is determined similarly - by the (normalized) largest segment.
-pub fn calculate_l1_gas_by_vm_usage(
+pub fn calculate_l2_gas_by_vm_usage(
     versioned_constants: &VersionedConstants,
     vm_resource_usage: &ExecutionResources,
     n_reverted_steps: usize,
@@ -54,8 +54,8 @@ pub fn calculate_l1_gas_by_vm_usage(
         used_resource_names,
     );
 
-    // Convert Cairo usage to L1 gas usage.
-    let vm_l1_gas_usage = vm_resource_fee_costs
+    // Convert Cairo usage to L2 gas usage.
+    let vm_l2_gas_usage = vm_resource_fee_costs
         .iter()
         .map(|(key, resource_val)| {
             ((*resource_val)
@@ -65,7 +65,7 @@ pub fn calculate_l1_gas_by_vm_usage(
         })
         .fold(0, u128::max);
 
-    Ok(GasVector::from_l1_gas(vm_l1_gas_usage))
+    Ok(GasVector::from_l2_gas(vm_l2_gas_usage))
 }
 
 /// Converts the gas vector to a fee.
