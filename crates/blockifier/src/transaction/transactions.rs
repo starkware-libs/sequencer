@@ -184,7 +184,13 @@ impl DeclareTransaction {
         Self::create(tx, tx_hash, class_info, only_query)
     }
 
-    implement_inner_tx_getter_calls!((class_hash, ClassHash), (signature, TransactionSignature));
+    implement_inner_tx_getter_calls!(
+        (class_hash, ClassHash),
+        (nonce, Nonce),
+        (sender_address, ContractAddress),
+        (signature, TransactionSignature),
+        (version, TransactionVersion)
+    );
 
     pub fn tx(&self) -> &starknet_api::transaction::DeclareTransaction {
         &self.tx
@@ -266,10 +272,10 @@ impl TransactionInfoCreator for DeclareTransaction {
         // TODO(Nir, 01/11/2023): Consider to move this (from all get_tx_info methods).
         let common_fields = CommonAccountFields {
             transaction_hash: self.tx_hash(),
-            version: self.tx.version(),
-            signature: self.tx.signature(),
-            nonce: self.tx.nonce(),
-            sender_address: self.tx.sender_address(),
+            version: self.version(),
+            signature: self.signature(),
+            nonce: self.nonce(),
+            sender_address: self.sender_address(),
             only_query: self.only_query,
         };
 
