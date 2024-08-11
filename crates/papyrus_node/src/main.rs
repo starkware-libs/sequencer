@@ -124,6 +124,7 @@ fn run_consensus(
                 validator_id,
                 config.consensus_delay,
                 network_receiver,
+                futures::stream::pending(),
             )))
         }
         None => Ok(tokio::spawn(papyrus_consensus::run_consensus(
@@ -132,6 +133,7 @@ fn run_consensus(
             validator_id,
             config.consensus_delay,
             consensus_channels.broadcasted_messages_receiver,
+            futures::stream::pending(),
         ))),
     }
 }
