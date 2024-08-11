@@ -67,6 +67,7 @@ pub struct ExecutionFlags {
 pub trait ExecutableTransaction<U: UpdatableState>: Sized {
     /// Executes the transaction in a transactional manner
     /// (if it fails, given state does not modify).
+    /// Dummy comment for the push artifact stage.
     fn execute(
         &self,
         state: &mut U,
