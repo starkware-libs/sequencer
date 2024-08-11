@@ -18,6 +18,7 @@ use strum_macros::EnumIter;
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
+use crate::test_utils::cairo_compile::{cairo0_compile, cairo1_compile};
 use crate::test_utils::{get_raw_contract_class, CairoVersion};
 
 // This file contains featured contracts, used for tests. Use the function 'test_state' in
@@ -247,6 +248,31 @@ impl FeatureContract {
         }
     }
 
+    /// Compiles the feature contract and returns the compiled contract as a byte vector.
+    /// Panics if the contract is ERC20, as ERC20 contract recompilation is not supported.
+    pub fn compile(&self) -> Vec<u8> {
+        if matches!(self, Self::ERC20(_)) {
+            panic!("ERC20 contract recompilation not supported.");
+        }
+        match self.cairo_version() {
+            CairoVersion::Cairo0 => {
+                let extra_arg: Option<String> = match self {
+                    // Account contracts require the account_contract flag.
+                    FeatureContract::AccountWithLongValidate(_)
+                    | FeatureContract::AccountWithoutValidations(_)
+                    | FeatureContract::FaultyAccount(_) => Some("--account_contract".into()),
+                    FeatureContract::SecurityTests => Some("--disable_hint_validation".into()),
+                    FeatureContract::Empty(_)
+                    | FeatureContract::TestContract(_)
+                    | FeatureContract::LegacyTestContract => None,
+                    FeatureContract::ERC20(_) => unreachable!(),
+                };
+                cairo0_compile(self.get_source_path(), extra_arg, false)
+            }
+            CairoVersion::Cairo1 => cairo1_compile(self.get_source_path()),
+        }
+    }
+
     /// Fetch PC locations from the compiled contract to compute the expected PC locations in the
     /// traceback. Computation is not robust, but as long as the cairo function itself is not
     /// edited, this computation should be stable.
@@ -307,5 +333,10 @@ impl FeatureContract {
                 vec![contract].into_iter()
             }
         })
+    }
+
+    pub fn all_feature_contracts() -> impl Iterator<Item = Self> {
+        // ERC20 is a special case - not in the feature_contracts directory.
+        Self::all_contracts().filter(|contract| !matches!(contract, Self::ERC20(_)))
     }
 }
