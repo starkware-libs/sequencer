@@ -9,12 +9,11 @@ use std::time::Duration;
 
 use futures::channel::{mpsc, oneshot};
 use futures::{Stream, StreamExt};
-use papyrus_common::metrics as papyrus_metrics;
 use papyrus_network::network_manager::ReportSender;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
-use tracing::{debug, info, instrument};
+use tracing::{debug, instrument};
 
 use crate::single_height_consensus::SingleHeightConsensus;
 use crate::types::{
@@ -52,13 +51,7 @@ where
         let decision = manager
             .run_height(&mut context, current_height, validator_id, &mut network_receiver)
             .await?;
-
-        info!(
-            "Finished consensus for height: {current_height}. Agreed on block with id: {:x}",
-            decision.block.id().0
-        );
-        debug!("Decision: {:?}", decision);
-        metrics::gauge!(papyrus_metrics::PAPYRUS_CONSENSUS_HEIGHT, current_height.0 as f64);
+        context.decision(decision.block, decision.precommits).await?;
         current_height = current_height.unchecked_next();
     }
 }
