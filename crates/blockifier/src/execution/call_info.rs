@@ -3,6 +3,8 @@ use std::iter::Sum;
 use std::ops::Add;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+#[cfg(feature = "transaction_serde")]
+use serde::Deserialize;
 use serde::Serialize;
 use starknet_api::core::{ClassHash, ContractAddress, EthAddress, PatriciaKey};
 use starknet_api::state::StorageKey;
@@ -14,6 +16,7 @@ use crate::execution::entry_point::CallEntryPoint;
 use crate::fee::gas_usage::get_message_segment_length;
 use crate::state::cached_state::StorageEntry;
 
+#[cfg_attr(feature = "transaction_serde", derive(Deserialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct Retdata(pub Vec<Felt>);
 
@@ -25,12 +28,14 @@ macro_rules! retdata {
 }
 
 #[cfg_attr(test, derive(Clone))]
+#[cfg_attr(feature = "transaction_serde", derive(Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct OrderedEvent {
     pub order: usize,
     pub event: EventContent,
 }
 
+#[cfg_attr(feature = "transaction_serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Clone)]
 pub struct MessageL1CostInfo {
     pub l2_to_l1_payload_lengths: Vec<usize>,
@@ -55,6 +60,7 @@ impl MessageL1CostInfo {
 }
 
 #[cfg_attr(test, derive(Clone))]
+#[cfg_attr(feature = "transaction_serde", derive(Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct MessageToL1 {
     pub to_address: EthAddress,
@@ -62,6 +68,7 @@ pub struct MessageToL1 {
 }
 
 #[cfg_attr(test, derive(Clone))]
+#[cfg_attr(feature = "transaction_serde", derive(Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct OrderedL2ToL1Message {
     pub order: usize,
@@ -74,6 +81,7 @@ pub fn get_payload_lengths(l2_to_l1_messages: &[OrderedL2ToL1Message]) -> Vec<us
 
 /// Represents the effects of executing a single entry point.
 #[cfg_attr(test, derive(Clone))]
+#[cfg_attr(feature = "transaction_serde", derive(Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CallExecution {
     pub retdata: Retdata,
@@ -162,6 +170,7 @@ impl TestExecutionSummary {
 }
 
 /// Represents the full effects of executing an entry point, including the inner calls it invoked.
+#[cfg_attr(feature = "transaction_serde", derive(Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CallInfo {
     pub call: CallEntryPoint,

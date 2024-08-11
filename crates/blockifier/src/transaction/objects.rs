@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_traits::Pow;
+#[cfg(feature = "transaction_serde")]
+use serde::Deserialize;
 use serde::Serialize;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -149,6 +151,7 @@ pub struct DeprecatedTransactionInfo {
     pub max_fee: Fee,
 }
 
+#[cfg_attr(feature = "transaction_serde", derive(Deserialize))]
 #[derive(
     derive_more::Add, derive_more::Sum, Clone, Copy, Debug, Default, Eq, PartialEq, Serialize,
 )]
@@ -207,6 +210,7 @@ pub struct CommonAccountFields {
 }
 
 /// Contains the information gathered by the execution of a transaction.
+#[cfg_attr(feature = "transaction_serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Default, PartialEq)]
 pub struct TransactionExecutionInfo {
     /// Transaction validation call info; [None] for `L1Handler`.
@@ -265,7 +269,8 @@ impl ResourcesMapping {
     }
 }
 
-/// Containes all the L2 resources consumed by a transaction
+/// Contains all the L2 resources consumed by a transaction
+#[cfg_attr(feature = "transaction_serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct StarknetResources {
     pub calldata_length: usize,
@@ -432,6 +437,7 @@ impl StarknetResources {
     }
 }
 
+#[cfg_attr(feature = "transaction_serde", derive(Serialize, Deserialize))]
 #[derive(Default, Clone, Debug, PartialEq)]
 pub struct TransactionResources {
     pub starknet_resources: StarknetResources,

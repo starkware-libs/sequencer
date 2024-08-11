@@ -4,6 +4,8 @@ use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::{ExecutionResources, ResourceTracker, RunResources};
 use num_traits::{Inv, Zero};
+#[cfg(feature = "transaction_serde")]
+use serde::Deserialize;
 use serde::Serialize;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::EntryPointType;
@@ -38,6 +40,7 @@ pub type EntryPointExecutionResult<T> = Result<T, EntryPointExecutionError>;
 pub type ConstructorEntryPointExecutionResult<T> = Result<T, ConstructorEntryPointExecutionError>;
 
 /// Represents a the type of the call (used for debugging).
+#[cfg_attr(feature = "transaction_serde", derive(Deserialize))]
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq, Serialize)]
 pub enum CallType {
     #[default]
@@ -45,6 +48,7 @@ pub enum CallType {
     Delegate = 1,
 }
 /// Represents a call to an entry point of a Starknet contract.
+#[cfg_attr(feature = "transaction_serde", derive(Deserialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CallEntryPoint {
     // The class hash is not given if it can be deduced from the storage address.
