@@ -11,3 +11,9 @@ pub enum CompilationUtilError {
     #[error("Compilation panicked")]
     CompilationPanic,
 }
+
+#[derive(Debug, Error)]
+pub enum StarknetSierraCompilerServiceError {
+    #[error(transparent)]
+    CompilationUtilError(#[from] CompilationUtilError),
+}
