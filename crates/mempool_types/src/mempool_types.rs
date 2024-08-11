@@ -1,26 +1,8 @@
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::executable_transaction::{InvokeTransaction, Transaction};
-use starknet_api::transaction::{
-    AccountDeploymentData,
-    Calldata,
-    PaymasterData,
-    ResourceBoundsMapping,
-    Tip,
-    TransactionHash,
-    TransactionSignature,
-};
+use starknet_api::executable_transaction::Transaction;
 
 use crate::errors::MempoolError;
-
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
-pub struct ThinTransaction {
-    pub sender_address: ContractAddress,
-    pub tx_hash: TransactionHash,
-    pub tip: Tip,
-    pub nonce: Nonce,
-}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct AccountState {
@@ -42,25 +24,3 @@ pub struct MempoolInput {
 }
 
 pub type MempoolResult<T> = Result<T, MempoolError>;
-
-impl From<&ThinTransaction> for Transaction {
-    fn from(tx: &ThinTransaction) -> Self {
-        Transaction::Invoke(InvokeTransaction {
-            tx: starknet_api::transaction::InvokeTransaction::V3(
-                starknet_api::transaction::InvokeTransactionV3 {
-                    sender_address: tx.sender_address,
-                    tip: tx.tip,
-                    nonce: tx.nonce,
-                    resource_bounds: ResourceBoundsMapping::default(),
-                    signature: TransactionSignature::default(),
-                    calldata: Calldata::default(),
-                    nonce_data_availability_mode: DataAvailabilityMode::L1,
-                    fee_data_availability_mode: DataAvailabilityMode::L1,
-                    paymaster_data: PaymasterData::default(),
-                    account_deployment_data: AccountDeploymentData::default(),
-                },
-            ),
-            tx_hash: tx.tx_hash,
-        })
-    }
-}
