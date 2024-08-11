@@ -8,7 +8,9 @@ use starknet_mempool_types::communication::{
 };
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
+use crate::components::create_components;
 use crate::config::MempoolNodeConfig;
+use crate::servers::{create_servers, Servers};
 
 pub struct MempoolNodeCommunication {
     mempool_channel: ComponentCommunication<MempoolRequestAndResponseSender>,
@@ -52,4 +54,13 @@ pub fn create_node_clients(
         false => None,
     };
     MempoolNodeClients { mempool_client }
+}
+
+pub fn setup_from_config(config: &MempoolNodeConfig) -> (MempoolNodeClients, Servers) {
+    let mut channels = create_node_channels();
+    let clients = create_node_clients(config, &mut channels);
+    let components = create_components(config, &clients);
+    let servers = create_servers(config, &mut channels, components);
+
+    (clients, servers)
 }

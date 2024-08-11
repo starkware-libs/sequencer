@@ -7,9 +7,8 @@ use starknet_api::transaction::TransactionHash;
 use starknet_gateway::config::GatewayNetworkConfig;
 use starknet_gateway::errors::GatewayError;
 use starknet_mempool_infra::trace_util::configure_tracing;
-use starknet_mempool_node::communication::{create_node_channels, create_node_clients};
-use starknet_mempool_node::components::create_components;
-use starknet_mempool_node::servers::{create_servers, get_server_future};
+use starknet_mempool_node::communication::setup_from_config;
+use starknet_mempool_node::servers::get_server_future;
 use starknet_mempool_types::mempool_types::ThinTransaction;
 use starknet_task_executor::tokio_executor::TokioExecutor;
 use tokio::runtime::Handle;
@@ -50,17 +49,7 @@ impl IntegrationTestSetup {
         // Derive the configuration for the mempool node.
         let config = create_config(rpc_server_addr).await;
 
-        // Create the communication network for the mempool node.
-        let mut channels = create_node_channels();
-
-        // Create the clients for the mempool node.
-        let clients = create_node_clients(&config, &mut channels);
-
-        // Create the components for the mempool node.
-        let components = create_components(&config, &clients);
-
-        // Create the servers for the mempool node.
-        let servers = create_servers(&config, &mut channels, components);
+        let (clients, servers) = setup_from_config(&config);
 
         let GatewayNetworkConfig { ip, port } = config.gateway_config.network_config;
         let gateway_client = GatewayClient::new(SocketAddr::from((ip, port)));
