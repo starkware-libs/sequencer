@@ -8,7 +8,9 @@ use rstest::rstest;
 const CAIRO0_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo0";
 const CAIRO1_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo1";
 const COMPILED_CONTRACTS_SUBDIR: &str = "compiled";
-const FIX_COMMAND: &str = "FIX_FEATURE_TEST=1 cargo test -- --ignored";
+const FIX_COMMAND: &str = "FIX_FEATURE_TEST=1 cargo test -p blockifier --test \
+                           feature_contracts_compatibility_test --features testing -- \
+                           --include-ignored";
 
 // To fix Cairo0 feature contracts, first enter a python venv and install the requirements:
 // ```
@@ -18,22 +20,12 @@ const FIX_COMMAND: &str = "FIX_FEATURE_TEST=1 cargo test -- --ignored";
 // ```
 // Then, run the FIX_COMMAND above.
 
-// This test currently doesn't support Cairo1 contracts. To fix them you'll need to compile them one
-// by one:
-// 1. Clone the [cairo repo](https://github.com/starkware-libs/cairo).
-// 2. Checkout the commit defined in [the root Cargo.toml](../../../../Cargo.toml).
-// 3. From within the compiler repo root directory, run:
-// ```
-// PREFIX=~/workspace/blockifier/crates/blockifier/feature_contracts/cairo1
-// CONTRACT_NAME=<contract_base_filename>
-// cargo run --release --bin starknet-compile -- --single-file \
-//   $PREFIX/$CONTRACT_NAME.cairo \
-//   $PREFIX/compiled/$CONTRACT_NAME.sierra.json
-// cargo run --release --bin starknet-sierra-compile \
-//   $PREFIX/compiled/$CONTRACT_NAME.sierra.json \
-//   $PREFIX/compiled/$CONTRACT_NAME.casm.json
-// ```
-// TODO(Gilad, 1/1/2024): New year's resolution: support Cairo1 in the test.
+// To fix Cairo1 feature contracts, first clone the Cairo repo and checkout the required tag.
+// The repo should be located next to the sequencer repo:
+// <WORKSPACE_DIR>/
+// - sequencer/
+// - cairo/
+// Then, run the FIX_COMMAND above.
 
 // Checks that:
 // 1. `TEST_CONTRACTS` dir exists and contains only `.cairo` files and the subdirectory
@@ -130,12 +122,6 @@ fn verify_feature_contracts_match_enum() {
 fn verify_feature_contracts(
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
-    // TODO(Dori, 1/9/2024): Support Cairo1 contracts in the CI and remove this `if` statement.
-    if std::env::var("CI").unwrap_or("false".into()) == "true"
-        && matches!(cairo_version, CairoVersion::Cairo1)
-    {
-        return;
-    }
     let fix_features = std::env::var("FIX_FEATURE_TEST").is_ok();
     verify_feature_contracts_compatibility(fix_features, cairo_version)
 }
