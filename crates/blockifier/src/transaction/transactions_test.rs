@@ -1853,11 +1853,11 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         },
         execution: CallExecution {
             retdata: Retdata(vec![value]),
-            gas_consumed: 6820,
+            gas_consumed: 6120,
             ..Default::default()
         },
         resources: ExecutionResources {
-            n_steps: 158,
+            n_steps: 151,
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 6)]),
         },
@@ -1893,7 +1893,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
                     + 6,
             ),
         ]),
-        n_steps: get_tx_resources(TransactionType::L1Handler).n_steps + 171,
+        n_steps: get_tx_resources(TransactionType::L1Handler).n_steps + 164,
         n_memory_holes: 0,
     };
 
