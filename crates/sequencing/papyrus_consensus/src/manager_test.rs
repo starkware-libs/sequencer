@@ -71,6 +71,12 @@ mock! {
             content_receiver: mpsc::Receiver<Transaction>,
             fin_receiver: oneshot::Receiver<BlockHash>,
         ) -> Result<(), ConsensusError>;
+
+        async fn decision(
+            &self,
+            block: TestBlock,
+            precommits: Vec<Vote>,
+        ) -> Result<(), ConsensusError>;
     }
 }
 
