@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 
 use derive_more::IntoIterator;
 use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -721,7 +722,7 @@ impl From<StateMaps> for StateChanges {
 }
 
 /// Holds the number of state changes.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct StateChangesCount {
     pub n_storage_updates: usize,
     pub n_class_hash_updates: usize,

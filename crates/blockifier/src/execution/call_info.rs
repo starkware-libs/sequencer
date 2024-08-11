@@ -3,7 +3,7 @@ use std::iter::Sum;
 use std::ops::Add;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use starknet_api::core::{ClassHash, ContractAddress, EthAddress, PatriciaKey};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{EventContent, L2ToL1Payload};
@@ -14,7 +14,7 @@ use crate::execution::entry_point::CallEntryPoint;
 use crate::fee::gas_usage::get_message_segment_length;
 use crate::state::cached_state::StorageEntry;
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Retdata(pub Vec<Felt>);
 
 #[macro_export]
@@ -25,13 +25,13 @@ macro_rules! retdata {
 }
 
 #[cfg_attr(test, derive(Clone))]
-#[derive(Debug, Default, Eq, PartialEq, Serialize)]
+#[derive(Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OrderedEvent {
     pub order: usize,
     pub event: EventContent,
 }
 
-#[derive(Debug, Default, Eq, PartialEq, Clone)]
+#[derive(Debug, Default, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct MessageL1CostInfo {
     pub l2_to_l1_payload_lengths: Vec<usize>,
     pub message_segment_length: usize,
@@ -55,14 +55,14 @@ impl MessageL1CostInfo {
 }
 
 #[cfg_attr(test, derive(Clone))]
-#[derive(Debug, Default, Eq, PartialEq, Serialize)]
+#[derive(Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct MessageToL1 {
     pub to_address: EthAddress,
     pub payload: L2ToL1Payload,
 }
 
 #[cfg_attr(test, derive(Clone))]
-#[derive(Debug, Default, Eq, PartialEq, Serialize)]
+#[derive(Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OrderedL2ToL1Message {
     pub order: usize,
     pub message: MessageToL1,
@@ -74,7 +74,7 @@ pub fn get_payload_lengths(l2_to_l1_messages: &[OrderedL2ToL1Message]) -> Vec<us
 
 /// Represents the effects of executing a single entry point.
 #[cfg_attr(test, derive(Clone))]
-#[derive(Debug, Default, Eq, PartialEq, Serialize)]
+#[derive(Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CallExecution {
     pub retdata: Retdata,
     pub events: Vec<OrderedEvent>,
@@ -162,7 +162,7 @@ impl TestExecutionSummary {
 }
 
 /// Represents the full effects of executing an entry point, including the inner calls it invoked.
-#[derive(Debug, Default, Eq, PartialEq, Serialize)]
+#[derive(Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CallInfo {
     pub call: CallEntryPoint,
     pub execution: CallExecution,

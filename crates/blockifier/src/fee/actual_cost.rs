@@ -1,4 +1,5 @@
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use serde::{Deserialize, Serialize};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Fee;
 
@@ -36,7 +37,7 @@ struct TransactionReceiptParameters<'a, T: Iterator<Item = &'a CallInfo> + Clone
 
 // TODO(Gilad): Use everywhere instead of passing the `actual_{fee,resources}` tuple, which often
 // get passed around together.
-#[derive(Default, Debug, PartialEq)]
+#[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TransactionReceipt {
     pub fee: Fee,
     pub gas: GasVector,

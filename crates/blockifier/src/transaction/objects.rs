@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_traits::Pow;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::transaction::{
@@ -150,7 +150,16 @@ pub struct DeprecatedTransactionInfo {
 }
 
 #[derive(
-    derive_more::Add, derive_more::Sum, Clone, Copy, Debug, Default, Eq, PartialEq, Serialize,
+    derive_more::Add,
+    derive_more::Sum,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    Serialize,
+    Deserialize,
 )]
 pub struct GasVector {
     pub l1_gas: u128,
@@ -207,7 +216,7 @@ pub struct CommonAccountFields {
 }
 
 /// Contains the information gathered by the execution of a transaction.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct TransactionExecutionInfo {
     /// Transaction validation call info; [None] for `L1Handler`.
     pub validate_call_info: Option<CallInfo>,
@@ -266,7 +275,7 @@ impl ResourcesMapping {
 }
 
 /// Containes all the L2 resources consumed by a transaction
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct StarknetResources {
     pub calldata_length: usize,
     pub state_changes_for_fee: StateChangesCount,
@@ -432,7 +441,7 @@ impl StarknetResources {
     }
 }
 
-#[derive(Default, Clone, Debug, PartialEq)]
+#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TransactionResources {
     pub starknet_resources: StarknetResources,
     pub vm_resources: ExecutionResources,
