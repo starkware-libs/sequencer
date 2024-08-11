@@ -502,8 +502,12 @@ pub fn execute_inner_call(
     vm: &mut VirtualMachine,
     syscall_handler: &mut DeprecatedSyscallHintProcessor<'_>,
 ) -> DeprecatedSyscallResult<ReadOnlySegment> {
-    let call_info =
-        call.execute(syscall_handler.state, syscall_handler.resources, syscall_handler.context)?;
+    // Use `non_reverting_execute` since we don't support reverts here.
+    let call_info = call.non_reverting_execute(
+        syscall_handler.state,
+        syscall_handler.resources,
+        syscall_handler.context,
+    )?;
     let retdata = &call_info.execution.retdata.0;
     let retdata: Vec<MaybeRelocatable> =
         retdata.iter().map(|&x| MaybeRelocatable::from(x)).collect();
