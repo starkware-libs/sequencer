@@ -60,6 +60,10 @@ pub fn cairo1_compiler_version() -> String {
     }
 }
 
+pub fn cairo1_compiler_tag() -> String {
+    format!("v{}", cairo1_compiler_version())
+}
+
 /// Returns the path to the local Cairo1 compiler repository.
 /// Returns <sequencer_repo_root>/<RELATIVE_PATH_TO_CAIRO_REPO>, where the relative path can be
 /// overridden by the environment variable (otherwise, the default is used).
@@ -173,7 +177,7 @@ fn verify_cairo0_compiler_deps() {
 
 fn prepare_cairo1_compiler_deps(git_tag_override: Option<String>) {
     let cairo_repo_path = local_cairo1_compiler_repo_path();
-    let tag = git_tag_override.unwrap_or(format!("v{}", cairo1_compiler_version()));
+    let tag = git_tag_override.unwrap_or(cairo1_compiler_tag());
 
     // Check if the path is a directory.
     assert!(
