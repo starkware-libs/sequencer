@@ -9168,6 +9168,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_sierra_compile_types"
+version = "0.0.0"
+dependencies = [
+ "cairo-lang-starknet-classes",
+ "serde",
+]
+
+[[package]]
 name = "starknet_task_executor"
 version = "0.0.0"
 dependencies = [

@@ -1,0 +1,13 @@
+[package]
+name = "starknet_sierra_compile_types"
+version = "0.0.0"
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+cairo-lang-starknet-classes.workspace = true
+serde.workspace = true

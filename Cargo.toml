@@ -39,6 +39,7 @@ members = [
   "crates/starknet_client",
   "crates/starknet_committer",
   "crates/starknet_sierra_compile",
+  "crates/starknet_sierra_compile_types",
   "crates/task_executor",
   "crates/tests-integration",
 ]
