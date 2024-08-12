@@ -1,7 +1,11 @@
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
-use papyrus_network::network_manager::{mock_register_broadcast_subscriber, BroadcastNetworkMock};
-use papyrus_protobuf::consensus::{ConsensusMessage, Proposal};
+use papyrus_network::network_manager::{
+    mock_register_broadcast_subscriber,
+    BroadcastNetworkMock,
+    BroadcastSubscriberSender,
+};
+use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, Vote};
 use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
@@ -10,7 +14,7 @@ use starknet_api::block::Block;
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
 
-use crate::papyrus_consensus_context::PapyrusConsensusContext;
+use crate::papyrus_consensus_context::{PapyrusConsensusBlock, PapyrusConsensusContext};
 use crate::types::{ConsensusBlock, ConsensusContext, ProposalInit};
 
 // TODO(dvir): consider adding tests for times, i.e, the calls are returned immediately and nothing
@@ -20,7 +24,7 @@ const TEST_CHANNEL_SIZE: usize = 10;
 
 #[tokio::test]
 async fn build_proposal() {
-    let (block, papyrus_context, _mock_network) = test_setup();
+    let (block, papyrus_context, _mock_network) = test_setup(None);
     let block_number = block.header.block_number;
 
     let (mut proposal_receiver, fin_receiver) = papyrus_context.build_proposal(block_number).await;
@@ -38,7 +42,7 @@ async fn build_proposal() {
 
 #[tokio::test]
 async fn validate_proposal_success() {
-    let (block, papyrus_context, _mock_network) = test_setup();
+    let (block, papyrus_context, _mock_network) = test_setup(None);
     let block_number = block.header.block_number;
 
     let (mut validate_sender, validate_receiver) = mpsc::channel(TEST_CHANNEL_SIZE);
@@ -56,7 +60,7 @@ async fn validate_proposal_success() {
 
 #[tokio::test]
 async fn validate_proposal_fail() {
-    let (block, papyrus_context, _mock_network) = test_setup();
+    let (block, papyrus_context, _mock_network) = test_setup(None);
     let block_number = block.header.block_number;
 
     let different_block = get_test_block(4, None, None, None);
@@ -72,7 +76,7 @@ async fn validate_proposal_fail() {
 
 #[tokio::test]
 async fn propose() {
-    let (block, papyrus_context, mut mock_network) = test_setup();
+    let (block, papyrus_context, mut mock_network) = test_setup(None);
     let block_number = block.header.block_number;
 
     let (mut content_sender, content_receiver) = mpsc::channel(TEST_CHANNEL_SIZE);
@@ -99,7 +103,23 @@ async fn propose() {
     assert_eq!(mock_network.messages_to_broadcast_receiver.next().await.unwrap(), expected_message);
 }
 
-fn test_setup() -> (Block, PapyrusConsensusContext, BroadcastNetworkMock<ConsensusMessage>) {
+#[tokio::test]
+async fn decision() {
+    let mut sync_channels = mock_register_broadcast_subscriber().unwrap();
+    let (_, mut papyrus_context, _) =
+        test_setup(Some(sync_channels.subscriber_channels.messages_to_broadcast_sender));
+    let block = PapyrusConsensusBlock::default();
+    let precommit = Vote::default();
+    papyrus_context.decision(block, vec![precommit.clone()]).await.unwrap();
+    assert_eq!(
+        sync_channels.mock_network.messages_to_broadcast_receiver.next().await.unwrap(),
+        precommit
+    );
+}
+
+fn test_setup(
+    sync_broadcast_sender: Option<BroadcastSubscriberSender<Vote>>,
+) -> (Block, PapyrusConsensusContext, BroadcastNetworkMock<ConsensusMessage>) {
     let ((storage_reader, mut storage_writer), _temp_dir) = get_test_storage();
     let block = get_test_block(5, None, None, None);
     let block_number = block.header.block_number;
@@ -118,6 +138,7 @@ fn test_setup() -> (Block, PapyrusConsensusContext, BroadcastNetworkMock<Consens
         storage_reader.clone(),
         test_channels.subscriber_channels.messages_to_broadcast_sender,
         4,
+        sync_broadcast_sender,
     );
     (block, papyrus_context, test_channels.mock_network)
 }

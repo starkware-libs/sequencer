@@ -141,7 +141,7 @@ pub trait ConsensusContext {
     /// - `precommits` - All precommits must be for the same `(block.id(), height, round)` and form
     ///   a quorum (>2/3 of the voting power) for this height.
     async fn decision(
-        &self,
+        &mut self,
         block: Self::Block,
         precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError>;

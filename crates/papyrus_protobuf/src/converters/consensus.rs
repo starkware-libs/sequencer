@@ -105,6 +105,8 @@ impl From<Vote> for protobuf::Vote {
     }
 }
 
+auto_impl_into_and_try_from_vec_u8!(Vote, protobuf::Vote);
+
 impl TryFrom<protobuf::ConsensusMessage> for ConsensusMessage {
     type Error = ProtobufConversionError;
 
