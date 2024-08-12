@@ -1,7 +1,7 @@
 #!/bin/env bash
 set -e
 
-docker_image_name=sequancer-ci
+docker_image_name=sequencer-ci
 
 (
     cd scripts
