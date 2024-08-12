@@ -24,7 +24,7 @@ use crate::ProposalWrapper;
 
 // TODO: add debug messages and span to the tasks.
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct PapyrusConsensusBlock {
     content: Vec<Transaction>,
     id: BlockHash,
@@ -45,8 +45,9 @@ impl ConsensusBlock for PapyrusConsensusBlock {
 
 pub struct PapyrusConsensusContext {
     storage_reader: StorageReader,
-    broadcast_sender: BroadcastSubscriberSender<ConsensusMessage>,
+    network_broadcast_sender: BroadcastSubscriberSender<ConsensusMessage>,
     validators: Vec<ValidatorId>,
+    sync_broadcast_sender: Option<BroadcastSubscriberSender<Vote>>,
 }
 
 impl PapyrusConsensusContext {
@@ -54,13 +55,15 @@ impl PapyrusConsensusContext {
     #[allow(dead_code)]
     pub fn new(
         storage_reader: StorageReader,
-        broadcast_sender: BroadcastSubscriberSender<ConsensusMessage>,
+        network_broadcast_sender: BroadcastSubscriberSender<ConsensusMessage>,
         num_validators: u64,
+        sync_broadcast_sender: Option<BroadcastSubscriberSender<Vote>>,
     ) -> Self {
         Self {
             storage_reader,
-            broadcast_sender,
+            network_broadcast_sender,
             validators: (0..num_validators).map(ContractAddress::from).collect(),
+            sync_broadcast_sender,
         }
     }
 }
@@ -160,9 +163,13 @@ impl ConsensusContext for PapyrusConsensusContext {
                         panic!("Block in {height} was not found in storage despite waiting for it")
                     })
                     .block_hash;
+
+                // This can happen as a result of sync interrupting `run_height`.
                 fin_sender
                     .send(PapyrusConsensusBlock { content: transactions, id: block_hash })
-                    .expect("Send should succeed");
+                    .unwrap_or_else(|_| {
+                        warn!("Failed to send block to consensus. height={height}");
+                    })
             }
             .instrument(debug_span!("consensus_validate_proposal")),
         );
@@ -180,7 +187,7 @@ impl ConsensusContext for PapyrusConsensusContext {
 
     async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
         debug!("Broadcasting message: {message:?}");
-        self.broadcast_sender.send(message).await?;
+        self.network_broadcast_sender.send(message).await?;
         Ok(())
     }
 
@@ -190,7 +197,7 @@ impl ConsensusContext for PapyrusConsensusContext {
         mut content_receiver: mpsc::Receiver<Transaction>,
         fin_receiver: oneshot::Receiver<BlockHash>,
     ) -> Result<(), ConsensusError> {
-        let mut broadcast_sender = self.broadcast_sender.clone();
+        let mut network_broadcast_sender = self.network_broadcast_sender.clone();
 
         tokio::spawn(
             async move {
@@ -219,7 +226,7 @@ impl ConsensusContext for PapyrusConsensusContext {
                     proposal.block_hash
                 );
 
-                broadcast_sender
+                network_broadcast_sender
                     .send(ConsensusMessage::Proposal(proposal))
                     .await
                     .expect("Failed to send proposal");
@@ -230,7 +237,7 @@ impl ConsensusContext for PapyrusConsensusContext {
     }
 
     async fn notify_decision(
-        &self,
+        &mut self,
         block: Self::Block,
         precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError> {
@@ -239,6 +246,10 @@ impl ConsensusContext for PapyrusConsensusContext {
             "Finished consensus for height: {height}. Agreed on block with id: {:x}",
             block.id().0
         );
+        if let Some(sender) = &mut self.sync_broadcast_sender {
+            sender.send(precommits[0].clone()).await?;
+        }
+
         Ok(())
     }
 }
