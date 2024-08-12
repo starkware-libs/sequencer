@@ -15,6 +15,7 @@ use papyrus_config::dumping::{
 use papyrus_config::loading::load_and_process_config;
 use papyrus_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+use starknet_batcher::config::BatcherConfig;
 use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
 use starknet_mempool_infra::component_definitions::{
     LocalComponentCommunicationConfig,
@@ -197,6 +198,8 @@ pub struct MempoolNodeConfig {
     #[validate]
     pub components: ComponentConfig,
     #[validate]
+    pub batcher_config: BatcherConfig,
+    #[validate]
     pub gateway_config: GatewayConfig,
     #[validate]
     pub rpc_state_reader_config: RpcStateReaderConfig,
@@ -207,6 +210,7 @@ impl SerializeConfig for MempoolNodeConfig {
         #[allow(unused_mut)]
         let mut sub_configs = vec![
             append_sub_config_name(self.components.dump(), "components"),
+            append_sub_config_name(self.batcher_config.dump(), "batcher_config"),
             append_sub_config_name(self.gateway_config.dump(), "gateway_config"),
             append_sub_config_name(self.rpc_state_reader_config.dump(), "rpc_state_reader_config"),
         ];
