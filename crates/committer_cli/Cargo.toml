@@ -17,7 +17,6 @@ tempfile.workspace = true
 
 [dependencies]
 clap = { workspace = true, features = ["cargo", "derive"] }
-committer = { workspace = true, features = ["testing"] }
 derive_more.workspace = true
 ethnum.workspace = true
 indexmap.workspace = true
@@ -28,7 +27,8 @@ serde_json.workspace = true
 serde_repr.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_committer = { path = "../starknet_committer" }
+starknet_committer.workspace = true
+starknet_patricia = { workspace = true, features = ["testing"] }
 strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true

@@ -2,22 +2,6 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::io;
 
-use committer::felt::Felt;
-use committer::hash::hash_trait::HashOutput;
-use committer::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
-use committer::patricia_merkle_tree::filled_tree::node::FilledNode;
-use committer::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData,
-    EdgeData,
-    EdgePathLength,
-    NodeData,
-    PathToBottom,
-};
-use committer::patricia_merkle_tree::types::SubTreeHeight;
-use committer::storage::db_object::DBObject;
-use committer::storage::errors::{DeserializationError, SerializationError};
-use committer::storage::map_storage::MapStorage;
-use committer::storage::storage_trait::{Storage, StorageKey, StorageValue};
 use ethnum::U256;
 use serde_json::json;
 use starknet_api::block_hash::block_hash_calculator::{
@@ -37,6 +21,22 @@ use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
 use starknet_committer::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
+use starknet_patricia::felt::Felt;
+use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
+    BinaryData,
+    EdgeData,
+    EdgePathLength,
+    NodeData,
+    PathToBottom,
+};
+use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
+use starknet_patricia::storage::db_object::DBObject;
+use starknet_patricia::storage::errors::{DeserializationError, SerializationError};
+use starknet_patricia::storage::map_storage::MapStorage;
+use starknet_patricia::storage::storage_trait::{Storage, StorageKey, StorageValue};
 use starknet_types_core::hash::{Pedersen, StarkHash};
 use thiserror;
 use tracing::{debug, error, info, warn};

@@ -10,9 +10,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use committer::patricia_merkle_tree::external_test_utils::tree_computation_flow;
-use committer::patricia_merkle_tree::node_data::leaf::LeafModifications;
-use committer::patricia_merkle_tree::types::NodeIndex;
 use committer_cli::commands::commit;
 use committer_cli::parse_input::read::parse_input;
 use committer_cli::tests::utils::parse_from_python::TreeFlowInput;
@@ -20,6 +17,9 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
+use starknet_patricia::patricia_merkle_tree::external_test_utils::tree_computation_flow;
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
+use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 
 const CONCURRENCY_MODE: bool = true;
 const SINGLE_TREE_FLOW_INPUT: &str = include_str!("../test_inputs/tree_flow_inputs.json");

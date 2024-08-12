@@ -1,11 +1,11 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
-use committer::felt::Felt;
-use committer::hash::hash_trait::HashOutput;
-use committer::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
-use committer::patricia_merkle_tree::types::NodeIndex;
-use committer::storage::storage_trait::{StorageKey, StorageValue};
+use starknet_patricia::felt::Felt;
+use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
+use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
+use starknet_patricia::storage::storage_trait::{StorageKey, StorageValue};
 use tracing::level_filters::LevelFilter;
 
 use crate::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};

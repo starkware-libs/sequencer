@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use committer::hash::hash_trait::HashOutput;
-use committer::patricia_merkle_tree::filled_tree::tree::FilledTree;
-use committer::patricia_merkle_tree::node_data::leaf::LeafModifications;
-use committer::patricia_merkle_tree::types::NodeIndex;
-use committer::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
-use committer::storage::storage_trait::Storage;
+use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
+use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
+use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
+use starknet_patricia::storage::storage_trait::Storage;
 use tokio::task::JoinSet;
 
 use crate::block_committer::input::{ContractAddress, StarknetStorageValue};
