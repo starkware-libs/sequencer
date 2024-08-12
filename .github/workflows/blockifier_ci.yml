@@ -23,16 +23,14 @@ on:
       # Other than code-related changes, all changes related to the native-blockifier build-and-push
       # process should trigger the build (e.g., changes to the Dockerfile, build scripts, etc.).
       - '.github/workflows/blockifier_ci.yml'
-      - 'build_native_blockifier_in_docker.sh'
       - 'build_native_in_docker.sh'
       - 'Cargo.lock'
       - 'Cargo.toml'
       - 'crates/blockifier/**'
       - 'crates/native_blockifier/**'
       - 'scripts/build_native_blockifier.sh'
-      - 'scripts/build_native_blockifier.sh'
       - 'scripts/install_build_tools.sh'
-      - 'scripts/sequancer-ci.Dockerfile'
+      - 'scripts/sequencer-ci.Dockerfile'
 
 jobs:
   featureless-build:
