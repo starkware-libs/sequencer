@@ -7,6 +7,8 @@ use crate::component_definitions::ServerError;
 
 #[derive(Clone, Debug, Error)]
 pub enum ClientError {
+    #[error("TCP Communication error: {0}")]
+    TCPCommunicationFailure(Arc<tokio::io::Error>),
     #[error("Communication error: {0}")]
     CommunicationFailure(Arc<hyper::Error>),
     #[error("Could not deserialize server response: {0}")]
@@ -15,6 +17,8 @@ pub enum ClientError {
     ResponseParsingFailure(Arc<hyper::Error>),
     #[error("Got status code: {0}, with server error: {1}")]
     ResponseError(StatusCode, ServerError),
+    #[error("Got server error: {0}")]
+    TCPServerError(ServerError),
     #[error("Got an unexpected response type: {0}")]
     UnexpectedResponse(String),
 }

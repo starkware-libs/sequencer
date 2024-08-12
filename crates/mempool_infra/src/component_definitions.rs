@@ -49,9 +49,13 @@ pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 
 #[derive(Debug, Error, Deserialize, Serialize, Clone)]
 pub enum ServerError {
+    #[error("Could not read client request: {0}")]
+    RequestReadFailure(String),
     #[error("Could not deserialize client request: {0}")]
     RequestDeserializationFailure(String),
 }
+
+pub type ServerResult<Response> = Result<Response, ServerError>;
 
 // The communication configuration of the local component.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
