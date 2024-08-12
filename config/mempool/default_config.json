@@ -1,4 +1,9 @@
 {
+  "batcher_config.batcher_config_param_1": {
+    "description": "The first batcher configuration parameter",
+    "privacy": "Public",
+    "value": 1
+  },
   "compiler_config.max_bytecode_size": {
     "description": "Limitation of contract bytecode size.",
     "privacy": "Public",
