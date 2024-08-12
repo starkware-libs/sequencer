@@ -361,13 +361,14 @@ fn run_network(
     let event_server_channel =
         network_manager.register_sqmr_protocol_server(Protocol::Event.into(), BUFFER_SIZE);
 
-    let consensus_channels = match consensus_config {
-        Some(consensus_config) => Some(
-            network_manager
-                .register_broadcast_topic(Topic::new(consensus_config.topic), BUFFER_SIZE)?,
-        ),
-        None => None,
-    };
+    let consensus_channels =
+        match consensus_config {
+            Some(consensus_config) => Some(network_manager.register_broadcast_topic(
+                Topic::new(consensus_config.network_topic),
+                BUFFER_SIZE,
+            )?),
+            None => None,
+        };
     let p2p_sync_client_channels = P2PSyncClientChannels::new(
         header_client_sender,
         state_diff_client_sender,
