@@ -32,6 +32,7 @@ use super::test_utils::{
     HEADER_QUERY_LENGTH,
     SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
     STATE_DIFF_QUERY_LENGTH,
+    WAIT_PERIOD_FOR_NEW_DATA,
 };
 use super::{P2PSyncClientError, StateDiffQuery};
 
@@ -94,6 +95,16 @@ async fn state_diff_basic_flow() {
                 .await
                 .unwrap();
         }
+
+        // We wait for the header sync to write the new headers.
+        tokio::time::sleep(SLEEP_DURATION_TO_LET_SYNC_ADVANCE).await;
+
+        // Simulate time has passed so that state diff sync will resend query after it waited for
+        // new header
+        tokio::time::pause();
+        tokio::time::advance(WAIT_PERIOD_FOR_NEW_DATA).await;
+        tokio::time::resume();
+
         for (start_block_number, num_blocks) in [
             (0u64, STATE_DIFF_QUERY_LENGTH),
             (STATE_DIFF_QUERY_LENGTH, HEADER_QUERY_LENGTH - STATE_DIFF_QUERY_LENGTH),
@@ -111,7 +122,9 @@ async fn state_diff_basic_flow() {
                     direction: Direction::Forward,
                     limit: num_blocks,
                     step: 1,
-                })
+                }),
+                "If the limit of the query is too low, try to increase \
+                 SLEEP_DURATION_TO_LET_SYNC_ADVANCE",
             );
 
             for block_number in start_block_number..(start_block_number + num_blocks) {
@@ -343,6 +356,15 @@ async fn validate_state_diff_fails(
             }))))
             .await
             .unwrap();
+
+        // We wait for the header sync to write the new headers.
+        tokio::time::sleep(SLEEP_DURATION_TO_LET_SYNC_ADVANCE).await;
+
+        // Simulate time has passed so that state diff sync will resend query after it waited for
+        // new header
+        tokio::time::pause();
+        tokio::time::advance(WAIT_PERIOD_FOR_NEW_DATA).await;
+        tokio::time::resume();
 
         // Get a state diff query and validate it
         let SqmrClientPayload {

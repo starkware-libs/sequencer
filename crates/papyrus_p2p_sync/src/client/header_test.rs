@@ -19,6 +19,7 @@ use super::test_utils::{
     HEADER_QUERY_LENGTH,
     SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
     TIMEOUT_FOR_NEW_QUERY_AFTER_PARTIAL_RESPONSE,
+    WAIT_PERIOD_FOR_NEW_DATA,
 };
 
 #[tokio::test]
@@ -145,6 +146,13 @@ async fn sync_sends_new_header_query_if_it_got_partial_responses() {
                 .unwrap();
         }
         headers_sender.send(Ok(DataOrFin(None))).await.unwrap();
+
+        // Wait for the sync to enter sleep due to partial responses. Then, simulate time has
+        // passed.
+        tokio::time::sleep(SLEEP_DURATION_TO_LET_SYNC_ADVANCE).await;
+        tokio::time::pause();
+        tokio::time::advance(WAIT_PERIOD_FOR_NEW_DATA).await;
+        tokio::time::resume();
 
         // First unwrap is for the timeout. Second unwrap is for the Option returned from Stream.
         let SqmrClientPayload {

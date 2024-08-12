@@ -37,6 +37,7 @@ papyrus_storage = { workspace = true, features = ["testing"] }
 papyrus_test_utils.workspace = true
 rand_chacha.workspace = true
 static_assertions.workspace = true
+tokio = { workspace = true, features = ["test-util"] }
 
 # The `metrics` crate is used by `latency_histogram` proc macro, which is used in this crate.
 [package.metadata.cargo-machete]
