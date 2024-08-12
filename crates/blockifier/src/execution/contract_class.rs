@@ -2,11 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use cairo_lang_starknet_classes::NestedIntList;
 use cairo_vm::types::builtin_name::BuiltinName;
-use cairo_vm::types::program::Program;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use itertools::Itertools;
-use serde::de::Error as DeserializationError;
-use serde::{Deserialize, Deserializer};
 use starknet_api::contract_class::{
     ClassInfo,
     ContractClass,
@@ -14,12 +11,7 @@ use starknet_api::contract_class::{
     ContractClassV1,
     EntryPointV1,
 };
-use starknet_api::core::EntryPointSelector;
-use starknet_api::deprecated_contract_class::{
-    sn_api_to_cairo_vm_program,
-    EntryPointType,
-    Program as DeprecatedProgram,
-};
+use starknet_api::deprecated_contract_class::EntryPointType;
 
 use super::execution_utils::poseidon_hash_many_cost;
 use crate::abi::abi_utils::selector_from_name;
@@ -41,23 +33,14 @@ pub mod test;
 pub type ContractClassResult<T> = Result<T, ContractClassError>;
 
 pub trait ContractClassExt {
-    fn constructor_selector(&self) -> Option<EntryPointSelector>;
     fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources;
     fn get_visited_segments(
         &self,
         visited_pcs: &HashSet<usize>,
     ) -> Result<Vec<usize>, TransactionExecutionError>;
-    fn bytecode_length(&self) -> usize;
 }
 
 impl ContractClassExt for ContractClass {
-    fn constructor_selector(&self) -> Option<EntryPointSelector> {
-        match self {
-            ContractClass::V0(class) => class.constructor_selector(),
-            ContractClass::V1(class) => class.constructor_selector(),
-        }
-    }
-
     fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
         match self {
             ContractClass::V0(class) => class.estimate_casm_hash_computation_resources(),
@@ -76,28 +59,15 @@ impl ContractClassExt for ContractClass {
             ContractClass::V1(class) => class.get_visited_segments(visited_pcs),
         }
     }
-
-    fn bytecode_length(&self) -> usize {
-        match self {
-            ContractClass::V0(class) => class.bytecode_length(),
-            ContractClass::V1(class) => class.bytecode_length(),
-        }
-    }
 }
 
 // V0.
-
 trait ContractClassV0Ext {
-    fn constructor_selector(&self) -> Option<EntryPointSelector>;
     fn n_entry_points(&self) -> usize;
     fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources;
 }
 
 impl ContractClassV0Ext for ContractClassV0 {
-    fn constructor_selector(&self) -> Option<EntryPointSelector> {
-        Some(self.entry_points_by_type[&EntryPointType::Constructor].first()?.selector)
-    }
-
     fn n_entry_points(&self) -> usize {
         self.entry_points_by_type.values().map(|vec| vec.len()).sum()
     }
@@ -120,7 +90,6 @@ impl ContractClassV0Ext for ContractClassV0 {
 
 // V1.
 trait ContractClassV1Ext {
-    fn constructor_selector(&self) -> Option<EntryPointSelector>;
     fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources;
     fn get_visited_segments(
         &self,
@@ -133,10 +102,6 @@ pub trait ContractClassV1PubExt {
 }
 
 impl ContractClassV1Ext for ContractClassV1 {
-    fn constructor_selector(&self) -> Option<EntryPointSelector> {
-        Some(self.0.entry_points_by_type[&EntryPointType::Constructor].first()?.selector)
-    }
-
     /// Returns the estimated VM resources required for computing Casm hash.
     /// This is an empiric measurement of several bytecode lengths, which constitutes as the
     /// dominant factor in it.
@@ -270,44 +235,11 @@ fn get_visited_segments(
     Ok(res)
 }
 
-// V0 utilities.
-
-/// Converts the program type from SN API into a Cairo VM-compatible type.
-pub fn deserialize_program<'de, D: Deserializer<'de>>(
-    deserializer: D,
-) -> Result<Program, D::Error> {
-    let deprecated_program = DeprecatedProgram::deserialize(deserializer)?;
-    sn_api_to_cairo_vm_program(deprecated_program)
-        .map_err(|err| DeserializationError::custom(err.to_string()))
-}
-
-// V1 utilities.
-
 pub trait ClassInfoExt {
-    fn bytecode_length(&self) -> usize;
-    fn contract_class(&self) -> ContractClass;
-    fn sierra_program_length(&self) -> usize;
-    fn abi_length(&self) -> usize;
     fn code_size(&self) -> usize;
 }
 
 impl ClassInfoExt for ClassInfo {
-    fn bytecode_length(&self) -> usize {
-        self.contract_class.bytecode_length()
-    }
-
-    fn contract_class(&self) -> ContractClass {
-        self.contract_class.clone()
-    }
-
-    fn sierra_program_length(&self) -> usize {
-        self.sierra_program_length
-    }
-
-    fn abi_length(&self) -> usize {
-        self.abi_length
-    }
-
     fn code_size(&self) -> usize {
         (self.bytecode_length() + self.sierra_program_length())
             // We assume each felt is a word.

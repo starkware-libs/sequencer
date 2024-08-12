@@ -15,7 +15,6 @@ use crate::abi::constants;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
-use crate::execution::contract_class::ContractClassExt;
 use crate::execution::errors::{
     ConstructorEntryPointExecutionError,
     EntryPointExecutionError,

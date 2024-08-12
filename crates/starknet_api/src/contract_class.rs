@@ -37,6 +37,22 @@ pub enum ContractClass {
     V1(ContractClassV1),
 }
 
+impl ContractClass {
+    pub fn constructor_selector(&self) -> Option<EntryPointSelector> {
+        match self {
+            ContractClass::V0(class) => class.constructor_selector(),
+            ContractClass::V1(class) => class.constructor_selector(),
+        }
+    }
+
+    fn bytecode_length(&self) -> usize {
+        match self {
+            ContractClass::V0(class) => class.bytecode_length(),
+            ContractClass::V1(class) => class.bytecode_length(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct ContractClassV0(pub Arc<ContractClassV0Inner>);
 impl Deref for ContractClassV0 {
@@ -66,6 +82,10 @@ impl TryFrom<DeprecatedContractClass> for ContractClassV0 {
 }
 
 impl ContractClassV0 {
+    fn constructor_selector(&self) -> Option<EntryPointSelector> {
+        Some(self.entry_points_by_type[&EntryPointType::Constructor].first()?.selector)
+    }
+
     pub fn n_builtins(&self) -> usize {
         self.program.builtins_len()
     }
@@ -112,6 +132,10 @@ impl ContractClassV1Inner {
 }
 
 impl ContractClassV1 {
+    fn constructor_selector(&self) -> Option<EntryPointSelector> {
+        Some(self.0.entry_points_by_type[&EntryPointType::Constructor].first()?.selector)
+    }
+
     pub fn bytecode_length(&self) -> usize {
         self.program.data_len()
     }
@@ -120,7 +144,7 @@ impl ContractClassV1 {
         &self.bytecode_segment_lengths
     }
 
-    pub fn try_from_json_string(raw_contract_class: &str) -> Result<ContractClassV1, ProgramError> {
+    pub fn try_from_json_string(raw_contract_class: &str) -> Result<Self, ProgramError> {
         let casm_contract_class: CasmContractClass = serde_json::from_str(raw_contract_class)?;
         let contract_class = casm_contract_class.try_into()?;
 
@@ -226,7 +250,7 @@ impl EntryPointV1 {
 // V0 utilities.
 
 /// Converts the program type from SN API into a Cairo VM-compatible type.
-pub fn deserialize_program<'de, D: Deserializer<'de>>(
+fn deserialize_program<'de, D: Deserializer<'de>>(
     deserializer: D,
 ) -> Result<CairoVmProgram, D::Error> {
     let deprecated_program = DeprecatedProgram::deserialize(deserializer)?;
@@ -274,6 +298,24 @@ pub struct ClassInfo {
 }
 
 pub type ContractClassResult<T> = Result<T, ContractClassError>;
+
+impl ClassInfo {
+    pub fn contract_class(&self) -> ContractClass {
+        self.contract_class.clone()
+    }
+
+    pub fn sierra_program_length(&self) -> usize {
+        self.sierra_program_length
+    }
+
+    pub fn abi_length(&self) -> usize {
+        self.abi_length
+    }
+
+    pub fn bytecode_length(&self) -> usize {
+        self.contract_class.bytecode_length()
+    }
+}
 
 impl ClassInfo {
     // TODO(Arni): redefine the struct such that the error may never occur.

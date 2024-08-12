@@ -1,5 +1,4 @@
 use assert_matches::assert_matches;
-use blockifier::execution::contract_class::ClassInfoExt;
 use cairo_lang_sierra_to_casm::compiler::CompilationError;
 use cairo_lang_starknet_classes::allowed_libfuncs::AllowedLibfuncsError;
 use cairo_lang_starknet_classes::casm_contract_class::StarknetSierraCompilationError;

@@ -19,7 +19,6 @@ use starknet_api::transaction::{
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
-use crate::execution::contract_class::ClassInfoExt;
 use crate::execution::entry_point::{
     CallEntryPoint,
     CallType,
