@@ -123,6 +123,7 @@ fn test_valid_component_execution_config(#[case] location: LocationType) {
 fn test_invalid_components_config() {
     // Initialize an invalid config and check that the validator finds an error.
     let component_config = ComponentConfig {
+        batcher: ComponentExecutionConfig { execute: false, ..ComponentExecutionConfig::default() },
         gateway: ComponentExecutionConfig { execute: false, ..ComponentExecutionConfig::default() },
         mempool: ComponentExecutionConfig { execute: false, ..ComponentExecutionConfig::default() },
     };
@@ -137,15 +138,20 @@ fn test_invalid_components_config() {
 /// Test the validation of the struct ComponentConfig.
 /// The validation validates at least one of the components is set with execute: true.
 #[rstest]
-#[case(true, false)]
-#[case(false, true)]
-#[case(true, true)]
+#[case(true, false, false)]
+#[case(false, true, false)]
+#[case(false, false, true)]
 fn test_valid_components_config(
+    #[case] batcher_component_execute: bool,
     #[case] gateway_component_execute: bool,
     #[case] mempool_component_execute: bool,
 ) {
     // Initialize an invalid config and check that the validator finds an error.
     let component_config = ComponentConfig {
+        batcher: ComponentExecutionConfig {
+            execute: batcher_component_execute,
+            ..ComponentExecutionConfig::default()
+        },
         gateway: ComponentExecutionConfig {
             execute: gateway_component_execute,
             ..ComponentExecutionConfig::default()

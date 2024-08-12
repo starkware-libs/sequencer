@@ -9,6 +9,51 @@
     "privacy": "Public",
     "value": 81920
   },
+  "components.batcher.component_type": {
+    "description": "The component type.",
+    "privacy": "Public",
+    "value": "SynchronousComponent"
+  },
+  "components.batcher.execute": {
+    "description": "The component execution flag.",
+    "privacy": "Public",
+    "value": true
+  },
+  "components.batcher.local_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "components.batcher.local_config.channel_buffer_size": {
+    "description": "The communication channel buffer size.",
+    "privacy": "Public",
+    "value": 32
+  },
+  "components.batcher.location": {
+    "description": "The component location.",
+    "privacy": "Public",
+    "value": "Local"
+  },
+  "components.batcher.remote_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.batcher.remote_config.ip": {
+    "description": "The remote component server ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.batcher.remote_config.port": {
+    "description": "The remote component server port.",
+    "privacy": "Public",
+    "value": 8080
+  },
+  "components.batcher.remote_config.retries": {
+    "description": "The max number of retries for sending a message.",
+    "privacy": "Public",
+    "value": 3
+  },
   "components.gateway.component_type": {
     "description": "The component type.",
     "privacy": "Public",
