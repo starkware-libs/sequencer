@@ -1,8 +1,8 @@
 use std::fs::File;
 use std::io::{self, BufWriter};
 
-use committer::storage::errors::DeserializationError;
 use serde::{Deserialize, Serialize};
+use starknet_patricia::storage::errors::DeserializationError;
 
 use crate::parse_input::cast::InputImpl;
 use crate::parse_input::raw_input::RawInput;

@@ -11,9 +11,9 @@ on:
       - '.github/workflows/committer_ci.yml'
       - 'Cargo.toml'
       - 'Cargo.lock'
-      - 'crates/committer/**'
       - 'crates/committer_cli/**'
       - 'crates/starknet_committer/**'
+      - 'crates/starknet_patricia/**'
 
   pull_request:
     types:
@@ -26,9 +26,9 @@ on:
       - '.github/workflows/committer_ci.yml'
       - 'Cargo.toml'
       - 'Cargo.lock'
-      - 'crates/committer/**'
       - 'crates/committer_cli/**'
       - 'crates/starknet_committer/**'
+      - 'crates/starknet_patricia/**'
 
 jobs:
   run-regression-tests:

@@ -1,20 +1,6 @@
 use std::cmp::min;
 use std::collections::HashMap;
 
-use committer::felt::Felt;
-use committer::hash::hash_trait::HashOutput;
-use committer::patricia_merkle_tree::external_test_utils::get_random_u256;
-use committer::patricia_merkle_tree::filled_tree::node::FilledNode;
-use committer::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData,
-    EdgeData,
-    EdgePath,
-    EdgePathLength,
-    NodeData,
-    NodeDataDiscriminants as NodeDataVariants,
-    PathToBottom,
-};
-use committer::patricia_merkle_tree::types::NodeIndex;
 use ethnum::U256;
 use rand::prelude::IteratorRandom;
 use rand::Rng;
@@ -32,6 +18,20 @@ use starknet_committer::patricia_merkle_tree::types::{
     StorageTrie,
     StorageTrieMap,
 };
+use starknet_patricia::felt::Felt;
+use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::external_test_utils::get_random_u256;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
+    BinaryData,
+    EdgeData,
+    EdgePath,
+    EdgePathLength,
+    NodeData,
+    NodeDataDiscriminants as NodeDataVariants,
+    PathToBottom,
+};
+use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use strum::IntoEnumIterator;
 
 pub trait RandomValue {
