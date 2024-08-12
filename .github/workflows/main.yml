@@ -174,16 +174,16 @@ jobs:
       checks: read
       statuses: read
     steps:
-      - name: Run Merge Gatekeeper
-        if: github.event_name != 'merge_group'
+      - name: Run Merge Gatekeeper on pull request
+        if: github.event_name == 'pull_request'
         uses: upsidr/merge-gatekeeper@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           timeout: 1200
           ignored: "code-review/reviewable"
 
-      - name: Run Merge Gatekeeper in Merge Queue
-        if: github.event_name == 'merge_group'
+      - name: Run Merge Gatekeeper on Merge Queue || push
+        if: github.event_name == 'merge_group' || github.event_name == 'push'
         uses: upsidr/merge-gatekeeper@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
