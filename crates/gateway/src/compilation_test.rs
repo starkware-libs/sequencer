@@ -13,9 +13,10 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_sierra_compile::errors::CompilationUtilError;
+use tracing_test::traced_test;
 
 use crate::compilation::GatewayCompiler;
-use crate::errors::GatewayError;
+use crate::errors::GatewaySpecError;
 
 #[fixture]
 fn gateway_compiler() -> GatewayCompiler {
@@ -31,6 +32,7 @@ fn declare_tx_v3() -> RpcDeclareTransactionV3 {
 }
 
 // TODO(Arni): Redesign this test once the compiler is passed with dependancy injection.
+#[traced_test]
 #[rstest]
 fn test_compile_contract_class_compiled_class_hash_mismatch(
     gateway_compiler: GatewayCompiler,
@@ -41,15 +43,19 @@ fn test_compile_contract_class_compiled_class_hash_mismatch(
     declare_tx_v3.compiled_class_hash = wrong_supplied_hash;
     let declare_tx = RpcDeclareTransaction::V3(declare_tx_v3);
 
-    let result = gateway_compiler.process_declare_tx(&declare_tx);
-    assert_matches!(
-        result.unwrap_err(),
-        GatewayError::CompiledClassHashMismatch { supplied, hash_result }
-        if supplied == wrong_supplied_hash && hash_result == expected_hash
-    );
+    let err = gateway_compiler.process_declare_tx(&declare_tx).unwrap_err();
+    assert_eq!(err, GatewaySpecError::CompiledClassHashMismatch);
+    assert!(logs_contain(
+        format!(
+            "Compiled class hash mismatch. Supplied: {:?}, Hash result: {:?}",
+            wrong_supplied_hash, expected_hash
+        )
+        .as_str()
+    ));
 }
 
 // TODO(Arni): Redesign this test once the compiler is passed with dependancy injection.
+#[traced_test]
 #[rstest]
 fn test_compile_contract_class_bytecode_size_validation(declare_tx_v3: RpcDeclareTransactionV3) {
     let gateway_compiler =
@@ -58,15 +64,16 @@ fn test_compile_contract_class_bytecode_size_validation(declare_tx_v3: RpcDeclar
         });
 
     let result = gateway_compiler.process_declare_tx(&RpcDeclareTransaction::V3(declare_tx_v3));
-    assert_matches!(
-        result.unwrap_err(),
-        GatewayError::CompilationError(CompilationUtilError::StarknetSierraCompilationError(
-            StarknetSierraCompilationError::CompilationError(err)
-        ))
-        if matches!(err.as_ref(), CompilationError::CodeSizeLimitExceeded)
-    )
+    assert_matches!(result.unwrap_err(), GatewaySpecError::CompilationFailed);
+    let expected_compilation_error = CompilationUtilError::StarknetSierraCompilationError(
+        StarknetSierraCompilationError::CompilationError(Box::new(
+            CompilationError::CodeSizeLimitExceeded,
+        )),
+    );
+    assert!(logs_contain(format!("Compilation failed: {:?}", expected_compilation_error).as_str()));
 }
 
+#[traced_test]
 #[rstest]
 fn test_compile_contract_class_bad_sierra(
     gateway_compiler: GatewayCompiler,
@@ -77,13 +84,12 @@ fn test_compile_contract_class_bad_sierra(
         declare_tx_v3.contract_class.sierra_program[..100].to_vec();
     let declare_tx = RpcDeclareTransaction::V3(declare_tx_v3);
 
-    let result = gateway_compiler.process_declare_tx(&declare_tx);
-    assert_matches!(
-        result.unwrap_err(),
-        GatewayError::CompilationError(CompilationUtilError::AllowedLibfuncsError(
-            AllowedLibfuncsError::SierraProgramError
-        ))
-    )
+    let err = gateway_compiler.process_declare_tx(&declare_tx).unwrap_err();
+    assert_eq!(err, GatewaySpecError::CompilationFailed);
+
+    let expected_compilation_error =
+        CompilationUtilError::AllowedLibfuncsError(AllowedLibfuncsError::SierraProgramError);
+    assert!(logs_contain(format!("Compilation failed: {:?}", expected_compilation_error).as_str()));
 }
 
 #[rstest]
