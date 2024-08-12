@@ -17,7 +17,7 @@ use papyrus_storage::{StorageError, StorageReader};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
-use tracing::{debug, debug_span, info, Instrument};
+use tracing::{debug, debug_span, info, warn, Instrument};
 
 use crate::types::{ConsensusBlock, ConsensusContext, ConsensusError, ProposalInit, ValidatorId};
 use crate::ProposalWrapper;
@@ -199,8 +199,11 @@ impl ConsensusContext for PapyrusConsensusContext {
                     transactions.push(tx);
                 }
 
-                let block_hash =
-                    fin_receiver.await.expect("Failed to get block hash from fin receiver");
+                let Ok(block_hash) = fin_receiver.await else {
+                    // This can occur due to sync interrupting a height.
+                    warn!("Failed to get block hash from fin receiver. {init:?}");
+                    return;
+                };
                 let proposal = Proposal {
                     height: init.height.0,
                     round: init.round,
