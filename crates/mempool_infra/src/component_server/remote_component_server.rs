@@ -8,7 +8,8 @@ use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server, StatusCode};
-use serde::{Deserialize, Serialize};
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use tokio::sync::Mutex;
 
 use super::definitions::ComponentServerStarter;
@@ -21,7 +22,7 @@ use crate::component_definitions::{
 pub struct RemoteComponentServer<Component, Request, Response>
 where
     Component: ComponentRequestHandler<Request, Response> + Send + 'static,
-    Request: for<'a> Deserialize<'a> + Send + 'static,
+    Request: DeserializeOwned + Send + 'static,
     Response: Serialize + 'static,
 {
     socket: SocketAddr,
@@ -33,7 +34,7 @@ where
 impl<Component, Request, Response> RemoteComponentServer<Component, Request, Response>
 where
     Component: ComponentRequestHandler<Request, Response> + Send + 'static,
-    Request: for<'a> Deserialize<'a> + Send + 'static,
+    Request: DeserializeOwned + Send + 'static,
     Response: Serialize + 'static,
 {
     pub fn new(component: Component, ip_address: IpAddr, port: u16) -> Self {
@@ -81,7 +82,7 @@ impl<Component, Request, Response> ComponentServerStarter
     for RemoteComponentServer<Component, Request, Response>
 where
     Component: ComponentRequestHandler<Request, Response> + Send + 'static,
-    Request: for<'a> Deserialize<'a> + Send + Sync + 'static,
+    Request: DeserializeOwned + Send + Sync + 'static,
     Response: Serialize + Send + Sync + 'static,
 {
     async fn start(&mut self) {

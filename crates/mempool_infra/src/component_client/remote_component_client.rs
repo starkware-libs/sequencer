@@ -6,7 +6,8 @@ use bincode::{deserialize, serialize};
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::{Body, Client, Request as HyperRequest, Response as HyperResponse, StatusCode, Uri};
-use serde::{Deserialize, Serialize};
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 
 use super::definitions::{ClientError, ClientResult};
 use crate::component_definitions::APPLICATION_OCTET_STREAM;
@@ -14,7 +15,7 @@ use crate::component_definitions::APPLICATION_OCTET_STREAM;
 pub struct RemoteComponentClient<Request, Response>
 where
     Request: Serialize,
-    Response: for<'a> Deserialize<'a>,
+    Response: DeserializeOwned,
 {
     uri: Uri,
     client: Client<hyper::client::HttpConnector>,
@@ -26,7 +27,7 @@ where
 impl<Request, Response> RemoteComponentClient<Request, Response>
 where
     Request: Serialize,
-    Response: for<'a> Deserialize<'a>,
+    Response: DeserializeOwned,
 {
     pub fn new(ip_address: IpAddr, port: u16, max_retries: usize) -> Self {
         let uri = match ip_address {
@@ -82,9 +83,9 @@ where
     }
 }
 
-async fn get_response_body<T>(response: HyperResponse<Body>) -> Result<T, ClientError>
+async fn get_response_body<Response>(response: HyperResponse<Body>) -> Result<Response, ClientError>
 where
-    T: for<'a> Deserialize<'a>,
+    Response: DeserializeOwned,
 {
     let body_bytes = to_bytes(response.into_body())
         .await
@@ -97,7 +98,7 @@ where
 impl<Request, Response> Clone for RemoteComponentClient<Request, Response>
 where
     Request: Serialize,
-    Response: for<'a> Deserialize<'a>,
+    Response: DeserializeOwned,
 {
     fn clone(&self) -> Self {
         Self {
