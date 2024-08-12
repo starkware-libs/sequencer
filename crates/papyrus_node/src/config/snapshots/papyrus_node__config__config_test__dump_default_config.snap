@@ -148,6 +148,11 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "consensus.test.sync_topic": {
+    "description": "The network topic for sync messages.",
+    "value": "consensus_test_sync",
+    "privacy": "Public"
+  },
   "consensus.validator_id": {
     "description": "A required param! The validator id of the node.",
     "param_type": "String",

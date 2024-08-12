@@ -124,6 +124,11 @@
     "privacy": "Public",
     "value": 0
   },
+  "consensus.test.sync_topic": {
+    "description": "The network topic for sync messages.",
+    "privacy": "Public",
+    "value": "consensus_test_sync"
+  },
   "consensus.validator_id": {
     "description": "A required param! The validator id of the node.",
     "param_type": "String",
