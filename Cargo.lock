@@ -8793,13 +8793,21 @@ dependencies = [
 name = "starknet_batcher"
 version = "0.0.0"
 dependencies = [
+ "assert_matches",
+ "async-stream",
  "async-trait",
+ "futures",
+ "futures-util",
+ "mockall",
  "papyrus_config",
  "serde",
+ "starknet_api",
  "starknet_batcher_types",
  "starknet_mempool_infra",
  "starknet_mempool_types",
+ "thiserror",
  "tokio",
+ "tracing",
  "validator",
 ]
 
