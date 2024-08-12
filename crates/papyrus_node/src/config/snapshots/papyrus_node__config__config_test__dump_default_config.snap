@@ -96,6 +96,11 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "consensus.network_topic": {
+    "description": "The network topic of the consensus.",
+    "value": "consensus",
+    "privacy": "Public"
+  },
   "consensus.num_validators": {
     "description": "The number of validators in the consensus.",
     "value": {
@@ -141,11 +146,6 @@ expression: dumped_default_config
     "value": {
       "$serde_json::private::Number": "0"
     },
-    "privacy": "Public"
-  },
-  "consensus.topic": {
-    "description": "The topic of the consensus.",
-    "value": "consensus",
     "privacy": "Public"
   },
   "consensus.validator_id": {
