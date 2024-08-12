@@ -11,6 +11,6 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
-starknet_batcher_types = { path = "../batcher_types", version = "0.0" }
-starknet_mempool_infra = { path = "../mempool_infra", version = "0.0" }
+starknet_batcher_types.workspace = true
+starknet_mempool_infra.workspace = true
 tokio.workspace = true

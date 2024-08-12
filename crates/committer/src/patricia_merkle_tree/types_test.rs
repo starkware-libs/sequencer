@@ -3,7 +3,6 @@ use rand::rngs::ThreadRng;
 use rand::Rng;
 use rstest::rstest;
 
-use crate::block_committer::input::{ContractAddress, StarknetStorageKey};
 use crate::felt::Felt;
 use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
 use crate::patricia_merkle_tree::internal_test_utils::random;
@@ -27,20 +26,6 @@ fn test_compute_bottom_index(
     );
     let expected = NodeIndex::from(expected);
     assert_eq!(bottom_index, expected);
-}
-
-#[rstest]
-fn test_cast_to_node_index(
-    #[values(0, 15, 0xDEADBEEF)] leaf_index: u128,
-    #[values(true, false)] from_contract_address: bool,
-) {
-    let expected_node_index = NodeIndex::FIRST_LEAF + leaf_index;
-    let actual: NodeIndex = if from_contract_address {
-        (&ContractAddress(Felt::from(leaf_index))).into()
-    } else {
-        (&StarknetStorageKey(Felt::from(leaf_index))).into()
-    };
-    assert_eq!(actual, expected_node_index);
 }
 
 #[rstest]

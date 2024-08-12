@@ -155,15 +155,16 @@ pub struct DeprecatedTransactionInfo {
 pub struct GasVector {
     pub l1_gas: u128,
     pub l1_data_gas: u128,
+    pub l2_gas: u128,
 }
 
 impl GasVector {
     pub fn from_l1_gas(l1_gas: u128) -> Self {
-        Self { l1_gas, l1_data_gas: 0 }
+        Self { l1_gas, ..Default::default() }
     }
 
     pub fn from_l1_data_gas(l1_data_gas: u128) -> Self {
-        Self { l1_gas: 0, l1_data_gas }
+        Self { l1_data_gas, ..Default::default() }
     }
 
     /// Computes the cost (in fee token units) of the gas vector (saturating on overflow).
@@ -462,7 +463,7 @@ impl TransactionResources {
         use_kzg_da: bool,
         with_reverted_steps: bool,
     ) -> ResourcesMapping {
-        let GasVector { l1_gas, l1_data_gas } =
+        let GasVector { l1_gas, l1_data_gas, .. } =
             self.starknet_resources.to_gas_vector(versioned_constants, use_kzg_da);
         let mut resources = self.vm_resources.to_resources_mapping();
         resources.0.extend(HashMap::from([

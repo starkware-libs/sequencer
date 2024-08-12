@@ -5,14 +5,16 @@
 mod manager_test;
 
 use std::collections::BTreeMap;
+use std::time::Duration;
 
 use futures::channel::{mpsc, oneshot};
 use futures::{Stream, StreamExt};
+use papyrus_common::metrics as papyrus_metrics;
 use papyrus_network::network_manager::ReportSender;
-use papyrus_protobuf::consensus::ConsensusMessage;
+use papyrus_protobuf::consensus::{ConsensusMessage, Proposal};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
-use tracing::{debug, instrument};
+use tracing::{debug, info, instrument};
 
 use crate::single_height_consensus::SingleHeightConsensus;
 use crate::types::{
@@ -23,12 +25,53 @@ use crate::types::{
     ProposalInit,
     ValidatorId,
 };
-use crate::ProposalWrapper;
+
+// TODO(dvir): add test for this.
+#[instrument(skip(context, start_height, network_receiver), level = "info")]
+#[allow(missing_docs)]
+pub async fn run_consensus<BlockT, ContextT, NetworkReceiverT>(
+    mut context: ContextT,
+    start_height: BlockNumber,
+    validator_id: ValidatorId,
+    consensus_delay: Duration,
+    mut network_receiver: NetworkReceiverT,
+) -> Result<(), ConsensusError>
+where
+    BlockT: ConsensusBlock,
+    ContextT: ConsensusContext<Block = BlockT>,
+    NetworkReceiverT:
+        Stream<Item = (Result<ConsensusMessage, ProtobufConversionError>, ReportSender)> + Unpin,
+    ProposalWrapper:
+        Into<(ProposalInit, mpsc::Receiver<BlockT::ProposalChunk>, oneshot::Receiver<BlockHash>)>,
+{
+    // Add a short delay to allow peers to connect and avoid "InsufficientPeers" error
+    tokio::time::sleep(consensus_delay).await;
+    let mut current_height = start_height;
+    let mut manager = MultiHeightManager::new();
+    loop {
+        let decision = manager
+            .run_height(&mut context, current_height, validator_id, &mut network_receiver)
+            .await?;
+
+        info!(
+            "Finished consensus for height: {current_height}. Agreed on block with id: {:x}",
+            decision.block.id().0
+        );
+        debug!("Decision: {:?}", decision);
+        metrics::gauge!(papyrus_metrics::PAPYRUS_CONSENSUS_HEIGHT, current_height.0 as f64);
+        current_height = current_height.unchecked_next();
+    }
+}
+
+// `Proposal` is defined in the protobuf crate so we can't implement `Into` for it because of the
+// orphan rule. This wrapper enables us to implement `Into` for the inner `Proposal`.
+#[allow(missing_docs)]
+pub struct ProposalWrapper(pub Proposal);
 
 /// Runs Tendermint repeatedly across different heights. Handles issues which are not explicitly
 /// part of the single height consensus algorithm (e.g. messages from future heights).
 #[derive(Debug, Default)]
-pub struct MultiHeightManager {
+struct MultiHeightManager {
     cached_messages: BTreeMap<u64, Vec<ConsensusMessage>>,
 }
 
@@ -134,16 +177,16 @@ where
     }
 
     let (msg, report_sender) = network_receiver.next().await.ok_or_else(|| {
-        ConsensusError::InternalNetworkError(format!("NetworkReceiver should never be closed"))
+        ConsensusError::InternalNetworkError("NetworkReceiver should never be closed".to_string())
     })?;
     match msg {
         // TODO(matan): Return report_sender for use in later errors by SHC.
         Ok(msg) => Ok(msg),
         Err(e) => {
             // Failed to parse consensus message
-            report_sender
-                .send(())
-                .or(Err(ConsensusError::InternalNetworkError(format!("Failed to send report"))))?;
+            report_sender.send(()).or(Err(ConsensusError::InternalNetworkError(
+                "Failed to send report".to_string(),
+            )))?;
             Err(e.into())
         }
     }

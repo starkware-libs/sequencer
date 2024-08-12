@@ -24,8 +24,6 @@ pub enum ToOtherBehaviourEvent {
         peer_id: PeerId,
         connection_id: ConnectionId,
     },
-    PauseDiscovery,
-    ResumeDiscovery,
     PeerBlacklisted {
         peer_id: PeerId,
     },

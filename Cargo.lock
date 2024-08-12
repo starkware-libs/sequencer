@@ -1020,9 +1020,11 @@ dependencies = [
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
+ "tempfile",
  "test-case",
  "thiserror",
  "tikv-jemallocator",
+ "toml",
 ]
 
 [[package]]
@@ -1975,7 +1977,6 @@ dependencies = [
  "derive_more",
  "ethnum",
  "hex",
- "log",
  "pretty_assertions",
  "rand 0.8.5",
  "rstest",
@@ -1986,6 +1987,7 @@ dependencies = [
  "strum_macros 0.25.3",
  "thiserror",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -1999,21 +2001,22 @@ dependencies = [
  "ethnum",
  "futures",
  "indexmap 2.2.6",
- "log",
  "pretty_assertions",
  "rand 0.8.5",
  "rand_distr",
  "serde",
  "serde_json",
  "serde_repr",
- "simplelog",
  "starknet-types-core",
  "starknet_api",
+ "starknet_committer",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "tempfile",
  "thiserror",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -6408,6 +6411,7 @@ dependencies = [
  "pretty_assertions",
  "replace_with",
  "serde",
+ "starknet_api",
  "thiserror",
  "tokio",
  "tokio-retry",
@@ -8968,6 +8972,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_committer"
+version = "0.1.0-rc.0"
+dependencies = [
+ "committer",
+ "hex",
+ "pretty_assertions",
+ "rstest",
+ "serde_json",
+ "starknet-types-core",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "starknet_consensus_manager"
 version = "0.0.0"
 dependencies = [
@@ -8997,6 +9016,7 @@ dependencies = [
  "async-trait",
  "axum",
  "blockifier",
+ "cairo-lang-sierra-to-casm",
  "cairo-lang-starknet-classes",
  "cairo-vm",
  "enum-assoc",
@@ -9050,6 +9070,7 @@ dependencies = [
  "async-trait",
  "bincode 1.3.3",
  "hyper",
+ "papyrus_config",
  "pretty_assertions",
  "rstest",
  "serde",
@@ -9057,6 +9078,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "validator",
 ]
 
 [[package]]
@@ -9103,6 +9125,7 @@ dependencies = [
  "mempool_test_utils",
  "papyrus_config",
  "pretty_assertions",
+ "rstest",
  "serde",
  "serde_json",
  "starknet_gateway",
@@ -9136,11 +9159,14 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
  "mempool_test_utils",
+ "papyrus_config",
+ "rstest",
  "serde",
  "serde_json",
  "starknet-types-core",
  "starknet_api",
  "thiserror",
+ "validator",
 ]
 
 [[package]]

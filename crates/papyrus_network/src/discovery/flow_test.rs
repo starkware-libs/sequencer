@@ -9,6 +9,7 @@ use libp2p::swarm::behaviour::toggle::Toggle;
 use libp2p::swarm::{NetworkBehaviour, SwarmEvent};
 use libp2p::{identify, kad, Multiaddr, Swarm};
 use libp2p_swarm_test::SwarmExt;
+use starknet_api::core::ChainId;
 
 use super::Behaviour;
 use crate::mixed_behaviour;
@@ -24,8 +25,12 @@ struct DiscoveryMixedBehaviour {
 
 impl DiscoveryMixedBehaviour {
     pub fn new(key: Keypair, bootstrap_peer_multiaddr: Option<Multiaddr>) -> Self {
-        let mixed_behaviour =
-            MixedBehaviour::new(key, bootstrap_peer_multiaddr, Default::default());
+        let mixed_behaviour = MixedBehaviour::new(
+            key,
+            bootstrap_peer_multiaddr,
+            Default::default(),
+            ChainId::Mainnet,
+        );
         Self {
             identify: mixed_behaviour.identify,
             kademlia: mixed_behaviour.kademlia,

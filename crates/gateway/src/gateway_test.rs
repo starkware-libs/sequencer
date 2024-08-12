@@ -13,13 +13,10 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput, ThinTransaction};
+use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 
 use crate::compilation::GatewayCompiler;
-use crate::config::{
-    GatewayCompilerConfig,
-    StatefulTransactionValidatorConfig,
-    StatelessTransactionValidatorConfig,
-};
+use crate::config::{StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig};
 use crate::gateway::{add_tx, AppState, SharedMempoolClient};
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
@@ -32,19 +29,14 @@ pub fn app_state(
 ) -> AppState {
     AppState {
         stateless_tx_validator: StatelessTransactionValidator {
-            config: StatelessTransactionValidatorConfig {
-                validate_non_zero_l1_gas_fee: true,
-                max_calldata_length: 10,
-                max_signature_length: 2,
-                max_bytecode_size: 10000,
-                max_raw_class_size: 1000000,
-                ..Default::default()
-            },
+            config: StatelessTransactionValidatorConfig::default(),
         },
         stateful_tx_validator: Arc::new(StatefulTransactionValidator {
             config: StatefulTransactionValidatorConfig::create_for_testing(),
         }),
-        gateway_compiler: GatewayCompiler { config: GatewayCompilerConfig {} },
+        gateway_compiler: GatewayCompiler::new_cairo_lang_compiler(
+            SierraToCasmCompilationConfig::default(),
+        ),
         state_reader_factory: Arc::new(state_reader_factory),
         mempool_client,
     }

@@ -1,14 +1,16 @@
 use std::fs;
-use std::process::Command;
 
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::CairoVersion;
 use pretty_assertions::assert_eq;
+use rstest::rstest;
 
 const CAIRO0_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo0";
 const CAIRO1_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo1";
 const COMPILED_CONTRACTS_SUBDIR: &str = "compiled";
-const FIX_COMMAND: &str = "FIX_FEATURE_TEST=1 cargo test -- --ignored";
+const FIX_COMMAND: &str = "FIX_FEATURE_TEST=1 cargo test -p blockifier --test \
+                           feature_contracts_compatibility_test --features testing -- \
+                           --include-ignored";
 
 // To fix Cairo0 feature contracts, first enter a python venv and install the requirements:
 // ```
@@ -18,22 +20,12 @@ const FIX_COMMAND: &str = "FIX_FEATURE_TEST=1 cargo test -- --ignored";
 // ```
 // Then, run the FIX_COMMAND above.
 
-// This test currently doesn't support Cairo1 contracts. To fix them you'll need to compile them one
-// by one:
-// 1. Clone the [cairo repo](https://github.com/starkware-libs/cairo).
-// 2. Checkout the commit defined in [the root Cargo.toml](../../../../Cargo.toml).
-// 3. From within the compiler repo root directory, run:
-// ```
-// PREFIX=~/workspace/blockifier/crates/blockifier/feature_contracts/cairo1
-// CONTRACT_NAME=<contract_base_filename>
-// cargo run --release --bin starknet-compile -- --single-file \
-//   $PREFIX/$CONTRACT_NAME.cairo \
-//   $PREFIX/compiled/$CONTRACT_NAME.sierra.json
-// cargo run --release --bin starknet-sierra-compile \
-//   $PREFIX/compiled/$CONTRACT_NAME.sierra.json \
-//   $PREFIX/compiled/$CONTRACT_NAME.casm.json
-// ```
-// TODO(Gilad, 1/1/2024): New year's resolution: support Cairo1 in the test.
+// To fix Cairo1 feature contracts, first clone the Cairo repo and checkout the required tag.
+// The repo should be located next to the sequencer repo:
+// <WORKSPACE_DIR>/
+// - sequencer/
+// - cairo/
+// Then, run the FIX_COMMAND above.
 
 // Checks that:
 // 1. `TEST_CONTRACTS` dir exists and contains only `.cairo` files and the subdirectory
@@ -41,20 +33,13 @@ const FIX_COMMAND: &str = "FIX_FEATURE_TEST=1 cargo test -- --ignored";
 // 2. for each `X.cairo` file in `TEST_CONTRACTS` there exists an `X_compiled.json` file in
 // `COMPILED_CONTRACTS_SUBDIR` which equals `starknet-compile-deprecated X.cairo --no_debug_info`.
 fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoVersion) {
-    for (path_str, file_name, existing_compiled_path) in verify_and_get_files(cairo_version) {
+    // TODO(Dori, 1/10/2024): Parallelize this test.
+    for contract in FeatureContract::all_feature_contracts()
+        .filter(|contract| contract.cairo_version() == cairo_version)
+    {
         // Compare output of cairo-file on file with existing compiled file.
-        let mut command = Command::new("starknet-compile-deprecated");
-        command.args([&path_str, "--no_debug_info"]);
-        if file_name.starts_with("account") {
-            command.arg("--account_contract");
-        }
-        if file_name.starts_with("security") {
-            command.arg("--disable_hint_validation");
-        }
-        let compile_output = command.output().unwrap();
-        let stderr_output = String::from_utf8(compile_output.stderr).unwrap();
-        assert!(compile_output.status.success(), "{stderr_output}");
-        let expected_compiled_output = compile_output.stdout;
+        let expected_compiled_output = contract.compile();
+        let existing_compiled_path = contract.get_compiled_path();
 
         if fix {
             fs::write(&existing_compiled_path, &expected_compiled_output).unwrap();
@@ -64,9 +49,9 @@ fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoVersion
 
         if String::from_utf8(expected_compiled_output).unwrap() != existing_compiled_contents {
             panic!(
-                "{path_str} does not compile to {existing_compiled_path}.\nRun `{FIX_COMMAND}` to \
-                 fix the expected test according to locally installed \
-                 `starknet-compile-deprecated`.\n"
+                "{} does not compile to {existing_compiled_path}.\nRun `{FIX_COMMAND}` to fix the \
+                 existing file according to locally installed `starknet-compile-deprecated`.\n",
+                contract.get_source_path()
             );
         }
     }
@@ -119,10 +104,7 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<(String, String, Str
 
 #[test]
 fn verify_feature_contracts_match_enum() {
-    let mut compiled_paths_from_enum: Vec<String> = FeatureContract::all_contracts()
-        // ERC20 is a special case - not in the feature_contracts directory.
-        .filter(|contract| !matches!(contract, FeatureContract::ERC20(CairoVersion::Cairo0) |
-        FeatureContract::ERC20(CairoVersion::Cairo1)))
+    let mut compiled_paths_from_enum: Vec<String> = FeatureContract::all_feature_contracts()
         .map(|contract| contract.get_compiled_path())
         .collect();
     let mut compiled_paths_on_filesystem: Vec<String> = verify_and_get_files(CairoVersion::Cairo0)
@@ -135,9 +117,11 @@ fn verify_feature_contracts_match_enum() {
     assert_eq!(compiled_paths_from_enum, compiled_paths_on_filesystem);
 }
 
-#[test]
+#[rstest]
 #[ignore]
-fn verify_feature_contracts() {
+fn verify_feature_contracts(
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
+) {
     let fix_features = std::env::var("FIX_FEATURE_TEST").is_ok();
-    verify_feature_contracts_compatibility(fix_features, CairoVersion::Cairo0)
+    verify_feature_contracts_compatibility(fix_features, cairo_version)
 }
