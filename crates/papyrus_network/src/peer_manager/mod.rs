@@ -41,7 +41,6 @@ pub struct PeerManager<P: PeerTrait + 'static> {
 
 #[derive(Clone)]
 pub struct PeerManagerConfig {
-    target_num_for_peers: usize,
     blacklist_timeout: Duration,
 }
 
@@ -58,7 +57,6 @@ pub(crate) enum PeerManagerError {
 impl Default for PeerManagerConfig {
     fn default() -> Self {
         Self {
-            target_num_for_peers: 100,
             // 1 year.
             blacklist_timeout: Duration::from_secs(3600 * 24 * 365),
         }
@@ -209,12 +207,6 @@ where
             Err(PeerManagerError::NoSuchSession(outbound_session_id))
         }
     }
-
-    fn more_peers_needed(&self) -> bool {
-        // TODO: consider if we should count blocked peers (and in what cases? what if they are
-        // blocked temporarily?)
-        self.peers.len() < self.config.target_num_for_peers
-    }
 }
 
 impl From<ToOtherBehaviourEvent> for mixed_behaviour::Event {
@@ -251,12 +243,6 @@ impl<P: PeerTrait + 'static> BridgedBehaviour for PeerManager<P> {
 
                 let peer = P::new(*peer_id, address.clone());
                 self.add_peer(peer);
-                if !self.more_peers_needed() {
-                    // TODO: consider how and in which cases we resume discovery
-                    self.pending_events.push(libp2p::swarm::ToSwarm::GenerateEvent(
-                        ToOtherBehaviourEvent::PauseDiscovery,
-                    ))
-                }
             }
             _ => {}
         }
