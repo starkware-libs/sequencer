@@ -1945,32 +1945,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "committer"
-version = "0.1.0-rc.0"
-dependencies = [
- "async-recursion",
- "derive_more",
- "ethnum",
- "hex",
- "pretty_assertions",
- "rand 0.8.5",
- "rstest",
- "serde",
- "serde_json",
- "starknet-types-core",
- "strum 0.25.0",
- "strum_macros 0.25.3",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "committer_cli"
 version = "0.1.0-rc.0"
 dependencies = [
  "clap",
- "committer",
  "criterion",
  "derive_more",
  "ethnum",
@@ -1985,6 +1963,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_committer",
+ "starknet_patricia",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "tempfile",
@@ -8832,12 +8811,12 @@ dependencies = [
 name = "starknet_committer"
 version = "0.1.0-rc.0"
 dependencies = [
- "committer",
  "hex",
  "pretty_assertions",
  "rstest",
  "serde_json",
  "starknet-types-core",
+ "starknet_patricia",
  "thiserror",
  "tokio",
  "tracing",
@@ -8976,6 +8955,27 @@ dependencies = [
  "starknet_api",
  "starknet_mempool_infra",
  "thiserror",
+]
+
+[[package]]
+name = "starknet_patricia"
+version = "0.1.0-rc.0"
+dependencies = [
+ "async-recursion",
+ "derive_more",
+ "ethnum",
+ "hex",
+ "pretty_assertions",
+ "rand 0.8.5",
+ "rstest",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
+ "thiserror",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
