@@ -38,5 +38,5 @@ pub const PAPYRUS_NUM_ACTIVE_OUTBOUND_SESSIONS: &str = "papyrus_num_active_outbo
 /// Global variable set by the main config to enable collecting profiling metrics.
 pub static COLLECT_PROFILING_METRICS: OnceLock<bool> = OnceLock::new();
 
-/// The height most recently decided by consensus.
+/// The height consensus is currently working on.
 pub const PAPYRUS_CONSENSUS_HEIGHT: &str = "papyrus_consensus_height";
