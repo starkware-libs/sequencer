@@ -59,7 +59,7 @@ mock! {
         ) -> Result<(), ConsensusError>;
 
         async fn notify_decision(
-            &self,
+            &mut self,
             block: TestBlock,
             precommits: Vec<Vote>,
         ) -> Result<(), ConsensusError>;
