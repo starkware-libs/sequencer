@@ -137,7 +137,7 @@ pub trait ConsensusContext {
     ) -> Result<(), ConsensusError>;
 
     async fn decision(
-        &self,
+        &mut self,
         block: Self::Block,
         precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError>;

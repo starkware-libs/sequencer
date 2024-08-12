@@ -59,7 +59,7 @@ mock! {
         ) -> Result<(), ConsensusError>;
 
         async fn decision(
-            &self,
+            &mut self,
             block: TestBlock,
             precommits: Vec<Vote>,
         ) -> Result<(), ConsensusError>;
