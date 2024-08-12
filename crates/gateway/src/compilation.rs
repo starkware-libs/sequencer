@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use blockifier::execution::contract_class::{ClassInfo, ContractClass, ContractClassV1};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
+use starknet_api::contract_class::{ClassInfo, ContractClass, ContractClassV1};
 use starknet_api::core::CompiledClassHash;
 use starknet_api::rpc_transaction::RpcDeclareTransaction;
 use starknet_sierra_compile::cairo_lang_compiler::CairoLangSierraToCasmCompiler;

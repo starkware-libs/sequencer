@@ -5,6 +5,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_api::contract_class::{ContractClass, ContractClassV1};
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
@@ -26,7 +27,6 @@ use crate::abi::abi_utils::{
     selector_from_name,
 };
 use crate::context::BlockContext;
-use crate::execution::contract_class::{ContractClass, ContractClassV1};
 use crate::execution::entry_point::EntryPointExecutionContext;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::fee_utils::{get_fee_by_gas_vector, get_sequencer_balance_keys};

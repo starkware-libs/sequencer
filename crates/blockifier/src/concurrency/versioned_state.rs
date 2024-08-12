@@ -1,13 +1,13 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, MutexGuard};
 
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use crate::concurrency::versioned_storage::VersionedStorage;
 use crate::concurrency::TxIndex;
-use crate::execution::contract_class::ContractClass;
 use crate::state::cached_state::{ContractClassMapping, StateMaps};
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult, UpdatableState};

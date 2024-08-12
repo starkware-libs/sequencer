@@ -1,5 +1,4 @@
 use blockifier::blockifier::block::BlockInfo;
-use blockifier::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use papyrus_rpc::CompiledContractClass;
@@ -7,6 +6,7 @@ use reqwest::blocking::Client as BlockingClient;
 use serde::Serialize;
 use serde_json::{json, Value};
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;

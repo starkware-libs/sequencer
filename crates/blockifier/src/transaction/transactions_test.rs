@@ -43,6 +43,7 @@ use crate::execution::call_info::{
     OrderedL2ToL1Message,
     Retdata,
 };
+use crate::execution::contract_class::ClassInfoExt;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::syscalls::hint_processor::{EmitEventError, L1_GAS, L2_GAS};

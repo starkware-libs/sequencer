@@ -9,6 +9,7 @@ pub mod core;
 pub mod crypto;
 pub mod data_availability;
 pub mod deprecated_contract_class;
+pub mod errors;
 pub mod executable_transaction;
 pub mod execution_resources;
 pub mod hash;

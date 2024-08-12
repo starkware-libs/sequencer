@@ -1,7 +1,6 @@
 use blockifier::blockifier::stateful_validator::StatefulValidatorError;
 use blockifier::blockifier::transaction_executor::TransactionExecutorError;
 use blockifier::bouncer::BuiltinCount;
-use blockifier::execution::errors::ContractClassError;
 use blockifier::state::errors::StateError;
 use blockifier::transaction::errors::{
     ParseError,
@@ -14,6 +13,7 @@ use num_bigint::BigUint;
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
+use starknet_api::errors::ContractClassError;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::FromStrError;
 use thiserror::Error;

@@ -1,7 +1,7 @@
-use blockifier::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use pyo3::{FromPyObject, PyAny, PyErr, PyObject, PyResult, Python};
+use starknet_api::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
