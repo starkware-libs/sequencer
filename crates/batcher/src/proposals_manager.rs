@@ -5,9 +5,11 @@ use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
+use starknet_api::executable_transaction::Transaction;
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
 use tokio::sync::Mutex;
+use tokio_stream::wrappers::ReceiverStream;
 use tracing::{debug, error, info, instrument};
 
 // TODO: Should be defined in SN_API probably (shared with the consensus).
@@ -16,23 +18,32 @@ pub type ProposalId = u64;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ProposalsManagerConfig {
     pub max_txs_per_mempool_request: usize,
+    pub outstream_tx_stream_buffer_size: usize,
 }
 
 impl Default for ProposalsManagerConfig {
     fn default() -> Self {
         // TODO: Get correct value for default max_txs_per_mempool_request.
-        Self { max_txs_per_mempool_request: 10 }
+        Self { max_txs_per_mempool_request: 10, outstream_tx_stream_buffer_size: 100 }
     }
 }
 
 impl SerializeConfig for ProposalsManagerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "max_txs_per_mempool_request",
-            &self.max_txs_per_mempool_request,
-            "Maximum transactions to get from the mempool per iteration of proposal generation",
-            ParamPrivacyInput::Public,
-        )])
+        BTreeMap::from_iter([
+            ser_param(
+                "max_txs_per_mempool_request",
+                &self.max_txs_per_mempool_request,
+                "Maximum transactions to get from the mempool per iteration of proposal generation",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "outstream_tx_stream_buffer_size",
+                &self.outstream_tx_stream_buffer_size,
+                "Maximum transactions to add to the outstream buffer before blocking",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 
@@ -46,6 +57,8 @@ pub enum ProposalsManagerError {
         current_generating_proposal_id: ProposalId,
         new_proposal_id: ProposalId,
     },
+    #[error("Internal error.")]
+    InternalError,
     #[error(transparent)]
     MempoolError(#[from] MempoolClientError),
 }
@@ -79,28 +92,31 @@ impl ProposalsManager {
 
     /// Starts a new block proposal generation task for the given proposal_id and height with
     /// transactions from the mempool.
-    #[instrument(skip(self), err)]
+    #[instrument(skip(self))]
     pub async fn generate_block_proposal(
         &mut self,
         proposal_id: ProposalId,
         timeout: tokio::time::Instant,
         _height: BlockNumber,
-    ) -> ProposalsManagerResult<()> {
+    ) -> ProposalsManagerResult<ReceiverStream<Transaction>> {
         info!("Starting generation of new proposal.");
         self.set_proposal_in_generation(proposal_id).await?;
 
+        let (sender, receiver) =
+            tokio::sync::mpsc::channel::<Transaction>(self.config.outstream_tx_stream_buffer_size);
         // TODO: Find where to join the task - needed to make sure it starts immediatly.
         let _handle = tokio::spawn(
             ProposalGenerationTask {
                 timeout,
                 mempool_client: self.mempool_client.clone(),
                 max_txs_per_mempool_request: self.config.max_txs_per_mempool_request,
+                sender,
                 proposal_in_generation: self.proposal_in_generation.clone(),
             }
             .run(),
         );
 
-        Ok(())
+        Ok(ReceiverStream::new(receiver))
     }
 
     // Checks if there is already a proposal being generated, and if not, sets the given proposal_id
@@ -160,6 +176,7 @@ struct ProposalGenerationTask {
     pub timeout: tokio::time::Instant,
     pub mempool_client: SharedMempoolClient,
     pub max_txs_per_mempool_request: usize,
+    pub sender: tokio::sync::mpsc::Sender<Transaction>,
     pub proposal_in_generation: Arc<Mutex<Option<ProposalId>>>,
 }
 
@@ -184,6 +201,13 @@ impl ProposalGenerationTask {
             // TODO: This is cpu bound operation, should use spawn_blocking / Rayon / std::thread
             // here or from inside the function.
             let is_block_ready = block_builder.add_txs(mempool_txs.as_slice());
+            for tx in mempool_txs {
+                debug!("Sending tx {}.", tx.tx_hash());
+                if self.sender.send(tx).await.is_err() {
+                    error!("Failed to send tx to the receiver.");
+                    return Err(ProposalsManagerError::InternalError);
+                }
+            }
             if is_block_ready {
                 break;
             }
