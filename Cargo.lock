@@ -6282,7 +6282,6 @@ dependencies = [
  "assert_matches",
  "async-stream",
  "bytes",
- "clap",
  "deadqueue",
  "defaultmap",
  "derive_more",
@@ -8795,9 +8794,12 @@ name = "starknet_batcher"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "papyrus_config",
+ "serde",
  "starknet_batcher_types",
  "starknet_mempool_infra",
  "tokio",
+ "validator",
 ]
 
 [[package]]
@@ -9003,6 +9005,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "starknet_batcher",
  "starknet_gateway",
  "starknet_mempool",
  "starknet_mempool_infra",
