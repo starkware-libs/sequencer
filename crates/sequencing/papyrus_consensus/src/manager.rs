@@ -9,6 +9,7 @@ use std::time::Duration;
 
 use futures::channel::{mpsc, oneshot};
 use futures::{Stream, StreamExt};
+use papyrus_common::metrics::PAPYRUS_CONSENSUS_HEIGHT;
 use papyrus_network::network_manager::ReportSender;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal};
 use papyrus_protobuf::converters::ProtobufConversionError;
@@ -50,6 +51,8 @@ where
     let mut current_height = start_height;
     let mut manager = MultiHeightManager::new();
     loop {
+        metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT, current_height.0 as f64);
+
         let run_height =
             manager.run_height(&mut context, current_height, validator_id, &mut network_receiver);
 
