@@ -8804,6 +8804,7 @@ dependencies = [
  "starknet_mempool_types",
  "thiserror",
  "tokio",
+ "tokio-stream",
  "tracing",
  "validator",
 ]

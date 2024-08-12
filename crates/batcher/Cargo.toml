@@ -17,6 +17,7 @@ starknet_batcher_types.workspace = true
 starknet_mempool_infra.workspace = true
 starknet_mempool_types.workspace = true
 thiserror.workspace = true
+tokio-stream.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 validator.workspace = true
