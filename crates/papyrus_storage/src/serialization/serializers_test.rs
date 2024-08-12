@@ -135,10 +135,10 @@ fn serialization_precision() {
     assert_eq!(input, deserialized);
 }
 
-const SERIALIZATION_REGRESSION_FILES: [(&str, &str); 3] = [
+const CASM_SERIALIZATION_REGRESSION_FILES: [(&str, &str); 3] = [
     ("openzeppelin_account.json", "openzeppelin_account.bin"),
     ("ERC20.json", "ERC20.bin"),
-    ("large_contract.json", "large_contract.bin"),
+    ("libfuncs_full_coverage.json", "libfuncs_full_coverage.bin"),
 ];
 
 const FIX_SUGGESTION: &str = "Consider re-generating the hardcoded binary files if you're ok with \
@@ -153,7 +153,7 @@ fn casm_serialization_regression() {
         fix_casm_regression_files()
     }
 
-    for (json_file_name, bin_file_name) in SERIALIZATION_REGRESSION_FILES {
+    for (json_file_name, bin_file_name) in CASM_SERIALIZATION_REGRESSION_FILES {
         let json_path = format!("casm/{}", json_file_name);
         let json_casm =
             serde_json::from_value::<CasmContractClass>(read_json_file(&json_path)).unwrap();
@@ -187,7 +187,7 @@ fn casm_deserialization_regression() {
     }
 
     let resources_path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("resources");
-    for (json_file_name, bin_file_name) in SERIALIZATION_REGRESSION_FILES {
+    for (json_file_name, bin_file_name) in CASM_SERIALIZATION_REGRESSION_FILES {
         let mut regression_casm_file = File::open(resources_path.join("casm").join(bin_file_name))
             .expect("Failed to open bin file: {bin_file_name}\n{FIX_SUGGESTION}");
         let mut regression_casm_bytes = Vec::new();
@@ -210,7 +210,7 @@ result.\n{FIX_SUGGESTION}"
 
 fn fix_casm_regression_files() {
     let resources_path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("resources");
-    for (json_file_name, bin_file_name) in SERIALIZATION_REGRESSION_FILES {
+    for (json_file_name, bin_file_name) in CASM_SERIALIZATION_REGRESSION_FILES {
         let json_path = format!("casm/{}", json_file_name);
         let json_casm: CasmContractClass =
             serde_json::from_value::<CasmContractClass>(read_json_file(&json_path))
