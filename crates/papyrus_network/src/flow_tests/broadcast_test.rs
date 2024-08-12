@@ -70,7 +70,7 @@ impl From<Number> for Bytes {
 }
 
 #[tokio::test]
-async fn broadcast_subscriber_end_to_end_test() {
+async fn broadcast_subscriber_flow_test() {
     let topic1 = Topic::new("TOPIC1");
     let topic2 = Topic::new("TOPIC2");
     let bootstrap_swarm = create_swarm(None).await;

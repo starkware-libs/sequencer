@@ -5,7 +5,7 @@
 mod bin_utils;
 mod discovery;
 #[cfg(test)]
-mod e2e_broadcast_test;
+mod flow_tests;
 pub mod gossipsub_impl;
 mod mixed_behaviour;
 pub mod network_manager;
