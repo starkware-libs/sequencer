@@ -434,8 +434,10 @@ impl InvokeTransaction {
 
     implement_inner_tx_getter_calls!(
         (calldata, Calldata),
+        (nonce, Nonce),
         (signature, TransactionSignature),
-        (sender_address, ContractAddress)
+        (sender_address, ContractAddress),
+        (version, TransactionVersion)
     );
 }
 
@@ -486,10 +488,10 @@ impl TransactionInfoCreator for InvokeTransaction {
     fn create_tx_info(&self) -> TransactionInfo {
         let common_fields = CommonAccountFields {
             transaction_hash: self.tx_hash,
-            version: self.tx.version(),
-            signature: self.tx.signature(),
-            nonce: self.tx.nonce(),
-            sender_address: self.tx.sender_address(),
+            version: self.version(),
+            signature: self.signature(),
+            nonce: self.nonce(),
+            sender_address: self.sender_address(),
             only_query: self.only_query,
         };
 
