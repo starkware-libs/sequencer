@@ -129,7 +129,7 @@ pub trait ValidatableTransaction {
 #[derive(Clone, Debug)]
 pub struct DeclareTransaction {
     pub tx: starknet_api::transaction::DeclareTransaction,
-    pub tx_hash: TransactionHash,
+    tx_hash: TransactionHash,
     // Indicates the presence of the only_query bit in the version.
     only_query: bool,
     pub class_info: ClassInfo,
@@ -310,7 +310,7 @@ impl TransactionInfoCreator for DeclareTransaction {
 #[derive(Debug, Clone)]
 pub struct DeployAccountTransaction {
     pub tx: starknet_api::transaction::DeployAccountTransaction,
-    pub tx_hash: TransactionHash,
+    tx_hash: TransactionHash,
     pub contract_address: ContractAddress,
     // Indicates the presence of the only_query bit in the version.
     pub only_query: bool,
@@ -416,7 +416,7 @@ impl TransactionInfoCreator for DeployAccountTransaction {
 #[derive(Debug, Clone)]
 pub struct InvokeTransaction {
     pub tx: starknet_api::transaction::InvokeTransaction,
-    pub tx_hash: TransactionHash,
+    tx_hash: TransactionHash,
     // Indicates the presence of the only_query bit in the version.
     pub only_query: bool,
 }
