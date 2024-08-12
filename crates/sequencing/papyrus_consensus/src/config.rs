@@ -100,6 +100,8 @@ pub struct ConsensusTestConfig {
     pub drop_probability: f64,
     /// The probability of sending an invalid message.
     pub invalid_probability: f64,
+    /// The network topic for sync messages.
+    pub sync_topic: String,
 }
 
 impl SerializeConfig for ConsensusTestConfig {
@@ -129,12 +131,24 @@ impl SerializeConfig for ConsensusTestConfig {
                 "The probability of sending an invalid message.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "sync_topic",
+                &self.sync_topic,
+                "The network topic for sync messages.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
 
 impl Default for ConsensusTestConfig {
     fn default() -> Self {
-        Self { cache_size: 1000, random_seed: 0, drop_probability: 0.0, invalid_probability: 0.0 }
+        Self {
+            cache_size: 1000,
+            random_seed: 0,
+            drop_probability: 0.0,
+            invalid_probability: 0.0,
+            sync_topic: "consensus_test_sync".to_string(),
+        }
     }
 }
