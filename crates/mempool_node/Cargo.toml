@@ -17,6 +17,7 @@ papyrus_config.workspace = true
 rstest.workspace = true
 serde.workspace = true
 starknet_batcher.workspace = true
+starknet_batcher_types.workspace = true
 starknet_gateway.workspace = true
 starknet_mempool.workspace = true
 starknet_mempool_infra.workspace = true
