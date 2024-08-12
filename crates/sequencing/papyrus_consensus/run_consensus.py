@@ -35,7 +35,7 @@ class Node:
         port = self.monitoring_gateway_server_port
         command = f"curl -s -X GET http://localhost:{port}/monitoring/metrics | grep -oP 'papyrus_consensus_height \\K\\d+'"
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
-        # returns the latest decided height, or None if node isn't ready or no height reached.
+        # returns the latest decided height, or None if consensus has not yet started.
         return int(result.stdout) if result.stdout else None
 
     def check_height(self):
