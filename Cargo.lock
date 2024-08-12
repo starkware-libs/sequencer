@@ -8919,9 +8919,13 @@ name = "starknet_batcher"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "papyrus_config",
+ "papyrus_storage",
  "starknet_batcher_types",
  "starknet_mempool_infra",
+ "starknet_mempool_types",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

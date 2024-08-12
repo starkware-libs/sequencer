@@ -5,12 +5,15 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
-
 [lints]
 workspace = true
 
 [dependencies]
 async-trait.workspace = true
+papyrus_config = { path = "../papyrus_config", version = "0.4.0-rc.0" }
+papyrus_storage = { path = "../papyrus_storage", version = "0.4.0-rc.0" }
 starknet_batcher_types.workspace = true
 starknet_mempool_infra.workspace = true
+starknet_mempool_types = { path = "../mempool_types", version = "0.0" }
 tokio.workspace = true
+tracing.workspace = true
