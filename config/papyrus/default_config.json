@@ -84,6 +84,11 @@
     "privacy": "Public",
     "value": 5
   },
+  "consensus.network_topic": {
+    "description": "The network topic of the consensus",
+    "privacy": "Public",
+    "value": "consensus"
+  },
   "consensus.num_validators": {
     "description": "The number of validators in the consensus.",
     "privacy": "Public",
@@ -118,11 +123,6 @@
     "description": "The random seed for the test simulation to ensure repeatable test results.",
     "privacy": "Public",
     "value": 0
-  },
-  "consensus.topic": {
-    "description": "The topic of the consensus.",
-    "privacy": "Public",
-    "value": "consensus"
   },
   "consensus.validator_id": {
     "description": "A required param! The validator id of the node.",
