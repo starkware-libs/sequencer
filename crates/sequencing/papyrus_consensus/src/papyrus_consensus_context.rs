@@ -9,7 +9,6 @@ use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::sink::SinkExt;
 use futures::StreamExt;
-use papyrus_common::metrics::PAPYRUS_CONSENSUS_HEIGHT;
 use papyrus_network::network_manager::BroadcastSubscriberSender;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, Vote};
 use papyrus_storage::body::BodyStorageReader;
@@ -237,7 +236,6 @@ impl ConsensusContext for PapyrusConsensusContext {
             "Finished consensus for height: {height}. Agreed on block with id: {:x}",
             block.id().0
         );
-        metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT, height as f64);
         Ok(())
     }
 }
