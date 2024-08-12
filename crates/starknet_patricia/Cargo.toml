@@ -1,5 +1,5 @@
 [package]
-name = "committer"
+name = "starknet_patricia"
 version = "0.1.0-rc.0"
 edition.workspace = true
 repository.workspace = true
@@ -23,8 +23,8 @@ derive_more.workspace = true
 ethnum.workspace = true
 hex.workspace = true
 rand.workspace = true
-serde = { version = "1.0.197", features = ["derive"] }
-serde_json = "1.0.116"
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 starknet-types-core.workspace = true
 strum.workspace = true
 strum_macros.workspace = true

@@ -1,5 +1,5 @@
-use committer::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
-use committer::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
+use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
+use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
 use thiserror::Error;
 use tokio::task::JoinError;
 

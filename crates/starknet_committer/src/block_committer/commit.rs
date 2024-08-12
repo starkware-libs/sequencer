@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use committer::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use committer::storage::map_storage::MapStorage;
+use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use starknet_patricia::storage::map_storage::MapStorage;
 use tracing::{info, warn};
 
 use crate::block_committer::errors::BlockCommitmentError;
