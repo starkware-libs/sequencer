@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
-use committer::felt::Felt;
-use committer::hash::hash_trait::HashOutput;
-use committer::patricia_merkle_tree::external_test_utils::{
+use pretty_assertions::assert_eq;
+use rstest::rstest;
+use starknet_patricia::felt::Felt;
+use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::external_test_utils::{
     create_32_bytes_entry,
     create_binary_entry,
     create_binary_skeleton_node,
@@ -12,13 +14,11 @@ use committer::patricia_merkle_tree::external_test_utils::{
     create_root_edge_entry,
     create_unmodified_subtree_skeleton_node,
 };
-use committer::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
-use committer::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
-use committer::storage::db_object::DBObject;
-use committer::storage::map_storage::MapStorage;
-use committer::storage::storage_trait::{StorageKey, StorageValue};
-use pretty_assertions::assert_eq;
-use rstest::rstest;
+use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
+use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
+use starknet_patricia::storage::db_object::DBObject;
+use starknet_patricia::storage::map_storage::MapStorage;
+use starknet_patricia::storage::storage_trait::{StorageKey, StorageValue};
 use tracing::level_filters::LevelFilter;
 
 use crate::block_committer::commit::get_all_modified_indices;

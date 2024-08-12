@@ -1,15 +1,15 @@
-use committer::felt::Felt;
-use committer::hash::hash_trait::HashOutput;
-use committer::patricia_merkle_tree::node_data::inner_node::{
+use hex;
+use rstest::rstest;
+use starknet_patricia::felt::Felt;
+use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,
     EdgePathLength,
     NodeData,
     PathToBottom,
 };
-use committer::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
-use hex;
-use rstest::rstest;
+use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use starknet_types_core::hash::Pedersen;
 
 use crate::block_committer::input::StarknetStorageValue;

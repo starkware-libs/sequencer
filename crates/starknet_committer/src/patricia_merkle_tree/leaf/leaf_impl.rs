@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use committer::felt::Felt;
-use committer::hash::hash_trait::HashOutput;
-use committer::patricia_merkle_tree::node_data::errors::LeafResult;
-use committer::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
-use committer::patricia_merkle_tree::types::NodeIndex;
+use starknet_patricia::felt::Felt;
+use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::node_data::errors::LeafResult;
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
+use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 
 use crate::block_committer::input::StarknetStorageValue;
 use crate::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};

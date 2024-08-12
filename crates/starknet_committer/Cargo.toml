@@ -9,12 +9,12 @@ description = "Computes and manages Starknet state."
 
 
 [dependencies]
-committer = { path = "../committer", features = ["testing"] }
 hex.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
+starknet_patricia = { workspace = true, features = ["testing"] }
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true

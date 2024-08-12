@@ -1,6 +1,6 @@
-use committer::felt::Felt;
-use committer::patricia_merkle_tree::types::NodeIndex;
 use rstest::rstest;
+use starknet_patricia::felt::Felt;
+use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 
 use crate::block_committer::input::{ContractAddress, StarknetStorageKey};
 
