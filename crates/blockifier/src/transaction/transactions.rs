@@ -311,7 +311,7 @@ impl TransactionInfoCreator for DeclareTransaction {
 pub struct DeployAccountTransaction {
     pub tx: starknet_api::transaction::DeployAccountTransaction,
     tx_hash: TransactionHash,
-    pub contract_address: ContractAddress,
+    contract_address: ContractAddress,
     // Indicates the presence of the only_query bit in the version.
     pub only_query: bool,
 }
@@ -349,6 +349,10 @@ impl DeployAccountTransaction {
     pub fn tx_hash(&self) -> TransactionHash {
         self.tx_hash
     }
+
+    pub fn contract_address(&self) -> ContractAddress {
+        self.contract_address
+    }
 }
 
 impl<S: State> Executable<S> for DeployAccountTransaction {
@@ -363,7 +367,7 @@ impl<S: State> Executable<S> for DeployAccountTransaction {
         let ctor_context = ConstructorContext {
             class_hash,
             code_address: None,
-            storage_address: self.contract_address,
+            storage_address: self.contract_address(),
             caller_address: ContractAddress::default(),
         };
         let call_info = execute_deployment(
@@ -387,7 +391,7 @@ impl TransactionInfoCreator for DeployAccountTransaction {
             version: self.version(),
             signature: self.signature(),
             nonce: self.nonce(),
-            sender_address: self.contract_address,
+            sender_address: self.contract_address(),
             only_query: self.only_query,
         };
 
