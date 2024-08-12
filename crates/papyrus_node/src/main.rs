@@ -110,6 +110,7 @@ fn run_consensus(
         storage_reader.clone(),
         network_channels.messages_to_broadcast_sender,
         config.num_validators,
+        None,
     );
     // TODO(matan): connect this to an actual channel.
     if let Some(test_config) = config.test.as_ref() {
