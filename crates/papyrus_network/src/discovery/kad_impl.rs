@@ -1,8 +1,9 @@
 use libp2p::kad;
-use tracing::error;
+use tracing::{error, info};
 
 use super::identify_impl::IdentifyToOtherBehaviourEvent;
 use crate::mixed_behaviour::BridgedBehaviour;
+use crate::network_manager::is_localhost;
 use crate::{mixed_behaviour, peer_manager};
 
 #[derive(Debug)]
@@ -49,7 +50,13 @@ impl<TStore: kad::store::RecordStore + Send + 'static> BridgedBehaviour for kad:
                 super::ToOtherBehaviourEvent::FoundListenAddresses { peer_id, listen_addresses },
             ) => {
                 for address in listen_addresses {
-                    self.add_address(peer_id, address.clone());
+                    if !is_localhost(address) {
+                        info!(
+                            "Adding a new address to routing table for peer {peer_id:?}: \
+                             {address:?}"
+                        );
+                        self.add_address(peer_id, address.clone());
+                    }
                 }
             }
             mixed_behaviour::ToOtherBehaviourEvent::PeerManager(

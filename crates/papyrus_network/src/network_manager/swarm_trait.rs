@@ -3,7 +3,7 @@ use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::{DialError, NetworkBehaviour, SwarmEvent};
 use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm};
-use tracing::error;
+use tracing::{error, info};
 
 use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour;
@@ -102,6 +102,7 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
     }
 
     fn add_external_address(&mut self, address: Multiaddr) {
+        info!("Found new external address of this node: {address:?}");
         self.add_external_address(address);
     }
 
