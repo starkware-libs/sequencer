@@ -175,13 +175,9 @@ starknet-types-core = { version = "0.1.5", features = ["hash", "prime-bigint", "
 starknet_api = { path = "crates/starknet_api", version = "0.13.0-rc.0" }
 starknet_batcher_types = { path = "crates/batcher_types", version = "0.0" }
 starknet_client = { path = "crates/starknet_client", version = "0.4.0-rc.0" }
-<<<<<<< HEAD
+starknet_committer = { path = "crates/starknet_committer", version = "0.1.0-rc.0" }
 starknet_consensus_manager = { path = "crates/consensus_manager", version = "0.0" }
 starknet_consensus_manager_types = { path = "crates/consensus_manager_types", version = "0.0" }
-||||||| 8134c27b
-=======
-starknet_committer = { path = "crates/starknet_committer", version = "0.1.0-rc.0" }
->>>>>>> origin/main-v0.13.2
 starknet_gateway = { path = "crates/gateway", version = "0.0" }
 starknet_mempool = { path = "crates/mempool", version = "0.0" }
 starknet_mempool_infra = { path = "crates/mempool_infra", version = "0.0" }

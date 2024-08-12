@@ -9,16 +9,10 @@ on:
       - v[0-9].**
     paths:
       - '.github/workflows/blockifier_compiled_cairo.yml'
-<<<<<<< HEAD
       - 'crates/blockifier/feature_contracts/**'
       - 'crates/blockifier/src/test_utils/cairo_compile.rs'
       - 'crates/blockifier/tests/feature_contracts_compatibility_test.rs'
       - 'crates/blockifier/tests/requirements.txt'
-||||||| 8134c27b
-=======
-      - 'crates/blockifier/feature_contracts/cairo0/**'
-      - 'crates/blockifier/tests/requirements.txt'
->>>>>>> origin/main-v0.13.2
   pull_request:
     types:
       - opened
@@ -26,17 +20,10 @@ on:
       - synchronize
     paths:
       - '.github/workflows/blockifier_compiled_cairo.yml'
-<<<<<<< HEAD
       - 'crates/blockifier/feature_contracts/**'
       - 'crates/blockifier/src/test_utils/cairo_compile.rs'
       - 'crates/blockifier/tests/feature_contracts_compatibility_test.rs'
       - 'crates/blockifier/tests/requirements.txt'
-||||||| 8134c27b
-      - 'crates/blockifier/feature_contracts/cairo0/**'
-=======
-      - 'crates/blockifier/feature_contracts/cairo0/**'
-      - 'crates/blockifier/tests/requirements.txt'
->>>>>>> origin/main-v0.13.2
 
 jobs:
   verify_cairo_file_dependencies:
@@ -58,7 +45,6 @@ jobs:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
-<<<<<<< HEAD
       # Checkout sequencer into a dedicated directory - technical requirement in order to be able to checkout `cairo` in a sibling directory.
       - name: checkout sequencer into `sequencer` directory.
         uses: actions/checkout@v4
@@ -84,12 +70,3 @@ jobs:
           cd sequencer &&
           pip install -r crates/blockifier/tests/requirements.txt &&
           cargo test -p blockifier --test feature_contracts_compatibility_test --features testing -- --include-ignored
-||||||| 8134c27b
-      - run:
-          pip install -r crates/blockifier/tests/requirements.txt;
-          cargo test verify_feature_contracts -- --include-ignored
-=======
-      - run:
-          pip install -r crates/blockifier/tests/requirements.txt;
-          cargo test -p blockifier --test feature_contracts_compatibility_test --features testing -- --include-ignored
->>>>>>> origin/main-v0.13.2
