@@ -46,6 +46,8 @@ where
     ProposalWrapper:
         Into<(ProposalInit, mpsc::Receiver<BlockT::ProposalChunk>, oneshot::Receiver<BlockHash>)>,
 {
+    info!("Running consensus");
+
     // Add a short delay to allow peers to connect and avoid "InsufficientPeers" error
     tokio::time::sleep(consensus_delay).await;
     let mut current_height = start_height;
