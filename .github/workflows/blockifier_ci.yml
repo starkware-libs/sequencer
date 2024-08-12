@@ -23,7 +23,7 @@ on:
       - 'crates/native_blockifier/**'
       - 'build_native_in_docker.sh'
       - 'scripts/build_native_blockifier.sh'
-      - 'scripts/sequancer-ci.Dockerfile'
+      - 'scripts/sequencer-ci.Dockerfile'
 
 jobs:
   featureless-build:

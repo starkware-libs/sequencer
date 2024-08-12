@@ -1,11 +1,11 @@
 #!/bin/env bash
 set -e
 
-docker_image_name=sequancer-ci
+docker_image_name=sequencer-ci
 
 (
     cd scripts
-    docker build . -t ${docker_image_name} --file sequancer-ci.Dockerfile
+    docker build . -t ${docker_image_name} --file ${docker_image_name}
 )
 
 docker run \
