@@ -126,6 +126,16 @@ impl ComponentExecutionConfig {
             remote_config: None,
         }
     }
+
+    pub fn batcher_default_config() -> Self {
+        Self {
+            execute: true,
+            location: LocationType::Local,
+            component_type: ComponentType::SynchronousComponent,
+            local_config: Some(LocalComponentCommunicationConfig::default()),
+            remote_config: None,
+        }
+    }
 }
 
 pub fn validate_single_component_config(
@@ -156,6 +166,8 @@ pub fn validate_single_component_config(
 #[validate(schema(function = "validate_components_config"))]
 pub struct ComponentConfig {
     #[validate]
+    pub batcher: ComponentExecutionConfig,
+    #[validate]
     pub gateway: ComponentExecutionConfig,
     #[validate]
     pub mempool: ComponentExecutionConfig,
@@ -164,6 +176,7 @@ pub struct ComponentConfig {
 impl Default for ComponentConfig {
     fn default() -> Self {
         Self {
+            batcher: ComponentExecutionConfig::batcher_default_config(),
             gateway: ComponentExecutionConfig::gateway_default_config(),
             mempool: ComponentExecutionConfig::mempool_default_config(),
         }
@@ -174,6 +187,7 @@ impl SerializeConfig for ComponentConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         #[allow(unused_mut)]
         let mut sub_configs = vec![
+            append_sub_config_name(self.batcher.dump(), "batcher"),
             append_sub_config_name(self.gateway.dump(), "gateway"),
             append_sub_config_name(self.mempool.dump(), "mempool"),
         ];
@@ -183,7 +197,7 @@ impl SerializeConfig for ComponentConfig {
 }
 
 pub fn validate_components_config(components: &ComponentConfig) -> Result<(), ValidationError> {
-    if components.gateway.execute || components.mempool.execute {
+    if components.gateway.execute || components.mempool.execute || components.batcher.execute {
         return Ok(());
     }
 
