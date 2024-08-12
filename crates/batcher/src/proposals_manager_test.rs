@@ -14,7 +14,7 @@ async fn multiple_proposals_generation_fails() {
     mempool_client.expect_get_txs().returning(|_| Ok(vec![]));
     let mut proposals_manager =
         ProposalsManager::new(ProposalsManagerConfig::default(), Arc::new(mempool_client));
-    proposals_manager
+    let _ = proposals_manager
         .generate_block_proposal(
             0,
             tokio::time::Instant::now() + GENERATION_TIMEOUT,
