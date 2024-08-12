@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use committer::felt::Felt;
-use committer::impl_from_hex_for_felt_wrapper;
-use committer::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
-use committer::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
-use committer::patricia_merkle_tree::types::NodeIndex;
+use starknet_patricia::felt::Felt;
+use starknet_patricia::impl_from_hex_for_felt_wrapper;
+use starknet_patricia::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
+use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
+use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::FromStrError;
 
 use crate::block_committer::input::{ContractAddress, StarknetStorageValue};
