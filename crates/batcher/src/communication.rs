@@ -7,7 +7,6 @@ use starknet_batcher_types::communication::{
     BatcherResponse,
 };
 use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
-use starknet_mempool_infra::component_runner::ComponentStarter;
 use starknet_mempool_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use tokio::sync::mpsc::Receiver;
 
@@ -50,6 +49,3 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
         }
     }
 }
-
-#[async_trait]
-impl ComponentStarter for Batcher {}
