@@ -8771,6 +8771,7 @@ dependencies = [
  "assert_matches",
  "bitvec",
  "cairo-lang-starknet-classes",
+ "cairo-vm",
  "derive_more",
  "hex",
  "indexmap 2.2.6",
