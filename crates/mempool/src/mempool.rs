@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::transaction::{Tip, TransactionHash};
+use starknet_api::transaction::{ResourceBoundsMapping, Tip, TransactionHash};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{
     Account,
@@ -102,8 +102,8 @@ impl Mempool {
             }
 
             if self.tx_queue.get_nonce(address).is_none() {
-                if let Some(tx) = self.tx_pool.get_by_address_and_nonce(address, next_nonce) {
-                    self.tx_queue.insert(*tx);
+                if let Some(tx_reference) = self.tx_pool.get_by_address_and_nonce(address, next_nonce) {
+                    self.tx_queue.insert(tx_reference.clone());
                 }
             }
 
@@ -135,7 +135,7 @@ impl Mempool {
         if self.tx_queue.get_nonce(sender_address).is_none() {
             if let Some(tx_reference) = self.tx_pool.get_by_address_and_nonce(sender_address, nonce)
             {
-                self.tx_queue.insert(*tx_reference);
+                self.tx_queue.insert(tx_reference.clone());
             }
         }
 
@@ -190,7 +190,7 @@ impl Mempool {
             if let Some(next_tx_reference) =
                 self.tx_pool.get_next_eligible_tx(current_account_state)?
             {
-                self.tx_queue.insert(*next_tx_reference);
+                self.tx_queue.insert(next_tx_reference.clone());
             }
         }
 
@@ -207,12 +207,14 @@ impl Mempool {
 /// execution fields).
 /// TODO(Mohammad): rename this struct to `ThinTransaction` once that name
 /// becomes available, to better reflect its purpose and usage.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+/// TODO(Mohammad): restore the Copy once ResourceBoundsMapping implements it.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct TransactionReference {
     pub sender_address: ContractAddress,
     pub nonce: Nonce,
     pub tx_hash: TransactionHash,
     pub tip: Tip,
+    pub resource_bounds: ResourceBoundsMapping,
 }
 
 impl TransactionReference {
@@ -222,6 +224,8 @@ impl TransactionReference {
             nonce: tx.nonce,
             tx_hash: tx.tx_hash,
             tip: tx.tip,
+            // TODO(Mohammad): add resource bounds to the transaction.
+            resource_bounds: ResourceBoundsMapping::default(),
         }
     }
 
@@ -231,6 +235,8 @@ impl TransactionReference {
             nonce: tx.nonce(),
             tx_hash: tx.tx_hash(),
             tip: tx.tip().expect("Expected a valid tip value, but received None."),
+            // TODO(Mohammad): add resource bounds to the transaction.
+            resource_bounds: ResourceBoundsMapping::default(),
         }
     }
 }

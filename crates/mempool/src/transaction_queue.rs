@@ -22,7 +22,7 @@ impl TransactionQueue {
     // assert.
     pub fn insert(&mut self, tx: TransactionReference) {
         assert_eq!(
-            self.address_to_tx.insert(tx.sender_address, tx),
+            self.address_to_tx.insert(tx.sender_address, tx.clone()),
             None,
             "Only a single transaction from the same contract class can be in the mempool at a \
              time."
