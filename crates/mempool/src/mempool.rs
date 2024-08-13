@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::transaction::{ResourceBoundsMapping, Tip, TransactionHash};
+use starknet_api::transaction::{Resource, ResourceBoundsMapping, Tip, TransactionHash};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput, MempoolResult};
 
@@ -226,5 +226,13 @@ impl TransactionReference {
             // TODO(Mohammad): add resource bounds to the transaction.
             resource_bounds: ResourceBoundsMapping::default(),
         }
+    }
+
+    pub fn get_l1_gas_price(&self) -> Option<u128> {
+        self.resource_bounds.0.get(&Resource::L1Gas).map(|bounds| bounds.max_price_per_unit)
+    }
+
+    pub fn get_l2_gas_price(&self) -> Option<u128> {
+        self.resource_bounds.0.get(&Resource::L2Gas).map(|bounds| bounds.max_price_per_unit)
     }
 }
