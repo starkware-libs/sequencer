@@ -2,6 +2,15 @@ use std::collections::HashMap;
 use std::num::ParseIntError;
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractEntryPoint;
+use cairo_vm::serde::deserialize_program::{
+    deserialize_array_of_bigint_hex,
+    Attribute,
+    HintParams,
+    Identifier,
+    ReferenceManager,
+};
+use cairo_vm::types::errors::program_errors::ProgramError;
+use cairo_vm::types::program::Program as CairoVmProgram;
 use itertools::Itertools;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -138,6 +147,38 @@ pub struct Program {
     pub main_scope: serde_json::Value,
     pub prime: serde_json::Value,
     pub reference_manager: serde_json::Value,
+}
+
+// TODO(Elin,01/05/2023): aim to use LC's implementation once it's in a separate crate.
+pub fn sn_api_to_cairo_vm_program(program: Program) -> Result<CairoVmProgram, ProgramError> {
+    let identifiers = serde_json::from_value::<HashMap<String, Identifier>>(program.identifiers)?;
+    let builtins = serde_json::from_value(program.builtins)?;
+    let data = deserialize_array_of_bigint_hex(program.data)?;
+    let hints = serde_json::from_value::<HashMap<usize, Vec<HintParams>>>(program.hints)?;
+    let main = None;
+    let error_message_attributes = match program.attributes {
+        serde_json::Value::Null => vec![],
+        attributes => serde_json::from_value::<Vec<Attribute>>(attributes)?
+            .into_iter()
+            .filter(|attr| attr.name == "error_message")
+            .collect(),
+    };
+
+    let instruction_locations = None;
+    let reference_manager = serde_json::from_value::<ReferenceManager>(program.reference_manager)?;
+
+    let program = CairoVmProgram::new(
+        builtins,
+        data,
+        main,
+        hints,
+        reference_manager,
+        identifiers,
+        error_message_attributes,
+        instruction_locations,
+    )?;
+
+    Ok(program)
 }
 
 // Serialize hints as a sorted mapping for correct hash computation.

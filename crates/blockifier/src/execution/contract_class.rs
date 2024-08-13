@@ -22,6 +22,7 @@ use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
+    sn_api_to_cairo_vm_program,
     ContractClass as DeprecatedContractClass,
     EntryPoint,
     EntryPointOffset,
@@ -35,7 +36,6 @@ use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::{self, CONSTRUCTOR_ENTRY_POINT_NAME};
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::errors::{ContractClassError, PreExecutionError};
-use crate::execution::execution_utils::sn_api_to_cairo_vm_program;
 use crate::fee::eth_gas_constants;
 use crate::transaction::errors::TransactionExecutionError;
 

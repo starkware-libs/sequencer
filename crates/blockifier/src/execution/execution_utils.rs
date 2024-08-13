@@ -1,16 +1,7 @@
 use std::collections::HashMap;
 
 use cairo_lang_runner::casm_run::format_next_item;
-use cairo_vm::serde::deserialize_program::{
-    deserialize_array_of_bigint_hex,
-    Attribute,
-    HintParams,
-    Identifier,
-    ReferenceManager,
-};
 use cairo_vm::types::builtin_name::BuiltinName;
-use cairo_vm::types::errors::program_errors::ProgramError;
-use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
@@ -18,7 +9,6 @@ use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner, ExecutionResour
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::BigUint;
 use starknet_api::core::ClassHash;
-use starknet_api::deprecated_contract_class::Program as DeprecatedProgram;
 use starknet_api::transaction::Calldata;
 use starknet_types_core::felt::Felt;
 
@@ -114,38 +104,6 @@ pub fn felt_range_from_ptr(
     // Extract values as `Felt`.
     let values = values.into_iter().map(|felt| *felt).collect();
     Ok(values)
-}
-
-// TODO(Elin,01/05/2023): aim to use LC's implementation once it's in a separate crate.
-pub fn sn_api_to_cairo_vm_program(program: DeprecatedProgram) -> Result<Program, ProgramError> {
-    let identifiers = serde_json::from_value::<HashMap<String, Identifier>>(program.identifiers)?;
-    let builtins = serde_json::from_value(program.builtins)?;
-    let data = deserialize_array_of_bigint_hex(program.data)?;
-    let hints = serde_json::from_value::<HashMap<usize, Vec<HintParams>>>(program.hints)?;
-    let main = None;
-    let error_message_attributes = match program.attributes {
-        serde_json::Value::Null => vec![],
-        attributes => serde_json::from_value::<Vec<Attribute>>(attributes)?
-            .into_iter()
-            .filter(|attr| attr.name == "error_message")
-            .collect(),
-    };
-
-    let instruction_locations = None;
-    let reference_manager = serde_json::from_value::<ReferenceManager>(program.reference_manager)?;
-
-    let program = Program::new(
-        builtins,
-        data,
-        main,
-        hints,
-        reference_manager,
-        identifiers,
-        error_message_attributes,
-        instruction_locations,
-    )?;
-
-    Ok(program)
 }
 
 #[derive(Debug)]
