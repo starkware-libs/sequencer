@@ -68,21 +68,50 @@ impl TransactionQueue {
     }
 }
 
-/// Encapsulates a transaction reference to assess its order (i.e., priority).
+/// Encapsulates a transaction reference to assess its order (i.e., gas price).
 #[derive(Clone, Debug, derive_more::Deref, derive_more::From)]
-struct PriorityTransaction(pub TransactionReference);
+struct PendingTransaction(pub TransactionReference);
 
-/// Compare transactions based only on their tip, a uint, using the Eq trait. It ensures that two
-/// tips are either exactly equal or not.
-impl PartialEq for PriorityTransaction {
-    fn eq(&self, other: &PriorityTransaction) -> bool {
-        self.tip == other.tip && self.tx_hash == other.tx_hash
+/// Compare transactions based only on their gas price, using the Eq trait. It ensures that
+/// two gas price are either exactly equal or not.
+impl PartialEq for PendingTransaction {
+    fn eq(&self, other: &PendingTransaction) -> bool {
+        self.get_l2_gas_price() == other.get_l2_gas_price() && self.tx_hash == other.tx_hash
     }
 }
 
 /// Marks this struct as capable of strict equality comparisons, signaling to the compiler it
 /// adheres to equality semantics.
 // Note: this depends on the implementation of `PartialEq`, see its docstring.
+impl Eq for PendingTransaction {}
+
+impl Ord for PendingTransaction {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.get_l2_gas_price()
+            .cmp(&other.get_l2_gas_price())
+            .then_with(|| self.tx_hash.cmp(&other.tx_hash))
+    }
+}
+
+impl PartialOrd for PendingTransaction {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+/// This struct behaves similarly to `PendingTransaction`, encapsulating a transaction reference
+/// to assess its order (i.e., tip).
+///
+/// # See also `PendingTransaction` docstring for details.
+#[derive(Clone, Debug, derive_more::Deref, derive_more::From)]
+struct PriorityTransaction(pub TransactionReference);
+
+impl PartialEq for PriorityTransaction {
+    fn eq(&self, other: &PriorityTransaction) -> bool {
+        self.tip == other.tip && self.tx_hash == other.tx_hash
+    }
+}
+
 impl Eq for PriorityTransaction {}
 
 impl Ord for PriorityTransaction {
