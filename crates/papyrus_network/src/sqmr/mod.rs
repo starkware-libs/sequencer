@@ -14,12 +14,12 @@ use libp2p::{PeerId, StreamProtocol};
 
 pub type Bytes = Vec<u8>;
 
-#[derive(Clone, Copy, Debug, Default, Display, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Display, Eq, PartialEq, Hash)]
 pub struct OutboundSessionId {
     pub value: usize,
 }
 
-#[derive(Clone, Copy, Debug, Default, Display, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Display, Eq, PartialEq, Hash)]
 pub struct InboundSessionId {
     pub value: usize,
 }
