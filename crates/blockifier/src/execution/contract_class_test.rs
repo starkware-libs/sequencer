@@ -4,8 +4,9 @@ use std::sync::Arc;
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::NestedIntList;
 use rstest::rstest;
+use starknet_api::contract_class::{ContractClassV1, ContractClassV1Inner};
 
-use crate::execution::contract_class::{ContractClassV1, ContractClassV1Inner};
+use crate::execution::contract_class::ContractClassV1Ext;
 use crate::transaction::errors::TransactionExecutionError;
 
 #[rstest]
