@@ -20,11 +20,11 @@ use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::rpc_transaction::{
     ContractClass,
     ResourceBoundsMapping,
-    RpcDeclareTransactionV3,
-    RpcDeployAccountTransaction,
-    RpcDeployAccountTransactionV3,
-    RpcInvokeTransactionV3,
-    RpcTransaction,
+    RPCDeclareTransactionV3,
+    RPCDeployAccountTransaction,
+    RPCDeployAccountTransactionV3,
+    RPCInvokeTransactionV3,
+    RPCTransaction,
 };
 use starknet_api::transaction::{
     AccountDeploymentData,
@@ -65,7 +65,7 @@ pub fn external_tx_for_testing(
     resource_bounds: ResourceBoundsMapping,
     calldata: Calldata,
     signature: TransactionSignature,
-) -> RpcTransaction {
+) -> RPCTransaction {
     match tx_type {
         TransactionType::Declare => {
             // Minimal contract class.
@@ -122,7 +122,7 @@ pub fn compiled_class_hash() -> CompiledClassHash {
     CompiledClassHash(felt!(COMPILED_CLASS_HASH_OF_CONTRACT_CLASS))
 }
 
-pub fn declare_tx() -> RpcTransaction {
+pub fn declare_tx() -> RPCTransaction {
     let contract_class = contract_class();
     let compiled_class_hash = compiled_class_hash();
 
@@ -143,7 +143,7 @@ pub fn declare_tx() -> RpcTransaction {
 
 // Convenience method for generating a single invoke transaction with trivial fields.
 // For multiple, nonce-incrementing transactions, use the transaction generator directly.
-pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
+pub fn invoke_tx(cairo_version: CairoVersion) -> RPCTransaction {
     let default_account = FeatureContract::AccountWithoutValidations(cairo_version);
 
     MultiAccountTransactionGenerator::new_for_account_contracts([default_account])
@@ -152,7 +152,7 @@ pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
 }
 
 //  TODO(Yael 18/6/2024): Get a final decision from product whether to support Cairo0.
-pub fn deploy_account_tx() -> RpcTransaction {
+pub fn deploy_account_tx() -> RPCTransaction {
     let default_account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
 
     MultiAccountTransactionGenerator::new_for_account_contracts([default_account])
@@ -249,7 +249,7 @@ pub struct AccountTransactionGenerator {
 
 impl AccountTransactionGenerator {
     /// Generate a valid `RpcTransaction` with default parameters.
-    pub fn generate_default_invoke(&mut self) -> RpcTransaction {
+    pub fn generate_default_invoke(&mut self) -> RPCTransaction {
         let invoke_args = invoke_tx_args!(
             sender_address: self.sender_address(),
             resource_bounds: executable_resource_bounds_mapping(),
@@ -259,7 +259,7 @@ impl AccountTransactionGenerator {
         external_invoke_tx(invoke_args)
     }
 
-    pub fn generate_default_deploy_account(&mut self) -> RpcTransaction {
+    pub fn generate_default_deploy_account(&mut self) -> RPCTransaction {
         let nonce = self.next_nonce();
         assert_eq!(nonce, Nonce(Felt::ZERO));
 
@@ -286,7 +286,7 @@ impl AccountTransactionGenerator {
     ///
     /// Note: This is a best effort attempt to make the API more useful; amend or add new methods
     /// as needed.
-    pub fn generate_raw(&mut self, invoke_tx_args: InvokeTxArgs) -> RpcTransaction {
+    pub fn generate_raw(&mut self, invoke_tx_args: InvokeTxArgs) -> RPCTransaction {
         external_invoke_tx(invoke_tx_args)
     }
 
@@ -452,13 +452,13 @@ impl Default for DeclareTxArgs {
     }
 }
 
-pub fn external_invoke_tx(invoke_args: InvokeTxArgs) -> RpcTransaction {
+pub fn external_invoke_tx(invoke_args: InvokeTxArgs) -> RPCTransaction {
     if invoke_args.version != TransactionVersion::THREE {
         panic!("Unsupported transaction version: {:?}.", invoke_args.version);
     }
 
-    starknet_api::rpc_transaction::RpcTransaction::Invoke(
-        starknet_api::rpc_transaction::RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
+    starknet_api::rpc_transaction::RPCTransaction::Invoke(
+        starknet_api::rpc_transaction::RPCInvokeTransaction::V3(RPCInvokeTransactionV3 {
             resource_bounds: invoke_args.resource_bounds,
             tip: invoke_args.tip,
             calldata: invoke_args.calldata,
@@ -473,14 +473,14 @@ pub fn external_invoke_tx(invoke_args: InvokeTxArgs) -> RpcTransaction {
     )
 }
 
-pub fn external_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTransaction {
+pub fn external_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RPCTransaction {
     if deploy_tx_args.version != TransactionVersion::THREE {
         panic!("Unsupported transaction version: {:?}.", deploy_tx_args.version);
     }
 
-    starknet_api::rpc_transaction::RpcTransaction::DeployAccount(
-        starknet_api::rpc_transaction::RpcDeployAccountTransaction::V3(
-            RpcDeployAccountTransactionV3 {
+    starknet_api::rpc_transaction::RPCTransaction::DeployAccount(
+        starknet_api::rpc_transaction::RPCDeployAccountTransaction::V3(
+            RPCDeployAccountTransactionV3 {
                 resource_bounds: deploy_tx_args.resource_bounds,
                 tip: deploy_tx_args.tip,
                 contract_address_salt: deploy_tx_args.contract_address_salt,
@@ -496,13 +496,13 @@ pub fn external_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTra
     )
 }
 
-pub fn external_declare_tx(declare_tx_args: DeclareTxArgs) -> RpcTransaction {
+pub fn external_declare_tx(declare_tx_args: DeclareTxArgs) -> RPCTransaction {
     if declare_tx_args.version != TransactionVersion::THREE {
         panic!("Unsupported transaction version: {:?}.", declare_tx_args.version);
     }
 
-    starknet_api::rpc_transaction::RpcTransaction::Declare(
-        starknet_api::rpc_transaction::RpcDeclareTransaction::V3(RpcDeclareTransactionV3 {
+    starknet_api::rpc_transaction::RPCTransaction::Declare(
+        starknet_api::rpc_transaction::RPCDeclareTransaction::V3(RPCDeclareTransaction {
             contract_class: declare_tx_args.contract_class,
             signature: declare_tx_args.signature,
             sender_address: declare_tx_args.sender_address,
@@ -518,15 +518,15 @@ pub fn external_declare_tx(declare_tx_args: DeclareTxArgs) -> RpcTransaction {
     )
 }
 
-pub fn external_tx_to_json(tx: &RpcTransaction) -> String {
+pub fn external_tx_to_json(tx: &RPCTransaction) -> String {
     let mut tx_json = serde_json::to_value(tx)
         .unwrap_or_else(|tx| panic!("Failed to serialize transaction: {tx:?}"));
 
     // Add type and version manually
     let type_string = match tx {
-        RpcTransaction::Declare(_) => "DECLARE",
-        RpcTransaction::DeployAccount(_) => "DEPLOY_ACCOUNT",
-        RpcTransaction::Invoke(_) => "INVOKE",
+        RPCTransaction::Declare(_) => "DECLARE",
+        RPCTransaction::DeployAccount(_) => "DEPLOY_ACCOUNT",
+        RPCTransaction::Invoke(_) => "INVOKE",
     };
 
     tx_json
@@ -538,10 +538,10 @@ pub fn external_tx_to_json(tx: &RpcTransaction) -> String {
     to_string_pretty(&tx_json).expect("Failed to serialize transaction")
 }
 
-pub fn deployed_account_contract_address(deploy_tx: &RpcTransaction) -> ContractAddress {
+pub fn deployed_account_contract_address(deploy_tx: &RPCTransaction) -> ContractAddress {
     let tx = assert_matches!(
         deploy_tx,
-        RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => tx
+        RPCTransaction::DeployAccount(RPCDeployAccountTransaction::V3(tx)) => tx
     );
     calculate_contract_address(
         tx.contract_address_salt,
