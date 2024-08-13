@@ -968,7 +968,7 @@ dependencies = [
 
 [[package]]
 name = "blockifier"
-version = "0.8.0-rc.1"
+version = "0.8.0-rc.2"
 dependencies = [
  "anyhow",
  "ark-ec",
@@ -1005,7 +1005,7 @@ dependencies = [
  "sha2",
  "sha3",
  "starknet-types-core",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "test-case",
@@ -1961,7 +1961,7 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "starknet-types-core",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "starknet_committer",
  "starknet_patricia",
  "strum 0.25.0",
@@ -5299,7 +5299,7 @@ dependencies = [
  "blockifier",
  "serde_json",
  "starknet-types-core",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -5594,7 +5594,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet-types-core",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile",
  "thiserror",
 ]
@@ -6107,7 +6107,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet-types-core",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tar",
  "tempfile",
  "test-with",
@@ -6123,7 +6123,7 @@ dependencies = [
  "papyrus_storage",
  "papyrus_test_utils",
  "pretty_assertions",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
  "tracing",
 ]
@@ -6145,7 +6145,7 @@ dependencies = [
  "serde_json",
  "sha3",
  "starknet-types-core",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
 ]
 
@@ -6182,7 +6182,7 @@ dependencies = [
  "papyrus_test_utils",
  "serde",
  "starknet-types-core",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "test-case",
  "thiserror",
  "tokio",
@@ -6214,7 +6214,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet-types-core",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
  "tracing",
 ]
@@ -6323,7 +6323,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "starknet_client",
  "strum 0.25.0",
  "tempfile",
@@ -6356,7 +6356,7 @@ dependencies = [
  "rand_chacha 0.3.1",
  "serde",
  "starknet-types-core",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "static_assertions",
  "thiserror",
  "tokio",
@@ -6391,7 +6391,7 @@ dependencies = [
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "starknet-types-core",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
 ]
 
@@ -6438,7 +6438,7 @@ dependencies = [
  "serde_json",
  "starknet-core",
  "starknet-types-core",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "starknet_client",
  "strum 0.25.0",
  "strum_macros 0.25.3",
@@ -6487,7 +6487,7 @@ dependencies = [
  "serde_json",
  "simple_logger",
  "starknet-types-core",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "statistical",
  "tempfile",
  "test-case",
@@ -6526,7 +6526,7 @@ dependencies = [
  "serde",
  "simple_logger",
  "starknet-types-core",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "starknet_client",
  "thiserror",
  "tokio",
@@ -6552,7 +6552,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet-types-core",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -8773,6 +8773,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_api"
+version = "0.13.0-rc.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e0a80f50db7439ceb65de759fcbadb1695c82aec82126b2313413632e40d4eec"
+dependencies = [
+ "bitvec",
+ "cairo-lang-starknet-classes",
+ "derive_more",
+ "hex",
+ "indexmap 2.2.6",
+ "itertools 0.12.1",
+ "once_cell",
+ "primitive-types",
+ "serde",
+ "serde_json",
+ "sha3",
+ "starknet-crypto 0.5.2",
+ "starknet-types-core",
+ "strum 0.24.1",
+ "strum_macros 0.24.3",
+ "thiserror",
+]
+
+[[package]]
 name = "starknet_client"
 version = "0.4.0-rc.0"
 dependencies = [
@@ -8797,7 +8821,7 @@ dependencies = [
  "serde_repr",
  "simple_logger",
  "starknet-types-core",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror",
@@ -8846,7 +8870,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet-types-core",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "starknet_mempool",
  "starknet_mempool_infra",
  "starknet_mempool_types",
@@ -8868,7 +8892,7 @@ dependencies = [
  "pretty_assertions",
  "rstest",
  "starknet-types-core",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "starknet_mempool_infra",
  "starknet_mempool_types",
  "tokio",
@@ -8909,7 +8933,7 @@ dependencies = [
  "rstest",
  "serde_json",
  "starknet-types-core",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "starknet_client",
  "starknet_gateway",
  "starknet_mempool_infra",
@@ -8952,7 +8976,7 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "mockall",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "starknet_mempool_infra",
  "thiserror",
 ]
@@ -8990,7 +9014,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet-types-core",
- "starknet_api",
+ "starknet_api 0.13.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
 ]
 
