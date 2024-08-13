@@ -122,14 +122,6 @@ impl ContractClassV0 {
         self.entry_points_by_type.values().map(|vec| vec.len()).sum()
     }
 
-    pub fn n_builtins(&self) -> usize {
-        self.program.builtins_len()
-    }
-
-    pub fn bytecode_length(&self) -> usize {
-        self.program.data_len()
-    }
-
     fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
         let hashed_data_size = (constants::CAIRO0_ENTRY_POINT_STRUCT_SIZE * self.n_entry_points())
             + self.n_builtins()
@@ -143,6 +135,14 @@ impl ContractClassV0 {
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, hashed_data_size)]),
         }
+    }
+
+    pub fn n_builtins(&self) -> usize {
+        self.program.builtins_len()
+    }
+
+    pub fn bytecode_length(&self) -> usize {
+        self.program.data_len()
     }
 
     pub fn try_from_json_string(raw_contract_class: &str) -> Result<ContractClassV0, ProgramError> {
@@ -185,6 +185,23 @@ impl ContractClassV1 {
         Some(self.0.entry_points_by_type[&EntryPointType::Constructor].first()?.selector)
     }
 
+    /// Returns the estimated VM resources required for computing Casm hash.
+    /// This is an empiric measurement of several bytecode lengths, which constitutes as the
+    /// dominant factor in it.
+    fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
+        estimate_casm_hash_computation_resources(&self.bytecode_segment_lengths)
+    }
+
+    // Returns the set of segments that were visited according to the given visited PCs.
+    // Each visited segment must have its starting PC visited, and is represented by it.
+    fn get_visited_segments(
+        &self,
+        visited_pcs: &HashSet<usize>,
+    ) -> Result<Vec<usize>, TransactionExecutionError> {
+        let mut reversed_visited_pcs: Vec<_> = visited_pcs.iter().cloned().sorted().rev().collect();
+        get_visited_segments(&self.bytecode_segment_lengths, &mut reversed_visited_pcs, &mut 0)
+    }
+
     pub fn bytecode_length(&self) -> usize {
         self.program.data_len()
     }
@@ -217,23 +234,6 @@ impl ContractClassV1 {
                 typ: call.entry_point_type,
             }),
         }
-    }
-
-    /// Returns the estimated VM resources required for computing Casm hash.
-    /// This is an empiric measurement of several bytecode lengths, which constitutes as the
-    /// dominant factor in it.
-    fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
-        estimate_casm_hash_computation_resources(&self.bytecode_segment_lengths)
-    }
-
-    // Returns the set of segments that were visited according to the given visited PCs.
-    // Each visited segment must have its starting PC visited, and is represented by it.
-    fn get_visited_segments(
-        &self,
-        visited_pcs: &HashSet<usize>,
-    ) -> Result<Vec<usize>, TransactionExecutionError> {
-        let mut reversed_visited_pcs: Vec<_> = visited_pcs.iter().cloned().sorted().rev().collect();
-        get_visited_segments(&self.bytecode_segment_lengths, &mut reversed_visited_pcs, &mut 0)
     }
 
     pub fn try_from_json_string(raw_contract_class: &str) -> Result<ContractClassV1, ProgramError> {
