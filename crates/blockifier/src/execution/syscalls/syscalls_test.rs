@@ -86,8 +86,8 @@ use crate::transaction::objects::{
 };
 use crate::versioned_constants::VersionedConstants;
 use crate::{check_entry_point_execution_error_for_custom_hint, nonce, retdata, storage_key};
-pub const REQUIRED_GAS_STORAGE_READ_WRITE_TEST: u64 = 27150;
-pub const REQUIRED_GAS_CALL_CONTRACT_TEST: u64 = 105680;
+pub const REQUIRED_GAS_STORAGE_READ_WRITE_TEST: u64 = 17290;
+pub const REQUIRED_GAS_CALL_CONTRACT_TEST: u64 = 168570;
 pub const REQUIRED_GAS_LIBRARY_CALL_TEST: u64 = REQUIRED_GAS_CALL_CONTRACT_TEST;
 
 #[test]
@@ -166,7 +166,7 @@ fn test_emit_event() {
         call_info.execution,
         CallExecution {
             events: vec![OrderedEvent { order: 0, event }],
-            gas_consumed: 49860,
+            gas_consumed: 48930,
             ..Default::default()
         }
     );
@@ -258,7 +258,7 @@ fn test_get_block_hash() {
 
     assert_eq!(
         entry_point_call.clone().execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 9680, ..CallExecution::from_retdata(retdata![block_hash]) }
+        CallExecution { gas_consumed: 5220, ..CallExecution::from_retdata(retdata![block_hash]) }
     );
 
     // Negative flow. Execution mode is Validate.
@@ -316,7 +316,7 @@ fn test_sha256() {
 
     assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 893590, ..CallExecution::from_retdata(retdata![]) }
+        CallExecution { gas_consumed: 893890, ..CallExecution::from_retdata(retdata![]) }
     );
 }
 
@@ -638,7 +638,7 @@ fn test_nested_library_call() {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: 9999745020,
+        initial_gas: 9999599520,
         ..trivial_external_entry_point_new(test_contract)
     };
     let library_entry_point = CallEntryPoint {
@@ -653,12 +653,12 @@ fn test_nested_library_call() {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: 9999823550,
+        initial_gas: 9999750800,
         ..trivial_external_entry_point_new(test_contract)
     };
     let storage_entry_point = CallEntryPoint {
         calldata: calldata![felt!(key), felt!(value)],
-        initial_gas: 9999656870,
+        initial_gas: 9999448480,
         ..nested_storage_entry_point
     };
     let storage_entry_point_resources = ExecutionResources {
@@ -718,7 +718,7 @@ fn test_nested_library_call() {
         call: main_entry_point.clone(),
         execution: CallExecution {
             retdata: retdata![felt!(value)],
-            gas_consumed: 276880,
+            gas_consumed: 475410,
             ..CallExecution::default()
         },
         resources: main_call_resources,
@@ -774,7 +774,7 @@ fn test_replace_class() {
     };
     assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 9750, ..Default::default() }
+        CallExecution { gas_consumed: 4820, ..Default::default() }
     );
     assert_eq!(state.get_class_hash_at(contract_address).unwrap(), new_class_hash);
 }
@@ -794,7 +794,7 @@ fn test_secp256k1() {
 
     assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 17032670_u64, ..Default::default() }
+        CallExecution { gas_consumed: 17022270_u64, ..Default::default() }
     );
 }
 
@@ -813,7 +813,7 @@ fn test_secp256r1() {
 
     assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 27582260_u64, ..Default::default() }
+        CallExecution { gas_consumed: 27570060_u64, ..Default::default() }
     );
 }
 
@@ -851,7 +851,7 @@ fn test_send_message_to_l1() {
         entry_point_call.execute_directly(&mut state).unwrap().execution,
         CallExecution {
             l2_to_l1_messages: vec![OrderedL2ToL1Message { order: 0, message }],
-            gas_consumed: 22990,
+            gas_consumed: 22160,
             ..Default::default()
         }
     );
@@ -937,7 +937,7 @@ fn test_deploy(
         0
     } else {
         retdata.0.push(constructor_calldata[0]);
-        10140
+        5210
     };
     assert_eq!(
         deploy_call.execution,
