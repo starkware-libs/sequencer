@@ -180,6 +180,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           timeout: 1200
+          interval: 30
           ignored: "code-review/reviewable"
 
       - name: Run Merge Gatekeeper on Merge Queue || push
@@ -189,4 +190,5 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{github.ref}}
           timeout: 1200
+          interval: 30
           ignored: "code-review/reviewable"
