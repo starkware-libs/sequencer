@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::transaction::{ResourceBoundsMapping, Tip, TransactionHash};
+use starknet_api::transaction::{Resource, ResourceBoundsMapping, Tip, TransactionHash};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput, MempoolResult};
 
@@ -224,8 +224,18 @@ impl TransactionReference {
             nonce: tx.nonce(),
             tx_hash: tx.tx_hash(),
             tip: tx.tip().expect("Expected a valid tip value, but received None."),
-            // TODO(Mohammad): add resource bounds to the transaction.
-            resource_bounds: ResourceBoundsMapping::default(),
+            resource_bounds: tx
+                .resource_bounds()
+                .expect("Expected a valid resource bounds value, but received None.")
+                .clone(),
         }
+    }
+
+    pub fn get_l2_gas_price(&self) -> u128 {
+        self.resource_bounds
+            .0
+            .get(&Resource::L2Gas)
+            .map(|bounds| bounds.max_price_per_unit)
+            .expect("Expected L2Gas resource found")
     }
 }

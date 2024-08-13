@@ -65,6 +65,7 @@ impl Transaction {
         }
     }
 
+    // TODO(Mohammad): add a getter macro.
     pub fn tip(&self) -> Option<Tip> {
         match self {
             Transaction::Declare(declare_tx) => match &declare_tx.tx {
@@ -77,6 +78,25 @@ impl Transaction {
             },
             Transaction::Invoke(invoke_tx) => match &invoke_tx.tx {
                 crate::transaction::InvokeTransaction::V3(tx_v3) => Some(tx_v3.tip),
+                _ => None,
+            },
+        }
+    }
+
+    pub fn resource_bounds(&self) -> Option<&ResourceBoundsMapping> {
+        match self {
+            Transaction::Declare(declare_tx) => match &declare_tx.tx {
+                crate::transaction::DeclareTransaction::V3(tx_v3) => Some(&tx_v3.resource_bounds),
+                _ => None,
+            },
+            Transaction::DeployAccount(deploy_account_tx) => match &deploy_account_tx.tx {
+                crate::transaction::DeployAccountTransaction::V3(tx_v3) => {
+                    Some(&tx_v3.resource_bounds)
+                }
+                _ => None,
+            },
+            Transaction::Invoke(invoke_tx) => match &invoke_tx.tx {
+                crate::transaction::InvokeTransaction::V3(tx_v3) => Some(&tx_v3.resource_bounds),
                 _ => None,
             },
         }
