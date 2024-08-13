@@ -10,7 +10,7 @@ use crate::mempool::TransactionReference;
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct TransactionQueue {
     // Priority queue of transactions with associated priority.
-    queue: BTreeSet<QueuedTransaction>,
+    priority_queue: BTreeSet<QueuedTransaction>,
     // Set of account addresses for efficient existence checks.
     address_to_tx: HashMap<ContractAddress, TransactionReference>,
 }
@@ -28,7 +28,7 @@ impl TransactionQueue {
              time."
         );
         assert!(
-            self.queue.insert(tx.into()),
+            self.priority_queue.insert(tx.into()),
             "Keys should be unique; duplicates are checked prior."
         );
     }
@@ -36,7 +36,7 @@ impl TransactionQueue {
     // TODO(gilad): remove collect
     pub fn pop_chunk(&mut self, n_txs: usize) -> Vec<TransactionReference> {
         let txs: Vec<TransactionReference> =
-            (0..n_txs).filter_map(|_| self.queue.pop_last().map(|tx| tx.0)).collect();
+            (0..n_txs).filter_map(|_| self.priority_queue.pop_last().map(|tx| tx.0)).collect();
         for tx in &txs {
             self.address_to_tx.remove(&tx.sender_address);
         }
@@ -47,7 +47,7 @@ impl TransactionQueue {
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
     pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {
-        self.queue.iter().rev().map(|tx| &tx.0)
+        self.priority_queue.iter().rev().map(|tx| &tx.0)
     }
 
     pub fn get_nonce(&self, address: ContractAddress) -> Option<Nonce> {
@@ -58,13 +58,13 @@ impl TransactionQueue {
     /// This is well-defined, since there is at most one transaction per address in the queue.
     pub fn remove(&mut self, address: ContractAddress) -> bool {
         if let Some(tx) = self.address_to_tx.remove(&address) {
-            return self.queue.remove(&tx.into());
+            return self.priority_queue.remove(&tx.into());
         }
         false
     }
 
     pub fn is_empty(&self) -> bool {
-        self.queue.is_empty()
+        self.priority_queue.is_empty()
     }
 }
 
