@@ -44,7 +44,7 @@ jobs:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@master # TODO(Nimrod, 15/8/2024): Use stable toolchain.
         with:
           components: rustfmt
           toolchain: nightly-2024-04-29
@@ -58,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: Noelware/setup-protoc@1.1.0
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
@@ -83,7 +83,7 @@ jobs:
       RUSTDOCFLAGS: "-D warnings"
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
       - uses: Noelware/setup-protoc@1.1.0
         with:
@@ -97,7 +97,7 @@ jobs:
         with:
           # Fetch the entire history.
           fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
       - uses: Noelware/setup-protoc@1.1.0
       - uses: Swatinem/rust-cache@v2
         with:
@@ -137,7 +137,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-small
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
       - uses: baptiste0928/cargo-install@v3
         with:
@@ -159,7 +159,7 @@ jobs:
       RUSTDOCFLAGS: "-D warnings"
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
       - uses: Noelware/setup-protoc@1.1.0
         with:
@@ -174,16 +174,16 @@ jobs:
       checks: read
       statuses: read
     steps:
-      - name: Run Merge Gatekeeper
-        if: github.event_name != 'merge_group'
+      - name: Run Merge Gatekeeper on pull request
+        if: github.event_name == 'pull_request'
         uses: upsidr/merge-gatekeeper@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           timeout: 1200
           ignored: "code-review/reviewable"
 
-      - name: Run Merge Gatekeeper in Merge Queue
-        if: github.event_name == 'merge_group'
+      - name: Run Merge Gatekeeper on Merge Queue || push
+        if: github.event_name == 'merge_group' || github.event_name == 'push'
         uses: upsidr/merge-gatekeeper@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use committer::felt::Felt;
-use committer::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
-use committer::patricia_merkle_tree::types::NodeIndex;
-use committer::patricia_merkle_tree::updated_skeleton_tree::tree::{
+use starknet_patricia::felt::Felt;
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
+use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
+use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTree,
     UpdatedSkeletonTreeImpl,
 };

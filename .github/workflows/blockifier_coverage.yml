@@ -5,10 +5,7 @@ on:
     paths:
       - '.github/workflows/blockifier_coverage.yml'
       - 'crates/blockifier/**'
-  push:
-    paths:
-      - '.github/workflows/blockifier_coverage.yml'
-      - 'crates/blockifier/**'
+      - 'crates/native_blockifier/**'
 
 jobs:
   coverage:
@@ -17,7 +14,7 @@ jobs:
       CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: "v0-rust-ubuntu-20.04"

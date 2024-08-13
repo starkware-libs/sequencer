@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-use committer::hash::hash_trait::HashOutput;
-use committer::patricia_merkle_tree::node_data::leaf::LeafModifications;
-use committer::patricia_merkle_tree::original_skeleton_tree::tree::{
+use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
+use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonTree,
     OriginalSkeletonTreeImpl,
 };
-use committer::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use committer::storage::storage_trait::Storage;
+use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use starknet_patricia::storage::storage_trait::Storage;
 
 use crate::block_committer::input::{Config, ContractAddress, StarknetStorageValue};
 use crate::forest::forest_errors::{ForestError, ForestResult};
