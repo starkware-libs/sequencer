@@ -10,9 +10,9 @@ scripts/merge_branches.py --src main-v0.13.0
 import argparse
 import json
 import os
-import subprocess
 import time
 from typing import Dict, List, Optional
+from utils import run_command
 
 FINAL_BRANCH = "main"
 MERGE_PATHS_FILE = "scripts/merge_paths.json"
@@ -20,26 +20,6 @@ MERGE_PATHS_FILE = "scripts/merge_paths.json"
 
 def load_merge_paths() -> Dict[str, str]:
     return json.load(open(MERGE_PATHS_FILE))
-
-
-def run_command(command: str, allow_error: bool = False) -> List[str]:
-    """
-    Runs a bash command and returns the output as a list of lines.
-    """
-    try:
-        command_output = (
-            subprocess.check_output(command, shell=True, cwd=os.getcwd())
-            .decode("utf-8")
-            .splitlines()
-        )
-        output_lines = "\n".join(command_output)
-        print(f"Command '{command}' output:\n{output_lines}")
-        return command_output
-    except subprocess.CalledProcessError as error:
-        if not allow_error:
-            raise
-        print(f"Command '{command}' hit error: {error=}.")
-        return str(error).splitlines()
 
 
 def get_dst_branch(src_branch: str, dst_branch_override: Optional[str]) -> str:
