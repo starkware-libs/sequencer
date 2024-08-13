@@ -72,6 +72,17 @@ pub enum ContractClass {
     V1Native(NativeContractClassV1),
 }
 
+impl TryFrom<starknet_api::contract_class::ContractClass> for ContractClass {
+    type Error = ProgramError;
+
+    fn try_from(
+        contract_class: starknet_api::contract_class::ContractClass,
+    ) -> Result<Self, Self::Error> {
+        let starknet_api::contract_class::ContractClass::V1(contract_class_v1) = contract_class;
+        Ok(ContractClass::V1(contract_class_v1.try_into()?))
+    }
+}
+
 impl ContractClass {
     pub fn constructor_selector(&self) -> Option<EntryPointSelector> {
         match self {
@@ -376,6 +387,18 @@ impl EntryPointV1 {
     }
 }
 
+impl TryFrom<starknet_api::contract_class::ContractClassV1> for ContractClassV1 {
+    type Error = ProgramError;
+
+    fn try_from(
+        contract_class: starknet_api::contract_class::ContractClassV1,
+    ) -> Result<Self, Self::Error> {
+        let starknet_api::contract_class::ContractClassV1::Casm(casm_contract_class) =
+            contract_class;
+        casm_contract_class.try_into()
+    }
+}
+
 impl TryFrom<CasmContractClass> for ContractClassV1 {
     type Error = ProgramError;
 
@@ -492,6 +515,21 @@ pub struct ClassInfo {
     contract_class: ContractClass,
     sierra_program_length: usize,
     abi_length: usize,
+}
+
+impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
+    type Error = ProgramError;
+
+    fn try_from(class_info: starknet_api::contract_class::ClassInfo) -> Result<Self, Self::Error> {
+        let starknet_api::contract_class::ClassInfo {
+            contract_class,
+            sierra_program_length,
+            abi_length,
+        } = class_info;
+
+        let contract_class: ContractClass = contract_class.try_into()?;
+        Ok(Self { contract_class, sierra_program_length, abi_length })
+    }
 }
 
 impl ClassInfo {

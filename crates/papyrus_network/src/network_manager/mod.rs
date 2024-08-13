@@ -1,4 +1,5 @@
 mod swarm_trait;
+use core::net::Ipv4Addr;
 
 #[cfg(test)]
 mod test;
@@ -13,13 +14,14 @@ use futures::future::{ready, BoxFuture, Ready};
 use futures::sink::With;
 use futures::stream::{self, FuturesUnordered, Map, Stream};
 use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
+use libp2p::core::multiaddr::Protocol;
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::swarm::SwarmEvent;
-use libp2p::{PeerId, StreamProtocol, Swarm};
+use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm};
 use metrics::gauge;
 use papyrus_common::metrics as papyrus_metrics;
 use sqmr::Bytes;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
 use crate::bin_utils::build_swarm;
@@ -100,7 +102,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     ) -> SqmrServerReceiver<Query, Response>
     where
         Bytes: From<Response>,
-        Query: TryFrom<Bytes>,
+        Query: TryFrom<Bytes> + Clone,
+        <Query as TryFrom<Bytes>>::Error: Clone,
         Response: 'static,
     {
         let protocol = StreamProtocol::try_from_owned(protocol)
@@ -121,8 +124,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         }
 
         let inbound_payload_receiver = inbound_payload_receiver
-            .map(|payload: SqmrServerPayloadForNetwork| SqmrServerPayload::from(payload));
-        Box::new(inbound_payload_receiver)
+            .map(|payload: SqmrServerPayloadForNetwork| ServerQueryManager::from(payload));
+        SqmrServerReceiver { channel: Box::new(inbound_payload_receiver) }
     }
 
     /// TODO: Support multiple protocols where they're all different versions of the same protocol
@@ -254,9 +257,10 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 );
             }
             SwarmEvent::NewListenAddr { address, .. } => {
-                // TODO(shahak): Once we support nodes behind a NAT, fix this to only add external
-                // addresses.
-                self.swarm.add_external_address(address);
+                // TODO(shahak): Find a better way to filter private addresses.
+                if !is_localhost(&address) {
+                    self.swarm.add_external_address(address);
+                }
             }
             SwarmEvent::IncomingConnection { .. }
             | SwarmEvent::Dialing { .. }
@@ -333,6 +337,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 let responses_sender = Box::new(responses_sender);
                 self.sqmr_inbound_response_receivers.insert(
                     inbound_session_id,
+                    // Adding a None at the end of the stream so that we will receive a message
+                    // letting us know the stream has ended.
                     Box::new(responses_receiver.map(Some).chain(stream::once(ready(None)))),
                 );
 
@@ -449,6 +455,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                     );
                 });
             }
+            // The None is inserted by the network manager after the receiver end terminated so
+            // that we'll know here when it terminated.
             None => {
                 self.swarm.close_inbound_session(inbound_session_id).unwrap_or_else(|e| {
                     error!(
@@ -549,6 +557,7 @@ impl NetworkManager {
             idle_connection_timeout,
             bootstrap_peer_multiaddr,
             secret_key,
+            chain_id,
         } = config;
 
         let listen_addresses = vec![
@@ -561,6 +570,7 @@ impl NetworkManager {
                 key,
                 bootstrap_peer_multiaddr.clone(),
                 sqmr::Config { session_timeout },
+                chain_id,
             )
         });
         Self::generic_new(swarm)
@@ -624,6 +634,9 @@ pub fn dummy_report_sender() -> ReportSender {
     oneshot::channel::<()>().0
 }
 
+pub type ReportSender = oneshot::Sender<()>;
+type ReportReceiver = oneshot::Receiver<()>;
+
 type GenericSender<T> = Box<dyn Sink<T, Error = SendError> + Unpin + Send>;
 // Box<S> implements Stream only if S: Stream + Unpin
 type GenericReceiver<T> = Box<dyn Stream<Item = T> + Unpin + Send>;
@@ -631,13 +644,29 @@ type GenericReceiver<T> = Box<dyn Stream<Item = T> + Unpin + Send>;
 type ResponsesSenderForNetwork = GenericSender<Bytes>;
 type ResponsesReceiverForNetwork = GenericReceiver<Option<Bytes>>;
 
-type ResponsesSender<Response> =
+type ClientResponsesSender<Response> =
     GenericSender<Result<Response, <Response as TryFrom<Bytes>>::Error>>;
-type ResponsesReceiver<Response> =
+type ClientResponsesReceiver<Response> =
     GenericReceiver<Result<Response, <Response as TryFrom<Bytes>>::Error>>;
 
-pub type ReportSender = oneshot::Sender<()>;
-type ReportReceiver = oneshot::Receiver<()>;
+struct ServerResponsesSender<Response> {
+    sender: GenericSender<Response>,
+}
+
+impl<Response> ServerResponsesSender<Response> {
+    async fn feed(&mut self, response: Response) -> Result<(), SendError> {
+        self.sender.feed(response).await
+    }
+}
+
+impl<Response> Drop for ServerResponsesSender<Response> {
+    fn drop(&mut self) {
+        let _ = self.sender.flush().now_or_never().unwrap_or_else(|| {
+            error!("Failed to flush responses sender when dropping channel");
+            Ok(())
+        });
+    }
+}
 
 pub struct SqmrClientSender<Query, Response: TryFrom<Bytes>> {
     channel: GenericSender<SqmrClientPayload<Query, Response>>,
@@ -655,6 +684,7 @@ where
     ) -> Self {
         Self { channel, buffer_size }
     }
+
     pub async fn send_new_query(
         &mut self,
         query: Query,
@@ -672,11 +702,12 @@ where
 
 pub struct ClientResponsesManager<Response: TryFrom<Bytes>> {
     report_sender: ReportSender,
-    pub(crate) responses_receiver: ResponsesReceiver<Response>,
+    pub(crate) responses_receiver: ClientResponsesReceiver<Response>,
 }
 
 impl<Response: TryFrom<Bytes>> ClientResponsesManager<Response> {
     pub fn report_peer(self) {
+        warn!("Reporting peer");
         if let Err(e) = self.report_sender.send(()) {
             error!("Failed to report peer. Error: {e:?}");
         }
@@ -695,32 +726,109 @@ impl<Response: TryFrom<Bytes>> Stream for ClientResponsesManager<Response> {
 pub struct SqmrClientPayload<Query, Response: TryFrom<Bytes>> {
     pub query: Query,
     pub report_receiver: ReportReceiver,
-    pub responses_sender: ResponsesSender<Response>,
+    pub responses_sender: ClientResponsesSender<Response>,
 }
 
-pub struct SqmrServerPayload<Query: TryFrom<Bytes>, Response> {
-    pub query: Result<Query, <Query as TryFrom<Bytes>>::Error>,
-    pub report_sender: ReportSender,
-    pub responses_sender: GenericSender<Response>,
+pub struct SqmrServerReceiver<Query, Response>
+where
+    Query: TryFrom<Bytes>,
+{
+    channel: GenericReceiver<ServerQueryManager<Query, Response>>,
+}
+impl<Query, Response> SqmrServerReceiver<Query, Response>
+where
+    Query: TryFrom<Bytes>,
+{
+    // TODO(eitan): add a test utility func for creating channels for tests
+    #[cfg(feature = "testing")]
+    pub fn new(channel: GenericReceiver<ServerQueryManager<Query, Response>>) -> Self {
+        Self { channel }
+    }
 }
 
-pub type SqmrServerReceiver<Query, Response> = GenericReceiver<SqmrServerPayload<Query, Response>>;
+impl<Query, Response> Stream for SqmrServerReceiver<Query, Response>
+where
+    Query: TryFrom<Bytes>,
+{
+    type Item = ServerQueryManager<Query, Response>;
 
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        self.channel.poll_next_unpin(cx)
+    }
+}
+
+pub struct ServerQueryManager<Query, Response>
+where
+    Query: TryFrom<Bytes>,
+{
+    query: Result<Query, <Query as TryFrom<Bytes>>::Error>,
+    report_sender: ReportSender,
+    responses_sender: ServerResponsesSender<Response>,
+}
+
+impl<Query, Response> ServerQueryManager<Query, Response>
+where
+    Query: TryFrom<Bytes>,
+    Response: Send + 'static,
+{
+    pub fn query(&self) -> &Result<Query, <Query as TryFrom<Bytes>>::Error> {
+        &self.query
+    }
+
+    pub fn report_peer(self) {
+        debug!("Reporting peer from server to network");
+        if let Err(e) = self.report_sender.send(()) {
+            error!("Failed to report peer. Error: {e:?}");
+        }
+    }
+
+    pub async fn send_response(&mut self, response: Response) -> Result<(), SendError> {
+        debug!("Sending response from server to network");
+        match self.responses_sender.feed(response).await {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                error!("Failed to send response from server to network. Error: {e:?}");
+                Err(e)
+            }
+        }
+    }
+
+    #[cfg(feature = "testing")]
+    pub fn create_test_server_query_manager(
+        query: Query,
+    ) -> (Self, ReportReceiver, GenericReceiver<Response>) {
+        let (report_sender, report_receiver) = oneshot::channel::<()>();
+        let (responses_sender, responses_receiver) = futures::channel::mpsc::channel::<Response>(1);
+        let responses_sender = ServerResponsesSender { sender: Box::new(responses_sender) };
+        let responses_receiver = Box::new(responses_receiver);
+        (
+            Self { query: Ok(query), report_sender, responses_sender },
+            report_receiver,
+            responses_receiver,
+        )
+    }
+}
+
+type SqmrClientReceiver = GenericReceiver<SqmrClientPayloadForNetwork>;
+
+// TODO(eitan): rename to SqmrClientPayload after SqmrClientPayload is removed
 struct SqmrClientPayloadForNetwork {
     query: Bytes,
     report_receiver: ReportReceiver,
     responses_sender: ResponsesSenderForNetwork,
 }
 
-type SqmrClientReceiver = GenericReceiver<SqmrClientPayloadForNetwork>;
+type SqmrServerSender = GenericSender<SqmrServerPayloadForNetwork>;
 
+// TODO(eitan): Rename to SqmrServerPayload
 struct SqmrServerPayloadForNetwork {
     query: Bytes,
     report_sender: ReportSender,
     responses_sender: ResponsesSenderForNetwork,
 }
-
-type SqmrServerSender = GenericSender<SqmrServerPayloadForNetwork>;
 
 impl<Query, Response> From<SqmrClientPayload<Query, Response>> for SqmrClientPayloadForNetwork
 where
@@ -737,17 +845,20 @@ where
     }
 }
 
-impl<Query: TryFrom<Bytes>, Response> From<SqmrServerPayloadForNetwork>
-    for SqmrServerPayload<Query, Response>
+impl<Query, Response> From<SqmrServerPayloadForNetwork> for ServerQueryManager<Query, Response>
 where
     Bytes: From<Response>,
     Response: 'static,
+    Query: TryFrom<Bytes> + Clone,
+    <Query as TryFrom<Bytes>>::Error: Clone,
 {
     fn from(payload: SqmrServerPayloadForNetwork) -> Self {
         let SqmrServerPayloadForNetwork { query, report_sender, responses_sender } = payload;
         let query = Query::try_from(query);
         let responses_sender =
             Box::new(responses_sender.with(|response| ready(Ok(Bytes::from(response)))));
+        let responses_sender = ServerResponsesSender { sender: responses_sender };
+
         Self { query, report_sender, responses_sender }
     }
 }
@@ -794,4 +905,15 @@ pub struct BroadcastNetworkMock<T: TryFrom<Bytes>> {
 pub struct TestSubscriberChannels<T: TryFrom<Bytes>> {
     pub subscriber_channels: BroadcastSubscriberChannels<T>,
     pub mock_network: BroadcastNetworkMock<T>,
+}
+
+fn is_localhost(address: &Multiaddr) -> bool {
+    let maybe_ip4_address = address.iter().find_map(|protocol| match protocol {
+        Protocol::Ip4(ip4_address) => Some(ip4_address),
+        _ => None,
+    });
+    let Some(ip4_address) = maybe_ip4_address else {
+        return false;
+    };
+    ip4_address == Ipv4Addr::LOCALHOST
 }

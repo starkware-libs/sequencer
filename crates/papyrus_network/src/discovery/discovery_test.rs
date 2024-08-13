@@ -25,14 +25,22 @@ use tokio::time::timeout;
 use void::Void;
 
 use super::kad_impl::KadToOtherBehaviourEvent;
-use super::{Behaviour, DialRetryStrategy, DiscoveryConfig, ToOtherBehaviourEvent};
+use super::{Behaviour, DiscoveryConfig, RetryConfig, ToOtherBehaviourEvent};
+use crate::mixed_behaviour;
 use crate::mixed_behaviour::BridgedBehaviour;
 use crate::test_utils::next_on_mutex_stream;
-use crate::{mixed_behaviour, peer_manager};
 
 const TIMEOUT: Duration = Duration::from_secs(1);
-const SLEEP_DURATION: Duration = Duration::from_millis(10);
-const BASE_DIAL_RETRY_MILLIS: Duration = Duration::from_secs(1);
+const BOOTSTRAP_DIAL_SLEEP: Duration = Duration::from_secs(1);
+
+const CONFIG: DiscoveryConfig = DiscoveryConfig {
+    bootstrap_dial_retry_config: RetryConfig {
+        base_delay_millis: BOOTSTRAP_DIAL_SLEEP.as_millis() as u64,
+        max_delay: BOOTSTRAP_DIAL_SLEEP,
+        factor: 1,
+    },
+    heartbeat_interval: Duration::ZERO,
+};
 
 impl Unpin for Behaviour {}
 
@@ -61,15 +69,7 @@ async fn discovery_outputs_dial_request_on_start_without_query() {
     let bootstrap_peer_id = PeerId::random();
     let bootstrap_peer_address = Multiaddr::empty();
 
-    let mut behaviour = Behaviour::new(DiscoveryConfig {
-        bootstrap_peer_id,
-        bootstrap_peer_address,
-        bootstrap_peer_dial_retry_strategy: DialRetryStrategy {
-            base_delay_millis: BASE_DIAL_RETRY_MILLIS.as_millis() as u64,
-            max_delay_millis: 5000,
-            factor: 2,
-        },
-    });
+    let mut behaviour = Behaviour::new(CONFIG, bootstrap_peer_id, bootstrap_peer_address);
 
     let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
     assert_matches!(
@@ -80,22 +80,29 @@ async fn discovery_outputs_dial_request_on_start_without_query() {
     assert_no_event(&mut behaviour);
 }
 
-#[tokio::test]
-async fn discovery_redials_on_dial_failure() {
+async fn check_event_happens_after_given_duration(
+    behaviour: &mut Behaviour,
+    duration: Duration,
+) -> ToSwarm<ToOtherBehaviourEvent, Void> {
     const EPSILON_SLEEP: Duration = Duration::from_millis(1);
 
+    // Check that there are no events until we sleep for enough time.
+    tokio::time::pause();
+    tokio::time::advance(duration - EPSILON_SLEEP).await;
+    assert_no_event(behaviour);
+
+    // Sleep and check for event.
+    tokio::time::advance(2 * EPSILON_SLEEP).await;
+    tokio::time::resume();
+    behaviour.next().now_or_never().unwrap().unwrap()
+}
+
+#[tokio::test]
+async fn discovery_redials_on_dial_failure() {
     let bootstrap_peer_id = PeerId::random();
     let bootstrap_peer_address = Multiaddr::empty();
 
-    let mut behaviour = Behaviour::new(DiscoveryConfig {
-        bootstrap_peer_id,
-        bootstrap_peer_address,
-        bootstrap_peer_dial_retry_strategy: DialRetryStrategy {
-            base_delay_millis: BASE_DIAL_RETRY_MILLIS.as_millis() as u64,
-            max_delay_millis: 5000,
-            factor: 2,
-        },
-    });
+    let mut behaviour = Behaviour::new(CONFIG, bootstrap_peer_id, bootstrap_peer_address);
 
     let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
     assert_matches!(
@@ -109,15 +116,8 @@ async fn discovery_redials_on_dial_failure() {
         connection_id: ConnectionId::new_unchecked(0),
     }));
 
-    // Check that there are no events until we sleep for enough time.
-    tokio::time::pause();
-    tokio::time::advance(BASE_DIAL_RETRY_MILLIS - EPSILON_SLEEP).await;
-    assert_no_event(&mut behaviour);
-
-    // Sleep and check for event.
-    tokio::time::advance(EPSILON_SLEEP).await;
-    tokio::time::resume();
-    let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
+    let event =
+        check_event_happens_after_given_duration(&mut behaviour, BOOTSTRAP_DIAL_SLEEP).await;
     assert_matches!(
         event,
         ToSwarm::Dial{opts} if opts.get_peer_id() == Some(bootstrap_peer_id)
@@ -126,7 +126,7 @@ async fn discovery_redials_on_dial_failure() {
 
 #[tokio::test]
 async fn discovery_redials_when_all_connections_closed() {
-    let mut behaviour = create_behaviour_and_connect_to_bootstrap_node().await;
+    let mut behaviour = create_behaviour_and_connect_to_bootstrap_node(CONFIG).await;
 
     // Consume the initial query event.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
@@ -150,7 +150,7 @@ async fn discovery_redials_when_all_connections_closed() {
 
 #[tokio::test]
 async fn discovery_doesnt_redial_when_one_connection_closes() {
-    let mut behaviour = create_behaviour_and_connect_to_bootstrap_node().await;
+    let mut behaviour = create_behaviour_and_connect_to_bootstrap_node(CONFIG).await;
 
     // Consume the initial query event.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
@@ -179,19 +179,11 @@ async fn discovery_doesnt_redial_when_one_connection_closes() {
     assert_no_event(&mut behaviour);
 }
 
-async fn create_behaviour_and_connect_to_bootstrap_node() -> Behaviour {
+async fn create_behaviour_and_connect_to_bootstrap_node(config: DiscoveryConfig) -> Behaviour {
     let bootstrap_peer_id = PeerId::random();
     let bootstrap_peer_address = Multiaddr::empty();
 
-    let mut behaviour = Behaviour::new(DiscoveryConfig {
-        bootstrap_peer_id,
-        bootstrap_peer_address: bootstrap_peer_address.clone(),
-        bootstrap_peer_dial_retry_strategy: DialRetryStrategy {
-            base_delay_millis: BASE_DIAL_RETRY_MILLIS.as_millis() as u64,
-            max_delay_millis: 5000,
-            factor: 2,
-        },
-    });
+    let mut behaviour = Behaviour::new(config, bootstrap_peer_id, bootstrap_peer_address.clone());
 
     // Consume the dial event.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
@@ -224,7 +216,7 @@ async fn create_behaviour_and_connect_to_bootstrap_node() -> Behaviour {
 
 #[tokio::test]
 async fn discovery_outputs_single_query_after_connecting() {
-    let mut behaviour = create_behaviour_and_connect_to_bootstrap_node().await;
+    let mut behaviour = create_behaviour_and_connect_to_bootstrap_node(CONFIG).await;
 
     let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
     assert_matches!(
@@ -233,30 +225,11 @@ async fn discovery_outputs_single_query_after_connecting() {
     );
 
     assert_no_event(&mut behaviour);
-}
-
-#[tokio::test]
-async fn discovery_doesnt_output_queries_while_paused() {
-    let mut behaviour = create_behaviour_and_connect_to_bootstrap_node().await;
-
-    behaviour.on_other_behaviour_event(&mixed_behaviour::ToOtherBehaviourEvent::PeerManager(
-        peer_manager::ToOtherBehaviourEvent::PauseDiscovery,
-    ));
-    assert_no_event(&mut behaviour);
-
-    behaviour.on_other_behaviour_event(&mixed_behaviour::ToOtherBehaviourEvent::PeerManager(
-        peer_manager::ToOtherBehaviourEvent::ResumeDiscovery,
-    ));
-    let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
-    assert_matches!(
-        event,
-        ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(_peer_id))
-    );
 }
 
 #[tokio::test]
 async fn discovery_outputs_single_query_on_query_finished() {
-    let mut behaviour = create_behaviour_and_connect_to_bootstrap_node().await;
+    let mut behaviour = create_behaviour_and_connect_to_bootstrap_node(CONFIG).await;
 
     // Consume the initial query event.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
@@ -272,53 +245,31 @@ async fn discovery_outputs_single_query_on_query_finished() {
 }
 
 #[tokio::test]
-async fn discovery_doesnt_output_queries_if_query_finished_while_paused() {
-    let mut behaviour = create_behaviour_and_connect_to_bootstrap_node().await;
+async fn discovery_sleeps_between_queries() {
+    let mut config = CONFIG;
+    const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(1);
+    config.heartbeat_interval = HEARTBEAT_INTERVAL;
+
+    let mut behaviour = create_behaviour_and_connect_to_bootstrap_node(config).await;
 
     // Consume the initial query event.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
 
-    behaviour.on_other_behaviour_event(&mixed_behaviour::ToOtherBehaviourEvent::PeerManager(
-        peer_manager::ToOtherBehaviourEvent::PauseDiscovery,
-    ));
-    assert_no_event(&mut behaviour);
-
-    // Simulate that the query has finished.
+    // Report that the query has finished
     behaviour.on_other_behaviour_event(&mixed_behaviour::ToOtherBehaviourEvent::Kad(
         KadToOtherBehaviourEvent::KadQueryFinished,
     ));
-    assert_no_event(&mut behaviour);
-}
 
-#[tokio::test]
-async fn discovery_awakes_on_resume() {
-    let mut behaviour = create_behaviour_and_connect_to_bootstrap_node().await;
-
-    behaviour.on_other_behaviour_event(&mixed_behaviour::ToOtherBehaviourEvent::PeerManager(
-        peer_manager::ToOtherBehaviourEvent::PauseDiscovery,
-    ));
-
-    // There should be an event once we resume because discovery has just started.
-
-    let mutex = Mutex::new(behaviour);
-
-    select! {
-        _ = async {
-            tokio::time::sleep(SLEEP_DURATION).await;
-            mutex.lock().await.on_other_behaviour_event(
-                &mixed_behaviour::ToOtherBehaviourEvent::PeerManager(
-                    peer_manager::ToOtherBehaviourEvent::ResumeDiscovery,
-                )
-            );
-            timeout(TIMEOUT, pending::<()>()).await.unwrap();
-        } => {},
-        maybe_event = next_on_mutex_stream(&mutex) => assert!(maybe_event.is_some()),
-    }
+    let event = check_event_happens_after_given_duration(&mut behaviour, HEARTBEAT_INTERVAL).await;
+    assert_matches!(
+        event,
+        ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(_peer_id))
+    );
 }
 
 #[tokio::test]
 async fn discovery_awakes_on_query_finished() {
-    let mut behaviour = create_behaviour_and_connect_to_bootstrap_node().await;
+    let mut behaviour = create_behaviour_and_connect_to_bootstrap_node(CONFIG).await;
 
     // Consume the initial query event.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
@@ -327,7 +278,6 @@ async fn discovery_awakes_on_query_finished() {
 
     select! {
         _ = async {
-            tokio::time::sleep(SLEEP_DURATION).await;
             mutex.lock().await.on_other_behaviour_event(
                 &mixed_behaviour::ToOtherBehaviourEvent::Kad(
                     KadToOtherBehaviourEvent::KadQueryFinished,
@@ -335,6 +285,9 @@ async fn discovery_awakes_on_query_finished() {
             );
             timeout(TIMEOUT, pending::<()>()).await.unwrap();
         } => {},
-        maybe_event = next_on_mutex_stream(&mutex) => assert!(maybe_event.is_some()),
+        maybe_event = next_on_mutex_stream(&mutex) => assert_matches!(
+            maybe_event.unwrap(),
+            ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(_peer_id))
+        ),
     }
 }

@@ -8,14 +8,14 @@ use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonN
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use crate::storage::storage_trait::Storage;
 
-pub(crate) type OriginalSkeletonNodeMap = HashMap<NodeIndex, OriginalSkeletonNode>;
-pub(crate) type OriginalSkeletonTreeResult<T> = Result<T, OriginalSkeletonTreeError>;
+pub type OriginalSkeletonNodeMap = HashMap<NodeIndex, OriginalSkeletonNode>;
+pub type OriginalSkeletonTreeResult<T> = Result<T, OriginalSkeletonTreeError>;
 
 /// Consider a Patricia-Merkle Tree which should be updated with new leaves.
 /// This trait represents the structure of the subtree which will be modified in the
 /// update. It also contains the hashes (for edge siblings - also the edge data) of the unmodified
 /// nodes on the Merkle paths from the updated leaves to the root.
-pub(crate) trait OriginalSkeletonTree<'a>: Sized {
+pub trait OriginalSkeletonTree<'a>: Sized {
     fn create<L: Leaf>(
         storage: &impl Storage,
         root_hash: HashOutput,
@@ -40,9 +40,9 @@ pub(crate) trait OriginalSkeletonTree<'a>: Sized {
 
 // TODO(Dori, 1/7/2024): Make this a tuple struct.
 #[derive(Debug, PartialEq)]
-pub(crate) struct OriginalSkeletonTreeImpl<'a> {
-    pub(crate) nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
-    pub(crate) sorted_leaf_indices: SortedLeafIndices<'a>,
+pub struct OriginalSkeletonTreeImpl<'a> {
+    pub nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
+    pub sorted_leaf_indices: SortedLeafIndices<'a>,
 }
 
 impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {

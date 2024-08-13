@@ -37,6 +37,7 @@ members = [
   "crates/sequencing/papyrus_consensus",
   "crates/starknet_api",
   "crates/starknet_client",
+  "crates/starknet_committer",
   "crates/starknet_sierra_compile",
   "crates/task_executor",
   "crates/tests-integration",
@@ -77,6 +78,7 @@ cairo-native = { git = "https://github.com/lambdaclass/cairo_native", branch = "
 cairo-lang-casm = "2.7.0"
 cairo-lang-runner = "2.7.0"
 cairo-lang-sierra = "=2.7.0"
+cairo-lang-sierra-to-casm = "2.7.0"
 cairo-lang-starknet-classes = "2.7.0"
 cairo-lang-utils = "2.7.0"
 cairo-vm = "=1.0.0-rc6"
@@ -170,12 +172,14 @@ serde_yaml = "0.9.16"
 sha2 = "0.10.8"
 sha3 = "0.10.8"
 simple_logger = "4.0.0"
-simplelog = "0.12.2"
 starknet-core = "0.6.0"
 starknet-crypto = "0.5.1"
 starknet-types-core = { version = "0.1.5", features = ["hash", "prime-bigint", "std"] }
 starknet_api = { path = "crates/starknet_api", version = "0.13.0-rc.0" }
+starknet_batcher_types = { path = "crates/batcher_types", version = "0.0" }
 starknet_client = { path = "crates/starknet_client", version = "0.4.0-rc.0" }
+starknet_consensus_manager = { path = "crates/consensus_manager", version = "0.0" }
+starknet_consensus_manager_types = { path = "crates/consensus_manager_types", version = "0.0" }
 starknet_gateway = { path = "crates/gateway", version = "0.0" }
 starknet_mempool = { path = "crates/mempool", version = "0.0" }
 starknet_mempool_infra = { path = "crates/mempool_infra", version = "0.0" }
@@ -196,6 +200,7 @@ tokio = { version = "1.37.0", features = ["full"] }
 tokio-retry = "0.3"
 tokio-stream = "0.1.8"
 tokio-test = "0.4.4"
+toml = "0.8"
 tower = "0.4.13"
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
