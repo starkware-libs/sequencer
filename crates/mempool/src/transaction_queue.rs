@@ -69,6 +69,38 @@ impl TransactionQueue {
 }
 
 /// Encapsulates a transaction reference to assess its order (i.e., priority).
+/// A transaction with gas price below the threshold. Sorted according to the gas price.
+#[derive(Clone, Debug, derive_more::Deref, derive_more::From)]
+struct PendingTransaction(pub TransactionReference);
+
+/// Compare transactions based only on their gas price, a uint, using the Eq trait. It ensures that
+/// two gas price are either exactly equal or not.
+impl PartialEq for PendingTransaction {
+    fn eq(&self, other: &PendingTransaction) -> bool {
+        self.get_l2_gas_price() == other.get_l2_gas_price() && self.tx_hash == other.tx_hash
+    }
+}
+
+/// Marks this struct as capable of strict equality comparisons, signaling to the compiler it
+/// adheres to equality semantics.
+// Note: this depends on the implementation of `PartialEq`, see its docstring.
+impl Eq for PendingTransaction {}
+
+impl Ord for PendingTransaction {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.get_l2_gas_price()
+            .cmp(&other.get_l2_gas_price())
+            .then_with(|| self.tx_hash.cmp(&other.tx_hash))
+    }
+}
+
+impl PartialOrd for PendingTransaction {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+/// Encapsulates a transaction reference to assess its order (i.e., priority).
 #[derive(Clone, Debug, derive_more::Deref, derive_more::From)]
 struct QueuedTransaction(pub TransactionReference);
 
