@@ -1,0 +1,14 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "utils"
+repository.workspace = true
+version = "0.0.0"
+
+[lints]
+workspace = true
+
+[features]
+testing = []
+
+[dependencies]
