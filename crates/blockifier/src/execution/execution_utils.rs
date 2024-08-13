@@ -8,6 +8,7 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner, ExecutionResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::BigUint;
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::ClassHash;
 use starknet_api::transaction::Calldata;
 use starknet_types_core::felt::Felt;
@@ -15,7 +16,6 @@ use starknet_types_core::felt::Felt;
 use super::entry_point::ConstructorEntryPointExecutionResult;
 use super::errors::ConstructorEntryPointExecutionError;
 use crate::execution::call_info::{CallInfo, Retdata};
-use crate::execution::contract_class::ContractClass;
 use crate::execution::entry_point::{
     execute_constructor_entry_point,
     CallEntryPoint,

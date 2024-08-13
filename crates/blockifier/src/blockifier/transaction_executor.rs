@@ -17,6 +17,7 @@ use crate::bouncer::{Bouncer, BouncerWeights};
 #[cfg(feature = "concurrency")]
 use crate::concurrency::worker_logic::WorkerExecutor;
 use crate::context::BlockContext;
+use crate::execution::contract_class::ContractClassExt;
 use crate::state::cached_state::{CachedState, CommitmentStateDiff, TransactionalState};
 use crate::state::errors::StateError;
 use crate::state::state_api::StateReader;

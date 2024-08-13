@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::calldata;
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::transaction::{Calldata, Fee, ResourceBounds, TransactionVersion};
@@ -10,7 +11,7 @@ use starknet_types_core::felt::Felt;
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::{CallInfo, Retdata};
-use crate::execution::contract_class::ContractClass;
+use crate::execution::contract_class::ClassInfoExt;
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
 use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::fee_checks::{FeeCheckReportFields, PostExecutionReport};

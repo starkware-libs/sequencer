@@ -1,10 +1,11 @@
 use assert_matches::assert_matches;
-use blockifier::execution::contract_class::ContractClass;
+use blockifier::execution::contract_class::ClassInfoExt;
 use cairo_lang_sierra_to_casm::compiler::CompilationError;
 use cairo_lang_starknet_classes::allowed_libfuncs::AllowedLibfuncsError;
 use cairo_lang_starknet_classes::casm_contract_class::StarknetSierraCompilationError;
 use mempool_test_utils::starknet_api_test_utils::declare_tx as rpc_declare_tx;
 use rstest::{fixture, rstest};
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,

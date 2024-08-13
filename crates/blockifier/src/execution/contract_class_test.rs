@@ -4,17 +4,18 @@ use std::sync::Arc;
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::NestedIntList;
 use rstest::rstest;
+use starknet_api::contract_class::{ContractClassV1, ContractClassV1Inner};
 
-use crate::execution::contract_class::{ContractClassV1, ContractClassV1Inner};
+use crate::execution::contract_class::ContractClassV1Ext;
 use crate::transaction::errors::TransactionExecutionError;
 
 #[rstest]
 fn test_get_visited_segments() {
-    let test_contract = ContractClassV1(Arc::new(ContractClassV1Inner {
-        program: Default::default(),
-        entry_points_by_type: Default::default(),
-        hints: Default::default(),
-        bytecode_segment_lengths: NestedIntList::Node(vec![
+    let test_contract = ContractClassV1(Arc::new(ContractClassV1Inner::new_for_testing(
+        Default::default(),
+        Default::default(),
+        Default::default(),
+        NestedIntList::Node(vec![
             NestedIntList::Leaf(151),
             NestedIntList::Leaf(104),
             NestedIntList::Node(vec![NestedIntList::Leaf(170), NestedIntList::Leaf(225)]),
@@ -26,7 +27,7 @@ fn test_get_visited_segments() {
             ])]),
             NestedIntList::Leaf(162),
         ]),
-    }));
+    )));
 
     assert_eq!(
         test_contract

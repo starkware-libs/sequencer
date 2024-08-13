@@ -1,4 +1,5 @@
 use rstest::fixture;
+use starknet_api::contract_class::{ClassInfo, ContractClass};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::transaction::{
     Calldata,
@@ -20,7 +21,7 @@ use strum::IntoEnumIterator;
 
 use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::context::{BlockContext, ChainInfo};
-use crate::execution::contract_class::{ClassInfo, ContractClass};
+use crate::execution::contract_class::ClassInfoExt;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
 use crate::test_utils::contracts::FeatureContract;

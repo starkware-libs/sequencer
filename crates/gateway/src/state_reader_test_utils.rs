@@ -1,6 +1,5 @@
 use blockifier::blockifier::block::BlockInfo;
 use blockifier::context::BlockContext;
-use blockifier::execution::contract_class::ContractClass;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use blockifier::test_utils::contracts::FeatureContract;
@@ -8,6 +7,7 @@ use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::initial_test_state::test_state;
 use blockifier::test_utils::{CairoVersion, BALANCE};
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
