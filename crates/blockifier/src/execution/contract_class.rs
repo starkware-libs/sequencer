@@ -17,7 +17,7 @@ use super::execution_utils::poseidon_hash_many_cost;
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::{self, CONSTRUCTOR_ENTRY_POINT_NAME};
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::errors::{ContractClassError, PreExecutionError};
+use crate::execution::errors::PreExecutionError;
 use crate::fee::eth_gas_constants;
 use crate::transaction::errors::TransactionExecutionError;
 
@@ -30,34 +30,24 @@ pub mod test;
 // Note: when deserializing from a SN API class JSON string, the ABI field is ignored
 // by serde, since it is not required for execution.
 
-pub type ContractClassResult<T> = Result<T, ContractClassError>;
-
-pub trait ContractClassExt {
-    fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources;
-    fn get_visited_segments(
-        &self,
-        visited_pcs: &HashSet<usize>,
-    ) -> Result<Vec<usize>, TransactionExecutionError>;
+pub fn estimate_casm_hash_computation_resources_from_contract_class(
+    contract_class: &ContractClass,
+) -> ExecutionResources {
+    match contract_class {
+        ContractClass::V0(class) => class.estimate_casm_hash_computation_resources(),
+        ContractClass::V1(class) => class.estimate_casm_hash_computation_resources(),
+    }
 }
 
-impl ContractClassExt for ContractClass {
-    fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
-        match self {
-            ContractClass::V0(class) => class.estimate_casm_hash_computation_resources(),
-            ContractClass::V1(class) => class.estimate_casm_hash_computation_resources(),
+pub fn get_visited_segments(
+    contract_class: &ContractClass,
+    visited_pcs: &HashSet<usize>,
+) -> Result<Vec<usize>, TransactionExecutionError> {
+    match contract_class {
+        ContractClass::V0(_) => {
+            panic!("get_visited_segments is not supported for v0 contracts.")
         }
-    }
-
-    fn get_visited_segments(
-        &self,
-        visited_pcs: &HashSet<usize>,
-    ) -> Result<Vec<usize>, TransactionExecutionError> {
-        match self {
-            ContractClass::V0(_) => {
-                panic!("get_visited_segments is not supported for v0 contracts.")
-            }
-            ContractClass::V1(class) => class.get_visited_segments(visited_pcs),
-        }
+        ContractClass::V1(class) => class.get_visited_segments(visited_pcs),
     }
 }
 
@@ -97,10 +87,6 @@ trait ContractClassV1Ext {
     ) -> Result<Vec<usize>, TransactionExecutionError>;
 }
 
-pub trait ContractClassV1PubExt {
-    fn get_entry_point(&self, call: &CallEntryPoint) -> Result<EntryPointV1, PreExecutionError>;
-}
-
 impl ContractClassV1Ext for ContractClassV1 {
     /// Returns the estimated VM resources required for computing Casm hash.
     /// This is an empiric measurement of several bytecode lengths, which constitutes as the
@@ -116,31 +102,37 @@ impl ContractClassV1Ext for ContractClassV1 {
         visited_pcs: &HashSet<usize>,
     ) -> Result<Vec<usize>, TransactionExecutionError> {
         let mut reversed_visited_pcs: Vec<_> = visited_pcs.iter().cloned().sorted().rev().collect();
-        get_visited_segments(self.bytecode_segment_lengths(), &mut reversed_visited_pcs, &mut 0)
+        internal_get_visited_segments(
+            self.bytecode_segment_lengths(),
+            &mut reversed_visited_pcs,
+            &mut 0,
+        )
     }
 }
-impl ContractClassV1PubExt for ContractClassV1 {
-    fn get_entry_point(&self, call: &CallEntryPoint) -> Result<EntryPointV1, PreExecutionError> {
-        if call.entry_point_type == EntryPointType::Constructor
-            && call.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
-        {
-            return Err(PreExecutionError::InvalidConstructorEntryPointName);
-        }
 
-        let entry_points_of_same_type = &self.0.entry_points_by_type[&call.entry_point_type];
-        let filtered_entry_points: Vec<_> = entry_points_of_same_type
-            .iter()
-            .filter(|ep| ep.selector == call.entry_point_selector)
-            .collect();
+pub fn get_entry_point(
+    contract_class: &ContractClassV1,
+    call: &CallEntryPoint,
+) -> Result<EntryPointV1, PreExecutionError> {
+    if call.entry_point_type == EntryPointType::Constructor
+        && call.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
+    {
+        return Err(PreExecutionError::InvalidConstructorEntryPointName);
+    }
 
-        match &filtered_entry_points[..] {
-            [] => Err(PreExecutionError::EntryPointNotFound(call.entry_point_selector)),
-            [entry_point] => Ok((*entry_point).clone()),
-            _ => Err(PreExecutionError::DuplicatedEntryPointSelector {
-                selector: call.entry_point_selector,
-                typ: call.entry_point_type,
-            }),
-        }
+    let entry_points_of_same_type = &contract_class.0.entry_points_by_type[&call.entry_point_type];
+    let filtered_entry_points: Vec<_> = entry_points_of_same_type
+        .iter()
+        .filter(|ep| ep.selector == call.entry_point_selector)
+        .collect();
+
+    match &filtered_entry_points[..] {
+        [] => Err(PreExecutionError::EntryPointNotFound(call.entry_point_selector)),
+        [entry_point] => Ok((*entry_point).clone()),
+        _ => Err(PreExecutionError::DuplicatedEntryPointSelector {
+            selector: call.entry_point_selector,
+            typ: call.entry_point_type,
+        }),
     }
 }
 
@@ -192,7 +184,7 @@ pub fn estimate_casm_hash_computation_resources(
 // lengths.
 // Each visited segment must have its starting PC visited, and is represented by it.
 // visited_pcs should be given in reversed order, and is consumed by the function.
-fn get_visited_segments(
+fn internal_get_visited_segments(
     segment_lengths: &NestedIntList,
     visited_pcs: &mut Vec<usize>,
     bytecode_offset: &mut usize,
@@ -217,7 +209,7 @@ fn get_visited_segments(
                 let next_visited_pc = visited_pcs.last().copied();
 
                 let visited_inner_segments =
-                    get_visited_segments(segment, visited_pcs, bytecode_offset)?;
+                    internal_get_visited_segments(segment, visited_pcs, bytecode_offset)?;
 
                 if next_visited_pc.is_some_and(|pc| pc != segment_start)
                     && !visited_inner_segments.is_empty()
@@ -235,15 +227,9 @@ fn get_visited_segments(
     Ok(res)
 }
 
-pub trait ClassInfoExt {
-    fn code_size(&self) -> usize;
-}
-
-impl ClassInfoExt for ClassInfo {
-    fn code_size(&self) -> usize {
-        (self.bytecode_length() + self.sierra_program_length())
-            // We assume each felt is a word.
-            * eth_gas_constants::WORD_WIDTH
-            + self.abi_length()
-    }
+pub fn get_code_size(class_info: &ClassInfo) -> usize {
+    (class_info.bytecode_length() + class_info.sierra_program_length())
+    // We assume each felt is a word.
+    * eth_gas_constants::WORD_WIDTH
+        + class_info.abi_length()
 }

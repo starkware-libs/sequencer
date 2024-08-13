@@ -17,7 +17,7 @@ use crate::bouncer::{Bouncer, BouncerWeights};
 #[cfg(feature = "concurrency")]
 use crate::concurrency::worker_logic::WorkerExecutor;
 use crate::context::BlockContext;
-use crate::execution::contract_class::ContractClassExt;
+use crate::execution::contract_class::get_visited_segments;
 use crate::state::cached_state::{CachedState, CommitmentStateDiff, TransactionalState};
 use crate::state::errors::StateError;
 use crate::state::state_api::StateReader;
@@ -160,7 +160,7 @@ impl<S: StateReader> TransactionExecutor<S> {
                     .as_ref()
                     .expect(BLOCK_STATE_ACCESS_ERR)
                     .get_compiled_contract_class(*class_hash)?;
-                Ok((*class_hash, contract_class.get_visited_segments(class_visited_pcs)?))
+                Ok((*class_hash, get_visited_segments(&contract_class, class_visited_pcs)?))
             })
             .collect::<TransactionExecutorResult<_>>()?;
 

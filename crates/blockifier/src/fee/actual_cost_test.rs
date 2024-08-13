@@ -4,7 +4,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::context::BlockContext;
 use crate::execution::call_info::{CallExecution, CallInfo, MessageToL1, OrderedL2ToL1Message};
-use crate::execution::contract_class::ClassInfoExt;
+use crate::execution::contract_class::get_code_size;
 use crate::fee::eth_gas_constants;
 use crate::fee::gas_usage::{
     get_consumed_message_to_l2_emissions_cost,
@@ -59,7 +59,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
         let declare_tx_starknet_resources = StarknetResources::new(
             0,
             0,
-            class_info.code_size(),
+            get_code_size(&class_info),
             StateChangesCount::default(),
             None,
             std::iter::empty(),

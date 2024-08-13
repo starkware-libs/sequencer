@@ -15,7 +15,7 @@ use starknet_api::felt;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
-use crate::execution::contract_class::ContractClassV1PubExt;
+use crate::execution::contract_class::get_entry_point;
 use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,
@@ -152,7 +152,7 @@ pub fn initialize_execution_context<'a>(
     resources: &'a mut ExecutionResources,
     context: &'a mut EntryPointExecutionContext,
 ) -> Result<VmExecutionContext<'a>, PreExecutionError> {
-    let entry_point = contract_class.get_entry_point(&call)?;
+    let entry_point = get_entry_point(contract_class, &call)?;
 
     // Instantiate Cairo runner.
     let proof_mode = false;

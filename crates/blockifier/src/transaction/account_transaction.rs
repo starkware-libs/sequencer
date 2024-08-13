@@ -11,7 +11,7 @@ use starknet_types_core::felt::Felt;
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::{CallInfo, Retdata};
-use crate::execution::contract_class::ClassInfoExt;
+use crate::execution::contract_class::get_code_size;
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
 use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::fee_checks::{FeeCheckReportFields, PostExecutionReport};
@@ -608,7 +608,7 @@ impl AccountTransaction {
     /// Returns 0 on non-declare transactions; for declare transactions, returns the class code
     /// size.
     pub(crate) fn declare_code_size(&self) -> usize {
-        if let Self::Declare(tx) = self { tx.class_info.code_size() } else { 0 }
+        if let Self::Declare(tx) = self { get_code_size(&tx.class_info) } else { 0 }
     }
 
     fn is_non_revertible(&self, tx_info: &TransactionInfo) -> bool {

@@ -43,7 +43,7 @@ use crate::execution::call_info::{
     OrderedL2ToL1Message,
     Retdata,
 };
-use crate::execution::contract_class::ClassInfoExt;
+use crate::execution::contract_class::get_code_size;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::syscalls::hint_processor::{EmitEventError, L1_GAS, L2_GAS};
@@ -1155,7 +1155,7 @@ fn test_declare_tx(
     let starknet_resources = StarknetResources::new(
         0,
         0,
-        class_info.code_size(),
+        get_code_size(&class_info),
         declare_expected_state_changes_count(tx_version),
         None,
         std::iter::empty(),
