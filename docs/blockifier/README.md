@@ -39,7 +39,7 @@ The Blockifier is a step towards a decentralized sequencer client for Starknet, 
 We'll add more milestones to this table once we finish the first one, where we blockify transactions sequentially, including all existing functionality.
 
 | name                                                                                                                                   | status |
-| -------------------------------------------------------------------------------------------------------------------------------------- | :----: |
+| --------------------------------------------------------------------------------------------------------------------------------------- | :----: |
 | Add the ability to execute a block and output a state diff.                                                                            |   ✅   |
 | Integrate with the existing Starknet Sequencer by replacing its current transaction-blockifying component, which is written in Python. |   ⏳   |
 | Implement optimistic concurrency of transaction execution.                                                                             |        |
