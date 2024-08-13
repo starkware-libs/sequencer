@@ -4,11 +4,6 @@ use std::path::PathBuf;
 
 // Expose the tool for creating entry point selectors from function names.
 pub use blockifier::abi::abi_utils::selector_from_name;
-use blockifier::execution::contract_class::{
-    ContractClass as BlockifierContractClass,
-    ContractClassV0,
-    ContractClassV1,
-};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, MutRefState};
 use blockifier::state::state_api::StateReader;
 use blockifier::transaction::objects::TransactionExecutionInfo;
@@ -19,6 +14,11 @@ use papyrus_storage::compiled_class::CasmStorageReader;
 use papyrus_storage::db::{TransactionKind, RO};
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageResult, StorageTxn};
+use starknet_api::contract_class::{
+    ContractClass as BlockifierContractClass,
+    ContractClassV0,
+    ContractClassV1,
+};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateNumber, StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;

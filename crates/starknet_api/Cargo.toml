@@ -11,6 +11,7 @@ testing = []
 
 [dependencies]
 bitvec = "1.0.1"
+cairo-lang-casm.workspace = true
 cairo-lang-starknet-classes = "2.7.0-dev.0"
 cairo-vm.workspace = true
 derive_more = "0.99.17"

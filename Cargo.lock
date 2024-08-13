@@ -8771,6 +8771,7 @@ version = "0.13.0-rc.0"
 dependencies = [
  "assert_matches",
  "bitvec",
+ "cairo-lang-casm",
  "cairo-lang-starknet-classes",
  "cairo-vm",
  "derive_more",

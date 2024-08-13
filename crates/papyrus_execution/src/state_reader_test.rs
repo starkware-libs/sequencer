@@ -1,11 +1,6 @@
 use std::cell::Cell;
 
 use assert_matches::assert_matches;
-use blockifier::execution::contract_class::{
-    ContractClass as BlockifierContractClass,
-    ContractClassV0,
-    ContractClassV1,
-};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::StateReader;
 use cairo_lang_utils::bigint::BigUintAsHex;
@@ -24,6 +19,11 @@ use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
 use starknet_api::block::{BlockBody, BlockHash, BlockHeader, BlockNumber};
+use starknet_api::contract_class::{
+    ContractClass as BlockifierContractClass,
+    ContractClassV0,
+    ContractClassV1,
+};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{ContractClass, StateNumber, StorageKey, ThinStateDiff};

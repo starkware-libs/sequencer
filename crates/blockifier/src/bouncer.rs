@@ -10,6 +10,7 @@ use crate::blockifier::transaction_executor::{
     TransactionExecutorResult,
 };
 use crate::execution::call_info::ExecutionSummary;
+use crate::execution::contract_class::ContractClassExt;
 use crate::fee::gas_usage::get_onchain_data_segment_length;
 use crate::state::cached_state::{StateChangesKeys, StorageEntry};
 use crate::state::state_api::StateReader;

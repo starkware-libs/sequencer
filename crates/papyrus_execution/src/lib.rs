@@ -29,7 +29,7 @@ use blockifier::blockifier::block::{pre_process_block, BlockInfo, BlockNumberHas
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use blockifier::execution::call_info::CallExecution;
-use blockifier::execution::contract_class::{ClassInfo, ContractClass as BlockifierContractClass};
+use blockifier::execution::contract_class::ClassInfoExt;
 use blockifier::execution::entry_point::{
     CallEntryPoint,
     CallType as BlockifierCallType,
@@ -59,6 +59,7 @@ use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, StarknetVersion};
+use starknet_api::contract_class::{ClassInfo, ContractClass as BlockifierContractClass};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector, PatriciaKey};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 // TODO: merge multiple EntryPointType structs in SN_API into one.
