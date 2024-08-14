@@ -25,6 +25,7 @@ use crate::test_utils::{
     create_trivial_calldata,
     get_syscall_resources,
     get_tx_resources,
+    include_l2_gas,
     u64_from_usize,
     CairoVersion,
     NonceManager,
@@ -124,12 +125,17 @@ fn check_gas_and_fee(
     expected_actual_gas: u64,
     expected_actual_fee: Fee,
     expected_cost_of_resources: Fee,
+    include_l2_gas: bool,
 ) {
     assert_eq!(
         tx_execution_info
             .receipt
             .resources
-            .to_gas_vector(&block_context.versioned_constants, block_context.block_info.use_kzg_da)
+            .to_gas_vector(
+                &block_context.versioned_constants,
+                block_context.block_info.use_kzg_da,
+                include_l2_gas
+            )
             .unwrap()
             .l1_gas,
         expected_actual_gas.into()
@@ -139,7 +145,11 @@ fn check_gas_and_fee(
     // Future compatibility: resources other than the L1 gas usage may affect the fee (currently,
     // `calculate_tx_fee` is simply the result of `calculate_tx_gas_usage_vector` times gas price).
     assert_eq!(
-        tx_execution_info.receipt.resources.calculate_tx_fee(block_context, fee_type).unwrap(),
+        tx_execution_info
+            .receipt
+            .resources
+            .calculate_tx_fee(block_context, fee_type, include_l2_gas)
+            .unwrap(),
         expected_cost_of_resources
     );
 }
@@ -153,7 +163,8 @@ fn recurse_calldata(contract_address: ContractAddress, fail: bool, depth: u32) -
 }
 
 /// Test simulate / validate / charge_fee flag combinations in pre-validation stage.
-#[rstest]
+#[allow(clippy::too_many_arguments)]
+#[rstest_reuse::apply(include_l2_gas)]
 #[case(TransactionVersion::ONE, FeeType::Eth, true)]
 #[case(TransactionVersion::THREE, FeeType::Strk, false)]
 fn test_simulate_validate_charge_fee_pre_validate(
@@ -165,6 +176,7 @@ fn test_simulate_validate_charge_fee_pre_validate(
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
     #[case] is_deprecated: bool,
+    has_l2_gas: bool,
 ) {
     let block_context = BlockContext::create_for_account_testing();
     let max_fee = Fee(MAX_FEE);
@@ -238,6 +250,7 @@ fn test_simulate_validate_charge_fee_pre_validate(
             actual_gas_used,
             actual_fee,
             actual_fee,
+            has_l2_gas,
         );
     } else {
         nonce_manager.rollback(account_address);
@@ -282,6 +295,7 @@ fn test_simulate_validate_charge_fee_pre_validate(
             actual_gas_used,
             actual_fee,
             actual_fee,
+            has_l2_gas,
         );
     } else {
         nonce_manager.rollback(account_address);
@@ -322,6 +336,7 @@ fn test_simulate_validate_charge_fee_pre_validate(
                 actual_gas_used,
                 actual_fee,
                 actual_fee,
+                has_l2_gas,
             );
         } else {
             nonce_manager.rollback(account_address);
@@ -338,7 +353,7 @@ fn test_simulate_validate_charge_fee_pre_validate(
 }
 
 /// Test simulate / validate / charge_fee flag combinations in (fallible) validation stage.
-#[rstest]
+#[rstest_reuse::apply(include_l2_gas)]
 #[case(TransactionVersion::ONE, FeeType::Eth)]
 #[case(TransactionVersion::THREE, FeeType::Strk)]
 fn test_simulate_validate_charge_fee_fail_validate(
@@ -350,6 +365,7 @@ fn test_simulate_validate_charge_fee_fail_validate(
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
     max_resource_bounds: ResourceBoundsMapping,
+    has_l2_gas: bool,
 ) {
     let block_context = BlockContext::create_for_account_testing();
     let max_fee = Fee(MAX_FEE);
@@ -391,6 +407,7 @@ fn test_simulate_validate_charge_fee_fail_validate(
             actual_gas_used,
             actual_fee,
             actual_fee,
+            has_l2_gas,
         );
     } else {
         assert!(
@@ -400,7 +417,7 @@ fn test_simulate_validate_charge_fee_fail_validate(
 }
 
 /// Test simulate / validate / charge_fee flag combinations during execution.
-#[rstest]
+#[rstest_reuse::apply(include_l2_gas)]
 #[case(TransactionVersion::ONE, FeeType::Eth)]
 #[case(TransactionVersion::THREE, FeeType::Strk)]
 fn test_simulate_validate_charge_fee_mid_execution(
@@ -412,6 +429,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
     max_resource_bounds: ResourceBoundsMapping,
+    has_l2_gas: bool,
 ) {
     let block_context = BlockContext::create_for_account_testing();
     let chain_info = &block_context.chain_info;
@@ -462,6 +480,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
         revert_gas_used,
         revert_fee,
         revert_fee,
+        has_l2_gas,
     );
     let current_balance = check_balance(
         current_balance,
@@ -513,6 +532,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
         // Complete resources used are reported as receipt.resources; but only the
         // charged final fee is shown in actual_fee.
         if charge_fee { limited_fee } else { unlimited_fee },
+        has_l2_gas,
     );
     let current_balance =
         check_balance(current_balance, &state, account_address, chain_info, &fee_type, charge_fee);
@@ -553,11 +573,12 @@ fn test_simulate_validate_charge_fee_mid_execution(
         block_limit_gas,
         block_limit_fee,
         block_limit_fee,
+        has_l2_gas,
     );
     check_balance(current_balance, &state, account_address, chain_info, &fee_type, charge_fee);
 }
 
-#[rstest]
+#[rstest_reuse::apply(include_l2_gas)]
 #[case(TransactionVersion::ONE, FeeType::Eth, true)]
 #[case(TransactionVersion::THREE, FeeType::Strk, false)]
 fn test_simulate_validate_charge_fee_post_execution(
@@ -569,6 +590,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
     #[case] is_deprecated: bool,
+    has_l2_gas: bool,
 ) {
     let block_context = BlockContext::create_for_account_testing();
     let gas_price = block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
@@ -641,6 +663,7 @@ fn test_simulate_validate_charge_fee_post_execution(
         if charge_fee { revert_gas_usage } else { unlimited_gas_used },
         if charge_fee { just_not_enough_fee_bound } else { unlimited_fee },
         if charge_fee { revert_fee } else { unlimited_fee },
+        has_l2_gas,
     );
     let current_balance =
         check_balance(current_balance, &state, account_address, chain_info, &fee_type, charge_fee);
@@ -705,6 +728,7 @@ fn test_simulate_validate_charge_fee_post_execution(
         if charge_fee { fail_actual_gas } else { success_actual_gas },
         actual_fee,
         if charge_fee { fail_actual_fee } else { actual_fee },
+        has_l2_gas,
     );
     check_balance(
         current_balance,

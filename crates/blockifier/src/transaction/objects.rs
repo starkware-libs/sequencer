@@ -110,6 +110,13 @@ impl TransactionInfo {
             TransactionInfo::Deprecated(context) => Ok(context.max_fee != Fee(0)),
         }
     }
+
+    pub fn has_l2_gas_bounds(&self) -> bool {
+        match self {
+            TransactionInfo::Current(context) => context.resource_bounds.0.len() == 3,
+            TransactionInfo::Deprecated(_) => false,
+        }
+    }
 }
 
 impl HasRelatedFeeType for TransactionInfo {
@@ -470,8 +477,9 @@ impl TransactionResources {
         &self,
         versioned_constants: &VersionedConstants,
         use_kzg_da: bool,
+        include_l2_gas: bool,
     ) -> TransactionFeeResult<GasVector> {
-        Ok(self.starknet_resources.to_gas_vector(versioned_constants, use_kzg_da, false)
+        Ok(self.starknet_resources.to_gas_vector(versioned_constants, use_kzg_da, include_l2_gas)
             + calculate_l1_gas_by_vm_usage(
                 versioned_constants,
                 &self.vm_resources,
