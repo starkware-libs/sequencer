@@ -785,14 +785,3 @@ pub struct BroadcastSubscriberChannels<T: TryFrom<Bytes>> {
     pub messages_to_broadcast_sender: BroadcastSubscriberSender<T>,
     pub broadcasted_messages_receiver: BroadcastSubscriberReceiver<T>,
 }
-
-fn is_localhost(address: &Multiaddr) -> bool {
-    let maybe_ip4_address = address.iter().find_map(|protocol| match protocol {
-        Protocol::Ip4(ip4_address) => Some(ip4_address),
-        _ => None,
-    });
-    let Some(ip4_address) = maybe_ip4_address else {
-        return false;
-    };
-    ip4_address == Ipv4Addr::LOCALHOST
-}
