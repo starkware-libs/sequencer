@@ -1912,11 +1912,11 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     };
     assert_eq!(
         expected_gas,
-        actual_execution_info
-            .receipt
-            .resources
-            .starknet_resources
-            .to_gas_vector(versioned_constants, use_kzg_da)
+        actual_execution_info.receipt.resources.starknet_resources.to_gas_vector(
+            versioned_constants,
+            use_kzg_da,
+            false
+        )
     );
 
     let total_gas = expected_tx_resources
