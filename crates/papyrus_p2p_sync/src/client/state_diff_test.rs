@@ -1,9 +1,8 @@
 use std::time::Duration;
 
 use assert_matches::assert_matches;
-use futures::{FutureExt, SinkExt, StreamExt};
+use futures::{FutureExt, StreamExt};
 use indexmap::indexmap;
-use papyrus_network::network_manager::SqmrClientPayload;
 use papyrus_protobuf::sync::{
     BlockHashOrNumber,
     ContractDiff,
@@ -71,19 +70,15 @@ async fn state_diff_basic_flow() {
 
         // Check that before we send headers there is no state diff query.
         assert!(state_diff_receiver.next().now_or_never().is_none());
-        let SqmrClientPayload {
-            query: _query,
-            report_receiver: _report_receiver,
-            responses_sender: mut headers_sender,
-        } = header_receiver.next().await.unwrap();
+        let mut header_payload = header_receiver.next().await.unwrap();
 
         // Send headers for entire query.
         for (i, ((block_hash, block_signature), state_diff)) in
             block_hashes_and_signatures.iter().zip(state_diffs.iter()).enumerate()
         {
             // Send responses
-            headers_sender
-                .send(Ok(DataOrFin(Some(SignedBlockHeader {
+            header_payload
+                .send(DataOrFin(Some(SignedBlockHeader {
                     block_header: BlockHeader {
                         block_number: BlockNumber(i.try_into().unwrap()),
                         block_hash: *block_hash,
@@ -91,7 +86,7 @@ async fn state_diff_basic_flow() {
                         ..Default::default()
                     },
                     signatures: vec![*block_signature],
-                }))))
+                })))
                 .await
                 .unwrap();
         }
@@ -110,19 +105,15 @@ async fn state_diff_basic_flow() {
             (STATE_DIFF_QUERY_LENGTH, HEADER_QUERY_LENGTH - STATE_DIFF_QUERY_LENGTH),
         ] {
             // Get a state diff query and validate it
-            let SqmrClientPayload {
-                query,
-                report_receiver: _report_receiver,
-                responses_sender: mut state_diff_sender,
-            } = state_diff_receiver.next().await.unwrap();
+            let mut state_diff_payload = state_diff_receiver.next().await.unwrap();
             assert_eq!(
-                query,
-                StateDiffQuery(Query {
+                state_diff_payload.query,
+                Ok(StateDiffQuery(Query {
                     start_block: BlockHashOrNumber::Number(BlockNumber(start_block_number)),
                     direction: Direction::Forward,
                     limit: num_blocks,
                     step: 1,
-                }),
+                })),
                 "If the limit of the query is too low, try to increase \
                  SLEEP_DURATION_TO_LET_SYNC_ADVANCE",
             );
@@ -136,10 +127,7 @@ async fn state_diff_basic_flow() {
                 let txn = storage_reader.begin_ro_txn().unwrap();
                 assert_eq!(block_number, txn.get_state_marker().unwrap());
 
-                state_diff_sender
-                    .send(Ok(DataOrFin(Some(state_diff_chunk.clone()))))
-                    .await
-                    .unwrap();
+                state_diff_payload.send(DataOrFin(Some(state_diff_chunk.clone()))).await.unwrap();
 
                 tokio::time::sleep(SLEEP_DURATION_TO_LET_SYNC_ADVANCE).await;
 
@@ -184,7 +172,7 @@ async fn state_diff_basic_flow() {
                 };
                 assert_eq!(state_diff, expected_state_diff);
             }
-            state_diff_sender.send(Ok(DataOrFin(None))).await.unwrap();
+            state_diff_payload.send(DataOrFin(None)).await.unwrap();
         }
     };
 
@@ -339,13 +327,9 @@ async fn validate_state_diff_fails(
     // Create a future that will receive queries, send responses and validate the results.
     let parse_queries_future = async move {
         // Send a single header. There's no need to fill the entire query.
-        let SqmrClientPayload {
-            query: _query,
-            report_receiver: _report_receiver,
-            responses_sender: mut headers_sender,
-        } = header_receiver.next().await.unwrap();
-        headers_sender
-            .send(Ok(DataOrFin(Some(SignedBlockHeader {
+        let mut header_payload = header_receiver.next().await.unwrap();
+        header_payload
+            .send(DataOrFin(Some(SignedBlockHeader {
                 block_header: BlockHeader {
                     block_number: BlockNumber(0),
                     block_hash,
@@ -353,7 +337,7 @@ async fn validate_state_diff_fails(
                     ..Default::default()
                 },
                 signatures: vec![block_signature],
-            }))))
+            })))
             .await
             .unwrap();
 
@@ -367,19 +351,15 @@ async fn validate_state_diff_fails(
         tokio::time::resume();
 
         // Get a state diff query and validate it
-        let SqmrClientPayload {
-            query,
-            report_receiver: _report_reciever,
-            responses_sender: mut state_diffs_sender,
-        } = state_diff_receiver.next().await.unwrap();
+        let mut state_diff_payload = state_diff_receiver.next().await.unwrap();
         assert_eq!(
-            query,
-            StateDiffQuery(Query {
+            state_diff_payload.query,
+            Ok(StateDiffQuery(Query {
                 start_block: BlockHashOrNumber::Number(BlockNumber(0)),
                 direction: Direction::Forward,
                 limit: 1,
                 step: 1,
-            })
+            }))
         );
 
         // Send state diffs.
@@ -388,7 +368,7 @@ async fn validate_state_diff_fails(
             let txn = storage_reader.begin_ro_txn().unwrap();
             assert_eq!(0, txn.get_state_marker().unwrap().0);
 
-            state_diffs_sender.send(Ok(DataOrFin(state_diff_chunk))).await.unwrap();
+            state_diff_payload.send(DataOrFin(state_diff_chunk)).await.unwrap();
         }
         tokio::time::sleep(TIMEOUT_FOR_TEST).await;
         panic!("P2P sync did not receive error");

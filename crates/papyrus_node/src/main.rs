@@ -35,6 +35,14 @@ use papyrus_p2p_sync::client::{
 use papyrus_p2p_sync::server::{P2PSyncServer, P2PSyncServerChannels};
 use papyrus_p2p_sync::{Protocol, BUFFER_SIZE};
 use papyrus_protobuf::consensus::ConsensusMessage;
+use papyrus_protobuf::sync::{
+    DataOrFin,
+    HeaderQuery,
+    SignedBlockHeader,
+    StateDiffChunk,
+    StateDiffQuery,
+    TransactionQuery,
+};
 #[cfg(feature = "rpc")]
 use papyrus_rpc::run_server;
 use papyrus_storage::{open_storage, update_storage_metrics, StorageReader, StorageWriter};
@@ -44,6 +52,7 @@ use papyrus_sync::sources::pending::PendingSource;
 use papyrus_sync::{StateSync, StateSyncError, SyncConfig};
 use starknet_api::block::BlockHash;
 use starknet_api::felt;
+use starknet_api::transaction::{Transaction, TransactionOutput};
 use starknet_client::reader::objects::pending_data::{PendingBlock, PendingBlockOrDeprecated};
 use starknet_client::reader::PendingData;
 use tokio::sync::RwLock;
@@ -341,23 +350,42 @@ fn run_network(
     };
     let mut network_manager = network_manager::NetworkManager::new(network_config.clone());
     let local_peer_id = network_manager.get_local_peer_id();
-    let header_client_sender = network_manager
-        .register_sqmr_protocol_client(Protocol::SignedBlockHeader.into(), BUFFER_SIZE);
-    let state_diff_client_sender =
-        network_manager.register_sqmr_protocol_client(Protocol::StateDiff.into(), BUFFER_SIZE);
-    let transaction_client_sender =
-        network_manager.register_sqmr_protocol_client(Protocol::Transaction.into(), BUFFER_SIZE);
 
-    let header_server_channel = network_manager
+    let header_client_sender = network_manager
+        .register_sqmr_protocol_client::<HeaderQuery, DataOrFin<SignedBlockHeader>>(
+            Protocol::SignedBlockHeader.into(),
+            BUFFER_SIZE,
+        );
+    let state_diff_client_sender = network_manager
+        .register_sqmr_protocol_client::<StateDiffQuery, DataOrFin<StateDiffChunk>>(
+            Protocol::StateDiff.into(),
+            BUFFER_SIZE,
+        );
+    let transaction_client_sender =
+        network_manager.register_sqmr_protocol_client::<TransactionQuery, DataOrFin<(Transaction, TransactionOutput)>>(Protocol::Transaction.into(), BUFFER_SIZE);
+    let p2p_sync_client_channels = P2PSyncClientChannels::new(
+        header_client_sender,
+        state_diff_client_sender,
+        transaction_client_sender,
+    );
+
+    let header_server_receiver = network_manager
         .register_sqmr_protocol_server(Protocol::SignedBlockHeader.into(), BUFFER_SIZE);
-    let state_diff_server_channel =
+    let state_diff_server_receiver =
         network_manager.register_sqmr_protocol_server(Protocol::StateDiff.into(), BUFFER_SIZE);
-    let transaction_server_channel =
+    let transaction_server_receiver =
         network_manager.register_sqmr_protocol_server(Protocol::Transaction.into(), BUFFER_SIZE);
-    let class_server_channel =
+    let class_server_receiver =
         network_manager.register_sqmr_protocol_server(Protocol::Class.into(), BUFFER_SIZE);
-    let event_server_channel =
+    let event_server_receiver =
         network_manager.register_sqmr_protocol_server(Protocol::Event.into(), BUFFER_SIZE);
+    let p2p_sync_server_channels = P2PSyncServerChannels::new(
+        header_server_receiver,
+        state_diff_server_receiver,
+        transaction_server_receiver,
+        class_server_receiver,
+        event_server_receiver,
+    );
 
     let consensus_channels = match consensus_config {
         Some(consensus_config) => Some(
@@ -366,18 +394,6 @@ fn run_network(
         ),
         None => None,
     };
-    let p2p_sync_client_channels = P2PSyncClientChannels::new(
-        header_client_sender,
-        state_diff_client_sender,
-        transaction_client_sender,
-    );
-    let p2p_sync_server_channels = P2PSyncServerChannels::new(
-        header_server_channel,
-        state_diff_server_channel,
-        transaction_server_channel,
-        class_server_channel,
-        event_server_channel,
-    );
 
     Ok((
         network_manager.run().boxed(),
