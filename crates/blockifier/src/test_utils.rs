@@ -437,3 +437,9 @@ pub fn update_json_value(base: &mut serde_json::Value, update: serde_json::Value
         _ => panic!("Both base and update should be of type serde_json::Value::Object."),
     }
 }
+
+#[cfg(test)]
+#[rstest_reuse::template]
+#[rstest]
+// TODO(Nimrod): Add true as a case.
+fn include_l2_gas(#[values(false)] has_l2_gas: bool) {}
