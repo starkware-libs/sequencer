@@ -930,6 +930,7 @@ fn test_max_fee_to_max_steps_conversion(
         nonce: nonce_manager.next(account_address),
     });
     let tx_context1 = Arc::new(block_context.to_tx_context(&account_tx1));
+    let has_l2_gas_bounds = tx_context1.tx_info.has_l2_gas_bounds();
     let execution_context1 = EntryPointExecutionContext::new_invoke(tx_context1, true);
     let max_steps_limit1 = execution_context1.vm_run_resources.get_n_steps();
     let tx_execution_info1 = account_tx1.execute(&mut state, &block_context, true, true).unwrap();
@@ -937,7 +938,11 @@ fn test_max_fee_to_max_steps_conversion(
     let gas_used_vector1 = tx_execution_info1
         .receipt
         .resources
-        .to_gas_vector(&block_context.versioned_constants, block_context.block_info.use_kzg_da)
+        .to_gas_vector(
+            &block_context.versioned_constants,
+            block_context.block_info.use_kzg_da,
+            has_l2_gas_bounds,
+        )
         .unwrap();
 
     // Second invocation of `with_arg` gets twice the pre-calculated actual fee as max_fee.
@@ -950,6 +955,7 @@ fn test_max_fee_to_max_steps_conversion(
         nonce: nonce_manager.next(account_address),
     });
     let tx_context2 = Arc::new(block_context.to_tx_context(&account_tx2));
+    let has_l2_gas_bounds = tx_context2.tx_info.has_l2_gas_bounds();
     let execution_context2 = EntryPointExecutionContext::new_invoke(tx_context2, true);
     let max_steps_limit2 = execution_context2.vm_run_resources.get_n_steps();
     let tx_execution_info2 = account_tx2.execute(&mut state, &block_context, true, true).unwrap();
@@ -957,7 +963,11 @@ fn test_max_fee_to_max_steps_conversion(
     let gas_used_vector2 = tx_execution_info2
         .receipt
         .resources
-        .to_gas_vector(&block_context.versioned_constants, block_context.block_info.use_kzg_da)
+        .to_gas_vector(
+            &block_context.versioned_constants,
+            block_context.block_info.use_kzg_da,
+            has_l2_gas_bounds,
+        )
         .unwrap();
 
     // Test that steps limit doubles as max_fee doubles, but actual consumed steps and fee remains.

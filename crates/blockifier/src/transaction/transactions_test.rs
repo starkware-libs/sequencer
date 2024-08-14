@@ -475,8 +475,11 @@ fn test_invoke_tx(
 
     // Build expected fee transfer call info.
     let fee_type = &tx_context.tx_info.fee_type();
-    let expected_actual_fee =
-        actual_execution_info.receipt.resources.calculate_tx_fee(block_context, fee_type).unwrap();
+    let expected_actual_fee = actual_execution_info
+        .receipt
+        .resources
+        .calculate_tx_fee(block_context, fee_type, tx_context.tx_info.has_l2_gas_bounds())
+        .unwrap();
     let expected_fee_transfer_call_info = expected_fee_transfer_call_info(
         &tx_context,
         sender_address,
@@ -507,7 +510,11 @@ fn test_invoke_tx(
     );
 
     let total_gas = expected_actual_resources
-        .to_gas_vector(&block_context.versioned_constants, block_context.block_info.use_kzg_da)
+        .to_gas_vector(
+            &block_context.versioned_constants,
+            block_context.block_info.use_kzg_da,
+            tx_context.tx_info.has_l2_gas_bounds(),
+        )
         .unwrap();
 
     let expected_execution_info = TransactionExecutionInfo {
@@ -1198,8 +1205,11 @@ fn test_declare_tx(
     );
 
     // Build expected fee transfer call info.
-    let expected_actual_fee =
-        actual_execution_info.receipt.resources.calculate_tx_fee(block_context, fee_type).unwrap();
+    let expected_actual_fee = actual_execution_info
+        .receipt
+        .resources
+        .calculate_tx_fee(block_context, fee_type, tx_context.tx_info.has_l2_gas_bounds())
+        .unwrap();
     let expected_fee_transfer_call_info = expected_fee_transfer_call_info(
         tx_context,
         sender_address,
@@ -1228,8 +1238,9 @@ fn test_declare_tx(
         use_kzg_da,
     );
 
-    let expected_total_gas =
-        expected_actual_resources.to_gas_vector(versioned_constants, use_kzg_da).unwrap();
+    let expected_total_gas = expected_actual_resources
+        .to_gas_vector(versioned_constants, use_kzg_da, tx_context.tx_info.has_l2_gas_bounds())
+        .unwrap();
 
     let expected_execution_info = TransactionExecutionInfo {
         validate_call_info: expected_validate_call_info,
@@ -1359,8 +1370,11 @@ fn test_deploy_account_tx(
     });
 
     // Build expected fee transfer call info.
-    let expected_actual_fee =
-        actual_execution_info.receipt.resources.calculate_tx_fee(block_context, fee_type).unwrap();
+    let expected_actual_fee = actual_execution_info
+        .receipt
+        .resources
+        .calculate_tx_fee(block_context, fee_type, tx_context.tx_info.has_l2_gas_bounds())
+        .unwrap();
     let expected_fee_transfer_call_info = expected_fee_transfer_call_info(
         tx_context,
         deployed_account_address,
@@ -1397,7 +1411,11 @@ fn test_deploy_account_tx(
     );
 
     let expected_total_gas = actual_resources
-        .to_gas_vector(&block_context.versioned_constants, block_context.block_info.use_kzg_da)
+        .to_gas_vector(
+            &block_context.versioned_constants,
+            block_context.block_info.use_kzg_da,
+            tx_context.tx_info.has_l2_gas_bounds(),
+        )
         .unwrap();
 
     let expected_execution_info = TransactionExecutionInfo {
@@ -1920,7 +1938,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     );
 
     let total_gas = expected_tx_resources
-        .to_gas_vector(versioned_constants, block_context.block_info.use_kzg_da)
+        .to_gas_vector(versioned_constants, block_context.block_info.use_kzg_da, false)
         .unwrap();
 
     // Build the expected execution info.
@@ -1954,9 +1972,12 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     let tx_no_fee = L1HandlerTransaction::create_for_testing(Fee(0), contract_address);
     let error = tx_no_fee.execute(state, block_context, true, true).unwrap_err();
     // Today, we check that the paid_fee is positive, no matter what was the actual fee.
-    let expected_actual_fee =
-        (expected_execution_info.receipt.resources.calculate_tx_fee(block_context, &FeeType::Eth))
-            .unwrap();
+    let expected_actual_fee = (expected_execution_info.receipt.resources.calculate_tx_fee(
+        block_context,
+        &FeeType::Eth,
+        false,
+    ))
+    .unwrap();
     assert_matches!(
         error,
         TransactionExecutionError::TransactionFeeError(
