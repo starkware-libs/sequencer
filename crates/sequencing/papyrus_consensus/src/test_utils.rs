@@ -58,7 +58,7 @@ mock! {
             fin_receiver: oneshot::Receiver<BlockHash>,
         ) -> Result<(), ConsensusError>;
 
-        async fn notify_decision(
+        async fn decision_reached(
             &mut self,
             block: TestBlock,
             precommits: Vec<Vote>,
