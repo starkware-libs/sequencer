@@ -17,7 +17,7 @@ use crate::fee::gas_usage::{
 };
 use crate::invoke_tx_args;
 use crate::state::cached_state::StateChangesCount;
-use crate::test_utils::{DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE};
+use crate::test_utils::{include_l2_gas, DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE};
 use crate::transaction::objects::{FeeType, GasVector, StarknetResources};
 use crate::transaction::test_utils::account_invoke_tx;
 use crate::utils::{u128_div_ceil, u128_from_usize};
@@ -27,10 +27,11 @@ fn versioned_constants() -> &'static VersionedConstants {
     VersionedConstants::latest_constants()
 }
 
-#[rstest]
+#[rstest_reuse::apply(include_l2_gas)]
 fn test_get_event_gas_cost(
     versioned_constants: &VersionedConstants,
     #[values(false, true)] use_kzg_da: bool,
+    has_l2_gas: bool,
 ) {
     let l2_resource_gas_costs = &versioned_constants.l2_resource_gas_costs;
     let (event_key_factor, data_word_cost) =
@@ -41,7 +42,7 @@ fn test_get_event_gas_cost(
         StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, call_infos_iter);
     assert_eq!(
         GasVector::default(),
-        starknet_resources.to_gas_vector(versioned_constants, use_kzg_da)
+        starknet_resources.to_gas_vector(versioned_constants, use_kzg_da, has_l2_gas)
     );
 
     let create_event = |keys_size: usize, data_size: usize| OrderedEvent {
@@ -75,13 +76,14 @@ fn test_get_event_gas_cost(
     };
     let call_infos = vec![call_info_1, call_info_2, call_info_3];
     let call_infos_iter = call_infos.iter();
+    // TODO(Nimrod): Modify the expected gas vector l2-gas events cost is implemented.
     let expected = GasVector::from_l1_gas(
         // 8 keys and 11 data words overall.
         (data_word_cost * (event_key_factor * 8_u128 + 11_u128)).to_integer(),
     );
     let starknet_resources =
         StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, call_infos_iter);
-    let gas_vector = starknet_resources.to_gas_vector(versioned_constants, use_kzg_da);
+    let gas_vector = starknet_resources.to_gas_vector(versioned_constants, use_kzg_da, has_l2_gas);
     assert_eq!(expected, gas_vector);
     assert_ne!(GasVector::default(), gas_vector)
 }
