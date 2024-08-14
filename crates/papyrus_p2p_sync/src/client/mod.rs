@@ -20,18 +20,10 @@ use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_network::network_manager::SqmrClientSender;
 use papyrus_protobuf::converters::ProtobufConversionError;
-use papyrus_protobuf::sync::{
-    DataOrFin,
-    HeaderQuery,
-    SignedBlockHeader,
-    StateDiffChunk,
-    StateDiffQuery,
-    TransactionQuery,
-};
+use papyrus_protobuf::sync::{HeaderQuery, StateDiffQuery, TransactionQuery};
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, BlockSignature};
-use starknet_api::transaction::{Transaction, TransactionOutput};
 use state_diff::StateDiffStreamBuilder;
 use stream_builder::{DataStreamBuilder, DataStreamResult};
 use tokio_stream::StreamExt;
@@ -172,15 +164,13 @@ pub enum P2PSyncClientError {
     SendError(#[from] SendError),
 }
 
-type HeaderSqmrSender = SqmrClientSender<HeaderQuery, DataOrFin<SignedBlockHeader>>;
-type StateSqmrDiffSender = SqmrClientSender<StateDiffQuery, DataOrFin<StateDiffChunk>>;
-type TransactionSqmrSender =
-    SqmrClientSender<TransactionQuery, DataOrFin<(Transaction, TransactionOutput)>>;
+type HeaderSqmrSender = SqmrClientSender;
+type StateSqmrDiffSender = SqmrClientSender;
+type TransactionSqmrSender = SqmrClientSender;
 
 pub struct P2PSyncClientChannels {
     header_sender: HeaderSqmrSender,
     state_diff_sender: StateSqmrDiffSender,
-    #[allow(dead_code)]
     transaction_sender: TransactionSqmrSender,
 }
 
@@ -197,7 +187,7 @@ impl P2PSyncClientChannels {
         storage_reader: StorageReader,
         config: P2PSyncClientConfig,
     ) -> impl Stream<Item = DataStreamResult> + Send + 'static {
-        let header_stream = HeaderStreamBuilder::create_stream(
+        let header_stream = HeaderStreamBuilder::create_stream::<HeaderQuery>(
             self.header_sender,
             storage_reader.clone(),
             config.wait_period_for_new_data,
@@ -205,7 +195,7 @@ impl P2PSyncClientChannels {
             config.stop_sync_at_block_number,
         );
 
-        let state_diff_stream = StateDiffStreamBuilder::create_stream(
+        let state_diff_stream = StateDiffStreamBuilder::create_stream::<StateDiffQuery>(
             self.state_diff_sender,
             storage_reader.clone(),
             config.wait_period_for_new_data,
@@ -213,7 +203,7 @@ impl P2PSyncClientChannels {
             config.stop_sync_at_block_number,
         );
 
-        let transaction_stream = TransactionStreamFactory::create_stream(
+        let transaction_stream = TransactionStreamFactory::create_stream::<TransactionQuery>(
             self.transaction_sender,
             storage_reader.clone(),
             config.wait_period_for_new_data,

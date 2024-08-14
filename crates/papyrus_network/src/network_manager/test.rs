@@ -236,7 +236,7 @@ async fn register_sqmr_protocol_client_and_use_channels() {
             .enumerate()
             .take(VEC1.len())
             .map(|(i, result)| {
-                let result = result.unwrap();
+                let result: Vec<_> = result.unwrap();
                 // this simulates how the mock swarm parses the query and sends responses to it
                 assert_eq!(result, vec![VEC1[i]]);
                 result
