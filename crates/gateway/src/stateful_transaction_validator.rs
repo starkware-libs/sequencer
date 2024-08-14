@@ -20,7 +20,7 @@ use tracing::error;
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::{GatewaySpecError, StatefulTransactionValidatorResult};
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
-use crate::utils::{external_tx_to_account_tx, get_sender_address, get_tx_hash};
+use crate::utils::{external_tx_to_account_tx, get_sender_address};
 
 #[cfg(test)]
 #[path = "stateful_transaction_validator_test.rs"]
@@ -76,7 +76,7 @@ impl StatefulTransactionValidator {
             optional_class_info,
             &self.config.chain_info.chain_id,
         )?;
-        let tx_hash = get_tx_hash(&account_tx);
+        let tx_hash = account_tx.tx_hash();
         let sender_address = get_sender_address(&account_tx);
         let account_nonce = validator.get_nonce(sender_address).map_err(|e| {
             error!("Failed to get nonce for sender address {}: {}", sender_address, e);

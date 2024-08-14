@@ -345,6 +345,10 @@ impl DeployAccountTransaction {
     pub fn tx(&self) -> &starknet_api::transaction::DeployAccountTransaction {
         &self.tx
     }
+
+    pub fn tx_hash(&self) -> TransactionHash {
+        self.tx_hash
+    }
 }
 
 impl<S: State> Executable<S> for DeployAccountTransaction {
@@ -379,7 +383,7 @@ impl<S: State> Executable<S> for DeployAccountTransaction {
 impl TransactionInfoCreator for DeployAccountTransaction {
     fn create_tx_info(&self) -> TransactionInfo {
         let common_fields = CommonAccountFields {
-            transaction_hash: self.tx_hash,
+            transaction_hash: self.tx_hash(),
             version: self.version(),
             signature: self.signature(),
             nonce: self.nonce(),
@@ -439,6 +443,10 @@ impl InvokeTransaction {
         (sender_address, ContractAddress),
         (version, TransactionVersion)
     );
+
+    pub fn tx_hash(&self) -> TransactionHash {
+        self.tx_hash
+    }
 }
 
 impl<S: State> Executable<S> for InvokeTransaction {
@@ -487,7 +495,7 @@ impl<S: State> Executable<S> for InvokeTransaction {
 impl TransactionInfoCreator for InvokeTransaction {
     fn create_tx_info(&self) -> TransactionInfo {
         let common_fields = CommonAccountFields {
-            transaction_hash: self.tx_hash,
+            transaction_hash: self.tx_hash(),
             version: self.version(),
             signature: self.signature(),
             nonce: self.nonce(),
