@@ -6,7 +6,6 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::Nonce;
-use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_types_core::felt::Felt;
 use validator::Validate;
 
@@ -17,7 +16,6 @@ pub struct GatewayConfig {
     pub network_config: GatewayNetworkConfig,
     pub stateless_tx_validator_config: StatelessTransactionValidatorConfig,
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
-    pub compiler_config: SierraToCasmCompilationConfig,
 }
 
 impl SerializeConfig for GatewayConfig {
@@ -32,7 +30,6 @@ impl SerializeConfig for GatewayConfig {
                 self.stateful_tx_validator_config.dump(),
                 "stateful_tx_validator_config",
             ),
-            append_sub_config_name(self.compiler_config.dump(), "compiler_config"),
         ]
         .into_iter()
         .flatten()
