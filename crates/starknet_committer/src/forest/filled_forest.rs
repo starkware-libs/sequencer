@@ -100,11 +100,10 @@ impl FilledForest {
             Arc::new(contracts_trie_modifications),
         ));
 
-        Ok(Self {
-            storage_tries: filled_storage_tries,
-            contracts_trie: contracts_trie_task.await??,
-            classes_trie: classes_trie_task.await??,
-        })
+        let contracts_trie = contracts_trie_task.await?.map_err(ForestError::ContractsTrie)?;
+        let classes_trie = classes_trie_task.await?.map_err(ForestError::ClassesTrie)?;
+
+        Ok(Self { storage_tries: filled_storage_tries, contracts_trie, classes_trie })
     }
 
     async fn new_contract_state<TH: ForestHashFunction + 'static>(
@@ -116,7 +115,8 @@ impl FilledForest {
     ) -> ForestResult<(ContractAddress, ContractState, StorageTrie)> {
         let filled_storage_trie =
             StorageTrie::create::<TH>(Arc::new(updated_storage_trie), Arc::new(inner_updates))
-                .await?;
+                .await
+                .map_err(ForestError::StorageTrie)?;
         let new_root_hash = filled_storage_trie.get_root_hash();
         Ok((
             contract_address,

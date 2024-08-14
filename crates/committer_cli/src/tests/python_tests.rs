@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::io;
 
 use ethnum::U256;
 use serde_json::json;
@@ -34,7 +33,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
 };
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_patricia::storage::db_object::DBObject;
-use starknet_patricia::storage::errors::{DeserializationError, SerializationError};
+use starknet_patricia::storage::errors::DeserializationError;
 use starknet_patricia::storage::map_storage::MapStorage;
 use starknet_patricia::storage::storage_trait::{Storage, StorageKey, StorageValue};
 use starknet_types_core::hash::{Pedersen, StarkHash};
@@ -43,7 +42,6 @@ use tracing::{debug, error, info, warn};
 
 use super::utils::objects::{get_thin_state_diff, get_transaction_output_for_hash, get_tx_data};
 use super::utils::parse_from_python::TreeFlowInput;
-use crate::filled_tree_output::errors::FilledForestError;
 use crate::filled_tree_output::filled_forest::SerializedForest;
 use crate::parse_input::cast::InputImpl;
 use crate::parse_input::read::parse_input;
@@ -87,14 +85,8 @@ pub enum PythonTestError {
     InvalidCastError(#[from] std::num::TryFromIntError),
     #[error(transparent)]
     DeserializationTestFailure(#[from] DeserializationError),
-    #[error(transparent)]
-    StdinReadError(#[from] io::Error),
     #[error("None value found in input.")]
     NoneInputError,
-    #[error(transparent)]
-    SerializationError(#[from] SerializationError),
-    #[error(transparent)]
-    FilledForest(#[from] FilledForestError),
 }
 
 /// Implements conversion from a string to a `PythonTest`.
