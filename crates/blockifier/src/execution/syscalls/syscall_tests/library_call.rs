@@ -82,7 +82,7 @@ fn test_library_call_assert_fails(test_contract: FeatureContract) {
     assert!(err.to_string().contains("x != y"));
 }
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 276880; "VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 472710; "VM")]
 fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
@@ -113,7 +113,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: 9999745020,
+        initial_gas: 9999601320,
         ..trivial_external_entry_point_new(test_contract)
     };
     let library_entry_point = CallEntryPoint {
@@ -128,12 +128,12 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: 9999823550,
+        initial_gas: 9999751700,
         ..trivial_external_entry_point_new(test_contract)
     };
     let storage_entry_point = CallEntryPoint {
         calldata: calldata![felt!(key), felt!(value)],
-        initial_gas: 9999656870,
+        initial_gas: 9999451180,
         ..nested_storage_entry_point
     };
 
