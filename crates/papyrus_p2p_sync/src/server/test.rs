@@ -5,7 +5,11 @@ use futures::StreamExt;
 use lazy_static::lazy_static;
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_common::state::create_random_state_diff;
-use papyrus_network::network_manager::{ServerQueryManager, SqmrServerReceiver};
+use papyrus_network::network_manager::test_utils::{
+    create_test_server_query_manager,
+    create_test_sqmr_server_channel,
+};
+use papyrus_network::network_manager::ServerQueryManager;
 use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_protobuf::sync::{
     BlockHashOrNumber,
@@ -332,7 +336,7 @@ async fn run_test<T, F, TQuery>(
     let query = Query { start_block, direction: Direction::Forward, limit: NUM_OF_BLOCKS, step: 1 };
     let query = TQuery::from(query);
     let (server_query_manager, _report_sender, response_reciever) =
-        ServerQueryManager::<TQuery, DataOrFin<T>>::create_test_server_query_manager(query);
+        create_test_server_query_manager(query);
     register_query::<T, TQuery>(storage_reader, server_query_manager);
 
     // run p2p_sync_server and collect query results.
@@ -366,23 +370,18 @@ pub struct TestArgs {
 #[allow(clippy::type_complexity)]
 fn setup() -> TestArgs {
     let ((storage_reader, storage_writer), _temp_dir) = get_test_storage();
-    let (header_sender, header_receiver) = futures::channel::mpsc::channel(BUFFER_SIZE);
-    let (state_diff_sender, state_diff_receiver) = futures::channel::mpsc::channel(BUFFER_SIZE);
-    let (transaction_sender, transaction_receiver) = futures::channel::mpsc::channel(BUFFER_SIZE);
-    let (class_sender, class_receiver) = futures::channel::mpsc::channel(BUFFER_SIZE);
-    let (event_sender, event_receiver) = futures::channel::mpsc::channel(BUFFER_SIZE);
-    let header_receiver = Box::new(header_receiver);
-    let state_diff_receiver = Box::new(state_diff_receiver);
-    let transaction_receiver = Box::new(transaction_receiver);
-    let class_receiver = Box::new(class_receiver);
-    let event_receiver = Box::new(event_receiver);
-    let p2p_sync_server_channels = P2PSyncServerChannels::new(
-        SqmrServerReceiver::new(header_receiver),
-        SqmrServerReceiver::new(state_diff_receiver),
-        SqmrServerReceiver::new(transaction_receiver),
-        SqmrServerReceiver::new(class_receiver),
-        SqmrServerReceiver::new(event_receiver),
-    );
+    let (header_sender, header_receiver) = create_test_sqmr_server_channel(BUFFER_SIZE);
+    let (state_diff_sender, state_diff_receiver) = create_test_sqmr_server_channel(BUFFER_SIZE);
+    let (transaction_sender, transaction_receiver) = create_test_sqmr_server_channel(BUFFER_SIZE);
+    let (class_sender, class_receiver) = create_test_sqmr_server_channel(BUFFER_SIZE);
+    let (event_sender, event_receiver) = create_test_sqmr_server_channel(BUFFER_SIZE);
+    let p2p_sync_server_channels = P2PSyncServerChannels {
+        header_receiver,
+        state_diff_receiver,
+        transaction_receiver,
+        class_receiver,
+        event_receiver,
+    };
 
     let p2p_sync_server =
         super::P2PSyncServer::new(storage_reader.clone(), p2p_sync_server_channels);
