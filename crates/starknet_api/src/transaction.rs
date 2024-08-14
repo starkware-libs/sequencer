@@ -939,6 +939,12 @@ impl TryFrom<Vec<(Resource, ResourceBounds)>> for ResourceBoundsMapping {
     }
 }
 
+impl ResourceBoundsMapping {
+    pub fn has_l2_gas(&self) -> bool {
+        self.0.len() == 3
+    }
+}
+
 /// Paymaster-related data.
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct PaymasterData(pub Vec<Felt>);
