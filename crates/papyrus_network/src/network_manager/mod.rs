@@ -27,6 +27,7 @@ use self::swarm_trait::SwarmTrait;
 use crate::bin_utils::build_swarm;
 use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour::{self, BridgedBehaviour};
+use crate::sqmr::behaviour::SessionError;
 use crate::sqmr::{self, InboundSessionId, OutboundSessionId, SessionId};
 use crate::utils::{is_localhost, StreamHashMap};
 use crate::{gossipsub_impl, NetworkConfig};
@@ -300,10 +301,6 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     }
 
     fn handle_to_other_behaviour_event(&mut self, event: mixed_behaviour::ToOtherBehaviourEvent) {
-        // TODO(shahak): Move this logic to mixed_behaviour.
-        if let mixed_behaviour::ToOtherBehaviourEvent::NoOp = event {
-            return;
-        }
         self.swarm.behaviour_mut().identify.on_other_behaviour_event(&event);
         self.swarm.behaviour_mut().kademlia.on_other_behaviour_event(&event);
         if let Some(discovery) = self.swarm.behaviour_mut().discovery.as_mut() {
@@ -315,136 +312,162 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     }
 
     fn handle_sqmr_behaviour_event(&mut self, event: sqmr::behaviour::ExternalEvent) {
-        // TODO(shahak): Extract the body of each match arm to a separate function.
         match event {
             sqmr::behaviour::ExternalEvent::NewInboundSession {
                 query,
                 inbound_session_id,
                 peer_id,
                 protocol_name,
-            } => {
-                self.num_active_inbound_sessions += 1;
-                gauge!(
-                    papyrus_metrics::PAPYRUS_NUM_ACTIVE_INBOUND_SESSIONS,
-                    self.num_active_inbound_sessions as f64
-                );
-                let (report_sender, report_receiver) = oneshot::channel::<()>();
-                self.handle_new_report_receiver(peer_id, report_receiver);
-                // TODO: consider returning error instead of panic.
-                let Some(query_sender) = self.sqmr_inbound_payload_senders.get_mut(&protocol_name)
-                else {
-                    return;
-                };
-                let (responses_sender, responses_receiver) = futures::channel::mpsc::channel(
-                    *self.inbound_protocol_to_buffer_size.get(&protocol_name).expect(
-                        "A protocol is registered in NetworkManager but it has no buffer size.",
-                    ),
-                );
-                let responses_sender = Box::new(responses_sender);
-                self.sqmr_inbound_response_receivers.insert(
-                    inbound_session_id,
-                    // Adding a None at the end of the stream so that we will receive a message
-                    // letting us know the stream has ended.
-                    Box::new(responses_receiver.map(Some).chain(stream::once(ready(None)))),
-                );
-
-                // TODO(shahak): Close the inbound session if the buffer is full.
-                send_now(
-                    query_sender,
-                    SqmrServerPayload { query, report_sender, responses_sender },
-                    format!(
-                        "Received an inbound query while the buffer is full. Dropping query for \
-                         session {inbound_session_id:?}"
-                    ),
-                );
-            }
+            } => self.handle_sqmr_behaviour_new_inbound_session(
+                peer_id,
+                protocol_name,
+                inbound_session_id,
+                query,
+            ),
             sqmr::behaviour::ExternalEvent::ReceivedResponse {
                 outbound_session_id,
                 response,
                 peer_id,
             } => {
-                trace!(
-                    "Received response from peer for session id: {outbound_session_id:?}. sending \
-                     to sync subscriber."
-                );
-                if let Some(report_receiver) = self
-                    .sqmr_outbound_report_receivers_awaiting_assignment
-                    .remove(&outbound_session_id)
-                {
-                    self.handle_new_report_receiver(peer_id, report_receiver)
-                }
-                if let Some(response_sender) =
-                    self.sqmr_outbound_response_senders.get_mut(&outbound_session_id)
-                {
-                    // TODO(shahak): Close the channel if the buffer is full.
-                    send_now(
-                        response_sender,
-                        response,
-                        format!(
-                            "Received response for an outbound query while the buffer is full. \
-                             Dropping it. Session: {outbound_session_id:?}"
-                        ),
-                    );
-                }
+                self.handle_sqmr_behvaiour_received_response(outbound_session_id, peer_id, response)
             }
             sqmr::behaviour::ExternalEvent::SessionFailed { session_id, error } => {
-                error!("Session {session_id:?} failed on {error:?}");
-                self.report_session_removed_to_metrics(session_id);
-                // TODO: Handle reputation and retry.
-                if let SessionId::OutboundSessionId(outbound_session_id) = session_id {
-                    self.sqmr_outbound_response_senders.remove(&outbound_session_id);
-                    if let Some(_report_receiver) = self
-                        .sqmr_outbound_report_receivers_awaiting_assignment
-                        .remove(&outbound_session_id)
-                    {
-                        debug!(
-                            "Outbound session failed before peer assignment. Ignoring incoming \
-                             reports for the session."
-                        );
-                    }
-                }
+                self.handle_sqmr_behaviour_session_failed(session_id, error)
             }
             sqmr::behaviour::ExternalEvent::SessionFinishedSuccessfully { session_id } => {
-                debug!("Session completed successfully. session_id: {session_id:?}");
-                self.report_session_removed_to_metrics(session_id);
-                if let SessionId::OutboundSessionId(outbound_session_id) = session_id {
-                    self.sqmr_outbound_response_senders.remove(&outbound_session_id);
-                    if let Some(_report_receiver) = self
-                        .sqmr_outbound_report_receivers_awaiting_assignment
-                        .remove(&outbound_session_id)
-                    {
-                        error!(
-                            "Outbound session finished with no messages in it. Ignoring incoming \
-                             reports for the session."
-                        );
-                    }
-                }
+                self.handle_sqmr_behviour_session_finished_successfully(session_id)
+            }
+        }
+    }
+
+    fn handle_sqmr_behaviour_new_inbound_session(
+        &mut self,
+        peer_id: PeerId,
+        protocol_name: StreamProtocol,
+        inbound_session_id: InboundSessionId,
+        query: Vec<u8>,
+    ) {
+        self.num_active_inbound_sessions += 1;
+        gauge!(
+            papyrus_metrics::PAPYRUS_NUM_ACTIVE_INBOUND_SESSIONS,
+            self.num_active_inbound_sessions as f64
+        );
+        let (report_sender, report_receiver) = oneshot::channel::<()>();
+        self.handle_new_report_receiver(peer_id, report_receiver);
+        // TODO: consider returning error instead of panic.
+        let Some(query_sender) = self.sqmr_inbound_payload_senders.get_mut(&protocol_name) else {
+            return;
+        };
+        let (responses_sender, responses_receiver) = futures::channel::mpsc::channel(
+            *self
+                .inbound_protocol_to_buffer_size
+                .get(&protocol_name)
+                .expect("A protocol is registered in NetworkManager but it has no buffer size."),
+        );
+        let responses_sender = Box::new(responses_sender);
+        self.sqmr_inbound_response_receivers.insert(
+            inbound_session_id,
+            // Adding a None at the end of the stream so that we will receive a message
+            // letting us know the stream has ended.
+            Box::new(responses_receiver.map(Some).chain(stream::once(ready(None)))),
+        );
+
+        // TODO(shahak): Close the inbound session if the buffer is full.
+        send_now(
+            query_sender,
+            SqmrServerPayload { query, report_sender, responses_sender },
+            format!(
+                "Received an inbound query while the buffer is full. Dropping query for session \
+                 {inbound_session_id:?}"
+            ),
+        );
+    }
+
+    fn handle_sqmr_behvaiour_received_response(
+        &mut self,
+        outbound_session_id: OutboundSessionId,
+        peer_id: PeerId,
+        response: Vec<u8>,
+    ) {
+        trace!(
+            "Received response from peer for session id: {outbound_session_id:?}. sending to sync \
+             subscriber."
+        );
+        if let Some(report_receiver) =
+            self.sqmr_outbound_report_receivers_awaiting_assignment.remove(&outbound_session_id)
+        {
+            self.handle_new_report_receiver(peer_id, report_receiver)
+        }
+        if let Some(response_sender) =
+            self.sqmr_outbound_response_senders.get_mut(&outbound_session_id)
+        {
+            // TODO(shahak): Close the channel if the buffer is full.
+            send_now(
+                response_sender,
+                response,
+                format!(
+                    "Received response for an outbound query while the buffer is full. Dropping \
+                     it. Session: {outbound_session_id:?}"
+                ),
+            );
+        }
+    }
+
+    fn handle_sqmr_behaviour_session_failed(&mut self, session_id: SessionId, error: SessionError) {
+        error!("Session {session_id:?} failed on {error:?}");
+        self.report_session_removed_to_metrics(session_id);
+        // TODO: Handle reputation and retry.
+        if let SessionId::OutboundSessionId(outbound_session_id) = session_id {
+            self.sqmr_outbound_response_senders.remove(&outbound_session_id);
+            if let Some(_report_receiver) =
+                self.sqmr_outbound_report_receivers_awaiting_assignment.remove(&outbound_session_id)
+            {
+                debug!(
+                    "Outbound session failed before peer assignment. Ignoring incoming reports \
+                     for the session."
+                );
+            }
+        }
+    }
+
+    fn handle_sqmr_behviour_session_finished_successfully(&mut self, session_id: SessionId) {
+        debug!("Session completed successfully. session_id: {session_id:?}");
+        self.report_session_removed_to_metrics(session_id);
+        if let SessionId::OutboundSessionId(outbound_session_id) = session_id {
+            self.sqmr_outbound_response_senders.remove(&outbound_session_id);
+            if let Some(_report_receiver) =
+                self.sqmr_outbound_report_receivers_awaiting_assignment.remove(&outbound_session_id)
+            {
+                error!(
+                    "Outbound session finished with no messages in it. Ignoring incoming reports \
+                     for the session."
+                );
             }
         }
     }
 
     fn handle_gossipsub_behaviour_event(&mut self, event: gossipsub_impl::ExternalEvent) {
-        match event {
-            gossipsub_impl::ExternalEvent::Received { originated_peer_id, message, topic_hash } => {
-                let (report_sender, report_receiver) = oneshot::channel::<()>();
-                self.handle_new_report_receiver(originated_peer_id, report_receiver);
-                let Some(sender) = self.broadcasted_messages_senders.get_mut(&topic_hash) else {
+        let gossipsub_impl::ExternalEvent::Received { originated_peer_id, message, topic_hash } =
+            event;
+        {
+            let (report_sender, report_receiver) = oneshot::channel::<()>();
+            self.handle_new_report_receiver(originated_peer_id, report_receiver);
+            let Some(sender) = self.broadcasted_messages_senders.get_mut(&topic_hash) else {
+                error!(
+                    "Received a message from a topic we're not subscribed to with hash \
+                     {topic_hash:?}"
+                );
+                return;
+            };
+            let send_result = sender.try_send((message, report_sender));
+            if let Err(e) = send_result {
+                if e.is_disconnected() {
+                    panic!("Receiver was dropped. This should never happen.")
+                } else if e.is_full() {
                     error!(
-                        "Received a message from a topic we're not subscribed to with hash \
-                         {topic_hash:?}"
+                        "Receiver buffer is full. Dropping broadcasted message for topic with \
+                         hash: {topic_hash:?}."
                     );
-                    return;
-                };
-                let send_result = sender.try_send((message, report_sender));
-                if let Err(e) = send_result {
-                    if e.is_disconnected() {
-                        panic!("Receiver was dropped. This should never happen.")
-                    } else if e.is_full() {
-                        error!(
-                            "Receiver buffer is full. Dropping broadcasted message for topic with \
-                             hash: {topic_hash:?}."
-                        );
-                    }
                 }
             }
         }
