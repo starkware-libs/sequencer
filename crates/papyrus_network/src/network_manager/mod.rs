@@ -2,6 +2,8 @@ mod swarm_trait;
 
 #[cfg(test)]
 mod test;
+#[cfg(feature = "testing")]
+pub mod test_utils;
 
 use std::collections::HashMap;
 use std::pin::Pin;
@@ -38,11 +40,11 @@ pub enum NetworkError {
 pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     swarm: SwarmT,
     inbound_protocol_to_buffer_size: HashMap<StreamProtocol, usize>,
-    sqmr_inbound_response_receivers: StreamHashMap<InboundSessionId, ResponsesReceiverForNetwork>,
+    sqmr_inbound_response_receivers: StreamHashMap<InboundSessionId, ResponsesReceiver>,
     sqmr_inbound_payload_senders: HashMap<StreamProtocol, SqmrServerSender>,
 
     sqmr_outbound_payload_receivers: StreamHashMap<StreamProtocol, SqmrClientReceiver>,
-    sqmr_outbound_response_senders: HashMap<OutboundSessionId, ResponsesSenderForNetwork>,
+    sqmr_outbound_response_senders: HashMap<OutboundSessionId, ResponsesSender>,
     sqmr_outbound_report_receivers_awaiting_assignment: HashMap<OutboundSessionId, ReportReceiver>,
     // Splitting the broadcast receivers from the broadcasted senders in order to poll all
     // receivers simultaneously.
@@ -102,7 +104,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         }
     }
 
-    /// TODO: Support multiple protocols where they're all different versions of the same protocol
+    // TODO: Support multiple protocols where they're all different versions of the same protocol
     pub fn register_sqmr_protocol_server<Query, Response>(
         &mut self,
         protocol: String,
@@ -132,19 +134,19 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         }
 
         let inbound_payload_receiver = inbound_payload_receiver
-            .map(|payload: SqmrServerPayloadForNetwork| ServerQueryManager::from(payload));
-        SqmrServerReceiver { channel: Box::new(inbound_payload_receiver) }
+            .map(|payload: SqmrServerPayload| ServerQueryManager::from(payload));
+        SqmrServerReceiver { receiver: Box::new(inbound_payload_receiver) }
     }
 
-    /// TODO: Support multiple protocols where they're all different versions of the same protocol
     /// Register a new subscriber for sending a single query and receiving multiple responses.
     /// Panics if the given protocol is already subscribed.
-    /// TODO: Seperate query and response buffer sizes.
+    // TODO: Support multiple protocols where they're all different versions of the same protocol
+    // TODO: Seperate query and response buffer sizes.
     pub fn register_sqmr_protocol_client<Query, Response>(
         &mut self,
         protocol: String,
         buffer_size: usize,
-    ) -> SqmrClientSender<Query, Response>
+    ) -> SqmrClientSender
     where
         Bytes: From<Query>,
         Response: TryFrom<Bytes> + 'static + Send,
@@ -161,14 +163,9 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             .insert(protocol.clone(), Box::new(payload_receiver));
         if insert_result.is_some() {
             panic!("Protocol '{}' has already been registered as a client.", protocol);
-        }
-
-        let payload_fn = |payload: SqmrClientPayload<Query, Response>| {
-            ready(Ok(SqmrClientPayloadForNetwork::from(payload)))
         };
-        let payload_sender = payload_sender.with(payload_fn);
 
-        SqmrClientSender { channel: Box::new(payload_sender), buffer_size }
+        SqmrClientSender { sender: Box::new(payload_sender), buffer_size }
     }
 
     /// Register a new subscriber for broadcasting and receiving broadcasts for a given topic.
@@ -354,7 +351,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 // TODO(shahak): Close the inbound session if the buffer is full.
                 send_now(
                     query_sender,
-                    SqmrServerPayloadForNetwork { query, report_sender, responses_sender },
+                    SqmrServerPayload { query, report_sender, responses_sender },
                     format!(
                         "Received an inbound query while the buffer is full. Dropping query for \
                          session {inbound_session_id:?}"
@@ -480,10 +477,9 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     fn handle_local_sqmr_payload(
         &mut self,
         protocol: StreamProtocol,
-        client_payload: SqmrClientPayloadForNetwork,
+        client_payload: SqmrClientPayload,
     ) {
-        let SqmrClientPayloadForNetwork { query, report_receiver, responses_sender } =
-            client_payload;
+        let SqmrClientPayload { query, report_receiver, responses_sender } = client_payload;
         match self.swarm.send_query(query, PeerId::random(), protocol.clone()) {
             Ok(outbound_session_id) => {
                 debug!(
@@ -597,71 +593,16 @@ impl NetworkManager {
     }
 }
 
-#[cfg(feature = "testing")]
-const CHANNEL_BUFFER_SIZE: usize = 1000;
-
-#[cfg(feature = "testing")]
-pub fn mock_register_broadcast_subscriber<T>()
--> Result<TestSubscriberChannels<T>, SubscriptionError>
-where
-    T: TryFrom<Bytes>,
-    Bytes: From<T>,
-{
-    let (messages_to_broadcast_sender, mock_messages_to_broadcast_receiver) =
-        futures::channel::mpsc::channel(CHANNEL_BUFFER_SIZE);
-    let (mock_broadcasted_messages_sender, broadcasted_messages_receiver) =
-        futures::channel::mpsc::channel(CHANNEL_BUFFER_SIZE);
-
-    let messages_to_broadcast_fn: fn(T) -> Ready<Result<Bytes, SendError>> =
-        |x| ready(Ok(Bytes::from(x)));
-    let messages_to_broadcast_sender = messages_to_broadcast_sender.with(messages_to_broadcast_fn);
-
-    let broadcasted_messages_fn: BroadcastReceivedMessagesConverterFn<T> =
-        |(x, report_sender)| (T::try_from(x), report_sender);
-    let broadcasted_messages_receiver = broadcasted_messages_receiver.map(broadcasted_messages_fn);
-
-    let subscriber_channels =
-        BroadcastSubscriberChannels { messages_to_broadcast_sender, broadcasted_messages_receiver };
-
-    let mock_broadcasted_messages_fn: MockBroadcastedMessagesFn<T> =
-        |(x, report_call_back)| ready(Ok((Bytes::from(x), report_call_back)));
-    let mock_broadcasted_messages_sender =
-        mock_broadcasted_messages_sender.with(mock_broadcasted_messages_fn);
-
-    let mock_messages_to_broadcast_fn: fn(Bytes) -> T = |x| match T::try_from(x) {
-        Ok(result) => result,
-        Err(_) => {
-            panic!("Failed to convert Bytes that we received from conversion to bytes");
-        }
-    };
-    let mock_messages_to_broadcast_receiver =
-        mock_messages_to_broadcast_receiver.map(mock_messages_to_broadcast_fn);
-
-    let mock_network = BroadcastNetworkMock {
-        broadcasted_messages_sender: mock_broadcasted_messages_sender,
-        messages_to_broadcast_receiver: mock_messages_to_broadcast_receiver,
-    };
-
-    Ok(TestSubscriberChannels { subscriber_channels, mock_network })
-}
-
-#[cfg(feature = "testing")]
-pub fn dummy_report_sender() -> ReportSender {
-    oneshot::channel::<()>().0
-}
-
 pub type ReportSender = oneshot::Sender<()>;
 type ReportReceiver = oneshot::Receiver<()>;
 
 type GenericSender<T> = Box<dyn Sink<T, Error = SendError> + Unpin + Send>;
 // Box<S> implements Stream only if S: Stream + Unpin
-type GenericReceiver<T> = Box<dyn Stream<Item = T> + Unpin + Send>;
+pub type GenericReceiver<T> = Box<dyn Stream<Item = T> + Unpin + Send>;
 
-type ResponsesSenderForNetwork = GenericSender<Bytes>;
-type ResponsesReceiverForNetwork = GenericReceiver<Option<Bytes>>;
+type ResponsesSender = GenericSender<Bytes>;
+type ResponsesReceiver = GenericReceiver<Option<Bytes>>;
 
-type ClientResponsesSender<Response> =
-    GenericSender<Result<Response, <Response as TryFrom<Bytes>>::Error>>;
 type ClientResponsesReceiver<Response> =
     GenericReceiver<Result<Response, <Response as TryFrom<Bytes>>::Error>>;
 
@@ -684,34 +625,30 @@ impl<Response> Drop for ServerResponsesSender<Response> {
     }
 }
 
-pub struct SqmrClientSender<Query, Response: TryFrom<Bytes>> {
-    channel: GenericSender<SqmrClientPayload<Query, Response>>,
+pub struct SqmrClientSender {
+    sender: GenericSender<SqmrClientPayload>,
     buffer_size: usize,
 }
 
-impl<Query, Response: TryFrom<Bytes> + Send + 'static> SqmrClientSender<Query, Response>
-where
-    <Response as TryFrom<Bytes>>::Error: Send + 'static,
-{
-    #[cfg(feature = "testing")]
-    pub fn new(
-        channel: GenericSender<SqmrClientPayload<Query, Response>>,
-        buffer_size: usize,
-    ) -> Self {
-        Self { channel, buffer_size }
-    }
-
-    pub async fn send_new_query(
+impl SqmrClientSender {
+    pub async fn send_new_query<Query, Response>(
         &mut self,
         query: Query,
-    ) -> Result<ClientResponsesManager<Response>, SendError> {
+    ) -> Result<ClientResponsesManager<Response>, SendError>
+    where
+        Bytes: From<Query>,
+        Response: TryFrom<Bytes> + 'static + Send,
+        <Response as TryFrom<Bytes>>::Error: 'static + Send,
+    {
         let (report_sender, report_receiver) = oneshot::channel::<()>();
         let (responses_sender, responses_receiver) =
             futures::channel::mpsc::channel(self.buffer_size);
-        let responses_sender = Box::new(responses_sender);
         let responses_receiver = Box::new(responses_receiver);
+        let query = Bytes::from(query);
+        let responses_sender =
+            Box::new(responses_sender.with(|response| ready(Ok(Response::try_from(response)))));
         let payload = SqmrClientPayload { query, report_receiver, responses_sender };
-        self.channel.send(payload).await?;
+        self.sender.send(payload).await?;
         Ok(ClientResponsesManager { report_sender, responses_receiver })
     }
 }
@@ -738,28 +675,19 @@ impl<Response: TryFrom<Bytes>> Stream for ClientResponsesManager<Response> {
     }
 }
 
-// TODO(Eitan): Remove struct and use SqmrClientPayloadForNetwork
-pub struct SqmrClientPayload<Query, Response: TryFrom<Bytes>> {
-    pub query: Query,
-    pub report_receiver: ReportReceiver,
-    pub responses_sender: ClientResponsesSender<Response>,
+type SqmrClientReceiver = GenericReceiver<SqmrClientPayload>;
+
+pub struct SqmrClientPayload {
+    query: Bytes,
+    report_receiver: ReportReceiver,
+    responses_sender: ResponsesSender,
 }
 
 pub struct SqmrServerReceiver<Query, Response>
 where
     Query: TryFrom<Bytes>,
 {
-    channel: GenericReceiver<ServerQueryManager<Query, Response>>,
-}
-impl<Query, Response> SqmrServerReceiver<Query, Response>
-where
-    Query: TryFrom<Bytes>,
-{
-    // TODO(eitan): add a test utility func for creating channels for tests
-    #[cfg(feature = "testing")]
-    pub fn new(channel: GenericReceiver<ServerQueryManager<Query, Response>>) -> Self {
-        Self { channel }
-    }
+    receiver: GenericReceiver<ServerQueryManager<Query, Response>>,
 }
 
 impl<Query, Response> Stream for SqmrServerReceiver<Query, Response>
@@ -772,7 +700,7 @@ where
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
-        self.channel.poll_next_unpin(cx)
+        self.receiver.poll_next_unpin(cx)
     }
 }
 
@@ -811,65 +739,16 @@ where
             }
         }
     }
-
-    #[cfg(feature = "testing")]
-    pub fn create_test_server_query_manager(
-        query: Query,
-    ) -> (Self, ReportReceiver, GenericReceiver<Response>) {
-        let (report_sender, report_receiver) = oneshot::channel::<()>();
-        let (responses_sender, responses_receiver) = futures::channel::mpsc::channel::<Response>(1);
-        let responses_sender = ServerResponsesSender { sender: Box::new(responses_sender) };
-        let responses_receiver = Box::new(responses_receiver);
-        (
-            Self { query: Ok(query), report_sender, responses_sender },
-            report_receiver,
-            responses_receiver,
-        )
-    }
 }
 
-type SqmrClientReceiver = GenericReceiver<SqmrClientPayloadForNetwork>;
-
-// TODO(eitan): rename to SqmrClientPayload after SqmrClientPayload is removed
-struct SqmrClientPayloadForNetwork {
-    query: Bytes,
-    report_receiver: ReportReceiver,
-    responses_sender: ResponsesSenderForNetwork,
-}
-
-type SqmrServerSender = GenericSender<SqmrServerPayloadForNetwork>;
-
-// TODO(eitan): Rename to SqmrServerPayload
-struct SqmrServerPayloadForNetwork {
-    query: Bytes,
-    report_sender: ReportSender,
-    responses_sender: ResponsesSenderForNetwork,
-}
-
-impl<Query, Response> From<SqmrClientPayload<Query, Response>> for SqmrClientPayloadForNetwork
-where
-    Bytes: From<Query>,
-    Response: TryFrom<Bytes> + 'static + Send,
-    <Response as TryFrom<Bytes>>::Error: 'static + Send,
-{
-    fn from(payload: SqmrClientPayload<Query, Response>) -> Self {
-        let SqmrClientPayload { query, report_receiver, responses_sender } = payload;
-        let query = Bytes::from(query);
-        let responses_sender =
-            Box::new(responses_sender.with(|response| ready(Ok(Response::try_from(response)))));
-        Self { query, report_receiver, responses_sender }
-    }
-}
-
-impl<Query, Response> From<SqmrServerPayloadForNetwork> for ServerQueryManager<Query, Response>
+impl<Query, Response> From<SqmrServerPayload> for ServerQueryManager<Query, Response>
 where
     Bytes: From<Response>,
     Response: 'static,
-    Query: TryFrom<Bytes> + Clone,
-    <Query as TryFrom<Bytes>>::Error: Clone,
+    Query: TryFrom<Bytes>,
 {
-    fn from(payload: SqmrServerPayloadForNetwork) -> Self {
-        let SqmrServerPayloadForNetwork { query, report_sender, responses_sender } = payload;
+    fn from(payload: SqmrServerPayload) -> Self {
+        let SqmrServerPayload { query, report_sender, responses_sender } = payload;
         let query = Query::try_from(query);
         let responses_sender =
             Box::new(responses_sender.with(|response| ready(Ok(Bytes::from(response)))));
@@ -877,6 +756,14 @@ where
 
         Self { query, report_sender, responses_sender }
     }
+}
+
+type SqmrServerSender = GenericSender<SqmrServerPayload>;
+
+struct SqmrServerPayload {
+    query: Bytes,
+    report_sender: ReportSender,
+    responses_sender: ResponsesSender,
 }
 
 // TODO(eitan): improve naming of final channel types
@@ -897,28 +784,4 @@ type BroadcastReceivedMessagesConverterFn<T> =
 pub struct BroadcastSubscriberChannels<T: TryFrom<Bytes>> {
     pub messages_to_broadcast_sender: BroadcastSubscriberSender<T>,
     pub broadcasted_messages_receiver: BroadcastSubscriberReceiver<T>,
-}
-
-#[cfg(feature = "testing")]
-pub type MockBroadcastedMessagesSender<T> = With<
-    Sender<(Bytes, ReportSender)>,
-    (Bytes, ReportSender),
-    (T, ReportSender),
-    Ready<Result<(Bytes, ReportSender), SendError>>,
-    MockBroadcastedMessagesFn<T>,
->;
-#[cfg(feature = "testing")]
-type MockBroadcastedMessagesFn<T> =
-    fn((T, ReportSender)) -> Ready<Result<(Bytes, ReportSender), SendError>>;
-#[cfg(feature = "testing")]
-pub type MockMessagesToBroadcastReceiver<T> = Map<Receiver<Bytes>, fn(Bytes) -> T>;
-#[cfg(feature = "testing")]
-pub struct BroadcastNetworkMock<T: TryFrom<Bytes>> {
-    pub broadcasted_messages_sender: MockBroadcastedMessagesSender<T>,
-    pub messages_to_broadcast_receiver: MockMessagesToBroadcastReceiver<T>,
-}
-#[cfg(feature = "testing")]
-pub struct TestSubscriberChannels<T: TryFrom<Bytes>> {
-    pub subscriber_channels: BroadcastSubscriberChannels<T>,
-    pub mock_network: BroadcastNetworkMock<T>,
 }
