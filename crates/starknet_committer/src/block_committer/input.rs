@@ -14,6 +14,16 @@ use crate::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
 // TODO(Nimrod, 1/6/2025): Use the ContractAddress defined in starknet-types-core when available.
 pub struct ContractAddress(pub Felt);
 
+impl From<&NodeIndex> for ContractAddress {
+    fn from(node_index: &NodeIndex) -> ContractAddress {
+        assert!(node_index.is_leaf(), "NodeIndex {:?} is not a leaf.", node_index);
+        ContractAddress(
+            Felt::try_from(*node_index - NodeIndex::FIRST_LEAF)
+                .expect("Unable to convert node index to felt."),
+        )
+    }
+}
+
 impl From<&ContractAddress> for NodeIndex {
     fn from(address: &ContractAddress) -> NodeIndex {
         NodeIndex::from_leaf_felt(&address.0)
