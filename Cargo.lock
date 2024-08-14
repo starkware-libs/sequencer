@@ -6392,6 +6392,7 @@ dependencies = [
  "prometheus-parse",
  "quote",
  "syn 2.0.61",
+ "tracing",
 ]
 
 [[package]]
