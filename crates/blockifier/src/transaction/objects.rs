@@ -416,15 +416,11 @@ impl StarknetResources {
         versioned_constants: &VersionedConstants,
         include_l2_gas: bool,
     ) -> GasVector {
-        if include_l2_gas {
-            todo!()
-        } else {
-            GasVector::from_l1_gas(
-                (versioned_constants.l2_resource_gas_costs.gas_per_code_byte
-                    * u128_from_usize(self.code_size))
-                .to_integer(),
-            )
-        }
+        let gas = (versioned_constants.l2_resource_gas_costs.gas_per_code_byte
+            * u128_from_usize(self.code_size))
+        .to_integer();
+        // Does that make sense?
+        if include_l2_gas { GasVector::from_l2_gas(gas) } else { GasVector::from_l1_gas(gas) }
     }
 
     /// Returns the gas cost of the transaction's state changes.
