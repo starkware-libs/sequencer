@@ -8,6 +8,7 @@ members = [
   "crates/batcher_types",
   "crates/blockifier",
   "crates/committer_cli",
+  "crates/common",
   "crates/consensus_manager",
   "crates/consensus_manager_types",
   "crates/gateway",
@@ -84,6 +85,7 @@ camelpaste = "0.1.0"
 chrono = "0.4.26"
 clap = "4.5.4"
 colored = "2.1.0"
+common = { path = "crates/common", version = "0.0" }
 const_format = "0.2.30"
 criterion = "0.5.1"
 deadqueue = "0.2.4"

@@ -1,5 +1,6 @@
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
+use common::contract_class::ContractClass;
 use num_traits::ToPrimitive;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{
@@ -37,7 +38,6 @@ use self::hint_processor::{
 };
 use crate::abi::constants;
 use crate::execution::call_info::{MessageToL1, OrderedEvent, OrderedL2ToL1Message};
-use crate::execution::contract_class::ContractClass;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::entry_point::{CallEntryPoint, CallType, ConstructorContext};
 use crate::execution::execution_utils::{

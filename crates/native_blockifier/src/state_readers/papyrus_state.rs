@@ -1,7 +1,7 @@
-use blockifier::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::GlobalContractCache;
 use blockifier::state::state_api::{StateReader, StateResult};
+use common::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
 use papyrus_storage::compiled_class::CasmStorageReader;
 use papyrus_storage::db::RO;
 use papyrus_storage::state::StateStorageReader;

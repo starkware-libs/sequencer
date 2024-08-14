@@ -9,12 +9,13 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::builtin_runner::BuiltinRunner;
 use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner, ExecutionResources};
 use cairo_vm::vm::security::verify_secure_runner;
+use common::contract_class::{ContractClassV1, EntryPointV1};
 use num_traits::{ToPrimitive, Zero};
 use starknet_api::felt;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
-use crate::execution::contract_class::{ContractClassV1, EntryPointV1};
+use crate::execution::contract_class::ContractClassV1Ext;
 use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,

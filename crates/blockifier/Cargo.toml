@@ -28,6 +28,7 @@ cairo-lang-runner.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 cairo-vm.workspace = true
+common.workspace = true
 derive_more.workspace = true
 indexmap.workspace = true
 itertools.workspace = true

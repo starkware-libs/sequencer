@@ -1,14 +1,14 @@
 use std::cell::Cell;
 
 use assert_matches::assert_matches;
-use blockifier::execution::contract_class::{
+use blockifier::state::errors::StateError;
+use blockifier::state::state_api::StateReader;
+use cairo_lang_utils::bigint::BigUintAsHex;
+use common::contract_class::{
     ContractClass as BlockifierContractClass,
     ContractClassV0,
     ContractClassV1,
 };
-use blockifier::state::errors::StateError;
-use blockifier::state::state_api::StateReader;
-use cairo_lang_utils::bigint::BigUintAsHex;
 use indexmap::indexmap;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClasses, PendingClassesTrait};
 use papyrus_common::state::{

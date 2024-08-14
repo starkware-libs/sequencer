@@ -1,3 +1,4 @@
+use common::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
@@ -17,8 +18,8 @@ use strum_macros::EnumIter;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
-use crate::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
 use crate::test_utils::cairo_compile::{cairo0_compile, cairo1_compile};
+use crate::test_utils::struct_impls::FromFileExt;
 use crate::test_utils::{get_raw_contract_class, CairoVersion};
 
 // This file contains featured contracts, used for tests. Use the function 'test_state' in

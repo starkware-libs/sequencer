@@ -5,10 +5,10 @@ use blockifier::blockifier::stateful_validator::{
 };
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
-use blockifier::execution::contract_class::ClassInfo;
 use blockifier::state::cached_state::CachedState;
 use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::versioned_constants::VersionedConstants;
+use common::contract_class::ClassInfo;
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::core::{ContractAddress, Nonce};

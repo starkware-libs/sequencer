@@ -4,15 +4,15 @@ use std::path::PathBuf;
 
 // Expose the tool for creating entry point selectors from function names.
 pub use blockifier::abi::abi_utils::selector_from_name;
-use blockifier::execution::contract_class::{
-    ContractClass as BlockifierContractClass,
-    ContractClassV0,
-    ContractClassV1,
-};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, MutRefState};
 use blockifier::state::state_api::StateReader;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use cairo_vm::types::errors::program_errors::ProgramError;
+use common::contract_class::{
+    ContractClass as BlockifierContractClass,
+    ContractClassV0,
+    ContractClassV1,
+};
 use indexmap::IndexMap;
 use papyrus_common::state::{DeployedContract, ReplacedClass, StorageEntry};
 use papyrus_storage::compiled_class::CasmStorageReader;

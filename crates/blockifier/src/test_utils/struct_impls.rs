@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use common::contract_class::{ContractClassV0, ContractClassV1};
 use serde_json::Value;
 use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::core::{ChainId, ContractAddress, Nonce, PatriciaKey};
@@ -14,7 +15,7 @@ use crate::blockifier::block::{BlockInfo, GasPrices};
 use crate::bouncer::{BouncerConfig, BouncerWeights};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
-use crate::execution::contract_class::{ContractClassV0, ContractClassV1};
+use crate::execution::contract_class::{ContractClassV0Ext, ContractClassV1Ext};
 use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,
@@ -220,15 +221,19 @@ impl CallExecution {
 
 // Contract loaders.
 
-impl ContractClassV0 {
-    pub fn from_file(contract_path: &str) -> Self {
+pub trait FromFileExt {
+    fn from_file(contract_path: &str) -> Self;
+}
+
+impl FromFileExt for ContractClassV0 {
+    fn from_file(contract_path: &str) -> Self {
         let raw_contract_class = get_raw_contract_class(contract_path);
         Self::try_from_json_string(&raw_contract_class).unwrap()
     }
 }
 
-impl ContractClassV1 {
-    pub fn from_file(contract_path: &str) -> Self {
+impl FromFileExt for ContractClassV1 {
+    fn from_file(contract_path: &str) -> Self {
         let raw_contract_class = get_raw_contract_class(contract_path);
         Self::try_from_json_string(&raw_contract_class).unwrap()
     }

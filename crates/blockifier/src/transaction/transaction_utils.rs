@@ -1,7 +1,7 @@
+use common::contract_class::ContractClass;
 use starknet_api::transaction::TransactionVersion;
 
 use crate::execution::call_info::CallInfo;
-use crate::execution::contract_class::ContractClass;
 use crate::transaction::errors::TransactionExecutionError;
 
 pub fn update_remaining_gas(remaining_gas: &mut u64, call_info: &CallInfo) {

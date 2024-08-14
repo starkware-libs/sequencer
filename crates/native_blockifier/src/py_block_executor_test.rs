@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
 use blockifier::blockifier::transaction_executor::BLOCK_STATE_ACCESS_ERR;
-use blockifier::execution::contract_class::{ContractClass, ContractClassV1};
 use blockifier::state::state_api::StateReader;
 use cached::Cached;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use common::contract_class::{ContractClass, ContractClassV1};
 use pretty_assertions::assert_eq;
 use starknet_api::core::ClassHash;
 use starknet_api::{class_hash, felt};

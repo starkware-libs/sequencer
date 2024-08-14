@@ -1,6 +1,6 @@
-use blockifier::execution::contract_class::ContractClass;
 use blockifier::state::state_api::StateReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use common::contract_class::ContractClass;
 use papyrus_rpc::CompiledContractClass;
 use serde::Serialize;
 use serde_json::json;

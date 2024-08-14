@@ -1,3 +1,4 @@
+use common::contract_class::ClassInfo;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::transaction::{
@@ -14,7 +15,6 @@ use starknet_api::transaction::{
     TransactionVersion,
 };
 
-use crate::execution::contract_class::ClassInfo;
 use crate::test_utils::default_testing_resource_bounds;
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::transactions::DeclareTransaction;

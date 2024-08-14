@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
+use common::contract_class::ContractClass;
 use derive_more::IntoIterator;
 use indexmap::IndexMap;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
@@ -9,7 +10,6 @@ use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::context::TransactionContext;
-use crate::execution::contract_class::ContractClass;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader, StateResult, UpdatableState};
 use crate::transaction::objects::TransactionExecutionInfo;

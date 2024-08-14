@@ -1,10 +1,10 @@
-use blockifier::execution::contract_class::ClassInfo;
 use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::transactions::{
     DeclareTransaction as BlockifierDeclareTransaction,
     DeployAccountTransaction as BlockifierDeployAccountTransaction,
     InvokeTransaction as BlockifierInvokeTransaction,
 };
+use common::contract_class::ClassInfo;
 use starknet_api::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress};
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,

@@ -29,7 +29,7 @@ use blockifier::blockifier::block::{pre_process_block, BlockInfo, BlockNumberHas
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use blockifier::execution::call_info::CallExecution;
-use blockifier::execution::contract_class::{ClassInfo, ContractClass as BlockifierContractClass};
+use blockifier::execution::contract_class::ClassInfoExt;
 use blockifier::execution::entry_point::{
     CallEntryPoint,
     CallType as BlockifierCallType,
@@ -48,6 +48,7 @@ use blockifier::versioned_constants::VersionedConstants;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use common::contract_class::{ClassInfo, ContractClass as BlockifierContractClass};
 use execution_utils::{get_trace_constructor, induced_state_diff};
 use objects::{PriceUnit, TransactionSimulationOutput};
 use once_cell::sync::Lazy;

@@ -14,6 +14,7 @@ anyhow.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
+common.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
 lazy_static.workspace = true

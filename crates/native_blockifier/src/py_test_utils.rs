@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
-use blockifier::execution::contract_class::ContractClassV0;
 use blockifier::state::cached_state::CachedState;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
+use blockifier::test_utils::struct_impls::FromFileExt;
+use common::contract_class::ContractClassV0;
 use starknet_api::core::ClassHash;
 use starknet_api::{class_hash, felt};
 

@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
+use common::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
-use crate::execution::contract_class::ContractClass;
 use crate::state::cached_state::StorageEntry;
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult};

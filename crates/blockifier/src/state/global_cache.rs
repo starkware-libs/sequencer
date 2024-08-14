@@ -1,9 +1,8 @@
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use cached::{Cached, SizedCache};
+use common::contract_class::ContractClass;
 use starknet_api::core::ClassHash;
-
-use crate::execution::contract_class::ContractClass;
 
 // Note: `ContractClassLRUCache` key-value types must align with `ContractClassMapping`.
 type ContractClassLRUCache = SizedCache<ClassHash, ContractClass>;

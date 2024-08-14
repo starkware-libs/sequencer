@@ -1,7 +1,7 @@
 use blockifier::blockifier::block::BlockInfo;
-use blockifier::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
+use common::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
 use papyrus_rpc::CompiledContractClass;
 use reqwest::blocking::Client as BlockingClient;
 use serde::Serialize;

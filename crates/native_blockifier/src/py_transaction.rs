@@ -1,14 +1,10 @@
 use std::collections::BTreeMap;
 
-use blockifier::execution::contract_class::{
-    ClassInfo,
-    ContractClass,
-    ContractClassV0,
-    ContractClassV1,
-};
+use blockifier::execution::contract_class::{ClassInfoExt, ContractClassV0Ext, ContractClassV1Ext};
 use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier::transaction::transaction_types::TransactionType;
+use common::contract_class::{ClassInfo, ContractClass, ContractClassV0, ContractClassV1};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use starknet_api::transaction::{Resource, ResourceBounds};

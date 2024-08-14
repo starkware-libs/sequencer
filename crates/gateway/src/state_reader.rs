@@ -1,7 +1,7 @@
 use blockifier::blockifier::block::BlockInfo;
-use blockifier::execution::contract_class::ContractClass;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
+use common::contract_class::ContractClass;
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::BlockNumber;

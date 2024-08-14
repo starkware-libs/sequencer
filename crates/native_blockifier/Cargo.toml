@@ -30,6 +30,7 @@ crate-type = ["cdylib"]
 blockifier = { workspace = true, features = ["concurrency", "testing"] }
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
+common.workspace = true
 indexmap.workspace = true
 log.workspace = true
 num-bigint.workspace = true

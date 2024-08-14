@@ -4,13 +4,13 @@ mod state_reader_test;
 
 use std::cell::Cell;
 
-use blockifier::execution::contract_class::{
+use blockifier::state::errors::StateError;
+use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
+use common::contract_class::{
     ContractClass as BlockifierContractClass,
     ContractClassV0,
     ContractClassV1,
 };
-use blockifier::state::errors::StateError;
-use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use papyrus_common::pending_classes::{ApiContractClass, PendingClassesTrait};
 use papyrus_common::state::DeclaredClassHashEntry;
 use papyrus_storage::state::StateStorageReader;
