@@ -74,7 +74,7 @@ mock! {
             fin_receiver: oneshot::Receiver<BlockHash>,
         ) -> Result<(), ConsensusError>;
 
-        async fn notify_decision(
+        async fn decision_reached(
             &mut self,
             block: TestBlock,
             precommits: Vec<Vote>,
@@ -184,7 +184,7 @@ async fn run_consensus_sync() {
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_broadcast().returning(move |_| Ok(()));
-    context.expect_notify_decision().return_once(move |block, votes| {
+    context.expect_decision_reached().return_once(move |block, votes| {
         assert_eq!(block.id(), BlockHash(Felt::TWO));
         assert_eq!(votes[0].height, 2);
         decision_tx.send(()).unwrap();
@@ -247,7 +247,7 @@ async fn run_consensus_sync_cancellation_safety() {
             Ok(())
         });
     context.expect_broadcast().returning(move |_| Ok(()));
-    context.expect_notify_decision().return_once(|block, votes| {
+    context.expect_decision_reached().return_once(|block, votes| {
         assert_eq!(block.id(), BlockHash(Felt::ONE));
         assert_eq!(votes[0].height, 1);
         decision_tx.send(()).unwrap();
