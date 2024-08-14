@@ -77,7 +77,7 @@ fn no_constructor_nonempty_calldata(deployer_contract: FeatureContract) {
     ));
 }
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 10140;"VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 5210;"VM")]
 fn with_constructor(deployer_contract: FeatureContract, expected_gas: u64) {
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);
     let mut state = test_state(
@@ -108,13 +108,17 @@ fn with_constructor(deployer_contract: FeatureContract, expected_gas: u64) {
         deployer_contract.get_instance_address(0),
     )
     .unwrap();
+    // Note, this it the call info of the constructor call. Meaning the CallExecution is the
+    // execution of the constructor and not the deploy syscall.
     let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap().inner_calls[0];
 
     assert_eq!(deploy_call.call.storage_address, contract_address);
     assert_eq!(
         deploy_call.execution,
         CallExecution {
+            // The test contract constructor returns its first argument.
             retdata: retdata![constructor_calldata[0]],
+            // This reflects the gas cost of storage write syscall.
             gas_consumed: expected_gas,
             ..CallExecution::default()
         }
