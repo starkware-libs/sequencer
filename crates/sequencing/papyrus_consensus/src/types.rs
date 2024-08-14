@@ -140,7 +140,7 @@ pub trait ConsensusContext {
     /// - `block` identifies the decision.
     /// - `precommits` - All precommits must be for the same `(block.id(), height, round)` and form
     ///   a quorum (>2/3 of the voting power) for this height.
-    async fn notify_decision(
+    async fn decision_reached(
         &mut self,
         block: Self::Block,
         precommits: Vec<Vote>,
