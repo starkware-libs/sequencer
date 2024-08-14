@@ -475,6 +475,29 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
 }
 
 #[rstest]
+fn test_add_tx_delete_tx_with_lower_nonce_than_account_nonce() {
+    // Setup.
+    let tx_nonce_0_account_nonce_0 =
+        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8);
+    let tx_nonce_1_account_nonce_1 =
+        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1_u8, account_nonce: 1_u8);
+
+    let queue_txs = [TransactionReference::new(&tx_nonce_0_account_nonce_0.tx)];
+    let pool_txs = [tx_nonce_0_account_nonce_0.tx];
+    let mut mempool: Mempool = MempoolContent::new(pool_txs, queue_txs).into();
+
+    // Test.
+    add_tx(&mut mempool, &tx_nonce_1_account_nonce_1);
+
+    // Assert the transaction with the lower nonce is removed.
+    // TODO(Ayelet): Assert the queue after modifying add_tx to delete lower nonce transactions
+    // in the queue.
+    let expected_pool_txs = [tx_nonce_1_account_nonce_1.tx];
+    let expected_mempool_content = MempoolContent::with_pool(expected_pool_txs);
+    expected_mempool_content.assert_eq_pool_content(&mempool);
+}
+
+#[rstest]
 fn test_tip_priority_over_tx_hash(mut mempool: Mempool) {
     // Setup.
     let input_big_tip_small_hash = add_tx_input!(tip: 2, tx_hash: Felt::ONE);
