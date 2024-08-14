@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::future::Future;
 use std::sync::{Arc, Mutex};
 
@@ -20,7 +21,7 @@ use crate::storage::storage_trait::{StorageKey, StorageValue};
 #[path = "tree_test.rs"]
 pub mod tree_test;
 
-pub(crate) type FilledTreeResult<T, L> = Result<T, FilledTreeError<L>>;
+pub(crate) type FilledTreeResult<T> = Result<T, FilledTreeError>;
 /// Consider a Patricia-Merkle Tree which has been updated with new leaves.
 /// FilledTree consists of all nodes which were modified in the update, including their updated
 /// data and hashes.
@@ -29,7 +30,7 @@ pub trait FilledTree<L: Leaf>: Sized {
     fn create<'a, TH: TreeHashFunction<L> + 'static>(
         updated_skeleton: Arc<impl UpdatedSkeletonTree<'a> + 'static>,
         leaf_modifications: Arc<LeafModifications<L>>,
-    ) -> impl Future<Output = FilledTreeResult<Self, L>> + Send;
+    ) -> impl Future<Output = FilledTreeResult<Self>> + Send;
 
     /// Serializes the current state of the tree into a hashmap,
     /// where each key-value pair corresponds
@@ -64,45 +65,44 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
 
     /// Writes the hash and data to the output map. The writing is done in a thread-safe manner with
     /// interior mutability to avoid thread contention.
-    fn write_to_output_map(
-        output_map: Arc<HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>>>,
+    fn write_to_output_map<T: Debug>(
+        output_map: Arc<HashMap<NodeIndex, Mutex<Option<T>>>>,
         index: NodeIndex,
-        hash: HashOutput,
-        data: NodeData<L>,
-    ) -> FilledTreeResult<(), L> {
+        output: T,
+    ) -> FilledTreeResult<()> {
         match output_map.get(&index) {
             Some(node) => {
-                let mut node = node
-                    .lock()
-                    .map_err(|_| FilledTreeError::PoisonedLock("Cannot lock node.".to_owned()))?;
+                let mut node = node.lock().map_err(|_| {
+                    FilledTreeError::PoisonedLock("Cannot lock node in output map.".to_owned())
+                })?;
                 match node.take() {
                     Some(existing_node) => Err(FilledTreeError::DoubleUpdate {
                         index,
-                        existing_value: Box::new(existing_node),
+                        existing_value_as_string: format!("{:?}", existing_node),
                     }),
                     None => {
-                        *node = Some(FilledNode { hash, data });
+                        *node = Some(output);
                         Ok(())
                     }
                 }
             }
-            None => Err(FilledTreeError::<L>::MissingNode(index)),
+            None => Err(FilledTreeError::MissingNode(index)),
         }
     }
 
     fn remove_arc_mutex_and_option(
         hash_map_in: Arc<HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>>>,
-    ) -> FilledTreeResult<HashMap<NodeIndex, FilledNode<L>>, L> {
+    ) -> FilledTreeResult<HashMap<NodeIndex, FilledNode<L>>> {
         let mut hash_map_out = HashMap::new();
         for (key, value) in hash_map_in.iter() {
             let mut value = value
                 .lock()
-                .map_err(|_| FilledTreeError::<L>::PoisonedLock("Cannot lock node.".to_owned()))?;
+                .map_err(|_| FilledTreeError::PoisonedLock("Cannot lock node.".to_owned()))?;
             match value.take() {
                 Some(value) => {
                     hash_map_out.insert(*key, value);
                 }
-                None => return Err(FilledTreeError::<L>::MissingNode(*key)),
+                None => return Err(FilledTreeError::MissingNode(*key)),
             }
         }
         Ok(hash_map_out)
@@ -114,7 +114,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
         index: NodeIndex,
         leaf_modifications: Arc<LeafModifications<L>>,
         output_map: Arc<HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>>>,
-    ) -> FilledTreeResult<HashOutput, L>
+    ) -> FilledTreeResult<HashOutput>
     where
         TH: TreeHashFunction<L> + 'static,
     {
@@ -145,7 +145,11 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 });
 
                 let hash_value = TH::compute_node_hash(&data);
-                Self::write_to_output_map(output_map, index, hash_value, data)?;
+                Self::write_to_output_map(
+                    output_map,
+                    index,
+                    FilledNode { hash: hash_value, data },
+                )?;
                 Ok(hash_value)
             }
             UpdatedSkeletonNode::Edge(path_to_bottom) => {
@@ -160,18 +164,26 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 let data =
                     NodeData::Edge(EdgeData { path_to_bottom: *path_to_bottom, bottom_hash });
                 let hash_value = TH::compute_node_hash(&data);
-                Self::write_to_output_map(output_map, index, hash_value, data)?;
+                Self::write_to_output_map(
+                    output_map,
+                    index,
+                    FilledNode { hash: hash_value, data },
+                )?;
                 Ok(hash_value)
             }
             UpdatedSkeletonNode::UnmodifiedSubTree(hash_result) => Ok(*hash_result),
             UpdatedSkeletonNode::Leaf => {
                 let leaf_data = L::create(&index, leaf_modifications).await?;
                 if leaf_data.is_empty() {
-                    return Err(FilledTreeError::<L>::DeletedLeafInSkeleton(index));
+                    return Err(FilledTreeError::DeletedLeafInSkeleton(index));
                 }
                 let node_data = NodeData::Leaf(leaf_data);
                 let hash_value = TH::compute_node_hash(&node_data);
-                Self::write_to_output_map(output_map, index, hash_value, node_data)?;
+                Self::write_to_output_map(
+                    output_map,
+                    index,
+                    FilledNode { hash: hash_value, data: node_data },
+                )?;
                 Ok(hash_value)
             }
         }
@@ -179,7 +191,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
 
     fn create_unmodified<'a>(
         updated_skeleton: &Arc<impl UpdatedSkeletonTree<'a>>,
-    ) -> Result<Self, FilledTreeError<L>> {
+    ) -> Result<Self, FilledTreeError> {
         let root_node = updated_skeleton.get_node(NodeIndex::ROOT)?;
         let UpdatedSkeletonNode::UnmodifiedSubTree(root_hash) = root_node else {
             panic!("A root of tree without modifications is expected to be a unmodified subtree.")
@@ -196,7 +208,7 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
     async fn create<'a, TH: TreeHashFunction<L> + 'static>(
         updated_skeleton: Arc<impl UpdatedSkeletonTree<'a> + 'static>,
         leaf_modifications: Arc<LeafModifications<L>>,
-    ) -> Result<Self, FilledTreeError<L>> {
+    ) -> Result<Self, FilledTreeError> {
         // Compute the filled tree in two steps:
         //   1. Create a map containing the tree structure without hash values.
         //   2. Fill in the hash values.
