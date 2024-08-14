@@ -2,11 +2,10 @@ use std::collections::HashMap;
 
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
-use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 use starknet_patricia::storage::storage_trait::Storage;
-use tokio::task::JoinSet;
 
 use crate::block_committer::input::{ContractAddress, StarknetStorageValue};
 use crate::forest::forest_errors::{ForestError, ForestResult};
@@ -19,7 +18,6 @@ use crate::patricia_merkle_tree::types::{
     CompiledClassHash,
     ContractsTrie,
     Nonce,
-    StorageTrie,
     StorageTrieMap,
 };
 
@@ -53,7 +51,7 @@ impl FilledForest {
     }
 
     pub(crate) async fn create<TH: ForestHashFunction + 'static>(
-        mut updated_forest: UpdatedSkeletonForest,
+        updated_forest: UpdatedSkeletonForest,
         storage_updates: HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         classes_updates: LeafModifications<CompiledClassHash>,
         original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
@@ -64,43 +62,19 @@ impl FilledForest {
             updated_forest.classes_trie,
             classes_updates,
         ));
-        let mut contracts_trie_modifications = HashMap::new();
-        let mut filled_storage_tries = HashMap::new();
-        let mut contracts_state_tasks = JoinSet::new();
 
-        for (address, inner_updates) in storage_updates {
-            let updated_storage_trie = updated_forest
-                .storage_tries
-                .remove(&address)
-                .ok_or(ForestError::MissingUpdatedSkeleton(address))?;
-
-            let original_contract_state = original_contracts_trie_leaves
-                .get(&((&address).into()))
-                .ok_or(ForestError::MissingContractCurrentState(address))?;
-            contracts_state_tasks.spawn(Self::new_contract_state::<TH>(
-                address,
-                *(address_to_nonce.get(&address).unwrap_or(&original_contract_state.nonce)),
-                *(address_to_class_hash
-                    .get(&address)
-                    .unwrap_or(&original_contract_state.class_hash)),
-                updated_storage_trie,
-                inner_updates,
-            ));
-        }
-
-        while let Some(result) = contracts_state_tasks.join_next().await {
-            let (address, new_contract_state, filled_storage_trie) = result??;
-            contracts_trie_modifications.insert((&address).into(), new_contract_state);
-            filled_storage_tries.insert(address, filled_storage_trie);
-        }
-
-        let contracts_trie_task = tokio::spawn(ContractsTrie::create_with_existing_leaves::<TH>(
+        let contracts_trie_task = tokio::task::spawn(ContractsTrie::create::<TH>(
             updated_forest.contracts_trie,
-            contracts_trie_modifications,
+            FilledForest::get_contracts_trie_leaf_input(
+                original_contracts_trie_leaves,
+                storage_updates,
+                updated_forest.storage_tries,
+                address_to_class_hash,
+                address_to_nonce,
+            )?,
         ));
-
-        let contracts_trie = match contracts_trie_task.await? {
-            Ok(contracts_trie) => contracts_trie,
+        let (contracts_trie, storage_tries) = match contracts_trie_task.await? {
+            Ok((contracts_trie, storage_tries)) => (contracts_trie, storage_tries),
             Err(error) => return Err(ForestError::ContractsTrie(error)),
         };
         let classes_trie = match classes_trie_task.await? {
@@ -108,34 +82,58 @@ impl FilledForest {
             Err(error) => return Err(ForestError::ClassesTrie(error)),
         };
 
-        Ok(Self { storage_tries: filled_storage_tries, contracts_trie, classes_trie })
+        Ok(Self {
+            storage_tries: storage_tries
+                .expect("Missing storage tries.")
+                .into_iter()
+                .map(|(node_index, storage_trie)| {
+                    (ContractAddress::from(&node_index), storage_trie)
+                })
+                .collect(),
+            contracts_trie,
+            classes_trie,
+        })
     }
 
-    async fn new_contract_state<TH: ForestHashFunction + 'static>(
-        contract_address: ContractAddress,
-        new_nonce: Nonce,
-        new_class_hash: ClassHash,
-        updated_storage_trie: UpdatedSkeletonTreeImpl,
-        inner_updates: LeafModifications<StarknetStorageValue>,
-    ) -> ForestResult<(ContractAddress, ContractState, StorageTrie)> {
-        let filled_storage_trie = match StorageTrie::create_with_existing_leaves::<TH>(
-            updated_storage_trie,
-            inner_updates,
-        )
-        .await
-        {
-            Ok(filled_storage_trie) => filled_storage_trie,
-            Err(e) => return Err(ForestError::StorageTrie(e)),
-        };
-        let new_root_hash = filled_storage_trie.get_root_hash();
-        Ok((
-            contract_address,
-            ContractState {
-                nonce: new_nonce,
-                storage_root_hash: new_root_hash,
-                class_hash: new_class_hash,
-            },
-            filled_storage_trie,
-        ))
+    fn get_contracts_trie_leaf_input(
+        original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
+        contract_address_to_storage_updates: HashMap<
+            ContractAddress,
+            LeafModifications<StarknetStorageValue>,
+        >,
+        mut contract_address_to_storage_trie: HashMap<ContractAddress, UpdatedSkeletonTreeImpl>,
+        address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
+        address_to_nonce: &HashMap<ContractAddress, Nonce>,
+    ) -> ForestResult<HashMap<NodeIndex, <ContractState as Leaf>::I>> {
+        let mut leaf_index_to_leaf_input = HashMap::new();
+        assert_eq!(
+            contract_address_to_storage_updates.len(),
+            contract_address_to_storage_trie.len()
+        );
+        // `contract_address_to_storage_updates` includes all modified contracts, even those with
+        // unmodified storage, see StateDiff::actual_storage_updates().
+        for (contract_address, storage_updates) in contract_address_to_storage_updates {
+            let node_index = NodeIndex::from(&contract_address);
+            let original_contract_state = original_contracts_trie_leaves
+                .get(&node_index)
+                .ok_or(ForestError::MissingContractCurrentState(contract_address))?;
+            leaf_index_to_leaf_input.insert(
+                node_index,
+                (
+                    node_index,
+                    *(address_to_nonce
+                        .get(&contract_address)
+                        .unwrap_or(&original_contract_state.nonce)),
+                    *(address_to_class_hash
+                        .get(&contract_address)
+                        .unwrap_or(&original_contract_state.class_hash)),
+                    contract_address_to_storage_trie
+                        .remove(&contract_address)
+                        .ok_or(ForestError::MissingUpdatedSkeleton(contract_address))?,
+                    storage_updates,
+                ),
+            );
+        }
+        Ok(leaf_index_to_leaf_input)
     }
 }
