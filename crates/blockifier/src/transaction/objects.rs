@@ -23,6 +23,7 @@ use strum_macros::EnumIter;
 
 use crate::abi::constants as abi_constants;
 use crate::blockifier::block::{BlockInfo, GasPrices};
+use crate::context::TransactionContext;
 use crate::execution::call_info::{CallInfo, ExecutionSummary, MessageL1CostInfo, OrderedEvent};
 use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::eth_gas_constants;
@@ -106,6 +107,13 @@ impl TransactionInfo {
         match self {
             TransactionInfo::Current(context) => context.resource_bounds.willing_to_pay(),
             TransactionInfo::Deprecated(context) => context.max_fee != Fee(0),
+        }
+    }
+
+    pub fn has_l2_gas_bounds(&self) -> bool {
+        match self {
+            TransactionInfo::Current(context) => context.resource_bounds.has_l2_gas(),
+            TransactionInfo::Deprecated(_) => false,
         }
     }
 }
@@ -489,13 +497,25 @@ impl TransactionResources {
         &self,
         versioned_constants: &VersionedConstants,
         use_kzg_da: bool,
+        include_l2_gas: bool,
     ) -> TransactionFeeResult<GasVector> {
-        Ok(self.starknet_resources.to_gas_vector(versioned_constants, use_kzg_da, false)
+        Ok(self.starknet_resources.to_gas_vector(versioned_constants, use_kzg_da, include_l2_gas)
             + calculate_l1_gas_by_vm_usage(
                 versioned_constants,
                 &self.vm_resources,
                 self.n_reverted_steps,
             )?)
+    }
+
+    pub fn to_gas_vector_with_context(
+        &self,
+        tx_context: &TransactionContext,
+    ) -> TransactionFeeResult<GasVector> {
+        self.to_gas_vector(
+            &tx_context.block_context.versioned_constants,
+            tx_context.block_context.block_info.use_kzg_da,
+            tx_context.tx_info.has_l2_gas_bounds(),
+        )
     }
 
     pub fn to_resources_mapping(

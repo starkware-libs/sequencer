@@ -970,6 +970,13 @@ impl ValidResourceBounds {
             }
         }
     }
+
+    pub fn has_l2_gas(&self) -> bool {
+        match self {
+            ValidResourceBounds::L1Gas(_) => false,
+            ValidResourceBounds::AllResources(_) => true,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize)]
