@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
@@ -38,9 +37,9 @@ async fn test_filled_tree_sanity() {
     skeleton_tree.insert(new_leaf_index, UpdatedSkeletonNode::Leaf);
     let modifications = HashMap::from([(new_leaf_index, new_filled_leaf)]);
     let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
-    let root_hash = FilledTreeImpl::create::<TestTreeHashFunction>(
-        Arc::new(updated_skeleton_tree),
-        Arc::new(modifications),
+    let root_hash = FilledTreeImpl::create_with_existing_leaves::<TestTreeHashFunction>(
+        updated_skeleton_tree,
+        modifications,
     )
     .await
     .unwrap()
@@ -92,9 +91,9 @@ async fn test_small_filled_tree() {
         .collect();
 
     // Compute the hash values.
-    let filled_tree = FilledTreeImpl::create::<TestTreeHashFunction>(
-        Arc::new(updated_skeleton_tree),
-        Arc::new(modifications),
+    let filled_tree = FilledTreeImpl::create_with_existing_leaves::<TestTreeHashFunction>(
+        updated_skeleton_tree,
+        modifications,
     )
     .await
     .unwrap();
@@ -155,9 +154,9 @@ async fn test_small_tree_with_unmodified_nodes() {
     )]);
 
     // Compute the hash values.
-    let filled_tree = FilledTreeImpl::create::<TestTreeHashFunction>(
-        Arc::new(updated_skeleton_tree),
-        Arc::new(modifications),
+    let filled_tree = FilledTreeImpl::create_with_existing_leaves::<TestTreeHashFunction>(
+        updated_skeleton_tree,
+        modifications,
     )
     .await
     .unwrap();
@@ -204,9 +203,9 @@ async fn test_delete_leaf_from_empty_tree() {
 
     let leaf_modifications = HashMap::from([(NodeIndex::FIRST_LEAF, MockLeaf(Felt::ZERO))]);
     // Compute the filled tree.
-    let filled_tree = FilledTreeImpl::create::<TestTreeHashFunction>(
-        updated_skeleton_tree.into(),
-        leaf_modifications.into(),
+    let filled_tree = FilledTreeImpl::create_with_existing_leaves::<TestTreeHashFunction>(
+        updated_skeleton_tree,
+        leaf_modifications,
     )
     .await
     .unwrap();
