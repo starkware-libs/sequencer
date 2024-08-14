@@ -332,7 +332,8 @@ impl DeployAccountTransaction {
         (constructor_calldata, Calldata),
         (contract_address_salt, ContractAddressSalt),
         (nonce, Nonce),
-        (signature, TransactionSignature)
+        (signature, TransactionSignature),
+        (version, TransactionVersion)
     );
 
     pub fn tx(&self) -> &starknet_api::transaction::DeployAccountTransaction {
@@ -373,9 +374,9 @@ impl TransactionInfoCreator for DeployAccountTransaction {
     fn create_tx_info(&self) -> TransactionInfo {
         let common_fields = CommonAccountFields {
             transaction_hash: self.tx_hash,
-            version: self.tx.version(),
-            signature: self.tx.signature(),
-            nonce: self.tx.nonce(),
+            version: self.version(),
+            signature: self.signature(),
+            nonce: self.nonce(),
             sender_address: self.contract_address,
             only_query: self.only_query,
         };
