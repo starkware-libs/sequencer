@@ -88,6 +88,7 @@ impl TransactionReceipt {
         let gas = tx_resources.to_gas_vector(
             &tx_context.block_context.versioned_constants,
             tx_context.block_context.block_info.use_kzg_da,
+            tx_context.tx_info.has_l2_gas_bounds(),
         )?;
 
         // L1 handler transactions are not charged an L2 fee but it is compared to the L1 fee.

@@ -937,7 +937,11 @@ fn test_max_fee_to_max_steps_conversion(
     let gas_used_vector1 = tx_execution_info1
         .receipt
         .resources
-        .to_gas_vector(&block_context.versioned_constants, block_context.block_info.use_kzg_da)
+        .to_gas_vector(
+            &block_context.versioned_constants,
+            block_context.block_info.use_kzg_da,
+            false,
+        )
         .unwrap();
 
     // Second invocation of `with_arg` gets twice the pre-calculated actual fee as max_fee.
@@ -957,7 +961,11 @@ fn test_max_fee_to_max_steps_conversion(
     let gas_used_vector2 = tx_execution_info2
         .receipt
         .resources
-        .to_gas_vector(&block_context.versioned_constants, block_context.block_info.use_kzg_da)
+        .to_gas_vector(
+            &block_context.versioned_constants,
+            block_context.block_info.use_kzg_da,
+            false,
+        )
         .unwrap();
 
     // Test that steps limit doubles as max_fee doubles, but actual consumed steps and fee remains.

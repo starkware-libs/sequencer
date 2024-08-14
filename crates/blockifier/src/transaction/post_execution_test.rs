@@ -256,7 +256,11 @@ fn test_revert_on_resource_overuse(
     let actual_gas_usage: u64 = execution_info_measure
         .receipt
         .resources
-        .to_gas_vector(&block_context.versioned_constants, block_context.block_info.use_kzg_da)
+        .to_gas_vector(
+            &block_context.versioned_constants,
+            block_context.block_info.use_kzg_da,
+            false,
+        )
         .unwrap()
         .l1_gas
         .try_into()

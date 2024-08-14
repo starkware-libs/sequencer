@@ -507,7 +507,11 @@ fn test_invoke_tx(
     );
 
     let total_gas = expected_actual_resources
-        .to_gas_vector(&block_context.versioned_constants, block_context.block_info.use_kzg_da)
+        .to_gas_vector(
+            &block_context.versioned_constants,
+            block_context.block_info.use_kzg_da,
+            false,
+        )
         .unwrap();
 
     let expected_execution_info = TransactionExecutionInfo {
@@ -1224,7 +1228,7 @@ fn test_declare_tx(
     );
 
     let expected_total_gas =
-        expected_actual_resources.to_gas_vector(versioned_constants, use_kzg_da).unwrap();
+        expected_actual_resources.to_gas_vector(versioned_constants, use_kzg_da, false).unwrap();
 
     let expected_execution_info = TransactionExecutionInfo {
         validate_call_info: expected_validate_call_info,
@@ -1392,7 +1396,11 @@ fn test_deploy_account_tx(
     );
 
     let expected_total_gas = actual_resources
-        .to_gas_vector(&block_context.versioned_constants, block_context.block_info.use_kzg_da)
+        .to_gas_vector(
+            &block_context.versioned_constants,
+            block_context.block_info.use_kzg_da,
+            false,
+        )
         .unwrap();
 
     let expected_execution_info = TransactionExecutionInfo {
@@ -1907,7 +1915,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     );
 
     let total_gas = expected_tx_resources
-        .to_gas_vector(versioned_constants, block_context.block_info.use_kzg_da)
+        .to_gas_vector(versioned_constants, block_context.block_info.use_kzg_da, false)
         .unwrap();
 
     // Build the expected execution info.

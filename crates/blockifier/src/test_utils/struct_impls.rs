@@ -120,6 +120,7 @@ impl TransactionResources {
         let gas_vector = self.to_gas_vector(
             &block_context.versioned_constants,
             block_context.block_info.use_kzg_da,
+            false,
         )?;
         Ok(get_fee_by_gas_vector(&block_context.block_info, gas_vector, fee_type))
     }
