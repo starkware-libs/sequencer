@@ -9,15 +9,16 @@ use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::sink::SinkExt;
 use futures::StreamExt;
+use papyrus_common::metrics::PAPYRUS_CONSENSUS_HEIGHT;
 use papyrus_network::network_manager::BroadcastSubscriberSender;
-use papyrus_protobuf::consensus::{ConsensusMessage, Proposal};
+use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, Vote};
 use papyrus_storage::body::BodyStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
-use tracing::{debug, debug_span, Instrument};
+use tracing::{debug, debug_span, info, Instrument};
 
 use crate::types::{ConsensusBlock, ConsensusContext, ConsensusError, ProposalInit, ValidatorId};
 use crate::ProposalWrapper;
@@ -223,6 +224,20 @@ impl ConsensusContext for PapyrusConsensusContext {
             }
             .instrument(debug_span!("consensus_propose")),
         );
+        Ok(())
+    }
+
+    async fn notify_decision(
+        &self,
+        block: Self::Block,
+        precommits: Vec<Vote>,
+    ) -> Result<(), ConsensusError> {
+        let height = precommits[0].height;
+        info!(
+            "Finished consensus for height: {height}. Agreed on block with id: {:x}",
+            block.id().0
+        );
+        metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT, height as f64);
         Ok(())
     }
 }
