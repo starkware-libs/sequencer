@@ -191,6 +191,10 @@ impl GasVector {
         Self { l1_data_gas, ..Default::default() }
     }
 
+    pub fn from_l2_gas(l2_gas: u128) -> Self {
+        Self { l2_gas, ..Default::default() }
+    }
+
     /// Computes the cost (in fee token units) of the gas vector (saturating on overflow).
     pub fn saturated_cost(&self, gas_price: u128, blob_gas_price: u128) -> Fee {
         let l1_gas_cost = self.l1_gas.checked_mul(gas_price).unwrap_or_else(|| {
@@ -353,16 +357,12 @@ impl StarknetResources {
         versioned_constants: &VersionedConstants,
         include_l2_gas: bool,
     ) -> GasVector {
-        if include_l2_gas {
-            todo!()
-        } else {
-            // TODO(Avi, 20/2/2024): Calculate the number of bytes instead of the number of felts.
-            let total_data_size = u128_from_usize(self.calldata_length + self.signature_length);
-            let l1_gas = (versioned_constants.l2_resource_gas_costs.gas_per_data_felt
-                * total_data_size)
-                .to_integer();
-            GasVector::from_l1_gas(l1_gas)
-        }
+        // TODO(Avi, 20/2/2024): Calculate the number of bytes instead of the number of felts.
+        let total_data_size = u128_from_usize(self.calldata_length + self.signature_length);
+        let gas = (versioned_constants.l2_resource_gas_costs.gas_per_data_felt * total_data_size)
+            .to_integer();
+        // Does that make sense??
+        if include_l2_gas { GasVector::from_l2_gas(gas) } else { GasVector::from_l1_gas(gas) }
     }
 
     /// Returns an estimation of the gas usage for processing L1<>L2 messages on L1. Accounts for
