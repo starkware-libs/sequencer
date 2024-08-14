@@ -262,18 +262,16 @@ impl From<ToOtherBehaviourEvent> for mixed_behaviour::Event {
 
 impl BridgedBehaviour for Behaviour {
     fn on_other_behaviour_event(&mut self, event: &mixed_behaviour::ToOtherBehaviourEvent) {
-        match event {
-            mixed_behaviour::ToOtherBehaviourEvent::Kad(
-                KadToOtherBehaviourEvent::KadQueryFinished,
-            ) => {
-                for waker in self.wakers_waiting_for_query_to_finish.drain(..) {
-                    waker.wake();
-                }
-                self.query_sleep_future =
-                    Some(tokio::time::sleep(self.config.heartbeat_interval).boxed());
-                self.is_query_running = false;
+        if let mixed_behaviour::ToOtherBehaviourEvent::Kad(
+            KadToOtherBehaviourEvent::KadQueryFinished,
+        ) = event
+        {
+            for waker in self.wakers_waiting_for_query_to_finish.drain(..) {
+                waker.wake();
             }
-            _ => {}
+            self.query_sleep_future =
+                Some(tokio::time::sleep(self.config.heartbeat_interval).boxed());
+            self.is_query_running = false;
         }
     }
 }
