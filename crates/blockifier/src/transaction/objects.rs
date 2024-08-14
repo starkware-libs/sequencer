@@ -435,18 +435,13 @@ impl StarknetResources {
         versioned_constants: &VersionedConstants,
         include_l2_gas: bool,
     ) -> GasVector {
-        if include_l2_gas {
-            todo!()
-        } else {
-            let l2_resource_gas_costs = &versioned_constants.l2_resource_gas_costs;
-            let (event_key_factor, data_word_cost) =
-                (l2_resource_gas_costs.event_key_factor, l2_resource_gas_costs.gas_per_data_felt);
-            let l1_gas: u128 = (data_word_cost
-                * (event_key_factor * self.total_event_keys + self.total_event_data_size))
-                .to_integer();
-
-            GasVector::from_l1_gas(l1_gas)
-        }
+        let l2_resource_gas_costs = &versioned_constants.l2_resource_gas_costs;
+        let (event_key_factor, data_word_cost) =
+            (l2_resource_gas_costs.event_key_factor, l2_resource_gas_costs.gas_per_data_felt);
+        let gas: u128 = (data_word_cost
+            * (event_key_factor * self.total_event_keys + self.total_event_data_size))
+            .to_integer();
+        if include_l2_gas { GasVector::from_l2_gas(gas) } else { GasVector::from_l1_gas(gas) }
     }
 
     pub fn get_onchain_data_segment_length(&self) -> usize {
