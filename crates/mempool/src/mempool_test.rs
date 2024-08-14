@@ -490,11 +490,10 @@ fn test_add_tx_delete_tx_with_lower_nonce_than_account_nonce() {
     add_tx(&mut mempool, &tx_nonce_1_account_nonce_1);
 
     // Assert the transaction with the lower nonce is removed.
-    // TODO(Ayelet): Assert the queue after modifying add_tx to delete lower nonce transactions
-    // in the queue.
+    let expected_queue_txs = [TransactionReference::new(&tx_nonce_1_account_nonce_1.tx)];
     let expected_pool_txs = [tx_nonce_1_account_nonce_1.tx];
-    let expected_mempool_content = MempoolContent::with_pool(expected_pool_txs);
-    expected_mempool_content.assert_eq_pool_content(&mempool);
+    let expected_mempool_content = MempoolContent::new(expected_pool_txs, expected_queue_txs);
+    expected_mempool_content.assert_eq_mempool_content(&mempool);
 }
 
 #[rstest]
