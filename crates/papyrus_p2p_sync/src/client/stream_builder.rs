@@ -50,13 +50,17 @@ where
 
     fn get_start_block_number(storage_reader: &StorageReader) -> Result<BlockNumber, StorageError>;
 
-    fn create_stream<TQuery: Send + From<Query> + 'static>(
+    fn create_stream<TQuery>(
         mut sqmr_sender: SqmrClientSender<TQuery, DataOrFin<InputFromNetwork>>,
         storage_reader: StorageReader,
         wait_period_for_new_data: Duration,
         num_blocks_per_query: u64,
         stop_sync_at_block_number: Option<BlockNumber>,
-    ) -> BoxStream<'static, DataStreamResult> {
+    ) -> BoxStream<'static, DataStreamResult>
+    where
+        TQuery: From<Query> + Send + 'static,
+        Vec<u8>: From<TQuery>,
+    {
         stream! {
             let mut current_block_number = Self::get_start_block_number(&storage_reader)?;
             'send_query_and_parse_responses: loop {

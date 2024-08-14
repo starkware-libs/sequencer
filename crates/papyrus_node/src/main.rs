@@ -353,35 +353,35 @@ fn register_to_network(network_config: Option<NetworkConfig>) -> anyhow::Result<
     };
     let mut network_manager = network_manager::NetworkManager::new(network_config.clone());
     let local_peer_id = network_manager.get_local_peer_id();
+
     let header_client_sender = network_manager
         .register_sqmr_protocol_client(Protocol::SignedBlockHeader.into(), BUFFER_SIZE);
     let state_diff_client_sender =
         network_manager.register_sqmr_protocol_client(Protocol::StateDiff.into(), BUFFER_SIZE);
     let transaction_client_sender =
         network_manager.register_sqmr_protocol_client(Protocol::Transaction.into(), BUFFER_SIZE);
-
-    let header_server_channel = network_manager
-        .register_sqmr_protocol_server(Protocol::SignedBlockHeader.into(), BUFFER_SIZE);
-    let state_diff_server_channel =
-        network_manager.register_sqmr_protocol_server(Protocol::StateDiff.into(), BUFFER_SIZE);
-    let transaction_server_channel =
-        network_manager.register_sqmr_protocol_server(Protocol::Transaction.into(), BUFFER_SIZE);
-    let class_server_channel =
-        network_manager.register_sqmr_protocol_server(Protocol::Class.into(), BUFFER_SIZE);
-    let event_server_channel =
-        network_manager.register_sqmr_protocol_server(Protocol::Event.into(), BUFFER_SIZE);
-
     let p2p_sync_client_channels = P2PSyncClientChannels::new(
         header_client_sender,
         state_diff_client_sender,
         transaction_client_sender,
     );
+
+    let header_server_receiver = network_manager
+        .register_sqmr_protocol_server(Protocol::SignedBlockHeader.into(), BUFFER_SIZE);
+    let state_diff_server_receiver =
+        network_manager.register_sqmr_protocol_server(Protocol::StateDiff.into(), BUFFER_SIZE);
+    let transaction_server_receiver =
+        network_manager.register_sqmr_protocol_server(Protocol::Transaction.into(), BUFFER_SIZE);
+    let class_server_receiver =
+        network_manager.register_sqmr_protocol_server(Protocol::Class.into(), BUFFER_SIZE);
+    let event_server_receiver =
+        network_manager.register_sqmr_protocol_server(Protocol::Event.into(), BUFFER_SIZE);
     let p2p_sync_server_channels = P2PSyncServerChannels::new(
-        header_server_channel,
-        state_diff_server_channel,
-        transaction_server_channel,
-        class_server_channel,
-        event_server_channel,
+        header_server_receiver,
+        state_diff_server_receiver,
+        transaction_server_receiver,
+        class_server_receiver,
+        event_server_receiver,
     );
 
     Ok((
