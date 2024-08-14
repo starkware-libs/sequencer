@@ -9,14 +9,11 @@ use crate::abi::constants;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateResult};
 use crate::transaction::objects::FeeType;
-use crate::versioned_constants::ResourceCost;
+use crate::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
 
 #[cfg(test)]
 #[path = "block_test.rs"]
 pub mod block_test;
-pub const L2_GAS_FOR_CAIRO_STEP: u128 = 100;
-pub const CAIRO_STEPS_PER_L1_GAS: u128 = 400;
-pub const L2_TO_L1_GAS_PRICE_RATIO: u128 = L2_GAS_FOR_CAIRO_STEP * CAIRO_STEPS_PER_L1_GAS;
 
 #[derive(Clone, Debug)]
 pub struct BlockInfo {
@@ -35,8 +32,8 @@ pub struct GasPrices {
     strk_l1_gas_price: NonZeroU128,      // In fri.
     eth_l1_data_gas_price: NonZeroU128,  // In wei.
     strk_l1_data_gas_price: NonZeroU128, // In fri.
-    eth_l2_gas_price: ResourceCost,      // In wei.
-    strk_l2_gas_price: ResourceCost,     // In fri.
+    eth_l2_gas_price: NonZeroU128,       // In wei.
+    strk_l2_gas_price: NonZeroU128,      // In fri.
 }
 
 impl GasPrices {
@@ -46,9 +43,25 @@ impl GasPrices {
         eth_l1_data_gas_price: NonZeroU128,
         strk_l1_data_gas_price: NonZeroU128,
     ) -> Self {
-        let eth_l2_gas_price = ResourceCost::new(eth_l1_gas_price.into(), L2_TO_L1_GAS_PRICE_RATIO);
-        let strk_l2_gas_price =
-            ResourceCost::new(strk_l1_gas_price.into(), L2_TO_L1_GAS_PRICE_RATIO);
+        // TODO(Aner): get gas prices from python.
+        let eth_l2_gas_price = NonZeroU128::new(
+            VersionedConstants::get_versioned_constants(VersionedConstantsOverrides {
+                validate_max_n_steps: 0,
+                max_recursion_depth: 0,
+                versioned_constants_base_overrides: None,
+            })
+            .l1_to_l2_gas_price_conversion(eth_l1_gas_price.into()),
+        )
+        .expect("L1 to L2 price conversion error (Rust side).");
+        let strk_l2_gas_price = NonZeroU128::new(
+            VersionedConstants::get_versioned_constants(VersionedConstantsOverrides {
+                validate_max_n_steps: 0,
+                max_recursion_depth: 0,
+                versioned_constants_base_overrides: None,
+            })
+            .l1_to_l2_gas_price_conversion(strk_l1_gas_price.into()),
+        )
+        .expect("L1 to L2 price conversion error (Rust side).");
         GasPrices {
             eth_l1_gas_price,
             strk_l1_gas_price,
@@ -73,7 +86,7 @@ impl GasPrices {
         }
     }
 
-    pub fn get_l2_gas_price_by_fee_type(&self, fee_type: &FeeType) -> ResourceCost {
+    pub fn get_l2_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonZeroU128 {
         match fee_type {
             FeeType::Strk => self.strk_l2_gas_price,
             FeeType::Eth => self.eth_l2_gas_price,

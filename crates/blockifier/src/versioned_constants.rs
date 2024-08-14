@@ -124,6 +124,14 @@ impl VersionedConstants {
         Self::get(StarknetVersion::Latest)
     }
 
+    /// Converts from l1 gas cost to l2 gas cost with **upward rounding**
+    pub fn l1_to_l2_gas_price_conversion(&self, l1_gas_price: u128) -> u128 {
+        let l1_to_l2_gas_price_ratio: Ratio<u128> =
+            Ratio::new(1, u128::from(self.os_constants.gas_costs.step_gas_cost))
+                * self.vm_resource_fee_cost()["n_steps"];
+        *(l1_to_l2_gas_price_ratio * l1_gas_price).ceil().numer()
+    }
+
     /// Returns the initial gas of any transaction to run with.
     pub fn tx_initial_gas(&self) -> u64 {
         let os_consts = &self.os_constants;
