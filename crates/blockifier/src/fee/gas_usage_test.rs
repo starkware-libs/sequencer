@@ -41,7 +41,7 @@ fn test_get_event_gas_cost(
         StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, call_infos_iter);
     assert_eq!(
         GasVector::default(),
-        starknet_resources.to_gas_vector(versioned_constants, use_kzg_da)
+        starknet_resources.to_gas_vector(versioned_constants, use_kzg_da, false)
     );
 
     let create_event = |keys_size: usize, data_size: usize| OrderedEvent {
@@ -81,7 +81,7 @@ fn test_get_event_gas_cost(
     );
     let starknet_resources =
         StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, call_infos_iter);
-    let gas_vector = starknet_resources.to_gas_vector(versioned_constants, use_kzg_da);
+    let gas_vector = starknet_resources.to_gas_vector(versioned_constants, use_kzg_da, false);
     assert_eq!(expected, gas_vector);
     assert_ne!(GasVector::default(), gas_vector)
 }

@@ -310,12 +310,13 @@ impl StarknetResources {
         &self,
         versioned_constants: &VersionedConstants,
         use_kzg_da: bool,
+        include_l2_gas: bool,
     ) -> GasVector {
-        self.get_calldata_and_signature_cost(versioned_constants)
-            + self.get_code_cost(versioned_constants)
+        self.get_calldata_and_signature_cost(versioned_constants, include_l2_gas)
+            + self.get_code_cost(versioned_constants, include_l2_gas)
             + self.get_state_changes_cost(use_kzg_da)
             + self.get_messages_cost()
-            + self.get_events_cost(versioned_constants)
+            + self.get_events_cost(versioned_constants, include_l2_gas)
     }
 
     // Returns the gas cost for transaction calldata and transaction signature. Each felt costs a
@@ -324,13 +325,18 @@ impl StarknetResources {
     pub fn get_calldata_and_signature_cost(
         &self,
         versioned_constants: &VersionedConstants,
+        include_l2_gas: bool,
     ) -> GasVector {
-        // TODO(Avi, 20/2/2024): Calculate the number of bytes instead of the number of felts.
-        let total_data_size = u128_from_usize(self.calldata_length + self.signature_length);
-        let l1_gas = (versioned_constants.l2_resource_gas_costs.gas_per_data_felt
-            * total_data_size)
-            .to_integer();
-        GasVector::from_l1_gas(l1_gas)
+        if include_l2_gas {
+            todo!()
+        } else {
+            // TODO(Avi, 20/2/2024): Calculate the number of bytes instead of the number of felts.
+            let total_data_size = u128_from_usize(self.calldata_length + self.signature_length);
+            let l1_gas = (versioned_constants.l2_resource_gas_costs.gas_per_data_felt
+                * total_data_size)
+                .to_integer();
+            GasVector::from_l1_gas(l1_gas)
+        }
     }
 
     /// Returns an estimation of the gas usage for processing L1<>L2 messages on L1. Accounts for
@@ -379,12 +385,20 @@ impl StarknetResources {
     }
 
     /// Returns the gas cost of declared class codes.
-    pub fn get_code_cost(&self, versioned_constants: &VersionedConstants) -> GasVector {
-        GasVector::from_l1_gas(
-            (versioned_constants.l2_resource_gas_costs.gas_per_code_byte
-                * u128_from_usize(self.code_size))
-            .to_integer(),
-        )
+    pub fn get_code_cost(
+        &self,
+        versioned_constants: &VersionedConstants,
+        include_l2_gas: bool,
+    ) -> GasVector {
+        if include_l2_gas {
+            todo!()
+        } else {
+            GasVector::from_l1_gas(
+                (versioned_constants.l2_resource_gas_costs.gas_per_code_byte
+                    * u128_from_usize(self.code_size))
+                .to_integer(),
+            )
+        }
     }
 
     /// Returns the gas cost of the transaction's state changes.
@@ -394,15 +408,23 @@ impl StarknetResources {
     }
 
     /// Returns the gas cost of the transaction's emmited events.
-    pub fn get_events_cost(&self, versioned_constants: &VersionedConstants) -> GasVector {
-        let l2_resource_gas_costs = &versioned_constants.l2_resource_gas_costs;
-        let (event_key_factor, data_word_cost) =
-            (l2_resource_gas_costs.event_key_factor, l2_resource_gas_costs.gas_per_data_felt);
-        let l1_gas: u128 = (data_word_cost
-            * (event_key_factor * self.total_event_keys + self.total_event_data_size))
-            .to_integer();
+    pub fn get_events_cost(
+        &self,
+        versioned_constants: &VersionedConstants,
+        include_l2_gas: bool,
+    ) -> GasVector {
+        if include_l2_gas {
+            todo!()
+        } else {
+            let l2_resource_gas_costs = &versioned_constants.l2_resource_gas_costs;
+            let (event_key_factor, data_word_cost) =
+                (l2_resource_gas_costs.event_key_factor, l2_resource_gas_costs.gas_per_data_felt);
+            let l1_gas: u128 = (data_word_cost
+                * (event_key_factor * self.total_event_keys + self.total_event_data_size))
+                .to_integer();
 
-        GasVector::from_l1_gas(l1_gas)
+            GasVector::from_l1_gas(l1_gas)
+        }
     }
 
     pub fn get_onchain_data_segment_length(&self) -> usize {
@@ -449,7 +471,7 @@ impl TransactionResources {
         versioned_constants: &VersionedConstants,
         use_kzg_da: bool,
     ) -> TransactionFeeResult<GasVector> {
-        Ok(self.starknet_resources.to_gas_vector(versioned_constants, use_kzg_da)
+        Ok(self.starknet_resources.to_gas_vector(versioned_constants, use_kzg_da, false)
             + calculate_l1_gas_by_vm_usage(
                 versioned_constants,
                 &self.vm_resources,
@@ -464,7 +486,7 @@ impl TransactionResources {
         with_reverted_steps: bool,
     ) -> ResourcesMapping {
         let GasVector { l1_gas, l1_data_gas, .. } =
-            self.starknet_resources.to_gas_vector(versioned_constants, use_kzg_da);
+            self.starknet_resources.to_gas_vector(versioned_constants, use_kzg_da, false);
         let mut resources = self.vm_resources.to_resources_mapping();
         resources.0.extend(HashMap::from([
             (
