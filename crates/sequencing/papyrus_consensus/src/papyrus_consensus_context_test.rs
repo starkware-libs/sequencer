@@ -1,6 +1,9 @@
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
-use papyrus_network::network_manager::{mock_register_broadcast_subscriber, BroadcastNetworkMock};
+use papyrus_network::network_manager::test_utils::{
+    mock_register_broadcast_topic,
+    BroadcastNetworkMock,
+};
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, Vote};
 use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
@@ -127,8 +130,8 @@ fn test_setup() -> (
         .commit()
         .unwrap();
 
-    let network_channels = mock_register_broadcast_subscriber().unwrap();
-    let sync_channels = mock_register_broadcast_subscriber().unwrap();
+    let network_channels = mock_register_broadcast_topic().unwrap();
+    let sync_channels = mock_register_broadcast_topic().unwrap();
     let papyrus_context = PapyrusConsensusContext::new(
         storage_reader.clone(),
         network_channels.subscriber_channels.messages_to_broadcast_sender,
