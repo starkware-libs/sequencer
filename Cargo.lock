@@ -8751,8 +8751,9 @@ dependencies = [
 [[package]]
 name = "starknet_api"
 version = "0.13.0-rc.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b505c9c076d9fce854304bd743c93ea540ebea6b16ec96819b07343a3aa2c7c"
 dependencies = [
- "assert_matches",
  "bitvec",
  "cairo-lang-starknet-classes",
  "derive_more",
@@ -8761,7 +8762,6 @@ dependencies = [
  "itertools 0.12.1",
  "once_cell",
  "primitive-types",
- "rstest",
  "serde",
  "serde_json",
  "sha3",
