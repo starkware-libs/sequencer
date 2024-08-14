@@ -104,7 +104,7 @@ async fn decision() {
     let (_, mut papyrus_context, _, mut sync_network) = test_setup();
     let block = PapyrusConsensusBlock::default();
     let precommit = Vote::default();
-    papyrus_context.notify_decision(block, vec![precommit.clone()]).await.unwrap();
+    papyrus_context.decision_reached(block, vec![precommit.clone()]).await.unwrap();
     assert_eq!(sync_network.messages_to_broadcast_receiver.next().await.unwrap(), precommit);
 }
 

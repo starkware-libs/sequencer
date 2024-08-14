@@ -236,7 +236,7 @@ impl ConsensusContext for PapyrusConsensusContext {
         Ok(())
     }
 
-    async fn notify_decision(
+    async fn decision_reached(
         &mut self,
         block: Self::Block,
         precommits: Vec<Vote>,

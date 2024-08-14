@@ -65,7 +65,7 @@ where
         tokio::select! {
             decision = run_height => {
                 let decision = decision?;
-                context.notify_decision(decision.block, decision.precommits).await?;
+                context.decision_reached(decision.block, decision.precommits).await?;
                 current_height = current_height.unchecked_next();
             },
             sync_height = sync_height(current_height, &mut sync_receiver) => {
