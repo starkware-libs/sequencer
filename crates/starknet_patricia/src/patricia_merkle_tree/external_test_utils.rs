@@ -97,7 +97,7 @@ where
     )
     .expect("Failed to create the updated skeleton tree");
 
-    FilledTreeImpl::<L>::create::<TH>(updated_skeleton.into(), leaf_modifications.into())
+    FilledTreeImpl::<L>::create_with_existing_leaves::<TH>(updated_skeleton, leaf_modifications)
         .await
         .expect("Failed to create the filled tree")
 }

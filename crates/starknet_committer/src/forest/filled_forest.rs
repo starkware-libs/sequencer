@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
@@ -61,9 +60,9 @@ impl FilledForest {
         address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
         address_to_nonce: &HashMap<ContractAddress, Nonce>,
     ) -> ForestResult<Self> {
-        let classes_trie_task = tokio::spawn(ClassesTrie::create::<TH>(
-            Arc::new(updated_forest.classes_trie),
-            Arc::new(classes_updates),
+        let classes_trie_task = tokio::spawn(ClassesTrie::create_with_existing_leaves::<TH>(
+            updated_forest.classes_trie,
+            classes_updates,
         ));
         let mut contracts_trie_modifications = HashMap::new();
         let mut filled_storage_tries = HashMap::new();
@@ -95,9 +94,9 @@ impl FilledForest {
             filled_storage_tries.insert(address, filled_storage_trie);
         }
 
-        let contracts_trie_task = tokio::spawn(ContractsTrie::create::<TH>(
-            Arc::new(updated_forest.contracts_trie),
-            Arc::new(contracts_trie_modifications),
+        let contracts_trie_task = tokio::spawn(ContractsTrie::create_with_existing_leaves::<TH>(
+            updated_forest.contracts_trie,
+            contracts_trie_modifications,
         ));
 
         let contracts_trie = match contracts_trie_task.await? {
@@ -119,9 +118,9 @@ impl FilledForest {
         updated_storage_trie: UpdatedSkeletonTreeImpl,
         inner_updates: LeafModifications<StarknetStorageValue>,
     ) -> ForestResult<(ContractAddress, ContractState, StorageTrie)> {
-        let filled_storage_trie = match StorageTrie::create::<TH>(
-            Arc::new(updated_storage_trie),
-            Arc::new(inner_updates),
+        let filled_storage_trie = match StorageTrie::create_with_existing_leaves::<TH>(
+            updated_storage_trie,
+            inner_updates,
         )
         .await
         {
