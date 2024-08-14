@@ -311,6 +311,7 @@ fn create_block_context(
         block_timestamp,
         l1_gas_price,
         l1_data_gas_price,
+        l2_gas_price,
         sequencer_address,
         l1_da_mode,
     ) = match maybe_pending_data {
@@ -319,6 +320,7 @@ fn create_block_context(
             pending_data.timestamp,
             pending_data.l1_gas_price,
             pending_data.l1_data_gas_price,
+            pending_data.l2_gas_price,
             pending_data.sequencer,
             pending_data.l1_da_mode,
         ),
@@ -332,6 +334,7 @@ fn create_block_context(
                 header.timestamp,
                 header.l1_gas_price,
                 header.l1_data_gas_price,
+                header.l2_gas_price,
                 header.sequencer,
                 header.l1_da_mode,
             )
@@ -359,6 +362,8 @@ fn create_block_context(
             NonZeroU128::new(l1_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
             NonZeroU128::new(l1_data_gas_price.price_in_wei.0).unwrap_or(NonZeroU128::MIN),
             NonZeroU128::new(l1_data_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
+            NonZeroU128::new(l2_gas_price.price_in_wei.0).unwrap_or(NonZeroU128::MIN),
+            NonZeroU128::new(l2_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
         ),
     };
     let chain_info = ChainInfo {

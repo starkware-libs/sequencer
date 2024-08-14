@@ -1158,6 +1158,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
                 timestamp: pending_block.timestamp(),
                 l1_gas_price: pending_block.l1_gas_price(),
                 l1_data_gas_price: pending_block.l1_data_gas_price(),
+                l2_gas_price: pending_block.l2_gas_price(),
                 sequencer: pending_block.sequencer_address(),
                 // The pending state diff should be empty since we look at the state in the
                 // start of the pending block.
@@ -1276,6 +1277,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
                         timestamp: client_pending_data.block.timestamp(),
                         l1_gas_price: client_pending_data.block.l1_gas_price(),
                         l1_data_gas_price: client_pending_data.block.l1_data_gas_price(),
+                        l2_gas_price: client_pending_data.block.l2_gas_price(),
                         sequencer: client_pending_data.block.sequencer_address(),
                         // The pending state diff should be empty since we look at the state in the
                         // start of the pending block.

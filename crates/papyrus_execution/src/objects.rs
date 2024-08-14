@@ -497,10 +497,12 @@ pub struct PendingData {
     pub replaced_classes: Vec<ReplacedClass>,
     /// The timestamp of the pending block.
     pub timestamp: BlockTimestamp,
-    /// The gas price of the pending block.
+    /// The l1 gas price of the pending block.
     pub l1_gas_price: GasPricePerToken,
     /// The data price of the pending block.
     pub l1_data_gas_price: GasPricePerToken,
+    /// The l2 gas price of the pending block.
+    pub l2_gas_price: GasPricePerToken,
     /// The data availability mode of the pending block.
     pub l1_da_mode: L1DataAvailabilityMode,
     /// The sequencer address of the pending block.
