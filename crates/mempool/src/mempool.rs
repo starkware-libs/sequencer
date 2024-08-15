@@ -134,13 +134,13 @@ impl Mempool {
         let MempoolInput { tx, account: Account { sender_address, state: AccountState { nonce } } } =
             input;
 
-        self.tx_pool.remove_up_to_nonce(sender_address, nonce);
+        self.tx_pool.insert(tx)?;
+
+        // Align the queue with the account's nonce.
         if self.tx_queue.get_nonce(sender_address).is_some_and(|queued_nonce| queued_nonce != nonce)
         {
             self.tx_queue.remove(sender_address);
         }
-
-        self.tx_pool.insert(tx)?;
 
         // Maybe close nonce gap.
         if self.tx_queue.get_nonce(sender_address).is_none() {
@@ -149,6 +149,8 @@ impl Mempool {
                 self.tx_queue.insert(*tx_reference);
             }
         }
+
+        self.tx_pool.remove_up_to_nonce(sender_address, nonce);
 
         Ok(())
     }
