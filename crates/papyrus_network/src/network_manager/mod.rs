@@ -52,6 +52,7 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     messages_to_broadcast_receivers: StreamHashMap<TopicHash, Receiver<Bytes>>,
     broadcasted_messages_senders: HashMap<TopicHash, Sender<(Bytes, ReportSender)>>,
     reported_peer_receivers: FuturesUnordered<BoxFuture<'static, Option<PeerId>>>,
+    hardcoded_external_multiaddr: Option<Multiaddr>,
     // Fields for metrics
     num_active_inbound_sessions: usize,
     num_active_outbound_sessions: usize,
@@ -74,10 +75,18 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         }
     }
 
-    pub(crate) fn generic_new(swarm: SwarmT) -> Self {
+    // TODO(shahak): remove the hardcoded_external_multiaddr arg once we manage external addresses
+    // in a behaviour.
+    pub(crate) fn generic_new(
+        mut swarm: SwarmT,
+        hardcoded_external_multiaddr: Option<Multiaddr>,
+    ) -> Self {
         gauge!(papyrus_metrics::PAPYRUS_NUM_CONNECTED_PEERS, 0f64);
         let reported_peer_receivers = FuturesUnordered::new();
         reported_peer_receivers.push(futures::future::pending().boxed());
+        if let Some(address) = hardcoded_external_multiaddr.clone() {
+            swarm.add_external_address(address);
+        }
         Self {
             swarm,
             inbound_protocol_to_buffer_size: HashMap::new(),
@@ -89,6 +98,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             messages_to_broadcast_receivers: StreamHashMap::new(HashMap::new()),
             broadcasted_messages_senders: HashMap::new(),
             reported_peer_receivers,
+            hardcoded_external_multiaddr,
             num_active_inbound_sessions: 0,
             num_active_outbound_sessions: 0,
         }
@@ -258,13 +268,14 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             }
             SwarmEvent::NewListenAddr { address, .. } => {
                 // TODO(shahak): Find a better way to filter private addresses.
-                if !is_localhost(&address) {
+                if !is_localhost(&address) && self.hardcoded_external_multiaddr.is_none() {
                     self.swarm.add_external_address(address);
                 }
             }
             SwarmEvent::IncomingConnection { .. }
             | SwarmEvent::Dialing { .. }
-            | SwarmEvent::NewExternalAddrCandidate { .. } => {}
+            | SwarmEvent::NewExternalAddrCandidate { .. }
+            | SwarmEvent::NewExternalAddrOfPeer { .. } => {}
             _ => {
                 error!("Unexpected event {event:?}");
             }
@@ -556,6 +567,7 @@ impl NetworkManager {
             session_timeout,
             idle_connection_timeout,
             bootstrap_peer_multiaddr,
+            hardcoded_external_multiaddr,
             secret_key,
             chain_id,
         } = config;
@@ -565,6 +577,7 @@ impl NetworkManager {
             // format!("/ip4/0.0.0.0/udp/{quic_port}/quic-v1"),
             format!("/ip4/0.0.0.0/tcp/{tcp_port}"),
         ];
+
         let swarm = build_swarm(listen_addresses, idle_connection_timeout, secret_key, |key| {
             mixed_behaviour::MixedBehaviour::new(
                 key,
@@ -573,7 +586,12 @@ impl NetworkManager {
                 chain_id,
             )
         });
-        Self::generic_new(swarm)
+        let hardcoded_external_multiaddr = hardcoded_external_multiaddr.map(|address| {
+            address.with_p2p(*swarm.local_peer_id()).expect(
+                "hardcoded_external_multiaddr has a peer id different than the local peer id",
+            )
+        });
+        Self::generic_new(swarm, hardcoded_external_multiaddr)
     }
 
     pub fn get_local_peer_id(&self) -> String {
