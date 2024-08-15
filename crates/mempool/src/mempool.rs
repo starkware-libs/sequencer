@@ -99,23 +99,7 @@ impl Mempool {
     ) -> MempoolResult<()> {
         for (&address, AccountState { nonce }) in &state_changes {
             let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
-
-            // Align the queue with the committed nonces.
-            if self
-                .tx_queue
-                .get_nonce(address)
-                .is_some_and(|queued_nonce| queued_nonce != next_nonce)
-            {
-                self.tx_queue.remove(address);
-            }
-
-            if self.tx_queue.get_nonce(address).is_none() {
-                if let Some(tx) = self.tx_pool.get_by_address_and_nonce(address, next_nonce) {
-                    self.tx_queue.insert(*tx);
-                }
-            }
-
-            self.tx_pool.remove_up_to_nonce(address, next_nonce);
+            self.align_pool_and_queue_with_account_nonce(address, next_nonce);
         }
 
         // Rewind nonces of addresses that were not included in block.
@@ -136,21 +120,7 @@ impl Mempool {
 
         self.tx_pool.insert(tx)?;
 
-        // Align the queue with the account's nonce.
-        if self.tx_queue.get_nonce(sender_address).is_some_and(|queued_nonce| queued_nonce != nonce)
-        {
-            self.tx_queue.remove(sender_address);
-        }
-
-        // Maybe close nonce gap.
-        if self.tx_queue.get_nonce(sender_address).is_none() {
-            if let Some(tx_reference) = self.tx_pool.get_by_address_and_nonce(sender_address, nonce)
-            {
-                self.tx_queue.insert(*tx_reference);
-            }
-        }
-
-        self.tx_pool.remove_up_to_nonce(sender_address, nonce);
+        self.align_pool_and_queue_with_account_nonce(sender_address, nonce);
 
         Ok(())
     }
@@ -208,6 +178,20 @@ impl Mempool {
         }
 
         Ok(())
+    }
+
+    fn align_pool_and_queue_with_account_nonce(&mut self, address: ContractAddress, nonce: Nonce) {
+        if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| queued_nonce != nonce) {
+            self.tx_queue.remove(address);
+        }
+
+        if self.tx_queue.get_nonce(address).is_none() {
+            if let Some(tx_reference) = self.tx_pool.get_by_address_and_nonce(address, nonce) {
+                self.tx_queue.insert(*tx_reference);
+            }
+        }
+
+        self.tx_pool.remove_up_to_nonce(address, nonce);
     }
 
     #[cfg(test)]
