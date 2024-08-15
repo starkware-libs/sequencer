@@ -24,7 +24,7 @@ use crate::test_utils::{
 use crate::transaction::objects::GasVector;
 use crate::transaction::test_utils::{account_invoke_tx, l1_resource_bounds};
 use crate::utils::u128_from_usize;
-use crate::versioned_constants::VersionedConstants;
+use crate::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
 
 fn get_vm_resource_usage() -> ExecutionResources {
     ExecutionResources {
@@ -133,6 +133,22 @@ fn test_discounted_gas_overdraft(
         gas_price.try_into().unwrap(),
         DEFAULT_ETH_L1_DATA_GAS_PRICE.try_into().unwrap(),
         data_gas_price.try_into().unwrap(),
+        VersionedConstants::get_versioned_constants(VersionedConstantsOverrides {
+            validate_max_n_steps: 0,
+            max_recursion_depth: 0,
+            versioned_constants_base_overrides: None,
+        })
+        .l1_to_l2_gas_price_conversion(DEFAULT_ETH_L1_GAS_PRICE)
+        .try_into()
+        .unwrap(),
+        VersionedConstants::get_versioned_constants(VersionedConstantsOverrides {
+            validate_max_n_steps: 0,
+            max_recursion_depth: 0,
+            versioned_constants_base_overrides: None,
+        })
+        .l1_to_l2_gas_price_conversion(gas_price)
+        .try_into()
+        .unwrap(),
     );
 
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
