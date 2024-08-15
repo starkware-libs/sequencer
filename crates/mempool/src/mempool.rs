@@ -86,7 +86,7 @@ impl Mempool {
         for (&address, AccountState { nonce }) in &state_changes {
             let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
 
-            // Align the queue with the committed nonces.
+            // Maybe remove out-of-date transactions.
             if self
                 .tx_queue
                 .get_nonce(address)
@@ -94,7 +94,9 @@ impl Mempool {
             {
                 self.tx_queue.remove(address);
             }
+            self.tx_pool.remove_up_to_nonce(address, next_nonce);
 
+            // Maybe close nonce gap.
             if self.tx_queue.get_nonce(address).is_none() {
                 if let Some(tx_reference) =
                     self.tx_pool.get_by_address_and_nonce(address, next_nonce)
@@ -102,8 +104,6 @@ impl Mempool {
                     self.tx_queue.insert(tx_reference.clone());
                 }
             }
-
-            self.tx_pool.remove_up_to_nonce(address, next_nonce);
         }
 
         // Rewind nonces of addresses that were not included in block.
@@ -122,14 +122,15 @@ impl Mempool {
         let MempoolInput { tx, account: Account { sender_address, state: AccountState { nonce } } } =
             input;
 
+        self.tx_pool.insert(tx)?;
+
+        // Maybe remove out-of-date transactions.
         // Note: != is actually equivalent to > here, as lower nonces are rejected in validation.
         if self.tx_queue.get_nonce(sender_address).is_some_and(|queued_nonce| queued_nonce != nonce)
         {
             self.tx_queue.remove(sender_address);
         }
         self.tx_pool.remove_up_to_nonce(sender_address, nonce);
-
-        self.tx_pool.insert(tx)?;
 
         // Maybe close nonce gap.
         if self.tx_queue.get_nonce(sender_address).is_none() {
