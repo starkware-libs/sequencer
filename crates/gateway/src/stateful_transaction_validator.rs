@@ -5,14 +5,16 @@ use blockifier::blockifier::stateful_validator::{
 };
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
-use blockifier::execution::contract_class::ClassInfo;
 use blockifier::state::cached_state::CachedState;
 use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::versioned_constants::VersionedConstants;
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
+use starknet_api::executable_transaction::{
+    InvokeTransaction as ExecutableInvokeTransaction,
+    Transaction as ExecutableTransaction,
+};
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_types_core::felt::Felt;
@@ -21,7 +23,7 @@ use tracing::error;
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::StatefulTransactionValidatorResult;
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
-use crate::utils::{get_sender_address, rpc_tx_to_account_tx};
+use crate::utils::get_sender_address;
 
 #[cfg(test)]
 #[path = "stateful_transaction_validator_test.rs"]
@@ -70,19 +72,24 @@ impl StatefulTransactionValidator {
     // conversion is also relevant for the Mempool.
     pub fn run_validate<V: StatefulTransactionValidatorTrait>(
         &self,
-        rpc_tx: &RpcTransaction,
-        optional_class_info: Option<ClassInfo>,
+        executable_tx: &ExecutableTransaction,
         mut validator: V,
     ) -> StatefulTransactionValidatorResult<ValidateInfo> {
-        let account_tx =
-            rpc_tx_to_account_tx(rpc_tx, optional_class_info, &self.config.chain_info.chain_id)?;
+        let account_tx = AccountTransaction::try_from(
+            // TODO(Arni): create a try_from for &ExecutableTransaction.
+            executable_tx.clone(),
+        )
+        .map_err(|error| {
+            error!("Failed to convert executable transaction into account transaction: {}", error);
+            GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
+        })?;
         let tx_hash = account_tx.tx_hash();
         let sender_address = get_sender_address(&account_tx);
         let account_nonce = validator.get_nonce(sender_address).map_err(|e| {
             error!("Failed to get nonce for sender address {}: {}", sender_address, e);
             GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
         })?;
-        let skip_validate = skip_stateful_validations(rpc_tx, account_nonce);
+        let skip_validate = skip_stateful_validations(executable_tx, account_nonce);
         validator
             .validate(account_tx, skip_validate)
             .map_err(|err| GatewaySpecError::ValidationFailure { data: err.to_string() })?;
@@ -120,15 +127,15 @@ impl StatefulTransactionValidator {
 // Check if validation of an invoke transaction should be skipped due to deploy_account not being
 // proccessed yet. This feature is used to improve UX for users sending deploy_account + invoke at
 // once.
-fn skip_stateful_validations(tx: &RpcTransaction, account_nonce: Nonce) -> bool {
+fn skip_stateful_validations(tx: &ExecutableTransaction, account_nonce: Nonce) -> bool {
     match tx {
-        RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
+        ExecutableTransaction::Invoke(ExecutableInvokeTransaction { tx, .. }) => {
             // check if the transaction nonce is 1, meaning it is post deploy_account, and the
             // account nonce is zero, meaning the account was not deployed yet. The mempool also
             // verifies that the deploy_account transaction exists.
-            tx.nonce == Nonce(Felt::ONE) && account_nonce == Nonce(Felt::ZERO)
+            tx.nonce() == Nonce(Felt::ONE) && account_nonce == Nonce(Felt::ZERO)
         }
-        RpcTransaction::DeployAccount(_) | RpcTransaction::Declare(_) => false,
+        ExecutableTransaction::DeployAccount(_) | ExecutableTransaction::Declare(_) => false,
     }
 }
 
