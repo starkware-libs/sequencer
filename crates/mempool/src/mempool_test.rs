@@ -496,8 +496,8 @@ fn test_add_tx_delete_tx_with_lower_nonce_than_account_nonce() {
     add_tx(&mut mempool, &tx_nonce_1_account_nonce_1);
 
     // Assert the transaction with the lower nonce is removed.
-    // TODO(Ayelet): Assert the queue after modifying add_tx to delete lower nonce transactions
-    // in the queue.
+    // TODO(Ayelet): Assert the queue after modifying add_tx to delete lower nonce transactions in
+    // the queue.
     let expected_pool_txs = [tx_nonce_1_account_nonce_1.tx];
     let expected_mempool_content = MempoolContent::with_pool(expected_pool_txs);
     expected_mempool_content.assert_eq_pool_content(&mempool);
@@ -807,4 +807,24 @@ fn test_flow_send_same_nonce_tx_after_previous_not_included() {
     let expected_queue_txs = [TransactionReference::new_from_thin_tx(&tx_nonce5)];
     let expected_mempool_content = MempoolContent::with_queue(expected_queue_txs);
     expected_mempool_content.assert_eq_queue_content(&mempool);
+}
+
+#[rstest]
+fn test_tx_pool_transaction_tracker(mut mempool: Mempool) {
+    // Setup.
+    let tx_1 = add_tx_input!(tip: 1, tx_hash: 0, sender_address: 0_u8);
+    let tx_2 = add_tx_input!(tip: 1, tx_hash: 1, sender_address: 1_u8);
+
+    // Test and assert: increment the counter.
+    add_tx(&mut mempool, &tx_1);
+    add_tx(&mut mempool, &tx_2);
+    assert_eq!(mempool._tx_pool()._txs_tracker().txs_counter, 2);
+
+    // Test and assert: duplicate transaction doesn't affect tracker.
+    assert_matches!(mempool.add_tx(tx_1), Err(MempoolError::DuplicateTransaction { .. }));
+    assert_eq!(mempool._tx_pool()._txs_tracker().txs_counter, 2);
+
+    // Test and assert: decrement the counter, tracker does not go below 0.
+    let _txs = mempool.get_txs(3).unwrap();
+    assert_eq!(mempool._tx_pool()._txs_tracker().txs_counter, 0);
 }

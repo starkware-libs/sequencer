@@ -20,6 +20,8 @@ pub struct TransactionPool {
     tx_pool: HashToTransaction,
     // Transactions organized by account address, sorted by ascending nonce values.
     txs_by_account: AccountTransactionIndex,
+    // Tracks the number of transactions in the pool.
+    txs_tracker: TransactionTracker,
 }
 
 impl TransactionPool {
@@ -43,6 +45,8 @@ impl TransactionPool {
             )
         };
 
+        self.txs_tracker.increment_tx();
+
         Ok(())
     }
 
@@ -59,6 +63,8 @@ impl TransactionPool {
             )
         });
 
+        self.txs_tracker.decrement_tx();
+
         Ok(tx)
     }
 
@@ -72,6 +78,7 @@ impl TransactionPool {
                      in account mapping, but does not appear in the main mapping"
                 );
             });
+            self.txs_tracker.decrement_tx();
         }
     }
 
@@ -100,6 +107,10 @@ impl TransactionPool {
     #[cfg(test)]
     pub(crate) fn _tx_pool(&self) -> &HashToTransaction {
         &self.tx_pool
+    }
+
+    pub fn _txs_tracker(&self) -> &TransactionTracker {
+        &self.txs_tracker
     }
 }
 
@@ -148,5 +159,23 @@ impl AccountTransactionIndex {
 
         // Collect and return the transactions with lower nonces.
         txs_with_lower_nonce.into_values().collect()
+    }
+}
+
+#[derive(Debug, Default, Eq, PartialEq)]
+pub struct TransactionTracker {
+    pub txs_counter: usize,
+    // TODO(Ayelet): Add size tracking.
+}
+
+impl TransactionTracker {
+    pub fn increment_tx(&mut self) {
+        self.txs_counter += 1;
+    }
+
+    pub fn decrement_tx(&mut self) {
+        if self.txs_counter > 0 {
+            self.txs_counter -= 1;
+        }
     }
 }
