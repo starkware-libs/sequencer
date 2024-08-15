@@ -133,6 +133,14 @@ fn test_discounted_gas_overdraft(
         gas_price.try_into().unwrap(),
         DEFAULT_ETH_L1_DATA_GAS_PRICE.try_into().unwrap(),
         data_gas_price.try_into().unwrap(),
+        VersionedConstants::latest_constants()
+            .l1_to_l2_gas_price_conversion(DEFAULT_ETH_L1_GAS_PRICE)
+            .try_into()
+            .unwrap(),
+        VersionedConstants::latest_constants()
+            .l1_to_l2_gas_price_conversion(gas_price)
+            .try_into()
+            .unwrap(),
     );
 
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
