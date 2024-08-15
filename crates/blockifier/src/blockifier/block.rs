@@ -42,15 +42,36 @@ impl GasPrices {
         strk_l1_gas_price: NonZeroU128,
         eth_l1_data_gas_price: NonZeroU128,
         strk_l1_data_gas_price: NonZeroU128,
+        mut eth_l2_gas_price: NonZeroU128,
+        mut strk_l2_gas_price: NonZeroU128,
     ) -> Self {
-        let eth_l2_gas_price = NonZeroU128::new(VersionedConstants::l1_to_l2_gas_price_conversion(
-            eth_l1_gas_price.into(),
-        ))
-        .unwrap();
-        let strk_l2_gas_price = NonZeroU128::new(
-            VersionedConstants::l1_to_l2_gas_price_conversion(strk_l1_gas_price.into()),
-        )
-        .unwrap();
+        // TODO(Aner, 13/08/24): remove these asserts and fix backwards compatibility.
+        if eth_l2_gas_price != NonZeroU128::MIN {
+            assert_eq!(
+                eth_l2_gas_price,
+                VersionedConstants::l1_to_l2_gas_price_conversion(eth_l1_gas_price.into())
+                    .try_into()
+                    .unwrap()
+            );
+        } else {
+            eth_l2_gas_price =
+                VersionedConstants::l1_to_l2_gas_price_conversion(eth_l1_gas_price.into())
+                    .try_into()
+                    .unwrap()
+        }
+        if strk_l2_gas_price != NonZeroU128::MIN {
+            assert_eq!(
+                strk_l2_gas_price,
+                VersionedConstants::l1_to_l2_gas_price_conversion(strk_l1_gas_price.into())
+                    .try_into()
+                    .unwrap()
+            );
+        } else {
+            strk_l2_gas_price =
+                VersionedConstants::l1_to_l2_gas_price_conversion(strk_l1_gas_price.into())
+                    .try_into()
+                    .unwrap()
+        }
         GasPrices {
             eth_l1_gas_price,
             strk_l1_gas_price,
