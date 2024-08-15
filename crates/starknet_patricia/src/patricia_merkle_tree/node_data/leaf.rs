@@ -9,19 +9,20 @@ use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::db_object::{DBObject, Deserializable};
 
 pub trait Leaf: Clone + Sync + Send + DBObject + Deserializable + Default + Debug + Eq {
+    // TODO(Amos, 1/1/2025): When default values for associated types are stable - use them, and
+    // add a default implementation for `create`.
+    // https://github.com/rust-lang/rust/issues/29661
+    type Input: Send + Sync + 'static;
+    type Output: Send + Debug + 'static;
+
     /// Returns true if leaf is empty.
     fn is_empty(&self) -> bool;
 
-    /// Creates a leaf.
-    /// This function is async to allow computation of a leaf on the fly; in simple cases, it can
-    /// be enough to return the leaf data directly using [Self::from_modifications].
+    /// Creates a leaf. Allows returning additional output.
     // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
     // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
     // for details.
-    fn create(
-        index: &NodeIndex,
-        leaf_modifications: Arc<LeafModifications<Self>>,
-    ) -> impl Future<Output = LeafResult<Self>> + Send;
+    fn create(input: Self::Input) -> impl Future<Output = LeafResult<(Self, Self::Output)>> + Send;
 
     /// Extracts the leaf data from the leaf modifications. Returns an error if the leaf data is
     /// missing.
