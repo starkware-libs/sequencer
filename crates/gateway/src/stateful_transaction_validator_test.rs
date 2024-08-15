@@ -3,7 +3,6 @@ use blockifier::blockifier::stateful_validator::{
     StatefulValidatorResult as BlockifierStatefulValidatorResult,
 };
 use blockifier::context::BlockContext;
-use blockifier::execution::contract_class::ClassInfo;
 use blockifier::test_utils::CairoVersion;
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
 use mempool_test_utils::invoke_tx_args;
@@ -82,17 +81,8 @@ fn test_stateful_tx_validator(
     #[case] expected_result: BlockifierStatefulValidatorResult<ValidateInfo>,
     stateful_validator: StatefulTransactionValidator,
 ) {
-    let optional_class_info = match &external_tx {
-        RpcTransaction::Declare(declare_tx) => Some(
-            ClassInfo::try_from(
-                GatewayCompiler::new_cairo_lang_compiler(SierraToCasmCompilationConfig::default())
-                    .process_declare_tx(declare_tx)
-                    .unwrap(),
-            )
-            .unwrap(),
-        ),
-        _ => None,
-    };
+    let gateway_compiler =
+        GatewayCompiler::new_cairo_lang_compiler(SierraToCasmCompilationConfig::default());
 
     let expected_result_as_stateful_transaction_result =
         expected_result.as_ref().map(|validate_info| *validate_info).map_err(|blockifier_error| {
@@ -103,7 +93,7 @@ fn test_stateful_tx_validator(
     mock_validator.expect_validate().return_once(|_, _| expected_result.map(|_| ()));
     mock_validator.expect_get_nonce().returning(|_| Ok(Nonce(Felt::ZERO)));
 
-    let result = stateful_validator.run_validate(&external_tx, optional_class_info, mock_validator);
+    let result = stateful_validator.run_validate(&external_tx, &gateway_compiler, mock_validator);
     assert_eq!(result, expected_result_as_stateful_transaction_result);
 }
 
@@ -174,5 +164,9 @@ fn test_skip_stateful_validation(
         .expect_validate()
         .withf(move |_, skip_validate| *skip_validate == should_skip_validate)
         .returning(|_, _| Ok(()));
-    let _ = stateful_validator.run_validate(&external_tx, None, mock_validator);
+    let _ = stateful_validator.run_validate(
+        &external_tx,
+        &GatewayCompiler::new_cairo_lang_compiler(Default::default()),
+        mock_validator,
+    );
 }

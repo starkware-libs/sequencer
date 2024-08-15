@@ -128,25 +128,16 @@ fn process_tx(
     // Perform stateless validations.
     stateless_tx_validator.validate(&tx)?;
 
-    let executable_tx = external_tx_to_executable_tx(
+    let _executable_tx = external_tx_to_executable_tx(
         &tx,
         &gateway_compiler,
         &stateful_tx_validator.config.chain_info.chain_id,
     )?;
-    let optional_class_info = match executable_tx {
-        starknet_api::executable_transaction::Transaction::Declare(tx) => {
-            Some(tx.class_info.try_into().map_err(|e| {
-                error!("Failed to convert Starknet API ClassInfo to Blockifier ClassInfo: {:?}", e);
-                GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
-            })?)
-        }
-        _ => None,
-    };
 
     let validator = stateful_tx_validator.instantiate_validator(state_reader_factory)?;
     // TODO(Yael 31/7/24): refactor after IntrnalTransaction is ready, delete validate_info and
     // compute all the info outside of run_validate.
-    let validate_info = stateful_tx_validator.run_validate(&tx, optional_class_info, validator)?;
+    let validate_info = stateful_tx_validator.run_validate(&tx, &gateway_compiler, validator)?;
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
     Ok(MempoolInput {

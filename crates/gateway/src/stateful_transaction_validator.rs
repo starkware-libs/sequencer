@@ -5,7 +5,6 @@ use blockifier::blockifier::stateful_validator::{
 };
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
-use blockifier::execution::contract_class::ClassInfo;
 use blockifier::state::cached_state::CachedState;
 use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::versioned_constants::VersionedConstants;
@@ -17,6 +16,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 use tracing::error;
 
+use crate::compilation::GatewayCompiler;
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::{GatewaySpecError, StatefulTransactionValidatorResult};
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
@@ -68,12 +68,12 @@ impl StatefulTransactionValidator {
     pub fn run_validate<V: StatefulTransactionValidatorTrait>(
         &self,
         external_tx: &RpcTransaction,
-        optional_class_info: Option<ClassInfo>,
+        gateway_compiler: &GatewayCompiler,
         mut validator: V,
     ) -> StatefulTransactionValidatorResult<ValidateInfo> {
         let account_tx = external_tx_to_account_tx(
             external_tx,
-            optional_class_info,
+            gateway_compiler,
             &self.config.chain_info.chain_id,
         )?;
         let tx_hash = account_tx.tx_hash();
