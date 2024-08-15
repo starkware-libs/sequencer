@@ -9019,6 +9019,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_mempool_p2p_agent"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "starknet_mempool_infra",
+ "starknet_mempool_types",
+]
+
+[[package]]
 name = "starknet_mempool_types"
 version = "0.0.0"
 dependencies = [
