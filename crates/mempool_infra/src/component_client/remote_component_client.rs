@@ -12,6 +12,59 @@ use serde::Serialize;
 use super::definitions::{ClientError, ClientResult};
 use crate::component_definitions::APPLICATION_OCTET_STREAM;
 
+/// The `RemoteComponentClient` struct is a generic client for sending component requests and
+/// receiving responses asynchronously through HTTP connection.
+///
+/// # Type Parameters
+/// - `Request`: The type of the request. This type must implement the `serde::Serialize` trait.
+/// - `Response`: The type of the response. This type must implement the
+///   `serde::de::DeserializeOwned` trait.
+///
+/// # Fields
+/// - `uri`: URI address of the server.
+/// - `client`: The inner HTTP client that initiates the connection to the server and manages it.
+/// - `max_retries`: Configurable number of extra attempts to send a request to server in case of a
+///   failure.
+///
+/// # Example
+/// ```rust
+/// // Example usage of the RemoteComponentClient
+///
+/// use serde::{Deserialize, Serialize};
+///
+/// use crate::starknet_mempool_infra::component_client::RemoteComponentClient;
+///
+/// // Define your request and response types
+/// #[derive(Serialize)]
+/// struct MyRequest {
+///     pub content: String,
+/// }
+///
+/// #[derive(Deserialize)]
+/// struct MyResponse {
+///     content: String,
+/// }
+///
+/// #[tokio::main]
+/// async fn main() {
+///     // Create a channel for sending requests and receiving responses
+///     // Instantiate the client.
+///     let ip_address = std::net::IpAddr::V6(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
+///     let port: u16 = 8080;
+///     let client = RemoteComponentClient::<MyRequest, MyResponse>::new(ip_address, port, 2);
+///
+///     // Instantiate a request.
+///     let request = MyRequest { content: "Hello, world!".to_string() };
+///
+///     // Send the request; typically, the client should await for a response.
+///     client.send(request);
+/// }
+/// ```
+///
+/// # Notes
+/// - The `RemoteComponentClient` struct is designed to work in an asynchronous environment,
+///   utilizing Tokio's async runtime and hyper framwork to send HTTP requests and receive HTTP
+///   responses.
 pub struct RemoteComponentClient<Request, Response>
 where
     Request: Serialize,
