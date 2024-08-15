@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use axum::extract::State;
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use blockifier::execution::contract_class::ClassInfo;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
@@ -130,9 +131,12 @@ fn process_tx(
 
     // Compile Sierra to Casm.
     let optional_class_info = match &tx {
-        RpcTransaction::Declare(declare_tx) => {
-            Some(gateway_compiler.process_declare_tx(declare_tx)?)
-        }
+        RpcTransaction::Declare(declare_tx) => Some(
+            ClassInfo::try_from(gateway_compiler.process_declare_tx(declare_tx)?).map_err(|e| {
+                error!("Failed to convert Starknet API ClassInfo to Blockifier ClassInfo: {:?}", e);
+                GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+            })?,
+        ),
         _ => None,
     };
 

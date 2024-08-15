@@ -1,5 +1,4 @@
 use assert_matches::assert_matches;
-use blockifier::execution::contract_class::ContractClass;
 use cairo_lang_sierra_to_casm::compiler::CompilationError;
 use cairo_lang_starknet_classes::allowed_libfuncs::AllowedLibfuncsError;
 use cairo_lang_starknet_classes::casm_contract_class::StarknetSierraCompilationError;
@@ -103,7 +102,6 @@ fn test_process_declare_tx_success(
     let declare_tx = RpcDeclareTransaction::V3(declare_tx_v3);
 
     let class_info = gateway_compiler.process_declare_tx(&declare_tx).unwrap();
-    assert_matches!(class_info.contract_class(), ContractClass::V1(_));
-    assert_eq!(class_info.sierra_program_length(), sierra_program_length);
-    assert_eq!(class_info.abi_length(), abi_length);
+    assert_eq!(class_info.sierra_program_length, sierra_program_length);
+    assert_eq!(class_info.abi_length, abi_length);
 }
