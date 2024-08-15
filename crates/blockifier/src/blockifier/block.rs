@@ -1,5 +1,6 @@
 use std::num::NonZeroU128;
 
+use log::warn;
 use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp};
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
@@ -9,7 +10,7 @@ use crate::abi::constants;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateResult};
 use crate::transaction::objects::FeeType;
-use crate::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
+use crate::versioned_constants::VersionedConstants;
 
 #[cfg(test)]
 #[path = "block_test.rs"]
@@ -42,26 +43,27 @@ impl GasPrices {
         strk_l1_gas_price: NonZeroU128,
         eth_l1_data_gas_price: NonZeroU128,
         strk_l1_data_gas_price: NonZeroU128,
+        eth_l2_gas_price: NonZeroU128,
+        strk_l2_gas_price: NonZeroU128,
     ) -> Self {
-        // TODO(Aner): get gas prices from python.
-        let eth_l2_gas_price = NonZeroU128::new(
-            VersionedConstants::get_versioned_constants(VersionedConstantsOverrides {
-                validate_max_n_steps: 0,
-                max_recursion_depth: 0,
-                versioned_constants_base_overrides: None,
-            })
-            .l1_to_l2_gas_price_conversion(eth_l1_gas_price.into()),
-        )
-        .expect("L1 to L2 price conversion error (Rust side).");
-        let strk_l2_gas_price = NonZeroU128::new(
-            VersionedConstants::get_versioned_constants(VersionedConstantsOverrides {
-                validate_max_n_steps: 0,
-                max_recursion_depth: 0,
-                versioned_constants_base_overrides: None,
-            })
-            .l1_to_l2_gas_price_conversion(strk_l1_gas_price.into()),
-        )
-        .expect("L1 to L2 price conversion error (Rust side).");
+        // TODO(Aner): fix backwards compatibility.
+        let expected_eth_l2_gas_price = VersionedConstants::latest_constants()
+            .l1_to_l2_gas_price_conversion(eth_l1_gas_price.into());
+        if u128::from(eth_l2_gas_price) != expected_eth_l2_gas_price {
+            warn!(
+                "eth_l2_gas_price does not match expected! eth_l2_gas_price:{eth_l2_gas_price}, \
+                 expected:{expected_eth_l2_gas_price}."
+            )
+        }
+        let expected_strk_l2_gas_price = VersionedConstants::latest_constants()
+            .l1_to_l2_gas_price_conversion(strk_l1_gas_price.into());
+        if u128::from(strk_l2_gas_price) != expected_strk_l2_gas_price {
+            warn!(
+                "strk_l2_gas_price does not match expected! \
+                 strk_l2_gas_price:{strk_l2_gas_price}, expected:{expected_strk_l2_gas_price}."
+            )
+        }
+
         GasPrices {
             eth_l1_gas_price,
             strk_l1_gas_price,

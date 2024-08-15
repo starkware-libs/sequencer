@@ -163,6 +163,14 @@ impl BlockInfo {
                 DEFAULT_STRK_L1_GAS_PRICE.try_into().unwrap(),
                 DEFAULT_ETH_L1_DATA_GAS_PRICE.try_into().unwrap(),
                 DEFAULT_STRK_L1_DATA_GAS_PRICE.try_into().unwrap(),
+                VersionedConstants::latest_constants()
+                    .l1_to_l2_gas_price_conversion(DEFAULT_ETH_L1_GAS_PRICE)
+                    .try_into()
+                    .unwrap(),
+                VersionedConstants::latest_constants()
+                    .l1_to_l2_gas_price_conversion(DEFAULT_STRK_L1_GAS_PRICE)
+                    .try_into()
+                    .unwrap(),
             ),
             use_kzg_da: false,
         }
