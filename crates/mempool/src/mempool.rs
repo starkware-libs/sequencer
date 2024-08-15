@@ -134,6 +134,9 @@ impl Mempool {
         let MempoolInput { tx, account: Account { sender_address, state: AccountState { nonce } } } =
             input;
 
+        // Remove transactions with lower nonce than the account nonce.
+        self.tx_pool.remove_up_to_nonce(sender_address, nonce);
+
         self.tx_pool.insert(tx)?;
 
         // Maybe close nonce gap.
