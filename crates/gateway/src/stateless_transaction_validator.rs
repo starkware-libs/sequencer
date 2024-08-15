@@ -145,10 +145,10 @@ impl StatelessTransactionValidator {
         let contract_class_object_size = serde_json::to_string(&contract_class)
             .expect("Unexpected error serializing contract class.")
             .len();
-        if contract_class_object_size > self.config.max_raw_class_size {
+        if contract_class_object_size > self.config.max_contract_class_object_size {
             return Err(StatelessTransactionValidatorError::ContractClassObjectSizeTooLarge {
                 contract_class_object_size,
-                max_contract_class_object_size: self.config.max_raw_class_size,
+                max_contract_class_object_size: self.config.max_contract_class_object_size,
             });
         }
 

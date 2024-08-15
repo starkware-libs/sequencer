@@ -36,7 +36,7 @@ const DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: StatelessTransactionValidatorConfig 
         validate_non_zero_l2_gas_fee: false,
         max_calldata_length: 1,
         max_signature_length: 1,
-        max_raw_class_size: 100000,
+        max_contract_class_object_size: 100000,
         min_sierra_version: MIN_SIERRA_VERSION,
         max_sierra_version: MAX_SIERRA_VERSION,
     };
@@ -301,10 +301,10 @@ fn test_declare_sierra_version_sucsses(#[case] sierra_program: Vec<Felt>) {
 
 #[test]
 fn test_declare_contract_class_size_too_long() {
-    let config_max_raw_class_size = 100; // Some arbitrary value, which will fail the test.
+    let config_max_contract_class_object_size = 100; // Some arbitrary value, which will fail the test.
     let tx_validator = StatelessTransactionValidator {
         config: StatelessTransactionValidatorConfig {
-            max_raw_class_size: config_max_raw_class_size,
+            max_contract_class_object_size: config_max_contract_class_object_size,
             ..DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
         },
     };
@@ -321,7 +321,7 @@ fn test_declare_contract_class_size_too_long() {
             contract_class_object_size, max_contract_class_object_size
         } if (
             contract_class_object_size, max_contract_class_object_size
-        ) == (contract_class_length, config_max_raw_class_size)
+        ) == (contract_class_length, config_max_contract_class_object_size)
     )
 }
 
