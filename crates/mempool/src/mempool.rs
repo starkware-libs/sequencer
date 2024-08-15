@@ -131,10 +131,11 @@ impl Mempool {
         {
             self.tx_queue.remove(sender_address);
         }
+
         self.tx_pool.remove_up_to_nonce(sender_address, nonce);
 
         self.tx_pool.insert((&tx).into())?;
-
+        
         // Maybe close nonce gap.
         if self.tx_queue.get_nonce(sender_address).is_none() {
             if let Some(tx_reference) = self.tx_pool.get_by_address_and_nonce(sender_address, nonce)
