@@ -1,5 +1,6 @@
 use std::num::NonZeroU128;
 
+use log::warn;
 use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp};
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
@@ -42,15 +43,24 @@ impl GasPrices {
         strk_l1_gas_price: NonZeroU128,
         eth_l1_data_gas_price: NonZeroU128,
         strk_l1_data_gas_price: NonZeroU128,
+        eth_l2_gas_price: NonZeroU128,
+        strk_l2_gas_price: NonZeroU128,
     ) -> Self {
-        let eth_l2_gas_price = NonZeroU128::new(VersionedConstants::l1_to_l2_gas_price_conversion(
-            eth_l1_gas_price.into(),
-        ))
-        .unwrap();
-        let strk_l2_gas_price = NonZeroU128::new(
-            VersionedConstants::l1_to_l2_gas_price_conversion(strk_l1_gas_price.into()),
-        )
-        .unwrap();
+        // TODO(Aner): fix backwards compatibility.
+        if eth_l2_gas_price
+            != VersionedConstants::l1_to_l2_gas_price_conversion(eth_l1_gas_price.into())
+                .try_into()
+                .expect("L1 to L2 price conversion error (Rust side).")
+        {
+            warn!("eth_l2_gas_price does not match expected!")
+        }
+        if strk_l2_gas_price
+            != VersionedConstants::l1_to_l2_gas_price_conversion(strk_l1_gas_price.into())
+                .try_into()
+                .expect("L1 to L2 price conversion error (Rust side).")
+        {
+            warn!("strk_l2_gas_price does not match expected!")
+        }
         GasPrices {
             eth_l1_gas_price,
             strk_l1_gas_price,

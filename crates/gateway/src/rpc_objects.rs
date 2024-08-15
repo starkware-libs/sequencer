@@ -90,6 +90,8 @@ impl TryInto<BlockInfo> for BlockHeader {
                 parse_gas_price(self.l1_gas_price.price_in_fri)?,
                 parse_gas_price(self.l1_data_gas_price.price_in_wei)?,
                 parse_gas_price(self.l1_data_gas_price.price_in_fri)?,
+                NonZeroU128::MIN,
+                NonZeroU128::MIN,
             ),
             use_kzg_da: matches!(self.l1_da_mode, L1DataAvailabilityMode::Blob),
         })
