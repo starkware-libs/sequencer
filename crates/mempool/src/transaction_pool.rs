@@ -20,6 +20,8 @@ pub struct TransactionPool {
     tx_pool: HashToTransaction,
     // Transactions organized by account address, sorted by ascending nonce values.
     txs_by_account: AccountTransactionIndex,
+    // Tracks the capacity of the pool.
+    capacity: PoolCapacity,
 }
 
 impl TransactionPool {
@@ -43,6 +45,8 @@ impl TransactionPool {
             )
         };
 
+        self.capacity.add();
+
         Ok(())
     }
 
@@ -59,6 +63,8 @@ impl TransactionPool {
             )
         });
 
+        self.capacity.remove();
+
         Ok(tx)
     }
 
@@ -72,6 +78,7 @@ impl TransactionPool {
                      in account mapping, but does not appear in the main mapping"
                 );
             });
+            self.capacity.remove();
         }
     }
 
@@ -100,6 +107,11 @@ impl TransactionPool {
     #[cfg(test)]
     pub(crate) fn _tx_pool(&self) -> &HashToTransaction {
         &self.tx_pool
+    }
+
+    #[cfg(test)]
+    pub fn txs_count(&self) -> usize {
+        self.capacity.txs_counter
     }
 }
 
@@ -148,5 +160,23 @@ impl AccountTransactionIndex {
 
         // Collect and return the transactions with lower nonces.
         txs_with_lower_nonce.into_values().collect()
+    }
+}
+
+#[derive(Debug, Default, Eq, PartialEq)]
+pub struct PoolCapacity {
+    txs_counter: usize,
+    // TODO(Ayelet): Add size tracking.
+}
+
+impl PoolCapacity {
+    fn add(&mut self) {
+        self.txs_counter += 1;
+    }
+
+    fn remove(&mut self) {
+        if self.txs_counter > 0 {
+            self.txs_counter -= 1;
+        }
     }
 }
