@@ -1,10 +1,10 @@
+use starknet_patricia::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
 use thiserror::Error;
 use tokio::task::JoinError;
 
 use crate::block_committer::input::ContractAddress;
-use crate::patricia_merkle_tree::types::{ClassesTrieError, ContractsTrieError, StorageTrieError};
 
 pub(crate) type ForestResult<T> = Result<T, ForestError>;
 
@@ -14,12 +14,10 @@ pub enum ForestError {
     OriginalSkeleton(#[from] OriginalSkeletonTreeError),
     #[error(transparent)]
     UpdatedSkeleton(#[from] UpdatedSkeletonTreeError),
-    #[error(transparent)]
-    ClassesTrie(#[from] ClassesTrieError),
-    #[error(transparent)]
-    StorageTrie(#[from] StorageTrieError),
-    #[error(transparent)]
-    ContractsTrie(#[from] ContractsTrieError),
+    #[error("Couldn't create Classes Trie: {0}")]
+    ClassesTrie(#[source] FilledTreeError),
+    #[error("Couldn't create Contracts Trie: {0}")]
+    ContractsTrie(#[source] FilledTreeError),
     #[error("Missing input: Couldn't find the storage trie's current state of address {0:?}")]
     MissingContractCurrentState(ContractAddress),
     #[error(
@@ -36,4 +34,6 @@ pub enum ForestError {
     MissingSortedLeafIndices(ContractAddress),
     #[error(transparent)]
     JoinError(#[from] JoinError),
+    #[error("Couldn't create Storage Trie: {0}")]
+    StorageTrie(#[source] FilledTreeError),
 }

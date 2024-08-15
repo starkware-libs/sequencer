@@ -1,17 +1,15 @@
 use tokio::task::JoinError;
 
-use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::node_data::errors::LeafError;
-use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
 
 #[derive(thiserror::Error, Debug)]
-pub enum FilledTreeError<L: Leaf> {
+pub enum FilledTreeError {
     #[error("Deleted leaf at index {0:?} appears in the updated skeleton tree.")]
     DeletedLeafInSkeleton(NodeIndex),
-    #[error("Double update at node {index:?}. Existing value: {existing_value:?}.")]
-    DoubleUpdate { index: NodeIndex, existing_value: Box<FilledNode<L>> },
+    #[error("Double update at node {index:?}. Existing value: {existing_value_as_string:?}.")]
+    DoubleUpdate { index: NodeIndex, existing_value_as_string: String },
     #[error(transparent)]
     Leaf(#[from] LeafError),
     #[error("Missing node at index {0:?}.")]
