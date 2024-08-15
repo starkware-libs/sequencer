@@ -22,9 +22,11 @@ use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, felt, patricia_key};
+use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_types_core::felt::Felt;
 
 use super::ValidateInfo;
+use crate::compilation::GatewayCompiler;
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::GatewaySpecError;
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
@@ -33,6 +35,7 @@ use crate::stateful_transaction_validator::{
     MockStatefulTransactionValidatorTrait,
     StatefulTransactionValidator,
 };
+use crate::utils::compile_to_casm_and_convert_rpc_to_executable_tx;
 
 pub const STATEFUL_VALIDATOR_FEE_ERROR: BlockifierStatefulValidatorError =
     BlockifierStatefulValidatorError::TransactionPreValidationError(
@@ -80,6 +83,15 @@ fn test_stateful_tx_validator(
     #[case] expected_result: BlockifierStatefulValidatorResult<ValidateInfo>,
     stateful_validator: StatefulTransactionValidator,
 ) {
+    let gateway_compiler =
+        GatewayCompiler::new_cairo_lang_compiler(SierraToCasmCompilationConfig::default());
+    let executable_tx = compile_to_casm_and_convert_rpc_to_executable_tx(
+        rpc_tx,
+        &gateway_compiler,
+        &stateful_validator.config.chain_info.chain_id,
+    )
+    .unwrap();
+
     let expected_result_as_stateful_transaction_result =
         expected_result.as_ref().map(|validate_info| *validate_info).map_err(|blockifier_error| {
             GatewaySpecError::ValidationFailure { data: blockifier_error.to_string() }
@@ -89,7 +101,7 @@ fn test_stateful_tx_validator(
     mock_validator.expect_validate().return_once(|_, _| expected_result.map(|_| ()));
     mock_validator.expect_get_nonce().returning(|_| Ok(Nonce(Felt::ZERO)));
 
-    let result = stateful_validator.run_validate(&rpc_tx, None, mock_validator);
+    let result = stateful_validator.run_validate(&executable_tx, mock_validator);
     assert_eq!(result, expected_result_as_stateful_transaction_result);
 }
 
@@ -151,6 +163,13 @@ fn test_skip_stateful_validation(
     stateful_validator: StatefulTransactionValidator,
 ) {
     let sender_address = rpc_tx.calculate_sender_address().unwrap();
+    let executable_tx = compile_to_casm_and_convert_rpc_to_executable_tx(
+        rpc_tx,
+        &GatewayCompiler::new_cairo_lang_compiler(Default::default()),
+        &stateful_validator.config.chain_info.chain_id,
+    )
+    .unwrap();
+
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator
         .expect_get_nonce()
@@ -160,5 +179,5 @@ fn test_skip_stateful_validation(
         .expect_validate()
         .withf(move |_, skip_validate| *skip_validate == should_skip_validate)
         .returning(|_, _| Ok(()));
-    let _ = stateful_validator.run_validate(&rpc_tx, None, mock_validator);
+    let _ = stateful_validator.run_validate(&executable_tx, mock_validator);
 }
