@@ -86,7 +86,7 @@ fn test_stateful_tx_validator(
         RpcTransaction::Declare(declare_tx) => Some(
             ClassInfo::try_from(
                 GatewayCompiler::new_cairo_lang_compiler(SierraToCasmCompilationConfig::default())
-                    .process_declare_tx(declare_tx)
+                    .class_info_from_declare_tx(declare_tx)
                     .unwrap(),
             )
             .unwrap(),
