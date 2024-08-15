@@ -44,6 +44,7 @@ pub struct NetworkConfig {
     #[validate(custom = "validate_vec_u256")]
     #[serde(deserialize_with = "deserialize_optional_vec_u8")]
     pub(crate) secret_key: Option<Vec<u8>>,
+    pub hardcoded_external_multiaddr: Option<Multiaddr>,
     pub chain_id: ChainId,
 }
 
@@ -96,6 +97,15 @@ impl SerializeConfig for NetworkConfig {
              will be used.",
             ParamPrivacyInput::Private,
         )]);
+        config.extend(ser_optional_param(
+            &self.bootstrap_peer_multiaddr,
+            Multiaddr::empty(),
+            "hardcoded_external_multiaddr",
+            "The external address other peers see this node. If this is set, the node will not \
+             try to find out which addresses it has and will write this address as external \
+             instead",
+            ParamPrivacyInput::Public,
+        ));
         config
     }
 }
@@ -109,6 +119,7 @@ impl Default for NetworkConfig {
             idle_connection_timeout: Duration::from_secs(120),
             bootstrap_peer_multiaddr: None,
             secret_key: None,
+            hardcoded_external_multiaddr: None,
             chain_id: ChainId::Mainnet,
         }
     }

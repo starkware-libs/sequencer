@@ -44,7 +44,7 @@ async fn create_swarm(bootstrap_peer_multiaddr: Option<Multiaddr>) -> Swarm<Mixe
 fn create_network_manager(
     swarm: Swarm<MixedBehaviour>,
 ) -> GenericNetworkManager<Swarm<MixedBehaviour>> {
-    GenericNetworkManager::generic_new(swarm)
+    GenericNetworkManager::generic_new(swarm, None)
 }
 
 const BUFFER_SIZE: usize = 100;
