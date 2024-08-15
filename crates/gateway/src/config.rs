@@ -139,6 +139,8 @@ pub struct StatefulTransactionValidatorConfig {
     pub max_nonce_for_validation_skip: Nonce,
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
+    // TODO(Arni): Move this member out of the stateful transaction validator config. Move it into
+    // the gateway config. This is used during the transalation from external_tx to executable_tx.
     pub chain_info: ChainInfo,
 }
 
