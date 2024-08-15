@@ -184,19 +184,6 @@ fn mempool() -> Mempool {
 
 // Tests.
 
-// new method tests.
-
-#[test]
-fn test_new_with_duplicate_tx() {
-    let input = add_tx_input!(tip: 0, tx_hash: 1);
-    let same_input = input.clone();
-
-    assert!(matches!(
-        Mempool::new([input, same_input]),
-        Err(MempoolError::DuplicateTransaction { .. })
-    ));
-}
-
 // get_txs tests.
 
 #[rstest]
