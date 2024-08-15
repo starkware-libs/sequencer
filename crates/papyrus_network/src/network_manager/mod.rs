@@ -21,6 +21,7 @@ use libp2p::swarm::SwarmEvent;
 use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm};
 use metrics::gauge;
 use papyrus_common::metrics as papyrus_metrics;
+use serde::{Deserialize, Serialize};
 use sqmr::Bytes;
 use tracing::{debug, error, info, trace, warn};
 
@@ -838,7 +839,7 @@ pub type BroadcastTopicSender<T> = With<
 >;
 
 // TODO(alonl): remove clone
-#[derive(Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BroadcastedMessageManager {
     peer_id: PeerId,
 }

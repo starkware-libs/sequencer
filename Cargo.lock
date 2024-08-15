@@ -9091,6 +9091,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_mempool_p2p"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "papyrus_network",
+ "papyrus_proc_macros",
+ "serde",
+ "starknet_api",
+ "starknet_mempool_infra",
+ "thiserror",
+]
+
+[[package]]
 name = "starknet_mempool_types"
 version = "0.0.0"
 dependencies = [
