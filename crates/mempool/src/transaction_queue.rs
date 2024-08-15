@@ -5,12 +5,16 @@ use starknet_api::core::{ContractAddress, Nonce};
 
 use crate::mempool::TransactionReference;
 
+// A queue holding the transaction that with nonces that match account nonces.
 // Note: the derived comparison functionality considers the order guaranteed by the data structures
 // used.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct TransactionQueue {
-    // Priority queue of transactions with associated priority.
+    // Transactions with gas price above base price (sorted by tip).
     priority_queue: BTreeSet<PriorityTransaction>,
+    // Transactions with gas price below base price (sorted by price).
+    pending_queue: BTreeSet<PendingTransaction>,
+    gas_price_threshold: u128,
     // Set of account addresses for efficient existence checks.
     address_to_tx: HashMap<ContractAddress, TransactionReference>,
 }
@@ -27,10 +31,14 @@ impl TransactionQueue {
             "Only a single transaction from the same contract class can be in the mempool at a \
              time."
         );
-        assert!(
-            self.priority_queue.insert(tx_reference.into()),
-            "Keys should be unique; duplicates are checked prior."
-        );
+
+        let tx_already_existed = if tx_reference.get_l2_gas_price() < self.gas_price_threshold {
+            self.pending_queue.insert(tx_reference.into())
+        } else {
+            self.priority_queue.insert(tx_reference.into())
+        };
+
+        assert!(tx_already_existed, "Keys should be unique; duplicates are checked prior.");
     }
 
     // TODO(gilad): remove collect
@@ -57,10 +65,12 @@ impl TransactionQueue {
     /// Removes the transaction of the given account address from the queue.
     /// This is well-defined, since there is at most one transaction per address in the queue.
     pub fn remove(&mut self, address: ContractAddress) -> bool {
-        if let Some(tx) = self.address_to_tx.remove(&address) {
-            return self.priority_queue.remove(&tx.into());
-        }
-        false
+        let Some(tx_reference) = self.address_to_tx.remove(&address) else {
+            return false;
+        };
+
+        self.priority_queue.remove(&tx_reference.clone().into())
+            || self.pending_queue.remove(&tx_reference.into())
     }
 
     pub fn is_empty(&self) -> bool {
