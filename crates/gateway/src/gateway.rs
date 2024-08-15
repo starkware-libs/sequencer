@@ -6,7 +6,6 @@ use async_trait::async_trait;
 use axum::extract::State;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use blockifier::execution::contract_class::ClassInfo;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -22,6 +21,7 @@ use crate::rpc_state_reader::RpcStateReaderFactory;
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
+use crate::utils::rpc_tx_to_executable_tx;
 
 #[cfg(test)]
 #[path = "gateway_test.rs"]
@@ -129,14 +129,18 @@ fn process_tx(
     // Perform stateless validations.
     stateless_tx_validator.validate(&tx)?;
 
-    // Compile Sierra to Casm.
-    let optional_class_info = match &tx {
-        RpcTransaction::Declare(declare_tx) => Some(
-            ClassInfo::try_from(gateway_compiler.process_declare_tx(declare_tx)?).map_err(|e| {
+    let executable_tx = rpc_tx_to_executable_tx(
+        &tx,
+        &gateway_compiler,
+        &stateful_tx_validator.config.chain_info.chain_id,
+    )?;
+    let optional_class_info = match executable_tx {
+        starknet_api::executable_transaction::Transaction::Declare(tx) => {
+            Some(tx.class_info.try_into().map_err(|e| {
                 error!("Failed to convert Starknet API ClassInfo to Blockifier ClassInfo: {:?}", e);
                 GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
-            })?,
-        ),
+            })?)
+        }
         _ => None,
     };
 
