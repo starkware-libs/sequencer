@@ -6,6 +6,7 @@ use starknet_api::contract_class::ClassInfo;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::rpc_transaction::RpcDeclareTransaction;
 use starknet_sierra_compile::cairo_lang_compiler::CairoLangSierraToCasmCompiler;
+use starknet_sierra_compile::command_line_compiler::CommandLineCompiler;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_sierra_compile::utils::into_contract_class_for_compilation;
 use starknet_sierra_compile::SierraToCasmCompiler;
@@ -24,6 +25,11 @@ pub struct GatewayCompiler {
 }
 
 impl GatewayCompiler {
+    pub fn new_command_line_compiler(config: SierraToCasmCompilationConfig) -> Self {
+        Self { sierra_to_casm_compiler: Arc::new(CommandLineCompiler { config }) }
+    }
+
+    // TODO(Arni): Cosider deleting `CairoLangSierraToCasmCompiler`.
     pub fn new_cairo_lang_compiler(config: SierraToCasmCompilationConfig) -> Self {
         Self { sierra_to_casm_compiler: Arc::new(CairoLangSierraToCasmCompiler { config }) }
     }
