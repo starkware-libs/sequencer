@@ -3,6 +3,7 @@ use blockifier::blockifier::stateful_validator::{
     StatefulValidatorResult as BlockifierStatefulValidatorResult,
 };
 use blockifier::context::BlockContext;
+use blockifier::execution::contract_class::ClassInfo;
 use blockifier::test_utils::CairoVersion;
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
 use mempool_test_utils::invoke_tx_args;
@@ -83,9 +84,12 @@ fn test_stateful_tx_validator(
 ) {
     let optional_class_info = match &external_tx {
         RpcTransaction::Declare(declare_tx) => Some(
-            GatewayCompiler::new_cairo_lang_compiler(SierraToCasmCompilationConfig::default())
-                .process_declare_tx(declare_tx)
-                .unwrap(),
+            ClassInfo::try_from(
+                GatewayCompiler::new_cairo_lang_compiler(SierraToCasmCompilationConfig::default())
+                    .process_declare_tx(declare_tx)
+                    .unwrap(),
+            )
+            .unwrap(),
         ),
         _ => None,
     };
