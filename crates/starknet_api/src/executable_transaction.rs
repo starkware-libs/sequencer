@@ -1,9 +1,11 @@
+use serde::{Deserialize, Serialize};
+
 use crate::contract_class::ClassInfo;
 use crate::core::{ContractAddress, Nonce};
 use crate::transaction::{Tip, TransactionHash};
 
 /// Represents a paid Starknet transaction.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Transaction {
     Declare(DeclareTransaction),
     DeployAccount(DeployAccountTransaction),
@@ -54,21 +56,21 @@ impl Transaction {
 }
 
 // TODO(Mohammad): Add constructor for all the transaction's structs.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct DeclareTransaction {
     pub tx: crate::transaction::DeclareTransaction,
     pub tx_hash: TransactionHash,
     pub class_info: ClassInfo,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct DeployAccountTransaction {
     pub tx: crate::transaction::DeployAccountTransaction,
     pub tx_hash: TransactionHash,
     pub contract_address: ContractAddress,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct InvokeTransaction {
     pub tx: crate::transaction::InvokeTransaction,
     pub tx_hash: TransactionHash,
