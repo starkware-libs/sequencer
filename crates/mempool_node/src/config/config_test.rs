@@ -124,6 +124,10 @@ fn test_invalid_components_config() {
     // Initialize an invalid config and check that the validator finds an error.
     let component_config = ComponentConfig {
         batcher: ComponentExecutionConfig { execute: false, ..ComponentExecutionConfig::default() },
+        consensus_manager: ComponentExecutionConfig {
+            execute: false,
+            ..ComponentExecutionConfig::default()
+        },
         gateway: ComponentExecutionConfig { execute: false, ..ComponentExecutionConfig::default() },
         mempool: ComponentExecutionConfig { execute: false, ..ComponentExecutionConfig::default() },
     };
@@ -138,11 +142,13 @@ fn test_invalid_components_config() {
 /// Test the validation of the struct ComponentConfig.
 /// The validation validates at least one of the components is set with execute: true.
 #[rstest]
-#[case(true, false, false)]
-#[case(false, true, false)]
-#[case(false, false, true)]
+#[case(true, false, false, false)]
+#[case(false, true, false, false)]
+#[case(false, false, true, false)]
+#[case(false, false, false, true)]
 fn test_valid_components_config(
     #[case] batcher_component_execute: bool,
+    #[case] consensus_manager_component_execute: bool,
     #[case] gateway_component_execute: bool,
     #[case] mempool_component_execute: bool,
 ) {
@@ -150,6 +156,10 @@ fn test_valid_components_config(
     let component_config = ComponentConfig {
         batcher: ComponentExecutionConfig {
             execute: batcher_component_execute,
+            ..ComponentExecutionConfig::default()
+        },
+        consensus_manager: ComponentExecutionConfig {
+            execute: consensus_manager_component_execute,
             ..ComponentExecutionConfig::default()
         },
         gateway: ComponentExecutionConfig {
