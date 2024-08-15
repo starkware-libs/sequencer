@@ -6,6 +6,7 @@ use blockifier::transaction::transactions::{
     InvokeTransaction as BlockifierInvokeTransaction,
 };
 use starknet_api::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress};
+use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcDeployAccountTransaction,
@@ -17,20 +18,40 @@ use starknet_api::transaction::{
     DeclareTransactionV3,
     DeployAccountTransaction,
     DeployAccountTransactionV3,
+    InvokeTransaction,
     InvokeTransactionV3,
     TransactionHasher,
 };
 use tracing::error;
 
+use crate::compilation::GatewayCompiler;
 use crate::errors::{GatewaySpecError, StatefulTransactionValidatorResult};
 
-pub fn external_tx_to_account_tx(
-    external_tx: &RpcTransaction,
+pub fn rpc_tx_to_executable_tx(
+    rpc_tx: &RpcTransaction,
+    gateway_compiler: &GatewayCompiler,
+    chain_id: &ChainId,
+) -> Result<ExecutableTransaction, GatewaySpecError> {
+    let class_info = if let RpcTransaction::Declare(rpc_declare_tx) = rpc_tx {
+        Some(gateway_compiler.process_declare_tx(rpc_declare_tx)?)
+    } else {
+        None
+    };
+
+    ExecutableTransaction::from_rpc_tx(rpc_tx, class_info, chain_id).map_err(|error| {
+        error!("Failed to convert RPC transaction to executable transaction: {}", error);
+        GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
+    })
+}
+
+// TODO(Arni): Delete this function.
+pub fn rpc_tx_to_account_tx(
+    rpc_tx: &RpcTransaction,
     // FIXME(yael 15/4/24): calculate class_info inside the function once compilation code is ready
     optional_class_info: Option<ClassInfo>,
     chain_id: &ChainId,
 ) -> StatefulTransactionValidatorResult<AccountTransaction> {
-    match external_tx {
+    match rpc_tx {
         RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
             let declare_tx = DeclareTransaction::V3(DeclareTransactionV3 {
                 class_hash: ClassHash::default(), /* FIXME(yael 15/4/24): call the starknet-api
@@ -98,7 +119,7 @@ pub fn external_tx_to_account_tx(
             Ok(AccountTransaction::DeployAccount(deploy_account_tx))
         }
         RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
-            let invoke_tx = starknet_api::transaction::InvokeTransaction::V3(InvokeTransactionV3 {
+            let invoke_tx = InvokeTransaction::V3(InvokeTransactionV3 {
                 resource_bounds: tx.resource_bounds.clone().into(),
                 tip: tx.tip,
                 signature: tx.signature.clone(),

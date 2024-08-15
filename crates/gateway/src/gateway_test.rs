@@ -21,7 +21,7 @@ use crate::gateway::{add_tx, AppState, SharedMempoolClient};
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
-use crate::utils::external_tx_to_account_tx;
+use crate::utils::rpc_tx_to_executable_tx;
 
 pub fn app_state(
     mempool_client: SharedMempoolClient,
@@ -93,19 +93,12 @@ async fn to_bytes(res: Response) -> Bytes {
     res.into_body().collect().await.unwrap().to_bytes()
 }
 
-fn calculate_hash(external_tx: &RpcTransaction) -> TransactionHash {
-    let optional_class_info = match &external_tx {
-        RpcTransaction::Declare(_declare_tx) => {
-            panic!("Declare transactions are not supported in this test")
-        }
-        _ => None,
-    };
-
-    let account_tx = external_tx_to_account_tx(
-        external_tx,
-        optional_class_info,
+fn calculate_hash(rpc_tx: &RpcTransaction) -> TransactionHash {
+    let executable_tx = rpc_tx_to_executable_tx(
+        rpc_tx,
+        &GatewayCompiler::new_cairo_lang_compiler(Default::default()),
         &ChainInfo::create_for_testing().chain_id,
     )
     .unwrap();
-    account_tx.tx_hash()
+    executable_tx.tx_hash()
 }

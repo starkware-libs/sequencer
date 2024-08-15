@@ -1,20 +1,30 @@
 use serde::{Deserialize, Serialize};
 
 use crate::contract_class::ClassInfo;
-use crate::core::{ClassHash, ContractAddress, Nonce};
+use crate::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
-use crate::rpc_transaction::RpcTransaction;
+use crate::rpc_transaction::{
+    RpcDeclareTransaction,
+    RpcDeployAccountTransaction,
+    RpcInvokeTransaction,
+    RpcTransaction,
+};
 use crate::transaction::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
+    DeclareTransactionV3,
+    DeployAccountTransactionV3,
+    InvokeTransactionV3,
     PaymasterData,
     ResourceBoundsMapping,
     Tip,
     TransactionHash,
+    TransactionHasher,
     TransactionSignature,
     TransactionVersion,
 };
+use crate::StarknetApiError;
 
 macro_rules! implement_inner_tx_getter_calls {
     ($(($field:ident, $field_type:ty)),*) => {
@@ -126,6 +136,32 @@ impl Transaction {
             tx_hash,
         })
     }
+
+    /// Crates an executable transaction based on the given RPC declare transaction. For declare
+    /// transaction class info is required.
+    pub fn from_rpc_tx(
+        rpc_tx: &RpcTransaction,
+        class_info: Option<ClassInfo>,
+        chain_id: &ChainId,
+    ) -> Result<Transaction, StarknetApiError> {
+        match rpc_tx {
+            RpcTransaction::Declare(rpc_declare_tx) => {
+                let class_info =
+                    class_info.expect("Class info is required for declare transaction.");
+                Ok(Transaction::Declare(DeclareTransaction::from_rpc_tx(
+                    rpc_declare_tx,
+                    class_info,
+                    chain_id,
+                )?))
+            }
+            RpcTransaction::DeployAccount(rpc_deploy_account_tx) => Ok(Transaction::DeployAccount(
+                DeployAccountTransaction::from_rpc_tx(rpc_deploy_account_tx, chain_id)?,
+            )),
+            RpcTransaction::Invoke(rpc_invoke_tx) => {
+                Ok(Transaction::Invoke(InvokeTransaction::from_rpc_tx(rpc_invoke_tx, chain_id)?))
+            }
+        }
+    }
 }
 
 // TODO(Mohammad): Add constructor for all the transaction's structs.
@@ -134,6 +170,34 @@ pub struct DeclareTransaction {
     pub tx: crate::transaction::DeclareTransaction,
     pub tx_hash: TransactionHash,
     pub class_info: ClassInfo,
+}
+
+impl DeclareTransaction {
+    /// Crates an executable declare transaction based on the given RPC declare transaction and the
+    /// given class info. Note that relation of the given class info and transaction is unchecked.
+    pub fn from_rpc_tx(
+        rpc_tx: &RpcDeclareTransaction,
+        class_info: ClassInfo,
+        chain_id: &ChainId,
+    ) -> Result<Self, StarknetApiError> {
+        let RpcDeclareTransaction::V3(tx) = rpc_tx;
+        let declare_tx = crate::transaction::DeclareTransaction::V3(DeclareTransactionV3 {
+            class_hash: ClassHash::default(), /* FIXME(yael 15/4/24): call the starknet-api
+                                               * function once ready */
+            resource_bounds: tx.resource_bounds.clone().into(),
+            tip: tx.tip,
+            signature: tx.signature.clone(),
+            nonce: tx.nonce,
+            compiled_class_hash: tx.compiled_class_hash,
+            sender_address: tx.sender_address,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode,
+            fee_data_availability_mode: tx.fee_data_availability_mode,
+            paymaster_data: tx.paymaster_data.clone(),
+            account_deployment_data: tx.account_deployment_data.clone(),
+        });
+        let tx_hash = declare_tx.calculate_transaction_hash(chain_id, &declare_tx.version())?;
+        Ok(Self { tx: declare_tx, tx_hash, class_info })
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -157,6 +221,35 @@ impl DeployAccountTransaction {
     pub fn tx(&self) -> &crate::transaction::DeployAccountTransaction {
         &self.tx
     }
+
+    pub fn from_rpc_tx(
+        rpc_tx: &RpcDeployAccountTransaction,
+        chain_id: &ChainId,
+    ) -> Result<Self, StarknetApiError> {
+        let RpcDeployAccountTransaction::V3(tx) = rpc_tx;
+        let deploy_account_tx =
+            crate::transaction::DeployAccountTransaction::V3(DeployAccountTransactionV3 {
+                resource_bounds: tx.resource_bounds.clone().into(),
+                tip: tx.tip,
+                signature: tx.signature.clone(),
+                nonce: tx.nonce,
+                class_hash: tx.class_hash,
+                contract_address_salt: tx.contract_address_salt,
+                constructor_calldata: tx.constructor_calldata.clone(),
+                nonce_data_availability_mode: tx.nonce_data_availability_mode,
+                fee_data_availability_mode: tx.fee_data_availability_mode,
+                paymaster_data: tx.paymaster_data.clone(),
+            });
+        let contract_address = calculate_contract_address(
+            deploy_account_tx.contract_address_salt(),
+            deploy_account_tx.class_hash(),
+            &deploy_account_tx.constructor_calldata(),
+            ContractAddress::default(),
+        )?;
+        let tx_hash =
+            deploy_account_tx.calculate_transaction_hash(chain_id, &deploy_account_tx.version())?;
+        Ok(Self { tx: deploy_account_tx, tx_hash, contract_address })
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -177,5 +270,26 @@ impl InvokeTransaction {
 
     pub fn tx(&self) -> &crate::transaction::InvokeTransaction {
         &self.tx
+    }
+
+    pub fn from_rpc_tx(
+        rpc_tx: &RpcInvokeTransaction,
+        chain_id: &ChainId,
+    ) -> Result<Self, StarknetApiError> {
+        let RpcInvokeTransaction::V3(tx) = rpc_tx;
+        let invoke_tx = crate::transaction::InvokeTransaction::V3(InvokeTransactionV3 {
+            resource_bounds: tx.resource_bounds.clone().into(),
+            tip: tx.tip,
+            signature: tx.signature.clone(),
+            nonce: tx.nonce,
+            sender_address: tx.sender_address,
+            calldata: tx.calldata.clone(),
+            nonce_data_availability_mode: tx.nonce_data_availability_mode,
+            fee_data_availability_mode: tx.fee_data_availability_mode,
+            paymaster_data: tx.paymaster_data.clone(),
+            account_deployment_data: tx.account_deployment_data.clone(),
+        });
+        let tx_hash = invoke_tx.calculate_transaction_hash(chain_id, &invoke_tx.version())?;
+        Ok(Self { tx: invoke_tx, tx_hash })
     }
 }
