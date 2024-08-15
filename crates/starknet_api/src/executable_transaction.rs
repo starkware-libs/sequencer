@@ -1,20 +1,24 @@
 use serde::{Deserialize, Serialize};
 
 use crate::contract_class::ClassInfo;
-use crate::core::{ClassHash, ContractAddress, Nonce};
+use crate::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
-use crate::rpc_transaction::RpcTransaction;
+use crate::rpc_transaction::{RpcDeployAccountTransaction, RpcInvokeTransaction, RpcTransaction};
 use crate::transaction::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
+    DeployAccountTransactionV3,
     DeprecatedResourceBoundsMapping,
+    InvokeTransactionV3,
     PaymasterData,
     Tip,
     TransactionHash,
+    TransactionHasher,
     TransactionSignature,
     TransactionVersion,
 };
+use crate::StarknetApiError;
 
 macro_rules! implement_inner_tx_getter_calls {
     ($(($field:ident, $field_type:ty)),*) => {
@@ -157,6 +161,22 @@ impl DeployAccountTransaction {
     pub fn tx(&self) -> &crate::transaction::DeployAccountTransaction {
         &self.tx
     }
+
+    pub fn from_rpc_tx(
+        rpc_tx: RpcDeployAccountTransaction,
+        chain_id: &ChainId,
+    ) -> Result<Self, StarknetApiError> {
+        let deploy_account_tx: crate::transaction::DeployAccountTransaction = rpc_tx.into();
+        let contract_address = calculate_contract_address(
+            deploy_account_tx.contract_address_salt(),
+            deploy_account_tx.class_hash(),
+            &deploy_account_tx.constructor_calldata(),
+            ContractAddress::default(),
+        )?;
+        let tx_hash =
+            deploy_account_tx.calculate_transaction_hash(chain_id, &deploy_account_tx.version())?;
+        Ok(Self { tx: deploy_account_tx, tx_hash, contract_address })
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -177,5 +197,14 @@ impl InvokeTransaction {
 
     pub fn tx(&self) -> &crate::transaction::InvokeTransaction {
         &self.tx
+    }
+
+    pub fn from_rpc_tx(
+        rpc_tx: RpcInvokeTransaction,
+        chain_id: &ChainId,
+    ) -> Result<Self, StarknetApiError> {
+        let invoke_tx: crate::transaction::InvokeTransaction = rpc_tx.into();
+        let tx_hash = invoke_tx.calculate_transaction_hash(chain_id, &invoke_tx.version())?;
+        Ok(Self { tx: invoke_tx, tx_hash })
     }
 }
