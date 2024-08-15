@@ -14,8 +14,8 @@ pub enum FilledTreeError {
     Leaf(#[from] LeafError),
     #[error("Leaf input is None for index {0:?}.")]
     LeafInputIsNone(NodeIndex),
-    #[error("Missing node at index {0:?}.")]
-    MissingNode(NodeIndex),
+    #[error("Missing node placeholder at index {0:?}.")]
+    MissingNodePlaceholder(NodeIndex),
     #[error("Missing leaf modification for index {0:?}.")]
     MissingLeafModification(NodeIndex),
     #[error("Missing leaf input for index {0:?}.")]

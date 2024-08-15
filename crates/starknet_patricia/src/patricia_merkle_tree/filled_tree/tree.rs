@@ -99,17 +99,17 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                     }
                 }
             }
-            None => Err(FilledTreeError::MissingNode(index)),
+            None => Err(FilledTreeError::MissingNodePlaceholder(index)),
         }
     }
 
-    fn remove_arc_mutex_and_option<V>(
-        hash_map_in: Arc<HashMap<NodeIndex, Mutex<Option<V>>>>,
+    fn remove_arc_mutex_and_option_from_output_map<V>(
+        output_map: Arc<HashMap<NodeIndex, Mutex<Option<V>>>>,
         fail_on_none_value: bool,
     ) -> FilledTreeResult<HashMap<NodeIndex, V>> {
         let mut hash_map_out = HashMap::new();
-        for (key, value) in Arc::into_inner(hash_map_in)
-            .unwrap_or_else(|| panic!("Cannot retrieve hashmap from Arc."))
+        for (key, value) in Arc::into_inner(output_map)
+            .unwrap_or_else(|| panic!("Cannot retrieve output map from Arc."))
         {
             let mut value = value
                 .lock()
@@ -120,7 +120,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 }
                 None => {
                     if fail_on_none_value {
-                        return Err(FilledTreeError::MissingNode(key));
+                        panic!("Empty output node at {:?}.", key);
                     }
                 }
             }
@@ -170,7 +170,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
         index: NodeIndex,
         leaf_modifications: Arc<Option<LeafModifications<L>>>,
         leaf_index_to_leaf_input: Arc<HashMap<NodeIndex, Mutex<Option<L::I>>>>,
-        output_map: Arc<HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>>>,
+        filled_tree_map: Arc<HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>>>,
         leaf_index_to_leaf_output: Arc<HashMap<NodeIndex, Mutex<Option<L::O>>>>,
     ) -> FilledTreeResult<HashOutput>
     where
@@ -188,7 +188,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                         left_index,
                         Arc::clone(&leaf_modifications),
                         Arc::clone(&leaf_index_to_leaf_input),
-                        Arc::clone(&output_map),
+                        Arc::clone(&filled_tree_map),
                         Arc::clone(&leaf_index_to_leaf_output),
                     )),
                     tokio::spawn(Self::compute_filled_tree_rec::<TH>(
@@ -196,7 +196,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                         right_index,
                         Arc::clone(&leaf_modifications),
                         Arc::clone(&leaf_index_to_leaf_input),
-                        Arc::clone(&output_map),
+                        Arc::clone(&filled_tree_map),
                         Arc::clone(&leaf_index_to_leaf_output),
                     )),
                 );
@@ -207,7 +207,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 });
 
                 let hash = TH::compute_node_hash(&data);
-                Self::write_to_output_map(output_map, index, FilledNode { hash, data })?;
+                Self::write_to_output_map(filled_tree_map, index, FilledNode { hash, data })?;
                 Ok(hash)
             }
             UpdatedSkeletonNode::Edge(path_to_bottom) => {
@@ -217,14 +217,14 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                     bottom_node_index,
                     Arc::clone(&leaf_modifications),
                     Arc::clone(&leaf_index_to_leaf_input),
-                    Arc::clone(&output_map),
+                    Arc::clone(&filled_tree_map),
                     Arc::clone(&leaf_index_to_leaf_output),
                 )
                 .await?;
                 let data =
                     NodeData::Edge(EdgeData { path_to_bottom: *path_to_bottom, bottom_hash });
                 let hash = TH::compute_node_hash(&data);
-                Self::write_to_output_map(output_map, index, FilledNode { hash, data })?;
+                Self::write_to_output_map(filled_tree_map, index, FilledNode { hash, data })?;
                 Ok(hash)
             }
             UpdatedSkeletonNode::UnmodifiedSubTree(hash_result) => Ok(*hash_result),
@@ -240,7 +240,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 }
                 let data = NodeData::Leaf(leaf_data);
                 let hash = TH::compute_node_hash(&data);
-                Self::write_to_output_map(output_map, index, FilledNode { hash, data })?;
+                Self::write_to_output_map(filled_tree_map, index, FilledNode { hash, data })?;
                 if let Some(output) = leaf_output {
                     Self::write_to_output_map(leaf_index_to_leaf_output, index, output)?
                 };
@@ -295,11 +295,11 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
         )
         .await?;
         let unwrapped_leaf_index_to_leaf_output =
-            Self::remove_arc_mutex_and_option(leaf_index_to_leaf_output, false)?;
+            Self::remove_arc_mutex_and_option_from_output_map(leaf_index_to_leaf_output, false)?;
 
         Ok((
             FilledTreeImpl {
-                tree_map: Self::remove_arc_mutex_and_option(filled_tree_map, true)?,
+                tree_map: Self::remove_arc_mutex_and_option_from_output_map(filled_tree_map, true)?,
                 root_hash,
             },
             Some(unwrapped_leaf_index_to_leaf_output),
@@ -333,7 +333,7 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
         .await?;
 
         Ok(FilledTreeImpl {
-            tree_map: Self::remove_arc_mutex_and_option(filled_tree_map, true)?,
+            tree_map: Self::remove_arc_mutex_and_option_from_output_map(filled_tree_map, true)?,
             root_hash,
         })
     }

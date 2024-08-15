@@ -45,6 +45,8 @@ impl FilledForest {
         self.classes_trie.get_root_hash()
     }
 
+    /// Creates a filled forest. Assumes the storage updates and the updated skeletons of the
+    /// storage tries include all modified contracts, including those with unmodified storage.
     pub(crate) async fn create<TH: ForestHashFunction + 'static>(
         updated_forest: UpdatedSkeletonForest,
         storage_updates: HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
