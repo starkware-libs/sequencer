@@ -47,7 +47,7 @@ pub struct FilledTreeImpl<L: Leaf> {
 }
 
 impl<L: Leaf + 'static> FilledTreeImpl<L> {
-    fn initialize_with_placeholders<'a>(
+    fn initialize_filled_tree_map_with_placeholders<'a>(
         updated_skeleton: &impl UpdatedSkeletonTree<'a>,
     ) -> HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>> {
         let mut filled_tree_map = HashMap::new();
@@ -173,7 +173,9 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
             }
             UpdatedSkeletonNode::UnmodifiedSubTree(hash_result) => Ok(*hash_result),
             UpdatedSkeletonNode::Leaf => {
-                let leaf_data = L::create(&index, leaf_modifications).await?;
+                // TODO(Amos): use `L::create` when no leaf modifications are provided.
+                let leaf_data = L::from_modifications(&index, Arc::clone(&leaf_modifications))
+                    .map_err(|e| FilledTreeError::Leaf { leaf_error: e, leaf_index: index })?;
                 if leaf_data.is_empty() {
                     return Err(FilledTreeError::DeletedLeafInSkeleton(index));
                 }
@@ -208,10 +210,7 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
     async fn create_with_existing_leaves<'a, TH: TreeHashFunction<L> + 'static>(
         updated_skeleton: impl UpdatedSkeletonTree<'a> + 'static,
         leaf_modifications: LeafModifications<L>,
-    ) -> Result<Self, FilledTreeError> {
-        // Compute the filled tree in two steps:
-        //   1. Create a map containing the tree structure without hash values.
-        //   2. Fill in the hash values.
+    ) -> FilledTreeResult<Self> {
         if leaf_modifications.is_empty() {
             return Self::create_unmodified(&updated_skeleton);
         }
@@ -220,7 +219,10 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
             return Ok(Self::create_empty());
         }
 
-        let filled_tree_map = Arc::new(Self::initialize_with_placeholders(&updated_skeleton));
+        // Wrap values in `Mutex<Option<T>>`` for interior mutability.
+        let filled_tree_map =
+            Arc::new(Self::initialize_filled_tree_map_with_placeholders(&updated_skeleton));
+
         let root_hash = Self::compute_filled_tree_rec::<TH>(
             Arc::new(updated_skeleton),
             NodeIndex::ROOT,
@@ -229,7 +231,6 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
         )
         .await?;
 
-        // Create and return a new FilledTreeImpl from the hashmap.
         Ok(FilledTreeImpl {
             tree_map: Self::remove_arc_mutex_and_option(filled_tree_map)?,
             root_hash,
