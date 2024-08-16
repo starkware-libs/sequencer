@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use futures::channel::{mpsc, oneshot};
 use futures::{Stream, StreamExt};
-use papyrus_common::metrics as papyrus_metrics;
+use papyrus_common::metrics::PAPYRUS_CONSENSUS_HEIGHT;
 use papyrus_network::network_manager::ReportSender;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal};
 use papyrus_protobuf::converters::ProtobufConversionError;
@@ -27,39 +27,51 @@ use crate::types::{
 };
 
 // TODO(dvir): add test for this.
-#[instrument(skip(context, start_height, network_receiver), level = "info")]
+#[instrument(skip(context, start_height, network_receiver, sync_receiver), level = "info")]
 #[allow(missing_docs)]
-pub async fn run_consensus<BlockT, ContextT, NetworkReceiverT>(
+pub async fn run_consensus<BlockT, ContextT, NetworkReceiverT, SyncReceiverT>(
     mut context: ContextT,
     start_height: BlockNumber,
     validator_id: ValidatorId,
     consensus_delay: Duration,
     mut network_receiver: NetworkReceiverT,
+    mut sync_receiver: SyncReceiverT,
 ) -> Result<(), ConsensusError>
 where
     BlockT: ConsensusBlock,
     ContextT: ConsensusContext<Block = BlockT>,
     NetworkReceiverT:
         Stream<Item = (Result<ConsensusMessage, ProtobufConversionError>, ReportSender)> + Unpin,
+    SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
     ProposalWrapper:
         Into<(ProposalInit, mpsc::Receiver<BlockT::ProposalChunk>, oneshot::Receiver<BlockHash>)>,
 {
+    info!("Running consensus");
+
     // Add a short delay to allow peers to connect and avoid "InsufficientPeers" error
     tokio::time::sleep(consensus_delay).await;
     let mut current_height = start_height;
     let mut manager = MultiHeightManager::new();
     loop {
-        let decision = manager
-            .run_height(&mut context, current_height, validator_id, &mut network_receiver)
-            .await?;
+        metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT, current_height.0 as f64);
 
-        info!(
-            "Finished consensus for height: {current_height}. Agreed on block with id: {:x}",
-            decision.block.id().0
-        );
-        debug!("Decision: {:?}", decision);
-        metrics::gauge!(papyrus_metrics::PAPYRUS_CONSENSUS_HEIGHT, current_height.0 as f64);
-        current_height = current_height.unchecked_next();
+        let run_height =
+            manager.run_height(&mut context, current_height, validator_id, &mut network_receiver);
+
+        // `run_height` is not cancel safe. Our implementation doesn't enable us to start and stop
+        // it. We also cannot restart the height; when we dropped the future we dropped the state it
+        // built and risk equivocating. Therefore, we must only enter the other select branches if
+        // we are certain to leave this height.
+        tokio::select! {
+            decision = run_height => {
+                let decision = decision?;
+                context.notify_decision(decision.block, decision.precommits).await?;
+                current_height = current_height.unchecked_next();
+            },
+            sync_height = sync_height(current_height, &mut sync_receiver) => {
+                current_height = sync_height?.unchecked_next();
+            }
+        }
     }
 }
 
@@ -188,6 +200,30 @@ where
                 "Failed to send report".to_string(),
             )))?;
             Err(e.into())
+        }
+    }
+}
+
+// Return only when a height is reached that is greater than or equal to the current height.
+async fn sync_height<SyncReceiverT>(
+    height: BlockNumber,
+    mut sync_receiver: SyncReceiverT,
+) -> Result<BlockNumber, ConsensusError>
+where
+    SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
+{
+    loop {
+        match sync_receiver.next().await {
+            Some(sync_height) if sync_height >= height => {
+                info!("Sync to height: {}. current_height={}", sync_height, height);
+                return Ok(sync_height);
+            }
+            Some(sync_height) => {
+                debug!("Ignoring sync to height: {}. current_height={}", sync_height, height);
+            }
+            None => {
+                return Err(ConsensusError::SyncError("Sync receiver closed".to_string()));
+            }
         }
     }
 }

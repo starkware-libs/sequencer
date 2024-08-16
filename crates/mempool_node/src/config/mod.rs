@@ -15,11 +15,13 @@ use papyrus_config::dumping::{
 use papyrus_config::loading::load_and_process_config;
 use papyrus_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+use starknet_batcher::config::BatcherConfig;
 use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
 use starknet_mempool_infra::component_definitions::{
     LocalComponentCommunicationConfig,
     RemoteComponentCommunicationConfig,
 };
+use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use validator::{Validate, ValidationError};
 
 use crate::version::VERSION_FULL;
@@ -125,6 +127,16 @@ impl ComponentExecutionConfig {
             remote_config: None,
         }
     }
+
+    pub fn batcher_default_config() -> Self {
+        Self {
+            execute: true,
+            location: LocationType::Local,
+            component_type: ComponentType::SynchronousComponent,
+            local_config: Some(LocalComponentCommunicationConfig::default()),
+            remote_config: None,
+        }
+    }
 }
 
 pub fn validate_single_component_config(
@@ -155,6 +167,8 @@ pub fn validate_single_component_config(
 #[validate(schema(function = "validate_components_config"))]
 pub struct ComponentConfig {
     #[validate]
+    pub batcher: ComponentExecutionConfig,
+    #[validate]
     pub gateway: ComponentExecutionConfig,
     #[validate]
     pub mempool: ComponentExecutionConfig,
@@ -163,6 +177,7 @@ pub struct ComponentConfig {
 impl Default for ComponentConfig {
     fn default() -> Self {
         Self {
+            batcher: ComponentExecutionConfig::batcher_default_config(),
             gateway: ComponentExecutionConfig::gateway_default_config(),
             mempool: ComponentExecutionConfig::mempool_default_config(),
         }
@@ -173,6 +188,7 @@ impl SerializeConfig for ComponentConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         #[allow(unused_mut)]
         let mut sub_configs = vec![
+            append_sub_config_name(self.batcher.dump(), "batcher"),
             append_sub_config_name(self.gateway.dump(), "gateway"),
             append_sub_config_name(self.mempool.dump(), "mempool"),
         ];
@@ -182,7 +198,7 @@ impl SerializeConfig for ComponentConfig {
 }
 
 pub fn validate_components_config(components: &ComponentConfig) -> Result<(), ValidationError> {
-    if components.gateway.execute || components.mempool.execute {
+    if components.gateway.execute || components.mempool.execute || components.batcher.execute {
         return Ok(());
     }
 
@@ -197,9 +213,13 @@ pub struct MempoolNodeConfig {
     #[validate]
     pub components: ComponentConfig,
     #[validate]
+    pub batcher_config: BatcherConfig,
+    #[validate]
     pub gateway_config: GatewayConfig,
     #[validate]
     pub rpc_state_reader_config: RpcStateReaderConfig,
+    #[validate]
+    pub compiler_config: SierraToCasmCompilationConfig,
 }
 
 impl SerializeConfig for MempoolNodeConfig {
@@ -207,8 +227,10 @@ impl SerializeConfig for MempoolNodeConfig {
         #[allow(unused_mut)]
         let mut sub_configs = vec![
             append_sub_config_name(self.components.dump(), "components"),
+            append_sub_config_name(self.batcher_config.dump(), "batcher_config"),
             append_sub_config_name(self.gateway_config.dump(), "gateway_config"),
             append_sub_config_name(self.rpc_state_reader_config.dump(), "rpc_state_reader_config"),
+            append_sub_config_name(self.compiler_config.dump(), "compiler_config"),
         ];
 
         sub_configs.into_iter().flatten().collect()

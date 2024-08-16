@@ -1,9 +1,5 @@
 use std::collections::HashMap;
 
-use committer::felt::Felt;
-use committer::hash::hash_trait::HashOutput;
-use committer::storage::errors::DeserializationError;
-use committer::storage::storage_trait::{StorageKey, StorageValue};
 use pretty_assertions::assert_eq;
 use starknet_committer::block_committer::input::{
     ConfigImpl,
@@ -14,6 +10,10 @@ use starknet_committer::block_committer::input::{
     StateDiff,
 };
 use starknet_committer::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
+use starknet_patricia::felt::Felt;
+use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::storage::errors::DeserializationError;
+use starknet_patricia::storage::storage_trait::{StorageKey, StorageValue};
 use tracing::level_filters::LevelFilter;
 
 use super::parse_input;

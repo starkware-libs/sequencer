@@ -23,8 +23,9 @@ use starknet_api::transaction::{
     TransactionHasher,
 };
 use starknet_mempool_types::mempool_types::ThinTransaction;
+use tracing::error;
 
-use crate::errors::StatefulTransactionValidatorResult;
+use crate::errors::{GatewaySpecError, StatefulTransactionValidatorResult};
 
 pub fn external_tx_to_thin_tx(
     external_tx: &RpcTransaction,
@@ -61,10 +62,19 @@ pub fn external_tx_to_account_tx(
                 paymaster_data: tx.paymaster_data.clone(),
                 account_deployment_data: tx.account_deployment_data.clone(),
             });
-            let tx_hash = declare_tx.calculate_transaction_hash(chain_id, &declare_tx.version())?;
+            let tx_hash = declare_tx
+                .calculate_transaction_hash(chain_id, &declare_tx.version())
+                .map_err(|e| {
+                    error!("Failed to calculate tx hash: {}", e);
+                    GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
+                })?;
             let class_info =
                 optional_class_info.expect("declare transaction should contain class info");
-            let declare_tx = BlockifierDeclareTransaction::new(declare_tx, tx_hash, class_info)?;
+            let declare_tx = BlockifierDeclareTransaction::new(declare_tx, tx_hash, class_info)
+                .map_err(|e| {
+                    error!("Failed to convert declare tx hash to blockifier tx type: {}", e);
+                    GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
+                })?;
             Ok(AccountTransaction::Declare(declare_tx))
         }
         RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
@@ -85,9 +95,17 @@ pub fn external_tx_to_account_tx(
                 deploy_account_tx.class_hash(),
                 &deploy_account_tx.constructor_calldata(),
                 ContractAddress::default(),
-            )?;
+            )
+            .map_err(|e| {
+                error!("Failed to calculate contract address: {}", e);
+                GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
+            })?;
             let tx_hash = deploy_account_tx
-                .calculate_transaction_hash(chain_id, &deploy_account_tx.version())?;
+                .calculate_transaction_hash(chain_id, &deploy_account_tx.version())
+                .map_err(|e| {
+                    error!("Failed to calculate tx hash: {}", e);
+                    GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
+                })?;
             let deploy_account_tx = BlockifierDeployAccountTransaction::new(
                 deploy_account_tx,
                 tx_hash,
@@ -108,19 +126,15 @@ pub fn external_tx_to_account_tx(
                 paymaster_data: tx.paymaster_data.clone(),
                 account_deployment_data: tx.account_deployment_data.clone(),
             });
-            let tx_hash = invoke_tx.calculate_transaction_hash(chain_id, &invoke_tx.version())?;
+            let tx_hash = invoke_tx
+                .calculate_transaction_hash(chain_id, &invoke_tx.version())
+                .map_err(|e| {
+                    error!("Failed to calculate tx hash: {}", e);
+                    GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
+                })?;
             let invoke_tx = BlockifierInvokeTransaction::new(invoke_tx, tx_hash);
             Ok(AccountTransaction::Invoke(invoke_tx))
         }
-    }
-}
-
-// TODO(yael 9/5/54): Should be implemented as part of InternalTransaction in starknet-api
-pub fn get_tx_hash(tx: &AccountTransaction) -> TransactionHash {
-    match tx {
-        AccountTransaction::Declare(tx) => tx.tx_hash,
-        AccountTransaction::DeployAccount(tx) => tx.tx_hash,
-        AccountTransaction::Invoke(tx) => tx.tx_hash,
     }
 }
 

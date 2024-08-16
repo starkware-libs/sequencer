@@ -96,6 +96,11 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "consensus.network_topic": {
+    "description": "The network topic of the consensus.",
+    "value": "consensus",
+    "privacy": "Public"
+  },
   "consensus.num_validators": {
     "description": "The number of validators in the consensus.",
     "value": {
@@ -143,9 +148,9 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
-  "consensus.topic": {
-    "description": "The topic of the consensus.",
-    "value": "consensus",
+  "consensus.test.sync_topic": {
+    "description": "The network topic for sync messages.",
+    "value": "consensus_test_sync",
     "privacy": "Public"
   },
   "consensus.validator_id": {

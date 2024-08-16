@@ -7,7 +7,6 @@ members = [
   "crates/batcher",
   "crates/batcher_types",
   "crates/blockifier",
-  "crates/committer",
   "crates/committer_cli",
   "crates/consensus_manager",
   "crates/consensus_manager_types",
@@ -38,6 +37,7 @@ members = [
   "crates/starknet_api",
   "crates/starknet_client",
   "crates/starknet_committer",
+  "crates/starknet_patricia",
   "crates/starknet_sierra_compile",
   "crates/task_executor",
   "crates/tests-integration",
@@ -84,11 +84,10 @@ cairo-lang-utils = "2.7.0"
 cairo-vm = "=1.0.0-rc6"
 camelpaste = "0.1.0"
 chrono = "0.4.26"
-clap = "4.3.10"
+clap = "4.5.4"
 colored = "2.1.0"
-committer = { path = "crates/committer", version = "0.1.0-rc.0" }
 const_format = "0.2.30"
-criterion = "0.3"
+criterion = "0.5.1"
 deadqueue = "0.2.4"
 defaultmap = "0.5.0"
 derive_more = "0.99.17"
@@ -165,9 +164,9 @@ reqwest = { version = "0.11", features = ["blocking", "json"] }
 rstest = "0.17.0"
 rustc-hex = "2.1.0"
 schemars = "0.8.12"
-serde = "1.0.193"
-serde_json = "1.0.81"
-serde_repr = "0.1"
+serde = "1.0.197"
+serde_json = "1.0.116"
+serde_repr = "0.1.19"
 serde_yaml = "0.9.16"
 sha2 = "0.10.8"
 sha3 = "0.10.8"
@@ -176,8 +175,10 @@ starknet-core = "0.6.0"
 starknet-crypto = "0.5.1"
 starknet-types-core = { version = "0.1.5", features = ["hash", "prime-bigint", "std"] }
 starknet_api = { path = "crates/starknet_api", version = "0.13.0-rc.0" }
+starknet_batcher = { path = "crates/batcher", version = "0.0" }
 starknet_batcher_types = { path = "crates/batcher_types", version = "0.0" }
 starknet_client = { path = "crates/starknet_client", version = "0.4.0-rc.0" }
+starknet_committer = { path = "crates/starknet_committer", version = "0.1.0-rc.0" }
 starknet_consensus_manager = { path = "crates/consensus_manager", version = "0.0" }
 starknet_consensus_manager_types = { path = "crates/consensus_manager_types", version = "0.0" }
 starknet_gateway = { path = "crates/gateway", version = "0.0" }
@@ -185,6 +186,7 @@ starknet_mempool = { path = "crates/mempool", version = "0.0" }
 starknet_mempool_infra = { path = "crates/mempool_infra", version = "0.0" }
 starknet_mempool_node = { path = "crates/mempool_node", version = "0.0" }
 starknet_mempool_types = { path = "crates/mempool_types", version = "0.0" }
+starknet_patricia = { path = "crates/starknet_patricia", version = "0.1.0-rc.0" }
 starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.0" }
 starknet_task_executor = { path = "crates/task_executor", version = "0.0" }
 static_assertions = "1.1.0"
@@ -204,6 +206,7 @@ toml = "0.8"
 tower = "0.4.13"
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
+tracing-test = "0.2"
 unsigned-varint = "0.8.0"
 url = "2.5.0"
 validator = "0.12"

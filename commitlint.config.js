@@ -25,6 +25,7 @@ const Configuration = {
             'block_hash',
             'blockifier',
             'ci',
+            'committer',
             'common',
             'concurrency',
             'config',

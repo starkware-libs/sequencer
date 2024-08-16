@@ -84,6 +84,11 @@
     "privacy": "Public",
     "value": 5
   },
+  "consensus.network_topic": {
+    "description": "The network topic of the consensus.",
+    "privacy": "Public",
+    "value": "consensus"
+  },
   "consensus.num_validators": {
     "description": "The number of validators in the consensus.",
     "privacy": "Public",
@@ -119,10 +124,10 @@
     "privacy": "Public",
     "value": 0
   },
-  "consensus.topic": {
-    "description": "The topic of the consensus.",
+  "consensus.test.sync_topic": {
+    "description": "The network topic for sync messages.",
     "privacy": "Public",
-    "value": "consensus"
+    "value": "consensus_test_sync"
   },
   "consensus.validator_id": {
     "description": "A required param! The validator id of the node.",

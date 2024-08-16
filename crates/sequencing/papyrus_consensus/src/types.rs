@@ -135,6 +135,16 @@ pub trait ConsensusContext {
         content_receiver: mpsc::Receiver<<Self::Block as ConsensusBlock>::ProposalChunk>,
         fin_receiver: oneshot::Receiver<BlockHash>,
     ) -> Result<(), ConsensusError>;
+
+    /// Update the context that a decision has been reached for a given height.
+    /// - `block` identifies the decision.
+    /// - `precommits` - All precommits must be for the same `(block.id(), height, round)` and form
+    ///   a quorum (>2/3 of the voting power) for this height.
+    async fn notify_decision(
+        &mut self,
+        block: Self::Block,
+        precommits: Vec<Vote>,
+    ) -> Result<(), ConsensusError>;
 }
 
 #[derive(PartialEq)]
@@ -177,4 +187,6 @@ pub enum ConsensusError {
     // As opposed to an error between this node and peer nodes.
     #[error("{0}")]
     InternalNetworkError(String),
+    #[error("{0}")]
+    SyncError(String),
 }

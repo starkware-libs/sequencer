@@ -184,7 +184,13 @@ impl DeclareTransaction {
         Self::create(tx, tx_hash, class_info, only_query)
     }
 
-    implement_inner_tx_getter_calls!((class_hash, ClassHash), (signature, TransactionSignature));
+    implement_inner_tx_getter_calls!(
+        (class_hash, ClassHash),
+        (nonce, Nonce),
+        (sender_address, ContractAddress),
+        (signature, TransactionSignature),
+        (version, TransactionVersion)
+    );
 
     pub fn tx(&self) -> &starknet_api::transaction::DeclareTransaction {
         &self.tx
@@ -266,10 +272,10 @@ impl TransactionInfoCreator for DeclareTransaction {
         // TODO(Nir, 01/11/2023): Consider to move this (from all get_tx_info methods).
         let common_fields = CommonAccountFields {
             transaction_hash: self.tx_hash(),
-            version: self.tx.version(),
-            signature: self.tx.signature(),
-            nonce: self.tx.nonce(),
-            sender_address: self.tx.sender_address(),
+            version: self.version(),
+            signature: self.signature(),
+            nonce: self.nonce(),
+            sender_address: self.sender_address(),
             only_query: self.only_query,
         };
 
@@ -332,11 +338,16 @@ impl DeployAccountTransaction {
         (constructor_calldata, Calldata),
         (contract_address_salt, ContractAddressSalt),
         (nonce, Nonce),
-        (signature, TransactionSignature)
+        (signature, TransactionSignature),
+        (version, TransactionVersion)
     );
 
     pub fn tx(&self) -> &starknet_api::transaction::DeployAccountTransaction {
         &self.tx
+    }
+
+    pub fn tx_hash(&self) -> TransactionHash {
+        self.tx_hash
     }
 }
 
@@ -372,10 +383,10 @@ impl<S: State> Executable<S> for DeployAccountTransaction {
 impl TransactionInfoCreator for DeployAccountTransaction {
     fn create_tx_info(&self) -> TransactionInfo {
         let common_fields = CommonAccountFields {
-            transaction_hash: self.tx_hash,
-            version: self.tx.version(),
-            signature: self.tx.signature(),
-            nonce: self.tx.nonce(),
+            transaction_hash: self.tx_hash(),
+            version: self.version(),
+            signature: self.signature(),
+            nonce: self.nonce(),
             sender_address: self.contract_address,
             only_query: self.only_query,
         };
@@ -427,9 +438,15 @@ impl InvokeTransaction {
 
     implement_inner_tx_getter_calls!(
         (calldata, Calldata),
+        (nonce, Nonce),
         (signature, TransactionSignature),
-        (sender_address, ContractAddress)
+        (sender_address, ContractAddress),
+        (version, TransactionVersion)
     );
+
+    pub fn tx_hash(&self) -> TransactionHash {
+        self.tx_hash
+    }
 }
 
 impl<S: State> Executable<S> for InvokeTransaction {
@@ -478,11 +495,11 @@ impl<S: State> Executable<S> for InvokeTransaction {
 impl TransactionInfoCreator for InvokeTransaction {
     fn create_tx_info(&self) -> TransactionInfo {
         let common_fields = CommonAccountFields {
-            transaction_hash: self.tx_hash,
-            version: self.tx.version(),
-            signature: self.tx.signature(),
-            nonce: self.tx.nonce(),
-            sender_address: self.tx.sender_address(),
+            transaction_hash: self.tx_hash(),
+            version: self.version(),
+            signature: self.signature(),
+            nonce: self.nonce(),
+            sender_address: self.sender_address(),
             only_query: self.only_query,
         };
 

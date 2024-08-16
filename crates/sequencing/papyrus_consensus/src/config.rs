@@ -24,7 +24,7 @@ pub struct ConsensusConfig {
     /// The validator ID of the node.
     pub validator_id: ValidatorId,
     /// The network topic of the consensus.
-    pub topic: String,
+    pub network_topic: String,
     /// The height to start the consensus from.
     pub start_height: BlockNumber,
     /// The number of validators in the consensus.
@@ -47,9 +47,9 @@ impl SerializeConfig for ConsensusConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "topic",
-                &self.topic,
-                "The topic of the consensus.",
+                "network_topic",
+                &self.network_topic,
+                "The network topic of the consensus.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -80,7 +80,7 @@ impl Default for ConsensusConfig {
     fn default() -> Self {
         Self {
             validator_id: ValidatorId::default(),
-            topic: "consensus".to_string(),
+            network_topic: "consensus".to_string(),
             start_height: BlockNumber::default(),
             num_validators: 4,
             consensus_delay: Duration::from_secs(5),
@@ -100,6 +100,8 @@ pub struct ConsensusTestConfig {
     pub drop_probability: f64,
     /// The probability of sending an invalid message.
     pub invalid_probability: f64,
+    /// The network topic for sync messages.
+    pub sync_topic: String,
 }
 
 impl SerializeConfig for ConsensusTestConfig {
@@ -129,12 +131,24 @@ impl SerializeConfig for ConsensusTestConfig {
                 "The probability of sending an invalid message.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "sync_topic",
+                &self.sync_topic,
+                "The network topic for sync messages.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
 
 impl Default for ConsensusTestConfig {
     fn default() -> Self {
-        Self { cache_size: 1000, random_seed: 0, drop_probability: 0.0, invalid_probability: 0.0 }
+        Self {
+            cache_size: 1000,
+            random_seed: 0,
+            drop_probability: 0.0,
+            invalid_probability: 0.0,
+            sync_topic: "consensus_test_sync".to_string(),
+        }
     }
 }

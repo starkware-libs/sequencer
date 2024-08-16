@@ -11,11 +11,11 @@ use starknet_api::transaction::TransactionHash;
 use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
-use tracing::{info, instrument};
+use tracing::{error, info, instrument};
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{GatewayConfig, GatewayNetworkConfig, RpcStateReaderConfig};
-use crate::errors::{GatewayError, GatewayResult, GatewayRunError};
+use crate::errors::{GatewayResult, GatewayRunError, GatewaySpecError};
 use crate::rpc_state_reader::RpcStateReaderFactory;
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
@@ -100,15 +100,18 @@ async fn add_tx(
             tx,
         )
     })
-    .await??;
+    .await
+    .map_err(|join_err| {
+        error!("Failed to process tx: {}", join_err);
+        GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
+    })??;
 
     let tx_hash = mempool_input.tx.tx_hash;
 
-    app_state
-        .mempool_client
-        .add_tx(mempool_input)
-        .await
-        .map_err(|e| GatewayError::MessageSendError(e.to_string()))?;
+    app_state.mempool_client.add_tx(mempool_input).await.map_err(|e| {
+        error!("Failed to send tx to mempool: {}", e);
+        GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
+    })?;
     // TODO: Also return `ContractAddress` for deploy and `ClassHash` for Declare.
     Ok(Json(tx_hash))
 }
@@ -151,10 +154,10 @@ fn process_tx(
 pub fn create_gateway(
     config: GatewayConfig,
     rpc_state_reader_config: RpcStateReaderConfig,
+    gateway_compiler: GatewayCompiler,
     mempool_client: SharedMempoolClient,
 ) -> Gateway {
     let state_reader_factory = Arc::new(RpcStateReaderFactory { config: rpc_state_reader_config });
-    let gateway_compiler = GatewayCompiler::new_cairo_lang_compiler(config.compiler_config);
 
     Gateway::new(config, state_reader_factory, gateway_compiler, mempool_client)
 }

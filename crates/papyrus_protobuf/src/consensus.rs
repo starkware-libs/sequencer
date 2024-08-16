@@ -11,13 +11,14 @@ pub struct Proposal {
     pub block_hash: BlockHash,
 }
 
-#[derive(Debug, Hash, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
 pub enum VoteType {
     Prevote,
+    #[default]
     Precommit,
 }
 
-#[derive(Debug, Hash, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
 pub struct Vote {
     pub vote_type: VoteType,
     pub height: u64,

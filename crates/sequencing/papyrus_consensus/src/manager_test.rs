@@ -1,3 +1,4 @@
+use std::time::Duration;
 use std::vec;
 
 use async_trait::async_trait;
@@ -5,6 +6,7 @@ use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
 use lazy_static::lazy_static;
 use mockall::mock;
+use mockall::predicate::eq;
 use papyrus_network::network_manager::ReportSender;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, Vote, VoteType};
 use papyrus_protobuf::converters::ProtobufConversionError;
@@ -12,7 +14,7 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::transaction::Transaction;
 use starknet_types_core::felt::Felt;
 
-use super::MultiHeightManager;
+use super::{run_consensus, MultiHeightManager};
 use crate::types::{ConsensusBlock, ConsensusContext, ConsensusError, ProposalInit, ValidatorId};
 
 lazy_static! {
@@ -71,6 +73,12 @@ mock! {
             content_receiver: mpsc::Receiver<Transaction>,
             fin_receiver: oneshot::Receiver<BlockHash>,
         ) -> Result<(), ConsensusError>;
+
+        async fn notify_decision(
+            &mut self,
+            block: TestBlock,
+            precommits: Vec<Vote>,
+        ) -> Result<(), ConsensusError>;
     }
 }
 
@@ -114,7 +122,7 @@ fn precommit(block_hash: Option<BlockHash>, height: u64, voter: ValidatorId) -> 
 }
 
 #[tokio::test]
-async fn run_multiple_heights_unordered() {
+async fn manager_multiple_heights_unordered() {
     let mut context = MockTestContext::new();
 
     let (mut sender, mut receiver) = mpsc::unbounded();
@@ -160,4 +168,122 @@ async fn run_multiple_heights_unordered() {
         .await
         .unwrap();
     assert_eq!(decision.block.id(), BlockHash(Felt::TWO));
+}
+
+#[tokio::test]
+async fn run_consensus_sync() {
+    // Set expectations.
+    let mut context = MockTestContext::new();
+    let (decision_tx, decision_rx) = oneshot::channel();
+
+    context.expect_validate_proposal().return_once(move |_, _| {
+        let (block_sender, block_receiver) = oneshot::channel();
+        block_sender.send(TestBlock { content: vec![], id: BlockHash(Felt::TWO) }).unwrap();
+        block_receiver
+    });
+    context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_broadcast().returning(move |_| Ok(()));
+    context.expect_notify_decision().return_once(move |block, votes| {
+        assert_eq!(block.id(), BlockHash(Felt::TWO));
+        assert_eq!(votes[0].height, 2);
+        decision_tx.send(()).unwrap();
+        Ok(())
+    });
+
+    // Send messages for height 2.
+    let (mut network_sender, mut network_receiver) = mpsc::unbounded();
+    send(&mut network_sender, proposal(BlockHash(Felt::TWO), 2)).await;
+    send(&mut network_sender, prevote(Some(BlockHash(Felt::TWO)), 2, *PROPOSER_ID)).await;
+    send(&mut network_sender, precommit(Some(BlockHash(Felt::TWO)), 2, *PROPOSER_ID)).await;
+
+    // Start at height 1.
+    let (mut sync_sender, mut sync_receiver) = mpsc::unbounded();
+    let consensus_handle = tokio::spawn(async move {
+        run_consensus(
+            context,
+            BlockNumber(1),
+            *VALIDATOR_ID,
+            Duration::ZERO,
+            &mut network_receiver,
+            &mut sync_receiver,
+        )
+        .await
+    });
+
+    // Send sync for height 1.
+    sync_sender.send(BlockNumber(1)).await.unwrap();
+    // Make sure the sync is processed before the upcoming messages.
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    // Decision for height 2.
+    decision_rx.await.unwrap();
+
+    // Drop the sender to close consensus and gracefully shut down.
+    drop(sync_sender);
+    assert!(matches!(consensus_handle.await.unwrap(), Err(ConsensusError::SyncError(_))));
+}
+
+// Check for cancellation safety when ignoring old heights. If the current height check was done
+// within the select branch this test would hang.
+#[tokio::test]
+async fn run_consensus_sync_cancellation_safety() {
+    let mut context = MockTestContext::new();
+    let (proposal_handled_tx, proposal_handled_rx) = oneshot::channel();
+    let (decision_tx, decision_rx) = oneshot::channel();
+
+    context.expect_validate_proposal().return_once(move |_, _| {
+        let (block_sender, block_receiver) = oneshot::channel();
+        block_sender.send(TestBlock { content: vec![], id: BlockHash(Felt::ONE) }).unwrap();
+        block_receiver
+    });
+    context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context
+        .expect_broadcast()
+        .with(eq(prevote(Some(BlockHash(Felt::ONE)), 1, *VALIDATOR_ID)))
+        .return_once(move |_| {
+            proposal_handled_tx.send(()).unwrap();
+            Ok(())
+        });
+    context.expect_broadcast().returning(move |_| Ok(()));
+    context.expect_notify_decision().return_once(|block, votes| {
+        assert_eq!(block.id(), BlockHash(Felt::ONE));
+        assert_eq!(votes[0].height, 1);
+        decision_tx.send(()).unwrap();
+        Ok(())
+    });
+
+    let (mut network_sender, mut network_receiver) = mpsc::unbounded();
+    let (mut sync_sender, mut sync_receiver) = mpsc::unbounded();
+
+    let consensus_handle = tokio::spawn(async move {
+        run_consensus(
+            context,
+            BlockNumber(1),
+            *VALIDATOR_ID,
+            Duration::ZERO,
+            &mut network_receiver,
+            &mut sync_receiver,
+        )
+        .await
+    });
+
+    // Send a proposal for height 1.
+    send(&mut network_sender, proposal(BlockHash(Felt::ONE), 1)).await;
+    proposal_handled_rx.await.unwrap();
+
+    // Send an old sync. This should not cancel the current height.
+    sync_sender.send(BlockNumber(0)).await.unwrap();
+    // Make sure the sync is processed before the upcoming messages.
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    // Finished messages for 1
+    send(&mut network_sender, prevote(Some(BlockHash(Felt::ONE)), 1, *PROPOSER_ID)).await;
+    send(&mut network_sender, precommit(Some(BlockHash(Felt::ONE)), 1, *PROPOSER_ID)).await;
+    decision_rx.await.unwrap();
+
+    // Drop the sender to close consensus and gracefully shut down.
+    drop(sync_sender);
+    assert!(matches!(consensus_handle.await.unwrap(), Err(ConsensusError::SyncError(_))));
 }
