@@ -12,7 +12,7 @@ use starknet_api::transaction::{
     L1HandlerTransactionOutput,
     Resource,
     ResourceBounds,
-    ResourceBoundsMapping,
+    DeprecatedResourceBoundsMapping,
     Transaction as StarknetApiTransaction,
     TransactionOutput,
 };
@@ -189,7 +189,7 @@ lazy_static! {
         da_gas_consumed: GasVector::default(),
         gas_consumed: GasVector::default(),
     };
-    static ref RESOURCE_BOUNDS_MAPPING: ResourceBoundsMapping = ResourceBoundsMapping(
+    static ref RESOURCE_BOUNDS_MAPPING: DeprecatedResourceBoundsMapping = DeprecatedResourceBoundsMapping(
         [
             (Resource::L1Gas, ResourceBounds { max_amount: 0x5, max_price_per_unit: 0x6 }),
             (Resource::L2Gas, ResourceBounds { max_amount: 0x5, max_price_per_unit: 0x6 }),

@@ -26,7 +26,7 @@ use starknet_api::transaction::{
     PaymasterData,
     Resource,
     ResourceBounds,
-    ResourceBoundsMapping,
+    DeprecatedResourceBoundsMapping,
     Tip,
     Transaction,
     TransactionOutput,
@@ -305,7 +305,7 @@ impl From<DeployAccountTransactionV1> for protobuf::transaction::DeployAccountV1
 impl TryFrom<protobuf::transaction::DeployAccountV3> for DeployAccountTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::DeployAccountV3) -> Result<Self, Self::Error> {
-        let resource_bounds = ResourceBoundsMapping::try_from(value.resource_bounds.ok_or(
+        let resource_bounds = DeprecatedResourceBoundsMapping::try_from(value.resource_bounds.ok_or(
             ProtobufConversionError::MissingField {
                 field_description: "DeployAccountV3::resource_bounds",
             },
@@ -415,10 +415,10 @@ impl From<DeployAccountTransactionV3> for protobuf::transaction::DeployAccountV3
     }
 }
 
-impl TryFrom<protobuf::ResourceBounds> for ResourceBoundsMapping {
+impl TryFrom<protobuf::ResourceBounds> for DeprecatedResourceBoundsMapping {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::ResourceBounds) -> Result<Self, Self::Error> {
-        let mut resource_bounds = ResourceBoundsMapping::default();
+        let mut resource_bounds = DeprecatedResourceBoundsMapping::default();
         let Some(l1_gas) = value.l1_gas else {
             return Err(ProtobufConversionError::MissingField {
                 field_description: "ResourceBounds::l1_gas",
@@ -466,8 +466,8 @@ impl TryFrom<protobuf::ResourceBounds> for ResourceBoundsMapping {
     }
 }
 
-impl From<ResourceBoundsMapping> for protobuf::ResourceBounds {
-    fn from(value: ResourceBoundsMapping) -> Self {
+impl From<DeprecatedResourceBoundsMapping> for protobuf::ResourceBounds {
+    fn from(value: DeprecatedResourceBoundsMapping) -> Self {
         let mut res = protobuf::ResourceBounds::default();
 
         let resource_bounds_default = ResourceBounds::default();
@@ -621,7 +621,7 @@ impl From<InvokeTransactionV1> for protobuf::transaction::InvokeV1 {
 impl TryFrom<protobuf::transaction::InvokeV3> for InvokeTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::InvokeV3) -> Result<Self, Self::Error> {
-        let resource_bounds = ResourceBoundsMapping::try_from(value.resource_bounds.ok_or(
+        let resource_bounds = DeprecatedResourceBoundsMapping::try_from(value.resource_bounds.ok_or(
             ProtobufConversionError::MissingField {
                 field_description: "InvokeV3::resource_bounds",
             },
@@ -939,7 +939,7 @@ impl From<DeclareTransactionV2> for protobuf::transaction::DeclareV2 {
 impl TryFrom<protobuf::transaction::DeclareV3> for DeclareTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::DeclareV3) -> Result<Self, Self::Error> {
-        let resource_bounds = ResourceBoundsMapping::try_from(value.resource_bounds.ok_or(
+        let resource_bounds = DeprecatedResourceBoundsMapping::try_from(value.resource_bounds.ok_or(
             ProtobufConversionError::MissingField {
                 field_description: "DeclareV3::resource_bounds",
             },

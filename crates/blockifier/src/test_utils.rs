@@ -20,7 +20,7 @@ use starknet_api::transaction::{
     ContractAddressSalt,
     Resource,
     ResourceBounds,
-    ResourceBoundsMapping,
+    DeprecatedResourceBoundsMapping,
     TransactionVersion,
 };
 use starknet_api::{contract_address, felt, patricia_key};
@@ -211,8 +211,8 @@ pub fn trivial_external_entry_point_with_address(
     }
 }
 
-fn default_testing_resource_bounds() -> ResourceBoundsMapping {
-    ResourceBoundsMapping::try_from(vec![
+fn default_testing_resource_bounds() -> DeprecatedResourceBoundsMapping {
+    DeprecatedResourceBoundsMapping::try_from(vec![
         (Resource::L1Gas, ResourceBounds { max_amount: 0, max_price_per_unit: 1 }),
         // TODO(Dori, 1/2/2024): When fee market is developed, change the default price of
         //   L2 gas.
