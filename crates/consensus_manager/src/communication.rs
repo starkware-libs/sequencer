@@ -7,14 +7,13 @@ use starknet_consensus_manager_types::communication::{
     ConsensusManagerResponse,
 };
 use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
-use starknet_mempool_infra::component_runner::ComponentStarter;
-use starknet_mempool_infra::component_server::{LocalComponentServer, RemoteComponentServer};
+use starknet_mempool_infra::component_server::{LocalActiveComponentServer, RemoteComponentServer};
 use tokio::sync::mpsc::Receiver;
 
 use crate::consensus_manager::ConsensusManager;
 
 pub type LocalConsensusManagerServer =
-    LocalComponentServer<ConsensusManager, ConsensusManagerRequest, ConsensusManagerResponse>;
+    LocalActiveComponentServer<ConsensusManager, ConsensusManagerRequest, ConsensusManagerResponse>;
 pub type RemoteConsensusManagerServer =
     RemoteComponentServer<ConsensusManager, ConsensusManagerRequest, ConsensusManagerResponse>;
 
@@ -22,7 +21,7 @@ pub fn create_local_consensus_manager_server(
     consensus_manager: ConsensusManager,
     rx_consensus_manager: Receiver<ConsensusManagerRequestAndResponseSender>,
 ) -> LocalConsensusManagerServer {
-    LocalComponentServer::new(consensus_manager, rx_consensus_manager)
+    LocalActiveComponentServer::new(consensus_manager, rx_consensus_manager)
 }
 
 pub fn create_remote_consensus_manager_server(
@@ -57,6 +56,3 @@ impl ComponentRequestHandler<ConsensusManagerRequest, ConsensusManagerResponse>
         }
     }
 }
-
-#[async_trait]
-impl ComponentStarter for ConsensusManager {}
