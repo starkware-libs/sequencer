@@ -138,3 +138,12 @@ pub enum NumericConversionError {
     #[error("Conversion of {0} to u128 unsuccessful.")]
     U128ToUsizeError(u128),
 }
+
+// TODO(Nimrod): Delete this error once `create_tx_info` stops returning a `Result`.
+#[derive(Debug, Error)]
+pub enum TransactionInfoCreationError {
+    #[error("Invalid ResourceMapping combination was given: {0}")]
+    InvalidResourceMapping(String),
+    #[error(transparent)]
+    StarknetAPIError(#[from] StarknetApiError),
+}
