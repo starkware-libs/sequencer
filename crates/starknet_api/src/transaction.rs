@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Display;
 use std::sync::Arc;
 
@@ -867,6 +867,7 @@ pub enum Resource {
     L1Gas,
     #[serde(rename = "L2_GAS")]
     L2Gas,
+    L1DataGas,
 }
 
 /// Fee bounds for an execution resource.
@@ -882,6 +883,12 @@ pub struct ResourceBounds {
     // Specifies the maximum price the user is willing to pay for each resource unit.
     #[serde(serialize_with = "u128_to_hex", deserialize_with = "hex_to_u128")]
     pub max_price_per_unit: u128,
+}
+
+impl ResourceBounds {
+    pub fn is_zero(&self) -> bool {
+        self.max_amount == 0 && self.max_price_per_unit == 0
+    }
 }
 
 fn u64_to_hex<S>(value: &u64, serializer: S) -> Result<S::Ok, S::Error>
@@ -916,6 +923,7 @@ where
 
 /// A mapping from execution resources to their corresponding fee bounds..
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+// TODO(Nimrod): Remove this struct definition.
 pub struct ResourceBoundsMapping(pub BTreeMap<Resource, ResourceBounds>);
 
 impl TryFrom<Vec<(Resource, ResourceBounds)>> for ResourceBoundsMapping {
@@ -924,17 +932,59 @@ impl TryFrom<Vec<(Resource, ResourceBounds)>> for ResourceBoundsMapping {
         resource_resource_bounds_pairs: Vec<(Resource, ResourceBounds)>,
     ) -> Result<Self, Self::Error> {
         let n_variants = Resource::iter().count();
+        let allowed_signed_variants = [n_variants, n_variants - 1];
         let unique_resources: HashSet<Resource> =
             HashSet::from_iter(resource_resource_bounds_pairs.iter().map(|(k, _)| *k));
-        if unique_resources.len() != n_variants
-            || resource_resource_bounds_pairs.len() != n_variants
+        if !allowed_signed_variants.contains(&unique_resources.len())
+            || !allowed_signed_variants.contains(&resource_resource_bounds_pairs.len())
         {
+            // TODO(Nimrod): Consider making this check more strict.
             Err(StarknetApiError::InvalidResourceMappingInitializer(format!(
                 "{:?}",
                 resource_resource_bounds_pairs
             )))
         } else {
             Ok(Self(resource_resource_bounds_pairs.into_iter().collect::<BTreeMap<_, _>>()))
+        }
+    }
+}
+
+pub enum ValidResourceBounds {
+    L1Gas(ResourceBounds), // Pre 0.13.3. L2 bounds are signed but never used.
+    AllResources { l1_gas: ResourceBounds, l2_gas: ResourceBounds, l1_data_gas: ResourceBounds },
+}
+
+impl TryFrom<HashMap<Resource, ResourceBounds>> for ValidResourceBounds {
+    type Error = StarknetApiError;
+    fn try_from(
+        raw_resource_bounds: HashMap<Resource, ResourceBounds>,
+    ) -> Result<Self, Self::Error> {
+        if let (Some(l1_bounds), Some(l2_bounds)) =
+            (raw_resource_bounds.get(&Resource::L1Gas), raw_resource_bounds.get(&Resource::L2Gas))
+        {
+            match raw_resource_bounds.get(&Resource::L1DataGas) {
+                Some(data_bounds) => Ok(Self::AllResources {
+                    l1_gas: *l1_bounds,
+                    l1_data_gas: *data_bounds,
+                    l2_gas: *l2_bounds,
+                }),
+                None => {
+                    if l2_bounds.is_zero() {
+                        Ok(Self::L1Gas(*l1_bounds))
+                    } else {
+                        Ok(Self::AllResources {
+                            l1_gas: *l1_bounds,
+                            l2_gas: *l2_bounds,
+                            l1_data_gas: ResourceBounds::default(),
+                        })
+                    }
+                }
+            }
+        } else {
+            Err(StarknetApiError::InvalidResourceMappingInitializer(format!(
+                "{:?}",
+                raw_resource_bounds
+            )))
         }
     }
 }
