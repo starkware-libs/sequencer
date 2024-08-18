@@ -874,7 +874,7 @@ pub enum Resource {
     L1Gas,
     #[serde(rename = "L2_GAS")]
     L2Gas,
-    #[serde(rename = "L1_DATA_GAS")]
+    #[serde(rename = "L1_DATA")]
     L1DataGas,
 }
 
@@ -958,6 +958,7 @@ impl TryFrom<Vec<(Resource, ResourceBounds)>> for DeprecatedResourceBoundsMappin
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ValidResourceBounds {
     L1Gas(ResourceBounds), // Pre 0.13.3. Only L1 gas. L2 bounds are signed but never used.
     AllResources(AllResourceBounds),
