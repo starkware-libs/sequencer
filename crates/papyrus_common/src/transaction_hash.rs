@@ -16,6 +16,7 @@ use starknet_api::transaction::{
     DeployAccountTransactionV1,
     DeployAccountTransactionV3,
     DeployTransaction,
+    DeprecatedResourceBoundsMapping,
     InvokeTransaction,
     InvokeTransactionV0,
     InvokeTransactionV1,
@@ -23,7 +24,6 @@ use starknet_api::transaction::{
     L1HandlerTransaction,
     Resource,
     ResourceBounds,
-    ResourceBoundsMapping,
     Tip,
     Transaction,
     TransactionHash,
@@ -220,7 +220,7 @@ pub(crate) fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {
 
 // An implementation of the SNIP: https://github.com/EvyatarO/SNIPs/blob/snip-8/SNIPS/snip-8.md
 fn get_tip_resource_bounds_hash(
-    resource_bounds_mapping: &ResourceBoundsMapping,
+    resource_bounds_mapping: &DeprecatedResourceBoundsMapping,
     tip: &Tip,
 ) -> Result<Felt, StarknetApiError> {
     let l1_resource_bounds =
