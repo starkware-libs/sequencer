@@ -138,3 +138,11 @@ pub enum NumericConversionError {
     #[error("Conversion of {0} to u128 unsuccessful.")]
     U128ToUsizeError(u128),
 }
+
+#[derive(Debug, Error)]
+pub enum TransactionInfoCreationError {
+    #[error("Invalid ResourceMapping combination was given: {0}")]
+    InvalidResourceMapping(String),
+    #[error(transparent)]
+    StarknetAPIError(#[from] StarknetApiError),
+}
