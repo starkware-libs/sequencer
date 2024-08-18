@@ -12,7 +12,7 @@ use crate::fee::actual_cost::TransactionReceipt;
 use crate::state::cached_state::TransactionalState;
 use crate::state::state_api::UpdatableState;
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::errors::TransactionFeeError;
+use crate::transaction::errors::{TransactionInfoCreationError, TransactionFeeError};
 use crate::transaction::objects::{
     TransactionExecutionInfo,
     TransactionExecutionResult,
@@ -100,7 +100,7 @@ impl Transaction {
 }
 
 impl TransactionInfoCreator for Transaction {
-    fn create_tx_info(&self) -> TransactionInfo {
+    fn create_tx_info(&self) -> Result<TransactionInfo, TransactionInfoCreationError> {
         match self {
             Self::AccountTransaction(account_tx) => account_tx.create_tx_info(),
             Self::L1HandlerTransaction(l1_handler_tx) => l1_handler_tx.create_tx_info(),
