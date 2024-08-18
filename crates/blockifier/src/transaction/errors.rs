@@ -112,6 +112,8 @@ pub enum TransactionExecutionError {
     InvalidSegmentStructure(usize, usize),
     #[error(transparent)]
     ProgramError(#[from] ProgramError),
+    #[error(transparent)]
+    TransactionInfoCreationError(#[from] TransactionInfoCreationError),
 }
 
 #[derive(Debug, Error)]
