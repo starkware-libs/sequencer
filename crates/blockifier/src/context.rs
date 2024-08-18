@@ -68,7 +68,7 @@ impl BlockContext {
     ) -> TransactionContext {
         TransactionContext {
             block_context: self.clone(),
-            tx_info: tx_info_creator.create_tx_info(),
+            tx_info: tx_info_creator.create_tx_info().expect("todo"),
         }
     }
 }
