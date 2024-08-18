@@ -13,6 +13,7 @@ use papyrus_network::network_manager::ReportSender;
 use papyrus_protobuf::consensus::ConsensusMessage;
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::BlockHash;
+use tracing::{debug, instrument};
 
 /// Receiver used to help run simulations of consensus. It has 2 goals in mind:
 /// 1. Simulate network failures.
@@ -66,6 +67,7 @@ where
     ///
     /// Applies `drop_probability` followed by `invalid_probability`. So the probability of an
     /// invalid message is `(1- drop_probability) * invalid_probability`.
+    #[instrument(skip(self), level = "debug")]
     pub fn filter_msg(&mut self, mut msg: ConsensusMessage) -> Option<ConsensusMessage> {
         if !matches!(msg, ConsensusMessage::Proposal(_)) {
             // TODO(matan): Add support for dropping/invalidating votes.
@@ -73,6 +75,7 @@ where
         }
 
         if self.should_drop_msg(&msg) {
+            debug!("Dropping message");
             return None;
         }
 
@@ -109,6 +112,7 @@ where
     }
 
     fn invalidate_msg(&mut self, msg: &mut ConsensusMessage) {
+        debug!("Invalidating message");
         // TODO(matan): Allow for invalid votes based on signature/sender_id.
         if let ConsensusMessage::Proposal(ref mut proposal) = msg {
             proposal.block_hash = BlockHash(proposal.block_hash.0 + 1);
