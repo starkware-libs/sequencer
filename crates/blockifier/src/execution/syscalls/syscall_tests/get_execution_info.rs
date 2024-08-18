@@ -24,7 +24,7 @@ use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::syscalls::hint_processor::{L1_GAS, L2_GAS};
+use crate::execution::syscalls::hint_processor::{L1_DATA_GAS, L1_GAS, L2_GAS};
 use crate::nonce;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
@@ -227,7 +227,9 @@ fn test_get_execution_info(
                     },
                 ),
                 (Resource::L2Gas, ResourceBounds { max_amount: 0, max_price_per_unit: 0 }),
-            ])),
+            ]))
+            .try_into()
+            .unwrap(),
             tip: Tip::default(),
             nonce_data_availability_mode: DataAvailabilityMode::L1,
             fee_data_availability_mode: DataAvailabilityMode::L1,
@@ -268,4 +270,22 @@ fn test_get_execution_info(
     };
 
     assert!(!result.unwrap().execution.failed);
+}
+
+#[test]
+fn test_gas_types_constants() {
+    assert_eq!(str_to_32_bytes_in_hex("L1_GAS"), L1_GAS);
+    assert_eq!(str_to_32_bytes_in_hex("L2_GAS"), L2_GAS);
+    assert_eq!(str_to_32_bytes_in_hex("L1_DATA_GAS"), L1_DATA_GAS);
+}
+
+fn str_to_32_bytes_in_hex(s: &str) -> String {
+    if s.len() > 32 {
+        panic!("Unsupported input of length > 32.")
+    }
+    let prefix = "0x";
+    let padding_zeros = "0".repeat(64 - s.len() * 2); // Each string char is 2 chars in hex.
+    let word_in_hex: String =
+        s.as_bytes().iter().fold(String::new(), |s, byte| s + (&format!("{:02x}", byte)));
+    [prefix, &padding_zeros, &word_in_hex].into_iter().collect()
 }
