@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::Display;
 use std::sync::Arc;
 
@@ -949,15 +949,16 @@ impl TryFrom<Vec<(Resource, ResourceBounds)>> for DeprecatedResourceBoundsMappin
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ValidResourceBounds {
     L1Gas(ResourceBounds), // Pre 0.13.3. L2 bounds are signed but never used.
     AllResources { l1_gas: ResourceBounds, l2_gas: ResourceBounds, l1_data_gas: ResourceBounds },
 }
 
-impl TryFrom<HashMap<Resource, ResourceBounds>> for ValidResourceBounds {
+impl TryFrom<BTreeMap<Resource, ResourceBounds>> for ValidResourceBounds {
     type Error = StarknetApiError;
     fn try_from(
-        raw_resource_bounds: HashMap<Resource, ResourceBounds>,
+        raw_resource_bounds: BTreeMap<Resource, ResourceBounds>,
     ) -> Result<Self, Self::Error> {
         if let (Some(l1_bounds), Some(l2_bounds)) =
             (raw_resource_bounds.get(&Resource::L1Gas), raw_resource_bounds.get(&Resource::L2Gas))
