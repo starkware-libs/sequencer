@@ -294,7 +294,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         }
     }
 
-    fn create_empty(sorted_leaf_indices: SortedLeafIndices<'a>) -> Self {
+    pub(crate) fn create_empty(sorted_leaf_indices: SortedLeafIndices<'a>) -> Self {
         Self { nodes: HashMap::new(), sorted_leaf_indices }
     }
 
