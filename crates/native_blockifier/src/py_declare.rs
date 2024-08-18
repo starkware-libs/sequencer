@@ -10,9 +10,9 @@ use starknet_api::transaction::{
     DeclareTransactionV0V1,
     DeclareTransactionV2,
     DeclareTransactionV3,
+    DeprecatedResourceBoundsMapping,
     Fee,
     PaymasterData,
-    ResourceBoundsMapping,
     Tip,
     TransactionHash,
     TransactionSignature,
@@ -88,7 +88,7 @@ impl TryFrom<PyDeclareTransactionV3> for DeclareTransactionV3 {
     type Error = NativeBlockifierInputError;
     fn try_from(tx: PyDeclareTransactionV3) -> Result<Self, Self::Error> {
         Ok(Self {
-            resource_bounds: ResourceBoundsMapping::try_from(tx.resource_bounds)?,
+            resource_bounds: DeprecatedResourceBoundsMapping::try_from(tx.resource_bounds)?,
             tip: Tip(tx.tip),
             signature: TransactionSignature(from_py_felts(tx.signature)),
             nonce: Nonce(tx.nonce.0),
