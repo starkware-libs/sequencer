@@ -151,14 +151,14 @@ pub struct ResourceBoundsMapping {
     pub l2_gas: ResourceBounds,
 }
 
-impl From<ResourceBoundsMapping> for starknet_api::transaction::ResourceBoundsMapping {
+impl From<ResourceBoundsMapping> for starknet_api::transaction::DeprecatedResourceBoundsMapping {
     fn from(value: ResourceBoundsMapping) -> Self {
         Self([(Resource::L1Gas, value.l1_gas), (Resource::L2Gas, value.l2_gas)].into())
     }
 }
 
-impl From<starknet_api::transaction::ResourceBoundsMapping> for ResourceBoundsMapping {
-    fn from(value: starknet_api::transaction::ResourceBoundsMapping) -> Self {
+impl From<starknet_api::transaction::DeprecatedResourceBoundsMapping> for ResourceBoundsMapping {
+    fn from(value: starknet_api::transaction::DeprecatedResourceBoundsMapping) -> Self {
         Self {
             l1_gas: value.0.get(&Resource::L1Gas).cloned().unwrap_or_default(),
             l2_gas: value.0.get(&Resource::L2Gas).cloned().unwrap_or_default(),
