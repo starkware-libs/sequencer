@@ -91,7 +91,7 @@ impl PyValidator {
         if account_tx.tx_type() != TransactionType::InvokeFunction {
             return Ok(false);
         }
-        let tx_info = account_tx.create_tx_info();
+        let tx_info = account_tx.create_tx_info()?;
         let nonce = self.stateful_validator.get_nonce(tx_info.sender_address())?;
 
         let deploy_account_not_processed =
