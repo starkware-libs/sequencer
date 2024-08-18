@@ -933,7 +933,7 @@ fn test_max_fee_to_max_steps_conversion(
         resource_bounds: l1_resource_bounds(actual_gas_used, actual_strk_gas_price.into()),
         nonce: nonce_manager.next(account_address),
     });
-    let tx_context1 = Arc::new(block_context.to_tx_context(&account_tx1));
+    let tx_context1 = Arc::new(block_context.to_tx_context(&account_tx1).unwrap());
     let execution_context1 = EntryPointExecutionContext::new_invoke(tx_context1, true);
     let max_steps_limit1 = execution_context1.vm_run_resources.get_n_steps();
     let tx_execution_info1 = account_tx1.execute(&mut state, &block_context, true, true).unwrap();
@@ -953,7 +953,7 @@ fn test_max_fee_to_max_steps_conversion(
         resource_bounds: l1_resource_bounds(2 * actual_gas_used, actual_strk_gas_price.into()),
         nonce: nonce_manager.next(account_address),
     });
-    let tx_context2 = Arc::new(block_context.to_tx_context(&account_tx2));
+    let tx_context2 = Arc::new(block_context.to_tx_context(&account_tx2).unwrap());
     let execution_context2 = EntryPointExecutionContext::new_invoke(tx_context2, true);
     let max_steps_limit2 = execution_context2.vm_run_resources.get_n_steps();
     let tx_execution_info2 = account_tx2.execute(&mut state, &block_context, true, true).unwrap();
