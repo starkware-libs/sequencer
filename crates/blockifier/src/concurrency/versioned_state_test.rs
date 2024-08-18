@@ -248,7 +248,7 @@ fn test_run_parallel_txs(max_resource_bounds: DeprecatedResourceBoundsMapping) {
     let deploy_account_tx_2 = deploy_account_tx(deploy_tx_args, nonce_manager);
     let account_address = deploy_account_tx_2.contract_address;
     let account_tx_2 = AccountTransaction::DeployAccount(deploy_account_tx_2);
-    let tx_context = block_context.to_tx_context(&account_tx_2);
+    let tx_context = block_context.to_tx_context(&account_tx_2).unwrap();
     let fee_type = tx_context.tx_info.fee_type();
 
     let deployed_account_balance_key = get_fee_token_var_address(account_address);
