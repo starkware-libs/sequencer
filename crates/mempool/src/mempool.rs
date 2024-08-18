@@ -224,7 +224,7 @@ pub struct TransactionReference {
 }
 
 impl TransactionReference {
-    pub fn new(tx: &ThinTransaction) -> Self {
+    pub fn new_from_thin_tx(tx: &ThinTransaction) -> Self {
         TransactionReference {
             sender_address: tx.sender_address,
             nonce: tx.nonce,
