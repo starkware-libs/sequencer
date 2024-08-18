@@ -472,6 +472,7 @@ impl<'a> SyscallHintProcessor<'a> {
                 let resource = match resource {
                     Resource::L1Gas => l1_gas,
                     Resource::L2Gas => l2_gas,
+                    Resource::L1DataGas => todo!(),
                 };
 
                 vec![
