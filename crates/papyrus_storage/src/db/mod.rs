@@ -33,6 +33,7 @@ use libmdbx::{DatabaseFlags, Geometry, PageSize, WriteMap};
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::validators::{validate_ascii, validate_path_exists};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use papyrus_proc_macros::latency_histogram;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use validator::Validate;
@@ -261,6 +262,7 @@ impl DbWriter {
 type DbWriteTransaction<'env> = DbTransaction<'env, RW>;
 
 impl<'a> DbWriteTransaction<'a> {
+    #[latency_histogram("storage_commit_inner_db_latency_seconds", false)]
     pub(crate) fn commit(self) -> DbResult<()> {
         self.txn.commit()?;
         Ok(())
