@@ -112,6 +112,7 @@ pub fn versioned_rpc(attr: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 /// This macro will emit a histogram metric with the given name and the latency of the function.
+/// In addition, also a debug log with the metric name and the execution time will be emitted.
 /// The macro also receives a boolean for whether it will be emitted only when
 /// profiling is activated or at all times.
 ///
@@ -125,7 +126,8 @@ pub fn versioned_rpc(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// }
 /// ```
 /// Every call to foo will update the histogram metric with the name “metric_name” with the time it
-/// took to execute foo.
+/// took to execute foo. In addition, a debug log with the following format will be emitted:
+/// “<metric_name>: <execution_time>”
 /// The metric will be emitted regardless of the value of the profiling configuration,
 /// since the config value is false.
 #[proc_macro_attribute]
@@ -163,7 +165,9 @@ pub fn latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
             }
             let return_value=#origin_block;
             if let Some(start_time) = start_function_time {
-                metrics::histogram!(#metric_name, start_time.elapsed().as_secs_f64());
+                let exec_time = start_time.elapsed().as_secs_f64();
+                metrics::histogram!(#metric_name, exec_time);
+                tracing::debug!("{}: {}", #metric_name, exec_time);
             }
             return_value
         }
