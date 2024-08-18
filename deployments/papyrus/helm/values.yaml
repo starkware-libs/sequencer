@@ -26,22 +26,32 @@ p2p:
     storageDbConfigPathPrefix: data
     # Optional - network.#is_none flag
     networkIsNone: false
-  # Config to include only if "bootstrap: false"
   nodeConfig:
+    # Set the bootstrap server to connect to.
+    # This should be set only if p2p.bootstrap = false
     bootstrapServer:
-      # Mandatory - The network.#is_none flag on the bootsrap server
+      # Mandatory - The network.#is_none flag on the bootsrap server.
       multiaddrIsNone:
-      # Mandatory - The bootstrap server ip address. If service is used, use the service address. If not, use the pod address.
+      # Mandatory - The bootstrap server to connect to, ip.
       multiaddrIp:
-      # Mandatory - The bootstrap server to connect to, port
+      # Mandatory - The bootstrap server to connect to, port.
       multiaddrPort:
-      # Mandatory - The bootstrap server to connect to, uid
+      # Mandatory - The bootstrap server to connect to, uid.
       multiaddrUid:
   service:
     enabled: false
     type: ClusterIP
     port: 10000
     protocol: TCP
+    # If p2p.service.type = "ClusterIP".
+    # Optional - Set a static ip for the papyrus p2p service. 
+    # Note that the ip address is not reserved and there might be a chance for ip collision.
+    # See https://kubernetes.io/docs/concepts/services-networking/cluster-ip-allocation/ to understand how to avoid it.
+    clusterIP: 
+    # If p2p.service.type = "LoadBalancer".
+    # Optional - Set a static ip for the papyrus p2p loadbalancer. 
+    # Note that a static IP needs to be reserved first in a cloud environment in order to use it.
+    # See https://cloud.google.com/vpc/docs/reserve-static-external-ip-address for more info.
     loadBalancerIP:
     annotations: {}
 

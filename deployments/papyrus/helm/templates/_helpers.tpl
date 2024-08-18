@@ -62,14 +62,41 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Build the p2p peer multiaddress string
+Build the bootstrap p2p peer multiaddress string
 */}}
 {{- define "p2p.bootstrapPeerMultiaddr" -}}
 {{- if and .Values.p2p.enabled (not .Values.p2p.bootstrap) -}}
   {{- $ip :=  .Values.p2p.nodeConfig.bootstrapServer.multiaddrIp -}}
-  {{- $port :=  .Values.p2p.nodeConfig.bootstrapServer.multiaddrPort -}}
+  {{- $port := int .Values.p2p.nodeConfig.bootstrapServer.multiaddrPort -}}
   {{- $uid :=  .Values.p2p.nodeConfig.bootstrapServer.multiaddrUid -}}
-  {{- printf "/ip4/%s/tcp/%s/p2p/%s" $ip $port $uid -}}
+  {{- printf "/ip4/%s/tcp/%d/p2p/%s" $ip $port $uid -}}
+{{- else -}}
+  {{- "" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Build the node self peer multiaddress string
+*/}}
+{{- define "p2p.nodePeerMultiaddr" -}}
+{{- if .Values.p2p.enabled -}}
+  {{- if .Values.p2p.nodeConfig.overrideIP -}}
+    {{- $ip := .Values.p2p.nodeConfig.overrideIP -}}
+    {{- $port := int .Values.p2p.config.networkTcpPort -}}
+    {{- printf "/ip4/%s/tcp/%d" $ip $port -}}
+  {{- else -}}
+    {{- if and .Values.p2p.service.enabled (not .Values.p2p.bootstrap) (or .Values.p2p.service.clusterIP .Values.p2p.service.loadBalancerIP) -}}
+      {{- $ip := "" -}}
+      {{- if and (eq .Values.p2p.service.type "ClusterIP") .Values.p2p.service.clusterIP -}}
+        {{- $ip = .Values.p2p.service.clusterIP -}}
+      {{- end -}}
+      {{- if and (eq .Values.p2p.service.type "LoadBalancer") .Values.p2p.service.loadBalancerIP -}}
+        {{- $ip = .Values.p2p.service.loadBalancerIP -}}
+      {{- end -}}
+      {{- $port := int .Values.p2p.service.port -}}
+      {{- printf "/ip4/%s/tcp/%d" $ip $port -}}
+    {{- end -}}
+  {{- end -}}
 {{- else -}}
   {{- "" -}}
 {{- end -}}
