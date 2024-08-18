@@ -31,15 +31,6 @@ pub struct Mempool {
 }
 
 impl Mempool {
-    pub fn new(inputs: impl IntoIterator<Item = MempoolInput>) -> MempoolResult<Self> {
-        let mut mempool = Mempool::empty();
-
-        for input in inputs {
-            mempool.insert_tx(input)?;
-        }
-        Ok(mempool)
-    }
-
     pub fn empty() -> Self {
         Mempool::default()
     }
