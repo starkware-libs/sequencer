@@ -1,3 +1,4 @@
+{{- if eq .Values.deployment.type "deployment" }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -18,3 +19,4 @@ spec:
     kind: VolumeSnapshot
     apiGroup: snapshot.storage.k8s.io
   {{- end }}
+{{- end }}
