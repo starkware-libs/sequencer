@@ -12,7 +12,7 @@ use starknet_api::transaction::{
     PaymasterData,
     Resource,
     ResourceBounds,
-    ResourceBoundsMapping,
+    DeprecatedResourceBoundsMapping,
     Tip,
     TransactionHash,
     TransactionSignature,
@@ -125,7 +125,7 @@ impl HasRelatedFeeType for TransactionInfo {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CurrentTransactionInfo {
     pub common_fields: CommonAccountFields,
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: DeprecatedResourceBoundsMapping,
     pub tip: Tip,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,

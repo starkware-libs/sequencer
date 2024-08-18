@@ -33,7 +33,7 @@ use starknet_api::transaction::{
     ContractAddressSalt,
     Fee,
     PaymasterData,
-    ResourceBoundsMapping,
+    DeprecatedResourceBoundsMapping,
     Tip,
     TransactionSignature,
     TransactionVersion,
@@ -104,7 +104,7 @@ pub struct DeployAccountV1Transaction {
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct DeployAccountV3Transaction {
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: DeprecatedResourceBoundsMapping,
     pub tip: Tip,
     pub contract_address_salt: ContractAddressSalt,
     pub class_hash: ClassHash,
@@ -169,7 +169,7 @@ pub struct InvokeV1Transaction {
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct InvokeV3Transaction {
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: DeprecatedResourceBoundsMapping,
     pub tip: Tip,
     pub calldata: Calldata,
     pub sender_address: ContractAddress,
@@ -235,7 +235,7 @@ pub struct DeclareV2Transaction {
 #[serde(deny_unknown_fields)]
 pub struct DeclareV3Transaction {
     pub contract_class: ContractClass,
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: DeprecatedResourceBoundsMapping,
     pub tip: Tip,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
