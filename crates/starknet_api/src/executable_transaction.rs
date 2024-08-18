@@ -8,8 +8,8 @@ use crate::transaction::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
+    DeprecatedResourceBoundsMapping,
     PaymasterData,
-    ResourceBoundsMapping,
     Tip,
     TransactionHash,
     TransactionSignature,
@@ -83,7 +83,7 @@ impl Transaction {
         }
     }
 
-    pub fn resource_bounds(&self) -> Option<&ResourceBoundsMapping> {
+    pub fn resource_bounds(&self) -> Option<&DeprecatedResourceBoundsMapping> {
         match self {
             Transaction::Declare(declare_tx) => match &declare_tx.tx {
                 crate::transaction::DeclareTransaction::V3(tx_v3) => Some(&tx_v3.resource_bounds),
@@ -114,7 +114,7 @@ impl Transaction {
                     sender_address,
                     tip: *rpc_tx.tip(),
                     nonce: *rpc_tx.nonce(),
-                    resource_bounds: ResourceBoundsMapping::default(),
+                    resource_bounds: DeprecatedResourceBoundsMapping::default(),
                     signature: TransactionSignature::default(),
                     calldata: Calldata::default(),
                     nonce_data_availability_mode: DataAvailabilityMode::L1,
