@@ -107,7 +107,7 @@ pub fn verify_can_pay_committed_bounds(
     let tx_info = &tx_context.tx_info;
     let committed_fee = match tx_info {
         TransactionInfo::Current(context) => {
-            let l1_bounds = context.l1_resource_bounds()?;
+            let l1_bounds = context.l1_resource_bounds();
             let max_amount: u128 = l1_bounds.max_amount.into();
             // Sender will not be charged by `max_price_per_unit`, but this check should not depend
             // on the current gas price.
@@ -122,7 +122,7 @@ pub fn verify_can_pay_committed_bounds(
     } else {
         Err(match tx_info {
             TransactionInfo::Current(context) => {
-                let l1_bounds = context.l1_resource_bounds()?;
+                let l1_bounds = context.l1_resource_bounds();
                 TransactionFeeError::L1GasBoundsExceedBalance {
                     max_amount: l1_bounds.max_amount,
                     max_price: l1_bounds.max_price_per_unit,

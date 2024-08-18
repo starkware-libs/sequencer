@@ -75,8 +75,7 @@ fn fee_transfer_resources(
                 Arc::new(block_context.to_tx_context(&account_invoke_tx(InvokeTxArgs::default()))),
                 ExecutionMode::Execute,
                 false,
-            )
-            .unwrap(),
+            ),
         )
         .unwrap()
         .resources
