@@ -16,7 +16,7 @@ use papyrus_storage::StorageReader;
 use starknet_api::block::{BlockHash, BlockSignature};
 use starknet_api::crypto::utils::Signature;
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::{Transaction, TransactionOutput};
+use starknet_api::transaction::FullTransaction;
 use starknet_types_core::felt::Felt;
 
 use super::{P2PSyncClient, P2PSyncClientChannels, P2PSyncClientConfig};
@@ -40,16 +40,19 @@ lazy_static! {
         stop_sync_at_block_number: None,
     };
 }
+type HeaderTestPayload = SqmrClientPayload<HeaderQuery, DataOrFin<SignedBlockHeader>>;
+type StateDiffTestPayload = SqmrClientPayload<StateDiffQuery, DataOrFin<StateDiffChunk>>;
+type TransactionTestPayload = SqmrClientPayload<TransactionQuery, DataOrFin<FullTransaction>>;
+
 // TODO(Eitan): Use SqmrSubscriberChannels once there is a utility function for testing
 pub struct TestArgs {
     #[allow(clippy::type_complexity)]
     pub p2p_sync: P2PSyncClient,
     pub storage_reader: StorageReader,
-    pub header_receiver: Receiver<SqmrClientPayload<HeaderQuery, DataOrFin<SignedBlockHeader>>>,
-    pub state_diff_receiver: Receiver<SqmrClientPayload<StateDiffQuery, DataOrFin<StateDiffChunk>>>,
+    pub header_receiver: Receiver<HeaderTestPayload>,
+    pub state_diff_receiver: Receiver<StateDiffTestPayload>,
     #[allow(dead_code)]
-    pub transaction_receiver:
-        Receiver<SqmrClientPayload<TransactionQuery, DataOrFin<(Transaction, TransactionOutput)>>>,
+    pub transaction_receiver: Receiver<TransactionTestPayload>,
 }
 
 pub fn setup() -> TestArgs {

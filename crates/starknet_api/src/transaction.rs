@@ -45,6 +45,13 @@ pub trait TransactionHasher {
     ) -> Result<TransactionHash, StarknetApiError>;
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
+pub struct FullTransaction {
+    pub transaction: Transaction,
+    pub transaction_output: TransactionOutput,
+    pub transaction_hash: TransactionHash,
+}
+
 /// A transaction.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub enum Transaction {
