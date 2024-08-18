@@ -7,8 +7,8 @@ use crate::rpc_transaction::RpcTransaction;
 use crate::transaction::{
     AccountDeploymentData,
     Calldata,
+    DeprecatedResourceBoundsMapping,
     PaymasterData,
-    ResourceBoundsMapping,
     Tip,
     TransactionHash,
     TransactionSignature,
@@ -76,7 +76,7 @@ impl Transaction {
                     sender_address,
                     tip: *rpc_tx.tip(),
                     nonce: *rpc_tx.nonce(),
-                    resource_bounds: ResourceBoundsMapping::default(),
+                    resource_bounds: DeprecatedResourceBoundsMapping::default(),
                     signature: TransactionSignature::default(),
                     calldata: Calldata::default(),
                     nonce_data_availability_mode: DataAvailabilityMode::L1,

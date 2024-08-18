@@ -112,6 +112,7 @@ use starknet_api::transaction::{
     DeployAccountTransactionV3,
     DeployTransaction,
     DeployTransactionOutput,
+    DeprecatedResourceBoundsMapping,
     Event,
     EventContent,
     EventData,
@@ -132,7 +133,6 @@ use starknet_api::transaction::{
     PaymasterData,
     Resource,
     ResourceBounds,
-    ResourceBoundsMapping,
     RevertedTransactionExecutionStatus,
     Tip,
     Transaction,
@@ -517,7 +517,7 @@ auto_impl_get_test_instance! {
         pub sender_address: ContractAddress,
     }
     pub struct DeclareTransactionV3 {
-        pub resource_bounds: ResourceBoundsMapping,
+        pub resource_bounds: DeprecatedResourceBoundsMapping,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -550,7 +550,7 @@ auto_impl_get_test_instance! {
         pub constructor_calldata: Calldata,
     }
     pub struct DeployAccountTransactionV3 {
-        pub resource_bounds: ResourceBoundsMapping,
+        pub resource_bounds: DeprecatedResourceBoundsMapping,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -657,7 +657,7 @@ auto_impl_get_test_instance! {
         pub calldata: Calldata,
     }
     pub struct InvokeTransactionV3 {
-        pub resource_bounds: ResourceBoundsMapping,
+        pub resource_bounds: DeprecatedResourceBoundsMapping,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -722,7 +722,7 @@ auto_impl_get_test_instance! {
         pub max_amount: u64,
         pub max_price_per_unit: u128,
     }
-    pub struct ResourceBoundsMapping(pub BTreeMap<Resource, ResourceBounds>);
+    pub struct DeprecatedResourceBoundsMapping(pub BTreeMap<Resource, ResourceBounds>);
     pub struct SequencerContractAddress(pub ContractAddress);
     pub struct Signature {
         pub r: Felt,
