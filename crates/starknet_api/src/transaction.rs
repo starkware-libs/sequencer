@@ -951,11 +951,13 @@ impl TryFrom<Vec<(Resource, ResourceBounds)>> for DeprecatedResourceBoundsMappin
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ValidResourceBounds {
     L1Gas(ResourceBounds), // Pre 0.13.3. Only L1 gas. L2 bounds are signed but never used.
     AllResources(AllResourceBounds),
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AllResourceBounds {
     pub l1_gas: ResourceBounds,
     pub l2_gas: ResourceBounds,
@@ -973,9 +975,11 @@ impl AllResourceBounds {
     }
 }
 
-impl TryFrom<ResourceBoundsMapping> for ValidResourceBounds {
+impl TryFrom<DeprecatedResourceBoundsMapping> for ValidResourceBounds {
     type Error = StarknetApiError;
-    fn try_from(resource_bounds_mapping: ResourceBoundsMapping) -> Result<Self, Self::Error> {
+    fn try_from(
+        resource_bounds_mapping: DeprecatedResourceBoundsMapping,
+    ) -> Result<Self, Self::Error> {
         if let (Some(l1_bounds), Some(l2_bounds)) = (
             resource_bounds_mapping.0.get(&Resource::L1Gas),
             resource_bounds_mapping.0.get(&Resource::L2Gas),
