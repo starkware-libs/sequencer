@@ -182,6 +182,7 @@ fn validate_resource_is_non_zero(
     let resource_bounds = match resource {
         Resource::L1Gas => resource_bounds_mapping.l1_gas,
         Resource::L2Gas => resource_bounds_mapping.l2_gas,
+        Resource::L1DataGas => todo!(),
     };
     if resource_bounds.max_amount == 0 || resource_bounds.max_price_per_unit == 0 {
         return Err(StatelessTransactionValidatorError::ZeroResourceBounds {
