@@ -485,6 +485,7 @@ impl<'env> StateStorageWriter for StorageTxn<'env, RW> {
         Ok(self)
     }
 
+    #[latency_histogram("storage_revert_state_diff_latency_seconds", false)]
     fn revert_state_diff(
         self,
         block_number: BlockNumber,
@@ -658,7 +659,7 @@ fn write_deployed_contracts<'env>(
     Ok(())
 }
 
-#[latency_histogram("storage_write_nonce_latency_seconds", true)]
+#[latency_histogram("storage_write_nonce_latency_seconds", false)]
 fn write_nonces<'env>(
     nonces: &IndexMap<ContractAddress, Nonce>,
     txn: &DbTransaction<'env, RW>,
@@ -799,6 +800,7 @@ fn delete_deployed_contracts<'env>(
     Ok(())
 }
 
+#[latency_histogram("storage_delete_storage_diffs_latency_seconds", false)]
 fn delete_storage_diffs<'env>(
     txn: &'env DbTransaction<'env, RW>,
     block_number: BlockNumber,
@@ -813,6 +815,7 @@ fn delete_storage_diffs<'env>(
     Ok(())
 }
 
+#[latency_histogram("storage_delete_nonces_latency_seconds", false)]
 fn delete_nonces<'env>(
     txn: &'env DbTransaction<'env, RW>,
     block_number: BlockNumber,
