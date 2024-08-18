@@ -12,8 +12,10 @@ pub enum FilledTreeError {
     DoubleUpdate { index: NodeIndex, existing_value_as_string: String },
     #[error("Got the following error at leaf index {leaf_index:?}: {leaf_error:?}")]
     Leaf { leaf_error: LeafError, leaf_index: NodeIndex },
-    #[error("Missing node at index {0:?}.")]
-    MissingNode(NodeIndex),
+    #[error("Missing node placeholder at index {0:?}.")]
+    MissingNodePlaceholder(NodeIndex),
+    #[error("Missing leaf input for index {0:?}.")]
+    MissingLeafInput(NodeIndex),
     #[error("Missing root.")]
     MissingRoot,
     #[error("Poisoned lock: {0}.")]

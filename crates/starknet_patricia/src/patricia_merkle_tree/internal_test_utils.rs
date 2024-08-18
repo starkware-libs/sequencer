@@ -7,7 +7,7 @@ use crate::generate_trie_config;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
-use crate::patricia_merkle_tree::node_data::errors::LeafResult;
+use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, NodeData, PathToBottom};
 use crate::patricia_merkle_tree::node_data::leaf::{Leaf, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
@@ -50,15 +50,18 @@ impl Deserializable for MockLeaf {
 }
 
 impl Leaf for MockLeaf {
-    type Input = Self;
-    type Output = ();
+    type Input = Felt;
+    type Output = String;
 
     fn is_empty(&self) -> bool {
         self.0 == Felt::ZERO
     }
 
     async fn create(input: Self::Input) -> LeafResult<(Self, Self::Output)> {
-        Ok((input, ()))
+        if input == Felt::MAX {
+            return Err(LeafError::LeafComputationError("Leaf computation error".to_string()));
+        }
+        Ok((Self(input), input.to_hex()))
     }
 }
 

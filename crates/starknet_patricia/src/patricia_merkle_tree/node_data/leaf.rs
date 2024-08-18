@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::future::Future;
-use std::sync::Arc;
 
 use crate::felt::Felt;
 use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
@@ -28,7 +27,7 @@ pub trait Leaf: Clone + Sync + Send + DBObject + Deserializable + Default + Debu
     /// missing.
     fn from_modifications(
         index: &NodeIndex,
-        leaf_modifications: Arc<LeafModifications<Self>>,
+        leaf_modifications: &LeafModifications<Self>,
     ) -> LeafResult<Self> {
         let leaf_data = leaf_modifications
             .get(index)
