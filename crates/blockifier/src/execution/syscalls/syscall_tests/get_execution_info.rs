@@ -12,7 +12,6 @@ use starknet_api::transaction::{
     PaymasterData,
     Resource,
     ResourceBounds,
-    DeprecatedResourceBoundsMapping,
     Tip,
     TransactionHash,
     TransactionVersion,
@@ -213,7 +212,7 @@ fn test_get_execution_info(
                 only_query,
                 ..Default::default()
             },
-            resource_bounds: DeprecatedResourceBoundsMapping(BTreeMap::from([
+            resource_bounds: BTreeMap::from([
                 (
                     Resource::L1Gas,
                     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why
@@ -227,7 +226,9 @@ fn test_get_execution_info(
                     },
                 ),
                 (Resource::L2Gas, ResourceBounds { max_amount: 0, max_price_per_unit: 0 }),
-            ])),
+            ])
+            .try_into()
+            .unwrap(),
             tip: Tip::default(),
             nonce_data_availability_mode: DataAvailabilityMode::L1,
             fee_data_availability_mode: DataAvailabilityMode::L1,
