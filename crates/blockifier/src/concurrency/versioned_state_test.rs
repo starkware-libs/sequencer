@@ -233,7 +233,7 @@ fn test_run_parallel_txs(max_resource_bounds: DeprecatedResourceBoundsMapping) {
         &mut NonceManager::default(),
     );
     let account_tx_1 = AccountTransaction::DeployAccount(deploy_account_tx_1);
-    let enforce_fee = account_tx_1.create_tx_info().enforce_fee().unwrap();
+    let enforce_fee = account_tx_1.create_tx_info().enforce_fee();
 
     let class_hash = grindy_account.get_class_hash();
     let ctor_storage_arg = felt!(1_u8);
