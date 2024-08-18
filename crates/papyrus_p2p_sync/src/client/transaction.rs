@@ -5,10 +5,8 @@ use papyrus_protobuf::sync::DataOrFin;
 use papyrus_storage::body::{BodyStorageReader, BodyStorageWriter};
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
-use rand::random;
 use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::transaction::{Transaction, TransactionHash, TransactionOutput};
-use starknet_types_core::felt::Felt;
 
 use super::stream_builder::{BlockData, BlockNumberLimit, DataStreamBuilder};
 use super::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
@@ -24,7 +22,9 @@ impl BlockData for (BlockBody, BlockNumber) {
 
 pub(crate) struct TransactionStreamFactory;
 
-impl DataStreamBuilder<(Transaction, TransactionOutput)> for TransactionStreamFactory {
+impl DataStreamBuilder<(Transaction, TransactionOutput, TransactionHash)>
+    for TransactionStreamFactory
+{
     // TODO(Eitan): Add events protocol to BlockBody or split their write to storage
     type Output = (BlockBody, BlockNumber);
 
@@ -33,7 +33,7 @@ impl DataStreamBuilder<(Transaction, TransactionOutput)> for TransactionStreamFa
 
     fn parse_data_for_block<'a>(
         transactions_response_manager: &'a mut ClientResponsesManager<
-            DataOrFin<(Transaction, TransactionOutput)>,
+            DataOrFin<(Transaction, TransactionOutput, TransactionHash)>,
         >,
         block_number: BlockNumber,
         storage_reader: &'a StorageReader,
@@ -55,7 +55,9 @@ impl DataStreamBuilder<(Transaction, TransactionOutput)> for TransactionStreamFa
                 .ok_or(P2PSyncClientError::ReceiverChannelTerminated {
                     type_description: Self::TYPE_DESCRIPTION,
                 })?;
-                let Some((transaction, transaction_output)) = maybe_transaction?.0 else {
+                let Some((transaction, transaction_output, transaction_hash)) =
+                    maybe_transaction?.0
+                else {
                     if current_transaction_len == 0 {
                         return Ok(None);
                     } else {
@@ -66,11 +68,10 @@ impl DataStreamBuilder<(Transaction, TransactionOutput)> for TransactionStreamFa
                         });
                     }
                 };
-                // TODO(eitan): Add transaction hash to protobuf
-                let random_transaction_hash = TransactionHash(Felt::from(random::<u64>()));
                 block_body.transactions.push(transaction);
                 block_body.transaction_outputs.push(transaction_output);
-                block_body.transaction_hashes.push(random_transaction_hash);
+                // TODO(eitan): Validate transaction hash from untrusted sources
+                block_body.transaction_hashes.push(transaction_hash);
                 current_transaction_len += 1;
             }
             Ok(Some((block_body, block_number)))

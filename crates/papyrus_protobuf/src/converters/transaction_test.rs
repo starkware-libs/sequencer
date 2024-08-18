@@ -1,5 +1,6 @@
 use lazy_static::lazy_static;
 use papyrus_test_utils::{get_rng, GetTestInstance};
+use starknet_api::core::ChainId;
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasVector};
 use starknet_api::transaction::{
     DeclareTransaction,
@@ -14,6 +15,7 @@ use starknet_api::transaction::{
     ResourceBounds,
     ResourceBoundsMapping,
     Transaction as StarknetApiTransaction,
+    TransactionHash,
     TransactionOutput,
 };
 
@@ -155,10 +157,15 @@ fn convert_deploy_account_transaction_v3_to_vec_u8_and_back() {
 #[test]
 fn fin_transaction_to_bytes_and_back() {
     let bytes_data =
-        Vec::<u8>::from(DataOrFin::<(StarknetApiTransaction, TransactionOutput)>(None));
+        Vec::<u8>::from(DataOrFin::<(StarknetApiTransaction, TransactionOutput, TransactionHash)>(
+            None,
+        ));
 
     let res_data =
-        DataOrFin::<(StarknetApiTransaction, TransactionOutput)>::try_from(bytes_data).unwrap();
+        DataOrFin::<(StarknetApiTransaction, TransactionOutput, TransactionHash)>::try_from(
+            bytes_data,
+        )
+        .unwrap();
     assert!(res_data.0.is_none());
 }
 
@@ -166,7 +173,8 @@ fn convert_transaction_to_vec_u8_and_back(
     transaction: StarknetApiTransaction,
     transaction_output: TransactionOutput,
 ) {
-    let data = DataOrFin(Some((transaction, transaction_output)));
+    let transaction_hash = transaction.calculate_transaction_hash(&ChainId::Mainnet).unwrap();
+    let data = DataOrFin(Some((transaction, transaction_output, transaction_hash)));
     let bytes_data = Vec::<u8>::from(data.clone());
     let res_data = DataOrFin::try_from(bytes_data).unwrap();
     assert_eq!(data, res_data);
