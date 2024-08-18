@@ -13,6 +13,7 @@ workspace = true
 async-trait.workspace = true
 papyrus_config.workspace = true
 serde.workspace = true
+starknet_batcher_types.workspace = true
 starknet_consensus_manager_types.workspace = true
 starknet_mempool_infra.workspace = true
 tokio.workspace = true
