@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::transaction::{Resource, ResourceBounds};
 
 use crate::mempool::TransactionReference;
 
@@ -73,6 +74,42 @@ impl TransactionQueue {
 
     pub fn is_empty(&self) -> bool {
         self.priority_queue.is_empty()
+    }
+
+    pub fn update_gas_price_threshold(&mut self, threshold: u128) {
+        if threshold < self.gas_price_threshold {
+            let resource_bounds: Vec<(Resource, ResourceBounds)> = vec![
+                (Resource::L1Gas, ResourceBounds::default()),
+                (Resource::L2Gas, ResourceBounds { max_amount: 0, max_price_per_unit: threshold }),
+            ];
+
+            let at_pending_tx = PendingTransaction(TransactionReference {
+                resource_bounds: resource_bounds.try_into().unwrap(),
+                ..Default::default()
+            });
+
+            // Split off the pending queue at the given transaction higher than the threshold.
+            let mut split_point = self.pending_queue.split_off(&at_pending_tx);
+            split_point.remove(&at_pending_tx);
+
+            // Insert all transactions from the split point into the priority queue
+            self.priority_queue.extend(split_point.into_iter().map(|tx| tx.0.into()));
+        } else {
+            let mut to_remove = Vec::new();
+
+            for priority_tx in &self.priority_queue {
+                if priority_tx.get_l2_gas_price() < threshold {
+                    to_remove.push(priority_tx.clone());
+                }
+            }
+
+            for tx in &to_remove {
+                self.priority_queue.remove(tx);
+            }
+            self.pending_queue.extend(to_remove.into_iter().map(|tx| tx.0.into()));
+        }
+
+        self.gas_price_threshold = threshold;
     }
 }
 
