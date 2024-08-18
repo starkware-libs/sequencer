@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use cairo_vm::types::builtin_name::BuiltinName;
-use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress, PatriciaKey};
@@ -174,7 +173,7 @@ fn test_fee_enforcement(
     );
 
     let account_tx = AccountTransaction::DeployAccount(deploy_account_tx);
-    let enforce_fee = account_tx.create_tx_info().enforce_fee().unwrap();
+    let enforce_fee = account_tx.create_tx_info().enforce_fee();
     let result = account_tx.execute(state, &block_context, true, true);
     assert_eq!(result.is_err(), enforce_fee);
 }
@@ -906,6 +905,8 @@ fn test_max_fee_to_max_steps_conversion(
     block_context: BlockContext,
     #[case] version: TransactionVersion,
 ) {
+    use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
+
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         create_test_init_data(&block_context.chain_info, CairoVersion::Cairo0);
     let actual_gas_used: u64 = u64_from_usize(
@@ -933,7 +934,7 @@ fn test_max_fee_to_max_steps_conversion(
         nonce: nonce_manager.next(account_address),
     });
     let tx_context1 = Arc::new(block_context.to_tx_context(&account_tx1));
-    let execution_context1 = EntryPointExecutionContext::new_invoke(tx_context1, true).unwrap();
+    let execution_context1 = EntryPointExecutionContext::new_invoke(tx_context1, true);
     let max_steps_limit1 = execution_context1.vm_run_resources.get_n_steps();
     let tx_execution_info1 = account_tx1.execute(&mut state, &block_context, true, true).unwrap();
     let n_steps1 = tx_execution_info1.receipt.resources.vm_resources.n_steps;
@@ -953,7 +954,7 @@ fn test_max_fee_to_max_steps_conversion(
         nonce: nonce_manager.next(account_address),
     });
     let tx_context2 = Arc::new(block_context.to_tx_context(&account_tx2));
-    let execution_context2 = EntryPointExecutionContext::new_invoke(tx_context2, true).unwrap();
+    let execution_context2 = EntryPointExecutionContext::new_invoke(tx_context2, true);
     let max_steps_limit2 = execution_context2.vm_run_resources.get_n_steps();
     let tx_execution_info2 = account_tx2.execute(&mut state, &block_context, true, true).unwrap();
     let n_steps2 = tx_execution_info2.receipt.resources.vm_resources.n_steps;
