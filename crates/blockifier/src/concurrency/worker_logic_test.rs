@@ -5,8 +5,8 @@ use rstest::rstest;
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::transaction::{
     ContractAddressSalt,
-    Fee,
     DeprecatedResourceBoundsMapping,
+    Fee,
     TransactionVersion,
 };
 use starknet_api::{contract_address, felt, patricia_key};
@@ -174,7 +174,7 @@ pub fn test_commit_tx() {
                 assert_eq!(felt!(expected_sequencer_storage_read), actual_sequencer_storage_read,);
             }
         }
-        let tx_context = executor.block_context.to_tx_context(&txs[commit_idx]);
+        let tx_context = executor.block_context.to_tx_context(&txs[commit_idx]).unwrap();
         expected_sequencer_balance_low += actual_fee;
         // Check that the sequencer balance was updated correctly in the state.
         verify_sequencer_balance_update(
@@ -228,7 +228,7 @@ fn test_commit_tx_when_sender_is_sequencer() {
     let read_values_before_commit = fee_transfer_call_info.storage_read_values.clone();
     drop(execution_task_outputs);
 
-    let tx_context = &executor.block_context.to_tx_context(&sequencer_tx[0]);
+    let tx_context = &executor.block_context.to_tx_context(&sequencer_tx[0]).unwrap();
     let fee_token_address =
         executor.block_context.chain_info.fee_token_address(&tx_context.tx_info.fee_type());
     let sequencer_balance_high_before =
