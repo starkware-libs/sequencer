@@ -12,8 +12,8 @@ use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
     DeclareTransactionV2,
-    Fee,
     DeprecatedResourceBoundsMapping,
+    Fee,
     TransactionHash,
     TransactionVersion,
 };
@@ -114,7 +114,10 @@ fn test_circuit(block_context: BlockContext, max_resource_bounds: DeprecatedReso
 }
 
 #[rstest]
-fn test_rc96_holes(block_context: BlockContext, max_resource_bounds: DeprecatedResourceBoundsMapping) {
+fn test_rc96_holes(
+    block_context: BlockContext,
+    max_resource_bounds: DeprecatedResourceBoundsMapping,
+) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let chain_info = &block_context.chain_info;
@@ -171,7 +174,7 @@ fn test_fee_enforcement(
     );
 
     let account_tx = AccountTransaction::DeployAccount(deploy_account_tx);
-    let enforce_fee = account_tx.create_tx_info().enforce_fee().unwrap();
+    let enforce_fee = account_tx.create_tx_info().unwrap().enforce_fee().unwrap();
     let result = account_tx.execute(state, &block_context, true, true);
     assert_eq!(result.is_err(), enforce_fee);
 }
@@ -652,7 +655,7 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
     );
 
     // Fail execution, assert nonce and balance are unchanged.
-    let tx_info = declare_account_tx.create_tx_info();
+    let tx_info = declare_account_tx.create_tx_info().unwrap();
     let initial_balance = state
         .get_fee_token_balance(account_address, chain_info.fee_token_address(&tx_info.fee_type()))
         .unwrap();
