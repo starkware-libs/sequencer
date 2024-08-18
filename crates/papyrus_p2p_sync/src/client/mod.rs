@@ -31,7 +31,7 @@ use papyrus_protobuf::sync::{
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, BlockSignature};
-use starknet_api::transaction::{Transaction, TransactionOutput};
+use starknet_api::transaction::FullTransaction;
 use state_diff::StateDiffStreamBuilder;
 use stream_builder::{DataStreamBuilder, DataStreamResult};
 use tokio_stream::StreamExt;
@@ -174,13 +174,11 @@ pub enum P2PSyncClientError {
 
 type HeaderSqmrSender = SqmrClientSender<HeaderQuery, DataOrFin<SignedBlockHeader>>;
 type StateSqmrDiffSender = SqmrClientSender<StateDiffQuery, DataOrFin<StateDiffChunk>>;
-type TransactionSqmrSender =
-    SqmrClientSender<TransactionQuery, DataOrFin<(Transaction, TransactionOutput)>>;
+type TransactionSqmrSender = SqmrClientSender<TransactionQuery, DataOrFin<FullTransaction>>;
 
 pub struct P2PSyncClientChannels {
     header_sender: HeaderSqmrSender,
     state_diff_sender: StateSqmrDiffSender,
-    #[allow(dead_code)]
     transaction_sender: TransactionSqmrSender,
 }
 

@@ -31,7 +31,13 @@ use rand::random;
 use starknet_api::block::{BlockBody, BlockHash, BlockHeader, BlockNumber, BlockSignature};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::ContractClass;
-use starknet_api::transaction::{Event, Transaction, TransactionHash, TransactionOutput};
+use starknet_api::transaction::{
+    Event,
+    FullTransaction,
+    Transaction,
+    TransactionHash,
+    TransactionOutput,
+};
 
 use super::{split_thin_state_diff, FetchBlockDataFromDb, P2PSyncServer, P2PSyncServerChannels};
 use crate::server::register_query;
@@ -63,17 +69,25 @@ async fn header_query_positive_flow() {
 
 #[tokio::test]
 async fn transaction_query_positive_flow() {
-    let assert_transaction_and_output = |data: Vec<(Transaction, TransactionOutput)>| {
+    let assert_transaction_and_output = |data: Vec<FullTransaction>| {
         let len = data.len();
         assert_eq!(len, NUM_OF_BLOCKS as usize * NUM_TXS_PER_BLOCK);
-        for (i, (tx, tx_output)) in data.into_iter().enumerate() {
-            assert_eq!(tx, TXS[i / NUM_TXS_PER_BLOCK][i % NUM_TXS_PER_BLOCK]);
-            assert_eq!(tx_output, TX_OUTPUTS[i / NUM_TXS_PER_BLOCK][i % NUM_TXS_PER_BLOCK]);
+        for (i, FullTransaction { transaction, transaction_output, transaction_hash }) in
+            data.into_iter().enumerate()
+        {
+            assert_eq!(transaction, TXS[i / NUM_TXS_PER_BLOCK][i % NUM_TXS_PER_BLOCK]);
+            assert_eq!(
+                transaction_output,
+                TX_OUTPUTS[i / NUM_TXS_PER_BLOCK][i % NUM_TXS_PER_BLOCK]
+            );
+            assert_eq!(transaction_hash, TX_HASHES[i / NUM_TXS_PER_BLOCK][i % NUM_TXS_PER_BLOCK]);
         }
     };
 
-    run_test::<_, _, HeaderQuery>(assert_transaction_and_output, 0, StartBlockType::Hash).await;
-    run_test::<_, _, HeaderQuery>(assert_transaction_and_output, 0, StartBlockType::Number).await;
+    run_test::<_, _, TransactionQuery>(assert_transaction_and_output, 0, StartBlockType::Hash)
+        .await;
+    run_test::<_, _, TransactionQuery>(assert_transaction_and_output, 0, StartBlockType::Number)
+        .await;
 }
 
 #[tokio::test]
@@ -155,18 +169,25 @@ async fn header_query_some_blocks_are_missing() {
 
 #[tokio::test]
 async fn transaction_query_some_blocks_are_missing() {
-    let assert_transaction_and_output = |data: Vec<(Transaction, TransactionOutput)>| {
+    let assert_transaction_and_output = |data: Vec<FullTransaction>| {
         let len = data.len();
         assert!(len == (BLOCKS_DELTA as usize * NUM_TXS_PER_BLOCK));
-        for (i, (tx, tx_output)) in data.into_iter().enumerate() {
+        for (i, FullTransaction { transaction, transaction_output, transaction_hash }) in
+            data.into_iter().enumerate()
+        {
             assert_eq!(
-                tx,
+                transaction,
                 TXS[i / NUM_TXS_PER_BLOCK + NUM_OF_BLOCKS as usize - BLOCKS_DELTA as usize]
                     [i % NUM_TXS_PER_BLOCK]
             );
             assert_eq!(
-                tx_output,
+                transaction_output,
                 TX_OUTPUTS[i / NUM_TXS_PER_BLOCK + NUM_OF_BLOCKS as usize - BLOCKS_DELTA as usize]
+                    [i % NUM_TXS_PER_BLOCK]
+            );
+            assert_eq!(
+                transaction_hash,
+                TX_HASHES[i / NUM_TXS_PER_BLOCK + NUM_OF_BLOCKS as usize - BLOCKS_DELTA as usize]
                     [i % NUM_TXS_PER_BLOCK]
             );
         }
@@ -337,7 +358,7 @@ pub struct TestArgs {
     pub header_sender: Sender<ServerQueryManager<HeaderQuery, DataOrFin<SignedBlockHeader>>>,
     pub state_diff_sender: Sender<ServerQueryManager<StateDiffQuery, DataOrFin<StateDiffChunk>>>,
     pub transaction_sender:
-        Sender<ServerQueryManager<TransactionQuery, DataOrFin<(Transaction, TransactionOutput)>>>,
+        Sender<ServerQueryManager<TransactionQuery, DataOrFin<FullTransaction>>>,
     pub class_sender: Sender<ServerQueryManager<ClassQuery, DataOrFin<ApiContractClass>>>,
     pub event_sender: Sender<ServerQueryManager<EventQuery, DataOrFin<(Event, TransactionHash)>>>,
 }
