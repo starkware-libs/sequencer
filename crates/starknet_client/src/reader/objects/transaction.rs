@@ -23,6 +23,7 @@ use starknet_api::transaction::{
     DeclareTransactionOutput,
     DeployAccountTransactionOutput,
     DeployTransactionOutput,
+    DeprecatedResourceBoundsMapping,
     Event,
     Fee,
     InvokeTransactionOutput,
@@ -31,7 +32,6 @@ use starknet_api::transaction::{
     L2ToL1Payload,
     MessageToL1,
     PaymasterData,
-    ResourceBoundsMapping,
     RevertedTransactionExecutionStatus as SnApiRevertedTransactionExecutionStatus,
     Tip,
     TransactionExecutionStatus as SnApiTransactionExecutionStatus,
@@ -178,7 +178,7 @@ impl From<ReservedDataAvailabilityMode> for starknet_api::data_availability::Dat
 #[serde(deny_unknown_fields)]
 pub struct IntermediateDeclareTransaction {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub resource_bounds: Option<ResourceBoundsMapping>,
+    pub resource_bounds: Option<DeprecatedResourceBoundsMapping>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tip: Option<Tip>,
     pub signature: TransactionSignature,
@@ -347,7 +347,7 @@ impl From<DeployTransaction> for starknet_api::transaction::DeployTransaction {
 #[serde(deny_unknown_fields)]
 pub struct IntermediateDeployAccountTransaction {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub resource_bounds: Option<ResourceBoundsMapping>,
+    pub resource_bounds: Option<DeprecatedResourceBoundsMapping>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tip: Option<Tip>,
     pub signature: TransactionSignature,
@@ -470,7 +470,7 @@ impl TryFrom<IntermediateDeployAccountTransaction>
 #[serde(deny_unknown_fields)]
 pub struct IntermediateInvokeTransaction {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub resource_bounds: Option<ResourceBoundsMapping>,
+    pub resource_bounds: Option<DeprecatedResourceBoundsMapping>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tip: Option<Tip>,
     pub calldata: Calldata,
