@@ -267,8 +267,7 @@ pub fn execute_call(
             tx_info: TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
         }),
         true, // limit_steps_by_resources
-    )
-    .map_err(|err| ExecutionError::ContractError(err.into()))?;
+    );
 
     let res = call_entry_point
         .execute(&mut cached_state, &mut ExecutionResources::default(), &mut context)
