@@ -75,6 +75,42 @@ impl TransactionQueue {
     pub fn is_empty(&self) -> bool {
         self.priority_queue.is_empty() && self.pending_queue.is_empty()
     }
+
+    pub fn update_gas_price_threshold(&mut self, threshold: u128) {
+        if threshold < self.gas_price_threshold {
+            let mut to_remove = Vec::new();
+
+            for pending_tx in self.pending_queue.iter() {
+                if pending_tx.get_l2_gas_price() >= threshold {
+                    self.priority_queue.insert(pending_tx.0.clone().into());
+                    to_remove.push(pending_tx.clone());
+                } else {
+                    break;
+                }
+            }
+
+            // Remove moved transactions from the pending queue
+            for tx in to_remove {
+                self.pending_queue.remove(&tx);
+            }
+        } else {
+            let mut to_remove = Vec::new();
+
+            for priority_tx in self.priority_queue.iter() {
+                if priority_tx.get_l2_gas_price() < threshold {
+                    self.pending_queue.insert(priority_tx.0.clone().into());
+                    to_remove.push(priority_tx.clone());
+                }
+            }
+
+            // Remove moved transactions from the priority queue
+            for tx in to_remove {
+                self.priority_queue.remove(&tx);
+            }
+        }
+
+        self.gas_price_threshold = threshold;
+    }
 }
 
 /// Encapsulates a transaction reference to assess its order (i.e., gas price).
