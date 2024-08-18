@@ -50,15 +50,15 @@ impl Deserializable for MockLeaf {
 }
 
 impl Leaf for MockLeaf {
-    type Input = Self;
-    type Output = ();
+    type Input = Felt;
+    type Output = String;
 
     fn is_empty(&self) -> bool {
         self.0 == Felt::ZERO
     }
 
     async fn create(input: Self::Input) -> LeafResult<(Self, Self::Output)> {
-        Ok((input, ()))
+        Ok((Self(input), input.to_hex()))
     }
 }
 

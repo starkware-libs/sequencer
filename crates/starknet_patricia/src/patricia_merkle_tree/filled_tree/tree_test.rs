@@ -16,7 +16,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
     NodeData,
     PathToBottom,
 };
-use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
+use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
@@ -67,28 +67,8 @@ async fn test_filled_tree_sanity() {
 ///            i=35: leaf   i=36: leaf               i=63: leaf
 ///                  v=1          v=2                      v=3
 async fn test_small_filled_tree() {
-    // Set up the updated skeleton tree.
-    let new_leaves = [(35, "0x1"), (36, "0x2"), (63, "0x3")];
-    let nodes_in_skeleton_tree: Vec<(NodeIndex, UpdatedSkeletonNode)> = [
-        create_binary_updated_skeleton_node_for_testing(1),
-        create_path_to_bottom_edge_updated_skeleton_node_for_testing(2, 0, 1),
-        create_path_to_bottom_edge_updated_skeleton_node_for_testing(3, 15, 4),
-        create_binary_updated_skeleton_node_for_testing(4),
-        create_path_to_bottom_edge_updated_skeleton_node_for_testing(8, 3, 2),
-        create_path_to_bottom_edge_updated_skeleton_node_for_testing(9, 0, 2),
-    ]
-    .into_iter()
-    .chain(
-        new_leaves.iter().map(|(index, _)| create_leaf_updated_skeleton_node_for_testing(*index)),
-    )
-    .collect();
-    let skeleton_tree: UpdatedSkeletonNodeMap = nodes_in_skeleton_tree.into_iter().collect();
-
-    let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
-    let modifications = new_leaves
-        .iter()
-        .map(|(index, value)| (NodeIndex::from(*index), MockLeaf(Felt::from_hex(value).unwrap())))
-        .collect();
+    let (updated_skeleton_tree, modifications) =
+        get_small_tree_updated_skeleton_and_leaf_modifications();
 
     // Compute the hash values.
     let filled_tree = FilledTreeImpl::create_with_existing_leaves::<TestTreeHashFunction>(
@@ -100,21 +80,40 @@ async fn test_small_filled_tree() {
     let filled_tree_map = filled_tree.get_all_nodes();
     let root_hash = filled_tree.get_root_hash();
 
-    // The expected hash values were computed separately.
-    let expected_root_hash = HashOutput(Felt::from_hex("0x21").unwrap());
-    let expected_filled_tree_map = HashMap::from([
-        create_mock_binary_entry_for_testing(1, "0x21", "0xb", "0x16"),
-        create_mock_edge_entry_for_testing(2, "0xb", 0, 1, "0xa"),
-        create_mock_edge_entry_for_testing(3, "0x16", 15, 4, "0x3"),
-        create_mock_binary_entry_for_testing(4, "0xa", "0x6", "0x4"),
-        create_mock_edge_entry_for_testing(8, "0x6", 3, 2, "0x1"),
-        create_mock_edge_entry_for_testing(9, "0x4", 0, 2, "0x2"),
-        create_mock_leaf_entry_for_testing(35, "0x1"),
-        create_mock_leaf_entry_for_testing(36, "0x2"),
-        create_mock_leaf_entry_for_testing(63, "0x3"),
-    ]);
+    let (expected_filled_tree_map, expected_root_hash) =
+        get_small_tree_expected_filled_tree_map_and_root_hash();
     assert_eq!(filled_tree_map, &expected_filled_tree_map);
     assert_eq!(root_hash, expected_root_hash, "Root hash mismatch");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+/// Similar to `test_small_filled_tree`, except the tree is created via `FilledTree:create()`.
+async fn test_create_small_filled_tree() {
+    let (updated_skeleton_tree, modifications) =
+        get_small_tree_updated_skeleton_and_leaf_modifications();
+    let expected_leaf_index_to_leaf_output: HashMap<NodeIndex, String> =
+        modifications.iter().map(|(index, leaf)| (*index, leaf.0.to_hex())).collect();
+    let leaf_index_to_leaf_input: HashMap<NodeIndex, Felt> =
+        modifications.into_iter().map(|(index, leaf)| (index, leaf.0)).collect();
+
+    // Compute the hash values.
+    let (filled_tree, leaf_index_to_leaf_output) = FilledTreeImpl::create::<TestTreeHashFunction>(
+        updated_skeleton_tree,
+        leaf_index_to_leaf_input,
+    )
+    .await
+    .unwrap();
+    let filled_tree_map = filled_tree.get_all_nodes();
+    let root_hash = filled_tree.get_root_hash();
+
+    let (expected_filled_tree_map, expected_root_hash) =
+        get_small_tree_expected_filled_tree_map_and_root_hash();
+    assert_eq!(filled_tree_map, &expected_filled_tree_map);
+    assert_eq!(root_hash, expected_root_hash, "Root hash mismatch");
+    assert_eq!(
+        leaf_index_to_leaf_output, expected_leaf_index_to_leaf_output,
+        "Leaf output mismatch"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -215,6 +214,50 @@ async fn test_delete_leaf_from_empty_tree() {
     assert!(filled_tree_map.is_empty());
     let root_hash = filled_tree.get_root_hash();
     assert!(root_hash == HashOutput::ROOT_OF_EMPTY_TREE);
+}
+
+fn get_small_tree_updated_skeleton_and_leaf_modifications()
+-> (UpdatedSkeletonTreeImpl, LeafModifications<MockLeaf>) {
+    // Set up the updated skeleton tree.
+    let new_leaves = [(35, "0x1"), (36, "0x2"), (63, "0x3")];
+    let nodes_in_skeleton_tree: Vec<(NodeIndex, UpdatedSkeletonNode)> = [
+        create_binary_updated_skeleton_node_for_testing(1),
+        create_path_to_bottom_edge_updated_skeleton_node_for_testing(2, 0, 1),
+        create_path_to_bottom_edge_updated_skeleton_node_for_testing(3, 15, 4),
+        create_binary_updated_skeleton_node_for_testing(4),
+        create_path_to_bottom_edge_updated_skeleton_node_for_testing(8, 3, 2),
+        create_path_to_bottom_edge_updated_skeleton_node_for_testing(9, 0, 2),
+    ]
+    .into_iter()
+    .chain(
+        new_leaves.iter().map(|(index, _)| create_leaf_updated_skeleton_node_for_testing(*index)),
+    )
+    .collect();
+    let skeleton_tree: UpdatedSkeletonNodeMap = nodes_in_skeleton_tree.into_iter().collect();
+
+    let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
+    let modifications = new_leaves
+        .iter()
+        .map(|(index, value)| (NodeIndex::from(*index), MockLeaf(Felt::from_hex(value).unwrap())))
+        .collect();
+    (updated_skeleton_tree, modifications)
+}
+
+fn get_small_tree_expected_filled_tree_map_and_root_hash()
+-> (HashMap<NodeIndex, FilledNode<MockLeaf>>, HashOutput) {
+    let expected_root_hash = HashOutput(Felt::from_hex("0x21").unwrap());
+    let expected_filled_tree_map = HashMap::from([
+        create_mock_binary_entry_for_testing(1, "0x21", "0xb", "0x16"),
+        create_mock_edge_entry_for_testing(2, "0xb", 0, 1, "0xa"),
+        create_mock_edge_entry_for_testing(3, "0x16", 15, 4, "0x3"),
+        create_mock_binary_entry_for_testing(4, "0xa", "0x6", "0x4"),
+        create_mock_edge_entry_for_testing(8, "0x6", 3, 2, "0x1"),
+        create_mock_edge_entry_for_testing(9, "0x4", 0, 2, "0x2"),
+        create_mock_leaf_entry_for_testing(35, "0x1"),
+        create_mock_leaf_entry_for_testing(36, "0x2"),
+        create_mock_leaf_entry_for_testing(63, "0x3"),
+    ]);
+    (expected_filled_tree_map, expected_root_hash)
 }
 
 fn create_binary_updated_skeleton_node_for_testing(
