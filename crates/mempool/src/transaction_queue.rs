@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::transaction::{Resource, ResourceBounds};
 
 use crate::mempool::TransactionReference;
 
@@ -76,6 +77,53 @@ impl TransactionQueue {
 
     pub fn has_ready_txs(&self) -> bool {
         self.priority_queue.is_empty()
+    }
+
+    pub fn update_gas_price_threshold(&mut self, threshold: u128) {
+        match threshold.cmp(&self.gas_price_threshold) {
+            Ordering::Less => self.transfer_to_priority_queue(threshold),
+            Ordering::Greater => self.transfer_to_pending_queue(threshold),
+            Ordering::Equal => {}
+        }
+
+        self.gas_price_threshold = threshold;
+    }
+
+    fn transfer_to_priority_queue(&mut self, threshold: u128) {
+        let tmp_split_tx = PendingTransaction(TransactionReference {
+            resource_bounds: vec![
+                (Resource::L1Gas, ResourceBounds::default()),
+                (Resource::L2Gas, ResourceBounds { max_amount: 0, max_price_per_unit: threshold }),
+            ]
+            .try_into()
+            .unwrap(),
+            ..Default::default()
+        });
+
+        // Split off the pending queue at the given transaction higher than the threshold.
+        let txs_over_threshold = self.pending_queue.split_off(&tmp_split_tx).into_iter().skip(1);
+
+        // Insert all transactions from the split point into the priority queue, skip
+        // `tmp_split_tx`.
+        // Note: extend will reorder transactions by `Tip` during insertion, despite them being
+        // initially ordered by fee.
+        self.priority_queue.extend(txs_over_threshold.map(|tx| tx.0.into()));
+    }
+
+    fn transfer_to_pending_queue(&mut self, threshold: u128) {
+        let mut to_remove = Vec::new();
+
+        // Remove all transactions from the priority queue that are below the threshold.
+        for priority_tx in &self.priority_queue {
+            if priority_tx.get_l2_gas_price() < threshold {
+                to_remove.push(priority_tx.clone());
+            }
+        }
+
+        for tx in &to_remove {
+            self.priority_queue.remove(tx);
+        }
+        self.pending_queue.extend(to_remove.into_iter().map(|tx| tx.0.into()));
     }
 }
 
