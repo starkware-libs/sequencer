@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use futures::channel::{mpsc, oneshot};
 use futures::{Stream, StreamExt};
-use papyrus_common::metrics::PAPYRUS_CONSENSUS_HEIGHT;
+use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
 use papyrus_network::network_manager::ReportSender;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal};
 use papyrus_protobuf::converters::ProtobufConversionError;
@@ -69,6 +69,7 @@ where
                 current_height = current_height.unchecked_next();
             },
             sync_height = sync_height(current_height, &mut sync_receiver) => {
+                metrics::counter!(PAPYRUS_CONSENSUS_SYNC_COUNT, 1);
                 current_height = sync_height?.unchecked_next();
             }
         }

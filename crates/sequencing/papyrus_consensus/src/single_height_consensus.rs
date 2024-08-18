@@ -77,8 +77,8 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         fin_receiver: oneshot::Receiver<BlockHash>,
     ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
         debug!(
-            "Received proposal: proposal_height={}, proposer={:?}",
-            init.height.0, init.proposer
+            "Received proposal: height={}, round={}, proposer={:?}",
+            init.height.0, init.round, init.proposer
         );
         let proposer_id = context.proposer(&self.validators, self.height);
         if init.height != self.height {
