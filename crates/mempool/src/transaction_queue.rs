@@ -80,6 +80,25 @@ impl TransactionQueue {
     pub fn is_empty(&self) -> bool {
         self.priority_queue.is_empty() && self.pending_queue.is_empty()
     }
+
+    pub fn update_gas_price_threshold(&mut self, new_threshold: u128) {
+        if new_threshold < self.gas_price_threshold {
+            for tx in self.pending_queue.iter() {
+                if tx.get_l2_gas_price() >= new_threshold {
+                    self.priority_queue.insert(tx.0.clone().into());
+                } else {
+                    break;
+                }
+            }
+        } else {
+            for tx in self.priority_queue.iter() {
+                if tx.get_l2_gas_price() < new_threshold {
+                    self.pending_queue.insert(tx.0.clone().into());
+                }
+            }
+        }
+        self.gas_price_threshold = new_threshold;
+    }
 }
 
 /// Encapsulates a transaction reference to assess its order (i.e., gas price).
