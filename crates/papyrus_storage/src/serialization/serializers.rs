@@ -355,6 +355,7 @@ auto_storage_serde! {
     pub enum Resource {
         L1Gas = 0,
         L2Gas = 1,
+        L1DataGas = 2,
     }
     pub struct ResourceBounds {
         pub max_amount: u64,
