@@ -5,8 +5,8 @@ use starknet_api::core::ContractAddress;
 use starknet_api::felt;
 use starknet_api::transaction::{
     Calldata,
+    DeprecatedResourceBoundsMapping,
     Fee,
-    ResourceBoundsMapping,
     TransactionSignature,
     TransactionVersion,
 };
@@ -349,7 +349,7 @@ fn test_simulate_validate_charge_fee_fail_validate(
     #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
-    max_resource_bounds: ResourceBoundsMapping,
+    max_resource_bounds: DeprecatedResourceBoundsMapping,
 ) {
     let block_context = BlockContext::create_for_account_testing();
     let max_fee = Fee(MAX_FEE);
@@ -411,7 +411,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
-    max_resource_bounds: ResourceBoundsMapping,
+    max_resource_bounds: DeprecatedResourceBoundsMapping,
 ) {
     let block_context = BlockContext::create_for_account_testing();
     let chain_info = &block_context.chain_info;

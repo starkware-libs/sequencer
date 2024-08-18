@@ -3,13 +3,13 @@ use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
+    DeprecatedResourceBoundsMapping,
     Fee,
     InvokeTransactionV0,
     InvokeTransactionV1,
     InvokeTransactionV3,
     Resource,
     ResourceBounds,
-    ResourceBoundsMapping,
     TransactionHash,
     TransactionSignature,
     TransactionVersion,
@@ -82,7 +82,7 @@ pub fn max_fee() -> Fee {
 }
 
 #[fixture]
-pub fn max_resource_bounds() -> ResourceBoundsMapping {
+pub fn max_resource_bounds() -> DeprecatedResourceBoundsMapping {
     l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE)
 }
 
@@ -291,8 +291,8 @@ pub fn run_invoke_tx(
 
 /// Creates a `ResourceBoundsMapping` with the given `max_amount` and `max_price` for L1 gas limits.
 /// No guarantees on the values of the other resources bounds.
-pub fn l1_resource_bounds(max_amount: u64, max_price: u128) -> ResourceBoundsMapping {
-    ResourceBoundsMapping::try_from(vec![
+pub fn l1_resource_bounds(max_amount: u64, max_price: u128) -> DeprecatedResourceBoundsMapping {
+    DeprecatedResourceBoundsMapping::try_from(vec![
         (Resource::L1Gas, ResourceBounds { max_amount, max_price_per_unit: max_price }),
         (Resource::L2Gas, ResourceBounds { max_amount: 0, max_price_per_unit: 0 }),
     ])
