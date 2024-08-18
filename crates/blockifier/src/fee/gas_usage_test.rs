@@ -205,8 +205,9 @@ fn test_get_message_segment_length(
 
 #[rstest]
 fn test_compute_discounted_gas_from_gas_vector() {
-    let tx_context =
-        BlockContext::create_for_testing().to_tx_context(&account_invoke_tx(invoke_tx_args! {}));
+    let tx_context = BlockContext::create_for_testing()
+        .to_tx_context(&account_invoke_tx(invoke_tx_args! {}))
+        .unwrap();
     let gas_usage = GasVector { l1_gas: 100, l1_data_gas: 2, ..Default::default() };
     let actual_result = compute_discounted_gas_from_gas_vector(&gas_usage, &tx_context);
 
