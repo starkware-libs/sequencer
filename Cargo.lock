@@ -6391,6 +6391,7 @@ dependencies = [
  "prometheus-parse",
  "quote",
  "syn 2.0.61",
+ "tracing",
 ]
 
 [[package]]
@@ -9010,6 +9011,7 @@ dependencies = [
  "serde_json",
  "starknet_batcher",
  "starknet_batcher_types",
+ "starknet_consensus_manager",
  "starknet_gateway",
  "starknet_mempool",
  "starknet_mempool_infra",

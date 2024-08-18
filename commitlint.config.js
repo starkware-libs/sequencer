@@ -34,6 +34,7 @@ const Configuration = {
             'fee',
             'gateway',
             'helm',
+            'infra',
             'JSON-RPC',
             'load_test',
             'mempool',

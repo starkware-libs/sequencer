@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use futures::channel::{mpsc, oneshot};
 use futures::{Stream, StreamExt};
-use papyrus_common::metrics::PAPYRUS_CONSENSUS_HEIGHT;
+use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
 use papyrus_network::network_manager::ReportSender;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal};
 use papyrus_protobuf::converters::ProtobufConversionError;
@@ -65,10 +65,11 @@ where
         tokio::select! {
             decision = run_height => {
                 let decision = decision?;
-                context.notify_decision(decision.block, decision.precommits).await?;
+                context.decision_reached(decision.block, decision.precommits).await?;
                 current_height = current_height.unchecked_next();
             },
             sync_height = sync_height(current_height, &mut sync_receiver) => {
+                metrics::increment_counter!(PAPYRUS_CONSENSUS_SYNC_COUNT);
                 current_height = sync_height?.unchecked_next();
             }
         }

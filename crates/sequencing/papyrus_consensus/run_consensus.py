@@ -22,6 +22,7 @@ class Node:
         self.cmd = cmd
         self.process = None
         self.height_and_timestamp = (None, None)  # (height, timestamp)
+        self.sync_count = None
 
     def start(self):
         self.process = subprocess.Popen(self.cmd, shell=True, preexec_fn=os.setsid)
@@ -31,15 +32,17 @@ class Node:
             os.killpg(os.getpgid(self.process.pid), signal.SIGINT)
             self.process.wait()
 
-    def get_height(self):
+    def get_metric(self, metric: str):
         port = self.monitoring_gateway_server_port
-        command = f"curl -s -X GET http://localhost:{port}/monitoring/metrics | grep -oP 'papyrus_consensus_height \\K\\d+'"
+        command = f"curl -s -X GET http://localhost:{port}/monitoring/metrics | grep -oP '{metric} \\K\\d+'"
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
-        # returns the latest decided height, or None if consensus has not yet started.
         return int(result.stdout) if result.stdout else None
 
-    def check_height(self):
-        height = self.get_height()
+    # Check the node's metrics and return the height and timestamp.
+    def check_node(self):
+        self.sync_count = self.get_metric("papyrus_consensus_sync_count")
+
+        height = self.get_metric("papyrus_consensus_height")
         if self.height_and_timestamp[0] != height:
             if self.height_and_timestamp[0] is not None and height is not None:
                 assert height > self.height_and_timestamp[0], "Height should be increasing."
@@ -89,8 +92,8 @@ def monitor_simulation(nodes, start_time, duration, stagnation_timeout):
         return True
     stagnated_nodes = []
     for node in nodes:
-        (height, last_update) = node.check_height()
-        print(f"Node: {node.validator_id}, height: {height}")
+        (height, last_update) = node.check_node()
+        print(f"Node: {node.validator_id}, height: {height}, sync_count: {node.sync_count}")
         if height is not None and (curr_time - last_update) > stagnation_timeout:
             stagnated_nodes.append(node.validator_id)
     if stagnated_nodes:
@@ -107,7 +110,8 @@ def run_simulation(nodes, duration, stagnation_timeout):
     try:
         while True:
             time.sleep(MONITORING_PERIOD)
-            print(f"\nTime elapsed: {time.time() - start_time}s")
+            elapsed = round(time.time() - start_time)
+            print(f"\nTime elapsed: {elapsed}s")
             should_exit = monitor_simulation(nodes, start_time, duration, stagnation_timeout)
             if should_exit:
                 break
@@ -147,7 +151,6 @@ def build_node(data_dir, logs_dir, i, papryus_args):
             f"--network.secret_key {SECRET_KEY} "
             + f"2>&1 | sed -r 's/\\x1B\\[[0-9;]*[mK]//g' > {logs_dir}/validator{i}.txt"
         )
-
     else:
         cmd += (
             f"--network.bootstrap_peer_multiaddr.#is_none false "

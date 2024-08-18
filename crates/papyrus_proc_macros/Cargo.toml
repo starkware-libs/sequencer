@@ -9,6 +9,7 @@ description = "Procedural macros for the Papyrus node"
 [dependencies]
 quote = "1.0.26"
 syn = { version = "2.0.39", features = ["full"] }
+tracing.workspace = true
 
 [dev-dependencies]
 metrics.workspace = true

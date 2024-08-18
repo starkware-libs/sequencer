@@ -1,3 +1,4 @@
+use core::net::Ipv4Addr;
 use std::collections::hash_map::{Keys, ValuesMut};
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
@@ -5,11 +6,13 @@ use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
 
 use futures::stream::{Stream, StreamExt};
+use libp2p::core::multiaddr::Protocol;
+use libp2p::Multiaddr;
 
 // This is an implementation of `StreamMap` from tokio_stream. The reason we're implementing it
 // ourselves is that the implementation in tokio_stream requires that the values implement the
 // Stream trait from tokio_stream and not from futures.
-pub(crate) struct StreamHashMap<K: Unpin + Clone + Eq + Hash, V: Stream + Unpin> {
+pub struct StreamHashMap<K: Unpin + Clone + Eq + Hash, V: Stream + Unpin> {
     map: HashMap<K, V>,
     wakers_waiting_for_new_stream: Vec<Waker>,
 }
@@ -65,4 +68,15 @@ impl<K: Unpin + Clone + Eq + Hash, V: Stream + Unpin> Stream for StreamHashMap<K
         unpinned_self.wakers_waiting_for_new_stream.push(cx.waker().clone());
         Poll::Pending
     }
+}
+
+pub fn is_localhost(address: &Multiaddr) -> bool {
+    let maybe_ip4_address = address.iter().find_map(|protocol| match protocol {
+        Protocol::Ip4(ip4_address) => Some(ip4_address),
+        _ => None,
+    });
+    let Some(ip4_address) = maybe_ip4_address else {
+        return false;
+    };
+    ip4_address == Ipv4Addr::LOCALHOST
 }
