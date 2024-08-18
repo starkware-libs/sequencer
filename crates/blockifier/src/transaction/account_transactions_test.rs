@@ -173,7 +173,7 @@ fn test_fee_enforcement(
     );
 
     let account_tx = AccountTransaction::DeployAccount(deploy_account_tx);
-    let enforce_fee = account_tx.create_tx_info().enforce_fee();
+    let enforce_fee = account_tx.create_tx_info().unwrap().enforce_fee();
     let result = account_tx.execute(state, &block_context, true, true);
     assert_eq!(result.is_err(), enforce_fee);
 }
@@ -654,7 +654,7 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
     );
 
     // Fail execution, assert nonce and balance are unchanged.
-    let tx_info = declare_account_tx.create_tx_info();
+    let tx_info = declare_account_tx.create_tx_info().unwrap();
     let initial_balance = state
         .get_fee_token_balance(account_address, chain_info.fee_token_address(&tx_info.fee_type()))
         .unwrap();
