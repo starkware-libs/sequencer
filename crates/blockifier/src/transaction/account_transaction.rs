@@ -33,6 +33,7 @@ use crate::transaction::constants;
 use crate::transaction::errors::{
     TransactionExecutionError,
     TransactionFeeError,
+    TransactionInfoCreationError,
     TransactionPreValidationError,
 };
 use crate::transaction::objects::{
@@ -737,7 +738,8 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
 }
 
 impl TransactionInfoCreator for AccountTransaction {
-    fn create_tx_info(&self) -> TransactionInfo {
+    // TODO(Nimrod): This function should return `TransactionInfo` without a result.
+    fn create_tx_info(&self) -> Result<TransactionInfo, TransactionInfoCreationError> {
         match self {
             Self::Declare(tx) => tx.create_tx_info(),
             Self::DeployAccount(tx) => tx.create_tx_info(),
