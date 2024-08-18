@@ -2,7 +2,12 @@ use assert_matches::assert_matches;
 use rstest::rstest;
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{Calldata, Fee, DeprecatedResourceBoundsMapping, TransactionVersion};
+use starknet_api::transaction::{
+    Calldata,
+    DeprecatedResourceBoundsMapping,
+    Fee,
+    TransactionVersion,
+};
 use starknet_api::{felt, patricia_key};
 use starknet_types_core::felt::Felt;
 
@@ -112,7 +117,7 @@ fn test_revert_on_overdraft(
         resource_bounds: max_resource_bounds.clone(),
         nonce: nonce_manager.next(account_address),
     });
-    let tx_info = approve_tx.create_tx_info();
+    let tx_info = approve_tx.create_tx_info().unwrap();
     let approval_execution_info =
         approve_tx.execute(&mut state, &block_context, true, true).unwrap();
     assert!(!approval_execution_info.is_reverted());
