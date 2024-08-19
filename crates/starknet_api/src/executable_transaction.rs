@@ -7,11 +7,12 @@ use crate::rpc_transaction::RpcTransaction;
 use crate::transaction::{
     AccountDeploymentData,
     Calldata,
-    DeprecatedResourceBoundsMapping,
     PaymasterData,
+    ResourceBounds,
     Tip,
     TransactionHash,
     TransactionSignature,
+    ValidResourceBounds,
 };
 
 /// Represents a paid Starknet transaction.
@@ -76,7 +77,7 @@ impl Transaction {
                     sender_address,
                     tip: *rpc_tx.tip(),
                     nonce: *rpc_tx.nonce(),
-                    resource_bounds: DeprecatedResourceBoundsMapping::default(),
+                    resource_bounds: ValidResourceBounds::L1Gas(ResourceBounds::default()),
                     signature: TransactionSignature::default(),
                     calldata: Calldata::default(),
                     nonce_data_availability_mode: DataAvailabilityMode::L1,

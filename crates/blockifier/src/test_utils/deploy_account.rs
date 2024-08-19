@@ -96,7 +96,7 @@ pub fn deploy_account_tx(
     } else if deploy_tx_args.version == TransactionVersion::THREE {
         starknet_api::transaction::DeployAccountTransaction::V3(DeployAccountTransactionV3 {
             signature: deploy_tx_args.signature,
-            resource_bounds: deploy_tx_args.resource_bounds,
+            resource_bounds: deploy_tx_args.resource_bounds.0.try_into().expect("todo"),
             tip: deploy_tx_args.tip,
             nonce_data_availability_mode: deploy_tx_args.nonce_data_availability_mode,
             fee_data_availability_mode: deploy_tx_args.fee_data_availability_mode,

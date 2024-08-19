@@ -96,7 +96,7 @@ pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
         })
     } else if invoke_args.version == TransactionVersion::THREE {
         starknet_api::transaction::InvokeTransaction::V3(InvokeTransactionV3 {
-            resource_bounds: invoke_args.resource_bounds,
+            resource_bounds: invoke_args.resource_bounds.0.try_into().expect("todo"),
             calldata: invoke_args.calldata,
             sender_address: invoke_args.sender_address,
             nonce: invoke_args.nonce,

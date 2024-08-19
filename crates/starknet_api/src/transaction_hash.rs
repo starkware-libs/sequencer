@@ -6,6 +6,7 @@ use crate::core::{calculate_contract_address, ChainId, ContractAddress};
 use crate::crypto::utils::HashChain;
 use crate::data_availability::DataAvailabilityMode;
 use crate::transaction::{
+    AllResourceBounds,
     DeclareTransaction,
     DeclareTransactionV0V1,
     DeclareTransactionV2,
@@ -14,18 +15,17 @@ use crate::transaction::{
     DeployAccountTransactionV1,
     DeployAccountTransactionV3,
     DeployTransaction,
-    DeprecatedResourceBoundsMapping,
     InvokeTransaction,
     InvokeTransactionV0,
     InvokeTransactionV1,
     InvokeTransactionV3,
     L1HandlerTransaction,
-    Resource,
     ResourceBounds,
     Tip,
     Transaction,
     TransactionHash,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use crate::StarknetApiError;
 
@@ -175,15 +175,17 @@ pub(crate) fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {
 
 // An implementation of the SNIP: https://github.com/EvyatarO/SNIPs/blob/snip-8/SNIPS/snip-8.md
 fn get_tip_resource_bounds_hash(
-    resource_bounds_mapping: &DeprecatedResourceBoundsMapping,
+    resource_bounds: &ValidResourceBounds,
     tip: &Tip,
 ) -> Result<Felt, StarknetApiError> {
-    let l1_resource_bounds =
-        resource_bounds_mapping.0.get(&Resource::L1Gas).expect("Missing l1 resource");
-    let l1_resource = get_concat_resource(l1_resource_bounds, L1_GAS)?;
+    let (l1_resource_bounds, l2_resource_bounds) = match resource_bounds {
+        ValidResourceBounds::L1Gas(l1_gas_bounds) => (l1_gas_bounds, &ResourceBounds::default()),
+        ValidResourceBounds::AllResources(AllResourceBounds { l1_gas, l2_gas, .. }) => {
+            (l1_gas, l2_gas)
+        }
+    };
 
-    let l2_resource_bounds =
-        resource_bounds_mapping.0.get(&Resource::L2Gas).expect("Missing l2 resource");
+    let l1_resource = get_concat_resource(l1_resource_bounds, L1_GAS)?;
     let l2_resource = get_concat_resource(l2_resource_bounds, L2_GAS)?;
 
     Ok(HashChain::new()
