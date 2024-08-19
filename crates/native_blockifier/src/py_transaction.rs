@@ -11,7 +11,12 @@ use blockifier::transaction::transaction_execution::Transaction;
 use blockifier::transaction::transaction_types::TransactionType;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use starknet_api::transaction::{Resource, ResourceBounds};
+use starknet_api::transaction::{
+    DeprecatedResourceBoundsMapping,
+    Resource,
+    ResourceBounds,
+    ValidResourceBounds,
+};
 use starknet_api::StarknetApiError;
 
 use crate::errors::{NativeBlockifierInputError, NativeBlockifierResult};
@@ -68,7 +73,9 @@ impl From<PyResourceBounds> for starknet_api::transaction::ResourceBounds {
 #[derive(Clone, FromPyObject)]
 pub struct PyResourceBoundsMapping(pub BTreeMap<PyResource, PyResourceBounds>);
 
-impl TryFrom<PyResourceBoundsMapping> for starknet_api::transaction::DeprecatedResourceBoundsMapping {
+impl TryFrom<PyResourceBoundsMapping>
+    for starknet_api::transaction::DeprecatedResourceBoundsMapping
+{
     type Error = StarknetApiError;
     fn try_from(py_resource_bounds_mapping: PyResourceBoundsMapping) -> Result<Self, Self::Error> {
         let resource_bounds_vec: Vec<(Resource, ResourceBounds)> = py_resource_bounds_mapping
@@ -79,6 +86,13 @@ impl TryFrom<PyResourceBoundsMapping> for starknet_api::transaction::DeprecatedR
             })
             .collect();
         Self::try_from(resource_bounds_vec)
+    }
+}
+
+impl TryFrom<PyResourceBoundsMapping> for ValidResourceBounds {
+    type Error = StarknetApiError;
+    fn try_from(py_resource_bounds_mapping: PyResourceBoundsMapping) -> Result<Self, Self::Error> {
+        DeprecatedResourceBoundsMapping::try_from(py_resource_bounds_mapping)?.0.try_into()
     }
 }
 

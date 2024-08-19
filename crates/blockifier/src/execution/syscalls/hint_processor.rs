@@ -17,7 +17,7 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{AllResourceBounds, Calldata};
+use starknet_api::transaction::{AllResourcesBounds, Calldata};
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
@@ -482,7 +482,7 @@ impl<'a> SyscallHintProcessor<'a> {
                     ]
                 }
                 starknet_api::transaction::ValidResourceBounds::AllResources(
-                    AllResourceBounds { l1_gas, l2_gas, l1_data_gas },
+                    AllResourcesBounds { l1_gas, l2_gas, l1_data_gas },
                 ) => {
                     vec![
                         l1_gas_as_felt,

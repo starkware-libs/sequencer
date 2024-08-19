@@ -76,6 +76,7 @@ use starknet_api::state::{
 };
 use starknet_api::transaction::{
     AccountDeploymentData,
+    AllResourcesBounds,
     Calldata,
     ContractAddressSalt,
     DeclareTransaction,
@@ -148,6 +149,11 @@ const COMPRESSION_THRESHOLD_BYTES: usize = 384;
 
 auto_storage_serde! {
     pub struct AccountDeploymentData(pub Vec<Felt>);
+    pub struct AllResourcesBounds {
+        pub l1_gas: ResourceBounds,
+        pub l2_gas: ResourceBounds,
+        pub l1_data_gas: ResourceBounds,
+    }
     pub struct BlockHash(pub StarkHash);
     pub struct StorageBlockHeader {
         pub block_hash: BlockHash,
@@ -420,6 +426,10 @@ auto_storage_serde! {
     }
     pub struct TransactionSignature(pub Vec<Felt>);
     pub struct TransactionVersion(pub Felt);
+    pub enum ValidResourceBounds {
+        L1Gas(ResourceBounds) = 0,
+        AllResources(AllResourcesBounds) = 1,
+    }
     pub struct Version{
         pub major: u32,
         pub minor: u32,

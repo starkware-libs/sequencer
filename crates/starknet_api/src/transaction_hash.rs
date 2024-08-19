@@ -179,7 +179,9 @@ fn get_tip_resource_bounds_hash(
 ) -> Result<Felt, StarknetApiError> {
     let (l1_resource_bounds, l2_resource_bounds) = match resource_bounds {
         ValidResourceBounds::L1Gas(l1_gas_bounds) => (l1_gas_bounds, &ResourceBounds::default()),
-        ValidResourceBounds::AllResources { l1_gas, l2_gas, .. } => (l1_gas, l2_gas),
+        ValidResourceBounds::AllResources(all_resources) => {
+            (&all_resources.l1_gas, &all_resources.l2_gas)
+        }
     };
 
     let l1_resource = get_concat_resource(l1_resource_bounds, L1_GAS)?;

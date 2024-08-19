@@ -99,6 +99,7 @@ use starknet_api::state::{
 };
 use starknet_api::transaction::{
     AccountDeploymentData,
+    AllResourcesBounds,
     Calldata,
     ContractAddressSalt,
     DeclareTransaction,
@@ -421,6 +422,11 @@ pub trait GetTestInstance: Sized {
 
 auto_impl_get_test_instance! {
     pub struct AccountDeploymentData(pub Vec<Felt>);
+    pub struct AllResourcesBounds {
+        pub l1_gas: ResourceBounds,
+        pub l2_gas: ResourceBounds,
+        pub l1_data_gas: ResourceBounds,
+    }
     pub struct BlockHash(pub StarkHash);
     pub struct BlockHeader {
         pub block_hash: BlockHash,
@@ -783,6 +789,11 @@ auto_impl_get_test_instance! {
     pub struct TypedParameter {
         pub name: String,
         pub r#type: String,
+    }
+
+    pub enum ValidResourceBounds {
+        L1Gas(ResourceBounds) = 0,
+        AllResources(AllResourcesBounds) = 1,
     }
 
     pub struct CasmContractClass {

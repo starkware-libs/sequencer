@@ -955,11 +955,11 @@ impl TryFrom<Vec<(Resource, ResourceBounds)>> for DeprecatedResourceBoundsMappin
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum ValidResourceBounds {
     L1Gas(ResourceBounds), // Pre 0.13.3. L2 bounds are signed but never used.
-    AllResources(AllResourceBounds),
+    AllResources(AllResourcesBounds),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct AllResourceBounds {
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub struct AllResourcesBounds {
     pub l1_gas: ResourceBounds,
     pub l2_gas: ResourceBounds,
     pub l1_data_gas: ResourceBounds,
@@ -986,10 +986,10 @@ impl Serialize for ValidResourceBounds {
                 (Resource::L1Gas, *l1_gas),
                 (Resource::L2Gas, ResourceBounds::default()),
             ]),
-            ValidResourceBounds::AllResources { l1_gas, l2_gas, l1_data_gas } => BTreeMap::from([
-                (Resource::L1Gas, *l1_gas),
-                (Resource::L2Gas, *l2_gas),
-                (Resource::L1DataGas, *l1_data_gas),
+            ValidResourceBounds::AllResources(all_resources) => BTreeMap::from([
+                (Resource::L1Gas, all_resources.l1_gas),
+                (Resource::L2Gas, all_resources.l2_gas),
+                (Resource::L1DataGas, all_resources.l1_data_gas),
             ]),
         };
         DeprecatedResourceBoundsMapping(map).serialize(s)
@@ -1005,7 +1005,7 @@ impl TryFrom<BTreeMap<Resource, ResourceBounds>> for ValidResourceBounds {
             (raw_resource_bounds.get(&Resource::L1Gas), raw_resource_bounds.get(&Resource::L2Gas))
         {
             match raw_resource_bounds.get(&Resource::L1DataGas) {
-                Some(data_bounds) => Ok(Self::AllResources(AllResourceBounds {
+                Some(data_bounds) => Ok(Self::AllResources(AllResourcesBounds {
                     l1_gas: *l1_bounds,
                     l1_data_gas: *data_bounds,
                     l2_gas: *l2_bounds,
