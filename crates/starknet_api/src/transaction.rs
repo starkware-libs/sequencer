@@ -209,7 +209,8 @@ impl TransactionHasher for DeclareTransactionV2 {
 /// A declare V3 transaction.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct DeclareTransactionV3 {
-    pub resource_bounds: DeprecatedResourceBoundsMapping,
+    #[serde(deserialize_with = "deserialize_resource_bounds")]
+    pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
@@ -318,7 +319,8 @@ impl TransactionHasher for DeployAccountTransactionV1 {
 /// A deploy account V3 transaction.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeployAccountTransactionV3 {
-    pub resource_bounds: DeprecatedResourceBoundsMapping,
+    #[serde(deserialize_with = "deserialize_resource_bounds")]
+    pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
@@ -455,7 +457,8 @@ impl TransactionHasher for InvokeTransactionV1 {
 /// An invoke V3 transaction.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct InvokeTransactionV3 {
-    pub resource_bounds: DeprecatedResourceBoundsMapping,
+    #[serde(deserialize_with = "deserialize_resource_bounds")]
+    pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
@@ -949,10 +952,41 @@ impl TryFrom<Vec<(Resource, ResourceBounds)>> for DeprecatedResourceBoundsMappin
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum ValidResourceBounds {
     L1Gas(ResourceBounds), // Pre 0.13.3. L2 bounds are signed but never used.
     AllResources { l1_gas: ResourceBounds, l2_gas: ResourceBounds, l1_data_gas: ResourceBounds },
+}
+
+/// Deserializes raw resource bounds, given as map, into valid resource bounds.
+pub fn deserialize_resource_bounds<'de, D>(de: D) -> Result<ValidResourceBounds, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw_resource_bounds: BTreeMap<Resource, ResourceBounds> = Deserialize::deserialize(de)?;
+    ValidResourceBounds::try_from(raw_resource_bounds).map_err(serde::de::Error::custom)
+}
+
+/// Serializes ValidResourceBounds as map for BC.
+// TODO(Nimrod): Can this be removed?
+impl Serialize for ValidResourceBounds {
+    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let map = match self {
+            ValidResourceBounds::L1Gas(l1_gas) => BTreeMap::from([
+                (Resource::L1Gas, *l1_gas),
+                (Resource::L2Gas, ResourceBounds::default()),
+            ]),
+            ValidResourceBounds::AllResources { l1_gas, l2_gas, l1_data_gas } => BTreeMap::from([
+                (Resource::L1Gas, *l1_gas),
+                (Resource::L2Gas, *l2_gas),
+                (Resource::L1DataGas, *l1_data_gas),
+            ]),
+        };
+        DeprecatedResourceBoundsMapping(map).serialize(s)
+    }
 }
 
 impl TryFrom<BTreeMap<Resource, ResourceBounds>> for ValidResourceBounds {

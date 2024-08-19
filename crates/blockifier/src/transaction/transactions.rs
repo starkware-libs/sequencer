@@ -30,7 +30,7 @@ use crate::state::cached_state::TransactionalState;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, UpdatableState};
 use crate::transaction::constants;
-use crate::transaction::errors::{TransactionInfoCreationError, TransactionExecutionError};
+use crate::transaction::errors::{TransactionExecutionError, TransactionInfoCreationError};
 use crate::transaction::objects::{
     CommonAccountFields,
     CurrentTransactionInfo,
@@ -296,7 +296,7 @@ impl TransactionInfoCreator for DeclareTransaction {
             starknet_api::transaction::DeclareTransaction::V3(tx) => {
                 Ok(TransactionInfo::Current(CurrentTransactionInfo {
                     common_fields,
-                    resource_bounds: tx.resource_bounds.0.clone().try_into()?,
+                    resource_bounds: tx.resource_bounds.clone(),
                     tip: tx.tip,
                     nonce_data_availability_mode: tx.nonce_data_availability_mode,
                     fee_data_availability_mode: tx.fee_data_availability_mode,
@@ -401,7 +401,7 @@ impl TransactionInfoCreator for DeployAccountTransaction {
             starknet_api::transaction::DeployAccountTransaction::V3(tx) => {
                 Ok(TransactionInfo::Current(CurrentTransactionInfo {
                     common_fields,
-                    resource_bounds: tx.resource_bounds.0.clone().try_into()?,
+                    resource_bounds: tx.resource_bounds.clone(),
                     tip: tx.tip,
                     nonce_data_availability_mode: tx.nonce_data_availability_mode,
                     fee_data_availability_mode: tx.fee_data_availability_mode,
@@ -519,7 +519,7 @@ impl TransactionInfoCreator for InvokeTransaction {
             starknet_api::transaction::InvokeTransaction::V3(tx) => {
                 Ok(TransactionInfo::Current(CurrentTransactionInfo {
                     common_fields,
-                    resource_bounds: tx.resource_bounds.0.clone().try_into()?,
+                    resource_bounds: tx.resource_bounds.clone(),
                     tip: tx.tip,
                     nonce_data_availability_mode: tx.nonce_data_availability_mode,
                     fee_data_availability_mode: tx.fee_data_availability_mode,

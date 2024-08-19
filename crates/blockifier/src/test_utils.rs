@@ -18,9 +18,9 @@ use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
+    DeprecatedResourceBoundsMapping,
     Resource,
     ResourceBounds,
-    DeprecatedResourceBoundsMapping,
     TransactionVersion,
 };
 use starknet_api::{contract_address, felt, patricia_key};

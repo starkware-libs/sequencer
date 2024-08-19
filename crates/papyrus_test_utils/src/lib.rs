@@ -112,6 +112,7 @@ use starknet_api::transaction::{
     DeployAccountTransactionV3,
     DeployTransaction,
     DeployTransactionOutput,
+    DeprecatedResourceBoundsMapping,
     Event,
     EventContent,
     EventData,
@@ -132,7 +133,6 @@ use starknet_api::transaction::{
     PaymasterData,
     Resource,
     ResourceBounds,
-    DeprecatedResourceBoundsMapping,
     RevertedTransactionExecutionStatus,
     Tip,
     Transaction,
@@ -142,6 +142,7 @@ use starknet_api::transaction::{
     TransactionOutput,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 
@@ -517,7 +518,7 @@ auto_impl_get_test_instance! {
         pub sender_address: ContractAddress,
     }
     pub struct DeclareTransactionV3 {
-        pub resource_bounds: DeprecatedResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -550,7 +551,7 @@ auto_impl_get_test_instance! {
         pub constructor_calldata: Calldata,
     }
     pub struct DeployAccountTransactionV3 {
-        pub resource_bounds: DeprecatedResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -657,7 +658,7 @@ auto_impl_get_test_instance! {
         pub calldata: Calldata,
     }
     pub struct InvokeTransactionV3 {
-        pub resource_bounds: DeprecatedResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -783,6 +784,10 @@ auto_impl_get_test_instance! {
         pub name: String,
         pub r#type: String,
     }
+    pub enum ValidResourceBounds {
+        L1Gas(ResourceBounds) = 0,
+        AllResources { l1_gas: ResourceBounds, l2_gas: ResourceBounds, l1_data_gas: ResourceBounds } = 1,
+    }
 
     pub struct CasmContractClass {
         pub prime: BigUint,
@@ -894,7 +899,7 @@ macro_rules! auto_impl_get_test_instance {
         auto_impl_get_test_instance!($($rest)*);
     };
     // enums.
-    ($(pub)? enum $name:ident { $($variant:ident $( ($ty:ty) )? = $num:expr ,)* } $($rest:tt)*) => {
+    ($(pub)? enum $name:ident { $($variant:ident $( ($ty:ty) )? $( { $($field:ident : $field_ty:ty),* } )? = $num:expr ,)* } $($rest:tt)*) => {
         impl GetTestInstance for $name {
             fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
                 use rand::Rng;
@@ -903,6 +908,10 @@ macro_rules! auto_impl_get_test_instance {
                     $(
                         $num => {
                             Self::$variant$((<$ty>::get_test_instance(rng)))?
+
+                            $(Self::$variant {
+                                $($field: <$field_ty>::get_test_instance(rng)),*
+                            })?
                         }
                     )*
                     _ => {

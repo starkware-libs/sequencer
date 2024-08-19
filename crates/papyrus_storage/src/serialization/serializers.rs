@@ -89,6 +89,7 @@ use starknet_api::transaction::{
     DeployAccountTransactionV3,
     DeployTransaction,
     DeployTransactionOutput,
+    DeprecatedResourceBoundsMapping,
     Event,
     EventContent,
     EventData,
@@ -109,7 +110,6 @@ use starknet_api::transaction::{
     PaymasterData,
     Resource,
     ResourceBounds,
-    DeprecatedResourceBoundsMapping,
     RevertedTransactionExecutionStatus,
     Tip,
     Transaction,
@@ -119,6 +119,7 @@ use starknet_api::transaction::{
     TransactionOutput,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 use tracing::warn;
@@ -211,7 +212,7 @@ auto_storage_serde! {
         pub sender_address: ContractAddress,
     }
     pub struct DeclareTransactionV3 {
-        pub resource_bounds: DeprecatedResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -1162,7 +1163,7 @@ auto_storage_serde_conditionally_compressed! {
     }
 
     pub struct DeployAccountTransactionV3 {
-        pub resource_bounds: DeprecatedResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -1198,7 +1199,7 @@ auto_storage_serde_conditionally_compressed! {
     }
 
     pub struct InvokeTransactionV3 {
-        pub resource_bounds: DeprecatedResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
