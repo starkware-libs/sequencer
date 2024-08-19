@@ -1,6 +1,6 @@
 use assert_matches::assert_matches;
 use rstest::rstest;
-use starknet_api::transaction::{DeprecatedResourceBoundsMapping, Fee, TransactionVersion};
+use starknet_api::transaction::{Fee, TransactionVersion, ValidResourceBounds};
 
 use crate::blockifier::stateful_validator::StatefulValidator;
 use crate::context::BlockContext;
@@ -33,7 +33,7 @@ fn test_transaction_validator(
     #[case] validate_constructor: bool,
     #[case] tx_version: TransactionVersion,
     block_context: BlockContext,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     let chain_info = &block_context.chain_info;
@@ -75,7 +75,7 @@ fn test_transaction_validator(
 }
 
 #[rstest]
-fn test_transaction_validator_skip_validate(max_resource_bounds: DeprecatedResourceBoundsMapping) {
+fn test_transaction_validator_skip_validate(max_resource_bounds: ValidResourceBounds) {
     let block_context = BlockContext::create_for_testing();
     let faulty_account = FeatureContract::FaultyAccount(CairoVersion::Cairo1);
     let state = test_state(&block_context.chain_info, BALANCE, &[(faulty_account, 1)]);
