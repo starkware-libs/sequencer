@@ -16,6 +16,7 @@ pub struct GatewayConfig {
     pub network_config: GatewayNetworkConfig,
     pub stateless_tx_validator_config: StatelessTransactionValidatorConfig,
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
+    pub chain_info: ChainInfo,
 }
 
 impl SerializeConfig for GatewayConfig {
@@ -30,6 +31,7 @@ impl SerializeConfig for GatewayConfig {
                 self.stateful_tx_validator_config.dump(),
                 "stateful_tx_validator_config",
             ),
+            append_sub_config_name(self.chain_info.dump(), "chain_info"),
         ]
         .into_iter()
         .flatten()
@@ -169,9 +171,6 @@ pub struct StatefulTransactionValidatorConfig {
     pub max_nonce_for_validation_skip: Nonce,
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
-    // TODO(Arni): Move this member out of the stateful transaction validator config. Move it into
-    // the gateway config. This is used during the transalation from external_tx to executable_tx.
-    pub chain_info: ChainInfo,
 }
 
 impl Default for StatefulTransactionValidatorConfig {
@@ -180,14 +179,13 @@ impl Default for StatefulTransactionValidatorConfig {
             max_nonce_for_validation_skip: Nonce(Felt::ONE),
             validate_max_n_steps: 1_000_000,
             max_recursion_depth: 50,
-            chain_info: ChainInfo::default(),
         }
     }
 }
 
 impl SerializeConfig for StatefulTransactionValidatorConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let members = BTreeMap::from_iter([
+        BTreeMap::from_iter([
             ser_param(
                 "max_nonce_for_validation_skip",
                 &self.max_nonce_for_validation_skip,
@@ -206,20 +204,6 @@ impl SerializeConfig for StatefulTransactionValidatorConfig {
                 "Maximum recursion depth for nested calls during blockifier validation.",
                 ParamPrivacyInput::Public,
             ),
-        ]);
-        let sub_configs = append_sub_config_name(self.chain_info.dump(), "chain_info");
-        vec![members, sub_configs].into_iter().flatten().collect()
-    }
-}
-
-impl StatefulTransactionValidatorConfig {
-    #[cfg(any(test, feature = "testing"))]
-    pub fn create_for_testing() -> Self {
-        StatefulTransactionValidatorConfig {
-            max_nonce_for_validation_skip: Default::default(),
-            validate_max_n_steps: 1000000,
-            max_recursion_depth: 50,
-            chain_info: ChainInfo::create_for_testing(),
-        }
+        ])
     }
 }

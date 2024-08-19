@@ -32,13 +32,14 @@ pub fn app_state(
             config: StatelessTransactionValidatorConfig::default(),
         },
         stateful_tx_validator: Arc::new(StatefulTransactionValidator {
-            config: StatefulTransactionValidatorConfig::create_for_testing(),
+            config: StatefulTransactionValidatorConfig::default(),
         }),
         gateway_compiler: GatewayCompiler::new_cairo_lang_compiler(
             SierraToCasmCompilationConfig::default(),
         ),
         state_reader_factory: Arc::new(state_reader_factory),
         mempool_client,
+        chain_info: ChainInfo::create_for_testing(),
     }
 }
 

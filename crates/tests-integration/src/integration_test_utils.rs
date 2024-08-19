@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 
 use axum::body::Body;
+use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContract;
 use mempool_test_utils::starknet_api_test_utils::{
     external_tx_to_json,
@@ -23,18 +24,23 @@ use tokio::net::TcpListener;
 use crate::integration_test_setup::IntegrationTestSetup;
 
 async fn create_gateway_config() -> GatewayConfig {
+    let socket = get_available_socket().await;
+    let network_config = GatewayNetworkConfig { ip: socket.ip(), port: socket.port() };
     let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
         validate_non_zero_l1_gas_fee: true,
         max_calldata_length: 10,
         max_signature_length: 2,
         ..Default::default()
     };
+    let stateful_tx_validator_config = StatefulTransactionValidatorConfig::default();
+    let chain_info = ChainInfo::create_for_testing();
 
-    let socket = get_available_socket().await;
-    let network_config = GatewayNetworkConfig { ip: socket.ip(), port: socket.port() };
-    let stateful_tx_validator_config = StatefulTransactionValidatorConfig::create_for_testing();
-
-    GatewayConfig { network_config, stateless_tx_validator_config, stateful_tx_validator_config }
+    GatewayConfig {
+        network_config,
+        stateless_tx_validator_config,
+        stateful_tx_validator_config,
+        chain_info,
+    }
 }
 
 pub async fn create_config(rpc_server_addr: SocketAddr) -> MempoolNodeConfig {

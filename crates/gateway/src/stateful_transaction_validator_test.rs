@@ -2,7 +2,7 @@ use blockifier::blockifier::stateful_validator::{
     StatefulValidatorError as BlockifierStatefulValidatorError,
     StatefulValidatorResult as BlockifierStatefulValidatorResult,
 };
-use blockifier::context::BlockContext;
+use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::test_utils::CairoVersion;
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
 use mempool_test_utils::invoke_tx_args;
@@ -60,7 +60,6 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
             max_nonce_for_validation_skip: Default::default(),
             validate_max_n_steps: block_context.versioned_constants().validate_max_n_steps,
             max_recursion_depth: block_context.versioned_constants().max_recursion_depth,
-            chain_info: block_context.chain_info().clone(),
         },
     }
 }
@@ -87,7 +86,7 @@ fn test_stateful_tx_validator(
     let executable_tx = external_tx_to_executable_tx(
         &external_tx,
         &gateway_compiler,
-        &stateful_validator.config.chain_info.chain_id,
+        &ChainInfo::create_for_testing().chain_id,
     )
     .unwrap();
 
@@ -131,10 +130,10 @@ fn test_instantiate_validator() {
             max_nonce_for_validation_skip: Default::default(),
             validate_max_n_steps: block_context.versioned_constants().validate_max_n_steps,
             max_recursion_depth: block_context.versioned_constants().max_recursion_depth,
-            chain_info: block_context.chain_info().clone(),
         },
     };
-    let blockifier_validator = stateful_validator.instantiate_validator(&mock_state_reader_factory);
+    let blockifier_validator = stateful_validator
+        .instantiate_validator(&mock_state_reader_factory, block_context.chain_info());
     assert!(blockifier_validator.is_ok());
 }
 
@@ -164,7 +163,7 @@ fn test_skip_stateful_validation(
     let executable_tx = external_tx_to_executable_tx(
         &external_tx,
         &GatewayCompiler::new_cairo_lang_compiler(Default::default()),
-        &stateful_validator.config.chain_info.chain_id,
+        &ChainInfo::create_for_testing().chain_id,
     )
     .unwrap();
 
