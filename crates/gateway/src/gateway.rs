@@ -154,11 +154,11 @@ fn process_tx(
     Ok(MempoolInput {
         tx: Transaction::new_from_rpc_tx(
             copy_of_rpc_tx,
-            validate_info.tx_hash,
-            validate_info.sender_address,
+            executable_tx.tx_hash(),
+            executable_tx.contract_address(),
         ),
         account: Account {
-            sender_address: validate_info.sender_address,
+            sender_address: executable_tx.contract_address(),
             state: AccountState { nonce: validate_info.account_nonce },
         },
     })
