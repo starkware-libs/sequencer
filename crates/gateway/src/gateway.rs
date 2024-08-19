@@ -141,9 +141,9 @@ fn process_tx(
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
     Ok(MempoolInput {
-        tx: external_tx_to_thin_tx(&tx, validate_info.tx_hash, validate_info.sender_address),
+        tx: external_tx_to_thin_tx(&tx, executable_tx.tx_hash(), executable_tx.contract_address()),
         account: Account {
-            sender_address: validate_info.sender_address,
+            sender_address: executable_tx.contract_address(),
             state: AccountState { nonce: validate_info.account_nonce },
         },
     })

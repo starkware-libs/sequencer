@@ -169,18 +169,3 @@ pub fn executable_transaction_to_account_tx(
         }
     }
 }
-
-// TODO(yael 9/5/54): Should be implemented as part of InternalTransaction in starknet-api
-pub fn get_sender_address(tx: &AccountTransaction) -> ContractAddress {
-    match tx {
-        AccountTransaction::Declare(tx) => match &tx.tx {
-            DeclareTransaction::V3(tx) => tx.sender_address,
-            _ => panic!("Unsupported transaction version"),
-        },
-        AccountTransaction::DeployAccount(tx) => tx.contract_address,
-        AccountTransaction::Invoke(tx) => match &tx.tx {
-            InvokeTransaction::V3(tx) => tx.sender_address,
-            _ => panic!("Unsupported transaction version"),
-        },
-    }
-}
