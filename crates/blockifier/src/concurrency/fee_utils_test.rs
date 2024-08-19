@@ -1,7 +1,7 @@
 use num_bigint::BigUint;
 use rstest::rstest;
 use starknet_api::felt;
-use starknet_api::transaction::{DeprecatedResourceBoundsMapping, Fee};
+use starknet_api::transaction::{Fee, ValidResourceBounds};
 use starknet_types_core::felt::Felt;
 
 use crate::concurrency::fee_utils::{add_fee_to_sequencer_balance, fill_sequencer_balance_reads};
@@ -19,7 +19,7 @@ use crate::transaction::test_utils::{account_invoke_tx, block_context, max_resou
 #[rstest]
 pub fn test_fill_sequencer_balance_reads(
     block_context: BlockContext,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] erc20_version: CairoVersion,
 ) {
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
