@@ -5,13 +5,13 @@ use starknet_api::transaction::{
     DeclareTransactionV0V1,
     DeclareTransactionV2,
     DeclareTransactionV3,
-    DeprecatedResourceBoundsMapping,
     Fee,
     PaymasterData,
     Tip,
     TransactionHash,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 
 use crate::execution::contract_class::ClassInfo;
@@ -25,7 +25,7 @@ pub struct DeclareTxArgs {
     pub signature: TransactionSignature,
     pub sender_address: ContractAddress,
     pub version: TransactionVersion,
-    pub resource_bounds: DeprecatedResourceBoundsMapping,
+    pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
@@ -108,7 +108,7 @@ pub fn declare_tx(declare_tx_args: DeclareTxArgs, class_info: ClassInfo) -> Acco
                 starknet_api::transaction::DeclareTransaction::V3(DeclareTransactionV3 {
                     signature: declare_tx_args.signature,
                     sender_address: declare_tx_args.sender_address,
-                    resource_bounds: declare_tx_args.resource_bounds.0.try_into().expect("todo"),
+                    resource_bounds: declare_tx_args.resource_bounds,
                     tip: declare_tx_args.tip,
                     nonce_data_availability_mode: declare_tx_args.nonce_data_availability_mode,
                     fee_data_availability_mode: declare_tx_args.fee_data_availability_mode,
