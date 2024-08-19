@@ -195,12 +195,15 @@ fn prepare_program_extra_data(
     read_only_segments: &mut ReadOnlySegments,
 ) -> Result<usize, PreExecutionError> {
     // Create the builtin cost segment, with dummy values.
-    let mut data = vec![];
+    let data = vec![
+        MaybeRelocatable::from(4130), // Pesetsen
+        MaybeRelocatable::from(594),  // Bitwise
+        MaybeRelocatable::from(4166), // EcOp
+        MaybeRelocatable::from(500),  // Posidon
+        MaybeRelocatable::from(234),  // AddMod
+        MaybeRelocatable::from(616),  // MulMod
+    ];
 
-    // TODO(spapini): Put real costs here.
-    for _i in 0..20 {
-        data.push(MaybeRelocatable::from(0));
-    }
     let builtin_cost_segment_start = read_only_segments.allocate(&mut runner.vm, &data)?;
 
     // Put a pointer to the builtin cost segment at the end of the program (after the
