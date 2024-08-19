@@ -10,6 +10,7 @@ pub mod state_diff;
 mod transaction;
 
 use prost::DecodeError;
+use starknet_api::StarknetApiError;
 
 #[derive(thiserror::Error, PartialEq, Debug, Clone)]
 pub enum ProtobufConversionError {
