@@ -34,6 +34,7 @@ use starknet_api::transaction::{
     TransactionOutput,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 
@@ -444,7 +445,8 @@ impl TryFrom<protobuf::transaction::DeployAccountV3> for DeployAccountTransactio
             value.resource_bounds.ok_or(ProtobufConversionError::MissingField {
                 field_description: "DeployAccountV3::resource_bounds",
             })?,
-        )?;
+        )?
+        .try_into()?;
 
         let tip = Tip(value.tip);
 
@@ -627,6 +629,30 @@ impl From<DeprecatedResourceBoundsMapping> for protobuf::ResourceBounds {
     }
 }
 
+impl From<ValidResourceBounds> for protobuf::ResourceBounds {
+    fn from(value: ValidResourceBounds) -> Self {
+        let mut res = protobuf::ResourceBounds::default();
+
+        let resource_bounds_l1 = value.get_l1_bounds();
+
+        let resource_limits_l1 = protobuf::ResourceLimits {
+            max_amount: resource_bounds_l1.max_amount,
+            max_price_per_unit: Some(Felt::from(resource_bounds_l1.max_price_per_unit).into()),
+        };
+        res.l1_gas = Some(resource_limits_l1);
+
+        let resource_bounds_l2 = value.get_l2_bounds();
+
+        let resource_limits_l2 = protobuf::ResourceLimits {
+            max_amount: resource_bounds_l2.max_amount,
+            max_price_per_unit: Some(Felt::from(resource_bounds_l2.max_price_per_unit).into()),
+        };
+        res.l2_gas = Some(resource_limits_l2);
+
+        res
+    }
+}
+
 impl TryFrom<protobuf::transaction::InvokeV0> for InvokeTransactionV0 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::InvokeV0) -> Result<Self, Self::Error> {
@@ -760,7 +786,8 @@ impl TryFrom<protobuf::transaction::InvokeV3> for InvokeTransactionV3 {
             value.resource_bounds.ok_or(ProtobufConversionError::MissingField {
                 field_description: "InvokeV3::resource_bounds",
             })?,
-        )?;
+        )?
+        .try_into()?;
 
         let tip = Tip(value.tip);
 
@@ -1078,7 +1105,8 @@ impl TryFrom<protobuf::transaction::DeclareV3> for DeclareTransactionV3 {
             value.resource_bounds.ok_or(ProtobufConversionError::MissingField {
                 field_description: "DeclareV3::resource_bounds",
             })?,
-        )?;
+        )?
+        .try_into()?;
 
         let tip = Tip(value.tip);
 
