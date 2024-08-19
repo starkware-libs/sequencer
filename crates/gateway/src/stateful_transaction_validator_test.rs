@@ -18,10 +18,8 @@ use mockall::predicate::eq;
 use num_bigint::BigUint;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::TransactionHash;
-use starknet_api::{contract_address, felt, patricia_key};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_types_core::felt::Felt;
 
@@ -69,13 +67,7 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
 #[rstest]
 #[case::valid_tx(
     invoke_tx(CairoVersion::Cairo1),
-    Ok(ValidateInfo{
-        tx_hash: TransactionHash(felt!(
-        "0x3b93426272b6e281bc9bde29b91a9fb100c2f9689388c62360b2be2f4e7b493"
-        )),
-        sender_address: contract_address!("0xc0020000"),
-        account_nonce: Nonce::default()
-    })
+    Ok(ValidateInfo{account_nonce: Nonce::default()})
 )]
 #[case::invalid_tx(invoke_tx(CairoVersion::Cairo1), Err(STATEFUL_VALIDATOR_FEE_ERROR))]
 fn test_stateful_tx_validator(

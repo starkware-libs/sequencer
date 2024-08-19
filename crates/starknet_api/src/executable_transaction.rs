@@ -45,6 +45,7 @@ pub enum Transaction {
 }
 
 impl Transaction {
+    /// This parameter is somethimes called `sender_address`.
     pub fn contract_address(&self) -> ContractAddress {
         match self {
             Transaction::Declare(tx_data) => tx_data.tx.sender_address(),
