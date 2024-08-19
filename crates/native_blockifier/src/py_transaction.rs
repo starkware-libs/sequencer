@@ -73,9 +73,7 @@ impl From<PyResourceBounds> for starknet_api::transaction::ResourceBounds {
 #[derive(Clone, FromPyObject)]
 pub struct PyResourceBoundsMapping(pub BTreeMap<PyResource, PyResourceBounds>);
 
-impl TryFrom<PyResourceBoundsMapping>
-    for starknet_api::transaction::DeprecatedResourceBoundsMapping
-{
+impl TryFrom<PyResourceBoundsMapping> for DeprecatedResourceBoundsMapping {
     type Error = StarknetApiError;
     fn try_from(py_resource_bounds_mapping: PyResourceBoundsMapping) -> Result<Self, Self::Error> {
         let resource_bounds_vec: Vec<(Resource, ResourceBounds)> = py_resource_bounds_mapping
