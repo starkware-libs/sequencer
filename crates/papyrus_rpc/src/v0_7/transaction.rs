@@ -29,6 +29,7 @@ use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::serde_utils::bytes_from_hex_str;
 use starknet_api::transaction::{
     AccountDeploymentData,
+    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     DeployTransaction,
@@ -165,6 +166,30 @@ impl From<starknet_api::transaction::DeprecatedResourceBoundsMapping> for Resour
         Self {
             l1_gas: value.0.get(&Resource::L1Gas).cloned().unwrap_or_default(),
             l2_gas: value.0.get(&Resource::L2Gas).cloned().unwrap_or_default(),
+        }
+    }
+}
+
+impl From<ResourceBoundsMapping> for starknet_api::transaction::ValidResourceBounds {
+    fn from(value: ResourceBoundsMapping) -> Self {
+        if !value.l2_gas.is_zero() {
+            panic!("Resource bounds mapping l2 gas is expected to be zero. Got: {:?}", value.l2_gas)
+        }
+        Self::L1Gas(value.l1_gas)
+    }
+}
+
+impl From<starknet_api::transaction::ValidResourceBounds> for ResourceBoundsMapping {
+    fn from(value: starknet_api::transaction::ValidResourceBounds) -> Self {
+        match value {
+            starknet_api::transaction::ValidResourceBounds::L1Gas(l1_gas) => {
+                Self { l1_gas, l2_gas: ResourceBounds::default() }
+            }
+            starknet_api::transaction::ValidResourceBounds::AllResources(AllResourceBounds {
+                l1_gas,
+                l2_gas,
+                ..
+            }) => Self { l1_gas, l2_gas },
         }
     }
 }
