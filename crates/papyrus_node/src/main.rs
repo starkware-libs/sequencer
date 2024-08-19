@@ -134,6 +134,7 @@ fn run_consensus(
             config.start_height,
             config.validator_id,
             config.consensus_delay,
+            config.timeouts,
             network_receiver,
             sync_receiver,
         )))
@@ -149,6 +150,7 @@ fn run_consensus(
             config.start_height,
             config.validator_id,
             config.consensus_delay,
+            config.timeouts,
             network_channels.broadcasted_messages_receiver,
             futures::stream::pending(),
         )))
