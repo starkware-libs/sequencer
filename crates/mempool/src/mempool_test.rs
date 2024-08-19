@@ -816,3 +816,23 @@ fn test_flow_send_same_nonce_tx_after_previous_not_included() {
     let expected_mempool_content = MempoolContent::with_queue(expected_queue_txs);
     expected_mempool_content.assert_eq_queue_content(&mempool);
 }
+
+#[rstest]
+fn test_tx_pool_capacity(mut mempool: Mempool) {
+    // Setup.
+    let tx_1 = add_tx_input!(tip: 1, tx_hash: 0, sender_address: 0_u8);
+    let tx_2 = add_tx_input!(tip: 1, tx_hash: 1, sender_address: 1_u8);
+
+    // Test and assert: add txs to the counter.
+    add_tx(&mut mempool, &tx_1);
+    add_tx(&mut mempool, &tx_2);
+    assert_eq!(mempool._tx_pool().txs_count(), 2);
+
+    // Test and assert: duplicate transaction doesn't affect capacity.
+    assert_matches!(mempool.add_tx(tx_1), Err(MempoolError::DuplicateTransaction { .. }));
+    assert_eq!(mempool._tx_pool().txs_count(), 2);
+
+    // Test and assert: remove the transactions, counter does not go below 0.
+    let _txs = mempool.get_txs(3).unwrap();
+    assert_eq!(mempool._tx_pool().txs_count(), 0);
+}
