@@ -95,7 +95,12 @@
         "memory_hole_gas_cost": 10,
         "nop_entry_point_offset": -1,
         "range_check_gas_cost": 70,
+        "pedersen_gas_cost": 0,
         "bitwise_builtin_gas_cost": 594,
+        "ecop_gas_cost": 0,
+        "poseidon_gas_cost": 0,
+        "add_mod_gas_cost": 0,
+        "mul_mod_gas_cost": 0,
         "replace_class_gas_cost": {
             "step_gas_cost": 50,
             "syscall_base_gas_cost": 1
