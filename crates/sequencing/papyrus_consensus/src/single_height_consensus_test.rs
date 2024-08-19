@@ -2,14 +2,14 @@ use std::sync::{Arc, OnceLock};
 
 use futures::channel::{mpsc, oneshot};
 use lazy_static::lazy_static;
-use papyrus_protobuf::consensus::{ConsensusMessage, Vote, VoteType};
+use papyrus_protobuf::consensus::ConsensusMessage;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 use tokio;
 
 use super::SingleHeightConsensus;
-use crate::test_utils::{MockTestContext, TestBlock};
+use crate::test_utils::{precommit, prevote, MockTestContext, TestBlock};
 use crate::types::{ConsensusBlock, ConsensusError, ProposalInit, ValidatorId};
 
 lazy_static! {
@@ -23,30 +23,6 @@ lazy_static! {
     static ref BLOCK_ID: BlockHash = BLOCK.id();
     static ref PROPOSAL_INIT: ProposalInit =
         ProposalInit { height: BlockNumber(0), round: 0, proposer: *PROPOSER_ID };
-}
-
-fn prevote(
-    block_hash: Option<BlockHash>,
-    height: u64,
-    round: u32,
-    voter: ValidatorId,
-) -> ConsensusMessage {
-    ConsensusMessage::Vote(Vote { vote_type: VoteType::Prevote, height, round, block_hash, voter })
-}
-
-fn precommit(
-    block_hash: Option<BlockHash>,
-    height: u64,
-    round: u32,
-    voter: ValidatorId,
-) -> ConsensusMessage {
-    ConsensusMessage::Vote(Vote {
-        vote_type: VoteType::Precommit,
-        height,
-        round,
-        block_hash,
-        voter,
-    })
 }
 
 #[tokio::test]
