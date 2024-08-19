@@ -393,5 +393,10 @@
     "description": "Whether to verify incoming blocks.",
     "privacy": "Public",
     "value": true
+  },
+  "sync.poll_pending_data": {
+    "description": "Whether to poll for pending data.",
+    "privacy": "Public",
+    "value": true
   }
 }
