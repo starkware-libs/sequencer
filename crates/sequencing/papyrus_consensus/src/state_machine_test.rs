@@ -212,3 +212,22 @@ fn advance_to_the_next_round() {
     // The Node sends Prevote after advancing to the next round.
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(BLOCK_HASH, ROUND + 1));
 }
+
+#[test]
+fn prevote_when_receiving_proposal_in_current_round() {
+    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID);
+
+    wrapper.start();
+    assert!(wrapper.next_event().is_none());
+
+    wrapper.send_precommit(None, ROUND);
+    wrapper.send_precommit(None, ROUND);
+    wrapper.send_precommit(None, ROUND);
+    // The node starts the next round, shouldn't prevote when receiving a proposal for the
+    // previous round.
+    wrapper.send_proposal(BLOCK_HASH, ROUND);
+    assert!(wrapper.next_event().is_none());
+    // The node should prevote when receiving a proposal for the current round.
+    wrapper.send_proposal(BLOCK_HASH, ROUND + 1);
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(BLOCK_HASH, ROUND + 1));
+}
