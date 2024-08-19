@@ -854,3 +854,35 @@ fn test_flow_send_same_nonce_tx_after_previous_not_included() {
     let expected_mempool_content = MempoolContent::with_queue(expected_queue_txs);
     expected_mempool_content.assert_eq_queue_content(&mempool);
 }
+
+#[rstest]
+fn test_tx_pool_capacity(mut mempool: Mempool) {
+    let input_1 =
+        add_tx_input!(tx_hash: 0, sender_address: 0_u8, tx_nonce: 0_u8, account_nonce: 0_u8);
+    let input_2 =
+        add_tx_input!(tx_hash: 1, sender_address: 1_u8, tx_nonce: 0_u8, account_nonce: 0_u8);
+
+    // Test and assert: add txs to the counter.
+    add_tx(&mut mempool, &input_1);
+    add_tx(&mut mempool, &input_2);
+    assert_eq!(mempool._tx_pool().n_txs(), 2);
+
+    // Test and assert: duplicate transaction doesn't affect capacity.
+    add_tx_expect_error(
+        &mut mempool,
+        &input_1,
+        MempoolError::DuplicateTransaction { tx_hash: input_1.tx.tx_hash() },
+    );
+    assert_eq!(mempool._tx_pool().n_txs(), 2);
+
+    // Test and assert: updates pool capacity when a transaction is removed upon receiving state
+    // changes.
+    let state_changes =
+        HashMap::from([(contract_address!("0x0"), AccountState { nonce: Nonce(felt!(4_u8)) })]);
+    assert!(mempool.commit_block(state_changes).is_ok());
+    assert_eq!(mempool._tx_pool().n_txs(), 1);
+
+    // Test and assert: remove the transactions, counter does not go below 0.
+    mempool.get_txs(2).unwrap();
+    assert_eq!(mempool._tx_pool().n_txs(), 0);
+}
