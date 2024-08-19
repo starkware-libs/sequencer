@@ -1,6 +1,6 @@
-{{- if eq .Values.deployment.type "deployment" }}
+{{- if eq .Values.deployment.type "statefulset" }}
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: {{ template "papyrus.name" . }}
   namespace: {{ .Release.Namespace }}
@@ -11,11 +11,10 @@ spec:
   selector:
     matchLabels:
       {{- include "papyrus.selectorLabels" . | nindent 6 }}
-  strategy:
+  updateStrategy:
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 1
-      maxSurge: 1
   template:
     metadata:
       annotations:
@@ -34,9 +33,6 @@ spec:
       securityContext:
         fsGroup: 1000
       volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: {{ template "papyrus.name" . }}-data
         {{- if .Values.backup.enabled }}
         - name: run
           configMap:
@@ -84,13 +80,7 @@ spec:
           - {{ .Values.p2p.nodeConfig.bootstrapServer.multiaddrIsNone | quote }}
           - --network.bootstrap_peer_multiaddr
           - {{ include "p2p.bootstrapPeerMultiaddr" . | quote }}
-          {{- end }}
-          {{- if or .Values.p2p.nodeConfig.overrideIP (and .Values.p2p.service.enabled (not .Values.p2p.bootstrap) (or .Values.p2p.service.clusterIP .Values.p2p.service.loadBalancerIP)) }}
-          - --network.hardcoded_external_multiaddr.#is_none
-          - "false"
-          - --network.hardcoded_external_multiaddr
-          - {{ include "p2p.nodePeerMultiaddr" . | quote }}
-          {{- end }}
+          {{- end}}
           {{- end }}
           {{ range $key, $value := .Values.deployment.extraArgs }}
           {{- if $value }}
@@ -114,7 +104,7 @@ spec:
           name: p2p
         {{- end }}
         volumeMounts:
-        - name: data
+        - name: {{ template "papyrus.name" . }}-data
           mountPath: /app/data
         envFrom:
         - configMapRef:
@@ -125,7 +115,7 @@ spec:
         - -c
         - /app/run/backup.sh
         volumeMounts:
-        - name: data
+        - name: {{ template "papyrus.name" . }}-data
           mountPath: /app/data
         - name: run
           mountPath: /app/run
@@ -135,9 +125,9 @@ spec:
         - secretRef:
             name: {{ template "papyrus.name" . }}-aws-creds
         {{- end }}
-{{- if or .Values.deployment.affinity .Values.deployment.podAntiAffinity }}
+      {{- if or .Values.deployment.affinity .Values.deployment.podAntiAffinity }}
       affinity:
-    {{- end }}
+      {{- end }}
       {{- with .Values.deployment.affinity }}
       {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -162,4 +152,17 @@ spec:
       topologySpreadConstraints:
         {{- toYaml . | nindent 8 }}
     {{- end }}
+  volumeClaimTemplates:
+  - metadata:
+      name: {{ template "papyrus.name" . }}-data
+      labels:
+        {{- include "papyrus.labels" . | nindent 8 }}
+    spec:
+      storageClassName: {{ .Values.pvc.storageClass }}
+      accessModes:
+      - "ReadWriteOnce"
+      volumeMode: Filesystem
+      resources:
+        requests:
+          storage: {{ .Values.pvc.size | quote }}
 {{- end }}
