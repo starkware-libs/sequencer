@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
+use blockifier::context::ChainInfo;
 use blockifier::test_utils::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::{declare_tx, invoke_tx};
 use mockall::predicate::eq;
@@ -28,13 +29,14 @@ pub fn app_state(
             config: StatelessTransactionValidatorConfig::default(),
         },
         stateful_tx_validator: Arc::new(StatefulTransactionValidator {
-            config: StatefulTransactionValidatorConfig::create_for_testing(),
+            config: StatefulTransactionValidatorConfig::default(),
         }),
         gateway_compiler: GatewayCompiler::new_command_line_compiler(
             SierraToCasmCompilationConfig::default(),
         ),
         state_reader_factory: Arc::new(state_reader_factory),
         mempool_client,
+        chain_info: ChainInfo::create_for_testing(),
     }
 }
 
