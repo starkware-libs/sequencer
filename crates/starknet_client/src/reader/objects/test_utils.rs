@@ -16,7 +16,6 @@ use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
-    DeprecatedResourceBoundsMapping,
     Event,
     Fee,
     L1ToL2Payload,
@@ -27,6 +26,7 @@ use starknet_api::transaction::{
     TransactionOffsetInBlock,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 
@@ -60,7 +60,7 @@ auto_impl_get_test_instance! {
         Reserved = 0,
     }
     pub struct IntermediateDeclareTransaction {
-        pub resource_bounds: Option<DeprecatedResourceBoundsMapping>,
+        pub resource_bounds: Option<ValidResourceBounds>,
         pub tip: Option<Tip>,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -76,7 +76,7 @@ auto_impl_get_test_instance! {
         pub transaction_hash: TransactionHash,
     }
     pub struct IntermediateDeployAccountTransaction {
-        pub resource_bounds: Option<DeprecatedResourceBoundsMapping>,
+        pub resource_bounds: Option<ValidResourceBounds>,
         pub tip: Option<Tip>,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -100,7 +100,7 @@ auto_impl_get_test_instance! {
         pub version: TransactionVersion,
     }
     pub struct IntermediateInvokeTransaction {
-        pub resource_bounds: Option<DeprecatedResourceBoundsMapping>,
+        pub resource_bounds: Option<ValidResourceBounds>,
         pub tip: Option<Tip>,
         pub calldata: Calldata,
         pub sender_address: ContractAddress,
