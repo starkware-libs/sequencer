@@ -34,7 +34,7 @@ This Papyrus version supports the following starknet versions:
 
 Papyrus is a work in progress.
 
-Use it at your own risk.
+Use it at your own risk!
 
 == Getting started
 
