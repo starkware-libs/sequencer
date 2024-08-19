@@ -8,12 +8,13 @@ use crate::transaction::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
-    DeprecatedResourceBoundsMapping,
     PaymasterData,
+    ResourceBounds,
     Tip,
     TransactionHash,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 
 macro_rules! implement_inner_tx_getter_calls {
@@ -29,7 +30,7 @@ macro_rules! implement_getter_calls {
         $(pub fn $field(&self) -> $field_type {
             self.$field
         })*
-    };
+};
 }
 
 /// Represents a paid Starknet transaction.
@@ -94,7 +95,7 @@ impl Transaction {
                     sender_address,
                     tip: *rpc_tx.tip(),
                     nonce: *rpc_tx.nonce(),
-                    resource_bounds: DeprecatedResourceBoundsMapping::default(),
+                    resource_bounds: ValidResourceBounds::L1Gas(ResourceBounds::default()),
                     signature: TransactionSignature::default(),
                     calldata: Calldata::default(),
                     nonce_data_availability_mode: DataAvailabilityMode::L1,
