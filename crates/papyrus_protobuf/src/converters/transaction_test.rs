@@ -90,7 +90,7 @@ fn convert_declare_transaction_v3_to_vec_u8_and_back() {
     let mut rng = get_rng();
     let mut transaction =
         starknet_api::transaction::DeclareTransactionV3::get_test_instance(&mut rng);
-    transaction.resource_bounds = RESOURCE_BOUNDS_MAPPING.clone();
+    transaction.resource_bounds = RESOURCE_BOUNDS_MAPPING.clone().try_into().unwrap();
     let transaction = StarknetApiTransaction::Declare(DeclareTransaction::V3(transaction));
 
     let transaction_output = create_transaction_output!(DeclareTransactionOutput, Declare);
@@ -122,7 +122,7 @@ fn convert_invoke_transaction_v3_to_vec_u8_and_back() {
     let mut rng = get_rng();
     let mut transaction =
         starknet_api::transaction::InvokeTransactionV3::get_test_instance(&mut rng);
-    transaction.resource_bounds = RESOURCE_BOUNDS_MAPPING.clone();
+    transaction.resource_bounds = RESOURCE_BOUNDS_MAPPING.clone().try_into().unwrap();
     let transaction = StarknetApiTransaction::Invoke(InvokeTransaction::V3(transaction));
 
     let transaction_output = create_transaction_output!(InvokeTransactionOutput, Invoke);
@@ -147,7 +147,7 @@ fn convert_deploy_account_transaction_v3_to_vec_u8_and_back() {
     let mut rng = get_rng();
     let mut transaction =
         starknet_api::transaction::DeployAccountTransactionV3::get_test_instance(&mut rng);
-    transaction.resource_bounds = RESOURCE_BOUNDS_MAPPING.clone();
+    transaction.resource_bounds = RESOURCE_BOUNDS_MAPPING.clone().try_into().unwrap();
     let transaction =
         StarknetApiTransaction::DeployAccount(DeployAccountTransaction::V3(transaction));
 
@@ -200,7 +200,7 @@ lazy_static! {
         DeprecatedResourceBoundsMapping(
             [
                 (Resource::L1Gas, ResourceBounds { max_amount: 0x5, max_price_per_unit: 0x6 }),
-                (Resource::L2Gas, ResourceBounds { max_amount: 0x5, max_price_per_unit: 0x6 }),
+                (Resource::L2Gas, ResourceBounds { max_amount: 0, max_price_per_unit: 0 }),
             ]
             .into_iter()
             .collect(),

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::transaction::{DeprecatedResourceBoundsMapping, Resource, Tip, TransactionHash};
+use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput, MempoolResult};
 
@@ -194,13 +194,13 @@ impl Mempool {
 /// TODO(Mohammad): rename this struct to `ThinTransaction` once that name
 /// becomes available, to better reflect its purpose and usage.
 /// TODO(Mohammad): restore the Copy once ResourceBoundsMapping implements it.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TransactionReference {
     pub sender_address: ContractAddress,
     pub nonce: Nonce,
     pub tx_hash: TransactionHash,
     pub tip: Tip,
-    pub resource_bounds: DeprecatedResourceBoundsMapping,
+    pub resource_bounds: ValidResourceBounds,
 }
 
 impl TransactionReference {
@@ -218,10 +218,6 @@ impl TransactionReference {
     }
 
     pub fn get_l2_gas_price(&self) -> u128 {
-        self.resource_bounds
-            .0
-            .get(&Resource::L2Gas)
-            .map(|bounds| bounds.max_price_per_unit)
-            .expect("Expected a valid L2 gas resource bounds.")
+        self.resource_bounds.get_l2_bounds().max_price_per_unit
     }
 }
