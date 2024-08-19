@@ -23,7 +23,7 @@ use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
-    DeprecatedResourceBoundsMapping as ExecutableResourceBoundsMapping,
+    DeprecatedResourceBoundsMapping,
     PaymasterData,
     ResourceBounds,
     Tip,
@@ -552,7 +552,7 @@ pub fn create_executable_tx(
     tx_hash: TransactionHash,
     tip: Tip,
     nonce: Nonce,
-    resource_bounds: ExecutableResourceBoundsMapping,
+    resource_bounds: DeprecatedResourceBoundsMapping,
 ) -> Transaction {
     Transaction::Invoke(InvokeTransaction {
         tx: starknet_api::transaction::InvokeTransaction::V3(
@@ -560,7 +560,9 @@ pub fn create_executable_tx(
                 sender_address,
                 tip,
                 nonce,
-                resource_bounds,
+                resource_bounds: resource_bounds
+                    .try_into()
+                    .expect("Invalid resource bounds were given."),
                 signature: TransactionSignature::default(),
                 calldata: Calldata::default(),
                 nonce_data_availability_mode: DataAvailabilityMode::L1,
