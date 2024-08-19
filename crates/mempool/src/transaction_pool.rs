@@ -20,6 +20,8 @@ pub struct TransactionPool {
     tx_pool: HashToTransaction,
     // Transactions organized by account address, sorted by ascending nonce values.
     txs_by_account: AccountTransactionIndex,
+    // Tracks the capacity of the pool.
+    capacity: PoolCapacity,
 }
 
 impl TransactionPool {
@@ -43,6 +45,8 @@ impl TransactionPool {
             )
         };
 
+        self.capacity.add();
+
         Ok(())
     }
 
@@ -59,6 +63,8 @@ impl TransactionPool {
             )
         });
 
+        self.capacity.remove();
+
         Ok(tx)
     }
 
@@ -72,6 +78,8 @@ impl TransactionPool {
                      in account mapping, but does not appear in the main mapping"
                 );
             });
+
+            self.capacity.remove();
         }
     }
 
@@ -95,6 +103,11 @@ impl TransactionPool {
         // TOOD(Ayelet): Change to StarknetApiError.
         let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
         Ok(self.get_by_address_and_nonce(sender_address, next_nonce))
+    }
+
+    #[cfg(test)]
+    pub fn n_txs(&self) -> usize {
+        self.capacity.n_txs
     }
 }
 
@@ -143,5 +156,22 @@ impl AccountTransactionIndex {
 
         // Collect and return the transactions with lower nonces.
         txs_with_lower_nonce.into_values().collect()
+    }
+}
+
+#[derive(Debug, Default, Eq, PartialEq)]
+pub struct PoolCapacity {
+    n_txs: usize,
+    // TODO(Ayelet): Add size tracking.
+}
+
+impl PoolCapacity {
+    fn add(&mut self) {
+        self.n_txs += 1;
+    }
+
+    fn remove(&mut self) {
+        self.n_txs =
+            self.n_txs.checked_sub(1).expect("Underflow: Cannot subtract from an empty pool.");
     }
 }
