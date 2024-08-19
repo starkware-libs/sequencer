@@ -334,8 +334,10 @@ impl TryFrom<BroadcastedTransaction> for ExecutableTransactionInput {
         // TODO(yair): pass the right value for only_query field.
         match value {
             BroadcastedTransaction::Declare(tx) => Ok(tx.try_into()?),
-            BroadcastedTransaction::DeployAccount(tx) => Ok(Self::DeployAccount(tx.into(), false)),
-            BroadcastedTransaction::Invoke(tx) => Ok(Self::Invoke(tx.into(), false)),
+            BroadcastedTransaction::DeployAccount(tx) => {
+                Ok(Self::DeployAccount(tx.try_into()?, false))
+            }
+            BroadcastedTransaction::Invoke(tx) => Ok(Self::Invoke(tx.try_into()?, false)),
         }
     }
 }
@@ -522,9 +524,10 @@ fn user_deprecated_contract_class_to_sn_api(
     })
 }
 
-impl From<DeployAccountTransaction> for starknet_api::transaction::DeployAccountTransaction {
-    fn from(tx: DeployAccountTransaction) -> Self {
-        match tx {
+impl TryFrom<DeployAccountTransaction> for starknet_api::transaction::DeployAccountTransaction {
+    type Error = ErrorObjectOwned;
+    fn try_from(tx: DeployAccountTransaction) -> Result<Self, Self::Error> {
+        Ok(match tx {
             DeployAccountTransaction::Version1(DeployAccountTransactionV1 {
                 max_fee,
                 signature,
@@ -554,7 +557,7 @@ impl From<DeployAccountTransaction> for starknet_api::transaction::DeployAccount
                 nonce_data_availability_mode,
                 fee_data_availability_mode,
             }) => Self::V3(starknet_api::transaction::DeployAccountTransactionV3 {
-                resource_bounds: resource_bounds.into(),
+                resource_bounds: resource_bounds.try_into()?,
                 tip,
                 signature,
                 nonce,
@@ -565,13 +568,14 @@ impl From<DeployAccountTransaction> for starknet_api::transaction::DeployAccount
                 fee_data_availability_mode,
                 paymaster_data,
             }),
-        }
+        })
     }
 }
 
-impl From<InvokeTransaction> for starknet_api::transaction::InvokeTransaction {
-    fn from(value: InvokeTransaction) -> Self {
-        match value {
+impl TryFrom<InvokeTransaction> for starknet_api::transaction::InvokeTransaction {
+    type Error = ErrorObjectOwned;
+    fn try_from(value: InvokeTransaction) -> Result<Self, Self::Error> {
+        Ok(match value {
             InvokeTransaction::Version0(InvokeTransactionV0 {
                 max_fee,
                 version: _,
@@ -613,7 +617,7 @@ impl From<InvokeTransaction> for starknet_api::transaction::InvokeTransaction {
                 nonce_data_availability_mode,
                 fee_data_availability_mode,
             }) => Self::V3(starknet_api::transaction::InvokeTransactionV3 {
-                resource_bounds: resource_bounds.into(),
+                resource_bounds: resource_bounds.try_into()?,
                 tip,
                 signature,
                 nonce,
@@ -624,7 +628,7 @@ impl From<InvokeTransaction> for starknet_api::transaction::InvokeTransaction {
                 paymaster_data,
                 account_deployment_data,
             }),
-        }
+        })
     }
 }
 
