@@ -7,12 +7,11 @@ use starknet_api::transaction::{
     InvokeTransactionV0,
     InvokeTransactionV1,
     InvokeTransactionV3,
-    Resource,
     ResourceBounds,
-    DeprecatedResourceBoundsMapping,
     TransactionHash,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
@@ -82,7 +81,7 @@ pub fn max_fee() -> Fee {
 }
 
 #[fixture]
-pub fn max_resource_bounds() -> DeprecatedResourceBoundsMapping {
+pub fn max_resource_bounds() -> ValidResourceBounds {
     l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE)
 }
 
@@ -291,12 +290,8 @@ pub fn run_invoke_tx(
 
 /// Creates a `ResourceBoundsMapping` with the given `max_amount` and `max_price` for L1 gas limits.
 /// No guarantees on the values of the other resources bounds.
-pub fn l1_resource_bounds(max_amount: u64, max_price: u128) -> DeprecatedResourceBoundsMapping {
-    DeprecatedResourceBoundsMapping::try_from(vec![
-        (Resource::L1Gas, ResourceBounds { max_amount, max_price_per_unit: max_price }),
-        (Resource::L2Gas, ResourceBounds { max_amount: 0, max_price_per_unit: 0 }),
-    ])
-    .unwrap()
+pub fn l1_resource_bounds(max_amount: u64, max_price: u128) -> ValidResourceBounds {
+    ValidResourceBounds::L1Gas(ResourceBounds { max_amount, max_price_per_unit: max_price })
 }
 
 pub fn calculate_class_info_for_testing(contract_class: ContractClass) -> ClassInfo {
