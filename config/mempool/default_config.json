@@ -304,17 +304,17 @@
     "privacy": "Public",
     "value": 1
   },
-  "gateway_config.stateful_tx_validator_config.chain_info.chain_id": {
+  "gateway_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
     "privacy": "Public",
     "value": "0x0"
   },
-  "gateway_config.stateful_tx_validator_config.chain_info.fee_token_addresses.eth_fee_token_address": {
+  "gateway_config.chain_info.fee_token_addresses.eth_fee_token_address": {
     "description": "Address of the ETH fee token.",
     "privacy": "Public",
     "value": "0x0"
   },
-  "gateway_config.stateful_tx_validator_config.chain_info.fee_token_addresses.strk_fee_token_address": {
+  "gateway_config.chain_info.fee_token_addresses.strk_fee_token_address": {
     "description": "Address of the STRK fee token.",
     "privacy": "Public",
     "value": "0x0"
