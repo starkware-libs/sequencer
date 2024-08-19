@@ -7,7 +7,8 @@ use futures::SinkExt;
 use lazy_static::lazy_static;
 use mockall::mock;
 use mockall::predicate::eq;
-use papyrus_network::network_manager::ReportSender;
+use papyrus_network::network_manager::test_utils::create_test_broadcasted_message_manager;
+use papyrus_network::network_manager::BroadcastedMessageManager;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, Vote, VoteType};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
@@ -82,12 +83,15 @@ mock! {
     }
 }
 
-type Sender =
-    mpsc::UnboundedSender<(Result<ConsensusMessage, ProtobufConversionError>, ReportSender)>;
+type Sender = mpsc::UnboundedSender<(
+    Result<ConsensusMessage, ProtobufConversionError>,
+    BroadcastedMessageManager,
+)>;
 
 async fn send(sender: &mut Sender, msg: ConsensusMessage) {
+    let (broadcasted_message_manager, _report_receiver) = create_test_broadcasted_message_manager();
     sender
-        .send((Ok(msg.clone()), oneshot::channel().0))
+        .send((Ok(msg.clone()), broadcasted_message_manager))
         .await
         .unwrap_or_else(|_| panic!("Failed to send message: {msg:?}"));
 }
