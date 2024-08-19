@@ -206,3 +206,20 @@ impl From<ResourceBoundsMapping> for crate::transaction::DeprecatedResourceBound
         crate::transaction::DeprecatedResourceBoundsMapping(map)
     }
 }
+
+impl From<ResourceBoundsMapping> for crate::transaction::ValidResourceBounds {
+    fn from(value: ResourceBoundsMapping) -> Self {
+        Self::L1Gas(value.l1_gas)
+    }
+}
+
+impl From<crate::transaction::ValidResourceBounds> for ResourceBoundsMapping {
+    fn from(value: crate::transaction::ValidResourceBounds) -> Self {
+        match value {
+            crate::transaction::ValidResourceBounds::L1Gas(l1_gas) => {
+                Self { l1_gas, l2_gas: ResourceBounds::default() }
+            }
+            crate::transaction::ValidResourceBounds::AllResources(_) => todo!(),
+        }
+    }
+}
