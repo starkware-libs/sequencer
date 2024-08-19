@@ -58,6 +58,10 @@ impl Transaction {
         }
     }
 
+    pub fn sender_address(&self) -> ContractAddress {
+        self.contract_address()
+    }
+
     pub fn nonce(&self) -> Nonce {
         match self {
             Transaction::Declare(tx_data) => tx_data.tx.nonce(),
