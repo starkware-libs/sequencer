@@ -466,10 +466,17 @@ impl<'de> Deserialize<'de> for OsResources {
 #[derive(Debug, Default, Deserialize)]
 pub struct GasCosts {
     pub step_gas_cost: u64,
+    pub memory_hole_gas_cost: u64,
     // Range check has a hard-coded cost higher than its proof percentage to avoid the overhead of
     // retrieving its price from the table.
     pub range_check_gas_cost: u64,
-    pub memory_hole_gas_cost: u64,
+    // Priced builtins.
+    pub pedersen_gas_cost: u64,
+    pub bitwise_builtin_gas_cost: u64,
+    pub ecop_gas_cost: u64,
+    pub poseidon_gas_cost: u64,
+    pub add_mod_gas_cost: u64,
+    pub mul_mod_gas_cost: u64,
     // An estimation of the initial gas for a transaction to run with. This solution is
     // temporary and this value will be deduced from the transaction's fields.
     pub initial_gas_cost: u64,
