@@ -96,11 +96,6 @@ impl TransactionPool {
         let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
         Ok(self.get_by_address_and_nonce(sender_address, next_nonce))
     }
-
-    #[cfg(test)]
-    pub(crate) fn _tx_pool(&self) -> &HashToTransaction {
-        &self.tx_pool
-    }
 }
 
 #[derive(Debug, Default, Eq, PartialEq)]
