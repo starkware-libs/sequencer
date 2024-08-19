@@ -10,7 +10,7 @@ use mempool_test_utils::starknet_api_test_utils::{create_executable_tx, invoke_t
 use mockall::predicate::eq;
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::{TransactionHash, ValidResourceBounds};
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
@@ -72,7 +72,7 @@ async fn test_add_tx() {
                 tx_hash,
                 *tx.tip(),
                 *tx.nonce(),
-                tx.resource_bounds().clone().into(),
+                ValidResourceBounds::AllResources(tx.resource_bounds().clone()),
             ),
             account: Account { sender_address, state: AccountState { nonce: *tx.nonce() } },
         }))
