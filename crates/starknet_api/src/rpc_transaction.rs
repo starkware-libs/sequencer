@@ -206,3 +206,23 @@ impl From<ResourceBoundsMapping> for crate::transaction::DeprecatedResourceBound
         crate::transaction::DeprecatedResourceBoundsMapping(map)
     }
 }
+
+impl From<ResourceBoundsMapping> for crate::transaction::ValidResourceBounds {
+    fn from(value: ResourceBoundsMapping) -> Self {
+        if !value.l2_gas.is_zero() {
+            panic!("Resource bounds mapping l2 gas is expected to be zero. Got: {:?}", value.l2_gas)
+        }
+        Self::L1Gas(value.l1_gas)
+    }
+}
+
+impl From<crate::transaction::ValidResourceBounds> for ResourceBoundsMapping {
+    fn from(value: crate::transaction::ValidResourceBounds) -> Self {
+        match value {
+            crate::transaction::ValidResourceBounds::L1Gas(l1_gas) => {
+                Self { l1_gas, l2_gas: ResourceBounds::default() }
+            }
+            crate::transaction::ValidResourceBounds::AllResources(_) => todo!(),
+        }
+    }
+}
