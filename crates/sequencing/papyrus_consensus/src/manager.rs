@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use futures::channel::{mpsc, oneshot};
+use futures::stream::FuturesUnordered;
 use futures::{Stream, StreamExt};
 use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
 use papyrus_network::network_manager::ReportSender;
@@ -16,7 +17,8 @@ use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use tracing::{debug, info, instrument};
 
-use crate::single_height_consensus::SingleHeightConsensus;
+use crate::config::TimeoutsConfig;
+use crate::single_height_consensus::{ShcReturn, ShcTask, SingleHeightConsensus};
 use crate::types::{
     ConsensusBlock,
     ConsensusContext,
@@ -27,13 +29,14 @@ use crate::types::{
 };
 
 // TODO(dvir): add test for this.
-#[instrument(skip(context, start_height, network_receiver, sync_receiver), level = "info")]
+#[instrument(skip_all, level = "info")]
 #[allow(missing_docs)]
 pub async fn run_consensus<BlockT, ContextT, NetworkReceiverT, SyncReceiverT>(
     mut context: ContextT,
     start_height: BlockNumber,
     validator_id: ValidatorId,
     consensus_delay: Duration,
+    timeouts: TimeoutsConfig,
     mut network_receiver: NetworkReceiverT,
     mut sync_receiver: SyncReceiverT,
 ) -> Result<(), ConsensusError>
@@ -46,12 +49,18 @@ where
     ProposalWrapper:
         Into<(ProposalInit, mpsc::Receiver<BlockT::ProposalChunk>, oneshot::Receiver<BlockHash>)>,
 {
-    info!("Running consensus");
+    info!(
+        "Running consensus, start_height={}, validator_id={}, consensus_delay={}, timeouts={:?}",
+        start_height,
+        validator_id,
+        consensus_delay.as_secs(),
+        timeouts
+    );
 
     // Add a short delay to allow peers to connect and avoid "InsufficientPeers" error
     tokio::time::sleep(consensus_delay).await;
     let mut current_height = start_height;
-    let mut manager = MultiHeightManager::new();
+    let mut manager = MultiHeightManager::new(timeouts);
     loop {
         metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT, current_height.0 as f64);
 
@@ -86,12 +95,13 @@ pub struct ProposalWrapper(pub Proposal);
 #[derive(Debug, Default)]
 struct MultiHeightManager {
     cached_messages: BTreeMap<u64, Vec<ConsensusMessage>>,
+    timeouts: TimeoutsConfig,
 }
 
 impl MultiHeightManager {
     /// Create a new consensus manager.
-    pub fn new() -> Self {
-        Self { cached_messages: BTreeMap::new() }
+    pub fn new(timeouts: TimeoutsConfig) -> Self {
+        Self { cached_messages: BTreeMap::new(), timeouts }
     }
 
     /// Run the consensus algorithm for a single height.
@@ -118,40 +128,82 @@ impl MultiHeightManager {
         )>,
     {
         let validators = context.validators(height).await;
-        let mut shc = SingleHeightConsensus::new(height, validator_id, validators);
+        let mut shc =
+            SingleHeightConsensus::new(height, validator_id, validators, self.timeouts.clone());
+        let mut shc_tasks = FuturesUnordered::new();
 
-        if let Some(decision) = shc.start(context).await? {
-            return Ok(decision);
+        match shc.start(context).await? {
+            ShcReturn::Decision(decision) => return Ok(decision),
+            ShcReturn::Tasks(tasks) => {
+                for task in tasks {
+                    shc_tasks.push(create_task_handler(task));
+                }
+            }
         }
 
         let mut current_height_messages = self.get_current_height_messages(height);
         loop {
-            let message = next_message(&mut current_height_messages, network_receiver).await?;
-            // TODO(matan): We need to figure out an actual cacheing strategy under 2 constraints:
-            // 1. Malicious - must be capped so a malicious peer can't DoS us.
-            // 2. Parallel proposals - we may send/receive a proposal for (H+1, 0).
-            // In general I think we will want to only cache (H+1, 0) messages.
-            if message.height() != height.0 {
-                debug!("Received a message for a different height. {:?}", message);
-                if message.height() > height.0 {
-                    self.cached_messages.entry(message.height()).or_default().push(message);
-                }
-                continue;
-            }
-
-            let maybe_decision = match message {
-                ConsensusMessage::Proposal(proposal) => {
-                    // Special case due to fake streaming.
-                    let (proposal_init, content_receiver, fin_receiver) =
-                        ProposalWrapper(proposal).into();
-                    shc.handle_proposal(context, proposal_init, content_receiver, fin_receiver)
-                        .await?
-                }
-                _ => shc.handle_message(context, message).await?,
+            let shc_return = tokio::select! {
+                message = next_message(&mut current_height_messages, network_receiver) => {
+                    self.handle_message(context, height, &mut shc, message?).await?
+                },
+                Some(shc_task) = shc_tasks.next() => {
+                    shc.handle_task(context, shc_task).await?
+                },
             };
 
-            if let Some(decision) = maybe_decision {
-                return Ok(decision);
+            match shc_return {
+                ShcReturn::Decision(decision) => return Ok(decision),
+                ShcReturn::Tasks(tasks) => {
+                    for task in tasks {
+                        shc_tasks.push(create_task_handler(task));
+                    }
+                }
+            }
+        }
+    }
+
+    // Handle a single consensus message.
+    async fn handle_message<BlockT, ContextT>(
+        &mut self,
+        context: &mut ContextT,
+        height: BlockNumber,
+        shc: &mut SingleHeightConsensus<BlockT>,
+        message: ConsensusMessage,
+    ) -> Result<ShcReturn<BlockT>, ConsensusError>
+    where
+        BlockT: ConsensusBlock,
+        ContextT: ConsensusContext<Block = BlockT>,
+        ProposalWrapper: Into<(
+            ProposalInit,
+            mpsc::Receiver<BlockT::ProposalChunk>,
+            oneshot::Receiver<BlockHash>,
+        )>,
+    {
+        // TODO(matan): We need to figure out an actual cacheing strategy under 2 constraints:
+        // 1. Malicious - must be capped so a malicious peer can't DoS us.
+        // 2. Parallel proposals - we may send/receive a proposal for (H+1, 0).
+        // In general I think we will want to only cache (H+1, 0) messages.
+        if message.height() != height.0 {
+            debug!("Received a message for a different height. {:?}", message);
+            if message.height() > height.0 {
+                self.cached_messages.entry(message.height()).or_default().push(message);
+            }
+            return Ok(ShcReturn::Tasks(vec![]));
+        }
+        match message {
+            ConsensusMessage::Proposal(proposal) => {
+                // Special case due to fake streaming.
+                let (proposal_init, content_receiver, fin_receiver) =
+                    ProposalWrapper(proposal).into();
+                let res = shc
+                    .handle_proposal(context, proposal_init, content_receiver, fin_receiver)
+                    .await?;
+                Ok(res)
+            }
+            _ => {
+                let res = shc.handle_message(context, message).await?;
+                Ok(res)
             }
         }
     }
@@ -227,4 +279,9 @@ where
             }
         }
     }
+}
+
+async fn create_task_handler(task: ShcTask) -> ShcTask {
+    tokio::time::sleep(task.duration).await;
+    task
 }

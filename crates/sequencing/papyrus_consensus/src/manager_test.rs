@@ -15,12 +15,16 @@ use starknet_api::transaction::Transaction;
 use starknet_types_core::felt::Felt;
 
 use super::{run_consensus, MultiHeightManager};
+use crate::config::TimeoutsConfig;
 use crate::test_utils::{precommit, prevote, proposal};
 use crate::types::{ConsensusBlock, ConsensusContext, ConsensusError, ProposalInit, ValidatorId};
 
 lazy_static! {
-    static ref VALIDATOR_ID: ValidatorId = 1_u32.into();
     static ref PROPOSER_ID: ValidatorId = 0_u32.into();
+    static ref VALIDATOR_ID: ValidatorId = 1_u32.into();
+    static ref VALIDATOR_ID_2: ValidatorId = 2_u32.into();
+    static ref VALIDATOR_ID_3: ValidatorId = 3_u32.into();
+    static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig::default();
 }
 
 // TODO(matan): Switch to using TestBlock & MockTestContext in `test_utils` once streaming is
@@ -95,8 +99,6 @@ async fn send(sender: &mut Sender, msg: ConsensusMessage) {
 
 #[tokio::test]
 async fn manager_multiple_heights_unordered() {
-    let mut context = MockTestContext::new();
-
     let (mut sender, mut receiver) = mpsc::unbounded();
     // Send messages for height 2 followed by those for height 1.
     send(&mut sender, proposal(BlockHash(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
@@ -106,8 +108,7 @@ async fn manager_multiple_heights_unordered() {
     send(&mut sender, prevote(Some(BlockHash(Felt::ONE)), 1, 0, *PROPOSER_ID)).await;
     send(&mut sender, precommit(Some(BlockHash(Felt::ONE)), 1, 0, *PROPOSER_ID)).await;
 
-    let mut manager = MultiHeightManager::new();
-
+    let mut context = MockTestContext::new();
     // Run the manager for height 1.
     context
         .expect_validate_proposal()
@@ -120,6 +121,8 @@ async fn manager_multiple_heights_unordered() {
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_broadcast().returning(move |_| Ok(()));
+
+    let mut manager = MultiHeightManager::new(TIMEOUTS.clone());
     let decision = manager
         .run_height(&mut context, BlockNumber(1), *VALIDATOR_ID, &mut receiver)
         .await
@@ -177,6 +180,7 @@ async fn run_consensus_sync() {
             BlockNumber(1),
             *VALIDATOR_ID,
             Duration::ZERO,
+            TIMEOUTS.clone(),
             &mut network_receiver,
             &mut sync_receiver,
         )
@@ -235,6 +239,7 @@ async fn run_consensus_sync_cancellation_safety() {
             BlockNumber(1),
             *VALIDATOR_ID,
             Duration::ZERO,
+            TIMEOUTS.clone(),
             &mut network_receiver,
             &mut sync_receiver,
         )
@@ -258,4 +263,59 @@ async fn run_consensus_sync_cancellation_safety() {
     // Drop the sender to close consensus and gracefully shut down.
     drop(sync_sender);
     assert!(matches!(consensus_handle.await.unwrap(), Err(ConsensusError::SyncError(_))));
+}
+
+#[tokio::test]
+async fn test_timeouts() {
+    let (mut sender, mut receiver) = mpsc::unbounded();
+    send(&mut sender, proposal(BlockHash(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(None, 1, 0, *VALIDATOR_ID_2)).await;
+    send(&mut sender, prevote(None, 1, 0, *VALIDATOR_ID_3)).await;
+    send(&mut sender, precommit(None, 1, 0, *VALIDATOR_ID_2)).await;
+    send(&mut sender, precommit(None, 1, 0, *VALIDATOR_ID_3)).await;
+
+    let mut context = MockTestContext::new();
+    context.expect_validate_proposal().returning(move |_, _| {
+        let (block_sender, block_receiver) = oneshot::channel();
+        block_sender.send(TestBlock { content: vec![], id: BlockHash(Felt::ONE) }).unwrap();
+        block_receiver
+    });
+    context
+        .expect_validators()
+        .returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2, *VALIDATOR_ID_3]);
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+
+    let (timeout_send, timeout_receive) = oneshot::channel();
+    // Node handled Timeout events and responded with NIL vote.
+    context
+        .expect_broadcast()
+        .times(1)
+        .withf(move |msg: &ConsensusMessage| msg == &prevote(None, 1, 1, *VALIDATOR_ID))
+        .return_once(move |_| {
+            timeout_send.send(()).unwrap();
+            Ok(())
+        });
+    context.expect_broadcast().returning(move |_| Ok(()));
+
+    let mut manager = MultiHeightManager::new(TIMEOUTS.clone());
+    let manager_handle = tokio::spawn(async move {
+        let decision = manager
+            .run_height(&mut context, BlockNumber(1), *VALIDATOR_ID, &mut receiver)
+            .await
+            .unwrap();
+        assert_eq!(decision.block.id(), BlockHash(Felt::ONE));
+    });
+
+    // Wait for the timeout to be triggered.
+    timeout_receive.await.unwrap();
+    // Show that after the timeout is triggered we can still precommit in favor of the block and
+    // reach a decision.
+    send(&mut sender, proposal(BlockHash(Felt::ONE), 1, 1, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(BlockHash(Felt::ONE)), 1, 1, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(BlockHash(Felt::ONE)), 1, 1, *VALIDATOR_ID_2)).await;
+    send(&mut sender, prevote(Some(BlockHash(Felt::ONE)), 1, 1, *VALIDATOR_ID_3)).await;
+    send(&mut sender, precommit(Some(BlockHash(Felt::ONE)), 1, 1, *VALIDATOR_ID_2)).await;
+    send(&mut sender, precommit(Some(BlockHash(Felt::ONE)), 1, 1, *VALIDATOR_ID_3)).await;
+
+    manager_handle.await.unwrap();
 }

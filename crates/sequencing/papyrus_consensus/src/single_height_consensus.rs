@@ -4,12 +4,14 @@ mod single_height_consensus_test;
 
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
+use std::time::Duration;
 
 use futures::channel::{mpsc, oneshot};
 use papyrus_protobuf::consensus::{ConsensusMessage, Vote, VoteType};
 use starknet_api::block::{BlockHash, BlockNumber};
 use tracing::{debug, info, instrument, trace, warn};
 
+use crate::config::TimeoutsConfig;
 use crate::state_machine::{StateMachine, StateMachineEvent};
 use crate::types::{
     ConsensusBlock,
@@ -21,6 +23,18 @@ use crate::types::{
     ValidatorId,
 };
 
+#[derive(Debug, PartialEq)]
+pub struct ShcTask {
+    pub duration: Duration,
+    pub event: StateMachineEvent,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ShcReturn<BlockT: ConsensusBlock> {
+    Tasks(Vec<ShcTask>),
+    Decision(Decision<BlockT>),
+}
+
 /// Struct which represents a single height of consensus. Each height is expected to be begun with a
 /// call to `start`, which is relevant if we are the proposer for this height's first round.
 /// SingleHeightConsensus receives messages directly as parameters to function calls. It can send
@@ -29,6 +43,7 @@ pub(crate) struct SingleHeightConsensus<BlockT: ConsensusBlock> {
     height: BlockNumber,
     validators: Vec<ValidatorId>,
     id: ValidatorId,
+    timeouts: TimeoutsConfig,
     state_machine: StateMachine,
     proposals: HashMap<Round, Option<BlockT>>,
     prevotes: HashMap<(Round, ValidatorId), Vote>,
@@ -36,13 +51,19 @@ pub(crate) struct SingleHeightConsensus<BlockT: ConsensusBlock> {
 }
 
 impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
-    pub(crate) fn new(height: BlockNumber, id: ValidatorId, validators: Vec<ValidatorId>) -> Self {
+    pub(crate) fn new(
+        height: BlockNumber,
+        id: ValidatorId,
+        validators: Vec<ValidatorId>,
+        timeouts: TimeoutsConfig,
+    ) -> Self {
         // TODO(matan): Use actual weights, not just `len`.
         let state_machine = StateMachine::new(id, validators.len() as u32);
         Self {
             height,
             validators,
             id,
+            timeouts,
             state_machine,
             proposals: HashMap::new(),
             prevotes: HashMap::new(),
@@ -54,7 +75,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
     pub(crate) async fn start<ContextT: ConsensusContext<Block = BlockT>>(
         &mut self,
         context: &mut ContextT,
-    ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
+    ) -> Result<ShcReturn<BlockT>, ConsensusError> {
         info!("Starting consensus with validators {:?}", self.validators);
         let leader_fn =
             |_round: Round| -> ValidatorId { context.proposer(&self.validators, self.height) };
@@ -75,7 +96,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         init: ProposalInit,
         p2p_messages_receiver: mpsc::Receiver<<BlockT as ConsensusBlock>::ProposalChunk>,
         fin_receiver: oneshot::Receiver<BlockHash>,
-    ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
+    ) -> Result<ShcReturn<BlockT>, ConsensusError> {
         debug!(
             "Received proposal: height={}, round={}, proposer={:?}",
             init.height.0, init.round, init.proposer
@@ -92,7 +113,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         }
         let Entry::Vacant(proposal_entry) = self.proposals.entry(init.round) else {
             warn!("Round {} already has a proposal, ignoring", init.round);
-            return Ok(None);
+            return Ok(ShcReturn::Tasks(vec![]));
         };
 
         let block_receiver = context.validate_proposal(self.height, p2p_messages_receiver).await;
@@ -129,7 +150,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         context: &mut ContextT,
         init: &ProposalInit,
         block_id: Option<BlockHash>,
-    ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
+    ) -> Result<ShcReturn<BlockT>, ConsensusError> {
         let sm_proposal = StateMachineEvent::Proposal(block_id, init.round);
         let leader_fn =
             |_round: Round| -> ValidatorId { context.proposer(&self.validators, self.height) };
@@ -143,7 +164,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         &mut self,
         context: &mut ContextT,
         message: ConsensusMessage,
-    ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
+    ) -> Result<ShcReturn<BlockT>, ConsensusError> {
         debug!("Received message: {:?}", message);
         match message {
             ConsensusMessage::Proposal(_) => {
@@ -153,12 +174,32 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         }
     }
 
+    pub async fn handle_task<ContextT: ConsensusContext<Block = BlockT>>(
+        &mut self,
+        context: &mut ContextT,
+        task: ShcTask,
+    ) -> Result<ShcReturn<BlockT>, ConsensusError> {
+        debug!("Received task: {:?}", task);
+        match task.event {
+            StateMachineEvent::TimeoutPropose(_)
+            | StateMachineEvent::TimeoutPrevote(_)
+            | StateMachineEvent::TimeoutPrecommit(_) => {
+                let leader_fn = |_round: Round| -> ValidatorId {
+                    context.proposer(&self.validators, self.height)
+                };
+                let sm_events = self.state_machine.handle_event(task.event, &leader_fn);
+                self.handle_state_machine_events(context, sm_events).await
+            }
+            _ => unimplemented!("Unexpected task: {:?}", task),
+        }
+    }
+
     #[instrument(skip_all)]
     async fn handle_vote<ContextT: ConsensusContext<Block = BlockT>>(
         &mut self,
         context: &mut ContextT,
         vote: Vote,
-    ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
+    ) -> Result<ShcReturn<BlockT>, ConsensusError> {
         if !self.validators.contains(&vote.voter) {
             return Err(ConsensusError::InvalidVote(
                 vote.clone(),
@@ -189,7 +230,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
                     ));
                 } else {
                     // Replay, ignore.
-                    return Ok(None);
+                    return Ok(ShcReturn::Tasks(vec![]));
                 }
             }
         }
@@ -205,7 +246,8 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         &mut self,
         context: &mut ContextT,
         mut events: VecDeque<StateMachineEvent>,
-    ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
+    ) -> Result<ShcReturn<BlockT>, ConsensusError> {
+        let mut ret_val = vec![];
         while let Some(event) = events.pop_front() {
             trace!("Handling event: {:?}", event);
             match event {
@@ -232,11 +274,18 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
                     self.handle_state_machine_vote(context, block_hash, round, VoteType::Precommit)
                         .await?;
                 }
-                _ => { //TODO(Asmaa): handle timeouts
+                StateMachineEvent::TimeoutPropose(_) => {
+                    ret_val.push(ShcTask { duration: self.timeouts.proposal_timeout, event });
+                }
+                StateMachineEvent::TimeoutPrevote(_) => {
+                    ret_val.push(ShcTask { duration: self.timeouts.prevote_timeout, event });
+                }
+                StateMachineEvent::TimeoutPrecommit(_) => {
+                    ret_val.push(ShcTask { duration: self.timeouts.precommit_timeout, event });
                 }
             }
         }
-        Ok(None)
+        Ok(ShcReturn::Tasks(ret_val))
     }
 
     #[instrument(skip(self, context), level = "debug")]
@@ -282,7 +331,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         block_hash: Option<BlockHash>,
         round: Round,
         vote_type: VoteType,
-    ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
+    ) -> Result<ShcReturn<BlockT>, ConsensusError> {
         let votes = match vote_type {
             VoteType::Prevote => &mut self.prevotes,
             VoteType::Precommit => &mut self.precommits,
@@ -293,7 +342,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
             panic!("State machine should not send repeat votes: old={:?}, new={:?}", old, vote);
         }
         context.broadcast(ConsensusMessage::Vote(vote)).await?;
-        Ok(None)
+        Ok(ShcReturn::Tasks(vec![]))
     }
 
     #[instrument(skip_all)]
@@ -301,7 +350,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         &mut self,
         block_hash: BlockHash,
         round: Round,
-    ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
+    ) -> Result<ShcReturn<BlockT>, ConsensusError> {
         let block = self
             .proposals
             .remove(&round)
@@ -321,6 +370,6 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
             .collect();
         // TODO(matan): Check actual weights.
         assert!(supporting_precommits.len() >= self.state_machine.quorum_size() as usize);
-        Ok(Some(Decision { precommits: supporting_precommits, block }))
+        Ok(ShcReturn::Decision(Decision { precommits: supporting_precommits, block }))
     }
 }

@@ -5,8 +5,12 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use papyrus_config::converters::deserialize_seconds_to_duration;
+use papyrus_config::converters::{
+    deserialize_milliseconds_to_duration,
+    deserialize_seconds_to_duration,
+};
 use papyrus_config::dumping::{
+    append_sub_config_name,
     ser_optional_sub_config,
     ser_param,
     ser_required_param,
@@ -33,6 +37,8 @@ pub struct ConsensusConfig {
     /// The delay (seconds) before starting consensus to give time for network peering.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub consensus_delay: Duration,
+    /// Timeouts configuration for consensus.
+    pub timeouts: TimeoutsConfig,
     /// Test configuration for consensus.
     pub test: Option<ConsensusTestConfig>,
 }
@@ -71,6 +77,7 @@ impl SerializeConfig for ConsensusConfig {
                 ParamPrivacyInput::Public,
             ),
         ]);
+        config.extend(append_sub_config_name(self.timeouts.dump(), "timeouts"));
         config.extend(ser_optional_sub_config(&self.test, "test"));
         config
     }
@@ -84,6 +91,7 @@ impl Default for ConsensusConfig {
             start_height: BlockNumber::default(),
             num_validators: 4,
             consensus_delay: Duration::from_secs(5),
+            timeouts: TimeoutsConfig::default(),
             test: None,
         }
     }
@@ -149,6 +157,55 @@ impl Default for ConsensusTestConfig {
             drop_probability: 0.0,
             invalid_probability: 0.0,
             sync_topic: "consensus_test_sync".to_string(),
+        }
+    }
+}
+
+/// Configuration for consensus timeouts.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct TimeoutsConfig {
+    /// The timeout for a proposal.
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    pub proposal_timeout: Duration,
+    /// The timeout for a prevote.
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    pub prevote_timeout: Duration,
+    /// The timeout for a precommit.
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    pub precommit_timeout: Duration,
+}
+
+impl SerializeConfig for TimeoutsConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "proposal_timeout",
+                &self.proposal_timeout.as_millis(),
+                "The timeout (milliseconds) for a proposal.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "prevote_timeout",
+                &self.prevote_timeout.as_millis(),
+                "The timeout (milliseconds) for a prevote.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "precommit_timeout",
+                &self.precommit_timeout.as_millis(),
+                "The timeout (milliseconds) for a precommit.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+impl Default for TimeoutsConfig {
+    fn default() -> Self {
+        Self {
+            proposal_timeout: Duration::from_millis(3),
+            prevote_timeout: Duration::from_millis(1),
+            precommit_timeout: Duration::from_millis(1),
         }
     }
 }

@@ -129,6 +129,21 @@
     "privacy": "Public",
     "value": "consensus_test_sync"
   },
+  "consensus.timeouts.precommit_timeout": {
+    "description": "The timeout (milliseconds) for a precommit.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "consensus.timeouts.prevote_timeout": {
+    "description": "The timeout (milliseconds) for a prevote.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "consensus.timeouts.proposal_timeout": {
+    "description": "The timeout (milliseconds) for a proposal.",
+    "privacy": "Public",
+    "value": 3
+  },
   "consensus.validator_id": {
     "description": "A required param! The validator id of the node.",
     "param_type": "String",
