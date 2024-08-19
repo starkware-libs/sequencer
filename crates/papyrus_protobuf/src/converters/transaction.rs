@@ -7,6 +7,7 @@ use prost::Message;
 use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, Nonce};
 use starknet_api::transaction::{
     AccountDeploymentData,
+    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     DeclareTransaction,
@@ -17,7 +18,6 @@ use starknet_api::transaction::{
     DeployAccountTransactionV1,
     DeployAccountTransactionV3,
     DeployTransaction,
-    DeprecatedResourceBoundsMapping,
     Fee,
     FullTransaction,
     InvokeTransaction,
@@ -26,7 +26,6 @@ use starknet_api::transaction::{
     InvokeTransactionV3,
     L1HandlerTransaction,
     PaymasterData,
-    Resource,
     ResourceBounds,
     Tip,
     Transaction,
@@ -34,6 +33,7 @@ use starknet_api::transaction::{
     TransactionOutput,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 
@@ -440,11 +440,11 @@ impl From<DeployAccountTransactionV1> for protobuf::transaction::DeployAccountV1
 impl TryFrom<protobuf::transaction::DeployAccountV3> for DeployAccountTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::DeployAccountV3) -> Result<Self, Self::Error> {
-        let resource_bounds = DeprecatedResourceBoundsMapping::try_from(
-            value.resource_bounds.ok_or(ProtobufConversionError::MissingField {
+        let resource_bounds = ValidResourceBounds::try_from(value.resource_bounds.ok_or(
+            ProtobufConversionError::MissingField {
                 field_description: "DeployAccountV3::resource_bounds",
-            })?,
-        )?;
+            },
+        )?)?;
 
         let tip = Tip(value.tip);
 
@@ -550,41 +550,42 @@ impl From<DeployAccountTransactionV3> for protobuf::transaction::DeployAccountV3
     }
 }
 
-impl TryFrom<protobuf::ResourceBounds> for DeprecatedResourceBoundsMapping {
+impl TryFrom<protobuf::ResourceBounds> for ValidResourceBounds {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::ResourceBounds) -> Result<Self, Self::Error> {
-        let mut resource_bounds = DeprecatedResourceBoundsMapping::default();
         let Some(l1_gas) = value.l1_gas else {
             return Err(ProtobufConversionError::MissingField {
                 field_description: "ResourceBounds::l1_gas",
             });
         };
-        let max_amount = l1_gas.max_amount;
-        let max_price_per_unit_felt = Felt::try_from(l1_gas.max_price_per_unit.ok_or(
-            ProtobufConversionError::MissingField {
-                field_description: "ResourceBounds::l1_gas::max_price_per_unit",
-            },
-        )?)?;
-        let max_price_per_unit =
-            try_from_starkfelt_to_u128(max_price_per_unit_felt).map_err(|_| {
-                ProtobufConversionError::OutOfRangeValue {
-                    type_description: "u128",
-                    value_as_str: format!("{max_price_per_unit_felt:?}"),
-                }
-            })?;
-
-        resource_bounds
-            .0
-            .insert(Resource::L1Gas, ResourceBounds { max_amount, max_price_per_unit });
         let Some(l2_gas) = value.l2_gas else {
             return Err(ProtobufConversionError::MissingField {
                 field_description: "ResourceBounds::l2_gas",
             });
         };
-        let max_amount = l2_gas.max_amount;
-        let max_price_per_unit_felt = Felt::try_from(l2_gas.max_price_per_unit.ok_or(
+        let Some(l1_data_gas) = value.l1_data_gas else {
+            return Err(ProtobufConversionError::MissingField {
+                field_description: "ResourceBounds::l1_data_gas",
+            });
+        };
+        let l1_gas: ResourceBounds = l1_gas.try_into()?;
+        let l2_gas: ResourceBounds = l2_gas.try_into()?;
+        let l1_data_gas: ResourceBounds = l1_data_gas.try_into()?;
+        Ok(if l1_data_gas.is_zero() && l2_gas.is_zero() {
+            ValidResourceBounds::L1Gas(l1_gas)
+        } else {
+            ValidResourceBounds::AllResources(AllResourceBounds { l1_gas, l2_gas, l1_data_gas })
+        })
+    }
+}
+
+impl TryFrom<protobuf::ResourceLimits> for ResourceBounds {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::ResourceLimits) -> Result<Self, Self::Error> {
+        let max_amount = value.max_amount;
+        let max_price_per_unit_felt = Felt::try_from(value.max_price_per_unit.ok_or(
             ProtobufConversionError::MissingField {
-                field_description: "ResourceBounds::l2_gas::max_price_per_unit",
+                field_description: "ResourceBounds::ResourceLimits::max_price_per_unit",
             },
         )?)?;
         let max_price_per_unit =
@@ -594,36 +595,37 @@ impl TryFrom<protobuf::ResourceBounds> for DeprecatedResourceBoundsMapping {
                     value_as_str: format!("{max_price_per_unit_felt:?}"),
                 }
             })?;
-        resource_bounds
-            .0
-            .insert(Resource::L2Gas, ResourceBounds { max_amount, max_price_per_unit });
-        Ok(resource_bounds)
+        Ok(ResourceBounds { max_amount, max_price_per_unit })
     }
 }
 
-impl From<DeprecatedResourceBoundsMapping> for protobuf::ResourceBounds {
-    fn from(value: DeprecatedResourceBoundsMapping) -> Self {
-        let mut res = protobuf::ResourceBounds::default();
+impl From<ResourceBounds> for protobuf::ResourceLimits {
+    fn from(value: ResourceBounds) -> Self {
+        protobuf::ResourceLimits {
+            max_amount: value.max_amount,
+            max_price_per_unit: Some(Felt::from(value.max_price_per_unit).into()),
+        }
+    }
+}
 
-        let resource_bounds_default = ResourceBounds::default();
-        let resource_bounds_l1 = value.0.get(&Resource::L1Gas).unwrap_or(&resource_bounds_default);
-
-        let resource_limits_l1 = protobuf::ResourceLimits {
-            max_amount: resource_bounds_l1.max_amount,
-            max_price_per_unit: Some(Felt::from(resource_bounds_l1.max_price_per_unit).into()),
-        };
-        res.l1_gas = Some(resource_limits_l1);
-
-        let resource_bounds_default = ResourceBounds::default();
-        let resource_bounds_l2 = value.0.get(&Resource::L2Gas).unwrap_or(&resource_bounds_default);
-
-        let resource_limits_l2 = protobuf::ResourceLimits {
-            max_amount: resource_bounds_l2.max_amount,
-            max_price_per_unit: Some(Felt::from(resource_bounds_l2.max_price_per_unit).into()),
-        };
-        res.l2_gas = Some(resource_limits_l2);
-
-        res
+impl From<ValidResourceBounds> for protobuf::ResourceBounds {
+    fn from(value: ValidResourceBounds) -> Self {
+        match value {
+            ValidResourceBounds::L1Gas(l1_gas) => protobuf::ResourceBounds {
+                l1_gas: Some(l1_gas.into()),
+                l2_gas: Some(value.get_l2_bounds().into()),
+                l1_data_gas: Some(ResourceBounds::default().into()),
+            },
+            ValidResourceBounds::AllResources(AllResourceBounds {
+                l1_gas,
+                l2_gas,
+                l1_data_gas,
+            }) => protobuf::ResourceBounds {
+                l1_gas: Some(l1_gas.into()),
+                l2_gas: Some(l2_gas.into()),
+                l1_data_gas: Some(l1_data_gas.into()),
+            },
+        }
     }
 }
 
@@ -756,11 +758,11 @@ impl From<InvokeTransactionV1> for protobuf::transaction::InvokeV1 {
 impl TryFrom<protobuf::transaction::InvokeV3> for InvokeTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::InvokeV3) -> Result<Self, Self::Error> {
-        let resource_bounds = DeprecatedResourceBoundsMapping::try_from(
-            value.resource_bounds.ok_or(ProtobufConversionError::MissingField {
+        let resource_bounds = ValidResourceBounds::try_from(value.resource_bounds.ok_or(
+            ProtobufConversionError::MissingField {
                 field_description: "InvokeV3::resource_bounds",
-            })?,
-        )?;
+            },
+        )?)?;
 
         let tip = Tip(value.tip);
 
@@ -1074,11 +1076,11 @@ impl From<DeclareTransactionV2> for protobuf::transaction::DeclareV2 {
 impl TryFrom<protobuf::transaction::DeclareV3> for DeclareTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::DeclareV3) -> Result<Self, Self::Error> {
-        let resource_bounds = DeprecatedResourceBoundsMapping::try_from(
-            value.resource_bounds.ok_or(ProtobufConversionError::MissingField {
+        let resource_bounds = ValidResourceBounds::try_from(value.resource_bounds.ok_or(
+            ProtobufConversionError::MissingField {
                 field_description: "DeclareV3::resource_bounds",
-            })?,
-        )?;
+            },
+        )?)?;
 
         let tip = Tip(value.tip);
 
