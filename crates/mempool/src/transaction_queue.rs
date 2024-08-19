@@ -2,7 +2,13 @@ use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::transaction::{Resource, ResourceBounds};
+use starknet_api::transaction::{
+    AllResourceBounds,
+    ResourceBounds,
+    Tip,
+    TransactionHash,
+    ValidResourceBounds,
+};
 
 use crate::mempool::TransactionReference;
 
@@ -91,13 +97,14 @@ impl TransactionQueue {
 
     fn _promote_txs_to_priority(&mut self, threshold: u128) {
         let tmp_split_tx = PendingTransaction(TransactionReference {
-            resource_bounds: vec![
-                (Resource::L1Gas, ResourceBounds::default()),
-                (Resource::L2Gas, ResourceBounds { max_amount: 0, max_price_per_unit: threshold }),
-            ]
-            .try_into()
-            .unwrap(),
-            ..Default::default()
+            resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
+                l2_gas: ResourceBounds { max_amount: 0, max_price_per_unit: threshold },
+                ..Default::default()
+            }),
+            sender_address: ContractAddress::default(),
+            nonce: Nonce::default(),
+            tx_hash: TransactionHash::default(),
+            tip: Tip::default(),
         });
 
         // Split off the pending queue at the given transaction higher than the threshold.
