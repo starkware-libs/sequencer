@@ -157,6 +157,23 @@ impl From<ResourceBoundsMapping> for starknet_api::transaction::DeprecatedResour
     }
 }
 
+impl From<ResourceBoundsMapping> for starknet_api::transaction::ValidResourceBounds {
+    fn from(value: ResourceBoundsMapping) -> Self {
+        Self::L1Gas(value.l1_gas)
+    }
+}
+
+impl From<starknet_api::transaction::ValidResourceBounds> for ResourceBoundsMapping {
+    fn from(value: starknet_api::transaction::ValidResourceBounds) -> Self {
+        match value {
+            starknet_api::transaction::ValidResourceBounds::L1Gas(l1_gas) => {
+                Self { l1_gas, l2_gas: ResourceBounds::default() }
+            }
+            starknet_api::transaction::ValidResourceBounds::AllResources(_) => todo!(),
+        }
+    }
+}
+
 impl From<starknet_api::transaction::DeprecatedResourceBoundsMapping> for ResourceBoundsMapping {
     fn from(value: starknet_api::transaction::DeprecatedResourceBoundsMapping) -> Self {
         Self {
