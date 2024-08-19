@@ -9,7 +9,6 @@ use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
-    DeprecatedResourceBoundsMapping,
     Fee,
     InvokeTransactionV0,
     InvokeTransactionV1,
@@ -87,7 +86,7 @@ impl TryFrom<PyInvokeTransactionV3> for InvokeTransactionV3 {
     type Error = NativeBlockifierInputError;
     fn try_from(tx: PyInvokeTransactionV3) -> Result<Self, Self::Error> {
         Ok(Self {
-            resource_bounds: DeprecatedResourceBoundsMapping::try_from(tx.resource_bounds)?,
+            resource_bounds: tx.resource_bounds.try_into()?,
             tip: Tip(tx.tip),
             signature: TransactionSignature(from_py_felts(tx.signature)),
             nonce: Nonce(tx.nonce.0),
