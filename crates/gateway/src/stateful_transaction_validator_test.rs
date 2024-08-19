@@ -15,12 +15,12 @@ use mockall::predicate::eq;
 use num_bigint::BigUint;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
+use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
-use starknet_api::transaction::{Resource, TransactionHash};
-use starknet_api::{contract_address, deploy_account_tx_args, felt, invoke_tx_args, patricia_key};
+use starknet_api::transaction::Resource;
+use starknet_api::{deploy_account_tx_args, invoke_tx_args};
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_types_core::felt::Felt;
 
@@ -66,11 +66,7 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
 #[rstest]
 #[case::valid_tx(
     create_executable_invoke_tx(CairoVersion::Cairo1),
-    Ok(ValidateInfo{
-        tx_hash: TransactionHash::default(),
-        sender_address: contract_address!("0xc0020000"),
-        account_nonce: Nonce::default()
-    })
+    Ok(ValidateInfo{account_nonce: Nonce::default()})
 )]
 #[case::invalid_tx(
     create_executable_invoke_tx(CairoVersion::Cairo1),
