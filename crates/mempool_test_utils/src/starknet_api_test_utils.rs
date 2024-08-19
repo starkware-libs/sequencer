@@ -23,13 +23,13 @@ use starknet_api::transaction::{
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
-    DeprecatedResourceBoundsMapping as ExecutableResourceBoundsMapping,
     PaymasterData,
     ResourceBounds,
     Tip,
     TransactionHash,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
@@ -563,7 +563,7 @@ pub fn create_executable_tx(
     tx_hash: TransactionHash,
     tip: Tip,
     nonce: Nonce,
-    resource_bounds: ExecutableResourceBoundsMapping,
+    resource_bounds: ValidResourceBounds,
 ) -> Transaction {
     Transaction::Invoke(InvokeTransaction {
         tx: starknet_api::transaction::InvokeTransaction::V3(

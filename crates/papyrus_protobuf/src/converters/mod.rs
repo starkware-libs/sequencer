@@ -10,6 +10,7 @@ pub mod state_diff;
 mod transaction;
 
 use prost::DecodeError;
+use starknet_api::StarknetApiError;
 
 #[derive(thiserror::Error, PartialEq, Debug, Clone)]
 pub enum ProtobufConversionError {
@@ -21,6 +22,8 @@ pub enum ProtobufConversionError {
     BytesDataLengthMismatch { type_description: &'static str, num_expected: usize, value: Vec<u8> },
     #[error(transparent)]
     DecodeError(#[from] DecodeError),
+    #[error(transparent)]
+    StarknetApiError(#[from] StarknetApiError),
 }
 
 #[macro_export]
