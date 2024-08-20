@@ -170,6 +170,14 @@ impl AccountTransaction {
         signature.0.len()
     }
 
+    pub fn tx_hash(&self) -> TransactionHash {
+        match self {
+            Self::Declare(tx) => tx.tx_hash(),
+            Self::DeployAccount(tx) => tx.tx_hash(),
+            Self::Invoke(tx) => tx.tx_hash(),
+        }
+    }
+
     fn verify_tx_version(&self, version: TransactionVersion) -> TransactionExecutionResult<()> {
         let allowed_versions: Vec<TransactionVersion> = match self {
             // Support `Declare` of version 0 in order to allow bootstrapping of a new system.
@@ -666,14 +674,6 @@ impl AccountTransaction {
         }
 
         self.run_revertible(state, tx_context, remaining_gas, validate, charge_fee)
-    }
-
-    pub fn tx_hash(&self) -> TransactionHash {
-        match self {
-            AccountTransaction::Declare(tx) => tx.tx_hash(),
-            AccountTransaction::DeployAccount(tx) => tx.tx_hash(),
-            AccountTransaction::Invoke(tx) => tx.tx_hash(),
-        }
     }
 }
 
