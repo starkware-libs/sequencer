@@ -67,7 +67,13 @@ async fn test_add_tx() {
         .with(eq(MempoolInput {
             // TODO(Arni): Use external_to_executable_tx instead of `create_executable_tx`. Consider
             // creating a `convertor for testing` that does not do the compilation.
-            tx: create_executable_tx(sender_address, tx_hash, *tx.tip(), *tx.nonce()),
+            tx: create_executable_tx(
+                sender_address,
+                tx_hash,
+                *tx.tip(),
+                *tx.nonce(),
+                tx.resource_bounds().clone().into(),
+            ),
             account: Account { sender_address, state: AccountState { nonce: *tx.nonce() } },
         }))
         .return_once(|_| Ok(()));
