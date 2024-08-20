@@ -27,6 +27,9 @@ p2p:
     # Optional - network.#is_none flag
     networkIsNone: false
   nodeConfig:
+    # Use a custom external IP in case running outside cloud environment and no loadbalancer is available.
+    # The port by default will be the .Values.p2p.config.networkTcpPort
+    overrideIP:
     # Set the bootstrap server to connect to.
     # This should be set only if p2p.bootstrap = false
     bootstrapServer:
