@@ -112,7 +112,7 @@ fn test_revert_on_overdraft(
         resource_bounds: max_resource_bounds.clone(),
         nonce: nonce_manager.next(account_address),
     });
-    let tx_info = approve_tx.create_tx_info().unwrap();
+    let tx_info = approve_tx.create_tx_info();
     let approval_execution_info =
         approve_tx.execute(&mut state, &block_context, true, true).unwrap();
     assert!(!approval_execution_info.is_reverted());
