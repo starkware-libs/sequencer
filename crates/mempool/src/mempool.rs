@@ -22,6 +22,8 @@ pub struct Mempool {
     tx_queue: TransactionQueue,
     // Represents the current state of the mempool during block creation.
     mempool_state: HashMap<ContractAddress, AccountState>,
+    // Represents the most recently received account nonces.
+    account_nonces: HashMap<ContractAddress, Nonce>,
 }
 
 impl Mempool {
@@ -70,6 +72,7 @@ impl Mempool {
     /// TODO: check Account nonce and balance.
     pub fn add_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
         self.validate_input(&input)?;
+        self.account_nonces.insert(input.account.sender_address, input.account.state.nonce);
         self.insert_tx(input)
     }
 
@@ -104,6 +107,8 @@ impl Mempool {
             }
 
             self.tx_pool.remove_up_to_nonce(address, next_nonce);
+
+            self.account_nonces.insert(address, next_nonce);
         }
 
         // Rewind nonces of addresses that were not included in block.
