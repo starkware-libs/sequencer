@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use ethnum::U256;
 use rand::rngs::ThreadRng;
 use rstest::{fixture, rstest};
@@ -11,7 +9,7 @@ use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use crate::patricia_merkle_tree::node_data::errors::LeafResult;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, NodeData, PathToBottom};
-use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications, SkeletonLeaf};
+use crate::patricia_merkle_tree::node_data::leaf::{Leaf, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
@@ -52,15 +50,15 @@ impl Deserializable for MockLeaf {
 }
 
 impl Leaf for MockLeaf {
+    type Input = Self;
+    type Output = ();
+
     fn is_empty(&self) -> bool {
         self.0 == Felt::ZERO
     }
 
-    async fn create(
-        index: &NodeIndex,
-        leaf_modifications: Arc<LeafModifications<Self>>,
-    ) -> LeafResult<Self> {
-        Self::from_modifications(index, leaf_modifications)
+    async fn create(input: Self::Input) -> LeafResult<(Self, Self::Output)> {
+        Ok((input, ()))
     }
 }
 

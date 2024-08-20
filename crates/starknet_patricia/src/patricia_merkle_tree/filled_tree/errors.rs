@@ -10,8 +10,8 @@ pub enum FilledTreeError {
     DeletedLeafInSkeleton(NodeIndex),
     #[error("Double update at node {index:?}. Existing value: {existing_value_as_string:?}.")]
     DoubleUpdate { index: NodeIndex, existing_value_as_string: String },
-    #[error(transparent)]
-    Leaf(#[from] LeafError),
+    #[error("Got the following error at leaf index {leaf_index:?}: {leaf_error:?}")]
+    Leaf { leaf_error: LeafError, leaf_index: NodeIndex },
     #[error("Missing node at index {0:?}.")]
     MissingNode(NodeIndex),
     #[error("Missing root.")]
