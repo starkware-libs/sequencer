@@ -38,7 +38,6 @@ use crate::transaction::constants;
 use crate::transaction::errors::{
     TransactionExecutionError,
     TransactionFeeError,
-    TransactionInfoCreationError,
     TransactionPreValidationError,
 };
 use crate::utils::{u128_from_usize, usize_from_u128};
@@ -570,5 +569,5 @@ pub enum FeeType {
 }
 
 pub trait TransactionInfoCreator {
-    fn create_tx_info(&self) -> Result<TransactionInfo, TransactionInfoCreationError>;
+    fn create_tx_info(&self) -> TransactionInfo;
 }
