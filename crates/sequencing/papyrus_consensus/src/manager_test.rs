@@ -15,8 +15,14 @@ use starknet_api::transaction::Transaction;
 use starknet_types_core::felt::Felt;
 
 use super::{run_consensus, MultiHeightManager};
-use crate::types::{ConsensusBlock, ConsensusContext, ConsensusError, ProposalInit, ValidatorId};
-
+use crate::types::{
+    ConsensusBlock,
+    ConsensusContext,
+    ConsensusError,
+    ProposalInit,
+    Round,
+    ValidatorId,
+};
 lazy_static! {
     static ref VALIDATOR_ID: ValidatorId = 1_u32.into();
     static ref PROPOSER_ID: ValidatorId = 0_u32.into();
@@ -63,7 +69,7 @@ mock! {
 
         async fn validators(&self, height: BlockNumber) -> Vec<ValidatorId>;
 
-        fn proposer(&self, validators: &[ValidatorId], height: BlockNumber) -> ValidatorId;
+        fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
 
         async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError>;
 

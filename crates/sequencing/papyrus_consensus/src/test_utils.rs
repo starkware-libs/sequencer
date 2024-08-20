@@ -4,7 +4,14 @@ use mockall::mock;
 use papyrus_protobuf::consensus::{ConsensusMessage, Vote};
 use starknet_api::block::{BlockHash, BlockNumber};
 
-use crate::types::{ConsensusBlock, ConsensusContext, ConsensusError, ProposalInit, ValidatorId};
+use crate::types::{
+    ConsensusBlock,
+    ConsensusContext,
+    ConsensusError,
+    ProposalInit,
+    Round,
+    ValidatorId,
+};
 
 /// Define a consensus block which can be used to enable auto mocking Context.
 #[derive(Debug, PartialEq, Clone)]
@@ -47,7 +54,7 @@ mock! {
 
         async fn validators(&self, height: BlockNumber) -> Vec<ValidatorId>;
 
-        fn proposer(&self, validators: &[ValidatorId], height: BlockNumber) -> ValidatorId;
+        fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
 
         async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError>;
 
