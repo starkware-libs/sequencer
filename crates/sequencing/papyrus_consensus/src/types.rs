@@ -122,7 +122,7 @@ pub trait ConsensusContext {
     async fn validators(&self, height: BlockNumber) -> Vec<ValidatorId>;
 
     /// Calculates the ID of the Proposer based on the inputs.
-    fn proposer(&self, validators: &[ValidatorId], height: BlockNumber) -> ValidatorId;
+    fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
 
     async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError>;
 
