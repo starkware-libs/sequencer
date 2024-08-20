@@ -8792,6 +8792,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "async-trait",
+ "mempool_test_utils",
  "mockall",
  "papyrus_config",
  "serde",
