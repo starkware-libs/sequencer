@@ -26,6 +26,7 @@ use crate::transaction_queue::TransactionQueue;
 struct MempoolContent<T> {
     tx_pool: Option<TransactionPool>,
     tx_queue: Option<TransactionQueue>,
+    account_nonces: Option<HashMap<ContractAddress, Nonce>>,
     // Artificially use generic type, for the compiler.
     _phantom: std::marker::PhantomData<T>,
 }
@@ -46,6 +47,8 @@ impl MempoolContent<FullContent> {
         Self {
             tx_pool: Some(pool_txs.into_iter().collect()),
             tx_queue: Some(queue_txs.into_iter().collect()),
+            // TODO: Add implementation when needed.
+            account_nonces: Default::default(),
             _phantom: std::marker::PhantomData,
         }
     }
@@ -59,6 +62,7 @@ impl MempoolContent<PartialContent> {
         Self {
             tx_pool: Some(pool_txs.into_iter().collect()),
             tx_queue: None,
+            account_nonces: None,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -70,6 +74,16 @@ impl MempoolContent<PartialContent> {
         Self {
             tx_queue: Some(queue_txs.into_iter().collect()),
             tx_pool: None,
+            account_nonces: None,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    fn with_account_nonces(account_nonce_pairs: Vec<(ContractAddress, Nonce)>) -> Self {
+        Self {
+            tx_pool: None,
+            tx_queue: None,
+            account_nonces: Some(account_nonce_pairs.into_iter().collect()),
             _phantom: std::marker::PhantomData,
         }
     }
@@ -88,16 +102,21 @@ impl<T> MempoolContent<T> {
     fn assert_eq_queue_content(&self, mempool: &Mempool) {
         assert_eq!(self.tx_queue.as_ref().unwrap(), &mempool.tx_queue);
     }
+
+    fn assert_eq_account_nonces(&self, mempool: &Mempool) {
+        assert_eq!(self.account_nonces.as_ref().unwrap(), &mempool.account_nonces);
+    }
 }
 
 impl<T> From<MempoolContent<T>> for Mempool {
     fn from(mempool_content: MempoolContent<T>) -> Mempool {
-        let MempoolContent { tx_pool, tx_queue, _phantom: _ } = mempool_content;
+        let MempoolContent { tx_pool, tx_queue, account_nonces, _phantom: _ } = mempool_content;
         Mempool {
             tx_pool: tx_pool.unwrap_or_default(),
             tx_queue: tx_queue.unwrap_or_default(),
             // TODO: Add implementation when needed.
             mempool_state: Default::default(),
+            account_nonces: account_nonces.unwrap_or_default(),
         }
     }
 }
@@ -107,6 +126,7 @@ impl Default for MempoolContent<FullContent> {
         Self {
             tx_pool: Some(TransactionPool::default()),
             tx_queue: Some(TransactionQueue::default()),
+            account_nonces: Some(HashMap::default()),
             _phantom: std::marker::PhantomData,
         }
     }
@@ -831,4 +851,31 @@ fn test_flow_send_same_nonce_tx_after_previous_not_included() {
     let expected_queue_txs = [TransactionReference::new(&tx_nonce5)];
     let expected_mempool_content = MempoolContent::with_queue(expected_queue_txs);
     expected_mempool_content.assert_eq_queue_content(&mempool);
+}
+
+#[rstest]
+fn test_account_nonces(mut mempool: Mempool) {
+    // Setup.
+    let input =
+        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8);
+    let address = input.tx.contract_address();
+
+    let expected_mempool_content =
+        MempoolContent::with_account_nonces(vec![(address, input.account.state.nonce)]);
+
+    // Test: update through new input.
+    add_tx(&mut mempool, &input);
+
+    // Assert.
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
+
+    // Test: update through a block.
+    let committed_nonce = Nonce(felt!(0_u16));
+    let state_changes = HashMap::from([(address, AccountState { nonce: committed_nonce })]);
+    assert!(mempool.commit_block(state_changes).is_ok());
+
+    // Assert.
+    let next_nonce = committed_nonce.try_increment().unwrap();
+    let expected_mempool_content = MempoolContent::with_account_nonces(vec![(address, next_nonce)]);
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
 }
