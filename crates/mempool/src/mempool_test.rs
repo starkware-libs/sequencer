@@ -340,7 +340,7 @@ fn test_get_txs_with_holes_single_account() {
 
     let pool_txs = [input_nonce_1.tx];
     let queue_txs = [];
-    let mut mempool: Mempool = MempoolContent::new(pool_txs.clone(), queue_txs).into();
+    let mut mempool: Mempool = MempoolContent::new(pool_txs.clone(), queue_txs.clone()).into();
 
     // Test.
     let txs = mempool.get_txs(1).unwrap();
@@ -431,7 +431,7 @@ fn test_add_tx_lower_than_queued_nonce() {
         add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8);
 
     let queue_txs = [TransactionReference::new(&valid_input.tx)];
-    let expected_mempool_content = MempoolContent::with_queue(queue_txs);
+    let expected_mempool_content = MempoolContent::with_queue(queue_txs.clone());
     let pool_txs = [valid_input.tx];
     let mut mempool: Mempool = MempoolContent::new(pool_txs, queue_txs).into();
 
@@ -624,7 +624,7 @@ fn test_commit_block_includes_all_txs() {
     let queue_txs = [&tx_address0_nonce4, &tx_address1_nonce3, &tx_address2_nonce1]
         .map(TransactionReference::new);
     let pool_txs = [tx_address0_nonce4, tx_address0_nonce5, tx_address1_nonce3, tx_address2_nonce1];
-    let mut mempool: Mempool = MempoolContent::new(pool_txs.clone(), queue_txs).into();
+    let mut mempool: Mempool = MempoolContent::new(pool_txs.clone(), queue_txs.clone()).into();
 
     // Test.
     let state_changes = HashMap::from([
