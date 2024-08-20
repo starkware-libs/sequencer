@@ -144,7 +144,7 @@ fn test_discounted_gas_overdraft(
     let charge_fee = true;
     let report = PostExecutionReport::new(
         &mut state,
-        &block_context.to_tx_context(&tx).unwrap(),
+        &block_context.to_tx_context(&tx),
         &tx_receipt,
         charge_fee,
     )
