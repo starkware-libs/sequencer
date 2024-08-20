@@ -44,13 +44,7 @@ impl Leaf for CompiledClassHash {
 }
 
 impl Leaf for ContractState {
-    type Input = (
-        NodeIndex,
-        Nonce,
-        ClassHash,
-        UpdatedSkeletonTreeImpl,
-        LeafModifications<StarknetStorageValue>,
-    );
+    type Input = ContractStateInput;
     type Output = FilledTreeImpl<StarknetStorageValue>;
 
     fn is_empty(&self) -> bool {
@@ -60,11 +54,12 @@ impl Leaf for ContractState {
     }
 
     async fn create(input: Self::Input) -> LeafResult<(Self, Self::Output)> {
-        let (leaf_index, nonce, class_hash, updated_skeleton, storage_modifications) = input;
+        let ContractStateInput { leaf_index, nonce, class_hash, updated_skeleton, storage_updates } =
+            input;
 
         let storage_trie = FilledTreeImpl::<StarknetStorageValue>::create_with_existing_leaves::<
             TreeHashFunctionImpl,
-        >(updated_skeleton, storage_modifications)
+        >(updated_skeleton, storage_updates)
         .await
         .map_err(|storage_error| {
             LeafError::LeafComputationError(format!(
@@ -78,4 +73,12 @@ impl Leaf for ContractState {
             storage_trie,
         ))
     }
+}
+
+pub struct ContractStateInput {
+    pub leaf_index: NodeIndex,
+    pub nonce: Nonce,
+    pub class_hash: ClassHash,
+    pub updated_skeleton: UpdatedSkeletonTreeImpl,
+    pub storage_updates: LeafModifications<StarknetStorageValue>,
 }

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
-use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 use starknet_patricia::storage::storage_trait::Storage;
@@ -12,7 +12,7 @@ use crate::block_committer::input::{ContractAddress, StarknetStorageValue};
 use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::forest::updated_skeleton_forest::UpdatedSkeletonForest;
 use crate::hash_function::hash::ForestHashFunction;
-use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
+use crate::patricia_merkle_tree::leaf::leaf_impl::{ContractState, ContractStateInput};
 use crate::patricia_merkle_tree::types::{
     ClassHash,
     ClassesTrie,
@@ -118,7 +118,7 @@ impl FilledForest {
         mut contract_address_to_storage_skeleton: HashMap<ContractAddress, UpdatedSkeletonTreeImpl>,
         address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
         address_to_nonce: &HashMap<ContractAddress, Nonce>,
-    ) -> ForestResult<HashMap<NodeIndex, <ContractState as Leaf>::Input>> {
+    ) -> ForestResult<HashMap<NodeIndex, ContractStateInput>> {
         let mut leaf_index_to_leaf_input = HashMap::new();
         assert_eq!(
             contract_address_to_storage_updates.len(),
@@ -138,19 +138,19 @@ impl FilledForest {
                 .ok_or(ForestError::MissingContractCurrentState(contract_address))?;
             leaf_index_to_leaf_input.insert(
                 node_index,
-                (
-                    node_index,
-                    *(address_to_nonce
+                ContractStateInput {
+                    leaf_index: node_index,
+                    nonce: *(address_to_nonce
                         .get(&contract_address)
                         .unwrap_or(&original_contract_state.nonce)),
-                    *(address_to_class_hash
+                    class_hash: *(address_to_class_hash
                         .get(&contract_address)
                         .unwrap_or(&original_contract_state.class_hash)),
-                    contract_address_to_storage_skeleton
+                    updated_skeleton: contract_address_to_storage_skeleton
                         .remove(&contract_address)
                         .ok_or(ForestError::MissingUpdatedSkeleton(contract_address))?,
                     storage_updates,
-                ),
+                },
             );
         }
         Ok(leaf_index_to_leaf_input)
