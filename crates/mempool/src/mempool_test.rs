@@ -2,14 +2,16 @@ use std::cmp::Reverse;
 use std::collections::HashMap;
 
 use assert_matches::assert_matches;
+use mempool_test_utils::starknet_api_test_utils::create_executable_tx;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
+use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::{Tip, TransactionHash};
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::{Account, AccountState, ThinTransaction};
+use starknet_mempool_types::mempool_types::{Account, AccountState};
 use starknet_types_core::felt::Felt;
 
 use crate::mempool::{Mempool, MempoolInput, TransactionReference};
@@ -37,7 +39,7 @@ struct PartialContent;
 impl MempoolContent<FullContent> {
     fn new<P, Q>(pool_txs: P, queue_txs: Q) -> Self
     where
-        P: IntoIterator<Item = ThinTransaction>,
+        P: IntoIterator<Item = Transaction>,
         // TODO(Ayelet): Consider using `&ThinTransaction` instead of `TransactionReference`.
         Q: IntoIterator<Item = TransactionReference>,
     {
@@ -52,7 +54,7 @@ impl MempoolContent<FullContent> {
 impl MempoolContent<PartialContent> {
     fn with_pool<P>(pool_txs: P) -> Self
     where
-        P: IntoIterator<Item = ThinTransaction>,
+        P: IntoIterator<Item = Transaction>,
     {
         Self {
             tx_pool: Some(pool_txs.into_iter().collect()),
@@ -110,8 +112,8 @@ impl Default for MempoolContent<FullContent> {
     }
 }
 
-impl FromIterator<ThinTransaction> for TransactionPool {
-    fn from_iter<T: IntoIterator<Item = ThinTransaction>>(txs: T) -> Self {
+impl FromIterator<Transaction> for TransactionPool {
+    fn from_iter<T: IntoIterator<Item = Transaction>>(txs: T) -> Self {
         let mut pool = Self::default();
         for tx in txs {
             pool.insert(tx).unwrap();
@@ -136,7 +138,7 @@ fn add_tx(mempool: &mut Mempool, input: &MempoolInput) {
 }
 
 #[track_caller]
-fn _add_tx_expect_error(mempool: &mut Mempool, input: &MempoolInput, expected_error: MempoolError) {
+fn add_tx_expect_error(mempool: &mut Mempool, input: &MempoolInput, expected_error: MempoolError) {
     assert_eq!(mempool.add_tx(input.clone()), Err(expected_error));
 }
 
@@ -153,12 +155,13 @@ macro_rules! add_tx_input {
         let sender_address = contract_address!($sender_address);
         let account_nonce = Nonce(felt!($account_nonce));
         let account = Account { sender_address, state: AccountState {nonce: account_nonce}};
-        let tx = ThinTransaction {
-            tip: Tip($tip),
-            tx_hash: TransactionHash(StarkHash::from($tx_hash)),
+
+        let tx = create_executable_tx(
             sender_address,
-            nonce: Nonce(felt!($tx_nonce)),
-        };
+            TransactionHash(StarkHash::from($tx_hash)),
+            Tip($tip),
+            Nonce(felt!($tx_nonce)),
+        );
         MempoolInput { tx, account }
     }};
     (tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
@@ -184,19 +187,6 @@ fn mempool() -> Mempool {
 
 // Tests.
 
-// new method tests.
-
-#[test]
-fn test_new_with_duplicate_tx() {
-    let input = add_tx_input!(tip: 0, tx_hash: 1);
-    let same_input = input.clone();
-
-    assert!(matches!(
-        Mempool::new([input, same_input]),
-        Err(MempoolError::DuplicateTransaction { .. })
-    ));
-}
-
 // get_txs tests.
 
 #[rstest]
@@ -219,7 +209,7 @@ fn test_get_txs_returns_by_priority_order(#[case] requested_txs: usize) {
     // Test.
     let fetched_txs = mempool.get_txs(requested_txs).unwrap();
 
-    txs.sort_by_key(|tx| Reverse(tx.tip));
+    txs.sort_by_key(|tx| Reverse(tx.tip()));
 
     // Ensure we do not exceed the number of transactions available in the mempool.
     let max_requested_txs = requested_txs.min(txs.len());
@@ -350,7 +340,7 @@ fn test_get_txs_with_holes_single_account() {
 
     let pool_txs = [input_nonce_1.tx];
     let queue_txs = [];
-    let mut mempool: Mempool = MempoolContent::new(pool_txs.clone(), queue_txs).into();
+    let mut mempool: Mempool = MempoolContent::new(pool_txs.clone(), queue_txs.clone()).into();
 
     // Test.
     let txs = mempool.get_txs(1).unwrap();
@@ -380,7 +370,7 @@ fn test_add_tx(mut mempool: Mempool) {
 
     // TODO(Ayelet): Consider share this code.
     // Sort in an ascending priority order.
-    add_tx_inputs.sort_by_key(|input| std::cmp::Reverse(input.tx.tip));
+    add_tx_inputs.sort_by_key(|input| std::cmp::Reverse(input.tx.tip().unwrap()));
 
     // Assert: transactions are ordered by priority.
     let expected_queue_txs: Vec<TransactionReference> =
@@ -441,12 +431,32 @@ fn test_add_tx_lower_than_queued_nonce() {
         add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8);
 
     let queue_txs = [TransactionReference::new(&valid_input.tx)];
-    let expected_mempool_content = MempoolContent::with_queue(queue_txs);
+    let expected_mempool_content = MempoolContent::with_queue(queue_txs.clone());
     let pool_txs = [valid_input.tx];
     let mut mempool: Mempool = MempoolContent::new(pool_txs, queue_txs).into();
 
     // Test and assert the original transaction remains.
     assert_matches!(mempool.add_tx(lower_nonce_input), Err(MempoolError::DuplicateNonce { .. }));
+    expected_mempool_content.assert_eq_queue_content(&mempool);
+}
+
+#[rstest]
+fn test_add_tx_updates_queue_with_higher_account_nonce() {
+    // Setup.
+    let input =
+        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8);
+    let higher_account_nonce_input =
+        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1_u8, account_nonce: 1_u8);
+
+    let queue_txs = [TransactionReference::new(&input.tx)];
+    let mut mempool: Mempool = MempoolContent::with_queue(queue_txs).into();
+
+    // Test.
+    add_tx(&mut mempool, &higher_account_nonce_input);
+
+    // Assert: the higher account nonce transaction is in the queue.
+    let expected_queue_txs = [TransactionReference::new(&higher_account_nonce_input.tx)];
+    let expected_mempool_content = MempoolContent::with_queue(expected_queue_txs);
     expected_mempool_content.assert_eq_queue_content(&mempool);
 }
 
@@ -490,11 +500,10 @@ fn test_add_tx_delete_tx_with_lower_nonce_than_account_nonce() {
     add_tx(&mut mempool, &tx_nonce_1_account_nonce_1);
 
     // Assert the transaction with the lower nonce is removed.
-    // TODO(Ayelet): Assert the queue after modifying add_tx to delete lower nonce transactions
-    // in the queue.
+    let expected_queue_txs = [TransactionReference::new(&tx_nonce_1_account_nonce_1.tx)];
     let expected_pool_txs = [tx_nonce_1_account_nonce_1.tx];
-    let expected_mempool_content = MempoolContent::with_pool(expected_pool_txs);
-    expected_mempool_content.assert_eq_pool_content(&mempool);
+    let expected_mempool_content = MempoolContent::new(expected_pool_txs, expected_queue_txs);
+    expected_mempool_content.assert_eq_mempool_content(&mempool);
 }
 
 #[rstest]
@@ -584,6 +593,27 @@ fn test_add_tx_filling_hole(mut mempool: Mempool) {
 // commit_block tests.
 
 #[rstest]
+fn test_add_tx_after_get_txs_fails_on_duplicate_nonce() {
+    // Setup.
+    let input_tx = add_tx_input!(tip: 1, tx_hash: Felt::ZERO);
+
+    let pool_txs = [input_tx.tx.clone()];
+    let queue_txs = [TransactionReference::new(&input_tx.tx)];
+    let mut mempool: Mempool = MempoolContent::new(pool_txs, queue_txs).into();
+
+    // Test.
+    mempool.get_txs(1).unwrap();
+    add_tx_expect_error(
+        &mut mempool,
+        &input_tx,
+        MempoolError::DuplicateNonce {
+            address: contract_address!("0x0"),
+            nonce: Nonce(felt!(0_u16)),
+        },
+    );
+}
+
+#[rstest]
 fn test_commit_block_includes_all_txs() {
     // Setup.
     let tx_address0_nonce4 = add_tx_input!(tip: 4, tx_hash: 1, sender_address: "0x0", tx_nonce: 4_u8, account_nonce: 4_u8).tx;
@@ -594,7 +624,7 @@ fn test_commit_block_includes_all_txs() {
     let queue_txs = [&tx_address0_nonce4, &tx_address1_nonce3, &tx_address2_nonce1]
         .map(TransactionReference::new);
     let pool_txs = [tx_address0_nonce4, tx_address0_nonce5, tx_address1_nonce3, tx_address2_nonce1];
-    let mut mempool: Mempool = MempoolContent::new(pool_txs.clone(), queue_txs).into();
+    let mut mempool: Mempool = MempoolContent::new(pool_txs.clone(), queue_txs.clone()).into();
 
     // Test.
     let state_changes = HashMap::from([

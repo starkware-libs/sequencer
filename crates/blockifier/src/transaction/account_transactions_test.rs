@@ -599,7 +599,7 @@ fn test_fail_deploy_account(
     let fee_token_address = chain_info.fee_token_address(&deploy_account_tx.fee_type());
 
     let deploy_address = match &deploy_account_tx {
-        AccountTransaction::DeployAccount(deploy_tx) => deploy_tx.contract_address,
+        AccountTransaction::DeployAccount(deploy_tx) => deploy_tx.contract_address(),
         _ => unreachable!("deploy_account_tx is a DeployAccount"),
     };
     fund_account(chain_info, deploy_address, BALANCE * 2, &mut state.state);

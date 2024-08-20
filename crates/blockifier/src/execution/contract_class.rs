@@ -55,13 +55,9 @@ use crate::transaction::errors::TransactionExecutionError;
 #[path = "contract_class_test.rs"]
 pub mod test;
 
-/// Represents a runnable Starknet contract class (meaning, the program is runnable by the VM).
-/// We wrap the actual class in an Arc to avoid cloning the program when cloning the class.
-// Note: when deserializing from a SN API class JSON string, the ABI field is ignored
-// by serde, since it is not required for execution.
-
 pub type ContractClassResult<T> = Result<T, ContractClassError>;
 
+/// Represents a runnable Starknet contract class (meaning, the program is runnable by the VM).
 #[derive(Clone, Debug, PartialEq, derive_more::From)]
 pub enum ContractClass {
     V0(ContractClassV0),
@@ -120,6 +116,12 @@ impl ContractClass {
 }
 
 // V0.
+
+/// Represents a runnable Cario 0 Starknet contract class (meaning, the program is runnable by the
+/// VM). We wrap the actual class in an Arc to avoid cloning the program when cloning the
+/// class.
+// Note: when deserializing from a SN API class JSON string, the ABI field is ignored
+// by serde, since it is not required for execution.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct ContractClassV0(pub Arc<ContractClassV0Inner>);
 impl Deref for ContractClassV0 {
@@ -187,6 +189,10 @@ impl TryFrom<DeprecatedContractClass> for ContractClassV0 {
 }
 
 // V1.
+
+/// Represents a runnable Cario (Cairo 1) Starknet contract class (meaning, the program is runnable
+/// by the VM). We wrap the actual class in an Arc to avoid cloning the program when cloning the
+/// class.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ContractClassV1(pub Arc<ContractClassV1Inner>);
 impl Deref for ContractClassV1 {

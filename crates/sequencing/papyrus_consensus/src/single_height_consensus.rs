@@ -56,8 +56,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         context: &mut ContextT,
     ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
         info!("Starting consensus with validators {:?}", self.validators);
-        let leader_fn =
-            |_round: Round| -> ValidatorId { context.proposer(&self.validators, self.height) };
+        let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
         let events = self.state_machine.start(&leader_fn);
         self.handle_state_machine_events(context, events).await
     }
@@ -77,10 +76,10 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         fin_receiver: oneshot::Receiver<BlockHash>,
     ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
         debug!(
-            "Received proposal: proposal_height={}, proposer={:?}",
-            init.height.0, init.proposer
+            "Received proposal: height={}, round={}, proposer={:?}",
+            init.height.0, init.round, init.proposer
         );
-        let proposer_id = context.proposer(&self.validators, self.height);
+        let proposer_id = context.proposer(self.height, init.round);
         if init.height != self.height {
             let msg = format!("invalid height: expected {:?}, got {:?}", self.height, init.height);
             return Err(ConsensusError::InvalidProposal(proposer_id, self.height, msg));
@@ -131,8 +130,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         block_id: Option<BlockHash>,
     ) -> Result<Option<Decision<BlockT>>, ConsensusError> {
         let sm_proposal = StateMachineEvent::Proposal(block_id, init.round);
-        let leader_fn =
-            |_round: Round| -> ValidatorId { context.proposer(&self.validators, self.height) };
+        let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
         let sm_events = self.state_machine.handle_event(sm_proposal, &leader_fn);
         self.handle_state_machine_events(context, sm_events).await
     }
@@ -193,8 +191,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
                 }
             }
         }
-        let leader_fn =
-            |_round: Round| -> ValidatorId { context.proposer(&self.validators, self.height) };
+        let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
         let sm_events = self.state_machine.handle_event(sm_vote, &leader_fn);
         self.handle_state_machine_events(context, sm_events).await
     }
@@ -268,8 +265,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         fin_sender.send(id).expect("Failed to send ProposalFin to Peering.");
         let old = self.proposals.insert(round, Some(block));
         assert!(old.is_none(), "There should be no entry for this round.");
-        let leader_fn =
-            |_round: Round| -> ValidatorId { context.proposer(&self.validators, self.height) };
+        let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
         self.state_machine.handle_event(StateMachineEvent::GetProposal(Some(id), round), &leader_fn)
     }
 

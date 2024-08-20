@@ -8,14 +8,22 @@ use lazy_static::lazy_static;
 use mockall::mock;
 use mockall::predicate::eq;
 use papyrus_network::network_manager::ReportSender;
-use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, Vote, VoteType};
+use papyrus_protobuf::consensus::{ConsensusMessage, Vote};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::transaction::Transaction;
 use starknet_types_core::felt::Felt;
 
 use super::{run_consensus, MultiHeightManager};
-use crate::types::{ConsensusBlock, ConsensusContext, ConsensusError, ProposalInit, ValidatorId};
+use crate::test_utils::{precommit, prevote, proposal};
+use crate::types::{
+    ConsensusBlock,
+    ConsensusContext,
+    ConsensusError,
+    ProposalInit,
+    Round,
+    ValidatorId,
+};
 
 lazy_static! {
     static ref VALIDATOR_ID: ValidatorId = 1_u32.into();
@@ -63,7 +71,7 @@ mock! {
 
         async fn validators(&self, height: BlockNumber) -> Vec<ValidatorId>;
 
-        fn proposer(&self, validators: &[ValidatorId], height: BlockNumber) -> ValidatorId;
+        fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
 
         async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError>;
 
@@ -74,7 +82,7 @@ mock! {
             fin_receiver: oneshot::Receiver<BlockHash>,
         ) -> Result<(), ConsensusError>;
 
-        async fn notify_decision(
+        async fn decision_reached(
             &mut self,
             block: TestBlock,
             precommits: Vec<Vote>,
@@ -91,35 +99,6 @@ async fn send(sender: &mut Sender, msg: ConsensusMessage) {
         .await
         .unwrap_or_else(|_| panic!("Failed to send message: {msg:?}"));
 }
-fn proposal(block_hash: BlockHash, height: u64) -> ConsensusMessage {
-    ConsensusMessage::Proposal(Proposal {
-        height,
-        block_hash,
-        round: 0,
-        proposer: *PROPOSER_ID,
-        transactions: vec![],
-    })
-}
-
-fn prevote(block_hash: Option<BlockHash>, height: u64, voter: ValidatorId) -> ConsensusMessage {
-    ConsensusMessage::Vote(Vote {
-        vote_type: VoteType::Prevote,
-        height,
-        round: 0,
-        block_hash,
-        voter,
-    })
-}
-
-fn precommit(block_hash: Option<BlockHash>, height: u64, voter: ValidatorId) -> ConsensusMessage {
-    ConsensusMessage::Vote(Vote {
-        vote_type: VoteType::Precommit,
-        height,
-        round: 0,
-        block_hash,
-        voter,
-    })
-}
 
 #[tokio::test]
 async fn manager_multiple_heights_unordered() {
@@ -127,12 +106,12 @@ async fn manager_multiple_heights_unordered() {
 
     let (mut sender, mut receiver) = mpsc::unbounded();
     // Send messages for height 2 followed by those for height 1.
-    send(&mut sender, proposal(BlockHash(Felt::TWO), 2)).await;
-    send(&mut sender, prevote(Some(BlockHash(Felt::TWO)), 2, *PROPOSER_ID)).await;
-    send(&mut sender, precommit(Some(BlockHash(Felt::TWO)), 2, *PROPOSER_ID)).await;
-    send(&mut sender, proposal(BlockHash(Felt::ONE), 1)).await;
-    send(&mut sender, prevote(Some(BlockHash(Felt::ONE)), 1, *PROPOSER_ID)).await;
-    send(&mut sender, precommit(Some(BlockHash(Felt::ONE)), 1, *PROPOSER_ID)).await;
+    send(&mut sender, proposal(BlockHash(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(BlockHash(Felt::TWO)), 2, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(BlockHash(Felt::TWO)), 2, 0, *PROPOSER_ID)).await;
+    send(&mut sender, proposal(BlockHash(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(BlockHash(Felt::ONE)), 1, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(BlockHash(Felt::ONE)), 1, 0, *PROPOSER_ID)).await;
 
     let mut manager = MultiHeightManager::new();
 
@@ -184,7 +163,7 @@ async fn run_consensus_sync() {
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_broadcast().returning(move |_| Ok(()));
-    context.expect_notify_decision().return_once(move |block, votes| {
+    context.expect_decision_reached().return_once(move |block, votes| {
         assert_eq!(block.id(), BlockHash(Felt::TWO));
         assert_eq!(votes[0].height, 2);
         decision_tx.send(()).unwrap();
@@ -193,9 +172,9 @@ async fn run_consensus_sync() {
 
     // Send messages for height 2.
     let (mut network_sender, mut network_receiver) = mpsc::unbounded();
-    send(&mut network_sender, proposal(BlockHash(Felt::TWO), 2)).await;
-    send(&mut network_sender, prevote(Some(BlockHash(Felt::TWO)), 2, *PROPOSER_ID)).await;
-    send(&mut network_sender, precommit(Some(BlockHash(Felt::TWO)), 2, *PROPOSER_ID)).await;
+    send(&mut network_sender, proposal(BlockHash(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
+    send(&mut network_sender, prevote(Some(BlockHash(Felt::TWO)), 2, 0, *PROPOSER_ID)).await;
+    send(&mut network_sender, precommit(Some(BlockHash(Felt::TWO)), 2, 0, *PROPOSER_ID)).await;
 
     // Start at height 1.
     let (mut sync_sender, mut sync_receiver) = mpsc::unbounded();
@@ -241,13 +220,13 @@ async fn run_consensus_sync_cancellation_safety() {
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
     context
         .expect_broadcast()
-        .with(eq(prevote(Some(BlockHash(Felt::ONE)), 1, *VALIDATOR_ID)))
+        .with(eq(prevote(Some(BlockHash(Felt::ONE)), 1, 0, *VALIDATOR_ID)))
         .return_once(move |_| {
             proposal_handled_tx.send(()).unwrap();
             Ok(())
         });
     context.expect_broadcast().returning(move |_| Ok(()));
-    context.expect_notify_decision().return_once(|block, votes| {
+    context.expect_decision_reached().return_once(|block, votes| {
         assert_eq!(block.id(), BlockHash(Felt::ONE));
         assert_eq!(votes[0].height, 1);
         decision_tx.send(()).unwrap();
@@ -270,7 +249,7 @@ async fn run_consensus_sync_cancellation_safety() {
     });
 
     // Send a proposal for height 1.
-    send(&mut network_sender, proposal(BlockHash(Felt::ONE), 1)).await;
+    send(&mut network_sender, proposal(BlockHash(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
     proposal_handled_rx.await.unwrap();
 
     // Send an old sync. This should not cancel the current height.
@@ -279,8 +258,8 @@ async fn run_consensus_sync_cancellation_safety() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Finished messages for 1
-    send(&mut network_sender, prevote(Some(BlockHash(Felt::ONE)), 1, *PROPOSER_ID)).await;
-    send(&mut network_sender, precommit(Some(BlockHash(Felt::ONE)), 1, *PROPOSER_ID)).await;
+    send(&mut network_sender, prevote(Some(BlockHash(Felt::ONE)), 1, 0, *PROPOSER_ID)).await;
+    send(&mut network_sender, precommit(Some(BlockHash(Felt::ONE)), 1, 0, *PROPOSER_ID)).await;
     decision_rx.await.unwrap();
 
     // Drop the sender to close consensus and gracefully shut down.

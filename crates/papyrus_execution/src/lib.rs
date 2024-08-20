@@ -89,6 +89,7 @@ use crate::objects::{tx_execution_output_to_fee_estimation, FeeEstimation, Pendi
 
 const STARKNET_VERSION_O_13_0: &str = "0.13.0";
 const STARKNET_VERSION_O_13_1: &str = "0.13.1";
+const STARKNET_VERSION_O_13_2: &str = "0.13.2";
 const STRK_FEE_CONTRACT_ADDRESS: &str =
     "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
 const ETH_FEE_CONTRACT_ADDRESS: &str =
@@ -104,6 +105,11 @@ static VERSIONED_CONSTANTS_13_0: Lazy<VersionedConstants> = Lazy::new(|| {
 });
 static VERSIONED_CONSTANTS_13_1: Lazy<VersionedConstants> = Lazy::new(|| {
     VersionedConstants::try_from(Path::new("./resources/versioned_constants_13_1.json"))
+        .expect("Versioned constants JSON file is malformed")
+});
+
+static VERSIONED_CONSTANTS_13_2: Lazy<VersionedConstants> = Lazy::new(|| {
+    VersionedConstants::try_from(Path::new("./resources/versioned_constants_13_2.json"))
         .expect("Versioned constants JSON file is malformed")
 });
 
@@ -874,6 +880,9 @@ fn get_versioned_constants(
             }
             StarknetVersion(version) if version == STARKNET_VERSION_O_13_1 => {
                 &VERSIONED_CONSTANTS_13_1
+            }
+            StarknetVersion(version) if version == STARKNET_VERSION_O_13_2 => {
+                &VERSIONED_CONSTANTS_13_2
             }
             _ => VersionedConstants::latest_constants(),
         },

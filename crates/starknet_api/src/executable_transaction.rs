@@ -1,8 +1,36 @@
 use serde::{Deserialize, Serialize};
 
 use crate::contract_class::ClassInfo;
-use crate::core::{ContractAddress, Nonce};
-use crate::transaction::{Tip, TransactionHash};
+use crate::core::{ClassHash, ContractAddress, Nonce};
+use crate::data_availability::DataAvailabilityMode;
+use crate::rpc_transaction::RpcTransaction;
+use crate::transaction::{
+    AccountDeploymentData,
+    Calldata,
+    ContractAddressSalt,
+    PaymasterData,
+    ResourceBoundsMapping,
+    Tip,
+    TransactionHash,
+    TransactionSignature,
+    TransactionVersion,
+};
+
+macro_rules! implement_inner_tx_getter_calls {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            self.tx.$field().clone()
+        })*
+    };
+}
+
+macro_rules! implement_getter_calls {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            self.$field
+        })*
+    };
+}
 
 /// Represents a paid Starknet transaction.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -53,6 +81,31 @@ impl Transaction {
             },
         }
     }
+
+    // TODO(Arni): Update the function to support all transaction types.
+    pub fn new_from_rpc_tx(
+        rpc_tx: RpcTransaction,
+        tx_hash: TransactionHash,
+        sender_address: ContractAddress,
+    ) -> Transaction {
+        Transaction::Invoke(crate::executable_transaction::InvokeTransaction {
+            tx: crate::transaction::InvokeTransaction::V3(
+                crate::transaction::InvokeTransactionV3 {
+                    sender_address,
+                    tip: *rpc_tx.tip(),
+                    nonce: *rpc_tx.nonce(),
+                    resource_bounds: ResourceBoundsMapping::default(),
+                    signature: TransactionSignature::default(),
+                    calldata: Calldata::default(),
+                    nonce_data_availability_mode: DataAvailabilityMode::L1,
+                    fee_data_availability_mode: DataAvailabilityMode::L1,
+                    paymaster_data: PaymasterData::default(),
+                    account_deployment_data: AccountDeploymentData::default(),
+                },
+            ),
+            tx_hash,
+        })
+    }
 }
 
 // TODO(Mohammad): Add constructor for all the transaction's structs.
@@ -70,8 +123,39 @@ pub struct DeployAccountTransaction {
     pub contract_address: ContractAddress,
 }
 
+impl DeployAccountTransaction {
+    implement_inner_tx_getter_calls!(
+        (class_hash, ClassHash),
+        (constructor_calldata, Calldata),
+        (contract_address_salt, ContractAddressSalt),
+        (nonce, Nonce),
+        (signature, TransactionSignature),
+        (version, TransactionVersion)
+    );
+    implement_getter_calls!((tx_hash, TransactionHash), (contract_address, ContractAddress));
+
+    pub fn tx(&self) -> &crate::transaction::DeployAccountTransaction {
+        &self.tx
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct InvokeTransaction {
     pub tx: crate::transaction::InvokeTransaction,
     pub tx_hash: TransactionHash,
+}
+
+impl InvokeTransaction {
+    implement_inner_tx_getter_calls!(
+        (calldata, Calldata),
+        (nonce, Nonce),
+        (signature, TransactionSignature),
+        (sender_address, ContractAddress),
+        (version, TransactionVersion)
+    );
+    implement_getter_calls!((tx_hash, TransactionHash));
+
+    pub fn tx(&self) -> &crate::transaction::InvokeTransaction {
+        &self.tx
+    }
 }

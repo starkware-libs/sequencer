@@ -54,6 +54,51 @@
     "privacy": "Public",
     "value": 3
   },
+  "components.consensus_manager.component_type": {
+    "description": "The component type.",
+    "privacy": "Public",
+    "value": "AsynchronousComponent"
+  },
+  "components.consensus_manager.execute": {
+    "description": "The component execution flag.",
+    "privacy": "Public",
+    "value": true
+  },
+  "components.consensus_manager.local_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "components.consensus_manager.local_config.channel_buffer_size": {
+    "description": "The communication channel buffer size.",
+    "privacy": "Public",
+    "value": 32
+  },
+  "components.consensus_manager.location": {
+    "description": "The component location.",
+    "privacy": "Public",
+    "value": "Local"
+  },
+  "components.consensus_manager.remote_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.consensus_manager.remote_config.ip": {
+    "description": "The remote component server ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.consensus_manager.remote_config.port": {
+    "description": "The remote component server port.",
+    "privacy": "Public",
+    "value": 8080
+  },
+  "components.consensus_manager.remote_config.retries": {
+    "description": "The max number of retries for sending a message.",
+    "privacy": "Public",
+    "value": 3
+  },
   "components.gateway.component_type": {
     "description": "The component type.",
     "privacy": "Public",
@@ -143,6 +188,11 @@
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
+  },
+  "consensus_manager_config.consensus_config_param_1": {
+    "description": "The first consensus manager configuration parameter",
+    "privacy": "Public",
+    "value": 1
   },
   "gateway_config.network_config.ip": {
     "description": "The gateway server ip.",

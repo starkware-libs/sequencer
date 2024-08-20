@@ -6,13 +6,13 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::CairoVersion;
-use mempool_test_utils::starknet_api_test_utils::invoke_tx;
+use mempool_test_utils::starknet_api_test_utils::{create_executable_tx, invoke_tx};
 use mockall::predicate::eq;
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::communication::MockMempoolClient;
-use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput, ThinTransaction};
+use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 
 use crate::compilation::GatewayCompiler;
@@ -65,7 +65,9 @@ async fn test_add_tx() {
         .expect_add_tx()
         .once()
         .with(eq(MempoolInput {
-            tx: ThinTransaction { sender_address, tx_hash, tip: *tx.tip(), nonce: *tx.nonce() },
+            // TODO(Arni): Use external_to_executable_tx instead of `create_executable_tx`. Consider
+            // creating a `convertor for testing` that does not do the compilation.
+            tx: create_executable_tx(sender_address, tx_hash, *tx.tip(), *tx.nonce()),
             account: Account { sender_address, state: AccountState { nonce: *tx.nonce() } },
         }))
         .return_once(|_| Ok(()));

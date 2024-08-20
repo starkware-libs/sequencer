@@ -214,6 +214,9 @@ impl StateMachine {
     {
         let old = self.proposals.insert(round, block_hash);
         assert!(old.is_none(), "SHC should handle conflicts & replays");
+        if round != self.round {
+            return VecDeque::new();
+        }
         self.process_proposal(block_hash, round, leader_fn)
     }
 

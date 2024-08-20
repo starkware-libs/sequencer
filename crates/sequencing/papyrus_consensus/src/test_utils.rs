@@ -1,10 +1,17 @@
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use mockall::mock;
-use papyrus_protobuf::consensus::{ConsensusMessage, Vote};
+use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, Vote, VoteType};
 use starknet_api::block::{BlockHash, BlockNumber};
 
-use crate::types::{ConsensusBlock, ConsensusContext, ConsensusError, ProposalInit, ValidatorId};
+use crate::types::{
+    ConsensusBlock,
+    ConsensusContext,
+    ConsensusError,
+    ProposalInit,
+    Round,
+    ValidatorId,
+};
 
 /// Define a consensus block which can be used to enable auto mocking Context.
 #[derive(Debug, PartialEq, Clone)]
@@ -47,7 +54,7 @@ mock! {
 
         async fn validators(&self, height: BlockNumber) -> Vec<ValidatorId>;
 
-        fn proposer(&self, validators: &[ValidatorId], height: BlockNumber) -> ValidatorId;
+        fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
 
         async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError>;
 
@@ -58,10 +65,49 @@ mock! {
             fin_receiver: oneshot::Receiver<BlockHash>,
         ) -> Result<(), ConsensusError>;
 
-        async fn notify_decision(
+        async fn decision_reached(
             &mut self,
             block: TestBlock,
             precommits: Vec<Vote>,
         ) -> Result<(), ConsensusError>;
     }
+}
+
+pub fn prevote(
+    block_hash: Option<BlockHash>,
+    height: u64,
+    round: u32,
+    voter: ValidatorId,
+) -> ConsensusMessage {
+    ConsensusMessage::Vote(Vote { vote_type: VoteType::Prevote, height, round, block_hash, voter })
+}
+
+pub fn precommit(
+    block_hash: Option<BlockHash>,
+    height: u64,
+    round: u32,
+    voter: ValidatorId,
+) -> ConsensusMessage {
+    ConsensusMessage::Vote(Vote {
+        vote_type: VoteType::Precommit,
+        height,
+        round,
+        block_hash,
+        voter,
+    })
+}
+
+pub fn proposal(
+    block_hash: BlockHash,
+    height: u64,
+    round: u32,
+    proposer: ValidatorId,
+) -> ConsensusMessage {
+    ConsensusMessage::Proposal(Proposal {
+        height,
+        block_hash,
+        round,
+        proposer,
+        transactions: vec![],
+    })
 }

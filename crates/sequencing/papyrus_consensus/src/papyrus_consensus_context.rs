@@ -19,7 +19,14 @@ use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
 use tracing::{debug, debug_span, info, warn, Instrument};
 
-use crate::types::{ConsensusBlock, ConsensusContext, ConsensusError, ProposalInit, ValidatorId};
+use crate::types::{
+    ConsensusBlock,
+    ConsensusContext,
+    ConsensusError,
+    ProposalInit,
+    Round,
+    ValidatorId,
+};
 use crate::ProposalWrapper;
 
 // TODO: add debug messages and span to the tasks.
@@ -181,7 +188,7 @@ impl ConsensusContext for PapyrusConsensusContext {
         self.validators.clone()
     }
 
-    fn proposer(&self, _validators: &[ValidatorId], _height: BlockNumber) -> ValidatorId {
+    fn proposer(&self, _height: BlockNumber, _round: Round) -> ValidatorId {
         *self.validators.first().expect("validators should have at least 2 validators")
     }
 
@@ -236,7 +243,7 @@ impl ConsensusContext for PapyrusConsensusContext {
         Ok(())
     }
 
-    async fn notify_decision(
+    async fn decision_reached(
         &mut self,
         block: Self::Block,
         precommits: Vec<Vote>,

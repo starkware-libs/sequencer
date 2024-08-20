@@ -122,7 +122,7 @@ pub trait ConsensusContext {
     async fn validators(&self, height: BlockNumber) -> Vec<ValidatorId>;
 
     /// Calculates the ID of the Proposer based on the inputs.
-    fn proposer(&self, validators: &[ValidatorId], height: BlockNumber) -> ValidatorId;
+    fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
 
     async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError>;
 
@@ -140,7 +140,7 @@ pub trait ConsensusContext {
     /// - `block` identifies the decision.
     /// - `precommits` - All precommits must be for the same `(block.id(), height, round)` and form
     ///   a quorum (>2/3 of the voting power) for this height.
-    async fn notify_decision(
+    async fn decision_reached(
         &mut self,
         block: Self::Block,
         precommits: Vec<Vote>,

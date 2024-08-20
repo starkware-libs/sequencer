@@ -1,18 +1,14 @@
 use std::collections::{hash_map, BTreeMap, HashMap};
 
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::{
-    Account,
-    AccountState,
-    MempoolResult,
-    ThinTransaction,
-};
+use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolResult};
 
 use crate::mempool::TransactionReference;
 
-type HashToTransaction = HashMap<TransactionHash, ThinTransaction>;
+type HashToTransaction = HashMap<TransactionHash, Transaction>;
 
 /// Contains all transactions currently held in the mempool.
 /// Invariant: both data structures are consistent regarding the existence of transactions:
@@ -27,7 +23,7 @@ pub struct TransactionPool {
 }
 
 impl TransactionPool {
-    pub fn insert(&mut self, tx: ThinTransaction) -> MempoolResult<()> {
+    pub fn insert(&mut self, tx: Transaction) -> MempoolResult<()> {
         let tx_reference = TransactionReference::new(&tx);
         let tx_hash = tx_reference.tx_hash;
 
@@ -50,7 +46,7 @@ impl TransactionPool {
         Ok(())
     }
 
-    pub fn remove(&mut self, tx_hash: TransactionHash) -> MempoolResult<ThinTransaction> {
+    pub fn remove(&mut self, tx_hash: TransactionHash) -> MempoolResult<Transaction> {
         // Remove from pool.
         let tx =
             self.tx_pool.remove(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })?;
@@ -79,7 +75,7 @@ impl TransactionPool {
         }
     }
 
-    pub fn _get_by_tx_hash(&self, tx_hash: TransactionHash) -> MempoolResult<&ThinTransaction> {
+    pub fn _get_by_tx_hash(&self, tx_hash: TransactionHash) -> MempoolResult<&Transaction> {
         self.tx_pool.get(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })
     }
 
@@ -99,11 +95,6 @@ impl TransactionPool {
         // TOOD(Ayelet): Change to StarknetApiError.
         let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
         Ok(self.get_by_address_and_nonce(sender_address, next_nonce))
-    }
-
-    #[cfg(test)]
-    pub(crate) fn _tx_pool(&self) -> &HashToTransaction {
-        &self.tx_pool
     }
 }
 
