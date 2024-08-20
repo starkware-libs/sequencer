@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use async_trait::async_trait;
+#[cfg(test)]
+use mockall::automock;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -9,8 +12,9 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 use tokio_stream::wrappers::ReceiverStream;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, error, info, instrument, Instrument};
 
 // TODO: Should be defined in SN_API probably (shared with the consensus).
 pub type ProposalId = u64;
@@ -81,42 +85,83 @@ pub(crate) struct ProposalsManager {
     /// At any given time, there can be only one proposal being actively executed (either proposed
     /// or validated).
     proposal_in_generation: Arc<Mutex<Option<ProposalId>>>,
+    // Use a factory object, to be able to mock BlockBuilder in tests.
+    block_builder_factory: Arc<dyn BlockBuilderFactory>,
 }
 
 impl ProposalsManager {
     // TODO: Remove dead_code attribute.
     #[allow(dead_code)]
-    pub fn new(config: ProposalsManagerConfig, mempool_client: SharedMempoolClient) -> Self {
-        Self { config, mempool_client, proposal_in_generation: Arc::new(Mutex::new(None)) }
+    pub fn new(
+        config: ProposalsManagerConfig,
+        mempool_client: SharedMempoolClient,
+        block_builder_factory: Arc<dyn BlockBuilderFactory>,
+    ) -> Self {
+        Self {
+            config,
+            mempool_client,
+            proposal_in_generation: Arc::new(Mutex::new(None)),
+            block_builder_factory,
+        }
     }
 
     /// Starts a new block proposal generation task for the given proposal_id and height with
     /// transactions from the mempool.
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn generate_block_proposal(
         &mut self,
         proposal_id: ProposalId,
         timeout: tokio::time::Instant,
         _height: BlockNumber,
-    ) -> ProposalsManagerResult<ReceiverStream<Transaction>> {
+    ) -> ProposalsManagerResult<(JoinHandle<ProposalsManagerResult<()>>, OutputTxStream)> {
         info!("Starting generation of new proposal.");
         self.set_proposal_in_generation(proposal_id).await?;
 
-        let (sender, receiver) =
-            tokio::sync::mpsc::channel::<Transaction>(self.config.outstream_content_buffer_size);
-        // TODO: Find where to join the task - needed to make sure it starts immediatly.
-        let _handle = tokio::spawn(
-            ProposalGenerationTask {
-                timeout,
-                mempool_client: self.mempool_client.clone(),
-                max_txs_per_mempool_request: self.config.max_txs_per_mempool_request,
-                sender,
-                proposal_in_generation: self.proposal_in_generation.clone(),
+        // TODO: Should we use a different config for the stream buffer size?
+        // We convert the receiver to a stream and pass it to the block builder while using the
+        // sender to feed the stream.
+        let (mempool_tx_sender, mempool_tx_receiver) =
+            tokio::sync::mpsc::channel::<Transaction>(self.config.max_txs_per_mempool_request);
+        let mempool_tx_stream = ReceiverStream::new(mempool_tx_receiver);
+
+        let block_builder = self.block_builder_factory.create_block_builder();
+
+        let (executed_txs_stream, builder_finished_receiver) =
+            block_builder.start(mempool_tx_stream);
+
+        // Clones that will move to a new task.
+        let mempool_client = self.mempool_client.clone();
+        let max_txs_per_mempool_request = self.config.max_txs_per_mempool_request;
+        let proposal_in_generation = self.proposal_in_generation.clone();
+
+        // Feed transactions to the block builder until it sends a signal that it finished.
+        let handle = tokio::spawn(
+            async move {
+                let res = tokio::select! {
+                    // This will send txs from the mempool to the stream we provided to the block builder.
+                    feeder_stopped = Self::feed_txs_to_block_builder(
+                        timeout,
+                        mempool_client,
+                        max_txs_per_mempool_request,
+                        mempool_tx_sender
+                    ) => feeder_stopped,
+                    finished_block = builder_finished_receiver => {
+                        if let Err(err) = finished_block {
+                            error!("Failed to receive block builder finished signal: {}.", err);
+                        }
+                        info!("Closing block.");
+                        // TODO: Get state diff.
+                        Ok(())
+                    }
+                };
+                let mut proposal_id = proposal_in_generation.lock().await;
+                *proposal_id = None;
+                res
             }
-            .run(),
+            .in_current_span(),
         );
 
-        Ok(ReceiverStream::new(receiver))
+        Ok((handle, executed_txs_stream))
     }
 
     // Checks if there is already a proposal being generated, and if not, sets the given proposal_id
@@ -138,84 +183,49 @@ impl ProposalsManager {
         debug!("Set proposal {} as the one being generated.", proposal_id);
         Ok(())
     }
-}
 
-// TODO: Should be defined elsewhere.
-#[allow(dead_code)]
-mod block_builder {
-    use starknet_api::executable_transaction::Transaction;
-    use starknet_api::state::StateDiff;
-
-    #[derive(Debug, PartialEq)]
-    pub enum Status {
-        Building,
-        Ready,
-        Timeout,
-    }
-
-    pub struct BlockBuilder {}
-
-    impl BlockBuilder {
-        pub fn status(&self) -> Status {
-            Status::Building
-        }
-
-        /// Returning true if the block is ready to be proposed.
-        pub fn add_txs_and_stream(
-            &self,
-            _txs: &[Transaction],
-            _sender: &tokio::sync::mpsc::Sender<Transaction>,
-        ) -> bool {
-            false
-        }
-
-        pub fn close_block(&self) -> StateDiff {
-            StateDiff::default()
-        }
-    }
-}
-
-#[allow(dead_code)]
-struct ProposalGenerationTask {
-    pub timeout: tokio::time::Instant,
-    pub mempool_client: SharedMempoolClient,
-    pub max_txs_per_mempool_request: usize,
-    pub sender: tokio::sync::mpsc::Sender<Transaction>,
-    pub proposal_in_generation: Arc<Mutex<Option<ProposalId>>>,
-}
-
-impl ProposalGenerationTask {
-    #[allow(dead_code)]
-    async fn run(self) -> ProposalsManagerResult<()> {
-        let block_builder = block_builder::BlockBuilder {};
+    #[instrument(skip(mempool_client, mempool_tx_sender))]
+    async fn feed_txs_to_block_builder(
+        timeout: tokio::time::Instant,
+        mempool_client: SharedMempoolClient,
+        max_txs_per_mempool_request: usize,
+        mempool_tx_sender: tokio::sync::mpsc::Sender<Transaction>,
+    ) -> ProposalsManagerResult<()> {
         loop {
-            if tokio::time::Instant::now() > self.timeout {
+            if tokio::time::Instant::now() > timeout {
                 info!("Proposal reached timeout.");
-                break;
+                return Ok(());
             }
-            let mempool_txs = self.mempool_client.get_txs(self.max_txs_per_mempool_request).await?;
+            let mempool_txs = mempool_client.get_txs(max_txs_per_mempool_request).await?;
             if mempool_txs.is_empty() {
                 // TODO: check if sleep is needed here.
                 tokio::task::yield_now().await;
                 continue;
             }
-
-            // TODO: Get L1 transactions.
-            debug!("Adding {} mempool transactions to proposal in generation.", mempool_txs.len());
-            // TODO: This is cpu bound operation, should use spawn_blocking / Rayon / std::thread
-            // here or from inside the function.
-            let is_block_ready =
-                block_builder.add_txs_and_stream(mempool_txs.as_slice(), &self.sender);
-            if is_block_ready {
-                break;
+            for tx in mempool_txs {
+                mempool_tx_sender.send(tx).await.map_err(|err| {
+                    // TODO: should we return the rest of the txs to the mempool?
+                    error!("Failed to send transaction to the block builder: {}.", err);
+                    ProposalsManagerError::InternalError
+                })?;
             }
         }
-
-        info!("Closing block.");
-        // TODO: Get state diff.
-        let mut proposal_id = self.proposal_in_generation.lock().await;
-        *proposal_id = None;
-
-        Ok(())
     }
+}
+
+pub type InputTxStream = ReceiverStream<Transaction>;
+pub type OutputTxStream = ReceiverStream<Transaction>;
+
+#[async_trait]
+#[cfg_attr(test, automock)]
+pub trait BlockBuilderTrait: Send + Sync {
+    fn start(
+        &self,
+        input_txs_stream: InputTxStream,
+    ) -> (OutputTxStream, tokio::sync::oneshot::Receiver<bool>);
+}
+
+#[cfg_attr(test, automock)]
+pub trait BlockBuilderFactory: Send + Sync {
+    fn create_block_builder(&self) -> Arc<dyn BlockBuilderTrait>;
 }
