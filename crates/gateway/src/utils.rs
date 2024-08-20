@@ -130,7 +130,7 @@ pub fn get_sender_address(tx: &AccountTransaction) -> ContractAddress {
             _ => panic!("Unsupported transaction version"),
         },
         AccountTransaction::DeployAccount(tx) => tx.contract_address(),
-        AccountTransaction::Invoke(tx) => match &tx.tx {
+        AccountTransaction::Invoke(tx) => match &tx.tx() {
             starknet_api::transaction::InvokeTransaction::V3(tx) => tx.sender_address,
             _ => panic!("Unsupported transaction version"),
         },
