@@ -296,7 +296,7 @@ pub fn max_fee_for_execution_info(tx_info: &TransactionInfo) -> Felt {
         TransactionInfo::Current(_) => 0,
         TransactionInfo::Deprecated(tx_info) => tx_info.max_fee.0,
     }
-        .into()
+    .into()
 }
 
 pub fn format_panic_data(felts: &[Felt]) -> String {
