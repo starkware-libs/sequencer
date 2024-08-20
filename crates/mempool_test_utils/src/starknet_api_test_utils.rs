@@ -46,6 +46,8 @@ use crate::{
 
 pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
+pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 203484;
+pub const VALID_L2_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 pub const TEST_SENDER_ADDRESS: u128 = 0x1000;
 
 // Utils.
@@ -110,7 +112,10 @@ pub fn executable_resource_bounds_mapping() -> ResourceBoundsMapping {
             max_amount: VALID_L1_GAS_MAX_AMOUNT,
             max_price_per_unit: VALID_L1_GAS_MAX_PRICE_PER_UNIT,
         },
-        ResourceBounds::default(),
+        ResourceBounds {
+            max_amount: VALID_L2_GAS_MAX_AMOUNT,
+            max_price_per_unit: VALID_L2_GAS_MAX_PRICE_PER_UNIT,
+        },
     )
 }
 
@@ -547,6 +552,7 @@ pub fn create_executable_tx(
     tx_hash: TransactionHash,
     tip: Tip,
     nonce: Nonce,
+    resource_bounds: ExecutableResourceBoundsMapping,
 ) -> Transaction {
     Transaction::Invoke(InvokeTransaction {
         tx: starknet_api::transaction::InvokeTransaction::V3(
@@ -554,7 +560,7 @@ pub fn create_executable_tx(
                 sender_address,
                 tip,
                 nonce,
-                resource_bounds: ExecutableResourceBoundsMapping::default(),
+                resource_bounds,
                 signature: TransactionSignature::default(),
                 calldata: Calldata::default(),
                 nonce_data_availability_mode: DataAvailabilityMode::L1,

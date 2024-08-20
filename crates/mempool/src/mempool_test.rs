@@ -2,7 +2,10 @@ use std::cmp::Reverse;
 use std::collections::HashMap;
 
 use assert_matches::assert_matches;
-use mempool_test_utils::starknet_api_test_utils::create_executable_tx;
+use mempool_test_utils::starknet_api_test_utils::{
+    create_executable_tx,
+    executable_resource_bounds_mapping,
+};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
@@ -151,7 +154,7 @@ fn add_tx_expect_error(mempool: &mut Mempool, input: &MempoolInput, expected_err
 /// 5. add_tx_input!(tip: 1, tx_hash: 2)
 macro_rules! add_tx_input {
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
-        tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {{
+        tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr, resource_bounds: $resource_bounds:expr) => {{
         let sender_address = contract_address!($sender_address);
         let account_nonce = Nonce(felt!($account_nonce));
         let account = Account { sender_address, state: AccountState {nonce: account_nonce}};
@@ -161,8 +164,13 @@ macro_rules! add_tx_input {
             TransactionHash(StarkHash::from($tx_hash)),
             Tip($tip),
             Nonce(felt!($tx_nonce)),
+            $resource_bounds,
         );
         MempoolInput { tx, account }
+    }};
+    (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
+        tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {{
+            add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, account_nonce: $account_nonce, resource_bounds: executable_resource_bounds_mapping().into())
     }};
     (tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
         add_tx_input!(tip: 0, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, account_nonce: $account_nonce)
