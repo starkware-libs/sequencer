@@ -99,12 +99,16 @@ const INITIAL_GAS_COST: u64 = 10000000000;
 pub type ExecutionResult<T> = Result<T, ExecutionError>;
 
 static VERSIONED_CONSTANTS_13_0: Lazy<VersionedConstants> = Lazy::new(|| {
-    VersionedConstants::try_from(Path::new("./resources/versioned_constants_13_0.json"))
-        .expect("Versioned constants JSON file is malformed")
+    VersionedConstants::new_from_path_to_json_file(Path::new(
+        "./resources/versioned_constants_13_0.json",
+    ))
+    .expect("Versioned constants JSON file is malformed")
 });
 static VERSIONED_CONSTANTS_13_1: Lazy<VersionedConstants> = Lazy::new(|| {
-    VersionedConstants::try_from(Path::new("./resources/versioned_constants_13_1.json"))
-        .expect("Versioned constants JSON file is malformed")
+    VersionedConstants::new_from_path_to_json_file(Path::new(
+        "./resources/versioned_constants_13_1.json",
+    ))
+    .expect("Versioned constants JSON file is malformed")
 });
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
