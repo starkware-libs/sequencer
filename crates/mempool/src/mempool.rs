@@ -85,25 +85,7 @@ impl Mempool {
     ) -> MempoolResult<()> {
         for (&address, AccountState { nonce }) in &state_changes {
             let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
-
-            // Maybe remove out-of-date transactions.
-            if self
-                .tx_queue
-                .get_nonce(address)
-                .is_some_and(|queued_nonce| queued_nonce != next_nonce)
-            {
-                self.tx_queue.remove(address);
-            }
-            self.tx_pool.remove_up_to_nonce(address, next_nonce);
-
-            // Maybe close nonce gap.
-            if self.tx_queue.get_nonce(address).is_none() {
-                if let Some(tx_reference) =
-                    self.tx_pool.get_by_address_and_nonce(address, next_nonce)
-                {
-                    self.tx_queue.insert(tx_reference.clone());
-                }
-            }
+            self.align_to_account_state(address, next_nonce);
         }
 
         // Rewind nonces of addresses that were not included in block.
@@ -123,22 +105,7 @@ impl Mempool {
             input;
 
         self.tx_pool.insert(tx)?;
-
-        // Maybe remove out-of-date transactions.
-        // Note: != is actually equivalent to > here, as lower nonces are rejected in validation.
-        if self.tx_queue.get_nonce(sender_address).is_some_and(|queued_nonce| queued_nonce != nonce)
-        {
-            self.tx_queue.remove(sender_address);
-        }
-        self.tx_pool.remove_up_to_nonce(sender_address, nonce);
-
-        // Maybe close nonce gap.
-        if self.tx_queue.get_nonce(sender_address).is_none() {
-            if let Some(tx_reference) = self.tx_pool.get_by_address_and_nonce(sender_address, nonce)
-            {
-                self.tx_queue.insert(tx_reference.clone());
-            }
-        }
+        self.align_to_account_state(sender_address, nonce);
 
         Ok(())
     }
@@ -195,6 +162,25 @@ impl Mempool {
         }
 
         Ok(())
+    }
+
+    // TODO: Consider creating an abstraction for the (address, nonce) tuple that is passed
+    // throughout the code.
+    fn align_to_account_state(&mut self, address: ContractAddress, nonce: Nonce) {
+        // Maybe remove out-of-date transactions.
+        // Note: != is equivalent to > in `add_tx`, as lower nonces are rejected in validation.
+        if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| queued_nonce != nonce) {
+            self.tx_queue.remove(address);
+        }
+
+        self.tx_pool.remove_up_to_nonce(address, nonce);
+
+        // Maybe close nonce gap.
+        if self.tx_queue.get_nonce(address).is_none() {
+            if let Some(tx_reference) = self.tx_pool.get_by_address_and_nonce(address, nonce) {
+                self.tx_queue.insert(tx_reference.clone());
+            }
+        }
     }
 
     #[cfg(test)]
