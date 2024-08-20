@@ -5,6 +5,7 @@ use mockall::predicate::*;
 use mockall::*;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
+use starknet_api::executable_transaction::Transaction;
 use starknet_mempool_infra::component_client::{
     ClientError,
     LocalComponentClient,
@@ -14,7 +15,7 @@ use starknet_mempool_infra::component_definitions::ComponentRequestAndResponseSe
 use thiserror::Error;
 
 use crate::errors::MempoolError;
-use crate::mempool_types::{MempoolInput, ThinTransaction};
+use crate::mempool_types::MempoolInput;
 
 pub type LocalMempoolClientImpl = LocalComponentClient<MempoolRequest, MempoolResponse>;
 pub type RemoteMempoolClientImpl = RemoteComponentClient<MempoolRequest, MempoolResponse>;
@@ -30,7 +31,7 @@ pub type SharedMempoolClient = Arc<dyn MempoolClient>;
 #[async_trait]
 pub trait MempoolClient: Send + Sync {
     async fn add_tx(&self, mempool_input: MempoolInput) -> MempoolClientResult<()>;
-    async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<ThinTransaction>>;
+    async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<Transaction>>;
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -42,7 +43,7 @@ pub enum MempoolRequest {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum MempoolResponse {
     AddTransaction(MempoolResult<()>),
-    GetTransactions(MempoolResult<Vec<ThinTransaction>>),
+    GetTransactions(MempoolResult<Vec<Transaction>>),
 }
 
 #[derive(Clone, Debug, Error)]
@@ -61,7 +62,7 @@ impl MempoolClient for LocalMempoolClientImpl {
         handle_response_variants!(MempoolResponse, AddTransaction, MempoolClientError, MempoolError)
     }
 
-    async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<ThinTransaction>> {
+    async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<Transaction>> {
         let request = MempoolRequest::GetTransactions(n_txs);
         let response = self.send(request).await;
         handle_response_variants!(
@@ -81,7 +82,7 @@ impl MempoolClient for RemoteMempoolClientImpl {
         handle_response_variants!(MempoolResponse, AddTransaction, MempoolClientError, MempoolError)
     }
 
-    async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<ThinTransaction>> {
+    async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<Transaction>> {
         let request = MempoolRequest::GetTransactions(n_txs);
         let response = self.send(request).await?;
         handle_response_variants!(
