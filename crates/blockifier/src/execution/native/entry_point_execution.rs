@@ -18,7 +18,7 @@ pub fn execute_entry_point_call(
     resources: &mut ExecutionResources,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
-    let function_id = contract_class.get_entrypoint(&call)?;
+    let function_id = contract_class.get_entry_point(&call)?;
 
     let syscall_handler: NativeSyscallHandler<'_> = NativeSyscallHandler::new(
         state,
