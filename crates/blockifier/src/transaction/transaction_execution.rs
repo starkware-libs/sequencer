@@ -12,7 +12,7 @@ use crate::fee::actual_cost::TransactionReceipt;
 use crate::state::cached_state::TransactionalState;
 use crate::state::state_api::UpdatableState;
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::errors::{TransactionFeeError, TransactionInfoCreationError};
+use crate::transaction::errors::TransactionFeeError;
 use crate::transaction::objects::{
     TransactionExecutionInfo,
     TransactionExecutionResult,
@@ -100,7 +100,7 @@ impl Transaction {
 }
 
 impl TransactionInfoCreator for Transaction {
-    fn create_tx_info(&self) -> Result<TransactionInfo, TransactionInfoCreationError> {
+    fn create_tx_info(&self) -> TransactionInfo {
         match self {
             Self::AccountTransaction(account_tx) => account_tx.create_tx_info(),
             Self::L1HandlerTransaction(l1_handler_tx) => l1_handler_tx.create_tx_info(),
@@ -115,7 +115,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         block_context: &BlockContext,
         _execution_flags: ExecutionFlags,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
-        let tx_context = Arc::new(block_context.to_tx_context(self)?);
+        let tx_context = Arc::new(block_context.to_tx_context(self));
 
         let mut execution_resources = ExecutionResources::default();
         let mut context = EntryPointExecutionContext::new_invoke(tx_context.clone(), true);
@@ -184,7 +184,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
         let tx_execution_summary = tx_execution_info.summarize();
         let mut tx_state_changes_keys = state.get_actual_state_changes()?.into_keys();
         tx_state_changes_keys.update_sequencer_key_in_storage(
-            &block_context.to_tx_context(self)?,
+            &block_context.to_tx_context(self),
             &tx_execution_info,
             concurrency_mode,
         );

@@ -7,7 +7,6 @@ use starknet_api::core::{ChainId, ContractAddress};
 
 use crate::blockifier::block::BlockInfo;
 use crate::bouncer::BouncerConfig;
-use crate::transaction::errors::TransactionInfoCreationError;
 use crate::transaction::objects::{
     FeeType,
     HasRelatedFeeType,
@@ -63,15 +62,14 @@ impl BlockContext {
         &self.versioned_constants
     }
 
-    // TODO(Nimrod): Don't return `Result`.
     pub fn to_tx_context(
         &self,
         tx_info_creator: &impl TransactionInfoCreator,
-    ) -> Result<TransactionContext, TransactionInfoCreationError> {
-        Ok(TransactionContext {
+    ) -> TransactionContext {
+        TransactionContext {
             block_context: self.clone(),
-            tx_info: tx_info_creator.create_tx_info()?,
-        })
+            tx_info: tx_info_creator.create_tx_info(),
+        }
     }
 }
 
