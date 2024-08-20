@@ -421,7 +421,7 @@ fn test_invoke_tx(
     let sender_address = invoke_tx.sender_address();
 
     let account_tx = AccountTransaction::Invoke(invoke_tx);
-    let tx_context = block_context.to_tx_context(&account_tx).unwrap();
+    let tx_context = block_context.to_tx_context(&account_tx);
 
     let actual_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
 
@@ -791,7 +791,7 @@ fn assert_failure_if_resource_bounds_exceed_balance(
     block_context: &BlockContext,
     invalid_tx: AccountTransaction,
 ) {
-    match block_context.to_tx_context(&invalid_tx).unwrap().tx_info {
+    match block_context.to_tx_context(&invalid_tx).tx_info {
         TransactionInfo::Deprecated(context) => {
             assert_matches!(
                 invalid_tx.execute(state, block_context, true, true).unwrap_err(),
@@ -1034,7 +1034,7 @@ fn test_invalid_nonce(
     let invalid_nonce = nonce!(1_u8);
     let invalid_tx =
         account_invoke_tx(invoke_tx_args! { nonce: invalid_nonce, ..valid_invoke_tx_args.clone() });
-    let invalid_tx_context = block_context.to_tx_context(&invalid_tx).unwrap();
+    let invalid_tx_context = block_context.to_tx_context(&invalid_tx);
     let pre_validation_err = invalid_tx
         .perform_pre_validation_stage(&mut transactional_state, &invalid_tx_context, false, true)
         .unwrap_err();
@@ -1054,7 +1054,7 @@ fn test_invalid_nonce(
     let valid_tx =
         account_invoke_tx(invoke_tx_args! { nonce: valid_nonce, ..valid_invoke_tx_args.clone() });
 
-    let valid_tx_context = block_context.to_tx_context(&valid_tx).unwrap();
+    let valid_tx_context = block_context.to_tx_context(&valid_tx);
     valid_tx
         .perform_pre_validation_stage(&mut transactional_state, &valid_tx_context, false, false)
         .unwrap();
@@ -1063,7 +1063,7 @@ fn test_invalid_nonce(
     let invalid_nonce = nonce!(0_u8);
     let invalid_tx =
         account_invoke_tx(invoke_tx_args! { nonce: invalid_nonce, ..valid_invoke_tx_args.clone() });
-    let invalid_tx_context = block_context.to_tx_context(&invalid_tx).unwrap();
+    let invalid_tx_context = block_context.to_tx_context(&invalid_tx);
     let pre_validation_err = invalid_tx
         .perform_pre_validation_stage(&mut transactional_state, &invalid_tx_context, false, false)
         .unwrap_err();
@@ -1179,7 +1179,7 @@ fn test_declare_tx(
         undeclared_class_hash == class_hash
     );
     let fee_type = &account_tx.fee_type();
-    let tx_context = &block_context.to_tx_context(&account_tx).unwrap();
+    let tx_context = &block_context.to_tx_context(&account_tx);
     let actual_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
 
     // Build expected validate call info.
@@ -1322,7 +1322,7 @@ fn test_deploy_account_tx(
 
     let account_tx = AccountTransaction::DeployAccount(deploy_account);
     let fee_type = &account_tx.fee_type();
-    let tx_context = &block_context.to_tx_context(&account_tx).unwrap();
+    let tx_context = &block_context.to_tx_context(&account_tx);
     let actual_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
 
     // Build expected validate call info.
@@ -1464,7 +1464,7 @@ fn test_fail_deploy_account_undeclared_class_hash(
         deploy_account_tx_args! {resource_bounds: max_resource_bounds,  class_hash: undeclared_hash },
         &mut nonce_manager,
     );
-    let tx_context = block_context.to_tx_context(&deploy_account).unwrap();
+    let tx_context = block_context.to_tx_context(&deploy_account);
     let fee_type = tx_context.tx_info.fee_type();
 
     // Fund account, so as not to fail pre-validation.
