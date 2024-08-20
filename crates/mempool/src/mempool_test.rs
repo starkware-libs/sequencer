@@ -439,6 +439,27 @@ fn test_add_tx_lower_than_queued_nonce() {
 }
 
 #[rstest]
+fn test_add_tx_updates_queue_with_higher_account_nonce() {
+    // Setup.
+    let input =
+        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8);
+    let higher_account_nonce_input =
+        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1_u8, account_nonce: 1_u8);
+
+    let queue_txs = [TransactionReference::new_from_thin_tx(&input.tx)];
+    let mut mempool: Mempool = MempoolContent::with_queue(queue_txs).into();
+
+    // Test.
+    add_tx(&mut mempool, &higher_account_nonce_input);
+
+    // Assert: the higher account nonce transaction is in the queue.
+    let expected_queue_txs =
+        [TransactionReference::new_from_thin_tx(&higher_account_nonce_input.tx)];
+    let expected_mempool_content = MempoolContent::with_queue(expected_queue_txs);
+    expected_mempool_content.assert_eq_queue_content(&mempool);
+}
+
+#[rstest]
 fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
     // Setup.
     let input1 = add_tx_input!(tip: 1, tx_hash: 2);
@@ -478,11 +499,11 @@ fn test_add_tx_delete_tx_with_lower_nonce_than_account_nonce() {
     add_tx(&mut mempool, &tx_nonce_1_account_nonce_1);
 
     // Assert the transaction with the lower nonce is removed.
-    // TODO(Ayelet): Assert the queue after modifying add_tx to delete lower nonce transactions
-    // in the queue.
+    let expected_queue_txs =
+        [TransactionReference::new_from_thin_tx(&tx_nonce_1_account_nonce_1.tx)];
     let expected_pool_txs = [tx_nonce_1_account_nonce_1.tx];
-    let expected_mempool_content = MempoolContent::with_pool(expected_pool_txs);
-    expected_mempool_content.assert_eq_pool_content(&mempool);
+    let expected_mempool_content = MempoolContent::new(expected_pool_txs, expected_queue_txs);
+    expected_mempool_content.assert_eq_mempool_content(&mempool);
 }
 
 #[rstest]
