@@ -65,7 +65,8 @@ async fn test_add_tx() {
         .expect_add_tx()
         .once()
         .with(eq(MempoolInput {
-            tx: ThinTransaction { sender_address, tx_hash, tip: *tx.tip(), nonce: *tx.nonce() },
+            tx: (&ThinTransaction { sender_address, tx_hash, tip: *tx.tip(), nonce: *tx.nonce() })
+                .into(),
             account: Account { sender_address, state: AccountState { nonce: *tx.nonce() } },
         }))
         .return_once(|_| Ok(()));

@@ -65,6 +65,8 @@ impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
 }
 
 impl StatefulTransactionValidator {
+    // TODO(Arni): consider separating validation from transaction conversion, as transaction
+    // conversion is also relevant for the Mempool.
     pub fn run_validate<V: StatefulTransactionValidatorTrait>(
         &self,
         external_tx: &RpcTransaction,
