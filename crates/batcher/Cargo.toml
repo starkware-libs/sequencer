@@ -10,6 +10,7 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
+futures.workspace = true
 papyrus_config.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
@@ -24,4 +25,8 @@ validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
+atomic_refcell.workspace = true
+mempool_test_utils.workspace = true
 mockall.workspace = true
+rstest.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }
