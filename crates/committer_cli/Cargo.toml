@@ -1,7 +1,7 @@
 [package]
 # TODO(Dori, 15/8/2024): Rename to starknet_committer_cli.
 name = "committer_cli"
-version = "0.1.0-rc.0"
+version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true

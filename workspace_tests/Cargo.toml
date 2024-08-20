@@ -1,0 +1,15 @@
+[package]
+name = "workspace_tests"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Workspace-level tests."
+
+[dev-dependencies]
+serde = { workspace = true, features = ["derive"] }
+toml.workspace = true
+
+[[test]]
+name = "version_integrity_test"
+path = "version_integrity_test.rs"
