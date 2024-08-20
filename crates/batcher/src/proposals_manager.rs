@@ -112,14 +112,16 @@ impl ProposalsManager {
     ) -> ProposalsManagerResult<()> {
         info!("Starting generation of new proposal.");
         self.set_proposal_in_generation(proposal_id).await?;
-        let generate_block_task = Self::generate_block_task(
-            self.mempool_client.clone(),
-            self.proposal_in_generation.clone(),
-            self.config.max_txs_per_mempool_request,
-            self.block_builder_factory.clone(),
-        );
+        // TODO: notify the mempool that we are starting a new proposal generation.
+        let generate_block_task = GenerateBlockTask {
+            mempool_client: self.mempool_client.clone(),
+            proposal_in_generation: self.proposal_in_generation.clone(),
+            max_txs_per_mempool_request: self.config.max_txs_per_mempool_request,
+            block_builder_factory: self.block_builder_factory.clone(),
+        };
 
-        self.generation_task_handle = Some(tokio::spawn(generate_block_task.in_current_span()));
+        self.generation_task_handle =
+            Some(tokio::spawn(generate_block_task.run().in_current_span()));
         // Allow the task to start.
         tokio::task::yield_now().await;
         Ok(())
@@ -209,4 +211,43 @@ pub trait BlockBuilderTrait: Send {
 #[cfg_attr(test, automock)]
 pub(crate) trait BlockBuilderFactory: Send + Sync {
     fn create_block_builder(&self) -> Box<dyn BlockBuilderTrait>;
+}
+
+#[allow(dead_code)]
+struct GenerateBlockTask {
+    pub mempool_client: SharedMempoolClient,
+    pub proposal_in_generation: Arc<Mutex<Option<ProposalId>>>,
+    pub max_txs_per_mempool_request: usize,
+    pub block_builder_factory: Arc<dyn BlockBuilderFactory>,
+}
+
+impl GenerateBlockTask {
+    // Generates a block proposal with transactions from the mempool.
+    #[instrument(skip(self), ret(level = Level::TRACE), err)]
+    pub async fn run(self) -> ProposalsManagerResult<(ProposalId, StateDiff)> {
+        debug!("Starting a new block proposal generation task.");
+        let block_builder = self.block_builder_factory.create_block_builder();
+        loop {
+            let mempool_txs = self.mempool_client.get_txs(self.max_txs_per_mempool_request).await?;
+            // TODO: Get L1 transactions.
+            debug!("Adding {} mempool transactions to proposal in generation.", mempool_txs.len(),);
+            // TODO: This is cpu bound operation, should use spawn_blocking / Rayon / std::thread
+            // here or from inside the function.
+            let is_block_ready = block_builder.add_txs(mempool_txs);
+            if is_block_ready {
+                break;
+            }
+            // Allow other tasks to run in case we are blocking the tokio runtime (when the mempool
+            // is empty).
+            tokio::task::yield_now().await;
+        }
+        let Some(finished_proposal_id) = self.proposal_in_generation.lock().await.take() else {
+            error!("proposal_in_generation is None during the task run.");
+            return Err(ProposalsManagerError::InternalError);
+        };
+
+        debug!("Finished generating proposal with id {}.", finished_proposal_id);
+        let state_diff = block_builder.get_state_diff();
+        Ok((finished_proposal_id, state_diff))
+    }
 }
