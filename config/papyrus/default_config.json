@@ -389,6 +389,11 @@
     "privacy": "Public",
     "value": 1000
   },
+  "sync.poll_pending_data": {
+    "description": "Whether to poll for pending data.",
+    "privacy": "Public",
+    "value": true
+  },
   "sync.recoverable_error_sleep_duration": {
     "description": "Waiting time in seconds before restarting synchronization after a recoverable error.",
     "privacy": "Public",
@@ -401,11 +406,6 @@
   },
   "sync.verify_blocks": {
     "description": "Whether to verify incoming blocks.",
-    "privacy": "Public",
-    "value": true
-  },
-  "sync.poll_pending_data": {
-    "description": "Whether to poll for pending data.",
     "privacy": "Public",
     "value": true
   }
