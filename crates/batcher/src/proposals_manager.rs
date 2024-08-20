@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+#[cfg(test)]
+use mockall::automock;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -10,7 +12,7 @@ use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolCli
 use thiserror::Error;
 use tokio::sync::Mutex;
 use tokio_stream::wrappers::ReceiverStream;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, error, info, instrument, Instrument};
 
 // TODO: Should be defined in SN_API probably (shared with the consensus).
 pub type ProposalId = u64;
@@ -81,13 +83,24 @@ pub(crate) struct ProposalsManager {
     /// At any given time, there can be only one proposal being actively executed (either proposed
     /// or validated).
     proposal_in_generation: Arc<Mutex<Option<ProposalId>>>,
+    // To be able to mock BlockBuilder in tests.
+    block_builder_factory: Arc<dyn BlockBuilderFactory>,
 }
 
 impl ProposalsManager {
     // TODO: Remove dead_code attribute.
     #[allow(dead_code)]
-    pub fn new(config: ProposalsManagerConfig, mempool_client: SharedMempoolClient) -> Self {
-        Self { config, mempool_client, proposal_in_generation: Arc::new(Mutex::new(None)) }
+    pub fn new(
+        config: ProposalsManagerConfig,
+        mempool_client: SharedMempoolClient,
+        block_builder_factory: Arc<dyn BlockBuilderFactory>,
+    ) -> Self {
+        Self {
+            config,
+            mempool_client,
+            proposal_in_generation: Arc::new(Mutex::new(None)),
+            block_builder_factory,
+        }
     }
 
     /// Starts a new block proposal generation task for the given proposal_id and height with
@@ -112,8 +125,10 @@ impl ProposalsManager {
                 max_txs_per_mempool_request: self.config.max_txs_per_mempool_request,
                 sender,
                 proposal_in_generation: self.proposal_in_generation.clone(),
+                block_builder_factory: self.block_builder_factory.clone(),
             }
-            .run(),
+            .run()
+            .in_current_span(),
         );
 
         Ok(ReceiverStream::new(receiver))
@@ -140,35 +155,16 @@ impl ProposalsManager {
     }
 }
 
-// TODO: Should be defined elsewhere.
+#[cfg_attr(test, automock)]
+pub trait BlockBuilderTrait: Send {
+    /// Returning true if the block is ready to be proposed.
+    fn add_txs(&self, txs: &[Transaction]) -> bool;
+}
+
 #[allow(dead_code)]
-mod block_builder {
-    use starknet_api::executable_transaction::Transaction;
-    use starknet_api::state::StateDiff;
-
-    #[derive(Debug, PartialEq)]
-    pub enum Status {
-        Building,
-        Ready,
-        Timeout,
-    }
-
-    pub struct BlockBuilder {}
-
-    impl BlockBuilder {
-        pub fn status(&self) -> Status {
-            Status::Building
-        }
-
-        /// Returning true if the block is ready to be proposed.
-        pub fn add_txs(&self, _txs: &[Transaction]) -> bool {
-            false
-        }
-
-        pub fn close_block(&self) -> StateDiff {
-            StateDiff::default()
-        }
-    }
+#[cfg_attr(test, automock)]
+pub(crate) trait BlockBuilderFactory: Send + Sync {
+    fn create_block_builder(&self) -> Box<dyn BlockBuilderTrait>;
 }
 
 #[allow(dead_code)]
@@ -178,12 +174,13 @@ struct ProposalGenerationTask {
     pub max_txs_per_mempool_request: usize,
     pub sender: tokio::sync::mpsc::Sender<Transaction>,
     pub proposal_in_generation: Arc<Mutex<Option<ProposalId>>>,
+    pub block_builder_factory: Arc<dyn BlockBuilderFactory>,
 }
 
 impl ProposalGenerationTask {
     #[allow(dead_code)]
     async fn run(self) -> ProposalsManagerResult<()> {
-        let block_builder = block_builder::BlockBuilder {};
+        let block_builder = self.block_builder_factory.create_block_builder();
         loop {
             if tokio::time::Instant::now() > self.timeout {
                 info!("Proposal reached timeout.");
