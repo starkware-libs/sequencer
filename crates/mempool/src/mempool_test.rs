@@ -17,6 +17,7 @@ use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState};
 use starknet_types_core::felt::Felt;
 
+use super::AccountToNonce;
 use crate::mempool::{Mempool, MempoolInput, TransactionReference};
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -29,6 +30,7 @@ use crate::transaction_queue::TransactionQueue;
 struct MempoolContent<T> {
     tx_pool: Option<TransactionPool>,
     tx_queue: Option<TransactionQueue>,
+    account_nonces: Option<AccountToNonce>,
     // Artificially use generic type, for the compiler.
     _phantom: std::marker::PhantomData<T>,
 }
@@ -40,15 +42,17 @@ struct FullContent;
 struct PartialContent;
 
 impl MempoolContent<FullContent> {
-    fn _new<P, Q>(pool_txs: P, queue_txs: Q) -> Self
+    fn _new<P, Q, A>(pool_txs: P, queue_txs: Q, account_nonces: A) -> Self
     where
         P: IntoIterator<Item = Transaction>,
         // TODO(Ayelet): Consider using `&ThinTransaction` instead of `TransactionReference`.
         Q: IntoIterator<Item = TransactionReference>,
+        A: IntoIterator<Item = (ContractAddress, Nonce)>,
     {
         Self {
             tx_pool: Some(pool_txs.into_iter().collect()),
             tx_queue: Some(queue_txs.into_iter().collect()),
+            account_nonces: Some(account_nonces.into_iter().collect()),
             _phantom: std::marker::PhantomData,
         }
     }
@@ -62,6 +66,7 @@ impl MempoolContent<PartialContent> {
         Self {
             tx_pool: Some(pool_txs.into_iter().collect()),
             tx_queue: None,
+            account_nonces: None,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -73,6 +78,16 @@ impl MempoolContent<PartialContent> {
         Self {
             tx_queue: Some(queue_txs.into_iter().collect()),
             tx_pool: None,
+            account_nonces: None,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    fn with_account_nonces(account_nonce_pairs: Vec<(ContractAddress, Nonce)>) -> Self {
+        Self {
+            tx_pool: None,
+            tx_queue: None,
+            account_nonces: Some(account_nonce_pairs.into_iter().collect()),
             _phantom: std::marker::PhantomData,
         }
     }
@@ -85,6 +100,7 @@ impl MempoolContent<PartialContent> {
         Self {
             tx_pool: Some(pool_txs.into_iter().collect()),
             tx_queue: Some(queue_txs.into_iter().collect()),
+            account_nonces: None,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -94,6 +110,7 @@ impl<T> MempoolContent<T> {
     fn _assert_eq_mempool_content(&self, mempool: &Mempool) {
         self.assert_eq_pool_content(mempool);
         self.assert_eq_queue_content(mempool);
+        self.assert_eq_account_nonces(mempool);
     }
 
     fn assert_eq_pool_and_queue_content(&self, mempool: &Mempool) {
@@ -108,16 +125,21 @@ impl<T> MempoolContent<T> {
     fn assert_eq_queue_content(&self, mempool: &Mempool) {
         assert_eq!(self.tx_queue.as_ref().unwrap(), &mempool.tx_queue);
     }
+
+    fn assert_eq_account_nonces(&self, mempool: &Mempool) {
+        assert_eq!(self.account_nonces.as_ref().unwrap(), &mempool.account_nonces);
+    }
 }
 
 impl<T> From<MempoolContent<T>> for Mempool {
     fn from(mempool_content: MempoolContent<T>) -> Mempool {
-        let MempoolContent { tx_pool, tx_queue, _phantom: _ } = mempool_content;
+        let MempoolContent { tx_pool, tx_queue, account_nonces, _phantom: _ } = mempool_content;
         Mempool {
             tx_pool: tx_pool.unwrap_or_default(),
             tx_queue: tx_queue.unwrap_or_default(),
             // TODO: Add implementation when needed.
             mempool_state: Default::default(),
+            account_nonces: account_nonces.unwrap_or_default(),
         }
     }
 }
@@ -127,6 +149,7 @@ impl Default for MempoolContent<FullContent> {
         Self {
             tx_pool: Some(TransactionPool::default()),
             tx_queue: Some(TransactionQueue::default()),
+            account_nonces: Some(HashMap::default()),
             _phantom: std::marker::PhantomData,
         }
     }
@@ -870,4 +893,72 @@ fn test_flow_send_same_nonce_tx_after_previous_not_included() {
     let expected_queue_txs = [TransactionReference::new(&tx_nonce5)];
     let expected_mempool_content = MempoolContent::with_queue(expected_queue_txs);
     expected_mempool_content.assert_eq_queue_content(&mempool);
+}
+
+#[rstest]
+#[case::committed_nonce_as_expected(0_u8, 0_u8, Nonce(felt!(0_u8)))]
+#[case::committed_lower_nonce_than_current_account_nonce(2_u8, 2_u8, Nonce(felt!(0_u8)))]
+#[case::committed_higher_nonce_than_current_account_nonce(0_u8, 0_u8, Nonce(felt!(3_u8)))]
+fn test_account_nonces(
+    mut mempool: Mempool,
+    #[case] tx_nonce: u8,
+    #[case] account_nonce: u8,
+    #[case] committed_nonce: Nonce,
+) {
+    // Setup.
+    let input = add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: tx_nonce, account_nonce: account_nonce);
+    // Adding another input for this account so the account nonce will be updated after the first
+    // transaction is removed in commit_block.
+    let another_input = add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: tx_nonce + 5, account_nonce: account_nonce);
+    let address = input.account.sender_address;
+
+    // Test: update through new input.
+    add_tx(&mut mempool, &input);
+    add_tx(&mut mempool, &another_input);
+
+    // Assert.
+    let expected_mempool_content =
+        MempoolContent::with_account_nonces(vec![(address, input.account.state.nonce)]);
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
+
+    // Test: update through a block.
+    let state_changes = HashMap::from([(address, AccountState { nonce: committed_nonce })]);
+    assert!(mempool.commit_block(state_changes).is_ok());
+
+    // Assert.
+    let expected_mempool_content = MempoolContent::with_account_nonces(vec![(
+        address,
+        committed_nonce.try_increment().unwrap(),
+    )]);
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
+}
+
+#[rstest]
+fn test_account_nonces_removal_in_commit_block(mut mempool: Mempool) {
+    // Setup.
+    let address = contract_address!("0x0");
+    let nonce = Nonce(felt!(0_u8));
+
+    // Test: commit block returns information about account that is not in the mempool.
+    let state_changes = HashMap::from([(address, AccountState { nonce })]);
+    assert!(mempool.commit_block(state_changes).is_ok());
+
+    // Assert: account is not added to the mempool.
+    let expected_mempool_content = MempoolContent::with_account_nonces(vec![]);
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
+}
+
+#[rstest]
+fn test_account_nonces_removal_in_get_txs(mut mempool: Mempool) {
+    // Setup.
+    let input =
+        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8);
+
+    // Test.
+    add_tx(&mut mempool, &input);
+    mempool.get_txs(1).unwrap();
+
+    // Assert: account is removed from account nonces.
+    let expected_mempool_content = MempoolContent::with_account_nonces(vec![]);
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
 }

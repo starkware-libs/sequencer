@@ -97,7 +97,6 @@ impl TransactionPool {
         Ok(self.get_by_address_and_nonce(sender_address, next_nonce))
     }
 
-    #[allow(dead_code)]
     pub fn contains_account(&self, address: ContractAddress) -> bool {
         self.txs_by_account.contains(address)
     }
