@@ -30,15 +30,12 @@ use starknet_api::deprecated_contract_class::{
 };
 use starknet_types_core::felt::Felt;
 
-use super::entry_point::EntryPointExecutionResult;
-use super::errors::EntryPointExecutionError;
-use super::execution_utils::poseidon_hash_many_cost;
-use super::native::utils::contract_entrypoint_to_entrypoint_selector;
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::{self, CONSTRUCTOR_ENTRY_POINT_NAME};
-use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::errors::{ContractClassError, PreExecutionError};
-use crate::execution::execution_utils::sn_api_to_cairo_vm_program;
+use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionResult};
+use crate::execution::errors::{ContractClassError, EntryPointExecutionError, PreExecutionError};
+use crate::execution::execution_utils::{poseidon_hash_many_cost, sn_api_to_cairo_vm_program};
+use crate::execution::native::utils::contract_entrypoint_to_entrypoint_selector;
 use crate::fee::eth_gas_constants;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::versioned_constants::CompilerVersion;
@@ -702,19 +699,15 @@ impl NativeContractClassV1 {
     }
 
     /// Returns an entry point into the natively compiled contract.
-    pub fn get_entrypoint(
-        &self,
-        entry_point_type: EntryPointType,
-        entrypoint_selector: EntryPointSelector,
-    ) -> EntryPointExecutionResult<&FunctionId> {
-        let entrypoints = &self.entry_points_by_type[entry_point_type];
+    pub fn get_entrypoint(&self, call: &CallEntryPoint) -> EntryPointExecutionResult<&FunctionId> {
+        let entrypoints = &self.entry_points_by_type[call.entry_point_type];
 
         entrypoints
             .iter()
-            .find(|entrypoint| entrypoint.selector == entrypoint_selector)
+            .find(|entrypoint| entrypoint.selector == call.entry_point_selector)
             .map(|op| &op.function_id)
             .ok_or(EntryPointExecutionError::NativeExecutionError {
-                info: format!("Entrypoint selector {} not found", entrypoint_selector.0),
+                info: format!("Entrypoint selector {} not found", call.entry_point_selector.0),
             })
     }
 }
