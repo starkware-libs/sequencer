@@ -25,7 +25,7 @@ pub struct Mempool {
     // Represents the current state of the mempool during block creation.
     mempool_state: HashMap<ContractAddress, AccountState>,
     // The most recent account nonces received, for all account in the pool.
-    _account_nonces: AccountToNonce,
+    account_nonces: AccountToNonce,
 }
 
 impl Mempool {
@@ -58,6 +58,10 @@ impl Mempool {
         let mut eligible_txs: Vec<Transaction> = Vec::with_capacity(n_txs);
         for tx_ref in &eligible_tx_references {
             let tx = self.tx_pool.remove(tx_ref.tx_hash)?;
+            let address = tx.contract_address();
+            if !self.tx_pool.contains_account(address) {
+                self.account_nonces.remove(&address);
+            }
             eligible_txs.push(tx);
         }
 
@@ -173,10 +177,27 @@ impl Mempool {
         // Maybe remove out-of-date transactions.
         // Note: != is equivalent to > in `add_tx`, as lower nonces are rejected in validation.
         if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| queued_nonce != nonce) {
-            assert!(self.tx_queue.remove(address));
+            assert!(self.tx_queue.remove(address), "Expected to remove address from queue.");
         }
 
+        // Remove from pool.
         self.tx_pool.remove_up_to_nonce(address, nonce);
+
+        if self.tx_pool.contains_account(address) {
+            // Update the account nonce if it's absent or set to the higher nonce.
+            match self.account_nonces.get(&address) {
+                Some(current_account_nonce) if current_account_nonce <= &nonce => {
+                    self.account_nonces.insert(address, nonce);
+                }
+                None => {
+                    self.account_nonces.insert(address, nonce);
+                }
+                _ => {}
+            }
+        } else {
+            // Remove address if no transactions from it left.
+            self.account_nonces.remove(&address);
+        }
 
         // Maybe close nonce gap.
         if self.tx_queue.get_nonce(address).is_none() {
