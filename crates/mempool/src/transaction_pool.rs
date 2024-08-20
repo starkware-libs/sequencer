@@ -110,7 +110,6 @@ impl TransactionPool {
         self.capacity.n_txs
     }
 
-    #[allow(dead_code)]
     pub fn contains_account(&self, address: ContractAddress) -> bool {
         self.txs_by_account.contains(address)
     }
