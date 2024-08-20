@@ -54,8 +54,15 @@ jobs:
       - uses: baptiste0928/cargo-install@v3
         with:
           crate: taplo-cli
-          version: '0.9.0'
+          version: "0.9.0"
           locked: true
+          components: clippy
+      - name: Set up Native Dependencies
+        uses: ./.github/actions/setup-native-deps
+        id: native-deps
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v0-rust-ubuntu-20.04"
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
@@ -86,14 +93,12 @@ jobs:
       - name: Run Machete (detect unused dependencies)
         uses: bnjbvr/cargo-machete@main
 
-
   run-workspace-tests:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
       - run: cargo test -p workspace_tests
-
   run-tests:
     runs-on: starkware-ubuntu-latest-large
     steps:
