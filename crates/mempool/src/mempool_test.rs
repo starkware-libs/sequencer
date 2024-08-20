@@ -78,7 +78,7 @@ impl MempoolContent<PartialContent> {
         }
     }
 
-    fn _with_account_nonces(account_nonce_pairs: Vec<(ContractAddress, Nonce)>) -> Self {
+    fn with_account_nonces(account_nonce_pairs: Vec<(ContractAddress, Nonce)>) -> Self {
         Self {
             tx_pool: None,
             tx_queue: None,
@@ -102,8 +102,8 @@ impl<T> MempoolContent<T> {
         assert_eq!(self.tx_queue.as_ref().unwrap(), &mempool.tx_queue);
     }
 
-    fn _assert_eq_account_nonces(&self, mempool: &Mempool) {
-        assert_eq!(self.account_nonces.as_ref().unwrap(), &mempool._account_nonces);
+    fn assert_eq_account_nonces(&self, mempool: &Mempool) {
+        assert_eq!(self.account_nonces.as_ref().unwrap(), &mempool.account_nonces);
     }
 }
 
@@ -115,7 +115,7 @@ impl<T> From<MempoolContent<T>> for Mempool {
             tx_queue: tx_queue.unwrap_or_default(),
             // TODO: Add implementation when needed.
             mempool_state: Default::default(),
-            _account_nonces: account_nonces.unwrap_or_default(),
+            account_nonces: account_nonces.unwrap_or_default(),
         }
     }
 }
@@ -890,4 +890,102 @@ fn test_tx_pool_capacity(mut mempool: Mempool) {
     // Test and assert: remove the transactions, counter does not go below 0.
     mempool.get_txs(2).unwrap();
     assert_eq!(mempool.tx_pool().n_txs(), 0);
+}
+
+#[rstest]
+#[case::committed_nonce_as_expected(0_u8, 0_u8, Nonce(felt!(0_u8)))]
+#[case::committed_higher_nonce_than_current_account_nonce(0_u8, 0_u8, Nonce(felt!(3_u8)))]
+fn test_account_nonces(
+    mut mempool: Mempool,
+    #[case] tx_nonce: u8,
+    #[case] account_nonce: u8,
+    #[case] committed_nonce: Nonce,
+) {
+    // Setup.
+    let input = add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: tx_nonce, account_nonce: account_nonce);
+    // Adding another input for this account so the account nonce will be updated after the first
+    // transaction is removed in commit_block.
+    let another_input = add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: tx_nonce + 5, account_nonce: account_nonce);
+    let address = input.account.sender_address;
+
+    // Test: update through new input.
+    add_tx(&mut mempool, &input);
+    add_tx(&mut mempool, &another_input);
+
+    // Assert.
+    let expected_mempool_content =
+        MempoolContent::with_account_nonces(vec![(address, input.account.state.nonce)]);
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
+
+    // Test: update through a block.
+    let state_changes = HashMap::from([(address, AccountState { nonce: committed_nonce })]);
+    assert!(mempool.commit_block(state_changes).is_ok());
+
+    // Assert.
+    let expected_mempool_content = MempoolContent::with_account_nonces(vec![(
+        address,
+        committed_nonce.try_increment().unwrap(),
+    )]);
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
+}
+
+#[rstest]
+fn test_account_nonce_does_not_decrease() {
+    // Setup.
+    let input_account_nonce_1 =
+        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 2_u8, account_nonce: 1_u8);
+    let input_account_nonce_0 =
+        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1_u8, account_nonce: 0_u8);
+    let address = input_account_nonce_1.account.sender_address;
+
+    let _pool_txs = [input_account_nonce_1.tx.clone()];
+    let account_nonces = vec![(address, input_account_nonce_1.account.state.nonce)];
+    let mut mempool: Mempool = MempoolContent::with_account_nonces(account_nonces.clone()).into();
+
+    // Test: receives a transaction with a lower account nonce.
+    add_tx(&mut mempool, &input_account_nonce_0);
+
+    // Assert: the account nonce is not updated.
+    let expected_mempool_content = MempoolContent::with_account_nonces(vec![(
+        address,
+        input_account_nonce_1.account.state.nonce,
+    )]);
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
+
+    // Test: commits state change of a lower account nonce.
+    let state_changes = HashMap::from([(address, AccountState { nonce: Nonce(felt!(0_u8)) })]);
+    assert!(mempool.commit_block(state_changes).is_ok());
+
+    // Assert: the account nonce is not updated.
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
+}
+
+#[rstest]
+fn test_account_nonces_removal_in_commit_block(mut mempool: Mempool) {
+    // Setup.
+    let address = contract_address!("0x0");
+    let nonce = Nonce(felt!(0_u8));
+
+    // Test: commit block returns information about account that is not in the mempool.
+    let state_changes = HashMap::from([(address, AccountState { nonce })]);
+    assert!(mempool.commit_block(state_changes).is_ok());
+
+    // Assert: account is not added to the mempool.
+    let expected_mempool_content = MempoolContent::with_account_nonces(vec![]);
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
+}
+
+#[rstest]
+fn test_account_nonces_removal_in_get_txs(mut mempool: Mempool) {
+    // Setup.
+    let input =
+        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8);
+
+    // Test.
+    add_tx(&mut mempool, &input);
+    mempool.get_txs(1).unwrap();
+
+    // Assert: account is removed from account nonces.
+    let expected_mempool_content = MempoolContent::with_account_nonces(vec![]);
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
 }
