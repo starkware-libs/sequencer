@@ -133,7 +133,6 @@ impl Default for SyncConfig {
             state_updates_max_stream_size: 1000,
             verify_blocks: true,
             poll_pending_data: true,
-
         }
     }
 }
@@ -315,7 +314,7 @@ impl<
             self.pending_data.clone(),
             self.pending_classes.clone(),
             self.config.block_propagation_sleep_duration,
-            self.config.poll_pending_data, 
+            self.config.poll_pending_data,
             PENDING_SLEEP_DURATION,
             self.config.blocks_max_stream_size,
         )
