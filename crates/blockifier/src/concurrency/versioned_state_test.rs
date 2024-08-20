@@ -233,7 +233,7 @@ fn test_run_parallel_txs(max_resource_bounds: ValidResourceBounds) {
         &mut NonceManager::default(),
     );
     let account_tx_1 = AccountTransaction::DeployAccount(deploy_account_tx_1);
-    let enforce_fee = account_tx_1.create_tx_info().unwrap().enforce_fee();
+    let enforce_fee = account_tx_1.create_tx_info().enforce_fee();
 
     let class_hash = grindy_account.get_class_hash();
     let ctor_storage_arg = felt!(1_u8);
@@ -248,7 +248,7 @@ fn test_run_parallel_txs(max_resource_bounds: ValidResourceBounds) {
     let deploy_account_tx_2 = deploy_account_tx(deploy_tx_args, nonce_manager);
     let account_address = deploy_account_tx_2.contract_address();
     let account_tx_2 = AccountTransaction::DeployAccount(deploy_account_tx_2);
-    let tx_context = block_context.to_tx_context(&account_tx_2).unwrap();
+    let tx_context = block_context.to_tx_context(&account_tx_2);
     let fee_type = tx_context.tx_info.fee_type();
 
     let deployed_account_balance_key = get_fee_token_var_address(account_address);
