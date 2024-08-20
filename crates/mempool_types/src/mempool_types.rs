@@ -35,24 +35,13 @@ pub struct Account {
     pub state: AccountState,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MempoolInput {
-    pub tx: ThinTransaction,
+    pub tx: Transaction,
     pub account: Account,
 }
 
 pub type MempoolResult<T> = Result<T, MempoolError>;
-
-impl From<&Transaction> for ThinTransaction {
-    fn from(tx: &Transaction) -> Self {
-        ThinTransaction {
-            sender_address: tx.contract_address(),
-            tx_hash: tx.tx_hash(),
-            tip: tx.tip().expect("Expected a valid tip value, but received None."),
-            nonce: tx.nonce(),
-        }
-    }
-}
 
 impl From<&ThinTransaction> for Transaction {
     fn from(tx: &ThinTransaction) -> Self {
