@@ -26,7 +26,6 @@ pub struct Mempool {
     mempool_state: HashMap<ContractAddress, AccountState>,
     // The most recent account nonces received (might change right after), for all account in the
     // pool.
-    #[allow(dead_code)]
     account_nonces: AccountToNonce,
 }
 
@@ -60,6 +59,9 @@ impl Mempool {
         let mut eligible_txs: Vec<Transaction> = Vec::with_capacity(n_txs);
         for tx_ref in &eligible_tx_references {
             let tx = self.tx_pool.remove(tx_ref.tx_hash)?;
+            if !self.tx_pool.contains_account(tx.contract_address()) {
+                self.account_nonces.remove(&tx.contract_address());
+            }
             eligible_txs.push(tx);
         }
 
@@ -180,6 +182,12 @@ impl Mempool {
         }
 
         self.tx_pool.remove_up_to_nonce(address, nonce);
+
+        if self.tx_pool.contains_account(address) {
+            self.account_nonces.insert(address, nonce);
+        } else {
+            self.account_nonces.remove(&address);
+        }
 
         // Maybe close nonce gap.
         if self.tx_queue.get_nonce(address).is_none() {
