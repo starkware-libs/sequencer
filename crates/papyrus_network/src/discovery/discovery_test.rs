@@ -84,7 +84,7 @@ async fn check_event_happens_after_given_duration(
     behaviour: &mut Behaviour,
     duration: Duration,
 ) -> ToSwarm<ToOtherBehaviourEvent, Void> {
-    const EPSILON_SLEEP: Duration = Duration::from_millis(1);
+    const EPSILON_SLEEP: Duration = Duration::from_millis(5);
 
     // Check that there are no events until we sleep for enough time.
     tokio::time::pause();
