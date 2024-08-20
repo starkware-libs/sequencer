@@ -8934,6 +8934,7 @@ dependencies = [
  "async-trait",
  "derive_more",
  "itertools 0.10.5",
+ "mempool_test_utils",
  "pretty_assertions",
  "rstest",
  "starknet-types-core",
