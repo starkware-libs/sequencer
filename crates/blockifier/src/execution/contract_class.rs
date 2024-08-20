@@ -30,8 +30,8 @@ use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::{self, CONSTRUCTOR_ENTRY_POINT_NAME};
-use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionResult};
-use crate::execution::errors::{ContractClassError, EntryPointExecutionError, PreExecutionError};
+use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::errors::{ContractClassError, PreExecutionError};
 use crate::execution::execution_utils::{poseidon_hash_many_cost, sn_api_to_cairo_vm_program};
 use crate::execution::native::utils::contract_entrypoint_to_entrypoint_selector;
 use crate::fee::eth_gas_constants;
@@ -647,16 +647,27 @@ impl NativeContractClassV1 {
     }
 
     /// Returns an entry point into the natively compiled contract.
-    pub fn get_entrypoint(&self, call: &CallEntryPoint) -> EntryPointExecutionResult<&FunctionId> {
-        let entrypoints = &self.entry_points_by_type[call.entry_point_type];
+    pub fn get_entry_point(&self, call: &CallEntryPoint) -> Result<&FunctionId, PreExecutionError> {
+        if call.entry_point_type == EntryPointType::Constructor
+            && call.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
+        {
+            return Err(PreExecutionError::InvalidConstructorEntryPointName);
+        }
 
-        entrypoints
+        let entry_points_of_same_type = &self.0.entry_points_by_type[call.entry_point_type];
+        let filtered_entry_points: Vec<_> = entry_points_of_same_type
             .iter()
-            .find(|entrypoint| entrypoint.selector == call.entry_point_selector)
-            .map(|op| &op.function_id)
-            .ok_or(EntryPointExecutionError::NativeExecutionError {
-                info: format!("Entrypoint selector {} not found", call.entry_point_selector.0),
-            })
+            .filter(|ep| ep.selector == call.entry_point_selector)
+            .collect();
+
+        match &filtered_entry_points[..] {
+            [] => Err(PreExecutionError::EntryPointNotFound(call.entry_point_selector)),
+            [entry_point] => Ok(&entry_point.function_id),
+            _ => Err(PreExecutionError::DuplicatedEntryPointSelector {
+                selector: call.entry_point_selector,
+                typ: call.entry_point_type,
+            }),
+        }
     }
 }
 
