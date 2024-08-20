@@ -373,7 +373,7 @@ impl AccountTransaction {
             initial_gas: block_context.versioned_constants.os_constants.gas_costs.initial_gas_cost,
         };
 
-        let mut context = EntryPointExecutionContext::new_execute(tx_context, true)?;
+        let mut context = EntryPointExecutionContext::new_execution(tx_context, true)?;
 
         Ok(fee_transfer_call
             .execute(state, &mut ExecutionResources::default(), &mut context)
@@ -442,7 +442,7 @@ impl AccountTransaction {
             // Also, the execution context required form the `DeployAccount` execute phase is
             // validation context.
             let mut execution_context =
-                EntryPointExecutionContext::new_validate(tx_context.clone(), charge_fee)?;
+                EntryPointExecutionContext::new_validation(tx_context.clone(), charge_fee)?;
             execute_call_info =
                 self.run_execute(state, &mut resources, &mut execution_context, remaining_gas)?;
             validate_call_info = self.handle_validate_tx(
@@ -455,7 +455,7 @@ impl AccountTransaction {
             )?;
         } else {
             let mut execution_context =
-                EntryPointExecutionContext::new_execute(tx_context.clone(), charge_fee)?;
+                EntryPointExecutionContext::new_execution(tx_context.clone(), charge_fee)?;
             validate_call_info = self.handle_validate_tx(
                 state,
                 &mut resources,
@@ -499,7 +499,7 @@ impl AccountTransaction {
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
         let mut resources = ExecutionResources::default();
         let mut execution_context =
-            EntryPointExecutionContext::new_execute(tx_context.clone(), charge_fee)?;
+            EntryPointExecutionContext::new_execution(tx_context.clone(), charge_fee)?;
         // Run the validation, and if execution later fails, only keep the validation diff.
         let validate_call_info = self.handle_validate_tx(
             state,
@@ -768,7 +768,7 @@ impl ValidatableTransaction for AccountTransaction {
         limit_steps_by_resources: bool,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
         let mut context =
-            EntryPointExecutionContext::new_validate(tx_context, limit_steps_by_resources)?;
+            EntryPointExecutionContext::new_validation(tx_context, limit_steps_by_resources)?;
         let tx_info = &context.tx_context.tx_info;
         if tx_info.is_v0() {
             return Ok(None);

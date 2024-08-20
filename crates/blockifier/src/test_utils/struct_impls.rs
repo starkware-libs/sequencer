@@ -69,9 +69,11 @@ impl CallEntryPoint {
     ) -> EntryPointExecutionResult<CallInfo> {
         let tx_context =
             TransactionContext { block_context: BlockContext::create_for_testing(), tx_info };
-        let mut context =
-            EntryPointExecutionContext::new_execute(Arc::new(tx_context), limit_steps_by_resources)
-                .unwrap();
+        let mut context = EntryPointExecutionContext::new_execution(
+            Arc::new(tx_context),
+            limit_steps_by_resources,
+        )
+        .unwrap();
         self.execute(state, &mut ExecutionResources::default(), &mut context)
     }
 
@@ -96,7 +98,7 @@ impl CallEntryPoint {
     ) -> EntryPointExecutionResult<CallInfo> {
         let tx_context =
             TransactionContext { block_context: BlockContext::create_for_testing(), tx_info };
-        let mut context = EntryPointExecutionContext::new_validate(
+        let mut context = EntryPointExecutionContext::new_validation(
             Arc::new(tx_context),
             limit_steps_by_resources,
         )

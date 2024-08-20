@@ -147,14 +147,14 @@ impl EntryPointExecutionContext {
         })
     }
 
-    pub fn new_validate(
+    pub fn new_validation(
         tx_context: Arc<TransactionContext>,
         limit_steps_by_resources: bool,
     ) -> TransactionExecutionResult<Self> {
         Self::new(tx_context, ExecutionMode::Validate, limit_steps_by_resources)
     }
 
-    pub fn new_execute(
+    pub fn new_execution(
         tx_context: Arc<TransactionContext>,
         limit_steps_by_resources: bool,
     ) -> TransactionExecutionResult<Self> {
