@@ -63,6 +63,7 @@ impl MixedBehaviour {
         bootstrap_peer_multiaddr: Option<Multiaddr>,
         streamed_bytes_config: sqmr::Config,
         chain_id: ChainId,
+        version: Option<String>,
     ) -> Self {
         let public_key = keypair.public();
         let local_peer_id = PeerId::from_public_key(&public_key);
@@ -84,10 +85,16 @@ impl MixedBehaviour {
                     )
                 })
                 .into(),
-            identify: identify::Behaviour::new(identify::Config::new(
-                IDENTIFY_PROTOCOL_VERSION.to_string(),
-                public_key,
-            )),
+            identify: match version {
+                Some(version) => identify::Behaviour::new(
+                    identify::Config::new(IDENTIFY_PROTOCOL_VERSION.to_string(), public_key)
+                        .with_agent_version(version),
+                ),
+                None => identify::Behaviour::new(identify::Config::new(
+                    IDENTIFY_PROTOCOL_VERSION.to_string(),
+                    public_key,
+                )),
+            },
             // TODO: change kademlia protocol name
             kademlia: kad::Behaviour::with_config(
                 local_peer_id,
