@@ -230,10 +230,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
             &mut execution_output.as_mut().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).result;
 
         if let Ok(tx_execution_info) = tx_result.as_mut() {
-            let tx_context = self
-                .block_context
-                .to_tx_context(&self.chunk[tx_index])
-                .expect("Failed to create tx context.");
+            let tx_context = self.block_context.to_tx_context(&self.chunk[tx_index]);
             // Add the deleted sequencer balance key to the storage keys.
             let concurrency_mode = true;
             tx_state_changes_keys.update_sequencer_key_in_storage(
