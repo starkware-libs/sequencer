@@ -23,12 +23,12 @@ ark-ff.workspace = true
 ark-secp256k1.workspace = true
 ark-secp256r1.workspace = true
 cached.workspace = true
-cairo-native.workspace = true
 cairo-lang-casm = { workspace = true, features = ["parity-scale-codec"] }
 cairo-lang-runner.workspace = true
-cairo-lang-starknet-classes.workspace = true
 cairo-lang-sierra.workspace = true
+cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
+cairo-native.workspace = true
 cairo-vm.workspace = true
 derive_more.workspace = true
 indexmap.workspace = true
