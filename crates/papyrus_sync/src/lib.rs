@@ -113,6 +113,12 @@ impl SerializeConfig for SyncConfig {
                 "Whether to verify incoming blocks.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "poll_pending_data",
+                &self.poll_pending_data,
+                "Whether to poll for pending data.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
