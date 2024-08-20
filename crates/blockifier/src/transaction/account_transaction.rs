@@ -33,7 +33,6 @@ use crate::transaction::constants;
 use crate::transaction::errors::{
     TransactionExecutionError,
     TransactionFeeError,
-    TransactionInfoCreationError,
     TransactionPreValidationError,
 };
 use crate::transaction::objects::{
@@ -681,7 +680,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         block_context: &BlockContext,
         execution_flags: ExecutionFlags,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
-        let tx_context = Arc::new(block_context.to_tx_context(self)?);
+        let tx_context = Arc::new(block_context.to_tx_context(self));
         self.verify_tx_version(tx_context.tx_info.version())?;
 
         // Nonce and fee check should be done before running user code.
@@ -738,8 +737,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
 }
 
 impl TransactionInfoCreator for AccountTransaction {
-    // TODO(Nimrod): This function should return `TransactionInfo` without a result.
-    fn create_tx_info(&self) -> Result<TransactionInfo, TransactionInfoCreationError> {
+    fn create_tx_info(&self) -> TransactionInfo {
         match self {
             Self::Declare(tx) => tx.create_tx_info(),
             Self::DeployAccount(tx) => tx.create_tx_info(),
