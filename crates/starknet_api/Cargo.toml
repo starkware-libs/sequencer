@@ -29,3 +29,6 @@ thiserror.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 rstest.workspace = true
+
+[package.metadata.cargo-machete]
+ignored = ["strum"]

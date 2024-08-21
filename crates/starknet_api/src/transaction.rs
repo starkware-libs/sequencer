@@ -1,11 +1,10 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::sync::Arc;
 
 use derive_more::{Display, From};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
-use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 use crate::block::{BlockHash, BlockNumber};
@@ -935,29 +934,6 @@ where
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 // TODO(Nimrod): Remove this struct definition.
 pub struct DeprecatedResourceBoundsMapping(pub BTreeMap<Resource, ResourceBounds>);
-
-impl TryFrom<Vec<(Resource, ResourceBounds)>> for DeprecatedResourceBoundsMapping {
-    type Error = StarknetApiError;
-    fn try_from(
-        resource_resource_bounds_pairs: Vec<(Resource, ResourceBounds)>,
-    ) -> Result<Self, Self::Error> {
-        let n_variants = Resource::iter().count();
-        let allowed_signed_variants = [n_variants, n_variants - 1];
-        let unique_resources: HashSet<Resource> =
-            HashSet::from_iter(resource_resource_bounds_pairs.iter().map(|(k, _)| *k));
-        if !allowed_signed_variants.contains(&unique_resources.len())
-            || !allowed_signed_variants.contains(&resource_resource_bounds_pairs.len())
-        {
-            // TODO(Nimrod): Consider making this check more strict.
-            Err(StarknetApiError::InvalidResourceMappingInitializer(format!(
-                "{:?}",
-                resource_resource_bounds_pairs
-            )))
-        } else {
-            Ok(Self(resource_resource_bounds_pairs.into_iter().collect::<BTreeMap<_, _>>()))
-        }
-    }
-}
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum ValidResourceBounds {
