@@ -870,8 +870,10 @@ impl From<Tip> for Felt {
 )]
 pub enum Resource {
     #[serde(rename = "L1_GAS")]
+    #[serde(alias = "l1_gas")] // Backwards compatibility.
     L1Gas,
     #[serde(rename = "L2_GAS")]
+    #[serde(alias = "l2_gas")] // Backwards compatibility.
     L2Gas,
     #[serde(rename = "L1_DATA")]
     L1DataGas,

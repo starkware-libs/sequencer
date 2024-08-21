@@ -23,9 +23,9 @@ use starknet_api::transaction::{
     AccountDeploymentData,
     Fee,
     PaymasterData,
-    ResourceBounds,
     Tip,
     TransactionSignature,
+    ValidResourceBounds,
 };
 use starknet_client::writer::objects::transaction::DeprecatedContractClass;
 use starknet_types_core::felt::Felt;
@@ -37,7 +37,6 @@ use super::{
     BroadcastedDeclareV2Transaction,
     BroadcastedDeclareV3Transaction,
     DeclareType,
-    ResourceBoundsMapping,
 };
 use crate::test_utils::{get_starknet_spec_api_schema_for_components, SpecFile};
 use crate::version_config::VERSION_0_6 as Version;
@@ -82,7 +81,7 @@ auto_impl_get_test_instance! {
         pub signature: TransactionSignature,
         pub nonce: Nonce,
         pub contract_class: ContractClass,
-        pub resource_bounds: ResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub paymaster_data: PaymasterData,
         pub account_deployment_data: AccountDeploymentData,
@@ -104,11 +103,6 @@ auto_impl_get_test_instance! {
     }
     pub enum DeclareType {
         Declare = 0,
-    }
-
-    pub struct ResourceBoundsMapping {
-        pub l1_gas: ResourceBounds,
-        pub l2_gas: ResourceBounds,
     }
 }
 
