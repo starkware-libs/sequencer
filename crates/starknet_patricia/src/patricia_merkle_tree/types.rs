@@ -55,7 +55,7 @@ impl NodeIndex {
         Self(index)
     }
 
-    pub(crate) fn is_leaf(&self) -> bool {
+    pub fn is_leaf(&self) -> bool {
         Self::FIRST_LEAF <= *self && *self <= Self::MAX
     }
 

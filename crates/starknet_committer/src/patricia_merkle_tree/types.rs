@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use starknet_patricia::felt::Felt;
 use starknet_patricia::impl_from_hex_for_felt_wrapper;
-use starknet_patricia::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::FromStrError;
@@ -35,7 +34,3 @@ pub type StorageTrie = FilledTreeImpl<StarknetStorageValue>;
 pub type ClassesTrie = FilledTreeImpl<CompiledClassHash>;
 pub type ContractsTrie = FilledTreeImpl<ContractState>;
 pub type StorageTrieMap = HashMap<ContractAddress, StorageTrie>;
-
-pub type StorageTrieError = FilledTreeError<StarknetStorageValue>;
-pub type ClassesTrieError = FilledTreeError<CompiledClassHash>;
-pub type ContractsTrieError = FilledTreeError<ContractState>;

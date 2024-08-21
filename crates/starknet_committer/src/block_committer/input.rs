@@ -10,9 +10,31 @@ use tracing::level_filters::LevelFilter;
 
 use crate::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
 
+#[cfg(test)]
+#[path = "input_test.rs"]
+pub mod input_test;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 // TODO(Nimrod, 1/6/2025): Use the ContractAddress defined in starknet-types-core when available.
 pub struct ContractAddress(pub Felt);
+
+impl TryFrom<&NodeIndex> for ContractAddress {
+    type Error = String;
+
+    fn try_from(node_index: &NodeIndex) -> Result<ContractAddress, Self::Error> {
+        if !node_index.is_leaf() {
+            return Err("NodeIndex is not a leaf.".to_string());
+        }
+        let result = Felt::try_from(*node_index - NodeIndex::FIRST_LEAF);
+        match result {
+            Ok(felt) => Ok(ContractAddress(felt)),
+            Err(error) => Err(format!(
+                "Tried to convert node index to felt and got the following error: {:?}",
+                error.to_string()
+            )),
+        }
+    }
+}
 
 impl From<&ContractAddress> for NodeIndex {
     fn from(address: &ContractAddress) -> NodeIndex {
