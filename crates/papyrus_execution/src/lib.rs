@@ -22,7 +22,6 @@ pub mod objects;
 use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::num::NonZeroU128;
-use std::path::Path;
 use std::sync::Arc;
 
 use blockifier::blockifier::block::{pre_process_block, BlockInfo, BlockNumberHashPair, GasPrices};
@@ -44,13 +43,15 @@ use blockifier::transaction::objects::{
 };
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::transaction::transactions::ExecutableTransaction;
-use blockifier::versioned_constants::VersionedConstants;
+use blockifier::versioned_constants::{
+    StarknetVersion as BlockifierStarknetVersion,
+    VersionedConstants,
+};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use execution_utils::{get_trace_constructor, induced_state_diff};
 use objects::{PriceUnit, TransactionSimulationOutput};
-use once_cell::sync::Lazy;
 use papyrus_common::transaction_hash::get_transaction_hash;
 use papyrus_common::TransactionOptions;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
@@ -98,20 +99,6 @@ const INITIAL_GAS_COST: u64 = 10000000000;
 
 /// Result type for execution functions.
 pub type ExecutionResult<T> = Result<T, ExecutionError>;
-
-static VERSIONED_CONSTANTS_13_0: Lazy<VersionedConstants> = Lazy::new(|| {
-    VersionedConstants::try_from(Path::new("./resources/versioned_constants_13_0.json"))
-        .expect("Versioned constants JSON file is malformed")
-});
-static VERSIONED_CONSTANTS_13_1: Lazy<VersionedConstants> = Lazy::new(|| {
-    VersionedConstants::try_from(Path::new("./resources/versioned_constants_13_1.json"))
-        .expect("Versioned constants JSON file is malformed")
-});
-
-static VERSIONED_CONSTANTS_13_2: Lazy<VersionedConstants> = Lazy::new(|| {
-    VersionedConstants::try_from(Path::new("./resources/versioned_constants_13_2.json"))
-        .expect("Versioned constants JSON file is malformed")
-});
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
 /// Parameters that are needed for execution.
@@ -876,13 +863,13 @@ fn get_versioned_constants(
     let versioned_constants = match starknet_version {
         Some(starknet_version) => match starknet_version {
             StarknetVersion(version) if version == STARKNET_VERSION_O_13_0 => {
-                &VERSIONED_CONSTANTS_13_0
+                VersionedConstants::get(BlockifierStarknetVersion::V0_13_0)
             }
             StarknetVersion(version) if version == STARKNET_VERSION_O_13_1 => {
-                &VERSIONED_CONSTANTS_13_1
+                VersionedConstants::get(BlockifierStarknetVersion::V0_13_1)
             }
             StarknetVersion(version) if version == STARKNET_VERSION_O_13_2 => {
-                &VERSIONED_CONSTANTS_13_2
+                VersionedConstants::get(BlockifierStarknetVersion::V0_13_2)
             }
             _ => VersionedConstants::latest_constants(),
         },
