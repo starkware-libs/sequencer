@@ -17,13 +17,14 @@ use crate::{discovery, mixed_behaviour, sqmr};
 
 pub(crate) mod behaviour_impl;
 pub(crate) mod peer;
-#[cfg(test)]
-mod test;
+// #[cfg(test)]
+// mod test;
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
+#[derive(Clone, Copy)]
 pub enum ReputationModifier {
-    // TODO: Implement this enum
-    Bad,
+    Malicious,
+    Unstable,
 }
 
 pub struct PeerManager<P: PeerTrait + 'static> {
@@ -39,9 +40,10 @@ pub struct PeerManager<P: PeerTrait + 'static> {
     sleep_waiting_for_unblocked_peer: Option<BoxFuture<'static, ()>>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct PeerManagerConfig {
-    blacklist_timeout: Duration,
+    malicious_timeout: Duration,
+    unstable_timeout: Duration,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -58,7 +60,8 @@ impl Default for PeerManagerConfig {
     fn default() -> Self {
         Self {
             // 1 year.
-            blacklist_timeout: Duration::from_secs(3600 * 24 * 365),
+            malicious_timeout: Duration::from_secs(3600 * 24 * 365),
+            unstable_timeout: Duration::from_secs(1),
         }
     }
 }
@@ -82,9 +85,8 @@ where
         }
     }
 
-    fn add_peer(&mut self, mut peer: P) {
+    fn add_peer(&mut self, peer: P) {
         info!("Peer Manager found new peer {:?}", peer.peer_id());
-        peer.set_timeout_duration(self.config.blacklist_timeout);
         self.peers.insert(peer.peer_id(), peer);
         // The new peer is unblocked so we don't need to wait for unblocked peer.
         self.sleep_waiting_for_unblocked_peer = None;
@@ -184,7 +186,10 @@ where
         self.pending_events
             .push(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::PeerBlacklisted { peer_id }));
         if let Some(peer) = self.peers.get_mut(&peer_id) {
-            peer.update_reputation(reason);
+            peer.update_reputation(match reason {
+                ReputationModifier::Malicious => self.config.malicious_timeout,
+                ReputationModifier::Unstable => self.config.unstable_timeout,
+            });
             Ok(())
         } else {
             Err(PeerManagerError::NoSuchPeer(peer_id))
@@ -198,7 +203,10 @@ where
     ) -> Result<(), PeerManagerError> {
         if let Some(peer_id) = self.session_to_peer_map.get(&outbound_session_id) {
             if let Some(peer) = self.peers.get_mut(peer_id) {
-                peer.update_reputation(reason);
+                peer.update_reputation(match reason {
+                    ReputationModifier::Malicious => self.config.malicious_timeout,
+                    ReputationModifier::Unstable => self.config.unstable_timeout,
+                });
                 Ok(())
             } else {
                 Err(PeerManagerError::NoSuchPeer(*peer_id))

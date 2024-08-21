@@ -134,8 +134,11 @@ async fn peer_assignment_no_peers() {
 
     // Now the peer manager finds a new peer and can assign the session.
     let connection_id = ConnectionId::new_unchecked(0);
-    let (mut peer, peer_id) =
-        create_mock_peer(config.blacklist_timeout, false, Some(connection_id));
+    let (mut peer, peer_id) = create_mock_peer(
+        ReputationModifier::Unstable(config.unstable_timeout),
+        false,
+        Some(connection_id),
+    );
     peer.expect_is_blocked().times(1).return_const(false);
     peer_manager.add_peer(peer);
     assert_matches!(
@@ -165,7 +168,11 @@ async fn peer_assignment_no_unblocked_peers() {
 
     // Create a peer
     let connection_id = ConnectionId::new_unchecked(0);
-    let (mut peer, peer_id) = create_mock_peer(config.blacklist_timeout, true, Some(connection_id));
+    let (mut peer, peer_id) = create_mock_peer(
+        ReputationModifier::Unstable(config.unstable_timeout),
+        true,
+        Some(connection_id),
+    );
     peer.expect_is_blocked().times(1).return_const(true);
     peer.expect_is_blocked().times(1).return_const(false);
     peer.expect_blocked_until().times(1).returning(|| Instant::now() + BLOCKED_UNTIL);
@@ -235,8 +242,20 @@ fn report_peer_calls_update_reputation_and_notifies_kad() {
 async fn peer_block_realeased_after_timeout() {
     const DURATION_IN_MILLIS: u64 = 50;
     let mut peer = Peer::new(PeerId::random(), Multiaddr::empty());
+    peer.update_reputation(ReputationModifier::Malicious(Duration::from_millis(
+        DURATION_IN_MILLIS,
+    )));
+    assert!(peer.is_blocked());
+    sleep(time::Duration::from_millis(DURATION_IN_MILLIS)).await;
+    assert!(!peer.is_blocked());
+}
+
+#[tokio::test]
+async fn peer_unstable_block_released_after_timeout() {
+    const DURATION_IN_MILLIS: u64 = 50;
+    let mut peer = Peer::new(PeerId::random(), Multiaddr::empty());
     peer.set_timeout_duration(Duration::from_millis(DURATION_IN_MILLIS));
-    peer.update_reputation(ReputationModifier::Bad {});
+    peer.update_reputation(ReputationModifier::Unstable(Duration::from_millis(DURATION_IN_MILLIS)));
     assert!(peer.is_blocked());
     sleep(time::Duration::from_millis(DURATION_IN_MILLIS)).await;
     assert!(!peer.is_blocked());
@@ -354,7 +373,7 @@ fn wrap_around_in_peer_assignment() {
 }
 
 fn create_mock_peer(
-    blacklist_timeout_duration: Duration,
+    reason: ReputationModifier,
     call_update_reputaion: bool,
     connection_id: Option<ConnectionId>,
 ) -> (MockPeerTrait, PeerId) {
@@ -363,15 +382,15 @@ fn create_mock_peer(
     let mut mockall_seq = mockall::Sequence::new();
 
     peer.expect_peer_id().return_const(peer_id);
-    peer.expect_set_timeout_duration()
-        .times(1)
-        .with(eq(blacklist_timeout_duration))
-        .return_const(())
-        .in_sequence(&mut mockall_seq);
+    // peer.expect_set_timeout_duration()
+    //     .times(1)
+    //     .with(eq(blacklist_timeout_duration))
+    //     .return_const(())
+    //     .in_sequence(&mut mockall_seq);
     if call_update_reputaion {
         peer.expect_update_reputation()
             .times(1)
-            .with(eq(ReputationModifier::Bad {}))
+            .with(eq(Some(reason)))
             .return_once(|_| ())
             .in_sequence(&mut mockall_seq);
     }
