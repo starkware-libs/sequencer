@@ -21,12 +21,13 @@ use starknet_api::transaction::{
     Tip,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_client::writer::objects::transaction as client_transaction;
 use starknet_client::writer::objects::transaction::DeprecatedContractClass;
 
 use super::state::ContractClass;
-use super::transaction::{DeployAccountTransaction, InvokeTransaction, ResourceBoundsMapping};
+use super::transaction::{DeployAccountTransaction, InvokeTransaction};
 use crate::compression_utils::compress_and_encode;
 
 /// Transactions that are ready to be broadcasted to the network and are not included in a block.
@@ -106,7 +107,7 @@ pub struct BroadcastedDeclareV3Transaction {
     pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub contract_class: ContractClass,
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
     pub paymaster_data: PaymasterData,
     pub account_deployment_data: AccountDeploymentData,
@@ -174,7 +175,7 @@ impl TryFrom<BroadcastedDeclareTransaction> for client_transaction::DeclareTrans
                             .to_hash_map(),
                         abi: declare_v3.contract_class.abi,
                     },
-                    resource_bounds: declare_v3.resource_bounds.into(),
+                    resource_bounds: declare_v3.resource_bounds,
                     tip: declare_v3.tip,
                     signature: declare_v3.signature,
                     nonce: declare_v3.nonce,
