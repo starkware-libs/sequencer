@@ -2,8 +2,6 @@
 #[path = "rpc_transaction_test.rs"]
 mod rpc_transaction_test;
 
-use std::collections::BTreeMap;
-
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 
@@ -22,7 +20,6 @@ use crate::transaction::{
     Calldata,
     ContractAddressSalt,
     PaymasterData,
-    Resource,
     Tip,
     TransactionSignature,
 };
@@ -190,18 +187,4 @@ pub struct EntryPointByType {
     pub external: Vec<EntryPoint>,
     #[serde(rename = "L1_HANDLER")]
     pub l1handler: Vec<EntryPoint>,
-}
-
-// TODO(Nimrod): Remove this conversion.
-impl From<AllResourceBounds> for crate::transaction::DeprecatedResourceBoundsMapping {
-    fn from(
-        all_resource_bounds: AllResourceBounds,
-    ) -> crate::transaction::DeprecatedResourceBoundsMapping {
-        let map = BTreeMap::from([
-            (Resource::L1Gas, all_resource_bounds.l1_gas),
-            (Resource::L2Gas, all_resource_bounds.l2_gas),
-            (Resource::L1DataGas, all_resource_bounds.l1_data_gas),
-        ]);
-        crate::transaction::DeprecatedResourceBoundsMapping(map)
-    }
 }
