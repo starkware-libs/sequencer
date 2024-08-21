@@ -31,10 +31,10 @@ use super::{
     InvokeTransactionV0,
     InvokeTransactionV1,
     InvokeTransactionV3,
-    ResourceBoundsMapping,
     TransactionVersion0,
     TransactionVersion1,
     TransactionVersion3,
+    ValidResourceBounds,
 };
 
 lazy_static::lazy_static! {
@@ -83,7 +83,7 @@ auto_impl_get_test_instance! {
         pub contract_address_salt: ContractAddressSalt,
         pub constructor_calldata: Calldata,
         pub version: TransactionVersion3,
-        pub resource_bounds: ResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub paymaster_data: PaymasterData,
         pub nonce_data_availability_mode: DataAvailabilityMode,
@@ -116,7 +116,7 @@ auto_impl_get_test_instance! {
         pub version: TransactionVersion3,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
-        pub resource_bounds: ResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub paymaster_data: PaymasterData,
         pub account_deployment_data: AccountDeploymentData,

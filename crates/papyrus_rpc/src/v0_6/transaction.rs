@@ -27,7 +27,6 @@ use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::serde_utils::bytes_from_hex_str;
 use starknet_api::transaction::{
     AccountDeploymentData,
-    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     DeployTransaction,
@@ -35,13 +34,12 @@ use starknet_api::transaction::{
     L1HandlerTransaction,
     MessageToL1,
     PaymasterData,
-    Resource,
-    ResourceBounds,
     Tip,
     TransactionExecutionStatus,
     TransactionHash,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_client::writer::objects::transaction as client_transaction;
 use starknet_types_core::felt::Felt;
@@ -145,56 +143,9 @@ impl From<starknet_api::transaction::DeclareTransactionV2> for DeclareTransactio
     }
 }
 
-// The serialization of the struct in SN_API is in capital letters, not following the spec.
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
-pub struct ResourceBoundsMapping {
-    pub l1_gas: ResourceBounds,
-    pub l2_gas: ResourceBounds,
-}
-
-impl From<ResourceBoundsMapping> for starknet_api::transaction::DeprecatedResourceBoundsMapping {
-    fn from(value: ResourceBoundsMapping) -> Self {
-        Self([(Resource::L1Gas, value.l1_gas), (Resource::L2Gas, value.l2_gas)].into())
-    }
-}
-
-impl From<ResourceBoundsMapping> for starknet_api::transaction::ValidResourceBounds {
-    fn from(value: ResourceBoundsMapping) -> Self {
-        if !value.l2_gas.is_zero() {
-            panic!("Resource bounds mapping l2 gas is expected to be zero. Got: {:?}", value.l2_gas)
-        }
-        Self::L1Gas(value.l1_gas)
-    }
-}
-
-impl From<starknet_api::transaction::ValidResourceBounds> for ResourceBoundsMapping {
-    fn from(value: starknet_api::transaction::ValidResourceBounds) -> Self {
-        match value {
-            starknet_api::transaction::ValidResourceBounds::L1Gas(l1_gas) => {
-                Self { l1_gas, l2_gas: ResourceBounds::default() }
-            }
-            // TODO(Nimrod): Don't allow this conversion.
-            starknet_api::transaction::ValidResourceBounds::AllResources(AllResourceBounds {
-                l1_gas,
-                l2_gas,
-                ..
-            }) => Self { l1_gas, l2_gas },
-        }
-    }
-}
-
-impl From<starknet_api::transaction::DeprecatedResourceBoundsMapping> for ResourceBoundsMapping {
-    fn from(value: starknet_api::transaction::DeprecatedResourceBoundsMapping) -> Self {
-        Self {
-            l1_gas: value.0.get(&Resource::L1Gas).cloned().unwrap_or_default(),
-            l2_gas: value.0.get(&Resource::L2Gas).cloned().unwrap_or_default(),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeclareTransactionV3 {
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
@@ -211,7 +162,7 @@ pub struct DeclareTransactionV3 {
 impl From<starknet_api::transaction::DeclareTransactionV3> for DeclareTransactionV3 {
     fn from(tx: starknet_api::transaction::DeclareTransactionV3) -> Self {
         Self {
-            resource_bounds: tx.resource_bounds.into(),
+            resource_bounds: tx.resource_bounds,
             tip: tx.tip,
             signature: tx.signature,
             nonce: tx.nonce,
@@ -255,7 +206,7 @@ pub struct DeployAccountTransactionV3 {
     pub contract_address_salt: ContractAddressSalt,
     pub constructor_calldata: Calldata,
     pub version: TransactionVersion3,
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
     pub paymaster_data: PaymasterData,
     pub nonce_data_availability_mode: DataAvailabilityMode,
@@ -314,7 +265,7 @@ impl TryFrom<starknet_api::transaction::DeployAccountTransaction> for DeployAcco
                 contract_address_salt,
                 constructor_calldata,
                 version: TransactionVersion3::Version3,
-                resource_bounds: resource_bounds.into(),
+                resource_bounds,
                 tip,
                 nonce_data_availability_mode,
                 fee_data_availability_mode,
@@ -347,7 +298,7 @@ impl From<DeployAccountTransaction> for client_transaction::DeployAccountTransac
                     nonce: deploy_account_tx.nonce,
                     signature: deploy_account_tx.signature,
                     version: TransactionVersion::THREE,
-                    resource_bounds: deploy_account_tx.resource_bounds.into(),
+                    resource_bounds: deploy_account_tx.resource_bounds,
                     tip: deploy_account_tx.tip,
                     nonce_data_availability_mode:
                         client_transaction::ReservedDataAvailabilityMode::Reserved,
@@ -416,7 +367,7 @@ pub struct InvokeTransactionV3 {
     pub version: TransactionVersion3,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
     pub paymaster_data: PaymasterData,
     pub account_deployment_data: AccountDeploymentData,
@@ -432,7 +383,7 @@ impl From<InvokeTransactionV3> for client_transaction::InvokeTransaction {
             version: TransactionVersion::THREE,
             signature: tx.signature,
             nonce: tx.nonce,
-            resource_bounds: tx.resource_bounds.into(),
+            resource_bounds: tx.resource_bounds,
             tip: tx.tip,
             nonce_data_availability_mode:
                 client_transaction::ReservedDataAvailabilityMode::Reserved,
@@ -518,7 +469,7 @@ impl TryFrom<starknet_api::transaction::InvokeTransaction> for InvokeTransaction
                 version: TransactionVersion3::Version3,
                 signature,
                 nonce,
-                resource_bounds: resource_bounds.into(),
+                resource_bounds,
                 tip,
                 nonce_data_availability_mode,
                 fee_data_availability_mode,
