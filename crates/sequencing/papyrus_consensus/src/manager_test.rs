@@ -108,12 +108,12 @@ async fn send(sender: &mut Sender, msg: ConsensusMessage) {
 async fn manager_multiple_heights_unordered() {
     let (mut sender, mut receiver) = mpsc::unbounded();
     // Send messages for height 2 followed by those for height 1.
-    send(&mut sender, proposal(BlockHash(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
-    send(&mut sender, prevote(Some(BlockHash(Felt::TWO)), 2, 0, *PROPOSER_ID)).await;
-    send(&mut sender, precommit(Some(BlockHash(Felt::TWO)), 2, 0, *PROPOSER_ID)).await;
-    send(&mut sender, proposal(BlockHash(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
-    send(&mut sender, prevote(Some(BlockHash(Felt::ONE)), 1, 0, *PROPOSER_ID)).await;
-    send(&mut sender, precommit(Some(BlockHash(Felt::ONE)), 1, 0, *PROPOSER_ID)).await;
+    send(&mut sender, proposal(Felt::TWO, 2, 0, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
+    send(&mut sender, proposal(Felt::ONE, 1, 0, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
 
     let mut context = MockTestContext::new();
     // Run the manager for height 1.
@@ -169,9 +169,9 @@ async fn run_consensus_sync() {
 
     // Send messages for height 2.
     let (mut network_sender, mut network_receiver) = mpsc::unbounded();
-    send(&mut network_sender, proposal(BlockHash(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
-    send(&mut network_sender, prevote(Some(BlockHash(Felt::TWO)), 2, 0, *PROPOSER_ID)).await;
-    send(&mut network_sender, precommit(Some(BlockHash(Felt::TWO)), 2, 0, *PROPOSER_ID)).await;
+    send(&mut network_sender, proposal(Felt::TWO, 2, 0, *PROPOSER_ID)).await;
+    send(&mut network_sender, prevote(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
+    send(&mut network_sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
 
     // Start at height 1.
     let (mut sync_sender, mut sync_receiver) = mpsc::unbounded();
@@ -216,13 +216,12 @@ async fn run_consensus_sync_cancellation_safety() {
     });
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context
-        .expect_broadcast()
-        .with(eq(prevote(Some(BlockHash(Felt::ONE)), 1, 0, *VALIDATOR_ID)))
-        .return_once(move |_| {
+    context.expect_broadcast().with(eq(prevote(Some(Felt::ONE), 1, 0, *VALIDATOR_ID))).return_once(
+        move |_| {
             proposal_handled_tx.send(()).unwrap();
             Ok(())
-        });
+        },
+    );
     context.expect_broadcast().returning(move |_| Ok(()));
     context.expect_decision_reached().return_once(|block, votes| {
         assert_eq!(block.id(), BlockHash(Felt::ONE));
@@ -248,7 +247,7 @@ async fn run_consensus_sync_cancellation_safety() {
     });
 
     // Send a proposal for height 1.
-    send(&mut network_sender, proposal(BlockHash(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
+    send(&mut network_sender, proposal(Felt::ONE, 1, 0, *PROPOSER_ID)).await;
     proposal_handled_rx.await.unwrap();
 
     // Send an old sync. This should not cancel the current height.
@@ -257,8 +256,8 @@ async fn run_consensus_sync_cancellation_safety() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Finished messages for 1
-    send(&mut network_sender, prevote(Some(BlockHash(Felt::ONE)), 1, 0, *PROPOSER_ID)).await;
-    send(&mut network_sender, precommit(Some(BlockHash(Felt::ONE)), 1, 0, *PROPOSER_ID)).await;
+    send(&mut network_sender, prevote(Some(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
+    send(&mut network_sender, precommit(Some(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
     decision_rx.await.unwrap();
 
     // Drop the sender to close consensus and gracefully shut down.
@@ -269,7 +268,7 @@ async fn run_consensus_sync_cancellation_safety() {
 #[tokio::test]
 async fn test_timeouts() {
     let (mut sender, mut receiver) = mpsc::unbounded();
-    send(&mut sender, proposal(BlockHash(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
+    send(&mut sender, proposal(Felt::ONE, 1, 0, *PROPOSER_ID)).await;
     send(&mut sender, prevote(None, 1, 0, *VALIDATOR_ID_2)).await;
     send(&mut sender, prevote(None, 1, 0, *VALIDATOR_ID_3)).await;
     send(&mut sender, precommit(None, 1, 0, *VALIDATOR_ID_2)).await;
@@ -309,12 +308,12 @@ async fn test_timeouts() {
     timeout_receive.await.unwrap();
     // Show that after the timeout is triggered we can still precommit in favor of the block and
     // reach a decision.
-    send(&mut sender, proposal(BlockHash(Felt::ONE), 1, 1, *PROPOSER_ID)).await;
-    send(&mut sender, prevote(Some(BlockHash(Felt::ONE)), 1, 1, *PROPOSER_ID)).await;
-    send(&mut sender, prevote(Some(BlockHash(Felt::ONE)), 1, 1, *VALIDATOR_ID_2)).await;
-    send(&mut sender, prevote(Some(BlockHash(Felt::ONE)), 1, 1, *VALIDATOR_ID_3)).await;
-    send(&mut sender, precommit(Some(BlockHash(Felt::ONE)), 1, 1, *VALIDATOR_ID_2)).await;
-    send(&mut sender, precommit(Some(BlockHash(Felt::ONE)), 1, 1, *VALIDATOR_ID_3)).await;
+    send(&mut sender, proposal(Felt::ONE, 1, 1, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(Felt::ONE), 1, 1, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_2)).await;
+    send(&mut sender, prevote(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_3)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_2)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_3)).await;
 
     manager_handle.await.unwrap();
 }
