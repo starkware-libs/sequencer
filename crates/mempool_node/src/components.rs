@@ -1,6 +1,5 @@
 use starknet_batcher::batcher::{create_batcher, Batcher};
 use starknet_consensus_manager::consensus_manager::ConsensusManager;
-use starknet_gateway::compilation::GatewayCompiler;
 use starknet_gateway::gateway::{create_gateway, Gateway};
 use starknet_mempool::mempool::Mempool;
 
@@ -34,12 +33,11 @@ pub fn create_components(config: &MempoolNodeConfig, clients: &MempoolNodeClient
     let gateway = if config.components.gateway.execute {
         let mempool_client =
             clients.get_mempool_client().expect("Mempool Client should be available");
-        let gateway_compiler = GatewayCompiler::new_cairo_lang_compiler(config.compiler_config);
 
         Some(create_gateway(
             config.gateway_config.clone(),
             config.rpc_state_reader_config.clone(),
-            gateway_compiler,
+            config.compiler_config.clone(),
             mempool_client,
         ))
     } else {

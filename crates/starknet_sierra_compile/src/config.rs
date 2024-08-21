@@ -5,7 +5,7 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct SierraToCasmCompilationConfig {
     pub max_bytecode_size: usize,
 }
