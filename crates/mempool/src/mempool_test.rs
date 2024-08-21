@@ -360,6 +360,30 @@ fn test_get_txs_with_holes_single_account() {
     expected_mempool_content.assert_eq_mempool_content(&mempool);
 }
 
+#[rstest]
+fn test_get_txs_with_different_gas_price_threshold() {
+    // Setup.
+    let input_tx = add_tx_input!(tx_hash: 0, tx_nonce: 1_u8, account_nonce: 0_u8);
+
+    let pool_txs = [input_tx.tx.clone()];
+    let queue_txs = [TransactionReference::new(&input_tx.tx)];
+    let mut mempool: Mempool = MempoolContent::new(pool_txs, queue_txs).into();
+
+    // Test.
+    // High gas price threshold, no transactions should be returned.
+    mempool.update_gas_price_threshold(1000000000000);
+    let txs = mempool.get_txs(1).unwrap();
+    assert!(txs.is_empty());
+
+    // Updating the gas price threshold should happen in a new block creation.
+    assert!(mempool.commit_block(HashMap::default()).is_ok());
+    // Low gas price threshold, the transaction should be returned.
+    mempool.update_gas_price_threshold(100);
+    let txs = mempool.get_txs(1).unwrap();
+
+    assert_eq!(txs, &[input_tx.tx]);
+}
+
 // add_tx tests.
 
 #[rstest]
