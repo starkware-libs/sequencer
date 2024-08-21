@@ -23,7 +23,8 @@ lazy_static! {
     static ref VALIDATORS: Vec<ValidatorId> =
         vec![*PROPOSER_ID, *VALIDATOR_ID_1, *VALIDATOR_ID_2, *VALIDATOR_ID_3];
     static ref BLOCK: TestBlock = TestBlock { content: vec![1, 2, 3], id: BlockHash(Felt::ONE) };
-    static ref BLOCK_ID: BlockHash = BLOCK.id();
+    static ref BLOCK_HASH: BlockHash = BLOCK.id();
+    static ref BLOCK_FELT: Felt = BLOCK_HASH.0;
     static ref PROPOSAL_INIT: ProposalInit =
         ProposalInit { height: BlockNumber(0), round: 0, proposer: *PROPOSER_ID };
     static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig::default();
@@ -61,13 +62,13 @@ async fn proposer() {
         .expect_broadcast()
         .times(1)
         .withf(move |msg: &ConsensusMessage| {
-            msg == &prevote(Some(*BLOCK_ID), 0, 0, *VALIDATOR_ID_1)
+            msg == &prevote(Some(*BLOCK_FELT), 0, 0, *VALIDATOR_ID_1)
         })
         .returning(move |_| Ok(()));
     // Sends proposal and prevote.
     assert_eq!(shc.start(&mut context).await, Ok(ShcReturn::Tasks(vec![])));
     assert_eq!(
-        shc.handle_message(&mut context, prevote(Some(*BLOCK_ID), 0, 0, *PROPOSER_ID)).await,
+        shc.handle_message(&mut context, prevote(Some(*BLOCK_FELT), 0, 0, *PROPOSER_ID)).await,
         Ok(ShcReturn::Tasks(vec![]))
     );
     // 3 of 4 Prevotes is enough to send a Precommit.
@@ -75,12 +76,12 @@ async fn proposer() {
         .expect_broadcast()
         .times(1)
         .withf(move |msg: &ConsensusMessage| {
-            msg == &precommit(Some(*BLOCK_ID), 0, 0, *VALIDATOR_ID_1)
+            msg == &precommit(Some(*BLOCK_FELT), 0, 0, *VALIDATOR_ID_1)
         })
         .returning(move |_| Ok(()));
     // The Node got a Prevote quorum.
     assert_eq!(
-        shc.handle_message(&mut context, prevote(Some(*BLOCK_ID), 0, 0, *VALIDATOR_ID_2)).await,
+        shc.handle_message(&mut context, prevote(Some(*BLOCK_FELT), 0, 0, *VALIDATOR_ID_2)).await,
         Ok(ShcReturn::Tasks(vec![ShcTask {
             duration: TIMEOUTS.prevote_timeout,
             event: StateMachineEvent::TimeoutPrevote(0)
@@ -88,10 +89,10 @@ async fn proposer() {
     );
 
     let precommits = vec![
-        precommit(Some(*BLOCK_ID), 0, 0, *PROPOSER_ID),
-        precommit(Some(BlockHash(Felt::TWO)), 0, 0, *VALIDATOR_ID_3),
-        precommit(Some(*BLOCK_ID), 0, 0, *VALIDATOR_ID_2),
-        precommit(Some(*BLOCK_ID), 0, 0, *VALIDATOR_ID_1),
+        precommit(Some(*BLOCK_FELT), 0, 0, *PROPOSER_ID),
+        precommit(Some(Felt::TWO), 0, 0, *VALIDATOR_ID_3),
+        precommit(Some(*BLOCK_FELT), 0, 0, *VALIDATOR_ID_2),
+        precommit(Some(*BLOCK_FELT), 0, 0, *VALIDATOR_ID_1),
     ];
     assert_eq!(
         shc.handle_message(&mut context, precommits[0].clone()).await,
@@ -136,7 +137,7 @@ async fn validator(repeat_proposal: bool) {
 
     // Send the proposal from the peer.
     let (fin_sender, fin_receiver) = oneshot::channel();
-    fin_sender.send(*BLOCK_ID).unwrap();
+    fin_sender.send(*BLOCK_HASH).unwrap();
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_validate_proposal().times(1).returning(move |_, _| {
@@ -148,7 +149,7 @@ async fn validator(repeat_proposal: bool) {
         .expect_broadcast()
         .times(1)
         .withf(move |msg: &ConsensusMessage| {
-            msg == &prevote(Some(*BLOCK_ID), 0, 0, *VALIDATOR_ID_1)
+            msg == &prevote(Some(*BLOCK_FELT), 0, 0, *VALIDATOR_ID_1)
         })
         .returning(move |_| Ok(()));
     let res = shc
@@ -163,7 +164,7 @@ async fn validator(repeat_proposal: bool) {
     if repeat_proposal {
         // Send the same proposal again, which should be ignored (no expectations).
         let (fin_sender, fin_receiver) = oneshot::channel();
-        fin_sender.send(*BLOCK_ID).unwrap();
+        fin_sender.send(*BLOCK_HASH).unwrap();
 
         let res = shc
             .handle_proposal(
@@ -176,7 +177,7 @@ async fn validator(repeat_proposal: bool) {
         assert_eq!(res, Ok(ShcReturn::Tasks(vec![])));
     }
     assert_eq!(
-        shc.handle_message(&mut context, prevote(Some(*BLOCK_ID), 0, 0, *PROPOSER_ID)).await,
+        shc.handle_message(&mut context, prevote(Some(*BLOCK_FELT), 0, 0, *PROPOSER_ID)).await,
         Ok(ShcReturn::Tasks(vec![]))
     );
     // 3 of 4 Prevotes is enough to send a Precommit.
@@ -184,12 +185,12 @@ async fn validator(repeat_proposal: bool) {
         .expect_broadcast()
         .times(1)
         .withf(move |msg: &ConsensusMessage| {
-            msg == &precommit(Some(*BLOCK_ID), 0, 0, *VALIDATOR_ID_1)
+            msg == &precommit(Some(*BLOCK_FELT), 0, 0, *VALIDATOR_ID_1)
         })
         .returning(move |_| Ok(()));
     // The Node got a Prevote quorum.
     assert_eq!(
-        shc.handle_message(&mut context, prevote(Some(*BLOCK_ID), 0, 0, *VALIDATOR_ID_2)).await,
+        shc.handle_message(&mut context, prevote(Some(*BLOCK_FELT), 0, 0, *VALIDATOR_ID_2)).await,
         Ok(ShcReturn::Tasks(vec![ShcTask {
             duration: TIMEOUTS.prevote_timeout,
             event: StateMachineEvent::TimeoutPrevote(0)
@@ -197,9 +198,9 @@ async fn validator(repeat_proposal: bool) {
     );
 
     let precommits = vec![
-        precommit(Some(*BLOCK_ID), 0, 0, *PROPOSER_ID),
-        precommit(Some(*BLOCK_ID), 0, 0, *VALIDATOR_ID_2),
-        precommit(Some(*BLOCK_ID), 0, 0, *VALIDATOR_ID_1),
+        precommit(Some(*BLOCK_FELT), 0, 0, *PROPOSER_ID),
+        precommit(Some(*BLOCK_FELT), 0, 0, *VALIDATOR_ID_2),
+        precommit(Some(*BLOCK_FELT), 0, 0, *VALIDATOR_ID_1),
     ];
     assert_eq!(
         shc.handle_message(&mut context, precommits[0].clone()).await,
@@ -233,7 +234,7 @@ async fn vote_twice(same_vote: bool) {
     );
 
     let (fin_sender, fin_receiver) = oneshot::channel();
-    fin_sender.send(*BLOCK_ID).unwrap();
+    fin_sender.send(*BLOCK_HASH).unwrap();
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
     context.expect_validate_proposal().times(1).returning(move |_, _| {
@@ -244,7 +245,7 @@ async fn vote_twice(same_vote: bool) {
     context
         .expect_broadcast()
         .times(1) // Shows the repeat vote is ignored.
-        .withf(move |msg: &ConsensusMessage| msg == &prevote(Some(*BLOCK_ID), 0, 0, *VALIDATOR_ID_1))
+        .withf(move |msg: &ConsensusMessage| msg == &prevote(Some(*BLOCK_FELT), 0, 0, *VALIDATOR_ID_1))
         .returning(move |_| Ok(()));
     let res = shc
         .handle_proposal(
@@ -256,16 +257,17 @@ async fn vote_twice(same_vote: bool) {
         .await;
     assert_eq!(res, Ok(ShcReturn::Tasks(vec![])));
 
-    let res = shc.handle_message(&mut context, prevote(Some(*BLOCK_ID), 0, 0, *PROPOSER_ID)).await;
+    let res =
+        shc.handle_message(&mut context, prevote(Some(*BLOCK_FELT), 0, 0, *PROPOSER_ID)).await;
     assert_eq!(res, Ok(ShcReturn::Tasks(vec![])));
 
     context
     .expect_broadcast()
     .times(1) // Shows the repeat vote is ignored.
-    .withf(move |msg: &ConsensusMessage| msg == &precommit(Some(*BLOCK_ID), 0, 0, *VALIDATOR_ID_1))
+    .withf(move |msg: &ConsensusMessage| msg == &precommit(Some(*BLOCK_FELT), 0, 0, *VALIDATOR_ID_1))
     .returning(move |_| Ok(()));
     let res =
-        shc.handle_message(&mut context, prevote(Some(*BLOCK_ID), 0, 0, *VALIDATOR_ID_2)).await;
+        shc.handle_message(&mut context, prevote(Some(*BLOCK_FELT), 0, 0, *VALIDATOR_ID_2)).await;
     // The Node got a Prevote quorum.
     assert_eq!(
         res,
@@ -275,15 +277,12 @@ async fn vote_twice(same_vote: bool) {
         }]))
     );
 
-    let first_vote = precommit(Some(*BLOCK_ID), 0, 0, *PROPOSER_ID);
+    let first_vote = precommit(Some(*BLOCK_FELT), 0, 0, *PROPOSER_ID);
     let res = shc.handle_message(&mut context, first_vote.clone()).await;
     assert_eq!(res, Ok(ShcReturn::Tasks(vec![])));
 
-    let second_vote = if same_vote {
-        first_vote.clone()
-    } else {
-        precommit(Some(BlockHash(Felt::TWO)), 0, 0, *PROPOSER_ID)
-    };
+    let second_vote =
+        if same_vote { first_vote.clone() } else { precommit(Some(Felt::TWO), 0, 0, *PROPOSER_ID) };
     let res = shc.handle_message(&mut context, second_vote.clone()).await;
     if same_vote {
         assert_eq!(res, Ok(ShcReturn::Tasks(vec![])));
@@ -292,7 +291,7 @@ async fn vote_twice(same_vote: bool) {
     }
 
     let ShcReturn::Decision(decision) = shc
-        .handle_message(&mut context, precommit(Some(*BLOCK_ID), 0, 0, *VALIDATOR_ID_2))
+        .handle_message(&mut context, precommit(Some(*BLOCK_FELT), 0, 0, *VALIDATOR_ID_2))
         .await
         .unwrap()
     else {
