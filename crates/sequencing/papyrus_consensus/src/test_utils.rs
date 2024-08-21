@@ -3,6 +3,7 @@ use futures::channel::{mpsc, oneshot};
 use mockall::mock;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, Vote, VoteType};
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_types_core::felt::Felt;
 
 use crate::types::{
     ConsensusBlock,
@@ -74,20 +75,22 @@ mock! {
 }
 
 pub fn prevote(
-    block_hash: Option<BlockHash>,
+    block_felt: Option<Felt>,
     height: u64,
     round: u32,
     voter: ValidatorId,
 ) -> ConsensusMessage {
+    let block_hash = block_felt.map(BlockHash);
     ConsensusMessage::Vote(Vote { vote_type: VoteType::Prevote, height, round, block_hash, voter })
 }
 
 pub fn precommit(
-    block_hash: Option<BlockHash>,
+    block_felt: Option<Felt>,
     height: u64,
     round: u32,
     voter: ValidatorId,
 ) -> ConsensusMessage {
+    let block_hash = block_felt.map(BlockHash);
     ConsensusMessage::Vote(Vote {
         vote_type: VoteType::Precommit,
         height,
@@ -98,11 +101,12 @@ pub fn precommit(
 }
 
 pub fn proposal(
-    block_hash: BlockHash,
+    block_felt: Felt,
     height: u64,
     round: u32,
     proposer: ValidatorId,
 ) -> ConsensusMessage {
+    let block_hash = BlockHash(block_felt);
     ConsensusMessage::Proposal(Proposal {
         height,
         block_hash,
