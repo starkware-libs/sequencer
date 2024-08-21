@@ -70,7 +70,7 @@ pub struct SyncConfig {
     pub blocks_max_stream_size: u32,
     pub state_updates_max_stream_size: u32,
     pub verify_blocks: bool,
-    pub poll_pending_data: bool,
+    pub collect_pending_data: bool,
 }
 
 impl SerializeConfig for SyncConfig {
@@ -114,9 +114,9 @@ impl SerializeConfig for SyncConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "poll_pending_data",
-                &self.poll_pending_data,
-                "Whether to poll for pending data.",
+                "collect_pending_data",
+                &self.collect_pending_data,
+                "Whether to collect data on pending blocks.",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -132,7 +132,7 @@ impl Default for SyncConfig {
             blocks_max_stream_size: 1000,
             state_updates_max_stream_size: 1000,
             verify_blocks: true,
-            poll_pending_data: true,
+            collect_pending_data: false,
         }
     }
 }
@@ -314,7 +314,7 @@ impl<
             self.pending_data.clone(),
             self.pending_classes.clone(),
             self.config.block_propagation_sleep_duration,
-            self.config.poll_pending_data,
+            self.config.collect_pending_data,
             PENDING_SLEEP_DURATION,
             self.config.blocks_max_stream_size,
         )
@@ -673,7 +673,7 @@ fn stream_new_blocks<
     pending_data: Arc<RwLock<PendingData>>,
     pending_classes: Arc<RwLock<PendingClasses>>,
     block_propagation_sleep_duration: Duration,
-    poll_pending_data: bool,
+    collect_pending_data: bool,
     pending_sleep_duration: Duration,
     max_stream_size: u32,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
@@ -690,19 +690,17 @@ fn stream_new_blocks<
             );
             if header_marker == central_block_marker {
                 // Only if the node have the last block and state (without casms), sync pending data.
-                if reader.begin_ro_txn()?.get_state_marker()? == header_marker{
+                if collect_pending_data && reader.begin_ro_txn()?.get_state_marker()? == header_marker{
                     // Here is the only place we update the pending data.
-                    if poll_pending_data {
-                        debug!("Start polling for pending data.");
-                        sync_pending_data(
-                            reader.clone(),
-                            central_source.clone(),
-                            pending_source.clone(),
-                            pending_data.clone(),
-                            pending_classes.clone(),
-                            pending_sleep_duration,
-                        ).await?;
-                    }
+                    debug!("Start polling for pending data.");
+                    sync_pending_data(
+                        reader.clone(),
+                        central_source.clone(),
+                        pending_source.clone(),
+                        pending_data.clone(),
+                        pending_classes.clone(),
+                        pending_sleep_duration,
+                    ).await?;
                 }
                 else{
                     debug!("Blocks syncing reached the last known block, waiting for blockchain to advance.");

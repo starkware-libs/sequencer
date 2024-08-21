@@ -389,10 +389,10 @@
     "privacy": "Public",
     "value": 1000
   },
-  "sync.poll_pending_data": {
-    "description": "Whether to poll for pending data.",
+  "sync.collect_pending_data": {
+    "description": "Whether to collect data on pending blocks.",
     "privacy": "Public",
-    "value": true
+    "value": false
   },
   "sync.recoverable_error_sleep_duration": {
     "description": "Waiting time in seconds before restarting synchronization after a recoverable error.",
