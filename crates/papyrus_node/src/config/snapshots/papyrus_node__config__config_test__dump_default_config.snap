@@ -153,6 +153,27 @@ expression: dumped_default_config
     "value": "consensus_test_sync",
     "privacy": "Public"
   },
+  "consensus.timeouts.precommit_timeout": {
+    "description": "The timeout (seconds) for a precommit.",
+    "value": {
+      "$serde_json::private::Number": "1.0"
+    },
+    "privacy": "Public"
+  },
+  "consensus.timeouts.prevote_timeout": {
+    "description": "The timeout (seconds) for a prevote.",
+    "value": {
+      "$serde_json::private::Number": "1.0"
+    },
+    "privacy": "Public"
+  },
+  "consensus.timeouts.proposal_timeout": {
+    "description": "The timeout (seconds) for a proposal.",
+    "value": {
+      "$serde_json::private::Number": "3.0"
+    },
+    "privacy": "Public"
+  },
   "consensus.validator_id": {
     "description": "A required param! The validator id of the node.",
     "param_type": "String",
