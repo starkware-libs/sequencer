@@ -79,7 +79,7 @@ impl MempoolContent<PartialContent> {
 }
 
 impl<T> MempoolContent<T> {
-    fn assert_eq_mempool_content(&self, mempool: &Mempool) {
+    fn assert_eq_pool_and_queue_content(&self, mempool: &Mempool) {
         self.assert_eq_pool_content(mempool);
         self.assert_eq_queue_content(mempool);
     }
@@ -231,7 +231,7 @@ fn test_get_txs_returns_by_priority_order(#[case] requested_txs: usize) {
     let remaining_tx_references = remaining_txs.iter().map(TransactionReference::new);
     let mempool_content =
         MempoolContent::with_pool_and_queue(remaining_txs.to_vec(), remaining_tx_references);
-    mempool_content.assert_eq_mempool_content(&mempool);
+    mempool_content.assert_eq_pool_and_queue_content(&mempool);
 }
 
 #[rstest]
@@ -255,7 +255,7 @@ fn test_get_txs_multi_nonce() {
     // Assert: all transactions are returned.
     assert_eq!(fetched_txs, &pool_txs);
     let expected_mempool_content = MempoolContent::default();
-    expected_mempool_content.assert_eq_mempool_content(&mempool);
+    expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
 }
 
 #[rstest]
@@ -281,7 +281,7 @@ fn test_get_txs_replenishes_queue_only_between_chunks() {
     // although its priority is higher.
     assert_eq!(txs, &[tx_address_0_nonce_0, tx_address_1_nonce_0, tx_address_0_nonce_1]);
     let expected_mempool_content = MempoolContent::default();
-    expected_mempool_content.assert_eq_mempool_content(&mempool);
+    expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
 }
 
 #[rstest]
@@ -318,7 +318,7 @@ fn test_get_txs_replenishes_queue_multi_account_between_chunks() {
     let expected_pool_txs = [tx_address_0_nonce_1, tx_address_1_nonce_1];
     let expected_mempool_content =
         MempoolContent::with_pool_and_queue(expected_pool_txs, expected_queue_txs);
-    expected_mempool_content.assert_eq_mempool_content(&mempool);
+    expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
 }
 
 #[rstest]
@@ -343,7 +343,7 @@ fn test_get_txs_with_holes_multiple_accounts() {
     let expected_queue_txs = [];
     let expected_mempool_content =
         MempoolContent::with_pool_and_queue(expected_pool_txs, expected_queue_txs);
-    expected_mempool_content.assert_eq_mempool_content(&mempool);
+    expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
 }
 
 #[rstest]
@@ -363,7 +363,7 @@ fn test_get_txs_with_holes_single_account() {
     assert_eq!(txs, &[]);
 
     let expected_mempool_content = MempoolContent::with_pool_and_queue(pool_txs, queue_txs);
-    expected_mempool_content.assert_eq_mempool_content(&mempool);
+    expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
 }
 
 // add_tx tests.
@@ -392,7 +392,7 @@ fn test_add_tx(mut mempool: Mempool) {
     let expected_pool_txs = add_tx_inputs.into_iter().map(|input| input.tx);
     let expected_mempool_content =
         MempoolContent::with_pool_and_queue(expected_pool_txs, expected_queue_txs);
-    expected_mempool_content.assert_eq_mempool_content(&mempool);
+    expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
 }
 
 #[rstest]
@@ -417,7 +417,7 @@ fn test_add_tx_multi_nonce_success(mut mempool: Mempool) {
         [input_address_0_nonce_0.tx, input_address_1_nonce_0.tx, input_address_0_nonce_1.tx];
     let expected_mempool_content =
         MempoolContent::with_pool_and_queue(expected_pool_txs, expected_queue_txs);
-    expected_mempool_content.assert_eq_mempool_content(&mempool);
+    expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
 }
 
 #[rstest]
@@ -498,7 +498,7 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
 
     // TODO: currently hash comparison tie-breaks the two. Once more robust tie-breaks are added
     // replace this assertion with a dedicated test.
-    expected_mempool_content.assert_eq_mempool_content(&mempool);
+    expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
 }
 
 #[rstest]
@@ -521,7 +521,7 @@ fn test_add_tx_delete_tx_with_lower_nonce_than_account_nonce() {
     let expected_pool_txs = [tx_nonce_1_account_nonce_1.tx];
     let expected_mempool_content =
         MempoolContent::with_pool_and_queue(expected_pool_txs, expected_queue_txs);
-    expected_mempool_content.assert_eq_mempool_content(&mempool);
+    expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
 }
 
 #[rstest]
@@ -581,7 +581,7 @@ fn test_add_tx_sequential_nonces(mut mempool: Mempool) {
     let expected_mempool_content =
         MempoolContent::with_pool_and_queue(expected_pool_txs, expected_queue_txs);
 
-    expected_mempool_content.assert_eq_mempool_content(&mempool);
+    expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
 }
 
 #[rstest]
@@ -598,7 +598,7 @@ fn test_add_tx_filling_hole(mut mempool: Mempool) {
     let expected_pool_txs = [input_nonce_1.tx.clone()];
     let expected_mempool_content =
         MempoolContent::with_pool_and_queue(expected_pool_txs, expected_queue_txs);
-    expected_mempool_content.assert_eq_mempool_content(&mempool);
+    expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
 
     // Test: add the first transaction, which fills the hole.
     add_tx(&mut mempool, &input_nonce_0);
@@ -608,7 +608,7 @@ fn test_add_tx_filling_hole(mut mempool: Mempool) {
     let expected_pool_txs = [input_nonce_1.tx, input_nonce_0.tx];
     let expected_mempool_content =
         MempoolContent::with_pool_and_queue(expected_pool_txs, expected_queue_txs);
-    expected_mempool_content.assert_eq_mempool_content(&mempool);
+    expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
 }
 
 // commit_block tests.
@@ -657,7 +657,7 @@ fn test_commit_block_includes_all_txs() {
 
     // Assert.
     let expected_mempool_content = MempoolContent::with_pool_and_queue(pool_txs, queue_txs);
-    expected_mempool_content.assert_eq_mempool_content(&mempool);
+    expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
 }
 
 #[rstest]
@@ -787,7 +787,7 @@ fn test_flow_partial_commit_block() {
     // Assert.
     let expected_pool_txs = [tx_address0_nonce5, tx_address0_nonce6, tx_address1_nonce2];
     let expected_mempool_content = MempoolContent::with_pool_and_queue(expected_pool_txs, []);
-    expected_mempool_content.assert_eq_mempool_content(&mempool);
+    expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
 }
 
 #[rstest]
