@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use cairo_vm::Felt252;
 use num_traits::Pow;
 use starknet_api::core::ChainId;
@@ -8,14 +6,13 @@ use starknet_api::felt;
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
-    DeprecatedResourceBoundsMapping,
     Fee,
     PaymasterData,
-    Resource,
     ResourceBounds,
     Tip,
     TransactionHash,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
@@ -213,23 +210,10 @@ fn test_get_execution_info(
                 only_query,
                 ..Default::default()
             },
-            resource_bounds: DeprecatedResourceBoundsMapping(BTreeMap::from([
-                (
-                    Resource::L1Gas,
-                    // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why
-                    // the convertion works.
-                    ResourceBounds {
-                        max_amount: max_amount
-                            .0
-                            .try_into()
-                            .expect("Failed to convert u128 to u64."),
-                        max_price_per_unit: max_price_per_unit.0,
-                    },
-                ),
-                (Resource::L2Gas, ResourceBounds { max_amount: 0, max_price_per_unit: 0 }),
-            ]))
-            .try_into()
-            .unwrap(),
+            resource_bounds: ValidResourceBounds::L1Gas(ResourceBounds {
+                max_amount: max_amount.0.try_into().expect("Failed to convert u128 to u64."),
+                max_price_per_unit: max_price_per_unit.0,
+            }),
             tip: Tip::default(),
             nonce_data_availability_mode: DataAvailabilityMode::L1,
             fee_data_availability_mode: DataAvailabilityMode::L1,

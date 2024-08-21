@@ -113,7 +113,6 @@ use starknet_api::transaction::{
     DeployAccountTransactionV3,
     DeployTransaction,
     DeployTransactionOutput,
-    DeprecatedResourceBoundsMapping,
     Event,
     EventContent,
     EventData,
@@ -729,7 +728,6 @@ auto_impl_get_test_instance! {
         pub max_amount: u64,
         pub max_price_per_unit: u128,
     }
-    pub struct DeprecatedResourceBoundsMapping(pub BTreeMap<Resource, ResourceBounds>);
     pub struct SequencerContractAddress(pub ContractAddress);
     pub struct Signature {
         pub r: Felt,
