@@ -554,7 +554,7 @@ impl From<DeployAccountTransaction> for starknet_api::transaction::DeployAccount
                 nonce_data_availability_mode,
                 fee_data_availability_mode,
             }) => Self::V3(starknet_api::transaction::DeployAccountTransactionV3 {
-                resource_bounds: resource_bounds.into(),
+                resource_bounds,
                 tip,
                 signature,
                 nonce,
@@ -613,7 +613,7 @@ impl From<InvokeTransaction> for starknet_api::transaction::InvokeTransaction {
                 nonce_data_availability_mode,
                 fee_data_availability_mode,
             }) => Self::V3(starknet_api::transaction::InvokeTransactionV3 {
-                resource_bounds: resource_bounds.into(),
+                resource_bounds,
                 tip,
                 signature,
                 nonce,

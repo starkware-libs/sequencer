@@ -18,6 +18,7 @@ use starknet_api::transaction::{
     Transaction,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_api::{calldata, contract_address, felt, patricia_key};
 use starknet_client::writer::objects::transaction as client_transaction;
@@ -31,7 +32,6 @@ use super::{
     InvokeTransactionV0,
     InvokeTransactionV1,
     InvokeTransactionV3,
-    ResourceBoundsMapping,
     TransactionVersion0,
     TransactionVersion1,
     TransactionVersion3,
@@ -83,7 +83,7 @@ auto_impl_get_test_instance! {
         pub contract_address_salt: ContractAddressSalt,
         pub constructor_calldata: Calldata,
         pub version: TransactionVersion3,
-        pub resource_bounds: ResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub paymaster_data: PaymasterData,
         pub nonce_data_availability_mode: DataAvailabilityMode,
@@ -116,7 +116,7 @@ auto_impl_get_test_instance! {
         pub version: TransactionVersion3,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
-        pub resource_bounds: ResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub paymaster_data: PaymasterData,
         pub account_deployment_data: AccountDeploymentData,
