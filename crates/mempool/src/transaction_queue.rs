@@ -101,7 +101,7 @@ impl TransactionQueue {
         });
 
         // Split off the pending queue at the given transaction higher than the threshold.
-        let txs_over_threshold = self.pending_queue.split_off(&tmp_split_tx).into_iter().skip(1);
+        let txs_over_threshold = self.pending_queue.split_off(&tmp_split_tx).into_iter();
 
         // Insert all transactions from the split point into the priority queue, skip
         // `tmp_split_tx`.
