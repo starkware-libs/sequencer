@@ -18,7 +18,6 @@ use tracing::instrument;
 use crate::proposals_manager::{
     BlockBuilderTrait,
     MockBlockBuilderFactory,
-    ProposalId,
     ProposalsManager,
     ProposalsManagerConfig,
     ProposalsManagerError,
@@ -71,7 +70,7 @@ async fn proposal_generation_success(
         .collect::<Vec<_>>();
 
     let streamed_txs =
-        generate_block_proposal_and_collect_streamed_txs(&mut proposals_manager, 0, BlockNumber(0))
+        generate_block_proposal_and_collect_streamed_txs(&mut proposals_manager, BlockNumber(0))
             .await;
     assert_eq!(streamed_txs, expected_tx_hashes);
 }
@@ -110,12 +109,12 @@ async fn concecutive_proposal_generations_success(
         .collect::<Vec<_>>();
 
     let streamed_txs =
-        generate_block_proposal_and_collect_streamed_txs(&mut proposals_manager, 0, BlockNumber(0))
+        generate_block_proposal_and_collect_streamed_txs(&mut proposals_manager, BlockNumber(0))
             .await;
     assert_eq!(streamed_txs, expected_tx_hashes);
 
     let streamed_txs =
-        generate_block_proposal_and_collect_streamed_txs(&mut proposals_manager, 1, BlockNumber(1))
+        generate_block_proposal_and_collect_streamed_txs(&mut proposals_manager, BlockNumber(1))
             .await;
     assert_eq!(streamed_txs, expected_tx_hashes);
 }
@@ -138,12 +137,12 @@ async fn multiple_proposals_generation_fail(
         Arc::new(block_builder_factory),
     );
     let _ = proposals_manager
-        .generate_block_proposal(0, arbitrary_deadline(), BlockNumber::default())
+        .generate_block_proposal(arbitrary_deadline(), BlockNumber::default())
         .await
         .unwrap();
 
     let another_generate_request = proposals_manager
-        .generate_block_proposal(1, arbitrary_deadline(), BlockNumber::default())
+        .generate_block_proposal(arbitrary_deadline(), BlockNumber::default())
         .await;
 
     assert_matches!(
@@ -157,13 +156,10 @@ async fn multiple_proposals_generation_fail(
 
 async fn generate_block_proposal_and_collect_streamed_txs(
     proposal_manager: &mut ProposalsManager,
-    proposal_id: ProposalId,
     block_number: BlockNumber,
 ) -> Vec<TransactionHash> {
-    let mut tx_stream = proposal_manager
-        .generate_block_proposal(proposal_id, arbitrary_deadline(), block_number)
-        .await
-        .unwrap();
+    let mut tx_stream =
+        proposal_manager.generate_block_proposal(arbitrary_deadline(), block_number).await.unwrap();
 
     let mut streamed_txs = vec![];
     while let Some(tx) = tx_stream.next().await {
