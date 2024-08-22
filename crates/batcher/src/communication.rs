@@ -34,17 +34,8 @@ pub fn create_remote_batcher_server(
 impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
     async fn handle_request(&mut self, request: BatcherRequest) -> BatcherResponse {
         match request {
-            BatcherRequest::BatcherFnOne(_batcher_input) => {
-                // TODO(Tsabary/Yael/Dafna): Invoke a function that returns a
-                // BatcherResult<BatcherFnOneReturnValue>, and return
-                // the BatcherResponse::BatcherFnOneInput accordingly.
-                unimplemented!()
-            }
-            BatcherRequest::BatcherFnTwo(_batcher_input) => {
-                // TODO(Tsabary/Yael/Dafna): Invoke a function that returns a
-                // BatcherResult<BatcherFnTwoReturnValue>, and return
-                // the BatcherResponse::BatcherFnTwoInput accordingly.
-                unimplemented!()
+            BatcherRequest::BuildProposal(input) => {
+                BatcherResponse::BuildProposal(self.build_proposal(input).await)
             }
         }
     }
