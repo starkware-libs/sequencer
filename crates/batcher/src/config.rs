@@ -1,30 +1,24 @@
 use std::collections::BTreeMap;
 
-use papyrus_config::dumping::{ser_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use papyrus_config::dumping::{append_sub_config_name, SerializeConfig};
+use papyrus_config::{ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
+use crate::proposals_manager::ProposalsManagerConfig;
+
 /// The batcher related configuration.
-/// TODO(Lev/Tsabary/Yael/Dafna): Define actual configuration.
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct BatcherConfig {
-    pub batcher_config_param_1: usize,
+    pub proposals_manager: ProposalsManagerConfig,
 }
 
 impl SerializeConfig for BatcherConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "batcher_config_param_1",
-            &self.batcher_config_param_1,
-            "The first batcher configuration parameter",
-            ParamPrivacyInput::Public,
-        )])
-    }
-}
-
-impl Default for BatcherConfig {
-    fn default() -> Self {
-        Self { batcher_config_param_1: 1 }
+        BTreeMap::from_iter(
+            [append_sub_config_name(self.proposals_manager.dump(), "proposals_manager")]
+                .into_iter()
+                .flatten(),
+        )
     }
 }
