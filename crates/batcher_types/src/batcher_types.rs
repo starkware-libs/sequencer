@@ -2,17 +2,15 @@ use blockifier::blockifier::block::BlockNumberHashPair;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::TransactionCommitment;
+use starknet_api::core::StateDiffCommitment;
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::state::ThinStateDiff;
 pub use starknet_consensus_manager_types::consensus_manager_types::ProposalId;
 
 use crate::errors::BatcherError;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ProposalCommitment {
-    pub tx_commitment: TransactionCommitment,
-    pub state_diff: ThinStateDiff,
+    pub state_diff_commitment: StateDiffCommitment,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
