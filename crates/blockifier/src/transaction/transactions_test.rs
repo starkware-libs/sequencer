@@ -1,12 +1,11 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use assert_matches::assert_matches;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_bigint::BigUint;
 use num_traits::Pow;
-use once_cell::sync::Lazy;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce, PatriciaKey};
@@ -131,8 +130,8 @@ use crate::{
     retdata,
 };
 
-static VERSIONED_CONSTANTS: Lazy<VersionedConstants> =
-    Lazy::new(VersionedConstants::create_for_testing);
+static VERSIONED_CONSTANTS: LazyLock<VersionedConstants> =
+    LazyLock::new(VersionedConstants::create_for_testing);
 
 #[fixture]
 fn tx_initial_gas() -> u64 {
