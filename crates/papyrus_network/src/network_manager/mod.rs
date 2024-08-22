@@ -51,7 +51,7 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     // receivers simultaneously.
     // Each receiver has a matching sender and vice versa (i.e the maps have the same keys).
     messages_to_broadcast_receivers: StreamHashMap<TopicHash, Receiver<Bytes>>,
-    broadcasted_messages_senders: HashMap<TopicHash, Sender<(Bytes, ReportSender)>>,
+    broadcasted_messages_senders: HashMap<TopicHash, Sender<(Bytes, BroadcastedMessageManager)>>,
     reported_peer_receivers: FuturesUnordered<BoxFuture<'static, Option<PeerId>>>,
     hardcoded_external_multiaddr: Option<Multiaddr>,
     // Fields for metrics
@@ -175,7 +175,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         &mut self,
         topic: Topic,
         buffer_size: usize,
-    ) -> Result<BroadcastSubscriberChannels<T>, SubscriptionError>
+    ) -> Result<BroadcastTopicChannels<T>, SubscriptionError>
     where
         T: TryFrom<Bytes>,
         Bytes: From<T>,
@@ -209,14 +209,11 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             messages_to_broadcast_sender.with(messages_to_broadcast_fn);
 
         let broadcasted_messages_fn: BroadcastReceivedMessagesConverterFn<T> =
-            |(x, report_sender)| (T::try_from(x), report_sender);
+            |(x, broadcasted_message_manager)| (T::try_from(x), broadcasted_message_manager);
         let broadcasted_messages_receiver =
             broadcasted_messages_receiver.map(broadcasted_messages_fn);
 
-        Ok(BroadcastSubscriberChannels {
-            messages_to_broadcast_sender,
-            broadcasted_messages_receiver,
-        })
+        Ok(BroadcastTopicChannels { messages_to_broadcast_sender, broadcasted_messages_receiver })
     }
 
     fn handle_swarm_event(&mut self, event: SwarmEvent<mixed_behaviour::Event>) {
@@ -451,26 +448,24 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     fn handle_gossipsub_behaviour_event(&mut self, event: gossipsub_impl::ExternalEvent) {
         let gossipsub_impl::ExternalEvent::Received { originated_peer_id, message, topic_hash } =
             event;
-        {
-            let (report_sender, report_receiver) = oneshot::channel::<()>();
-            self.handle_new_report_receiver(originated_peer_id, report_receiver);
-            let Some(sender) = self.broadcasted_messages_senders.get_mut(&topic_hash) else {
+        let (report_sender, report_receiver) = oneshot::channel::<()>();
+        let broadcasted_message_manager = BroadcastedMessageManager { report_sender };
+        self.handle_new_report_receiver(originated_peer_id, report_receiver);
+        let Some(sender) = self.broadcasted_messages_senders.get_mut(&topic_hash) else {
+            error!(
+                "Received a message from a topic we're not subscribed to with hash {topic_hash:?}"
+            );
+            return;
+        };
+        let send_result = sender.try_send((message, broadcasted_message_manager));
+        if let Err(e) = send_result {
+            if e.is_disconnected() {
+                panic!("Receiver was dropped. This should never happen.")
+            } else if e.is_full() {
                 error!(
-                    "Received a message from a topic we're not subscribed to with hash \
-                     {topic_hash:?}"
+                    "Receiver buffer is full. Dropping broadcasted message for topic with hash: \
+                     {topic_hash:?}."
                 );
-                return;
-            };
-            let send_result = sender.try_send((message, report_sender));
-            if let Err(e) = send_result {
-                if e.is_disconnected() {
-                    panic!("Receiver was dropped. This should never happen.")
-                } else if e.is_full() {
-                    error!(
-                        "Receiver buffer is full. Dropping broadcasted message for topic with \
-                         hash: {topic_hash:?}."
-                    );
-                }
             }
         }
     }
@@ -806,8 +801,7 @@ struct SqmrServerPayload {
     responses_sender: ResponsesSender,
 }
 
-// TODO(eitan): improve naming of final channel types
-pub type BroadcastSubscriberSender<T> = With<
+pub type BroadcastTopicSender<T> = With<
     Sender<Bytes>,
     Bytes,
     T,
@@ -815,13 +809,31 @@ pub type BroadcastSubscriberSender<T> = With<
     fn(T) -> Ready<Result<Bytes, SendError>>,
 >;
 
-pub type BroadcastSubscriberReceiver<T> =
-    Map<Receiver<(Bytes, ReportSender)>, BroadcastReceivedMessagesConverterFn<T>>;
+// TODO(eitan): consider adding the message to the struct
+pub struct BroadcastedMessageManager {
+    report_sender: ReportSender,
+}
+impl BroadcastedMessageManager {
+    pub fn report_peer(self) {
+        warn!("Reporting peer");
+        if let Err(e) = self.report_sender.send(()) {
+            error!("Failed to report peer. Error: {e:?}");
+        }
+    }
+
+    // TODO(eitan): implement
+    pub fn continue_propogation(&mut self) {}
+}
+
+pub type BroadcastTopicReceiver<T> =
+    Map<Receiver<(Bytes, BroadcastedMessageManager)>, BroadcastReceivedMessagesConverterFn<T>>;
 
 type BroadcastReceivedMessagesConverterFn<T> =
-    fn((Bytes, ReportSender)) -> (Result<T, <T as TryFrom<Bytes>>::Error>, ReportSender);
+    fn(
+        (Bytes, BroadcastedMessageManager),
+    ) -> (Result<T, <T as TryFrom<Bytes>>::Error>, BroadcastedMessageManager);
 
-pub struct BroadcastSubscriberChannels<T: TryFrom<Bytes>> {
-    pub messages_to_broadcast_sender: BroadcastSubscriberSender<T>,
-    pub broadcasted_messages_receiver: BroadcastSubscriberReceiver<T>,
+pub struct BroadcastTopicChannels<T: TryFrom<Bytes>> {
+    pub messages_to_broadcast_sender: BroadcastTopicSender<T>,
+    pub broadcasted_messages_receiver: BroadcastTopicReceiver<T>,
 }
