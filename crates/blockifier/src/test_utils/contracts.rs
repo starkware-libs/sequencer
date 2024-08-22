@@ -324,6 +324,9 @@ impl FeatureContract {
                     .unwrap()
                     .offset
             }
+            ContractClass::V1Native(_) => {
+                panic!("Not implemented for cairo native contracts")
+            }
         }
     }
 
