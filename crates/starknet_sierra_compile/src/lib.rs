@@ -12,6 +12,10 @@ pub mod utils;
 #[cfg(test)]
 pub mod test_utils;
 
+#[cfg(test)]
+#[path = "compile_test.rs"]
+pub mod compile_test;
+
 pub trait SierraToCasmCompiler: Send + Sync {
     fn compile(
         &self,
