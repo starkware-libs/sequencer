@@ -479,6 +479,11 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "sync.collect_pending_data": {
+    "description": "Whether to collect data on pending blocks.",
+    "value": false,
+    "privacy": "Public"
+  },
   "sync.recoverable_error_sleep_duration": {
     "description": "Waiting time in seconds before restarting synchronization after a recoverable error.",
     "value": {
