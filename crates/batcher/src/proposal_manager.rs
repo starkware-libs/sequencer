@@ -73,8 +73,6 @@ pub enum ProposalManagerError {
     MempoolError(#[from] MempoolClientError),
     #[error("No active height to work on.")]
     NoActiveHeight,
-    #[error("Proposal with ID {proposal_id} already exists.")]
-    ProposalAlreadyExists { proposal_id: ProposalId },
     #[error(transparent)]
     StorageError(#[from] papyrus_storage::StorageError),
     #[error(
@@ -94,7 +92,7 @@ pub trait ProposalManagerTrait: Send + Sync {
         &mut self,
         proposal_id: ProposalId,
         deadline: tokio::time::Instant,
-        output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
+        tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> ProposalManagerResult<()>;
 }
 
@@ -117,8 +115,6 @@ pub(crate) struct ProposalManager {
     active_proposal_handle: Option<ActiveTaskHandle>,
     // Use a factory object, to be able to mock BlockBuilder in tests.
     block_builder_factory: Arc<dyn BlockBuilderFactoryTrait>,
-    // The list of all proposals that were generated in the current height.
-    proposals: Vec<ProposalId>,
 }
 
 type ActiveTaskHandle = tokio::task::JoinHandle<ProposalManagerResult<()>>;
@@ -153,31 +149,27 @@ impl ProposalManagerTrait for ProposalManager {
 
     /// Starts a new block proposal generation task for the given proposal_id and height with
     /// transactions from the mempool.
-    /// Requires output_content_sender for sending the generated transactions to the caller.
-    #[instrument(skip(self, output_content_sender), err, fields(self.active_height))]
+    /// Requires tx_sender for sending the generated transactions to the caller.
+    #[instrument(skip(self, tx_sender), err, fields(self.active_height))]
     async fn build_block_proposal(
         &mut self,
         proposal_id: ProposalId,
         deadline: tokio::time::Instant,
-        // TODO: Should this be an unbounded channel?
-        output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
+        tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> ProposalManagerResult<()> {
         if self.active_height.is_none() {
             return Err(ProposalManagerError::NoActiveHeight);
         }
-        if self.proposals.contains(&proposal_id) {
-            return Err(ProposalManagerError::ProposalAlreadyExists { proposal_id });
-        }
         info!("Starting generation of a new proposal with id {}.", proposal_id);
+
         self.set_active_proposal(proposal_id).await?;
-        self.proposals.push(proposal_id);
 
         let block_builder = self.block_builder_factory.create_block_builder();
 
         self.active_proposal_handle = Some(tokio::spawn(
             BuildProposalTask {
                 mempool_client: self.mempool_client.clone(),
-                output_content_sender,
+                tx_sender,
                 block_builder_next_txs_buffer_size: self.config.block_builder_next_txs_buffer_size,
                 max_txs_per_mempool_request: self.config.max_txs_per_mempool_request,
                 block_builder,
@@ -207,7 +199,6 @@ impl ProposalManager {
             block_builder_factory,
             active_proposal_handle: None,
             active_height: None,
-            proposals: Vec::new(),
         }
     }
 
@@ -241,7 +232,7 @@ impl ProposalManager {
 
 struct BuildProposalTask {
     mempool_client: SharedMempoolClient,
-    output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
+    tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     max_txs_per_mempool_request: usize,
     block_builder_next_txs_buffer_size: usize,
     block_builder: Arc<dyn BlockBuilderTrait>,
@@ -259,7 +250,7 @@ impl BuildProposalTask {
         let building_future = self.block_builder.build_block(
             self.deadline,
             mempool_tx_stream,
-            self.output_content_sender.clone(),
+            self.tx_sender.clone(),
         );
 
         let feed_mempool_txs_future = Self::feed_mempool_txs(
@@ -334,7 +325,7 @@ pub trait BlockBuilderTrait: Send + Sync {
         &self,
         deadline: tokio::time::Instant,
         tx_stream: InputTxStream,
-        output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
+        output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     );
 }
 

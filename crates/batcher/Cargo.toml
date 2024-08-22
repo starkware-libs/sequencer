@@ -25,6 +25,7 @@ validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
+chrono = { workspace = true }
 futures.workspace = true
 mempool_test_utils.workspace = true
 mockall.workspace = true

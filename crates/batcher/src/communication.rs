@@ -26,6 +26,9 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::BuildProposal(input) => {
                 BatcherResponse::BuildProposal(self.build_proposal(input).await)
             }
+            BatcherRequest::GetProposalContent(input) => {
+                BatcherResponse::GetProposalContent(self.get_proposal_content(input).await)
+            }
             BatcherRequest::StartHeight(input) => {
                 BatcherResponse::StartHeight(self.start_height(input))
             }
