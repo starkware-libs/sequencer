@@ -17,8 +17,8 @@ use crate::{discovery, mixed_behaviour, sqmr};
 
 pub(crate) mod behaviour_impl;
 pub(crate) mod peer;
-// #[cfg(test)]
-// mod test;
+#[cfg(test)]
+mod test;
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
 #[derive(Clone, Copy)]
@@ -40,7 +40,7 @@ pub struct PeerManager<P: PeerTrait + 'static> {
     sleep_waiting_for_unblocked_peer: Option<BoxFuture<'static, ()>>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct PeerManagerConfig {
     malicious_timeout: Duration,
     unstable_timeout: Duration,
@@ -133,7 +133,7 @@ where
                 .min()
                 .expect("min should not return None on a non-empty iterator");
             self.sleep_waiting_for_unblocked_peer =
-                Some(tokio::time::sleep_until(sleep_deadline.into()).boxed());
+                Some(tokio::time::sleep_until(sleep_deadline).boxed());
             return None;
         }
         peer.map(|(peer_id, peer)| {

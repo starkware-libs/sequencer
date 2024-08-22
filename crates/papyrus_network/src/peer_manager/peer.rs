@@ -1,16 +1,14 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use libp2p::swarm::ConnectionId;
 use libp2p::{Multiaddr, PeerId};
-#[cfg(test)]
-use mockall::automock;
+use tokio::time::Instant;
 use tracing::info;
 
-#[cfg_attr(test, automock)]
 pub trait PeerTrait {
     fn new(peer_id: PeerId, multiaddr: Multiaddr) -> Self;
 
-    fn update_reputation(&mut self, reason: Duration);
+    fn update_reputation(&mut self, timeout_duration: Duration);
 
     fn peer_id(&self) -> PeerId;
 
