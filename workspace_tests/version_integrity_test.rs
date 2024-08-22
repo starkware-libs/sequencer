@@ -58,6 +58,15 @@ impl CargoToml {
     fn workspace_version(&self) -> &str {
         &self.workspace.package.version
     }
+
+    fn validate_no_path_dependencies(&self) {
+        for LocalCrate { name, path, .. } in self.local_crates() {
+            panic!(
+                "Crate '{}' has a path dependency located at '{}', which is not allowed",
+                name, path
+            );
+        }
+    }
 }
 
 // Tests.
@@ -81,4 +90,9 @@ fn test_version_alignment() {
             "Crate '{name}' has version '{version}', instead of '{workspace_version}'."
         );
     }
+}
+
+#[test]
+fn test_no_path_dependencies() {
+    ROOT_TOML.validate_no_path_dependencies();
 }
