@@ -217,7 +217,7 @@ async fn stream_build_proposal(
                 }
             }
             GetProposalContent::Finished(id) => {
-                let proposal_content_id = BlockHash(id.tx_commitment.0);
+                let proposal_content_id = BlockHash(id.state_diff_commitment.0.0);
                 // Update valid_proposals before sending fin to avoid a race condition
                 // with `get_proposal` being called before `valid_proposals` is updated.
                 let mut valid_proposals = valid_proposals.lock().unwrap();
