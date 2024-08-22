@@ -105,7 +105,7 @@ fn create_batcher_config() -> (BatcherConfig, TempDir) {
     let storage_scope = Some(StateOnly);
     // Need to keep the file handle alive to prevent the tempdir from being deleted.
     let (storage_test_config, tempdir_file_handle) = get_test_config(storage_scope);
-    (BatcherConfig { storage: storage_test_config }, tempdir_file_handle)
+    (BatcherConfig { storage: storage_test_config, ..Default::default() }, tempdir_file_handle)
 }
 
 /// Returns a unique IP address and port for testing purposes.
