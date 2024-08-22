@@ -1,11 +1,11 @@
 {
   "batcher_config.proposals_manager.max_txs_per_mempool_request": {
-    "description": "Maximum transactions to get from the mempool per iteration of proposal generation",
+    "description": "Maximum transactions to get from the mempool per iteration of proposal generation.",
     "privacy": "Public",
     "value": 10
   },
   "batcher_config.proposals_manager.outstream_content_buffer_size": {
-    "description": "Maximum items to add to the outstream buffer before blocking",
+    "description": "Maximum items to add to the outstream buffer before blocking further filling of the stream.",
     "privacy": "Public",
     "value": 100
   },

@@ -6,7 +6,7 @@ use crate::errors::BatcherError;
 
 pub type StreamId = u64;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BuildProposalInput {
     pub stream_id: StreamId,
     pub deadline: chrono::DateTime<Utc>,

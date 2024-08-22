@@ -2,6 +2,8 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use futures::stream::BoxStream;
+use futures::StreamExt;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
@@ -71,6 +73,21 @@ pub enum ProposalsManagerError {
 
 pub type ProposalsManagerResult<T> = Result<T, ProposalsManagerError>;
 
+#[cfg_attr(test, automock)]
+#[async_trait]
+pub trait ProposalsManagerTrait: Send + Sync {
+    /// Starts a new block proposal generation task for the given proposal_id and height with
+    /// transactions from the mempool.
+    async fn generate_block_proposal(
+        &mut self,
+        timeout: tokio::time::Instant,
+        _height: BlockNumber,
+    ) -> ProposalsManagerResult<(
+        JoinHandle<ProposalsManagerResult<()>>,
+        BoxStream<'static, Transaction>,
+    )>;
+}
+
 /// Main struct for handling block proposals.
 /// Taking care of:
 /// - Proposing new blocks.
@@ -105,14 +122,66 @@ impl ProposalsManager {
         }
     }
 
-    /// Starts a new block proposal generation task for the given proposal_id and height with
-    /// transactions from the mempool.
+    // Checks if there is already a proposal being generated, and if not, sets the given proposal_id
+    // as the one being generated.
+    async fn set_proposal_in_generation(
+        &mut self,
+        proposal_id: ProposalId,
+    ) -> ProposalsManagerResult<()> {
+        let mut lock = self.proposal_in_generation.lock().await;
+
+        if let Some(proposal_in_generation) = *lock {
+            return Err(ProposalsManagerError::AlreadyGeneratingProposal {
+                current_generating_proposal_id: proposal_in_generation,
+                new_proposal_id: proposal_id,
+            });
+        }
+
+        *lock = Some(proposal_id);
+        debug!("Set proposal {} as the one being generated.", proposal_id);
+        Ok(())
+    }
+
+    #[instrument(skip(mempool_client, mempool_tx_sender))]
+    async fn feed_txs_to_block_builder(
+        timeout: tokio::time::Instant,
+        mempool_client: SharedMempoolClient,
+        max_txs_per_mempool_request: usize,
+        mempool_tx_sender: tokio::sync::mpsc::Sender<Transaction>,
+    ) -> ProposalsManagerResult<()> {
+        loop {
+            if tokio::time::Instant::now() > timeout {
+                info!("Proposal reached timeout.");
+                return Ok(());
+            }
+            let mempool_txs = mempool_client.get_txs(max_txs_per_mempool_request).await?;
+            if mempool_txs.is_empty() {
+                // TODO: check if sleep is needed here.
+                tokio::task::yield_now().await;
+                continue;
+            }
+            for tx in mempool_txs {
+                mempool_tx_sender.send(tx).await.map_err(|err| {
+                    // TODO: should we return the rest of the txs to the mempool?
+                    error!("Failed to send transaction to the block builder: {}.", err);
+                    ProposalsManagerError::InternalError
+                })?;
+            }
+        }
+    }
+}
+
+#[async_trait]
+impl ProposalsManagerTrait for ProposalsManager {
     #[instrument(skip(self), fields(proposal_id))]
-    pub async fn generate_block_proposal(
+    async fn generate_block_proposal(
         &mut self,
         timeout: tokio::time::Instant,
         _height: BlockNumber,
-    ) -> ProposalsManagerResult<(JoinHandle<ProposalsManagerResult<()>>, OutputTxStream)> {
+    ) -> ProposalsManagerResult<(
+        JoinHandle<ProposalsManagerResult<()>>,
+        BoxStream<'static, Transaction>,
+    )> {
         let proposal_id = self.proposal_id_marker;
         self.proposal_id_marker += 1;
         info!("Starting generation of a new proposal with id {}.", proposal_id);
@@ -162,55 +231,7 @@ impl ProposalsManager {
             .in_current_span(),
         );
 
-        Ok((handle, executed_txs_stream))
-    }
-
-    // Checks if there is already a proposal being generated, and if not, sets the given proposal_id
-    // as the one being generated.
-    async fn set_proposal_in_generation(
-        &mut self,
-        proposal_id: ProposalId,
-    ) -> ProposalsManagerResult<()> {
-        let mut lock = self.proposal_in_generation.lock().await;
-
-        if let Some(proposal_in_generation) = *lock {
-            return Err(ProposalsManagerError::AlreadyGeneratingProposal {
-                current_generating_proposal_id: proposal_in_generation,
-                new_proposal_id: proposal_id,
-            });
-        }
-
-        *lock = Some(proposal_id);
-        debug!("Set proposal {} as the one being generated.", proposal_id);
-        Ok(())
-    }
-
-    #[instrument(skip(mempool_client, mempool_tx_sender))]
-    async fn feed_txs_to_block_builder(
-        timeout: tokio::time::Instant,
-        mempool_client: SharedMempoolClient,
-        max_txs_per_mempool_request: usize,
-        mempool_tx_sender: tokio::sync::mpsc::Sender<Transaction>,
-    ) -> ProposalsManagerResult<()> {
-        loop {
-            if tokio::time::Instant::now() > timeout {
-                info!("Proposal reached timeout.");
-                return Ok(());
-            }
-            let mempool_txs = mempool_client.get_txs(max_txs_per_mempool_request).await?;
-            if mempool_txs.is_empty() {
-                // TODO: check if sleep is needed here.
-                tokio::task::yield_now().await;
-                continue;
-            }
-            for tx in mempool_txs {
-                mempool_tx_sender.send(tx).await.map_err(|err| {
-                    // TODO: should we return the rest of the txs to the mempool?
-                    error!("Failed to send transaction to the block builder: {}.", err);
-                    ProposalsManagerError::InternalError
-                })?;
-            }
-        }
+        Ok((handle, executed_txs_stream.boxed()))
     }
 }
 

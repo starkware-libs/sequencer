@@ -11,6 +11,7 @@ workspace = true
 [dependencies]
 async-trait.workspace = true
 chrono.workspace = true
+futures.workspace = true
 papyrus_config.workspace = true
 serde.workspace = true
 starknet_api.workspace = true

@@ -8874,6 +8874,7 @@ dependencies = [
  "async-trait",
  "atomic_refcell",
  "chrono",
+ "futures",
  "mempool_test_utils",
  "mockall",
  "papyrus_config",
