@@ -12,18 +12,21 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::felt;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::TransactionHash;
+use starknet_batcher_types::batcher_types::ProposalId;
 use starknet_mempool_types::communication::MockMempoolClient;
+use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 
 use crate::proposal_manager::{
     BlockBuilderTrait,
     InputTxStream,
     MockBlockBuilderFactoryTrait,
-    OutputTxStream,
     ProposalManager,
     ProposalManagerConfig,
     ProposalManagerError,
 };
+
+pub type OutputTxStream = ReceiverStream<Transaction>;
 
 #[fixture]
 fn proposal_manager_config() -> ProposalManagerConfig {
@@ -43,11 +46,10 @@ fn mempool_client() -> MockMempoolClient {
 }
 
 #[fixture]
-fn output_streaming(
-    proposal_manager_config: ProposalManagerConfig,
-) -> (tokio::sync::mpsc::Sender<Transaction>, OutputTxStream) {
+fn output_streaming() -> (tokio::sync::mpsc::Sender<Transaction>, OutputTxStream) {
+    const OUTPUT_CONTENT_BUFFER_SIZE: usize = 100;
     let (output_content_sender, output_content_receiver) =
-        tokio::sync::mpsc::channel(proposal_manager_config.outstream_content_buffer_size);
+        tokio::sync::mpsc::channel(OUTPUT_CONTENT_BUFFER_SIZE);
     let stream = tokio_stream::wrappers::ReceiverStream::new(output_content_receiver);
     (output_content_sender, stream)
 }
@@ -83,7 +85,7 @@ async fn proposal_generation_success(
 
     let (output_content_sender, stream) = output_streaming;
     proposal_manager
-        .build_block_proposal(0, arbitrary_deadline(), output_content_sender)
+        .build_block_proposal(ProposalId(0), arbitrary_deadline(), output_content_sender)
         .await
         .unwrap();
 
@@ -115,9 +117,9 @@ async fn consecutive_proposal_generations_success(
         Arc::new(block_builder_factory),
     );
 
-    let (output_content_sender, stream) = output_streaming(proposal_manager_config.clone());
+    let (output_content_sender, stream) = output_streaming();
     proposal_manager
-        .build_block_proposal(0, arbitrary_deadline(), output_content_sender)
+        .build_block_proposal(ProposalId(0), arbitrary_deadline(), output_content_sender)
         .await
         .unwrap();
 
@@ -126,9 +128,9 @@ async fn consecutive_proposal_generations_success(
     let v: Vec<_> = stream.collect().await;
     assert_eq!(v, expected_txs);
 
-    let (output_content_sender, stream) = output_streaming(proposal_manager_config);
+    let (output_content_sender, stream) = output_streaming();
     proposal_manager
-        .build_block_proposal(1, arbitrary_deadline(), output_content_sender)
+        .build_block_proposal(ProposalId(1), arbitrary_deadline(), output_content_sender)
         .await
         .unwrap();
 
@@ -160,24 +162,23 @@ async fn multiple_proposals_generation_fail(
     );
 
     // A proposal that will never finish.
-    let (output_content_sender, _stream) = output_streaming(proposal_manager_config.clone());
+    let (output_content_sender, _stream) = output_streaming();
     proposal_manager
-        .build_block_proposal(0, arbitrary_deadline(), output_content_sender)
+        .build_block_proposal(ProposalId(0), arbitrary_deadline(), output_content_sender)
         .await
         .unwrap();
 
     // Try to generate another proposal while the first one is still being generated.
-    let (another_output_content_sender, _another_stream) =
-        output_streaming(proposal_manager_config);
+    let (another_output_content_sender, _another_stream) = output_streaming();
     let another_generate_request = proposal_manager
-        .build_block_proposal(1, arbitrary_deadline(), another_output_content_sender)
+        .build_block_proposal(ProposalId(1), arbitrary_deadline(), another_output_content_sender)
         .await;
     assert_matches!(
         another_generate_request,
         Err(ProposalManagerError::AlreadyGeneratingProposal {
             current_generating_proposal_id,
             new_proposal_id
-        }) if current_generating_proposal_id == 0 && new_proposal_id == 1
+        }) if current_generating_proposal_id == ProposalId(0) && new_proposal_id == ProposalId(1)
     );
 }
 
