@@ -1,5 +1,6 @@
+use std::sync::LazyLock;
+
 use indexmap::IndexMap;
-use once_cell::sync::Lazy;
 use starknet_types_core::felt::Felt;
 
 use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, StateDiffCommitment};
@@ -12,7 +13,7 @@ use crate::transaction_hash::ascii_as_felt;
 #[path = "state_diff_hash_test.rs"]
 mod state_diff_hash_test;
 
-static STARKNET_STATE_DIFF0: Lazy<Felt> = Lazy::new(|| {
+static STARKNET_STATE_DIFF0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_STATE_DIFF0").expect("ascii_as_felt failed for 'STARKNET_STATE_DIFF0'")
 });
 
