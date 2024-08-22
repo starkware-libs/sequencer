@@ -96,6 +96,11 @@ impl TransactionPool {
         let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
         Ok(self.get_by_address_and_nonce(sender_address, next_nonce))
     }
+
+    #[allow(dead_code)]
+    pub fn contains_address(&self, address: ContractAddress) -> bool {
+        self.txs_by_account.contains(address)
+    }
 }
 
 #[derive(Debug, Default, Eq, PartialEq)]
@@ -143,5 +148,9 @@ impl AccountTransactionIndex {
 
         // Collect and return the transactions with lower nonces.
         txs_with_lower_nonce.into_values().collect()
+    }
+
+    fn contains(&self, address: ContractAddress) -> bool {
+        self.0.contains_key(&address)
     }
 }
