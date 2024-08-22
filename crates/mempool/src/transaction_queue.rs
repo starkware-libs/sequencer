@@ -9,8 +9,8 @@ use crate::mempool::TransactionReference;
 // used.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct TransactionQueue {
-    // Priority queue of transactions with associated priority.
-    priority_queue: BTreeSet<PriorityTransaction>,
+    // ready queue of transactions with associated priority.
+    ready_queue: BTreeSet<ReadyTransaction>,
     // Set of account addresses for efficient existence checks.
     address_to_tx: HashMap<ContractAddress, TransactionReference>,
 }
@@ -28,15 +28,15 @@ impl TransactionQueue {
              time."
         );
         assert!(
-            self.priority_queue.insert(tx_reference.into()),
+            self.ready_queue.insert(tx_reference.into()),
             "Keys should be unique; duplicates are checked prior."
         );
     }
 
     // TODO(gilad): remove collect
-    pub fn pop_chunk(&mut self, n_txs: usize) -> Vec<TransactionReference> {
+    pub fn pop_chunk_by_priority(&mut self, n_txs: usize) -> Vec<TransactionReference> {
         let txs: Vec<TransactionReference> =
-            (0..n_txs).filter_map(|_| self.priority_queue.pop_last().map(|tx| tx.0)).collect();
+            (0..n_txs).filter_map(|_| self.ready_queue.pop_last().map(|tx| tx.0)).collect();
         for tx in &txs {
             self.address_to_tx.remove(&tx.sender_address);
         }
@@ -46,8 +46,8 @@ impl TransactionQueue {
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
-    pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {
-        self.priority_queue.iter().rev().map(|tx| &tx.0)
+    pub fn iter_over_ready_txs(&self) -> impl Iterator<Item = &TransactionReference> {
+        self.ready_queue.iter().rev().map(|tx| &tx.0)
     }
 
     pub fn get_nonce(&self, address: ContractAddress) -> Option<Nonce> {
@@ -58,13 +58,13 @@ impl TransactionQueue {
     /// This is well-defined, since there is at most one transaction per address in the queue.
     pub fn remove(&mut self, address: ContractAddress) -> bool {
         if let Some(tx) = self.address_to_tx.remove(&address) {
-            return self.priority_queue.remove(&tx.into());
+            return self.ready_queue.remove(&tx.into());
         }
         false
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.priority_queue.is_empty()
+    pub fn is_ready_txs_exist(&self) -> bool {
+        self.ready_queue.is_empty()
     }
 }
 
@@ -102,23 +102,23 @@ impl PartialOrd for PendingTransaction {
 /// This struct behaves similarly to `PendingTransaction`, encapsulating a transaction reference
 /// to assess its order (i.e., tip); see its documentation for more details.
 #[derive(Clone, Debug, derive_more::Deref, derive_more::From)]
-struct PriorityTransaction(pub TransactionReference);
+struct ReadyTransaction(pub TransactionReference);
 
-impl PartialEq for PriorityTransaction {
-    fn eq(&self, other: &PriorityTransaction) -> bool {
+impl PartialEq for ReadyTransaction {
+    fn eq(&self, other: &ReadyTransaction) -> bool {
         self.tip == other.tip && self.tx_hash == other.tx_hash
     }
 }
 
-impl Eq for PriorityTransaction {}
+impl Eq for ReadyTransaction {}
 
-impl Ord for PriorityTransaction {
+impl Ord for ReadyTransaction {
     fn cmp(&self, other: &Self) -> Ordering {
         self.tip.cmp(&other.tip).then_with(|| self.tx_hash.cmp(&other.tx_hash))
     }
 }
 
-impl PartialOrd for PriorityTransaction {
+impl PartialOrd for ReadyTransaction {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
