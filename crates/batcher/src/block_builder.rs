@@ -62,7 +62,7 @@ impl BlockBuilderTrait for BlockBuilder {
         &mut self,
         _deadline: tokio::time::Instant,
         _mempool_tx_stream: InputTxStream,
-        _output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
+        _output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> BlockBuilderResult<BlockExecutionArtifacts> {
         todo!();
     }
@@ -86,7 +86,7 @@ pub trait BlockBuilderTrait: Send {
         &mut self,
         deadline: tokio::time::Instant,
         tx_stream: InputTxStream,
-        output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
+        output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> BlockBuilderResult<BlockExecutionArtifacts>;
 }
 
