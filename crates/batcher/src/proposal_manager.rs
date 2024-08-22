@@ -8,6 +8,7 @@ use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::executable_transaction::Transaction;
+use starknet_batcher_types::batcher_types::ProposalId;
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
 use tokio::select;
@@ -15,24 +16,16 @@ use tokio::sync::Mutex;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::{debug, error, info, instrument, trace, Instrument};
 
-// TODO: Should be defined in SN_API probably (shared with the consensus).
-pub type ProposalId = u64;
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ProposalManagerConfig {
     pub block_builder_next_txs_buffer_size: usize,
     pub max_txs_per_mempool_request: usize,
-    pub outstream_content_buffer_size: usize,
 }
 
 impl Default for ProposalManagerConfig {
     fn default() -> Self {
         // TODO: Get correct default values.
-        Self {
-            block_builder_next_txs_buffer_size: 100,
-            max_txs_per_mempool_request: 10,
-            outstream_content_buffer_size: 100,
-        }
+        Self { block_builder_next_txs_buffer_size: 100, max_txs_per_mempool_request: 10 }
     }
 }
 
@@ -43,19 +36,14 @@ impl SerializeConfig for ProposalManagerConfig {
                 "block_builder_next_txs_buffer_size",
                 &self.block_builder_next_txs_buffer_size,
                 "Maximum transactions to fill in the stream buffer for the block builder before \
-                 blocking",
+                 further filling of the stream.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "max_txs_per_mempool_request",
                 &self.max_txs_per_mempool_request,
-                "Maximum transactions to get from the mempool per iteration of proposal generation",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "outstream_content_buffer_size",
-                &self.outstream_content_buffer_size,
-                "Maximum items to add to the outstream buffer before blocking",
+                "Maximum transactions to get from the mempool per iteration of proposal \
+                 generation.",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -72,8 +60,6 @@ pub enum ProposalManagerError {
         current_generating_proposal_id: ProposalId,
         new_proposal_id: ProposalId,
     },
-    #[error("Internal error.")]
-    InternalError,
     #[error(transparent)]
     MempoolError(#[from] MempoolClientError),
 }
@@ -87,8 +73,6 @@ pub type ProposalsManagerResult<T> = Result<T, ProposalManagerError>;
 /// - Commiting accepted proposals to the storage.
 ///
 /// Triggered by the consensus.
-// TODO: Remove dead_code attribute.
-#[allow(dead_code)]
 pub(crate) struct ProposalManager {
     config: ProposalManagerConfig,
     mempool_client: SharedMempoolClient,
@@ -104,8 +88,6 @@ pub(crate) struct ProposalManager {
 type ActiveTaskHandle = tokio::task::JoinHandle<ProposalsManagerResult<()>>;
 
 impl ProposalManager {
-    // TODO: Remove dead_code attribute.
-    #[allow(dead_code)]
     pub fn new(
         config: ProposalManagerConfig,
         mempool_client: SharedMempoolClient,
@@ -181,7 +163,6 @@ impl ProposalManager {
     }
 }
 
-#[allow(dead_code)]
 struct BuildProposalTask {
     mempool_client: SharedMempoolClient,
     output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
@@ -192,7 +173,6 @@ struct BuildProposalTask {
     deadline: tokio::time::Instant,
 }
 
-#[allow(dead_code)]
 impl BuildProposalTask {
     async fn run(mut self) -> ProposalsManagerResult<()> {
         // We convert the receiver to a stream and pass it to the block builder while using the
@@ -269,7 +249,6 @@ impl BuildProposalTask {
 }
 
 pub type InputTxStream = ReceiverStream<Transaction>;
-pub type OutputTxStream = ReceiverStream<Transaction>;
 
 #[async_trait]
 pub trait BlockBuilderTrait: Send + Sync {
@@ -284,4 +263,13 @@ pub trait BlockBuilderTrait: Send + Sync {
 #[cfg_attr(test, automock)]
 pub trait BlockBuilderFactoryTrait: Send + Sync {
     fn create_block_builder(&self) -> Arc<dyn BlockBuilderTrait>;
+}
+
+pub(crate) struct BlockBuilderFactory {}
+
+impl BlockBuilderFactoryTrait for BlockBuilderFactory {
+    fn create_block_builder(&self) -> Arc<dyn BlockBuilderTrait> {
+        // TODO: Implement.
+        unimplemented!()
+    }
 }

@@ -21,7 +21,13 @@ pub fn create_local_batcher_server(
 
 #[async_trait]
 impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
-    async fn handle_request(&mut self, _request: BatcherRequest) -> BatcherResponse {
-        unimplemented!()
+
+    async fn handle_request(&mut self, request: BatcherRequest) -> BatcherResponse {
+        match request {
+            BatcherRequest::BuildProposal(input) => {
+                BatcherResponse::BuildProposal(self.build_proposal(input).await)
+            }
+            _ => unimplemented!(),
+        }
     }
 }
