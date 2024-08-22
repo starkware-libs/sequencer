@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use futures::StreamExt;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
@@ -68,6 +69,18 @@ pub enum ProposalsManagerError {
 
 pub type ProposalsManagerResult<T> = Result<T, ProposalsManagerError>;
 
+#[cfg_attr(test, automock)]
+#[async_trait]
+pub trait ProposalsManagerTrait: Send + Sync {
+    /// Starts a new block proposal generation task for the given proposal_id and height with
+    /// transactions from the mempool.
+    async fn generate_block_proposal<'a>(
+        &mut self,
+        timeout: tokio::time::Instant,
+        _height: BlockNumber,
+    ) -> ProposalsManagerResult<futures::stream::BoxStream<'a, Transaction>>;
+}
+
 /// Main struct for handling block proposals.
 /// Taking care of:
 /// - Proposing new blocks.
@@ -106,14 +119,35 @@ impl ProposalsManager {
         }
     }
 
-    /// Starts a new block proposal generation task for the given proposal_id and height with
-    /// transactions from the mempool.
+    // Checks if there is already a proposal being generated, and if not, sets the given proposal_id
+    // as the one being generated.
+    async fn set_proposal_in_generation(
+        &mut self,
+        proposal_id: ProposalId,
+    ) -> ProposalsManagerResult<()> {
+        let mut lock = self.proposal_in_generation.lock().await;
+
+        if let Some(proposal_in_generation) = *lock {
+            return Err(ProposalsManagerError::AlreadyGeneratingProposal {
+                current_generating_proposal_id: proposal_in_generation,
+                new_proposal_id: proposal_id,
+            });
+        }
+
+        *lock = Some(proposal_id);
+        debug!("Set proposal {} as the one being generated.", proposal_id);
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl ProposalsManagerTrait for ProposalsManager {
     #[instrument(skip(self), fields(proposal_id))]
-    pub async fn generate_block_proposal(
+    async fn generate_block_proposal<'a>(
         &mut self,
         timeout: tokio::time::Instant,
         _height: BlockNumber,
-    ) -> ProposalsManagerResult<ReceiverStream<Transaction>> {
+    ) -> ProposalsManagerResult<futures::stream::BoxStream<'a, Transaction>> {
         let proposal_id = self.proposal_id_marker;
         self.proposal_id_marker += 1;
         info!("Starting generation of new proposal.");
@@ -135,27 +169,7 @@ impl ProposalsManager {
             .in_current_span(),
         );
 
-        Ok(ReceiverStream::new(receiver))
-    }
-
-    // Checks if there is already a proposal being generated, and if not, sets the given proposal_id
-    // as the one being generated.
-    async fn set_proposal_in_generation(
-        &mut self,
-        proposal_id: ProposalId,
-    ) -> ProposalsManagerResult<()> {
-        let mut lock = self.proposal_in_generation.lock().await;
-
-        if let Some(proposal_in_generation) = *lock {
-            return Err(ProposalsManagerError::AlreadyGeneratingProposal {
-                current_generating_proposal_id: proposal_in_generation,
-                new_proposal_id: proposal_id,
-            });
-        }
-
-        *lock = Some(proposal_id);
-        debug!("Set proposal {} as the one being generated.", proposal_id);
-        Ok(())
+        Ok(ReceiverStream::new(receiver).boxed())
     }
 }
 

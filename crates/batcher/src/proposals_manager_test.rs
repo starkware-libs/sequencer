@@ -21,6 +21,7 @@ use crate::proposals_manager::{
     ProposalsManager,
     ProposalsManagerConfig,
     ProposalsManagerError,
+    ProposalsManagerTrait,
 };
 
 #[fixture]
@@ -145,12 +146,16 @@ async fn multiple_proposals_generation_fail(
         .generate_block_proposal(arbitrary_deadline(), BlockNumber::default())
         .await;
 
+    let Err(err) = another_generate_request else {
+        panic!("Expected an error, got Ok");
+    };
+
     assert_matches!(
-        another_generate_request,
-        Err(ProposalsManagerError::AlreadyGeneratingProposal {
+        err,
+        ProposalsManagerError::AlreadyGeneratingProposal {
             current_generating_proposal_id,
             new_proposal_id
-        }) if current_generating_proposal_id == 0 && new_proposal_id == 1
+        } if current_generating_proposal_id == 0 && new_proposal_id == 1
     );
 }
 

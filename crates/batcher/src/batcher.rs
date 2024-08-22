@@ -7,25 +7,30 @@ use starknet_mempool_infra::component_runner::ComponentStarter;
 use starknet_mempool_types::communication::SharedMempoolClient;
 
 use crate::config::BatcherConfig;
-use crate::proposals_manager::{BlockBuilderFactoryImpl, ProposalsManager, ProposalsManagerError};
+use crate::proposals_manager::{
+    BlockBuilderFactoryImpl,
+    ProposalsManager,
+    ProposalsManagerError,
+    ProposalsManagerTrait,
+};
 
 // TODO(Tsabary/Yael/Dafna): Replace with actual batcher code.
 pub struct Batcher {
     pub config: BatcherConfig,
     pub mempool_client: SharedMempoolClient,
-    proposals_manager: ProposalsManager,
+    proposals_manager: Box<dyn ProposalsManagerTrait>,
 }
 
 impl Batcher {
-    pub fn new(config: BatcherConfig, mempool_client: SharedMempoolClient) -> Self {
+    pub fn new(
+        config: BatcherConfig,
+        mempool_client: SharedMempoolClient,
+        proposals_manager: impl ProposalsManagerTrait + 'static,
+    ) -> Self {
         Self {
             config: config.clone(),
             mempool_client: mempool_client.clone(),
-            proposals_manager: ProposalsManager::new(
-                config.proposals_manager.clone(),
-                mempool_client.clone(),
-                Arc::new(BlockBuilderFactoryImpl {}),
-            ),
+            proposals_manager: Box::new(proposals_manager),
         }
     }
 
@@ -59,7 +64,15 @@ impl Batcher {
 }
 
 pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient) -> Batcher {
-    Batcher::new(config, mempool_client)
+    Batcher::new(
+        config.clone(),
+        mempool_client.clone(),
+        ProposalsManager::new(
+            config.proposals_manager.clone(),
+            mempool_client.clone(),
+            Arc::new(BlockBuilderFactoryImpl {}),
+        ),
+    )
 }
 
 #[async_trait]
