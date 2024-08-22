@@ -101,7 +101,7 @@ fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderCo
 }
 
 fn create_batcher_config(batcher_storage_config: StorageConfig) -> BatcherConfig {
-    BatcherConfig { storage: batcher_storage_config }
+    BatcherConfig { storage: batcher_storage_config, ..Default::default() }
 }
 
 /// Returns a unique IP address and port for testing purposes.
