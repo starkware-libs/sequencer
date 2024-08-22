@@ -1,8 +1,13 @@
 {
-  "batcher_config.batcher_config_param_1": {
-    "description": "The first batcher configuration parameter",
+  "batcher_config.proposals_manager.max_txs_per_mempool_request": {
+    "description": "Maximum transactions to get from the mempool per iteration of proposal generation",
     "privacy": "Public",
-    "value": 1
+    "value": 10
+  },
+  "batcher_config.proposals_manager.outstream_tx_stream_buffer_size": {
+    "description": "Maximum transactions to add to the outstream buffer before blocking",
+    "privacy": "Public",
+    "value": 100
   },
   "compiler_config.max_bytecode_size": {
     "description": "Limitation of contract bytecode size.",

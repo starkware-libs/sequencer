@@ -8795,6 +8795,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "async-trait",
+ "chrono",
  "mempool_test_utils",
  "mockall",
  "papyrus_config",
@@ -8815,9 +8816,11 @@ name = "starknet_batcher_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "mockall",
  "papyrus_proc_macros",
  "serde",
+ "starknet_api",
  "starknet_mempool_infra",
  "thiserror",
 ]
