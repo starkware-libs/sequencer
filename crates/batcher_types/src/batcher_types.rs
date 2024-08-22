@@ -1,21 +1,24 @@
+use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
+use starknet_api::block::BlockNumber;
 
 use crate::errors::BatcherError;
 
-// TODO(Tsabary/Yael/Dafna): Populate the data structure used to invoke the batcher.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BatcherFnOneInput {}
+pub type StreamId = u64;
 
-// TODO(Tsabary/Yael/Dafna): Populate the data structure used to invoke the batcher.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct BatcherFnTwoInput {}
+pub struct BuildProposalInput {
+    pub stream_id: StreamId,
+    pub deadline: chrono::DateTime<Utc>,
+    pub height: BlockNumber,
+}
 
-// TODO(Tsabary/Yael/Dafna): Replace with the actual return type of the batcher function.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BatcherFnOneReturnValue {}
-
-// TODO(Tsabary/Yael/Dafna): Replace with the actual return type of the batcher function.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BatcherFnTwoReturnValue {}
+impl BuildProposalInput {
+    pub fn deadline_as_instant(&self) -> Result<std::time::Instant, chrono::OutOfRangeError> {
+        let time_to_deadline = self.deadline - chrono::Utc::now();
+        let as_duration = time_to_deadline.to_std()?;
+        Ok(std::time::Instant::now() + as_duration)
+    }
+}
 
 pub type BatcherResult<T> = Result<T, BatcherError>;

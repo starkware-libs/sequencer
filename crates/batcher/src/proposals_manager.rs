@@ -17,7 +17,7 @@ use tracing::{debug, error, info, instrument, Instrument};
 // TODO: Should be defined in SN_API probably (shared with the consensus).
 pub type ProposalId = u64;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ProposalsManagerConfig {
     pub max_txs_per_mempool_request: usize,
     pub outstream_tx_stream_buffer_size: usize,
@@ -165,6 +165,15 @@ pub trait BlockBuilderTrait: Send {
 #[cfg_attr(test, automock)]
 pub(crate) trait BlockBuilderFactory: Send + Sync {
     fn create_block_builder(&self) -> Box<dyn BlockBuilderTrait>;
+}
+
+pub(crate) struct BlockBuilderFactoryImpl {}
+
+impl BlockBuilderFactory for BlockBuilderFactoryImpl {
+    fn create_block_builder(&self) -> Box<dyn BlockBuilderTrait> {
+        // TODO: Implement.
+        unimplemented!()
+    }
 }
 
 #[allow(dead_code)]
