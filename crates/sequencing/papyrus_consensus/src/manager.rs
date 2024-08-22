@@ -11,7 +11,7 @@ use futures::channel::{mpsc, oneshot};
 use futures::stream::FuturesUnordered;
 use futures::{Stream, StreamExt};
 use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
-use papyrus_network::network_manager::ReportSender;
+use papyrus_network::network_manager::BroadcastedMessageManager;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
@@ -43,8 +43,9 @@ pub async fn run_consensus<BlockT, ContextT, NetworkReceiverT, SyncReceiverT>(
 where
     BlockT: ConsensusBlock,
     ContextT: ConsensusContext<Block = BlockT>,
-    NetworkReceiverT:
-        Stream<Item = (Result<ConsensusMessage, ProtobufConversionError>, ReportSender)> + Unpin,
+    NetworkReceiverT: Stream<
+            Item = (Result<ConsensusMessage, ProtobufConversionError>, BroadcastedMessageManager),
+        > + Unpin,
     SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
     ProposalWrapper:
         Into<(ProposalInit, mpsc::Receiver<BlockT::ProposalChunk>, oneshot::Receiver<BlockHash>)>,
@@ -118,8 +119,12 @@ impl MultiHeightManager {
     where
         BlockT: ConsensusBlock,
         ContextT: ConsensusContext<Block = BlockT>,
-        NetworkReceiverT: Stream<Item = (Result<ConsensusMessage, ProtobufConversionError>, ReportSender)>
-            + Unpin,
+        NetworkReceiverT: Stream<
+                Item = (
+                    Result<ConsensusMessage, ProtobufConversionError>,
+                    BroadcastedMessageManager,
+                ),
+            > + Unpin,
         ProposalWrapper: Into<(
             ProposalInit,
             mpsc::Receiver<BlockT::ProposalChunk>,
@@ -237,24 +242,29 @@ async fn next_message<NetworkReceiverT>(
     network_receiver: &mut NetworkReceiverT,
 ) -> Result<ConsensusMessage, ConsensusError>
 where
-    NetworkReceiverT:
-        Stream<Item = (Result<ConsensusMessage, ProtobufConversionError>, ReportSender)> + Unpin,
+    NetworkReceiverT: Stream<
+            Item = (Result<ConsensusMessage, ProtobufConversionError>, BroadcastedMessageManager),
+        > + Unpin,
 {
     if let Some(msg) = cached_messages.pop() {
         return Ok(msg);
     }
 
-    let (msg, report_sender) = network_receiver.next().await.ok_or_else(|| {
-        ConsensusError::InternalNetworkError("NetworkReceiver should never be closed".to_string())
-    })?;
+    let (msg, mut broadcasted_message_manager) =
+        network_receiver.next().await.ok_or_else(|| {
+            ConsensusError::InternalNetworkError(
+                "NetworkReceiver should never be closed".to_string(),
+            )
+        })?;
     match msg {
         // TODO(matan): Return report_sender for use in later errors by SHC.
-        Ok(msg) => Ok(msg),
+        Ok(msg) => {
+            broadcasted_message_manager.continue_propogation();
+            Ok(msg)
+        }
         Err(e) => {
             // Failed to parse consensus message
-            report_sender.send(()).or(Err(ConsensusError::InternalNetworkError(
-                "Failed to send report".to_string(),
-            )))?;
+            broadcasted_message_manager.report_peer();
             Err(e.into())
         }
     }
