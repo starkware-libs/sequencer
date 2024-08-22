@@ -1,11 +1,11 @@
 #!/bin/env bash
 set -e
 
-docker_image_name=blockifier-ci
+docker_image_name=sequencer-ci
 
 (
     cd scripts
-    docker build . -t ${docker_image_name} --file blockifier.Dockerfile
+    docker build . -t ${docker_image_name} --file ${docker_image_name}.Dockerfile
 )
 
 docker run \
@@ -17,4 +17,4 @@ docker run \
     -v "${HOME}:${HOME}" \
     --workdir ${PWD} \
     ${docker_image_name} \
-    scripts/build_native_blockifier.sh
+    "$@"

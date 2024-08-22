@@ -21,6 +21,8 @@ pub enum EdgePathError {
 
 #[derive(Debug, Error)]
 pub enum LeafError {
+    #[error("Got the following error when trying to compute the leaf: {0:?}")]
+    LeafComputationError(String),
     #[error("Missing modification data at index {0:?}.")]
     MissingLeafModificationData(NodeIndex),
 }
