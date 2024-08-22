@@ -9,7 +9,7 @@ use std::task::Poll;
 
 use futures::{Stream, StreamExt};
 use lru::LruCache;
-use papyrus_network::network_manager::ReportSender;
+use papyrus_network::network_manager::BroadcastedMessageManager;
 use papyrus_protobuf::consensus::ConsensusMessage;
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::BlockHash;
@@ -42,7 +42,9 @@ pub struct NetworkReceiver<ReceiverT> {
 
 impl<ReceiverT> NetworkReceiver<ReceiverT>
 where
-    ReceiverT: Stream<Item = (Result<ConsensusMessage, ProtobufConversionError>, ReportSender)>,
+    ReceiverT: Stream<
+        Item = (Result<ConsensusMessage, ProtobufConversionError>, BroadcastedMessageManager),
+    >,
 {
     pub fn new(
         receiver: ReceiverT,
@@ -122,10 +124,11 @@ where
 
 impl<ReceiverT> Stream for NetworkReceiver<ReceiverT>
 where
-    ReceiverT:
-        Stream<Item = (Result<ConsensusMessage, ProtobufConversionError>, ReportSender)> + Unpin,
+    ReceiverT: Stream<
+            Item = (Result<ConsensusMessage, ProtobufConversionError>, BroadcastedMessageManager),
+        > + Unpin,
 {
-    type Item = (Result<ConsensusMessage, ProtobufConversionError>, ReportSender);
+    type Item = (Result<ConsensusMessage, ProtobufConversionError>, BroadcastedMessageManager);
 
     fn poll_next(
         mut self: std::pin::Pin<&mut Self>,
@@ -133,12 +136,14 @@ where
     ) -> Poll<Option<Self::Item>> {
         loop {
             let item = self.receiver.poll_next_unpin(cx);
-            let (msg, report_sender) = match item {
-                Poll::Ready(Some((Ok(msg), report_sender))) => (msg, report_sender),
+            let (msg, broadcasted_message_manager) = match item {
+                Poll::Ready(Some((Ok(msg), broadcasted_message_manager))) => {
+                    (msg, broadcasted_message_manager)
+                }
                 _ => return item,
             };
             if let Some(msg) = self.filter_msg(msg) {
-                return Poll::Ready(Some((Ok(msg), report_sender)));
+                return Poll::Ready(Some((Ok(msg), broadcasted_message_manager)));
             }
         }
     }

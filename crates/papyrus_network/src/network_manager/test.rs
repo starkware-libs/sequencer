@@ -364,9 +364,9 @@ async fn receive_broadcasted_message_and_report_it() {
         // running while we call report_callback.
         reported_peer_result = tokio::time::timeout(TIMEOUT, broadcasted_messages_receiver.next())
             .then(|result| {
-                let (message_result, report_callback) = result.unwrap().unwrap();
+                let (message_result, broadcasted_message_manager) = result.unwrap().unwrap();
                 assert_eq!(message, message_result.unwrap());
-                report_callback.send(()).unwrap();
+                broadcasted_message_manager.report_peer();
                 tokio::time::timeout(TIMEOUT, reported_peer_receiver.next())
             }) => {
             assert_eq!(originated_peer_id, reported_peer_result.unwrap().unwrap());
