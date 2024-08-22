@@ -12,6 +12,7 @@ use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolCli
 use thiserror::Error;
 use tokio::sync::Mutex;
 use tokio_stream::wrappers::ReceiverStream;
+use tokio_stream::Stream;
 use tracing::{debug, error, info, instrument, Instrument};
 
 // TODO: Should be defined in SN_API probably (shared with the consensus).
@@ -111,7 +112,7 @@ impl ProposalsManager {
         proposal_id: ProposalId,
         timeout: tokio::time::Instant,
         _height: BlockNumber,
-    ) -> ProposalsManagerResult<ReceiverStream<Transaction>> {
+    ) -> ProposalsManagerResult<impl Stream<Item = Transaction>> {
         info!("Starting generation of new proposal.");
         self.set_proposal_in_generation(proposal_id).await?;
 

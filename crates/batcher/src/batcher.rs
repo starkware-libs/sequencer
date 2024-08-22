@@ -1,6 +1,12 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use futures::stream::BoxStream;
+use futures::StreamExt;
+#[cfg(test)]
+use mockall::automock;
+use starknet_api::block::BlockNumber;
+use starknet_api::executable_transaction::Transaction;
 use starknet_batcher_types::batcher_types::BuildProposalInput;
 use starknet_batcher_types::errors::BatcherError;
 use starknet_mempool_infra::component_runner::ComponentStarter;
@@ -12,26 +18,27 @@ use crate::proposals_manager::{
     ProposalId,
     ProposalsManager,
     ProposalsManagerError,
+    ProposalsManagerResult,
 };
 
 // TODO(Tsabary/Yael/Dafna): Replace with actual batcher code.
 pub struct Batcher {
     pub config: BatcherConfig,
     pub mempool_client: SharedMempoolClient,
-    proposals_manager: ProposalsManager,
+    proposals_manager: Box<dyn ProposalsManagerTrait>,
     proposal_id_marker: ProposalId,
 }
 
 impl Batcher {
-    pub fn new(config: BatcherConfig, mempool_client: SharedMempoolClient) -> Self {
+    pub fn new(
+        config: BatcherConfig,
+        mempool_client: SharedMempoolClient,
+        proposals_manager: impl ProposalsManagerTrait + 'static,
+    ) -> Self {
         Self {
             config: config.clone(),
             mempool_client: mempool_client.clone(),
-            proposals_manager: ProposalsManager::new(
-                config.proposals_manager.clone(),
-                mempool_client.clone(),
-                Arc::new(BlockBuilderFactoryImpl {}),
-            ),
+            proposals_manager: Box::new(proposals_manager),
             proposal_id_marker: ProposalId::default(),
         }
     }
@@ -45,7 +52,7 @@ impl Batcher {
         // TODO: Save the stream for later use.
         let _tx_stream =
             self.proposals_manager
-                .generate_block_proposal(
+                .call_generate_block_proposal(
                     proposal_id,
                     tokio::time::Instant::from_std(
                         build_proposal_input.deadline_as_instant().map_err(|_| {
@@ -69,8 +76,39 @@ impl Batcher {
 }
 
 pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient) -> Batcher {
-    Batcher::new(config, mempool_client)
+    Batcher::new(
+        config.clone(),
+        mempool_client.clone(),
+        ProposalsManager::new(
+            config.proposals_manager.clone(),
+            mempool_client.clone(),
+            Arc::new(BlockBuilderFactoryImpl {}),
+        ),
+    )
 }
 
 #[async_trait]
 impl ComponentStarter for Batcher {}
+
+#[cfg_attr(test, automock)]
+#[async_trait]
+pub trait ProposalsManagerTrait: Send + Sync {
+    async fn call_generate_block_proposal<'a>(
+        &mut self,
+        proposal_id: ProposalId,
+        timeout: tokio::time::Instant,
+        _height: BlockNumber,
+    ) -> ProposalsManagerResult<BoxStream<'a, Transaction>>;
+}
+
+#[async_trait]
+impl ProposalsManagerTrait for ProposalsManager {
+    async fn call_generate_block_proposal<'a>(
+        &mut self,
+        proposal_id: ProposalId,
+        timeout: tokio::time::Instant,
+        height: BlockNumber,
+    ) -> ProposalsManagerResult<BoxStream<'a, Transaction>> {
+        Ok(self.generate_block_proposal(proposal_id, timeout, height).await?.boxed())
+    }
+}

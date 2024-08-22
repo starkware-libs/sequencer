@@ -8793,6 +8793,7 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "chrono",
+ "futures",
  "mempool_test_utils",
  "mockall",
  "papyrus_config",
