@@ -71,7 +71,7 @@ async fn proposal_generation_success(
     );
 
     let (handle, stream) = proposals_manager
-        .generate_block_proposal(0, arbitrary_deadline(), BlockNumber(0))
+        .generate_block_proposal(arbitrary_deadline(), BlockNumber(0))
         .await
         .unwrap();
 
@@ -112,7 +112,7 @@ async fn concecutive_proposal_generations_success(
     );
 
     let (handle, stream) = proposals_manager
-        .generate_block_proposal(0, arbitrary_deadline(), BlockNumber(0))
+        .generate_block_proposal(arbitrary_deadline(), BlockNumber(0))
         .await
         .unwrap();
 
@@ -123,7 +123,7 @@ async fn concecutive_proposal_generations_success(
     handle.await.unwrap().unwrap();
 
     let (handle, stream) = proposals_manager
-        .generate_block_proposal(1, arbitrary_deadline(), BlockNumber(0))
+        .generate_block_proposal(arbitrary_deadline(), BlockNumber(0))
         .await
         .unwrap();
 
@@ -159,13 +159,14 @@ async fn multiple_proposals_generation_fail(
 
     // A proposal that will never finish.
     let (_handle, _streamed_txs) = proposals_manager
-        .generate_block_proposal(0, arbitrary_deadline(), BlockNumber(0))
+        .generate_block_proposal(arbitrary_deadline(), BlockNumber(0))
         .await
         .unwrap();
 
     // Try to generate another proposal while the first one is still being generated.
     let another_generate_request =
-        proposals_manager.generate_block_proposal(1, arbitrary_deadline(), BlockNumber(0)).await;
+        proposals_manager.generate_block_proposal(arbitrary_deadline(), BlockNumber(0)).await;
+
     assert_matches!(
         another_generate_request,
         Err(ProposalsManagerError::AlreadyGeneratingProposal {

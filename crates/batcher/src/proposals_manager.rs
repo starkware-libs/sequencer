@@ -19,7 +19,7 @@ use tracing::{debug, error, info, instrument, Instrument};
 // TODO: Should be defined in SN_API probably (shared with the consensus).
 pub type ProposalId = u64;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ProposalsManagerConfig {
     pub max_txs_per_mempool_request: usize,
     pub outstream_content_buffer_size: usize,
@@ -38,13 +38,15 @@ impl SerializeConfig for ProposalsManagerConfig {
             ser_param(
                 "max_txs_per_mempool_request",
                 &self.max_txs_per_mempool_request,
-                "Maximum transactions to get from the mempool per iteration of proposal generation",
+                "Maximum transactions to get from the mempool per iteration of proposal \
+                 generation.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "outstream_content_buffer_size",
                 &self.outstream_content_buffer_size,
-                "Maximum items to add to the outstream buffer before blocking",
+                "Maximum items to add to the outstream buffer before blocking further filling of \
+                 the stream.",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -76,8 +78,6 @@ pub type ProposalsManagerResult<T> = Result<T, ProposalsManagerError>;
 /// - Commiting accepted proposals to the storage.
 ///
 /// Triggered by the consensus.
-// TODO: Remove dead_code attribute.
-#[allow(dead_code)]
 pub(crate) struct ProposalsManager {
     config: ProposalsManagerConfig,
     mempool_client: SharedMempoolClient,
@@ -87,11 +87,10 @@ pub(crate) struct ProposalsManager {
     proposal_in_generation: Arc<Mutex<Option<ProposalId>>>,
     // Use a factory object, to be able to mock BlockBuilder in tests.
     block_builder_factory: Arc<dyn BlockBuilderFactory>,
+    proposal_id_marker: ProposalId,
 }
 
 impl ProposalsManager {
-    // TODO: Remove dead_code attribute.
-    #[allow(dead_code)]
     pub fn new(
         config: ProposalsManagerConfig,
         mempool_client: SharedMempoolClient,
@@ -102,19 +101,21 @@ impl ProposalsManager {
             mempool_client,
             proposal_in_generation: Arc::new(Mutex::new(None)),
             block_builder_factory,
+            proposal_id_marker: 0,
         }
     }
 
     /// Starts a new block proposal generation task for the given proposal_id and height with
     /// transactions from the mempool.
-    #[instrument(skip(self), err)]
+    #[instrument(skip(self), fields(proposal_id))]
     pub async fn generate_block_proposal(
         &mut self,
-        proposal_id: ProposalId,
         timeout: tokio::time::Instant,
         _height: BlockNumber,
     ) -> ProposalsManagerResult<(JoinHandle<ProposalsManagerResult<()>>, OutputTxStream)> {
-        info!("Starting generation of new proposal.");
+        let proposal_id = self.proposal_id_marker;
+        self.proposal_id_marker += 1;
+        info!("Starting generation of a new proposal with id {}.", proposal_id);
         self.set_proposal_in_generation(proposal_id).await?;
 
         // TODO: Should we use a different config for the stream buffer size?
@@ -228,4 +229,13 @@ pub trait BlockBuilderTrait: Send + Sync {
 #[cfg_attr(test, automock)]
 pub trait BlockBuilderFactory: Send + Sync {
     fn create_block_builder(&self) -> Arc<dyn BlockBuilderTrait>;
+}
+
+pub(crate) struct BlockBuilderFactoryImpl {}
+
+impl BlockBuilderFactory for BlockBuilderFactoryImpl {
+    fn create_block_builder(&self) -> Arc<dyn BlockBuilderTrait> {
+        // TODO: Implement.
+        unimplemented!()
+    }
 }
