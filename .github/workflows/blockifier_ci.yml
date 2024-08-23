@@ -85,6 +85,8 @@ jobs:
         with:
           require: write
           username: ${{ github.triggering_actor }}
+        env:
+          SA_NATIVE_BLOCKIFIER_ARTIFACTS_BUCKET_WRITER_ACCESS_KEY: ${{ secrets.SA_NATIVE_BLOCKIFIER_ARTIFACTS_BUCKET_WRITER_ACCESS_KEY }}
 
       - name: Check User Permission
         if: steps.checkAccess.outputs.require-result == 'false'
