@@ -8,6 +8,7 @@ docker_image_name=blockifier-ci
     docker build . -t ${docker_image_name} --file blockifier.Dockerfile
 )
 
+
 docker run \
     --rm \
     --net host \
