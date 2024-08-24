@@ -26,3 +26,18 @@ fn test_version_alignment() {
          '{workspace_version}': {crates_with_incorrect_version:?}."
     );
 }
+
+#[test]
+fn validate_no_path_dependencies() {
+    let mut all_path_deps_in_crate_tomls: Vec<String> = Vec::new();
+    for crate_cargo_toml in ROOT_TOML.member_cargo_tomls().iter() {
+        if crate_cargo_toml.has_dependencies() {
+            let crate_paths: Vec<String> = crate_cargo_toml.path_dependencies().collect();
+            all_path_deps_in_crate_tomls.extend(crate_paths);
+        }
+        assert!(
+            all_path_deps_in_crate_tomls.is_empty(),
+            "The following crates have path dependency {all_path_deps_in_crate_tomls:?}."
+        );
+    }
+}

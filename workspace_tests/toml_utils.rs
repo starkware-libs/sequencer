@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 use std::sync::LazyLock;
 
 use serde::{Deserialize, Serialize};
@@ -8,6 +10,7 @@ use serde::{Deserialize, Serialize};
 pub(crate) enum DependencyValue {
     String(String),
     Object { version: String, path: Option<String> },
+    LocalCrateObject { path: Option<String> },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -27,6 +30,13 @@ pub(crate) struct CargoToml {
     workspace: WorkspaceFields,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct CrateCargoToml {
+    dependencies: Option<HashMap<String, DependencyValue>>,
+    #[serde(rename = "dev-dependencies")]
+    dev_dependencies: Option<HashMap<String, DependencyValue>>,
+}
+
 #[derive(Debug)]
 pub(crate) struct LocalCrate {
     pub(crate) path: String,
@@ -41,6 +51,14 @@ pub(crate) static ROOT_TOML: LazyLock<CargoToml> = LazyLock::new(|| {
 });
 
 impl CargoToml {
+    pub(crate) fn members(&self) -> &Vec<String> {
+        &self.workspace.members
+    }
+
+    pub(crate) fn workspace_version(&self) -> &str {
+        &self.workspace.package.version
+    }
+
     pub(crate) fn path_dependencies(&self) -> impl Iterator<Item = LocalCrate> + '_ {
         self.workspace.dependencies.iter().filter_map(|(_name, value)| {
             if let DependencyValue::Object { path: Some(path), version } = value {
@@ -51,11 +69,55 @@ impl CargoToml {
         })
     }
 
-    pub(crate) fn members(&self) -> &Vec<String> {
-        &self.workspace.members
+    pub(crate) fn member_cargo_tomls(&self) -> Vec<CrateCargoToml> {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let crates_dir = format!("{}/../", manifest_dir);
+
+        self.members()
+            .iter()
+            .map(|member| {
+                let cargo_toml_path = Path::new(&crates_dir).join(member).join("Cargo.toml");
+
+                let cargo_toml_content = fs::read_to_string(&cargo_toml_path)
+                    .expect(&format!("Failed to read {:?}", cargo_toml_path));
+
+                let cargo_toml: CrateCargoToml = toml::from_str(&cargo_toml_content).unwrap();
+                cargo_toml
+            })
+            .collect()
+    }
+}
+
+impl CrateCargoToml {
+    pub(crate) fn has_dependencies(&self) -> bool {
+        self.dependencies.is_some() || self.dev_dependencies.is_some()
     }
 
-    pub(crate) fn workspace_version(&self) -> &str {
-        &self.workspace.package.version
+    pub(crate) fn path_dependencies(&self) -> Box<dyn Iterator<Item = String> + '_> {
+        let dependencies_iter = if let Some(dependencies) = &self.dependencies {
+            Box::new(dependencies.iter().filter_map(|(_name, value)| {
+                if let DependencyValue::LocalCrateObject { path: Some(path) } = value {
+                    Some(path.to_string())
+                } else {
+                    None
+                }
+            })) as Box<dyn Iterator<Item = String>>
+        } else {
+            Box::new(::std::iter::empty()) as Box<dyn Iterator<Item = String>>
+        };
+
+        let dev_dependencies_iter = if let Some(dev_dependencies) = &self.dev_dependencies {
+            Box::new(dev_dependencies.iter().filter_map(|(_name, value)| {
+                if let DependencyValue::LocalCrateObject { path: Some(path) } = value {
+                    Some(path.to_string())
+                } else {
+                    None
+                }
+            })) as Box<dyn Iterator<Item = String>>
+        } else {
+            Box::new(::std::iter::empty()) as Box<dyn Iterator<Item = String>>
+        };
+
+        Box::new(dependencies_iter.chain(dev_dependencies_iter))
     }
 }
