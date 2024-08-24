@@ -11,5 +11,5 @@ serde = { workspace = true, features = ["derive"] }
 toml.workspace = true
 
 [[test]]
-name = "version_integrity_test"
-path = "version_integrity_test.rs"
+name = "workspace_tests"
+path = "main.rs"
