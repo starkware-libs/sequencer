@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 use std::sync::LazyLock;
 
 use serde::{Deserialize, Serialize};
@@ -8,6 +10,7 @@ use serde::{Deserialize, Serialize};
 pub(crate) enum DependencyValue {
     String(String),
     Object { version: String, path: Option<String> },
+    CrateObject { workspace: Option<bool>, features: Option<Vec<String>>, path: Option<String> },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -24,7 +27,8 @@ pub(crate) struct WorkspaceFields {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct CargoToml {
-    workspace: WorkspaceFields,
+    workspace: Option<WorkspaceFields>,
+    dependencies: Option<HashMap<String, DependencyValue>>,
 }
 
 #[derive(Debug)]
@@ -41,21 +45,63 @@ pub(crate) static ROOT_TOML: LazyLock<CargoToml> = LazyLock::new(|| {
 });
 
 impl CargoToml {
-    pub(crate) fn path_dependencies(&self) -> impl Iterator<Item = LocalCrate> + '_ {
-        self.workspace.dependencies.iter().filter_map(|(_name, value)| {
-            if let DependencyValue::Object { path: Some(path), version } = value {
-                Some(LocalCrate { path: path.to_string(), version: version.to_string() })
-            } else {
-                None
-            }
-        })
+    pub(crate) fn has_dependencies(&self) -> bool {
+        self.dependencies.is_some()
     }
 
     pub(crate) fn members(&self) -> &Vec<String> {
-        &self.workspace.members
+        if let Some(workspace) = &self.workspace {
+            &workspace.members
+        } else {
+            panic!("No workspace exist");
+        }
     }
 
     pub(crate) fn workspace_version(&self) -> &str {
-        &self.workspace.package.version
+        if let Some(workspace) = &self.workspace {
+            &workspace.package.version
+        } else {
+            panic!("No workspace exist");
+        }
     }
+
+    pub(crate) fn workspace_path_dependencies(&self) -> impl Iterator<Item = LocalCrate> + '_ {
+        if let Some(workspace) = &self.workspace {
+            workspace.dependencies.iter().filter_map(|(_name, value)| {
+                if let DependencyValue::Object { path: Some(path), version } = value {
+                    Some(LocalCrate { path: path.to_string(), version: version.to_string() })
+                } else {
+                    None
+                }
+            })
+        } else {
+            panic!("No workspace exist");
+        }
+    }
+
+    pub(crate) fn crate_path_dependencies(&self) -> impl Iterator<Item = LocalCrate> + '_ {
+        if let Some(dependencies) = &self.dependencies {
+            dependencies.iter().filter_map(|(_name, value)| {
+                if let DependencyValue::Object { path: Some(path), version } = value {
+                    Some(LocalCrate { path: path.to_string(), version: version.to_string() })
+                } else {
+                    None
+                }
+            })
+        } else {
+            panic!("No dependencies exist");
+        }
+    }
+}
+
+pub(crate) fn read_cargo_toml(member: &str) -> CargoToml {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let crates_dir = format!("{}/../", manifest_dir);
+
+    let cargo_toml_path = Path::new(&crates_dir).join(member).join("Cargo.toml");
+
+    let cargo_toml_content = fs::read_to_string(&cargo_toml_path)
+        .expect(&format!("Failed to read {:?}", cargo_toml_path));
+
+    toml::from_str(&cargo_toml_content).unwrap()
 }
