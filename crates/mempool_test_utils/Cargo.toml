@@ -8,6 +8,7 @@ license.workspace = true
 [features]
 
 [dependencies]
+assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 serde_json.workspace = true
 starknet-types-core.workspace = true
