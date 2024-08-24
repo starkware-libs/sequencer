@@ -198,7 +198,7 @@ type SharedNonceManager = Rc<RefCell<NonceManager>>;
 // [blockifier::transaction::test_utils::FaultyAccountTxCreatorArgs] can be made to use this.
 pub struct MultiAccountTransactionGenerator {
     // Invariant: coupled with the nonce manager.
-    account_contracts: HashMap<AccountId, AccountTransactionGenerator>,
+    account_contracts: Vec<AccountTransactionGenerator>,
     // Invariant: nonces managed internally thorugh `generate` API of the account transaction
     // generator.
     // Only used by single account transaction generators, but owning it here is preferable over
@@ -215,19 +215,16 @@ impl MultiAccountTransactionGenerator {
     }
 
     pub fn new_for_account_contracts(accounts: impl IntoIterator<Item = FeatureContract>) -> Self {
-        let mut account_contracts = HashMap::new();
+        let mut account_contracts = Vec::new();
         let mut account_type_to_n_instances = HashMap::new();
         let nonce_manager = SharedNonceManager::default();
-        for (account_id, account) in accounts.into_iter().enumerate() {
+        for account in accounts {
             let n_current_contract = account_type_to_n_instances.entry(account).or_insert(0);
-            account_contracts.insert(
-                account_id,
-                AccountTransactionGenerator {
-                    account,
-                    contract_instance_id: *n_current_contract,
-                    nonce_manager: nonce_manager.clone(),
-                },
-            );
+            account_contracts.push(AccountTransactionGenerator {
+                account,
+                contract_instance_id: *n_current_contract,
+                nonce_manager: nonce_manager.clone(),
+            });
             *n_current_contract += 1;
         }
 
@@ -235,7 +232,7 @@ impl MultiAccountTransactionGenerator {
     }
 
     pub fn account_with_id(&mut self, account_id: AccountId) -> &mut AccountTransactionGenerator {
-        self.account_contracts.get_mut(&account_id).unwrap_or_else(|| {
+        self.account_contracts.get_mut(account_id).unwrap_or_else(|| {
             panic!(
                 "{account_id:?} not found! This number should be an index of an account in the \
                  initialization array. "
