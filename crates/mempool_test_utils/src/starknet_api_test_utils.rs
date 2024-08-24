@@ -6,6 +6,7 @@ use std::path::Path;
 use std::rc::Rc;
 use std::sync::OnceLock;
 
+use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion};
 use serde_json::to_string_pretty;
@@ -343,6 +344,72 @@ impl AccountTransactionGenerator {
         let sender_address = self.sender_address();
         self.nonce_manager.borrow_mut().next(sender_address)
     }
+}
+
+/// Adds state to the feature contract struct, so that its _account_ variants can generate a single
+/// address, thus allowing future transactions generated for the account to share the same address.
+#[derive(Debug, Clone)]
+pub struct FeatureAccount {
+    pub class_hash: ClassHash,
+    pub account: FeatureContract,
+    deployment_state: InitializationState,
+}
+
+impl FeatureAccount {
+    pub fn new(account: FeatureContract) -> Self {
+        assert_matches!(
+            account,
+            FeatureContract::AccountWithLongValidate(_)
+                | FeatureContract::AccountWithoutValidations(_)
+                | FeatureContract::FaultyAccount(_),
+            "{account:?} is not an account"
+        );
+
+        Self {
+            class_hash: account.get_class_hash(),
+            account,
+            deployment_state: InitializationState::default(),
+        }
+    }
+
+    pub fn build(&mut self, deploy_account_tx: &RpcTransaction) {
+        assert_matches!(
+            deploy_account_tx,
+            RpcTransaction::DeployAccount(_),
+            "An account must be initialized with a deploy account transaction"
+        );
+
+        match self.deployment_state {
+            InitializationState::Uninitialized => {
+                let address = deploy_account_tx.calculate_sender_address().unwrap();
+                self.deployment_state = InitializationState::Initialized(address);
+            }
+            InitializationState::Initialized(_) => panic!("Account is already initialized"),
+        }
+    }
+
+    pub fn sender_address(&self) -> ContractAddress {
+        match self.deployment_state {
+            InitializationState::Initialized(address) => address,
+            InitializationState::Uninitialized => panic!("Uninitialized account"),
+        }
+    }
+
+    // Use for special case testing accounts that don't have an explicit deploy account transaction.
+    pub fn new_with_custom_address(account: FeatureContract, address: ContractAddress) -> Self {
+        Self {
+            account,
+            deployment_state: InitializationState::Initialized(address),
+            class_hash: account.get_class_hash(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+enum InitializationState {
+    #[default]
+    Uninitialized,
+    Initialized(ContractAddress),
 }
 
 // TODO(Ayelet, 28/5/2025): Try unifying the macros.
