@@ -3,7 +3,7 @@ use crate::toml_utils::{LocalCrate, ROOT_TOML};
 #[test]
 fn test_path_dependencies_are_members() {
     let non_member_path_crates: Vec<_> = ROOT_TOML
-        .path_dependencies()
+        .workspace_path_dependencies()
         .filter(|LocalCrate { path, .. }| !ROOT_TOML.members().contains(path))
         .collect();
     assert!(
@@ -17,7 +17,7 @@ fn test_path_dependencies_are_members() {
 fn test_version_alignment() {
     let workspace_version = ROOT_TOML.workspace_version();
     let crates_with_incorrect_version: Vec<_> = ROOT_TOML
-        .path_dependencies()
+        .workspace_path_dependencies()
         .filter(|LocalCrate { version, .. }| version != workspace_version)
         .collect();
     assert!(
