@@ -1,8 +1,10 @@
+use std::net::{IpAddr, Ipv6Addr};
+
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::CairoVersion;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_integration_tests::integration_test_utils::{
-    create_config,
+    create_config_remote,
     setup_with_tx_generation,
 };
 use starknet_mempool_integration_tests::state_reader::spawn_test_rpc_state_reader;
@@ -18,7 +20,8 @@ async fn test_end_to_end() {
     // Spawn a papyrus rpc server for a papyrus storage reader.
     let rpc_server_addr = spawn_test_rpc_state_reader(accounts).await;
 
-    let config = create_config(rpc_server_addr).await;
+    let mempool_ip: IpAddr = IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
+    let config = create_config_remote(rpc_server_addr, mempool_ip, 10001, 3).await;
 
     let (mock_running_system, mut tx_generator) = setup_with_tx_generation(&accounts, config).await;
 

@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 
 use axum::body::Body;
 use blockifier::test_utils::contracts::FeatureContract;
@@ -17,7 +17,7 @@ use starknet_gateway::config::{
     StatelessTransactionValidatorConfig,
 };
 use starknet_gateway::errors::GatewaySpecError;
-use starknet_mempool_node::config::MempoolNodeConfig;
+use starknet_mempool_node::config::{ComponentConfig, MempoolNodeConfig};
 use tokio::net::TcpListener;
 
 use crate::integration_test_setup::IntegrationTestSetup;
@@ -41,6 +41,22 @@ pub async fn create_config(rpc_server_addr: SocketAddr) -> MempoolNodeConfig {
     let gateway_config = create_gateway_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
     MempoolNodeConfig { gateway_config, rpc_state_reader_config, ..MempoolNodeConfig::default() }
+}
+
+pub async fn create_config_remote(
+    rpc_server_addr: SocketAddr,
+    ip: IpAddr,
+    port: u16,
+    retries: usize,
+) -> MempoolNodeConfig {
+    let gateway_config = create_gateway_config().await;
+    let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
+    MempoolNodeConfig {
+        gateway_config,
+        rpc_state_reader_config,
+        components: ComponentConfig::remote_mempool_config(ip, port, retries),
+        ..MempoolNodeConfig::default()
+    }
 }
 
 /// A test utility client for interacting with a gateway server.
@@ -108,9 +124,9 @@ pub async fn get_available_socket() -> SocketAddr {
 /// Use to create a tx generator with _pre-funded_ accounts, alongside a mocked test setup.
 pub async fn setup_with_tx_generation(
     accounts: &[FeatureContract],
+    config: MempoolNodeConfig,
 ) -> (IntegrationTestSetup, MultiAccountTransactionGenerator) {
-    let integration_test_setup =
-        IntegrationTestSetup::new_for_account_contracts(accounts.iter().copied()).await;
+    let integration_test_setup = IntegrationTestSetup::new_for_account_contracts(config).await;
     let tx_generator =
         MultiAccountTransactionGenerator::new_for_account_contracts(accounts.iter().copied());
 

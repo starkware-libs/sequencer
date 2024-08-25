@@ -3,6 +3,7 @@ mod config_test;
 
 use std::collections::BTreeMap;
 use std::fs::File;
+use std::net::IpAddr;
 use std::path::Path;
 
 use clap::Command;
@@ -129,6 +130,16 @@ impl ComponentExecutionConfig {
         }
     }
 
+    pub fn mempool_remote_config(ip: IpAddr, port: u16, retries: usize) -> Self {
+        Self {
+            execute: true,
+            location: LocationType::Remote,
+            component_type: ComponentType::SynchronousComponent,
+            local_config: None,
+            remote_config: Some(RemoteComponentCommunicationConfig { ip, port, retries }),
+        }
+    }
+
     pub fn batcher_default_config() -> Self {
         Self {
             execute: true,
@@ -194,6 +205,17 @@ impl Default for ComponentConfig {
             consensus_manager: ComponentExecutionConfig::consensus_manager_default_config(),
             gateway: ComponentExecutionConfig::gateway_default_config(),
             mempool: ComponentExecutionConfig::mempool_default_config(),
+        }
+    }
+}
+
+impl ComponentConfig {
+    pub fn remote_mempool_config(ip: IpAddr, port: u16, retries: usize) -> Self {
+        Self {
+            batcher: ComponentExecutionConfig::batcher_default_config(),
+            consensus_manager: ComponentExecutionConfig::consensus_manager_default_config(),
+            gateway: ComponentExecutionConfig::gateway_default_config(),
+            mempool: ComponentExecutionConfig::mempool_remote_config(ip, port, retries),
         }
     }
 }

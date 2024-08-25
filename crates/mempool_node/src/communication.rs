@@ -10,15 +10,20 @@ use starknet_consensus_manager_types::communication::{
     LocalConsensusManagerClientImpl,
     SharedConsensusManagerClient,
 };
-use starknet_mempool_infra::component_definitions::ComponentCommunication;
+use starknet_mempool_infra::component_definitions::{
+    ComponentCommunication,
+    RemoteComponentCommunicationConfig,
+};
 use starknet_mempool_types::communication::{
     LocalMempoolClientImpl,
+    MempoolClient,
     MempoolRequestAndResponseSender,
+    RemoteMempoolClientImpl,
     SharedMempoolClient,
 };
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
-use crate::config::MempoolNodeConfig;
+use crate::config::{LocationType, MempoolNodeConfig};
 
 pub struct MempoolNodeCommunication {
     batcher_channel: ComponentCommunication<BatcherRequestAndResponseSender>,
@@ -102,20 +107,34 @@ pub fn create_node_clients(
     config: &MempoolNodeConfig,
     channels: &mut MempoolNodeCommunication,
 ) -> MempoolNodeClients {
-    let batcher_client: Option<SharedBatcherClient> = match config.components.batcher.execute {
-        true => Some(Arc::new(LocalBatcherClientImpl::new(channels.take_batcher_tx()))),
-        false => None,
+    let batcher_client: Option<SharedBatcherClient> = if config.components.batcher.execute {
+        Some(Arc::new(LocalBatcherClientImpl::new(channels.take_batcher_tx())))
+    } else {
+        None
     };
     let consensus_manager_client: Option<SharedConsensusManagerClient> =
-        match config.components.consensus_manager.execute {
-            true => Some(Arc::new(LocalConsensusManagerClientImpl::new(
+        if config.components.consensus_manager.execute {
+            Some(Arc::new(LocalConsensusManagerClientImpl::new(
                 channels.take_consensus_manager_tx(),
-            ))),
-            false => None,
+            )))
+        } else {
+            None
         };
-    let mempool_client: Option<SharedMempoolClient> = match config.components.gateway.execute {
-        true => Some(Arc::new(LocalMempoolClientImpl::new(channels.take_mempool_tx()))),
-        false => None,
+    let mempool_client: Option<SharedMempoolClient> = if config.components.gateway.execute {
+        let mempool_client: Arc<dyn MempoolClient> = match config.components.mempool.location {
+            LocationType::Local => {
+                Arc::new(LocalMempoolClientImpl::new(channels.take_mempool_tx()))
+            }
+            LocationType::Remote => {
+                let RemoteComponentCommunicationConfig { ip, port, retries } =
+                    config.components.mempool.remote_config.clone().unwrap();
+
+                Arc::new(RemoteMempoolClientImpl::new(ip, port, retries))
+            }
+        };
+        Some(mempool_client)
+    } else {
+        None
     };
     MempoolNodeClients { batcher_client, consensus_manager_client, mempool_client }
 }

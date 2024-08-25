@@ -2,25 +2,23 @@ use std::future::pending;
 use std::pin::Pin;
 
 use futures::{Future, FutureExt};
-use starknet_batcher::communication::{create_local_batcher_server, LocalBatcherServer};
-use starknet_consensus_manager::communication::{
-    create_local_consensus_manager_server,
-    LocalConsensusManagerServer,
-};
-use starknet_gateway::communication::{create_gateway_server, GatewayServer};
-use starknet_mempool::communication::{create_mempool_server, MempoolServer};
+use starknet_batcher::communication::create_local_batcher_server;
+use starknet_consensus_manager::communication::create_local_consensus_manager_server;
+use starknet_gateway::communication::create_gateway_server;
+use starknet_mempool::communication::{create_mempool_server, create_remote_mempool_server};
+use starknet_mempool_infra::component_definitions::RemoteComponentCommunicationConfig;
 use starknet_mempool_infra::component_server::ComponentServerStarter;
 use tracing::error;
 
 use crate::communication::MempoolNodeCommunication;
 use crate::components::Components;
-use crate::config::MempoolNodeConfig;
+use crate::config::{LocationType, MempoolNodeConfig};
 
 pub struct Servers {
-    pub batcher: Option<Box<LocalBatcherServer>>,
-    pub consensus_manager: Option<Box<LocalConsensusManagerServer>>,
-    pub gateway: Option<Box<GatewayServer>>,
-    pub mempool: Option<Box<MempoolServer>>,
+    pub batcher: Option<Box<dyn ComponentServerStarter>>,
+    pub consensus_manager: Option<Box<dyn ComponentServerStarter>>,
+    pub gateway: Option<Box<dyn ComponentServerStarter>>,
+    pub mempool: Option<Box<dyn ComponentServerStarter>>,
 }
 
 pub fn create_servers(
@@ -28,35 +26,52 @@ pub fn create_servers(
     communication: &mut MempoolNodeCommunication,
     components: Components,
 ) -> Servers {
-    let batcher_server = if config.components.batcher.execute {
-        Some(Box::new(create_local_batcher_server(
-            components.batcher.expect("Batcher is not initialized."),
-            communication.take_batcher_rx(),
-        )))
-    } else {
-        None
-    };
-    let consensus_manager_server = if config.components.consensus_manager.execute {
-        Some(Box::new(create_local_consensus_manager_server(
-            components.consensus_manager.expect("Consensus Manager is not initialized."),
-            communication.take_consensus_manager_rx(),
-        )))
-    } else {
-        None
-    };
-    let gateway_server = if config.components.gateway.execute {
-        Some(Box::new(create_gateway_server(
-            components.gateway.expect("Gateway is not initialized."),
-        )))
-    } else {
-        None
-    };
+    let batcher_server: Option<Box<dyn ComponentServerStarter>> =
+        if config.components.batcher.execute {
+            Some(Box::new(create_local_batcher_server(
+                components.batcher.expect("Batcher is not initialized."),
+                communication.take_batcher_rx(),
+            )))
+        } else {
+            None
+        };
+    let consensus_manager_server: Option<Box<dyn ComponentServerStarter>> =
+        if config.components.consensus_manager.execute {
+            Some(Box::new(create_local_consensus_manager_server(
+                components.consensus_manager.expect("Consensus Manager is not initialized."),
+                communication.take_consensus_manager_rx(),
+            )))
+        } else {
+            None
+        };
+    let gateway_server: Option<Box<dyn ComponentServerStarter>> =
+        if config.components.gateway.execute {
+            Some(Box::new(create_gateway_server(
+                components.gateway.expect("Gateway is not initialized."),
+            )))
+        } else {
+            None
+        };
 
     let mempool_server = if config.components.mempool.execute {
-        Some(Box::new(create_mempool_server(
-            components.mempool.expect("Mempool is not initialized."),
-            communication.take_mempool_rx(),
-        )))
+        let mempool_server: Box<dyn ComponentServerStarter> =
+            match config.components.mempool.location {
+                LocationType::Local => Box::new(create_mempool_server(
+                    components.mempool.expect("Mempool is not initialized."),
+                    communication.take_mempool_rx(),
+                )),
+                LocationType::Remote => {
+                    let RemoteComponentCommunicationConfig { ip, port, retries: _ } =
+                        config.components.mempool.remote_config.clone().unwrap();
+
+                    Box::new(create_remote_mempool_server(
+                        components.mempool.expect("Mempool is not initialized."),
+                        ip,
+                        port,
+                    ))
+                }
+            };
+        Some(mempool_server)
     } else {
         None
     };
@@ -124,17 +139,16 @@ pub async fn run_component_servers(
 pub fn get_server_future(
     name: &str,
     execute_flag: bool,
-    server: Option<Box<impl ComponentServerStarter + 'static>>,
+    server: Option<Box<dyn ComponentServerStarter>>,
 ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
-    let server_future = match execute_flag {
-        true => {
-            let mut server = match server {
-                Some(server) => server,
-                _ => panic!("{} component is not initialized.", name),
-            };
-            async move { server.start().await }.boxed()
-        }
-        false => pending().boxed(),
+    let server_future = if execute_flag {
+        let mut server = match server {
+            Some(server) => server,
+            _ => panic!("{} component is not initialized.", name),
+        };
+        async move { server.start().await }.boxed()
+    } else {
+        pending().boxed()
     };
     server_future
 }

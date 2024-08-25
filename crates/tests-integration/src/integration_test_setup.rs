@@ -8,11 +8,12 @@ use starknet_api::transaction::TransactionHash;
 use starknet_gateway::config::GatewayNetworkConfig;
 use starknet_gateway::errors::GatewaySpecError;
 use starknet_mempool_infra::trace_util::configure_tracing;
+use starknet_mempool_node::config::MempoolNodeConfig;
 use starknet_mempool_node::servers::get_server_future;
 use starknet_mempool_node::utils::create_clients_servers_from_config;
 use starknet_task_executor::tokio_executor::TokioExecutor;
 use tokio::runtime::Handle;
-use tokio::task::JoinHandle;
+use tokio::task::{self, JoinHandle};
 
 use crate::integration_test_utils::{create_config, GatewayClient};
 use crate::mock_batcher::MockBatcher;
@@ -31,23 +32,20 @@ impl IntegrationTestSetup {
         let default_account_contract =
             FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
         let accounts = std::iter::repeat(default_account_contract).take(n_accounts);
-        Self::new_for_account_contracts(accounts).await
+
+        // Spawn a papyrus rpc server for a papyrus storage reader.
+        let rpc_server_addr = spawn_test_rpc_state_reader(accounts).await;
+
+        let config = create_config(rpc_server_addr).await;
+        Self::new_for_account_contracts(config).await
     }
 
-    pub async fn new_for_account_contracts(
-        accounts: impl IntoIterator<Item = FeatureContract>,
-    ) -> Self {
+    pub async fn new_for_account_contracts(config: MempoolNodeConfig) -> Self {
         let handle = Handle::current();
         let task_executor = TokioExecutor::new(handle);
 
         // Configure and start tracing
         configure_tracing();
-
-        // Spawn a papyrus rpc server for a papyrus storage reader.
-        let rpc_server_addr = spawn_test_rpc_state_reader(accounts).await;
-
-        // Derive the configuration for the mempool node.
-        let config = create_config(rpc_server_addr).await;
 
         let (clients, servers) = create_clients_servers_from_config(&config);
 
@@ -60,7 +58,7 @@ impl IntegrationTestSetup {
         // Wait for server to spin up.
         // TODO(Gilad): Replace with a persistant Client with a built-in retry mechanism,
         // to avoid the sleep and to protect against CI flakiness.
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        task::yield_now().await;
 
         // Build Batcher.
         let batcher = MockBatcher::new(clients.get_mempool_client().unwrap());
