@@ -34,12 +34,12 @@ async fn proposer() {
 
     let mut shc = SingleHeightConsensus::new(
         BlockNumber(0),
-        *VALIDATOR_ID_1,
+        *PROPOSER_ID,
         VALIDATORS.to_vec(),
         TIMEOUTS.clone(),
     );
 
-    context.expect_proposer().times(1).returning(move |_, _| *VALIDATOR_ID_1);
+    context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
     context.expect_build_proposal().times(1).returning(move |_| {
         let (_, content_receiver) = mpsc::channel(1);
         let (block_sender, block_receiver) = oneshot::channel();
@@ -51,7 +51,7 @@ async fn proposer() {
     context.expect_propose().times(1).return_once(move |init, _, fin_receiver| {
         // Ignore content receiver, since this is the context's responsibility.
         assert_eq!(init.height, BlockNumber(0));
-        assert_eq!(init.proposer, *VALIDATOR_ID_1);
+        assert_eq!(init.proposer, *PROPOSER_ID);
         // This is done so that we can return immediately without dropping the receiver.
         fin_receiver_clone.set(fin_receiver).unwrap();
         Ok(())
@@ -60,13 +60,19 @@ async fn proposer() {
         .expect_broadcast()
         .times(1)
         .withf(move |msg: &ConsensusMessage| {
-            msg == &prevote(Some(BLOCK.id().0), 0, 0, *VALIDATOR_ID_1)
+            msg == &prevote(Some(BLOCK.id().0), 0, 0, *PROPOSER_ID)
         })
         .returning(move |_| Ok(()));
     // Sends proposal and prevote.
-    assert_eq!(shc.start(&mut context).await, Ok(ShcReturn::Tasks(vec![])));
     assert_eq!(
-        shc.handle_message(&mut context, prevote(Some(BLOCK.id().0), 0, 0, *PROPOSER_ID)).await,
+        shc.start(&mut context).await,
+        Ok(ShcReturn::Tasks(vec![ShcTask {
+            duration: TIMEOUTS.prevote_timeout,
+            event: StateMachineEvent::Prevote(Some(BLOCK.id()), 0)
+        }]))
+    );
+    assert_eq!(
+        shc.handle_message(&mut context, prevote(Some(BLOCK.id().0), 0, 0, *VALIDATOR_ID_1)).await,
         Ok(ShcReturn::Tasks(vec![]))
     );
     // 3 of 4 Prevotes is enough to send a Precommit.
@@ -74,23 +80,29 @@ async fn proposer() {
         .expect_broadcast()
         .times(1)
         .withf(move |msg: &ConsensusMessage| {
-            msg == &precommit(Some(BLOCK.id().0), 0, 0, *VALIDATOR_ID_1)
+            msg == &precommit(Some(BLOCK.id().0), 0, 0, *PROPOSER_ID)
         })
         .returning(move |_| Ok(()));
     // The Node got a Prevote quorum.
     assert_eq!(
         shc.handle_message(&mut context, prevote(Some(BLOCK.id().0), 0, 0, *VALIDATOR_ID_2)).await,
-        Ok(ShcReturn::Tasks(vec![ShcTask {
-            duration: TIMEOUTS.prevote_timeout,
-            event: StateMachineEvent::TimeoutPrevote(0)
-        }]))
+        Ok(ShcReturn::Tasks(vec![
+            ShcTask {
+                duration: TIMEOUTS.prevote_timeout,
+                event: StateMachineEvent::TimeoutPrevote(0)
+            },
+            ShcTask {
+                duration: TIMEOUTS.precommit_timeout,
+                event: StateMachineEvent::Precommit(Some(BLOCK.id()), 0)
+            }
+        ]))
     );
 
     let precommits = vec![
-        precommit(Some(BLOCK.id().0), 0, 0, *PROPOSER_ID),
+        precommit(Some(BLOCK.id().0), 0, 0, *VALIDATOR_ID_1),
         precommit(Some(Felt::TWO), 0, 0, *VALIDATOR_ID_3),
         precommit(Some(BLOCK.id().0), 0, 0, *VALIDATOR_ID_2),
-        precommit(Some(BLOCK.id().0), 0, 0, *VALIDATOR_ID_1),
+        precommit(Some(BLOCK.id().0), 0, 0, *PROPOSER_ID),
     ];
     assert_eq!(
         shc.handle_message(&mut context, precommits[0].clone()).await,
@@ -158,7 +170,13 @@ async fn validator(repeat_proposal: bool) {
             fin_receiver,
         )
         .await;
-    assert_eq!(res, Ok(ShcReturn::Tasks(vec![])));
+    assert_eq!(
+        res,
+        Ok(ShcReturn::Tasks(vec![ShcTask {
+            duration: TIMEOUTS.prevote_timeout,
+            event: StateMachineEvent::Prevote(Some(BLOCK.id()), 0)
+        }]))
+    );
     if repeat_proposal {
         // Send the same proposal again, which should be ignored (no expectations).
         let (fin_sender, fin_receiver) = oneshot::channel();
@@ -189,10 +207,16 @@ async fn validator(repeat_proposal: bool) {
     // The Node got a Prevote quorum.
     assert_eq!(
         shc.handle_message(&mut context, prevote(Some(BLOCK.id().0), 0, 0, *VALIDATOR_ID_2)).await,
-        Ok(ShcReturn::Tasks(vec![ShcTask {
-            duration: TIMEOUTS.prevote_timeout,
-            event: StateMachineEvent::TimeoutPrevote(0)
-        }]))
+        Ok(ShcReturn::Tasks(vec![
+            ShcTask {
+                duration: TIMEOUTS.prevote_timeout,
+                event: StateMachineEvent::TimeoutPrevote(0)
+            },
+            ShcTask {
+                duration: TIMEOUTS.precommit_timeout,
+                event: StateMachineEvent::Precommit(Some(BLOCK.id()), 0)
+            }
+        ]))
     );
 
     let precommits = vec![
@@ -253,7 +277,13 @@ async fn vote_twice(same_vote: bool) {
             fin_receiver,
         )
         .await;
-    assert_eq!(res, Ok(ShcReturn::Tasks(vec![])));
+    assert_eq!(
+        res,
+        Ok(ShcReturn::Tasks(vec![ShcTask {
+            duration: TIMEOUTS.prevote_timeout,
+            event: StateMachineEvent::Prevote(Some(BLOCK.id()), 0)
+        }]))
+    );
 
     let res =
         shc.handle_message(&mut context, prevote(Some(BLOCK.id().0), 0, 0, *PROPOSER_ID)).await;
@@ -269,10 +299,16 @@ async fn vote_twice(same_vote: bool) {
     // The Node got a Prevote quorum.
     assert_eq!(
         res,
-        Ok(ShcReturn::Tasks(vec![ShcTask {
-            duration: TIMEOUTS.prevote_timeout,
-            event: StateMachineEvent::TimeoutPrevote(0)
-        }]))
+        Ok(ShcReturn::Tasks(vec![
+            ShcTask {
+                duration: TIMEOUTS.prevote_timeout,
+                event: StateMachineEvent::TimeoutPrevote(0)
+            },
+            ShcTask {
+                duration: TIMEOUTS.precommit_timeout,
+                event: StateMachineEvent::Precommit(Some(BLOCK.id()), 0)
+            }
+        ]))
     );
 
     let first_vote = precommit(Some(BLOCK.id().0), 0, 0, *PROPOSER_ID);
@@ -296,4 +332,90 @@ async fn vote_twice(same_vote: bool) {
         panic!("Expected decision");
     };
     assert_eq!(decision.block, *BLOCK);
+}
+
+#[tokio::test]
+async fn rebroadcast_votes() {
+    let mut context = MockTestContext::new();
+
+    let mut shc = SingleHeightConsensus::new(
+        BlockNumber(0),
+        *PROPOSER_ID,
+        VALIDATORS.to_vec(),
+        TIMEOUTS.clone(),
+    );
+
+    context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
+    context.expect_build_proposal().times(1).returning(move |_| {
+        let (_, content_receiver) = mpsc::channel(1);
+        let (block_sender, block_receiver) = oneshot::channel();
+        block_sender.send(BLOCK.clone()).unwrap();
+        (content_receiver, block_receiver)
+    });
+    let fin_receiver = Arc::new(OnceLock::new());
+    let fin_receiver_clone = Arc::clone(&fin_receiver);
+    context.expect_propose().times(1).return_once(move |init, _, fin_receiver| {
+        // Ignore content receiver, since this is the context's responsibility.
+        assert_eq!(init.height, BlockNumber(0));
+        assert_eq!(init.proposer, *PROPOSER_ID);
+        // This is done so that we can return immediately without dropping the receiver.
+        fin_receiver_clone.set(fin_receiver).unwrap();
+        Ok(())
+    });
+    context
+        .expect_broadcast()
+        .times(1)
+        .withf(move |msg: &ConsensusMessage| {
+            msg == &prevote(Some(BLOCK.id().0), 0, 0, *PROPOSER_ID)
+        })
+        .returning(move |_| Ok(()));
+    // Sends proposal and prevote.
+    assert_eq!(
+        shc.start(&mut context).await,
+        Ok(ShcReturn::Tasks(vec![ShcTask {
+            duration: TIMEOUTS.prevote_timeout,
+            event: StateMachineEvent::Prevote(Some(BLOCK.id()), 0)
+        }]))
+    );
+    assert_eq!(
+        shc.handle_message(&mut context, prevote(Some(BLOCK.id().0), 0, 0, *VALIDATOR_ID_1)).await,
+        Ok(ShcReturn::Tasks(vec![]))
+    );
+    // 3 of 4 Prevotes is enough to send a Precommit.
+    context
+        .expect_broadcast()
+        .times(2) // vote rebroadcast
+        .withf(move |msg: &ConsensusMessage| {
+            msg == &precommit(Some(BLOCK.id().0), 0, 0, *PROPOSER_ID)
+        })
+        .returning(move |_| Ok(()));
+    // The Node got a Prevote quorum.
+    assert_eq!(
+        shc.handle_message(&mut context, prevote(Some(BLOCK.id().0), 0, 0, *VALIDATOR_ID_2)).await,
+        Ok(ShcReturn::Tasks(vec![
+            ShcTask {
+                duration: TIMEOUTS.prevote_timeout,
+                event: StateMachineEvent::TimeoutPrevote(0)
+            },
+            ShcTask {
+                duration: TIMEOUTS.precommit_timeout,
+                event: StateMachineEvent::Precommit(Some(BLOCK.id()), 0)
+            }
+        ]))
+    );
+    // Re-broadcast vote.
+    assert_eq!(
+        shc.handle_task(
+            &mut context,
+            ShcTask {
+                duration: TIMEOUTS.precommit_timeout,
+                event: StateMachineEvent::Precommit(Some(BLOCK.id()), 0),
+            },
+        )
+        .await,
+        Ok(ShcReturn::Tasks(vec![ShcTask {
+            duration: TIMEOUTS.precommit_timeout,
+            event: StateMachineEvent::Precommit(Some(BLOCK.id()), 0)
+        }]))
+    );
 }
