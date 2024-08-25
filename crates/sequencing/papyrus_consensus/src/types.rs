@@ -175,6 +175,9 @@ pub enum ConsensusError {
     Canceled(#[from] oneshot::Canceled),
     #[error(transparent)]
     ProtobufConversionError(#[from] ProtobufConversionError),
+    /// This should never occur, since events are internally generated.
+    #[error("Invalid event: {0}")]
+    InvalidEvent(String),
     #[error("Invalid proposal sent by peer {0:?} at height {1}: {2}")]
     InvalidProposal(ValidatorId, BlockNumber, String),
     #[error("Invalid vote {0:?}. {1}")]
