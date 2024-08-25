@@ -3,7 +3,7 @@ use std::env;
 use std::fs::File;
 use std::path::Path;
 use std::rc::Rc;
-use std::sync::OnceLock;
+use std::sync::LazyLock;
 
 use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
@@ -135,16 +135,12 @@ pub fn contract_class() -> ContractClass {
     serde_json::from_reader(File::open(json_file_path).unwrap()).unwrap()
 }
 
-/// Get the compiled class hash corresponding to the contract class used for testing.
-pub fn compiled_class_hash() -> &'static CompiledClassHash {
-    static COMPILED_CLASS_HASH: OnceLock<CompiledClassHash> = OnceLock::new();
-    COMPILED_CLASS_HASH
-        .get_or_init(|| CompiledClassHash(felt!(COMPILED_CLASS_HASH_OF_CONTRACT_CLASS)))
-}
+pub static COMPILED_CLASS_HASH: LazyLock<CompiledClassHash> =
+    LazyLock::new(|| CompiledClassHash(felt!(COMPILED_CLASS_HASH_OF_CONTRACT_CLASS)));
 
 pub fn declare_tx() -> RpcTransaction {
     let contract_class = contract_class();
-    let compiled_class_hash = *compiled_class_hash();
+    let compiled_class_hash = *COMPILED_CLASS_HASH;
 
     let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let account_address = account_contract.get_instance_address(0);

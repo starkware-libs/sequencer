@@ -1,7 +1,7 @@
 use assert_matches::assert_matches;
 use mempool_test_utils::starknet_api_test_utils::{
-    compiled_class_hash as test_contract_compiled_class_hash,
     declare_tx as rpc_declare_tx,
+    COMPILED_CLASS_HASH,
 };
 use rstest::{fixture, rstest};
 use starknet_api::rpc_transaction::{
@@ -77,7 +77,7 @@ fn test_process_declare_tx_success(
 
     let class_info = gateway_compiler.process_declare_tx(&declare_tx).unwrap();
     let compiled_class_hash = class_info.contract_class.compiled_class_hash();
-    assert_eq!(compiled_class_hash, *test_contract_compiled_class_hash());
+    assert_eq!(compiled_class_hash, *COMPILED_CLASS_HASH);
     assert_eq!(class_info.sierra_program_length, sierra_program_length);
     assert_eq!(class_info.abi_length, abi_length);
 }
