@@ -4,6 +4,7 @@ use std::env;
 use std::fs::File;
 use std::path::Path;
 use std::rc::Rc;
+use std::sync::OnceLock;
 
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion, NonceManager};
@@ -127,13 +128,15 @@ pub fn contract_class() -> ContractClass {
 }
 
 /// Get the compiled class hash corresponding to the contract class used for testing.
-pub fn compiled_class_hash() -> CompiledClassHash {
-    CompiledClassHash(felt!(COMPILED_CLASS_HASH_OF_CONTRACT_CLASS))
+pub fn compiled_class_hash() -> &'static CompiledClassHash {
+    static COMPILED_CLASS_HASH: OnceLock<CompiledClassHash> = OnceLock::new();
+    COMPILED_CLASS_HASH
+        .get_or_init(|| CompiledClassHash(felt!(COMPILED_CLASS_HASH_OF_CONTRACT_CLASS)))
 }
 
 pub fn declare_tx() -> RpcTransaction {
     let contract_class = contract_class();
-    let compiled_class_hash = compiled_class_hash();
+    let compiled_class_hash = *compiled_class_hash();
 
     let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let account_address = account_contract.get_instance_address(0);
