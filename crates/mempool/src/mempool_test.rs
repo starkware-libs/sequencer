@@ -695,6 +695,29 @@ fn test_commit_block_from_different_leader() {
     expected_mempool_content.assert_eq_queue_content(&mempool);
 }
 
+#[rstest]
+#[case::test_commit_block_with_low_gas_price_thr(100)]
+#[case::test_commit_block_with_high_gas_price_thr(1000000000000)]
+fn test_commit_block_with_gas_price_threshold(#[case] gas_price_thr: u128) {
+    // Setup.
+    let input_tx = add_tx_input!(tx_hash: 0, tx_nonce: 2_u8, account_nonce: 2_u8);
+
+    let pool_txs = [input_tx.tx.clone()];
+    let queue_txs = [TransactionReference::new(&input_tx.tx)];
+    let mut mempool: Mempool = MempoolContent::new(pool_txs, queue_txs).into();
+
+    // Test.
+    mempool.update_gas_price_threshold(gas_price_thr);
+
+    let state_changes =
+        HashMap::from([(contract_address!("0x0"), AccountState { nonce: Nonce(felt!(0_u16)) })]);
+    assert!(mempool.commit_block(state_changes).is_ok());
+
+    mempool.update_gas_price_threshold(0);
+    let expected_mempool_content = MempoolContent::with_queue([]);
+    expected_mempool_content.assert_eq_queue_content(&mempool);
+}
+
 // Flow tests.
 
 #[rstest]
