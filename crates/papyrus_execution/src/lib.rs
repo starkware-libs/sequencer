@@ -23,7 +23,7 @@ use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::num::NonZeroU128;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use blockifier::blockifier::block::{pre_process_block, BlockInfo, BlockNumberHashPair, GasPrices};
 use blockifier::bouncer::BouncerConfig;
@@ -50,7 +50,6 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use execution_utils::{get_trace_constructor, induced_state_diff};
 use objects::{PriceUnit, TransactionSimulationOutput};
-use once_cell::sync::Lazy;
 use papyrus_common::transaction_hash::get_transaction_hash;
 use papyrus_common::TransactionOptions;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
@@ -99,16 +98,16 @@ const INITIAL_GAS_COST: u64 = 10000000000;
 /// Result type for execution functions.
 pub type ExecutionResult<T> = Result<T, ExecutionError>;
 
-static VERSIONED_CONSTANTS_13_0: Lazy<VersionedConstants> = Lazy::new(|| {
+static VERSIONED_CONSTANTS_13_0: LazyLock<VersionedConstants> = LazyLock::new(|| {
     VersionedConstants::try_from(Path::new("./resources/versioned_constants_13_0.json"))
         .expect("Versioned constants JSON file is malformed")
 });
-static VERSIONED_CONSTANTS_13_1: Lazy<VersionedConstants> = Lazy::new(|| {
+static VERSIONED_CONSTANTS_13_1: LazyLock<VersionedConstants> = LazyLock::new(|| {
     VersionedConstants::try_from(Path::new("./resources/versioned_constants_13_1.json"))
         .expect("Versioned constants JSON file is malformed")
 });
 
-static VERSIONED_CONSTANTS_13_2: Lazy<VersionedConstants> = Lazy::new(|| {
+static VERSIONED_CONSTANTS_13_2: LazyLock<VersionedConstants> = LazyLock::new(|| {
     VersionedConstants::try_from(Path::new("./resources/versioned_constants_13_2.json"))
         .expect("Versioned constants JSON file is malformed")
 });

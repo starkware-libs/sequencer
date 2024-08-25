@@ -17,7 +17,6 @@ cairo-vm.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
 lazy_static.workspace = true
-once_cell.workspace = true
 papyrus_common.workspace = true
 papyrus_config.workspace = true
 papyrus_storage.workspace = true
