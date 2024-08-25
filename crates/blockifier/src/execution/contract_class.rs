@@ -52,10 +52,10 @@ pub enum ContractClass {
     V1(ContractClassV1),
 }
 
-impl TryFrom<CasmContractClass> for ContractClass {
+impl TryFrom<&CasmContractClass> for ContractClass {
     type Error = ProgramError;
 
-    fn try_from(contract_class: CasmContractClass) -> Result<Self, Self::Error> {
+    fn try_from(contract_class: &CasmContractClass) -> Result<Self, Self::Error> {
         Ok(ContractClass::V1(contract_class.try_into()?))
     }
 }
@@ -241,7 +241,7 @@ impl ContractClassV1 {
 
     pub fn try_from_json_string(raw_contract_class: &str) -> Result<ContractClassV1, ProgramError> {
         let casm_contract_class: CasmContractClass = serde_json::from_str(raw_contract_class)?;
-        let contract_class: ContractClassV1 = casm_contract_class.try_into()?;
+        let contract_class: ContractClassV1 = (&casm_contract_class).try_into()?;
 
         Ok(contract_class)
     }
@@ -370,15 +370,12 @@ impl EntryPointV1 {
     }
 }
 
-impl TryFrom<CasmContractClass> for ContractClassV1 {
+impl TryFrom<&CasmContractClass> for ContractClassV1 {
     type Error = ProgramError;
 
-    fn try_from(class: CasmContractClass) -> Result<Self, Self::Error> {
-        let data: Vec<MaybeRelocatable> = class
-            .bytecode
-            .into_iter()
-            .map(|x| MaybeRelocatable::from(Felt::from(x.value)))
-            .collect();
+    fn try_from(class: &CasmContractClass) -> Result<Self, Self::Error> {
+        let data: Vec<MaybeRelocatable> =
+            class.bytecode.iter().map(|x| MaybeRelocatable::from(Felt::from(&x.value))).collect();
 
         let mut hints: HashMap<usize, Vec<HintParams>> = HashMap::new();
         for (i, hint_list) in class.hints.iter() {
@@ -417,19 +414,20 @@ impl TryFrom<CasmContractClass> for ContractClassV1 {
         let mut entry_points_by_type = HashMap::new();
         entry_points_by_type.insert(
             EntryPointType::Constructor,
-            convert_entry_points_v1(class.entry_points_by_type.constructor),
+            convert_entry_points_v1(&class.entry_points_by_type.constructor),
         );
         entry_points_by_type.insert(
             EntryPointType::External,
-            convert_entry_points_v1(class.entry_points_by_type.external),
+            convert_entry_points_v1(&class.entry_points_by_type.external),
         );
         entry_points_by_type.insert(
             EntryPointType::L1Handler,
-            convert_entry_points_v1(class.entry_points_by_type.l1_handler),
+            convert_entry_points_v1(&class.entry_points_by_type.l1_handler),
         );
 
         let bytecode_segment_lengths = class
             .bytecode_segment_lengths
+            .clone()
             .unwrap_or_else(|| NestedIntList::Leaf(program.data_len()));
 
         Ok(Self(Arc::new(ContractClassV1Inner {
@@ -466,16 +464,16 @@ fn hint_to_hint_params(hint: &cairo_lang_casm::hints::Hint) -> Result<HintParams
     })
 }
 
-fn convert_entry_points_v1(external: Vec<CasmContractEntryPoint>) -> Vec<EntryPointV1> {
+fn convert_entry_points_v1(external: &[CasmContractEntryPoint]) -> Vec<EntryPointV1> {
     external
-        .into_iter()
+        .iter()
         .map(|ep| EntryPointV1 {
-            selector: EntryPointSelector(Felt::from(ep.selector)),
+            selector: EntryPointSelector(Felt::from(&ep.selector)),
             offset: EntryPointOffset(ep.offset),
             builtins: ep
                 .builtins
-                .into_iter()
-                .map(|builtin| BuiltinName::from_str(&builtin).expect("Unrecognized builtin."))
+                .iter()
+                .map(|builtin| BuiltinName::from_str(builtin).expect("Unrecognized builtin."))
                 .collect(),
         })
         .collect()
@@ -489,10 +487,10 @@ pub struct ClassInfo {
     abi_length: usize,
 }
 
-impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
+impl TryFrom<&starknet_api::contract_class::ClassInfo> for ClassInfo {
     type Error = ProgramError;
 
-    fn try_from(class_info: starknet_api::contract_class::ClassInfo) -> Result<Self, Self::Error> {
+    fn try_from(class_info: &starknet_api::contract_class::ClassInfo) -> Result<Self, Self::Error> {
         let starknet_api::contract_class::ClassInfo {
             casm_contract_class,
             sierra_program_length,
@@ -501,8 +499,8 @@ impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
 
         Ok(Self {
             contract_class: casm_contract_class.try_into()?,
-            sierra_program_length,
-            abi_length,
+            sierra_program_length: *sierra_program_length,
+            abi_length: *abi_length,
         })
     }
 }

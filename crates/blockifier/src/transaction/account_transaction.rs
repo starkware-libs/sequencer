@@ -76,11 +76,11 @@ pub enum AccountTransaction {
     Invoke(InvokeTransaction),
 }
 
-impl TryFrom<starknet_api::executable_transaction::Transaction> for AccountTransaction {
+impl TryFrom<&starknet_api::executable_transaction::Transaction> for AccountTransaction {
     type Error = TransactionExecutionError;
 
     fn try_from(
-        executable_transaction: starknet_api::executable_transaction::Transaction,
+        executable_transaction: &starknet_api::executable_transaction::Transaction,
     ) -> Result<Self, Self::Error> {
         match executable_transaction {
             starknet_api::executable_transaction::Transaction::Declare(declare_tx) => {
@@ -88,12 +88,12 @@ impl TryFrom<starknet_api::executable_transaction::Transaction> for AccountTrans
             }
             starknet_api::executable_transaction::Transaction::DeployAccount(deploy_account_tx) => {
                 Ok(Self::DeployAccount(DeployAccountTransaction {
-                    tx: deploy_account_tx,
+                    tx: deploy_account_tx.clone(),
                     only_query: false,
                 }))
             }
             starknet_api::executable_transaction::Transaction::Invoke(invoke_tx) => {
-                Ok(Self::Invoke(InvokeTransaction { tx: invoke_tx, only_query: false }))
+                Ok(Self::Invoke(InvokeTransaction { tx: invoke_tx.clone(), only_query: false }))
             }
         }
     }

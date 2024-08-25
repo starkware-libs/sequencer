@@ -176,7 +176,7 @@ async fn test_get_compiled_contract_class() {
             .await
             .unwrap()
             .unwrap();
-    assert_eq!(result, ContractClass::V1(CasmContractClass::default().try_into().unwrap()));
+    assert_eq!(result, ContractClass::try_from(&CasmContractClass::default()).unwrap());
     mock.assert_async().await;
 }
 

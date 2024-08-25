@@ -63,7 +63,7 @@ impl PapyrusReader {
                      inconsistent.",
                 );
 
-            return Ok(ContractClass::V1(ContractClassV1::try_from(casm_contract_class)?));
+            return Ok(ContractClass::V1(ContractClassV1::try_from(&casm_contract_class)?));
         }
 
         let v0_contract_class = self
