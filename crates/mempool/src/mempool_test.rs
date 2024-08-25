@@ -5,6 +5,7 @@ use assert_matches::assert_matches;
 use mempool_test_utils::starknet_api_test_utils::{
     create_executable_tx,
     test_resource_bounds_mapping,
+    VALID_L2_GAS_MAX_PRICE_PER_UNIT,
 };
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
@@ -588,6 +589,36 @@ fn test_add_tx_filling_hole(mut mempool: Mempool) {
     let expected_mempool_content =
         MempoolContent::with_pool_and_queue(expected_pool_txs, expected_queue_txs);
     expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
+}
+
+#[rstest]
+fn test_add_tx_to_pending_queue(mut mempool: Mempool) {
+    // Setup.
+    let input_tx = add_tx_input!(tx_hash: 0, tx_nonce: 0_u8, account_nonce: 0_u8);
+
+    // Test.
+    // High gas price threshold, transaction would be added to pending_queue.
+    mempool._update_gas_price_threshold(VALID_L2_GAS_MAX_PRICE_PER_UNIT + 1);
+    add_tx(&mut mempool, &input_tx);
+    let txs = mempool.get_txs(1).unwrap();
+
+    // Assert.
+    assert!(txs.is_empty());
+}
+
+#[rstest]
+fn test_add_tx_to_priority_queue(mut mempool: Mempool) {
+    // Setup.
+    let input_tx = add_tx_input!(tx_hash: 0, tx_nonce: 0_u8, account_nonce: 0_u8);
+
+    // Test.
+    // Low gas price threshold, transaction would be added to priority_queue.
+    mempool._update_gas_price_threshold(VALID_L2_GAS_MAX_PRICE_PER_UNIT - 1);
+    add_tx(&mut mempool, &input_tx);
+    let txs = mempool.get_txs(1).unwrap();
+
+    // Assert.
+    assert_eq!(txs, &[input_tx.tx]);
 }
 
 // commit_block tests.
