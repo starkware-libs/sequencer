@@ -102,7 +102,7 @@ async fn broadcast_subscriber_end_to_end_test() {
             TIMEOUT, async move {
                 // TODO(shahak): Remove this sleep once we fix the bug of broadcasting while there
                 // are no peers.
-                tokio::time::sleep(Duration::from_millis(100)).await;
+                tokio::time::sleep(Duration::from_secs(1)).await;
                 let number1 = Number(1);
                 let number2 = Number(2);
                 let mut broadcasted_messages_receiver2_1 =
