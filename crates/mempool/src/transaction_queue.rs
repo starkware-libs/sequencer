@@ -34,7 +34,7 @@ impl TransactionQueue {
     }
 
     // TODO(gilad): remove collect
-    pub fn pop_chunk(&mut self, n_txs: usize) -> Vec<TransactionReference> {
+    pub fn pop_ready_chunk(&mut self, n_txs: usize) -> Vec<TransactionReference> {
         let txs: Vec<TransactionReference> =
             (0..n_txs).filter_map(|_| self.priority_queue.pop_last().map(|tx| tx.0)).collect();
         for tx in &txs {
@@ -46,7 +46,7 @@ impl TransactionQueue {
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
-    pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {
+    pub fn iter_over_ready_txs(&self) -> impl Iterator<Item = &TransactionReference> {
         self.priority_queue.iter().rev().map(|tx| &tx.0)
     }
 
@@ -63,7 +63,7 @@ impl TransactionQueue {
         false
     }
 
-    pub fn is_empty(&self) -> bool {
+    pub fn has_ready_txs(&self) -> bool {
         self.priority_queue.is_empty()
     }
 }

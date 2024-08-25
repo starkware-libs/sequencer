@@ -32,7 +32,7 @@ impl Mempool {
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
     pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {
-        self.tx_queue.iter()
+        self.tx_queue.iter_over_ready_txs()
     }
 
     /// Retrieves up to `n_txs` transactions with the highest priority from the mempool.
@@ -44,8 +44,8 @@ impl Mempool {
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
         let mut n_remaining_txs = n_txs;
 
-        while n_remaining_txs > 0 && !self.tx_queue.is_empty() {
-            let chunk = self.tx_queue.pop_chunk(n_remaining_txs);
+        while n_remaining_txs > 0 && !self.tx_queue.has_ready_txs() {
+            let chunk = self.tx_queue.pop_ready_chunk(n_remaining_txs);
             self.enqueue_next_eligible_txs(&chunk)?;
             n_remaining_txs -= chunk.len();
             eligible_tx_references.extend(chunk);
