@@ -111,7 +111,6 @@ fn test_only_query_transaction_hash() {
             continue;
         }
 
-        dbg!(transaction_test_data.transaction_hash);
         let actual_transaction_hash = get_transaction_hash(
             &transaction_test_data.transaction,
             &transaction_test_data.chain_id,

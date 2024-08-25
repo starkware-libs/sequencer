@@ -1,36 +1,45 @@
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::CairoVersion;
+use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use pretty_assertions::assert_eq;
+use rstest::{fixture, rstest};
 use starknet_api::transaction::TransactionHash;
-use starknet_mempool_integration_tests::integration_test_utils::setup_with_tx_generation;
+use starknet_mempool_integration_tests::integration_test_setup::IntegrationTestSetup;
 
+#[fixture]
+fn tx_generator() -> MultiAccountTransactionGenerator {
+    MultiAccountTransactionGenerator::new()
+}
+
+#[rstest]
 #[tokio::test]
-#[ignore = "See FIXME inside the test."]
-async fn test_end_to_end() {
+async fn test_end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
     // Setup.
-    let accounts = [
-        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1),
-        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0),
-    ];
-    let (mock_running_system, mut tx_generator) = setup_with_tx_generation(&accounts).await;
+    let (deploy_account_0, account0_deploy_tx_nonce0) = tx_generator
+        .new_account_default(FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1));
 
-    let account0_deploy_nonce0 = &tx_generator.account_with_id(0).generate_default_deploy_account();
+    let (deploy_account_1, account1_deploy_tx_nonce0) = tx_generator
+        .new_account_default(FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0));
+
+    let accounts = [deploy_account_0, deploy_account_1];
+    let mock_running_system = IntegrationTestSetup::new_for_account_contracts(&accounts).await;
+
     let account0_invoke_nonce1 = tx_generator.account_with_id(0).generate_default_invoke();
-    let account1_invoke_nonce0 = tx_generator.account_with_id(1).generate_default_invoke();
     let account0_invoke_nonce2 = tx_generator.account_with_id(0).generate_default_invoke();
 
     // Test.
 
     let account0_deploy_nonce0_tx_hash =
-        mock_running_system.assert_add_tx_success(account0_deploy_nonce0).await;
+        mock_running_system.assert_add_tx_success(&account0_deploy_tx_nonce0).await;
 
-    mock_running_system.assert_add_tx_success(&account0_invoke_nonce1).await;
+    let account1_invoke_nonce1_tx_hash =
+        mock_running_system.assert_add_tx_success(&account0_invoke_nonce1).await;
 
-    // FIXME: invoke with nonce0 shouldn't be possible, fix it, make this FAIL.
-    // UPDATE: fails now, will fix in subsequent commit.
-    let account1_invoke_nonce0_tx_hash =
-        mock_running_system.assert_add_tx_success(&account1_invoke_nonce0).await;
+    let account1_deploy_nonce0_tx_hash =
+        mock_running_system.assert_add_tx_success(&account1_deploy_tx_nonce0).await;
 
-    mock_running_system.assert_add_tx_success(&account0_invoke_nonce2).await;
+    let account0_invoke_nonce1_tx_hash =
+        mock_running_system.assert_add_tx_success(&account0_invoke_nonce2).await;
 
     let mempool_txs = mock_running_system.get_txs(4).await;
 
@@ -38,12 +47,14 @@ async fn test_end_to_end() {
 
     // Only the transactions with nonce 0 should be returned from the mempool,
     // because we haven't merged queue-replenishment yet.
-    let expected_tx_hashes_from_get_txs =
-        [account1_invoke_nonce0_tx_hash, account0_deploy_nonce0_tx_hash];
+    let expected_tx_hashes_from_get_txs = [
+        account0_deploy_nonce0_tx_hash,
+        account1_deploy_nonce0_tx_hash,
+        account1_invoke_nonce1_tx_hash,
+        account0_invoke_nonce1_tx_hash,
+    ];
 
-    // This assert should be replaced with 4 once queue-replenishment is merged, also add a tx hole
-    // at that point, and ensure the assert doesn't change due to that.
-    assert_eq!(mempool_txs.len(), 2);
+    assert_eq!(mempool_txs.len(), 4);
     let actual_tx_hashes: Vec<TransactionHash> =
         mempool_txs.iter().map(|tx| tx.tx_hash()).collect();
     assert_eq!(expected_tx_hashes_from_get_txs, *actual_tx_hashes);

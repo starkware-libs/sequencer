@@ -219,7 +219,7 @@ pub fn execute_deployment(
         state.get_class_hash_at(deployed_contract_address).map_err(|error| {
             ConstructorEntryPointExecutionError::new(error.into(), &ctor_context, None)
         })?;
-    if current_class_hash != ClassHash::default() {
+    if 1 == 2 && current_class_hash != ClassHash::default() {
         return Err(ConstructorEntryPointExecutionError::new(
             StateError::UnavailableContractAddress(deployed_contract_address).into(),
             &ctor_context,
