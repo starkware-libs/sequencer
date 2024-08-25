@@ -1005,7 +1005,9 @@ fn test_insufficient_max_fee_reverts(
     .unwrap();
     assert!(!tx_execution_info1.is_reverted());
     let actual_fee_depth1 = tx_execution_info1.receipt.fee;
-    let gas_price = u128::from(block_context.block_info.gas_prices.strk_l1_gas_price);
+    let gas_price = u128::from(
+        block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk),
+    );
     let gas_ammount = u64::try_from(actual_fee_depth1.0 / gas_price).unwrap();
 
     // Invoke the `recurse` function with depth of 2 and the actual fee of depth 1 as max_fee.
