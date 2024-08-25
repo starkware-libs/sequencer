@@ -29,5 +29,7 @@ assert_matches.workspace = true
 atomic_refcell.workspace = true
 mempool_test_utils.workspace = true
 mockall.workspace = true
+num-traits.workspace = true
 rstest.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
+starknet-types-core.workspace = true

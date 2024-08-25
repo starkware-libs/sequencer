@@ -13,7 +13,12 @@ use starknet_mempool_infra::component_client::{
 use starknet_mempool_infra::component_definitions::ComponentRequestAndResponseSender;
 use thiserror::Error;
 
-use crate::batcher_types::{BatcherResult, BuildProposalInput};
+use crate::batcher_types::{
+    BatcherResult,
+    BuildProposalInput,
+    GetStreamContentInput,
+    StreamContent,
+};
 use crate::errors::BatcherError;
 
 pub type LocalBatcherClientImpl = LocalComponentClient<BatcherRequest, BatcherResponse>;
@@ -29,16 +34,19 @@ pub type SharedBatcherClient = Arc<dyn BatcherClient>;
 #[async_trait]
 pub trait BatcherClient: Send + Sync {
     async fn build_proposal(&self, input: BuildProposalInput) -> BatcherClientResult<()>;
+    async fn get_stream_content(&self, input: GetStreamContentInput) -> BatcherClientResult<StreamContent>;
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum BatcherRequest {
     BuildProposal(BuildProposalInput),
+    GetStreamContent(GetStreamContentInput),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum BatcherResponse {
     BuildProposal(BatcherResult<()>),
+    GetStreamContent(BatcherResult<StreamContent>),
 }
 
 #[derive(Clone, Debug, Error)]
@@ -56,6 +64,12 @@ impl BatcherClient for LocalBatcherClientImpl {
         let response = self.send(request).await;
         handle_response_variants!(BatcherResponse, BuildProposal, BatcherClientError, BatcherError)
     }
+
+    async fn get_stream_content(&self, input: GetStreamContentInput) -> BatcherClientResult<StreamContent> {
+        let request = BatcherRequest::GetStreamContent(input);
+        let response = self.send(request).await;
+        handle_response_variants!(BatcherResponse, GetStreamContent, BatcherClientError, BatcherError)
+    }
 }
 
 #[async_trait]
@@ -64,5 +78,11 @@ impl BatcherClient for RemoteBatcherClientImpl {
         let request = BatcherRequest::BuildProposal(input);
         let response = self.send(request).await?;
         handle_response_variants!(BatcherResponse, BuildProposal, BatcherClientError, BatcherError)
+    }
+
+    async fn get_stream_content(&self, input: GetStreamContentInput) -> BatcherClientResult<StreamContent> {
+        let request = BatcherRequest::GetStreamContent(input);
+        let response = self.send(request).await?;
+        handle_response_variants!(BatcherResponse, GetStreamContent, BatcherClientError, BatcherError)
     }
 }
