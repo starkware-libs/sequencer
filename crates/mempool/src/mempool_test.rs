@@ -5,6 +5,7 @@ use assert_matches::assert_matches;
 use mempool_test_utils::starknet_api_test_utils::{
     create_executable_tx,
     test_resource_bounds_mapping,
+    VALID_L2_GAS_MAX_PRICE_PER_UNIT,
 };
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
@@ -691,6 +692,31 @@ fn test_commit_block_from_different_leader() {
     // Assert.
     let expected_queue_txs = [&tx_address0_nonce6].map(TransactionReference::new);
     let expected_mempool_content = MempoolContent::with_queue(expected_queue_txs);
+    expected_mempool_content.assert_eq_queue_content(&mempool);
+}
+
+#[rstest]
+#[case::test_commit_block_with_low_gas_price_threshold(VALID_L2_GAS_MAX_PRICE_PER_UNIT - 1)]
+#[case::test_commit_block_with_high_gas_price_threshold(VALID_L2_GAS_MAX_PRICE_PER_UNIT + 1)]
+fn test_commit_block_with_gas_price_threshold(#[case] gas_price_threshold: u128) {
+    // Setup.
+
+    let input_tx = add_tx_input!(tx_hash: 0, tx_nonce: 2_u8, account_nonce: 2_u8);
+
+    let queue_txs = [TransactionReference::new(&input_tx.tx)];
+    let mut mempool: Mempool = MempoolContent::with_queue(queue_txs).into();
+
+    // Test.
+    mempool._update_gas_price_threshold(gas_price_threshold);
+
+    // Assert.
+    let state_changes =
+        HashMap::from([(contract_address!("0x0"), AccountState { nonce: Nonce(felt!(0_u16)) })]);
+    assert_eq!(mempool.commit_block(state_changes), Ok(()));
+
+    // TODO(Mohammad): remove reseting gas price threshold, once MempoolContent supports gas price.
+    mempool._update_gas_price_threshold(0);
+    let expected_mempool_content = MempoolContent::with_queue([]);
     expected_mempool_content.assert_eq_queue_content(&mempool);
 }
 
