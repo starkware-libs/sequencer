@@ -70,7 +70,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 Some((topic_hash, message)) = self.messages_to_broadcast_receivers.next() => {
                     self.broadcast_message(message, topic_hash);
                 }
-                Some(Some(peer_id)) = self.reported_peer_receivers.next() => self.swarm.report_peer(peer_id),
+                Some(Some(peer_id)) = self.reported_peer_receivers.next() => self.swarm.report_peer_as_malicious(peer_id),
             }
         }
     }
@@ -674,6 +674,7 @@ pub struct ClientResponsesManager<Response: TryFrom<Bytes>> {
 }
 
 impl<Response: TryFrom<Bytes>> ClientResponsesManager<Response> {
+    /// Use this function to report peer as malicious
     pub fn report_peer(self) {
         warn!("Reporting peer");
         if let Err(e) = self.report_sender.send(()) {
