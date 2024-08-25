@@ -185,7 +185,7 @@ impl SwarmTrait for MockSwarm {
         }
     }
 
-    fn report_peer(&mut self, peer_id: PeerId) {
+    fn report_peer_as_malicious(&mut self, peer_id: PeerId) {
         for sender in &self.reported_peer_senders {
             sender.unbounded_send(peer_id).unwrap();
         }
