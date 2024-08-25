@@ -133,7 +133,7 @@ where
                 .min()
                 .expect("min should not return None on a non-empty iterator");
             self.sleep_waiting_for_unblocked_peer =
-                Some(tokio::time::sleep_until(sleep_deadline.into()).boxed());
+                Some(tokio::time::sleep_until(sleep_deadline).boxed());
             return None;
         }
         peer.map(|(peer_id, peer)| {
