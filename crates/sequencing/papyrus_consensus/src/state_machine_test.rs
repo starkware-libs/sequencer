@@ -1,18 +1,13 @@
 use std::collections::VecDeque;
 
-use lazy_static::lazy_static;
 use starknet_api::block::BlockHash;
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
 use super::Round;
 use crate::state_machine::{StateMachine, StateMachineEvent};
+use crate::test_utils::{PROPOSER_ID, VALIDATOR_ID_1};
 use crate::types::ValidatorId;
-
-lazy_static! {
-    static ref PROPOSER_ID: ValidatorId = 0_u32.into();
-    static ref VALIDATOR_ID: ValidatorId = 1_u32.into();
-}
 
 const BLOCK_HASH: Option<BlockHash> = Some(BlockHash(Felt::ONE));
 const ROUND: Round = 0;
@@ -76,7 +71,7 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
 #[test_case(true; "proposer")]
 #[test_case(false; "validator")]
 fn events_arrive_in_ideal_order(is_proposer: bool) {
-    let id = if is_proposer { *PROPOSER_ID } else { *VALIDATOR_ID };
+    let id = if is_proposer { *PROPOSER_ID } else { *VALIDATOR_ID_1 };
     let mut wrapper = TestWrapper::new(id, 4, |_: Round| *PROPOSER_ID);
 
     wrapper.start();
@@ -117,7 +112,7 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
 
 #[test]
 fn validator_receives_votes_first() {
-    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID);
+    let mut wrapper = TestWrapper::new(*VALIDATOR_ID_1, 4, |_: Round| *PROPOSER_ID);
 
     wrapper.start();
     // Waiting for the proposal.
@@ -175,7 +170,7 @@ fn buffer_events_during_get_proposal(vote: Option<BlockHash>) {
 
 #[test]
 fn only_send_precommit_with_prevote_quorum_and_proposal() {
-    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID);
+    let mut wrapper = TestWrapper::new(*VALIDATOR_ID_1, 4, |_: Round| *PROPOSER_ID);
 
     wrapper.start();
     // Waiting for the proposal.
@@ -198,7 +193,7 @@ fn only_send_precommit_with_prevote_quorum_and_proposal() {
 
 #[test]
 fn only_decide_with_prcommit_quorum_and_proposal() {
-    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID);
+    let mut wrapper = TestWrapper::new(*VALIDATOR_ID_1, 4, |_: Round| *PROPOSER_ID);
 
     wrapper.start();
     // Waiting for the proposal.
@@ -228,7 +223,7 @@ fn only_decide_with_prcommit_quorum_and_proposal() {
 
 #[test]
 fn advance_to_the_next_round() {
-    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID);
+    let mut wrapper = TestWrapper::new(*VALIDATOR_ID_1, 4, |_: Round| *PROPOSER_ID);
 
     wrapper.start();
     // Waiting for the proposal.
@@ -252,7 +247,7 @@ fn advance_to_the_next_round() {
 
 #[test]
 fn prevote_when_receiving_proposal_in_current_round() {
-    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID);
+    let mut wrapper = TestWrapper::new(*VALIDATOR_ID_1, 4, |_: Round| *PROPOSER_ID);
 
     wrapper.start();
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPropose(ROUND));
@@ -276,7 +271,7 @@ fn prevote_when_receiving_proposal_in_current_round() {
 #[test_case(true ; "send_proposal")]
 #[test_case(false ; "send_timeout_propose")]
 fn mixed_quorum(send_prposal: bool) {
-    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID);
+    let mut wrapper = TestWrapper::new(*VALIDATOR_ID_1, 4, |_: Round| *PROPOSER_ID);
 
     wrapper.start();
     // Waiting for the proposal.

@@ -4,7 +4,6 @@ use std::vec;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
-use lazy_static::lazy_static;
 use mockall::mock;
 use mockall::predicate::eq;
 use papyrus_network::network_manager::ReportSender;
@@ -15,8 +14,16 @@ use starknet_api::transaction::Transaction;
 use starknet_types_core::felt::Felt;
 
 use super::{run_consensus, MultiHeightManager};
-use crate::config::TimeoutsConfig;
-use crate::test_utils::{precommit, prevote, proposal};
+use crate::test_utils::{
+    precommit,
+    prevote,
+    proposal,
+    PROPOSER_ID,
+    TIMEOUTS,
+    VALIDATOR_ID_1,
+    VALIDATOR_ID_2,
+    VALIDATOR_ID_3,
+};
 use crate::types::{
     ConsensusBlock,
     ConsensusContext,
@@ -25,14 +32,6 @@ use crate::types::{
     Round,
     ValidatorId,
 };
-
-lazy_static! {
-    static ref PROPOSER_ID: ValidatorId = 0_u32.into();
-    static ref VALIDATOR_ID: ValidatorId = 1_u32.into();
-    static ref VALIDATOR_ID_2: ValidatorId = 2_u32.into();
-    static ref VALIDATOR_ID_3: ValidatorId = 3_u32.into();
-    static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig::default();
-}
 
 // TODO(matan): Switch to using TestBlock & MockTestContext in `test_utils` once streaming is
 // supported. Streaming should allow us to make the Manager generic over the content.
@@ -125,11 +124,11 @@ async fn manager_multiple_heights_unordered() {
             block_receiver
         })
         .times(1);
-    context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
+    context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID_1]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_broadcast().returning(move |_| Ok(()));
 
-    let mut manager = MultiHeightManager::new(*VALIDATOR_ID, TIMEOUTS.clone());
+    let mut manager = MultiHeightManager::new(*VALIDATOR_ID_1, TIMEOUTS.clone());
     let decision = manager.run_height(&mut context, BlockNumber(1), &mut receiver).await.unwrap();
     assert_eq!(decision.block.id(), BlockHash(Felt::ONE));
 
@@ -157,7 +156,7 @@ async fn run_consensus_sync() {
         block_sender.send(TestBlock { content: vec![], id: BlockHash(Felt::TWO) }).unwrap();
         block_receiver
     });
-    context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
+    context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID_1]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_broadcast().returning(move |_| Ok(()));
     context.expect_decision_reached().return_once(move |block, votes| {
@@ -179,7 +178,7 @@ async fn run_consensus_sync() {
         run_consensus(
             context,
             BlockNumber(1),
-            *VALIDATOR_ID,
+            *VALIDATOR_ID_1,
             Duration::ZERO,
             TIMEOUTS.clone(),
             &mut network_receiver,
@@ -214,14 +213,15 @@ async fn run_consensus_sync_cancellation_safety() {
         block_sender.send(TestBlock { content: vec![], id: BlockHash(Felt::ONE) }).unwrap();
         block_receiver
     });
-    context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
+    context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID_1]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_broadcast().with(eq(prevote(Some(Felt::ONE), 1, 0, *VALIDATOR_ID))).return_once(
-        move |_| {
+    context
+        .expect_broadcast()
+        .with(eq(prevote(Some(Felt::ONE), 1, 0, *VALIDATOR_ID_1)))
+        .return_once(move |_| {
             proposal_handled_tx.send(()).unwrap();
             Ok(())
-        },
-    );
+        });
     context.expect_broadcast().returning(move |_| Ok(()));
     context.expect_decision_reached().return_once(|block, votes| {
         assert_eq!(block.id(), BlockHash(Felt::ONE));
@@ -237,7 +237,7 @@ async fn run_consensus_sync_cancellation_safety() {
         run_consensus(
             context,
             BlockNumber(1),
-            *VALIDATOR_ID,
+            *VALIDATOR_ID_1,
             Duration::ZERO,
             TIMEOUTS.clone(),
             &mut network_receiver,
@@ -282,7 +282,7 @@ async fn test_timeouts() {
     });
     context
         .expect_validators()
-        .returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2, *VALIDATOR_ID_3]);
+        .returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID_1, *VALIDATOR_ID_2, *VALIDATOR_ID_3]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
 
     let (timeout_send, timeout_receive) = oneshot::channel();
@@ -290,14 +290,14 @@ async fn test_timeouts() {
     context
         .expect_broadcast()
         .times(1)
-        .withf(move |msg: &ConsensusMessage| msg == &prevote(None, 1, 1, *VALIDATOR_ID))
+        .withf(move |msg: &ConsensusMessage| msg == &prevote(None, 1, 1, *VALIDATOR_ID_1))
         .return_once(move |_| {
             timeout_send.send(()).unwrap();
             Ok(())
         });
     context.expect_broadcast().returning(move |_| Ok(()));
 
-    let mut manager = MultiHeightManager::new(*VALIDATOR_ID, TIMEOUTS.clone());
+    let mut manager = MultiHeightManager::new(*VALIDATOR_ID_1, TIMEOUTS.clone());
     let manager_handle = tokio::spawn(async move {
         let decision =
             manager.run_height(&mut context, BlockNumber(1), &mut receiver).await.unwrap();

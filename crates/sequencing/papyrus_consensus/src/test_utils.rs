@@ -1,10 +1,14 @@
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
+use lazy_static::lazy_static;
 use mockall::mock;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, Vote, VoteType};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 
+use crate::config::TimeoutsConfig;
+use crate::single_height_consensus::ShcTask;
+use crate::state_machine::StateMachineEvent;
 use crate::types::{
     ConsensusBlock,
     ConsensusContext,
@@ -13,6 +17,20 @@ use crate::types::{
     Round,
     ValidatorId,
 };
+
+lazy_static! {
+    pub static ref PROPOSER_ID: ValidatorId = 0_u32.into();
+    pub static ref VALIDATOR_ID_1: ValidatorId = 1_u32.into();
+    pub static ref VALIDATOR_ID_2: ValidatorId = 2_u32.into();
+    pub static ref VALIDATOR_ID_3: ValidatorId = 3_u32.into();
+    pub static ref VALIDATORS: Vec<ValidatorId> =
+        vec![*PROPOSER_ID, *VALIDATOR_ID_1, *VALIDATOR_ID_2, *VALIDATOR_ID_3];
+    pub static ref BLOCK: TestBlock =
+        TestBlock { content: vec![1, 2, 3], id: BlockHash(Felt::ONE) };
+    pub static ref PROPOSAL_INIT: ProposalInit =
+        ProposalInit { height: BlockNumber(0), round: 0, proposer: *PROPOSER_ID };
+    pub static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig::default();
+}
 
 /// Define a consensus block which can be used to enable auto mocking Context.
 #[derive(Debug, PartialEq, Clone)]
@@ -114,4 +132,31 @@ pub fn proposal(
         proposer,
         transactions: vec![],
     })
+}
+
+pub fn prevote_task(block_felt: Option<Felt>, round: u32) -> ShcTask {
+    let block_hash = block_felt.map(BlockHash);
+    ShcTask {
+        duration: TIMEOUTS.prevote_timeout,
+        event: StateMachineEvent::Prevote(block_hash, round),
+    }
+}
+
+pub fn precommit_task(block_felt: Option<Felt>, round: u32) -> ShcTask {
+    let block_hash = block_felt.map(BlockHash);
+    ShcTask {
+        duration: TIMEOUTS.precommit_timeout,
+        event: StateMachineEvent::Precommit(block_hash, round),
+    }
+}
+
+pub fn timeout_prevote_task(round: u32) -> ShcTask {
+    ShcTask { duration: TIMEOUTS.prevote_timeout, event: StateMachineEvent::TimeoutPrevote(round) }
+}
+
+pub fn timeout_precommit_task(round: u32) -> ShcTask {
+    ShcTask {
+        duration: TIMEOUTS.precommit_timeout,
+        event: StateMachineEvent::TimeoutPrecommit(round),
+    }
 }
