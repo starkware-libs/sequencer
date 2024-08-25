@@ -35,7 +35,10 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
     async fn handle_request(&mut self, request: BatcherRequest) -> BatcherResponse {
         match request {
             BatcherRequest::BuildProposal(input) => {
-                BatcherResponse::BuildProposal(self.build_proposal(input).await)
+                BatcherResponse::BuildProposal(self.build_proposal(&input).await)
+            }
+            BatcherRequest::GetStreamContent(input) => {
+                BatcherResponse::GetStreamContent(self.get_stream_content(&input).await)
             }
         }
     }

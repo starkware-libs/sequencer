@@ -1,16 +1,13 @@
-use std::ops::Range;
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use async_trait::async_trait;
 use atomic_refcell::AtomicRefCell;
-use mempool_test_utils::starknet_api_test_utils::create_executable_tx;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::felt;
-use starknet_api::transaction::{DeprecatedResourceBoundsMapping, Tip, TransactionHash};
+use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::communication::MockMempoolClient;
 use tokio_stream::StreamExt;
 use tracing::instrument;
@@ -23,6 +20,7 @@ use crate::proposals_manager::{
     ProposalsManagerError,
     ProposalsManagerTrait,
 };
+use crate::test_utils::test_txs;
 
 #[fixture]
 fn proposals_manager_config() -> ProposalsManagerConfig {
@@ -178,21 +176,6 @@ fn arbitrary_deadline() -> tokio::time::Instant {
     const GENERATION_TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
     tokio::time::Instant::now() + GENERATION_TIMEOUT
 }
-
-fn test_txs(tx_hash_range: Range<usize>) -> Vec<Transaction> {
-    tx_hash_range
-        .map(|i| {
-            create_executable_tx(
-                ContractAddress::default(),
-                TransactionHash(felt!(u128::try_from(i).unwrap())),
-                Tip::default(),
-                Nonce::default(),
-                DeprecatedResourceBoundsMapping::default(),
-            )
-        })
-        .collect()
-}
-
 // Not using automock because the support for async traits is not good.
 #[derive(Debug)]
 struct MockBlockBuilder {

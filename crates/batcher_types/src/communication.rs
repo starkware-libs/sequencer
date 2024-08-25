@@ -13,7 +13,12 @@ use starknet_mempool_infra::component_client::{
 use starknet_mempool_infra::component_definitions::ComponentRequestAndResponseSender;
 use thiserror::Error;
 
-use crate::batcher_types::{BatcherResult, BuildProposalInput};
+use crate::batcher_types::{
+    BatcherResult,
+    BuildProposalInput,
+    GetStreamContentInput,
+    StreamContent,
+};
 use crate::errors::BatcherError;
 
 pub type LocalBatcherClientImpl = LocalComponentClient<BatcherRequest, BatcherResponse>;
@@ -34,11 +39,13 @@ pub trait BatcherClient: Send + Sync {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum BatcherRequest {
     BuildProposal(BuildProposalInput),
+    GetStreamContent(GetStreamContentInput),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum BatcherResponse {
     BuildProposal(BatcherResult<()>),
+    GetStreamContent(BatcherResult<StreamContent>),
 }
 
 #[derive(Clone, Debug, Error)]
