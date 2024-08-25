@@ -76,12 +76,7 @@ impl StatefulTransactionValidator {
     ) -> StatefulTransactionValidatorResult<ValidateInfo> {
         let tx_hash = executable_tx.tx_hash();
         let sender_address = executable_tx.contract_address();
-
-        let account_tx = AccountTransaction::try_from(
-            // TODO(Arni): create a try_from for &ExecutableTransaction.
-            executable_tx.clone(),
-        )
-        .map_err(|error| {
+        let account_tx = AccountTransaction::try_from(executable_tx).map_err(|error| {
             error!("Failed to convert executable transaction into account transaction: {}", error);
             GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
         })?;

@@ -135,7 +135,7 @@ impl BlockifierStateReader for RpcStateReader {
             serde_json::from_value(result).map_err(serde_err_to_state_err)?;
         match contract_class {
             CompiledContractClass::V1(contract_class_v1) => Ok(ContractClass::V1(
-                ContractClassV1::try_from(contract_class_v1).map_err(StateError::ProgramError)?,
+                ContractClassV1::try_from(&contract_class_v1).map_err(StateError::ProgramError)?,
             )),
             CompiledContractClass::V0(contract_class_v0) => Ok(ContractClass::V0(
                 ContractClassV0::try_from(contract_class_v0).map_err(StateError::ProgramError)?,

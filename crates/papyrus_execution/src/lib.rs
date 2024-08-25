@@ -794,7 +794,7 @@ fn to_blockifier_tx(
             only_query,
         ) => {
             let class_v1 = BlockifierContractClass::V1(
-                compiled_class.try_into().map_err(BlockifierError::new)?,
+                (&compiled_class).try_into().map_err(BlockifierError::new)?,
             );
             let class_info =
                 ClassInfo::new(&class_v1, sierra_program_length, abi_length).map_err(|err| {
@@ -821,7 +821,7 @@ fn to_blockifier_tx(
             only_query,
         ) => {
             let class_v1 = BlockifierContractClass::V1(
-                compiled_class.try_into().map_err(BlockifierError::new)?,
+                (&compiled_class).try_into().map_err(BlockifierError::new)?,
             );
             let class_info =
                 ClassInfo::new(&class_v1, sierra_program_length, abi_length).map_err(|err| {
