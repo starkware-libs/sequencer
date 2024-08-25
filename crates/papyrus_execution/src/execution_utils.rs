@@ -67,7 +67,7 @@ pub(crate) fn get_contract_class(
                 return Err(ExecutionUtilsError::CasmTableNotSynced);
             };
             return Ok(Some(BlockifierContractClass::V1(
-                ContractClassV1::try_from(casm).map_err(ExecutionUtilsError::ProgramError)?,
+                ContractClassV1::try_from(&casm).map_err(ExecutionUtilsError::ProgramError)?,
             )));
         }
         None => {}

@@ -85,7 +85,7 @@ impl BlockifierStateReader for ExecutionStateReader {
             .and_then(|pending_data| pending_data.classes.get_compiled_class(class_hash))
         {
             return Ok(BlockifierContractClass::V1(
-                ContractClassV1::try_from(pending_casm).map_err(StateError::ProgramError)?,
+                ContractClassV1::try_from(&pending_casm).map_err(StateError::ProgramError)?,
             ));
         }
         if let Some(ApiContractClass::DeprecatedContractClass(pending_deprecated_class)) = self

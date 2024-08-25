@@ -178,7 +178,7 @@ async fn test_get_compiled_contract_class() {
             .await
             .unwrap()
             .unwrap();
-    assert_eq!(result, ContractClass::V1(expected_result.try_into().unwrap()));
+    assert_eq!(result, ContractClass::V1((&expected_result).try_into().unwrap()));
     mock.assert_async().await;
 }
 
