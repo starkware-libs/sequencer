@@ -596,6 +596,38 @@ fn test_add_tx_filling_hole(mut mempool: Mempool) {
     expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
 }
 
+#[rstest]
+fn test_add_tx_to_pending_queue() {
+    // Setup.
+    let input_tx = add_tx_input!(tx_hash: 0, tx_nonce: 0_u8, account_nonce: 0_u8);
+    let mut mempool = Mempool::default();
+
+    // Test.
+    // High gas price threshold, tx would be added to pending_queue.
+    mempool._update_gas_price_threshold(1000000000000);
+    add_tx(&mut mempool, &input_tx);
+    let txs = mempool.get_txs(1).unwrap();
+
+    // Assert.
+    assert!(txs.is_empty());
+}
+
+#[rstest]
+fn test_add_tx_to_priority_queue() {
+    // Setup.
+    let input_tx = add_tx_input!(tx_hash: 0, tx_nonce: 0_u8, account_nonce: 0_u8);
+    let mut mempool = Mempool::default();
+
+    // Test.
+    // Low gas price threshold, tx would be added to pending_queue.
+    mempool._update_gas_price_threshold(100);
+    add_tx(&mut mempool, &input_tx);
+    let txs = mempool.get_txs(1).unwrap();
+
+    // Assert.
+    assert_eq!(txs, &[input_tx.tx]);
+}
+
 // commit_block tests.
 
 #[rstest]
