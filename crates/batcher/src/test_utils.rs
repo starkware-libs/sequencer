@@ -1,0 +1,21 @@
+use std::ops::Range;
+
+use mempool_test_utils::starknet_api_test_utils::create_executable_tx;
+use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::executable_transaction::Transaction;
+use starknet_api::felt;
+use starknet_api::transaction::{DeprecatedResourceBoundsMapping, Tip, TransactionHash};
+
+pub fn test_txs(tx_hash_range: Range<usize>) -> Vec<Transaction> {
+    tx_hash_range
+        .map(|i| {
+            create_executable_tx(
+                ContractAddress::default(),
+                TransactionHash(felt!(u128::try_from(i).unwrap())),
+                Tip::default(),
+                Nonce::default(),
+                DeprecatedResourceBoundsMapping::default(),
+            )
+        })
+        .collect()
+}
