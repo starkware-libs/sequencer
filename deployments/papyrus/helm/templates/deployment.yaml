@@ -84,7 +84,15 @@ spec:
           - {{ .Values.p2p.nodeConfig.bootstrapServer.multiaddrIsNone | quote }}
           - --network.bootstrap_peer_multiaddr
           - {{ include "p2p.bootstrapPeerMultiaddr" . | quote }}
-          {{- end}}
+          {{- end }}
+          # A python similar condition would have looked like this:
+          # if override_ip or (service_enabled and not bootstrap and (cluster_ip or load_balancer_ip))
+          {{- if or .Values.p2p.nodeConfig.overrideIP (and .Values.p2p.service.enabled (not .Values.p2p.bootstrap) (or .Values.p2p.service.clusterIP .Values.p2p.service.loadBalancerIP)) }}
+          - --network.hardcoded_external_multiaddr.#is_none
+          - "false"
+          - --network.hardcoded_external_multiaddr
+          - {{ include "p2p.nodePeerMultiaddr" . | quote }}
+          {{- end }}
           {{- end }}
           {{ range $key, $value := .Values.deployment.extraArgs }}
           {{- if $value }}
