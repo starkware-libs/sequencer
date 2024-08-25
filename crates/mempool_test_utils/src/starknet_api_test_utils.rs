@@ -14,7 +14,6 @@ use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::{InvokeTransaction, Transaction};
 use starknet_api::rpc_transaction::{
     ContractClass,
-    ResourceBoundsMapping,
     RpcDeclareTransactionV3,
     RpcDeployAccountTransactionV3,
     RpcInvokeTransactionV3,
@@ -22,6 +21,7 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::transaction::{
     AccountDeploymentData,
+    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     DeprecatedResourceBoundsMapping as ExecutableResourceBoundsMapping,
@@ -49,6 +49,8 @@ pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L2_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
+pub const VALID_L1_DATA_GAS_MAX_AMOUNT: u64 = 203484;
+pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 pub const TEST_SENDER_ADDRESS: u128 = 0x1000;
 
 // Utils.
@@ -60,7 +62,7 @@ pub enum TransactionType {
 
 pub fn rpc_tx_for_testing(
     tx_type: TransactionType,
-    resource_bounds: ResourceBoundsMapping,
+    resource_bounds: AllResourceBounds,
     calldata: Calldata,
     signature: TransactionSignature,
 ) -> RpcTransaction {
@@ -96,18 +98,24 @@ pub fn rpc_tx_for_testing(
 pub const NON_EMPTY_RESOURCE_BOUNDS: ResourceBounds =
     ResourceBounds { max_amount: 1, max_price_per_unit: 1 };
 
+// TODO(Nimrod): Delete this function.
 pub fn create_resource_bounds_mapping(
     l1_resource_bounds: ResourceBounds,
     l2_resource_bounds: ResourceBounds,
-) -> ResourceBoundsMapping {
-    ResourceBoundsMapping { l1_gas: l1_resource_bounds, l2_gas: l2_resource_bounds }
+    l1_data_resource_bounds: ResourceBounds,
+) -> AllResourceBounds {
+    AllResourceBounds {
+        l1_gas: l1_resource_bounds,
+        l2_gas: l2_resource_bounds,
+        l1_data_gas: l1_data_resource_bounds,
+    }
 }
 
-pub fn zero_resource_bounds_mapping() -> ResourceBoundsMapping {
-    create_resource_bounds_mapping(ResourceBounds::default(), ResourceBounds::default())
+pub fn zero_resource_bounds_mapping() -> AllResourceBounds {
+    AllResourceBounds::default()
 }
 
-pub fn test_resource_bounds_mapping() -> ResourceBoundsMapping {
+pub fn test_resource_bounds_mapping() -> AllResourceBounds {
     create_resource_bounds_mapping(
         ResourceBounds {
             max_amount: VALID_L1_GAS_MAX_AMOUNT,
@@ -116,6 +124,10 @@ pub fn test_resource_bounds_mapping() -> ResourceBoundsMapping {
         ResourceBounds {
             max_amount: VALID_L2_GAS_MAX_AMOUNT,
             max_price_per_unit: VALID_L2_GAS_MAX_PRICE_PER_UNIT,
+        },
+        ResourceBounds {
+            max_amount: VALID_L1_DATA_GAS_MAX_AMOUNT,
+            max_price_per_unit: VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT,
         },
     )
 }
@@ -369,7 +381,7 @@ pub struct InvokeTxArgs {
     pub sender_address: ContractAddress,
     pub calldata: Calldata,
     pub version: TransactionVersion,
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: AllResourceBounds,
     pub tip: Tip,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
@@ -400,7 +412,7 @@ impl Default for InvokeTxArgs {
 pub struct DeployAccountTxArgs {
     pub signature: TransactionSignature,
     pub version: TransactionVersion,
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: AllResourceBounds,
     pub tip: Tip,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
@@ -434,7 +446,7 @@ pub struct DeclareTxArgs {
     pub signature: TransactionSignature,
     pub sender_address: ContractAddress,
     pub version: TransactionVersion,
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: AllResourceBounds,
     pub tip: Tip,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,

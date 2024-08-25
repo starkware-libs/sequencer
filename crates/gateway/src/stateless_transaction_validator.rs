@@ -1,12 +1,11 @@
 use starknet_api::rpc_transaction::{
-    ResourceBoundsMapping,
     RpcDeclareTransaction,
     RpcDeployAccountTransaction,
     RpcInvokeTransaction,
     RpcTransaction,
 };
 use starknet_api::state::EntryPoint;
-use starknet_api::transaction::Resource;
+use starknet_api::transaction::{AllResourceBounds, Resource};
 use starknet_types_core::felt::Felt;
 use tracing::{instrument, Level};
 
@@ -176,14 +175,10 @@ impl StatelessTransactionValidator {
 }
 
 fn validate_resource_is_non_zero(
-    resource_bounds_mapping: &ResourceBoundsMapping,
+    all_resource_bounds: &AllResourceBounds,
     resource: Resource,
 ) -> StatelessTransactionValidatorResult<()> {
-    let resource_bounds = match resource {
-        Resource::L1Gas => resource_bounds_mapping.l1_gas,
-        Resource::L2Gas => resource_bounds_mapping.l2_gas,
-        Resource::L1DataGas => todo!(),
-    };
+    let resource_bounds = all_resource_bounds.get_bound(resource);
     if resource_bounds.max_amount == 0 || resource_bounds.max_price_per_unit == 0 {
         return Err(StatelessTransactionValidatorError::ZeroResourceBounds {
             resource,
