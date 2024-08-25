@@ -963,6 +963,7 @@ pub enum ValidResourceBounds {
     AllResources(AllResourceBounds),
 }
 
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize)]
 pub struct AllResourceBounds {
     pub l1_gas: ResourceBounds,
     pub l2_gas: ResourceBounds,
@@ -970,8 +971,7 @@ pub struct AllResourceBounds {
 }
 
 impl AllResourceBounds {
-    #[allow(dead_code)]
-    fn get_bound(&self, resource: Resource) -> ResourceBounds {
+    pub fn get_bound(&self, resource: Resource) -> ResourceBounds {
         match resource {
             Resource::L1Gas => self.l1_gas,
             Resource::L2Gas => self.l2_gas,

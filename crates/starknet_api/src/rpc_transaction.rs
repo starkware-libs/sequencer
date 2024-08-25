@@ -18,11 +18,11 @@ use crate::data_availability::DataAvailabilityMode;
 use crate::state::EntryPoint;
 use crate::transaction::{
     AccountDeploymentData,
+    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     PaymasterData,
     Resource,
-    ResourceBounds,
     Tip,
     TransactionSignature,
 };
@@ -63,7 +63,7 @@ macro_rules! implement_ref_getters {
 impl RpcTransaction {
     implement_ref_getters!(
         (nonce, Nonce),
-        (resource_bounds, ResourceBoundsMapping),
+        (resource_bounds, AllResourceBounds),
         (signature, TransactionSignature),
         (tip, Tip)
     );
@@ -135,7 +135,7 @@ pub struct RpcDeclareTransactionV3 {
     pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub contract_class: ContractClass,
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: AllResourceBounds,
     pub tip: Tip,
     pub paymaster_data: PaymasterData,
     pub account_deployment_data: AccountDeploymentData,
@@ -151,7 +151,7 @@ pub struct RpcDeployAccountTransactionV3 {
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
     pub constructor_calldata: Calldata,
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: AllResourceBounds,
     pub tip: Tip,
     pub paymaster_data: PaymasterData,
     pub nonce_data_availability_mode: DataAvailabilityMode,
@@ -165,7 +165,7 @@ pub struct RpcInvokeTransactionV3 {
     pub calldata: Calldata,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: AllResourceBounds,
     pub tip: Tip,
     pub paymaster_data: PaymasterData,
     pub account_deployment_data: AccountDeploymentData,
@@ -192,17 +192,16 @@ pub struct EntryPointByType {
     pub l1handler: Vec<EntryPoint>,
 }
 
-// The serialization of the struct in transaction is in capital letters, not following the spec.
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct ResourceBoundsMapping {
-    pub l1_gas: ResourceBounds,
-    pub l2_gas: ResourceBounds,
-}
-
-impl From<ResourceBoundsMapping> for crate::transaction::DeprecatedResourceBoundsMapping {
-    fn from(mapping: ResourceBoundsMapping) -> crate::transaction::DeprecatedResourceBoundsMapping {
-        let map =
-            BTreeMap::from([(Resource::L1Gas, mapping.l1_gas), (Resource::L2Gas, mapping.l2_gas)]);
+// TODO(Nimrod): Remove this conversion.
+impl From<AllResourceBounds> for crate::transaction::DeprecatedResourceBoundsMapping {
+    fn from(
+        all_resource_bounds: AllResourceBounds,
+    ) -> crate::transaction::DeprecatedResourceBoundsMapping {
+        let map = BTreeMap::from([
+            (Resource::L1Gas, all_resource_bounds.l1_gas),
+            (Resource::L2Gas, all_resource_bounds.l2_gas),
+            (Resource::L1DataGas, all_resource_bounds.l1_data_gas),
+        ]);
         crate::transaction::DeprecatedResourceBoundsMapping(map)
     }
 }
