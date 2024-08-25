@@ -598,6 +598,46 @@ fn test_add_tx_filling_hole(mut mempool: Mempool) {
     expected_mempool_content.assert_eq_mempool_content(&mempool);
 }
 
+#[rstest]
+fn test_add_duplicated_tx_with_high_gas_price_threshold() {
+    // Setup.
+    let input_tx = add_tx_input!(tx_hash: 0, tx_nonce: 0_u8, account_nonce: 0_u8);
+
+    let pool_txs = [input_tx.tx.clone()];
+    let queue_txs = [TransactionReference::new(&input_tx.tx)];
+    let mut mempool: Mempool = MempoolContent::new(pool_txs, queue_txs).into();
+
+    // Test.
+    // High gas price threshold, , tx is in pending_queue.
+    mempool.update_gas_price_threshold(1000000000000);
+
+    add_tx_expect_error(
+        &mut mempool,
+        &input_tx,
+        MempoolError::DuplicateTransaction { tx_hash: input_tx.tx.tx_hash() },
+    );
+}
+
+#[rstest]
+fn test_add_duplicated_tx_with_low_gas_price_threshold() {
+    // Setup.
+    let input_tx = add_tx_input!(tx_hash: 0, tx_nonce: 0_u8, account_nonce: 0_u8);
+
+    let pool_txs = [input_tx.tx.clone()];
+    let queue_txs = [TransactionReference::new(&input_tx.tx)];
+    let mut mempool: Mempool = MempoolContent::new(pool_txs, queue_txs).into();
+
+    // Test.
+    // Low gas price threshold, tx is in priority_queue.
+    mempool.update_gas_price_threshold(100);
+
+    add_tx_expect_error(
+        &mut mempool,
+        &input_tx,
+        MempoolError::DuplicateTransaction { tx_hash: input_tx.tx.tx_hash() },
+    );
+}
+
 // commit_block tests.
 
 #[rstest]
