@@ -48,6 +48,8 @@ pub(crate) struct SingleHeightConsensus<BlockT: ConsensusBlock> {
     proposals: HashMap<Round, Option<BlockT>>,
     prevotes: HashMap<(Round, ValidatorId), Vote>,
     precommits: HashMap<(Round, ValidatorId), Vote>,
+    last_prevote: Option<Vote>,
+    last_precommit: Option<Vote>,
 }
 
 impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
@@ -68,6 +70,8 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
             proposals: HashMap::new(),
             prevotes: HashMap::new(),
             precommits: HashMap::new(),
+            last_prevote: None,
+            last_precommit: None,
         }
     }
 
@@ -187,6 +191,34 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
                 let sm_events = self.state_machine.handle_event(task.event, &leader_fn);
                 self.handle_state_machine_events(context, sm_events).await
             }
+            StateMachineEvent::Prevote(block_hash, round) => {
+                let mut ret_val = vec![];
+                if let Some(vote) = &self.last_prevote {
+                    if block_hash != vote.block_hash || round != vote.round {
+                        return Ok(ShcReturn::Tasks(ret_val));
+                    }
+                    context.broadcast(ConsensusMessage::Vote(vote.clone())).await?;
+                    ret_val.push(ShcTask {
+                        duration: self.timeouts.prevote_timeout,
+                        event: StateMachineEvent::Prevote(block_hash, round),
+                    });
+                }
+                Ok(ShcReturn::Tasks(ret_val))
+            }
+            StateMachineEvent::Precommit(block_hash, round) => {
+                let mut ret_val = vec![];
+                if let Some(vote) = &self.last_precommit {
+                    if block_hash != vote.block_hash || round != vote.round {
+                        return Ok(ShcReturn::Tasks(ret_val));
+                    }
+                    context.broadcast(ConsensusMessage::Vote(vote.clone())).await?;
+                    ret_val.push(ShcTask {
+                        duration: self.timeouts.precommit_timeout,
+                        event: StateMachineEvent::Precommit(block_hash, round),
+                    });
+                }
+                Ok(ShcReturn::Tasks(ret_val))
+            }
             _ => unimplemented!("Unexpected task: {:?}", task),
         }
     }
@@ -263,12 +295,26 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
                     return self.handle_state_machine_decision(block_hash, round).await;
                 }
                 StateMachineEvent::Prevote(block_hash, round) => {
-                    self.handle_state_machine_vote(context, block_hash, round, VoteType::Prevote)
-                        .await?;
+                    ret_val.extend(
+                        self.handle_state_machine_vote(
+                            context,
+                            block_hash,
+                            round,
+                            VoteType::Prevote,
+                        )
+                        .await?,
+                    );
                 }
                 StateMachineEvent::Precommit(block_hash, round) => {
-                    self.handle_state_machine_vote(context, block_hash, round, VoteType::Precommit)
-                        .await?;
+                    ret_val.extend(
+                        self.handle_state_machine_vote(
+                            context,
+                            block_hash,
+                            round,
+                            VoteType::Precommit,
+                        )
+                        .await?,
+                    );
                 }
                 StateMachineEvent::TimeoutPropose(_) => {
                     ret_val.push(ShcTask { duration: self.timeouts.proposal_timeout, event });
@@ -326,18 +372,33 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         block_hash: Option<BlockHash>,
         round: Round,
         vote_type: VoteType,
-    ) -> Result<ShcReturn<BlockT>, ConsensusError> {
-        let votes = match vote_type {
-            VoteType::Prevote => &mut self.prevotes,
-            VoteType::Precommit => &mut self.precommits,
+    ) -> Result<Vec<ShcTask>, ConsensusError> {
+        let (votes, last_vote, duration, event) = match vote_type {
+            VoteType::Prevote => (
+                &mut self.prevotes,
+                &mut self.last_prevote,
+                self.timeouts.prevote_timeout,
+                StateMachineEvent::Prevote(block_hash, round),
+            ),
+            VoteType::Precommit => (
+                &mut self.precommits,
+                &mut self.last_precommit,
+                self.timeouts.precommit_timeout,
+                StateMachineEvent::Precommit(block_hash, round),
+            ),
         };
         let vote = Vote { vote_type, height: self.height.0, round, block_hash, voter: self.id };
         if let Some(old) = votes.insert((round, self.id), vote.clone()) {
             // TODO(matan): Consider refactoring not to panic, rather log and return the error.
             panic!("State machine should not send repeat votes: old={:?}, new={:?}", old, vote);
         }
+        let mut ret_val = vec![];
+        if last_vote.as_ref().map_or(true, |last| last.round < round) {
+            *last_vote = Some(vote.clone());
+            ret_val.push(ShcTask { duration, event });
+        }
         context.broadcast(ConsensusMessage::Vote(vote)).await?;
-        Ok(ShcReturn::Tasks(vec![]))
+        Ok(ret_val)
     }
 
     #[instrument(skip_all)]
