@@ -1,6 +1,7 @@
-use std::path::Path;
+use std::fs;
 use std::process::Command;
-use std::{env, fs};
+
+include!("src/build_utils.rs");
 
 fn main() {
     println!("cargo:rerun-if-changed=../../Cargo.lock");
@@ -14,12 +15,7 @@ fn main() {
 /// compile Sierra to Casm. In this crate (`starknet_sierra_compile`), the binary is executed as a
 /// subprocess whenever Sierra compilation is required.
 fn download_cairo() {
-    let out_dir = env::var("OUT_DIR").expect("Failed to get the OUT_DIR environment variable");
-    // Navigate from this crate's build folder to reach the `target/BUILD_FLAVOR` directory.
-    let target_dir = Path::new(&out_dir)
-        .ancestors()
-        .nth(3)
-        .expect("Failed to navigate up three levels from OUT_DIR");
+    let target_dir = get_traget_build_flavor_dir();
     let cairo_folder_dir = target_dir.join("cairo");
 
     if cairo_folder_dir.exists() {
