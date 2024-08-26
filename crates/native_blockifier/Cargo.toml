@@ -1,6 +1,6 @@
 [package]
 name = "native_blockifier"
-version = "0.8.0-rc.0"
+version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
