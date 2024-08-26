@@ -74,7 +74,11 @@ impl Mempool {
     /// TODO: check Account nonce and balance.
     pub fn add_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
         self.validate_input(&input)?;
-        self.insert_tx(input)
+        let MempoolInput { tx, account: Account { sender_address, state: AccountState { nonce } } } =
+            input;
+        self.tx_pool.insert(tx)?;
+        self.align_to_account_state(sender_address, nonce);
+        Ok(())
     }
 
     /// Update the mempool's internal state according to the committed block (resolves nonce gaps,
@@ -107,16 +111,6 @@ impl Mempool {
     // TODO(Mohammad): Rename this method once consensus API is added.
     fn _update_gas_price_threshold(&mut self, threshold: u128) {
         self.tx_queue._update_gas_price_threshold(threshold);
-    }
-
-    fn insert_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
-        let MempoolInput { tx, account: Account { sender_address, state: AccountState { nonce } } } =
-            input;
-
-        self.tx_pool.insert(tx)?;
-        self.align_to_account_state(sender_address, nonce);
-
-        Ok(())
     }
 
     fn validate_input(&self, input: &MempoolInput) -> MempoolResult<()> {
