@@ -25,7 +25,7 @@ use crate::fee::fee_utils::{
     get_sequencer_balance_keys,
     verify_can_pay_committed_bounds,
 };
-use crate::fee::gas_usage::{compute_discounted_gas_from_gas_vector, estimate_minimal_gas_vector};
+use crate::fee::gas_usage::{compute_discounted_gas_from_tx_context, estimate_minimal_gas_vector};
 use crate::retdata;
 use crate::state::cached_state::{StateChanges, TransactionalState};
 use crate::state::state_api::{State, StateReader, UpdatableState};
@@ -233,7 +233,7 @@ impl AccountTransaction {
             estimate_minimal_gas_vector(&tx_context.block_context, self)?;
         // TODO(Aner, 30/01/24): modify once data gas limit is enforced.
         let minimal_l1_gas_amount =
-            compute_discounted_gas_from_gas_vector(&minimal_l1_gas_amount_vector, tx_context);
+            compute_discounted_gas_from_tx_context(&minimal_l1_gas_amount_vector, tx_context);
 
         let TransactionContext { block_context, tx_info } = tx_context;
         let block_info = &block_context.block_info;
