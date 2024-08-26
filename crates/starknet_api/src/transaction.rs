@@ -955,6 +955,22 @@ impl ValidResourceBounds {
             Self::AllResources(AllResourceBounds { l2_gas, .. }) => *l2_gas,
         }
     }
+
+    /// Returns whether there is a resource the user can pay for.
+    pub fn willing_to_pay(&self) -> bool {
+        match self {
+            Self::L1Gas(l1_bounds) => {
+                l1_bounds.max_price_per_unit * u128::from(l1_bounds.max_amount) > 0
+            }
+            Self::AllResources(AllResourceBounds { l1_gas, l2_gas, l1_data_gas }) => {
+                let can_pay_l1_gas = l1_gas.max_price_per_unit * u128::from(l1_gas.max_amount) > 0;
+                let can_pay_l2_gas = l2_gas.max_price_per_unit * u128::from(l2_gas.max_amount) > 0;
+                let can_pay_l1_data_gas =
+                    l1_data_gas.max_price_per_unit * u128::from(l1_data_gas.max_amount) > 0;
+                can_pay_l1_gas || can_pay_l2_gas || can_pay_l1_data_gas
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize)]
