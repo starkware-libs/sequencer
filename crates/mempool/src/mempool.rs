@@ -70,7 +70,12 @@ impl Mempool {
     /// TODO: check Account nonce and balance.
     pub fn add_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
         self.validate_input(&input)?;
-        self.insert_tx(input)
+        let MempoolInput { tx, account: Account { sender_address, state: AccountState { nonce } } } =
+            input;
+        self.tx_pool.insert(tx)?;
+        self.align_to_account_state(sender_address, nonce);
+
+        Ok(())
     }
 
     /// Update the mempool's internal state according to the committed block (resolves nonce gaps,
@@ -96,16 +101,6 @@ impl Mempool {
         }
 
         self.mempool_state.clear();
-
-        Ok(())
-    }
-
-    fn insert_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
-        let MempoolInput { tx, account: Account { sender_address, state: AccountState { nonce } } } =
-            input;
-
-        self.tx_pool.insert(tx)?;
-        self.align_to_account_state(sender_address, nonce);
 
         Ok(())
     }
