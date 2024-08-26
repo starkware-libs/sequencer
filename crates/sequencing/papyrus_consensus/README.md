@@ -7,16 +7,12 @@ This crate is still under development and is not keeping backwards compatibility
 versions. Breaking changes are expected to happen in the near future.
 
 ## How to run
+* To view all consensus flags, run `cargo run --package papyrus_node --bin papyrus_node -- --help`. All consensus flags are prefixed with consensus.
 1. You must turn consensus on and provide a validator ID by passing: `--consensus.#is_none false --consensus.validator_id 0x<UNIQUE>`
-2. Start by running any nodes which are validators for `consensus.start_height` which is by default 0 to avoid them missing the proposal.
-   1. You can change the default number of validators by passing: `--consensus.num_validators <NUM_VALIDATORS>` 
-   2. You can change the default topic by passing: `--consensus.topic "TOPIC"`
-   3. You can test the consensus under simulated network conditions, by passing: `--consensus.test.#is_none false`
-      1. Optional arguments:
-         `--consensus.test.cache_size <CACHE_SIZE>`
-         `--consensus.test.random_seed <RANDOM_SEED>`
-         `--consensus.test.drop_probability 0` (set to 0 for now)
-         `--consensus.test.invalid_probability <INVALID_PROBABILITY>` (0 to 1)
+    1. By default the nodes expect 4 validators, with IDs: 0-3.
+2. Start by running any nodes which are validators for `consensus.start_height` (default 0) to avoid them missing the proposal.
+3. You can test the consensus under simulated network conditions, by passing: `--consensus.test.#is_none false`
+* Other configurations, such as the number of validators, network topics, timeouts, and testing options, can be customized using the relevant consensus flags. For more details, refer to the flag descriptions by running the command above.
 
 #### Bootstrap Node
 This must be run first:
