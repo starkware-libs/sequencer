@@ -22,12 +22,14 @@ use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
 use crate::abi::constants as abi_constants;
-use crate::blockifier::block::BlockInfo;
+use crate::blockifier::block::{BlockInfo, GasPrices};
 use crate::execution::call_info::{CallInfo, ExecutionSummary, MessageL1CostInfo, OrderedEvent};
 use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::eth_gas_constants;
+use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::{calculate_l1_gas_by_vm_usage, get_fee_by_gas_vector};
 use crate::fee::gas_usage::{
+    compute_discounted_gas,
     get_consumed_message_to_l2_emissions_cost,
     get_da_gas_cost,
     get_log_message_to_l1_emissions_cost,
@@ -102,11 +104,7 @@ impl TransactionInfo {
 
     pub fn enforce_fee(&self) -> bool {
         match self {
-            TransactionInfo::Current(context) => {
-                let l1_bounds = context.l1_resource_bounds();
-                let max_amount: u128 = l1_bounds.max_amount.into();
-                max_amount * l1_bounds.max_price_per_unit > 0
-            }
+            TransactionInfo::Current(context) => context.resource_bounds.willing_to_pay(),
             TransactionInfo::Deprecated(context) => context.max_fee != Fee(0),
         }
     }
@@ -135,13 +133,11 @@ pub struct CurrentTransactionInfo {
 
 impl CurrentTransactionInfo {
     /// Fetch the L1 resource bounds, if they exist.
-    // TODO(Nimrod): Consider removing this function and add equivalent method to
-    // `ValidResourceBounds`.
+    // TODO(Nimrod): Delete this function once:
+    // 1. L2 gas price exists in block info.
+    // 2. tx resources can be calculated with l2 prices.
     pub fn l1_resource_bounds(&self) -> ResourceBounds {
-        match self.resource_bounds {
-            ValidResourceBounds::L1Gas(bounds) => bounds,
-            ValidResourceBounds::AllResources(AllResourceBounds { l1_gas, .. }) => l1_gas,
-        }
+        self.resource_bounds.get_l1_bounds()
     }
 }
 
@@ -158,6 +154,23 @@ pub struct GasVector {
     pub l1_gas: u128,
     pub l1_data_gas: u128,
     pub l2_gas: u128,
+}
+
+impl From<&ValidResourceBounds> for GasVector {
+    fn from(resource_bounds: &ValidResourceBounds) -> Self {
+        match resource_bounds {
+            ValidResourceBounds::L1Gas(l1_bounds) => Self::from_l1_gas(l1_bounds.max_amount.into()),
+            ValidResourceBounds::AllResources(AllResourceBounds {
+                l1_gas,
+                l2_gas,
+                l1_data_gas,
+            }) => Self {
+                l1_gas: l1_gas.max_amount.into(),
+                l1_data_gas: l1_data_gas.max_amount.into(),
+                l2_gas: l2_gas.max_amount.into(),
+            },
+        }
+    }
 }
 
 impl GasVector {
@@ -566,4 +579,66 @@ pub enum FeeType {
 
 pub trait TransactionInfoCreator {
     fn create_tx_info(&self) -> TransactionInfo;
+}
+
+type FeeCheckResult<T> = Result<T, FeeCheckError>;
+// Better name for the trait?
+pub trait BoundsChecker {
+    /// Checks whether the given gas vector can be covered by the resource bounds.
+    /// Returns Ok if it can, otherwise returns an error indicates why it can't.
+    fn can_cover(
+        &self,
+        gas_vector: &GasVector,
+        fee_type: &FeeType,
+        gas_prices: &GasPrices,
+    ) -> FeeCheckResult<()>;
+}
+
+impl BoundsChecker for ValidResourceBounds {
+    fn can_cover(
+        &self,
+        gas_vector: &GasVector,
+        fee_type: &FeeType,
+        gas_prices: &GasPrices,
+    ) -> FeeCheckResult<()> {
+        match self {
+            ValidResourceBounds::L1Gas(l1_bounds) => {
+                let max_l1_gas = l1_bounds.max_amount.into();
+                let total_discounted_gas_used =
+                    compute_discounted_gas(gas_vector, fee_type, gas_prices);
+                if total_discounted_gas_used > max_l1_gas {
+                    return Err(FeeCheckError::MaxL1GasAmountExceeded {
+                        max_amount: max_l1_gas,
+                        actual_amount: total_discounted_gas_used,
+                    });
+                }
+            }
+            ValidResourceBounds::AllResources(AllResourceBounds {
+                l1_gas,
+                l2_gas,
+                l1_data_gas,
+            }) => {
+                // Does the order matter?
+                if gas_vector.l1_gas > l1_gas.max_amount.into() {
+                    return Err(FeeCheckError::MaxL2GasAmountExceeded {
+                        max_amount: l1_gas.max_amount.into(),
+                        actual_amount: gas_vector.l1_gas,
+                    });
+                }
+                if gas_vector.l2_gas > l2_gas.max_amount.into() {
+                    return Err(FeeCheckError::MaxL2GasAmountExceeded {
+                        max_amount: l2_gas.max_amount.into(),
+                        actual_amount: gas_vector.l2_gas,
+                    });
+                }
+                if gas_vector.l1_data_gas > l1_data_gas.max_amount.into() {
+                    return Err(FeeCheckError::MaxL1DataGasAmountExceeded {
+                        max_amount: l1_data_gas.max_amount.into(),
+                        actual_amount: gas_vector.l1_data_gas,
+                    });
+                }
+            }
+        }
+        Ok(())
+    }
 }

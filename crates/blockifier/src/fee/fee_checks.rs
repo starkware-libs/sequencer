@@ -5,12 +5,12 @@ use thiserror::Error;
 use crate::context::TransactionContext;
 use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::fee_utils::{get_balance_and_if_covers_fee, get_fee_by_gas_vector};
-use crate::fee::gas_usage::compute_discounted_gas_from_gas_vector;
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{
+    BoundsChecker,
     FeeType,
-    GasVector,
+    HasRelatedFeeType,
     TransactionExecutionResult,
     TransactionInfo,
 };
@@ -19,6 +19,12 @@ use crate::transaction::objects::{
 pub enum FeeCheckError {
     #[error("Insufficient max L1 gas: max amount: {max_amount}, actual used: {actual_amount}.")]
     MaxL1GasAmountExceeded { max_amount: u128, actual_amount: u128 },
+    #[error("Insufficient max L2 gas: max amount: {max_amount}, actual used: {actual_amount}.")]
+    MaxL2GasAmountExceeded { max_amount: u128, actual_amount: u128 },
+    #[error(
+        "Insufficient max L1 data gas: max amount: {max_amount}, actual used: {actual_amount}."
+    )]
+    MaxL1DataGasAmountExceeded { max_amount: u128, actual_amount: u128 },
     #[error("Insufficient max fee: max fee: {}, actual fee: {}.", max_fee.0, actual_fee.0)]
     MaxFeeExceeded { max_fee: Fee, actual_fee: Fee },
     #[error(
@@ -71,16 +77,17 @@ impl FeeCheckReport {
             // If the error is resource overdraft, the recommended fee is the resource bounds.
             // If the transaction passed pre-validation checks (i.e. balance initially covered the
             // resource bounds), the sender should be able to pay this fee.
-            FeeCheckError::MaxFeeExceeded { .. } | FeeCheckError::MaxL1GasAmountExceeded { .. } => {
-                match &tx_context.tx_info {
-                    TransactionInfo::Current(info) => get_fee_by_gas_vector(
-                        &tx_context.block_context.block_info,
-                        GasVector::from_l1_gas(info.l1_resource_bounds().max_amount.into()),
-                        &FeeType::Strk,
-                    ),
-                    TransactionInfo::Deprecated(context) => context.max_fee,
-                }
-            }
+            FeeCheckError::MaxFeeExceeded { .. }
+            | FeeCheckError::MaxL1GasAmountExceeded { .. }
+            | FeeCheckError::MaxL2GasAmountExceeded { .. }
+            | FeeCheckError::MaxL1DataGasAmountExceeded { .. } => match &tx_context.tx_info {
+                TransactionInfo::Current(info) => get_fee_by_gas_vector(
+                    &tx_context.block_context.block_info,
+                    (&info.resource_bounds).into(),
+                    &FeeType::Strk,
+                ),
+                TransactionInfo::Deprecated(context) => context.max_fee,
+            },
         };
         Self { recommended_fee, error: Some(error) }
     }
@@ -98,23 +105,11 @@ impl FeeCheckReport {
         // sender.
         // TODO(Aner, 21/01/24) modify for 4844 (include check for blob_gas).
         match tx_info {
-            TransactionInfo::Current(context) => {
-                // Check L1 gas limit.
-                let max_l1_gas = context.l1_resource_bounds().max_amount.into();
-
-                // TODO(Dori, 1/7/2024): When data gas limit is added (and enforced) in resource
-                //   bounds, check it here as well (separately, with a different error variant if
-                //   limit exceeded).
-                let total_discounted_gas_used =
-                    compute_discounted_gas_from_gas_vector(gas, tx_context);
-
-                if total_discounted_gas_used > max_l1_gas {
-                    return Err(FeeCheckError::MaxL1GasAmountExceeded {
-                        max_amount: max_l1_gas,
-                        actual_amount: total_discounted_gas_used,
-                    })?;
-                }
-            }
+            TransactionInfo::Current(context) => context.resource_bounds.can_cover(
+                gas,
+                &tx_context.tx_info.fee_type(),
+                &tx_context.block_context.block_info.gas_prices,
+            )?,
             TransactionInfo::Deprecated(context) => {
                 // Check max fee.
                 let max_fee = context.max_fee;
