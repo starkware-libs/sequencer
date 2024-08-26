@@ -131,17 +131,26 @@ async fn event_query_positive_flow() {
 
 #[tokio::test]
 async fn class_query_positive_flow() {
-    let assert_class = |data: Vec<ApiContractClass>| {
+    let assert_class = |data: Vec<(ApiContractClass, ClassHash)>| {
         // create_random_state_diff creates a state diff with 1 declared class
         // and 1 deprecated declared class
-        assert_eq!(data.len(), CLASSES.len() + DEPRECATED_CLASSES.len());
+        assert_eq!(data.len(), CLASSES_WITH_HASHES.len() + DEPRECATED_CLASSES_WITH_HASHES.len());
         for (i, data) in data.iter().enumerate() {
             match data {
-                ApiContractClass::ContractClass(contract_class) => {
-                    assert_eq!(contract_class, &CLASSES[i / 2]);
+                (ApiContractClass::ContractClass(contract_class), class_hash) => {
+                    let (expected_class_hash, expected_contract_class) =
+                        &CLASSES_WITH_HASHES[i / 2][0];
+                    assert_eq!(contract_class, expected_contract_class);
+                    assert_eq!(class_hash, expected_class_hash);
                 }
-                ApiContractClass::DeprecatedContractClass(deprecated_contract_class) => {
-                    assert_eq!(deprecated_contract_class, &DEPRECATED_CLASSES[i / 2])
+                (
+                    ApiContractClass::DeprecatedContractClass(deprecated_contract_class),
+                    class_hash,
+                ) => {
+                    let (expected_class_hash, expected_contract_class) =
+                        &DEPRECATED_CLASSES_WITH_HASHES[i / 2][0];
+                    assert_eq!(deprecated_contract_class, expected_contract_class);
+                    assert_eq!(class_hash, expected_class_hash);
                 }
             }
         }
@@ -260,23 +269,27 @@ async fn event_query_some_blocks_are_missing() {
 
 #[tokio::test]
 async fn class_query_some_blocks_are_missing() {
-    let assert_class = |data: Vec<ApiContractClass>| {
+    let assert_class = |data: Vec<(ApiContractClass, ClassHash)>| {
         // create_random_state_diff creates a state diff with 1 declared class
         // and 1 deprecated declared class
         assert_eq!(data.len(), BLOCKS_DELTA as usize * 2);
         for (i, data) in data.iter().enumerate() {
             match data {
-                ApiContractClass::ContractClass(contract_class) => {
-                    assert_eq!(
-                        contract_class,
-                        &CLASSES[i / 2 + (NUM_OF_BLOCKS - BLOCKS_DELTA) as usize]
-                    );
+                (ApiContractClass::ContractClass(contract_class), class_hash) => {
+                    let (expected_class_hash, expected_contract_class) =
+                        &CLASSES_WITH_HASHES[i / 2 + (NUM_OF_BLOCKS - BLOCKS_DELTA) as usize][0];
+                    assert_eq!(contract_class, expected_contract_class);
+                    assert_eq!(class_hash, expected_class_hash);
                 }
-                ApiContractClass::DeprecatedContractClass(deprecated_contract_class) => {
-                    assert_eq!(
-                        deprecated_contract_class,
-                        &DEPRECATED_CLASSES[i / 2 + (NUM_OF_BLOCKS - BLOCKS_DELTA) as usize]
-                    )
+                (
+                    ApiContractClass::DeprecatedContractClass(deprecated_contract_class),
+                    class_hash,
+                ) => {
+                    let (expected_class_hash, expected_contract_class) =
+                        &DEPRECATED_CLASSES_WITH_HASHES
+                            [i / 2 + (NUM_OF_BLOCKS - BLOCKS_DELTA) as usize][0];
+                    assert_eq!(deprecated_contract_class, expected_contract_class);
+                    assert_eq!(class_hash, expected_class_hash);
                 }
             }
         }
@@ -363,7 +376,8 @@ pub struct TestArgs {
     pub state_diff_sender: Sender<ServerQueryManager<StateDiffQuery, DataOrFin<StateDiffChunk>>>,
     pub transaction_sender:
         Sender<ServerQueryManager<TransactionQuery, DataOrFin<FullTransaction>>>,
-    pub class_sender: Sender<ServerQueryManager<ClassQuery, DataOrFin<ApiContractClass>>>,
+    pub class_sender:
+        Sender<ServerQueryManager<ClassQuery, DataOrFin<(ApiContractClass, ClassHash)>>>,
     pub event_sender: Sender<ServerQueryManager<EventQuery, DataOrFin<(Event, TransactionHash)>>>,
 }
 
@@ -405,7 +419,15 @@ fn insert_to_storage_test_blocks_up_to(storage_writer: &mut StorageWriter) {
             block_number: BlockNumber(i),
             block_hash: BlockHash(random::<u64>().into()),
             ..Default::default()
-        };
+        };  
+        let classes_with_hashes = CLASSES_WITH_HASHES[i_usize]
+            .iter()
+            .map(|(class_hash, contract_class)| (*class_hash, contract_class))
+            .collect::<Vec<_>>();
+        let deprecated_classes_with_hashes = DEPRECATED_CLASSES_WITH_HASHES[i_usize]
+            .iter()
+            .map(|(class_hash, contract_class)| (*class_hash, contract_class))
+            .collect::<Vec<_>>();
         storage_writer
             .begin_rw_txn()
             .unwrap()
@@ -420,7 +442,8 @@ fn insert_to_storage_test_blocks_up_to(storage_writer: &mut StorageWriter) {
             .append_body(BlockNumber(i), BlockBody{transactions: TXS[i_usize].clone(),
                 transaction_outputs: TX_OUTPUTS[i_usize].clone(),
                 transaction_hashes: TX_HASHES[i_usize].clone(),}).unwrap()
-            .append_classes(BlockNumber(i), &CLASSES_WITH_HASHES[i_usize], &DEPRECATED_CLASSES_WITH_HASHES[i_usize])
+            .append_classes(BlockNumber(i), &classes_with_hashes, 
+            &deprecated_classes_with_hashes)
             .unwrap()
             .commit()
             .unwrap();
@@ -455,41 +478,32 @@ lazy_static! {
         .into_iter()
         .flat_map(|tx_output| tx_output.into_iter().flat_map(|output| output.events().to_vec()))
         .collect();
-    static ref CLASSES: Vec<ContractClass> = {
-        (0..NUM_OF_BLOCKS)
-            .map(|_| ContractClass::get_test_instance(&mut get_rng()))
-            .collect::<Vec<_>>()
-    };
-    static ref CLASSES_WITH_HASHES: Vec<Vec<(ClassHash, &'static ContractClass)>> = {
+    static ref CLASSES_WITH_HASHES: Vec<Vec<(ClassHash, ContractClass)>> = {
         THIN_STATE_DIFFS
             .iter()
-            .enumerate()
-            .map(|(i, state_diff)| {
-                let contract_class = &CLASSES[i];
+            .map(|state_diff| {
                 let class_vec = state_diff
                     .declared_classes
                     .iter()
-                    .map(|(class_hash, _)| (*class_hash, contract_class))
+                    .map(|(class_hash, _)| {
+                        (*class_hash, ContractClass::get_test_instance(&mut get_rng()))
+                    })
                     .collect::<Vec<_>>();
                 class_vec
             })
             .collect::<Vec<_>>()
     };
-    static ref DEPRECATED_CLASSES: Vec<DeprecatedContractClass> = {
-        (0..NUM_OF_BLOCKS)
-            .map(|_| DeprecatedContractClass::get_test_instance(&mut get_rng()))
-            .collect::<Vec<_>>()
-    };
-    static ref DEPRECATED_CLASSES_WITH_HASHES: Vec<Vec<(ClassHash, &'static DeprecatedContractClass)>> = {
+    static ref DEPRECATED_CLASSES_WITH_HASHES: Vec<Vec<(ClassHash, DeprecatedContractClass)>> = {
         THIN_STATE_DIFFS
             .iter()
-            .enumerate()
-            .map(|(i, state_diff)| {
+            .map(|state_diff| {
                 let deprecated_declared_classes_hashes =
                     state_diff.deprecated_declared_classes.clone();
                 deprecated_declared_classes_hashes
                     .iter()
-                    .map(|class_hash| (*class_hash, &DEPRECATED_CLASSES[i]))
+                    .map(|class_hash| {
+                        (*class_hash, DeprecatedContractClass::get_test_instance(&mut get_rng()))
+                    })
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>()
