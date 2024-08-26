@@ -10,13 +10,19 @@ versions. Breaking changes are expected to happen in the near future.
 1. You must turn consensus on and provide a validator ID by passing: `--consensus.#is_none false --consensus.validator_id 0x<UNIQUE>`
 2. Start by running any nodes which are validators for `consensus.start_height` which is by default 0 to avoid them missing the proposal.
    1. You can change the default number of validators by passing: `--consensus.num_validators <NUM_VALIDATORS>` 
-   2. You can change the default topic by passing: `--consensus.topic "TOPIC"`
-   3. You can test the consensus under simulated network conditions, by passing: `--consensus.test.#is_none false`
+   2. You can change the default topic by passing: `--consensus.network_topic "TOPIC"`
+   3. You can change the default timeouts for consensus messages by passing:
+      `consensus.timeouts.precommit_timeout <FLOAT_SEC>`
+      `consensus.timeouts.prevote_timeout <FLOAT_SEC>`
+      `consensus.timeouts.proposal_timeout <FLOAT_SEC>`
+   4. You can test the consensus under simulated network conditions, by passing: `--consensus.test.#is_none false`
       1. Optional arguments:
          `--consensus.test.cache_size <CACHE_SIZE>`
          `--consensus.test.random_seed <RANDOM_SEED>`
-         `--consensus.test.drop_probability 0` (set to 0 for now)
+         `--consensus.test.drop_probability <DROP_PROBABILITY` (0 to 1)
          `--consensus.test.invalid_probability <INVALID_PROBABILITY>` (0 to 1)
+         `--consensus.test.sync_topic "SYNC_TOPIC"`
+
 
 #### Bootstrap Node
 This must be run first:
