@@ -82,17 +82,20 @@ fn test_stateful_tx_validator(
     #[case] expected_result: BlockifierStatefulValidatorResult<ValidateInfo>,
     stateful_validator: StatefulTransactionValidator,
 ) {
-    let optional_class_info = match &external_tx {
-        RpcTransaction::Declare(declare_tx) => Some(
-            ClassInfo::try_from(
-                GatewayCompiler::new_cairo_lang_compiler(SierraToCasmCompilationConfig::default())
+    let optional_class_info =
+        match &external_tx {
+            RpcTransaction::Declare(declare_tx) => Some(
+                ClassInfo::try_from(
+                    GatewayCompiler::new_command_line_compiler(
+                        SierraToCasmCompilationConfig::default(),
+                    )
                     .process_declare_tx(declare_tx)
                     .unwrap(),
-            )
-            .unwrap(),
-        ),
-        _ => None,
-    };
+                )
+                .unwrap(),
+            ),
+            _ => None,
+        };
 
     let expected_result_as_stateful_transaction_result =
         expected_result.as_ref().map(|validate_info| *validate_info).map_err(|blockifier_error| {

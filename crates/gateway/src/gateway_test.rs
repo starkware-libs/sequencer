@@ -34,7 +34,7 @@ pub fn app_state(
         stateful_tx_validator: Arc::new(StatefulTransactionValidator {
             config: StatefulTransactionValidatorConfig::create_for_testing(),
         }),
-        gateway_compiler: GatewayCompiler::new_cairo_lang_compiler(
+        gateway_compiler: GatewayCompiler::new_command_line_compiler(
             SierraToCasmCompilationConfig::default(),
         ),
         state_reader_factory: Arc::new(state_reader_factory),
