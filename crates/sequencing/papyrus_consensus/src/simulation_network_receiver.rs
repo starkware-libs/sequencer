@@ -13,6 +13,7 @@ use papyrus_network::network_manager::ReportSender;
 use papyrus_protobuf::consensus::ConsensusMessage;
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::BlockHash;
+use starknet_api::core::{ContractAddress, PatriciaKey};
 use tracing::{debug, instrument};
 
 /// Receiver used to help run simulations of consensus. It has 2 goals in mind:
@@ -68,21 +69,15 @@ where
     /// Applies `drop_probability` followed by `invalid_probability`. So the probability of an
     /// invalid message is `(1- drop_probability) * invalid_probability`.
     #[instrument(skip(self), level = "debug")]
-    pub fn filter_msg(&mut self, mut msg: ConsensusMessage) -> Option<ConsensusMessage> {
-        if !matches!(msg, ConsensusMessage::Proposal(_)) {
-            // TODO(matan): Add support for dropping/invalidating votes.
-            return Some(msg);
-        }
+    pub fn filter_msg(&mut self, msg: ConsensusMessage) -> Option<ConsensusMessage> {
+        let msg_hash = self.calculate_msg_hash(&msg);
 
-        if self.should_drop_msg(&msg) {
+        if self.should_drop_msg(msg_hash) {
             debug!("Dropping message");
             return None;
         }
 
-        if self.should_invalidate_msg(&msg) {
-            self.invalidate_msg(&mut msg);
-        }
-        Some(msg)
+        Some(self.maybe_invalidate_msg(msg, msg_hash))
     }
 
     fn calculate_msg_hash(&mut self, msg: &ConsensusMessage) -> u64 {
@@ -101,22 +96,30 @@ where
         hasher.finish()
     }
 
-    fn should_drop_msg(&mut self, msg: &ConsensusMessage) -> bool {
-        let prob = (self.calculate_msg_hash(msg) as f64) / (u64::MAX as f64);
+    fn should_drop_msg(&self, msg_hash: u64) -> bool {
+        let prob = (msg_hash as f64) / (u64::MAX as f64);
         prob <= self.drop_probability
     }
 
-    fn should_invalidate_msg(&mut self, msg: &ConsensusMessage) -> bool {
-        let prob = (self.calculate_msg_hash(msg) as f64) / (u64::MAX as f64);
-        prob <= self.invalid_probability
-    }
-
-    fn invalidate_msg(&mut self, msg: &mut ConsensusMessage) {
-        debug!("Invalidating message");
-        // TODO(matan): Allow for invalid votes based on signature/sender_id.
-        if let ConsensusMessage::Proposal(ref mut proposal) = msg {
-            proposal.block_hash = BlockHash(proposal.block_hash.0 + 1);
+    fn maybe_invalidate_msg(
+        &mut self,
+        mut msg: ConsensusMessage,
+        msg_hash: u64,
+    ) -> ConsensusMessage {
+        if (msg_hash as f64) / (u64::MAX as f64) > self.invalid_probability {
+            return msg;
         }
+        debug!("Invalidating message");
+        // TODO(matan): Allow for invalid votes based on signature.
+        match msg {
+            ConsensusMessage::Proposal(ref mut proposal) => {
+                proposal.block_hash = BlockHash(proposal.block_hash.0 + 1);
+            }
+            ConsensusMessage::Vote(ref mut vote) => {
+                vote.voter = ContractAddress(PatriciaKey::from(msg_hash));
+            }
+        }
+        msg
     }
 }
 
