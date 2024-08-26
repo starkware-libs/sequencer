@@ -173,38 +173,13 @@ simple_logger = "4.0.0"
 starknet-core = "0.6.0"
 starknet-crypto = "0.5.1"
 starknet-types-core = { version = "0.1.5", features = ["hash", "prime-bigint", "std"] }
-<<<<<<< HEAD
-starknet_api = { path = "crates/starknet_api", version = "0.13.0-rc.1" }
-starknet_batcher = { path = "crates/batcher", version = "0.0" }
-starknet_batcher_types = { path = "crates/batcher_types", version = "0.0" }
-starknet_client = { path = "crates/starknet_client", version = "0.4.0-rc.0" }
-starknet_committer = { path = "crates/starknet_committer", version = "0.1.0-rc.0" }
-starknet_consensus_manager = { path = "crates/consensus_manager", version = "0.0" }
-starknet_consensus_manager_types = { path = "crates/consensus_manager_types", version = "0.0" }
-starknet_gateway = { path = "crates/gateway", version = "0.0" }
-starknet_mempool = { path = "crates/mempool", version = "0.0" }
-starknet_mempool_infra = { path = "crates/mempool_infra", version = "0.0" }
-starknet_mempool_node = { path = "crates/mempool_node", version = "0.0" }
-starknet_mempool_types = { path = "crates/mempool_types", version = "0.0" }
-starknet_patricia = { path = "crates/starknet_patricia", version = "0.1.0-rc.0" }
-starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.0" }
-starknet_task_executor = { path = "crates/task_executor", version = "0.0" }
-||||||| df672bc5
-starknet_api = { path = "crates/starknet_api", version = "0.13.0-rc.1" }
-starknet_client = { path = "crates/starknet_client", version = "0.4.0-rc.0" }
-starknet_committer = { path = "crates/starknet_committer", version = "0.1.0-rc.0" }
-starknet_gateway = { path = "crates/gateway", version = "0.0" }
-starknet_mempool = { path = "crates/mempool", version = "0.0" }
-starknet_mempool_infra = { path = "crates/mempool_infra", version = "0.0" }
-starknet_mempool_node = { path = "crates/mempool_node", version = "0.0" }
-starknet_mempool_types = { path = "crates/mempool_types", version = "0.0" }
-starknet_patricia = { path = "crates/starknet_patricia", version = "0.1.0-rc.0" }
-starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.0" }
-starknet_task_executor = { path = "crates/task_executor", version = "0.0" }
-=======
 starknet_api = { path = "crates/starknet_api", version = "0.14.0-rc.0" }
+starknet_batcher = { path = "crates/batcher", version = "0.14.0-rc.0" }
+starknet_batcher_types = { path = "crates/batcher_types", version = "0.14.0-rc.0" }
 starknet_client = { path = "crates/starknet_client", version = "0.14.0-rc.0" }
 starknet_committer = { path = "crates/starknet_committer", version = "0.14.0-rc.0" }
+starknet_consensus_manager = { path = "crates/consensus_manager", version = "0.14.0-rc.0" }
+starknet_consensus_manager_types = { path = "crates/consensus_manager_types", version = "0.14.0-rc.0" }
 starknet_gateway = { path = "crates/gateway", version = "0.14.0-rc.0" }
 starknet_mempool = { path = "crates/mempool", version = "0.14.0-rc.0" }
 starknet_mempool_infra = { path = "crates/mempool_infra", version = "0.14.0-rc.0" }
@@ -213,7 +188,6 @@ starknet_mempool_types = { path = "crates/mempool_types", version = "0.14.0-rc.0
 starknet_patricia = { path = "crates/starknet_patricia", version = "0.14.0-rc.0" }
 starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.14.0-rc.0" }
 starknet_task_executor = { path = "crates/task_executor", version = "0.14.0-rc.0" }
->>>>>>> origin/main-v0.13.2
 static_assertions = "1.1.0"
 statistical = "1.0.0"
 strum = "0.25.0"
