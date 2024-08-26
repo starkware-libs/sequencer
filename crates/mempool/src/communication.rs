@@ -2,7 +2,7 @@ use std::net::IpAddr;
 
 use async_trait::async_trait;
 use starknet_api::executable_transaction::Transaction;
-use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
+use starknet_mempool_infra::component_definitions::{ComponentMonitor, ComponentRequestHandler};
 use starknet_mempool_infra::component_runner::ComponentStarter;
 use starknet_mempool_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use starknet_mempool_types::communication::{
@@ -73,3 +73,6 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
 
 #[async_trait]
 impl ComponentStarter for MempoolCommunicationWrapper {}
+
+#[async_trait]
+impl ComponentMonitor for MempoolCommunicationWrapper {}

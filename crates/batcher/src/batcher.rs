@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use starknet_mempool_infra::component_definitions::ComponentMonitor;
 use starknet_mempool_infra::component_runner::ComponentStarter;
 use starknet_mempool_types::communication::SharedMempoolClient;
 
@@ -22,3 +23,6 @@ pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient
 
 #[async_trait]
 impl ComponentStarter for Batcher {}
+
+#[async_trait]
+impl ComponentMonitor for Batcher {}

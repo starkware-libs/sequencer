@@ -2,12 +2,14 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use mockall::predicate::*;
+//#[cfg(test)]
 use mockall::*;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::executable_transaction::Transaction;
 use starknet_mempool_infra::component_client::{
     ClientError,
+    ClientMonitorApi,
     LocalComponentClient,
     RemoteComponentClient,
 };
@@ -27,12 +29,17 @@ pub type SharedMempoolClient = Arc<dyn MempoolClient>;
 
 /// Serves as the mempool's shared interface. Requires `Send + Sync` to allow transferring and
 /// sharing resources (inputs, futures) across threads.
+//#[cfg_attr(test, automock)]
 #[automock]
 #[async_trait]
-pub trait MempoolClient: Send + Sync {
+pub trait MempoolClient: ClientMonitorApi + Send + Sync {
     async fn add_tx(&self, mempool_input: MempoolInput) -> MempoolClientResult<()>;
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<Transaction>>;
 }
+
+//#[cfg(test)]
+// #[async_trait]
+impl ClientMonitorApi for MockMempoolClient {}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum MempoolRequest {
