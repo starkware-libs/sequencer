@@ -11,4 +11,12 @@ pub struct SuspendedTransactionPool {
     _suspended_tx_pool: AddressNonceToTransaction,
 }
 
-impl SuspendedTransactionPool {}
+impl SuspendedTransactionPool {
+    // TODO(Ayelet): Implement this function.
+    pub fn remove_up_to_nonce_and_sequential(&mut self, _address: ContractAddress, _nonce: Nonce) {}
+
+    // TODO(Ayelet): Implement this function.
+    pub fn _contains(&self, _address: ContractAddress, _nonce: Nonce) -> bool {
+        false
+    }
+}
