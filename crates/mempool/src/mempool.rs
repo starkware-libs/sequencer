@@ -24,7 +24,7 @@ pub struct Mempool {
     // Transactions eligible for sequencing.
     tx_queue: TransactionQueue,
     // Transactions suspended because they are after a hole.
-    _suspended_tx_pool: SuspendedTransactionPool,
+    suspended_tx_pool: SuspendedTransactionPool,
     // Represents the current state of the mempool during block creation.
     mempool_state: HashMap<ContractAddress, AccountState>,
     // The most recent account nonces received, for all account in the pool.
@@ -77,9 +77,13 @@ impl Mempool {
     /// TODO: check Account nonce and balance.
     pub fn add_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
         self.validate_input(&input)?;
+
         let MempoolInput { tx, account: Account { sender_address, state: AccountState { nonce } } } =
             input;
+        let tx_reference = TransactionReference::new(&tx);
+        
         self.tx_pool.insert(tx)?;
+        self.insert_to_suspended_pool_if_eligible(tx_reference);
         self.align_to_account_state(sender_address, nonce);
         Ok(())
     }
@@ -163,7 +167,9 @@ impl Mempool {
             if let Some(next_tx_reference) =
                 self.tx_pool.get_next_eligible_tx(current_account_state)?
             {
-                self.tx_queue.insert(next_tx_reference.clone());
+                if !self.suspended_tx_pool.contains(tx.sender_address, tx.nonce) {
+                    self.tx_queue.insert(next_tx_reference.clone());
+                }
             }
         }
 
@@ -181,13 +187,20 @@ impl Mempool {
 
         self.tx_pool.remove_up_to_nonce(address, nonce);
 
+        self.suspended_tx_pool.remove_up_to_nonce_and_sequential(address, nonce);
+
         // Maybe close nonce gap.
         if self.tx_queue.get_nonce(address).is_none() {
             if let Some(tx_reference) = self.tx_pool.get_by_address_and_nonce(address, nonce) {
-                self.tx_queue.insert(tx_reference.clone());
+                if !self.suspended_tx_pool.contains(address, nonce) {
+                    self.tx_queue.insert(tx_reference.clone());
+                }
             }
         }
     }
+
+    // TODO(Ayelet): Implement this function.
+    fn insert_to_suspended_pool_if_eligible(&mut self, _tx: TransactionReference) {}
 
     #[cfg(test)]
     pub(crate) fn tx_pool(&self) -> &TransactionPool {
