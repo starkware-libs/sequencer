@@ -377,8 +377,8 @@ fn add_kzg_da_resources_to_resources_mapping(
         },
         validate_gas_consumed: 4740, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 88160,
-        inner_call_initial_gas: 9999707100,
+        execute_gas_consumed: 159980,
+        inner_call_initial_gas: 9999635280,
     },
     CairoVersion::Cairo1)]
 fn test_invoke_tx(
@@ -1844,7 +1844,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         },
         execution: CallExecution {
             retdata: Retdata(vec![value]),
-            gas_consumed: 11750,
+            gas_consumed: 6820,
             ..Default::default()
         },
         resources: ExecutionResources {
