@@ -6,7 +6,7 @@ use mempool_test_utils::declare_tx_args;
 use mempool_test_utils::starknet_api_test_utils::{
     create_resource_bounds_mapping,
     external_declare_tx,
-    external_tx_for_testing,
+    rpc_tx_for_testing,
     zero_resource_bounds_mapping,
     TransactionType,
     NON_EMPTY_RESOURCE_BOUNDS,
@@ -118,7 +118,7 @@ fn test_positive_flow(
     tx_type: TransactionType,
 ) {
     let tx_validator = StatelessTransactionValidator { config };
-    let tx = external_tx_for_testing(tx_type, resource_bounds, tx_calldata, signature);
+    let tx = rpc_tx_for_testing(tx_type, resource_bounds, tx_calldata, signature);
 
     assert_matches!(tx_validator.validate(&tx), Ok(()));
 }
@@ -154,12 +154,8 @@ fn test_invalid_resource_bounds(
     tx_type: TransactionType,
 ) {
     let tx_validator = StatelessTransactionValidator { config };
-    let tx = external_tx_for_testing(
-        tx_type,
-        resource_bounds,
-        calldata![],
-        TransactionSignature::default(),
-    );
+    let tx =
+        rpc_tx_for_testing(tx_type, resource_bounds, calldata![], TransactionSignature::default());
 
     assert_eq!(tx_validator.validate(&tx).unwrap_err(), expected_error);
 }
@@ -170,7 +166,7 @@ fn test_calldata_too_long(
 ) {
     let tx_validator =
         StatelessTransactionValidator { config: default_validator_config_for_testing().clone() };
-    let tx = external_tx_for_testing(
+    let tx = rpc_tx_for_testing(
         tx_type,
         zero_resource_bounds_mapping(),
         calldata![Felt::ONE, Felt::TWO],
@@ -193,7 +189,7 @@ fn test_signature_too_long(
 ) {
     let tx_validator =
         StatelessTransactionValidator { config: default_validator_config_for_testing().clone() };
-    let tx = external_tx_for_testing(
+    let tx = rpc_tx_for_testing(
         tx_type,
         zero_resource_bounds_mapping(),
         calldata![],
