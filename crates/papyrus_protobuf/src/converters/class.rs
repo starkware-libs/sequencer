@@ -3,7 +3,7 @@ use std::convert::{TryFrom, TryInto};
 
 use papyrus_common::pending_classes::ApiContractClass;
 use prost::Message;
-use starknet_api::core::EntryPointSelector;
+use starknet_api::core::{ClassHash, EntryPointSelector};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::{deprecated_contract_class, state};
 use starknet_types_core::felt::Felt;
@@ -15,7 +15,7 @@ use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};
 
 pub const DOMAIN: DataAvailabilityMode = DataAvailabilityMode::L1;
 
-impl TryFrom<protobuf::ClassesResponse> for DataOrFin<ApiContractClass> {
+impl TryFrom<protobuf::ClassesResponse> for DataOrFin<(ApiContractClass, ClassHash)> {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::ClassesResponse) -> Result<Self, Self::Error> {
         match value.class_message {
@@ -29,8 +29,8 @@ impl TryFrom<protobuf::ClassesResponse> for DataOrFin<ApiContractClass> {
         }
     }
 }
-impl From<DataOrFin<ApiContractClass>> for protobuf::ClassesResponse {
-    fn from(value: DataOrFin<ApiContractClass>) -> Self {
+impl From<DataOrFin<(ApiContractClass, ClassHash)>> for protobuf::ClassesResponse {
+    fn from(value: DataOrFin<(ApiContractClass, ClassHash)>) -> Self {
         match value.0 {
             Some(class) => protobuf::ClassesResponse {
                 class_message: Some(protobuf::classes_response::ClassMessage::Class(class.into())),
@@ -44,9 +44,12 @@ impl From<DataOrFin<ApiContractClass>> for protobuf::ClassesResponse {
     }
 }
 
-auto_impl_into_and_try_from_vec_u8!(DataOrFin<ApiContractClass>, protobuf::ClassesResponse);
+auto_impl_into_and_try_from_vec_u8!(
+    DataOrFin<(ApiContractClass, ClassHash)>,
+    protobuf::ClassesResponse
+);
 
-impl TryFrom<protobuf::Class> for ApiContractClass {
+impl TryFrom<protobuf::Class> for (ApiContractClass, ClassHash) {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::Class) -> Result<Self, Self::Error> {
         let class = match value.class {
@@ -64,21 +67,29 @@ impl TryFrom<protobuf::Class> for ApiContractClass {
                 });
             }
         };
-        Ok(class)
+        let class_hash = value
+            .class_hash
+            .ok_or(ProtobufConversionError::MissingField {
+                field_description: "Class::class_hash",
+            })?
+            .try_into()
+            .map(ClassHash)?;
+        Ok((class, class_hash))
     }
 }
 
-impl From<ApiContractClass> for protobuf::Class {
-    fn from(value: ApiContractClass) -> Self {
+impl From<(ApiContractClass, ClassHash)> for protobuf::Class {
+    fn from(value: (ApiContractClass, ClassHash)) -> Self {
+        let (class, class_hash) = value;
         let domain = u32::try_from(volition_domain_to_enum_int(DOMAIN))
             .expect("volition_domain_to_enum_int output should be convertible to u32");
-        let class = match value {
+        let class = match class {
             ApiContractClass::DeprecatedContractClass(class) => {
                 protobuf::class::Class::Cairo0(class.into())
             }
             ApiContractClass::ContractClass(class) => protobuf::class::Class::Cairo1(class.into()),
         };
-        protobuf::Class { domain, class: Some(class) }
+        protobuf::Class { domain, class: Some(class), class_hash: Some(class_hash.0.into()) }
     }
 }
 
