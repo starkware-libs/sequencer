@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_mempool_infra::component_client::ClientResult;
+use starknet_mempool_infra::component_definitions::ComponentMonitor;
 use starknet_mempool_infra::component_runner::ComponentStarter;
 
 pub(crate) type ValueA = u32;
@@ -60,6 +61,9 @@ impl ComponentA {
 #[async_trait]
 impl ComponentStarter for ComponentA {}
 
+#[async_trait]
+impl ComponentMonitor for ComponentA {}
+
 pub(crate) struct ComponentB {
     value: ValueB,
     _a: Box<dyn ComponentAClientTrait>,
@@ -81,6 +85,9 @@ impl ComponentB {
 
 #[async_trait]
 impl ComponentStarter for ComponentB {}
+
+#[async_trait]
+impl ComponentMonitor for ComponentB {}
 
 pub(crate) async fn test_a_b_functionality(
     a_client: impl ComponentAClientTrait,

@@ -6,6 +6,7 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
+use starknet_mempool_infra::component_definitions::ComponentMonitor;
 use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
 use starknet_mempool_types::communication::{MempoolWrapperInput, SharedMempoolClient};
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
@@ -160,3 +161,6 @@ impl ComponentStarter for Gateway {
         Ok(())
     }
 }
+
+#[async_trait]
+impl ComponentMonitor for Gateway {}

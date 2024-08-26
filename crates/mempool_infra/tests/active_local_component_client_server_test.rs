@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_mempool_infra::component_client::{ClientError, ClientResult, LocalComponentClient};
 use starknet_mempool_infra::component_definitions::{
+    ComponentMonitor,
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
 };
@@ -54,6 +55,9 @@ impl ComponentStarter for ComponentC {
         Ok(())
     }
 }
+
+#[async_trait]
+impl ComponentMonitor for ComponentC {}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ComponentCRequest {
@@ -112,6 +116,9 @@ impl ComponentStarter for ComponentD {
         Ok(())
     }
 }
+
+#[async_trait]
+impl ComponentMonitor for ComponentD {}
 
 #[async_trait]
 impl ComponentCClientTrait for LocalComponentClient<ComponentCRequest, ComponentCResponse> {

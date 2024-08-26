@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use starknet_batcher_types::communication::SharedBatcherClient;
+use starknet_mempool_infra::component_definitions::ComponentMonitor;
 use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
 use tracing::info;
 
@@ -33,3 +34,7 @@ impl ComponentStarter for ConsensusManager {
         Ok(())
     }
 }
+
+// TODO(Tsabary/Matan): implement is_alive.
+#[async_trait]
+impl ComponentMonitor for ConsensusManager {}

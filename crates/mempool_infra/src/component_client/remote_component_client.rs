@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 use std::net::IpAddr;
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use bincode::{deserialize, serialize};
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
@@ -10,7 +11,15 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use super::definitions::{ClientError, ClientResult};
-use crate::component_definitions::APPLICATION_OCTET_STREAM;
+use super::ClientMonitorApi;
+use crate::component_definitions::{
+    MonitoringRequest,
+    MonitoringResponse,
+    RequestAndMonitor,
+    ResponseAndMonitor,
+    ServerError,
+    APPLICATION_OCTET_STREAM,
+};
 
 /// The `RemoteComponentClient` struct is a generic client for sending component requests and
 /// receiving responses asynchronously through HTTP connection.
@@ -73,8 +82,8 @@ where
     uri: Uri,
     client: Client<hyper::client::HttpConnector>,
     max_retries: usize,
-    _req: PhantomData<Request>,
-    _res: PhantomData<Response>,
+    _req: PhantomData<RequestAndMonitor<Request>>,
+    _res: PhantomData<ResponseAndMonitor<Response>>,
 }
 
 impl<Request, Response> RemoteComponentClient<Request, Response>
@@ -94,7 +103,10 @@ where
         Self { uri, client, max_retries, _req: PhantomData, _res: PhantomData }
     }
 
-    pub async fn send(&self, component_request: Request) -> ClientResult<Response> {
+    async fn internal_send(
+        &self,
+        component_request: RequestAndMonitor<Request>,
+    ) -> ClientResult<ResponseAndMonitor<Response>> {
         // Construct and request, and send it up to 'max_retries' times. Return if received a
         // successful response.
         for _ in 0..self.max_retries {
@@ -110,7 +122,28 @@ where
         self.try_send(http_request).await
     }
 
-    fn construct_http_request(&self, component_request: &Request) -> HyperRequest<Body> {
+    pub async fn send(&self, component_request: Request) -> ClientResult<Response> {
+        let requst = RequestAndMonitor::Component(component_request);
+        let response = self.internal_send(requst).await?;
+        match response {
+            ResponseAndMonitor::Component(response) => Ok(response),
+            _ => Err(ClientError::UnexpectedResponse("Unexpected response variant.".to_owned())),
+        }
+    }
+
+    pub async fn send_alive(&self) -> bool {
+        let requst = RequestAndMonitor::Monitoring(MonitoringRequest::IsAlive);
+        let response = self.internal_send(requst).await;
+        match response {
+            Ok(ResponseAndMonitor::Monitoring(MonitoringResponse::IsAlive(is_alive))) => is_alive,
+            _ => panic!("Unexpected response variant."),
+        }
+    }
+
+    fn construct_http_request(
+        &self,
+        component_request: &RequestAndMonitor<Request>,
+    ) -> HyperRequest<Body> {
         HyperRequest::post(self.uri.clone())
             .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
             .body(Body::from(
@@ -119,7 +152,10 @@ where
             .expect("Request building should succeed")
     }
 
-    async fn try_send(&self, http_request: HyperRequest<Body>) -> ClientResult<Response> {
+    async fn try_send(
+        &self,
+        http_request: HyperRequest<Body>,
+    ) -> ClientResult<ResponseAndMonitor<Response>> {
         let http_response = self
             .client
             .request(http_request)
@@ -127,18 +163,20 @@ where
             .map_err(|e| ClientError::CommunicationFailure(Arc::new(e)))?;
 
         match http_response.status() {
-            StatusCode::OK => get_response_body(http_response).await,
+            StatusCode::OK => {
+                get_response_body::<ResponseAndMonitor<Response>>(http_response).await
+            }
             status_code => Err(ClientError::ResponseError(
                 status_code,
-                get_response_body(http_response).await?,
+                get_response_body::<ServerError>(http_response).await?,
             )),
         }
     }
 }
 
-async fn get_response_body<Response>(response: HyperResponse<Body>) -> Result<Response, ClientError>
+async fn get_response_body<T>(response: HyperResponse<Body>) -> ClientResult<T>
 where
-    Response: DeserializeOwned,
+    T: DeserializeOwned,
 {
     let body_bytes = to_bytes(response.into_body())
         .await
@@ -161,5 +199,16 @@ where
             _req: PhantomData,
             _res: PhantomData,
         }
+    }
+}
+
+#[async_trait]
+impl<Request, Response> ClientMonitorApi for RemoteComponentClient<Request, Response>
+where
+    Request: Serialize + Send + Sync,
+    Response: DeserializeOwned + Send + Sync,
+{
+    async fn is_alive(&self) -> bool {
+        self.send_alive().await
     }
 }
