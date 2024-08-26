@@ -2,11 +2,17 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 
 use super::fee_utils::calculate_l1_gas_by_vm_usage;
 use crate::abi::constants;
+use crate::blockifier::block::GasPrices;
 use crate::context::{BlockContext, TransactionContext};
 use crate::fee::eth_gas_constants;
 use crate::state::cached_state::StateChangesCount;
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::objects::{GasVector, HasRelatedFeeType, TransactionPreValidationResult};
+use crate::transaction::objects::{
+    FeeType,
+    GasVector,
+    HasRelatedFeeType,
+    TransactionPreValidationResult,
+};
 use crate::utils::{u128_div_ceil, u128_from_usize};
 
 #[cfg(test)]
@@ -192,12 +198,22 @@ pub fn estimate_minimal_gas_vector(
 /// summand, we get total_gas = (X + Y * DGP / GP).
 pub fn compute_discounted_gas_from_gas_vector(
     gas_usage_vector: &GasVector,
+    fee_type: &FeeType,
+    gas_prices: &GasPrices,
+) -> u128 {
+    let GasVector { l1_gas: gas_usage, l1_data_gas: blob_gas_usage, .. } = gas_usage_vector;
+    let gas_price = gas_prices.get_l1_gas_price_by_fee_type(fee_type);
+    let data_gas_price = gas_prices.get_l1_data_gas_price_by_fee_type(fee_type);
+    gas_usage + u128_div_ceil(blob_gas_usage * u128::from(data_gas_price), gas_price)
+}
+
+pub fn compute_discounted_gas_from_tx_context(
+    gas_usage_vector: &GasVector,
     tx_context: &TransactionContext,
 ) -> u128 {
-    let gas_prices = &tx_context.block_context.block_info.gas_prices;
-    let GasVector { l1_gas: gas_usage, l1_data_gas: blob_gas_usage, .. } = gas_usage_vector;
-    let fee_type = tx_context.tx_info.fee_type();
-    let gas_price = gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
-    let data_gas_price = gas_prices.get_l1_data_gas_price_by_fee_type(&fee_type);
-    gas_usage + u128_div_ceil(blob_gas_usage * u128::from(data_gas_price), gas_price)
+    compute_discounted_gas_from_gas_vector(
+        gas_usage_vector,
+        &tx_context.tx_info.fee_type(),
+        &tx_context.block_context.block_info.gas_prices,
+    )
 }

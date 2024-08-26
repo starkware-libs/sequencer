@@ -802,7 +802,7 @@ fn assert_failure_if_resource_bounds_exceed_balance(
             );
         }
         TransactionInfo::Current(context) => {
-            let l1_bounds = context.l1_resource_bounds();
+            let l1_bounds = context.resource_bounds.get_l1_bounds();
             assert_matches!(
                 invalid_tx.execute(state, block_context, true, true).unwrap_err(),
                 TransactionExecutionError::TransactionPreValidationError(
