@@ -13,6 +13,8 @@ use crate::transaction_queue::TransactionQueue;
 #[path = "mempool_test.rs"]
 pub mod mempool_test;
 
+type AccountToNonce = HashMap<ContractAddress, Nonce>;
+
 #[derive(Debug, Default)]
 pub struct Mempool {
     // TODO: add docstring explaining visibility and coupling of the fields.
@@ -22,6 +24,10 @@ pub struct Mempool {
     tx_queue: TransactionQueue,
     // Represents the current state of the mempool during block creation.
     mempool_state: HashMap<ContractAddress, AccountState>,
+    // The most recent account nonces received (might change right after), for all account in the
+    // pool.
+    #[allow(dead_code)]
+    account_nonces: AccountToNonce,
 }
 
 impl Mempool {
