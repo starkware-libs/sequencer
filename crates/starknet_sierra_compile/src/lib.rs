@@ -6,6 +6,7 @@ use crate::errors::CompilationUtilError;
 
 pub mod build_utils;
 pub mod cairo_lang_compiler;
+pub mod command_line_compiler;
 pub mod config;
 pub mod errors;
 pub mod utils;
