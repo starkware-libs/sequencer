@@ -7,12 +7,17 @@ use std::hash::{Hash, Hasher};
 use std::num::NonZeroUsize;
 use std::task::Poll;
 
+use arbitrary::{Arbitrary, Unstructured};
 use futures::{Stream, StreamExt};
 use lru::LruCache;
 use papyrus_network::network_manager::ReportSender;
 use papyrus_protobuf::consensus::ConsensusMessage;
 use papyrus_protobuf::converters::ProtobufConversionError;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 use starknet_api::block::BlockHash;
+use starknet_api::core::{ContractAddress, PatriciaKey};
+use starknet_types_core::felt::Felt;
 use tracing::{debug, instrument};
 
 /// Receiver used to help run simulations of consensus. It has 2 goals in mind:
@@ -69,18 +74,15 @@ where
     /// invalid message is `(1- drop_probability) * invalid_probability`.
     #[instrument(skip(self), level = "debug")]
     pub fn filter_msg(&mut self, mut msg: ConsensusMessage) -> Option<ConsensusMessage> {
-        if !matches!(msg, ConsensusMessage::Proposal(_)) {
-            // TODO(matan): Add support for dropping/invalidating votes.
-            return Some(msg);
-        }
+        let msg_hash = self.calculate_msg_hash(&msg);
 
-        if self.should_drop_msg(&msg) {
+        if self.should_drop_msg(msg_hash) {
             debug!("Dropping message");
             return None;
         }
 
-        if self.should_invalidate_msg(&msg) {
-            self.invalidate_msg(&mut msg);
+        if self.should_invalidate_msg(msg_hash) {
+            self.invalidate_msg(&mut msg, msg_hash);
         }
         Some(msg)
     }
@@ -101,21 +103,28 @@ where
         hasher.finish()
     }
 
-    fn should_drop_msg(&mut self, msg: &ConsensusMessage) -> bool {
-        let prob = (self.calculate_msg_hash(msg) as f64) / (u64::MAX as f64);
+    fn should_drop_msg(&self, msg_hash: u64) -> bool {
+        let prob = (msg_hash as f64) / (u64::MAX as f64);
         prob <= self.drop_probability
     }
 
-    fn should_invalidate_msg(&mut self, msg: &ConsensusMessage) -> bool {
-        let prob = (self.calculate_msg_hash(msg) as f64) / (u64::MAX as f64);
+    fn should_invalidate_msg(&self, msg_hash: u64) -> bool {
+        let prob = (msg_hash as f64) / (u64::MAX as f64);
         prob <= self.invalid_probability
     }
 
-    fn invalidate_msg(&mut self, msg: &mut ConsensusMessage) {
+    fn invalidate_msg(&mut self, msg: &mut ConsensusMessage, msg_hash: u64) {
         debug!("Invalidating message");
-        // TODO(matan): Allow for invalid votes based on signature/sender_id.
-        if let ConsensusMessage::Proposal(ref mut proposal) = msg {
-            proposal.block_hash = BlockHash(proposal.block_hash.0 + 1);
+        println!("ASMAA- msg {:?}", msg);
+        // TODO(matan): Allow for invalid votes based on signature.
+        match msg {
+            ConsensusMessage::Proposal(ref mut proposal) => {
+                proposal.block_hash = BlockHash(proposal.block_hash.0 + 1);
+            }
+            ConsensusMessage::Vote(ref mut vote) => {
+                vote.voter = random_contract_address(msg_hash);
+                println!("ASMAA- vote.voter: {:?}", vote.voter);
+            }
         }
     }
 }
@@ -142,4 +151,17 @@ where
             }
         }
     }
+}
+
+// TODO(Asmaa): Move this to another crate.
+pub fn arbitrary_felt<R: Rng>(rng: &mut R) -> Felt {
+    let binding: [u8; 32] = rng.gen();
+    let mut u = Unstructured::new(&binding);
+    Felt::arbitrary(&mut u).unwrap()
+}
+
+pub fn random_contract_address(seed: u64) -> ContractAddress {
+    let mut rng = StdRng::seed_from_u64(seed);
+    let felt = arbitrary_felt(&mut rng);
+    ContractAddress(PatriciaKey::try_from(felt).expect("Failed to convert Felt to PatriciaKey"))
 }
