@@ -1,4 +1,4 @@
-use crate::toml_utils::{read_cargo_toml, LocalCrate, ROOT_TOML};
+use crate::toml_utils::{LocalCrate, ROOT_TOML};
 
 #[test]
 fn test_path_dependencies_are_members() {
@@ -29,16 +29,17 @@ fn test_version_alignment() {
 
 #[test]
 fn validate_no_path_dependencies() {
-    for member in ROOT_TOML.members().iter() {
-        let cargo_toml = read_cargo_toml(member);
-        if cargo_toml.has_dependencies() {
-            let crate_paths: Vec<LocalCrate> = cargo_toml.crate_path_dependencies().collect();
-            assert!(
-                crate_paths.is_empty(),
-                "The following crates have path dependency {crate_paths:?}."
-            );
+    let mut all_crate_paths: Vec<LocalCrate> = Vec::new();
+    for crate_cargo_toml in ROOT_TOML.member_cargo_tomls().iter() {
+        if crate_cargo_toml.has_dependencies() {
+            let crate_paths: Vec<LocalCrate> = crate_cargo_toml.crate_path_dependencies().collect();
+            all_crate_paths.extend(crate_paths);
         } else {
             println!("No dependencies exist");
         }
+        assert!(
+            all_crate_paths.is_empty(),
+            "The following crates have path dependency {all_crate_paths:?}."
+        );
     }
 }
