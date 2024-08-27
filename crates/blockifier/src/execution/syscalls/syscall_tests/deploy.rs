@@ -42,7 +42,7 @@ fn no_constructor(deployer_contract: FeatureContract) {
         &calldata![],
         deployer_contract.get_instance_address(0),
     )
-    .unwrap();
+        .unwrap();
 
     let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap().inner_calls[0];
 
@@ -81,7 +81,7 @@ fn no_constructor_nonempty_calldata(deployer_contract: FeatureContract) {
     ));
 }
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 10140;"VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 5210;"VM")]
 #[test_case(FeatureContract::SierraTestContract, NATIVE_GAS_PLACEHOLDER;"Native")]
 fn with_constructor(deployer_contract: FeatureContract, expected_gas: u64) {
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);
@@ -112,7 +112,7 @@ fn with_constructor(deployer_contract: FeatureContract, expected_gas: u64) {
         &Calldata(constructor_calldata.clone().into()),
         deployer_contract.get_instance_address(0),
     )
-    .unwrap();
+        .unwrap();
     let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap().inner_calls[0];
 
     assert_eq!(deploy_call.call.storage_address, contract_address);

@@ -15,17 +15,22 @@ use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::native::utils::NATIVE_GAS_PLACEHOLDER;
 use crate::execution::syscalls::syscall_tests::constants::{
-    REQUIRED_GAS_LIBRARY_CALL_TEST, REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
+    REQUIRED_GAS_LIBRARY_CALL_TEST,
+    REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
 };
 use crate::execution::syscalls::SyscallSelector;
 use crate::retdata;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
-    get_syscall_resources, trivial_external_entry_point_new, CairoVersion, BALANCE,
+    get_syscall_resources,
+    trivial_external_entry_point_new,
+    CairoVersion,
+    BALANCE,
 };
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), REQUIRED_GAS_LIBRARY_CALL_TEST; "VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), REQUIRED_GAS_LIBRARY_CALL_TEST; "VM"
+)]
 fn test_library_call(test_contract: FeatureContract, expected_gas: u64) {
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
@@ -118,7 +123,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: if_native(9999725020, 9999745020),
+        initial_gas: if_native(9999581320, 9999601320),
         ..trivial_external_entry_point_new(test_contract)
     };
     let library_entry_point = CallEntryPoint {
@@ -133,12 +138,12 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: if_native(9999813550, 9999823550),
+        initial_gas: if_native(9999741700, 9999751700),
         ..trivial_external_entry_point_new(test_contract)
     };
     let storage_entry_point = CallEntryPoint {
         calldata: calldata![felt!(key), felt!(value)],
-        initial_gas: if_native(9999752538, 9999656870),
+        initial_gas: if_native(9999608838, 9999451180),
         ..nested_storage_entry_point
     };
 
