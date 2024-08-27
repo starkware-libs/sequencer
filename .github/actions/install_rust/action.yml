@@ -1,4 +1,4 @@
-# Installs rust toolchain. In order to set/fix the version, edit DEFAULT_TOOLCHAIN env variable.
+# Installs rust toolchain with the version defined in .github/actions/install_rust/rust_version.txt.
 inputs:
   components:
     description: "An optional parameter that will be sent to dtolnay/rust-toolchain."
@@ -9,7 +9,7 @@ runs:
   using: "composite"
   steps:
     - name: Define toolchain
-      run: echo "DEFAULT_TOOLCHAIN=stable"  >> $GITHUB_ENV
+      run: echo "DEFAULT_TOOLCHAIN=$(cat .github/actions/install_rust/rust_version.txt)" >> $GITHUB_ENV
       shell: bash
     - name: install rust toolchain with given components
       if: "${{ inputs.components != '' }}"
