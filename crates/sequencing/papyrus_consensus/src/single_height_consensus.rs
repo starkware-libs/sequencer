@@ -116,7 +116,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         }
         let Entry::Vacant(proposal_entry) = self.proposals.entry(init.round) else {
             warn!("Round {} already has a proposal, ignoring", init.round);
-            return Ok(ShcReturn::Tasks(vec![]));
+            return Ok(ShcReturn::Tasks(Vec::new()));
         };
 
         let block_receiver = context.validate_proposal(self.height, p2p_messages_receiver).await;
@@ -196,7 +196,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
                     return Err(ConsensusError::InvalidEvent("No prevote to send".to_string()));
                 };
                 if last_vote.round > round {
-                    return Ok(ShcReturn::Tasks(vec![]));
+                    return Ok(ShcReturn::Tasks(Vec::new()));
                 }
                 context.broadcast(ConsensusMessage::Vote(last_vote.clone())).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask {
@@ -209,7 +209,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
                     return Err(ConsensusError::InvalidEvent("No precommit to send".to_string()));
                 };
                 if last_vote.round > round {
-                    return Ok(ShcReturn::Tasks(vec![]));
+                    return Ok(ShcReturn::Tasks(Vec::new()));
                 }
                 context.broadcast(ConsensusMessage::Vote(last_vote.clone())).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask {
@@ -257,7 +257,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
                     ));
                 } else {
                     // Replay, ignore.
-                    return Ok(ShcReturn::Tasks(vec![]));
+                    return Ok(ShcReturn::Tasks(Vec::new()));
                 }
             }
         }
@@ -273,7 +273,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         context: &mut ContextT,
         mut events: VecDeque<StateMachineEvent>,
     ) -> Result<ShcReturn<BlockT>, ConsensusError> {
-        let mut ret_val = vec![];
+        let mut ret_val = Vec::new();
         while let Some(event) = events.pop_front() {
             trace!("Handling event: {:?}", event);
             match event {
@@ -392,7 +392,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         }
         context.broadcast(ConsensusMessage::Vote(vote.clone())).await?;
         if last_vote.as_ref().map_or(false, |last| round < last.round) {
-            return Ok(vec![]);
+            return Ok(Vec::new());
         }
         *last_vote = Some(vote);
         Ok(vec![ShcTask { duration, event }])

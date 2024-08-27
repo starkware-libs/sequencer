@@ -112,6 +112,6 @@ pub fn proposal(
         block_hash,
         round,
         proposer,
-        transactions: vec![],
+        transactions: Vec::new(),
     })
 }

@@ -73,7 +73,7 @@ async fn proposer() {
     );
     assert_eq!(
         shc.handle_message(&mut context, prevote(Some(BLOCK.id().0), 0, 0, *VALIDATOR_ID_1)).await,
-        Ok(ShcReturn::Tasks(vec![]))
+        Ok(ShcReturn::Tasks(Vec::new()))
     );
     // 3 of 4 Prevotes is enough to send a Precommit.
     context
@@ -106,7 +106,7 @@ async fn proposer() {
     ];
     assert_eq!(
         shc.handle_message(&mut context, precommits[0].clone()).await,
-        Ok(ShcReturn::Tasks(vec![]))
+        Ok(ShcReturn::Tasks(Vec::new()))
     );
     // The disagreeing vote counts towards the timeout, which uses a heterogeneous quorum, but not
     // the decision, which uses a homogenous quorum.
@@ -190,11 +190,11 @@ async fn validator(repeat_proposal: bool) {
                 fin_receiver,
             )
             .await;
-        assert_eq!(res, Ok(ShcReturn::Tasks(vec![])));
+        assert_eq!(res, Ok(ShcReturn::Tasks(Vec::new())));
     }
     assert_eq!(
         shc.handle_message(&mut context, prevote(Some(BLOCK.id().0), 0, 0, *PROPOSER_ID)).await,
-        Ok(ShcReturn::Tasks(vec![]))
+        Ok(ShcReturn::Tasks(Vec::new()))
     );
     // 3 of 4 Prevotes is enough to send a Precommit.
     context
@@ -226,7 +226,7 @@ async fn validator(repeat_proposal: bool) {
     ];
     assert_eq!(
         shc.handle_message(&mut context, precommits[0].clone()).await,
-        Ok(ShcReturn::Tasks(vec![]))
+        Ok(ShcReturn::Tasks(Vec::new()))
     );
     let ShcReturn::Decision(decision) =
         shc.handle_message(&mut context, precommits[1].clone()).await.unwrap()
@@ -287,7 +287,7 @@ async fn vote_twice(same_vote: bool) {
 
     let res =
         shc.handle_message(&mut context, prevote(Some(BLOCK.id().0), 0, 0, *PROPOSER_ID)).await;
-    assert_eq!(res, Ok(ShcReturn::Tasks(vec![])));
+    assert_eq!(res, Ok(ShcReturn::Tasks(Vec::new())));
 
     context
     .expect_broadcast()
@@ -313,13 +313,13 @@ async fn vote_twice(same_vote: bool) {
 
     let first_vote = precommit(Some(BLOCK.id().0), 0, 0, *PROPOSER_ID);
     let res = shc.handle_message(&mut context, first_vote.clone()).await;
-    assert_eq!(res, Ok(ShcReturn::Tasks(vec![])));
+    assert_eq!(res, Ok(ShcReturn::Tasks(Vec::new())));
 
     let second_vote =
         if same_vote { first_vote.clone() } else { precommit(Some(Felt::TWO), 0, 0, *PROPOSER_ID) };
     let res = shc.handle_message(&mut context, second_vote.clone()).await;
     if same_vote {
-        assert_eq!(res, Ok(ShcReturn::Tasks(vec![])));
+        assert_eq!(res, Ok(ShcReturn::Tasks(Vec::new())));
     } else {
         assert!(matches!(res, Err(ConsensusError::Equivocation(_, _, _))));
     }
@@ -379,7 +379,7 @@ async fn rebroadcast_votes() {
     );
     assert_eq!(
         shc.handle_message(&mut context, prevote(Some(BLOCK.id().0), 0, 0, *VALIDATOR_ID_1)).await,
-        Ok(ShcReturn::Tasks(vec![]))
+        Ok(ShcReturn::Tasks(Vec::new()))
     );
     // 3 of 4 Prevotes is enough to send a Precommit.
     context
