@@ -9,7 +9,7 @@ on:
       - v[0-9].**
     paths:
       - '.github/workflows/merge_paths_ci.yml'
-      - 'scripts/merge_branches.json'
+      - 'scripts/merge_branches.py'
       - 'scripts/merge_paths.json'
       - 'scripts/merge_paths_test.py'
       - 'scripts/merge_status.py'
@@ -23,7 +23,7 @@ on:
       - edited
     paths:
       - '.github/workflows/merge_paths_ci.yml'
-      - 'scripts/merge_branches.json'
+      - 'scripts/merge_branches.py'
       - 'scripts/merge_paths.json'
       - 'scripts/merge_paths_test.py'
       - 'scripts/merge_status.py'

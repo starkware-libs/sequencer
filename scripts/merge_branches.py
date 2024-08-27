@@ -74,11 +74,31 @@ def dstdiff(source_branch: str, destination_branch: Optional[str], files: List[s
     )
 
 
+def verify_gh_client_status():
+    try:
+        run_command("gh --version")
+    except subprocess.CalledProcessError:
+        print(
+            "GitHub CLI not found. Please install it from "
+            "https://github.com/cli/cli/blob/trunk/docs/install_linux.md#installing-gh-on-linux-and-bsd"
+        )
+        exit(1)
+    try:
+        run_command("gh auth status")
+    except subprocess.CalledProcessError:
+        print(
+            "GitHub CLI not authenticated. Please authenticate using `gh auth login` "
+            "and follow the instructions."
+        )
+        exit(1)
+
+
 def merge_branches(src_branch: str, dst_branch: Optional[str]):
     """
     Merge source branch into destination branch.
     If no destination branch is passed, the destination branch is taken from state on repo.
     """
+    verify_gh_client_status()
     user = os.environ["USER"]
     dst_branch = get_dst_branch(src_branch=src_branch, dst_branch_override=dst_branch)
 
