@@ -1,3 +1,4 @@
+use cairo_vm::types::errors::program_errors::ProgramError;
 use num_bigint::BigUint;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::transaction::{Fee, TransactionVersion};
@@ -27,7 +28,7 @@ pub enum TransactionFeeError {
          ({balance})."
     )]
     L1GasBoundsExceedBalance { max_amount: u64, max_price: u128, balance: BigUint },
-    #[error("Max fee ({}) exceeds balance ({balance}).", max_fee.0, )]
+    #[error("Max fee ({}) exceeds balance ({balance}).", max_fee.0,)]
     MaxFeeExceedsBalance { max_fee: Fee, balance: BigUint },
     #[error("Max fee ({}) is too low. Minimum fee: {}.", max_fee.0, min_fee.0)]
     MaxFeeTooLow { min_fee: Fee, max_fee: Fee },
@@ -109,6 +110,8 @@ pub enum TransactionExecutionError {
          not."
     )]
     InvalidSegmentStructure(usize, usize),
+    #[error(transparent)]
+    ProgramError(#[from] ProgramError),
 }
 
 #[derive(Debug, Error)]

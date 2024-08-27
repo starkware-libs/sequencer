@@ -107,7 +107,7 @@ fn test_circuit(block_context: BlockContext, max_resource_bounds: DeprecatedReso
             ..tx_args
         },
     )
-        .unwrap();
+    .unwrap();
 
     assert!(tx_execution_info.revert_error.is_none());
     assert_eq!(tx_execution_info.receipt.gas, GasVector::from_l1_gas(6682));
@@ -144,7 +144,7 @@ fn test_rc96_holes(
             ..tx_args
         },
     )
-        .unwrap();
+    .unwrap();
 
     assert!(!tx_execution_info.is_reverted());
     assert_eq!(
@@ -198,7 +198,7 @@ fn test_enforce_fee_false_works(block_context: BlockContext, #[case] version: Tr
             nonce: nonce_manager.next(account_address),
         },
     )
-        .unwrap();
+    .unwrap();
     assert!(!tx_execution_info.is_reverted());
     assert_eq!(tx_execution_info.receipt.fee, Fee(0));
 }
@@ -230,7 +230,7 @@ fn test_account_flow_test(
             only_query,
         },
     )
-        .unwrap();
+    .unwrap();
 }
 
 #[rstest]
@@ -323,7 +323,7 @@ fn test_infinite_recursion(
             nonce: nonce_manager.next(account_address),
         },
     )
-        .unwrap();
+    .unwrap();
     if success {
         assert!(tx_execution_info.revert_error.is_none());
     } else {
@@ -430,13 +430,13 @@ fn test_max_fee_limit_validate(
             // works.
             resource_bounds: l1_resource_bounds(
                 estimated_min_l1_gas.try_into().expect("Failed to convert u128 to u64."),
-                block_info.gas_prices.get_gas_price_by_fee_type(&account_tx.fee_type()).into()
+                block_info.gas_prices.get_l1_gas_price_by_fee_type(&account_tx.fee_type()).into()
             ),
             ..tx_args
         },
     )
-        .unwrap_err()
-        .to_string();
+    .unwrap_err()
+    .to_string();
 
     assert!(error_trace.contains("no remaining steps"));
 }
@@ -549,7 +549,7 @@ fn test_revert_invoke(
             nonce: nonce_manager.next(account_address),
         },
     )
-        .unwrap();
+    .unwrap();
 
     // TODO(Dori, 1/7/2023): Verify that the actual fee collected is exactly the fee computed for
     // the validate and fee transfer calls.
@@ -602,7 +602,7 @@ fn test_fail_deploy_account(
     let fee_token_address = chain_info.fee_token_address(&deploy_account_tx.fee_type());
 
     let deploy_address = match &deploy_account_tx {
-        AccountTransaction::DeployAccount(deploy_tx) => deploy_tx.contract_address,
+        AccountTransaction::DeployAccount(deploy_tx) => deploy_tx.contract_address(),
         _ => unreachable!("deploy_account_tx is a DeployAccount"),
     };
     fund_account(chain_info, deploy_address, BALANCE * 2, &mut state.state);
@@ -651,7 +651,7 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
             TransactionHash::default(),
             class_info,
         )
-            .unwrap(),
+        .unwrap(),
     );
 
     // Fail execution, assert nonce and balance are unchanged.
@@ -720,7 +720,7 @@ fn test_reverted_reach_steps_limit(
             ..recursion_base_args.clone()
         },
     )
-        .unwrap();
+    .unwrap();
     let n_steps_0 = result.receipt.resources.total_charged_steps();
     let actual_fee_0 = result.receipt.fee.0;
     // Ensure the transaction was not reverted.
@@ -736,7 +736,7 @@ fn test_reverted_reach_steps_limit(
             ..recursion_base_args.clone()
         },
     )
-        .unwrap();
+    .unwrap();
     let n_steps_1 = result.receipt.resources.total_charged_steps();
     let actual_fee_1 = result.receipt.fee.0;
     // Ensure the transaction was not reverted.
@@ -763,7 +763,7 @@ fn test_reverted_reach_steps_limit(
             ..recursion_base_args.clone()
         },
     )
-        .unwrap();
+    .unwrap();
     let n_steps_fail = result.receipt.resources.total_charged_steps();
     let actual_fee_fail: u128 = result.receipt.fee.0;
     // Ensure the transaction was reverted.
@@ -784,7 +784,7 @@ fn test_reverted_reach_steps_limit(
             ..recursion_base_args
         },
     )
-        .unwrap();
+    .unwrap();
     let n_steps_fail_next = result.receipt.resources.total_charged_steps();
     let actual_fee_fail_next: u128 = result.receipt.fee.0;
     // Ensure the transaction was reverted.
@@ -821,7 +821,7 @@ fn test_n_reverted_steps(
             ..recursion_base_args.clone()
         },
     )
-        .unwrap();
+    .unwrap();
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
     let mut actual_resources_0 = result.receipt.resources.clone();
@@ -838,7 +838,7 @@ fn test_n_reverted_steps(
             ..recursion_base_args.clone()
         },
     )
-        .unwrap();
+    .unwrap();
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
     let actual_resources_1 = result.receipt.resources;
@@ -855,7 +855,7 @@ fn test_n_reverted_steps(
             ..recursion_base_args.clone()
         },
     )
-        .unwrap();
+    .unwrap();
     let n_steps_2 = result.receipt.resources.total_charged_steps();
     let actual_fee_2 = result.receipt.fee.0;
     // Ensure the transaction was reverted.
@@ -887,7 +887,7 @@ fn test_n_reverted_steps(
             ..recursion_base_args
         },
     )
-        .unwrap();
+    .unwrap();
     let n_steps_100 = result.receipt.resources.total_charged_steps();
     let actual_fee_100 = result.receipt.fee.0;
     // Ensure the transaction was reverted.
@@ -916,7 +916,7 @@ fn test_max_fee_to_max_steps_conversion(
     let actual_gas_used_as_u128: u128 = actual_gas_used.into();
     let actual_fee = actual_gas_used_as_u128 * 100000000000;
     let actual_strk_gas_price =
-        block_context.block_info.gas_prices.get_gas_price_by_fee_type(&FeeType::Strk);
+        block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk);
     let execute_calldata = create_calldata(
         contract_address,
         "with_arg",
@@ -1002,11 +1002,12 @@ fn test_insufficient_max_fee_reverts(
             ..recursion_base_args.clone()
         },
     )
-        .unwrap();
+    .unwrap();
     assert!(!tx_execution_info1.is_reverted());
     let actual_fee_depth1 = tx_execution_info1.receipt.fee;
-    let gas_price =
-        u128::from(block_context.block_info.gas_prices.get_gas_price_by_fee_type(&FeeType::Strk));
+    let gas_price = u128::from(
+        block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk),
+    );
     let gas_ammount = u64::try_from(actual_fee_depth1.0 / gas_price).unwrap();
 
     // Invoke the `recurse` function with depth of 2 and the actual fee of depth 1 as max_fee.
@@ -1022,7 +1023,7 @@ fn test_insufficient_max_fee_reverts(
             ..recursion_base_args.clone()
         },
     )
-        .unwrap();
+    .unwrap();
     assert!(tx_execution_info2.is_reverted());
     assert!(tx_execution_info2.receipt.fee == actual_fee_depth1);
     assert!(tx_execution_info2.revert_error.unwrap().starts_with("Insufficient max L1 gas:"));
@@ -1040,7 +1041,7 @@ fn test_insufficient_max_fee_reverts(
             ..recursion_base_args
         },
     )
-        .unwrap();
+    .unwrap();
     assert!(tx_execution_info3.is_reverted());
     assert!(tx_execution_info3.receipt.fee == actual_fee_depth1);
     assert!(
@@ -1082,7 +1083,7 @@ fn test_deploy_account_constructor_storage_write(
         &constructor_calldata,
         ContractAddress::default(),
     )
-        .unwrap();
+    .unwrap();
     let read_storage_arg = state.get_storage_at(deployed_contract_address, storage_key).unwrap();
     assert_eq!(ctor_storage_arg, read_storage_arg);
 }

@@ -143,7 +143,7 @@ impl StateReader for DynStateWrapper<'_> {
     }
 
     fn get_fee_token_balance(
-        &mut self,
+        &self,
         contract_address: ContractAddress,
         fee_token_address: ContractAddress,
     ) -> Result<(Felt, Felt), StateError> {

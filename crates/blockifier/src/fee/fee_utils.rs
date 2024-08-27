@@ -15,7 +15,11 @@ use crate::context::{BlockContext, TransactionContext};
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionFeeError;
 use crate::transaction::objects::{
-    ExecutionResourcesTraits, FeeType, GasVector, TransactionFeeResult, TransactionInfo,
+    ExecutionResourcesTraits,
+    FeeType,
+    GasVector,
+    TransactionFeeResult,
+    TransactionInfo,
 };
 use crate::utils::u128_from_usize;
 use crate::versioned_constants::VersionedConstants;
@@ -71,8 +75,8 @@ pub fn get_fee_by_gas_vector(
     fee_type: &FeeType,
 ) -> Fee {
     gas_vector.saturated_cost(
-        u128::from(block_info.gas_prices.get_gas_price_by_fee_type(fee_type)),
-        u128::from(block_info.gas_prices.get_data_gas_price_by_fee_type(fee_type)),
+        u128::from(block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type)),
+        u128::from(block_info.gas_prices.get_l1_data_gas_price_by_fee_type(fee_type)),
     )
 }
 

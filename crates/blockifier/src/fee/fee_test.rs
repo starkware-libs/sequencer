@@ -51,8 +51,8 @@ fn test_simple_calculate_l1_gas_by_vm_usage() {
     let l1_gas_by_vm_usage =
         (*versioned_constants.vm_resource_fee_cost().get(N_STEPS_RESOURCE).unwrap()
             * (u128_from_usize(vm_resource_usage.n_steps + n_reverted_steps)))
-        .ceil()
-        .to_integer();
+            .ceil()
+            .to_integer();
     assert_eq!(
         GasVector::from_l1_gas(l1_gas_by_vm_usage),
         calculate_l1_gas_by_vm_usage(&versioned_constants, &vm_resource_usage, n_reverted_steps)
@@ -83,8 +83,8 @@ fn test_float_calculate_l1_gas_by_vm_usage() {
     let l1_gas_by_vm_usage =
         ((*versioned_constants.vm_resource_fee_cost().get(N_STEPS_RESOURCE).unwrap())
             * u128_from_usize(vm_resource_usage.n_steps + n_reverted_steps))
-        .ceil()
-        .to_integer();
+            .ceil()
+            .to_integer();
     assert_eq!(
         GasVector::from_l1_gas(l1_gas_by_vm_usage),
         calculate_l1_gas_by_vm_usage(&versioned_constants, &vm_resource_usage, n_reverted_steps)
@@ -98,10 +98,10 @@ fn test_float_calculate_l1_gas_by_vm_usage() {
         .get(BuiltinName::ecdsa.to_str_with_suffix())
         .unwrap())
         * u128_from_usize(
-            *vm_resource_usage.builtin_instance_counter.get(&BuiltinName::ecdsa).unwrap(),
-        ))
-    .ceil()
-    .to_integer();
+        *vm_resource_usage.builtin_instance_counter.get(&BuiltinName::ecdsa).unwrap(),
+    ))
+        .ceil()
+        .to_integer();
 
     assert_eq!(
         GasVector::from_l1_gas(l1_gas_by_vm_usage),
@@ -155,6 +155,7 @@ fn test_discounted_gas_overdraft(
         gas: GasVector {
             l1_gas: u128_from_usize(l1_gas_used),
             l1_data_gas: u128_from_usize(l1_data_gas_used),
+            ..Default::default()
         },
         ..Default::default()
     };
@@ -165,7 +166,7 @@ fn test_discounted_gas_overdraft(
         &tx_receipt,
         charge_fee,
     )
-    .unwrap();
+        .unwrap();
 
     if expect_failure {
         let error = report.error().unwrap();

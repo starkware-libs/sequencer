@@ -72,7 +72,7 @@ pub fn get_da_gas_cost(state_changes_count: &StateChangesCount, use_kzg_da: bool
         (u128_from_usize(gas), 0)
     };
 
-    GasVector { l1_gas, l1_data_gas: blob_gas }
+    GasVector { l1_gas, l1_data_gas: blob_gas, ..Default::default() }
 }
 
 /// Returns the number of felts added to the output messages segment as a result of adding
@@ -195,9 +195,9 @@ pub fn compute_discounted_gas_from_gas_vector(
     tx_context: &TransactionContext,
 ) -> u128 {
     let gas_prices = &tx_context.block_context.block_info.gas_prices;
-    let GasVector { l1_gas: gas_usage, l1_data_gas: blob_gas_usage } = gas_usage_vector;
+    let GasVector { l1_gas: gas_usage, l1_data_gas: blob_gas_usage, .. } = gas_usage_vector;
     let fee_type = tx_context.tx_info.fee_type();
-    let gas_price = gas_prices.get_gas_price_by_fee_type(&fee_type);
-    let data_gas_price = gas_prices.get_data_gas_price_by_fee_type(&fee_type);
+    let gas_price = gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
+    let data_gas_price = gas_prices.get_l1_data_gas_price_by_fee_type(&fee_type);
     gas_usage + u128_div_ceil(blob_gas_usage * u128::from(data_gas_price), gas_price)
 }

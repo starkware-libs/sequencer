@@ -1,4 +1,5 @@
 pub mod cached_state;
+pub mod cairo_compile;
 pub mod contracts;
 pub mod declare;
 pub mod deploy_account;
@@ -224,8 +225,7 @@ pub fn pad_address_to_64(address: &str) -> String {
 
 pub fn get_raw_contract_class(contract_path: &str) -> String {
     let path: PathBuf = [env!("CARGO_MANIFEST_DIR"), contract_path].iter().collect();
-    fs::read_to_string(path.clone())
-        .unwrap_or_else(|_| panic!("File expected at {}", path.display()))
+    fs::read_to_string(path).unwrap()
 }
 
 pub fn trivial_external_entry_point_new(contract: FeatureContract) -> CallEntryPoint {

@@ -11,7 +11,9 @@ use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
 use crate::fee::eth_gas_constants;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::gas_usage::{
-    compute_discounted_gas_from_gas_vector, get_da_gas_cost, get_message_segment_length,
+    compute_discounted_gas_from_gas_vector,
+    get_da_gas_cost,
+    get_message_segment_length,
 };
 use crate::invoke_tx_args;
 use crate::state::cached_state::StateChangesCount;
@@ -205,7 +207,7 @@ fn test_get_message_segment_length(
 fn test_compute_discounted_gas_from_gas_vector() {
     let tx_context =
         BlockContext::create_for_testing().to_tx_context(&account_invoke_tx(invoke_tx_args! {}));
-    let gas_usage = GasVector { l1_gas: 100, l1_data_gas: 2 };
+    let gas_usage = GasVector { l1_gas: 100, l1_data_gas: 2, ..Default::default() };
     let actual_result = compute_discounted_gas_from_gas_vector(&gas_usage, &tx_context);
 
     let result_div_ceil = gas_usage.l1_gas

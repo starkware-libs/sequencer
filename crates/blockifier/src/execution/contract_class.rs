@@ -120,6 +120,12 @@ impl ContractClass {
 }
 
 // V0.
+
+/// Represents a runnable Cario 0 Starknet contract class (meaning, the program is runnable by the
+/// VM). We wrap the actual class in an Arc to avoid cloning the program when cloning the
+/// class.
+// Note: when deserializing from a SN API class JSON string, the ABI field is ignored
+// by serde, since it is not required for execution.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct ContractClassV0(pub Arc<ContractClassV0Inner>);
 impl Deref for ContractClassV0 {
@@ -187,6 +193,10 @@ impl TryFrom<DeprecatedContractClass> for ContractClassV0 {
 }
 
 // V1.
+
+/// Represents a runnable Cario (Cairo 1) Starknet contract class (meaning, the program is runnable
+/// by the VM). We wrap the actual class in an Arc to avoid cloning the program when cloning the
+/// class.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ContractClassV1(pub Arc<ContractClassV1Inner>);
 impl Deref for ContractClassV1 {
@@ -375,7 +385,7 @@ pub struct ContractClassV1Inner {
 pub struct EntryPointV1 {
     pub selector: EntryPointSelector,
     pub offset: EntryPointOffset,
-    pub builtins: Vec<String>,
+    pub builtins: Vec<BuiltinName>,
 }
 
 impl EntryPointV1 {
@@ -431,15 +441,15 @@ impl TryFrom<CasmContractClass> for ContractClassV1 {
         let mut entry_points_by_type = HashMap::new();
         entry_points_by_type.insert(
             EntryPointType::Constructor,
-            convert_entry_points_v1(class.entry_points_by_type.constructor)?,
+            convert_entry_points_v1(class.entry_points_by_type.constructor),
         );
         entry_points_by_type.insert(
             EntryPointType::External,
-            convert_entry_points_v1(class.entry_points_by_type.external)?,
+            convert_entry_points_v1(class.entry_points_by_type.external),
         );
         entry_points_by_type.insert(
             EntryPointType::L1Handler,
-            convert_entry_points_v1(class.entry_points_by_type.l1_handler)?,
+            convert_entry_points_v1(class.entry_points_by_type.l1_handler),
         );
 
         let bytecode_segment_lengths = class
@@ -480,17 +490,17 @@ fn hint_to_hint_params(hint: &cairo_lang_casm::hints::Hint) -> Result<HintParams
     })
 }
 
-fn convert_entry_points_v1(
-    external: Vec<CasmContractEntryPoint>,
-) -> Result<Vec<EntryPointV1>, ProgramError> {
+fn convert_entry_points_v1(external: Vec<CasmContractEntryPoint>) -> Vec<EntryPointV1> {
     external
         .into_iter()
-        .map(|ep| -> Result<_, ProgramError> {
-            Ok(EntryPointV1 {
-                selector: EntryPointSelector(Felt::from(ep.selector)),
-                offset: EntryPointOffset(ep.offset),
-                builtins: ep.builtins.into_iter().map(|builtin| builtin + "_builtin").collect(),
-            })
+        .map(|ep| EntryPointV1 {
+            selector: EntryPointSelector(Felt::from(ep.selector)),
+            offset: EntryPointOffset(ep.offset),
+            builtins: ep
+                .builtins
+                .into_iter()
+                .map(|builtin| BuiltinName::from_str(&builtin).expect("Unrecognized builtin."))
+                .collect(),
         })
         .collect()
 }
@@ -513,8 +523,11 @@ impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
             abi_length,
         } = class_info;
 
-        let contract_class: ContractClass = casm_contract_class.try_into()?;
-        Ok(Self { contract_class, sierra_program_length, abi_length })
+        Ok(Self {
+            contract_class: casm_contract_class.try_into()?,
+            sierra_program_length,
+            abi_length,
+        })
     }
 }
 

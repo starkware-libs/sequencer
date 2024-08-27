@@ -6,8 +6,16 @@ use starknet_api::core::ChainId;
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::felt;
 use starknet_api::transaction::{
-    AccountDeploymentData, Calldata,DeprecatedResourceBoundsMapping, Fee, PaymasterData, Resource, ResourceBounds,
-     Tip, TransactionHash, TransactionVersion,
+    AccountDeploymentData,
+    Calldata,
+    DeprecatedResourceBoundsMapping,
+    Fee,
+    PaymasterData,
+    Resource,
+    ResourceBounds,
+    Tip,
+    TransactionHash,
+    TransactionVersion,
 };
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
@@ -21,64 +29,24 @@ use crate::nonce;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
-    trivial_external_entry_point_with_address, CairoVersion, BALANCE, CHAIN_ID_NAME,
-    CURRENT_BLOCK_NUMBER, CURRENT_BLOCK_NUMBER_FOR_VALIDATE, CURRENT_BLOCK_TIMESTAMP,
-    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE, TEST_SEQUENCER_ADDRESS,
+    trivial_external_entry_point_with_address,
+    CairoVersion,
+    BALANCE,
+    CHAIN_ID_NAME,
+    CURRENT_BLOCK_NUMBER,
+    CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
+    CURRENT_BLOCK_TIMESTAMP,
+    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
+    TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::constants::QUERY_VERSION_BASE_BIT;
 use crate::transaction::objects::{
-    CommonAccountFields, CurrentTransactionInfo, DeprecatedTransactionInfo, TransactionInfo,
+    CommonAccountFields,
+    CurrentTransactionInfo,
+    DeprecatedTransactionInfo,
+    TransactionInfo,
 };
 
-#[test_case(
-    FeatureContract::SierraExecutionInfoV1Contract,
-    ExecutionMode::Validate,
-    TransactionVersion::ONE,
-    false;
-    "Native [V1]: Validate execution mode: block info fields should be zeroed. Transaction V1.")]
-#[test_case(
-    FeatureContract::SierraExecutionInfoV1Contract,
-    ExecutionMode::Execute,
-    TransactionVersion::ONE,
-    false;
-    "Native [V1]: Execute execution mode: block info should be as usual. Transaction V1.")]
-#[test_case(
-    FeatureContract::SierraExecutionInfoV1Contract,
-    ExecutionMode::Validate,
-    TransactionVersion::THREE,
-    false;
-    "Native [V1]: Validate execution mode: block info fields should be zeroed. Transaction V3.")]
-#[test_case(
-    FeatureContract::SierraExecutionInfoV1Contract,
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    false;
-    "Native [V1]: Execute execution mode: block info should be as usual. Transaction V3.")]
-#[test_case(
-    FeatureContract::SierraTestContract,
-    ExecutionMode::Validate,
-    TransactionVersion::ONE,
-    false;
-    "Native: Validate execution mode: block info fields should be zeroed. Transaction V1.")]
-#[test_case(
-    FeatureContract::SierraTestContract,
-    ExecutionMode::Execute,
-    TransactionVersion::ONE,
-    false;
-    "Native: Execute execution mode: block info should be as usual. Transaction V1.")]
-#[test_case(
-    FeatureContract::SierraTestContract,
-    ExecutionMode::Validate,
-    TransactionVersion::THREE,
-    false;
-    "Native: Validate execution mode: block info fields should be zeroed. Transaction V3.")]
-#[test_case(
-    FeatureContract::SierraTestContract,
-    ExecutionMode::Execute,
-    TransactionVersion::THREE,
-    false;
-    "Native: Execute execution mode: block info should be as usual. Transaction V3.")]
-// TODO Native
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1),
     ExecutionMode::Validate,
@@ -281,14 +249,7 @@ fn test_get_execution_info(
             [
                 expected_block_info.to_vec(),
                 expected_tx_info,
-                if let FeatureContract::SierraExecutionInfoV1Contract = test_contract {
-                    vec![]
-                } else {
-                    expected_resource_bounds
-                        .into_iter()
-                        .chain(expected_unsupported_fields)
-                        .collect()
-                },
+                expected_resource_bounds.into_iter().chain(expected_unsupported_fields).collect(),
                 expected_call_info,
             ]
             .concat()

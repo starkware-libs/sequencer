@@ -618,7 +618,7 @@ impl<'a> SyscallHintProcessor<'a> {
         vm: &mut VirtualMachine,
         data: &[Felt],
     ) -> SyscallResult<(Relocatable, Relocatable)> {
-        let data = data.iter().map(|&x| MaybeRelocatable::from(x)).collect::<Vec<_>>();
+        let data: Vec<MaybeRelocatable> = data.iter().map(|&x| MaybeRelocatable::from(x)).collect();
         let data_segment_start_ptr = self.read_only_segments.allocate(vm, &data)?;
         let data_segment_end_ptr = (data_segment_start_ptr + data.len())?;
         Ok((data_segment_start_ptr, data_segment_end_ptr))
@@ -639,7 +639,7 @@ impl<'a> SyscallHintProcessor<'a> {
             Felt::from_hex(
                 self.context.tx_context.block_context.chain_info.chain_id.as_hex().as_str(),
             )?
-            .into(),
+                .into(),
             (tx_info).nonce().0.into(),
         ];
 
@@ -715,10 +715,10 @@ fn get_ptr_from_res_operand_unchecked(vm: &mut VirtualMachine, res: &ResOperand)
     let (cell, base_offset) = match res {
         ResOperand::Deref(cell) => (cell, Felt::from(0)),
         ResOperand::BinOp(BinOpOperand {
-            op: Operation::Add,
-            a,
-            b: DerefOrImmediate::Immediate(b),
-        }) => (a, Felt::from(b.clone().value)),
+                              op: Operation::Add,
+                              a,
+                              b: DerefOrImmediate::Immediate(b),
+                          }) => (a, Felt::from(b.clone().value)),
         _ => panic!("Illegal argument for a buffer."),
     };
     let base = match cell.register {
@@ -888,25 +888,4 @@ pub fn write_segment(
     write_maybe_relocatable(vm, ptr, segment_end_ptr)?;
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use starknet_types_core::felt::Felt;
-
-    use super::*;
-
-    #[test]
-    fn test_felt_from_hex() {
-        assert!(Felt::from_hex(OUT_OF_GAS_ERROR).is_ok());
-        assert!(Felt::from_hex(BLOCK_NUMBER_OUT_OF_RANGE_ERROR).is_ok());
-        assert!(Felt::from_hex(INVALID_EXECUTION_MODE_ERROR).is_ok());
-        assert!(Felt::from_hex(INVALID_INPUT_LENGTH_ERROR).is_ok());
-        assert!(Felt::from_hex(INVALID_ARGUMENT).is_ok());
-        assert!(Felt::from_hex(L1_GAS).is_ok());
-        assert!(Felt::from_hex(L2_GAS).is_ok());
-        assert!(Felt::from_hex(L1_DATA_GAS).is_ok());
-        assert!(Felt::from_hex(FAILED_TO_EXECUTE_CALL).is_ok());
-        assert!(Felt::from_hex(FAILED_TO_CALCULATE_CONTRACT_ADDRESS).is_ok());
-    }
 }

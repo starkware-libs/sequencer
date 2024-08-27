@@ -5,22 +5,33 @@ use std::thread;
 use assert_matches::assert_matches;
 use rstest::{fixture, rstest};
 use starknet_api::core::{
-    calculate_contract_address, ClassHash, ContractAddress, Nonce, PatriciaKey,
+    calculate_contract_address,
+    ClassHash,
+    ContractAddress,
+    Nonce,
+    PatriciaKey,
 };
 use starknet_api::transaction::{Calldata, ContractAddressSalt, DeprecatedResourceBoundsMapping};
 use starknet_api::{calldata, class_hash, contract_address, felt, patricia_key};
 
 use crate::abi::abi_utils::{get_fee_token_var_address, get_storage_var_address};
 use crate::concurrency::test_utils::{
-    class_hash, contract_address, safe_versioned_state_for_testing,
+    class_hash,
+    contract_address,
+    safe_versioned_state_for_testing,
 };
 use crate::concurrency::versioned_state::{
-    ThreadSafeVersionedState, VersionedState, VersionedStateProxy,
+    ThreadSafeVersionedState,
+    VersionedState,
+    VersionedStateProxy,
 };
 use crate::concurrency::TxIndex;
 use crate::context::BlockContext;
 use crate::state::cached_state::{
-    CachedState, ContractClassMapping, StateMaps, TransactionalState,
+    CachedState,
+    ContractClassMapping,
+    StateMaps,
+    TransactionalState,
 };
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader, UpdatableState};
@@ -235,7 +246,7 @@ fn test_run_parallel_txs(max_resource_bounds: DeprecatedResourceBoundsMapping) {
     };
     let nonce_manager = &mut NonceManager::default();
     let deploy_account_tx_2 = deploy_account_tx(deploy_tx_args, nonce_manager);
-    let account_address = deploy_account_tx_2.contract_address;
+    let account_address = deploy_account_tx_2.contract_address();
     let account_tx_2 = AccountTransaction::DeployAccount(deploy_account_tx_2);
     let tx_context = block_context.to_tx_context(&account_tx_2);
     let fee_type = tx_context.tx_info.fee_type();

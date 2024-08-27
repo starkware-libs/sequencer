@@ -795,7 +795,7 @@ fn assert_failure_if_resource_bounds_exceed_balance(
     match block_context.to_tx_context(&invalid_tx).tx_info {
         TransactionInfo::Deprecated(context) => {
             assert_matches!(
-                invalid_tx.execute(state, block_context, true, true,).unwrap_err(),
+                invalid_tx.execute(state, block_context, true, true).unwrap_err(),
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
                         TransactionFeeError::MaxFeeExceedsBalance{ max_fee, .. }))
@@ -805,7 +805,7 @@ fn assert_failure_if_resource_bounds_exceed_balance(
         TransactionInfo::Current(context) => {
             let l1_bounds = context.l1_resource_bounds().unwrap();
             assert_matches!(
-                invalid_tx.execute(state, block_context, true, true,).unwrap_err(),
+                invalid_tx.execute(state, block_context, true, true).unwrap_err(),
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
                         TransactionFeeError::L1GasBoundsExceedBalance{ max_amount, max_price, .. }))
@@ -910,7 +910,7 @@ fn test_insufficient_resource_bounds(
     let gas_prices = &block_context.block_info.gas_prices;
     // TODO(Aner, 21/01/24) change to linear combination.
     let minimal_fee =
-        Fee(minimal_l1_gas * u128::from(gas_prices.get_gas_price_by_fee_type(&FeeType::Eth)));
+        Fee(minimal_l1_gas * u128::from(gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Eth)));
     // Max fee too low (lower than minimal estimated fee).
     let invalid_max_fee = Fee(minimal_fee.0 - 1);
     let invalid_v1_tx = account_invoke_tx(
@@ -928,7 +928,7 @@ fn test_insufficient_resource_bounds(
     );
 
     // Test V3 transaction.
-    let actual_strk_l1_gas_price = gas_prices.get_gas_price_by_fee_type(&FeeType::Strk);
+    let actual_strk_l1_gas_price = gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk);
 
     // Max L1 gas amount too low.
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
@@ -995,7 +995,9 @@ fn test_actual_fee_gt_resource_bounds(
     let minimal_l1_gas = estimate_minimal_gas_vector(block_context, tx).unwrap().l1_gas;
     let minimal_resource_bounds = l1_resource_bounds(
         u64::try_from(minimal_l1_gas).unwrap(),
-        u128::from(block_context.block_info.gas_prices.get_gas_price_by_fee_type(&FeeType::Strk)),
+        u128::from(
+            block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk),
+        ),
     );
     // The estimated minimal fee is lower than the actual fee.
     let invalid_tx = account_invoke_tx(
@@ -1009,7 +1011,7 @@ fn test_actual_fee_gt_resource_bounds(
     // Test that fee was charged.
     let minimal_fee = Fee(minimal_l1_gas
         * u128::from(
-            block_context.block_info.gas_prices.get_gas_price_by_fee_type(&FeeType::Strk),
+            block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk),
         ));
     assert_eq!(execution_result.receipt.fee, minimal_fee);
 }
@@ -1307,7 +1309,7 @@ fn test_deploy_account_tx(
     // Extract deploy account transaction fields for testing, as it is consumed when creating an
     // account transaction.
     let class_hash = deploy_account.class_hash();
-    let deployed_account_address = deploy_account.contract_address;
+    let deployed_account_address = deploy_account.contract_address();
     let constructor_calldata = deploy_account.constructor_calldata();
     let salt = deploy_account.contract_address_salt();
 
@@ -1475,7 +1477,7 @@ fn test_fail_deploy_account_undeclared_class_hash(
     state
         .set_storage_at(
             chain_info.fee_token_address(&fee_type),
-            get_fee_token_var_address(deploy_account.contract_address),
+            get_fee_token_var_address(deploy_account.contract_address()),
             felt!(BALANCE),
         )
         .unwrap();
@@ -1867,7 +1869,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // TODO(Nimrod, 1/5/2024): Change these hard coded values to match to the transaction resources
     // (currently matches only starknet resources).
     let expected_gas = match use_kzg_da {
-        true => GasVector { l1_gas: 16023, l1_data_gas: 128 },
+        true => GasVector { l1_gas: 16023, l1_data_gas: 128, l2_gas: 0 },
         false => GasVector::from_l1_gas(17675),
     };
     let expected_da_gas = match use_kzg_da {
