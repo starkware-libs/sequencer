@@ -125,7 +125,7 @@ async fn manager_multiple_heights_unordered() {
         .expect_validate_proposal()
         .return_once(move |_, _| {
             let (block_sender, block_receiver) = oneshot::channel();
-            block_sender.send(TestBlock { content: vec![], id: BlockHash(Felt::ONE) }).unwrap();
+            block_sender.send(TestBlock { content: Vec::new(), id: BlockHash(Felt::ONE) }).unwrap();
             block_receiver
         })
         .times(1);
@@ -142,7 +142,7 @@ async fn manager_multiple_heights_unordered() {
         .expect_validate_proposal()
         .return_once(move |_, _| {
             let (block_sender, block_receiver) = oneshot::channel();
-            block_sender.send(TestBlock { content: vec![], id: BlockHash(Felt::TWO) }).unwrap();
+            block_sender.send(TestBlock { content: Vec::new(), id: BlockHash(Felt::TWO) }).unwrap();
             block_receiver
         })
         .times(1);
@@ -158,7 +158,7 @@ async fn run_consensus_sync() {
 
     context.expect_validate_proposal().return_once(move |_, _| {
         let (block_sender, block_receiver) = oneshot::channel();
-        block_sender.send(TestBlock { content: vec![], id: BlockHash(Felt::TWO) }).unwrap();
+        block_sender.send(TestBlock { content: Vec::new(), id: BlockHash(Felt::TWO) }).unwrap();
         block_receiver
     });
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
@@ -215,7 +215,7 @@ async fn run_consensus_sync_cancellation_safety() {
 
     context.expect_validate_proposal().return_once(move |_, _| {
         let (block_sender, block_receiver) = oneshot::channel();
-        block_sender.send(TestBlock { content: vec![], id: BlockHash(Felt::ONE) }).unwrap();
+        block_sender.send(TestBlock { content: Vec::new(), id: BlockHash(Felt::ONE) }).unwrap();
         block_receiver
     });
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
@@ -281,7 +281,7 @@ async fn test_timeouts() {
     let mut context = MockTestContext::new();
     context.expect_validate_proposal().returning(move |_, _| {
         let (block_sender, block_receiver) = oneshot::channel();
-        block_sender.send(TestBlock { content: vec![], id: BlockHash(Felt::ONE) }).unwrap();
+        block_sender.send(TestBlock { content: Vec::new(), id: BlockHash(Felt::ONE) }).unwrap();
         block_receiver
     });
     context
