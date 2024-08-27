@@ -31,6 +31,7 @@ on:
       - 'scripts/build_native_blockifier.sh'
       - 'scripts/install_build_tools.sh'
       - 'scripts/sequencer-ci.Dockerfile'
+      - 'bla'
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
