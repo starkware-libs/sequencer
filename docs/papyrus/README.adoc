@@ -28,7 +28,7 @@ Papyrus is a Starknet full node implemented in Rust. Papyrus tracks Starknet’s
 
 This Papyrus version supports the following starknet versions:
 
-* v0.13.0
+* v0.13.0.
 
 == Disclaimer
 
