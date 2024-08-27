@@ -9,8 +9,7 @@ use serde::{Deserialize, Serialize};
 #[serde(untagged)]
 pub(crate) enum DependencyValue {
     String(String),
-    Object { version: String, path: Option<String> },
-    LocalCrateObject { path: Option<String> },
+    Object { version: Option<String>, path: Option<String> },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -61,7 +60,7 @@ impl CargoToml {
 
     pub(crate) fn path_dependencies(&self) -> impl Iterator<Item = LocalCrate> + '_ {
         self.workspace.dependencies.iter().filter_map(|(_name, value)| {
-            if let DependencyValue::Object { path: Some(path), version } = value {
+            if let DependencyValue::Object { path: Some(path), version: Some(version) } = value {
                 Some(LocalCrate { path: path.to_string(), version: version.to_string() })
             } else {
                 None
@@ -72,7 +71,6 @@ impl CargoToml {
     pub(crate) fn member_cargo_tomls(&self) -> Vec<CrateCargoToml> {
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         let crates_dir = format!("{}/../", manifest_dir);
-
         self.members()
             .iter()
             .map(|member| {
@@ -93,31 +91,16 @@ impl CrateCargoToml {
         self.dependencies.is_some() || self.dev_dependencies.is_some()
     }
 
-    pub(crate) fn path_dependencies(&self) -> Box<dyn Iterator<Item = String> + '_> {
-        let dependencies_iter = if let Some(dependencies) = &self.dependencies {
-            Box::new(dependencies.iter().filter_map(|(_name, value)| {
-                if let DependencyValue::LocalCrateObject { path: Some(path) } = value {
+    pub(crate) fn path_dependencies(&self) -> impl Iterator<Item = String> + '_ {
+        self.dependencies.iter().chain(self.dev_dependencies.iter()).flatten().filter_map(
+            |(_name, value)| {
+                if let DependencyValue::Object { path: Some(path), version: Some(_version) } = value
+                {
                     Some(path.to_string())
                 } else {
                     None
                 }
-            })) as Box<dyn Iterator<Item = String>>
-        } else {
-            Box::new(::std::iter::empty()) as Box<dyn Iterator<Item = String>>
-        };
-
-        let dev_dependencies_iter = if let Some(dev_dependencies) = &self.dev_dependencies {
-            Box::new(dev_dependencies.iter().filter_map(|(_name, value)| {
-                if let DependencyValue::LocalCrateObject { path: Some(path) } = value {
-                    Some(path.to_string())
-                } else {
-                    None
-                }
-            })) as Box<dyn Iterator<Item = String>>
-        } else {
-            Box::new(::std::iter::empty()) as Box<dyn Iterator<Item = String>>
-        };
-
-        Box::new(dependencies_iter.chain(dev_dependencies_iter))
+            },
+        )
     }
 }

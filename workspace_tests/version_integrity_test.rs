@@ -3,7 +3,7 @@ use crate::toml_utils::{LocalCrate, ROOT_TOML};
 #[test]
 fn test_path_dependencies_are_members() {
     let non_member_path_crates: Vec<_> = ROOT_TOML
-        .workspace_path_dependencies()
+        .path_dependencies()
         .filter(|LocalCrate { path, .. }| !ROOT_TOML.members().contains(path))
         .collect();
     assert!(
@@ -17,7 +17,7 @@ fn test_path_dependencies_are_members() {
 fn test_version_alignment() {
     let workspace_version = ROOT_TOML.workspace_version();
     let crates_with_incorrect_version: Vec<_> = ROOT_TOML
-        .workspace_path_dependencies()
+        .path_dependencies()
         .filter(|LocalCrate { version, .. }| version != workspace_version)
         .collect();
     assert!(
@@ -30,14 +30,16 @@ fn test_version_alignment() {
 #[test]
 fn validate_no_path_dependencies() {
     let mut all_path_deps_in_crate_tomls: Vec<String> = Vec::new();
+    let members = ROOT_TOML.members();
     for crate_cargo_toml in ROOT_TOML.member_cargo_tomls().iter() {
         if crate_cargo_toml.has_dependencies() {
             let crate_paths: Vec<String> = crate_cargo_toml.path_dependencies().collect();
             all_path_deps_in_crate_tomls.extend(crate_paths);
         }
-        assert!(
-            all_path_deps_in_crate_tomls.is_empty(),
-            "The following crates have path dependency {all_path_deps_in_crate_tomls:?}."
-        );
     }
+    assert!(
+        all_path_deps_in_crate_tomls.is_empty(),
+        "The following crates have path dependency {all_path_deps_in_crate_tomls:?}."
+    );
 }
+
