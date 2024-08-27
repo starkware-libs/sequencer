@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.9
-
+# A diff that should appear
 """
 Merge a branch into another branch. Example usage:
 ```
