@@ -232,32 +232,21 @@ impl VersionedConstants {
         Self { validate_max_n_steps, max_recursion_depth, ..Self::latest_constants().clone() }
     }
 
-    // TODO(Amos, 1/8/2024): Remove the explicit `validate_max_n_steps` & `max_recursion_depth`,
-    // they should be part of the general override.
-    /// `versioned_constants_base_overrides` are used if they are provided, otherwise the latest
-    /// versioned constants are used. `validate_max_n_steps` & `max_recursion_depth` override both.
+    /// Returns the latest versioned constants after applying the given overrides.
     pub fn get_versioned_constants(
         versioned_constants_overrides: VersionedConstantsOverrides,
     ) -> Self {
         let VersionedConstantsOverrides {
             validate_max_n_steps,
             max_recursion_depth,
-            versioned_constants_base_overrides,
+            invoke_tx_max_n_steps,
         } = versioned_constants_overrides;
-        let base_overrides = match versioned_constants_base_overrides {
-            Some(versioned_constants_base_overrides) => {
-                log::debug!(
-                    "Using provided `versioned_constants_base_overrides` (with additional \
-                     overrides)."
-                );
-                versioned_constants_base_overrides
-            }
-            None => {
-                log::debug!("Using latest versioned constants (with additional overrides).");
-                Self::latest_constants().clone()
-            }
-        };
-        Self { validate_max_n_steps, max_recursion_depth, ..base_overrides }
+        Self {
+            validate_max_n_steps,
+            max_recursion_depth,
+            invoke_tx_max_n_steps,
+            ..Self::latest_constants().clone()
+        }
     }
 }
 
@@ -756,5 +745,5 @@ pub struct ResourcesByVersion {
 pub struct VersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
-    pub versioned_constants_base_overrides: Option<VersionedConstants>,
+    pub invoke_tx_max_n_steps: u32,
 }
