@@ -968,7 +968,7 @@ dependencies = [
 
 [[package]]
 name = "blockifier"
-version = "0.8.0-rc.2"
+version = "0.0.0"
 dependencies = [
  "anyhow",
  "ark-ec",
@@ -1948,7 +1948,7 @@ dependencies = [
 
 [[package]]
 name = "committer_cli"
-version = "0.1.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "clap",
  "criterion",
@@ -5590,7 +5590,7 @@ dependencies = [
 
 [[package]]
 name = "native_blockifier"
-version = "0.8.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "blockifier",
  "cached",
@@ -6108,7 +6108,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_base_layer"
-version = "0.4.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "async-trait",
  "ethers",
@@ -6130,7 +6130,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_block_builder"
-version = "0.4.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "papyrus_storage",
  "papyrus_test_utils",
@@ -6142,7 +6142,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_common"
-version = "0.4.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "assert_matches",
  "cairo-lang-starknet-classes",
@@ -6163,7 +6163,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_config"
-version = "0.4.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "assert_matches",
  "clap",
@@ -6180,7 +6180,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_consensus"
-version = "0.4.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -6205,7 +6205,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_execution"
-version = "0.4.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -6234,7 +6234,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_load_test"
-version = "0.4.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -6251,7 +6251,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_monitoring_gateway"
-version = "0.4.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "axum",
  "http-body",
@@ -6275,7 +6275,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_network"
-version = "0.4.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "assert_matches",
  "async-stream",
@@ -6307,7 +6307,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_node"
-version = "0.4.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "anyhow",
  "assert-json-diff",
@@ -6349,7 +6349,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_p2p_sync"
-version = "0.4.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "assert_matches",
  "async-stream",
@@ -6380,7 +6380,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_proc_macros"
-version = "0.4.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "metrics 0.21.1",
  "metrics-exporter-prometheus",
@@ -6394,7 +6394,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_protobuf"
-version = "0.4.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "indexmap 2.2.6",
  "lazy_static",
@@ -6412,7 +6412,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_rpc"
-version = "0.4.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -6465,7 +6465,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_storage"
-version = "0.4.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "assert_matches",
  "byteorder",
@@ -6516,7 +6516,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_sync"
-version = "0.4.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "assert_matches",
  "async-stream",
@@ -6551,7 +6551,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_test_utils"
-version = "0.4.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",
@@ -8765,7 +8765,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_api"
-version = "0.13.0-rc.1"
+version = "0.0.0"
 dependencies = [
  "assert_matches",
  "bitvec",
@@ -8819,7 +8819,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_client"
-version = "0.4.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -8854,7 +8854,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_committer"
-version = "0.1.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "hex",
  "pretty_assertions",
@@ -9042,7 +9042,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_patricia"
-version = "0.1.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "async-recursion",
  "derive_more",
@@ -10469,6 +10469,14 @@ checksum = "524e57b2c537c0f9b1e69f1965311ec12182b4122e45035b1508cd24d2adadb1"
 dependencies = [
  "cfg-if",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "workspace_tests"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "toml",
 ]
 
 [[package]]
