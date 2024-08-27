@@ -5,8 +5,8 @@ use rstest::rstest;
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::transaction::{
     ContractAddressSalt,
+    DeprecatedResourceBoundsMapping,
     Fee,
-    ResourceBoundsMapping,
     TransactionVersion,
 };
 use starknet_api::{contract_address, felt, patricia_key};
@@ -261,7 +261,7 @@ fn test_commit_tx_when_sender_is_sequencer() {
 }
 
 #[rstest]
-fn test_worker_execute(max_resource_bounds: ResourceBoundsMapping) {
+fn test_worker_execute(max_resource_bounds: DeprecatedResourceBoundsMapping) {
     // Settings.
     let block_context = BlockContext::create_for_account_testing();
     let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
@@ -435,7 +435,7 @@ fn test_worker_execute(max_resource_bounds: ResourceBoundsMapping) {
 }
 
 #[rstest]
-fn test_worker_validate(max_resource_bounds: ResourceBoundsMapping) {
+fn test_worker_validate(max_resource_bounds: DeprecatedResourceBoundsMapping) {
     // Settings.
     let block_context = BlockContext::create_for_account_testing();
     let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
@@ -542,7 +542,7 @@ fn test_worker_validate(max_resource_bounds: ResourceBoundsMapping) {
 #[case::declare_cairo1(CairoVersion::Cairo1, TransactionVersion::THREE)]
 fn test_deploy_before_declare(
     max_fee: Fee,
-    max_resource_bounds: ResourceBoundsMapping,
+    max_resource_bounds: DeprecatedResourceBoundsMapping,
     #[case] cairo_version: CairoVersion,
     #[case] version: TransactionVersion,
 ) {
@@ -634,7 +634,7 @@ fn test_deploy_before_declare(
 }
 
 #[rstest]
-fn test_worker_commit_phase(max_resource_bounds: ResourceBoundsMapping) {
+fn test_worker_commit_phase(max_resource_bounds: DeprecatedResourceBoundsMapping) {
     // Settings.
     let block_context = BlockContext::create_for_account_testing();
     let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);

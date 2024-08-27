@@ -20,7 +20,7 @@ use starknet_api::core::{
 };
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
-    Calldata, ContractAddressSalt, Resource, ResourceBounds, ResourceBoundsMapping,
+    Calldata, ContractAddressSalt,DeprecatedResourceBoundsMapping, Resource, ResourceBounds,
     TransactionVersion,
 };
 use starknet_api::{class_hash, contract_address, felt, patricia_key};

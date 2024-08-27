@@ -3,6 +3,7 @@ use blockifier::blockifier::stateful_validator::{
     StatefulValidatorResult as BlockifierStatefulValidatorResult,
 };
 use blockifier::context::BlockContext;
+use blockifier::execution::contract_class::ClassInfo;
 use blockifier::test_utils::CairoVersion;
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
 use mempool_test_utils::invoke_tx_args;
@@ -69,7 +70,7 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
     invoke_tx(CairoVersion::Cairo1),
     Ok(ValidateInfo{
         tx_hash: TransactionHash(felt!(
-        "0x152b8dd0c30e95fa3a4ee7a9398fcfc46fb00c048b4fdcfa9958c64d65899b8"
+        "0x3b93426272b6e281bc9bde29b91a9fb100c2f9689388c62360b2be2f4e7b493"
         )),
         sender_address: contract_address!("0xc0020000"),
         account_nonce: Nonce::default()
@@ -77,15 +78,18 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
 )]
 #[case::invalid_tx(invoke_tx(CairoVersion::Cairo1), Err(STATEFUL_VALIDATOR_FEE_ERROR))]
 fn test_stateful_tx_validator(
-    #[case] external_tx: RpcTransaction,
+    #[case] rpc_tx: RpcTransaction,
     #[case] expected_result: BlockifierStatefulValidatorResult<ValidateInfo>,
     stateful_validator: StatefulTransactionValidator,
 ) {
-    let optional_class_info = match &external_tx {
+    let optional_class_info = match &rpc_tx {
         RpcTransaction::Declare(declare_tx) => Some(
-            GatewayCompiler::new_cairo_lang_compiler(SierraToCasmCompilationConfig::default())
-                .process_declare_tx(declare_tx)
-                .unwrap(),
+            ClassInfo::try_from(
+                GatewayCompiler::new_cairo_lang_compiler(SierraToCasmCompilationConfig::default())
+                    .process_declare_tx(declare_tx)
+                    .unwrap(),
+            )
+            .unwrap(),
         ),
         _ => None,
     };
@@ -99,7 +103,7 @@ fn test_stateful_tx_validator(
     mock_validator.expect_validate().return_once(|_, _| expected_result.map(|_| ()));
     mock_validator.expect_get_nonce().returning(|_| Ok(Nonce(Felt::ZERO)));
 
-    let result = stateful_validator.run_validate(&external_tx, optional_class_info, mock_validator);
+    let result = stateful_validator.run_validate(&rpc_tx, optional_class_info, mock_validator);
     assert_eq!(result, expected_result_as_stateful_transaction_result);
 }
 
@@ -155,12 +159,12 @@ fn test_instantiate_validator() {
     false
 )]
 fn test_skip_stateful_validation(
-    #[case] external_tx: RpcTransaction,
+    #[case] rpc_tx: RpcTransaction,
     #[case] sender_nonce: Nonce,
     #[case] should_skip_validate: bool,
     stateful_validator: StatefulTransactionValidator,
 ) {
-    let sender_address = external_tx.calculate_sender_address().unwrap();
+    let sender_address = rpc_tx.calculate_sender_address().unwrap();
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator
         .expect_get_nonce()
@@ -170,5 +174,5 @@ fn test_skip_stateful_validation(
         .expect_validate()
         .withf(move |_, skip_validate| *skip_validate == should_skip_validate)
         .returning(|_, _| Ok(()));
-    let _ = stateful_validator.run_validate(&external_tx, None, mock_validator);
+    let _ = stateful_validator.run_validate(&rpc_tx, None, mock_validator);
 }

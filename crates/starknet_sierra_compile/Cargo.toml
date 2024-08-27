@@ -1,9 +1,9 @@
 [package]
-name = "starknet_sierra_compile"
-version = "0.0.0"
 edition.workspace = true
-repository.workspace = true
 license.workspace = true
+name = "starknet_sierra_compile"
+repository.workspace = true
+version.workspace = true
 
 [lints]
 workspace = true

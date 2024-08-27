@@ -1,6 +1,6 @@
 use assert_matches::assert_matches;
 use rstest::rstest;
-use starknet_api::transaction::{Fee, TransactionVersion};
+use starknet_api::transaction::{DeprecatedResourceBoundsMapping, Fee, TransactionVersion};
 
 use crate::blockifier::stateful_validator::StatefulValidator;
 use crate::context::BlockContext;
@@ -9,7 +9,7 @@ use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::{CairoVersion, BALANCE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::test_utils::{
-    block_context, create_account_tx_for_validate_test_nonce_0, FaultyAccountTxCreatorArgs,
+    block_context, create_account_tx_for_validate_test_nonce_0,max_resource_bounds, FaultyAccountTxCreatorArgs,
     INVALID, VALID,
 };
 use crate::transaction::transaction_types::TransactionType;
@@ -29,6 +29,7 @@ fn test_transaction_validator(
     #[case] validate_constructor: bool,
     #[case] tx_version: TransactionVersion,
     block_context: BlockContext,
+    max_resource_bounds: DeprecatedResourceBoundsMapping,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     let chain_info = &block_context.chain_info;
@@ -41,16 +42,15 @@ fn test_transaction_validator(
 
     let mut state = test_state(chain_info, account_balance, &[(faulty_account, 1)]);
 
-    // TODO(Arni, 1/5/2024): Cover resource bounds in version 3 txs. Test the validator validate
-    // enough "fee" in version 3 txs.
     let transaction_args = FaultyAccountTxCreatorArgs {
         tx_type,
         tx_version,
         sender_address,
         class_hash,
         validate_constructor,
-        // TODO(Arni, 1/5/2024): Add test for insufficient max fee.
+        // TODO(Arni, 1/5/2024): Add test for insufficient maximal resources.
         max_fee: Fee(BALANCE),
+        resource_bounds: max_resource_bounds,
         ..Default::default()
     };
 
@@ -65,13 +65,13 @@ fn test_transaction_validator(
 
     // Test the stateful validator.
     let mut stateful_validator = StatefulValidator::create(state, block_context);
-
-    let result = stateful_validator.perform_validations(tx, false);
+    let skip_validate = false;
+    let result = stateful_validator.perform_validations(tx, skip_validate);
     assert!(result.is_ok(), "Validation failed: {:?}", result.unwrap_err());
 }
 
-#[test]
-fn test_transaction_validator_skip_validate() {
+#[rstest]
+fn test_transaction_validator_skip_validate(max_resource_bounds: DeprecatedResourceBoundsMapping) {
     let block_context = BlockContext::create_for_testing();
     let faulty_account = FeatureContract::FaultyAccount(CairoVersion::Cairo1);
     let state = test_state(&block_context.chain_info, BALANCE, &[(faulty_account, 1)]);
@@ -83,7 +83,7 @@ fn test_transaction_validator_skip_validate() {
         tx_version: TransactionVersion::THREE,
         sender_address: faulty_account.get_instance_address(0),
         class_hash: faulty_account.get_class_hash(),
-        max_fee: Fee(BALANCE),
+        resource_bounds: max_resource_bounds,
         ..Default::default()
     });
 

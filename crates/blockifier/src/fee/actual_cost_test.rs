@@ -1,5 +1,5 @@
 use rstest::{fixture, rstest};
-use starknet_api::transaction::{L2ToL1Payload, ResourceBoundsMapping};
+use starknet_api::transaction::{DeprecatedResourceBoundsMapping, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
 use crate::context::BlockContext;
@@ -284,7 +284,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
 // resources are taken into account).
 #[rstest]
 fn test_calculate_tx_gas_usage(
-    max_resource_bounds: ResourceBoundsMapping,
+    max_resource_bounds: DeprecatedResourceBoundsMapping,
     #[values(false, true)] use_kzg_da: bool,
 ) {
     let account_cairo_version = CairoVersion::Cairo0;

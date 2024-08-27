@@ -1,13 +1,12 @@
 use std::collections::{HashMap, HashSet};
 use std::io;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use indexmap::{IndexMap, IndexSet};
 use num_rational::Ratio;
-use once_cell::sync::Lazy;
 use paste::paste;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer};
@@ -43,7 +42,7 @@ macro_rules! define_versioned_constants {
             $(
                 pub(crate) const [<VERSIONED_CONSTANTS_ $variant:upper _JSON>]: &str =
                     include_str!($path_to_json);
-                static [<VERSIONED_CONSTANTS_ $variant:upper>]: Lazy<VersionedConstants> = Lazy::new(|| {
+                static [<VERSIONED_CONSTANTS_ $variant:upper>]: LazyLock<VersionedConstants> = LazyLock::new(|| {
                     serde_json::from_str([<VERSIONED_CONSTANTS_ $variant:upper _JSON>])
                         .expect(&format!("Versioned constants {} is malformed.", $path_to_json))
                 });
@@ -122,6 +121,14 @@ impl VersionedConstants {
     /// To use custom constants, initialize the struct from a file using `try_from`.
     pub fn latest_constants() -> &'static Self {
         Self::get(StarknetVersion::Latest)
+    }
+
+    /// Converts from l1 gas cost to l2 gas cost with **upward rounding**
+    pub fn l1_to_l2_gas_price_conversion(&self, l1_gas_price: u128) -> u128 {
+        let l1_to_l2_gas_price_ratio: Ratio<u128> =
+            Ratio::new(1, u128::from(self.os_constants.gas_costs.step_gas_cost))
+                * self.vm_resource_fee_cost()["n_steps"];
+        *(l1_to_l2_gas_price_ratio * l1_gas_price).ceil().numer()
     }
 
     /// Returns the initial gas of any transaction to run with.
@@ -458,6 +465,8 @@ impl<'de> Deserialize<'de> for OsResources {
 #[derive(Debug, Default, Deserialize)]
 pub struct GasCosts {
     pub step_gas_cost: u64,
+    // Range check has a hard-coded cost higher than its proof percentage to avoid the overhead of
+    // retrieving its price from the table.
     pub range_check_gas_cost: u64,
     pub memory_hole_gas_cost: u64,
     // An estimation of the initial gas for a transaction to run with. This solution is

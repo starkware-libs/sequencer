@@ -139,12 +139,21 @@ def build_node(data_dir, logs_dir, i, papryus_args):
         f"--rpc.server_address 127.0.0.1:{find_free_port()} "
         f"--monitoring_gateway.server_address 127.0.0.1:{monitoring_gateway_server_port} "
         f"--consensus.test.#is_none false "
-        f"--consensus.test.cache_size {papryus_args.cache_size} "
-        f"--consensus.test.random_seed {papryus_args.random_seed} "
-        f"--consensus.test.drop_probability {papryus_args.drop_probability} "
-        f"--consensus.test.invalid_probability {papryus_args.invalid_probability} "
         f"--collect_metrics true "
     )
+
+    conditional_params = {
+        "timeouts.proposal_timeout": papryus_args.proposal_timeout,
+        "timeouts.prevote_timeout": papryus_args.prevote_timeout,
+        "timeouts.precommit_timeout": papryus_args.precommit_timeout,
+        "test.cache_size": papryus_args.cache_size,
+        "test.random_seed": papryus_args.random_seed,
+        "test.drop_probability": papryus_args.drop_probability,
+        "test.invalid_probability": papryus_args.invalid_probability,
+    }
+    for key, value in conditional_params.items():
+        if value is not None:
+            cmd += f"--consensus.{key} {value} "
 
     if is_bootstrap:
         cmd += (
@@ -190,6 +199,9 @@ class PapyrusArgs:
         base_layer_node_url,
         num_validators,
         db_dir,
+        proposal_timeout,
+        prevote_timeout,
+        precommit_timeout,
         cache_size,
         random_seed,
         drop_probability,
@@ -198,6 +210,9 @@ class PapyrusArgs:
         self.base_layer_node_url = base_layer_node_url
         self.num_validators = num_validators
         self.db_dir = db_dir
+        self.proposal_timeout = proposal_timeout
+        self.prevote_timeout = prevote_timeout
+        self.precommit_timeout = precommit_timeout
         self.cache_size = cache_size
         self.random_seed = random_seed
         self.drop_probability = drop_probability
@@ -266,31 +281,52 @@ if __name__ == "__main__":
     )
     parser.add_argument("--duration", type=int, required=False, default=None)
     parser.add_argument(
+        "--proposal_timeout",
+        type=float,
+        required=False,
+        default=None,
+        help="The timeout (seconds) for a proposal.",
+    )
+    parser.add_argument(
+        "--prevote_timeout",
+        type=float,
+        required=False,
+        default=None,
+        help="The timeout (seconds) for a prevote.",
+    )
+    parser.add_argument(
+        "--precommit_timeout",
+        type=float,
+        required=False,
+        default=None,
+        help="The timeout (seconds) for a precommit.",
+    )
+    parser.add_argument(
         "--cache_size",
         type=int,
         required=False,
-        default=1000,
+        default=None,
         help="Cache size for the test simulation.",
     )
     parser.add_argument(
         "--random_seed",
         type=int,
         required=False,
-        default=0,
+        default=None,
         help="Random seed for test simulation.",
     )
     parser.add_argument(
         "--drop_probability",
         type=float,
         required=False,
-        default=0,
+        default=None,
         help="Probability of dropping a message for test simulation.",
     )
     parser.add_argument(
         "--invalid_probability",
         type=float,
         required=False,
-        default=0,
+        default=None,
         help="Probability of sending an invalid message for test simulation.",
     )
     args = parser.parse_args()
@@ -299,6 +335,9 @@ if __name__ == "__main__":
         base_layer_node_url=args.base_layer_node_url,
         num_validators=args.num_validators,
         db_dir=args.db_dir,
+        proposal_timeout=args.proposal_timeout,
+        prevote_timeout=args.prevote_timeout,
+        precommit_timeout=args.precommit_timeout,
         cache_size=args.cache_size,
         random_seed=args.random_seed,
         drop_probability=args.drop_probability,

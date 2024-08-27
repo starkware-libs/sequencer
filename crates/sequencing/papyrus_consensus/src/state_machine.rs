@@ -32,6 +32,12 @@ pub enum StateMachineEvent {
     /// expected as an inbound message. We presume that the caller is able to recover the set of
     /// precommits which led to this decision from the information returned here.
     Decision(BlockHash, Round),
+    /// Timeout events, can be both sent from and to the state machine.
+    TimeoutPropose(Round),
+    /// Timeout events, can be both sent from and to the state machine.
+    TimeoutPrevote(Round),
+    /// Timeout events, can be both sent from and to the state machine.
+    TimeoutPrecommit(Round),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -186,6 +192,11 @@ impl StateMachine {
                     "If the caller knows of a decision, it can just drop the state machine."
                 )
             }
+            StateMachineEvent::TimeoutPropose(round) => self.handle_timeout_proposal(round),
+            StateMachineEvent::TimeoutPrevote(round) => self.handle_timeout_prevote(round),
+            StateMachineEvent::TimeoutPrecommit(round) => {
+                self.handle_timeout_precommit(round, leader_fn)
+            }
         }
     }
 
@@ -238,6 +249,14 @@ impl StateMachine {
         output
     }
 
+    fn handle_timeout_proposal(&mut self, round: u32) -> VecDeque<StateMachineEvent> {
+        if self.step != Step::Propose || round != self.round {
+            return VecDeque::new();
+        };
+        self.step = Step::Prevote;
+        VecDeque::from([StateMachineEvent::Prevote(None, round)])
+    }
+
     // A prevote from a peer (or self) node.
     fn handle_prevote<LeaderFn>(
         &mut self,
@@ -258,6 +277,14 @@ impl StateMachine {
         self.check_prevote_quorum(round, leader_fn)
     }
 
+    fn handle_timeout_prevote(&mut self, round: u32) -> VecDeque<StateMachineEvent> {
+        if self.step != Step::Prevote || round != self.round {
+            return VecDeque::new();
+        };
+        self.step = Step::Precommit;
+        VecDeque::from([StateMachineEvent::Precommit(None, round)])
+    }
+
     // A precommit from a peer (or self) node.
     fn handle_precommit<LeaderFn>(
         &mut self,
@@ -274,6 +301,20 @@ impl StateMachine {
         *precommit_count += 1;
 
         self.check_precommit_quorum(round, leader_fn)
+    }
+
+    fn handle_timeout_precommit<LeaderFn>(
+        &mut self,
+        round: u32,
+        leader_fn: &LeaderFn,
+    ) -> VecDeque<StateMachineEvent>
+    where
+        LeaderFn: Fn(Round) -> ValidatorId,
+    {
+        if round != self.round {
+            return VecDeque::new();
+        };
+        self.advance_to_round(round + 1, leader_fn)
     }
 
     fn advance_to_step<LeaderFn>(
@@ -302,24 +343,31 @@ impl StateMachine {
         LeaderFn: Fn(Round) -> ValidatorId,
     {
         assert_eq!(round, self.round, "check_prevote_quorum is only called for the current round");
-        let Some((block_hash, count)) = leading_vote(&self.prevotes, round) else {
+        let num_votes = self.prevotes.get(&round).map_or(0, |v| v.values().sum());
+        if num_votes < self.quorum {
             return VecDeque::new();
+        }
+        let mut output = VecDeque::from([StateMachineEvent::TimeoutPrevote(round)]);
+        let Some((block_hash, count)) = leading_vote(&self.prevotes, round) else {
+            return output;
         };
         if *count < self.quorum {
-            return VecDeque::new();
+            return output;
         }
         if block_hash.is_none() {
-            return self.send_precommit(*block_hash, round, leader_fn);
+            output.append(&mut self.send_precommit(*block_hash, round, leader_fn));
+            return output;
         }
         let Some(proposed_value) = self.proposals.get(&round) else {
-            return VecDeque::new();
+            return output;
         };
         if proposed_value != block_hash {
             // TODO(matan): This can be caused by a malicious leader double proposing.
             panic!("Proposal does not match quorum.");
         }
 
-        self.send_precommit(*block_hash, round, leader_fn)
+        output.append(&mut self.send_precommit(*block_hash, round, leader_fn));
+        output
     }
 
     fn check_precommit_quorum<LeaderFn>(
@@ -330,32 +378,39 @@ impl StateMachine {
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
-        let Some((block_hash, count)) = leading_vote(&self.precommits, round) else {
+        let num_votes = self.precommits.get(&round).map_or(0, |v| v.values().sum());
+        if num_votes < self.quorum {
             return VecDeque::new();
+        }
+        let mut output = VecDeque::from([StateMachineEvent::TimeoutPrecommit(round)]);
+        let Some((block_hash, count)) = leading_vote(&self.precommits, round) else {
+            return output;
         };
         if *count < self.quorum {
-            return VecDeque::new();
+            return output;
         }
         if block_hash.is_none() {
             if round == self.round {
-                return self.advance_to_round(round + 1, leader_fn);
+                output.append(&mut self.advance_to_round(round + 1, leader_fn));
+                return output;
             } else {
                 // NIL quorum reached on a different round.
-                return VecDeque::new();
+                return output;
             }
         }
         let Some(proposed_value) = self.proposals.get(&round) else {
-            return VecDeque::new();
+            return output;
         };
         if proposed_value != block_hash {
             // TODO(matan): This can be caused by a malicious leader double proposing.
             panic!("Proposal does not match quorum.");
         }
         if let Some(block_hash) = block_hash {
-            VecDeque::from([StateMachineEvent::Decision(*block_hash, round)])
+            output.append(&mut VecDeque::from([StateMachineEvent::Decision(*block_hash, round)]));
+            output
         } else {
             // NIL quorum reached on a different round.
-            VecDeque::new()
+            output
         }
     }
 
@@ -389,7 +444,7 @@ impl StateMachine {
             return VecDeque::from([StateMachineEvent::GetProposal(None, self.round)]);
         }
         let Some(proposal) = self.proposals.get(&round) else {
-            return VecDeque::new();
+            return VecDeque::from([StateMachineEvent::TimeoutPropose(round)]);
         };
         self.process_proposal(*proposal, round, leader_fn)
     }

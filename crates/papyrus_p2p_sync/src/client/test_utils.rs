@@ -1,8 +1,11 @@
 use std::time::Duration;
 
-use futures::channel::mpsc::Receiver;
 use lazy_static::lazy_static;
-use papyrus_network::network_manager::{SqmrClientPayload, SqmrClientSender};
+use papyrus_network::network_manager::test_utils::{
+    mock_register_sqmr_protocol_client,
+    MockClientResponsesManager,
+};
+use papyrus_network::network_manager::GenericReceiver;
 use papyrus_protobuf::sync::{
     DataOrFin,
     HeaderQuery,
@@ -16,7 +19,7 @@ use papyrus_storage::StorageReader;
 use starknet_api::block::{BlockHash, BlockSignature};
 use starknet_api::crypto::utils::Signature;
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::{Transaction, TransactionOutput};
+use starknet_api::transaction::FullTransaction;
 use starknet_types_core::felt::Felt;
 
 use super::{P2PSyncClient, P2PSyncClientChannels, P2PSyncClientConfig};
@@ -40,30 +43,32 @@ lazy_static! {
         stop_sync_at_block_number: None,
     };
 }
+type HeaderTestPayload = MockClientResponsesManager<HeaderQuery, DataOrFin<SignedBlockHeader>>;
+type StateDiffTestPayload = MockClientResponsesManager<StateDiffQuery, DataOrFin<StateDiffChunk>>;
+type TransactionTestPayload =
+    MockClientResponsesManager<TransactionQuery, DataOrFin<FullTransaction>>;
+
 // TODO(Eitan): Use SqmrSubscriberChannels once there is a utility function for testing
 pub struct TestArgs {
     #[allow(clippy::type_complexity)]
     pub p2p_sync: P2PSyncClient,
     pub storage_reader: StorageReader,
-    pub header_receiver: Receiver<SqmrClientPayload<HeaderQuery, DataOrFin<SignedBlockHeader>>>,
-    pub state_diff_receiver: Receiver<SqmrClientPayload<StateDiffQuery, DataOrFin<StateDiffChunk>>>,
+    pub header_receiver: GenericReceiver<HeaderTestPayload>,
+    pub state_diff_receiver: GenericReceiver<StateDiffTestPayload>,
     #[allow(dead_code)]
-    pub transaction_receiver:
-        Receiver<SqmrClientPayload<TransactionQuery, DataOrFin<(Transaction, TransactionOutput)>>>,
+    pub transaction_receiver: GenericReceiver<TransactionTestPayload>,
 }
 
 pub fn setup() -> TestArgs {
     let p2p_sync_config = *TEST_CONFIG;
     let buffer_size = p2p_sync_config.buffer_size;
     let ((storage_reader, storage_writer), _temp_dir) = get_test_storage();
-    let (header_sender, header_receiver) = futures::channel::mpsc::channel(buffer_size);
-    let (state_diff_sender, state_diff_receiver) = futures::channel::mpsc::channel(buffer_size);
-    let (transaction_sender, transaction_receiver) = futures::channel::mpsc::channel(buffer_size);
-    let p2p_sync_channels = P2PSyncClientChannels {
-        header_sender: SqmrClientSender::new(Box::new(header_sender), buffer_size),
-        state_diff_sender: SqmrClientSender::new(Box::new(state_diff_sender), buffer_size),
-        transaction_sender: SqmrClientSender::new(Box::new(transaction_sender), buffer_size),
-    };
+    let (header_sender, header_receiver) = mock_register_sqmr_protocol_client(buffer_size);
+    let (state_diff_sender, state_diff_receiver) = mock_register_sqmr_protocol_client(buffer_size);
+    let (transaction_sender, transaction_receiver) =
+        mock_register_sqmr_protocol_client(buffer_size);
+    let p2p_sync_channels =
+        P2PSyncClientChannels { header_sender, state_diff_sender, transaction_sender };
     let p2p_sync = P2PSyncClient::new(
         p2p_sync_config,
         storage_reader.clone(),

@@ -2,8 +2,8 @@ use starknet_api::calldata;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::transaction::{
-    AccountDeploymentData, Calldata, Fee, InvokeTransactionV0, InvokeTransactionV1,
-    InvokeTransactionV3, PaymasterData, ResourceBoundsMapping, Tip, TransactionHash,
+    AccountDeploymentData, Calldata,DeprecatedResourceBoundsMapping, Fee, InvokeTransactionV0, InvokeTransactionV1,
+    InvokeTransactionV3, PaymasterData,  Tip, TransactionHash,
     TransactionSignature, TransactionVersion,
 };
 
@@ -19,7 +19,7 @@ pub struct InvokeTxArgs {
     pub sender_address: ContractAddress,
     pub calldata: Calldata,
     pub version: TransactionVersion,
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: DeprecatedResourceBoundsMapping,
     pub tip: Tip,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,

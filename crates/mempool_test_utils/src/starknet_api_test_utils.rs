@@ -4,6 +4,7 @@ use std::env;
 use std::fs::File;
 use std::path::Path;
 use std::rc::Rc;
+use std::sync::OnceLock;
 
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion, NonceManager};
@@ -23,9 +24,9 @@ use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
+    DeprecatedResourceBoundsMapping as ExecutableResourceBoundsMapping,
     PaymasterData,
     ResourceBounds,
-    ResourceBoundsMapping as ExecutableResourceBoundsMapping,
     Tip,
     TransactionHash,
     TransactionSignature,
@@ -46,6 +47,8 @@ use crate::{
 
 pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
+pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 203484;
+pub const VALID_L2_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 pub const TEST_SENDER_ADDRESS: u128 = 0x1000;
 
 // Utils.
@@ -55,7 +58,7 @@ pub enum TransactionType {
     Invoke,
 }
 
-pub fn external_tx_for_testing(
+pub fn rpc_tx_for_testing(
     tx_type: TransactionType,
     resource_bounds: ResourceBoundsMapping,
     calldata: Calldata,
@@ -104,13 +107,16 @@ pub fn zero_resource_bounds_mapping() -> ResourceBoundsMapping {
     create_resource_bounds_mapping(ResourceBounds::default(), ResourceBounds::default())
 }
 
-pub fn executable_resource_bounds_mapping() -> ResourceBoundsMapping {
+pub fn test_resource_bounds_mapping() -> ResourceBoundsMapping {
     create_resource_bounds_mapping(
         ResourceBounds {
             max_amount: VALID_L1_GAS_MAX_AMOUNT,
             max_price_per_unit: VALID_L1_GAS_MAX_PRICE_PER_UNIT,
         },
-        ResourceBounds::default(),
+        ResourceBounds {
+            max_amount: VALID_L2_GAS_MAX_AMOUNT,
+            max_price_per_unit: VALID_L2_GAS_MAX_PRICE_PER_UNIT,
+        },
     )
 }
 
@@ -122,13 +128,15 @@ pub fn contract_class() -> ContractClass {
 }
 
 /// Get the compiled class hash corresponding to the contract class used for testing.
-pub fn compiled_class_hash() -> CompiledClassHash {
-    CompiledClassHash(felt!(COMPILED_CLASS_HASH_OF_CONTRACT_CLASS))
+pub fn compiled_class_hash() -> &'static CompiledClassHash {
+    static COMPILED_CLASS_HASH: OnceLock<CompiledClassHash> = OnceLock::new();
+    COMPILED_CLASS_HASH
+        .get_or_init(|| CompiledClassHash(felt!(COMPILED_CLASS_HASH_OF_CONTRACT_CLASS)))
 }
 
 pub fn declare_tx() -> RpcTransaction {
     let contract_class = contract_class();
-    let compiled_class_hash = compiled_class_hash();
+    let compiled_class_hash = *compiled_class_hash();
 
     let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let account_address = account_contract.get_instance_address(0);
@@ -138,7 +146,7 @@ pub fn declare_tx() -> RpcTransaction {
     external_declare_tx(declare_tx_args!(
         signature: TransactionSignature(vec![Felt::ZERO]),
         sender_address: account_address,
-        resource_bounds: executable_resource_bounds_mapping(),
+        resource_bounds: test_resource_bounds_mapping(),
         nonce,
         class_hash: compiled_class_hash,
         contract_class,
@@ -256,7 +264,7 @@ impl AccountTransactionGenerator {
     pub fn generate_default_invoke(&mut self) -> RpcTransaction {
         let invoke_args = invoke_tx_args!(
             sender_address: self.sender_address(),
-            resource_bounds: executable_resource_bounds_mapping(),
+            resource_bounds: test_resource_bounds_mapping(),
             nonce: self.next_nonce(),
             calldata: create_trivial_calldata(self.test_contract_address()),
         );
@@ -270,7 +278,7 @@ impl AccountTransactionGenerator {
         let deploy_account_args = deploy_account_tx_args!(
             nonce,
             class_hash: self.account.get_class_hash(),
-            resource_bounds: executable_resource_bounds_mapping()
+            resource_bounds: test_resource_bounds_mapping()
         );
         external_deploy_account_tx(deploy_account_args)
     }
@@ -522,7 +530,7 @@ pub fn external_declare_tx(declare_tx_args: DeclareTxArgs) -> RpcTransaction {
     )
 }
 
-pub fn external_tx_to_json(tx: &RpcTransaction) -> String {
+pub fn rpc_tx_to_json(tx: &RpcTransaction) -> String {
     let mut tx_json = serde_json::to_value(tx)
         .unwrap_or_else(|tx| panic!("Failed to serialize transaction: {tx:?}"));
 
@@ -547,6 +555,7 @@ pub fn create_executable_tx(
     tx_hash: TransactionHash,
     tip: Tip,
     nonce: Nonce,
+    resource_bounds: ExecutableResourceBoundsMapping,
 ) -> Transaction {
     Transaction::Invoke(InvokeTransaction {
         tx: starknet_api::transaction::InvokeTransaction::V3(
@@ -554,7 +563,7 @@ pub fn create_executable_tx(
                 sender_address,
                 tip,
                 nonce,
-                resource_bounds: ExecutableResourceBoundsMapping::default(),
+                resource_bounds,
                 signature: TransactionSignature::default(),
                 calldata: Calldata::default(),
                 nonce_data_availability_mode: DataAvailabilityMode::L1,

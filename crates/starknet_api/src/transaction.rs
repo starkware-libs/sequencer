@@ -45,6 +45,13 @@ pub trait TransactionHasher {
     ) -> Result<TransactionHash, StarknetApiError>;
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
+pub struct FullTransaction {
+    pub transaction: Transaction,
+    pub transaction_output: TransactionOutput,
+    pub transaction_hash: TransactionHash,
+}
+
 /// A transaction.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub enum Transaction {
@@ -209,7 +216,7 @@ impl TransactionHasher for DeclareTransactionV2 {
 /// A declare V3 transaction.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct DeclareTransactionV3 {
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: DeprecatedResourceBoundsMapping,
     pub tip: Tip,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
@@ -318,7 +325,7 @@ impl TransactionHasher for DeployAccountTransactionV1 {
 /// A deploy account V3 transaction.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeployAccountTransactionV3 {
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: DeprecatedResourceBoundsMapping,
     pub tip: Tip,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
@@ -455,7 +462,7 @@ impl TransactionHasher for InvokeTransactionV1 {
 /// An invoke V3 transaction.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct InvokeTransactionV3 {
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: DeprecatedResourceBoundsMapping,
     pub tip: Tip,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
@@ -867,6 +874,8 @@ pub enum Resource {
     L1Gas,
     #[serde(rename = "L2_GAS")]
     L2Gas,
+    #[serde(rename = "L1_DATA_GAS")]
+    L1DataGas,
 }
 
 /// Fee bounds for an execution resource.
@@ -882,6 +891,13 @@ pub struct ResourceBounds {
     // Specifies the maximum price the user is willing to pay for each resource unit.
     #[serde(serialize_with = "u128_to_hex", deserialize_with = "hex_to_u128")]
     pub max_price_per_unit: u128,
+}
+
+impl ResourceBounds {
+    /// Returns true iff both the max amount and the max amount per unit is zero.
+    pub fn is_zero(&self) -> bool {
+        self.max_amount == 0 && self.max_price_per_unit == 0
+    }
 }
 
 fn u64_to_hex<S>(value: &u64, serializer: S) -> Result<S::Ok, S::Error>
@@ -916,25 +932,84 @@ where
 
 /// A mapping from execution resources to their corresponding fee bounds..
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct ResourceBoundsMapping(pub BTreeMap<Resource, ResourceBounds>);
+// TODO(Nimrod): Remove this struct definition.
+pub struct DeprecatedResourceBoundsMapping(pub BTreeMap<Resource, ResourceBounds>);
 
-impl TryFrom<Vec<(Resource, ResourceBounds)>> for ResourceBoundsMapping {
+impl TryFrom<Vec<(Resource, ResourceBounds)>> for DeprecatedResourceBoundsMapping {
     type Error = StarknetApiError;
     fn try_from(
         resource_resource_bounds_pairs: Vec<(Resource, ResourceBounds)>,
     ) -> Result<Self, Self::Error> {
         let n_variants = Resource::iter().count();
+        let allowed_signed_variants = [n_variants, n_variants - 1];
         let unique_resources: HashSet<Resource> =
             HashSet::from_iter(resource_resource_bounds_pairs.iter().map(|(k, _)| *k));
-        if unique_resources.len() != n_variants
-            || resource_resource_bounds_pairs.len() != n_variants
+        if !allowed_signed_variants.contains(&unique_resources.len())
+            || !allowed_signed_variants.contains(&resource_resource_bounds_pairs.len())
         {
+            // TODO(Nimrod): Consider making this check more strict.
             Err(StarknetApiError::InvalidResourceMappingInitializer(format!(
                 "{:?}",
                 resource_resource_bounds_pairs
             )))
         } else {
             Ok(Self(resource_resource_bounds_pairs.into_iter().collect::<BTreeMap<_, _>>()))
+        }
+    }
+}
+
+pub enum ValidResourceBounds {
+    L1Gas(ResourceBounds), // Pre 0.13.3. Only L1 gas. L2 bounds are signed but never used.
+    AllResources(AllResourceBounds),
+}
+
+pub struct AllResourceBounds {
+    pub l1_gas: ResourceBounds,
+    pub l2_gas: ResourceBounds,
+    pub l1_data_gas: ResourceBounds,
+}
+
+impl AllResourceBounds {
+    #[allow(dead_code)]
+    fn get_bound(&self, resource: Resource) -> ResourceBounds {
+        match resource {
+            Resource::L1Gas => self.l1_gas,
+            Resource::L2Gas => self.l2_gas,
+            Resource::L1DataGas => self.l1_data_gas,
+        }
+    }
+}
+
+impl TryFrom<DeprecatedResourceBoundsMapping> for ValidResourceBounds {
+    type Error = StarknetApiError;
+    fn try_from(
+        resource_bounds_mapping: DeprecatedResourceBoundsMapping,
+    ) -> Result<Self, Self::Error> {
+        if let (Some(l1_bounds), Some(l2_bounds)) = (
+            resource_bounds_mapping.0.get(&Resource::L1Gas),
+            resource_bounds_mapping.0.get(&Resource::L2Gas),
+        ) {
+            match resource_bounds_mapping.0.get(&Resource::L1DataGas) {
+                Some(data_bounds) => Ok(Self::AllResources(AllResourceBounds {
+                    l1_gas: *l1_bounds,
+                    l1_data_gas: *data_bounds,
+                    l2_gas: *l2_bounds,
+                })),
+                None => {
+                    if l2_bounds.is_zero() {
+                        Ok(Self::L1Gas(*l1_bounds))
+                    } else {
+                        Err(StarknetApiError::InvalidResourceMappingInitializer(format!(
+                            "Missing data gas bounds but L2 gas bound is not zero: \
+                             {resource_bounds_mapping:?}",
+                        )))
+                    }
+                }
+            }
+        } else {
+            Err(StarknetApiError::InvalidResourceMappingInitializer(format!(
+                "{resource_bounds_mapping:?}",
+            )))
         }
     }
 }

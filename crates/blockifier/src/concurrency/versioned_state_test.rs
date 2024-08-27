@@ -7,7 +7,7 @@ use rstest::{fixture, rstest};
 use starknet_api::core::{
     calculate_contract_address, ClassHash, ContractAddress, Nonce, PatriciaKey,
 };
-use starknet_api::transaction::{Calldata, ContractAddressSalt, ResourceBoundsMapping};
+use starknet_api::transaction::{Calldata, ContractAddressSalt, DeprecatedResourceBoundsMapping};
 use starknet_api::{calldata, class_hash, contract_address, felt, patricia_key};
 
 use crate::abi::abi_utils::{get_fee_token_var_address, get_storage_var_address};
@@ -190,7 +190,7 @@ fn test_versioned_state_proxy() {
 
 #[rstest]
 // Test parallel execution of two transactions that use the same versioned state.
-fn test_run_parallel_txs(max_resource_bounds: ResourceBoundsMapping) {
+fn test_run_parallel_txs(max_resource_bounds: DeprecatedResourceBoundsMapping) {
     let block_context = BlockContext::create_for_account_testing();
     let chain_info = &block_context.chain_info;
     let zero_bounds = true;

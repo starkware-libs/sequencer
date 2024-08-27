@@ -145,6 +145,14 @@ impl AccountTransaction {
         signature.0.len()
     }
 
+    pub fn tx_hash(&self) -> TransactionHash {
+        match self {
+            Self::Declare(tx) => tx.tx_hash(),
+            Self::DeployAccount(tx) => tx.tx_hash(),
+            Self::Invoke(tx) => tx.tx_hash(),
+        }
+    }
+
     fn verify_tx_version(&self, version: TransactionVersion) -> TransactionExecutionResult<()> {
         let allowed_versions: Vec<TransactionVersion> = match self {
             // Support `Declare` of version 0 in order to allow bootstrapping of a new system.

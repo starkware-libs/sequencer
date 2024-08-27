@@ -27,7 +27,7 @@ use papyrus_storage::{db, StorageReader, StorageTxn};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
-use starknet_api::transaction::{Event, Transaction, TransactionHash, TransactionOutput};
+use starknet_api::transaction::{Event, FullTransaction, TransactionHash};
 use tracing::{error, info};
 
 #[cfg(test)]
@@ -70,9 +70,8 @@ impl P2PSyncServerError {
 
 type HeaderReceiver = SqmrServerReceiver<HeaderQuery, DataOrFin<SignedBlockHeader>>;
 type StateDiffReceiver = SqmrServerReceiver<StateDiffQuery, DataOrFin<StateDiffChunk>>;
-type TransactionReceiver =
-    SqmrServerReceiver<TransactionQuery, DataOrFin<(Transaction, TransactionOutput)>>;
-type ClassReceiver = SqmrServerReceiver<ClassQuery, DataOrFin<ApiContractClass>>;
+type TransactionReceiver = SqmrServerReceiver<TransactionQuery, DataOrFin<FullTransaction>>;
+type ClassReceiver = SqmrServerReceiver<ClassQuery, DataOrFin<(ApiContractClass, ClassHash)>>;
 type EventReceiver = SqmrServerReceiver<EventQuery, DataOrFin<(Event, TransactionHash)>>;
 
 pub struct P2PSyncServerChannels {
@@ -233,7 +232,7 @@ impl FetchBlockDataFromDb for StateDiffChunk {
     }
 }
 
-impl FetchBlockDataFromDb for (Transaction, TransactionOutput) {
+impl FetchBlockDataFromDb for FullTransaction {
     fn fetch_block_data_from_db(
         block_number: BlockNumber,
         txn: &StorageTxn<'_, db::RO>,
@@ -247,17 +246,25 @@ impl FetchBlockDataFromDb for (Transaction, TransactionOutput) {
                 block_hash_or_number: BlockHashOrNumber::Number(block_number),
             },
         )?;
-        let mut result: Vec<(Transaction, TransactionOutput)> = Vec::new();
-        for (transaction, transaction_output) in
-            transactions.into_iter().zip(transaction_outputs.into_iter())
+        let transaction_hashes = txn.get_block_transaction_hashes(block_number)?.ok_or(
+            P2PSyncServerError::BlockNotFound {
+                block_hash_or_number: BlockHashOrNumber::Number(block_number),
+            },
+        )?;
+        let mut result: Vec<FullTransaction> = Vec::new();
+        for (transaction, transaction_output, transaction_hash) in transactions
+            .into_iter()
+            .zip(transaction_outputs.into_iter())
+            .zip(transaction_hashes.into_iter())
+            .map(|((a, b), c)| (a, b, c))
         {
-            result.push((transaction, transaction_output));
+            result.push(FullTransaction { transaction, transaction_output, transaction_hash });
         }
         Ok(result)
     }
 }
 
-impl FetchBlockDataFromDb for ApiContractClass {
+impl FetchBlockDataFromDb for (ApiContractClass, ClassHash) {
     fn fetch_block_data_from_db(
         block_number: BlockNumber,
         txn: &StorageTxn<'_, db::RO>,
@@ -270,15 +277,21 @@ impl FetchBlockDataFromDb for ApiContractClass {
         let deprecated_declared_classes = thin_state_diff.deprecated_declared_classes;
         let mut result = Vec::new();
         for class_hash in &deprecated_declared_classes {
-            result.push(ApiContractClass::DeprecatedContractClass(
-                txn.get_deprecated_class(class_hash)?
-                    .ok_or(P2PSyncServerError::ClassNotFound { class_hash: *class_hash })?,
+            result.push((
+                ApiContractClass::DeprecatedContractClass(
+                    txn.get_deprecated_class(class_hash)?
+                        .ok_or(P2PSyncServerError::ClassNotFound { class_hash: *class_hash })?,
+                ),
+                *class_hash,
             ));
         }
         for (class_hash, _) in &declared_classes {
-            result.push(ApiContractClass::ContractClass(
-                txn.get_class(class_hash)?
-                    .ok_or(P2PSyncServerError::ClassNotFound { class_hash: *class_hash })?,
+            result.push((
+                ApiContractClass::ContractClass(
+                    txn.get_class(class_hash)?
+                        .ok_or(P2PSyncServerError::ClassNotFound { class_hash: *class_hash })?,
+                ),
+                *class_hash,
             ));
         }
         Ok(result)

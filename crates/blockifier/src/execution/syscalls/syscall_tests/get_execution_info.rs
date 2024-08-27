@@ -6,8 +6,8 @@ use starknet_api::core::ChainId;
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::felt;
 use starknet_api::transaction::{
-    AccountDeploymentData, Calldata, Fee, PaymasterData, Resource, ResourceBounds,
-    ResourceBoundsMapping, Tip, TransactionHash, TransactionVersion,
+    AccountDeploymentData, Calldata,DeprecatedResourceBoundsMapping, Fee, PaymasterData, Resource, ResourceBounds,
+     Tip, TransactionHash, TransactionVersion,
 };
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
@@ -245,7 +245,7 @@ fn test_get_execution_info(
                 only_query,
                 ..Default::default()
             },
-            resource_bounds: ResourceBoundsMapping(BTreeMap::from([
+            resource_bounds: DeprecatedResourceBoundsMapping(BTreeMap::from([
                 (
                     Resource::L1Gas,
                     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why

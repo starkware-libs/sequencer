@@ -23,7 +23,7 @@ use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::num::NonZeroU128;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use blockifier::blockifier::block::{pre_process_block, BlockInfo, BlockNumberHashPair, GasPrices};
 use blockifier::bouncer::BouncerConfig;
@@ -50,7 +50,6 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use execution_utils::{get_trace_constructor, induced_state_diff};
 use objects::{PriceUnit, TransactionSimulationOutput};
-use once_cell::sync::Lazy;
 use papyrus_common::transaction_hash::get_transaction_hash;
 use papyrus_common::TransactionOptions;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
@@ -99,16 +98,16 @@ const INITIAL_GAS_COST: u64 = 10000000000;
 /// Result type for execution functions.
 pub type ExecutionResult<T> = Result<T, ExecutionError>;
 
-static VERSIONED_CONSTANTS_13_0: Lazy<VersionedConstants> = Lazy::new(|| {
+static VERSIONED_CONSTANTS_13_0: LazyLock<VersionedConstants> = LazyLock::new(|| {
     VersionedConstants::try_from(Path::new("./resources/versioned_constants_13_0.json"))
         .expect("Versioned constants JSON file is malformed")
 });
-static VERSIONED_CONSTANTS_13_1: Lazy<VersionedConstants> = Lazy::new(|| {
+static VERSIONED_CONSTANTS_13_1: LazyLock<VersionedConstants> = LazyLock::new(|| {
     VersionedConstants::try_from(Path::new("./resources/versioned_constants_13_1.json"))
         .expect("Versioned constants JSON file is malformed")
 });
 
-static VERSIONED_CONSTANTS_13_2: Lazy<VersionedConstants> = Lazy::new(|| {
+static VERSIONED_CONSTANTS_13_2: LazyLock<VersionedConstants> = LazyLock::new(|| {
     VersionedConstants::try_from(Path::new("./resources/versioned_constants_13_2.json"))
         .expect("Versioned constants JSON file is malformed")
 });
@@ -360,16 +359,15 @@ fn create_block_context(
         use_kzg_da,
         block_number,
         // TODO(yair): What to do about blocks pre 0.13.1 where the data gas price were 0?
-        gas_prices: GasPrices {
-            eth_l1_gas_price: NonZeroU128::new(l1_gas_price.price_in_wei.0)
-                .unwrap_or(NonZeroU128::MIN),
-            strk_l1_gas_price: NonZeroU128::new(l1_gas_price.price_in_fri.0)
-                .unwrap_or(NonZeroU128::MIN),
-            eth_l1_data_gas_price: NonZeroU128::new(l1_data_gas_price.price_in_wei.0)
-                .unwrap_or(NonZeroU128::MIN),
-            strk_l1_data_gas_price: NonZeroU128::new(l1_data_gas_price.price_in_fri.0)
-                .unwrap_or(NonZeroU128::MIN),
-        },
+        gas_prices: GasPrices::new(
+            NonZeroU128::new(l1_gas_price.price_in_wei.0).unwrap_or(NonZeroU128::MIN),
+            NonZeroU128::new(l1_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
+            NonZeroU128::new(l1_data_gas_price.price_in_wei.0).unwrap_or(NonZeroU128::MIN),
+            NonZeroU128::new(l1_data_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
+            // TODO(Aner - Shahak): fix to come from pending_data/block_header.
+            NonZeroU128::MIN,
+            NonZeroU128::MIN,
+        ),
     };
     let chain_info = ChainInfo {
         chain_id,

@@ -1,8 +1,8 @@
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::transaction::{
-    Calldata, ContractAddressSalt, DeployAccountTransactionV1, DeployAccountTransactionV3, Fee,
-    PaymasterData, ResourceBoundsMapping, Tip, TransactionHash, TransactionSignature,
+    Calldata, ContractAddressSalt, DeployAccountTransactionV1, DeployAccountTransactionV3,DeprecatedResourceBoundsMapping, Fee,
+    PaymasterData,  Tip, TransactionHash, TransactionSignature,
     TransactionVersion,
 };
 
@@ -15,7 +15,7 @@ pub struct DeployAccountTxArgs {
     pub signature: TransactionSignature,
     pub deployer_address: ContractAddress,
     pub version: TransactionVersion,
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: DeprecatedResourceBoundsMapping,
     pub tip: Tip,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,

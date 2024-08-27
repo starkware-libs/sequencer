@@ -8,8 +8,8 @@ use crate::transaction::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
+    DeprecatedResourceBoundsMapping,
     PaymasterData,
-    ResourceBoundsMapping,
     Tip,
     TransactionHash,
     TransactionSignature,
@@ -65,6 +65,7 @@ impl Transaction {
         }
     }
 
+    // TODO(Mohammad): add a getter macro.
     pub fn tip(&self) -> Option<Tip> {
         match self {
             Transaction::Declare(declare_tx) => match &declare_tx.tx {
@@ -82,6 +83,25 @@ impl Transaction {
         }
     }
 
+    pub fn resource_bounds(&self) -> Option<&DeprecatedResourceBoundsMapping> {
+        match self {
+            Transaction::Declare(declare_tx) => match &declare_tx.tx {
+                crate::transaction::DeclareTransaction::V3(tx_v3) => Some(&tx_v3.resource_bounds),
+                _ => None,
+            },
+            Transaction::DeployAccount(deploy_account_tx) => match &deploy_account_tx.tx {
+                crate::transaction::DeployAccountTransaction::V3(tx_v3) => {
+                    Some(&tx_v3.resource_bounds)
+                }
+                _ => None,
+            },
+            Transaction::Invoke(invoke_tx) => match &invoke_tx.tx {
+                crate::transaction::InvokeTransaction::V3(tx_v3) => Some(&tx_v3.resource_bounds),
+                _ => None,
+            },
+        }
+    }
+
     // TODO(Arni): Update the function to support all transaction types.
     pub fn new_from_rpc_tx(
         rpc_tx: RpcTransaction,
@@ -94,7 +114,7 @@ impl Transaction {
                     sender_address,
                     tip: *rpc_tx.tip(),
                     nonce: *rpc_tx.nonce(),
-                    resource_bounds: ResourceBoundsMapping::default(),
+                    resource_bounds: rpc_tx.resource_bounds().clone().into(),
                     signature: TransactionSignature::default(),
                     calldata: Calldata::default(),
                     nonce_data_availability_mode: DataAvailabilityMode::L1,

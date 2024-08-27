@@ -11,7 +11,7 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 893590; "VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 893890; "VM")]
 #[test_case(FeatureContract::SierraTestContract, NATIVE_GAS_PLACEHOLDER; "Native")]
 fn test_sha256(test_contract: FeatureContract, gas_consumed: u64) {
     let chain_info = &ChainInfo::create_for_testing();

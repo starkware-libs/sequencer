@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::transaction::{ResourceBoundsMapping, Tip, TransactionHash};
+use starknet_api::transaction::{DeprecatedResourceBoundsMapping, Resource, Tip, TransactionHash};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput, MempoolResult};
 
@@ -32,7 +32,7 @@ impl Mempool {
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
     pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {
-        self.tx_queue.iter()
+        self.tx_queue.iter_over_ready_txs()
     }
 
     /// Retrieves up to `n_txs` transactions with the highest priority from the mempool.
@@ -44,8 +44,8 @@ impl Mempool {
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
         let mut n_remaining_txs = n_txs;
 
-        while n_remaining_txs > 0 && !self.tx_queue.is_empty() {
-            let chunk = self.tx_queue.pop_chunk(n_remaining_txs);
+        while n_remaining_txs > 0 && !self.tx_queue.has_ready_txs() {
+            let chunk = self.tx_queue.pop_ready_chunk(n_remaining_txs);
             self.enqueue_next_eligible_txs(&chunk)?;
             n_remaining_txs -= chunk.len();
             eligible_tx_references.extend(chunk);
@@ -200,7 +200,7 @@ pub struct TransactionReference {
     pub nonce: Nonce,
     pub tx_hash: TransactionHash,
     pub tip: Tip,
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: DeprecatedResourceBoundsMapping,
 }
 
 impl TransactionReference {
@@ -209,9 +209,19 @@ impl TransactionReference {
             sender_address: tx.contract_address(),
             nonce: tx.nonce(),
             tx_hash: tx.tx_hash(),
-            tip: tx.tip().expect("Expected a valid tip value, but received None."),
-            // TODO(Mohammad): add resource bounds to the transaction.
-            resource_bounds: ResourceBoundsMapping::default(),
+            tip: tx.tip().expect("Expected a valid tip value."),
+            resource_bounds: tx
+                .resource_bounds()
+                .expect("Expected a valid resource bounds value.")
+                .clone(),
         }
+    }
+
+    pub fn get_l2_gas_price(&self) -> u128 {
+        self.resource_bounds
+            .0
+            .get(&Resource::L2Gas)
+            .map(|bounds| bounds.max_price_per_unit)
+            .expect("Expected a valid L2 gas resource bounds.")
     }
 }

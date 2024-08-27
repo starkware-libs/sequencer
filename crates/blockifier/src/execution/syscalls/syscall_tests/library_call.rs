@@ -81,7 +81,7 @@ fn test_library_call_assert_fails(test_contract: FeatureContract) {
 }
 
 #[test_case(FeatureContract::SierraTestContract, NATIVE_GAS_PLACEHOLDER; "Native")]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 276880; "VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 472710; "VM")]
 fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);

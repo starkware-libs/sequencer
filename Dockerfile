@@ -7,7 +7,7 @@
 # More info on Cargo Chef: https://github.com/LukeMathWalker/cargo-chef
 
 # We start by creating a base image using 'clux/muslrust' with additional required tools.
-FROM clux/muslrust:1.78.0-stable AS chef
+FROM clux/muslrust:1.80.0-stable AS chef
 WORKDIR /app
 RUN apt update && apt install -y clang unzip
 RUN cargo install cargo-chef

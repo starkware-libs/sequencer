@@ -63,6 +63,14 @@ pub enum ContractClass {
     V1Native(NativeContractClassV1),
 }
 
+impl TryFrom<CasmContractClass> for ContractClass {
+    type Error = ProgramError;
+
+    fn try_from(contract_class: CasmContractClass) -> Result<Self, Self::Error> {
+        Ok(ContractClass::V1(contract_class.try_into()?))
+    }
+}
+
 impl ContractClass {
     pub fn constructor_selector(&self) -> Option<EntryPointSelector> {
         match self {
@@ -268,7 +276,7 @@ pub fn estimate_casm_hash_computation_resources(
         NestedIntList::Leaf(length) => {
             // The entire contract is a single segment (old Sierra contracts).
             &ExecutionResources {
-                n_steps: 474,
+                n_steps: 463,
                 n_memory_holes: 0,
                 builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 10)]),
             } + &poseidon_hash_many_cost(*length)
@@ -276,7 +284,7 @@ pub fn estimate_casm_hash_computation_resources(
         NestedIntList::Node(segments) => {
             // The contract code is segmented by its functions.
             let mut execution_resources = ExecutionResources {
-                n_steps: 491,
+                n_steps: 480,
                 n_memory_holes: 0,
                 builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 11)]),
             };
@@ -484,6 +492,21 @@ pub struct ClassInfo {
     contract_class: ContractClass,
     sierra_program_length: usize,
     abi_length: usize,
+}
+
+impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
+    type Error = ProgramError;
+
+    fn try_from(class_info: starknet_api::contract_class::ClassInfo) -> Result<Self, Self::Error> {
+        let starknet_api::contract_class::ClassInfo {
+            contract_class,
+            sierra_program_length,
+            abi_length,
+        } = class_info;
+
+        let contract_class: ContractClass = contract_class.try_into()?;
+        Ok(Self { contract_class, sierra_program_length, abi_length })
+    }
 }
 
 impl ClassInfo {

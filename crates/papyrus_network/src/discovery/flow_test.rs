@@ -30,6 +30,7 @@ impl DiscoveryMixedBehaviour {
             bootstrap_peer_multiaddr,
             Default::default(),
             ChainId::Mainnet,
+            None,
         );
         Self {
             identify: mixed_behaviour.identify,

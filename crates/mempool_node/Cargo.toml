@@ -1,6 +1,6 @@
 [package]
 name = "starknet_mempool_node"
-version = "0.0.0"
+version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
@@ -19,6 +19,7 @@ serde.workspace = true
 starknet_batcher.workspace = true
 starknet_batcher_types.workspace = true
 starknet_consensus_manager.workspace = true
+starknet_consensus_manager_types.workspace = true
 starknet_gateway.workspace = true
 starknet_mempool.workspace = true
 starknet_mempool_infra.workspace = true

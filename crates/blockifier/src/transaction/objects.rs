@@ -8,11 +8,11 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::transaction::{
     AccountDeploymentData,
+    DeprecatedResourceBoundsMapping,
     Fee,
     PaymasterData,
     Resource,
     ResourceBounds,
-    ResourceBoundsMapping,
     Tip,
     TransactionHash,
     TransactionSignature,
@@ -132,7 +132,7 @@ impl HasRelatedFeeType for TransactionInfo {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CurrentTransactionInfo {
     pub common_fields: CommonAccountFields,
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: DeprecatedResourceBoundsMapping,
     pub tip: Tip,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
