@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.9
-
+# This message should appear
 """
 Merge a branch into another branch. Example usage:
 ```
@@ -75,8 +75,14 @@ def merge_branches(src_branch: str, dst_branch: Optional[str]):
 
     run_command(f"git merge origin/{src_branch}", allow_error=True)
 
+<<<<<<< HEAD
     run_command(f"git checkout origin/{dst_branch} {' '.join(FILES_TO_PRESERVE) }")
 
+||||||| 2726f3d8
+=======
+    # run_command(f"git checkout origin/{dst_branch} {' '.join(FILES_TO_PRESERVE) }")
+
+>>>>>>> origin/nimrod/test_brnch
     run_command("git config --unset merge.conflictstyle")
     run_command("git status -s | grep \"^UU\" | awk '{ print $2 }' | tee /tmp/conflicts")
 
