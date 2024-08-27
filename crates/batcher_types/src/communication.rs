@@ -14,10 +14,7 @@ use starknet_mempool_infra::component_definitions::ComponentRequestAndResponseSe
 use thiserror::Error;
 
 use crate::batcher_types::{
-    BatcherResult,
-    BuildProposalInput,
-    GetStreamContentInput,
-    StreamContent,
+    BatcherResult, BuildProposalInput, DecisionReachedInput, GetStreamContentInput, StreamContent
 };
 use crate::errors::BatcherError;
 
@@ -35,18 +32,21 @@ pub type SharedBatcherClient = Arc<dyn BatcherClient>;
 pub trait BatcherClient: Send + Sync {
     async fn build_proposal(&self, input: BuildProposalInput) -> BatcherClientResult<()>;
     async fn get_stream_content(&self, input: GetStreamContentInput) -> BatcherClientResult<StreamContent>;
+    async fn decision_reached(&self, input: DecisionReachedInput) -> BatcherClientResult<()>;
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum BatcherRequest {
     BuildProposal(BuildProposalInput),
     GetStreamContent(GetStreamContentInput),
+    DecisionReached(DecisionReachedInput),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum BatcherResponse {
     BuildProposal(BatcherResult<()>),
     GetStreamContent(BatcherResult<StreamContent>),
+    DecisionReached(BatcherResult<()>),
 }
 
 #[derive(Clone, Debug, Error)]
@@ -70,6 +70,12 @@ impl BatcherClient for LocalBatcherClientImpl {
         let response = self.send(request).await;
         handle_response_variants!(BatcherResponse, GetStreamContent, BatcherClientError, BatcherError)
     }
+
+    async fn decision_reached(&self, input: DecisionReachedInput) -> BatcherClientResult<()> {
+        let request = BatcherRequest::DecisionReached(input);
+        let response = self.send(request).await;
+        handle_response_variants!(BatcherResponse, DecisionReached, BatcherClientError, BatcherError)
+    }
 }
 
 #[async_trait]
@@ -84,5 +90,11 @@ impl BatcherClient for RemoteBatcherClientImpl {
         let request = BatcherRequest::GetStreamContent(input);
         let response = self.send(request).await?;
         handle_response_variants!(BatcherResponse, GetStreamContent, BatcherClientError, BatcherError)
+    }
+
+    async fn decision_reached(&self, input: DecisionReachedInput) -> BatcherClientResult<()> {
+        let request = BatcherRequest::DecisionReached(input);
+        let response = self.send(request).await?;
+        handle_response_variants!(BatcherResponse, DecisionReached, BatcherClientError, BatcherError)
     }
 }

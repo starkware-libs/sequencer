@@ -9,6 +9,7 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
     BatcherResult,
     BuildProposalInput,
+    DecisionReachedInput,
     GetStreamContentInput,
     ProposalContentId,
     StreamContent,
@@ -18,7 +19,7 @@ use starknet_batcher_types::errors::BatcherError;
 use starknet_mempool_infra::component_runner::ComponentStarter;
 use starknet_mempool_types::communication::SharedMempoolClient;
 use tokio::sync::Mutex;
-use tracing::{debug, instrument};
+use tracing::{debug, error, instrument};
 
 use crate::config::BatcherConfig;
 use crate::proposals_manager::{
@@ -60,27 +61,31 @@ impl Batcher {
                 stream_id: build_proposal_input.stream_id,
             });
         }
-        // TODO: Save the stream for later use.
-        let tx_stream =
-            self.proposals_manager
-                .generate_block_proposal(
-                    tokio::time::Instant::from_std(
-                        build_proposal_input.deadline_as_instant().map_err(|_| {
-                            BatcherError::TimeToDeadlineError {
-                                deadline: build_proposal_input.deadline,
-                            }
-                        })?,
-                    ),
-                    build_proposal_input.height,
-                )
-                .await
-                .map_err(|err| match err {
-                    ProposalsManagerError::AlreadyGeneratingProposal { .. } => {
-                        BatcherError::AlreadyGeneratingProposal
-                    }
-                    ProposalsManagerError::InternalError
-                    | ProposalsManagerError::MempoolError(..) => BatcherError::InternalError,
-                })?;
+        let tx_stream = self
+            .proposals_manager
+            .generate_block_proposal(
+                tokio::time::Instant::from_std(
+                    build_proposal_input.deadline_as_instant().map_err(|_| {
+                        BatcherError::TimeToDeadlineError {
+                            deadline: build_proposal_input.deadline,
+                        }
+                    })?,
+                ),
+                build_proposal_input.height,
+            )
+            .await
+            .map_err(|err| match err {
+                ProposalsManagerError::AlreadyGeneratingProposal { .. } => {
+                    BatcherError::AlreadyGeneratingProposal
+                }
+                ProposalsManagerError::InternalError
+                | ProposalsManagerError::MempoolError(..)
+                | ProposalsManagerError::PapyrusStorageError(..) => BatcherError::InternalError,
+                ProposalsManagerError::ClosedBlockNotFound { .. } => {
+                    error!("Unreachable error: {:?}", err);
+                    BatcherError::InternalError
+                }
+            })?;
         self.outbound_tx_streams
             .insert(build_proposal_input.stream_id, Arc::new(Mutex::new(tx_stream)));
         Ok(())
@@ -115,9 +120,35 @@ impl Batcher {
             tx_commitment: TransactionCommitment::default(),
         }));
     }
+
+    #[instrument(skip(self), ret, err)]
+    pub async fn decision_reached(&mut self, input: &DecisionReachedInput) -> BatcherResult<()> {
+        self.proposals_manager
+            .decision_reached(input.height, input.content_id)
+            .await
+            .map_err(|err| match err {
+                ProposalsManagerError::AlreadyGeneratingProposal { .. } | ProposalsManagerError::MempoolError(..) => {
+                    error!("Unreachable error: {:?}", err);
+                    BatcherError::InternalError
+                },
+                ProposalsManagerError::InternalError => BatcherError::InternalError,
+                ProposalsManagerError::ClosedBlockNotFound { height, content_id } => {
+                    BatcherError::ClosedBlockNotFound { height, content_id }
+                },
+                ProposalsManagerError::PapyrusStorageError(err) => {
+                    error!("Papyrus storage error: {:?}", err);
+                    BatcherError::InternalError
+                },
+            })
+    }
 }
 
 pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient) -> Batcher {
+    // TODO: Check with infra team if we should get the storage in a different way and if we can
+    // return a Result.
+    let (_storage_reader, storage_writer) =
+        papyrus_storage::open_storage(config.papyrus_storage.clone())
+            .expect("Failed to open papyrus storage.");
     Batcher::new(
         config.clone(),
         mempool_client.clone(),
@@ -125,6 +156,7 @@ pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient
             config.proposals_manager.clone(),
             mempool_client.clone(),
             Arc::new(BlockBuilderFactoryImpl {}),
+            Arc::new(Mutex::new(storage_writer)),
         ),
     )
 }

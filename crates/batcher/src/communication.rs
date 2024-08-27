@@ -40,6 +40,9 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::GetStreamContent(input) => {
                 BatcherResponse::GetStreamContent(self.get_stream_content(&input).await)
             }
+            BatcherRequest::DecisionReached(input) => {
+                BatcherResponse::DecisionReached(self.decision_reached(&input).await)
+            }
         }
     }
 }

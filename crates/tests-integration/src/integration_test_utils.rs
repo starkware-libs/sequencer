@@ -9,6 +9,7 @@ use mempool_test_utils::starknet_api_test_utils::{
 use reqwest::{Client, Response};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_batcher::config::BatcherConfig;
 use starknet_gateway::config::{
     GatewayConfig,
     GatewayNetworkConfig,
@@ -18,6 +19,7 @@ use starknet_gateway::config::{
 };
 use starknet_gateway::errors::GatewaySpecError;
 use starknet_mempool_node::config::MempoolNodeConfig;
+use tempfile::TempDir;
 use tokio::net::TcpListener;
 
 use crate::integration_test_setup::IntegrationTestSetup;
@@ -37,10 +39,28 @@ async fn create_gateway_config() -> GatewayConfig {
     GatewayConfig { network_config, stateless_tx_validator_config, stateful_tx_validator_config }
 }
 
-pub async fn create_config(rpc_server_addr: SocketAddr) -> MempoolNodeConfig {
+fn create_batcher_config() -> (BatcherConfig, TempDir) {
+    let (_, storage_config, dir_handle) =
+        papyrus_storage::test_utils::get_test_storage_with_config_by_scope(
+            papyrus_storage::StorageScope::StateOnly,
+        );
+    let batcher_config = BatcherConfig { papyrus_storage: storage_config, ..Default::default() };
+    (batcher_config, dir_handle)
+}
+
+pub async fn create_config(rpc_server_addr: SocketAddr) -> (MempoolNodeConfig, TempDir) {
     let gateway_config = create_gateway_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
-    MempoolNodeConfig { gateway_config, rpc_state_reader_config, ..MempoolNodeConfig::default() }
+    let (batcher_config, temp_storage_dir) = create_batcher_config();
+    (
+        MempoolNodeConfig {
+            gateway_config,
+            rpc_state_reader_config,
+            batcher_config,
+            ..MempoolNodeConfig::default()
+        },
+        temp_storage_dir,
+    )
 }
 
 /// A test utility client for interacting with a gateway server.
