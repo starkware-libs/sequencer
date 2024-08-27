@@ -9,7 +9,7 @@ runs:
   using: "composite"
   steps:
     - name: Define toolchain
-      run: echo "DEFAULT_TOOLCHAIN=stable"  >> $GITHUB_ENV
+      run: echo "DEFAULT_TOOLCHAIN=gafgadfgadfgadfga"  >> $GITHUB_ENV
       shell: bash
     - name: install rust toolchain with given components
       if: "${{ inputs.components != '' }}"

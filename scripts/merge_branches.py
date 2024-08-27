@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.9
-
+# This message should appear
 """
 Merge a branch into another branch. Example usage:
 ```
