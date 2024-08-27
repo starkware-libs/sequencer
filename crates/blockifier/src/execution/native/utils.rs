@@ -34,8 +34,7 @@ pub const NATIVE_GAS_PLACEHOLDER: u64 = 12;
 pub fn contract_entrypoint_to_entrypoint_selector(
     entrypoint: &ContractEntryPoint,
 ) -> EntryPointSelector {
-    let selector_felt = Felt::from_bytes_be_slice(&entrypoint.selector.to_be_bytes());
-    EntryPointSelector(selector_felt)
+    EntryPointSelector(Felt::from(&entrypoint.selector))
 }
 
 pub fn run_native_executor(
