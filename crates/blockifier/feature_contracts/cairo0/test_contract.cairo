@@ -274,7 +274,9 @@ func invoke_call_chain{syscall_ptr: felt*}(calldata_len: felt, calldata: felt*) 
 
 @external
 func fail() {
-    assert 0 = 1;
+    with_attr error_message("You shall not pass!") {
+        assert 0 = 1;
+    }
     return ();
 }
 
