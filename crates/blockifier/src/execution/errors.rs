@@ -112,6 +112,12 @@ pub enum EntryPointExecutionError {
 }
 
 #[derive(Debug, Error)]
+pub enum NativeEntryPointError {
+    #[error("FunctionId {0} not found")]
+    FunctionIdNotFound(usize),
+}
+
+#[derive(Debug, Error)]
 pub enum ConstructorEntryPointExecutionError {
     #[error(
         "Error in the contract class {class_hash} constructor (selector: \
