@@ -94,6 +94,15 @@ def verify_gh_client_status():
         exit(1)
 
 
+def current_git_conflictstyle() -> Optional[str]:
+    try:
+        output = run_command("git config --get merge.conflictstyle")
+        assert len(output) == 1
+        return output[0]
+    except subprocess.CalledProcessError:
+        return None
+
+
 def merge_branches(src_branch: str, dst_branch: Optional[str]):
     """
     Merge source branch into destination branch.
@@ -110,14 +119,18 @@ def merge_branches(src_branch: str, dst_branch: Optional[str]):
     run_command("git fetch")
     run_command(f"git checkout origin/{dst_branch}")
     run_command(f"git checkout -b {merge_branch}")
-    print("Merging...")
-    run_command("git config merge.conflictstyle diff3")
 
+    print("Merging...")
+    conflictstyle = current_git_conflictstyle()
+    run_command("git config merge.conflictstyle diff3")
     run_command(f"git merge origin/{src_branch}", allow_error=True)
+    if conflictstyle is None:
+        run_command("git config --unset merge.conflictstyle")
+    else:
+        run_command(f"git config merge.conflictstyle {conflictstyle}")
 
     run_command(f"git checkout origin/{dst_branch} {' '.join(FILES_TO_PRESERVE) }")
 
-    run_command("git config --unset merge.conflictstyle")
     run_command("git status -s | grep \"^UU\" | awk '{ print $2 }' | tee /tmp/conflicts")
 
     conflicts_file = "/tmp/conflicts"
