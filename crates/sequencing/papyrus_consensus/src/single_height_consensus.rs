@@ -176,19 +176,19 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         }
     }
 
-    pub async fn handle_task<ContextT: ConsensusContext<Block = BlockT>>(
+    pub async fn handle_event<ContextT: ConsensusContext<Block = BlockT>>(
         &mut self,
         context: &mut ContextT,
-        task: ShcTask,
+        event: StateMachineEvent,
     ) -> Result<ShcReturn<BlockT>, ConsensusError> {
-        debug!("Received task: {:?}", task);
-        match task.event {
+        debug!("Received Event: {:?}", event);
+        match event {
             StateMachineEvent::TimeoutPropose(_)
             | StateMachineEvent::TimeoutPrevote(_)
             | StateMachineEvent::TimeoutPrecommit(_) => {
                 let leader_fn =
                     |round: Round| -> ValidatorId { context.proposer(self.height, round) };
-                let sm_events = self.state_machine.handle_event(task.event, &leader_fn);
+                let sm_events = self.state_machine.handle_event(event, &leader_fn);
                 self.handle_state_machine_events(context, sm_events).await
             }
             StateMachineEvent::Prevote(block_hash, round) => {
@@ -217,7 +217,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
                     event: StateMachineEvent::Precommit(block_hash, round),
                 }]))
             }
-            _ => unimplemented!("Unexpected task: {:?}", task),
+            _ => unimplemented!("Unexpected event: {:?}", event),
         }
     }
 

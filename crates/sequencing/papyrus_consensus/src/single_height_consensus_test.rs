@@ -405,14 +405,7 @@ async fn rebroadcast_votes() {
     );
     // Re-broadcast vote.
     assert_eq!(
-        shc.handle_task(
-            &mut context,
-            ShcTask {
-                duration: TIMEOUTS.precommit_timeout,
-                event: StateMachineEvent::Precommit(Some(BLOCK.id()), 0),
-            },
-        )
-        .await,
+        shc.handle_event(&mut context, StateMachineEvent::Precommit(Some(BLOCK.id()), 0),).await,
         Ok(ShcReturn::Tasks(vec![ShcTask {
             duration: TIMEOUTS.precommit_timeout,
             event: StateMachineEvent::Precommit(Some(BLOCK.id()), 0)
