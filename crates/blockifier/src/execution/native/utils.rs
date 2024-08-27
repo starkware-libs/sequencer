@@ -7,7 +7,6 @@ use cairo_native::execution_result::ContractExecutionResult;
 use cairo_native::executor::AotNativeExecutor;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use itertools::Itertools;
-use num_traits::ToBytes;
 use starknet_api::core::EntryPointSelector;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
