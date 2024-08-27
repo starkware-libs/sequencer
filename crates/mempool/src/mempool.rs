@@ -184,7 +184,7 @@ impl Mempool {
     }
 
     #[cfg(test)]
-    pub(crate) fn _tx_pool(&self) -> &TransactionPool {
+    pub(crate) fn tx_pool(&self) -> &TransactionPool {
         &self.tx_pool
     }
 }
