@@ -1,2 +1,1 @@
 stable
-A diff that should not appear
