@@ -31,7 +31,7 @@ use starknet_types_core::felt::Felt;
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::{self, CONSTRUCTOR_ENTRY_POINT_NAME};
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::errors::{ContractClassError, PreExecutionError};
+use crate::execution::errors::{ContractClassError, NativeEntryPointError, PreExecutionError};
 use crate::execution::execution_utils::{poseidon_hash_many_cost, sn_api_to_cairo_vm_program};
 use crate::execution::native::utils::contract_entrypoint_to_entrypoint_selector;
 use crate::fee::eth_gas_constants;
@@ -607,12 +607,6 @@ impl Deref for NativeContractClassV1 {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum NativeEntryPointError {
-    #[error("FunctionId {0} not found")]
-    FunctionIdNotFound(usize),
-}
-
 impl NativeContractClassV1 {
     fn constructor_selector(&self) -> Option<EntryPointSelector> {
         self.entry_points_by_type.constructor.first().map(|ep| ep.selector)
@@ -636,7 +630,7 @@ impl NativeContractClassV1 {
     ) -> Result<CasmContractClass, StarknetSierraCompilationError> {
         let sierra_contract_class = SierraContractClass {
             // Cloning because these are behind an Arc.
-            sierra_program: self.sierra_program_raw.clone(),
+            sierra_program: self.sierra_program.clone(),
             entry_points_by_type: self.fallback_entry_points_by_type.clone(),
             abi: None,
             sierra_program_debug_info: None,
@@ -676,7 +670,7 @@ pub struct NativeContractClassV1Inner {
     pub executor: AotNativeExecutor,
     entry_points_by_type: NativeContractEntryPoints,
     // Storing the raw sierra program and entry points to be able to fallback to the vm
-    sierra_program_raw: Vec<BigUintAsHex>,
+    sierra_program: Vec<BigUintAsHex>,
     fallback_entry_points_by_type: SierraContractEntryPoints,
 }
 
@@ -707,7 +701,7 @@ impl NativeContractClassV1Inner {
                 &lookup_fid,
                 &sierra_contract_class.entry_points_by_type,
             )?,
-            sierra_program_raw: sierra_contract_class.sierra_program,
+            sierra_program: sierra_contract_class.sierra_program,
             fallback_entry_points_by_type: sierra_contract_class.entry_points_by_type,
         })
     }
@@ -718,7 +712,7 @@ impl NativeContractClassV1Inner {
 impl PartialEq for NativeContractClassV1Inner {
     fn eq(&self, other: &Self) -> bool {
         self.entry_points_by_type == other.entry_points_by_type
-            && self.sierra_program_raw == other.sierra_program_raw
+            && self.sierra_program == other.sierra_program
     }
 }
 
@@ -739,19 +733,19 @@ impl NativeContractEntryPoints {
     /// On failure returns the first FunctionId that it couldn't find.
     fn try_from(
         lookup: &HashMap<usize, &FunctionId>,
-        sep: &SierraContractEntryPoints,
+        sierra_ep: &SierraContractEntryPoints,
     ) -> Result<NativeContractEntryPoints, NativeEntryPointError> {
-        let constructor = sep
+        let constructor = sierra_ep
             .constructor
             .iter()
             .map(|c| NativeEntryPoint::try_from(lookup, c))
             .collect::<Result<_, _>>()?;
-        let external = sep
+        let external = sierra_ep
             .external
             .iter()
             .map(|c| NativeEntryPoint::try_from(lookup, c))
             .collect::<Result<_, _>>()?;
-        let l1_handler = sep
+        let l1_handler = sierra_ep
             .l1_handler
             .iter()
             .map(|c| NativeEntryPoint::try_from(lookup, c))
@@ -785,12 +779,12 @@ struct NativeEntryPoint {
 impl NativeEntryPoint {
     fn try_from(
         lookup: &HashMap<usize, &FunctionId>,
-        cep: &ContractEntryPoint,
+        contract_ep: &ContractEntryPoint,
     ) -> Result<NativeEntryPoint, NativeEntryPointError> {
         let &function_id = lookup
-            .get(&cep.function_idx)
-            .ok_or(NativeEntryPointError::FunctionIdNotFound(cep.function_idx))?;
-        let selector = contract_entrypoint_to_entrypoint_selector(cep);
+            .get(&contract_ep.function_idx)
+            .ok_or(NativeEntryPointError::FunctionIdNotFound(contract_ep.function_idx))?;
+        let selector = contract_entrypoint_to_entrypoint_selector(contract_ep);
         Ok(NativeEntryPoint { selector, function_id: function_id.clone() })
     }
 }
