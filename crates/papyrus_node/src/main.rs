@@ -351,7 +351,10 @@ fn register_to_network(network_config: Option<NetworkConfig>) -> anyhow::Result<
     let Some(network_config) = network_config else {
         return Ok((None, None, None, "".to_string()));
     };
-    let mut network_manager = network_manager::NetworkManager::new(network_config.clone());
+    let mut network_manager = network_manager::NetworkManager::new(
+        network_config.clone(),
+        Some(VERSION_FULL.to_string()),
+    );
     let local_peer_id = network_manager.get_local_peer_id();
 
     let header_client_sender = network_manager

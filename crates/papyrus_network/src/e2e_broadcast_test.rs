@@ -22,6 +22,7 @@ async fn create_swarm(bootstrap_peer_multiaddr: Option<Multiaddr>) -> Swarm<Mixe
             bootstrap_peer_multiaddr,
             sqmr::Config::default(),
             ChainId::Mainnet,
+            None,
         )
     });
     // Not using SwarmExt::listen because it panics if the swarm emits other events

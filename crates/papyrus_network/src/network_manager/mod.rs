@@ -574,7 +574,7 @@ fn send_now<Item>(sender: &mut GenericSender<Item>, item: Item, buffer_full_mess
 pub type NetworkManager = GenericNetworkManager<Swarm<mixed_behaviour::MixedBehaviour>>;
 
 impl NetworkManager {
-    pub fn new(config: NetworkConfig) -> Self {
+    pub fn new(config: NetworkConfig, node_version: Option<String>) -> Self {
         let NetworkConfig {
             tcp_port,
             quic_port: _,
@@ -598,6 +598,7 @@ impl NetworkManager {
                 bootstrap_peer_multiaddr.clone(),
                 sqmr::Config { session_timeout },
                 chain_id,
+                node_version,
             )
         });
         let hardcoded_external_multiaddr = hardcoded_external_multiaddr.map(|address| {
