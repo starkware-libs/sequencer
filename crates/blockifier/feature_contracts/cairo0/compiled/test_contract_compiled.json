@@ -792,7 +792,26 @@
         "L1_HANDLER": []
     },
     "program": {
-        "attributes": [],
+        "attributes": [
+            {
+                "accessible_scopes": [
+                    "__main__",
+                    "__main__",
+                    "__main__.fail"
+                ],
+                "end_pc": 1186,
+                "flow_tracking_data": {
+                    "ap_tracking": {
+                        "group": 95,
+                        "offset": 0
+                    },
+                    "reference_ids": {}
+                },
+                "name": "error_message",
+                "start_pc": 1182,
+                "value": "You shall not pass!"
+            }
+        ],
         "builtins": [
             "pedersen",
             "range_check",

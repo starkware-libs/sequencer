@@ -118,6 +118,7 @@ Unknown location (pc=0:{entry_point_location})
 
 2: Error in the called contract (contract address: {test_contract_address_2_felt:#064x}, class \
          hash: {test_contract_hash:#064x}, selector: {inner_entry_point_selector_felt:#064x}):
+Error message: You shall not pass!
 Error at pc=0:1184:
 Cairo traceback (most recent call last):
 Unknown location (pc=0:1188)
@@ -160,6 +161,16 @@ fn test_trace_callchain_ends_with_regular_call(
     #[case] expected_error: &str,
     #[case] expected_pc_locations: (u16, u16),
 ) {
+    let expected_with_attr_error_msg = match cairo_version {
+        CairoVersion::Cairo0 => {
+            if last_func_name == "fail" {
+                "Error message: You shall not pass!\n".to_string()
+            } else {
+                String::new()
+            }
+        }
+        CairoVersion::Cairo1 => String::new(),
+    };
     let chain_info = ChainInfo::create_for_testing();
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let test_contract = FeatureContract::TestContract(cairo_version);
@@ -234,7 +245,7 @@ Unknown location (pc=0:{entry_point_location})
 
 2: Error in the called contract (contract address: {contract_address_felt:#064x}, class hash: \
                  {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
-Error at pc=0:{expected_pc0}:
+{expected_with_attr_error_msg}Error at pc=0:{expected_pc0}:
 Cairo traceback (most recent call last):
 Unknown location (pc=0:{call_location})
 Unknown location (pc=0:{expected_pc1})
@@ -285,6 +296,16 @@ fn test_trace_call_chain_with_syscalls(
     #[case] call_type: u8,
     #[case] expected_pcs: (u16, u16, u16, u16),
 ) {
+    let expected_with_attr_error_msg = match cairo_version {
+        CairoVersion::Cairo0 => {
+            if last_func_name == "fail" {
+                "Error message: You shall not pass!\n".to_string()
+            } else {
+                String::new()
+            }
+        }
+        CairoVersion::Cairo1 => String::new(),
+    };
     let chain_info = ChainInfo::create_for_testing();
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let test_contract = FeatureContract::TestContract(cairo_version);
@@ -387,7 +408,7 @@ Unknown location (pc=0:{call_location})
 Unknown location (pc=0:{expected_pc1})
 
 3: {last_call_preamble}:
-Error at pc=0:{expected_pc2}:
+{expected_with_attr_error_msg}Error at pc=0:{expected_pc2}:
 Cairo traceback (most recent call last):
 Unknown location (pc=0:{expected_pc3})
 
