@@ -65,7 +65,7 @@ pub fn run_native_executor(
         Ok(res) => Ok(res),
     }?;
 
-    create_callinfo(
+    Ok(create_callinfo(
         call.clone(),
         run_result,
         syscall_handler.events,
@@ -73,7 +73,7 @@ pub fn run_native_executor(
         syscall_handler.inner_calls,
         syscall_handler.storage_read_values,
         syscall_handler.accessed_storage_keys,
-    )
+    ))
 }
 
 pub fn create_callinfo(
@@ -84,8 +84,8 @@ pub fn create_callinfo(
     inner_calls: Vec<CallInfo>,
     storage_read_values: Vec<Felt>,
     accessed_storage_keys: HashSet<StorageKey, RandomState>,
-) -> Result<CallInfo, EntryPointExecutionError> {
-    Ok(CallInfo {
+) -> CallInfo {
+    CallInfo {
         call,
         execution: CallExecution {
             retdata: Retdata(run_result.return_values),
@@ -102,7 +102,7 @@ pub fn create_callinfo(
         inner_calls,
         storage_read_values,
         accessed_storage_keys,
-    })
+    }
 }
 
 pub fn encode_str_as_felts(msg: &str) -> Vec<Felt> {
