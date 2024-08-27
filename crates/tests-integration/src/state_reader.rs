@@ -3,6 +3,7 @@ use std::sync::{Arc, OnceLock};
 
 use blockifier::abi::abi_utils::get_fee_token_var_address;
 use blockifier::context::{BlockContext, ChainInfo};
+use blockifier::execution::contract_class::NativeContractClassV1;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{
     CairoVersion,
@@ -45,8 +46,11 @@ use tokio::sync::RwLock;
 
 use crate::integration_test_utils::get_available_socket;
 
-type ContractClassesMap =
-    (Vec<(ClassHash, DeprecatedContractClass)>, Vec<(ClassHash, CasmContractClass)>);
+type ContractClassesMap = (
+    Vec<(ClassHash, DeprecatedContractClass)>,
+    Vec<(ClassHash, CasmContractClass)>,
+    Vec<(ClassHash, NativeContractClassV1)>,
+);
 
 fn deploy_account_tx_contract_address() -> &'static ContractAddress {
     static DEPLOY_ACCOUNT_TX_CONTRACT_ADDRESS: OnceLock<ContractAddress> = OnceLock::new();
@@ -104,7 +108,7 @@ fn initialize_papyrus_test_state(
         fund_additional_accounts,
     );
 
-    let (cairo0_contract_classes, cairo1_contract_classes) =
+    let (cairo0_contract_classes, cairo1_contract_classes, _native_contract_classes) =
         prepare_compiled_contract_classes(contract_instances.into_keys());
 
     write_state_to_papyrus_storage(state_diff, &cairo0_contract_classes, &cairo1_contract_classes)
@@ -135,7 +139,7 @@ fn prepare_state_diff(
                 CairoVersion::Cairo0 => {
                     deprecated_declared_classes.push(contract.get_class_hash());
                 }
-                CairoVersion::Cairo1 => {
+                CairoVersion::Cairo1 | CairoVersion::Native => {
                     declared_classes.insert(contract.get_class_hash(), Default::default());
                 }
             }
@@ -170,6 +174,7 @@ fn prepare_compiled_contract_classes(
 ) -> ContractClassesMap {
     let mut cairo0_contract_classes = Vec::new();
     let mut cairo1_contract_classes = Vec::new();
+    let mut native_contract_classes = Vec::new();
     for contract in contract_instances {
         match contract.cairo_version() {
             CairoVersion::Cairo0 => {
@@ -184,9 +189,15 @@ fn prepare_compiled_contract_classes(
                     serde_json::from_str(&contract.get_raw_class()).unwrap(),
                 ));
             }
+            CairoVersion::Native => {
+                native_contract_classes.push((
+                    contract.get_class_hash(),
+                    NativeContractClassV1::try_from_json_string(&contract.get_raw_class()).unwrap(),
+                ));
+            }
         }
     }
-    (cairo0_contract_classes, cairo1_contract_classes)
+    (cairo0_contract_classes, cairo1_contract_classes, native_contract_classes)
 }
 
 fn write_state_to_papyrus_storage(

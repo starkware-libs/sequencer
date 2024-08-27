@@ -63,11 +63,12 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<(String, String, Str
     let mut paths = vec![];
     let directory = match cairo_version {
         CairoVersion::Cairo0 => CAIRO0_FEATURE_CONTRACTS_DIR,
-        CairoVersion::Cairo1 => CAIRO1_FEATURE_CONTRACTS_DIR,
+        CairoVersion::Cairo1 | CairoVersion::Native => CAIRO1_FEATURE_CONTRACTS_DIR,
     };
     let compiled_extension = match cairo_version {
         CairoVersion::Cairo0 => "_compiled.json",
         CairoVersion::Cairo1 => ".casm.json",
+        CairoVersion::Native => ".sierra.json",
     };
     for file in fs::read_dir(directory).unwrap() {
         let path = file.unwrap().path();
@@ -110,6 +111,7 @@ fn verify_feature_contracts_match_enum() {
     let mut compiled_paths_on_filesystem: Vec<String> = verify_and_get_files(CairoVersion::Cairo0)
         .into_iter()
         .chain(verify_and_get_files(CairoVersion::Cairo1))
+        .chain(verify_and_get_files(CairoVersion::Native))
         .map(|(_, _, compiled_path)| compiled_path)
         .collect();
     compiled_paths_from_enum.sort();
