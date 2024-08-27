@@ -364,6 +364,9 @@ fn create_block_context(
             NonZeroU128::new(l1_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
             NonZeroU128::new(l1_data_gas_price.price_in_wei.0).unwrap_or(NonZeroU128::MIN),
             NonZeroU128::new(l1_data_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
+            // TODO(Aner - Shahak): fix to come from pending_data/block_header.
+            NonZeroU128::MIN,
+            NonZeroU128::MIN,
         ),
     };
     let chain_info = ChainInfo {

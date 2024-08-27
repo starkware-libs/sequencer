@@ -2,12 +2,12 @@ use std::env;
 use std::path::Path;
 
 use assert_matches::assert_matches;
-use cairo_lang_starknet_classes::allowed_libfuncs::AllowedLibfuncsError;
 use mempool_test_utils::{get_absolute_path, FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 use rstest::{fixture, rstest};
 
-use crate::cairo_lang_compiler::{CairoLangSierraToCasmCompiler, CompilationUtilError};
+use crate::cairo_lang_compiler::CairoLangSierraToCasmCompiler;
 use crate::config::SierraToCasmCompilationConfig;
+use crate::errors::CompilationUtilError;
 use crate::test_utils::contract_class_from_file;
 use crate::SierraToCasmCompiler;
 
@@ -16,6 +16,7 @@ fn compiler() -> impl SierraToCasmCompiler {
     CairoLangSierraToCasmCompiler { config: SierraToCasmCompilationConfig::default() }
 }
 
+// TODO: use the other compiler as well.
 #[rstest]
 fn test_compile_sierra_to_casm(compiler: impl SierraToCasmCompiler) {
     env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Failed to set current dir.");
@@ -40,8 +41,5 @@ fn test_negative_flow_compile_sierra_to_casm(compiler: impl SierraToCasmCompiler
     contract_class.sierra_program = contract_class.sierra_program[..100].to_vec();
 
     let result = compiler.compile(contract_class);
-    assert_matches!(
-        result,
-        Err(CompilationUtilError::AllowedLibfuncsError(AllowedLibfuncsError::SierraProgramError))
-    );
+    assert_matches!(result, Err(CompilationUtilError::CompilationError(..)));
 }

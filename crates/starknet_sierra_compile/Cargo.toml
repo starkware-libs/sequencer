@@ -1,9 +1,14 @@
 [package]
+<<<<<<< HEAD
 name = "starknet_sierra_compile"
 version.workspace = true
+=======
+>>>>>>> origin/main
 edition.workspace = true
-repository.workspace = true
 license.workspace = true
+name = "starknet_sierra_compile"
+repository.workspace = true
+version = "0.0.0"
 
 [lints]
 workspace = true
