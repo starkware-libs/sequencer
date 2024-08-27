@@ -84,16 +84,11 @@ pub enum StatelessTransactionValidatorError {
 impl From<StatelessTransactionValidatorError> for GatewaySpecError {
     fn from(e: StatelessTransactionValidatorError) -> Self {
         match e {
-            StatelessTransactionValidatorError::ZeroResourceBounds { .. } => {
-                GatewaySpecError::ValidationFailure { data: e.to_string() }
-            }
-            StatelessTransactionValidatorError::CalldataTooLong { .. } => {
-                GatewaySpecError::ValidationFailure { data: e.to_string() }
-            }
-            StatelessTransactionValidatorError::SignatureTooLong { .. } => {
-                GatewaySpecError::ValidationFailure { data: e.to_string() }
-            }
-            StatelessTransactionValidatorError::InvalidSierraVersion(..) => {
+            StatelessTransactionValidatorError::ZeroResourceBounds { .. }
+            | StatelessTransactionValidatorError::CalldataTooLong { .. }
+            | StatelessTransactionValidatorError::SignatureTooLong { .. }
+            | StatelessTransactionValidatorError::InvalidSierraVersion(..)
+            | StatelessTransactionValidatorError::EntryPointsNotUniquelySorted => {
                 GatewaySpecError::ValidationFailure { data: e.to_string() }
             }
             StatelessTransactionValidatorError::UnsupportedSierraVersion { .. } => {
@@ -101,9 +96,6 @@ impl From<StatelessTransactionValidatorError> for GatewaySpecError {
             }
             StatelessTransactionValidatorError::ContractClassObjectSizeTooLarge { .. } => {
                 GatewaySpecError::ContractClassSizeIsTooLarge
-            }
-            StatelessTransactionValidatorError::EntryPointsNotUniquelySorted => {
-                GatewaySpecError::ValidationFailure { data: e.to_string() }
             }
         }
     }
