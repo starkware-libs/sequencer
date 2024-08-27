@@ -92,24 +92,25 @@ fn get_json_value_without_defaults() -> serde_json::Value {
     json_value_without_defaults
 }
 
-/// Assert `versioned_constants_base_overrides` are used when provided.
+/// Assert versioned constants overrides are used when provided.
 #[test]
-fn test_versioned_constants_base_overrides() {
-    // Create a versioned constants copy with a modified value for `invoke_tx_max_n_steps`.
-    let mut versioned_constants_base_overrides = VERSIONED_CONSTANTS_LATEST.clone();
-    versioned_constants_base_overrides.invoke_tx_max_n_steps += 1;
+fn test_versioned_constants_overrides() {
+    let versioned_constants = VERSIONED_CONSTANTS_LATEST.clone();
+    let updated_invoke_tx_max_n_steps = versioned_constants.invoke_tx_max_n_steps + 1;
+    let updated_validate_max_n_steps = versioned_constants.validate_max_n_steps + 1;
+    let updated_max_recursion_depth = versioned_constants.max_recursion_depth + 1;
 
+    // Create a versioned constants copy with overriden values.
     let result = VersionedConstants::get_versioned_constants(VersionedConstantsOverrides {
-        validate_max_n_steps: versioned_constants_base_overrides.validate_max_n_steps,
-        max_recursion_depth: versioned_constants_base_overrides.max_recursion_depth,
-        versioned_constants_base_overrides: Some(versioned_constants_base_overrides.clone()),
+        validate_max_n_steps: updated_validate_max_n_steps,
+        max_recursion_depth: updated_max_recursion_depth,
+        invoke_tx_max_n_steps: updated_invoke_tx_max_n_steps,
     });
 
-    // Assert the new value is used.
-    assert_eq!(
-        result.invoke_tx_max_n_steps,
-        versioned_constants_base_overrides.invoke_tx_max_n_steps
-    );
+    // Assert the new values are used.
+    assert_eq!(result.invoke_tx_max_n_steps, updated_invoke_tx_max_n_steps);
+    assert_eq!(result.validate_max_n_steps, updated_validate_max_n_steps);
+    assert_eq!(result.max_recursion_depth, updated_max_recursion_depth);
 }
 
 #[test]
