@@ -373,7 +373,7 @@ async fn rebroadcast_votes() {
     );
     // Re-broadcast vote.
     assert_eq!(
-        shc.handle_task(&mut context, precommit_task(Some(BLOCK.id().0), 0),).await,
+        shc.handle_event(&mut context, StateMachineEvent::Precommit(Some(BLOCK.id()), 0),).await,
         Ok(ShcReturn::Tasks(vec![precommit_task(Some(BLOCK.id().0), 0),]))
     );
 }

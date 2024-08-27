@@ -157,7 +157,7 @@ impl MultiHeightManager {
                     self.handle_message(context, height, &mut shc, message?).await?
                 },
                 Some(shc_task) = shc_tasks.next() => {
-                    shc.handle_task(context, shc_task).await?
+                    shc.handle_event(context, shc_task.event).await?
                 },
             };
 
