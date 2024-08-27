@@ -1,18 +1,9 @@
 use rstest::fixture;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::transaction::{
-    Calldata,
-    ContractAddressSalt,
-    Fee,
-    InvokeTransactionV0,
-    InvokeTransactionV1,
-    InvokeTransactionV3,
-    Resource,
-    ResourceBounds,
-    ResourceBoundsMapping,
-    TransactionHash,
-    TransactionSignature,
-    TransactionVersion,
+    Calldata, ContractAddressSalt, Fee, InvokeTransactionV0, InvokeTransactionV1,
+    InvokeTransactionV3, Resource, ResourceBounds, ResourceBoundsMapping, TransactionHash,
+    TransactionSignature, TransactionVersion,
 };
 use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
@@ -30,12 +21,7 @@ use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use crate::test_utils::{
-    create_calldata,
-    CairoVersion,
-    NonceManager,
-    BALANCE,
-    MAX_FEE,
-    MAX_L1_GAS_AMOUNT,
+    create_calldata, CairoVersion, NonceManager, BALANCE, MAX_FEE, MAX_L1_GAS_AMOUNT,
     MAX_L1_GAS_PRICE,
 };
 use crate::transaction::account_transaction::AccountTransaction;
@@ -109,7 +95,7 @@ pub fn deploy_and_fund_account(
 ) -> (AccountTransaction, ContractAddress) {
     // Deploy an account contract.
     let deploy_account_tx = deploy_account_tx(deploy_tx_args, nonce_manager);
-    let account_address = deploy_account_tx.contract_address();
+    let account_address = deploy_account_tx.contract_address;
     let account_tx = AccountTransaction::DeployAccount(deploy_account_tx);
 
     // Update the balance of the about-to-be deployed account contract in the erc20 contract, so it
@@ -302,7 +288,8 @@ pub fn l1_resource_bounds(max_amount: u64, max_price: u128) -> ResourceBoundsMap
 pub fn calculate_class_info_for_testing(contract_class: ContractClass) -> ClassInfo {
     let sierra_program_length = match contract_class {
         ContractClass::V0(_) => 0,
-        ContractClass::V1(_) | ContractClass::V1Native(_) => 100,
+        ContractClass::V1(_) => 100,
+        ContractClass::V1Native(_) => todo!("should this also be 100?"),
     };
     ClassInfo::new(&contract_class, sierra_program_length, 100).unwrap()
 }

@@ -1,16 +1,8 @@
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::transaction::{
-    Calldata,
-    ContractAddressSalt,
-    DeployAccountTransactionV1,
-    DeployAccountTransactionV3,
-    Fee,
-    PaymasterData,
-    ResourceBoundsMapping,
-    Tip,
-    TransactionHash,
-    TransactionSignature,
+    Calldata, ContractAddressSalt, DeployAccountTransactionV1, DeployAccountTransactionV3, Fee,
+    PaymasterData, ResourceBoundsMapping, Tip, TransactionHash, TransactionSignature,
     TransactionVersion,
 };
 

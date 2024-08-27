@@ -16,17 +16,11 @@ use starknet_types_core::felt::Felt;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{ContractClassV1, EntryPointV1};
 use crate::execution::entry_point::{
-    CallEntryPoint,
-    EntryPointExecutionContext,
-    EntryPointExecutionResult,
+    CallEntryPoint, EntryPointExecutionContext, EntryPointExecutionResult,
 };
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, PreExecutionError};
 use crate::execution::execution_utils::{
-    read_execution_retdata,
-    write_felt,
-    write_maybe_relocatable,
-    Args,
-    ReadOnlySegments,
+    read_execution_retdata, write_felt, write_maybe_relocatable, Args, ReadOnlySegments,
     SEGMENT_ARENA_BUILTIN_SIZE,
 };
 use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
@@ -163,7 +157,20 @@ pub fn initialize_execution_context<'a>(
         trace_enabled,
     )?;
 
-    runner.initialize_function_runner_cairo_1(&entry_point.builtins)?;
+    // Initialize program with all builtins.
+    let program_builtins = [
+        BuiltinName::bitwise,
+        BuiltinName::ec_op,
+        BuiltinName::ecdsa,
+        BuiltinName::pedersen,
+        BuiltinName::poseidon,
+        BuiltinName::range_check,
+        BuiltinName::segment_arena,
+        BuiltinName::range_check96,
+        BuiltinName::add_mod,
+        BuiltinName::mul_mod,
+    ];
+    runner.initialize_function_runner_cairo_1(&program_builtins)?;
     let mut read_only_segments = ReadOnlySegments::default();
     let program_extra_data_length =
         prepare_program_extra_data(&mut runner, contract_class, &mut read_only_segments)?;
@@ -226,13 +233,16 @@ pub fn prepare_call_arguments(
 
     // Push builtins.
     for builtin_name in &entrypoint.builtins {
-        if let Some(builtin) =
-            runner.vm.get_builtin_runners().iter().find(|builtin| builtin.name() == *builtin_name)
+        if let Some(builtin) = runner
+            .vm
+            .get_builtin_runners()
+            .iter()
+            .find(|builtin| builtin.name().to_str_with_suffix() == builtin_name)
         {
             args.extend(builtin.initial_stack().into_iter().map(CairoArg::Single));
             continue;
         }
-        if builtin_name == &BuiltinName::segment_arena {
+        if builtin_name == BuiltinName::segment_arena.to_str_with_suffix() {
             let segment_arena = runner.vm.add_memory_segment();
 
             // Write into segment_arena.
@@ -247,7 +257,7 @@ pub fn prepare_call_arguments(
             args.push(CairoArg::Single(MaybeRelocatable::from(ptr)));
             continue;
         }
-        return Err(PreExecutionError::InvalidBuiltin(*builtin_name));
+        return Err(PreExecutionError::InvalidBuiltin(builtin_name.clone()));
     }
     // Push gas counter.
     args.push(CairoArg::Single(MaybeRelocatable::from(Felt::from(call.initial_gas))));
@@ -299,8 +309,11 @@ fn maybe_fill_holes(
     entry_point: EntryPointV1,
     runner: &mut CairoRunner,
 ) -> Result<(), EntryPointExecutionError> {
-    let Some(rc96_offset) =
-        entry_point.builtins.iter().rev().position(|name| *name == BuiltinName::range_check96)
+    let Some(rc96_offset) = entry_point
+        .builtins
+        .iter()
+        .rev()
+        .position(|name| name.as_str() == BuiltinName::range_check96.to_str_with_suffix())
     else {
         return Ok(());
     };

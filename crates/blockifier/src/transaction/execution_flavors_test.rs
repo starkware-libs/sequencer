@@ -83,7 +83,7 @@ fn create_flavors_test_state(
 /// Returns the new balance.
 fn check_balance<S: StateReader>(
     current_balance: Felt,
-    state: &CachedState<S>,
+    state: &mut CachedState<S>,
     account_address: ContractAddress,
     chain_info: &ChainInfo,
     fee_type: &FeeType,
@@ -171,7 +171,7 @@ fn test_simulate_validate_charge_fee_pre_validate(
     // The max resource bounds fixture is not used here because this function already has the
     // maximum number of arguments.
     let resource_bounds = l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE);
-    let gas_price = block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
+    let gas_price = block_context.block_info.gas_prices.get_gas_price_by_fee_type(&fee_type);
     let FlavorTestInitialState {
         mut state,
         account_address,
@@ -201,7 +201,7 @@ fn test_simulate_validate_charge_fee_pre_validate(
     let result = account_invoke_tx(
         invoke_tx_args! {nonce: invalid_nonce, ..pre_validation_base_args.clone()},
     )
-    .execute(&mut state, &block_context, charge_fee, validate);
+        .execute(&mut state, &block_context, charge_fee, validate);
     assert_matches!(
         result.unwrap_err(),
         TransactionExecutionError::TransactionPreValidationError(
@@ -229,7 +229,7 @@ fn test_simulate_validate_charge_fee_pre_validate(
         nonce: nonce_manager.next(account_address),
         ..pre_validation_base_args.clone()
     })
-    .execute(&mut state, &block_context, charge_fee, validate);
+        .execute(&mut state, &block_context, charge_fee, validate);
     if !charge_fee {
         check_gas_and_fee(
             &block_context,
@@ -273,7 +273,7 @@ fn test_simulate_validate_charge_fee_pre_validate(
         nonce: nonce_manager.next(account_address),
         ..pre_validation_base_args.clone()
     })
-    .execute(&mut state, &block_context, charge_fee, validate);
+        .execute(&mut state, &block_context, charge_fee, validate);
     if !charge_fee {
         check_gas_and_fee(
             &block_context,
@@ -313,7 +313,7 @@ fn test_simulate_validate_charge_fee_pre_validate(
             nonce: nonce_manager.next(account_address),
             ..pre_validation_base_args
         })
-        .execute(&mut state, &block_context, charge_fee, validate);
+            .execute(&mut state, &block_context, charge_fee, validate);
         if !charge_fee {
             check_gas_and_fee(
                 &block_context,
@@ -381,7 +381,7 @@ fn test_simulate_validate_charge_fee_fail_validate(
         nonce: nonce_manager.next(faulty_account_address),
         only_query,
     })
-    .execute(&mut falliable_state, &block_context, charge_fee, validate);
+        .execute(&mut falliable_state, &block_context, charge_fee, validate);
     if !validate {
         // The reported fee should be the actual cost, regardless of whether or not fee is charged.
         check_gas_and_fee(
@@ -415,7 +415,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
 ) {
     let block_context = BlockContext::create_for_account_testing();
     let chain_info = &block_context.chain_info;
-    let gas_price = block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
+    let gas_price = block_context.block_info.gas_prices.get_gas_price_by_fee_type(&fee_type);
     let FlavorTestInitialState {
         mut state,
         account_address,
@@ -452,8 +452,8 @@ fn test_simulate_validate_charge_fee_mid_execution(
         nonce: nonce_manager.next(account_address),
         ..execution_base_args.clone()
     })
-    .execute(&mut state, &block_context, charge_fee, validate)
-    .unwrap();
+        .execute(&mut state, &block_context, charge_fee, validate)
+        .unwrap();
     assert!(tx_execution_info.is_reverted());
     check_gas_and_fee(
         &block_context,
@@ -465,7 +465,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     );
     let current_balance = check_balance(
         current_balance,
-        &state,
+        &mut state,
         account_address,
         &block_context.chain_info,
         &fee_type,
@@ -494,8 +494,8 @@ fn test_simulate_validate_charge_fee_mid_execution(
         nonce: nonce_manager.next(account_address),
         ..execution_base_args.clone()
     })
-    .execute(&mut state, &block_context, charge_fee, validate)
-    .unwrap();
+        .execute(&mut state, &block_context, charge_fee, validate)
+        .unwrap();
     assert_eq!(tx_execution_info.is_reverted(), charge_fee);
     if charge_fee {
         assert!(tx_execution_info.revert_error.clone().unwrap().contains("no remaining steps"));
@@ -510,12 +510,18 @@ fn test_simulate_validate_charge_fee_mid_execution(
         // availability), hence the actual resources may exceed the senders bounds after all.
         if charge_fee { limited_gas_used } else { unlimited_gas_used },
         if charge_fee { fee_bound } else { unlimited_fee },
-        // Complete resources used are reported as receipt.resources; but only the
+        // Complete resources used are reported as transaction_receipt.resources; but only the
         // charged final fee is shown in actual_fee.
         if charge_fee { limited_fee } else { unlimited_fee },
     );
-    let current_balance =
-        check_balance(current_balance, &state, account_address, chain_info, &fee_type, charge_fee);
+    let current_balance = check_balance(
+        current_balance,
+        &mut state,
+        account_address,
+        chain_info,
+        &fee_type,
+        charge_fee,
+    );
 
     // Third scenario: only limit is block bounds. Expect resources consumed to be identical,
     // whether or not `charge_fee` is true.
@@ -540,10 +546,10 @@ fn test_simulate_validate_charge_fee_mid_execution(
         nonce: nonce_manager.next(account_address),
         ..execution_base_args
     })
-    .execute(&mut state, &low_step_block_context, charge_fee, validate)
-    .unwrap();
+        .execute(&mut state, &low_step_block_context, charge_fee, validate)
+        .unwrap();
     assert!(tx_execution_info.revert_error.clone().unwrap().contains("no remaining steps"));
-    // Complete resources used are reported as receipt.resources; but only the charged
+    // Complete resources used are reported as transaction_receipt.resources; but only the charged
     // final fee is shown in actual_fee. As a sanity check, verify that the fee derived directly
     // from the consumed resources is also equal to the expected fee.
     check_gas_and_fee(
@@ -554,7 +560,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
         block_limit_fee,
         block_limit_fee,
     );
-    check_balance(current_balance, &state, account_address, chain_info, &fee_type, charge_fee);
+    check_balance(current_balance, &mut state, account_address, chain_info, &fee_type, charge_fee);
 }
 
 #[rstest]
@@ -571,7 +577,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     #[case] is_deprecated: bool,
 ) {
     let block_context = BlockContext::create_for_account_testing();
-    let gas_price = block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
+    let gas_price = block_context.block_info.gas_prices.get_gas_price_by_fee_type(&fee_type);
     let chain_info = &block_context.chain_info;
     let fee_token_address = chain_info.fee_token_address(&fee_type);
 
@@ -623,8 +629,8 @@ fn test_simulate_validate_charge_fee_post_execution(
         version,
         only_query,
     })
-    .execute(&mut state, &block_context, charge_fee, validate)
-    .unwrap();
+        .execute(&mut state, &block_context, charge_fee, validate)
+        .unwrap();
     assert_eq!(tx_execution_info.is_reverted(), charge_fee);
     if charge_fee {
         assert!(tx_execution_info.revert_error.clone().unwrap().starts_with(if is_deprecated {
@@ -642,8 +648,14 @@ fn test_simulate_validate_charge_fee_post_execution(
         if charge_fee { just_not_enough_fee_bound } else { unlimited_fee },
         if charge_fee { revert_fee } else { unlimited_fee },
     );
-    let current_balance =
-        check_balance(current_balance, &state, account_address, chain_info, &fee_type, charge_fee);
+    let current_balance = check_balance(
+        current_balance,
+        &mut state,
+        account_address,
+        chain_info,
+        &fee_type,
+        charge_fee,
+    );
 
     // Second scenario: balance too low.
     // Execute a transfer, and make sure we get the expected result.
@@ -682,8 +694,8 @@ fn test_simulate_validate_charge_fee_post_execution(
         version,
         only_query,
     })
-    .execute(&mut state, &block_context, charge_fee, validate)
-    .unwrap();
+        .execute(&mut state, &block_context, charge_fee, validate)
+        .unwrap();
     assert_eq!(tx_execution_info.is_reverted(), charge_fee);
     if charge_fee {
         assert!(
@@ -708,7 +720,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     );
     check_balance(
         current_balance,
-        &state,
+        &mut state,
         account_address,
         chain_info,
         &fee_type,

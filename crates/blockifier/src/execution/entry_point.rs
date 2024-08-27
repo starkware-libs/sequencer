@@ -16,9 +16,7 @@ use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::errors::{
-    ConstructorEntryPointExecutionError,
-    EntryPointExecutionError,
-    PreExecutionError,
+    ConstructorEntryPointExecutionError, EntryPointExecutionError, PreExecutionError,
 };
 use crate::execution::execution_utils::execute_entry_point_call;
 use crate::state::state_api::State;
@@ -200,7 +198,7 @@ impl EntryPointExecutionContext {
         let tx_gas_upper_bound = match tx_info {
             TransactionInfo::Deprecated(context) => {
                 let max_cairo_steps = context.max_fee.0
-                    / block_info.gas_prices.get_l1_gas_price_by_fee_type(&tx_info.fee_type());
+                    / block_info.gas_prices.get_gas_price_by_fee_type(&tx_info.fee_type());
                 // FIXME: This is saturating in the python bootstrapping test. Fix the value so
                 // that it'll fit in a usize and remove the `as`.
                 usize::try_from(max_cairo_steps).unwrap_or_else(|_| {

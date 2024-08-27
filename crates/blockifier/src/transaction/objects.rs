@@ -110,6 +110,13 @@ impl TransactionInfo {
             TransactionInfo::Deprecated(context) => Ok(context.max_fee != Fee(0)),
         }
     }
+
+    pub fn max_fee(&self) -> TransactionFeeResult<Fee> {
+        match self {
+            Self::Current(_context) => Ok(Fee(0)),
+            Self::Deprecated(context) => Ok(context.max_fee),
+        }
+    }
 }
 
 impl HasRelatedFeeType for TransactionInfo {
@@ -131,6 +138,20 @@ pub struct CurrentTransactionInfo {
     pub fee_data_availability_mode: DataAvailabilityMode,
     pub paymaster_data: PaymasterData,
     pub account_deployment_data: AccountDeploymentData,
+}
+
+impl Default for CurrentTransactionInfo {
+    fn default() -> Self {
+        Self {
+            common_fields: Default::default(),
+            resource_bounds: Default::default(),
+            tip: Default::default(),
+            nonce_data_availability_mode: DataAvailabilityMode::L1,
+            fee_data_availability_mode: DataAvailabilityMode::L1,
+            paymaster_data: Default::default(),
+            account_deployment_data: Default::default(),
+        }
+    }
 }
 
 impl CurrentTransactionInfo {
@@ -155,16 +176,15 @@ pub struct DeprecatedTransactionInfo {
 pub struct GasVector {
     pub l1_gas: u128,
     pub l1_data_gas: u128,
-    pub l2_gas: u128,
 }
 
 impl GasVector {
     pub fn from_l1_gas(l1_gas: u128) -> Self {
-        Self { l1_gas, ..Default::default() }
+        Self { l1_gas, l1_data_gas: 0 }
     }
 
     pub fn from_l1_data_gas(l1_data_gas: u128) -> Self {
-        Self { l1_data_gas, ..Default::default() }
+        Self { l1_gas: 0, l1_data_gas }
     }
 
     /// Computes the cost (in fee token units) of the gas vector (saturating on overflow).
@@ -343,13 +363,13 @@ impl StarknetResources {
             // Starknet's updateState gets the message segment as an argument.
             u128_from_usize(
                 self.message_cost_info.message_segment_length * eth_gas_constants::GAS_PER_MEMORY_WORD
-                // Starknet's updateState increases a (storage) counter for each L2-to-L1 message.
-                + n_l2_to_l1_messages * eth_gas_constants::GAS_PER_ZERO_TO_NONZERO_STORAGE_SET
-                // Starknet's updateState decreases a (storage) counter for each L1-to-L2 consumed
-                // message (note that we will probably get a refund of 15,000 gas for each consumed
-                // message but we ignore it since refunded gas cannot be used for the current
-                // transaction execution).
-                + n_l1_to_l2_messages * eth_gas_constants::GAS_PER_COUNTER_DECREASE,
+                    // Starknet's updateState increases a (storage) counter for each L2-to-L1 message.
+                    + n_l2_to_l1_messages * eth_gas_constants::GAS_PER_ZERO_TO_NONZERO_STORAGE_SET
+                    // Starknet's updateState decreases a (storage) counter for each L1-to-L2 consumed
+                    // message (note that we will probably get a refund of 15,000 gas for each consumed
+                    // message but we ignore it since refunded gas cannot be used for the current
+                    // transaction execution).
+                    + n_l1_to_l2_messages * eth_gas_constants::GAS_PER_COUNTER_DECREASE,
             ),
         ) + get_consumed_message_to_l2_emissions_cost(self.l1_handler_payload_size)
             + get_log_message_to_l1_emissions_cost(&self.message_cost_info.l2_to_l1_payload_lengths)
@@ -463,7 +483,7 @@ impl TransactionResources {
         use_kzg_da: bool,
         with_reverted_steps: bool,
     ) -> ResourcesMapping {
-        let GasVector { l1_gas, l1_data_gas, .. } =
+        let GasVector { l1_gas, l1_data_gas } =
             self.starknet_resources.to_gas_vector(versioned_constants, use_kzg_da);
         let mut resources = self.vm_resources.to_resources_mapping();
         resources.0.extend(HashMap::from([
@@ -506,11 +526,11 @@ impl ExecutionResourcesTraits for ExecutionResources {
             // It is transformed into regular steps by the OS program - each instance requires
             // approximately 10 steps.
             + abi_constants::N_STEPS_PER_SEGMENT_ARENA_BUILTIN
-                * self
-                    .builtin_instance_counter
-                    .get(&BuiltinName::segment_arena)
-                    .cloned()
-                    .unwrap_or_default()
+            * self
+            .builtin_instance_counter
+            .get(&BuiltinName::segment_arena)
+            .cloned()
+            .unwrap_or_default()
     }
 
     fn prover_builtins(&self) -> HashMap<BuiltinName, usize> {

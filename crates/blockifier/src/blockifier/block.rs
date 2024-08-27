@@ -34,14 +34,14 @@ pub struct GasPrices {
 }
 
 impl GasPrices {
-    pub fn get_l1_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonZeroU128 {
+    pub fn get_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonZeroU128 {
         match fee_type {
             FeeType::Strk => self.strk_l1_gas_price,
             FeeType::Eth => self.eth_l1_gas_price,
         }
     }
 
-    pub fn get_l1_data_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonZeroU128 {
+    pub fn get_data_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonZeroU128 {
         match fee_type {
             FeeType::Strk => self.strk_l1_data_gas_price,
             FeeType::Eth => self.eth_l1_data_gas_price,

@@ -1,6 +1,6 @@
 [package]
 name = "blockifier"
-version = "0.8.0-rc.1"
+version = "0.0.0"
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -13,6 +13,7 @@ workspace = true
 concurrency = []
 jemalloc = ["dep:tikv-jemallocator"]
 testing = ["rand", "rstest"]
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -76,4 +77,9 @@ path = "bench/blockifier_bench.rs"
 [[test]]
 name = "feature_contracts_compatibility_test"
 path = "tests/feature_contracts_compatibility_test.rs"
+required-features = ["testing"]
+
+[[test]]
+name = "erc20_tests"
+path = "tests/erc20_tests.rs"
 required-features = ["testing"]

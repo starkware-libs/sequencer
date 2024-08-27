@@ -795,7 +795,7 @@ fn assert_failure_if_resource_bounds_exceed_balance(
     match block_context.to_tx_context(&invalid_tx).tx_info {
         TransactionInfo::Deprecated(context) => {
             assert_matches!(
-                invalid_tx.execute(state, block_context, true, true).unwrap_err(),
+                invalid_tx.execute(state, block_context, true, true,).unwrap_err(),
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
                         TransactionFeeError::MaxFeeExceedsBalance{ max_fee, .. }))
@@ -805,7 +805,7 @@ fn assert_failure_if_resource_bounds_exceed_balance(
         TransactionInfo::Current(context) => {
             let l1_bounds = context.l1_resource_bounds().unwrap();
             assert_matches!(
-                invalid_tx.execute(state, block_context, true, true).unwrap_err(),
+                invalid_tx.execute(state, block_context, true, true,).unwrap_err(),
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
                         TransactionFeeError::L1GasBoundsExceedBalance{ max_amount, max_price, .. }))
@@ -1304,7 +1304,7 @@ fn test_deploy_account_tx(
     // Extract deploy account transaction fields for testing, as it is consumed when creating an
     // account transaction.
     let class_hash = deploy_account.class_hash();
-    let deployed_account_address = deploy_account.contract_address();
+    let deployed_account_address = deploy_account.contract_address;
     let constructor_calldata = deploy_account.constructor_calldata();
     let salt = deploy_account.contract_address_salt();
 
@@ -1472,7 +1472,7 @@ fn test_fail_deploy_account_undeclared_class_hash(
     state
         .set_storage_at(
             chain_info.fee_token_address(&fee_type),
-            get_fee_token_var_address(deploy_account.contract_address()),
+            get_fee_token_var_address(deploy_account.contract_address),
             felt!(BALANCE),
         )
         .unwrap();
@@ -1856,7 +1856,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // TODO(Nimrod, 1/5/2024): Change these hard coded values to match to the transaction resources
     // (currently matches only starknet resources).
     let expected_gas = match use_kzg_da {
-        true => GasVector { l1_gas: 16023, l1_data_gas: 128, l2_gas: 0 },
+        true => GasVector { l1_gas: 16023, l1_data_gas: 128 },
         false => GasVector::from_l1_gas(17675),
     };
     let expected_da_gas = match use_kzg_da {

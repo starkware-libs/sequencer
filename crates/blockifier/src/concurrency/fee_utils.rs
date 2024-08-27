@@ -34,16 +34,16 @@ pub fn complete_fee_transfer_flow(
 
     if let Some(fee_transfer_call_info) = tx_execution_info.fee_transfer_call_info.as_mut() {
         let sequencer_balance = state
-        .get_fee_token_balance(
-            tx_context.block_context.block_info.sequencer_address,
-            tx_context.fee_token_address()
-        )
-        // TODO(barak, 01/07/2024): Consider propagating the error.
-        .unwrap_or_else(|error| {
-            panic!(
-                "Access to storage failed. Probably due to a bug in Papyrus. {error:?}: {error}"
+            .get_fee_token_balance(
+                tx_context.block_context.block_info.sequencer_address,
+                tx_context.fee_token_address(),
             )
-        });
+            // TODO(barak, 01/07/2024): Consider propagating the error.
+            .unwrap_or_else(|error| {
+                panic!(
+                    "Access to storage failed. Probably due to a bug in Papyrus. {error:?}: {error}"
+                )
+            });
 
         // Fix the transfer call info.
         fill_sequencer_balance_reads(fee_transfer_call_info, sequencer_balance);
@@ -72,9 +72,8 @@ pub fn fill_sequencer_balance_reads(
 ) {
     let storage_read_values = if fee_transfer_call_info.inner_calls.is_empty() {
         &mut fee_transfer_call_info.storage_read_values
-    } else
-    // Proxy pattern.
-    {
+    } else {
+        // Proxy pattern.
         assert_eq!(
             fee_transfer_call_info.inner_calls.len(),
             1,

@@ -4,13 +4,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::calldata;
 use starknet_api::core::{ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::EntryPointType;
-use starknet_api::transaction::{
-    Calldata,
-    Fee,
-    ResourceBounds,
-    TransactionHash,
-    TransactionVersion,
-};
+use starknet_api::transaction::{Calldata, Fee, ResourceBounds, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
@@ -69,34 +63,11 @@ mod flavors_test;
 mod post_execution_test;
 
 /// Represents a paid Starknet transaction.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum AccountTransaction {
     Declare(DeclareTransaction),
     DeployAccount(DeployAccountTransaction),
     Invoke(InvokeTransaction),
-}
-
-impl TryFrom<starknet_api::executable_transaction::Transaction> for AccountTransaction {
-    type Error = TransactionExecutionError;
-
-    fn try_from(
-        executable_transaction: starknet_api::executable_transaction::Transaction,
-    ) -> Result<Self, Self::Error> {
-        match executable_transaction {
-            starknet_api::executable_transaction::Transaction::Declare(declare_tx) => {
-                Ok(Self::Declare(declare_tx.try_into()?))
-            }
-            starknet_api::executable_transaction::Transaction::DeployAccount(deploy_account_tx) => {
-                Ok(Self::DeployAccount(DeployAccountTransaction {
-                    tx: deploy_account_tx,
-                    only_query: false,
-                }))
-            }
-            starknet_api::executable_transaction::Transaction::Invoke(invoke_tx) => {
-                Ok(Self::Invoke(InvokeTransaction { tx: invoke_tx, only_query: false }))
-            }
-        }
-    }
 }
 
 impl HasRelatedFeeType for AccountTransaction {
@@ -104,7 +75,11 @@ impl HasRelatedFeeType for AccountTransaction {
         match self {
             Self::Declare(tx) => tx.tx.version(),
             Self::DeployAccount(tx) => tx.tx.version(),
-            Self::Invoke(tx) => tx.tx.version(),
+            Self::Invoke(tx) => match tx.tx {
+                starknet_api::transaction::InvokeTransaction::V0(_) => TransactionVersion::ZERO,
+                starknet_api::transaction::InvokeTransaction::V1(_) => TransactionVersion::ONE,
+                starknet_api::transaction::InvokeTransaction::V3(_) => TransactionVersion::THREE,
+            },
         }
     }
 
@@ -248,8 +223,7 @@ impl AccountTransaction {
                     })?;
                 }
 
-                let actual_l1_gas_price =
-                    block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type);
+                let actual_l1_gas_price = block_info.gas_prices.get_gas_price_by_fee_type(fee_type);
                 if max_l1_gas_price < actual_l1_gas_price.into() {
                     return Err(TransactionFeeError::MaxL1GasPriceTooLow {
                         max_l1_gas_price,
@@ -296,6 +270,7 @@ impl AccountTransaction {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn handle_validate_tx(
         &self,
         state: &mut dyn State,
@@ -378,7 +353,7 @@ impl AccountTransaction {
         let msb_amount = Felt::from(0_u8);
 
         let TransactionContext { block_context, tx_info } = tx_context.as_ref();
-        let storage_address = tx_context.fee_token_address();
+        let storage_address = block_context.chain_info.fee_token_address(&tx_info.fee_type());
         let fee_transfer_call = CallEntryPoint {
             class_hash: None,
             code_address: None,
@@ -414,9 +389,11 @@ impl AccountTransaction {
         tx_context: Arc<TransactionContext>,
         actual_fee: Fee,
     ) -> TransactionExecutionResult<CallInfo> {
-        let fee_address = tx_context.fee_token_address();
+        println!("Concurrency execute fee transfer");
+        let TransactionContext { block_context, tx_info } = tx_context.as_ref();
+        let fee_address = block_context.chain_info.fee_token_address(&tx_info.fee_type());
         let (sequencer_balance_key_low, sequencer_balance_key_high) =
-            get_sequencer_balance_keys(&tx_context.block_context);
+            get_sequencer_balance_keys(block_context);
         let mut transfer_state = TransactionalState::create_transactional(state);
 
         // Set the initial sequencer balance to avoid tarnishing the read-set of the transaction.
@@ -457,9 +434,11 @@ impl AccountTransaction {
         validate: bool,
         charge_fee: bool,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
+        println!("AccountTransaction::run_non_revertible");
         let mut resources = ExecutionResources::default();
         let validate_call_info: Option<CallInfo>;
         let execute_call_info: Option<CallInfo>;
+
         if matches!(self, Self::DeployAccount(_)) {
             // Handle `DeployAccount` transactions separately, due to different order of things.
             // Also, the execution context required form the `DeployAccount` execute phase is
@@ -666,14 +645,6 @@ impl AccountTransaction {
         }
 
         self.run_revertible(state, tx_context, remaining_gas, validate, charge_fee)
-    }
-
-    pub fn tx_hash(&self) -> TransactionHash {
-        match self {
-            AccountTransaction::Declare(tx) => tx.tx_hash(),
-            AccountTransaction::DeployAccount(tx) => tx.tx_hash(),
-            AccountTransaction::Invoke(tx) => tx.tx_hash(),
-        }
     }
 }
 

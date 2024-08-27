@@ -10,6 +10,7 @@ use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::errors::EntryPointExecutionError;
+use crate::execution::native::utils::NATIVE_GAS_PLACEHOLDER;
 use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
@@ -24,6 +25,7 @@ const DATA: [Felt; 3] = [
 ];
 const N_EMITTED_EVENTS: [Felt; 1] = [Felt::from_hex_unchecked("0x1")];
 
+#[test_case(FeatureContract::SierraTestContract, NATIVE_GAS_PLACEHOLDER; "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 49860; "VM")]
 fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
@@ -44,6 +46,7 @@ fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
     );
 }
 
+#[test_case(FeatureContract::SierraTestContract; "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn data_length_exceeds_limit(test_contract: FeatureContract) {
     let versioned_constants = VersionedConstants::create_for_testing();
@@ -58,6 +61,7 @@ fn data_length_exceeds_limit(test_contract: FeatureContract) {
     assert!(error.to_string().contains(&expected_error.to_string()));
 }
 
+#[test_case(FeatureContract::SierraTestContract; "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn keys_length_exceeds_limit(test_contract: FeatureContract) {
     let versioned_constants = VersionedConstants::create_for_testing();
@@ -73,6 +77,7 @@ fn keys_length_exceeds_limit(test_contract: FeatureContract) {
     assert!(error.to_string().contains(&expected_error.to_string()));
 }
 
+#[test_case(FeatureContract::SierraTestContract; "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn event_number_exceeds_limit(test_contract: FeatureContract) {
     let versioned_constants = VersionedConstants::create_for_testing();

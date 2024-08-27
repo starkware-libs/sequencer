@@ -137,7 +137,6 @@ fn test_discounted_gas_overdraft(
         gas: GasVector {
             l1_gas: u128_from_usize(l1_gas_used),
             l1_data_gas: u128_from_usize(l1_data_gas_used),
-            ..Default::default()
         },
         ..Default::default()
     };

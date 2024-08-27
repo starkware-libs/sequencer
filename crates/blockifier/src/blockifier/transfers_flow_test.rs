@@ -1,7 +1,5 @@
 use crate::test_utils::transfers_generator::{
-    RecipientGeneratorType,
-    TransfersGenerator,
-    TransfersGeneratorConfig,
+    RecipientGeneratorType, TransfersGenerator, TransfersGeneratorConfig,
 };
 
 #[test]

@@ -3,11 +3,7 @@ use regex::Regex;
 use rstest::rstest;
 use starknet_api::core::{calculate_contract_address, Nonce};
 use starknet_api::transaction::{
-    Calldata,
-    ContractAddressSalt,
-    Fee,
-    ResourceBoundsMapping,
-    TransactionSignature,
+    Calldata, ContractAddressSalt, Fee, ResourceBoundsMapping, TransactionSignature,
     TransactionVersion,
 };
 use starknet_api::{calldata, felt};
@@ -21,21 +17,12 @@ use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::{create_calldata, CairoVersion, BALANCE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::constants::{
-    DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
-    EXECUTE_ENTRY_POINT_NAME,
-    FELT_TRUE,
-    VALIDATE_DECLARE_ENTRY_POINT_NAME,
-    VALIDATE_DEPLOY_ENTRY_POINT_NAME,
-    VALIDATE_ENTRY_POINT_NAME,
+    DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME, EXECUTE_ENTRY_POINT_NAME, FELT_TRUE,
+    VALIDATE_DECLARE_ENTRY_POINT_NAME, VALIDATE_DEPLOY_ENTRY_POINT_NAME, VALIDATE_ENTRY_POINT_NAME,
 };
 use crate::transaction::test_utils::{
-    account_invoke_tx,
-    block_context,
-    create_account_tx_for_validate_test_nonce_0,
-    max_resource_bounds,
-    run_invoke_tx,
-    FaultyAccountTxCreatorArgs,
-    INVALID,
+    account_invoke_tx, block_context, create_account_tx_for_validate_test_nonce_0,
+    max_resource_bounds, run_invoke_tx, FaultyAccountTxCreatorArgs, INVALID,
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
@@ -491,7 +478,7 @@ fn test_validate_trace(
         // Deploy account uses the actual address as the sender address.
         match &account_tx {
             AccountTransaction::DeployAccount(tx) => {
-                sender_address = tx.contract_address();
+                sender_address = tx.contract_address;
             }
             _ => panic!("Expected DeployAccountTransaction type"),
         }
@@ -558,7 +545,7 @@ fn test_account_ctor_frame_stack_trace(
 
     // Fund the account so it can afford the deployment.
     let deploy_address = match &deploy_account_tx {
-        AccountTransaction::DeployAccount(deploy_tx) => deploy_tx.contract_address(),
+        AccountTransaction::DeployAccount(deploy_tx) => deploy_tx.contract_address,
         _ => unreachable!("deploy_account_tx is a DeployAccount"),
     };
     fund_account(chain_info, deploy_address, BALANCE * 2, &mut state.state);

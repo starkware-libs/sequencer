@@ -52,7 +52,7 @@ pub trait StateReader {
     // TODO(Dori, 1/9/2023): NEW_TOKEN_SUPPORT Determine fee token address based on tx version,
     //   once v3 is introduced.
     fn get_fee_token_balance(
-        &self,
+        &mut self,
         contract_address: ContractAddress,
         fee_token_address: ContractAddress,
     ) -> Result<(Felt, Felt), StateError> {

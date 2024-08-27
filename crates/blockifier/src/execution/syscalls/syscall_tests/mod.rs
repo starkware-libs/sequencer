@@ -2,7 +2,6 @@ mod call_contract;
 mod constants;
 mod deploy;
 mod emit_event;
-mod failure_format;
 mod get_block_hash;
 mod get_execution_info;
 mod keccak;

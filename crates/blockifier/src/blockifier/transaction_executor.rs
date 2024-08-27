@@ -119,15 +119,18 @@ impl<S: StateReader> TransactionExecutor<S> {
         &mut self,
         txs: &[Transaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
-        let mut results = Vec::new();
-        for tx in txs {
-            match self.execute(tx) {
-                Ok(tx_execution_info) => results.push(Ok(tx_execution_info)),
+        let mut results_to_return = Vec::new();
+        let results = txs.iter().map(|tx| self.execute(tx)).collect_vec();
+
+        for result in results {
+            match result {
+                Ok(tx_execution_info) => results_to_return.push(Ok(tx_execution_info)),
                 Err(TransactionExecutorError::BlockFull) => break,
-                Err(error) => results.push(Err(error)),
+                Err(error) => results_to_return.push(Err(error)),
             }
         }
-        results
+
+        results_to_return
     }
 
     #[cfg(not(feature = "concurrency"))]

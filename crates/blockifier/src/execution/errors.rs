@@ -1,7 +1,4 @@
-use std::collections::HashSet;
-
 use cairo_native::error::Error as NativeRunnerError;
-use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
@@ -28,8 +25,8 @@ pub enum PreExecutionError {
     EntryPointNotFound(EntryPointSelector),
     #[error("Fraud attempt blocked.")]
     FraudAttempt,
-    #[error("Invalid builtin {0}.")]
-    InvalidBuiltin(BuiltinName),
+    #[error("Invalid builtin {0:?}.")]
+    InvalidBuiltin(String),
     #[error("The constructor entry point must be named 'constructor'.")]
     InvalidConstructorEntryPointName,
     #[error(transparent)]
@@ -46,8 +43,6 @@ pub enum PreExecutionError {
     StateError(#[from] StateError),
     #[error("Requested contract address {:#064x} is not deployed.", .0.key())]
     UninitializedStorageAddress(ContractAddress),
-    #[error("Called builtins: {0:?} are unsupported in a Cairo0 contract")]
-    UnsupportedCairo0Builtin(HashSet<BuiltinName>),
 }
 
 impl From<RunnerError> for PreExecutionError {
@@ -59,7 +54,7 @@ impl From<RunnerError> for PreExecutionError {
 #[derive(Debug, Error)]
 pub enum PostExecutionError {
     #[error(transparent)]
-    MathError(#[from] MathError),
+    MathError(#[from] cairo_vm::types::errors::math_errors::MathError),
     #[error(transparent)]
     MemoryError(#[from] MemoryError),
     #[error(transparent)]
@@ -109,12 +104,6 @@ pub enum EntryPointExecutionError {
     StateError(#[from] StateError),
     #[error(transparent)]
     TraceError(#[from] TraceError),
-}
-
-#[derive(Debug, Error)]
-pub enum NativeEntryPointError {
-    #[error("FunctionId {0} not found")]
-    FunctionIdNotFound(usize),
 }
 
 #[derive(Debug, Error)]

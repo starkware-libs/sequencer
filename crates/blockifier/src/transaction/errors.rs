@@ -1,4 +1,3 @@
-use cairo_vm::types::errors::program_errors::ProgramError;
 use num_bigint::BigUint;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::transaction::{Fee, TransactionVersion};
@@ -110,8 +109,6 @@ pub enum TransactionExecutionError {
          not."
     )]
     InvalidSegmentStructure(usize, usize),
-    #[error(transparent)]
-    ProgramError(#[from] ProgramError),
 }
 
 #[derive(Debug, Error)]

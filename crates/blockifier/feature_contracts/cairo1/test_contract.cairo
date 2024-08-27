@@ -554,10 +554,9 @@ mod TestContract {
         assert!(outputs.get_output(mul) == u384 { limb0: 6, limb1: 0, limb2: 0, limb3: 0 });
     }
 
-    // Add drop for these objects as they only have PanicDestruct.
+
+    // Add drop for AddInputResult as it only has PanicDestruct.
     impl AddInputResultDrop<C> of Drop<core::circuit::AddInputResult<C>>;
-    impl CircuitDataDrop<C> of Drop<core::circuit::CircuitData<C>>;
-    impl CircuitInputAccumulatorDrop<C> of Drop<core::circuit::CircuitInputAccumulator<C>>;
 
     #[external(v0)]
     fn test_rc96_holes(ref self: ContractState) {
