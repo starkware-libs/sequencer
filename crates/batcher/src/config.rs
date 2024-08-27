@@ -11,14 +11,18 @@ use crate::proposals_manager::ProposalsManagerConfig;
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct BatcherConfig {
     pub proposals_manager: ProposalsManagerConfig,
+    pub papyrus_storage: papyrus_storage::StorageConfig,
 }
 
 impl SerializeConfig for BatcherConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter(
-            [append_sub_config_name(self.proposals_manager.dump(), "proposals_manager")]
-                .into_iter()
-                .flatten(),
+            [
+                append_sub_config_name(self.proposals_manager.dump(), "proposals_manager"),
+                append_sub_config_name(self.papyrus_storage.dump(), "papyrus_storage"),
+            ]
+            .into_iter()
+            .flatten(),
         )
     }
 }

@@ -24,6 +24,7 @@ pub struct IntegrationTestSetup {
     pub batcher: MockBatcher,
     pub gateway_handle: JoinHandle<()>,
     pub mempool_handle: JoinHandle<()>,
+    pub batcher_storage_temp_dir: tempfile::TempDir,
 }
 
 impl IntegrationTestSetup {
@@ -47,7 +48,7 @@ impl IntegrationTestSetup {
         let rpc_server_addr = spawn_test_rpc_state_reader(accounts).await;
 
         // Derive the configuration for the mempool node.
-        let config = create_config(rpc_server_addr).await;
+        let (config, batcher_storage_temp_dir) = create_config(rpc_server_addr).await;
 
         let (clients, servers) = create_clients_servers_from_config(&config);
 
@@ -69,7 +70,14 @@ impl IntegrationTestSetup {
         let mempool_future = get_server_future("Mempool", true, servers.mempool);
         let mempool_handle = task_executor.spawn_with_handle(mempool_future);
 
-        Self { task_executor, gateway_client, batcher, gateway_handle, mempool_handle }
+        Self {
+            task_executor,
+            gateway_client,
+            batcher,
+            gateway_handle,
+            mempool_handle,
+            batcher_storage_temp_dir,
+        }
     }
 
     pub async fn assert_add_tx_success(&self, tx: &RpcTransaction) -> TransactionHash {
