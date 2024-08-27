@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use axum::body::Body;
 use blockifier::test_utils::contracts::FeatureContract;
 use mempool_test_utils::starknet_api_test_utils::{
-    external_tx_to_json,
+    rpc_tx_to_json,
     MultiAccountTransactionGenerator,
 };
 use reqwest::{Client, Response};
@@ -70,7 +70,7 @@ impl GatewayClient {
     // Prefer using assert_add_tx_success or other higher level methods of this client, to ensure
     // tests are boilerplate and implementation-detail free.
     pub async fn add_tx(&self, tx: &RpcTransaction) -> Response {
-        let tx_json = external_tx_to_json(tx);
+        let tx_json = rpc_tx_to_json(tx);
         self.client
             .post(format!("http://{}/add_tx", self.socket))
             .header("content-type", "application/json")

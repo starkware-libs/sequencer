@@ -24,13 +24,13 @@ use tracing::error;
 
 use crate::errors::{GatewaySpecError, StatefulTransactionValidatorResult};
 
-pub fn external_tx_to_account_tx(
-    external_tx: &RpcTransaction,
+pub fn rpc_tx_to_account_tx(
+    rpc_tx: &RpcTransaction,
     // FIXME(yael 15/4/24): calculate class_info inside the function once compilation code is ready
     optional_class_info: Option<ClassInfo>,
     chain_id: &ChainId,
 ) -> StatefulTransactionValidatorResult<AccountTransaction> {
-    match external_tx {
+    match rpc_tx {
         RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
             let declare_tx = DeclareTransaction::V3(DeclareTransactionV3 {
                 class_hash: ClassHash::default(), /* FIXME(yael 15/4/24): call the starknet-api

@@ -58,7 +58,7 @@ pub enum TransactionType {
     Invoke,
 }
 
-pub fn external_tx_for_testing(
+pub fn rpc_tx_for_testing(
     tx_type: TransactionType,
     resource_bounds: ResourceBoundsMapping,
     calldata: Calldata,
@@ -530,7 +530,7 @@ pub fn external_declare_tx(declare_tx_args: DeclareTxArgs) -> RpcTransaction {
     )
 }
 
-pub fn external_tx_to_json(tx: &RpcTransaction) -> String {
+pub fn rpc_tx_to_json(tx: &RpcTransaction) -> String {
     let mut tx_json = serde_json::to_value(tx)
         .unwrap_or_else(|tx| panic!("Failed to serialize transaction: {tx:?}"));
 
