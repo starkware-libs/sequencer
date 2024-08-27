@@ -16,9 +16,9 @@ use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{calldata_for_deploy_test, trivial_external_entry_point_new, CairoVersion};
 
 // TODO add all combinations of Native and Vm deployer and deployee
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 204260;"VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1);"VM")]
 #[test_case(FeatureContract::SierraTestContract;"Native")]
-fn no_constructor(deployer_contract: FeatureContract, expected_gas: u64) {
+fn no_constructor(deployer_contract: FeatureContract) {
     // TODO(Yoni): share the init code of the tests in this file.
 
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);
@@ -36,17 +36,6 @@ fn no_constructor(deployer_contract: FeatureContract, expected_gas: u64) {
         calldata,
         ..trivial_external_entry_point_new(deployer_contract)
     };
-
-    let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
-    assert_eq!(
-        deploy_call.execution,
-        CallExecution {
-            retdata: retdata![],
-            gas_consumed: expected_gas,
-            ..CallExecution::default()
-        }
-    );
-
     let deployed_contract_address = calculate_contract_address(
         ContractAddressSalt::default(),
         class_hash,
@@ -55,11 +44,11 @@ fn no_constructor(deployer_contract: FeatureContract, expected_gas: u64) {
     )
     .unwrap();
 
-    let constructor_call = &deploy_call.inner_calls[0];
+    let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap().inner_calls[0];
 
-    assert_eq!(constructor_call.call.storage_address, deployed_contract_address);
+    assert_eq!(deploy_call.call.storage_address, deployed_contract_address);
     assert_eq!(
-        constructor_call.execution,
+        deploy_call.execution,
         CallExecution { retdata: retdata![], gas_consumed: 0, ..CallExecution::default() }
     );
     assert_eq!(state.get_class_hash_at(deployed_contract_address).unwrap(), class_hash);
@@ -92,13 +81,9 @@ fn no_constructor_nonempty_calldata(deployer_contract: FeatureContract) {
     ));
 }
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1),214210, 5210;"VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 10140;"VM")]
 #[test_case(FeatureContract::SierraTestContract, NATIVE_GAS_PLACEHOLDER;"Native")]
-fn with_constructor(
-    deployer_contract: FeatureContract,
-    expected_gas: u64,
-    expected_constructor_gas: u64,
-) {
+fn with_constructor(deployer_contract: FeatureContract, expected_gas: u64) {
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);
     let mut state = test_state(
         &ChainInfo::create_for_testing(),
@@ -128,27 +113,14 @@ fn with_constructor(
         deployer_contract.get_instance_address(0),
     )
     .unwrap();
+    let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap().inner_calls[0];
 
-    let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
+    assert_eq!(deploy_call.call.storage_address, contract_address);
     assert_eq!(
         deploy_call.execution,
         CallExecution {
-            retdata: retdata![],
-            gas_consumed: expected_gas,
-            ..CallExecution::default()
-        }
-    );
-
-    let constructor_call = &deploy_call.inner_calls[0];
-
-    assert_eq!(constructor_call.call.storage_address, contract_address);
-    assert_eq!(
-        constructor_call.execution,
-        CallExecution {
-            // The test contract constructor returns its first argument.
             retdata: retdata![constructor_calldata[0]],
-            // This reflects the gas cost of storage write syscall.
-            gas_consumed: expected_constructor_gas,
+            gas_consumed: expected_gas,
             ..CallExecution::default()
         }
     );

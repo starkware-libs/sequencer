@@ -6,17 +6,23 @@ use cairo_lang_casm;
 use cairo_lang_casm::hints::Hint;
 use cairo_lang_sierra::ids::FunctionId;
 use cairo_lang_starknet_classes::casm_contract_class::{
-    CasmContractClass, CasmContractEntryPoint, StarknetSierraCompilationError,
+    CasmContractClass,
+    CasmContractEntryPoint,
+    StarknetSierraCompilationError,
 };
 use cairo_lang_starknet_classes::contract_class::{
-    ContractClass as SierraContractClass, ContractEntryPoint,
+    ContractClass as SierraContractClass,
+    ContractEntryPoint,
     ContractEntryPoints as SierraContractEntryPoints,
 };
 use cairo_lang_starknet_classes::NestedIntList;
 use cairo_lang_utils::bigint::BigUintAsHex;
 use cairo_native::executor::AotNativeExecutor;
 use cairo_vm::serde::deserialize_program::{
-    ApTracking, FlowTrackingData, HintParams, ReferenceManager,
+    ApTracking,
+    FlowTrackingData,
+    HintParams,
+    ReferenceManager,
 };
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::errors::program_errors::ProgramError;
@@ -28,7 +34,10 @@ use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
-    ContractClass as DeprecatedContractClass, EntryPoint, EntryPointOffset, EntryPointType,
+    ContractClass as DeprecatedContractClass,
+    EntryPoint,
+    EntryPointOffset,
+    EntryPointType,
     Program as DeprecatedProgram,
 };
 use starknet_types_core::felt::Felt;
@@ -499,12 +508,12 @@ impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
 
     fn try_from(class_info: starknet_api::contract_class::ClassInfo) -> Result<Self, Self::Error> {
         let starknet_api::contract_class::ClassInfo {
-            contract_class,
+            casm_contract_class,
             sierra_program_length,
             abi_length,
         } = class_info;
 
-        let contract_class: ContractClass = contract_class.try_into()?;
+        let contract_class: ContractClass = casm_contract_class.try_into()?;
         Ok(Self { contract_class, sierra_program_length, abi_length })
     }
 }

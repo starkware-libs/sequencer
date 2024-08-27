@@ -17,12 +17,16 @@ use starknet_api::transaction::Resource;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{
-    CallExecution, CallInfo, OrderedEvent, OrderedL2ToL1Message, Retdata,
+    CallExecution,
+    CallInfo,
+    OrderedEvent,
+    OrderedL2ToL1Message,
+    Retdata,
 };
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionResult};
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
-use crate::execution::syscalls::hint_processor::{L1_GAS, L2_GAS};
+use crate::execution::syscalls::hint_processor::{L1_DATA_GAS, L1_GAS, L2_GAS};
 use crate::transaction::objects::CurrentTransactionInfo;
 
 #[cfg(test)]
@@ -182,6 +186,9 @@ pub fn calculate_resource_bounds(
 ) -> SyscallResult<Vec<ResourceBounds>> {
     let l1_gas = Felt::from_hex(L1_GAS).map_err(|e| encode_str_as_felts(&e.to_string()))?;
     let l2_gas = Felt::from_hex(L2_GAS).map_err(|e| encode_str_as_felts(&e.to_string()))?;
+    // TODO: Recheck correctness of L1_DATA_GAS
+    let l1_data_gas =
+        Felt::from_hex(L1_DATA_GAS).map_err(|e| encode_str_as_felts(&e.to_string()))?;
 
     Ok(tx_info
         .resource_bounds
@@ -191,6 +198,7 @@ pub fn calculate_resource_bounds(
             let resource = match resource {
                 Resource::L1Gas => l1_gas,
                 Resource::L2Gas => l2_gas,
+                Resource::L1DataGas => l1_data_gas,
             };
 
             ResourceBounds {

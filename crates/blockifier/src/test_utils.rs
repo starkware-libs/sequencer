@@ -16,11 +16,19 @@ use std::sync::Arc;
 use cairo_native::starknet::SyscallResult;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{
-    calculate_contract_address, ClassHash, ContractAddress, Nonce, PatriciaKey,
+    calculate_contract_address,
+    ClassHash,
+    ContractAddress,
+    Nonce,
+    PatriciaKey,
 };
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
-    Calldata, ContractAddressSalt,DeprecatedResourceBoundsMapping, Resource, ResourceBounds,
+    Calldata,
+    ContractAddressSalt,
+    DeprecatedResourceBoundsMapping,
+    Resource,
+    ResourceBounds,
     TransactionVersion,
 };
 use starknet_api::{class_hash, contract_address, felt, patricia_key};
@@ -33,11 +41,15 @@ use crate::execution::call_info::{CallInfo, OrderedEvent};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::entry_point::{
-    CallEntryPoint, ConstructorContext, EntryPointExecutionContext,
+    CallEntryPoint,
+    ConstructorContext,
+    EntryPointExecutionContext,
 };
 use crate::execution::execution_utils::execute_deployment;
 use crate::execution::native::utils::{
-    contract_address_to_native_felt, decode_felts_as_str, encode_str_as_felts,
+    contract_address_to_native_felt,
+    decode_felts_as_str,
+    encode_str_as_felts,
 };
 use crate::execution::syscalls::hint_processor::FAILED_TO_CALCULATE_CONTRACT_ADDRESS;
 use crate::execution::syscalls::SyscallSelector;
@@ -239,8 +251,8 @@ pub fn erc20_external_entry_point() -> CallEntryPoint {
     trivial_external_entry_point_with_address(contract_address!(TEST_ERC20_FULL_CONTRACT_ADDRESS))
 }
 
-fn default_testing_resource_bounds() -> ResourceBoundsMapping {
-    ResourceBoundsMapping::try_from(vec![
+pub fn default_testing_resource_bounds() -> DeprecatedResourceBoundsMapping {
+    DeprecatedResourceBoundsMapping::try_from(vec![
         (Resource::L1Gas, ResourceBounds { max_amount: 0, max_price_per_unit: 1 }),
         // TODO(Dori, 1/2/2024): When fee market is developed, change the default price of
         //   L2 gas.
