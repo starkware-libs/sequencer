@@ -7,6 +7,7 @@ use prost::Message;
 use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, Nonce};
 use starknet_api::transaction::{
     AccountDeploymentData,
+    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     DeclareTransaction,
@@ -550,6 +551,106 @@ impl From<DeployAccountTransactionV3> for protobuf::transaction::DeployAccountV3
     }
 }
 
+impl TryFrom<protobuf::ResourceBounds> for AllResourceBounds {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::ResourceBounds) -> Result<Self, Self::Error> {
+        let Some(l1_gas) = value.l1_gas else {
+            return Err(ProtobufConversionError::MissingField {
+                field_description: "ResourceBounds::l1_gas",
+            });
+        };
+        let max_amount = l1_gas.max_amount;
+        let max_price_per_unit_felt = Felt::try_from(l1_gas.max_price_per_unit.ok_or(
+            ProtobufConversionError::MissingField {
+                field_description: "ResourceBounds::l1_gas::max_price_per_unit",
+            },
+        )?)?;
+        let max_price_per_unit =
+            try_from_starkfelt_to_u128(max_price_per_unit_felt).map_err(|_| {
+                ProtobufConversionError::OutOfRangeValue {
+                    type_description: "u128",
+                    value_as_str: format!("{max_price_per_unit_felt:?}"),
+                }
+            })?;
+        let l1_gas_resource_bounds = ResourceBounds { max_amount, max_price_per_unit };
+        let Some(l2_gas) = value.l2_gas else {
+            return Err(ProtobufConversionError::MissingField {
+                field_description: "ResourceBounds::l2_gas",
+            });
+        };
+        let max_amount = l2_gas.max_amount;
+        let max_price_per_unit_felt = Felt::try_from(l2_gas.max_price_per_unit.ok_or(
+            ProtobufConversionError::MissingField {
+                field_description: "ResourceBounds::l2_gas::max_price_per_unit",
+            },
+        )?)?;
+        let max_price_per_unit =
+            try_from_starkfelt_to_u128(max_price_per_unit_felt).map_err(|_| {
+                ProtobufConversionError::OutOfRangeValue {
+                    type_description: "u128",
+                    value_as_str: format!("{max_price_per_unit_felt:?}"),
+                }
+            })?;
+        let l2_gas_resource_bounds = ResourceBounds { max_amount, max_price_per_unit };
+        let Some(l1_data_gas) = value.l1_data_gas else {
+            return Err(ProtobufConversionError::MissingField {
+                field_description: "ResourceBounds::l2_gas",
+            });
+        };
+        let max_amount = l2_gas.max_amount;
+        let max_price_per_unit_felt = Felt::try_from(l1_data_gas.max_price_per_unit.ok_or(
+            ProtobufConversionError::MissingField {
+                field_description: "ResourceBounds::l2_gas::max_price_per_unit",
+            },
+        )?)?;
+        let max_price_per_unit =
+            try_from_starkfelt_to_u128(max_price_per_unit_felt).map_err(|_| {
+                ProtobufConversionError::OutOfRangeValue {
+                    type_description: "u128",
+                    value_as_str: format!("{max_price_per_unit_felt:?}"),
+                }
+            })?;
+        let l1_data_gas_resource_bounds = ResourceBounds { max_amount, max_price_per_unit };
+        Ok(Self {
+            l1_gas: l1_gas_resource_bounds,
+            l2_gas: l2_gas_resource_bounds,
+            l1_data_gas: l1_data_gas_resource_bounds,
+        })
+    }
+}
+
+impl From<AllResourceBounds> for protobuf::ResourceBounds {
+    fn from(value: AllResourceBounds) -> Self {
+        let mut res = protobuf::ResourceBounds::default();
+
+        let resource_bounds_l1 = value.l1_gas;
+
+        let resource_limits_l1 = protobuf::ResourceLimits {
+            max_amount: resource_bounds_l1.max_amount,
+            max_price_per_unit: Some(Felt::from(resource_bounds_l1.max_price_per_unit).into()),
+        };
+        res.l1_gas = Some(resource_limits_l1);
+
+        let resource_bounds_l2 = value.l2_gas;
+
+        let resource_limits_l2 = protobuf::ResourceLimits {
+            max_amount: resource_bounds_l2.max_amount,
+            max_price_per_unit: Some(Felt::from(resource_bounds_l2.max_price_per_unit).into()),
+        };
+        res.l2_gas = Some(resource_limits_l2);
+
+        let resource_bounds_l1_data = value.l1_data_gas;
+
+        let resource_limits_l1_data = protobuf::ResourceLimits {
+            max_amount: resource_bounds_l1_data.max_amount,
+            max_price_per_unit: Some(Felt::from(resource_bounds_l1_data.max_price_per_unit).into()),
+        };
+        res.l1_data_gas = Some(resource_limits_l1_data);
+
+        res
+    }
+}
+
 impl TryFrom<protobuf::ResourceBounds> for DeprecatedResourceBoundsMapping {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::ResourceBounds) -> Result<Self, Self::Error> {
@@ -597,6 +698,27 @@ impl TryFrom<protobuf::ResourceBounds> for DeprecatedResourceBoundsMapping {
         resource_bounds
             .0
             .insert(Resource::L2Gas, ResourceBounds { max_amount, max_price_per_unit });
+        let Some(l1_data_gas) = value.l1_data_gas else {
+            return Err(ProtobufConversionError::MissingField {
+                field_description: "ResourceBounds::l2_gas",
+            });
+        };
+        let max_amount = l2_gas.max_amount;
+        let max_price_per_unit_felt = Felt::try_from(l1_data_gas.max_price_per_unit.ok_or(
+            ProtobufConversionError::MissingField {
+                field_description: "ResourceBounds::l2_gas::max_price_per_unit",
+            },
+        )?)?;
+        let max_price_per_unit =
+            try_from_starkfelt_to_u128(max_price_per_unit_felt).map_err(|_| {
+                ProtobufConversionError::OutOfRangeValue {
+                    type_description: "u128",
+                    value_as_str: format!("{max_price_per_unit_felt:?}"),
+                }
+            })?;
+        resource_bounds
+            .0
+            .insert(Resource::L1DataGas, ResourceBounds { max_amount, max_price_per_unit });
         Ok(resource_bounds)
     }
 }
@@ -622,6 +744,16 @@ impl From<DeprecatedResourceBoundsMapping> for protobuf::ResourceBounds {
             max_price_per_unit: Some(Felt::from(resource_bounds_l2.max_price_per_unit).into()),
         };
         res.l2_gas = Some(resource_limits_l2);
+
+        let resource_bounds_default = ResourceBounds::default();
+        let resource_bounds_l1_data =
+            value.0.get(&Resource::L1DataGas).unwrap_or(&resource_bounds_default);
+
+        let resource_limits_l1_data = protobuf::ResourceLimits {
+            max_amount: resource_bounds_l1_data.max_amount,
+            max_price_per_unit: Some(Felt::from(resource_bounds_l1_data.max_price_per_unit).into()),
+        };
+        res.l1_data_gas = Some(resource_limits_l1_data);
 
         res
     }

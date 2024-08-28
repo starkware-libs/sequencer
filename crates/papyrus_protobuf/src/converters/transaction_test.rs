@@ -201,6 +201,7 @@ lazy_static! {
             [
                 (Resource::L1Gas, ResourceBounds { max_amount: 0x5, max_price_per_unit: 0x6 }),
                 (Resource::L2Gas, ResourceBounds { max_amount: 0x5, max_price_per_unit: 0x6 }),
+                (Resource::L1DataGas, ResourceBounds { max_amount: 0x5, max_price_per_unit: 0x6 }),
             ]
             .into_iter()
             .collect(),
