@@ -11,7 +11,7 @@ compare_endpoints = []
 [dependencies]
 anyhow.workspace = true
 assert_matches.workspace = true
-goose = "0.17.0"
+goose.workspace = true
 once_cell.workspace = true
 rand.workspace = true
 reqwest.workspace = true
