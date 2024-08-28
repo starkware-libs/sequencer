@@ -5,7 +5,7 @@ use starknet_api::block::BlockHash;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::Transaction;
 
-use crate::consensus::{ConsensusMessage, Proposal, Vote, VoteType};
+use crate::consensus::{ConsensusMessage, Proposal, Vote, VoteType, StreamMessage};
 use crate::converters::ProtobufConversionError;
 use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};
 
@@ -106,6 +106,51 @@ impl From<Vote> for protobuf::Vote {
 }
 
 auto_impl_into_and_try_from_vec_u8!(Vote, protobuf::Vote);
+
+
+impl TryFrom<protobuf::StreamMessage> for StreamMessage {
+    type Error = ProtobufConversionError;
+
+    fn try_from(value: protobuf::StreamMessage) -> Result<Self, Self::Error> {
+        use protobuf::stream_message::Message;
+
+        let Some(message) = value.message else {
+            return Err(ProtobufConversionError::MissingField { field_description: "message" });
+        };
+
+        let Some(stream_id) = value.stream_id else {
+            return Err(ProtobufConversionError::MissingField { field_description: "stream_id" });
+        };
+
+        let Some(chunk_id) = value.chunk_id else {
+            return Err(ProtobufConversionError::MissingField { field_description: "chunk_id" });
+        };
+
+        let Some(done) = value.done else {
+            return Err(ProtobufConversionError::MissingField { field_description: "done" });
+        };
+
+        Ok(StreamMessage {
+            message,
+            stream_id: value.stream_id,
+            chunk_id: value.chunk_id,
+            done: value.done,
+        })
+    }
+}
+
+impl From<StreamMessage> for protobuf::StreamMessage {
+    fn from(value: StreamMessage) -> Self {
+        protobuf::StreamMessage {
+            message: value.message,
+            stream_id: value.stream_id,
+            chunk_id: value.chunk_id,
+            done: value.done,
+        }
+    }
+}
+
+auto_impl_into_and_try_from_vec_u8!(StreamMessage, protobuf::StreamMessage);
 
 impl TryFrom<protobuf::ConsensusMessage> for ConsensusMessage {
     type Error = ProtobufConversionError;

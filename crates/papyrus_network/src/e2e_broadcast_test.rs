@@ -12,6 +12,7 @@ use crate::mixed_behaviour::MixedBehaviour;
 use crate::network_manager::GenericNetworkManager;
 use crate::sqmr;
 use crate::sqmr::Bytes;
+use crate::consensus::StreamMessage;
 
 const TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -88,9 +89,8 @@ async fn broadcast_subscriber_end_to_end_test() {
     let mut subscriber_channels1_2 =
         network_manager1.register_broadcast_topic::<Number>(topic2.clone(), BUFFER_SIZE).unwrap();
 
-    let subscriber_channels2_1 =
+    let subscriber_channels2_1: crate::network_manager::BroadcastSubscriberChannels<Number> =
         network_manager2.register_broadcast_topic::<Number>(topic1.clone(), BUFFER_SIZE).unwrap();
-
     let subscriber_channels2_2 =
         network_manager2.register_broadcast_topic::<Number>(topic2.clone(), BUFFER_SIZE).unwrap();
 
@@ -119,6 +119,64 @@ async fn broadcast_subscriber_end_to_end_test() {
                 assert_eq!(received_number2.unwrap(), number2);
                 assert!(broadcasted_messages_receiver2_1.next().now_or_never().is_none());
                 assert!(broadcasted_messages_receiver2_2.next().now_or_never().is_none());
+            }
+        ) => {
+            result.unwrap()
+        }
+    }
+}
+
+#[tokio::test]
+async fn broadcast_stream_message_test() {
+    let topic1 = Topic::new("TOPIC1");
+    
+    let bootstrap_swarm = create_swarm(None).await;
+    let bootstrap_peer_multiaddr = bootstrap_swarm.external_addresses().next().unwrap().clone();
+    let bootstrap_peer_multiaddr =
+        bootstrap_peer_multiaddr.with_p2p(*bootstrap_swarm.local_peer_id()).unwrap();
+    let bootstrap_network_manager = create_network_manager(bootstrap_swarm);
+    let mut network_manager1 =
+        create_network_manager(create_swarm(Some(bootstrap_peer_multiaddr.clone())).await);
+    let mut network_manager2 =
+        create_network_manager(create_swarm(Some(bootstrap_peer_multiaddr)).await);
+
+    let mut broadcaster =
+        network_manager1.register_broadcast_topic::<StreamMessage>(topic1.clone(), BUFFER_SIZE).unwrap();
+    
+    let subscriber =
+        network_manager2.register_broadcast_topic::<StreamMessage>(topic1.clone(), BUFFER_SIZE).unwrap();
+    
+    tokio::select! {
+        _ = network_manager1.run() => panic!("network manager ended"),
+        _ = network_manager2.run() => panic!("network manager ended"),
+        _ = bootstrap_network_manager.run() => panic!("network manager ended"),
+        result = tokio::time::timeout(
+            TIMEOUT, async move {
+                // TODO(shahak): Remove this sleep once we fix the bug of broadcasting while there
+                // are no peers.
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                let msg1 = StreamMessage{ bytes!("My name is Inigo Montoya, "), stream_id: 1, chunk_id: 1, done: false };
+                let msg2 = StreamMessage{ bytes!("you killed my father, "), stream_id: 1, chunk_id: 2, done: false };
+                let msg3 = StreamMessage{ bytes!("prepare to die!"), stream_id: 1, chunk_id: 3, done: true };
+                let mut broadcasted_messages_receiver = subscriber.broadcasted_messages_receiver;
+                broadcaster.messages_to_broadcast_sender.send(msg1).await.unwrap();
+                broadcaster.messages_to_broadcast_sender.send(msg2).await.unwrap();
+                broadcaster.messages_to_broadcast_sender.send(msg3).await.unwrap();
+                
+                let (received_number1, _report_callback) =
+                    broadcasted_messages_receiver.next().await.unwrap();
+                assert_eq!(received_number1.unwrap(), msg1);
+                
+                let (received_number2, _report_callback) =
+                    broadcasted_messages_receiver.next().await.unwrap();
+                assert_eq!(received_number2.unwrap(), msg2);
+
+                let (received_number3, _report_callback) =
+                    broadcasted_messages_receiver.next().await.unwrap();
+                assert_eq!(received_number3.unwrap(), msg3);
+
+                assert!(broadcasted_messages_receiver.next().now_or_never().is_none());
+                
             }
         ) => {
             result.unwrap()
