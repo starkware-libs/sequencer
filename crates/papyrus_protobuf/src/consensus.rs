@@ -1,3 +1,4 @@
+use prost::bytes::Bytes;
 use starknet_api::block::BlockHash;
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
@@ -40,4 +41,11 @@ impl ConsensusMessage {
             ConsensusMessage::Vote(vote) => vote.height,
         }
     }
+}
+
+pub struct StreamMessage {
+    pub message: Bytes,
+    pub stream_id: u64,
+    pub chunk_id: u64,
+    pub done: bool, 
 }
