@@ -34,12 +34,9 @@ struct MempoolContent<T> {
 }
 
 #[derive(Debug)]
-struct FullContent;
-#[allow(dead_code)]
-#[derive(Debug)]
 struct PartialContent;
 
-impl MempoolContent<FullContent> {
+impl MempoolContent<PartialContent> {
     fn with_pool_and_queue<P, Q>(pool_txs: P, queue_txs: Q) -> Self
     where
         P: IntoIterator<Item = Transaction>,
@@ -52,9 +49,7 @@ impl MempoolContent<FullContent> {
             _phantom: std::marker::PhantomData,
         }
     }
-}
 
-impl MempoolContent<PartialContent> {
     fn with_pool<P>(pool_txs: P) -> Self
     where
         P: IntoIterator<Item = Transaction>,
@@ -101,16 +96,6 @@ impl<T> From<MempoolContent<T>> for Mempool {
             tx_queue: tx_queue.unwrap_or_default(),
             // TODO: Add implementation when needed.
             mempool_state: Default::default(),
-        }
-    }
-}
-
-impl Default for MempoolContent<FullContent> {
-    fn default() -> Self {
-        Self {
-            tx_pool: Some(TransactionPool::default()),
-            tx_queue: Some(TransactionQueue::default()),
-            _phantom: std::marker::PhantomData,
         }
     }
 }
@@ -254,7 +239,7 @@ fn test_get_txs_multi_nonce() {
 
     // Assert: all transactions are returned.
     assert_eq!(fetched_txs, &pool_txs);
-    let expected_mempool_content = MempoolContent::default();
+    let expected_mempool_content = MempoolContent::with_pool_and_queue([], []);
     expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
 }
 
@@ -280,7 +265,7 @@ fn test_get_txs_replenishes_queue_only_between_chunks() {
     // Replenishment done in chunks: account 1 transaction is returned before the one of account 0,
     // although its priority is higher.
     assert_eq!(txs, &[tx_address_0_nonce_0, tx_address_1_nonce_0, tx_address_0_nonce_1]);
-    let expected_mempool_content = MempoolContent::default();
+    let expected_mempool_content = MempoolContent::with_pool_and_queue([], []);
     expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
 }
 
