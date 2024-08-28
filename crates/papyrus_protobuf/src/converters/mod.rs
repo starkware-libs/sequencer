@@ -1,12 +1,12 @@
-// TODO(shahak): Internalize this once network doesn't depend on protobuf.
+mod rpc_transaction;
 mod class;
-pub mod common;
+mod common;
+// TODO(matan): Internalize once we remove the dependency on the protobuf crate.
 pub mod consensus;
 mod event;
 mod header;
 mod receipt;
-// TODO(shahak): Internalize this once network doesn't depend on protobuf.
-pub mod state_diff;
+mod state_diff;
 mod transaction;
 
 use prost::DecodeError;
