@@ -166,6 +166,21 @@ func test_call_contract{syscall_ptr: felt*}(
 }
 
 @external
+func test_call_contract_fail_with_attr_error_msg{syscall_ptr: felt*}(
+    contract_address: felt, function_selector: felt
+) -> () {
+    with_attr error_message("Be aware of failure ahead...") {
+        call_contract(
+            contract_address=contract_address,
+            function_selector=function_selector,
+            calldata_size=0,
+            calldata=new(),
+        );
+    }
+    return ();
+}
+
+@external
 func test_replace_class{syscall_ptr: felt*}(class_hash: felt) -> () {
     replace_class(class_hash=class_hash);
     return ();
@@ -504,3 +519,4 @@ func test_emit_events{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
 ) {
     return emit_event_recurse(events_count, keys_len, keys, data_len, data);
 }
+
