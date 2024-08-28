@@ -212,6 +212,14 @@ impl Nonce {
         }
         Ok(Self(incremented))
     }
+
+    pub fn try_decrement(&self) -> Result<Self, StarknetApiError> {
+        // Check if an underflow occurred during decrement.
+        if self.0 == Felt::ZERO {
+            return Err(StarknetApiError::OutOfRange { string: format!("{:?}", self) });
+        }
+        Ok(Self(self.0 - Felt::ONE))
+    }
 }
 
 /// The selector of an [EntryPoint](`crate::deprecated_contract_class::EntryPoint`).
