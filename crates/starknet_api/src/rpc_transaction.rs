@@ -205,3 +205,13 @@ impl From<AllResourceBounds> for crate::transaction::DeprecatedResourceBoundsMap
         crate::transaction::DeprecatedResourceBoundsMapping(map)
     }
 }
+
+impl From<crate::transaction::DeprecatedResourceBoundsMapping> for AllResourceBounds {
+    fn from(mapping: crate::transaction::DeprecatedResourceBoundsMapping) -> AllResourceBounds {
+        AllResourceBounds {
+            l1_gas: mapping.0.get(&Resource::L1Gas).cloned().unwrap_or_default(),
+            l2_gas: mapping.0.get(&Resource::L2Gas).cloned().unwrap_or_default(),
+            l1_data_gas: mapping.0.get(&Resource::L1DataGas).cloned().unwrap_or_default(),
+        }
+    }
+}
