@@ -13,9 +13,15 @@ use mempool_test_utils::starknet_api_test_utils::{
 };
 use rstest::rstest;
 use starknet_api::core::EntryPointSelector;
-use starknet_api::rpc_transaction::{ContractClass, EntryPointByType, ResourceBoundsMapping};
+use starknet_api::rpc_transaction::{ContractClass, EntryPointByType};
 use starknet_api::state::EntryPoint;
-use starknet_api::transaction::{Calldata, Resource, ResourceBounds, TransactionSignature};
+use starknet_api::transaction::{
+    AllResourceBounds,
+    Calldata,
+    Resource,
+    ResourceBounds,
+    TransactionSignature,
+};
 use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
 
@@ -67,7 +73,11 @@ fn default_validator_config_for_testing() -> &'static StatelessTransactionValida
         validate_non_zero_l2_gas_fee: false,
         ..default_validator_config_for_testing().clone()
     },
-    create_resource_bounds_mapping(NON_EMPTY_RESOURCE_BOUNDS, ResourceBounds::default()),
+    create_resource_bounds_mapping(
+        NON_EMPTY_RESOURCE_BOUNDS,
+        ResourceBounds::default(),
+        ResourceBounds::default(),
+    ),
     calldata![],
     TransactionSignature::default()
 )]
@@ -77,7 +87,11 @@ fn default_validator_config_for_testing() -> &'static StatelessTransactionValida
         validate_non_zero_l2_gas_fee: true,
         ..default_validator_config_for_testing().clone()
     },
-    create_resource_bounds_mapping(ResourceBounds::default(), NON_EMPTY_RESOURCE_BOUNDS),
+    create_resource_bounds_mapping(
+        ResourceBounds::default(),
+        NON_EMPTY_RESOURCE_BOUNDS,
+        ResourceBounds::default(),
+    ),
     calldata![],
     TransactionSignature::default()
 )]
@@ -87,7 +101,11 @@ fn default_validator_config_for_testing() -> &'static StatelessTransactionValida
         validate_non_zero_l2_gas_fee: true,
         ..default_validator_config_for_testing().clone()
     },
-    create_resource_bounds_mapping(NON_EMPTY_RESOURCE_BOUNDS, NON_EMPTY_RESOURCE_BOUNDS),
+    create_resource_bounds_mapping(
+        NON_EMPTY_RESOURCE_BOUNDS,
+        NON_EMPTY_RESOURCE_BOUNDS,
+        ResourceBounds::default(),
+    ),
     calldata![],
     TransactionSignature::default()
 )]
@@ -111,7 +129,7 @@ fn default_validator_config_for_testing() -> &'static StatelessTransactionValida
 )]
 fn test_positive_flow(
     #[case] config: StatelessTransactionValidatorConfig,
-    #[case] resource_bounds: ResourceBoundsMapping,
+    #[case] resource_bounds: AllResourceBounds,
     #[case] tx_calldata: Calldata,
     #[case] signature: TransactionSignature,
     #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
@@ -141,14 +159,18 @@ fn test_positive_flow(
         validate_non_zero_l2_gas_fee: true,
         ..default_validator_config_for_testing().clone()
     },
-    create_resource_bounds_mapping(NON_EMPTY_RESOURCE_BOUNDS, ResourceBounds::default()),
+    create_resource_bounds_mapping(
+        NON_EMPTY_RESOURCE_BOUNDS,
+        ResourceBounds::default(),
+        ResourceBounds::default(),
+    ),
     StatelessTransactionValidatorError::ZeroResourceBounds{
         resource: Resource::L2Gas, resource_bounds: ResourceBounds::default()
     }
 )]
 fn test_invalid_resource_bounds(
     #[case] config: StatelessTransactionValidatorConfig,
-    #[case] resource_bounds: ResourceBoundsMapping,
+    #[case] resource_bounds: AllResourceBounds,
     #[case] expected_error: StatelessTransactionValidatorError,
     #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
     tx_type: TransactionType,
