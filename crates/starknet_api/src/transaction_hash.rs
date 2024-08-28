@@ -187,6 +187,12 @@ fn get_tip_resource_bounds_hash(
         resource_bounds_mapping.0.get(&Resource::L2Gas).expect("Missing l2 resource");
     let l2_resource = get_concat_resource(l2_resource_bounds, L2_GAS)?;
 
+    let hash_chain = HashChain::new.chain(&tip.0.into()).chain(&l1_resource).chain(&l2_resource);
+
+    if let Some(l1_data_gas) = resource_bounds_mapping.0.get(&Resource::L1DataGas) {
+        hash_chain.chain(&get_concat_resource(l1_data_gas, L1_DATA)?)?;
+    }
+
     Ok(HashChain::new()
         .chain(&tip.0.into())
         .chain(&l1_resource)
