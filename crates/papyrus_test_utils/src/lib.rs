@@ -88,6 +88,17 @@ use starknet_api::deprecated_contract_class::{
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasVector};
 use starknet_api::felt;
 use starknet_api::hash::{PoseidonHash, StarkHash};
+use starknet_api::rpc_transaction::{
+    ContractClass as RpcContractClass,
+    EntryPointByType as RpcEntryPointByType,
+    RpcDeclareTransaction,
+    RpcDeclareTransactionV3,
+    RpcDeployAccountTransaction,
+    RpcDeployAccountTransactionV3,
+    RpcInvokeTransaction,
+    RpcInvokeTransactionV3,
+    RpcTransaction,
+};
 use starknet_api::state::{
     ContractClass,
     EntryPoint,
@@ -727,6 +738,68 @@ auto_impl_get_test_instance! {
     pub struct ResourceBounds {
         pub max_amount: u64,
         pub max_price_per_unit: u128,
+    }
+    pub struct RpcContractClass {
+        pub sierra_program: Vec<Felt>,
+        pub contract_class_version: String,
+        pub entry_points_by_type: RpcEntryPointByType,
+        pub abi: String,
+    }
+    pub enum RpcTransaction {
+        Declare(RpcDeclareTransaction) = 0,
+        DeployAccount(RpcDeployAccountTransaction) = 1,
+        Invoke(RpcInvokeTransaction) = 2,
+    }
+    pub enum RpcDeclareTransaction {
+        V3(RpcDeclareTransactionV3) = 0,
+    }
+    pub struct RpcDeclareTransactionV3 {
+        pub resource_bounds: AllResourceBounds,
+        pub tip: Tip,
+        pub signature: TransactionSignature,
+        pub nonce: Nonce,
+        pub contract_class: RpcContractClass,
+        pub compiled_class_hash: CompiledClassHash,
+        pub sender_address: ContractAddress,
+        pub nonce_data_availability_mode: DataAvailabilityMode,
+        pub fee_data_availability_mode: DataAvailabilityMode,
+        pub paymaster_data: PaymasterData,
+        pub account_deployment_data: AccountDeploymentData,
+    }
+    pub enum RpcDeployAccountTransaction {
+        V3(RpcDeployAccountTransactionV3) = 0,
+    }
+    pub struct RpcDeployAccountTransactionV3 {
+        pub resource_bounds: AllResourceBounds,
+        pub tip: Tip,
+        pub signature: TransactionSignature,
+        pub nonce: Nonce,
+        pub class_hash: ClassHash,
+        pub contract_address_salt: ContractAddressSalt,
+        pub constructor_calldata: Calldata,
+        pub nonce_data_availability_mode: DataAvailabilityMode,
+        pub fee_data_availability_mode: DataAvailabilityMode,
+        pub paymaster_data: PaymasterData,
+    }
+    pub struct RpcEntryPointByType {
+        pub constructor: Vec<EntryPoint>,
+        pub external: Vec<EntryPoint>,
+        pub l1handler: Vec<EntryPoint>,
+    }
+    pub enum RpcInvokeTransaction {
+        V3(RpcInvokeTransactionV3) = 0,
+    }
+    pub struct RpcInvokeTransactionV3 {
+        pub resource_bounds: AllResourceBounds,
+        pub tip: Tip,
+        pub signature: TransactionSignature,
+        pub nonce: Nonce,
+        pub sender_address: ContractAddress,
+        pub calldata: Calldata,
+        pub nonce_data_availability_mode: DataAvailabilityMode,
+        pub fee_data_availability_mode: DataAvailabilityMode,
+        pub paymaster_data: PaymasterData,
+        pub account_deployment_data: AccountDeploymentData,
     }
     pub struct SequencerContractAddress(pub ContractAddress);
     pub struct Signature {

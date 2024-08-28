@@ -7,6 +7,7 @@ fn main() -> Result<()> {
     env::set_var("PROTOC", protoc_bin);
     prost_build::compile_protos(
         &[
+            "src/proto/p2p/proto/rpc_transaction.proto",
             "src/proto/p2p/proto/class.proto",
             "src/proto/p2p/proto/event.proto",
             "src/proto/p2p/proto/header.proto",
