@@ -82,15 +82,15 @@ pub fn rpc_tx_for_testing(
                 ],
                 ..Default::default()
             };
-            external_declare_tx(declare_tx_args!(resource_bounds, signature, contract_class))
+            rpc_declare_tx(declare_tx_args!(resource_bounds, signature, contract_class))
         }
-        TransactionType::DeployAccount => external_deploy_account_tx(deploy_account_tx_args!(
+        TransactionType::DeployAccount => rpc_deploy_account_tx(deploy_account_tx_args!(
             resource_bounds,
             constructor_calldata: calldata,
             signature
         )),
         TransactionType::Invoke => {
-            external_invoke_tx(invoke_tx_args!(signature, resource_bounds, calldata))
+            rpc_invoke_tx(invoke_tx_args!(signature, resource_bounds, calldata))
         }
     }
 }
@@ -155,7 +155,7 @@ pub fn declare_tx() -> RpcTransaction {
     let mut nonce_manager = NonceManager::default();
     let nonce = nonce_manager.next(account_address);
 
-    external_declare_tx(declare_tx_args!(
+    rpc_declare_tx(declare_tx_args!(
         signature: TransactionSignature(vec![Felt::ZERO]),
         sender_address: account_address,
         resource_bounds: test_resource_bounds_mapping(),
@@ -280,7 +280,7 @@ impl AccountTransactionGenerator {
             nonce: self.next_nonce(),
             calldata: create_trivial_calldata(self.test_contract_address()),
         );
-        external_invoke_tx(invoke_args)
+        rpc_invoke_tx(invoke_args)
     }
 
     pub fn generate_default_deploy_account(&mut self) -> RpcTransaction {
@@ -292,7 +292,7 @@ impl AccountTransactionGenerator {
             class_hash: self.account.get_class_hash(),
             resource_bounds: test_resource_bounds_mapping()
         );
-        external_deploy_account_tx(deploy_account_args)
+        rpc_deploy_account_tx(deploy_account_args)
     }
 
     // TODO: support more contracts, instead of this hardcoded type.
@@ -311,7 +311,7 @@ impl AccountTransactionGenerator {
     /// Note: This is a best effort attempt to make the API more useful; amend or add new methods
     /// as needed.
     pub fn generate_raw(&mut self, invoke_tx_args: InvokeTxArgs) -> RpcTransaction {
-        external_invoke_tx(invoke_tx_args)
+        rpc_invoke_tx(invoke_tx_args)
     }
 
     pub fn sender_address(&mut self) -> ContractAddress {
@@ -476,7 +476,7 @@ impl Default for DeclareTxArgs {
     }
 }
 
-pub fn external_invoke_tx(invoke_args: InvokeTxArgs) -> RpcTransaction {
+pub fn rpc_invoke_tx(invoke_args: InvokeTxArgs) -> RpcTransaction {
     if invoke_args.version != TransactionVersion::THREE {
         panic!("Unsupported transaction version: {:?}.", invoke_args.version);
     }
@@ -497,7 +497,7 @@ pub fn external_invoke_tx(invoke_args: InvokeTxArgs) -> RpcTransaction {
     )
 }
 
-pub fn external_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTransaction {
+pub fn rpc_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTransaction {
     if deploy_tx_args.version != TransactionVersion::THREE {
         panic!("Unsupported transaction version: {:?}.", deploy_tx_args.version);
     }
@@ -520,7 +520,7 @@ pub fn external_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTra
     )
 }
 
-pub fn external_declare_tx(declare_tx_args: DeclareTxArgs) -> RpcTransaction {
+pub fn rpc_declare_tx(declare_tx_args: DeclareTxArgs) -> RpcTransaction {
     if declare_tx_args.version != TransactionVersion::THREE {
         panic!("Unsupported transaction version: {:?}.", declare_tx_args.version);
     }

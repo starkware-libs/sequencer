@@ -9,8 +9,8 @@ use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidat
 use mempool_test_utils::invoke_tx_args;
 use mempool_test_utils::starknet_api_test_utils::{
     deploy_account_tx,
-    external_invoke_tx,
     invoke_tx,
+    rpc_invoke_tx,
     TEST_SENDER_ADDRESS,
     VALID_L1_GAS_MAX_AMOUNT,
     VALID_L1_GAS_MAX_PRICE_PER_UNIT,
@@ -143,18 +143,18 @@ fn test_instantiate_validator() {
 
 #[rstest]
 #[case::should_skip_validation(
-    external_invoke_tx(invoke_tx_args!{nonce: Nonce(Felt::ONE)}),
+    rpc_invoke_tx(invoke_tx_args!{nonce: Nonce(Felt::ONE)}),
     Nonce::default(),
     true
 )]
 #[case::should_not_skip_validation_nonce_over_max_nonce_for_skip(
-    external_invoke_tx(invoke_tx_args!{nonce: Nonce(Felt::TWO)}),
+    rpc_invoke_tx(invoke_tx_args!{nonce: Nonce(Felt::TWO)}),
     Nonce::default(),
     false
 )]
 #[case::should_not_skip_validation_non_invoke(deploy_account_tx(), Nonce::default(), false)]
 #[case::should_not_skip_validation_account_nonce_1(
-    external_invoke_tx(invoke_tx_args!{sender_address: ContractAddress::from(TEST_SENDER_ADDRESS), nonce: Nonce(Felt::ONE)}),
+    rpc_invoke_tx(invoke_tx_args!{sender_address: ContractAddress::from(TEST_SENDER_ADDRESS), nonce: Nonce(Felt::ONE)}),
     Nonce(Felt::ONE),
     false
 )]

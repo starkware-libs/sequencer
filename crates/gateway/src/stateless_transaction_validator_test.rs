@@ -5,7 +5,7 @@ use assert_matches::assert_matches;
 use mempool_test_utils::declare_tx_args;
 use mempool_test_utils::starknet_api_test_utils::{
     create_resource_bounds_mapping,
-    external_declare_tx,
+    rpc_declare_tx,
     rpc_tx_for_testing,
     zero_resource_bounds_mapping,
     TransactionType,
@@ -305,7 +305,7 @@ fn test_declare_sierra_version_failure(
         StatelessTransactionValidator { config: default_validator_config_for_testing().clone() };
 
     let contract_class = ContractClass { sierra_program, ..Default::default() };
-    let tx = external_declare_tx(declare_tx_args!(contract_class));
+    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
 
     assert_eq!(tx_validator.validate(&tx).unwrap_err(), expected_error);
 }
@@ -325,7 +325,7 @@ fn test_declare_sierra_version_sucsses(#[case] sierra_program: Vec<Felt>) {
         StatelessTransactionValidator { config: default_validator_config_for_testing().clone() };
 
     let contract_class = ContractClass { sierra_program, ..Default::default() };
-    let tx = external_declare_tx(declare_tx_args!(contract_class));
+    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
 
     assert_matches!(tx_validator.validate(&tx), Ok(()));
 }
@@ -344,7 +344,7 @@ fn test_declare_contract_class_size_too_long() {
         ..Default::default()
     };
     let contract_class_length = serde_json::to_string(&contract_class).unwrap().len();
-    let tx = external_declare_tx(declare_tx_args!(contract_class));
+    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
 
     assert_matches!(
         tx_validator.validate(&tx).unwrap_err(),
@@ -412,7 +412,7 @@ fn test_declare_entry_points_not_sorted_by_selector(
         },
         ..Default::default()
     };
-    let tx = external_declare_tx(declare_tx_args!(contract_class));
+    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
 
     assert_eq!(tx_validator.validate(&tx), expected);
 
@@ -425,7 +425,7 @@ fn test_declare_entry_points_not_sorted_by_selector(
         },
         ..Default::default()
     };
-    let tx = external_declare_tx(declare_tx_args!(contract_class));
+    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
 
     assert_eq!(tx_validator.validate(&tx), expected);
 
@@ -438,7 +438,7 @@ fn test_declare_entry_points_not_sorted_by_selector(
         },
         ..Default::default()
     };
-    let tx = external_declare_tx(declare_tx_args!(contract_class));
+    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
 
     assert_eq!(tx_validator.validate(&tx), expected);
 }
