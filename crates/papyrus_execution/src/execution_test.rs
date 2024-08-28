@@ -852,8 +852,11 @@ fn blockifier_error_mapping() {
 fn test_get_versioned_constants() {
     let starknet_version_13_0 = StarknetVersion("0.13.0".to_string());
     let starknet_version_13_1 = StarknetVersion("0.13.1".to_string());
+    let starknet_version_13_2 = StarknetVersion("0.13.2".to_string());
     let versioned_constants = get_versioned_constants(Some(&starknet_version_13_0)).unwrap();
     assert_eq!(versioned_constants.invoke_tx_max_n_steps, 3_000_000);
     let versioned_constants = get_versioned_constants(Some(&starknet_version_13_1)).unwrap();
     assert_eq!(versioned_constants.invoke_tx_max_n_steps, 4_000_000);
+    let versioned_constants = get_versioned_constants(Some(&starknet_version_13_2)).unwrap();
+    assert_eq!(versioned_constants.invoke_tx_max_n_steps, 10_000_000);
 }
