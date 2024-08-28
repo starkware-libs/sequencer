@@ -83,6 +83,8 @@
         "l1_handler_version": 0,
         "l2_gas": "L2_GAS",
         "l2_gas_index": 1,
+        "l1_data_gas": "L1_DATA",
+        "l1_data_gas_index": 2,
         "library_call_gas_cost": {
             "call_contract_gas_cost": 1
         },
