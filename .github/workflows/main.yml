@@ -224,7 +224,7 @@ jobs:
         uses: taiki-e/install-action@cargo-llvm-cov
       - uses: Swatinem/rust-cache@v2
         with:
-            prefix-key: "v0-rust-ubuntu-20.04"
+          prefix-key: "v0-rust-ubuntu-20.04"
       - run: npm install -g ganache@7.4.3
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
@@ -238,11 +238,17 @@ jobs:
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
       - name: "Run codecov on pull request"
+        id: run_codecov_pr
         if: github.event_name == 'pull_request'
         run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
           ci/bin/python scripts/run_codecov.py --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
+          if [ -f codecov.json ]; then
+            echo "codecov_output=true"
+          else
+            echo "codecov_output=false"
+          fi
         env:
           SEED: 0
 
@@ -257,6 +263,7 @@ jobs:
           SEED: 0
 
       - name: Codecov
+        if: steps.run_codecov_pr.outputs.codecov_output == 'true'
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

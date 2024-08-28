@@ -12,6 +12,10 @@ from tests_utils import (
 
 def run_codecov(changes_only: bool, commit_id: Optional[str]):
 
+    print("Running code coverage test...")
+    print(f"Changes only: {changes_only}")
+    print(f"Commit ID: {commit_id}")
+
     local_changes = get_local_changes(".", commit_id=commit_id)
     modified_packages = set(get_modified_packages(local_changes))
 
