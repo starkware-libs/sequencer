@@ -97,6 +97,10 @@ pub struct FeeEstimation {
     pub data_gas_consumed: Felt,
     /// The gas price for DA blob.
     pub data_gas_price: GasPrice,
+    // TODO(Tzahi): Add l2_gas_consumed + verify estimation is close enough to l1 gas fee if user
+    // didn't sign on l2 gas.
+    /// The L2 gas price for execution.
+    pub l2_gas_price: GasPrice,
     /// The total amount of fee. This is equal to:
     /// gas_consumed * gas_price + data_gas_consumed * data_gas_price.
     pub overall_fee: Fee,
@@ -153,7 +157,7 @@ pub(crate) fn tx_execution_output_to_fee_estimation(
     block_context: &BlockContext,
 ) -> ExecutionResult<FeeEstimation> {
     let gas_prices = &block_context.block_info().gas_prices;
-    let (gas_price, data_gas_price) = (
+    let (l1_gas_price, l1_data_gas_price, l2_gas_price) = (
         GasPrice(
             gas_prices.get_l1_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
         ),
@@ -162,15 +166,19 @@ pub(crate) fn tx_execution_output_to_fee_estimation(
                 .get_l1_data_gas_price_by_fee_type(&tx_execution_output.price_unit.into())
                 .get(),
         ),
+        GasPrice(
+            gas_prices.get_l2_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
+        ),
     );
 
     let gas_vector = tx_execution_output.execution_info.receipt.gas;
 
     Ok(FeeEstimation {
         gas_consumed: gas_vector.l1_gas.into(),
-        gas_price,
+        gas_price: l1_gas_price,
         data_gas_consumed: gas_vector.l1_data_gas.into(),
-        data_gas_price,
+        data_gas_price: l1_data_gas_price,
+        l2_gas_price,
         overall_fee: tx_execution_output.execution_info.receipt.fee,
         unit: tx_execution_output.price_unit,
     })
