@@ -95,6 +95,7 @@ impl<T> From<MempoolContent<T>> for Mempool {
             tx_pool: tx_pool.unwrap_or_default(),
             tx_queue: tx_queue.unwrap_or_default(),
             // TODO: Add implementation when needed.
+            _suspended_tx_pool: Default::default(),
             mempool_state: Default::default(),
         }
     }
