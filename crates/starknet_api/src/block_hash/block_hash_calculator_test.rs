@@ -135,6 +135,7 @@ fn change_field_of_hash_input() {
             block_number,
             l1_gas_price,
             l1_data_gas_price,
+            // TODO(yoav): Add l2_gas_price once it is included in the hash.
             state_root,
             sequencer,
             timestamp,
