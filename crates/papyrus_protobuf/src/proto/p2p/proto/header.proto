@@ -21,6 +21,8 @@ message SignedBlockHeader {
     Uint128 gas_price_wei = 13;
     Uint128 data_gas_price_fri = 14;
     Uint128 data_gas_price_wei = 15;
+    optional Uint128 l2_gas_price_fri = 18;  // Added on v0.13.3.
+    optional Uint128 l2_gas_price_wei = 19;  // Added on v0.13.3.
     L1DataAvailabilityMode l1_data_availability_mode = 16;
     // for now, we assume a small consensus, so this fits in 1M. Else, these will be repeated and extracted from this message.
     repeated ConsensusSignature signatures = 17;
