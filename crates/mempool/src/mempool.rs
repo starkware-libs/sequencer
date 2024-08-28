@@ -6,6 +6,7 @@ use starknet_api::transaction::{DeprecatedResourceBoundsMapping, Resource, Tip, 
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput, MempoolResult};
 
+use crate::suspended_transaction_pool::SuspendedTransactionPool;
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
 
@@ -22,6 +23,8 @@ pub struct Mempool {
     tx_queue: TransactionQueue,
     // Represents the current state of the mempool during block creation.
     mempool_state: HashMap<ContractAddress, AccountState>,
+    // Transactions suspended because they are after a hole.
+    _suspended_tx_pool: SuspendedTransactionPool,
 }
 
 impl Mempool {
