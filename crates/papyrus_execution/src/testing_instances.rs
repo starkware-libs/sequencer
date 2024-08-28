@@ -69,6 +69,7 @@ auto_impl_get_test_instance! {
         pub gas_price: GasPrice,
         pub data_gas_consumed: Felt,
         pub data_gas_price: GasPrice,
+        pub l2_gas_price: GasPrice,
         pub overall_fee: Fee,
         pub unit: PriceUnit,
     }

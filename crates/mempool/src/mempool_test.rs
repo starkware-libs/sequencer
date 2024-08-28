@@ -563,7 +563,7 @@ fn test_add_tx_lower_than_queued_nonce() {
 
     let MempoolInput {
         tx: valid_input_tx,
-        account: Account { sender_address, state: AccountState { nonce } },
+        account: Account { sender_address, state: AccountNonce { nonce } },
     } = valid_input;
     let queue_txs = [TransactionReference::new(&valid_input_tx)];
     let account_nonces = [(sender_address, nonce)];
