@@ -157,6 +157,10 @@ lazy_static! {
         price_in_wei: GasPrice(1),
         price_in_fri: GasPrice(0),
     };
+    pub static ref L2_GAS_PRICE: GasPricePerToken = GasPricePerToken{
+        price_in_wei: GasPrice(1),
+        price_in_fri: GasPrice(0),
+    };
     pub static ref MAX_FEE: Fee = Fee(1000000 * GAS_PRICE.price_in_wei.0);
     pub static ref BLOCK_TIMESTAMP: BlockTimestamp = BlockTimestamp(1234);
     pub static ref SEQUENCER_ADDRESS: SequencerContractAddress =
@@ -175,6 +179,7 @@ lazy_static! {
         gas_price: GAS_PRICE.price_in_wei,
         data_gas_consumed: Felt::ZERO,
         data_gas_price: DATA_GAS_PRICE.price_in_wei,
+        l2_gas_price: L2_GAS_PRICE.price_in_wei,
         overall_fee: Fee(166400000000000,),
         unit: PriceUnit::Wei,
     };
@@ -184,6 +189,7 @@ lazy_static! {
         gas_price: GAS_PRICE.price_in_wei,
         data_gas_consumed: Felt::ZERO,
         data_gas_price: DATA_GAS_PRICE.price_in_wei,
+        l2_gas_price: L2_GAS_PRICE.price_in_wei,
         overall_fee: Fee(166400000000000,),
         unit: PriceUnit::Wei,
     };
@@ -1208,6 +1214,7 @@ async fn call_estimate_message_fee() {
         gas_price: GAS_PRICE.price_in_wei,
         data_gas_consumed: Felt::ZERO,
         data_gas_price: DATA_GAS_PRICE.price_in_wei,
+        l2_gas_price: L2_GAS_PRICE.price_in_wei,
         overall_fee: Fee(0),
         unit: PriceUnit::default(),
     };
