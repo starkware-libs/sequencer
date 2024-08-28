@@ -170,7 +170,7 @@ impl Mempool {
         // Maybe remove out-of-date transactions.
         // Note: != is equivalent to > in `add_tx`, as lower nonces are rejected in validation.
         if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| queued_nonce != nonce) {
-            self.tx_queue.remove(address);
+            assert!(self.tx_queue.remove(address), "Expected to remove a transaction.");
         }
 
         self.tx_pool.remove_up_to_nonce(address, nonce);
