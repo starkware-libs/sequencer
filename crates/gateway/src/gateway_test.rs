@@ -10,7 +10,7 @@ use mempool_test_utils::starknet_api_test_utils::{create_executable_tx, invoke_t
 use mockall::predicate::eq;
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
@@ -21,7 +21,6 @@ use crate::gateway::{add_tx, AppState, SharedMempoolClient};
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
-use crate::utils::rpc_tx_to_account_tx;
 
 pub fn app_state(
     mempool_client: SharedMempoolClient,
@@ -94,18 +93,6 @@ async fn to_bytes(res: Response) -> Bytes {
 }
 
 fn calculate_hash(rpc_tx: &RpcTransaction) -> TransactionHash {
-    let optional_class_info = match &rpc_tx {
-        RpcTransaction::Declare(_declare_tx) => {
-            panic!("Declare transactions are not supported in this test")
-        }
-        _ => None,
-    };
-
-    let account_tx = rpc_tx_to_account_tx(
-        rpc_tx,
-        optional_class_info,
-        &ChainInfo::create_for_testing().chain_id,
-    )
-    .unwrap();
-    account_tx.tx_hash()
+    let tx: Transaction = rpc_tx.clone().into();
+    tx.calculate_transaction_hash(&ChainInfo::create_for_testing().chain_id).unwrap()
 }
