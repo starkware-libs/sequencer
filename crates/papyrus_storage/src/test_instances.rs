@@ -30,6 +30,7 @@ auto_impl_get_test_instance! {
         pub block_number: BlockNumber,
         pub l1_gas_price: GasPricePerToken,
         pub l1_data_gas_price: GasPricePerToken,
+        pub l2_gas_price: GasPricePerToken,
         pub state_root: GlobalRoot,
         pub sequencer: SequencerContractAddress,
         pub timestamp: BlockTimestamp,
