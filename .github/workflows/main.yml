@@ -74,7 +74,7 @@ jobs:
       - uses: actions/setup-python@v5
         id: setup-pypy
         with:
-          python-version: 'pypy3.9'
+          python-version: "pypy3.9"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
           LD_LIBRARY_PATH: ${{ steps.setup-pypy.outputs.pythonLocation }}/bin
@@ -120,7 +120,7 @@ jobs:
       - uses: actions/setup-python@v5
         id: setup-pypy
         with:
-          python-version: 'pypy3.9'
+          python-version: "pypy3.9"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
@@ -153,7 +153,7 @@ jobs:
       - uses: baptiste0928/cargo-install@v3
         with:
           crate: taplo-cli
-          version: '0.9.0'
+          version: "0.9.0"
           locked: true
       - run: scripts/taplo.sh
 
@@ -208,6 +208,9 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Fetch the entire history.
+          fetch-depth: 0
       - uses: ./.github/actions/install_rust
       - name: Set-Up
         run: |
@@ -220,11 +223,39 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - uses: Swatinem/rust-cache@v2
+        with:
+            prefix-key: "v0-rust-ubuntu-20.04"
       - run: npm install -g ganache@7.4.3
-      - name: Coverage
-        run: cargo llvm-cov --codecov -r --output-path codecov.json
+
+      # Setup pypy and link to the location expected by .cargo/config.toml.
+      - uses: actions/setup-python@v5
+        id: setup-pypy
+        with:
+          python-version: "pypy3.9"
+      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
+      - env:
+          LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
+        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+
+      - name: "Run codecov on pull request"
+        if: github.event_name == 'pull_request'
+        run: |
+          python3 -m venv ci
+          ci/bin/pip install -r scripts/requirements.txt
+          ci/bin/python scripts/run_codecov.py --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
         env:
           SEED: 0
+
+      - name: "Run codecov on push"
+        if: github.event_name == 'push'
+        # TODO: Better support for running tests on push.
+        run: |
+          python3 -m venv ci
+          ci/bin/pip install -r scripts/requirements.txt
+          ci/bin/python scripts/run_codecov.py
+        env:
+          SEED: 0
+
       - name: Codecov
         uses: codecov/codecov-action@v3
         with:
