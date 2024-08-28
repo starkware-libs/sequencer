@@ -21,6 +21,15 @@ use crate::core::{
 use crate::data_availability::DataAvailabilityMode;
 use crate::execution_resources::ExecutionResources;
 use crate::hash::StarkHash;
+use crate::rpc_transaction::{
+    RpcDeclareTransaction,
+    RpcDeclareTransactionV3,
+    RpcDeployAccountTransaction,
+    RpcDeployAccountTransactionV3,
+    RpcInvokeTransaction,
+    RpcInvokeTransactionV3,
+    RpcTransaction,
+};
 use crate::serde_utils::PrefixedBytesAsHex;
 use crate::transaction_hash::{
     get_declare_transaction_v0_hash,
@@ -95,6 +104,16 @@ impl Transaction {
             Transaction::L1Handler(tx) => {
                 tx.calculate_transaction_hash(chain_id, transaction_version)
             }
+        }
+    }
+}
+
+impl From<RpcTransaction> for Transaction {
+    fn from(rpc_transaction: RpcTransaction) -> Self {
+        match rpc_transaction {
+            RpcTransaction::Declare(tx) => Transaction::Declare(tx.into()),
+            RpcTransaction::DeployAccount(tx) => Transaction::DeployAccount(tx.into()),
+            RpcTransaction::Invoke(tx) => Transaction::Invoke(tx.into()),
         }
     }
 }
@@ -229,6 +248,25 @@ pub struct DeclareTransactionV3 {
     pub account_deployment_data: AccountDeploymentData,
 }
 
+impl From<RpcDeclareTransactionV3> for DeclareTransactionV3 {
+    fn from(tx: RpcDeclareTransactionV3) -> Self {
+        Self {
+            class_hash: ClassHash::default(), /* FIXME(yael 15/4/24): call the starknet-api
+                                               * function once ready */
+            resource_bounds: tx.resource_bounds.into(),
+            tip: tx.tip,
+            signature: tx.signature,
+            nonce: tx.nonce,
+            compiled_class_hash: tx.compiled_class_hash,
+            sender_address: tx.sender_address,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode,
+            fee_data_availability_mode: tx.fee_data_availability_mode,
+            paymaster_data: tx.paymaster_data,
+            account_deployment_data: tx.account_deployment_data,
+        }
+    }
+}
+
 impl TransactionHasher for DeclareTransactionV3 {
     fn calculate_transaction_hash(
         &self,
@@ -274,6 +312,14 @@ impl DeclareTransaction {
             DeclareTransaction::V1(_) => TransactionVersion::ONE,
             DeclareTransaction::V2(_) => TransactionVersion::TWO,
             DeclareTransaction::V3(_) => TransactionVersion::THREE,
+        }
+    }
+}
+
+impl From<RpcDeclareTransaction> for DeclareTransaction {
+    fn from(rpc_declare_transaction: RpcDeclareTransaction) -> Self {
+        match rpc_declare_transaction {
+            RpcDeclareTransaction::V3(tx) => DeclareTransaction::V3(tx.into()),
         }
     }
 }
@@ -337,6 +383,23 @@ pub struct DeployAccountTransactionV3 {
     pub paymaster_data: PaymasterData,
 }
 
+impl From<RpcDeployAccountTransactionV3> for DeployAccountTransactionV3 {
+    fn from(tx: RpcDeployAccountTransactionV3) -> Self {
+        Self {
+            resource_bounds: tx.resource_bounds.into(),
+            tip: tx.tip,
+            signature: tx.signature,
+            nonce: tx.nonce,
+            class_hash: tx.class_hash,
+            contract_address_salt: tx.contract_address_salt,
+            constructor_calldata: tx.constructor_calldata,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode,
+            fee_data_availability_mode: tx.fee_data_availability_mode,
+            paymaster_data: tx.paymaster_data,
+        }
+    }
+}
+
 impl TransactionHasher for DeployAccountTransactionV3 {
     fn calculate_transaction_hash(
         &self,
@@ -379,6 +442,14 @@ impl DeployAccountTransaction {
         match self {
             DeployAccountTransaction::V1(_) => TransactionVersion::ONE,
             DeployAccountTransaction::V3(_) => TransactionVersion::THREE,
+        }
+    }
+}
+
+impl From<RpcDeployAccountTransaction> for DeployAccountTransaction {
+    fn from(rpc_deploy_account_transaction: RpcDeployAccountTransaction) -> Self {
+        match rpc_deploy_account_transaction {
+            RpcDeployAccountTransaction::V3(tx) => DeployAccountTransaction::V3(tx.into()),
         }
     }
 }
@@ -474,6 +545,23 @@ pub struct InvokeTransactionV3 {
     pub account_deployment_data: AccountDeploymentData,
 }
 
+impl From<RpcInvokeTransactionV3> for InvokeTransactionV3 {
+    fn from(tx: RpcInvokeTransactionV3) -> Self {
+        Self {
+            resource_bounds: tx.resource_bounds.into(),
+            tip: tx.tip,
+            signature: tx.signature,
+            nonce: tx.nonce,
+            sender_address: tx.sender_address,
+            calldata: tx.calldata,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode,
+            fee_data_availability_mode: tx.fee_data_availability_mode,
+            paymaster_data: tx.paymaster_data,
+            account_deployment_data: tx.account_deployment_data,
+        }
+    }
+}
+
 impl TransactionHasher for InvokeTransactionV3 {
     fn calculate_transaction_hash(
         &self,
@@ -489,6 +577,14 @@ pub enum InvokeTransaction {
     V0(InvokeTransactionV0),
     V1(InvokeTransactionV1),
     V3(InvokeTransactionV3),
+}
+
+impl From<RpcInvokeTransaction> for InvokeTransaction {
+    fn from(rpc_invoke_tx: RpcInvokeTransaction) -> Self {
+        match rpc_invoke_tx {
+            RpcInvokeTransaction::V3(tx) => InvokeTransaction::V3(tx.into()),
+        }
+    }
 }
 
 macro_rules! implement_invoke_tx_getters {
