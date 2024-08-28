@@ -58,6 +58,9 @@ pub struct BlockPostV0_13_1 {
     // Replacing the eth_l1_gas_price & strk_l1_gas_price fields with a single field.
     pub l1_gas_price: GasPricePerToken,
     pub l1_data_gas_price: GasPricePerToken,
+    // New field in V0.13.3.
+    #[serde(default)]
+    pub l2_gas_price: GasPricePerToken,
     pub transaction_commitment: TransactionCommitment,
     pub event_commitment: EventCommitment,
     // Additions to the block structure in V0.13.2. These additions do not appear in older blocks
@@ -195,6 +198,12 @@ impl Block {
         }
     }
 
+    pub fn l2_gas_price(&self) -> GasPricePerToken {
+        match self {
+            Block::PostV0_13_1(block) => block.l2_gas_price,
+        }
+    }
+
     pub fn state_root(&self) -> GlobalRoot {
         match self {
             Block::PostV0_13_1(block) => block.state_root,
@@ -293,6 +302,7 @@ impl Block {
             parent_hash: self.parent_block_hash(),
             block_number: self.block_number(),
             l1_gas_price: self.l1_gas_price(),
+            l2_gas_price: self.l2_gas_price(),
             state_root: self.state_root(),
             sequencer: self.sequencer_address(),
             timestamp: self.timestamp(),

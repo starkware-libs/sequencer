@@ -73,6 +73,7 @@ fn test_block_hash_regression() {
             price_in_fri: GasPrice(10),
             price_in_wei: GasPrice(9),
         },
+        l2_gas_price: GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) },
         starknet_version: StarknetVersion("10".to_owned()),
         parent_hash: BlockHash(Felt::from(11_u8)),
     };
@@ -109,6 +110,7 @@ fn change_field_of_hash_input() {
             price_in_fri: GasPrice(1),
             price_in_wei: GasPrice(1),
         },
+        l2_gas_price: GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) },
         state_root: GlobalRoot(Felt::ONE),
         sequencer: SequencerContractAddress(ContractAddress::from(1_u128)),
         timestamp: BlockTimestamp(1),
@@ -133,6 +135,7 @@ fn change_field_of_hash_input() {
             block_number,
             l1_gas_price,
             l1_data_gas_price,
+            // TODO(yoav): Add l2_gas_price once it is included in the hash.
             state_root,
             sequencer,
             timestamp,
