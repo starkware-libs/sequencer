@@ -10,6 +10,7 @@ scripts/merge_branches.py --src main-v0.13.0
 import argparse
 import json
 import os
+import subprocess
 import time
 from typing import Dict, List, Optional
 from utils import run_command
