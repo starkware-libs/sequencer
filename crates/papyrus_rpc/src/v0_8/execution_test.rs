@@ -153,7 +153,12 @@ lazy_static! {
         price_in_wei: GasPrice(100 * u128::pow(10, 9)),
         price_in_fri: GasPrice(0),
     };
+    //TODO: Tests for data_gas_price and l2_gas_price.
     pub static ref DATA_GAS_PRICE: GasPricePerToken = GasPricePerToken{
+        price_in_wei: GasPrice(1),
+        price_in_fri: GasPrice(0),
+    };
+    pub static ref L2_GAS_PRICE: GasPricePerToken = GasPricePerToken{
         price_in_wei: GasPrice(1),
         price_in_fri: GasPrice(0),
     };
@@ -175,6 +180,7 @@ lazy_static! {
         gas_price: GAS_PRICE.price_in_wei,
         data_gas_consumed: Felt::ZERO,
         data_gas_price: DATA_GAS_PRICE.price_in_wei,
+        l2_gas_price: L2_GAS_PRICE.price_in_wei,
         overall_fee: Fee(166500000000000,),
         unit: PriceUnit::Wei,
     };
@@ -184,6 +190,7 @@ lazy_static! {
         gas_price: GAS_PRICE.price_in_wei,
         data_gas_consumed: Felt::ZERO,
         data_gas_price: DATA_GAS_PRICE.price_in_wei,
+        l2_gas_price: L2_GAS_PRICE.price_in_wei,
         overall_fee: Fee(166500000000000,),
         unit: PriceUnit::Wei,
     };
@@ -1208,6 +1215,7 @@ async fn call_estimate_message_fee() {
         gas_price: GAS_PRICE.price_in_wei,
         data_gas_consumed: Felt::ZERO,
         data_gas_price: DATA_GAS_PRICE.price_in_wei,
+        l2_gas_price: L2_GAS_PRICE.price_in_wei,
         overall_fee: Fee(0),
         unit: PriceUnit::default(),
     };
