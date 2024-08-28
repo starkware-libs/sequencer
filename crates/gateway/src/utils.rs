@@ -5,25 +5,19 @@ use blockifier::transaction::transactions::{
     DeployAccountTransaction as BlockifierDeployAccountTransaction,
     InvokeTransaction as BlockifierInvokeTransaction,
 };
-use starknet_api::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress};
-use starknet_api::rpc_transaction::{
-    RpcDeclareTransaction,
-    RpcDeployAccountTransaction,
-    RpcInvokeTransaction,
-    RpcTransaction,
-};
+use starknet_api::core::{calculate_contract_address, ChainId, ContractAddress};
+use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::{
     DeclareTransaction,
-    DeclareTransactionV3,
     DeployAccountTransaction,
-    DeployAccountTransactionV3,
-    InvokeTransactionV3,
+    InvokeTransaction,
     TransactionHasher,
 };
 use tracing::error;
 
 use crate::errors::{GatewaySpecError, StatefulTransactionValidatorResult};
 
+// TODO(Arni): Remove this function. Replace with a function that take ownership of RpcTransaction.
 pub fn rpc_tx_to_account_tx(
     rpc_tx: &RpcTransaction,
     // FIXME(yael 15/4/24): calculate class_info inside the function once compilation code is ready
@@ -31,21 +25,8 @@ pub fn rpc_tx_to_account_tx(
     chain_id: &ChainId,
 ) -> StatefulTransactionValidatorResult<AccountTransaction> {
     match rpc_tx {
-        RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
-            let declare_tx = DeclareTransaction::V3(DeclareTransactionV3 {
-                class_hash: ClassHash::default(), /* FIXME(yael 15/4/24): call the starknet-api
-                                                   * function once ready */
-                resource_bounds: tx.resource_bounds.clone().into(),
-                tip: tx.tip,
-                signature: tx.signature.clone(),
-                nonce: tx.nonce,
-                compiled_class_hash: tx.compiled_class_hash,
-                sender_address: tx.sender_address,
-                nonce_data_availability_mode: tx.nonce_data_availability_mode,
-                fee_data_availability_mode: tx.fee_data_availability_mode,
-                paymaster_data: tx.paymaster_data.clone(),
-                account_deployment_data: tx.account_deployment_data.clone(),
-            });
+        RpcTransaction::Declare(tx) => {
+            let declare_tx: DeclareTransaction = tx.clone().into();
             let tx_hash = declare_tx
                 .calculate_transaction_hash(chain_id, &declare_tx.version())
                 .map_err(|e| {
@@ -61,19 +42,8 @@ pub fn rpc_tx_to_account_tx(
                 })?;
             Ok(AccountTransaction::Declare(declare_tx))
         }
-        RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
-            let deploy_account_tx = DeployAccountTransaction::V3(DeployAccountTransactionV3 {
-                resource_bounds: tx.resource_bounds.clone().into(),
-                tip: tx.tip,
-                signature: tx.signature.clone(),
-                nonce: tx.nonce,
-                class_hash: tx.class_hash,
-                contract_address_salt: tx.contract_address_salt,
-                constructor_calldata: tx.constructor_calldata.clone(),
-                nonce_data_availability_mode: tx.nonce_data_availability_mode,
-                fee_data_availability_mode: tx.fee_data_availability_mode,
-                paymaster_data: tx.paymaster_data.clone(),
-            });
+        RpcTransaction::DeployAccount(tx) => {
+            let deploy_account_tx: DeployAccountTransaction = tx.clone().into();
             let contract_address = calculate_contract_address(
                 deploy_account_tx.contract_address_salt(),
                 deploy_account_tx.class_hash(),
@@ -97,19 +67,8 @@ pub fn rpc_tx_to_account_tx(
             );
             Ok(AccountTransaction::DeployAccount(deploy_account_tx))
         }
-        RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
-            let invoke_tx = starknet_api::transaction::InvokeTransaction::V3(InvokeTransactionV3 {
-                resource_bounds: tx.resource_bounds.clone().into(),
-                tip: tx.tip,
-                signature: tx.signature.clone(),
-                nonce: tx.nonce,
-                sender_address: tx.sender_address,
-                calldata: tx.calldata.clone(),
-                nonce_data_availability_mode: tx.nonce_data_availability_mode,
-                fee_data_availability_mode: tx.fee_data_availability_mode,
-                paymaster_data: tx.paymaster_data.clone(),
-                account_deployment_data: tx.account_deployment_data.clone(),
-            });
+        RpcTransaction::Invoke(tx) => {
+            let invoke_tx: InvokeTransaction = tx.clone().into();
             let tx_hash = invoke_tx
                 .calculate_transaction_hash(chain_id, &invoke_tx.version())
                 .map_err(|e| {
