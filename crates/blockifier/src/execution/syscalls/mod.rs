@@ -34,7 +34,7 @@ use crate::execution::syscalls::syscall_base::SyscallResult;
 use crate::versioned_constants::{EventLimits, VersionedConstants};
 
 pub mod hint_processor;
-mod secp;
+pub mod secp;
 pub mod syscall_base;
 
 #[cfg(test)]
