@@ -850,7 +850,7 @@ fn test_tx_pool_capacity(mut mempool: Mempool) {
     // Test and assert: add txs to the counter.
     add_tx(&mut mempool, &input_1);
     add_tx(&mut mempool, &input_2);
-    assert_eq!(mempool._tx_pool().n_txs(), 2);
+    assert_eq!(mempool.tx_pool().n_txs(), 2);
 
     // Test and assert: duplicate transaction doesn't affect capacity.
     add_tx_expect_error(
@@ -858,16 +858,16 @@ fn test_tx_pool_capacity(mut mempool: Mempool) {
         &input_1,
         MempoolError::DuplicateTransaction { tx_hash: input_1.tx.tx_hash() },
     );
-    assert_eq!(mempool._tx_pool().n_txs(), 2);
+    assert_eq!(mempool.tx_pool().n_txs(), 2);
 
     // Test and assert: updates pool capacity when a transaction is removed upon receiving state
     // changes.
     let state_changes =
         HashMap::from([(contract_address!("0x0"), AccountState { nonce: Nonce(felt!(4_u8)) })]);
     assert!(mempool.commit_block(state_changes).is_ok());
-    assert_eq!(mempool._tx_pool().n_txs(), 1);
+    assert_eq!(mempool.tx_pool().n_txs(), 1);
 
     // Test and assert: remove the transactions, counter does not go below 0.
     mempool.get_txs(2).unwrap();
-    assert_eq!(mempool._tx_pool().n_txs(), 0);
+    assert_eq!(mempool.tx_pool().n_txs(), 0);
 }
