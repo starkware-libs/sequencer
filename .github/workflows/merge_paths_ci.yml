@@ -37,7 +37,7 @@ concurrency:
 
 jobs:
   merge-paths-test:
-    runs-on: starkware-ubuntu-latest-small
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
