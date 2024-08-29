@@ -8,6 +8,7 @@ use rstest::rstest;
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
@@ -17,7 +18,16 @@ use starknet_api::transaction::{
     TransactionHash,
     TransactionVersion,
 };
-use starknet_api::{calldata, class_hash, contract_address, felt, patricia_key};
+use starknet_api::{
+    calldata,
+    class_hash,
+    contract_address,
+    declare_tx_args,
+    deploy_account_tx_args,
+    felt,
+    invoke_tx_args,
+    patricia_key,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::{
@@ -37,7 +47,6 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::declare::declare_tx;
 use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
-use crate::test_utils::invoke::InvokeTxArgs;
 use crate::test_utils::{
     create_calldata,
     create_trivial_calldata,
@@ -70,14 +79,7 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{DeclareTransaction, ExecutableTransaction, ExecutionFlags};
-use crate::{
-    check_transaction_execution_error_for_invalid_scenario,
-    declare_tx_args,
-    deploy_account_tx_args,
-    invoke_tx_args,
-    nonce,
-    storage_key,
-};
+use crate::{check_transaction_execution_error_for_invalid_scenario, nonce, storage_key};
 
 #[rstest]
 fn test_circuit(block_context: BlockContext, max_resource_bounds: DeprecatedResourceBoundsMapping) {
@@ -502,11 +504,8 @@ fn test_recursion_depth_exceeded(
             felt!(exceeding_recursion_depth),
         ],
     );
-    let invoke_args = crate::test_utils::invoke::InvokeTxArgs {
-        calldata,
-        nonce: nonce_manager.next(account_address),
-        ..invoke_args
-    };
+    let invoke_args =
+        InvokeTxArgs { calldata, nonce: nonce_manager.next(account_address), ..invoke_args };
     let tx_execution_info = run_invoke_tx(&mut state, &block_context, invoke_args);
 
     assert!(tx_execution_info.unwrap().revert_error.unwrap().contains("recursion depth exceeded"));
