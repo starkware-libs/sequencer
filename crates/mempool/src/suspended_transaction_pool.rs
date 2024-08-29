@@ -11,4 +11,11 @@ pub struct SuspendedTransactionPool {
     _suspended_tx_pool: AddressNonceToTransaction,
 }
 
-impl SuspendedTransactionPool {}
+impl SuspendedTransactionPool {
+    pub fn _contains(&self, address: ContractAddress, nonce: Nonce) -> bool {
+        if self._suspended_tx_pool.contains_key(&(address, nonce)) {
+            return true;
+        }
+        false
+    }
+}
