@@ -32,13 +32,13 @@ concurrency:
 
 jobs:
   verify_cairo_file_dependencies:
-    runs-on: starkware-ubuntu-20-04-medium
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: "v0-rust-ubuntu-20.04"
+          prefix-key: "v0-rust-ubuntu-22.04"
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
@@ -69,6 +69,10 @@ jobs:
         uses: actions-rs/toolchain@master
         with:
           toolchain: nightly-2023-07-05
+
+      - name: Set up Native Dependencies
+        uses: ./.github/actions/setup-native-deps
+        id: native-deps
 
       - name: Verify cairo contract recompilation (both cairo versions).
         run:

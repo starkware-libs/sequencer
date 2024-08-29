@@ -3,8 +3,8 @@ name: Papyrus-Docker-Publish
 on:
   workflow_dispatch:
   push:
-    branches: [main]
-    tags: ["v*.*.*"]
+    branches: [ main ]
+    tags: [ "v*.*.*" ]
     paths:
       - '.github/workflows/papyrus_docker-publish.yml'
       - 'crates/papyrus**/**'
@@ -25,7 +25,7 @@ env:
 
 jobs:
   docker-build-push:
-    runs-on: starkware-ubuntu-latest-medium
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout repository
@@ -69,6 +69,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v3.2.0
         with:
+          file: dynamic.Dockerfile
           context: .
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}

@@ -30,15 +30,9 @@ on:
       - 'crates/starknet_committer/**'
       - 'crates/starknet_patricia/**'
 
-# On PR events, cancel existing CI runs on this same PR for this workflow.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 jobs:
   run-regression-tests:
-    runs-on: starkware-ubuntu-latest-small
-    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
@@ -54,8 +48,7 @@ jobs:
       - run: cargo test -p committer_cli --release -- --include-ignored test_regression
 
   benchmarking:
-    runs-on: starkware-ubuntu-latest-small
-    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-22.04
     steps:
       # Checkout the base branch to get the old code.
       - uses: actions/checkout@v4
@@ -74,7 +67,7 @@ jobs:
 
       # List the existing benchmarks.
       - run: |
-            cargo bench -p committer_cli -- --list | grep ': benchmark$' | sed -e "s/: benchmark$//" > benchmarks_list.txt
+          cargo bench -p committer_cli -- --list | grep ': benchmark$' | sed -e "s/: benchmark$//" > benchmarks_list.txt
 
       # Benchmark the old code.
       - run: cargo bench -p committer_cli
@@ -117,10 +110,11 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: fs.readFileSync('bench_new.txt', 'utf8'),
+              path: 'Commits'
             })
 
   gcs-push:
-    runs-on: starkware-ubuntu-20-04-medium
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
@@ -141,7 +135,7 @@ jobs:
         run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
 
       - name: Build CLI binary
-        run: ./build_native_in_docker.sh cargo build -p committer_cli -r --bin committer_cli --target-dir CLI_TARGET
+        run: cargo build -p committer_cli -r --bin committer_cli --target-dir CLI_TARGET
 
       - id: auth
         uses: "google-github-actions/auth@v2"

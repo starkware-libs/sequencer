@@ -19,7 +19,11 @@ jobs:
       - uses: Noelware/setup-protoc@1.1.0
       - uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: "v0-rust-ubuntu-20.04"
+          prefix-key: "v0-rust-ubuntu-22.04"
+
+      - name: Set up Native Dependencies
+        uses: ./.github/actions/setup-native-deps
+        id: native-deps
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
