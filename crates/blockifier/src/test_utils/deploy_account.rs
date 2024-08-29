@@ -71,24 +71,16 @@ macro_rules! deploy_account_tx_args {
     };
 }
 
-pub fn deploy_account_tx(
+fn inner_deploy_account_tx(
     deploy_tx_args: DeployAccountTxArgs,
-    nonce_manager: &mut NonceManager,
-) -> DeployAccountTransaction {
-    let contract_address = calculate_contract_address(
-        deploy_tx_args.contract_address_salt,
-        deploy_tx_args.class_hash,
-        &deploy_tx_args.constructor_calldata,
-        deploy_tx_args.deployer_address,
-    )
-    .unwrap();
-
+    nonce: Nonce,
+) -> starknet_api::transaction::DeployAccountTransaction {
     // TODO: Make TransactionVersion an enum and use match here.
-    let tx = if deploy_tx_args.version == TransactionVersion::ONE {
+    if deploy_tx_args.version == TransactionVersion::ONE {
         starknet_api::transaction::DeployAccountTransaction::V1(DeployAccountTransactionV1 {
             max_fee: deploy_tx_args.max_fee,
             signature: deploy_tx_args.signature,
-            nonce: nonce_manager.next(contract_address),
+            nonce,
             class_hash: deploy_tx_args.class_hash,
             contract_address_salt: deploy_tx_args.contract_address_salt,
             constructor_calldata: deploy_tx_args.constructor_calldata,
@@ -101,14 +93,29 @@ pub fn deploy_account_tx(
             nonce_data_availability_mode: deploy_tx_args.nonce_data_availability_mode,
             fee_data_availability_mode: deploy_tx_args.fee_data_availability_mode,
             paymaster_data: deploy_tx_args.paymaster_data,
-            nonce: nonce_manager.next(contract_address),
+            nonce,
             class_hash: deploy_tx_args.class_hash,
             contract_address_salt: deploy_tx_args.contract_address_salt,
             constructor_calldata: deploy_tx_args.constructor_calldata,
         })
     } else {
         panic!("Unsupported transaction version: {:?}.", deploy_tx_args.version)
-    };
+    }
+}
+
+pub fn deploy_account_tx(
+    deploy_tx_args: DeployAccountTxArgs,
+    nonce_manager: &mut NonceManager,
+) -> DeployAccountTransaction {
+    let contract_address = calculate_contract_address(
+        deploy_tx_args.contract_address_salt,
+        deploy_tx_args.class_hash,
+        &deploy_tx_args.constructor_calldata,
+        deploy_tx_args.deployer_address,
+    )
+    .unwrap();
+
+    let tx = inner_deploy_account_tx(deploy_tx_args, nonce_manager.next(contract_address));
 
     DeployAccountTransaction::new(tx, TransactionHash::default(), contract_address)
 }
