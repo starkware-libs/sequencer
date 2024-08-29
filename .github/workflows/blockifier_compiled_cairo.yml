@@ -34,7 +34,7 @@ concurrency:
 
 jobs:
   verify_cairo_file_dependencies:
-    runs-on: ubuntu-22.04
+    runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
