@@ -122,6 +122,9 @@ jobs:
           # Fetch the entire history.
           fetch-depth: 0
       - uses: ./.github/actions/install_rust
+      - name: Set up Native Dependencies
+        uses: ./.github/actions/setup-native-deps
+        id: native-deps
       - uses: Noelware/setup-protoc@1.1.0
       - uses: Swatinem/rust-cache@v2
         with:
