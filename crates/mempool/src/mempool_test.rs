@@ -25,7 +25,7 @@ use crate::transaction_queue::TransactionQueue;
 
 /// Represents the internal content of the mempool.
 /// Enables customized (and potentially inconsistent) creation for unit testing.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct MempoolContent {
     tx_pool: Option<TransactionPool>,
     tx_queue: Option<TransactionQueue>,
@@ -48,14 +48,14 @@ impl MempoolContent {
     where
         P: IntoIterator<Item = Transaction>,
     {
-        Self { tx_pool: Some(pool_txs.into_iter().collect()), tx_queue: None }
+        Self { tx_pool: Some(pool_txs.into_iter().collect()), ..Self::default() }
     }
 
     fn with_queue<Q>(queue_txs: Q) -> Self
     where
         Q: IntoIterator<Item = TransactionReference>,
     {
-        Self { tx_queue: Some(queue_txs.into_iter().collect()), tx_pool: None }
+        Self { tx_queue: Some(queue_txs.into_iter().collect()), ..Self::default() }
     }
 
     fn assert_eq_pool_and_queue_content(&self, mempool: &Mempool) {
