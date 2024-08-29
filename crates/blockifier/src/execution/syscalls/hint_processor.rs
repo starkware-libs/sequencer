@@ -639,7 +639,7 @@ impl<'a> SyscallHintProcessor<'a> {
             Felt::from_hex(
                 self.context.tx_context.block_context.chain_info.chain_id.as_hex().as_str(),
             )?
-                .into(),
+            .into(),
             (tx_info).nonce().0.into(),
         ];
 
@@ -715,10 +715,10 @@ fn get_ptr_from_res_operand_unchecked(vm: &mut VirtualMachine, res: &ResOperand)
     let (cell, base_offset) = match res {
         ResOperand::Deref(cell) => (cell, Felt::from(0)),
         ResOperand::BinOp(BinOpOperand {
-                              op: Operation::Add,
-                              a,
-                              b: DerefOrImmediate::Immediate(b),
-                          }) => (a, Felt::from(b.clone().value)),
+            op: Operation::Add,
+            a,
+            b: DerefOrImmediate::Immediate(b),
+        }) => (a, Felt::from(b.clone().value)),
         _ => panic!("Illegal argument for a buffer."),
     };
     let base = match cell.register {

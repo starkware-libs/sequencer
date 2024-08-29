@@ -243,7 +243,9 @@ impl ContractClassV1 {
 impl NativeContractClassV1 {
     /// Convenience function to construct a NativeContractClassV1 from a raw contract class.
     /// If control over the compilation is desired use [Self::new] instead.
-    fn try_from_json_string(raw_contract_class: &str) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn try_from_json_string(
+        raw_contract_class: &str,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         // Compile the Sierra Program to native code and loads it into the process'
         // memory space.
         fn compile_and_load(

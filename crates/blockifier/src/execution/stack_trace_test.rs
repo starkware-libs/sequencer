@@ -143,6 +143,7 @@ Execution failed. Failure reason: 0x6661696c ('fail').
     let expected_trace = match cairo_version {
         CairoVersion::Cairo0 => expected_trace_cairo0,
         CairoVersion::Cairo1 => expected_trace_cairo1,
+        CairoVersion::Native => unreachable!("Native Cairo not supported here."),
     };
 
     assert_eq!(tx_execution_error.to_string(), expected_trace);
@@ -264,6 +265,9 @@ Unknown location (pc=0:{pc_location})
 Execution failed. Failure reason: {expected_error}.
 "
             )
+        }
+        CairoVersion::Native => {
+            unreachable!("Native Cairo not supported here.")
         }
     };
 
@@ -431,6 +435,9 @@ Execution failed. Failure reason: {expected_error}.
 "
             )
         }
+        CairoVersion::Native => {
+            unreachable!("Native Cairo not supported here.")
+        }
     };
 
     assert_eq!(tx_execution_error.to_string(), expected_trace);
@@ -532,6 +539,7 @@ Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f ('Invalid s
 ",
             class_hash.0
         ),
+        CairoVersion::Native => unreachable!("Native Cairo not supported here."),
     };
 
     // Clean pc locations from the trace.
@@ -597,6 +605,7 @@ An ASSERT_EQ instruction failed: 1 != 0.
              scenario').
 "
         }
+        CairoVersion::Native => unreachable!("Native Cairo not supported here."),
     };
 
     // Compare expected and actual error.
@@ -729,6 +738,7 @@ Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f ('Invalid s
                 deploy_offset + 194
             )
         }
+        CairoVersion::Native => unreachable!("Native Cairo not supported here."),
     };
 
     // Compare expected and actual error.

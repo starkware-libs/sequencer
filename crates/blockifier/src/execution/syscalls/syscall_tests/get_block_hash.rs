@@ -11,6 +11,8 @@ use crate::abi::constants;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, Retdata};
 use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::native::utils::NATIVE_GAS_PLACEHOLDER;
+use crate::retdata;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
 use crate::test_utils::contracts::FeatureContract;
@@ -22,7 +24,6 @@ use crate::test_utils::{
     BALANCE,
     CURRENT_BLOCK_NUMBER,
 };
-use crate::{check_entry_point_execution_error_for_custom_hint, retdata};
 
 fn initialize_state(test_contract: FeatureContract) -> (CachedState<DictStateReader>, Felt, Felt) {
     let chain_info = &ChainInfo::create_for_testing();
@@ -40,6 +41,7 @@ fn initialize_state(test_contract: FeatureContract) -> (CachedState<DictStateRea
     (state, block_number, block_hash)
 }
 
+#[test_case(FeatureContract::TestContract(CairoVersion::Native), NATIVE_GAS_PLACEHOLDER; "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 5220; "VM")]
 fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
     let (mut state, block_number, block_hash) = initialize_state(test_contract);
@@ -60,6 +62,7 @@ fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
     );
 }
 
+#[test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn negative_flow_execution_mode_validate(test_contract: FeatureContract) {
     let (mut state, block_number, _) = initialize_state(test_contract);
@@ -73,12 +76,14 @@ fn negative_flow_execution_mode_validate(test_contract: FeatureContract) {
 
     let error = entry_point_call.execute_directly_in_validate_mode(&mut state).unwrap_err();
 
-    check_entry_point_execution_error_for_custom_hint!(
-        &error,
-        "Unauthorized syscall get_block_hash in execution mode Validate.",
+    assert!(
+        error
+            .to_string()
+            .contains("Unauthorized syscall get_block_hash in execution mode Validate")
     );
 }
 
+#[test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn negative_flow_block_number_out_of_range(test_contract: FeatureContract) {
     let (mut state, _, _) = initialize_state(test_contract);

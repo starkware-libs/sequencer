@@ -94,6 +94,7 @@ pub const TEST_CONTRACT_SIERRA_PATH: &str =
 pub enum CairoVersion {
     Cairo0,
     Cairo1,
+    Native,
 }
 
 impl Default for CairoVersion {
@@ -120,6 +121,7 @@ impl CairoVersion {
         match self {
             Self::Cairo0 => Self::Cairo1,
             Self::Cairo1 => Self::Cairo0,
+            Self::Native => Self::Cairo1,
         }
     }
 }
@@ -373,7 +375,7 @@ macro_rules! check_transaction_execution_error_for_invalid_scenario {
                     $validate_constructor,
                 );
             }
-            CairoVersion::Cairo1 => {
+            CairoVersion::Cairo1 | CairoVersion::Native => {
                 if let $crate::transaction::errors::TransactionExecutionError::ValidateTransactionError {
                     error, ..
                 } = $error {

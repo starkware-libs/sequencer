@@ -48,6 +48,55 @@ use crate::transaction::objects::{
 };
 
 #[test_case(
+    FeatureContract::SierraExecutionInfoV1Contract,
+    ExecutionMode::Validate,
+    TransactionVersion::ONE,
+    false;
+    "Native [V1]: Validate execution mode: block info fields should be zeroed. Transaction V1.")]
+#[test_case(
+    FeatureContract::SierraExecutionInfoV1Contract,
+    ExecutionMode::Execute,
+    TransactionVersion::ONE,
+    false;
+    "Native [V1]: Execute execution mode: block info should be as usual. Transaction V1.")]
+#[test_case(
+    FeatureContract::SierraExecutionInfoV1Contract,
+    ExecutionMode::Validate,
+    TransactionVersion::THREE,
+    false;
+    "Native [V1]: Validate execution mode: block info fields should be zeroed. Transaction V3.")]
+#[test_case(
+    FeatureContract::SierraExecutionInfoV1Contract,
+    ExecutionMode::Execute,
+    TransactionVersion::THREE,
+    false;
+    "Native [V1]: Execute execution mode: block info should be as usual. Transaction V3.")]
+#[test_case(
+    FeatureContract::TestContract(CairoVersion::Native),
+    ExecutionMode::Validate,
+    TransactionVersion::ONE,
+    false;
+    "Native: Validate execution mode: block info fields should be zeroed. Transaction V1.")]
+#[test_case(
+    FeatureContract::TestContract(CairoVersion::Native),
+    ExecutionMode::Execute,
+    TransactionVersion::ONE,
+    false;
+    "Native: Execute execution mode: block info should be as usual. Transaction V1.")]
+#[test_case(
+    FeatureContract::TestContract(CairoVersion::Native),
+    ExecutionMode::Validate,
+    TransactionVersion::THREE,
+    false;
+    "Native: Validate execution mode: block info fields should be zeroed. Transaction V3.")]
+#[test_case(
+    FeatureContract::TestContract(CairoVersion::Native),
+    ExecutionMode::Execute,
+    TransactionVersion::THREE,
+    false;
+    "Native: Execute execution mode: block info should be as usual. Transaction V3.")]
+// TODO Native
+#[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1),
     ExecutionMode::Validate,
     TransactionVersion::ONE,
@@ -249,7 +298,14 @@ fn test_get_execution_info(
             [
                 expected_block_info.to_vec(),
                 expected_tx_info,
-                expected_resource_bounds.into_iter().chain(expected_unsupported_fields).collect(),
+                if let FeatureContract::SierraExecutionInfoV1Contract = test_contract {
+                    vec![]
+                } else {
+                    expected_resource_bounds
+                        .into_iter()
+                        .chain(expected_unsupported_fields)
+                        .collect()
+                },
                 expected_call_info,
             ]
             .concat()
