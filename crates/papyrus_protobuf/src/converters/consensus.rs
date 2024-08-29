@@ -131,7 +131,7 @@ impl TryFrom<protobuf::StreamMessage> for StreamMessage {
             message: value.message,
             stream_id: value.stream_id,
             chunk_id: value.chunk_id,
-            done: value.done,
+            fin: value.fin,
         })
     }
 }
@@ -142,7 +142,7 @@ impl From<StreamMessage> for protobuf::StreamMessage {
             message: value.message,
             stream_id: value.stream_id,
             chunk_id: value.chunk_id,
-            done: value.done,
+            fin: value.fin,
         }
     }
 }

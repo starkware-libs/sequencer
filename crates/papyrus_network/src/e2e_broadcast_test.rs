@@ -88,7 +88,7 @@ async fn broadcast_subscriber_end_to_end_test() {
     let mut subscriber_channels1_2 =
         network_manager1.register_broadcast_topic::<Number>(topic2.clone(), BUFFER_SIZE).unwrap();
 
-    let subscriber_channels2_1 =
+    let subscriber_channels2_1: crate::network_manager::BroadcastSubscriberChannels<Number> =
         network_manager2.register_broadcast_topic::<Number>(topic1.clone(), BUFFER_SIZE).unwrap();
     let subscriber_channels2_2 =
         network_manager2.register_broadcast_topic::<Number>(topic2.clone(), BUFFER_SIZE).unwrap();
