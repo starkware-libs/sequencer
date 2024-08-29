@@ -1,4 +1,5 @@
 use rstest::{fixture, rstest};
+use starknet_api::invoke_tx_args;
 use starknet_api::transaction::{L2ToL1Payload, ValidResourceBounds};
 use starknet_types_core::felt::Felt;
 
@@ -10,6 +11,7 @@ use crate::fee::gas_usage::{
     get_log_message_to_l1_emissions_cost,
     get_message_segment_length,
 };
+use crate::nonce;
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
@@ -24,7 +26,7 @@ use crate::transaction::test_utils::{
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::utils::{u128_from_usize, usize_from_u128};
 use crate::versioned_constants::VersionedConstants;
-use crate::{invoke_tx_args, nonce};
+
 #[fixture]
 fn versioned_constants() -> &'static VersionedConstants {
     VersionedConstants::latest_constants()

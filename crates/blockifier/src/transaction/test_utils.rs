@@ -1,5 +1,7 @@
 use rstest::fixture;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
@@ -13,7 +15,7 @@ use starknet_api::transaction::{
     TransactionVersion,
     ValidResourceBounds,
 };
-use starknet_api::{calldata, felt};
+use starknet_api::{calldata, declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
@@ -24,13 +26,12 @@ use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::declare::declare_tx;
-use crate::test_utils::deploy_account::{deploy_account_tx, DeployAccountTxArgs};
+use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::invoke::{invoke_tx, InvokeTxArgs};
+use crate::test_utils::invoke::invoke_tx;
 use crate::test_utils::{
     create_calldata,
-    default_testing_resource_bounds,
     CairoVersion,
     NonceManager,
     BALANCE,
@@ -43,7 +44,6 @@ use crate::transaction::constants;
 use crate::transaction::objects::{FeeType, TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{ExecutableTransaction, InvokeTransaction};
-use crate::{declare_tx_args, deploy_account_tx_args, invoke_tx_args};
 
 // Corresponding constants to the ones in faulty_account.
 pub const VALID: u64 = 0;
@@ -172,7 +172,7 @@ impl Default for FaultyAccountTxCreatorArgs {
             contract_address_salt: ContractAddressSalt::default(),
             validate_constructor: false,
             max_fee: Fee::default(),
-            resource_bounds: default_testing_resource_bounds(),
+            resource_bounds: ValidResourceBounds::create_for_testing(),
             declared_contract: None,
         }
     }
