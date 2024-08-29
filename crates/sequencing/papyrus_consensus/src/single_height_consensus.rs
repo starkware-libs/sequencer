@@ -228,10 +228,11 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         vote: Vote,
     ) -> Result<ShcReturn<BlockT>, ConsensusError> {
         if !self.validators.contains(&vote.voter) {
-            return Err(ConsensusError::InvalidVote(
-                vote.clone(),
-                format!("voter {:?} not in validators {:?}", vote.voter, self.validators),
-            ));
+            debug!(
+                "Ignoring vote from voter not in validators: voter={:?}, validators={:?}",
+                vote.voter, self.validators
+            );
+            return Ok(ShcReturn::Tasks(vec![]));
         }
 
         let (votes, sm_vote) = match vote.vote_type {
