@@ -6291,6 +6291,7 @@ dependencies = [
  "mockall",
  "papyrus_common",
  "papyrus_config",
+ "papyrus_protobuf",
  "pretty_assertions",
  "replace_with",
  "serde",

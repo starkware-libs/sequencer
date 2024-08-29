@@ -12,7 +12,7 @@ use crate::mixed_behaviour::MixedBehaviour;
 use crate::network_manager::GenericNetworkManager;
 use crate::sqmr;
 use crate::sqmr::Bytes;
-use crate::consensus::StreamMessage;
+use papyrus_protobuf::consensus::StreamMessage;
 
 const TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -155,26 +155,31 @@ async fn broadcast_stream_message_test() {
                 // TODO(shahak): Remove this sleep once we fix the bug of broadcasting while there
                 // are no peers.
                 tokio::time::sleep(Duration::from_secs(1)).await;
-                let msg1 = StreamMessage{ bytes!("My name is Inigo Montoya, "), stream_id: 1, chunk_id: 1, done: false };
-                let msg2 = StreamMessage{ bytes!("you killed my father, "), stream_id: 1, chunk_id: 2, done: false };
-                let msg3 = StreamMessage{ bytes!("prepare to die!"), stream_id: 1, chunk_id: 3, done: true };
+                let msg1 = StreamMessage{ message: "My name is Inigo Montoya, ".to_string().into_bytes(), stream_id: 1, chunk_id: 1, done: false };
+                let msg2 = StreamMessage{ message: "you killed my father, ".to_string().into_bytes(), stream_id: 1, chunk_id: 2, done: false };
+                let msg3 = StreamMessage{ message: "prepare to die!".to_string().into_bytes(), stream_id: 1, chunk_id: 3, done: true };
                 let mut broadcasted_messages_receiver = subscriber.broadcasted_messages_receiver;
-                broadcaster.messages_to_broadcast_sender.send(msg1).await.unwrap();
-                broadcaster.messages_to_broadcast_sender.send(msg2).await.unwrap();
-                broadcaster.messages_to_broadcast_sender.send(msg3).await.unwrap();
+                broadcaster.messages_to_broadcast_sender.send(msg1.clone()).await.unwrap();
+                broadcaster.messages_to_broadcast_sender.send(msg2.clone()).await.unwrap();
+                broadcaster.messages_to_broadcast_sender.send(msg3.clone()).await.unwrap();
                 
-                let (received_number1, _report_callback) =
-                    broadcasted_messages_receiver.next().await.unwrap();
-                assert_eq!(received_number1.unwrap(), msg1);
+                println!("Original message 1: {:?}", msg1);
+
+                // note that the messages can arrive in any order! 
+                let mut received = Vec::new();                
+                for _ in 0..3 {
+                    let (received_msg, _report_callback) =
+                        broadcasted_messages_receiver.next().await.unwrap();
+                    received.push(received_msg.unwrap());
+                }
+                // sort the vector by chunk ID
+                received.sort_by_key(|a| a.chunk_id);
+
+                assert_eq!(received[0], msg1);
+                assert_eq!(received[1], msg2);
+                assert_eq!(received[2], msg3);
+
                 
-                let (received_number2, _report_callback) =
-                    broadcasted_messages_receiver.next().await.unwrap();
-                assert_eq!(received_number2.unwrap(), msg2);
-
-                let (received_number3, _report_callback) =
-                    broadcasted_messages_receiver.next().await.unwrap();
-                assert_eq!(received_number3.unwrap(), msg3);
-
                 assert!(broadcasted_messages_receiver.next().now_or_never().is_none());
                 
             }
