@@ -17,7 +17,7 @@ use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState};
 use starknet_types_core::felt::Felt;
 
-use crate::mempool::{Mempool, MempoolInput, TransactionReference};
+use crate::mempool::{AccountToNonce, Mempool, MempoolInput, TransactionReference};
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
 
@@ -29,6 +29,7 @@ use crate::transaction_queue::TransactionQueue;
 struct MempoolContent<T> {
     tx_pool: Option<TransactionPool>,
     tx_queue: Option<TransactionQueue>,
+    account_nonces: Option<AccountToNonce>,
     // Artificially use generic type, for the compiler.
     _phantom: std::marker::PhantomData<T>,
 }
@@ -46,6 +47,7 @@ impl MempoolContent<PartialContent> {
         Self {
             tx_pool: Some(pool_txs.into_iter().collect()),
             tx_queue: Some(queue_txs.into_iter().collect()),
+            account_nonces: None,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -57,6 +59,7 @@ impl MempoolContent<PartialContent> {
         Self {
             tx_pool: Some(pool_txs.into_iter().collect()),
             tx_queue: None,
+            account_nonces: None,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -68,6 +71,16 @@ impl MempoolContent<PartialContent> {
         Self {
             tx_queue: Some(queue_txs.into_iter().collect()),
             tx_pool: None,
+            account_nonces: None,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    fn _with_account_nonces(account_nonce_pairs: Vec<(ContractAddress, Nonce)>) -> Self {
+        Self {
+            tx_pool: None,
+            tx_queue: None,
+            account_nonces: Some(account_nonce_pairs.into_iter().collect()),
             _phantom: std::marker::PhantomData,
         }
     }
@@ -86,16 +99,21 @@ impl<T> MempoolContent<T> {
     fn assert_eq_queue_content(&self, mempool: &Mempool) {
         assert_eq!(self.tx_queue.as_ref().unwrap(), &mempool.tx_queue);
     }
+
+    fn _assert_eq_account_nonces(&self, mempool: &Mempool) {
+        assert_eq!(self.account_nonces.as_ref().unwrap(), &mempool._account_nonces);
+    }
 }
 
 impl<T> From<MempoolContent<T>> for Mempool {
     fn from(mempool_content: MempoolContent<T>) -> Mempool {
-        let MempoolContent { tx_pool, tx_queue, _phantom: _ } = mempool_content;
+        let MempoolContent { tx_pool, tx_queue, account_nonces, _phantom: _ } = mempool_content;
         Mempool {
             tx_pool: tx_pool.unwrap_or_default(),
             tx_queue: tx_queue.unwrap_or_default(),
             // TODO: Add implementation when needed.
             mempool_state: Default::default(),
+            _account_nonces: account_nonces.unwrap_or_default(),
         }
     }
 }
