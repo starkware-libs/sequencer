@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 use std::net::IpAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use bincode::{deserialize, serialize};
 use hyper::body::to_bytes;
@@ -25,6 +26,10 @@ use crate::component_definitions::APPLICATION_OCTET_STREAM;
 /// - `client`: The inner HTTP client that initiates the connection to the server and manages it.
 /// - `max_retries`: Configurable number of extra attempts to send a request to server in case of a
 ///   failure.
+/// - `keep_alive_timeout`: Optional cunfigurable time for specifying how long to keep connections
+///   alive. Default is
+/// - `max_idle`: Optional configurable number of idle connections the client holds. Default is
+///   usize::MAX.
 ///
 /// # Example
 /// ```rust
@@ -51,7 +56,8 @@ use crate::component_definitions::APPLICATION_OCTET_STREAM;
 ///     // Instantiate the client.
 ///     let ip_address = std::net::IpAddr::V6(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
 ///     let port: u16 = 8080;
-///     let client = RemoteComponentClient::<MyRequest, MyResponse>::new(ip_address, port, 2);
+///     let client =
+///         RemoteComponentClient::<MyRequest, MyResponse>::new(ip_address, port, 2, None, None);
 ///
 ///     // Instantiate a request.
 ///     let request = MyRequest { content: "Hello, world!".to_string() };
@@ -82,15 +88,26 @@ where
     Request: Serialize,
     Response: DeserializeOwned,
 {
-    pub fn new(ip_address: IpAddr, port: u16, max_retries: usize) -> Self {
+    pub fn new(
+        ip_address: IpAddr,
+        port: u16,
+        max_retries: usize,
+        keep_alive_timeout: Option<Duration>,
+        max_idle: Option<usize>,
+    ) -> Self {
         let uri = match ip_address {
             IpAddr::V4(ip_address) => format!("http://{}:{}/", ip_address, port).parse().unwrap(),
             IpAddr::V6(ip_address) => format!("http://[{}]:{}/", ip_address, port).parse().unwrap(),
         };
-        // TODO(Tsabary): Add a configuration for the maximum number of idle connections.
-        // TODO(Tsabary): Add a configuration for "keep-alive" time of idle connections.
-        let client =
-            Client::builder().http2_only(true).pool_max_idle_per_host(usize::MAX).build_http();
+
+        let mut builder = Client::builder();
+        if let Some(keep_alive_timeout) = keep_alive_timeout {
+            builder.http2_keep_alive_timeout(keep_alive_timeout);
+        }
+        let client = builder
+            .http2_only(true)
+            .pool_max_idle_per_host(max_idle.unwrap_or(usize::MAX))
+            .build_http();
         Self { uri, client, max_retries, _req: PhantomData, _res: PhantomData }
     }
 
