@@ -594,6 +594,8 @@ async fn get_block_w_full_transactions() {
         price_in_wei: GasPrice(random::<u128>()),
         price_in_fri: GasPrice(random::<u128>()),
     };
+    let pending_l2_gas_price =
+        GasPricePerToken { price_in_wei: GasPrice(0), price_in_fri: GasPrice(0) };
     let expected_pending_block = Block {
         header: GeneralBlockHeader::PendingBlockHeader(PendingBlockHeader {
             parent_hash: block_hash,
@@ -604,6 +606,10 @@ async fn get_block_w_full_transactions() {
                 price_in_fri: pending_l1_gas_price.price_in_fri,
             },
             l1_data_gas_price: ResourcePrice::default(),
+            l2_gas_price: ResourcePrice {
+                price_in_wei: pending_l2_gas_price.price_in_wei,
+                price_in_fri: pending_l2_gas_price.price_in_fri,
+            },
             l1_da_mode: L1DataAvailabilityMode::Calldata,
             starknet_version: starknet_version.to_string(),
         }),
@@ -777,6 +783,8 @@ async fn get_block_w_full_transactions_and_receipts() {
         price_in_wei: GasPrice(rng.next_u64().into()),
         price_in_fri: GasPrice(rng.next_u64().into()),
     };
+    let pending_l2_gas_price =
+        GasPricePerToken { price_in_wei: GasPrice(0), price_in_fri: GasPrice(0) };
     let expected_pending_block = Block {
         header: GeneralBlockHeader::PendingBlockHeader(PendingBlockHeader {
             parent_hash: block_hash,
@@ -787,6 +795,10 @@ async fn get_block_w_full_transactions_and_receipts() {
                 price_in_fri: pending_l1_gas_price.price_in_fri,
             },
             l1_data_gas_price: ResourcePrice::default(),
+            l2_gas_price: ResourcePrice {
+                price_in_wei: pending_l2_gas_price.price_in_wei,
+                price_in_fri: pending_l2_gas_price.price_in_fri,
+            },
             l1_da_mode: L1DataAvailabilityMode::Calldata,
             starknet_version: starknet_version.to_string(),
         }),
@@ -960,6 +972,8 @@ async fn get_block_w_transaction_hashes() {
         price_in_wei: GasPrice(random::<u128>()),
         price_in_fri: GasPrice(random::<u128>()),
     };
+    let pending_l2_gas_price =
+        GasPricePerToken { price_in_wei: GasPrice(0), price_in_fri: GasPrice(0) };
     let expected_pending_block = Block {
         header: GeneralBlockHeader::PendingBlockHeader(PendingBlockHeader {
             parent_hash: block_hash,
@@ -968,6 +982,10 @@ async fn get_block_w_transaction_hashes() {
             l1_gas_price: ResourcePrice {
                 price_in_wei: pending_l1_gas_price.price_in_wei,
                 price_in_fri: pending_l1_gas_price.price_in_fri,
+            },
+            l2_gas_price: ResourcePrice {
+                price_in_wei: pending_l2_gas_price.price_in_wei,
+                price_in_fri: pending_l2_gas_price.price_in_fri,
             },
             l1_data_gas_price: ResourcePrice::default(),
             l1_da_mode: L1DataAvailabilityMode::Calldata,
@@ -3977,6 +3995,7 @@ auto_impl_get_test_instance! {
         pub timestamp: BlockTimestamp,
         pub l1_gas_price: ResourcePrice,
         pub l1_data_gas_price: ResourcePrice,
+        pub l2_gas_price: ResourcePrice,
         pub l1_da_mode: L1DataAvailabilityMode,
         pub starknet_version: String,
     }
