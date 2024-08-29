@@ -11,4 +11,8 @@ pub struct SuspendedTransactionPool {
     _suspended_tx_pool: AddressNonceToTransaction,
 }
 
-impl SuspendedTransactionPool {}
+impl SuspendedTransactionPool {
+    pub fn _insert(&mut self, tx: TransactionReference) {
+        self._suspended_tx_pool.insert((tx.sender_address, tx.nonce), tx);
+    }
+}
