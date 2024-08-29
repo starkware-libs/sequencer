@@ -1,4 +1,3 @@
-use prost::bytes::Bytes;
 use starknet_api::block::BlockHash;
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
@@ -42,9 +41,9 @@ impl ConsensusMessage {
         }
     }
 }
-
+#[derive(Debug, Default, Clone, Hash, Eq, PartialEq)]
 pub struct StreamMessage {
-    pub message: Bytes,
+    pub message: Vec<u8>,
     pub stream_id: u64,
     pub chunk_id: u64,
     pub done: bool, 

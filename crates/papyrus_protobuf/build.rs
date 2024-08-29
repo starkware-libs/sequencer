@@ -33,6 +33,7 @@ fn main() -> Result<()> {
                 "src/proto/p2p/proto/state.proto",
                 "src/proto/p2p/proto/transaction.proto",
                 "src/proto/p2p/proto/consensus.proto",
+                "src/proto/p2p/proto/stream_message.proto", 
             ],
             &["src/proto/"],
         )?;
