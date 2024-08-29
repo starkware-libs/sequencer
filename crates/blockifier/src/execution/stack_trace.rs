@@ -82,7 +82,6 @@ impl From<&VmExceptionFrame> for String {
         } else {
             "".to_string()
         };
-        // TODO(Aner): add test for error message in intermediate call"
         format!("{error_msg}{vm_exception_preamble}{vm_exception_traceback}")
     }
 }
