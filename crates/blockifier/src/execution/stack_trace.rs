@@ -66,18 +66,24 @@ impl From<&EntryPointErrorFrame> for String {
 
 pub struct VmExceptionFrame {
     pc: Relocatable,
+    error_attr_value: Option<String>,
     traceback: Option<String>,
 }
 
 impl From<&VmExceptionFrame> for String {
     fn from(value: &VmExceptionFrame) -> Self {
+        let error_msg = match &value.error_attr_value {
+            Some(error_msg) => error_msg.clone(),
+            None => String::new(),
+        };
         let vm_exception_preamble = format!("Error at pc={}:", value.pc);
         let vm_exception_traceback = if let Some(traceback) = &value.traceback {
             format!("\n{}", traceback)
         } else {
             "".to_string()
         };
-        format!("{vm_exception_preamble}{vm_exception_traceback}")
+        // TODO(Aner): add test for error message in intermediate call"
+        format!("{error_msg}{vm_exception_preamble}{vm_exception_traceback}")
     }
 }
 
@@ -217,8 +223,12 @@ fn extract_cairo_run_error_into_stack_trace(
 ) {
     if let CairoRunError::VmException(vm_exception) = error {
         error_stack.push(
-            VmExceptionFrame { pc: vm_exception.pc, traceback: vm_exception.traceback.clone() }
-                .into(),
+            VmExceptionFrame {
+                pc: vm_exception.pc,
+                error_attr_value: vm_exception.error_attr_value.clone(),
+                traceback: vm_exception.traceback.clone(),
+            }
+            .into(),
         );
         extract_virtual_machine_error_into_stack_trace(error_stack, depth, &vm_exception.inner_exc);
     } else {
