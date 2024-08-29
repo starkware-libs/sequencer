@@ -76,8 +76,19 @@ macro_rules! invoke_tx_args {
 }
 
 pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
+    let only_query = invoke_args.only_query;
+    let invoke_tx = inner_invoke_tx(invoke_args);
+
+    let default_tx_hash = TransactionHash::default();
+    match only_query {
+        true => InvokeTransaction::new_for_query(invoke_tx, default_tx_hash),
+        false => InvokeTransaction::new(invoke_tx, default_tx_hash),
+    }
+}
+
+fn inner_invoke_tx(invoke_args: InvokeTxArgs) -> starknet_api::transaction::InvokeTransaction {
     // TODO: Make TransactionVersion an enum and use match here.
-    let invoke_tx = if invoke_args.version == TransactionVersion::ZERO {
+    if invoke_args.version == TransactionVersion::ZERO {
         starknet_api::transaction::InvokeTransaction::V0(InvokeTransactionV0 {
             max_fee: invoke_args.max_fee,
             calldata: invoke_args.calldata,
@@ -109,11 +120,5 @@ pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
         })
     } else {
         panic!("Unsupported transaction version: {:?}.", invoke_args.version)
-    };
-
-    let default_tx_hash = TransactionHash::default();
-    match invoke_args.only_query {
-        true => InvokeTransaction::new_for_query(invoke_tx, default_tx_hash),
-        false => InvokeTransaction::new(invoke_tx, default_tx_hash),
     }
 }
