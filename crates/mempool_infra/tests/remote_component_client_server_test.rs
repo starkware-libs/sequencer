@@ -2,6 +2,7 @@ mod common;
 
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use bincode::{deserialize, serialize};
@@ -152,12 +153,12 @@ where
     // Ensure the server starts running.
     task::yield_now().await;
 
-    ComponentAClient::new(LOCAL_IP, port, MAX_RETRIES)
+    ComponentAClient::new(LOCAL_IP, port, MAX_RETRIES, None, None)
 }
 
 async fn setup_for_tests(setup_value: ValueB, a_port: u16, b_port: u16) {
-    let a_client = ComponentAClient::new(LOCAL_IP, a_port, MAX_RETRIES);
-    let b_client = ComponentBClient::new(LOCAL_IP, b_port, MAX_RETRIES);
+    let a_client = ComponentAClient::new(LOCAL_IP, a_port, MAX_RETRIES, None, None);
+    let b_client = ComponentBClient::new(LOCAL_IP, b_port, MAX_RETRIES, None, None);
 
     let component_a = ComponentA::new(Box::new(b_client));
     let component_b = ComponentB::new(setup_value, Box::new(a_client.clone()));
@@ -185,12 +186,35 @@ async fn setup_for_tests(setup_value: ValueB, a_port: u16, b_port: u16) {
     task::yield_now().await;
 }
 
+#[rstest]
+#[case(None, None)]
+#[case(Some(Duration::from_secs(1)), Some(10))]
+#[case(Some(Duration::from_secs(1)), Some(1))]
+#[case(Some(Duration::from_millis(100)), None)]
+#[case(Some(Duration::from_millis(1)), None)]
+#[case(None, Some(0))]
+#[case(None, Some(10))]
 #[tokio::test]
-async fn test_proper_setup() {
+async fn test_proper_setup(
+    #[case] keep_alive_timeout: Option<Duration>,
+    #[case] max_idle: Option<usize>,
+) {
     let setup_value: ValueB = 90;
     setup_for_tests(setup_value, A_PORT_TEST_SETUP, B_PORT_TEST_SETUP).await;
-    let a_client = ComponentAClient::new(LOCAL_IP, A_PORT_TEST_SETUP, MAX_RETRIES);
-    let b_client = ComponentBClient::new(LOCAL_IP, B_PORT_TEST_SETUP, MAX_RETRIES);
+    let a_client = ComponentAClient::new(
+        LOCAL_IP,
+        A_PORT_TEST_SETUP,
+        MAX_RETRIES,
+        keep_alive_timeout,
+        max_idle,
+    );
+    let b_client = ComponentBClient::new(
+        LOCAL_IP,
+        B_PORT_TEST_SETUP,
+        MAX_RETRIES,
+        keep_alive_timeout,
+        max_idle,
+    );
     test_a_b_functionality(a_client, b_client, setup_value.into()).await;
 }
 
@@ -228,7 +252,7 @@ async fn test_faulty_client_setup() {
 
 #[tokio::test]
 async fn test_unconnected_server() {
-    let client = ComponentAClient::new(LOCAL_IP, UNCONNECTED_SERVER_PORT, MAX_RETRIES);
+    let client = ComponentAClient::new(LOCAL_IP, UNCONNECTED_SERVER_PORT, MAX_RETRIES, None, None);
 
     let expected_error_contained_keywords = ["Connection refused"];
     verify_error(client, &expected_error_contained_keywords).await;
@@ -298,11 +322,11 @@ async fn test_retry_request() {
     // The initial server state is 'false', hence the first attempt returns an error and
     // sets the server state to 'true'. The second attempt (first retry) therefore returns a
     // 'success', while setting the server state to 'false' yet again.
-    let a_client_retry = ComponentAClient::new(LOCAL_IP, RETRY_REQ_PORT, 1);
+    let a_client_retry = ComponentAClient::new(LOCAL_IP, RETRY_REQ_PORT, 1, None, None);
     assert_eq!(a_client_retry.a_get_value().await.unwrap(), VALID_VALUE_A);
 
     // The current server state is 'false', hence the first and only attempt returns an error.
-    let a_client_no_retry = ComponentAClient::new(LOCAL_IP, RETRY_REQ_PORT, 0);
+    let a_client_no_retry = ComponentAClient::new(LOCAL_IP, RETRY_REQ_PORT, 0, None, None);
     let expected_error_contained_keywords = [DESERIALIZE_RES_ERROR_MESSAGE];
     verify_error(a_client_no_retry.clone(), &expected_error_contained_keywords).await;
 }
