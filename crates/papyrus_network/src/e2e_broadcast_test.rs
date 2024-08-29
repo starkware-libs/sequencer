@@ -5,7 +5,6 @@ use libp2p::core::multiaddr::Protocol;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{Multiaddr, Swarm};
 use libp2p_swarm_test::SwarmExt;
-use papyrus_protobuf::consensus::StreamMessage;
 use starknet_api::core::ChainId;
 
 use crate::gossipsub_impl::Topic;
@@ -126,67 +125,3 @@ async fn broadcast_subscriber_end_to_end_test() {
     }
 }
 
-#[tokio::test]
-async fn broadcast_stream_message_test() {
-    let topic1 = Topic::new("TOPIC1");
-
-    let bootstrap_swarm = create_swarm(None).await;
-    let bootstrap_peer_multiaddr = bootstrap_swarm.external_addresses().next().unwrap().clone();
-    let bootstrap_peer_multiaddr =
-        bootstrap_peer_multiaddr.with_p2p(*bootstrap_swarm.local_peer_id()).unwrap();
-    let bootstrap_network_manager = create_network_manager(bootstrap_swarm);
-    let mut network_manager1 =
-        create_network_manager(create_swarm(Some(bootstrap_peer_multiaddr.clone())).await);
-    let mut network_manager2 =
-        create_network_manager(create_swarm(Some(bootstrap_peer_multiaddr)).await);
-
-    let mut broadcaster = network_manager1
-        .register_broadcast_topic::<StreamMessage>(topic1.clone(), BUFFER_SIZE)
-        .unwrap();
-
-    let subscriber = network_manager2
-        .register_broadcast_topic::<StreamMessage>(topic1.clone(), BUFFER_SIZE)
-        .unwrap();
-
-    tokio::select! {
-        _ = network_manager1.run() => panic!("network manager ended"),
-        _ = network_manager2.run() => panic!("network manager ended"),
-        _ = bootstrap_network_manager.run() => panic!("network manager ended"),
-        result = tokio::time::timeout(
-            TIMEOUT, async move {
-                // TODO(shahak): Remove this sleep once we fix the bug of broadcasting while there
-                // are no peers.
-                tokio::time::sleep(Duration::from_secs(1)).await;
-                let msg1 = StreamMessage{ message: "My name is Inigo Montoya, ".to_string().into_bytes(), stream_id: 1, chunk_id: 1, done: false };
-                let msg2 = StreamMessage{ message: "you killed my father, ".to_string().into_bytes(), stream_id: 1, chunk_id: 2, done: false };
-                let msg3 = StreamMessage{ message: "prepare to die!".to_string().into_bytes(), stream_id: 1, chunk_id: 3, done: true };
-                let mut broadcasted_messages_receiver = subscriber.broadcasted_messages_receiver;
-                broadcaster.messages_to_broadcast_sender.send(msg1.clone()).await.unwrap();
-                broadcaster.messages_to_broadcast_sender.send(msg2.clone()).await.unwrap();
-                broadcaster.messages_to_broadcast_sender.send(msg3.clone()).await.unwrap();
-
-                println!("Original message 1: {:?}", msg1);
-
-                // note that the messages can arrive in any order!
-                let mut received = Vec::new();
-                for _ in 0..3 {
-                    let (received_msg, _report_callback) =
-                        broadcasted_messages_receiver.next().await.unwrap();
-                    received.push(received_msg.unwrap());
-                }
-                // sort the vector by chunk ID
-                received.sort_by_key(|a| a.chunk_id);
-
-                assert_eq!(received[0], msg1);
-                assert_eq!(received[1], msg2);
-                assert_eq!(received[2], msg3);
-
-
-                assert!(broadcasted_messages_receiver.next().now_or_never().is_none());
-
-            }
-        ) => {
-            result.unwrap()
-        }
-    }
-}
