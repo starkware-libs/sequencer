@@ -69,8 +69,6 @@ jobs:
 
       # Install rust components.
       - uses: ./.github/actions/install_rust
-        with:
-          components: rustfmt, clippy
 
       # Run tests.
       - name: "Run rustfmt and clippy"
@@ -94,7 +92,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
       - run: cargo test -p workspace_tests
 
   run-tests:
@@ -106,9 +103,6 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/install_rust
       - uses: Noelware/setup-protoc@1.1.0
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust-ubuntu-20.04"
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
@@ -183,9 +177,6 @@ jobs:
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust-ubuntu-20.04"
       - run: npm install -g ganache@7.4.3
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
