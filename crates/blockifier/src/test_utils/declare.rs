@@ -34,6 +34,7 @@ pub struct DeclareTxArgs {
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub compiled_class_hash: CompiledClassHash,
+    // TODO(Arni): Consider removing this field.
     pub tx_hash: TransactionHash,
 }
 
@@ -76,54 +77,56 @@ macro_rules! declare_tx_args {
 }
 
 pub fn declare_tx(declare_tx_args: DeclareTxArgs, class_info: ClassInfo) -> AccountTransaction {
-    AccountTransaction::Declare(
-        DeclareTransaction::new(
-            // TODO: Make TransactionVersion an enum and use match here.
-            if declare_tx_args.version == TransactionVersion::ZERO {
-                starknet_api::transaction::DeclareTransaction::V0(DeclareTransactionV0V1 {
-                    max_fee: declare_tx_args.max_fee,
-                    signature: declare_tx_args.signature,
-                    sender_address: declare_tx_args.sender_address,
-                    nonce: declare_tx_args.nonce,
-                    class_hash: declare_tx_args.class_hash,
-                })
-            } else if declare_tx_args.version == TransactionVersion::ONE {
-                starknet_api::transaction::DeclareTransaction::V1(DeclareTransactionV0V1 {
-                    max_fee: declare_tx_args.max_fee,
-                    signature: declare_tx_args.signature,
-                    sender_address: declare_tx_args.sender_address,
-                    nonce: declare_tx_args.nonce,
-                    class_hash: declare_tx_args.class_hash,
-                })
-            } else if declare_tx_args.version == TransactionVersion::TWO {
-                starknet_api::transaction::DeclareTransaction::V2(DeclareTransactionV2 {
-                    max_fee: declare_tx_args.max_fee,
-                    signature: declare_tx_args.signature,
-                    sender_address: declare_tx_args.sender_address,
-                    nonce: declare_tx_args.nonce,
-                    class_hash: declare_tx_args.class_hash,
-                    compiled_class_hash: declare_tx_args.compiled_class_hash,
-                })
-            } else if declare_tx_args.version == TransactionVersion::THREE {
-                starknet_api::transaction::DeclareTransaction::V3(DeclareTransactionV3 {
-                    signature: declare_tx_args.signature,
-                    sender_address: declare_tx_args.sender_address,
-                    resource_bounds: declare_tx_args.resource_bounds,
-                    tip: declare_tx_args.tip,
-                    nonce_data_availability_mode: declare_tx_args.nonce_data_availability_mode,
-                    fee_data_availability_mode: declare_tx_args.fee_data_availability_mode,
-                    paymaster_data: declare_tx_args.paymaster_data,
-                    account_deployment_data: declare_tx_args.account_deployment_data,
-                    nonce: declare_tx_args.nonce,
-                    class_hash: declare_tx_args.class_hash,
-                    compiled_class_hash: declare_tx_args.compiled_class_hash,
-                })
-            } else {
-                panic!("Unsupported transaction version: {:?}.", declare_tx_args.version)
-            },
-            declare_tx_args.tx_hash,
-            class_info,
-        )
-        .unwrap(),
-    )
+    let tx_hash = declare_tx_args.tx_hash;
+    let declare_tx = inner_declare_tx(declare_tx_args);
+
+    AccountTransaction::Declare(DeclareTransaction::new(declare_tx, tx_hash, class_info).unwrap())
+}
+
+fn inner_declare_tx(
+    declare_tx_args: DeclareTxArgs,
+) -> starknet_api::transaction::DeclareTransaction {
+    // TODO: Make TransactionVersion an enum and use match here.
+    if declare_tx_args.version == TransactionVersion::ZERO {
+        starknet_api::transaction::DeclareTransaction::V0(DeclareTransactionV0V1 {
+            max_fee: declare_tx_args.max_fee,
+            signature: declare_tx_args.signature,
+            sender_address: declare_tx_args.sender_address,
+            nonce: declare_tx_args.nonce,
+            class_hash: declare_tx_args.class_hash,
+        })
+    } else if declare_tx_args.version == TransactionVersion::ONE {
+        starknet_api::transaction::DeclareTransaction::V1(DeclareTransactionV0V1 {
+            max_fee: declare_tx_args.max_fee,
+            signature: declare_tx_args.signature,
+            sender_address: declare_tx_args.sender_address,
+            nonce: declare_tx_args.nonce,
+            class_hash: declare_tx_args.class_hash,
+        })
+    } else if declare_tx_args.version == TransactionVersion::TWO {
+        starknet_api::transaction::DeclareTransaction::V2(DeclareTransactionV2 {
+            max_fee: declare_tx_args.max_fee,
+            signature: declare_tx_args.signature,
+            sender_address: declare_tx_args.sender_address,
+            nonce: declare_tx_args.nonce,
+            class_hash: declare_tx_args.class_hash,
+            compiled_class_hash: declare_tx_args.compiled_class_hash,
+        })
+    } else if declare_tx_args.version == TransactionVersion::THREE {
+        starknet_api::transaction::DeclareTransaction::V3(DeclareTransactionV3 {
+            signature: declare_tx_args.signature,
+            sender_address: declare_tx_args.sender_address,
+            resource_bounds: declare_tx_args.resource_bounds,
+            tip: declare_tx_args.tip,
+            nonce_data_availability_mode: declare_tx_args.nonce_data_availability_mode,
+            fee_data_availability_mode: declare_tx_args.fee_data_availability_mode,
+            paymaster_data: declare_tx_args.paymaster_data,
+            account_deployment_data: declare_tx_args.account_deployment_data,
+            nonce: declare_tx_args.nonce,
+            class_hash: declare_tx_args.class_hash,
+            compiled_class_hash: declare_tx_args.compiled_class_hash,
+        })
+    } else {
+        panic!("Unsupported transaction version: {:?}.", declare_tx_args.version)
+    }
 }
