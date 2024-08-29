@@ -25,19 +25,14 @@ use crate::transaction_queue::TransactionQueue;
 
 /// Represents the internal content of the mempool.
 /// Enables customized (and potentially inconsistent) creation for unit testing.
-#[derive(Debug)]
-struct MempoolContent<T> {
+#[derive(Debug, Default)]
+struct MempoolContent {
     tx_pool: Option<TransactionPool>,
     tx_queue: Option<TransactionQueue>,
     account_nonces: Option<AccountToNonce>,
-    // Artificially use generic type, for the compiler.
-    _phantom: std::marker::PhantomData<T>,
 }
 
-#[derive(Debug)]
-struct PartialContent;
-
-impl MempoolContent<PartialContent> {
+impl MempoolContent {
     fn with_pool_and_queue<P, Q>(pool_txs: P, queue_txs: Q) -> Self
     where
         P: IntoIterator<Item = Transaction>,
@@ -47,8 +42,7 @@ impl MempoolContent<PartialContent> {
         Self {
             tx_pool: Some(pool_txs.into_iter().collect()),
             tx_queue: Some(queue_txs.into_iter().collect()),
-            account_nonces: None,
-            _phantom: std::marker::PhantomData,
+            ..Self::default()
         }
     }
 
@@ -56,37 +50,19 @@ impl MempoolContent<PartialContent> {
     where
         P: IntoIterator<Item = Transaction>,
     {
-        Self {
-            tx_pool: Some(pool_txs.into_iter().collect()),
-            tx_queue: None,
-            account_nonces: None,
-            _phantom: std::marker::PhantomData,
-        }
+        Self { tx_pool: Some(pool_txs.into_iter().collect()), ..Self::default() }
     }
 
     fn with_queue<Q>(queue_txs: Q) -> Self
     where
         Q: IntoIterator<Item = TransactionReference>,
     {
-        Self {
-            tx_queue: Some(queue_txs.into_iter().collect()),
-            tx_pool: None,
-            account_nonces: None,
-            _phantom: std::marker::PhantomData,
-        }
+        Self { tx_queue: Some(queue_txs.into_iter().collect()), ..Self::default() }
     }
 
     fn _with_account_nonces(account_nonce_pairs: Vec<(ContractAddress, Nonce)>) -> Self {
-        Self {
-            tx_pool: None,
-            tx_queue: None,
-            account_nonces: Some(account_nonce_pairs.into_iter().collect()),
-            _phantom: std::marker::PhantomData,
-        }
+        Self { account_nonces: Some(account_nonce_pairs.into_iter().collect()), ..Self::default() }
     }
-}
-
-impl<T> MempoolContent<T> {
     fn assert_eq_pool_and_queue_content(&self, mempool: &Mempool) {
         self.assert_eq_pool_content(mempool);
         self.assert_eq_queue_content(mempool);
@@ -105,9 +81,9 @@ impl<T> MempoolContent<T> {
     }
 }
 
-impl<T> From<MempoolContent<T>> for Mempool {
-    fn from(mempool_content: MempoolContent<T>) -> Mempool {
-        let MempoolContent { tx_pool, tx_queue, account_nonces, _phantom: _ } = mempool_content;
+impl From<MempoolContent> for Mempool {
+    fn from(mempool_content: MempoolContent) -> Mempool {
+        let MempoolContent { tx_pool, tx_queue, account_nonces } = mempool_content;
         Mempool {
             tx_pool: tx_pool.unwrap_or_default(),
             tx_queue: tx_queue.unwrap_or_default(),
