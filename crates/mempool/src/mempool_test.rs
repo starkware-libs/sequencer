@@ -26,17 +26,12 @@ use crate::transaction_queue::TransactionQueue;
 /// Represents the internal content of the mempool.
 /// Enables customized (and potentially inconsistent) creation for unit testing.
 #[derive(Debug)]
-struct MempoolContent<T> {
+struct MempoolContent {
     tx_pool: Option<TransactionPool>,
     tx_queue: Option<TransactionQueue>,
-    // Artificially use generic type, for the compiler.
-    _phantom: std::marker::PhantomData<T>,
 }
 
-#[derive(Debug)]
-struct PartialContent;
-
-impl MempoolContent<PartialContent> {
+impl MempoolContent {
     fn with_pool_and_queue<P, Q>(pool_txs: P, queue_txs: Q) -> Self
     where
         P: IntoIterator<Item = Transaction>,
@@ -46,7 +41,6 @@ impl MempoolContent<PartialContent> {
         Self {
             tx_pool: Some(pool_txs.into_iter().collect()),
             tx_queue: Some(queue_txs.into_iter().collect()),
-            _phantom: std::marker::PhantomData,
         }
     }
 
@@ -54,26 +48,16 @@ impl MempoolContent<PartialContent> {
     where
         P: IntoIterator<Item = Transaction>,
     {
-        Self {
-            tx_pool: Some(pool_txs.into_iter().collect()),
-            tx_queue: None,
-            _phantom: std::marker::PhantomData,
-        }
+        Self { tx_pool: Some(pool_txs.into_iter().collect()), tx_queue: None }
     }
 
     fn with_queue<Q>(queue_txs: Q) -> Self
     where
         Q: IntoIterator<Item = TransactionReference>,
     {
-        Self {
-            tx_queue: Some(queue_txs.into_iter().collect()),
-            tx_pool: None,
-            _phantom: std::marker::PhantomData,
-        }
+        Self { tx_queue: Some(queue_txs.into_iter().collect()), tx_pool: None }
     }
-}
 
-impl<T> MempoolContent<T> {
     fn assert_eq_pool_and_queue_content(&self, mempool: &Mempool) {
         self.assert_eq_pool_content(mempool);
         self.assert_eq_queue_content(mempool);
@@ -88,9 +72,9 @@ impl<T> MempoolContent<T> {
     }
 }
 
-impl<T> From<MempoolContent<T>> for Mempool {
-    fn from(mempool_content: MempoolContent<T>) -> Mempool {
-        let MempoolContent { tx_pool, tx_queue, _phantom: _ } = mempool_content;
+impl From<MempoolContent> for Mempool {
+    fn from(mempool_content: MempoolContent) -> Mempool {
+        let MempoolContent { tx_pool, tx_queue } = mempool_content;
         Mempool {
             tx_pool: tx_pool.unwrap_or_default(),
             tx_queue: tx_queue.unwrap_or_default(),
