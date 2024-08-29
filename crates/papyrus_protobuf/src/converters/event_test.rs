@@ -1,7 +1,9 @@
-use papyrus_test_utils::{get_rng, GetTestInstance};
+use papyrus_test_utils::{auto_impl_get_test_instance, get_rng, GetTestInstance};
 use starknet_api::transaction::{Event, TransactionHash};
 
 use crate::sync::DataOrFin;
+
+auto_impl_get_test_instance! {}
 
 #[test]
 fn convert_event_to_vec_u8_and_back() {
