@@ -11,6 +11,7 @@ use rstest::{fixture, rstest};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce, PatriciaKey};
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::default_testing_resource_bounds;
 use starknet_api::transaction::{
     Calldata,
     EventContent,
@@ -22,7 +23,16 @@ use starknet_api::transaction::{
     TransactionVersion,
     ValidResourceBounds,
 };
-use starknet_api::{calldata, class_hash, contract_address, felt, patricia_key};
+use starknet_api::{
+    calldata,
+    class_hash,
+    contract_address,
+    declare_tx_args,
+    deploy_account_tx_args,
+    felt,
+    invoke_tx_args,
+    patricia_key,
+};
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
@@ -66,7 +76,6 @@ use crate::test_utils::prices::Prices;
 use crate::test_utils::{
     create_calldata,
     create_trivial_calldata,
-    default_testing_resource_bounds,
     get_syscall_resources,
     get_tx_resources,
     test_erc20_sequencer_balance_key,
@@ -124,9 +133,6 @@ use crate::versioned_constants::VersionedConstants;
 use crate::{
     check_transaction_execution_error_for_custom_hint,
     check_transaction_execution_error_for_invalid_scenario,
-    declare_tx_args,
-    deploy_account_tx_args,
-    invoke_tx_args,
     nonce,
     retdata,
 };
