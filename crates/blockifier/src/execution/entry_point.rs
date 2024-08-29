@@ -38,6 +38,7 @@ pub type EntryPointExecutionResult<T> = Result<T, EntryPointExecutionError>;
 pub type ConstructorEntryPointExecutionResult<T> = Result<T, ConstructorEntryPointExecutionError>;
 
 /// Represents a the type of the call (used for debugging).
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq, Serialize)]
 pub enum CallType {
     #[default]
@@ -45,6 +46,7 @@ pub enum CallType {
     Delegate = 1,
 }
 /// Represents a call to an entry point of a Starknet contract.
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CallEntryPoint {
     // The class hash is not given if it can be deduced from the storage address.

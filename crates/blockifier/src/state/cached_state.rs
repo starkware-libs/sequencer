@@ -721,6 +721,7 @@ impl From<StateMaps> for StateChanges {
 }
 
 /// Holds the number of state changes.
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct StateChangesCount {
     pub n_storage_updates: usize,

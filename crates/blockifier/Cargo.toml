@@ -13,6 +13,7 @@ workspace = true
 concurrency = []
 jemalloc = ["dep:tikv-jemallocator"]
 testing = ["rand", "rstest"]
+transaction_serde = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

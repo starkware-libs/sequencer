@@ -152,6 +152,7 @@ pub struct DeprecatedTransactionInfo {
     pub max_fee: Fee,
 }
 
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(
     derive_more::Add, derive_more::Sum, Clone, Copy, Debug, Default, Eq, PartialEq, Serialize,
 )]
@@ -211,6 +212,7 @@ pub struct CommonAccountFields {
 }
 
 /// Contains the information gathered by the execution of a transaction.
+#[cfg_attr(feature = "transaction_serde", derive(Serialize, serde::Deserialize))]
 #[derive(Debug, Default, PartialEq)]
 pub struct TransactionExecutionInfo {
     /// Transaction validation call info; [None] for `L1Handler`.
@@ -269,7 +271,8 @@ impl ResourcesMapping {
     }
 }
 
-/// Containes all the L2 resources consumed by a transaction
+/// Contains all the L2 resources consumed by a transaction
+#[cfg_attr(feature = "transaction_serde", derive(Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct StarknetResources {
     pub calldata_length: usize,
@@ -436,6 +439,7 @@ impl StarknetResources {
     }
 }
 
+#[cfg_attr(feature = "transaction_serde", derive(Serialize, serde::Deserialize))]
 #[derive(Default, Clone, Debug, PartialEq)]
 pub struct TransactionResources {
     pub starknet_resources: StarknetResources,
