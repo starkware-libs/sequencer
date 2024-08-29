@@ -104,6 +104,11 @@ impl Mempool {
         Ok(())
     }
 
+    // TODO(Mohammad): Rename this method once consensus API is added.
+    fn _update_gas_price_threshold(&mut self, threshold: u128) {
+        self.tx_queue._update_gas_price_threshold(threshold);
+    }
+
     fn insert_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
         let MempoolInput { tx, account: Account { sender_address, state: AccountState { nonce } } } =
             input;
