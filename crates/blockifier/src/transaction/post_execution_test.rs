@@ -8,12 +8,11 @@ use starknet_api::transaction::{
     Fee,
     TransactionVersion,
 };
-use starknet_api::{felt, patricia_key};
+use starknet_api::{felt, invoke_tx_args, patricia_key};
 use starknet_types_core::felt::Felt;
 
 use crate::context::{BlockContext, ChainInfo};
 use crate::fee::fee_checks::FeeCheckError;
-use crate::invoke_tx_args;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;

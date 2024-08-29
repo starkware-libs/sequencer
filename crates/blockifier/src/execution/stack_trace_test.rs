@@ -10,12 +10,11 @@ use starknet_api::transaction::{
     TransactionSignature,
     TransactionVersion,
 };
-use starknet_api::{calldata, felt};
+use starknet_api::{calldata, felt, invoke_tx_args};
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::context::{BlockContext, ChainInfo};
-use crate::invoke_tx_args;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::{create_calldata, CairoVersion, BALANCE};

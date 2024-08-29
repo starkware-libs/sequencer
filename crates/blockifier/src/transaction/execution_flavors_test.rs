@@ -2,7 +2,6 @@ use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::core::ContractAddress;
-use starknet_api::felt;
 use starknet_api::transaction::{
     Calldata,
     DeprecatedResourceBoundsMapping,
@@ -10,11 +9,13 @@ use starknet_api::transaction::{
     TransactionSignature,
     TransactionVersion,
 };
+use starknet_api::{felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
 use crate::context::{BlockContext, ChainInfo};
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
+use crate::nonce;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
@@ -47,7 +48,6 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
-use crate::{invoke_tx_args, nonce};
 const VALIDATE_GAS_OVERHEAD: u64 = 21;
 
 struct FlavorTestInitialState {
