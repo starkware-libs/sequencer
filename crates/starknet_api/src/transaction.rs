@@ -957,6 +957,14 @@ impl ValidResourceBounds {
     }
 }
 
+// TODO(Nimrod): Default testing bounds should probably be AllResourceBounds variant.
+#[cfg(any(feature = "testing", test))]
+impl ValidResourceBounds {
+    pub fn create_for_testing() -> Self {
+        Self::L1Gas(ResourceBounds { max_amount: 0, max_price_per_unit: 1 })
+    }
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize)]
 pub struct AllResourceBounds {
     pub l1_gas: ResourceBounds,
