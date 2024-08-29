@@ -43,7 +43,7 @@ env:
 
 jobs:
   executable-run:
-    runs-on: ubuntu-22.04
+    runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
@@ -65,7 +65,7 @@ jobs:
           & sleep 30 ; kill $!
 
   executable-run-no-rpc:
-    runs-on: ubuntu-22.04
+    runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
@@ -87,7 +87,7 @@ jobs:
           & sleep 30 ; kill $!
 
   p2p-sync-e2e-test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -108,7 +108,7 @@ jobs:
           scripts/papyrus/p2p_sync_e2e_test/main.sh ${{ secrets.CI_BASE_LAYER_NODE_URL }}
 
   integration-test:
-    runs-on: ubuntu-22.04
+    runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
@@ -128,7 +128,7 @@ jobs:
           cargo run -r -p papyrus_node --bin central_source_integration_test --features="futures-util tokio-stream"
 
   test-no-rpc:
-    runs-on: ubuntu-22.04
+    runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
@@ -144,7 +144,7 @@ jobs:
           SEED: 0
 
   codecov:
-    runs-on: ubuntu-22.04
+    runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
@@ -175,7 +175,7 @@ jobs:
           version: "v0.1.15"
 
   check-starknet_api-dependency:
-    runs-on: ubuntu-22.04
+    runs-on: starkware-ubuntu-latest-small
     if: github.base_ref == 'main' # this step is only run if the pr is to the main branch
     steps:
       - uses: actions/checkout@v4
@@ -183,7 +183,7 @@ jobs:
       - run: ./check_starknet_api_version_dependency.sh # this script checks that if the starknet_api dependency is by git rev then this rev (commit) is on main
 
   build-papyrus-utilities-image:
-    runs-on: ubuntu-22.04
+    runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
@@ -199,7 +199,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=buildkit-ci
 
   random-table-test:
-    runs-on: ubuntu-22.04
+    runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
       # run this job only if the path 'crates/papyrus_storage/src/db/**' is changed, because it takes around 2 minutes.
