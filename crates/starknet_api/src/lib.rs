@@ -15,6 +15,8 @@ pub mod hash;
 pub mod rpc_transaction;
 pub mod serde_utils;
 pub mod state;
+#[cfg(any(feature = "testing", test))]
+pub mod test_utils;
 pub mod transaction;
 pub mod transaction_hash;
 pub mod type_utils;
