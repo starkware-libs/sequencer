@@ -35,6 +35,34 @@ ENV PROTOC=/root/.local/bin/protoc
 # # resulting in more portable executables that can run on any Linux distribution.
 # RUN rustup target add x86_64-unknown-linux-musl
 
+# Install dependencies
+RUN apt update -y && apt install -y lsb-release \
+    wget \
+    curl \
+    git \
+    build-essential \
+    libclang-dev \
+    libz-dev \
+    libzstd-dev \
+    libssl-dev \
+    pkg-config \
+    gnupg
+
+
+# Install LLVM 18
+RUN echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" > /etc/apt/sources.list.d/llvm-18.list
+RUN echo "deb-src http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" >> /etc/apt/sources.list.d/llvm-18.list
+RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+
+RUN apt update -y && apt install -y --ignore-missing --allow-downgrades \
+    libmlir-18-dev \
+    libpolly-18-dev \
+    llvm-18-dev \
+    mlir-18-tools
+ENV MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/
+ENV LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/
+ENV TABLEGEN_180_PREFIX=/usr/lib/llvm-18/
+
 #####################
 # Stage 1 (planer): #
 #####################
@@ -77,6 +105,11 @@ WORKDIR /app
 # Copy the node executable and its configuration.
 COPY --from=builder /app/target/release/papyrus_node /app/target/release/papyrus_node
 COPY config config
+
+COPY --from=chef /usr/lib/llvm-18/ /usr/lib/llvm-18/
+ENV MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/
+ENV LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/
+ENV TABLEGEN_180_PREFIX=/usr/lib/llvm-18/
 
 # Install tini, a lightweight init system, to call our executable.
 RUN apt install tini
