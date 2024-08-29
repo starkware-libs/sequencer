@@ -18,6 +18,7 @@ use starknet_mempool_types::mempool_types::{Account, AccountState};
 use starknet_types_core::felt::Felt;
 
 use crate::mempool::{AccountToNonce, Mempool, MempoolInput, TransactionReference};
+use crate::suspended_transaction_pool::SuspendedTransactionPool;
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
 
@@ -30,6 +31,7 @@ struct MempoolContent {
     tx_pool: Option<TransactionPool>,
     tx_queue: Option<TransactionQueue>,
     account_nonces: Option<AccountToNonce>,
+    suspended_tx_pool: Option<SuspendedTransactionPool>,
 }
 
 impl MempoolContent {
@@ -63,6 +65,14 @@ impl MempoolContent {
     fn _with_account_nonces(account_nonce_pairs: Vec<(ContractAddress, Nonce)>) -> Self {
         Self { account_nonces: Some(account_nonce_pairs.into_iter().collect()), ..Self::default() }
     }
+
+    fn _with_suspended_tx_pool<S>(suspended_txs: S) -> Self
+    where
+        S: IntoIterator<Item = TransactionReference>,
+    {
+        Self { suspended_tx_pool: Some(suspended_txs.into_iter().collect()), ..Self::default() }
+    }
+
     fn assert_eq_pool_and_queue_content(&self, mempool: &Mempool) {
         self.assert_eq_pool_content(mempool);
         self.assert_eq_queue_content(mempool);
@@ -79,16 +89,21 @@ impl MempoolContent {
     fn _assert_eq_account_nonces(&self, mempool: &Mempool) {
         assert_eq!(self.account_nonces.as_ref().unwrap(), &mempool._account_nonces);
     }
+
+    fn _assert_eq_suspended_tx_pool_content(&self, mempool: &Mempool) {
+        assert_eq!(self.suspended_tx_pool.as_ref().unwrap(), &mempool._suspended_tx_pool);
+    }
 }
 
 impl From<MempoolContent> for Mempool {
     fn from(mempool_content: MempoolContent) -> Mempool {
-        let MempoolContent { tx_pool, tx_queue, account_nonces } = mempool_content;
+        let MempoolContent { tx_pool, tx_queue, account_nonces, suspended_tx_pool } =
+            mempool_content;
         Mempool {
             tx_pool: tx_pool.unwrap_or_default(),
             tx_queue: tx_queue.unwrap_or_default(),
+            _suspended_tx_pool: suspended_tx_pool.unwrap_or_default(),
             // TODO: Add implementation when needed.
-            _suspended_tx_pool: Default::default(),
             mempool_state: Default::default(),
             _account_nonces: account_nonces.unwrap_or_default(),
         }
@@ -112,6 +127,16 @@ impl FromIterator<TransactionReference> for TransactionQueue {
             queue.insert(tx);
         }
         queue
+    }
+}
+
+impl FromIterator<TransactionReference> for SuspendedTransactionPool {
+    fn from_iter<T: IntoIterator<Item = TransactionReference>>(txs: T) -> Self {
+        let mut suspended_tx_pool = Self::default();
+        for tx in txs {
+            suspended_tx_pool._insert(tx);
+        }
+        suspended_tx_pool
     }
 }
 

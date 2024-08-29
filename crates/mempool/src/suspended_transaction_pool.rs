@@ -6,7 +6,7 @@ use crate::mempool::TransactionReference;
 
 type AddressNonceToTransaction = HashMap<(ContractAddress, Nonce), TransactionReference>;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct SuspendedTransactionPool {
     _suspended_tx_pool: AddressNonceToTransaction,
 }
