@@ -132,6 +132,7 @@ impl MultiHeightManager {
         )>,
     {
         let validators = context.validators(height).await;
+        info!("running consensus for height {height:?} with validator set {validators:?}");
         let mut shc = SingleHeightConsensus::new(
             height,
             self.validator_id,
