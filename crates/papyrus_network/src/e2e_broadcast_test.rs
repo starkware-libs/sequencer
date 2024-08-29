@@ -5,6 +5,7 @@ use libp2p::core::multiaddr::Protocol;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{Multiaddr, Swarm};
 use libp2p_swarm_test::SwarmExt;
+use papyrus_protobuf::consensus::StreamMessage;
 use starknet_api::core::ChainId;
 
 use crate::gossipsub_impl::Topic;
@@ -12,7 +13,6 @@ use crate::mixed_behaviour::MixedBehaviour;
 use crate::network_manager::GenericNetworkManager;
 use crate::sqmr;
 use crate::sqmr::Bytes;
-use papyrus_protobuf::consensus::StreamMessage;
 
 const TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -89,7 +89,7 @@ async fn broadcast_subscriber_end_to_end_test() {
     let mut subscriber_channels1_2 =
         network_manager1.register_broadcast_topic::<Number>(topic2.clone(), BUFFER_SIZE).unwrap();
 
-    let subscriber_channels2_1: crate::network_manager::BroadcastSubscriberChannels<Number> =
+    let subscriber_channels2_1 =
         network_manager2.register_broadcast_topic::<Number>(topic1.clone(), BUFFER_SIZE).unwrap();
     let subscriber_channels2_2 =
         network_manager2.register_broadcast_topic::<Number>(topic2.clone(), BUFFER_SIZE).unwrap();
@@ -129,7 +129,7 @@ async fn broadcast_subscriber_end_to_end_test() {
 #[tokio::test]
 async fn broadcast_stream_message_test() {
     let topic1 = Topic::new("TOPIC1");
-    
+
     let bootstrap_swarm = create_swarm(None).await;
     let bootstrap_peer_multiaddr = bootstrap_swarm.external_addresses().next().unwrap().clone();
     let bootstrap_peer_multiaddr =
@@ -140,12 +140,14 @@ async fn broadcast_stream_message_test() {
     let mut network_manager2 =
         create_network_manager(create_swarm(Some(bootstrap_peer_multiaddr)).await);
 
-    let mut broadcaster =
-        network_manager1.register_broadcast_topic::<StreamMessage>(topic1.clone(), BUFFER_SIZE).unwrap();
-    
-    let subscriber =
-        network_manager2.register_broadcast_topic::<StreamMessage>(topic1.clone(), BUFFER_SIZE).unwrap();
-    
+    let mut broadcaster = network_manager1
+        .register_broadcast_topic::<StreamMessage>(topic1.clone(), BUFFER_SIZE)
+        .unwrap();
+
+    let subscriber = network_manager2
+        .register_broadcast_topic::<StreamMessage>(topic1.clone(), BUFFER_SIZE)
+        .unwrap();
+
     tokio::select! {
         _ = network_manager1.run() => panic!("network manager ended"),
         _ = network_manager2.run() => panic!("network manager ended"),
@@ -162,11 +164,11 @@ async fn broadcast_stream_message_test() {
                 broadcaster.messages_to_broadcast_sender.send(msg1.clone()).await.unwrap();
                 broadcaster.messages_to_broadcast_sender.send(msg2.clone()).await.unwrap();
                 broadcaster.messages_to_broadcast_sender.send(msg3.clone()).await.unwrap();
-                
+
                 println!("Original message 1: {:?}", msg1);
 
-                // note that the messages can arrive in any order! 
-                let mut received = Vec::new();                
+                // note that the messages can arrive in any order!
+                let mut received = Vec::new();
                 for _ in 0..3 {
                     let (received_msg, _report_callback) =
                         broadcasted_messages_receiver.next().await.unwrap();
@@ -179,9 +181,9 @@ async fn broadcast_stream_message_test() {
                 assert_eq!(received[1], msg2);
                 assert_eq!(received[2], msg3);
 
-                
+
                 assert!(broadcasted_messages_receiver.next().now_or_never().is_none());
-                
+
             }
         ) => {
             result.unwrap()

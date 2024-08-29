@@ -5,7 +5,7 @@ use starknet_api::block::BlockHash;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::Transaction;
 
-use crate::consensus::{ConsensusMessage, Proposal, Vote, VoteType, StreamMessage};
+use crate::consensus::{ConsensusMessage, Proposal, StreamMessage, Vote, VoteType};
 use crate::converters::ProtobufConversionError;
 use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};
 
@@ -106,7 +106,6 @@ impl From<Vote> for protobuf::Vote {
 }
 
 auto_impl_into_and_try_from_vec_u8!(Vote, protobuf::Vote);
-
 
 impl TryFrom<protobuf::StreamMessage> for StreamMessage {
     type Error = ProtobufConversionError;

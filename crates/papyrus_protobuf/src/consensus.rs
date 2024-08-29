@@ -46,5 +46,5 @@ pub struct StreamMessage {
     pub message: Vec<u8>,
     pub stream_id: u64,
     pub chunk_id: u64,
-    pub done: bool, 
+    pub done: bool,
 }
