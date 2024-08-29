@@ -3,16 +3,16 @@ name: Papyrus-Docker-Publish
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
-    tags: [ "v*.*.*" ]
+    branches: [main]
+    tags: ["v*.*.*"]
     paths:
-      - '.github/workflows/papyrus_docker-publish.yml'
-      - 'crates/papyrus**/**'
+      - ".github/workflows/papyrus_docker-publish.yml"
+      - "crates/papyrus**/**"
 
   pull_request:
     paths:
-      - '.github/workflows/papyrus_docker-publish.yml'
-      - 'crates/papyrus**/**'
+      - ".github/workflows/papyrus_docker-publish.yml"
+      - "crates/papyrus**/**"
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
@@ -69,6 +69,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v3.2.0
         with:
+          file: dynamic.Dockerfile
           context: .
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}

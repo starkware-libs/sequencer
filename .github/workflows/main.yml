@@ -16,14 +16,9 @@ on:
       - auto_merge_enabled
       - edited
 
-# On PR events, cancel existing CI runs on this same PR for this workflow.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 jobs:
   commitlint:
-    runs-on: starkware-ubuntu-latest-small
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,7 +57,7 @@ jobs:
         id: native-deps
       - uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: "v0-rust-ubuntu-20.04"
+          prefix-key: "v0-rust-ubuntu-22.04"
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
@@ -108,7 +103,6 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/bootstrap
       - uses: Noelware/setup-protoc@1.1.0
-
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
         id: setup-pypy
@@ -124,6 +118,7 @@ jobs:
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
           ci/bin/python scripts/run_tests.py --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
+          ci/bin/python scripts/run_tests.py --changes_only --concurrency --commit_id ${{ github.event.pull_request.base.sha }}
         env:
           SEED: 0
 
@@ -134,6 +129,7 @@ jobs:
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
           ci/bin/python scripts/run_tests.py
+          ci/bin/python scripts/run_tests.py --concurrency
         env:
           SEED: 0
 
