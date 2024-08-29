@@ -1,6 +1,8 @@
 use papyrus_test_utils::{get_rng, auto_impl_get_test_instance, GetTestInstance};
 use crate::consensus::StreamMessage;
 
+// TODO(guyn): add tests for other serializable objects in consensus
+
 auto_impl_get_test_instance!{
     pub struct StreamMessage {
         message: Vec<u8>,
