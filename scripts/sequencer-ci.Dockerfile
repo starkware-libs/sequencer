@@ -16,6 +16,10 @@ ENV RUSTUP_HOME=/var/tmp/rust
 ENV CARGO_HOME=${RUSTUP_HOME}
 ENV PATH=$PATH:${RUSTUP_HOME}/bin
 
+ENV MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/
+ENV LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/
+ENV TABLEGEN_180_PREFIX=/usr/lib/llvm-18/
+
 COPY install_build_tools.sh .
 COPY dependencies.sh .
 
