@@ -115,7 +115,7 @@ jobs:
       - run: cargo test -p workspace_tests
 
   run-tests:
-    runs-on: starkware-ubuntu-20-04-large
+    runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
         with:
