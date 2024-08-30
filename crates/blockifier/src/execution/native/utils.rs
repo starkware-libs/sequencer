@@ -1,5 +1,4 @@
-use std::collections::{HashMap, HashSet};
-use std::hash::RandomState;
+use std::collections::HashMap;
 
 use ark_ff::BigInt;
 use cairo_lang_sierra::ids::FunctionId;
@@ -12,17 +11,10 @@ use itertools::Itertools;
 use num_bigint::BigUint;
 use num_traits::ToBytes;
 use starknet_api::core::{ContractAddress, EntryPointSelector};
-use starknet_api::state::StorageKey;
 use starknet_api::transaction::Resource;
 use starknet_types_core::felt::Felt;
 
-use crate::execution::call_info::{
-    CallExecution,
-    CallInfo,
-    OrderedEvent,
-    OrderedL2ToL1Message,
-    Retdata,
-};
+use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionResult};
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
@@ -32,10 +24,6 @@ use crate::transaction::objects::CurrentTransactionInfo;
 #[cfg(test)]
 #[path = "utils_test.rs"]
 pub mod test;
-
-// An arbitrary number, chosen to avoid accidentally aligning with actually calculated gas
-// To be deleted once cairo native gas handling can be used
-pub const NATIVE_GAS_PLACEHOLDER: u64 = 12;
 
 pub fn contract_address_to_native_felt(contract_address: ContractAddress) -> Felt {
     *contract_address.0.key()
@@ -75,43 +63,42 @@ pub fn run_native_executor(
         Ok(res) => Ok(res),
     }?;
 
-    create_callinfo(
-        call.clone(),
-        run_result,
-        syscall_handler.events,
-        syscall_handler.l2_to_l1_messages,
-        syscall_handler.inner_calls,
-        syscall_handler.storage_read_values,
-        syscall_handler.accessed_storage_keys,
-    )
+    create_callinfo(call, run_result, syscall_handler)
 }
 
-pub fn create_callinfo(
+fn create_callinfo(
     call: CallEntryPoint,
     run_result: ContractExecutionResult,
-    events: Vec<OrderedEvent>,
-    l2_to_l1_messages: Vec<OrderedL2ToL1Message>,
-    inner_calls: Vec<CallInfo>,
-    storage_read_values: Vec<Felt>,
-    accessed_storage_keys: HashSet<StorageKey, RandomState>,
+    syscall_handler: NativeSyscallHandler<'_>,
 ) -> Result<CallInfo, EntryPointExecutionError> {
+    let gas_consumed = {
+        let low = run_result.remaining_gas as u64;
+        let high = (run_result.remaining_gas >> 64) as u64;
+        if high != 0 {
+            return Err(EntryPointExecutionError::NativeExecutionError {
+                info: "Overflow: gas consumed bigger than 64 bit".into(),
+            });
+        }
+        call.initial_gas - low
+    };
+
     Ok(CallInfo {
         call,
         execution: CallExecution {
             retdata: Retdata(run_result.return_values),
-            events,
-            l2_to_l1_messages,
+            events: syscall_handler.events,
+            l2_to_l1_messages: syscall_handler.l2_to_l1_messages,
             failed: run_result.failure_flag,
-            gas_consumed: NATIVE_GAS_PLACEHOLDER,
+            gas_consumed,
         },
         resources: ExecutionResources {
             n_steps: 0,
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::default(),
         },
-        inner_calls,
-        storage_read_values,
-        accessed_storage_keys,
+        inner_calls: syscall_handler.inner_calls,
+        storage_read_values: syscall_handler.storage_read_values,
+        accessed_storage_keys: syscall_handler.accessed_storage_keys,
     })
 }
 
