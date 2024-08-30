@@ -7,7 +7,6 @@ use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, Retdata};
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::native::utils::NATIVE_GAS_PLACEHOLDER;
 use crate::retdata;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
@@ -16,19 +15,19 @@ use crate::test_utils::{create_calldata, trivial_external_entry_point_new, Cairo
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Native),
     FeatureContract::TestContract(CairoVersion::Native),
-    NATIVE_GAS_PLACEHOLDER;
+    188570;
     "Call Contract between two contracts using Native"
 )]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Native),
     FeatureContract::TestContract(CairoVersion::Cairo1),
-    168558 + NATIVE_GAS_PLACEHOLDER;
+    REQUIRED_GAS_CALL_CONTRACT_TEST;
     "Call Contract with caller using Native and callee using VM"
 )]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1),
     FeatureContract::TestContract(CairoVersion::Native),
-    NATIVE_GAS_PLACEHOLDER;
+    188570;
     "Call Contract with caller using VM and callee using Native")
 ]
 #[test_case(
