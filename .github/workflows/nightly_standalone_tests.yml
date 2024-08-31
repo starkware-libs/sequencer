@@ -1,0 +1,17 @@
+name: Nightly Standalone Tests
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs at 00:00 UTC every day
+
+jobs:
+  standalone_tests:
+    name: Standalone Tests
+    runs-on: starkware-ubuntu-latest-medium
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/install_rust
+        run: |
+          python3 -m venv ci
+          ci/bin/pip install -r scripts/requirements.txt
+          ci/bin/python scripts/run_tests.py --standalone

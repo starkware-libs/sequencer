@@ -20,12 +20,48 @@ def packages_to_test_due_to_global_changes(files: List[str]) -> Set[str]:
     return set()
 
 
-def run_test(changes_only: bool, commit_id: Optional[str]):
-    local_changes = get_local_changes(".", commit_id=commit_id)
-    modified_packages = get_modified_packages(local_changes)
-    args = []
+def test_crates(crates: Set[str], standalone: bool):
+    """
+    Runs tests for the given crates.
+    If no crates provided, runs tests for all crates.
+    """
+    if standalone:
+        erring_crates = []
+        for package in crates:
+            print(f"Running tests for {package}...")
+            cmd = ["cargo", "test", "--package", package]
+            print(cmd, flush=True)
+            try:
+                subprocess.run(cmd, check=True)
+            except subprocess.CalledProcessError:
+                erring_crates.append(package)
+        assert len(erring_crates) == 0, f"Tests failed for the following crates: {erring_crates}."
+    else:
+        args = []
+        for package in crates:
+            args.extend(["--package", package])
+
+        # If crates is empty (i.e. changes_only is False), all packages will be tested (no args).
+        cmd = ["cargo", "test"] + args
+
+        print("Running tests...")
+        print(cmd, flush=True)
+        subprocess.run(cmd, check=True)
+        print("Tests complete.")
+
+
+def run_test(changes_only: bool, commit_id: Optional[str], standalone: bool):
+    """
+    Runs tests.
+    If changes_only is True, only tests packages that have been modified; if no packages have been
+    modified, no tests are run. If changes_only is False, tests all packages.
+    If commit_id is provided, compares against that commit; otherwise, compares against HEAD.
+    If standalone is True, runs each crate's test suite separately (minimal feature activation).
+    """
     tested_packages = set()
     if changes_only:
+        local_changes = get_local_changes(".", commit_id=commit_id)
+        modified_packages = get_modified_packages(local_changes)
         for p in modified_packages:
             deps = get_package_dependencies(p)
             tested_packages.update(deps)
@@ -38,29 +74,24 @@ def run_test(changes_only: bool, commit_id: Optional[str]):
             print("No changes detected.")
             return
 
-    for package in tested_packages:
-        args.extend(["--package", package])
-
-    # If tested_packages is empty (i.e. changes_only is False), all packages will be tested (no
-    # args).
-    cmd = ["cargo", "test"] + args
-
-    print("Running tests...")
-    print(cmd, flush=True)
-    subprocess.run(cmd, check=True)
-    print("Tests complete.")
+    test_crates(crates=tested_packages, standalone=standalone)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Presubmit script.")
     parser.add_argument("--changes_only", action="store_true")
+    parser.add_argument(
+        "--standalone",
+        action="store_true",
+        help="Run each crate's test suite separately (minimal feature activation).",
+    )
     parser.add_argument("--commit_id", type=str, help="GIT commit ID to compare against.")
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    run_test(changes_only=args.changes_only, commit_id=args.commit_id)
+    run_test(changes_only=args.changes_only, commit_id=args.commit_id, standalone=args.standalone)
 
 
 if __name__ == "__main__":
