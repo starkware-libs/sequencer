@@ -111,8 +111,6 @@ pub const CURRENT_BLOCK_NUMBER_FOR_VALIDATE: u64 = 2000;
 pub const CURRENT_BLOCK_TIMESTAMP: u64 = 1072023;
 pub const CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE: u64 = 1069200;
 
-pub const CHAIN_ID_NAME: &str = "SN_GOERLI";
-
 #[derive(Default)]
 pub struct NonceManager {
     next_nonce: HashMap<ContractAddress, Felt>,
