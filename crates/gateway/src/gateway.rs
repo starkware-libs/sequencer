@@ -6,7 +6,6 @@ use async_trait::async_trait;
 use axum::extract::State;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use blockifier::execution::contract_class::ClassInfo;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -23,6 +22,7 @@ use crate::rpc_state_reader::RpcStateReaderFactory;
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
+use crate::utils::compile_contract_and_build_executable_tx;
 
 #[cfg(test)]
 #[path = "gateway_test.rs"]
@@ -130,25 +130,44 @@ fn process_tx(
     // Perform stateless validations.
     stateless_tx_validator.validate(&tx)?;
 
-    // Compile Sierra to Casm.
-    let optional_class_info = match &tx {
-        RpcTransaction::Declare(declare_tx) => Some(
-            ClassInfo::try_from(gateway_compiler.process_declare_tx(declare_tx)?).map_err(|e| {
+    // TODO(Arni): remove copy_of_rpc_tx and use executable_tx directly as the mempool input.
+    let copy_of_rpc_tx = tx.clone();
+    let executable_tx = compile_contract_and_build_executable_tx(
+        tx,
+        &gateway_compiler,
+        &stateful_tx_validator.config.chain_info.chain_id,
+    )?;
+
+    // Perfom post compilation validations.
+    if let Transaction::Declare(executable_declare_tx) = &executable_tx {
+        if !executable_declare_tx.validate_compiled_class_hash() {
+            return Err(GatewaySpecError::CompiledClassHashMismatch);
+        }
+    }
+
+    let optional_class_info = match executable_tx {
+        starknet_api::executable_transaction::Transaction::Declare(tx) => {
+            Some(tx.class_info.try_into().map_err(|e| {
                 error!("Failed to convert Starknet API ClassInfo to Blockifier ClassInfo: {:?}", e);
                 GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
-            })?,
-        ),
+            })?)
+        }
         _ => None,
     };
 
     let validator = stateful_tx_validator.instantiate_validator(state_reader_factory)?;
     // TODO(Yael 31/7/24): refactor after IntrnalTransaction is ready, delete validate_info and
     // compute all the info outside of run_validate.
-    let validate_info = stateful_tx_validator.run_validate(&tx, optional_class_info, validator)?;
+    let validate_info =
+        stateful_tx_validator.run_validate(&copy_of_rpc_tx, optional_class_info, validator)?;
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
     Ok(MempoolInput {
-        tx: Transaction::new_from_rpc_tx(tx, validate_info.tx_hash, validate_info.sender_address),
+        tx: Transaction::new_from_rpc_tx(
+            copy_of_rpc_tx,
+            validate_info.tx_hash,
+            validate_info.sender_address,
+        ),
         account: Account {
             sender_address: validate_info.sender_address,
             state: AccountState { nonce: validate_info.account_nonce },
