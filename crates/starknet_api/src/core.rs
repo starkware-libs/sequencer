@@ -72,6 +72,15 @@ impl ChainId {
     }
 }
 
+#[cfg(any(feature = "testing", test))]
+impl ChainId {
+    pub fn create_for_testing() -> Self {
+        const CHAIN_ID_NAME: &str = "SN_GOERLI";
+
+        ChainId::Other(CHAIN_ID_NAME.to_string())
+    }
+}
+
 /// The address of a contract, used for example in [StateDiff](`crate::state::StateDiff`),
 /// [DeclareTransaction](`crate::transaction::DeclareTransaction`), and
 /// [BlockHeader](`crate::block::BlockHeader`).
