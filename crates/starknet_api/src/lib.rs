@@ -19,7 +19,6 @@ pub mod transaction;
 pub mod transaction_hash;
 pub mod type_utils;
 
-use core::CompiledClassHash;
 use std::num::ParseIntError;
 
 use serde_utils::InnerDeserializationError;
@@ -40,12 +39,4 @@ pub enum StarknetApiError {
     /// Missing resource type / duplicated resource type.
     #[error("Missing resource type / duplicated resource type; got {0}.")]
     InvalidResourceMappingInitializer(String),
-    #[error(
-        "Compiled class hash mismatch. Supplied: {supplied_compiled_class_hash:?}, Hash result: \
-         {compiled_class_hash:?}"
-    )]
-    CompiledClassHashMismatch {
-        supplied_compiled_class_hash: CompiledClassHash,
-        compiled_class_hash: CompiledClassHash,
-    },
 }
