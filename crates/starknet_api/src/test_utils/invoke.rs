@@ -1,6 +1,7 @@
 use crate::calldata;
-use crate::core::{ContractAddress, Nonce};
+use crate::core::{ChainId, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
+use crate::executable_transaction::InvokeTransaction as ExecutableInvokeTransaction;
 use crate::transaction::{
     AccountDeploymentData,
     Calldata,
@@ -102,4 +103,9 @@ pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
     } else {
         panic!("Unsupported transaction version: {:?}.", invoke_args.version)
     }
+}
+
+pub fn executable_invoke_tx(invoke_args: InvokeTxArgs) -> ExecutableInvokeTransaction {
+    let tx = invoke_tx(invoke_args);
+    ExecutableInvokeTransaction::create(tx, &ChainId::create_for_testing()).unwrap()
 }
