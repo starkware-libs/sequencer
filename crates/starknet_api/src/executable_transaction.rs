@@ -11,7 +11,7 @@ use crate::core::{
     Nonce,
 };
 use crate::data_availability::DataAvailabilityMode;
-use crate::rpc_transaction::RpcTransaction;
+use crate::rpc_transaction::{RpcDeployAccountTransaction, RpcInvokeTransaction, RpcTransaction};
 use crate::transaction::{
     AccountDeploymentData,
     Calldata,
@@ -212,6 +212,14 @@ impl DeployAccountTransaction {
             deploy_account_tx.calculate_transaction_hash(chain_id, &deploy_account_tx.version())?;
         Ok(Self { tx: deploy_account_tx, tx_hash, contract_address })
     }
+
+    pub fn from_rpc_tx(
+        rpc_tx: RpcDeployAccountTransaction,
+        chain_id: &ChainId,
+    ) -> Result<Self, StarknetApiError> {
+        let deploy_account_tx: crate::transaction::DeployAccountTransaction = rpc_tx.into();
+        Self::new(deploy_account_tx, chain_id)
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -240,5 +248,13 @@ impl InvokeTransaction {
     ) -> Result<Self, StarknetApiError> {
         let tx_hash = invoke_tx.calculate_transaction_hash(chain_id, &invoke_tx.version())?;
         Ok(Self { tx: invoke_tx, tx_hash })
+    }
+
+    pub fn from_rpc_tx(
+        rpc_tx: RpcInvokeTransaction,
+        chain_id: &ChainId,
+    ) -> Result<Self, StarknetApiError> {
+        let invoke_tx: crate::transaction::InvokeTransaction = rpc_tx.into();
+        Self::new(invoke_tx, chain_id)
     }
 }
