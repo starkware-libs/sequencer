@@ -363,10 +363,13 @@ fn register_to_network(network_config: Option<NetworkConfig>) -> anyhow::Result<
         network_manager.register_sqmr_protocol_client(Protocol::StateDiff.into(), BUFFER_SIZE);
     let transaction_client_sender =
         network_manager.register_sqmr_protocol_client(Protocol::Transaction.into(), BUFFER_SIZE);
+    let class_client_sender =
+        network_manager.register_sqmr_protocol_client(Protocol::Class.into(), BUFFER_SIZE);
     let p2p_sync_client_channels = P2PSyncClientChannels::new(
         header_client_sender,
         state_diff_client_sender,
         transaction_client_sender,
+        class_client_sender,
     );
 
     let header_server_receiver = network_manager
