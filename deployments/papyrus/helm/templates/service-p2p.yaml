@@ -1,4 +1,4 @@
-{{- if and ( not .Values.backup.enabled ) .Values.p2p.service.enabled }}
+{{- if and ( not .Values.backup.enabled ) .Values.p2pService.enabled }}
 ---
 apiVersion: v1
 kind: Service
@@ -9,10 +9,10 @@ metadata:
 spec:
   selector:
     {{- include "papyrus.selectorLabels" . | nindent 6 }}
-  type: {{ .Values.p2p.service.type }}
+  type: {{ .Values.p2pService.type }}
   ports:
   - name: p2p
-    port: {{ .Values.p2p.service.port }}
-    protocol: {{ .Values.p2p.service.protocol }}
+    port: {{ .Values.p2pService.port }}
+    protocol: {{ .Values.p2pService.protocol }}
     targetPort: p2p
 {{- end }}

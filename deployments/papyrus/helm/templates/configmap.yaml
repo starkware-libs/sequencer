@@ -1,3 +1,4 @@
+{{- if .Values.deployment.configFile }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -5,15 +6,6 @@ metadata:
   labels:
     {{- include "papyrus.labels" . | nindent 4 }}
 data:
-  RUST_LOG: {{ .Values.rustLogLevel }}
-  PRESET: {{ .Values.starknet.preset }}
-  CONCURRENT_REQUESTS: {{ .Values.node.concurrentFgRequests | quote }}
-  {{- if .Values.starknet.additionalHeaders }}
-  ADDITIONAL_HEADER: {{ .Values.starknet.additionalHeaders }}
-  {{- end }}
-  {{- if .Values.backup.enabled }}
-  SLEEP_INTERVAL: {{ .Values.backup.sleepInterval }}
-  S3_BUCKET_NAME: {{ .Values.backup.aws.s3BucketName }}
-  PAPYRUS_VERSION: {{ .Values.image.tag | quote }}
-  COMPRESS_BACKUP: {{ .Values.backup.compress | quote }}
-  {{- end }}
+  config.json: |-
+    {{ .Files.Get (printf "%s" .Values.deployment.configFile) | nindent 4 }}
+{{- end }}
