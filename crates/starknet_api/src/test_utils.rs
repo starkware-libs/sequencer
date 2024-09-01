@@ -3,6 +3,9 @@ use crate::transaction::{DeprecatedResourceBoundsMapping, Resource, ResourceBoun
 pub mod declare;
 pub mod deploy_account;
 pub mod invoke;
+pub mod struct_impls;
+
+pub const CHAIN_ID_NAME: &str = "SN_GOERLI";
 
 pub fn default_testing_resource_bounds() -> DeprecatedResourceBoundsMapping {
     DeprecatedResourceBoundsMapping::try_from(vec![

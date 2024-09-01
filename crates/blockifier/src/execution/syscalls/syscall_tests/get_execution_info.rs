@@ -5,6 +5,7 @@ use num_traits::Pow;
 use starknet_api::core::ChainId;
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::felt;
+use starknet_api::test_utils::CHAIN_ID_NAME;
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
@@ -32,7 +33,6 @@ use crate::test_utils::{
     trivial_external_entry_point_with_address,
     CairoVersion,
     BALANCE,
-    CHAIN_ID_NAME,
     CURRENT_BLOCK_NUMBER,
     CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
     CURRENT_BLOCK_TIMESTAMP,

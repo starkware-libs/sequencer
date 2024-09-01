@@ -11,7 +11,7 @@ use rstest::{fixture, rstest};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce, PatriciaKey};
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
-use starknet_api::test_utils::default_testing_resource_bounds;
+use starknet_api::test_utils::{default_testing_resource_bounds, CHAIN_ID_NAME};
 use starknet_api::transaction::{
     Calldata,
     DeprecatedResourceBoundsMapping,
@@ -83,7 +83,6 @@ use crate::test_utils::{
     NonceManager,
     SaltManager,
     BALANCE,
-    CHAIN_ID_NAME,
     CURRENT_BLOCK_NUMBER,
     CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
     CURRENT_BLOCK_TIMESTAMP,

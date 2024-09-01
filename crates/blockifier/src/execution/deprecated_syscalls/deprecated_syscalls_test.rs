@@ -7,6 +7,7 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::core::{calculate_contract_address, ChainId, PatriciaKey};
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::CHAIN_ID_NAME;
 use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
@@ -37,7 +38,6 @@ use crate::test_utils::{
     get_syscall_resources,
     trivial_external_entry_point_new,
     CairoVersion,
-    CHAIN_ID_NAME,
     CURRENT_BLOCK_NUMBER,
     CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
     CURRENT_BLOCK_TIMESTAMP,
