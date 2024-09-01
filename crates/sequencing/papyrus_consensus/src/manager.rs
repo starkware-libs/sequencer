@@ -157,7 +157,7 @@ impl MultiHeightManager {
                     self.handle_message(context, height, &mut shc, message?).await?
                 },
                 Some(shc_task) = shc_tasks.next() => {
-                    shc.handle_task(context, shc_task).await?
+                    shc.handle_event(context, shc_task.event).await?
                 },
             };
 
@@ -198,7 +198,7 @@ impl MultiHeightManager {
             if message.height() > height.0 {
                 self.cached_messages.entry(message.height()).or_default().push(message);
             }
-            return Ok(ShcReturn::Tasks(vec![]));
+            return Ok(ShcReturn::Tasks(Vec::new()));
         }
         match message {
             ConsensusMessage::Proposal(proposal) => {
