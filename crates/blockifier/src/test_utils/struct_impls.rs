@@ -24,7 +24,6 @@ use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::state::state_api::State;
 use crate::test_utils::{
     get_raw_contract_class,
-    CHAIN_ID_NAME,
     CURRENT_BLOCK_NUMBER,
     CURRENT_BLOCK_TIMESTAMP,
     DEFAULT_ETH_L1_DATA_GAS_PRICE,
@@ -141,7 +140,7 @@ impl GasCosts {
 impl ChainInfo {
     pub fn create_for_testing() -> Self {
         Self {
-            chain_id: ChainId::Other(CHAIN_ID_NAME.to_string()),
+            chain_id: ChainId::creatre_for_testing(),
             fee_token_addresses: FeeTokenAddresses {
                 eth_fee_token_address: contract_address!(TEST_ERC20_CONTRACT_ADDRESS),
                 strk_fee_token_address: contract_address!(TEST_ERC20_CONTRACT_ADDRESS2),

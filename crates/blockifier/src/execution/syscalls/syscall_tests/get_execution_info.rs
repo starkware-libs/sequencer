@@ -32,7 +32,6 @@ use crate::test_utils::{
     trivial_external_entry_point_with_address,
     CairoVersion,
     BALANCE,
-    CHAIN_ID_NAME,
     CURRENT_BLOCK_NUMBER,
     CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
     CURRENT_BLOCK_TIMESTAMP,
@@ -171,13 +170,13 @@ fn test_get_execution_info(
     let tx_info: TransactionInfo;
     if version == TransactionVersion::ONE {
         expected_tx_info = vec![
-            version.0,                                                   /* Transaction
-                                                                          * version. */
+            version.0,                                        /* Transaction
+                                                               * version. */
             *sender_address.0.key(), // Account address.
             felt!(max_fee.0),        // Max fee.
             Felt::ZERO,              // Signature.
             tx_hash.0,               // Transaction hash.
-            felt!(&*ChainId::Other(CHAIN_ID_NAME.to_string()).as_hex()), // Chain ID.
+            felt!(&*ChainId::creatre_for_testing().as_hex()), // Chain ID.
             nonce.0,                 // Nonce.
         ];
 
@@ -194,13 +193,13 @@ fn test_get_execution_info(
         });
     } else {
         expected_tx_info = vec![
-            version.0,                                                   /* Transaction
-                                                                          * version. */
+            version.0,                                        /* Transaction
+                                                               * version. */
             *sender_address.0.key(), // Account address.
             Felt::ZERO,              // Max fee.
             Felt::ZERO,              // Signature.
             tx_hash.0,               // Transaction hash.
-            felt!(&*ChainId::Other(CHAIN_ID_NAME.to_string()).as_hex()), // Chain ID.
+            felt!(&*ChainId::creatre_for_testing().as_hex()), // Chain ID.
             nonce.0,                 // Nonce.
         ];
 

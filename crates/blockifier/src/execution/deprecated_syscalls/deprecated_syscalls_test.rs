@@ -37,7 +37,6 @@ use crate::test_utils::{
     get_syscall_resources,
     trivial_external_entry_point_new,
     CairoVersion,
-    CHAIN_ID_NAME,
     CURRENT_BLOCK_NUMBER,
     CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
     CURRENT_BLOCK_TIMESTAMP,
@@ -465,12 +464,12 @@ fn test_tx_info(#[values(false, true)] only_query: bool) {
     let nonce = nonce!(3_u16);
     let sender_address = test_contract.get_instance_address(0);
     let expected_tx_info = calldata![
-        version,                                                     // Transaction version.
-        *sender_address.0.key(),                                     // Account address.
-        felt!(max_fee.0),                                            // Max fee.
-        tx_hash.0,                                                   // Transaction hash.
-        felt!(&*ChainId::Other(CHAIN_ID_NAME.to_string()).as_hex()), // Chain ID.
-        nonce.0                                                      // Nonce.
+        version,                                          // Transaction version.
+        *sender_address.0.key(),                          // Account address.
+        felt!(max_fee.0),                                 // Max fee.
+        tx_hash.0,                                        // Transaction hash.
+        felt!(&*ChainId::creatre_for_testing().as_hex()), // Chain ID.
+        nonce.0                                           // Nonce.
     ];
     let entry_point_selector = selector_from_name("test_get_tx_info");
     let entry_point_call = CallEntryPoint {
