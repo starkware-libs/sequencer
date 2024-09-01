@@ -49,7 +49,7 @@ fn test_simple_calculate_l1_gas_by_vm_usage() {
     // Positive flow.
     // Verify calculation - in our case, n_steps is the heaviest resource.
     let l1_gas_by_vm_usage =
-        (*versioned_constants.vm_resource_fee_cost().get(N_STEPS_RESOURCE).unwrap()
+        (versioned_constants.vm_resource_fee_cost().get(N_STEPS_RESOURCE).unwrap().l1_gas
             * (u128_from_usize(vm_resource_usage.n_steps + n_reverted_steps)))
         .ceil()
         .to_integer();
@@ -81,7 +81,7 @@ fn test_float_calculate_l1_gas_by_vm_usage() {
     // Verify calculation - in our case, n_steps is the heaviest resource.
     let n_reverted_steps = 300;
     let l1_gas_by_vm_usage =
-        ((*versioned_constants.vm_resource_fee_cost().get(N_STEPS_RESOURCE).unwrap())
+        ((versioned_constants.vm_resource_fee_cost().get(N_STEPS_RESOURCE).unwrap().l1_gas)
             * u128_from_usize(vm_resource_usage.n_steps + n_reverted_steps))
         .ceil()
         .to_integer();
@@ -93,10 +93,11 @@ fn test_float_calculate_l1_gas_by_vm_usage() {
 
     // Another positive flow, this time the heaviest resource is ecdsa_builtin.
     vm_resource_usage.n_steps = 200;
-    let l1_gas_by_vm_usage = ((*versioned_constants
+    let l1_gas_by_vm_usage = ((versioned_constants
         .vm_resource_fee_cost()
         .get(BuiltinName::ecdsa.to_str_with_suffix())
-        .unwrap())
+        .unwrap()
+        .l1_gas)
         * u128_from_usize(
             *vm_resource_usage.builtin_instance_counter.get(&BuiltinName::ecdsa).unwrap(),
         ))

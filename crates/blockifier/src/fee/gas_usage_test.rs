@@ -34,7 +34,7 @@ fn test_get_event_gas_cost(
 ) {
     let l2_resource_gas_costs = &versioned_constants.l2_resource_gas_costs;
     let (event_key_factor, data_word_cost) =
-        (l2_resource_gas_costs.event_key_factor, l2_resource_gas_costs.gas_per_data_felt);
+        (l2_resource_gas_costs.event_key_factor, l2_resource_gas_costs.gas_per_data_felt.l1_gas);
     let call_infos = vec![CallInfo::default(), CallInfo::default(), CallInfo::default()];
     let call_infos_iter = call_infos.iter();
     let starknet_resources =
