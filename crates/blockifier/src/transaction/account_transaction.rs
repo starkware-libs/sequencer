@@ -7,6 +7,7 @@ use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::transaction::{
     Calldata,
     Fee,
+    Resource,
     ResourceBounds,
     TransactionHash,
     TransactionVersion,
@@ -247,11 +248,12 @@ impl AccountTransaction {
 
                 let max_l1_gas_amount_as_u128: u128 = max_l1_gas_amount.into();
                 if max_l1_gas_amount_as_u128 < minimal_l1_gas_amount {
-                    return Err(TransactionFeeError::MaxL1GasAmountTooLow {
-                        max_l1_gas_amount,
+                    return Err(TransactionFeeError::MaxGasAmountTooLow {
+                        resource: Resource::L1Gas,
+                        max_gas_amount: max_l1_gas_amount,
                         // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why
                         // the convertion works.
-                        minimal_l1_gas_amount: (minimal_l1_gas_amount
+                        minimal_gas_amount: (minimal_l1_gas_amount
                             .try_into()
                             .expect("Failed to convert u128 to u64.")),
                     })?;
@@ -260,9 +262,10 @@ impl AccountTransaction {
                 let actual_l1_gas_price =
                     block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type);
                 if max_l1_gas_price < actual_l1_gas_price.into() {
-                    return Err(TransactionFeeError::MaxL1GasPriceTooLow {
-                        max_l1_gas_price,
-                        actual_l1_gas_price: actual_l1_gas_price.into(),
+                    return Err(TransactionFeeError::MaxGasPriceTooLow {
+                        resource: Resource::L1Gas,
+                        max_gas_price: max_l1_gas_price,
+                        actual_gas_price: actual_l1_gas_price.into(),
                     })?;
                 }
             }
@@ -271,7 +274,11 @@ impl AccountTransaction {
                 let min_fee =
                     get_fee_by_gas_vector(block_info, minimal_l1_gas_amount_vector, fee_type);
                 if max_fee < min_fee {
-                    return Err(TransactionFeeError::MaxFeeTooLow { min_fee, max_fee })?;
+                    return Err(TransactionFeeError::MaxFeeTooLow {
+                        resource: Resource::L1Gas,
+                        min_fee,
+                        max_fee,
+                    })?;
                 }
             }
         };

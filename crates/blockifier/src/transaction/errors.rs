@@ -1,7 +1,7 @@
 use cairo_vm::types::errors::program_errors::ProgramError;
 use num_bigint::BigUint;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
-use starknet_api::transaction::{Fee, TransactionVersion};
+use starknet_api::transaction::{Fee, Resource, TransactionVersion};
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::FromStrError;
 use thiserror::Error;
@@ -22,26 +22,31 @@ pub enum TransactionFeeError {
     #[error("Actual fee ({}) exceeded max fee ({}).", actual_fee.0, max_fee.0)]
     FeeTransferError { max_fee: Fee, actual_fee: Fee },
     #[error("Actual fee ({}) exceeded paid fee on L1 ({}).", actual_fee.0, paid_fee.0)]
-    InsufficientL1Fee { paid_fee: Fee, actual_fee: Fee },
+    InsufficientFee { resource: Resource, paid_fee: Fee, actual_fee: Fee },
     #[error(
-        "L1 gas bounds (max amount: {max_amount}, max price: {max_price}) exceed balance \
+        "{resource} gas bounds (max amount: {max_amount}, max price: {max_price}) exceed balance \
          ({balance})."
     )]
-    L1GasBoundsExceedBalance { max_amount: u64, max_price: u128, balance: BigUint },
-    #[error("Max fee ({}) exceeds balance ({balance}).", max_fee.0, )]
-    MaxFeeExceedsBalance { max_fee: Fee, balance: BigUint },
+    GasBoundsExceedBalance {
+        resource: Resource,
+        max_amount: u64,
+        max_price: u128,
+        balance: BigUint,
+    },
+    #[error("{resource} GasBounds: Max fee ({}) exceeds balance ({balance}).", max_fee.0, )]
+    MaxFeeExceedsBalance { resource: Resource, max_fee: Fee, balance: BigUint },
     #[error("Max fee ({}) is too low. Minimum fee: {}.", max_fee.0, min_fee.0)]
-    MaxFeeTooLow { min_fee: Fee, max_fee: Fee },
+    MaxFeeTooLow { resource: Resource, min_fee: Fee, max_fee: Fee },
     #[error(
-        "Max L1 gas price ({max_l1_gas_price}) is lower than the actual gas price: \
-         {actual_l1_gas_price}."
+        "Max {resource} gas price ({max_gas_price}) is lower than the actual gas price: \
+         {actual_gas_price}."
     )]
-    MaxL1GasPriceTooLow { max_l1_gas_price: u128, actual_l1_gas_price: u128 },
+    MaxGasPriceTooLow { resource: Resource, max_gas_price: u128, actual_gas_price: u128 },
     #[error(
-        "Max L1 gas amount ({max_l1_gas_amount}) is lower than the minimal gas amount: \
-         {minimal_l1_gas_amount}."
+        "Max {resource} gas amount ({max_gas_amount}) is lower than the minimal gas amount: \
+         {minimal_gas_amount}."
     )]
-    MaxL1GasAmountTooLow { max_l1_gas_amount: u64, minimal_l1_gas_amount: u64 },
+    MaxGasAmountTooLow { resource: Resource, max_gas_amount: u64, minimal_gas_amount: u64 },
     #[error("Missing L1 gas bounds in resource bounds.")]
     MissingL1GasBounds,
     #[error(transparent)]

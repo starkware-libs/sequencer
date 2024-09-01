@@ -19,6 +19,7 @@ use starknet_api::transaction::{
     EventKey,
     Fee,
     L2ToL1Payload,
+    Resource,
     TransactionSignature,
     TransactionVersion,
 };
@@ -808,7 +809,7 @@ fn assert_failure_if_resource_bounds_exceed_balance(
                 invalid_tx.execute(state, block_context, true, true).unwrap_err(),
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
-                        TransactionFeeError::L1GasBoundsExceedBalance{ max_amount, max_price, .. }))
+                        TransactionFeeError::GasBoundsExceedBalance{resource: Resource::L1Gas, max_amount, max_price, .. }))
                 if max_amount == l1_bounds.max_amount && max_price == l1_bounds.max_price_per_unit
             );
         }
@@ -923,7 +924,7 @@ fn test_insufficient_resource_bounds(
         execution_error,
         TransactionExecutionError::TransactionPreValidationError(
             TransactionPreValidationError::TransactionFeeError(
-                TransactionFeeError::MaxFeeTooLow { min_fee, max_fee }))
+                TransactionFeeError::MaxFeeTooLow { resource: Resource::L1Gas, min_fee, max_fee }))
         if max_fee == invalid_max_fee && min_fee == minimal_fee
     );
 
@@ -946,8 +947,10 @@ fn test_insufficient_resource_bounds(
         execution_error,
         TransactionExecutionError::TransactionPreValidationError(
             TransactionPreValidationError::TransactionFeeError(
-                TransactionFeeError::MaxL1GasAmountTooLow{
-                    max_l1_gas_amount, minimal_l1_gas_amount }))
+                TransactionFeeError::MaxGasAmountTooLow{
+                    resource: Resource::L1Gas,
+                    max_gas_amount: max_l1_gas_amount,
+                    minimal_gas_amount: minimal_l1_gas_amount }))
         if max_l1_gas_amount == insufficient_max_l1_gas_amount &&
         minimal_l1_gas_amount == minimal_l1_gas_as_u64
     );
@@ -965,7 +968,10 @@ fn test_insufficient_resource_bounds(
         execution_error,
         TransactionExecutionError::TransactionPreValidationError(
             TransactionPreValidationError::TransactionFeeError(
-                TransactionFeeError::MaxL1GasPriceTooLow{ max_l1_gas_price, actual_l1_gas_price }))
+                TransactionFeeError::MaxGasPriceTooLow{
+                    resource: Resource::L1Gas,
+                    max_gas_price: max_l1_gas_price,
+                    actual_gas_price: actual_l1_gas_price }))
         if max_l1_gas_price == insufficient_max_l1_gas_price &&
         actual_l1_gas_price == actual_strk_l1_gas_price.into()
     );
@@ -1960,7 +1966,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     assert_matches!(
         error,
         TransactionExecutionError::TransactionFeeError(
-            TransactionFeeError::InsufficientL1Fee { paid_fee, actual_fee, })
+            TransactionFeeError::InsufficientFee {resource: Resource::L1Gas, paid_fee, actual_fee, })
             if paid_fee == Fee(0) && actual_fee == expected_actual_fee
     );
 }

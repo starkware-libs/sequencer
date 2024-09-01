@@ -2,7 +2,12 @@ use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{calculate_contract_address, ContractAddress};
-use starknet_api::transaction::{Fee, Transaction as StarknetApiTransaction, TransactionHash};
+use starknet_api::transaction::{
+    Fee,
+    Resource,
+    Transaction as StarknetApiTransaction,
+    TransactionHash,
+};
 
 use crate::bouncer::verify_tx_weights_in_bounds;
 use crate::context::BlockContext;
@@ -141,7 +146,11 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         // For now, assert only that any amount of fee was paid.
         // The error message still indicates the required fee.
         if paid_fee == Fee(0) {
-            return Err(TransactionFeeError::InsufficientL1Fee { paid_fee, actual_fee })?;
+            return Err(TransactionFeeError::InsufficientFee {
+                resource: Resource::L1Gas,
+                paid_fee,
+                actual_fee,
+            })?;
         }
 
         Ok(TransactionExecutionInfo {
