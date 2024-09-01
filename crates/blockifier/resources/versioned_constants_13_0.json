@@ -499,53 +499,125 @@
     },
     "validate_max_n_steps": 1000000,
     "vm_resource_fee_cost": {
-        "add_mod_builtin": [
-            0,
-            1
-        ],
-        "bitwise_builtin": [
-            32,
-            100
-        ],
-        "ec_op_builtin": [
-            512,
-            100
-        ],
-        "ecdsa_builtin": [
-            1024,
-            100
-        ],
-        "keccak_builtin": [
-            1024,
-            100
-        ],
-        "mul_mod_builtin": [
-            0,
-            1
-        ],
-        "n_steps": [
-            5,
-            1000
-        ],
-        "output_builtin": [
-            0,
-            1
-        ],
-        "pedersen_builtin": [
-            16,
-            100
-        ],
-        "poseidon_builtin": [
-            16,
-            100
-        ],
-        "range_check_builtin": [
-            8,
-            100
-        ],
-        "range_check96_builtin": [
-            0,
-            1
-        ]
+        "add_mod_builtin": {
+            "l1_gas": [
+                0,
+                1
+            ],
+            "l2_gas": [
+                0,
+                1
+            ]
+        },
+        "bitwise_builtin": {
+            "l1_gas": [
+                32,
+                100
+            ],
+            "l2_gas": [
+                0,
+                1
+            ]
+        },
+        "ec_op_builtin": {
+            "l1_gas": [
+                512,
+                100
+            ],
+            "l2_gas": [
+                0,
+                1
+            ]
+        },
+        "ecdsa_builtin": {
+            "l1_gas": [
+                1024,
+                100
+            ],
+            "l2_gas": [
+                0,
+                1
+            ]
+        },
+        "keccak_builtin": {
+            "l1_gas": [
+                1024,
+                100
+            ],
+            "l2_gas": [
+                0,
+                1
+            ]
+        },
+        "mul_mod_builtin": {
+            "l1_gas": [
+                0,
+                1
+            ],
+            "l2_gas": [
+                0,
+                1
+            ]
+        },
+        "n_steps": {
+            "l1_gas": [
+                5,
+                1000
+            ],
+            "l2_gas": [
+                0,
+                1
+            ]
+        },
+        "output_builtin": {
+            "l1_gas": [
+                0,
+                1
+            ],
+            "l2_gas": [
+                0,
+                1
+            ]
+        },
+        "pedersen_builtin": {
+            "l1_gas": [
+                16,
+                100
+            ],
+            "l2_gas": [
+                0,
+                1
+            ]
+        },
+        "poseidon_builtin": {
+            "l1_gas": [
+                16,
+                100
+            ],
+            "l2_gas": [
+                0,
+                1
+            ]
+        },
+        "range_check_builtin": {
+            "l1_gas": [
+                8,
+                100
+            ],
+            "l2_gas": [
+                0,
+                1
+            ]
+        },
+        "range_check96_builtin": {
+            "l1_gas": [
+                0,
+                1
+            ],
+            "l2_gas": [
+                0,
+                1
+            ]
+        }
     }
 }

@@ -333,7 +333,7 @@ impl StarknetResources {
     ) -> GasVector {
         // TODO(Avi, 20/2/2024): Calculate the number of bytes instead of the number of felts.
         let total_data_size = u128_from_usize(self.calldata_length + self.signature_length);
-        let l1_gas = (versioned_constants.l2_resource_gas_costs.gas_per_data_felt
+        let l1_gas = (versioned_constants.l2_resource_gas_costs.gas_per_data_felt.l1_gas
             * total_data_size)
             .to_integer();
         GasVector::from_l1_gas(l1_gas)
@@ -387,7 +387,7 @@ impl StarknetResources {
     /// Returns the gas cost of declared class codes.
     pub fn get_code_cost(&self, versioned_constants: &VersionedConstants) -> GasVector {
         GasVector::from_l1_gas(
-            (versioned_constants.l2_resource_gas_costs.gas_per_code_byte
+            (versioned_constants.l2_resource_gas_costs.gas_per_code_byte.l1_gas
                 * u128_from_usize(self.code_size))
             .to_integer(),
         )
@@ -402,8 +402,10 @@ impl StarknetResources {
     /// Returns the gas cost of the transaction's emmited events.
     pub fn get_events_cost(&self, versioned_constants: &VersionedConstants) -> GasVector {
         let l2_resource_gas_costs = &versioned_constants.l2_resource_gas_costs;
-        let (event_key_factor, data_word_cost) =
-            (l2_resource_gas_costs.event_key_factor, l2_resource_gas_costs.gas_per_data_felt);
+        let (event_key_factor, data_word_cost) = (
+            l2_resource_gas_costs.event_key_factor.l1_gas,
+            l2_resource_gas_costs.gas_per_data_felt.l1_gas,
+        );
         let l1_gas: u128 = (data_word_cost
             * (event_key_factor * self.total_event_keys + self.total_event_data_size))
             .to_integer();

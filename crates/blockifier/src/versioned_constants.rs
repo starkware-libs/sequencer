@@ -109,7 +109,7 @@ pub struct VersionedConstants {
     // Fee related.
     // TODO: Consider making this a struct, this will require change the way we access these
     // values.
-    vm_resource_fee_cost: Arc<HashMap<String, ResourceCost>>,
+    vm_resource_fee_cost: Arc<HashMap<String, ResourceCosts>>,
 }
 
 impl VersionedConstants {
@@ -128,7 +128,7 @@ impl VersionedConstants {
     pub fn l1_to_l2_gas_price_conversion(&self, l1_gas_price: u128) -> u128 {
         let l1_to_l2_gas_price_ratio: Ratio<u128> =
             Ratio::new(1, u128::from(self.os_constants.gas_costs.step_gas_cost))
-                * self.vm_resource_fee_cost()["n_steps"];
+                * self.vm_resource_fee_cost()["n_steps"].l1_gas;
         *(l1_to_l2_gas_price_ratio * l1_gas_price).ceil().numer()
     }
 
@@ -138,7 +138,7 @@ impl VersionedConstants {
         os_consts.gas_costs.initial_gas_cost - os_consts.gas_costs.transaction_gas_cost
     }
 
-    pub fn vm_resource_fee_cost(&self) -> &HashMap<String, ResourceCost> {
+    pub fn vm_resource_fee_cost(&self) -> &HashMap<String, ResourceCosts> {
         &self.vm_resource_fee_cost
     }
 
@@ -186,23 +186,50 @@ impl VersionedConstants {
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_account_testing() -> Self {
         let vm_resource_fee_cost = Arc::new(HashMap::from([
-            (crate::abi::constants::N_STEPS_RESOURCE.to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::pedersen.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
+            (
+                crate::abi::constants::N_STEPS_RESOURCE.to_string(),
+                ResourceCosts { l1_gas: ResourceCost::from_integer(1), ..Default::default() },
+            ),
+            (
+                BuiltinName::pedersen.to_str_with_suffix().to_string(),
+                ResourceCosts { l1_gas: ResourceCost::from_integer(1), ..Default::default() },
+            ),
             (
                 BuiltinName::range_check.to_str_with_suffix().to_string(),
-                ResourceCost::from_integer(1),
+                ResourceCosts { l1_gas: ResourceCost::from_integer(1), ..Default::default() },
             ),
-            (BuiltinName::ecdsa.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::bitwise.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::poseidon.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::output.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::ec_op.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
+            (
+                BuiltinName::ecdsa.to_str_with_suffix().to_string(),
+                ResourceCosts { l1_gas: ResourceCost::from_integer(1), ..Default::default() },
+            ),
+            (
+                BuiltinName::bitwise.to_str_with_suffix().to_string(),
+                ResourceCosts { l1_gas: ResourceCost::from_integer(1), ..Default::default() },
+            ),
+            (
+                BuiltinName::poseidon.to_str_with_suffix().to_string(),
+                ResourceCosts { l1_gas: ResourceCost::from_integer(1), ..Default::default() },
+            ),
+            (
+                BuiltinName::output.to_str_with_suffix().to_string(),
+                ResourceCosts { l1_gas: ResourceCost::from_integer(1), ..Default::default() },
+            ),
+            (
+                BuiltinName::ec_op.to_str_with_suffix().to_string(),
+                ResourceCosts { l1_gas: ResourceCost::from_integer(1), ..Default::default() },
+            ),
             (
                 BuiltinName::range_check96.to_str_with_suffix().to_string(),
-                ResourceCost::from_integer(1),
+                ResourceCosts { l1_gas: ResourceCost::from_integer(1), ..Default::default() },
             ),
-            (BuiltinName::add_mod.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::mul_mod.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
+            (
+                BuiltinName::add_mod.to_str_with_suffix().to_string(),
+                ResourceCosts { l1_gas: ResourceCost::from_integer(1), ..Default::default() },
+            ),
+            (
+                BuiltinName::mul_mod.to_str_with_suffix().to_string(),
+                ResourceCosts { l1_gas: ResourceCost::from_integer(1), ..Default::default() },
+            ),
         ]));
 
         Self { vm_resource_fee_cost, ..Self::create_for_testing() }
@@ -212,14 +239,38 @@ impl VersionedConstants {
     #[cfg(any(feature = "testing", test))]
     pub fn create_float_for_testing() -> Self {
         let vm_resource_fee_cost = Arc::new(HashMap::from([
-            (crate::abi::constants::N_STEPS_RESOURCE.to_string(), ResourceCost::new(25, 10000)),
-            (BuiltinName::pedersen.to_str_with_suffix().to_string(), ResourceCost::new(8, 100)),
-            (BuiltinName::range_check.to_str_with_suffix().to_string(), ResourceCost::new(4, 100)),
-            (BuiltinName::ecdsa.to_str_with_suffix().to_string(), ResourceCost::new(512, 100)),
-            (BuiltinName::bitwise.to_str_with_suffix().to_string(), ResourceCost::new(16, 100)),
-            (BuiltinName::poseidon.to_str_with_suffix().to_string(), ResourceCost::new(8, 100)),
-            (BuiltinName::output.to_str_with_suffix().to_string(), ResourceCost::from_integer(0)),
-            (BuiltinName::ec_op.to_str_with_suffix().to_string(), ResourceCost::new(256, 100)),
+            (
+                crate::abi::constants::N_STEPS_RESOURCE.to_string(),
+                ResourceCosts { l1_gas: ResourceCost::new(25, 10000), ..Default::default() },
+            ),
+            (
+                BuiltinName::pedersen.to_str_with_suffix().to_string(),
+                ResourceCosts { l1_gas: ResourceCost::new(8, 100), ..Default::default() },
+            ),
+            (
+                BuiltinName::range_check.to_str_with_suffix().to_string(),
+                ResourceCosts { l1_gas: ResourceCost::new(4, 100), ..Default::default() },
+            ),
+            (
+                BuiltinName::ecdsa.to_str_with_suffix().to_string(),
+                ResourceCosts { l1_gas: ResourceCost::new(512, 100), ..Default::default() },
+            ),
+            (
+                BuiltinName::bitwise.to_str_with_suffix().to_string(),
+                ResourceCosts { l1_gas: ResourceCost::new(16, 100), ..Default::default() },
+            ),
+            (
+                BuiltinName::poseidon.to_str_with_suffix().to_string(),
+                ResourceCosts { l1_gas: ResourceCost::new(8, 100), ..Default::default() },
+            ),
+            (
+                BuiltinName::output.to_str_with_suffix().to_string(),
+                ResourceCosts { l1_gas: ResourceCost::new(0, 1), ..Default::default() },
+            ),
+            (
+                BuiltinName::ec_op.to_str_with_suffix().to_string(),
+                ResourceCosts { l1_gas: ResourceCost::new(256, 100), ..Default::default() },
+            ),
         ]));
 
         Self { vm_resource_fee_cost, ..Self::create_for_testing() }
@@ -262,12 +313,12 @@ impl TryFrom<&Path> for VersionedConstants {
 pub struct L2ResourceGasCosts {
     // TODO(barak, 18/03/2024): Once we start charging per byte change to milligas_per_data_byte,
     // divide the value by 32 in the JSON file.
-    pub gas_per_data_felt: ResourceCost,
-    pub event_key_factor: ResourceCost,
+    pub gas_per_data_felt: ResourceCosts,
+    pub event_key_factor: ResourceCosts,
     // TODO(avi, 15/04/2024): This constant was changed to 32 milligas in the JSON file, but the
     // actual number we wanted is 1/32 gas per byte. Change the value to 1/32 in the next version
     // where rational numbers are supported.
-    pub gas_per_code_byte: ResourceCost,
+    pub gas_per_code_byte: ResourceCosts,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq)]
@@ -753,4 +804,10 @@ pub struct VersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
     pub invoke_tx_max_n_steps: u32,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct ResourceCosts {
+    pub l1_gas: ResourceCost,
+    pub l2_gas: ResourceCost,
 }

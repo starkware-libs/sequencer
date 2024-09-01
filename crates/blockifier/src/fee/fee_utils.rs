@@ -58,7 +58,7 @@ pub fn calculate_l1_gas_by_vm_usage(
     let vm_l1_gas_usage = vm_resource_fee_costs
         .iter()
         .map(|(key, resource_val)| {
-            ((*resource_val)
+            (resource_val.l1_gas
                 * u128_from_usize(vm_resource_usage_for_fee.get(key).cloned().unwrap_or_default()))
             .ceil()
             .to_integer()
