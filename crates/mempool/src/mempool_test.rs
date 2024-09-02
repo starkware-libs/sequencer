@@ -164,6 +164,9 @@ macro_rules! add_tx_input {
     (tip: $tip:expr, tx_hash: $tx_hash:expr) => {
         add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8)
     };
+    () => {
+        add_tx_input!(tip: 0, tx_hash: 0, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8)
+    };
 }
 
 // Fixtures.
@@ -349,7 +352,7 @@ fn test_get_txs_with_holes_single_account() {
 #[rstest]
 fn test_get_txs_while_decreasing_gas_price_threshold() {
     // Setup.
-    let input_tx = add_tx_input!(tx_hash: 0, tx_nonce: 0_u8, account_nonce: 0_u8);
+    let input_tx = add_tx_input!();
 
     let pool_txs = [input_tx.tx.clone()];
     let queue_txs = [TransactionReference::new(&input_tx.tx)];
@@ -374,7 +377,7 @@ fn test_get_txs_while_decreasing_gas_price_threshold() {
 fn test_get_txs_while_increasing_gas_price_threshold() {
     // Setup.
     // Both transactions have the same gas price.
-    let input_tx_nonce_0 = add_tx_input!(tx_hash: 0, tx_nonce: 0_u8, account_nonce: 0_u8);
+    let input_tx_nonce_0 = add_tx_input!();
     let input_tx_nonce_1 = add_tx_input!(tx_hash: 1, tx_nonce: 1_u8, account_nonce: 0_u8);
 
     let pool_txs = [input_tx_nonce_0.tx.clone(), input_tx_nonce_1.tx];
@@ -597,7 +600,7 @@ fn test_add_tx_account_state_fills_hole(mut mempool: Mempool) {
 #[rstest]
 fn test_add_tx_sequential_nonces(mut mempool: Mempool) {
     // Setup.
-    let input_nonce_0 = add_tx_input!(tx_hash: 0, tx_nonce: 0_u8, account_nonce: 0_u8);
+    let input_nonce_0 = add_tx_input!();
     let input_nonce_1 = add_tx_input!(tx_hash: 1, tx_nonce: 1_u8, account_nonce: 0_u8);
 
     // Test.
