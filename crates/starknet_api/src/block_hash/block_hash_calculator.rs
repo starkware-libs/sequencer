@@ -85,6 +85,8 @@ pub fn calculate_block_hash(
             .chain(&header.l1_gas_price.price_in_fri.0.into())
             .chain(&header.l1_data_gas_price.price_in_wei.0.into())
             .chain(&header.l1_data_gas_price.price_in_fri.0.into())
+            .chain(&header.l2_gas_price.price_in_wei.0.into())
+            .chain(&header.l2_gas_price.price_in_fri.0.into())
             .chain(&ascii_as_felt(&header.starknet_version.0).expect("Expect ASCII version"))
             .chain(&Felt::ZERO)
             .chain(&header.parent_hash.0)
