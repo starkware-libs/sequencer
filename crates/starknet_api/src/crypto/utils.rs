@@ -106,6 +106,18 @@ impl HashChain {
         felts.fold(self, |current, felt| current.chain(felt))
     }
 
+    // Chains many felts to the hash chain according the result of a function.
+    pub fn chain_iter_if_fn<'a, F, I>(self, f: F) -> Self
+    where
+        F: Fn() -> Option<I>,
+        I: Iterator<Item = &'a Felt>,
+    {
+        match f() {
+            Some(felts) => self.chain_iter(felts),
+            None => self,
+        }
+    }
+
     // Chains the number of felts followed by the felts themselves to the hash chain.
     pub fn chain_size_and_elements(self, felts: &[Felt]) -> Self {
         self.chain(&felts.len().into()).chain_iter(felts.iter())
