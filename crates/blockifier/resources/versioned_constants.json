@@ -225,7 +225,7 @@
                 "n_memory_holes": 0
             },
             "EmitEvent": {
-                "n_steps": 61,
+                "n_steps": 64,
                 "builtin_instance_counter": {
                     "range_check_builtin": 1
                 },
