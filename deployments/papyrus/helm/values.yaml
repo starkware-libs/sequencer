@@ -24,6 +24,8 @@ deployment:
     tag: 0.4.0
 
   # Path to papyrus config file. The config file must be placed anywhere inside the chart directory.
+  # For example, if you place the config file under sequencer/deployments/papyrus/helm/config/my-config.json
+  # Then set configFile to: ./config/my-config.json
   configFile:
 
   # The container's pullPolicy
