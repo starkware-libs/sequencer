@@ -5,6 +5,7 @@ outputs:
   cairo-native-runtime-library:
     description: "The path to the cairo native runtime library"
     value: ${{ steps.set-env-vars.outputs.cairo-native-runtime-library }}
+
 runs:
   using: "composite"
   steps:
@@ -14,6 +15,7 @@ runs:
         repo: deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main
         repo-name: llvm-repo
         keys-asc: https://apt.llvm.org/llvm-snapshot.gpg.key
+
     - name: Install LLVM and gmplib
       shell: bash
       run: |
@@ -27,6 +29,7 @@ runs:
         repository: "lambdaclass/cairo_native"
         ref: "2be717cba74c63628cb68b619ff2022c70d0cdd2"
         path: "cairo_native"
+
     - name: Install Cairo Native Runtime Dependencies
       id: set-env-vars
       shell: bash
@@ -39,3 +42,12 @@ runs:
         echo "TABLEGEN_180_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV &&
         cd ./runtime &&
         cargo build --release
+<<<<<<< HEAD
+=======
+
+    - name: Clean up cairo_native directory
+      shell: bash
+      run: |
+        cd ./cairo_native &&
+        find . -path "./target/release/libcairo_native_runtime.a" -prune -o -exec rm -rf {} +
+>>>>>>> fe4202ce1 (fix: add clean up of the native artifacts)
