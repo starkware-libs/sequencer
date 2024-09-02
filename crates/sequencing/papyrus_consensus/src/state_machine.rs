@@ -130,31 +130,35 @@ impl StateMachine {
             self.events_queue.push_back(event);
         }
 
-        // The events queue only maintains state while we are waiting for a proposal.
-        let events_queue = std::mem::take(&mut self.events_queue);
-        self.handle_enqueued_events(events_queue, leader_fn)
+        self.handle_enqueued_events(leader_fn)
     }
 
     fn handle_enqueued_events<LeaderFn>(
         &mut self,
-        mut events_queue: VecDeque<StateMachineEvent>,
         leader_fn: &LeaderFn,
     ) -> VecDeque<StateMachineEvent>
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
         let mut output_events = VecDeque::new();
-        while let Some(event) = events_queue.pop_front() {
+        while let Some(event) = self.events_queue.pop_front() {
             // Handle a specific event and then decide which of the output events should also be
             // sent to self.
-            for e in self.handle_event_internal(event, leader_fn) {
+            let mut resultant_events = self.handle_event_internal(event, leader_fn);
+            while let Some(e) = resultant_events.pop_front() {
                 match e {
                     StateMachineEvent::Proposal(_, _)
                     | StateMachineEvent::Prevote(_, _)
                     | StateMachineEvent::Precommit(_, _) => {
-                        events_queue.push_back(e.clone());
+                        self.events_queue.push_back(e.clone());
                     }
                     StateMachineEvent::Decision(_, _) => {
+                        output_events.push_back(e);
+                        return output_events;
+                    }
+                    StateMachineEvent::GetProposal(_, _) => {
+                        // LOC 18.
+                        debug_assert!(resultant_events.is_empty());
                         output_events.push_back(e);
                         return output_events;
                     }
@@ -174,6 +178,10 @@ impl StateMachine {
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
+        if self.awaiting_get_proposal {
+            debug_assert!(matches!(event, StateMachineEvent::GetProposal(_, _)), "{:?}", event);
+        }
+
         match event {
             StateMachineEvent::GetProposal(block_hash, round) => {
                 self.handle_get_proposal(block_hash, round)
