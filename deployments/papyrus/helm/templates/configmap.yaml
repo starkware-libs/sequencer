@@ -1,3 +1,4 @@
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -7,7 +8,12 @@ metadata:
 data:
   config.json: |-
     {{- if .Values.deployment.configFile }}
-    {{ .Files.Get (printf "%s" .Values.deployment.configFile) | nindent 4 }}
+    {{- $filePath := printf "config/%s" .Values.deployment.configFile -}}
+    {{- if not (.Files.Get $filePath) -}}
+    {{- fail (printf "Error: The file %s does not exist in the chart." $filePath) -}}
+    {{- else }}
+    {{ .Files.Get $filePath | nindent 4 }}
+    {{- end }}
     {{- else }}
     {}
     {{- end }}
