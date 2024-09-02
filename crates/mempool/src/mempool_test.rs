@@ -5,6 +5,7 @@ use assert_matches::assert_matches;
 use mempool_test_utils::starknet_api_test_utils::{
     create_executable_tx,
     test_resource_bounds_mapping,
+    VALID_L2_GAS_MAX_PRICE_PER_UNIT,
 };
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
@@ -357,16 +358,17 @@ fn test_get_txs_while_decreasing_gas_price_threshold() {
 
     // Test.
     // High gas price threshold, no transactions should be returned.
-    mempool._update_gas_price_threshold(1000000000000);
+    mempool._update_gas_price_threshold(VALID_L2_GAS_MAX_PRICE_PER_UNIT + 1);
     let txs = mempool.get_txs(1).unwrap();
     assert!(txs.is_empty());
 
     // Updating the gas price threshold should happen in a new block creation.
     assert!(mempool.commit_block(HashMap::default()).is_ok());
     // Low gas price threshold, the transaction should be returned.
-    mempool._update_gas_price_threshold(100);
+    mempool._update_gas_price_threshold(VALID_L2_GAS_MAX_PRICE_PER_UNIT - 1);
     let txs = mempool.get_txs(1).unwrap();
 
+    // Assert.
     assert_eq!(txs, &[input_tx.tx]);
 }
 
@@ -383,15 +385,17 @@ fn test_get_txs_while_increasing_gas_price_threshold() {
 
     // Test.
     // Low gas price threshold, the transaction should be returned.
-    mempool._update_gas_price_threshold(100);
+    mempool._update_gas_price_threshold(VALID_L2_GAS_MAX_PRICE_PER_UNIT - 1);
     let txs = mempool.get_txs(1).unwrap();
     assert_eq!(txs, &[input_tx_nonce_0.tx]);
 
     // Updating the gas price threshold should happen in a new block creation.
     assert!(mempool.commit_block(HashMap::default()).is_ok());
     // High gas price threshold, no transactions should be returned.
-    mempool._update_gas_price_threshold(1000000000000);
+    mempool._update_gas_price_threshold(VALID_L2_GAS_MAX_PRICE_PER_UNIT + 1);
     let txs = mempool.get_txs(1).unwrap();
+
+    // Assert.
     assert!(txs.is_empty());
 }
 
