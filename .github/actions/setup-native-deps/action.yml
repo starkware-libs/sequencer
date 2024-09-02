@@ -42,12 +42,3 @@ runs:
         echo "TABLEGEN_180_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV &&
         cd ./runtime &&
         cargo build --release
-<<<<<<< HEAD
-=======
-
-    - name: Clean up cairo_native directory
-      shell: bash
-      run: |
-        cd ./cairo_native &&
-        find . -path "./target/release/libcairo_native_runtime.a" -prune -o -exec rm -rf {} +
->>>>>>> fe4202ce1 (fix: add clean up of the native artifacts)
