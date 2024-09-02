@@ -14,7 +14,7 @@ workspace = true
 [dependencies]
 async-trait.workspace = true
 bincode.workspace = true
-hyper = { workspace = true, features = ["client", "http2", "server", "tcp"] }
+hyper = { workspace = true, features = ["runtime", "client", "http2", "server", "tcp"] }
 papyrus_config.workspace = true
 rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }
