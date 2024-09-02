@@ -69,6 +69,7 @@ define_versioned_constants! {
     (V0_13_0, "../resources/versioned_constants_13_0.json"),
     (V0_13_1, "../resources/versioned_constants_13_1.json"),
     (V0_13_1_1, "../resources/versioned_constants_13_1_1.json"),
+    (V0_13_2, "../resources/versioned_constants_13_2.json"),
     (Latest, "../resources/versioned_constants.json"),
 }
 
