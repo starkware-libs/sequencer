@@ -866,7 +866,18 @@ impl From<Tip> for Felt {
 
 /// Execution resource.
 #[derive(
-    Clone, Copy, Debug, Deserialize, EnumIter, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Deserialize,
+    EnumIter,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    Display,
 )]
 pub enum Resource {
     #[serde(rename = "L1_GAS")]
