@@ -31,8 +31,21 @@ mod block_hash_calculator_test;
 static STARKNET_BLOCK_HASH0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_BLOCK_HASH0").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH0'")
 });
-static STARKNET_VERSION_V0_13_3: LazyLock<StarknetVersion> =
-    LazyLock::new(|| StarknetVersion("0.13.3".to_owned()));
+
+#[allow(non_camel_case_types)]
+pub enum BlockHashVersion {
+    VO_13_2,
+    VO_13_3,
+}
+
+impl BlockHashVersion {
+    pub fn get_starknet_version(&self) -> StarknetVersion {
+        match self {
+            BlockHashVersion::VO_13_2 => StarknetVersion("0.13.2".to_owned()),
+            BlockHashVersion::VO_13_3 => StarknetVersion("0.13.3".to_owned()),
+        }
+    }
+}
 
 /// The common fields of transaction output types.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
@@ -90,13 +103,13 @@ pub fn calculate_block_hash(
             .chain_if_fn(|| {
                 header
                     .starknet_version
-                    .ge(&STARKNET_VERSION_V0_13_3)
+                    .ge(&BlockHashVersion::VO_13_3.get_starknet_version())
                     .then_some(header.l2_gas_price.price_in_wei.0.into())
             })
             .chain_if_fn(|| {
                 header
                     .starknet_version
-                    .ge(&STARKNET_VERSION_V0_13_3)
+                    .ge(&BlockHashVersion::VO_13_3.get_starknet_version())
                     .then_some(header.l2_gas_price.price_in_fri.0.into())
             })
             .chain(&ascii_as_felt(&header.starknet_version.0).expect("Expect ASCII version"))
