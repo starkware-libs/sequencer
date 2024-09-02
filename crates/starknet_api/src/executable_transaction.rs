@@ -1,7 +1,15 @@
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use serde::{Deserialize, Serialize};
 
 use crate::contract_class::ClassInfo;
-use crate::core::{ClassHash, ContractAddress, Nonce};
+use crate::core::{
+    calculate_contract_address,
+    ChainId,
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    Nonce,
+};
 use crate::data_availability::DataAvailabilityMode;
 use crate::rpc_transaction::RpcTransaction;
 use crate::transaction::{
@@ -12,9 +20,11 @@ use crate::transaction::{
     PaymasterData,
     Tip,
     TransactionHash,
+    TransactionHasher,
     TransactionSignature,
     TransactionVersion,
 };
+use crate::StarknetApiError;
 
 macro_rules! implement_inner_tx_getter_calls {
     ($(($field:ident, $field_type:ty)),*) => {
@@ -136,6 +146,36 @@ pub struct DeclareTransaction {
     pub class_info: ClassInfo,
 }
 
+impl DeclareTransaction {
+    pub fn new(
+        declare_tx: crate::transaction::DeclareTransaction,
+        class_info: ClassInfo,
+        chain_id: &ChainId,
+    ) -> Result<Self, StarknetApiError> {
+        if let crate::transaction::DeclareTransaction::V3(tx) = &declare_tx {
+            validate_compiled_class_hash(&class_info.casm_contract_class, tx.compiled_class_hash)?;
+        }
+        let tx_hash = declare_tx.calculate_transaction_hash(chain_id, &declare_tx.version())?;
+        Ok(Self { tx: declare_tx, tx_hash, class_info })
+    }
+}
+
+/// Validates that the compiled class hash of the compiled contract class matches the supplied
+/// compiled class hash.
+fn validate_compiled_class_hash(
+    casm_contract_class: &CasmContractClass,
+    supplied_compiled_class_hash: CompiledClassHash,
+) -> Result<(), StarknetApiError> {
+    let compiled_class_hash = CompiledClassHash(casm_contract_class.compiled_class_hash());
+    if compiled_class_hash != supplied_compiled_class_hash {
+        return Err(StarknetApiError::CompiledClassHashMismatch {
+            supplied_compiled_class_hash,
+            compiled_class_hash,
+        });
+    }
+    Ok(())
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct DeployAccountTransaction {
     pub tx: crate::transaction::DeployAccountTransaction,
@@ -157,6 +197,21 @@ impl DeployAccountTransaction {
     pub fn tx(&self) -> &crate::transaction::DeployAccountTransaction {
         &self.tx
     }
+
+    pub(crate) fn new(
+        deploy_account_tx: crate::transaction::DeployAccountTransaction,
+        chain_id: &ChainId,
+    ) -> Result<Self, StarknetApiError> {
+        let contract_address = calculate_contract_address(
+            deploy_account_tx.contract_address_salt(),
+            deploy_account_tx.class_hash(),
+            &deploy_account_tx.constructor_calldata(),
+            ContractAddress::default(),
+        )?;
+        let tx_hash =
+            deploy_account_tx.calculate_transaction_hash(chain_id, &deploy_account_tx.version())?;
+        Ok(Self { tx: deploy_account_tx, tx_hash, contract_address })
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -177,5 +232,13 @@ impl InvokeTransaction {
 
     pub fn tx(&self) -> &crate::transaction::InvokeTransaction {
         &self.tx
+    }
+
+    pub(crate) fn new(
+        invoke_tx: crate::transaction::InvokeTransaction,
+        chain_id: &ChainId,
+    ) -> Result<Self, StarknetApiError> {
+        let tx_hash = invoke_tx.calculate_transaction_hash(chain_id, &invoke_tx.version())?;
+        Ok(Self { tx: invoke_tx, tx_hash })
     }
 }
