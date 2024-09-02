@@ -8,7 +8,7 @@ use super::event_commitment::{calculate_event_commitment, EventLeafElement};
 use super::receipt_commitment::{calculate_receipt_commitment, ReceiptElement};
 use super::state_diff_hash::calculate_state_diff_hash;
 use super::transaction_commitment::{calculate_transaction_commitment, TransactionLeafElement};
-use crate::block::{BlockHash, BlockHeaderWithoutHash};
+use crate::block::{BlockHash, BlockHeaderWithoutHash, StarknetVersion};
 use crate::core::{EventCommitment, ReceiptCommitment, StateDiffCommitment, TransactionCommitment};
 use crate::crypto::utils::HashChain;
 use crate::data_availability::L1DataAvailabilityMode;
@@ -31,6 +31,21 @@ mod block_hash_calculator_test;
 static STARKNET_BLOCK_HASH0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_BLOCK_HASH0").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH0'")
 });
+
+#[allow(non_camel_case_types)]
+pub enum BlockHashVersion {
+    VO_13_2,
+    VO_13_3,
+}
+
+impl BlockHashVersion {
+    pub fn get_starknet_version(&self) -> StarknetVersion {
+        match self {
+            BlockHashVersion::VO_13_2 => StarknetVersion("0.13.2".to_owned()),
+            BlockHashVersion::VO_13_3 => StarknetVersion("0.13.3".to_owned()),
+        }
+    }
+}
 
 /// The common fields of transaction output types.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
@@ -85,6 +100,18 @@ pub fn calculate_block_hash(
             .chain(&header.l1_gas_price.price_in_fri.0.into())
             .chain(&header.l1_data_gas_price.price_in_wei.0.into())
             .chain(&header.l1_data_gas_price.price_in_fri.0.into())
+            .chain_if_fn(|| {
+                header
+                    .starknet_version
+                    .ge(&BlockHashVersion::VO_13_3.get_starknet_version())
+                    .then_some(header.l2_gas_price.price_in_wei.0.into())
+            })
+            .chain_if_fn(|| {
+                header
+                    .starknet_version
+                    .ge(&BlockHashVersion::VO_13_3.get_starknet_version())
+                    .then_some(header.l2_gas_price.price_in_fri.0.into())
+            })
             .chain(&ascii_as_felt(&header.starknet_version.0).expect("Expect ASCII version"))
             .chain(&Felt::ZERO)
             .chain(&header.parent_hash.0)
