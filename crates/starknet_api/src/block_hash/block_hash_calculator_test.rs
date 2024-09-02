@@ -1,3 +1,4 @@
+use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
 use super::concat_counts;
@@ -8,11 +9,11 @@ use crate::block::{
     BlockTimestamp,
     GasPrice,
     GasPricePerToken,
-    StarknetVersion,
 };
 use crate::block_hash::block_hash_calculator::{
     calculate_block_commitments,
     calculate_block_hash,
+    BlockHashVersion,
     BlockHeaderCommitments,
     TransactionHashingData,
 };
@@ -60,8 +61,11 @@ macro_rules! test_hash_changes {
     };
 }
 
-#[test]
-fn test_block_hash_regression() {
+#[rstest]
+fn test_block_hash_regression(
+    #[values(BlockHashVersion::VO_13_2, BlockHashVersion::VO_13_3)]
+    block_hash_version: BlockHashVersion,
+) {
     let block_header = BlockHeaderWithoutHash {
         block_number: BlockNumber(1_u64),
         state_root: GlobalRoot(Felt::from(2_u8)),
@@ -74,7 +78,7 @@ fn test_block_hash_regression() {
             price_in_wei: GasPrice(9),
         },
         l2_gas_price: GasPricePerToken { price_in_fri: GasPrice(11), price_in_wei: GasPrice(12) },
-        starknet_version: StarknetVersion("10".to_owned()),
+        starknet_version: block_hash_version.to_owned().into(),
         parent_hash: BlockHash(Felt::from(11_u8)),
     };
     let transactions_data = vec![TransactionHashingData {
@@ -87,9 +91,35 @@ fn test_block_hash_regression() {
     let block_commitments =
         calculate_block_commitments(&transactions_data, &state_diff, block_header.l1_da_mode);
 
-    let expected_hash = felt!("0x75ebad05e0b18dbfbabec32edffed5992b24f8d2d9666d04982971eac0ab06f");
+    let expected_hash = match block_hash_version {
+        BlockHashVersion::VO_13_2 => {
+            felt!("0xe248d6ce583f8fa48d1d401d4beb9ceced3733e38d8eacb0d8d3669a7d901c")
+        }
+        BlockHashVersion::VO_13_3 => {
+            felt!("0x151e476191e08eb205e879d4fc5bce4b48d039a2dc18b94af52b37da749f770")
+        }
+    };
 
     assert_eq!(BlockHash(expected_hash), calculate_block_hash(block_header, block_commitments),);
+}
+
+#[test]
+fn l2_gas_price_pre_v0_13_3() {
+    let block_header = {
+        |l2_gas_price: u128| BlockHeaderWithoutHash {
+            l2_gas_price: GasPricePerToken {
+                price_in_fri: GasPrice(l2_gas_price),
+                price_in_wei: GasPrice(l2_gas_price),
+            },
+            starknet_version: BlockHashVersion::VO_13_2.into(),
+            ..Default::default()
+        }
+    };
+
+    assert_eq!(
+        calculate_block_hash(block_header(1), BlockHeaderCommitments::default()),
+        calculate_block_hash(block_header(2), BlockHeaderCommitments::default())
+    );
 }
 
 #[test]
@@ -115,7 +145,7 @@ fn change_field_of_hash_input() {
         sequencer: SequencerContractAddress(ContractAddress::from(1_u128)),
         timestamp: BlockTimestamp(1),
         l1_da_mode: L1DataAvailabilityMode::Blob,
-        starknet_version: StarknetVersion("0.1.0".to_string()),
+        starknet_version: BlockHashVersion::VO_13_3.into(),
     };
 
     let block_commitments = BlockHeaderCommitments {
@@ -135,6 +165,7 @@ fn change_field_of_hash_input() {
             block_number,
             l1_gas_price,
             l1_data_gas_price,
+            l2_gas_price,
             state_root,
             sequencer,
             timestamp,
