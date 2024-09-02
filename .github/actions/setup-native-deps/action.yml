@@ -35,17 +35,13 @@ runs:
       id: set-env-vars
       shell: bash
       run: |
-        cd ./cairo_native &&
-        echo "cairo-native-runtime-library=$(pwd)/target/release/libcairo_native_runtime.a" >> $GITHUB_OUTPUT &&
-        echo "CAIRO_NATIVE_RUNTIME_LIBRARY=$(pwd)/target/release/libcairo_native_runtime.a" >> $GITHUB_ENV &&
-        echo "MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV &&
-        echo "LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV &&
-        echo "TABLEGEN_180_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV &&
-        cd ./runtime &&
-        cargo build --release
-
-    - name: Clean up cairo_native directory
-      shell: bash
-      run: |
-        cd ./cairo_native &&
-        find . -path "./target/release/libcairo_native_runtime.a" -prune -o -exec rm -rf {} +
+        echo "cairo-native-runtime-library=$(pwd)/libcairo_native_runtime.a" >> $GITHUB_OUTPUT
+        echo "CAIRO_NATIVE_RUNTIME_LIBRARY=$(pwd)/libcairo_native_runtime.a" >> $GITHUB_ENV
+        cd ./cairo_native
+        echo "MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV
+        echo "LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV
+        echo "TABLEGEN_180_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV
+        cargo b --release --all-features -p cairo-native-runtime
+        cp ./target/release/libcairo_native_runtime.a ../
+        cd ..
+        rm -rf ./runtime
