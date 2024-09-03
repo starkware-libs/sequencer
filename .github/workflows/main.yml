@@ -67,7 +67,6 @@ jobs:
           LD_LIBRARY_PATH: ${{ steps.setup-pypy.outputs.pythonLocation }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
-<<<<<<< HEAD
       - run: scripts/clippy.sh
 
   doc:
@@ -76,18 +75,7 @@ jobs:
       RUSTDOCFLAGS: "-D warnings"
     steps:
       - uses: actions/checkout@v4
-||||||| e9fef0f8
-      - run: scripts/clippy.sh
-
-  doc:
-    runs-on: starkware-ubuntu-latest-small
-    # env:
-    #   RUSTDOCFLAGS: "-D warnings"
-    steps:
-      - uses: actions/checkout@v4
-=======
       # Install rust components.
->>>>>>> origin/main-v0.13.2
       - uses: ./.github/actions/install_rust
         with:
           components: rustfmt, clippy
