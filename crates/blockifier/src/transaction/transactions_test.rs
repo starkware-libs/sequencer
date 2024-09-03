@@ -1857,7 +1857,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             ..Default::default()
         },
         resources: ExecutionResources {
-            n_steps: 154,
+            n_steps: 158,
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 6)]),
         },
@@ -1893,7 +1893,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
                     + 6,
             ),
         ]),
-        n_steps: get_tx_resources(TransactionType::L1Handler).n_steps + 167,
+        n_steps: get_tx_resources(TransactionType::L1Handler).n_steps + 171,
         n_memory_holes: 0,
     };
 

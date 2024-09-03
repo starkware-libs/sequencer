@@ -110,7 +110,7 @@ fn test_circuit(block_context: BlockContext, max_resource_bounds: DeprecatedReso
     .unwrap();
 
     assert!(tx_execution_info.revert_error.is_none());
-    assert_eq!(tx_execution_info.receipt.gas, GasVector::from_l1_gas(6688));
+    assert_eq!(tx_execution_info.receipt.gas, GasVector::from_l1_gas(6806));
 }
 
 #[rstest]
@@ -152,7 +152,7 @@ fn test_rc96_holes(
             [&BuiltinName::range_check96],
         24
     );
-    assert_eq!(tx_execution_info.receipt.gas, GasVector::from_l1_gas(6604));
+    assert_eq!(tx_execution_info.receipt.gas, GasVector::from_l1_gas(6722));
 }
 
 #[rstest]
@@ -292,7 +292,7 @@ fn test_infinite_recursion(
     max_resource_bounds: DeprecatedResourceBoundsMapping,
 ) {
     // Limit the number of execution steps (so we quickly hit the limit).
-    block_context.versioned_constants.invoke_tx_max_n_steps = 4100;
+    block_context.versioned_constants.invoke_tx_max_n_steps = 4200;
 
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         create_test_init_data(&block_context.chain_info, CairoVersion::Cairo0);
@@ -702,7 +702,7 @@ fn test_reverted_reach_steps_limit(
         create_test_init_data(&block_context.chain_info, cairo_version);
 
     // Limit the number of execution steps (so we quickly hit the limit).
-    block_context.versioned_constants.invoke_tx_max_n_steps = 5000;
+    block_context.versioned_constants.invoke_tx_max_n_steps = 6000;
     let recursion_base_args = invoke_tx_args! {
         max_fee,
         resource_bounds: max_resource_bounds,
@@ -771,6 +771,8 @@ fn test_reverted_reach_steps_limit(
 
     // Make sure that the failed transaction gets charged for the extra steps taken, compared with
     // the smaller valid transaction.
+
+    // If this fail, try to increase the `invoke_tx_max_n_steps` above.
     assert!(n_steps_fail > n_steps_1);
     assert!(actual_fee_fail > actual_fee_1);
 
