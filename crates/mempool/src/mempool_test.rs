@@ -46,6 +46,18 @@ impl MempoolContent {
         }
     }
 
+    fn _with_pool_and_account_nonces<P, A>(pool_txs: P, account_nonce_pairs: A) -> Self
+    where
+        P: IntoIterator<Item = Transaction>,
+        A: IntoIterator<Item = (ContractAddress, Nonce)>,
+    {
+        Self {
+            tx_pool: Some(pool_txs.into_iter().collect()),
+            account_nonces: Some(account_nonce_pairs.into_iter().collect()),
+            ..Self::default()
+        }
+    }
+
     fn with_pool<P>(pool_txs: P) -> Self
     where
         P: IntoIterator<Item = Transaction>,
