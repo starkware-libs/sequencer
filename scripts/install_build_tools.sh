@@ -39,9 +39,9 @@ function install_llvm() {
   echo "deb-src http://apt.llvm.org/focal/ llvm-toolchain-focal-18 main" >> /etc/apt/sources.list.d/llvm-18.list
   wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
 
-  apt update && apt upgrade -y
+  apt update -y && apt upgrade -y
   apt install -y zstd
-  apt install llvm-18 llvm-18-dev llvm-18-runtime clang-18 clang-tools-18 lld-18 libpolly-18-dev libmlir-18-dev mlir-18-tools
+  apt install -y llvm-18 llvm-18-dev llvm-18-runtime clang-18 clang-tools-18 lld-18 libpolly-18-dev libmlir-18-dev mlir-18-tools
   apt install -y libgmp3-dev
 }
 
