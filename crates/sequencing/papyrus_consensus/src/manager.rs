@@ -11,9 +11,8 @@ use futures::channel::{mpsc, oneshot};
 use futures::stream::FuturesUnordered;
 use futures::{Stream, StreamExt};
 use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
-use papyrus_network::network_manager::BroadcastedMessageManager;
+use papyrus_network::network_manager::BroadcastClientTrait;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal};
-use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use tracing::{debug, info, instrument};
 
@@ -31,21 +30,19 @@ use crate::types::{
 // TODO(dvir): add test for this.
 #[instrument(skip_all, level = "info")]
 #[allow(missing_docs)]
-pub async fn run_consensus<BlockT, ContextT, NetworkReceiverT, SyncReceiverT>(
+pub async fn run_consensus<BlockT, ContextT, BroadcastClientT, SyncReceiverT>(
     mut context: ContextT,
     start_height: BlockNumber,
     validator_id: ValidatorId,
     consensus_delay: Duration,
     timeouts: TimeoutsConfig,
-    mut network_receiver: NetworkReceiverT,
+    mut broadcast_client: BroadcastClientT,
     mut sync_receiver: SyncReceiverT,
 ) -> Result<(), ConsensusError>
 where
     BlockT: ConsensusBlock,
     ContextT: ConsensusContext<Block = BlockT>,
-    NetworkReceiverT: Stream<
-            Item = (Result<ConsensusMessage, ProtobufConversionError>, BroadcastedMessageManager),
-        > + Unpin,
+    BroadcastClientT: BroadcastClientTrait<ConsensusMessage>,
     SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
     ProposalWrapper:
         Into<(ProposalInit, mpsc::Receiver<BlockT::ProposalChunk>, oneshot::Receiver<BlockHash>)>,
@@ -65,7 +62,7 @@ where
     loop {
         metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT, current_height.0 as f64);
 
-        let run_height = manager.run_height(&mut context, current_height, &mut network_receiver);
+        let run_height = manager.run_height(&mut context, current_height, &mut broadcast_client);
 
         // `run_height` is not cancel safe. Our implementation doesn't enable us to start and stop
         // it. We also cannot restart the height; when we dropped the future we dropped the state it
@@ -109,22 +106,17 @@ impl MultiHeightManager {
     ///
     /// Assumes that `height` is monotonically increasing across calls for the sake of filtering
     /// `cached_messaged`.
-    #[instrument(skip(self, context, network_receiver), level = "info")]
-    pub async fn run_height<BlockT, ContextT, NetworkReceiverT>(
+    #[instrument(skip(self, context, broadcast_client), level = "info")]
+    pub async fn run_height<BlockT, ContextT, BroadcastClientT>(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
-        network_receiver: &mut NetworkReceiverT,
+        broadcast_client: &mut BroadcastClientT,
     ) -> Result<Decision<BlockT>, ConsensusError>
     where
         BlockT: ConsensusBlock,
         ContextT: ConsensusContext<Block = BlockT>,
-        NetworkReceiverT: Stream<
-                Item = (
-                    Result<ConsensusMessage, ProtobufConversionError>,
-                    BroadcastedMessageManager,
-                ),
-            > + Unpin,
+        BroadcastClientT: BroadcastClientTrait<ConsensusMessage>,
         ProposalWrapper: Into<(
             ProposalInit,
             mpsc::Receiver<BlockT::ProposalChunk>,
@@ -152,7 +144,7 @@ impl MultiHeightManager {
         let mut current_height_messages = self.get_current_height_messages(height);
         loop {
             let shc_return = tokio::select! {
-                message = next_message(&mut current_height_messages, network_receiver) => {
+                message = next_message(&mut current_height_messages, broadcast_client) => {
                     self.handle_message(context, height, &mut shc, message?).await?
                 },
                 Some(shc_task) = shc_tasks.next() => {
@@ -237,21 +229,19 @@ impl MultiHeightManager {
     }
 }
 
-async fn next_message<NetworkReceiverT>(
+async fn next_message<BroadcastClientT>(
     cached_messages: &mut Vec<ConsensusMessage>,
-    network_receiver: &mut NetworkReceiverT,
+    broadcast_client: &mut BroadcastClientT,
 ) -> Result<ConsensusMessage, ConsensusError>
 where
-    NetworkReceiverT: Stream<
-            Item = (Result<ConsensusMessage, ProtobufConversionError>, BroadcastedMessageManager),
-        > + Unpin,
+    BroadcastClientT: BroadcastClientTrait<ConsensusMessage>,
 {
     if let Some(msg) = cached_messages.pop() {
         return Ok(msg);
     }
 
     let (msg, mut broadcasted_message_manager) =
-        network_receiver.next().await.ok_or_else(|| {
+        broadcast_client.next().await.ok_or_else(|| {
             ConsensusError::InternalNetworkError(
                 "NetworkReceiver should never be closed".to_string(),
             )
@@ -259,12 +249,12 @@ where
     match msg {
         // TODO(matan): Return report_sender for use in later errors by SHC.
         Ok(msg) => {
-            broadcasted_message_manager.continue_propogation();
+            broadcast_client.continue_propagation(&broadcasted_message_manager).await;
             Ok(msg)
         }
         Err(e) => {
             // Failed to parse consensus message
-            broadcasted_message_manager.report_peer();
+            broadcast_client.report_message(broadcasted_message_manager).await;
             Err(e.into())
         }
     }

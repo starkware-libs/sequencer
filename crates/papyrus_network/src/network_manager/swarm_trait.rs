@@ -5,6 +5,7 @@ use libp2p::swarm::{DialError, NetworkBehaviour, SwarmEvent};
 use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm};
 use tracing::{error, info};
 
+use super::BroadcastedMessageManager;
 use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour;
 use crate::peer_manager::ReputationModifier;
@@ -52,6 +53,8 @@ pub trait SwarmTrait: Stream<Item = Event> + Unpin {
     fn report_peer(&mut self, peer_id: PeerId);
 
     fn add_new_supported_inbound_protocol(&mut self, protocol_name: StreamProtocol);
+
+    fn continue_propagation(&mut self, message_manager: BroadcastedMessageManager);
 }
 
 impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
@@ -128,5 +131,10 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
 
     fn add_new_supported_inbound_protocol(&mut self, protocol: StreamProtocol) {
         self.behaviour_mut().sqmr.add_new_supported_inbound_protocol(protocol);
+    }
+
+    // TODO(shahak): Implement this function.
+    fn continue_propagation(&mut self, _message_manager: BroadcastedMessageManager) {
+        todo!()
     }
 }
