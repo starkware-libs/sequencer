@@ -11,7 +11,13 @@ RUN apt update && apt -y install \
     build-essential \
     clang \
     curl \
-    python3-dev
+    python3-dev \
+    zstd \
+    wget \
+    gnupg
+
+# check installation of zstd
+RUN zstd --version
 
 RUN groupadd --gid $USER_GID $USERNAME && \
     useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME
