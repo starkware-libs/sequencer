@@ -126,10 +126,14 @@ impl VersionedConstants {
 
     /// Converts from l1 gas cost to l2 gas cost with **upward rounding**
     pub fn l1_to_l2_gas_price_conversion(&self, l1_gas_price: u128) -> u128 {
-        let l1_to_l2_gas_price_ratio: Ratio<u128> =
-            Ratio::new(1, u128::from(self.os_constants.gas_costs.step_gas_cost))
-                * self.vm_resource_fee_cost()["n_steps"];
+        let l1_to_l2_gas_price_ratio = self.l1_to_l2_gas_price_ratio();
         *(l1_to_l2_gas_price_ratio * l1_gas_price).ceil().numer()
+    }
+
+    /// Returns the ratio between l1 gas price and l2 gas price.
+    pub fn l1_to_l2_gas_price_ratio(&self) -> Ratio<u128> {
+        Ratio::new(1, u128::from(self.os_constants.gas_costs.step_gas_cost))
+            * self.vm_resource_fee_cost()["n_steps"]
     }
 
     /// Returns the initial gas of any transaction to run with.
@@ -185,8 +189,9 @@ impl VersionedConstants {
 
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_account_testing() -> Self {
+        let step_cost = ResourceCost::from_integer(1);
         let vm_resource_fee_cost = Arc::new(HashMap::from([
-            (crate::abi::constants::N_STEPS_RESOURCE.to_string(), ResourceCost::from_integer(1)),
+            (crate::abi::constants::N_STEPS_RESOURCE.to_string(), step_cost),
             (BuiltinName::pedersen.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
             (
                 BuiltinName::range_check.to_str_with_suffix().to_string(),
@@ -204,8 +209,12 @@ impl VersionedConstants {
             (BuiltinName::add_mod.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
             (BuiltinName::mul_mod.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
         ]));
-
-        Self { vm_resource_fee_cost, ..Self::create_for_testing() }
+        let latest = Self::create_float_for_testing();
+        let latest_step_cost = latest.vm_resource_fee_cost["n_steps"];
+        let mut l2_resource_gas_costs = latest.l2_resource_gas_costs;
+        l2_resource_gas_costs.gas_per_code_byte *= latest_step_cost / step_cost;
+        l2_resource_gas_costs.gas_per_data_felt *= latest_step_cost / step_cost;
+        Self { vm_resource_fee_cost, l2_resource_gas_costs, ..latest }
     }
 
     // A more complicated instance to increase test coverage.

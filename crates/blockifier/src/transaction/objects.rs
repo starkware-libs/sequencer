@@ -334,8 +334,9 @@ impl StarknetResources {
         // TODO(Avi, 20/2/2024): Calculate the number of bytes instead of the number of felts.
         let total_data_size = u128_from_usize(self.calldata_length + self.signature_length);
         let l1_gas = (versioned_constants.l2_resource_gas_costs.gas_per_data_felt
-            * total_data_size)
-            .to_integer();
+            * total_data_size
+            * versioned_constants.l1_to_l2_gas_price_ratio())
+        .to_integer();
         GasVector::from_l1_gas(l1_gas)
     }
 
@@ -384,27 +385,29 @@ impl StarknetResources {
         (message_segment_length, gas_weight)
     }
 
-    /// Returns the gas cost of declared class codes.
+    /// Returns the L1 gas cost of declared class codes.
     pub fn get_code_cost(&self, versioned_constants: &VersionedConstants) -> GasVector {
         GasVector::from_l1_gas(
             (versioned_constants.l2_resource_gas_costs.gas_per_code_byte
-                * u128_from_usize(self.code_size))
+                * u128_from_usize(self.code_size)
+                * versioned_constants.l1_to_l2_gas_price_ratio())
             .to_integer(),
         )
     }
 
-    /// Returns the gas cost of the transaction's state changes.
+    /// Returns the L1 gas cost of the transaction's state changes.
     pub fn get_state_changes_cost(&self, use_kzg_da: bool) -> GasVector {
         // TODO(Nimrod, 29/3/2024): delete `get_da_gas_cost` and move it's logic here.
         get_da_gas_cost(&self.state_changes_for_fee, use_kzg_da)
     }
 
-    /// Returns the gas cost of the transaction's emmited events.
+    /// Returns the L1 gas cost of the transaction's emmited events.
     pub fn get_events_cost(&self, versioned_constants: &VersionedConstants) -> GasVector {
         let l2_resource_gas_costs = &versioned_constants.l2_resource_gas_costs;
         let (event_key_factor, data_word_cost) =
             (l2_resource_gas_costs.event_key_factor, l2_resource_gas_costs.gas_per_data_felt);
         let l1_gas: u128 = (data_word_cost
+            * versioned_constants.l1_to_l2_gas_price_ratio()
             * (event_key_factor * self.total_event_keys + self.total_event_data_size))
             .to_integer();
 
