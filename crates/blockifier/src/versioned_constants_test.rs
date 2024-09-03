@@ -124,7 +124,7 @@ fn test_default_values() {
     assert_eq!(versioned_constants.get_validate_timestamp_rounding(), 1);
 
     assert_eq!(versioned_constants.tx_event_limits, EventLimits::max());
-    assert_eq!(versioned_constants.l2_resource_gas_costs, L2ResourceGasCosts::default());
+    assert_eq!(versioned_constants.archival_data_gas_costs, ArchivalDataGasCosts::default());
 
     // Calldata factor was initialized as 0, and did not affect the expected result, even if
     // calldata length is nonzero.
