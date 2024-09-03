@@ -33,9 +33,9 @@ fn test_get_event_gas_cost(
     versioned_constants: &VersionedConstants,
     #[values(false, true)] use_kzg_da: bool,
 ) {
-    let l2_resource_gas_costs = &versioned_constants.l2_resource_gas_costs;
+    let archival_data_gas_costs = &versioned_constants.archival_data_gas_costs;
     let (event_key_factor, data_word_cost) =
-        (l2_resource_gas_costs.event_key_factor, l2_resource_gas_costs.gas_per_data_felt);
+        (archival_data_gas_costs.event_key_factor, archival_data_gas_costs.gas_per_data_felt);
     let call_infos = vec![CallInfo::default(), CallInfo::default(), CallInfo::default()];
     let call_infos_iter = call_infos.iter();
     let starknet_resources =
@@ -82,7 +82,10 @@ fn test_get_event_gas_cost(
     let call_infos_iter = call_infos.iter();
     let expected = GasVector::from_l1_gas(
         // 8 keys and 11 data words overall.
-        (data_word_cost * (event_key_factor * 8_u128 + 11_u128)).to_integer(),
+        (data_word_cost
+            * versioned_constants.l1_to_l2_gas_price_ratio()
+            * (event_key_factor * 8_u128 + 11_u128))
+            .to_integer(),
     );
     let starknet_resources =
         StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, call_infos_iter);
