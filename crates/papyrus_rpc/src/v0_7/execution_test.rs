@@ -171,20 +171,20 @@ lazy_static! {
     // TODO(yair): verify this is the correct fee, got this value by printing the result of the
     // call.
     pub static ref EXPECTED_FEE_ESTIMATE: FeeEstimation = FeeEstimation {
-        gas_consumed: felt!("0x680"),
+        gas_consumed: felt!("0x681"),
         gas_price: GAS_PRICE.price_in_wei,
         data_gas_consumed: Felt::ZERO,
         data_gas_price: DATA_GAS_PRICE.price_in_wei,
-        overall_fee: Fee(166400000000000,),
+        overall_fee: Fee(166500000000000,),
         unit: PriceUnit::Wei,
     };
 
     pub static ref EXPECTED_FEE_ESTIMATE_SKIP_VALIDATE: FeeEstimation = FeeEstimation {
-        gas_consumed: felt!("0x680"),
+        gas_consumed: felt!("0x681"),
         gas_price: GAS_PRICE.price_in_wei,
         data_gas_consumed: Felt::ZERO,
         data_gas_price: DATA_GAS_PRICE.price_in_wei,
-        overall_fee: Fee(166400000000000,),
+        overall_fee: Fee(166500000000000,),
         unit: PriceUnit::Wei,
     };
 
