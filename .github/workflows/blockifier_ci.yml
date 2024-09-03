@@ -53,7 +53,7 @@ jobs:
       - run: cargo test -p blockifier
 
   native-blockifier-artifacts-push:
-    runs-on: starkware-ubuntu-20-04-medium
+    runs-on: starkware-ubuntu-20-04-large
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
