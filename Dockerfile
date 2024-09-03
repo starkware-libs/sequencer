@@ -48,7 +48,8 @@ RUN apt update -y && apt install -y --ignore-missing --allow-downgrades \
     libmlir-18-dev \
     libpolly-18-dev \
     llvm-18-dev \
-    mlir-18-tools
+    mlir-18-tools \
+    clang-18
 ENV MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/
 ENV LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/
 ENV TABLEGEN_180_PREFIX=/usr/lib/llvm-18/
