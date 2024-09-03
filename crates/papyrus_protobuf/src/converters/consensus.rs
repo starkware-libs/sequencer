@@ -111,22 +111,6 @@ impl TryFrom<protobuf::StreamMessage> for StreamMessage {
     type Error = ProtobufConversionError;
 
     fn try_from(value: protobuf::StreamMessage) -> Result<Self, Self::Error> {
-        // let Some(message) = value.message else {
-        //     return Err(ProtobufConversionError::MissingField { field_description: "message" });
-        // };
-
-        // let Some(stream_id) = value.stream_id else {
-        //     return Err(ProtobufConversionError::MissingField { field_description: "stream_id" });
-        // };
-
-        // let Some(chunk_id) = value.chunk_id else {
-        //     return Err(ProtobufConversionError::MissingField { field_description: "chunk_id" });
-        // };
-
-        // let Some(done) = value.done else {
-        //     return Err(ProtobufConversionError::MissingField { field_description: "done" });
-        // };
-
         Ok(StreamMessage {
             message: value.message,
             stream_id: value.stream_id,
@@ -138,7 +122,7 @@ impl TryFrom<protobuf::StreamMessage> for StreamMessage {
 
 impl From<StreamMessage> for protobuf::StreamMessage {
     fn from(value: StreamMessage) -> Self {
-        protobuf::StreamMessage {
+        Self {
             message: value.message,
             stream_id: value.stream_id,
             chunk_id: value.chunk_id,
