@@ -98,6 +98,17 @@ impl Transaction {
     }
 }
 
+macro_rules! implement_v3_tx_getters {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            match self {
+                Self::V3(tx) => tx.$field.clone(),
+                _ => panic!("Field {} is not available for {:?}, its only available for V3 transactions.", stringify!($field), self.version()),
+            }
+        })*
+    };
+}
+
 /// A transaction output.
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub enum TransactionOutput {
@@ -267,6 +278,25 @@ impl DeclareTransaction {
         (signature, TransactionSignature)
     );
 
+    implement_v3_tx_getters!(
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData),
+        (account_deployment_data, AccountDeploymentData)
+    );
+
+    pub fn compiled_class_hash(&self) -> CompiledClassHash {
+        match self {
+            DeclareTransaction::V0(_) | DeclareTransaction::V1(_) => {
+                panic!("Cairo0 DeclareTransaction (V0, V1) doesn't have compiled_class_hash.")
+            }
+            DeclareTransaction::V2(tx) => tx.compiled_class_hash,
+            DeclareTransaction::V3(tx) => tx.compiled_class_hash,
+        }
+    }
+
     pub fn version(&self) -> TransactionVersion {
         match self {
             DeclareTransaction::V0(_) => TransactionVersion::ZERO,
@@ -372,6 +402,14 @@ impl DeployAccountTransaction {
         (contract_address_salt, ContractAddressSalt),
         (nonce, Nonce),
         (signature, TransactionSignature)
+    );
+
+    implement_v3_tx_getters!(
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData)
     );
 
     pub fn version(&self) -> TransactionVersion {
@@ -504,6 +542,15 @@ macro_rules! implement_invoke_tx_getters {
 
 impl InvokeTransaction {
     implement_invoke_tx_getters!((calldata, Calldata), (signature, TransactionSignature));
+
+    implement_v3_tx_getters!(
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData),
+        (account_deployment_data, AccountDeploymentData)
+    );
 
     pub fn nonce(&self) -> Nonce {
         match self {
