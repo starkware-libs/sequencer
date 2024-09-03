@@ -33,10 +33,11 @@ RUN apt update -y && apt install -y lsb-release \
     gnupg
 
 ENV PATH="/usr/local/musl/bin:${PATH}"
+ENV TARGET=x86_64-unknown-linux-musl
+ENV TARGET_CC=${TARGET}-gcc
+ENV TARGET_AR=${TARGET}-ar
 
 RUN ln -s /bin/g++ /bin/musl-g++
-RUN which musl-ar
-RUN which musl-g++
 
 # Install LLVM 18
 RUN echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" > /etc/apt/sources.list.d/llvm-18.list
