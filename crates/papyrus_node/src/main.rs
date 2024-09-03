@@ -18,7 +18,6 @@ use papyrus_config::validators::config_validate;
 use papyrus_config::ConfigError;
 use papyrus_consensus::config::ConsensusConfig;
 use papyrus_consensus::papyrus_consensus_context::PapyrusConsensusContext;
-use papyrus_consensus::simulation_network_receiver::NetworkReceiver;
 use papyrus_consensus::types::ConsensusError;
 use papyrus_monitoring_gateway::MonitoringServer;
 use papyrus_network::gossipsub_impl::Topic;
@@ -114,19 +113,14 @@ fn run_consensus(
             .register_broadcast_topic(Topic::new(test_config.sync_topic.clone()), BUFFER_SIZE)?;
         let context = PapyrusConsensusContext::new(
             storage_reader.clone(),
-            network_channels.messages_to_broadcast_sender,
+            network_channels.messages_to_broadcast_sender.clone(),
             config.num_validators,
             Some(sync_channels.messages_to_broadcast_sender),
         );
-        let network_receiver = NetworkReceiver::new(
-            network_channels.broadcasted_messages_receiver,
-            test_config.cache_size,
-            test_config.random_seed,
-            test_config.drop_probability,
-            test_config.invalid_probability,
-        );
-        let sync_receiver =
-            sync_channels.broadcasted_messages_receiver.map(|(vote, _report_sender)| {
+        let sync_receiver = sync_channels
+            .broadcast_client_channels
+            .broadcasted_messages_receiver
+            .map(|(vote, _report_sender)| {
                 BlockNumber(vote.expect("Sync channel should never have errors").height)
             });
         Ok(tokio::spawn(papyrus_consensus::run_consensus(
@@ -135,7 +129,7 @@ fn run_consensus(
             config.validator_id,
             config.consensus_delay,
             config.timeouts.clone(),
-            network_receiver,
+            network_channels.broadcast_client_channels,
             sync_receiver,
         )))
     } else {
@@ -151,7 +145,7 @@ fn run_consensus(
             config.validator_id,
             config.consensus_delay,
             config.timeouts.clone(),
-            network_channels.broadcasted_messages_receiver,
+            network_channels.broadcast_client_channels,
             futures::stream::pending(),
         )))
     }
