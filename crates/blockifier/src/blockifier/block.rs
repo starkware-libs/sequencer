@@ -48,7 +48,7 @@ impl GasPrices {
     ) -> Self {
         // TODO(Aner): fix backwards compatibility.
         let expected_eth_l2_gas_price = VersionedConstants::latest_constants()
-            .l1_to_l2_gas_price_conversion(eth_l1_gas_price.into());
+            .convert_l1_to_l2_gas_price(eth_l1_gas_price.into());
         if u128::from(eth_l2_gas_price) != expected_eth_l2_gas_price {
             warn!(
                 "eth_l2_gas_price does not match expected! eth_l2_gas_price:{eth_l2_gas_price}, \
@@ -56,7 +56,7 @@ impl GasPrices {
             )
         }
         let expected_strk_l2_gas_price = VersionedConstants::latest_constants()
-            .l1_to_l2_gas_price_conversion(strk_l1_gas_price.into());
+            .convert_l1_to_l2_gas_price(strk_l1_gas_price.into());
         if u128::from(strk_l2_gas_price) != expected_strk_l2_gas_price {
             warn!(
                 "strk_l2_gas_price does not match expected! \
