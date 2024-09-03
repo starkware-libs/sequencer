@@ -12,7 +12,7 @@ RUN apt update && apt -y install \
     clang \
     curl \
     python3-dev \
-    zstd \
+    libzstd-dev \
     wget \
     gnupg
 
