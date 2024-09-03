@@ -9,6 +9,7 @@ use crate::transaction::{
     Calldata,
     ContractAddressSalt,
     DeprecatedResourceBoundsMapping,
+    Fee,
     PaymasterData,
     Tip,
     TransactionHash,
@@ -155,7 +156,8 @@ impl DeployAccountTransaction {
         (tip, Tip),
         (nonce_data_availability_mode, DataAvailabilityMode),
         (fee_data_availability_mode, DataAvailabilityMode),
-        (paymaster_data, PaymasterData)
+        (paymaster_data, PaymasterData),
+        (max_fee, Option<Fee>)
     );
     implement_getter_calls!((tx_hash, TransactionHash), (contract_address, ContractAddress));
 
@@ -182,7 +184,8 @@ impl InvokeTransaction {
         (nonce_data_availability_mode, DataAvailabilityMode),
         (fee_data_availability_mode, DataAvailabilityMode),
         (paymaster_data, PaymasterData),
-        (account_deployment_data, AccountDeploymentData)
+        (account_deployment_data, AccountDeploymentData),
+        (max_fee, Option<Fee>)
     );
     implement_getter_calls!((tx_hash, TransactionHash));
 
