@@ -434,10 +434,10 @@
                 },
                 "resources": {
                     "constant": {
-                        "n_steps": 3231,
+                        "n_steps": 3192,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 4,
-                            "range_check_builtin": 64,
+                            "range_check_builtin": 61,
                             "poseidon_builtin": 14
                         },
                         "n_memory_holes": 0
@@ -469,10 +469,10 @@
                 },
                 "resources": {
                     "constant": {
-                        "n_steps": 4169,
+                        "n_steps": 4130,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 11,
-                            "range_check_builtin": 80,
+                            "range_check_builtin": 77,
                             "poseidon_builtin": 10
                         },
                         "n_memory_holes": 0
@@ -506,10 +506,10 @@
                 },
                 "resources": {
                     "constant": {
-                        "n_steps": 3942,
+                        "n_steps": 3903,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 4,
-                            "range_check_builtin": 77,
+                            "range_check_builtin": 74,
                             "poseidon_builtin": 11
                         },
                         "n_memory_holes": 0
