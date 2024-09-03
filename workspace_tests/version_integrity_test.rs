@@ -1,4 +1,4 @@
-use crate::toml_utils::{LocalCrate, ROOT_TOML};
+use crate::toml_utils::{DependencyValue, LocalCrate, ROOT_TOML};
 
 #[test]
 fn test_path_dependencies_are_members() {
@@ -37,5 +37,22 @@ fn validate_no_path_dependencies() {
     assert!(
         all_path_deps_in_crate_tomls.is_empty(),
         "The following crates have path dependency {all_path_deps_in_crate_tomls:?}."
+    );
+}
+
+#[test]
+fn test_no_features_in_workspace() {
+    let dependencies_with_features: Vec<_> = ROOT_TOML
+        .dependencies()
+        .filter_map(|(name, dependency)| match dependency {
+            DependencyValue::Object { features: Some(features), .. } => Some((name, features)),
+            _ => None,
+        })
+        .collect();
+    assert!(
+        dependencies_with_features.is_empty(),
+        "The following dependencies have features enabled in the workspace Cargo.toml: \
+         {dependencies_with_features:#?}. Features should only be activated in the crate that \
+         needs them."
     );
 }

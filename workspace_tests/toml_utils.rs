@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[serde(untagged)]
 pub(crate) enum DependencyValue {
     String(String),
-    Object { version: Option<String>, path: Option<String> },
+    Object { version: Option<String>, path: Option<String>, features: Option<Vec<String>> },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -58,9 +58,14 @@ impl CargoToml {
         &self.workspace.package.version
     }
 
+    pub(crate) fn dependencies(&self) -> impl Iterator<Item = (&String, &DependencyValue)> + '_ {
+        self.workspace.dependencies.iter()
+    }
+
     pub(crate) fn path_dependencies(&self) -> impl Iterator<Item = LocalCrate> + '_ {
-        self.workspace.dependencies.iter().filter_map(|(_name, value)| {
-            if let DependencyValue::Object { path: Some(path), version: Some(version) } = value {
+        self.dependencies().filter_map(|(_name, value)| {
+            if let DependencyValue::Object { path: Some(path), version: Some(version), .. } = value
+            {
                 Some(LocalCrate { path: path.to_string(), version: version.to_string() })
             } else {
                 None
