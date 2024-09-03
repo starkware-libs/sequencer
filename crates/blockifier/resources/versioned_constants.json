@@ -194,7 +194,7 @@
     "os_resources": {
         "execute_syscalls": {
             "CallContract": {
-                "n_steps": 827,
+                "n_steps": 860,
                 "builtin_instance_counter": {
                     "range_check_builtin": 15
                 },
@@ -215,7 +215,7 @@
                 "n_memory_holes": 0
             },
             "Deploy": {
-                "n_steps": 1099,
+                "n_steps": 1128,
                 "builtin_instance_counter": {
                     "pedersen_builtin": 7,
                     "range_check_builtin": 18
@@ -294,7 +294,7 @@
                 "n_memory_holes": 0
             },
             "LibraryCall": {
-                "n_steps": 818,
+                "n_steps": 836,
                 "builtin_instance_counter": {
                     "range_check_builtin": 15
                 },
@@ -308,7 +308,7 @@
                 "n_memory_holes": 0
             },
             "ReplaceClass": {
-                "n_steps": 98,
+                "n_steps": 104,
                 "builtin_instance_counter": {
                     "range_check_builtin": 1
                 },
@@ -400,14 +400,14 @@
                 "n_memory_holes": 0
             },
             "StorageRead": {
-                "n_steps": 87,
+                "n_steps": 89,
                 "builtin_instance_counter": {
                     "range_check_builtin": 1
                 },
                 "n_memory_holes": 0
             },
             "StorageWrite": {
-                "n_steps": 89,
+                "n_steps": 93,
                 "builtin_instance_counter": {
                     "range_check_builtin": 1
                 },
@@ -418,7 +418,7 @@
             "Declare": {
                 "deprecated_resources": {
                     "constant": {
-                        "n_steps": 3099,
+                        "n_steps": 3161,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 16,
                             "range_check_builtin": 56,
@@ -434,10 +434,10 @@
                 },
                 "resources": {
                     "constant": {
-                        "n_steps": 3231,
+                        "n_steps": 3254,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 4,
-                            "range_check_builtin": 64,
+                            "range_check_builtin": 61,
                             "poseidon_builtin": 14
                         },
                         "n_memory_holes": 0
@@ -452,7 +452,7 @@
             "DeployAccount": {
                 "deprecated_resources": {
                     "constant": {
-                        "n_steps": 4020,
+                        "n_steps": 4114,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 23,
                             "range_check_builtin": 72
@@ -469,10 +469,10 @@
                 },
                 "resources": {
                     "constant": {
-                        "n_steps": 4169,
+                        "n_steps": 4224,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 11,
-                            "range_check_builtin": 80,
+                            "range_check_builtin": 77,
                             "poseidon_builtin": 10
                         },
                         "n_memory_holes": 0
@@ -489,7 +489,7 @@
             "InvokeFunction": {
                 "deprecated_resources": {
                     "constant": {
-                        "n_steps": 3769,
+                        "n_steps": 3854,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 14,
                             "range_check_builtin": 69
@@ -506,10 +506,10 @@
                 },
                 "resources": {
                     "constant": {
-                        "n_steps": 3942,
+                        "n_steps": 3988,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 4,
-                            "range_check_builtin": 77,
+                            "range_check_builtin": 74,
                             "poseidon_builtin": 11
                         },
                         "n_memory_holes": 0
@@ -526,7 +526,7 @@
             "L1Handler": {
                 "deprecated_resources": {
                     "constant": {
-                        "n_steps": 1234,
+                        "n_steps": 1257,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 11,
                             "range_check_builtin": 16
