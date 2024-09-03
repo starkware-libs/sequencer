@@ -6202,6 +6202,8 @@ name = "papyrus_consensus"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "clap",
+ "fs2",
  "futures",
  "lazy_static",
  "lru",
