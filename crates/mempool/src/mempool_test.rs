@@ -131,7 +131,8 @@ fn add_tx_expect_error(mempool: &mut Mempool, input: &MempoolInput, expected_err
 /// 2. add_tx_input!(tx_hash: 2, sender_address: 3_u8, tx_nonce: 4, account_nonce: 3)
 /// 3. add_tx_input!(tip: 1, tx_hash: 2, sender_address: 3_u8)
 /// 4. add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0)
-/// 5. add_tx_input!(tip: 1, tx_hash: 2)
+/// 5. add_tx_input!(tx_nonce: 1, account_nonce: 0)
+/// 6. add_tx_input!(tip: 1, tx_hash: 2)
 macro_rules! add_tx_input {
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
         tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr, resource_bounds: $resource_bounds:expr) => {{
@@ -160,6 +161,9 @@ macro_rules! add_tx_input {
     };
     (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
         add_tx_input!(tip: 1, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce, account_nonce: $account_nonce)
+    };
+    (tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
+        add_tx_input!(tip: 1, tx_hash: 0_u8, sender_address: "0x0", tx_nonce: $tx_nonce, account_nonce: $account_nonce)
     };
     (tip: $tip:expr, tx_hash: $tx_hash:expr) => {
         add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8)
@@ -349,7 +353,7 @@ fn test_get_txs_with_holes_single_account() {
 #[rstest]
 fn test_get_txs_while_decreasing_gas_price_threshold() {
     // Setup.
-    let input_tx = add_tx_input!(tx_hash: 0, tx_nonce: 0_u8, account_nonce: 0_u8);
+    let input_tx = add_tx_input!(tx_nonce: 0_u8, account_nonce: 0_u8);
 
     let pool_txs = [input_tx.tx.clone()];
     let queue_txs = [TransactionReference::new(&input_tx.tx)];
