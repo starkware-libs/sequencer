@@ -303,3 +303,41 @@ fn mixed_quorum(send_prposal: bool) {
     wrapper.send_timeout_precommit(ROUND);
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPropose(ROUND + 1));
 }
+
+#[test]
+fn dont_handle_enqueued_while_awaiting_get_proposal() {
+    let mut wrapper = TestWrapper::new(*PROPOSER_ID, 4, |_: Round| *PROPOSER_ID);
+
+    wrapper.start();
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::GetProposal(None, ROUND));
+    assert!(wrapper.next_event().is_none());
+
+    // We simulate that this node is always the proposer, but it lagged, so the peers kept voting
+    // NIL and progressing rounds.
+    wrapper.send_prevote(None, ROUND);
+    wrapper.send_prevote(None, ROUND);
+    wrapper.send_prevote(None, ROUND);
+    wrapper.send_precommit(None, ROUND);
+    wrapper.send_precommit(None, ROUND);
+    wrapper.send_precommit(None, ROUND);
+    wrapper.send_prevote(None, ROUND + 1);
+    wrapper.send_prevote(None, ROUND + 1);
+    wrapper.send_prevote(None, ROUND + 1);
+    wrapper.send_precommit(None, ROUND + 1);
+    wrapper.send_precommit(None, ROUND + 1);
+    wrapper.send_precommit(None, ROUND + 1);
+
+    // It now receives the proposal.
+    wrapper.send_get_proposal(BLOCK_HASH, ROUND);
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Proposal(BLOCK_HASH, ROUND));
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrecommit(ROUND));
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::GetProposal(None, ROUND + 1));
+    assert!(wrapper.next_event().is_none());
+
+    // The other votes are only handled after the next GetProposal is received.
+    wrapper.send_get_proposal(BLOCK_HASH, ROUND + 1);
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Proposal(BLOCK_HASH, ROUND + 1));
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrecommit(ROUND + 1));
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::GetProposal(None, ROUND + 2));
+    assert!(wrapper.next_event().is_none());
+}
