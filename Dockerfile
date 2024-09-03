@@ -50,8 +50,8 @@ RUN apt update -y && apt install -y lsb-release \
 
 ENV PATH="/usr/local/musl/bin:${PATH}"
 ENV TARGET=x86_64-unknown-linux-musl
-ENV TARGET_CC=${TARGET}-gcc
-ENV TARGET_AR=${TARGET}-ar
+ENV TARGET_CC=gcc
+ENV TARGET_AR=ar
 
 RUN ln -s /bin/g++ /bin/musl-g++
 
