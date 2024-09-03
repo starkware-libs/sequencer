@@ -9,7 +9,7 @@
 # We start by creating a base image using 'clux/muslrust' with additional required tools.
 FROM clux/muslrust:1.80.0-stable AS chef
 WORKDIR /app
-RUN apt update && apt install -y clang unzip
+RUN apt update && apt install -y clang unzip g++ musl-dev
 RUN cargo install cargo-chef
 ENV PROTOC_VERSION=25.1
 RUN curl -L "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip" -o protoc.zip && unzip ./protoc.zip -d $HOME/.local &&  rm ./protoc.zip
@@ -32,6 +32,9 @@ RUN apt update -y && apt install -y lsb-release \
     pkg-config \
     gnupg
 
+ENV PATH="/usr/local/musl/bin:${PATH}"
+
+RUN which musl-ar
 
 # Install LLVM 18
 RUN echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" > /etc/apt/sources.list.d/llvm-18.list
