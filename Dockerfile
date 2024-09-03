@@ -52,7 +52,7 @@ ENV PATH="/usr/local/musl/bin:${PATH}"
 
 RUN ln -s /bin/g++ /bin/musl-g++
 RUN which musl-ar
-RUN which muls-g++
+RUN which musl-g++
 
 # Install LLVM 18
 RUN echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" > /etc/apt/sources.list.d/llvm-18.list
