@@ -559,7 +559,7 @@ impl InvokeTransaction {
             Self::V3(tx) => tx.nonce,
         }
     }
-
+    
     pub fn sender_address(&self) -> ContractAddress {
         match self {
             Self::V0(tx) => tx.contract_address,

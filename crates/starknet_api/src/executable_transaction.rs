@@ -15,6 +15,8 @@ use crate::transaction::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
+    DeprecatedResourceBoundsMapping,
+    Fee,
     PaymasterData,
     Tip,
     TransactionHash,
