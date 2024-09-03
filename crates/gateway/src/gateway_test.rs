@@ -6,11 +6,11 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::CairoVersion;
-use mempool_test_utils::starknet_api_test_utils::{create_executable_tx, invoke_tx};
+use mempool_test_utils::starknet_api_test_utils::invoke_tx;
 use mockall::predicate::eq;
 use starknet_api::core::ContractAddress;
+use starknet_api::executable_transaction::{InvokeTransaction, Transaction};
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
@@ -21,7 +21,6 @@ use crate::gateway::{add_tx, AppState, SharedMempoolClient};
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
-use crate::utils::rpc_tx_to_account_tx;
 
 pub fn app_state(
     mempool_client: SharedMempoolClient,
@@ -58,7 +57,19 @@ fn create_tx() -> (RpcTransaction, SenderAddress) {
 #[tokio::test]
 async fn test_add_tx() {
     let (tx, sender_address) = create_tx();
-    let tx_hash = calculate_hash(&tx);
+    let executable_tx = if let RpcTransaction::Invoke(tx) = tx.clone() {
+        Transaction::Invoke(
+            InvokeTransaction::from_rpc_tx(
+                tx,
+                // TODO(Arni): Replace with ChainId::create_for_testing() once it is implemented.
+                &ChainInfo::create_for_testing().chain_id,
+            )
+            .unwrap(),
+        )
+    } else {
+        panic!("Unexpected transaction type");
+    };
+    let tx_hash = executable_tx.tx_hash();
 
     let mut mock_mempool_client = MockMempoolClient::new();
     mock_mempool_client
@@ -67,13 +78,7 @@ async fn test_add_tx() {
         .with(eq(MempoolInput {
             // TODO(Arni): Use external_to_executable_tx instead of `create_executable_tx`. Consider
             // creating a `convertor for testing` that does not do the compilation.
-            tx: create_executable_tx(
-                sender_address,
-                tx_hash,
-                *tx.tip(),
-                *tx.nonce(),
-                tx.resource_bounds().clone().into(),
-            ),
+            tx: executable_tx,
             account: Account { sender_address, state: AccountState { nonce: *tx.nonce() } },
         }))
         .return_once(|_| Ok(()));
@@ -91,21 +96,4 @@ async fn test_add_tx() {
 
 async fn to_bytes(res: Response) -> Bytes {
     res.into_body().collect().await.unwrap().to_bytes()
-}
-
-fn calculate_hash(rpc_tx: &RpcTransaction) -> TransactionHash {
-    let optional_class_info = match &rpc_tx {
-        RpcTransaction::Declare(_declare_tx) => {
-            panic!("Declare transactions are not supported in this test")
-        }
-        _ => None,
-    };
-
-    let account_tx = rpc_tx_to_account_tx(
-        rpc_tx,
-        optional_class_info,
-        &ChainInfo::create_for_testing().chain_id,
-    )
-    .unwrap();
-    account_tx.tx_hash()
 }
