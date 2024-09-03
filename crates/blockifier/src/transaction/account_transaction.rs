@@ -2,10 +2,11 @@ use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::calldata;
-use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce};
+use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::transaction::{
+    AccountDeploymentData,
     Calldata,
     DeprecatedResourceBoundsMapping,
     Fee,
@@ -141,6 +142,30 @@ impl AccountTransaction {
         (fee_data_availability_mode, DataAvailabilityMode),
         (paymaster_data, PaymasterData)
     );
+
+    pub fn class_hash(&self) -> Option<ClassHash> {
+        match self {
+            Self::Declare(tx) => Some(tx.tx.class_hash()),
+            Self::DeployAccount(tx) => Some(tx.tx.class_hash()),
+            Self::Invoke(_) => None,
+        }
+    }
+
+    pub fn sender_address(&self) -> ContractAddress {
+        match self {
+            Self::Declare(tx) => tx.tx.sender_address(),
+            Self::DeployAccount(tx) => tx.tx.contract_address(),
+            Self::Invoke(tx) => tx.tx.sender_address(),
+        }
+    }
+
+    pub fn account_deployment_data(&self) -> Option<AccountDeploymentData> {
+        match self {
+            Self::Declare(tx) => Some(tx.tx.account_deployment_data().clone()),
+            Self::DeployAccount(_) => None,
+            Self::Invoke(tx) => Some(tx.tx.account_deployment_data().clone()),
+        }
+    }
 
     // TODO(nir, 01/11/2023): Consider instantiating CommonAccountFields in AccountTransaction.
     pub fn tx_type(&self) -> TransactionType {

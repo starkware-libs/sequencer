@@ -288,6 +288,24 @@ impl DeclareTransaction {
         (account_deployment_data, AccountDeploymentData)
     );
 
+    pub fn max_fee(&self) -> Option<Fee> {
+        match &self {
+            Self::V0(tx) => Some(tx.max_fee),
+            Self::V1(tx) => Some(tx.max_fee),
+            Self::V2(tx) => Some(tx.max_fee),
+            Self::V3(_) => None,
+        }
+    }
+
+    pub fn compiled_class_hash(&self) -> Option<CompiledClassHash> {
+        match self {
+            DeclareTransaction::V0(_) => None,
+            DeclareTransaction::V1(_) => None,
+            DeclareTransaction::V2(tx) => Some(tx.compiled_class_hash),
+            DeclareTransaction::V3(tx) => Some(tx.compiled_class_hash),
+        }
+    }
+
     pub fn version(&self) -> TransactionVersion {
         match self {
             DeclareTransaction::V0(_) => TransactionVersion::ZERO,
@@ -413,6 +431,13 @@ impl DeployAccountTransaction {
         (fee_data_availability_mode, DataAvailabilityMode),
         (paymaster_data, PaymasterData)
     );
+
+    pub fn max_fee(&self) -> Option<Fee> {
+        match self {
+            DeployAccountTransaction::V1(tx) => Some(tx.max_fee),
+            DeployAccountTransaction::V3(_) => None,
+        }
+    }
 
     pub fn version(&self) -> TransactionVersion {
         match self {
@@ -570,6 +595,14 @@ impl InvokeTransaction {
             Self::V0(_) => Nonce::default(),
             Self::V1(tx) => tx.nonce,
             Self::V3(tx) => tx.nonce,
+        }
+    }
+
+    pub fn max_fee(&self) -> Option<Fee> {
+        match self {
+            Self::V0(tx) => Some(tx.max_fee),
+            Self::V1(_) => None,
+            Self::V3(_) => None,
         }
     }
 
