@@ -32,17 +32,21 @@ function install_rust () {
 }
 
 function install_llvm() {
+  apt update -y && apt install -y \
+      wget \
+      gnupg
   echo "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-18 main" > /etc/apt/sources.list.d/llvm-18.list
   echo "deb-src http://apt.llvm.org/focal/ llvm-toolchain-focal-18 main" >> /etc/apt/sources.list.d/llvm-18.list
   wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
-  apt update -y && apt install -y \
-      libmlir-18-dev \
-      libpolly-18-dev \
-      llvm-18-dev \
-      mlir-18-tools
+
+  sudo apt-get update && sudo apt-get upgrade -y
+  sudo apt-get install -y zstd
+  sudo apt-get install llvm-18 llvm-18-dev llvm-18-runtime clang-18 clang-tools-18 lld-18 libpolly-18-dev libmlir-18-dev mlir-18-tools
+  sudo apt-get install -y libgmp3-dev
 }
+
+install_llvm
 
 install_pypy &
 install_rust &
-install_llvm &
 wait
