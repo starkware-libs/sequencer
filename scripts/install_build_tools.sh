@@ -51,6 +51,5 @@ function install_rust() {
 install_common_packages
 install_pypy &
 install_rust &
-install_llvm &
 wait
 ./setup_native_deps.sh
