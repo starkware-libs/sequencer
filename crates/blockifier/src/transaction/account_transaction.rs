@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::calldata;
-use starknet_api::core::{ContractAddress, EntryPointSelector};
+use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::transaction::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::{
@@ -11,6 +11,7 @@ use starknet_api::transaction::{
     Fee,
     ResourceBounds,
     TransactionHash,
+    TransactionSignature,
     TransactionVersion,
     ValidResourceBounds,
 };
@@ -80,6 +81,18 @@ pub enum AccountTransaction {
     Invoke(InvokeTransaction),
 }
 
+macro_rules! implement_account_tx_inner_getters {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            match self {
+                Self::Declare(tx) => tx.tx.$field().clone(),
+                Self::DeployAccount(tx) => tx.tx.$field().clone(),
+                Self::Invoke(tx) => tx.tx.$field().clone(),
+            }
+        })*
+    };
+}
+
 /// This implementation of try_from clones the base transaction struct. This method's advantage is
 /// that it does not clone the Casm contract class code.
 impl TryFrom<&starknet_api::executable_transaction::Transaction> for AccountTransaction {
@@ -143,6 +156,16 @@ impl HasRelatedFeeType for AccountTransaction {
 }
 
 impl AccountTransaction {
+    implement_account_tx_inner_getters!((signature, TransactionSignature), (nonce, Nonce));
+
+    pub fn sender_address(&self) -> ContractAddress {
+        match self {
+            Self::Declare(tx) => tx.tx.sender_address(),
+            Self::DeployAccount(tx) => tx.tx.contract_address(),
+            Self::Invoke(tx) => tx.tx.sender_address(),
+        }
+    }
+
     // TODO(nir, 01/11/2023): Consider instantiating CommonAccountFields in AccountTransaction.
     pub fn tx_type(&self) -> TransactionType {
         match self {
