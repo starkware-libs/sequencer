@@ -6167,7 +6167,6 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "hex",
  "indexmap 2.2.6",
- "itertools 0.12.1",
  "lazy_static",
  "papyrus_test_utils",
  "pretty_assertions",
@@ -6177,7 +6176,6 @@ dependencies = [
  "sha3",
  "starknet-types-core",
  "starknet_api",
- "thiserror",
 ]
 
 [[package]]
