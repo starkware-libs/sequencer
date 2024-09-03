@@ -2,13 +2,14 @@ use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::calldata;
-use starknet_api::core::{ContractAddress, EntryPointSelector};
+use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::transaction::{
     Calldata,
     Fee,
     ResourceBounds,
     TransactionHash,
+    TransactionSignature,
     TransactionVersion,
 };
 use starknet_types_core::felt::Felt;
@@ -77,6 +78,18 @@ pub enum AccountTransaction {
     Invoke(InvokeTransaction),
 }
 
+macro_rules! implement_account_tx_inner_getters {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            match self {
+                Self::Declare(tx) => tx.tx.$field().clone(),
+                Self::DeployAccount(tx) => tx.tx.$field().clone(),
+                Self::Invoke(tx) => tx.tx.$field().clone(),
+            }
+        })*
+    };
+}
+
 impl TryFrom<starknet_api::executable_transaction::Transaction> for AccountTransaction {
     type Error = TransactionExecutionError;
 
@@ -115,6 +128,11 @@ impl HasRelatedFeeType for AccountTransaction {
 }
 
 impl AccountTransaction {
+    implement_account_tx_inner_getters!{
+        (signature, TransactionSignature),
+        (nonce, Nonce)
+    }
+
     // TODO(nir, 01/11/2023): Consider instantiating CommonAccountFields in AccountTransaction.
     pub fn tx_type(&self) -> TransactionType {
         match self {
