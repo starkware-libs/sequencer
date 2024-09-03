@@ -1,5 +1,8 @@
 FROM ubuntu:20.04
 
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=America/New_York
+
 RUN apt update && apt -y install \
     build-essential \
     clang \
