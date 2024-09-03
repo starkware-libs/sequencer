@@ -53,7 +53,7 @@ ENV TARGET_CXX=g++
 ENV TARGET_AR=ar
 
 RUN ln -s /bin/g++ /bin/musl-g++
-RUN ln -s /bin/c++ /bin/musl-g++
+RUN ln -s /bin/g++ /bin/c++
 
 # Install LLVM 18
 RUN echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" > /etc/apt/sources.list.d/llvm-18.list
