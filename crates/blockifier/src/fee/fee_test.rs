@@ -84,7 +84,7 @@ fn test_simple_get_vm_resource_usage() {
 
 #[test]
 fn test_float_get_vm_resource_usage() {
-    let versioned_constants = VersionedConstants::create_float_for_testing();
+    let versioned_constants = VersionedConstants::create_for_testing();
     let mut vm_resource_usage = get_vm_resource_usage();
 
     // Positive flow.
@@ -154,11 +154,11 @@ fn test_discounted_gas_overdraft(
         DEFAULT_ETH_L1_DATA_GAS_PRICE.try_into().unwrap(),
         data_gas_price.try_into().unwrap(),
         VersionedConstants::latest_constants()
-            .l1_to_l2_gas_price_conversion(DEFAULT_ETH_L1_GAS_PRICE)
+            .convert_l1_to_l2_gas(DEFAULT_ETH_L1_GAS_PRICE)
             .try_into()
             .unwrap(),
         VersionedConstants::latest_constants()
-            .l1_to_l2_gas_price_conversion(gas_price)
+            .convert_l1_to_l2_gas(gas_price)
             .try_into()
             .unwrap(),
     );
