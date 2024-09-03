@@ -7,7 +7,13 @@ RUN apt update && apt -y install \
     build-essential \
     clang \
     curl \
-    python3-dev
+    python3-dev \
+    zstd \
+    wget \
+    gnupg
+
+# check installation of zstd
+RUN zstd --version
 
 ENV RUSTUP_HOME=/opt/rust
 ENV CARGO_HOME=/opt/rust
