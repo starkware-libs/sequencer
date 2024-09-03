@@ -259,12 +259,32 @@ macro_rules! implement_declare_tx_getters {
     };
 }
 
+macro_rules! implement_declare_tx_v3_getters {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            match self {
+                Self::V3(tx) => tx.$field.clone(),
+                _ => panic!("Field {} is only available for DeclareTransactionV3.", stringify!($field)),
+            }
+        })*
+    };
+}
+
 impl DeclareTransaction {
     implement_declare_tx_getters!(
         (class_hash, ClassHash),
         (nonce, Nonce),
         (sender_address, ContractAddress),
         (signature, TransactionSignature)
+    );
+
+    implement_declare_tx_v3_getters!(
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData),
+        (account_deployment_data, AccountDeploymentData)
     );
 
     pub fn version(&self) -> TransactionVersion {
@@ -365,6 +385,17 @@ macro_rules! implement_deploy_account_tx_getters {
     };
 }
 
+macro_rules! implement_deploy_account_tx_v3_getters {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            match self {
+                Self::V3(tx) => tx.$field.clone(),
+                _ => panic!("Field {} is only available for DeclareTransactionV3.", stringify!($field)),
+            }
+        })*
+    };
+}
+
 impl DeployAccountTransaction {
     implement_deploy_account_tx_getters!(
         (class_hash, ClassHash),
@@ -372,6 +403,14 @@ impl DeployAccountTransaction {
         (contract_address_salt, ContractAddressSalt),
         (nonce, Nonce),
         (signature, TransactionSignature)
+    );
+
+    implement_deploy_account_tx_v3_getters!(
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData)
     );
 
     pub fn version(&self) -> TransactionVersion {
@@ -502,8 +541,28 @@ macro_rules! implement_invoke_tx_getters {
     };
 }
 
+macro_rules! implement_invoke_tx_v3_getters {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            match self {
+                Self::V3(tx) => tx.$field.clone(),
+                _ => panic!("Field {} is only available for DeclareTransactionV3.", stringify!($field)),
+            }
+        })*
+    };
+}
+
 impl InvokeTransaction {
     implement_invoke_tx_getters!((calldata, Calldata), (signature, TransactionSignature));
+
+    implement_invoke_tx_v3_getters!(
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData),
+        (account_deployment_data, AccountDeploymentData)
+    );
 
     pub fn nonce(&self) -> Nonce {
         match self {
