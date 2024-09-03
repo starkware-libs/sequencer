@@ -45,7 +45,7 @@ fn versioned_constants() -> &'static VersionedConstants {
 #[rstest]
 fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool) {
     // An empty transaction (a theoretical case for sanity check).
-    let versioned_constants = VersionedConstants::default();
+    let versioned_constants = VersionedConstants::create_for_account_testing();
     let empty_tx_starknet_resources = StarknetResources::default();
     let empty_tx_gas_usage_vector =
         empty_tx_starknet_resources.to_gas_vector(&versioned_constants, use_kzg_da);
@@ -63,7 +63,8 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
             None,
             std::iter::empty(),
         );
-        let code_gas_cost = versioned_constants.l2_resource_gas_costs.gas_per_code_byte
+        let code_gas_cost = versioned_constants.archival_data_gas_costs.gas_per_code_byte
+            * versioned_constants.l1_to_l2_gas_price_ratio()
             * u128_from_usize(
                 (class_info.bytecode_length() + class_info.sierra_program_length())
                     * eth_gas_constants::WORD_WIDTH
@@ -97,7 +98,8 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
         std::iter::empty(),
     );
     let calldata_and_signature_gas_cost =
-        versioned_constants.l2_resource_gas_costs.gas_per_data_felt
+        versioned_constants.archival_data_gas_costs.gas_per_data_felt
+            * versioned_constants.l1_to_l2_gas_price_ratio()
             * u128_from_usize(calldata_length + signature_length);
     let manual_starknet_gas_usage = calldata_and_signature_gas_cost.to_integer();
     let manual_gas_vector = GasVector { l1_gas: manual_starknet_gas_usage, ..Default::default() }
@@ -124,7 +126,8 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
     // Manual calculation.
     let message_segment_length = get_message_segment_length(&[], Some(l1_handler_payload_size));
     let calldata_and_signature_gas_cost =
-        versioned_constants.l2_resource_gas_costs.gas_per_data_felt
+        versioned_constants.archival_data_gas_costs.gas_per_data_felt
+            * versioned_constants.l1_to_l2_gas_price_ratio()
             * u128_from_usize(l1_handler_payload_size + signature_length);
     let manual_starknet_gas_usage = message_segment_length * eth_gas_constants::GAS_PER_MEMORY_WORD
         + eth_gas_constants::GAS_PER_COUNTER_DECREASE

@@ -86,7 +86,7 @@ pub struct VersionedConstants {
     pub tx_event_limits: EventLimits,
     pub invoke_tx_max_n_steps: u32,
     #[serde(default)]
-    pub l2_resource_gas_costs: L2ResourceGasCosts,
+    pub archival_data_gas_costs: ArchivalDataGasCosts,
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
     // BACKWARD COMPATIBILITY: If true, the segment_arena builtin instance counter will be
@@ -127,10 +127,14 @@ impl VersionedConstants {
 
     /// Converts from l1 gas cost to l2 gas cost with **upward rounding**
     pub fn l1_to_l2_gas_price_conversion(&self, l1_gas_price: u128) -> u128 {
-        let l1_to_l2_gas_price_ratio: Ratio<u128> =
-            Ratio::new(1, u128::from(self.os_constants.gas_costs.step_gas_cost))
-                * self.vm_resource_fee_cost()["n_steps"];
+        let l1_to_l2_gas_price_ratio = self.l1_to_l2_gas_price_ratio();
         *(l1_to_l2_gas_price_ratio * l1_gas_price).ceil().numer()
+    }
+
+    /// Returns the ratio between l1 gas price and l2 gas price.
+    pub fn l1_to_l2_gas_price_ratio(&self) -> ResourceCost {
+        Ratio::new(1, u128::from(self.os_constants.gas_costs.step_gas_cost))
+            * self.vm_resource_fee_cost()["n_steps"]
     }
 
     /// Returns the initial gas of any transaction to run with.
@@ -186,8 +190,9 @@ impl VersionedConstants {
 
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_account_testing() -> Self {
+        let step_cost = ResourceCost::from_integer(1);
         let vm_resource_fee_cost = Arc::new(HashMap::from([
-            (crate::abi::constants::N_STEPS_RESOURCE.to_string(), ResourceCost::from_integer(1)),
+            (crate::abi::constants::N_STEPS_RESOURCE.to_string(), step_cost),
             (BuiltinName::pedersen.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
             (
                 BuiltinName::range_check.to_str_with_suffix().to_string(),
@@ -206,24 +211,18 @@ impl VersionedConstants {
             (BuiltinName::mul_mod.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
         ]));
 
-        Self { vm_resource_fee_cost, ..Self::create_for_testing() }
+        let latest = Self::create_float_for_testing();
+        let latest_step_cost = latest.vm_resource_fee_cost["n_steps"];
+        let mut archival_data_gas_costs = latest.archival_data_gas_costs;
+        archival_data_gas_costs.gas_per_code_byte *= latest_step_cost / step_cost;
+        archival_data_gas_costs.gas_per_data_felt *= latest_step_cost / step_cost;
+        Self { vm_resource_fee_cost, archival_data_gas_costs, ..latest }
     }
 
     // A more complicated instance to increase test coverage.
     #[cfg(any(feature = "testing", test))]
     pub fn create_float_for_testing() -> Self {
-        let vm_resource_fee_cost = Arc::new(HashMap::from([
-            (crate::abi::constants::N_STEPS_RESOURCE.to_string(), ResourceCost::new(25, 10000)),
-            (BuiltinName::pedersen.to_str_with_suffix().to_string(), ResourceCost::new(8, 100)),
-            (BuiltinName::range_check.to_str_with_suffix().to_string(), ResourceCost::new(4, 100)),
-            (BuiltinName::ecdsa.to_str_with_suffix().to_string(), ResourceCost::new(512, 100)),
-            (BuiltinName::bitwise.to_str_with_suffix().to_string(), ResourceCost::new(16, 100)),
-            (BuiltinName::poseidon.to_str_with_suffix().to_string(), ResourceCost::new(8, 100)),
-            (BuiltinName::output.to_str_with_suffix().to_string(), ResourceCost::from_integer(0)),
-            (BuiltinName::ec_op.to_str_with_suffix().to_string(), ResourceCost::new(256, 100)),
-        ]));
-
-        Self { vm_resource_fee_cost, ..Self::create_for_testing() }
+        Self::create_for_testing()
     }
 
     pub fn latest_constants_with_overrides(
@@ -260,7 +259,7 @@ impl TryFrom<&Path> for VersionedConstants {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
-pub struct L2ResourceGasCosts {
+pub struct ArchivalDataGasCosts {
     // TODO(barak, 18/03/2024): Once we start charging per byte change to milligas_per_data_byte,
     // divide the value by 32 in the JSON file.
     pub gas_per_data_felt: ResourceCost,
