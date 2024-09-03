@@ -3,8 +3,15 @@ FROM ubuntu:20.04
 ARG USERNAME=sequencer
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=America/New_York
 
-RUN apt update && apt install -y sudo
+RUN apt update && apt -y install \
+    sudo \
+    build-essential \
+    clang \
+    curl \
+    python3-dev
 
 RUN groupadd --gid $USER_GID $USERNAME && \
     useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME
