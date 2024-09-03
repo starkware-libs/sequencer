@@ -46,6 +46,9 @@ RUN apt update -y && apt install -y lsb-release \
     pkg-config \
     gnupg
 
+ENV PATH="/usr/local/musl/bin:${PATH}"
+
+RUN which musl-ar
 
 # Install LLVM 18
 RUN echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" > /etc/apt/sources.list.d/llvm-18.list
