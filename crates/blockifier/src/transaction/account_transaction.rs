@@ -3,11 +3,15 @@ use std::sync::Arc;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::calldata;
 use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce};
+use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::transaction::{
     Calldata,
+    DeprecatedResourceBoundsMapping,
     Fee,
+    PaymasterData,
     ResourceBounds,
+    Tip,
     TransactionHash,
     TransactionSignature,
     TransactionVersion,
@@ -128,7 +132,15 @@ impl HasRelatedFeeType for AccountTransaction {
 }
 
 impl AccountTransaction {
-    implement_account_tx_inner_getters!((signature, TransactionSignature), (nonce, Nonce));
+    implement_account_tx_inner_getters!(
+        (signature, TransactionSignature),
+        (nonce, Nonce),
+        (resource_bounds, DeprecatedResourceBoundsMapping),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData)
+    );
 
     // TODO(nir, 01/11/2023): Consider instantiating CommonAccountFields in AccountTransaction.
     pub fn tx_type(&self) -> TransactionType {
