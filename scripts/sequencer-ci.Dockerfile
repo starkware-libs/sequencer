@@ -8,12 +8,9 @@ RUN apt update && apt -y install \
     clang \
     curl \
     python3-dev \
-    zstd \
+    libzstd-dev \
     wget \
     gnupg
-
-# check installation of zstd
-RUN zstd --version
 
 ENV RUSTUP_HOME=/opt/rust
 ENV CARGO_HOME=/opt/rust
