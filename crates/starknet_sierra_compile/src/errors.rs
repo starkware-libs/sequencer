@@ -21,3 +21,15 @@ impl From<StarknetSierraCompilationError> for CompilationUtilError {
         CompilationUtilError::CompilationError(error.to_string())
     }
 }
+
+impl From<serde_json::Error> for CompilationUtilError {
+    fn from(error: serde_json::Error) -> Self {
+        CompilationUtilError::UnexpectedError(error.to_string())
+    }
+}
+
+impl From<std::io::Error> for CompilationUtilError {
+    fn from(error: std::io::Error) -> Self {
+        CompilationUtilError::UnexpectedError(error.to_string())
+    }
+}
