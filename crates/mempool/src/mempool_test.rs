@@ -60,9 +60,13 @@ impl MempoolContent {
         Self { tx_queue: Some(queue_txs.into_iter().collect()), ..Self::default() }
     }
 
-    fn _with_account_nonces(account_nonce_pairs: Vec<(ContractAddress, Nonce)>) -> Self {
+    fn _with_account_nonces<A>(account_nonce_pairs: A) -> Self
+    where
+        A: IntoIterator<Item = (ContractAddress, Nonce)>,
+    {
         Self { account_nonces: Some(account_nonce_pairs.into_iter().collect()), ..Self::default() }
     }
+
     fn assert_eq_pool_and_queue_content(&self, mempool: &Mempool) {
         self.assert_eq_pool_content(mempool);
         self.assert_eq_queue_content(mempool);
