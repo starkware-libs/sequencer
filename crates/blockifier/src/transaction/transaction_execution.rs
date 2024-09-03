@@ -97,6 +97,13 @@ impl Transaction {
             _ => unimplemented!(),
         }
     }
+
+    pub fn tx_hash(tx: &Transaction) -> TransactionHash {
+        match tx {
+            Transaction::AccountTransaction(tx) => tx.tx_hash(),
+            Transaction::L1HandlerTransaction(tx) => tx.tx_hash,
+        }
+    }
 }
 
 impl TransactionInfoCreator for Transaction {
