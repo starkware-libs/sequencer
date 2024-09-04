@@ -37,6 +37,13 @@ pub struct GasPrices {
     strk_l2_gas_price: NonZeroU128,      // In fri.
 }
 
+#[derive(Debug)]
+pub struct GasPricesForFeeType {
+    pub l1_gas_price: NonZeroU128,
+    pub l1_data_gas_price: NonZeroU128,
+    pub l2_gas_price: NonZeroU128,
+}
+
 impl GasPrices {
     pub fn new(
         eth_l1_gas_price: NonZeroU128,
@@ -92,6 +99,14 @@ impl GasPrices {
         match fee_type {
             FeeType::Strk => self.strk_l2_gas_price,
             FeeType::Eth => self.eth_l2_gas_price,
+        }
+    }
+
+    pub fn get_gas_prices_by_fee_type(&self, fee_type: &FeeType) -> GasPricesForFeeType {
+        GasPricesForFeeType {
+            l1_gas_price: self.get_l1_gas_price_by_fee_type(fee_type),
+            l1_data_gas_price: self.get_l1_data_gas_price_by_fee_type(fee_type),
+            l2_gas_price: self.get_l2_gas_price_by_fee_type(fee_type),
         }
     }
 }
