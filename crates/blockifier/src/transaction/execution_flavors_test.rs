@@ -630,10 +630,12 @@ fn test_simulate_validate_charge_fee_post_execution(
     .unwrap();
     assert_eq!(tx_execution_info.is_reverted(), charge_fee);
     if charge_fee {
+        let expected_error_prefix =
+            &format!("Insufficient max {resource}", resource = Resource::L1Gas);
         assert!(tx_execution_info.revert_error.clone().unwrap().starts_with(if is_deprecated {
             "Insufficient max fee"
         } else {
-            "Insufficient max L1 gas"
+            expected_error_prefix
         }));
     }
 
