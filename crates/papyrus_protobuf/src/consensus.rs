@@ -42,8 +42,8 @@ impl ConsensusMessage {
     }
 }
 #[derive(Debug, Default, Clone, Hash, Eq, PartialEq)]
-pub struct StreamMessage {
-    pub message: Vec<u8>,
+pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>>> {
+    pub message: T,
     pub stream_id: u64,
     pub chunk_id: u64,
     pub fin: bool,
