@@ -216,7 +216,7 @@ impl AccountTransaction {
         let tx_info = &tx_context.tx_info;
         Self::handle_nonce(state, tx_info, strict_nonce_check)?;
 
-        if charge_fee && tx_info.enforce_fee() {
+        if charge_fee {
             self.check_fee_bounds(tx_context)?;
 
             verify_can_pay_committed_bounds(state, tx_context)?;
@@ -400,8 +400,9 @@ impl AccountTransaction {
             // The fee-token contract is a Cairo 0 contract, hence the initial gas is irrelevant.
             initial_gas: block_context.versioned_constants.os_constants.gas_costs.initial_gas_cost,
         };
-
-        let mut context = EntryPointExecutionContext::new_invoke(tx_context, true);
+        let limit_steps_by_resources = tx_info.enforce_fee(); //aviv: new
+        let mut context =
+            EntryPointExecutionContext::new_invoke(tx_context, limit_steps_by_resources);
 
         Ok(fee_transfer_call
             .execute(state, &mut ExecutionResources::default(), &mut context)

@@ -78,7 +78,7 @@ fn fee_transfer_resources(
                         .unwrap(),
                 ),
                 ExecutionMode::Execute,
-                false,
+                false, // aviv: limit_steps_by_resources: can be enforce_fee() instead of false.?
             ),
         )
         .unwrap()

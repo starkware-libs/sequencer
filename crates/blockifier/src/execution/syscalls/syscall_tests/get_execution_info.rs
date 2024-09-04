@@ -259,13 +259,13 @@ fn test_get_execution_info(
         ),
         ..trivial_external_entry_point_with_address(test_contract_address)
     };
-
+    // let limit_steps_by_resources = tx_info.enforce_fee(); // aviv: new
     let result = match execution_mode {
         ExecutionMode::Validate => {
-            entry_point_call.execute_directly_given_tx_info_in_validate_mode(state, tx_info, false)
+            entry_point_call.execute_directly_given_tx_info_in_validate_mode(state, tx_info, false) //aviv: was ',false)': not needed?
         }
         ExecutionMode::Execute => {
-            entry_point_call.execute_directly_given_tx_info(state, tx_info, false)
+            entry_point_call.execute_directly_given_tx_info(state, tx_info, false) //aviv: was ',false)': not needed?
         }
     };
 
