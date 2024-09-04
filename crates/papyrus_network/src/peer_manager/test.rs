@@ -210,11 +210,10 @@ fn report_peer_calls_update_reputation_and_notifies_kad() {
     let config = PeerManagerConfig::default();
     let mut peer_manager: PeerManager<Peer> = PeerManager::new(config.clone());
 
-    // Create a mock peer
+    // Create a peer
     let peer_id = PeerId::random();
     let peer = Peer::new(peer_id, Multiaddr::empty());
 
-    // Add the mock peer to the peer manager
     peer_manager.add_peer(peer);
 
     // Call the report_peer function on the peer manager
@@ -231,17 +230,7 @@ fn report_peer_calls_update_reputation_and_notifies_kad() {
 }
 
 #[tokio::test]
-async fn peer_block_realeased_after_timeout() {
-    const DURATION_IN_MILLIS: u64 = 50;
-    let mut peer = Peer::new(PeerId::random(), Multiaddr::empty());
-    peer.update_reputation(Duration::from_millis(DURATION_IN_MILLIS));
-    assert!(peer.is_blocked());
-    sleep(time::Duration::from_millis(DURATION_IN_MILLIS)).await;
-    assert!(!peer.is_blocked());
-}
-
-#[tokio::test]
-async fn peer_unstable_block_released_after_timeout() {
+async fn peer_block_released_after_timeout() {
     const DURATION_IN_MILLIS: u64 = 50;
     let mut peer = Peer::new(PeerId::random(), Multiaddr::empty());
     peer.update_reputation(Duration::from_millis(DURATION_IN_MILLIS));
@@ -368,11 +357,10 @@ fn block_and_allow_inbound_connection() {
     let peer_id1 = PeerId::random();
     let peer1 = Peer::new(peer_id1, Multiaddr::empty());
 
-    // Create a mock peer - not blocked
+    // Create a peer - not blocked
     let peer_id2 = PeerId::random();
     let peer2 = Peer::new(peer_id2, Multiaddr::empty());
 
-    // Add the mock peers to the peer manager
     peer_manager.add_peer(peer1);
     peer_manager.add_peer(peer2);
 
