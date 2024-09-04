@@ -549,8 +549,9 @@ impl AccountTransaction {
                 .gas_costs
                 .default_initial_gas_cost,
         };
-
-        let mut context = EntryPointExecutionContext::new_invoke(tx_context, true);
+        let limit_steps_by_resources = tx_info.enforce_fee();
+        let mut context =
+            EntryPointExecutionContext::new_invoke(tx_context, limit_steps_by_resources);
 
         Ok(fee_transfer_call
             .execute(state, &mut ExecutionResources::default(), &mut context)
