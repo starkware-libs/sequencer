@@ -38,7 +38,12 @@ use crate::transaction::errors::{
     TransactionFeeError,
     TransactionPreValidationError,
 };
-use crate::transaction::objects::{FeeType, GasVector, TransactionExecutionInfo};
+use crate::transaction::objects::{
+    FeeType,
+    GasVector,
+    GasVectorComputationMode,
+    TransactionExecutionInfo,
+};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     l1_resource_bounds,
@@ -129,7 +134,11 @@ fn check_gas_and_fee(
         tx_execution_info
             .receipt
             .resources
-            .to_gas_vector(&block_context.versioned_constants, block_context.block_info.use_kzg_da)
+            .to_gas_vector(
+                &block_context.versioned_constants,
+                block_context.block_info.use_kzg_da,
+                &GasVectorComputationMode::NoL2Gas,
+            )
             .unwrap()
             .l1_gas,
         expected_actual_gas.into()

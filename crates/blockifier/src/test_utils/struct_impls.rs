@@ -38,6 +38,7 @@ use crate::test_utils::{
 use crate::transaction::objects::{
     DeprecatedTransactionInfo,
     FeeType,
+    GasVectorComputationMode,
     TransactionFeeResult,
     TransactionInfo,
     TransactionResources,
@@ -118,6 +119,7 @@ impl TransactionResources {
         let gas_vector = self.to_gas_vector(
             &block_context.versioned_constants,
             block_context.block_info.use_kzg_da,
+            &GasVectorComputationMode::NoL2Gas,
         )?;
         Ok(get_fee_by_gas_vector(&block_context.block_info, gas_vector, fee_type))
     }
