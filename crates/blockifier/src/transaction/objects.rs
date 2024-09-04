@@ -106,7 +106,7 @@ impl TransactionInfo {
             TransactionInfo::Current(context) => {
                 let l1_bounds = context.l1_resource_bounds();
                 let max_amount: u128 = l1_bounds.max_amount.into();
-                max_amount * l1_bounds.max_price_per_unit > 0
+                max_amount * l1_bounds.max_price_per_unit > 0 //aviv: note : this is max fee
             }
             TransactionInfo::Deprecated(context) => context.max_fee != Fee(0),
         }

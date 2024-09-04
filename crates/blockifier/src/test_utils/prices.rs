@@ -74,7 +74,7 @@ fn fee_transfer_resources(
             &mut EntryPointExecutionContext::new(
                 Arc::new(block_context.to_tx_context(&account_invoke_tx(InvokeTxArgs::default()))),
                 ExecutionMode::Execute,
-                false, // aviv: limit_steps_by_resources: can be enforce_fee() instead of false.?
+                false,
             ),
         )
         .unwrap()
