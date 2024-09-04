@@ -5,7 +5,7 @@ use futures::sink::With;
 use futures::stream::Map;
 use futures::{FutureExt, SinkExt, StreamExt};
 use libp2p::gossipsub::SubscriptionError;
-use libp2p::{identity, PeerId};
+use libp2p::PeerId;
 
 use super::{
     BroadcastClientChannels,
@@ -76,10 +76,12 @@ where
 }
 
 pub fn create_test_broadcasted_message_manager() -> BroadcastedMessageManager {
-    let key_pair = identity::Keypair::generate_ed25519();
-    BroadcastedMessageManager { peer_id: PeerId::from(key_pair.public()) }
+    BroadcastedMessageManager { peer_id: PeerId::random() }
 }
 
+// TODO: remove either this method or the one below
+// TODO: also return reported_messages_receiver and continue_propagation_receiver, possibly wrapped
+// in a struct
 pub fn create_test_broadcast_client_channels<T>()
 -> (Sender<(Bytes, BroadcastedMessageManager)>, BroadcastClientChannels<T>)
 where
