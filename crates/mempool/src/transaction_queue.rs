@@ -21,6 +21,24 @@ pub struct TransactionQueue {
 }
 
 impl TransactionQueue {
+    #[cfg(test)]
+    pub fn _new_with_transactions(
+        priority_queue: Vec<TransactionReference>,
+        pending_queue: Vec<TransactionReference>,
+    ) -> Self {
+        let address_to_tx: HashMap<ContractAddress, TransactionReference> = priority_queue
+            .iter()
+            .chain(pending_queue.iter())
+            .map(|tx| (tx.sender_address, tx.clone()))
+            .collect();
+        Self {
+            priority_queue: priority_queue.into_iter().map(|tx| tx.into()).collect(),
+            pending_queue: pending_queue.into_iter().map(|tx| tx.into()).collect(),
+            address_to_tx,
+            ..Default::default()
+        }
+    }
+
     /// Adds a transaction to the mempool, ensuring unique keys.
     /// Panics: if given a duplicate tx.
     pub fn insert(&mut self, tx_reference: TransactionReference) {
