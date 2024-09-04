@@ -18,6 +18,7 @@ use crate::transaction::objects::{
     ExecutionResourcesTraits,
     FeeType,
     GasVector,
+    GasVectorComputationMode,
     TransactionFeeResult,
     TransactionInfo,
 };
@@ -28,13 +29,15 @@ use crate::versioned_constants::VersionedConstants;
 #[path = "fee_test.rs"]
 pub mod test;
 
-/// Calculates the L1 gas consumed when submitting the underlying Cairo program to SHARP.
-/// I.e., returns the heaviest Cairo resource weight (in terms of L1 gas), as the size of
+/// Calculates the gas consumed when submitting the underlying Cairo program to SHARP.
+/// I.e., returns the heaviest Cairo resource weight (in terms of gas), as the size of
 /// a proof is determined similarly - by the (normalized) largest segment.
+/// The result can be in either L1 or L2 gas, according to the gas vector computation mode.
 pub fn calculate_l1_gas_by_vm_usage(
     versioned_constants: &VersionedConstants,
     vm_resource_usage: &ExecutionResources,
     n_reverted_steps: usize,
+    gas_vector_computation_mode: &GasVectorComputationMode,
 ) -> TransactionFeeResult<GasVector> {
     // TODO(Yoni, 1/7/2024): rename vm -> cairo.
     let vm_resource_fee_costs = versioned_constants.vm_resource_fee_cost();
@@ -65,7 +68,12 @@ pub fn calculate_l1_gas_by_vm_usage(
         })
         .fold(0, u128::max);
 
-    Ok(GasVector::from_l1_gas(vm_l1_gas_usage))
+    match gas_vector_computation_mode {
+        GasVectorComputationMode::AllGasAmounts => Ok(GasVector::from_l1_gas(vm_l1_gas_usage)),
+        GasVectorComputationMode::NoL2Gas => Ok(GasVector::from_l2_gas(
+            versioned_constants.l1_to_l2_gas_price_conversion(vm_l1_gas_usage),
+        )),
+    }
 }
 
 /// Converts the gas vector to a fee.

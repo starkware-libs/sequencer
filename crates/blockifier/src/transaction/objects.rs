@@ -472,6 +472,7 @@ impl TransactionResources {
             versioned_constants,
             &self.vm_resources,
             self.n_reverted_steps,
+            &GasVectorComputationMode::NoL2Gas,
         )?)
     }
 

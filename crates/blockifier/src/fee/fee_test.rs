@@ -21,7 +21,7 @@ use crate::test_utils::{
     DEFAULT_ETH_L1_DATA_GAS_PRICE,
     DEFAULT_ETH_L1_GAS_PRICE,
 };
-use crate::transaction::objects::GasVector;
+use crate::transaction::objects::{GasVector, GasVectorComputationMode};
 use crate::transaction::test_utils::{account_invoke_tx, l1_resource_bounds};
 use crate::utils::u128_from_usize;
 use crate::versioned_constants::VersionedConstants;
@@ -55,8 +55,13 @@ fn test_simple_calculate_l1_gas_by_vm_usage() {
         .to_integer();
     assert_eq!(
         GasVector::from_l1_gas(l1_gas_by_vm_usage),
-        calculate_l1_gas_by_vm_usage(&versioned_constants, &vm_resource_usage, n_reverted_steps)
-            .unwrap()
+        calculate_l1_gas_by_vm_usage(
+            &versioned_constants,
+            &vm_resource_usage,
+            n_reverted_steps,
+            &GasVectorComputationMode::NoL2Gas
+        )
+        .unwrap()
     );
 
     // Another positive flow, this time the heaviest resource is range_check_builtin.
@@ -67,8 +72,13 @@ fn test_simple_calculate_l1_gas_by_vm_usage() {
         vm_resource_usage.builtin_instance_counter.get(&BuiltinName::range_check).unwrap();
     assert_eq!(
         GasVector::from_l1_gas(u128_from_usize(*l1_gas_by_vm_usage)),
-        calculate_l1_gas_by_vm_usage(&versioned_constants, &vm_resource_usage, n_reverted_steps)
-            .unwrap()
+        calculate_l1_gas_by_vm_usage(
+            &versioned_constants,
+            &vm_resource_usage,
+            n_reverted_steps,
+            &GasVectorComputationMode::NoL2Gas
+        )
+        .unwrap()
     );
 }
 
@@ -87,8 +97,13 @@ fn test_float_calculate_l1_gas_by_vm_usage() {
         .to_integer();
     assert_eq!(
         GasVector::from_l1_gas(l1_gas_by_vm_usage),
-        calculate_l1_gas_by_vm_usage(&versioned_constants, &vm_resource_usage, n_reverted_steps)
-            .unwrap()
+        calculate_l1_gas_by_vm_usage(
+            &versioned_constants,
+            &vm_resource_usage,
+            n_reverted_steps,
+            &GasVectorComputationMode::NoL2Gas
+        )
+        .unwrap()
     );
 
     // Another positive flow, this time the heaviest resource is ecdsa_builtin.
@@ -105,8 +120,13 @@ fn test_float_calculate_l1_gas_by_vm_usage() {
 
     assert_eq!(
         GasVector::from_l1_gas(l1_gas_by_vm_usage),
-        calculate_l1_gas_by_vm_usage(&versioned_constants, &vm_resource_usage, n_reverted_steps)
-            .unwrap()
+        calculate_l1_gas_by_vm_usage(
+            &versioned_constants,
+            &vm_resource_usage,
+            n_reverted_steps,
+            &GasVectorComputationMode::NoL2Gas
+        )
+        .unwrap()
     );
 }
 
