@@ -54,11 +54,9 @@ impl CallEntryPoint {
     /// Executes the call directly, without account context. Limits the number of steps by resource
     /// bounds.
     pub fn execute_directly(self, state: &mut dyn State) -> EntryPointExecutionResult<CallInfo> {
-        self.execute_directly_given_tx_info(
-            state,
-            TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
-            true,
-        )
+        let tx_info = TransactionInfo::Deprecated(DeprecatedTransactionInfo::default());
+        let limit_steps_by_resources = tx_info.enforce_fee(); // aviv: new
+        self.execute_directly_given_tx_info(state, tx_info, limit_steps_by_resources)
     }
 
     pub fn execute_directly_given_tx_info(
@@ -80,10 +78,12 @@ impl CallEntryPoint {
         self,
         state: &mut dyn State,
     ) -> EntryPointExecutionResult<CallInfo> {
+        let tx_info = TransactionInfo::Deprecated(DeprecatedTransactionInfo::default());
+        let limit_steps_by_resources = tx_info.enforce_fee(); // aviv: new
         self.execute_directly_given_tx_info_in_validate_mode(
             state,
-            TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
-            true,
+            tx_info,
+            limit_steps_by_resources,
         )
     }
 
@@ -93,6 +93,7 @@ impl CallEntryPoint {
         tx_info: TransactionInfo,
         limit_steps_by_resources: bool,
     ) -> EntryPointExecutionResult<CallInfo> {
+        // aviv: let limit_steps = limit_steps_by_resources && tx_info.enforce_fee();
         let tx_context =
             TransactionContext { block_context: BlockContext::create_for_testing(), tx_info };
         let mut context = EntryPointExecutionContext::new_validate(
