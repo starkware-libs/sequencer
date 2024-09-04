@@ -468,35 +468,25 @@ impl<'a> SyscallHintProcessor<'a> {
         let l2_gas_as_felt = Felt::from_hex(L2_GAS).map_err(SyscallExecutionError::from)?;
         let l1_data_gas_as_felt = Felt::from_hex(L1_DATA).map_err(SyscallExecutionError::from)?;
 
-        let flat_resource_bounds = match tx_info.resource_bounds {
-            ValidResourceBounds::L1Gas(l1_bounds) => {
-                vec![
-                    l1_gas_as_felt,
-                    Felt::from(l1_bounds.max_amount),
-                    Felt::from(l1_bounds.max_price_per_unit),
-                    l2_gas_as_felt,
-                    Felt::ZERO,
-                    Felt::ZERO,
-                ]
-            }
-            ValidResourceBounds::AllResources(AllResourceBounds {
-                l1_gas,
-                l2_gas,
-                l1_data_gas,
-            }) => {
-                vec![
-                    l1_gas_as_felt,
-                    Felt::from(l1_gas.max_amount),
-                    Felt::from(l1_gas.max_price_per_unit),
-                    l2_gas_as_felt,
-                    Felt::from(l2_gas.max_amount),
-                    Felt::from(l2_gas.max_price_per_unit),
-                    l1_data_gas_as_felt,
-                    Felt::from(l1_data_gas.max_amount),
-                    Felt::from(l1_data_gas.max_price_per_unit),
-                ]
-            }
-        };
+        let l1_gas_bounds = tx_info.resource_bounds.get_l1_bounds();
+        let l2_gas_bounds = tx_info.resource_bounds.get_l2_bounds();
+        let mut flat_resource_bounds = vec![
+            l1_gas_as_felt,
+            Felt::from(l1_gas_bounds.max_amount),
+            Felt::from(l1_gas_bounds.max_price_per_unit),
+            l2_gas_as_felt,
+            Felt::from(l2_gas_bounds.max_amount),
+            Felt::from(l2_gas_bounds.max_price_per_unit),
+        ];
+        if let ValidResourceBounds::AllResources(AllResourceBounds { l1_data_gas, .. }) =
+            tx_info.resource_bounds
+        {
+            flat_resource_bounds.extend(vec![
+                l1_data_gas_as_felt,
+                Felt::from(l1_data_gas.max_amount),
+                Felt::from(l1_data_gas.max_price_per_unit),
+            ])
+        }
 
         self.allocate_data_segment(vm, &flat_resource_bounds)
     }

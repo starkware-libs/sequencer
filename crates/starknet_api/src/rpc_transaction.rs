@@ -32,6 +32,7 @@ use crate::transaction::{
     Tip,
     Transaction,
     TransactionSignature,
+    ValidResourceBounds,
 };
 use crate::StarknetApiError;
 
@@ -189,7 +190,7 @@ impl From<RpcDeclareTransactionV3> for DeclareTransactionV3 {
         Self {
             class_hash: ClassHash::default(), /* FIXME(yael 15/4/24): call the starknet-api
                                                * function once ready */
-            resource_bounds: tx.resource_bounds.into(),
+            resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
             tip: tx.tip,
             signature: tx.signature,
             nonce: tx.nonce,
@@ -221,7 +222,7 @@ pub struct RpcDeployAccountTransactionV3 {
 impl From<RpcDeployAccountTransactionV3> for DeployAccountTransactionV3 {
     fn from(tx: RpcDeployAccountTransactionV3) -> Self {
         Self {
-            resource_bounds: tx.resource_bounds.into(),
+            resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
             tip: tx.tip,
             signature: tx.signature,
             nonce: tx.nonce,
@@ -253,7 +254,7 @@ pub struct RpcInvokeTransactionV3 {
 impl From<RpcInvokeTransactionV3> for InvokeTransactionV3 {
     fn from(tx: RpcInvokeTransactionV3) -> Self {
         Self {
-            resource_bounds: tx.resource_bounds.into(),
+            resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
             tip: tx.tip,
             signature: tx.signature,
             nonce: tx.nonce,
