@@ -469,24 +469,21 @@ pub enum GasVectorComputationMode {
 }
 
 impl TransactionResources {
-    /// Computes and returns the total L1 gas consumption.
-    /// We add the l1_gas_usage (which may include, for example, the direct cost of L2-to-L1
-    /// messages) to the gas consumed by Cairo VM resource.
+    /// Computes and returns the total gas consumption. The L2 gas amount may be converted
+    /// to L1 gas (depending on the gas vector computation mode).
     pub fn to_gas_vector(
         &self,
         versioned_constants: &VersionedConstants,
         use_kzg_da: bool,
+        computation_mode: &GasVectorComputationMode,
     ) -> TransactionFeeResult<GasVector> {
-        Ok(self.starknet_resources.to_gas_vector(
-            versioned_constants,
-            use_kzg_da,
-            &GasVectorComputationMode::NoL2Gas,
-        ) + get_vm_resources_cost(
-            versioned_constants,
-            &self.vm_resources,
-            self.n_reverted_steps,
-            &GasVectorComputationMode::NoL2Gas,
-        )?)
+        Ok(self.starknet_resources.to_gas_vector(versioned_constants, use_kzg_da, computation_mode)
+            + get_vm_resources_cost(
+                versioned_constants,
+                &self.vm_resources,
+                self.n_reverted_steps,
+                computation_mode,
+            )?)
     }
 
     // TODO(Amos: 1/10/2024): Add and use a gas vector computation mode param in this function.

@@ -20,7 +20,12 @@ use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{create_calldata, CairoVersion, BALANCE, MAX_L1_GAS_PRICE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
-use crate::transaction::objects::{FeeType, HasRelatedFeeType, TransactionInfoCreator};
+use crate::transaction::objects::{
+    FeeType,
+    GasVectorComputationMode,
+    HasRelatedFeeType,
+    TransactionInfoCreator,
+};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     block_context,
@@ -261,7 +266,11 @@ fn test_revert_on_resource_overuse(
     let actual_gas_usage: u64 = execution_info_measure
         .receipt
         .resources
-        .to_gas_vector(&block_context.versioned_constants, block_context.block_info.use_kzg_da)
+        .to_gas_vector(
+            &block_context.versioned_constants,
+            block_context.block_info.use_kzg_da,
+            &GasVectorComputationMode::NoL2Gas,
+        )
         .unwrap()
         .l1_gas
         .try_into()
