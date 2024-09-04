@@ -338,7 +338,7 @@ fn test_simulate_validate_charge_fee_pre_validate(
                 result.unwrap_err(),
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
-                        TransactionFeeError::MaxL1GasPriceTooLow { .. }
+                        TransactionFeeError::MaxGasPriceTooLow { .. }
                     )
                 )
             );

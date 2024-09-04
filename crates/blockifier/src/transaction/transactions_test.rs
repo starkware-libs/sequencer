@@ -11,6 +11,7 @@ use rstest::{fixture, rstest};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce, PatriciaKey};
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::Resource::L1Gas;
 use starknet_api::transaction::{
     Calldata,
     EventContent,
@@ -977,10 +978,12 @@ fn test_insufficient_resource_bounds(
         execution_error,
         TransactionExecutionError::TransactionPreValidationError(
             TransactionPreValidationError::TransactionFeeError(
-                TransactionFeeError::MaxL1GasPriceTooLow{ max_l1_gas_price, actual_l1_gas_price }))
+                TransactionFeeError::MaxGasPriceTooLow{ gas_type: L1Gas ,max_gas_price: max_l1_gas_price, actual_gas_price:actual_l1_gas_price }))
         if max_l1_gas_price == insufficient_max_l1_gas_price &&
         actual_l1_gas_price == actual_strk_l1_gas_price.into()
     );
+
+    // TODO(Aner): add test for low Max L1 data gas price and L2 gas price
 }
 
 // TODO(Aner, 21/01/24) modify test for 4844.
