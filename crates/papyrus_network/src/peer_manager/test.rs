@@ -231,7 +231,7 @@ fn report_peer_calls_update_reputation_and_notifies_kad() {
 }
 
 #[tokio::test]
-async fn peer_block_realeased_after_timeout() {
+async fn peer_block_released_after_timeout() {
     const DURATION_IN_MILLIS: u64 = 50;
     let mut peer = Peer::new(PeerId::random(), Multiaddr::empty());
     peer.update_reputation(Duration::from_millis(DURATION_IN_MILLIS));

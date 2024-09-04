@@ -1,8 +1,7 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use libp2p::swarm::ConnectionId;
 use libp2p::{Multiaddr, PeerId};
-use tokio::time::Instant;
 use tracing::info;
 
 pub trait PeerTrait {
@@ -36,11 +35,11 @@ pub struct Peer {
 
 impl PeerTrait for Peer {
     fn new(peer_id: PeerId, multiaddr: Multiaddr) -> Self {
-        Self { peer_id, multiaddr, timed_out_until: Instant::now(), connection_ids: Vec::new() }
+        Self { peer_id, multiaddr, timed_out_until: get_instant_now(), connection_ids: Vec::new() }
     }
 
     fn update_reputation(&mut self, timeout_duration: Duration) {
-        self.timed_out_until = Instant::now() + timeout_duration;
+        self.timed_out_until = get_instant_now() + timeout_duration;
         info!(
             "Peer {:?} misbehaved. Blacklisting it for {:.3} seconds.",
             self.peer_id,
@@ -57,11 +56,15 @@ impl PeerTrait for Peer {
     }
 
     fn is_blocked(&self) -> bool {
-        self.timed_out_until > Instant::now()
+        self.timed_out_until > get_instant_now()
     }
 
     fn blocked_until(&self) -> Instant {
-        if self.timed_out_until > Instant::now() { self.timed_out_until } else { Instant::now() }
+        if self.timed_out_until > get_instant_now() {
+            self.timed_out_until
+        } else {
+            get_instant_now()
+        }
     }
 
     fn connection_ids(&self) -> &Vec<ConnectionId> {
@@ -75,4 +78,15 @@ impl PeerTrait for Peer {
     fn remove_connection_id(&mut self, connection_id: ConnectionId) {
         self.connection_ids.retain(|&id| id != connection_id);
     }
+}
+
+#[cfg(not(test))]
+fn get_instant_now() -> Instant {
+    Instant::now()
+}
+
+// In tests we simulate time passing using tokio, so we need to use tokio's Instant instead of std.
+#[cfg(test)]
+fn get_instant_now() -> Instant {
+    tokio::time::Instant::now().into_std()
 }
