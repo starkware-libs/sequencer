@@ -279,7 +279,7 @@ fn test_run_parallel_txs(max_resource_bounds: ValidResourceBounds) {
         });
         s.spawn(move || {
             let charge_fee_2 = account_tx_2.create_tx_info().enforce_fee();
-            account_tx_2.execute(&mut state_2, &block_context_2, charge_fee_2, true).unwrap(); 
+            account_tx_2.execute(&mut state_2, &block_context_2, charge_fee_2, true).unwrap();
             // Check that the constructor wrote ctor_arg to the storage.
             let storage_key = get_storage_var_address("ctor_arg", &[]);
             let deployed_contract_address = calculate_contract_address(

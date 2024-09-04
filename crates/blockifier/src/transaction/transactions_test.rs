@@ -1764,7 +1764,7 @@ fn test_validate_accounts_tx(
                 ..default_args
             },
         );
-        let result = account_tx.execute(state, block_context, default_charge_fee, true); 
+        let result = account_tx.execute(state, block_context, default_charge_fee, true);
         assert!(result.is_ok(), "Execution failed: {:?}", result.unwrap_err());
     }
 }

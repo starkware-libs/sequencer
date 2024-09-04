@@ -304,12 +304,7 @@ pub fn run_invoke_tx(
     let tx_context = Arc::new(block_context.to_tx_context(&tx));
     let charge_fee = tx_context.tx_info.enforce_fee();
 
-    account_invoke_tx(invoke_args).execute(
-        state,
-        block_context,
-        charge_fee,
-        true,
-    )
+    account_invoke_tx(invoke_args).execute(state, block_context, charge_fee, true)
 }
 
 /// Creates a `ResourceBoundsMapping` with the given `max_amount` and `max_price` for L1 gas limits.
