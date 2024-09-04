@@ -183,7 +183,8 @@ impl EntryPointExecutionContext {
                 .expect("Failed to convert invoke_tx_max_n_steps (u32) to usize."),
         };
 
-        if !limit_steps_by_resources || !tx_info.enforce_fee() {
+        if !limit_steps_by_resources {
+            // aviv: was with '|| !tx_info.enforce_fee()'
             return block_upper_bound;
         }
 
