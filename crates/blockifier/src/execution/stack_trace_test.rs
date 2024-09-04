@@ -27,7 +27,6 @@ use crate::transaction::constants::{
     VALIDATE_DEPLOY_ENTRY_POINT_NAME,
     VALIDATE_ENTRY_POINT_NAME,
 };
-use crate::transaction::objects::TransactionInfoCreator;
 use crate::transaction::test_utils::{
     account_invoke_tx,
     block_context,

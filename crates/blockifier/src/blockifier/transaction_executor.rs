@@ -22,7 +22,7 @@ use crate::state::cached_state::{CachedState, CommitmentStateDiff, Transactional
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult};
 use crate::transaction::errors::TransactionExecutionError;
-use crate::transaction::objects::{TransactionExecutionInfo, TransactionInfoCreator};
+use crate::transaction::objects::TransactionExecutionInfo;
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
 

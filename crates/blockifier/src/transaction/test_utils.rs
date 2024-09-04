@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use rstest::fixture;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;

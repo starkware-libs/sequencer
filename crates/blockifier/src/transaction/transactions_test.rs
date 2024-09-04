@@ -2034,7 +2034,7 @@ fn test_l1_handler(
     let key = calldata.0[1];
     let value = calldata.0[2];
     let payload_size = tx.payload_size();
-    let charge_fee = true;
+    let charge_fee = false;
     let actual_execution_info = tx.execute(state, block_context, charge_fee, true).unwrap();
 
     // Build the expected call info.

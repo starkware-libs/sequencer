@@ -249,14 +249,13 @@ pub fn execute_call(
         execution_config,
         override_kzg_da_to_false,
     )?;
+    // TODO(yair): fix when supporting v3 transactions
+    let tx_info = TransactionInfo::Deprecated(DeprecatedTransactionInfo::default());
+    let limit_steps_by_resources = tx_info.enforce_fee();
 
     let mut context = EntryPointExecutionContext::new_invoke(
-        // TODO(yair): fix when supporting v3 transactions
-        Arc::new(TransactionContext {
-            block_context,
-            tx_info: TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
-        }),
-        true, // limit_steps_by_resources
+        Arc::new(TransactionContext { block_context, tx_info }),
+        limit_steps_by_resources,
     );
 
     let res = call_entry_point
