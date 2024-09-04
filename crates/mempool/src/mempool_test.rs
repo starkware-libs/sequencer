@@ -4,14 +4,16 @@ use std::collections::HashMap;
 use assert_matches::assert_matches;
 use mempool_test_utils::starknet_api_test_utils::{
     create_executable_tx,
+    create_resource_bounds_mapping,
     test_resource_bounds_mapping,
+    VALID_L2_GAS_MAX_PRICE_PER_UNIT,
 };
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
+use starknet_api::transaction::{ResourceBounds, Tip, TransactionHash, ValidResourceBounds};
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState};
@@ -107,18 +109,18 @@ impl MempoolContentBuilder {
         self
     }
 
-    fn _with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
+    fn with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
     where
         Q: IntoIterator<Item = TransactionReference>,
     {
-        self.tx_queue = Some(self.tx_queue.take().unwrap_or_default()._with_pending(queue_txs));
+        self.tx_queue = Some(self.tx_queue.take().unwrap_or_default().with_pending(queue_txs));
 
         self
     }
 
-    fn _with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
+    fn with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
         self.tx_queue = Some(
-            self.tx_queue.take().unwrap_or_default()._with_gas_price_threshold(gas_price_threshold),
+            self.tx_queue.take().unwrap_or_default().with_gas_price_threshold(gas_price_threshold),
         );
 
         self
@@ -190,6 +192,10 @@ macro_rules! tx {
     };
     (tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, tx_nonce: $tx_nonce:expr) => {
         tx!(tip: 0, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce)
+    };
+    // tx_hash: 2, tx_nonce: 1_u8, resource_bounds
+    (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr, resource_bounds: $resource_bounds:expr) => {
+        tx!(tip: 0, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce, resource_bounds: $resource_bounds)
     };
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr) => {
         tx!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: 0_u8)
@@ -284,26 +290,37 @@ fn test_get_txs_returns_by_priority_order(#[case] requested_txs: usize) {
 #[rstest]
 fn test_get_txs_multi_nonce() {
     // Setup.
-    let tx_nonce_0 = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0_u8);
-    let tx_nonce_1 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1_u8);
-    let tx_nonce_2 = tx!(tx_hash: 3, sender_address: "0x0", tx_nonce: 2_u8);
+    let resource_bounds_below_threshold = create_resource_bounds_mapping(
+        ResourceBounds::default(),
+        ResourceBounds { max_amount: 0, max_price_per_unit: VALID_L2_GAS_MAX_PRICE_PER_UNIT - 1 },
+        ResourceBounds::default(),
+    );
 
-    let queue_txs = [&tx_nonce_0].map(TransactionReference::new);
-    let pool_txs = [tx_nonce_0, tx_nonce_1, tx_nonce_2];
+    let priority_tx_nonce_0 = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0_u8);
+    let pending_tx_nonce_1 = tx!(tx_hash: 2, tx_nonce: 1_u8, resource_bounds: ValidResourceBounds::AllResources(resource_bounds_below_threshold));
+    let priority_tx_nonce_2 = tx!(tx_hash: 3, sender_address: "0x0", tx_nonce: 2_u8);
+
+    let queue_txs = [&priority_tx_nonce_0].map(TransactionReference::new);
+    let pool_txs =
+        [&priority_tx_nonce_0, &pending_tx_nonce_1, &priority_tx_nonce_2].map(|tx| tx.clone());
     let mut mempool: Mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs.clone())
         .with_priority_queue(queue_txs)
+        .with_gas_price_threshold(VALID_L2_GAS_MAX_PRICE_PER_UNIT)
         .build()
         .into();
 
     // Test.
     let fetched_txs = mempool.get_txs(3).unwrap();
 
-    // Assert: all transactions are returned.
-    assert_eq!(fetched_txs, &pool_txs);
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_pool([]).with_priority_queue([]).build();
-    expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
+    // Assert.
+    assert_eq!(fetched_txs, &[priority_tx_nonce_0]);
+    let expected_mempool_content = MempoolContentBuilder::new()
+        .with_pending_queue([TransactionReference::new(&pending_tx_nonce_1)])
+        .with_pool([pending_tx_nonce_1, priority_tx_nonce_2])
+        .build();
+    expected_mempool_content.assert_eq_transaction_pool_content(&mempool);
+    expected_mempool_content._assert_eq_transaction_pending_queue_content(&mempool);
 }
 
 #[rstest]

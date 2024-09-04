@@ -43,9 +43,9 @@ impl TransactionQueueContent {
 #[derive(Debug, Default)]
 pub struct TransactionQueueContentBuilder {
     priority_queue: Option<BTreeSet<PriorityTransaction>>,
-    _pending_queue: Option<BTreeSet<PendingTransaction>>,
+    pending_queue: Option<BTreeSet<PendingTransaction>>,
     address_to_tx: Option<AddressToTransactionReference>,
-    _gas_price_threshold: Option<u128>,
+    gas_price_threshold: Option<u128>,
 }
 
 impl TransactionQueueContentBuilder {
@@ -64,7 +64,7 @@ impl TransactionQueueContentBuilder {
         self
     }
 
-    pub fn _with_pending<P>(mut self, pending_txs: P) -> Self
+    pub fn with_pending<P>(mut self, pending_txs: P) -> Self
     where
         P: IntoIterator<Item = TransactionReference>,
     {
@@ -73,23 +73,23 @@ impl TransactionQueueContentBuilder {
         self.address_to_tx.get_or_insert_with(HashMap::new).extend(
             pending_txs_vec.iter().map(|tx_reference| (tx_reference.sender_address, *tx_reference)),
         );
-        self._pending_queue =
+        self.pending_queue =
             Some(pending_txs_vec.into_iter().map(PendingTransaction::from).collect());
 
         self
     }
 
-    pub fn _with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
-        self._gas_price_threshold = Some(gas_price_threshold);
+    pub fn with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
+        self.gas_price_threshold = Some(gas_price_threshold);
         self
     }
 
     pub fn build(self) -> TransactionQueueContent {
         TransactionQueueContent {
             priority_queue: self.priority_queue,
-            pending_queue: self._pending_queue,
+            pending_queue: self.pending_queue,
             address_to_tx: self.address_to_tx,
-            gas_price_threshold: self._gas_price_threshold,
+            gas_price_threshold: self.gas_price_threshold,
         }
     }
 }
