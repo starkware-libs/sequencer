@@ -4,14 +4,16 @@ use std::collections::HashMap;
 use assert_matches::assert_matches;
 use mempool_test_utils::starknet_api_test_utils::{
     create_executable_tx,
+    create_resource_bounds_mapping,
     test_resource_bounds_mapping,
+    VALID_L2_GAS_MAX_PRICE_PER_UNIT,
 };
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
+use starknet_api::transaction::{ResourceBounds, Tip, TransactionHash, ValidResourceBounds};
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState};
@@ -50,7 +52,7 @@ impl MempoolContent {
     }
 
     fn _assert_eq_transaction_pending_queue_content(&self, mempool: &Mempool) {
-        self.tx_queue.as_ref().unwrap()._assert_eq_pending_queue(&mempool.tx_queue);
+        self.tx_queue.as_ref().unwrap().assert_eq_pending_queue(&mempool.tx_queue);
     }
 
     fn _assert_eq_transaction_queues_content(&self, mempool: &Mempool) {
@@ -104,12 +106,11 @@ impl MempoolContentBuilder {
         self
     }
 
-    fn _with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
+    fn with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
     where
         Q: IntoIterator<Item = TransactionReference>,
     {
-        self.tx_queue =
-            Some(TransactionQueueContentBuilder::new()._with_pending(queue_txs).build());
+        self.tx_queue = Some(TransactionQueueContentBuilder::new().with_pending(queue_txs).build());
         self
     }
 
@@ -275,29 +276,41 @@ fn test_get_txs_returns_by_priority_order(#[case] requested_txs: usize) {
 #[rstest]
 fn test_get_txs_multi_nonce() {
     // Setup.
-    let tx_nonce_0 =
+    let resource_bounds_below_threshold = create_resource_bounds_mapping(
+        ResourceBounds::default(),
+        ResourceBounds { max_amount: 0, max_price_per_unit: VALID_L2_GAS_MAX_PRICE_PER_UNIT - 1 },
+        ResourceBounds::default(),
+    );
+
+    let priority_tx_nonce_0 =
         add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8).tx;
-    let tx_nonce_1 =
-        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1_u8, account_nonce: 0_u8).tx;
-    let tx_nonce_2 =
+    let pending_tx_nonce_1 =
+        add_tx_input!(tx_hash: 2, tx_nonce: 1_u8, account_nonce: 0_u8, resource_bounds: ValidResourceBounds::AllResources(resource_bounds_below_threshold)).tx;
+    let priority_tx_nonce_2 =
         add_tx_input!(tx_hash: 3, sender_address: "0x0", tx_nonce: 2_u8, account_nonce: 0_u8).tx;
 
-    let queue_txs = [&tx_nonce_0].map(TransactionReference::new);
-    let pool_txs = [tx_nonce_0, tx_nonce_1, tx_nonce_2];
+    let queue_txs = [&priority_tx_nonce_0].map(TransactionReference::new);
+    let pool_txs =
+        [&priority_tx_nonce_0, &pending_tx_nonce_1, &priority_tx_nonce_2].map(|tx| tx.clone());
     let mut mempool: Mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs.clone())
         .with_priority_queue(queue_txs)
         .build()
         .into();
 
+    mempool._update_gas_price_threshold(VALID_L2_GAS_MAX_PRICE_PER_UNIT);
+
     // Test.
     let fetched_txs = mempool.get_txs(3).unwrap();
 
-    // Assert: all transactions are returned.
-    assert_eq!(fetched_txs, &pool_txs);
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_pool([]).with_priority_queue([]).build();
-    expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
+    // Assert: all the priority transactions are returned.
+    assert_eq!(fetched_txs, &[priority_tx_nonce_0]);
+    let expected_mempool_content = MempoolContentBuilder::new()
+        .with_pending_queue([TransactionReference::new(&pending_tx_nonce_1)])
+        .with_pool([pending_tx_nonce_1, priority_tx_nonce_2])
+        .build();
+    expected_mempool_content.assert_eq_transaction_pool_content(&mempool);
+    expected_mempool_content._assert_eq_transaction_pending_queue_content(&mempool);
 }
 
 #[rstest]
