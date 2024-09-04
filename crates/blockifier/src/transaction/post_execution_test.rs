@@ -6,6 +6,7 @@ use starknet_api::transaction::{
     Calldata,
     DeprecatedResourceBoundsMapping,
     Fee,
+    Resource,
     TransactionVersion,
 };
 use starknet_api::{felt, patricia_key};
@@ -214,7 +215,7 @@ fn test_revert_on_overdraft(
 #[rstest]
 #[case(TransactionVersion::ZERO, "", false)]
 #[case(TransactionVersion::ONE, "Insufficient max fee", true)]
-#[case(TransactionVersion::THREE, "Insufficient max L1 gas", true)]
+#[case(TransactionVersion::THREE,  &format!("Insufficient max {resource}", resource=Resource::L1Gas), true)]
 fn test_revert_on_resource_overuse(
     max_fee: Fee,
     max_resource_bounds: DeprecatedResourceBoundsMapping,

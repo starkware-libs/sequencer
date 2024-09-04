@@ -4,7 +4,7 @@ use assert_matches::assert_matches;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::rstest;
-use starknet_api::transaction::Fee;
+use starknet_api::transaction::{Fee, Resource};
 
 use crate::abi::constants::N_STEPS_RESOURCE;
 use crate::blockifier::block::GasPrices;
@@ -173,8 +173,8 @@ fn test_discounted_gas_overdraft(
         let expected_actual_amount = u128_from_usize(l1_gas_used)
             + (u128_from_usize(l1_data_gas_used) * data_gas_price) / gas_price;
         assert_matches!(
-            error, FeeCheckError::MaxL1GasAmountExceeded { max_amount, actual_amount }
-            if max_amount == u128::from(gas_bound) && actual_amount == expected_actual_amount
+            error, FeeCheckError::MaxGasAmountExceeded { resource, max_amount, actual_amount }
+            if max_amount == u128::from(gas_bound) && actual_amount == expected_actual_amount && resource == Resource::L1Gas
         )
     } else {
         assert_matches!(report.error(), None);
