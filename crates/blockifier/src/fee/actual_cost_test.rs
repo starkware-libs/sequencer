@@ -15,7 +15,12 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{create_calldata, create_trivial_calldata, CairoVersion, BALANCE};
 use crate::transaction::constants;
-use crate::transaction::objects::{GasVector, HasRelatedFeeType, StarknetResources};
+use crate::transaction::objects::{
+    GasVector,
+    GasVectorComputationMode,
+    HasRelatedFeeType,
+    StarknetResources,
+};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     calculate_class_info_for_testing,
@@ -47,8 +52,11 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
     // An empty transaction (a theoretical case for sanity check).
     let versioned_constants = VersionedConstants::default();
     let empty_tx_starknet_resources = StarknetResources::default();
-    let empty_tx_gas_usage_vector =
-        empty_tx_starknet_resources.to_gas_vector(&versioned_constants, use_kzg_da);
+    let empty_tx_gas_usage_vector = empty_tx_starknet_resources.to_gas_vector(
+        &versioned_constants,
+        use_kzg_da,
+        &GasVectorComputationMode::NoL2Gas,
+    );
     assert_eq!(empty_tx_gas_usage_vector, GasVector::default());
 
     // Declare.
@@ -71,8 +79,11 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
             );
         let manual_gas_vector =
             GasVector { l1_gas: code_gas_cost.to_integer(), ..Default::default() };
-        let declare_gas_usage_vector =
-            declare_tx_starknet_resources.to_gas_vector(&versioned_constants, use_kzg_da);
+        let declare_gas_usage_vector = declare_tx_starknet_resources.to_gas_vector(
+            &versioned_constants,
+            use_kzg_da,
+            &GasVectorComputationMode::NoL2Gas,
+        );
         assert_eq!(manual_gas_vector, declare_gas_usage_vector);
     }
 
@@ -103,8 +114,11 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
     let manual_gas_vector = GasVector { l1_gas: manual_starknet_gas_usage, ..Default::default() }
         + deploy_account_tx_starknet_resources.get_state_changes_cost(use_kzg_da);
 
-    let deploy_account_gas_usage_vector =
-        deploy_account_tx_starknet_resources.to_gas_vector(&versioned_constants, use_kzg_da);
+    let deploy_account_gas_usage_vector = deploy_account_tx_starknet_resources.to_gas_vector(
+        &versioned_constants,
+        use_kzg_da,
+        &GasVectorComputationMode::NoL2Gas,
+    );
     assert_eq!(manual_gas_vector, deploy_account_gas_usage_vector);
 
     // L1 handler.
@@ -118,8 +132,11 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
         Some(l1_handler_payload_size),
         std::iter::empty(),
     );
-    let l1_handler_gas_usage_vector =
-        l1_handler_tx_starknet_resources.to_gas_vector(&versioned_constants, use_kzg_da);
+    let l1_handler_gas_usage_vector = l1_handler_tx_starknet_resources.to_gas_vector(
+        &versioned_constants,
+        use_kzg_da,
+        &GasVectorComputationMode::NoL2Gas,
+    );
 
     // Manual calculation.
     let message_segment_length = get_message_segment_length(&[], Some(l1_handler_payload_size));
@@ -182,8 +199,11 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
         call_infos_iter.clone(),
     );
 
-    let l2_to_l1_messages_gas_usage_vector =
-        l2_to_l1_starknet_resources.to_gas_vector(&versioned_constants, use_kzg_da);
+    let l2_to_l1_messages_gas_usage_vector = l2_to_l1_starknet_resources.to_gas_vector(
+        &versioned_constants,
+        use_kzg_da,
+        &GasVectorComputationMode::NoL2Gas,
+    );
 
     // Manual calculation.
     let message_segment_length = get_message_segment_length(&l2_to_l1_payload_lengths, None);
@@ -225,8 +245,11 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
         std::iter::empty(),
     );
 
-    let storage_writings_gas_usage_vector =
-        storage_writes_starknet_resources.to_gas_vector(&versioned_constants, use_kzg_da);
+    let storage_writings_gas_usage_vector = storage_writes_starknet_resources.to_gas_vector(
+        &versioned_constants,
+        use_kzg_da,
+        &GasVectorComputationMode::NoL2Gas,
+    );
 
     // Manual calculation.
     let manual_gas_computation =
@@ -251,8 +274,11 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
         call_infos_iter.clone(),
     );
 
-    let gas_usage_vector =
-        combined_cases_starknet_resources.to_gas_vector(&versioned_constants, use_kzg_da);
+    let gas_usage_vector = combined_cases_starknet_resources.to_gas_vector(
+        &versioned_constants,
+        use_kzg_da,
+        &GasVectorComputationMode::NoL2Gas,
+    );
 
     // Manual calculation.
     let fee_balance_discount = match use_kzg_da {
@@ -327,12 +353,16 @@ fn test_calculate_tx_gas_usage(
     );
 
     assert_eq!(
-        starknet_resources.to_gas_vector(versioned_constants, use_kzg_da),
-        tx_execution_info
-            .receipt
-            .resources
-            .starknet_resources
-            .to_gas_vector(versioned_constants, use_kzg_da)
+        starknet_resources.to_gas_vector(
+            versioned_constants,
+            use_kzg_da,
+            &GasVectorComputationMode::NoL2Gas
+        ),
+        tx_execution_info.receipt.resources.starknet_resources.to_gas_vector(
+            versioned_constants,
+            use_kzg_da,
+            &GasVectorComputationMode::NoL2Gas
+        )
     );
 
     // A tx that changes the account and some other balance in execute.
@@ -378,11 +408,15 @@ fn test_calculate_tx_gas_usage(
     );
 
     assert_eq!(
-        starknet_resources.to_gas_vector(versioned_constants, use_kzg_da),
-        tx_execution_info
-            .receipt
-            .resources
-            .starknet_resources
-            .to_gas_vector(versioned_constants, use_kzg_da)
+        starknet_resources.to_gas_vector(
+            versioned_constants,
+            use_kzg_da,
+            &GasVectorComputationMode::NoL2Gas
+        ),
+        tx_execution_info.receipt.resources.starknet_resources.to_gas_vector(
+            versioned_constants,
+            use_kzg_da,
+            &GasVectorComputationMode::NoL2Gas
+        )
     );
 }
