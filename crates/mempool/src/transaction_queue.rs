@@ -95,6 +95,13 @@ impl TransactionQueue {
         self.gas_price_threshold = threshold;
     }
 
+    #[cfg(test)]
+    pub fn _compare_two_queues(&self, other: &Self) -> bool {
+        self.priority_queue == other.priority_queue
+            && self.pending_queue == other.pending_queue
+            && self.address_to_tx == other.address_to_tx
+    }
+
     fn _promote_txs_to_priority(&mut self, threshold: u128) {
         let tmp_split_tx = PendingTransaction(TransactionReference {
             resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {

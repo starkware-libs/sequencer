@@ -92,6 +92,10 @@ impl MempoolContent {
         assert_eq!(self.tx_queue.as_ref().unwrap(), &mempool.tx_queue);
     }
 
+    fn _assert_eq_two_queues_content(&self, mempool: &Mempool) {
+        assert!(self.tx_queue.as_ref().unwrap()._compare_two_queues(&mempool.tx_queue));
+    }
+
     fn _assert_eq_account_nonces(&self, mempool: &Mempool) {
         assert_eq!(self.account_nonces.as_ref().unwrap(), &mempool._account_nonces);
     }
