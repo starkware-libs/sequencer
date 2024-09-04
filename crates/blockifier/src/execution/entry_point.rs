@@ -184,7 +184,7 @@ impl EntryPointExecutionContext {
         };
 
         if !limit_steps_by_resources {
-            // aviv: need to remove '|| !tx_info.enforce_fee()'
+            // aviv: was with '|| !tx_info.enforce_fee()'
             return block_upper_bound;
         }
 
