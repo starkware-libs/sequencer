@@ -188,16 +188,8 @@ impl<'de> Deserialize<'de> for ContractClassV1 {
     where
         D: Deserializer<'de>,
     {
-        // Deserialize into a JSON value
-        let json_value: serde_json::Value = Deserialize::deserialize(deserializer)?;
-
-        // Convert into a JSON string
-        let json_string = serde_json::to_string(&json_value)
-            .map_err(|err| DeserializationError::custom(err.to_string()))?;
-
-        // Use try_from_json_string to deserialize into ContractClassV1
-        ContractClassV1::try_from_json_string(&json_string)
-            .map_err(|err| DeserializationError::custom(err.to_string()))
+        let casm: CasmContractClass = Deserialize::deserialize(deserializer)?;
+        casm.try_into().map_err(|err: ProgramError| DeserializationError::custom(err.to_string()))
     }
 }
 
