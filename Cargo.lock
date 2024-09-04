@@ -174,6 +174,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b3d1d046238990b9cf5bcde22a3fb3584ee5cf65fb2765f454ed428c7a0063da"
 
 [[package]]
+name = "aquamarine"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "21cc1548309245035eb18aa7f0967da6bc65587005170c56e6ef2788a4cf3f4e"
+dependencies = [
+ "include_dir",
+ "itertools 0.10.5",
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.76",
+]
+
+[[package]]
 name = "arc-swap"
 version = "1.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1676,15 +1690,15 @@ dependencies = [
 [[package]]
 name = "cairo-native"
 version = "0.2.0"
-source = "git+https://github.com/lambdaclass/cairo_native?rev=0b77a8b9b4d1690768b7ea890632da6a45603e84#0b77a8b9b4d1690768b7ea890632da6a45603e84"
+source = "git+https://github.com/lambdaclass/cairo_native?rev=589c64eeeba62fc0051e307d2431f5da29f4a14c#589c64eeeba62fc0051e307d2431f5da29f4a14c"
 dependencies = [
  "anyhow",
+ "aquamarine",
  "bumpalo",
  "cairo-lang-compiler",
  "cairo-lang-defs",
  "cairo-lang-diagnostics",
  "cairo-lang-filesystem",
- "cairo-lang-lowering",
  "cairo-lang-runner",
  "cairo-lang-semantic",
  "cairo-lang-sierra",
@@ -1700,7 +1714,6 @@ dependencies = [
  "clap",
  "colored",
  "educe",
- "id-arena",
  "itertools 0.13.0",
  "k256",
  "keccak",
@@ -1726,7 +1739,7 @@ dependencies = [
 [[package]]
 name = "cairo-native-runtime"
 version = "0.2.0"
-source = "git+https://github.com/lambdaclass/cairo_native?rev=0b77a8b9b4d1690768b7ea890632da6a45603e84#0b77a8b9b4d1690768b7ea890632da6a45603e84"
+source = "git+https://github.com/lambdaclass/cairo_native?rev=589c64eeeba62fc0051e307d2431f5da29f4a14c#589c64eeeba62fc0051e307d2431f5da29f4a14c"
 dependencies = [
  "cairo-lang-sierra-gas",
  "lazy_static",
@@ -4452,6 +4465,25 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "include_dir"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "923d117408f1e49d914f1a379a309cffe4f18c05cf4e3d12e613a15fc81bd0dd"
+dependencies = [
+ "include_dir_macros",
+]
+
+[[package]]
+name = "include_dir_macros"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7cab85a7ed0bd5f0e76d93846e0147172bed2e2d3f859bcc33a8d9699cad1a75"
+dependencies = [
+ "proc-macro2",
+ "quote",
 ]
 
 [[package]]
