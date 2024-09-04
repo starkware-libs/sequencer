@@ -23,6 +23,7 @@ use strum_macros::EnumIter;
 
 use crate::abi::constants as abi_constants;
 use crate::blockifier::block::BlockInfo;
+use crate::context::TransactionContext;
 use crate::execution::call_info::{CallInfo, ExecutionSummary, MessageL1CostInfo, OrderedEvent};
 use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::eth_gas_constants;
@@ -455,6 +456,18 @@ pub enum GasVectorComputationMode {
     NoL2Gas,
 }
 
+impl From<&TransactionContext> for GasVectorComputationMode {
+    fn from(context: &TransactionContext) -> Self {
+        match &context.tx_info {
+            TransactionInfo::Current(info) => match info.resource_bounds {
+                ValidResourceBounds::L1Gas(_) => GasVectorComputationMode::NoL2Gas,
+                ValidResourceBounds::AllResources(_) => GasVectorComputationMode::AllGasAmounts,
+            },
+            TransactionInfo::Deprecated(_) => GasVectorComputationMode::NoL2Gas,
+        }
+    }
+}
+
 impl TransactionResources {
     /// Computes and returns the total L1 gas consumption.
     /// We add the l1_gas_usage (which may include, for example, the direct cost of L2-to-L1
@@ -472,6 +485,7 @@ impl TransactionResources {
             versioned_constants,
             &self.vm_resources,
             self.n_reverted_steps,
+            &GasVectorComputationMode::NoL2Gas,
         )?)
     }
 

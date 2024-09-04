@@ -52,7 +52,13 @@ use crate::test_utils::{
 };
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
-use crate::transaction::objects::{FeeType, GasVector, HasRelatedFeeType, TransactionInfoCreator};
+use crate::transaction::objects::{
+    FeeType,
+    GasVector,
+    GasVectorComputationMode,
+    HasRelatedFeeType,
+    TransactionInfoCreator,
+};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     block_context,
@@ -415,8 +421,12 @@ fn test_max_fee_limit_validate(
         resource_bounds: max_resource_bounds,
         ..tx_args.clone()
     });
-    let estimated_min_gas_usage_vector =
-        estimate_minimal_gas_vector(&block_context, &account_tx).unwrap();
+    let estimated_min_gas_usage_vector = estimate_minimal_gas_vector(
+        &block_context,
+        &account_tx,
+        &GasVectorComputationMode::NoL2Gas,
+    )
+    .unwrap();
     let estimated_min_l1_gas = estimated_min_gas_usage_vector.l1_gas;
     let estimated_min_fee =
         get_fee_by_gas_vector(block_info, estimated_min_gas_usage_vector, &account_tx.fee_type());

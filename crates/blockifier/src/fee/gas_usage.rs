@@ -6,7 +6,12 @@ use crate::context::{BlockContext, TransactionContext};
 use crate::fee::eth_gas_constants;
 use crate::state::cached_state::StateChangesCount;
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::objects::{GasVector, HasRelatedFeeType, TransactionPreValidationResult};
+use crate::transaction::objects::{
+    GasVector,
+    GasVectorComputationMode,
+    HasRelatedFeeType,
+    TransactionPreValidationResult,
+};
 use crate::utils::{u128_div_ceil, u128_from_usize};
 
 #[cfg(test)]
@@ -144,6 +149,7 @@ fn get_event_emission_cost(n_topics: usize, data_length: usize) -> GasVector {
 pub fn estimate_minimal_gas_vector(
     block_context: &BlockContext,
     tx: &AccountTransaction,
+    gas_usage_vector_computation_mode: &GasVectorComputationMode,
 ) -> TransactionPreValidationResult<GasVector> {
     // TODO(Dori, 1/8/2023): Give names to the constant VM step estimates and regression-test them.
     let BlockContext { block_info, versioned_constants, .. } = block_context;
@@ -180,7 +186,12 @@ pub fn estimate_minimal_gas_vector(
 
     let resources = ExecutionResources { n_steps: os_steps_for_type, ..Default::default() };
     Ok(get_da_gas_cost(&state_changes_by_account_transaction, block_info.use_kzg_da)
-        + calculate_l1_gas_by_vm_usage(versioned_constants, &resources, 0)?)
+        + calculate_l1_gas_by_vm_usage(
+            versioned_constants,
+            &resources,
+            0,
+            gas_usage_vector_computation_mode,
+        )?)
 }
 
 /// Compute l1_gas estimation from gas_vector using the following formula:
