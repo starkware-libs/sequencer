@@ -1,6 +1,7 @@
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use rand::Rng;
-use crate::consensus::{StreamMessage, ConsensusMessage, Proposal} ;
+
+use crate::consensus::{ConsensusMessage, Proposal, StreamMessage};
 
 // TODO(guyn): add tests for other serializable objects in consensus
 
@@ -38,14 +39,14 @@ fn convert_stream_message_to_vec_u8_and_back() {
     let stream_message: StreamMessage<Vec<u8>> = StreamMessage::get_test_instance(&mut rng);
 
     let bytes_data: Vec<u8> = stream_message.clone().into();
-    let res_data =  StreamMessage::try_from(bytes_data).unwrap();
+    let res_data = StreamMessage::try_from(bytes_data).unwrap();
     assert_eq!(stream_message, res_data);
 
     // test that we can convert a StreamMessage with a ConsensusMessage message to bytes and back
-    let stream_message: StreamMessage<ConsensusMessage> = StreamMessage::get_test_instance(&mut rng);
+    let stream_message: StreamMessage<ConsensusMessage> =
+        StreamMessage::get_test_instance(&mut rng);
 
     let bytes_data: Vec<u8> = stream_message.clone().into();
-    let res_data =  StreamMessage::try_from(bytes_data).unwrap();
+    let res_data = StreamMessage::try_from(bytes_data).unwrap();
     assert_eq!(stream_message, res_data);
-    
 }
