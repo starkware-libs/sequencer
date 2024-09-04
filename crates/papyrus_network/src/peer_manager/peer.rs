@@ -1,8 +1,7 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use libp2p::swarm::ConnectionId;
 use libp2p::{Multiaddr, PeerId};
-use tokio::time::Instant;
 use tracing::info;
 
 pub trait PeerTrait {
