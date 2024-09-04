@@ -12,10 +12,10 @@ use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
     DeclareTransactionV2,
-    DeprecatedResourceBoundsMapping,
     Fee,
     TransactionHash,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_api::{calldata, class_hash, contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
@@ -80,7 +80,7 @@ use crate::{
 };
 
 #[rstest]
-fn test_circuit(block_context: BlockContext, max_resource_bounds: DeprecatedResourceBoundsMapping) {
+fn test_circuit(block_context: BlockContext, max_resource_bounds: ValidResourceBounds) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let chain_info = &block_context.chain_info;
@@ -114,10 +114,7 @@ fn test_circuit(block_context: BlockContext, max_resource_bounds: DeprecatedReso
 }
 
 #[rstest]
-fn test_rc96_holes(
-    block_context: BlockContext,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
-) {
+fn test_rc96_holes(block_context: BlockContext, max_resource_bounds: ValidResourceBounds) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let chain_info = &block_context.chain_info;
@@ -208,7 +205,7 @@ fn test_enforce_fee_false_works(block_context: BlockContext, #[case] version: Tr
 fn test_account_flow_test(
     block_context: BlockContext,
     max_fee: Fee,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
     #[values(TransactionVersion::ZERO, TransactionVersion::ONE, TransactionVersion::THREE)]
     tx_version: TransactionVersion,
     #[values(true, false)] only_query: bool,
@@ -240,7 +237,7 @@ fn test_account_flow_test(
 fn test_invoke_tx_from_non_deployed_account(
     block_context: BlockContext,
     max_fee: Fee,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
     #[case] tx_version: TransactionVersion,
 ) {
     let TestInitData { mut state, account_address, contract_address: _, mut nonce_manager } =
@@ -289,7 +286,7 @@ fn test_infinite_recursion(
     #[values(true, false)] success: bool,
     #[values(true, false)] normal_recurse: bool,
     mut block_context: BlockContext,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
 ) {
     // Limit the number of execution steps (so we quickly hit the limit).
     block_context.versioned_constants.invoke_tx_max_n_steps = 4200;
@@ -344,7 +341,7 @@ fn test_infinite_recursion(
 fn test_max_fee_limit_validate(
     block_context: BlockContext,
     #[case] version: TransactionVersion,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
 ) {
     let chain_info = &block_context.chain_info;
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
@@ -449,7 +446,7 @@ fn test_recursion_depth_exceeded(
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
     block_context: BlockContext,
     max_fee: Fee,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
 ) {
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         create_test_init_data(&block_context.chain_info, cairo_version);
@@ -693,7 +690,7 @@ fn recursive_function_calldata(
 #[case(TransactionVersion::THREE)]
 fn test_reverted_reach_steps_limit(
     max_fee: Fee,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
     mut block_context: BlockContext,
     #[case] version: TransactionVersion,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
@@ -803,7 +800,7 @@ fn test_reverted_reach_steps_limit(
 /// asserts false. We test deltas between consecutive depths, and further depths.
 fn test_n_reverted_steps(
     block_context: BlockContext,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
@@ -984,7 +981,7 @@ fn test_max_fee_to_max_steps_conversion(
 /// recorded and max_fee is charged.
 fn test_insufficient_max_fee_reverts(
     block_context: BlockContext,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
@@ -1053,7 +1050,7 @@ fn test_insufficient_max_fee_reverts(
 
 #[rstest]
 fn test_deploy_account_constructor_storage_write(
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
     block_context: BlockContext,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
@@ -1097,7 +1094,7 @@ fn test_deploy_account_constructor_storage_write(
 fn test_count_actual_storage_changes(
     max_fee: Fee,
     block_context: BlockContext,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
@@ -1278,7 +1275,7 @@ fn test_count_actual_storage_changes(
 #[case::tx_version_3(TransactionVersion::THREE)]
 fn test_concurrency_execute_fee_transfer(
     max_fee: Fee,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
     #[case] version: TransactionVersion,
 ) {
     // TODO(Meshi, 01/06/2024): make the test so it will include changes in
@@ -1378,7 +1375,7 @@ fn test_concurrency_execute_fee_transfer(
 #[case::tx_version_3(TransactionVersion::THREE)]
 fn test_concurrent_fee_transfer_when_sender_is_sequencer(
     max_fee: Fee,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
     #[case] version: TransactionVersion,
 ) {
     let mut block_context = BlockContext::create_for_account_testing();
