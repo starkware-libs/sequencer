@@ -4,14 +4,16 @@ use std::collections::HashMap;
 use assert_matches::assert_matches;
 use mempool_test_utils::starknet_api_test_utils::{
     create_executable_tx,
+    create_resource_bounds_mapping,
     test_resource_bounds_mapping,
+    VALID_L2_GAS_MAX_PRICE_PER_UNIT,
 };
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
+use starknet_api::transaction::{ResourceBounds, Tip, TransactionHash, ValidResourceBounds};
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState};
@@ -205,6 +207,9 @@ macro_rules! add_tx_input {
     };
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr) => {
         add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: 0_u8, account_nonce: 0_u8)
+    };
+    (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr, resource_bounds: $resource_bounds:expr) => {
+        add_tx_input!(tip: 1, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce, account_nonce: $account_nonce, resource_bounds: $resource_bounds)
     };
     (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
         add_tx_input!(tip: 1, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce, account_nonce: $account_nonce)
@@ -521,27 +526,38 @@ fn test_add_tx(mut mempool: Mempool) {
 #[rstest]
 fn test_add_tx_multi_nonce_success(mut mempool: Mempool) {
     // Setup.
-    let input_address_0_nonce_0 =
-        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8);
-    let input_address_1_nonce_0 =
-        add_tx_input!(tx_hash: 2, sender_address: "0x1", tx_nonce: 0_u8,account_nonce: 0_u8);
-    let input_address_0_nonce_1 =
+    let resource_bounds_below_threshold = create_resource_bounds_mapping(
+        ResourceBounds::default(),
+        ResourceBounds { max_amount: 0, max_price_per_unit: VALID_L2_GAS_MAX_PRICE_PER_UNIT - 1 },
+        ResourceBounds::default(),
+    );
+
+    let pending_input_address_0_nonce_0 = add_tx_input!(tx_hash: 1, tx_nonce: 0_u8, account_nonce: 0_u8, resource_bounds: ValidResourceBounds::AllResources(resource_bounds_below_threshold));
+    let priority_input_address_1_nonce_0 =
+        add_tx_input!(tx_hash: 2, sender_address: "0x1", tx_nonce: 0_u8, account_nonce: 0_u8);
+    let priority_input_address_0_nonce_1 =
         add_tx_input!(tx_hash: 3, sender_address: "0x0", tx_nonce: 1_u8, account_nonce: 0_u8);
 
     // Test.
-    add_tx(&mut mempool, &input_address_0_nonce_0);
-    add_tx(&mut mempool, &input_address_1_nonce_0);
-    add_tx(&mut mempool, &input_address_0_nonce_1);
+    add_tx(&mut mempool, &pending_input_address_0_nonce_0);
+    add_tx(&mut mempool, &priority_input_address_1_nonce_0);
+    add_tx(&mut mempool, &priority_input_address_0_nonce_1);
 
     // Assert: only the eligible transactions appear in the queue.
+    // TODO(Mohammad): assert two queues are equal.
     let expected_queue_txs =
-        [&input_address_1_nonce_0.tx, &input_address_0_nonce_0.tx].map(TransactionReference::new);
-    let expected_pool_txs =
-        [input_address_0_nonce_0.tx, input_address_1_nonce_0.tx, input_address_0_nonce_1.tx];
+        [&priority_input_address_1_nonce_0.tx, &pending_input_address_0_nonce_0.tx]
+            .map(TransactionReference::new);
+    let expected_pool_txs = [
+        pending_input_address_0_nonce_0.tx,
+        priority_input_address_1_nonce_0.tx,
+        priority_input_address_0_nonce_1.tx,
+    ];
     let expected_mempool_content = MempoolContentBuilder::new()
         .with_pool(expected_pool_txs)
         .with_priority_queue(expected_queue_txs)
         .build();
+
     expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
 }
 
@@ -686,9 +702,16 @@ fn test_tip_priority_over_tx_hash(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_tx_account_state_fills_hole(mut mempool: Mempool) {
+#[case::test_add_tx_account_state_fills_hole_for_priority_tx(VALID_L2_GAS_MAX_PRICE_PER_UNIT)]
+#[case::test_add_tx_account_state_fills_hole_for_pending_tx(VALID_L2_GAS_MAX_PRICE_PER_UNIT-1)]
+fn test_add_tx_account_state_fills_hole(#[case] l2_gas_price: u128, mut mempool: Mempool) {
     // Setup.
-    let tx_input_nonce_1 = add_tx_input!(tx_hash: 1, tx_nonce: 1_u8, account_nonce: 0_u8);
+    let resource_bounds = create_resource_bounds_mapping(
+        ResourceBounds::default(),
+        ResourceBounds { max_amount: 0, max_price_per_unit: l2_gas_price },
+        ResourceBounds::default(),
+    );
+    let tx_input_nonce_1 = add_tx_input!(tx_hash: 1, tx_nonce: 1_u8, account_nonce: 0_u8, resource_bounds: ValidResourceBounds::AllResources(resource_bounds));
     // Input that increments the account state.
     let tx_input_nonce_2 = add_tx_input!(tx_hash: 2, tx_nonce: 2_u8, account_nonce: 1_u8);
 
@@ -701,6 +724,7 @@ fn test_add_tx_account_state_fills_hole(mut mempool: Mempool) {
 
     // Then, fill it.
     add_tx(&mut mempool, &tx_input_nonce_2);
+    // TODO(Mohammad): assert two queues are equal.
     let expected_queue_txs = [&tx_input_nonce_1.tx].map(TransactionReference::new);
     let expected_mempool_content =
         MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
