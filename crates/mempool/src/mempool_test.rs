@@ -72,6 +72,16 @@ impl MempoolContent {
         Self { tx_queue: Some(queue_txs.into_iter().collect()), ..Self::default() }
     }
 
+    fn _with_inner_transaction_queues<Q>(priority_txs: Q, pending_txs: Q) -> Self
+    where
+        Q: IntoIterator<Item = TransactionReference>,
+    {
+        Self {
+            tx_queue: Some(TransactionQueue::_new_with_transactions(priority_txs, pending_txs)),
+            ..Self::default()
+        }
+    }
+
     fn _with_account_nonces<A>(account_nonce_pairs: A) -> Self
     where
         A: IntoIterator<Item = (ContractAddress, Nonce)>,

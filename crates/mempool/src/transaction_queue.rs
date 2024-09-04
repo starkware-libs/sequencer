@@ -132,6 +132,27 @@ impl TransactionQueue {
         }
         self.pending_queue.extend(to_remove.into_iter().map(|tx| tx.0.into()));
     }
+
+    #[cfg(test)]
+    pub fn _new_with_transactions<Q>(priority_txs: Q, pending_txs: Q) -> Self
+    where
+        Q: IntoIterator<Item = TransactionReference>,
+    {
+        let priority_queue: BTreeSet<PriorityTransaction> =
+            priority_txs.into_iter().map(Into::into).collect();
+
+        let pending_queue: BTreeSet<PendingTransaction> =
+            pending_txs.into_iter().map(Into::into).collect();
+
+        let address_to_tx: HashMap<ContractAddress, TransactionReference> = priority_queue
+            .iter()
+            .map(|tx| tx.clone().0)
+            .chain(pending_queue.iter().map(|tx| tx.clone().0))
+            .map(|tx| (tx.sender_address, tx))
+            .collect();
+
+        Self { priority_queue, pending_queue, address_to_tx, ..Default::default() }
+    }
 }
 
 /// Encapsulates a transaction reference to assess its order (i.e., gas price).
