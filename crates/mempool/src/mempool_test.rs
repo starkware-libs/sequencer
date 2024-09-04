@@ -89,7 +89,18 @@ impl MempoolContent {
     }
 
     fn assert_eq_transaction_queue_content(&self, mempool: &Mempool) {
-        assert_eq!(self.tx_queue.as_ref().unwrap(), &mempool.tx_queue);
+        assert_eq!(
+            self.tx_queue.as_ref().unwrap().get_address_to_tx_mapping(),
+            mempool.tx_queue.get_address_to_tx_mapping()
+        );
+        assert_eq!(
+            self.tx_queue.as_ref().unwrap().get_priority_txs(),
+            mempool.tx_queue.get_priority_txs()
+        );
+        assert_eq!(
+            self.tx_queue.as_ref().unwrap().get_pending_txs(),
+            mempool.tx_queue.get_pending_txs()
+        );
     }
 
     fn assert_eq_account_nonces(&self, mempool: &Mempool) {

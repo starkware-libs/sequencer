@@ -132,6 +132,21 @@ impl TransactionQueue {
         }
         self.pending_queue.extend(to_remove.into_iter().map(|tx| tx.0.into()));
     }
+
+    #[cfg(test)]
+    pub fn get_priority_txs(&self) -> Vec<&TransactionReference> {
+        self.priority_queue.iter().map(|tx| &tx.0).collect()
+    }
+
+    #[cfg(test)]
+    pub fn get_pending_txs(&self) -> Vec<&TransactionReference> {
+        self.pending_queue.iter().map(|tx| &tx.0).collect()
+    }
+
+    #[cfg(test)]
+    pub fn get_address_to_tx_mapping(&self) -> &HashMap<ContractAddress, TransactionReference> {
+        &self.address_to_tx
+    }
 }
 
 /// Encapsulates a transaction reference to assess its order (i.e., gas price).
