@@ -1021,6 +1021,8 @@ fn test_insufficient_resource_bounds(
         actual_gas_price == actual_strk_l1_gas_price.into() &&
         resource == Resource::L1Gas
     );
+
+    // TODO(Aner): Add test for low max L1 data gas price and L2 gas price.
 }
 
 // TODO(Aner, 21/01/24) modify test for 4844.

@@ -870,6 +870,7 @@ impl From<Tip> for Felt {
     Copy,
     Debug,
     Deserialize,
+    Display,
     EnumIter,
     Eq,
     Hash,
@@ -877,7 +878,6 @@ impl From<Tip> for Felt {
     PartialEq,
     PartialOrd,
     Serialize,
-    Display,
 )]
 pub enum Resource {
     #[serde(rename = "L1_GAS")]
