@@ -187,6 +187,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
 
     /// Register a new subscriber for broadcasting and receiving broadcasts for a given topic.
     /// Panics if this topic is already subscribed.
+    // TODO: consider splitting into register_broadcast_topic_client and
+    // register_broadcast_topic_server
     pub fn register_broadcast_topic<T>(
         &mut self,
         topic: Topic,
@@ -854,9 +856,9 @@ pub struct BroadcastTopicChannels<T: TryFrom<Bytes>> {
 }
 
 pub struct BroadcastClientChannels<T: TryFrom<Bytes>> {
-    pub broadcasted_messages_receiver: BroadcastTopicReceiver<T>,
-    pub reported_messages_sender: GenericSender<BroadcastedMessageManager>,
-    pub continue_propagation_sender: GenericSender<BroadcastedMessageManager>,
+    broadcasted_messages_receiver: BroadcastTopicReceiver<T>,
+    reported_messages_sender: GenericSender<BroadcastedMessageManager>,
+    continue_propagation_sender: GenericSender<BroadcastedMessageManager>,
 }
 
 impl<T: TryFrom<Bytes>> Stream for BroadcastClientChannels<T> {

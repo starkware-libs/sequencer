@@ -134,7 +134,5 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
     }
 
     // TODO(shahak): Implement this function.
-    fn continue_propagation(&mut self, _message_manager: BroadcastedMessageManager) {
-        todo!()
-    }
+    fn continue_propagation(&mut self, _message_manager: BroadcastedMessageManager) {}
 }
