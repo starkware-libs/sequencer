@@ -4,12 +4,14 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
+use starknet_api::transaction::ValidResourceBounds;
 
 use crate::blockifier::block::BlockInfo;
 use crate::bouncer::BouncerConfig;
 use crate::transaction::errors::TransactionInfoCreationError;
 use crate::transaction::objects::{
     FeeType,
+    GasVectorComputationMode,
     HasRelatedFeeType,
     TransactionInfo,
     TransactionInfoCreator,
@@ -29,6 +31,15 @@ impl TransactionContext {
     }
     pub fn is_sequencer_the_sender(&self) -> bool {
         self.tx_info.sender_address() == self.block_context.block_info.sequencer_address
+    }
+    pub fn get_gas_vector_computation_mode(&self) -> GasVectorComputationMode {
+        match &self.tx_info {
+            TransactionInfo::Current(info) => match info.resource_bounds {
+                ValidResourceBounds::AllResources(_) => GasVectorComputationMode::All,
+                ValidResourceBounds::L1Gas(_) => GasVectorComputationMode::NoL2Gas,
+            },
+            TransactionInfo::Deprecated(_) => GasVectorComputationMode::NoL2Gas,
+        }
     }
 }
 

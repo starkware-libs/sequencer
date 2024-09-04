@@ -229,8 +229,11 @@ impl AccountTransaction {
         &self,
         tx_context: &TransactionContext,
     ) -> TransactionPreValidationResult<()> {
-        let minimal_l1_gas_amount_vector =
-            estimate_minimal_gas_vector(&tx_context.block_context, self)?;
+        let minimal_l1_gas_amount_vector = estimate_minimal_gas_vector(
+            &tx_context.block_context,
+            self,
+            &tx_context.get_gas_vector_computation_mode(),
+        )?;
         // TODO(Aner, 30/01/24): modify once data gas limit is enforced.
         let minimal_l1_gas_amount =
             compute_discounted_gas_from_gas_vector(&minimal_l1_gas_amount_vector, tx_context);

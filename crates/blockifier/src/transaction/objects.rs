@@ -26,7 +26,7 @@ use crate::blockifier::block::BlockInfo;
 use crate::execution::call_info::{CallInfo, ExecutionSummary, MessageL1CostInfo, OrderedEvent};
 use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::eth_gas_constants;
-use crate::fee::fee_utils::{calculate_l1_gas_by_vm_usage, get_fee_by_gas_vector};
+use crate::fee::fee_utils::{get_fee_by_gas_vector, get_vm_resources_cost};
 use crate::fee::gas_usage::{
     get_consumed_message_to_l2_emissions_cost,
     get_da_gas_cost,
@@ -482,10 +482,11 @@ impl TransactionResources {
             versioned_constants,
             use_kzg_da,
             &GasVectorComputationMode::NoL2Gas,
-        ) + calculate_l1_gas_by_vm_usage(
+        ) + get_vm_resources_cost(
             versioned_constants,
             &self.vm_resources,
             self.n_reverted_steps,
+            &GasVectorComputationMode::NoL2Gas,
         )?)
     }
 
