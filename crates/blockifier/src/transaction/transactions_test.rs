@@ -904,7 +904,10 @@ fn test_insufficient_resource_bounds(
 
     // The minimal gas estimate does not depend on tx version.
     let tx = &account_invoke_tx(valid_invoke_tx_args.clone());
-    let minimal_l1_gas = estimate_minimal_gas_vector(block_context, tx).unwrap().l1_gas;
+    let minimal_l1_gas =
+        estimate_minimal_gas_vector(block_context, tx, &GasVectorComputationMode::NoL2Gas)
+            .unwrap()
+            .l1_gas;
 
     // Test V1 transaction.
 
@@ -993,7 +996,10 @@ fn test_actual_fee_gt_resource_bounds(
         resource_bounds: max_resource_bounds
     };
     let tx = &account_invoke_tx(invoke_tx_args.clone());
-    let minimal_l1_gas = estimate_minimal_gas_vector(block_context, tx).unwrap().l1_gas;
+    let minimal_l1_gas =
+        estimate_minimal_gas_vector(block_context, tx, &GasVectorComputationMode::NoL2Gas)
+            .unwrap()
+            .l1_gas;
     let minimal_resource_bounds = l1_resource_bounds(
         u64::try_from(minimal_l1_gas).unwrap(),
         u128::from(

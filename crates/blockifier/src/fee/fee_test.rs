@@ -11,7 +11,7 @@ use crate::blockifier::block::GasPrices;
 use crate::context::BlockContext;
 use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::fee_checks::{FeeCheckError, FeeCheckReportFields, PostExecutionReport};
-use crate::fee::fee_utils::calculate_l1_gas_by_vm_usage;
+use crate::fee::fee_utils::get_vm_resources_cost;
 use crate::invoke_tx_args;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
@@ -21,7 +21,7 @@ use crate::test_utils::{
     DEFAULT_ETH_L1_DATA_GAS_PRICE,
     DEFAULT_ETH_L1_GAS_PRICE,
 };
-use crate::transaction::objects::GasVector;
+use crate::transaction::objects::{GasVector, GasVectorComputationMode};
 use crate::transaction::test_utils::{account_invoke_tx, l1_resource_bounds};
 use crate::utils::u128_from_usize;
 use crate::versioned_constants::VersionedConstants;
@@ -41,7 +41,7 @@ fn get_vm_resource_usage() -> ExecutionResources {
 }
 
 #[test]
-fn test_simple_calculate_l1_gas_by_vm_usage() {
+fn test_simple_get_vm_resource_usage() {
     let versioned_constants = VersionedConstants::create_for_account_testing();
     let mut vm_resource_usage = get_vm_resource_usage();
     let n_reverted_steps = 15;
@@ -55,8 +55,13 @@ fn test_simple_calculate_l1_gas_by_vm_usage() {
         .to_integer();
     assert_eq!(
         GasVector::from_l1_gas(l1_gas_by_vm_usage),
-        calculate_l1_gas_by_vm_usage(&versioned_constants, &vm_resource_usage, n_reverted_steps)
-            .unwrap()
+        get_vm_resources_cost(
+            &versioned_constants,
+            &vm_resource_usage,
+            n_reverted_steps,
+            &GasVectorComputationMode::NoL2Gas
+        )
+        .unwrap()
     );
 
     // Another positive flow, this time the heaviest resource is range_check_builtin.
@@ -67,13 +72,18 @@ fn test_simple_calculate_l1_gas_by_vm_usage() {
         vm_resource_usage.builtin_instance_counter.get(&BuiltinName::range_check).unwrap();
     assert_eq!(
         GasVector::from_l1_gas(u128_from_usize(*l1_gas_by_vm_usage)),
-        calculate_l1_gas_by_vm_usage(&versioned_constants, &vm_resource_usage, n_reverted_steps)
-            .unwrap()
+        get_vm_resources_cost(
+            &versioned_constants,
+            &vm_resource_usage,
+            n_reverted_steps,
+            &GasVectorComputationMode::NoL2Gas
+        )
+        .unwrap()
     );
 }
 
 #[test]
-fn test_float_calculate_l1_gas_by_vm_usage() {
+fn test_float_get_vm_resource_usage() {
     let versioned_constants = VersionedConstants::create_float_for_testing();
     let mut vm_resource_usage = get_vm_resource_usage();
 
@@ -87,8 +97,13 @@ fn test_float_calculate_l1_gas_by_vm_usage() {
         .to_integer();
     assert_eq!(
         GasVector::from_l1_gas(l1_gas_by_vm_usage),
-        calculate_l1_gas_by_vm_usage(&versioned_constants, &vm_resource_usage, n_reverted_steps)
-            .unwrap()
+        get_vm_resources_cost(
+            &versioned_constants,
+            &vm_resource_usage,
+            n_reverted_steps,
+            &GasVectorComputationMode::NoL2Gas
+        )
+        .unwrap()
     );
 
     // Another positive flow, this time the heaviest resource is ecdsa_builtin.
@@ -105,8 +120,13 @@ fn test_float_calculate_l1_gas_by_vm_usage() {
 
     assert_eq!(
         GasVector::from_l1_gas(l1_gas_by_vm_usage),
-        calculate_l1_gas_by_vm_usage(&versioned_constants, &vm_resource_usage, n_reverted_steps)
-            .unwrap()
+        get_vm_resources_cost(
+            &versioned_constants,
+            &vm_resource_usage,
+            n_reverted_steps,
+            &GasVectorComputationMode::NoL2Gas
+        )
+        .unwrap()
     );
 }
 
