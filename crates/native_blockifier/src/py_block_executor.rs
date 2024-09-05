@@ -52,21 +52,14 @@ pub(crate) struct ThinTransactionExecutionInfo {
 }
 
 impl ThinTransactionExecutionInfo {
-    pub fn from_tx_execution_info(
-        block_context: &BlockContext,
-        tx_execution_info: TransactionExecutionInfo,
-    ) -> Self {
+    pub fn from_tx_execution_info(tx_execution_info: TransactionExecutionInfo) -> Self {
         Self {
             validate_call_info: tx_execution_info.validate_call_info,
             execute_call_info: tx_execution_info.execute_call_info,
             fee_transfer_call_info: tx_execution_info.fee_transfer_call_info,
             actual_fee: tx_execution_info.receipt.fee,
             da_gas: tx_execution_info.receipt.da_gas,
-            actual_resources: tx_execution_info.receipt.resources.to_resources_mapping(
-                block_context.versioned_constants(),
-                block_context.block_info().use_kzg_da,
-                true,
-            ),
+            actual_resources: tx_execution_info.receipt.to_resources_mapping(true),
             revert_error: tx_execution_info.revert_error,
             total_gas: tx_execution_info.receipt.gas,
         }
@@ -167,10 +160,8 @@ impl PyBlockExecutor {
     ) -> NativeBlockifierResult<Py<PyBytes>> {
         let tx: Transaction = py_tx(tx, optional_py_class_info).expect(PY_TX_PARSING_ERR);
         let tx_execution_info = self.tx_executor().execute(&tx)?;
-        let thin_tx_execution_info = ThinTransactionExecutionInfo::from_tx_execution_info(
-            &self.tx_executor().block_context,
-            tx_execution_info,
-        );
+        let thin_tx_execution_info =
+            ThinTransactionExecutionInfo::from_tx_execution_info(tx_execution_info);
 
         // Serialize and convert to PyBytes.
         let serialized_tx_execution_info = thin_tx_execution_info.serialize();
@@ -199,7 +190,6 @@ impl PyBlockExecutor {
 
         // Process results.
         // TODO(Yoni, 15/5/2024): serialize concurrently.
-        let block_context = &self.tx_executor().block_context;
         let serialized_results: Vec<(bool, RawTransactionExecutionResult)> = results
             .into_iter()
             // Note: there might be less results than txs (if there is no room for all of them).
@@ -207,7 +197,6 @@ impl PyBlockExecutor {
                 Ok(tx_execution_info) => (
                     true,
                     ThinTransactionExecutionInfo::from_tx_execution_info(
-                        block_context,
                         tx_execution_info,
                     )
                     .serialize(),

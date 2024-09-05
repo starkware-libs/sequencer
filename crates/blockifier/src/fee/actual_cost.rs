@@ -1,19 +1,25 @@
+use std::collections::HashMap;
+
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Fee;
 
+use crate::abi::constants as abi_constants;
 use crate::context::TransactionContext;
 use crate::execution::call_info::CallInfo;
 use crate::state::cached_state::StateChanges;
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::objects::{
+    ExecutionResourcesTraits,
     GasVector,
     HasRelatedFeeType,
+    ResourcesMapping,
     StarknetResources,
     TransactionExecutionResult,
     TransactionResources,
 };
 use crate::transaction::transaction_types::TransactionType;
+use crate::utils::usize_from_u128;
 
 #[cfg(test)]
 #[path = "actual_cost_test.rs"]
@@ -102,6 +108,33 @@ impl TransactionReceipt {
             .get_state_changes_cost(tx_context.block_context.block_info.use_kzg_da);
 
         Ok(Self { resources: tx_resources, gas, da_gas, fee })
+    }
+
+    pub fn to_resources_mapping(&self, with_reverted_steps: bool) -> ResourcesMapping {
+        let GasVector { l1_gas, l1_data_gas, l2_gas } = self.gas;
+        let mut resources = self.resources.vm_resources.to_resources_mapping();
+        resources.0.extend(HashMap::from([
+            (
+                abi_constants::L1_GAS_USAGE.to_string(),
+                usize_from_u128(l1_gas)
+                    .expect("This conversion should not fail as the value is a converted usize."),
+            ),
+            (
+                abi_constants::BLOB_GAS_USAGE.to_string(),
+                usize_from_u128(l1_data_gas)
+                    .expect("This conversion should not fail as the value is a converted usize."),
+            ),
+            (
+                abi_constants::L2_GAS_USAGE.to_string(),
+                usize_from_u128(l2_gas)
+                    .expect("This conversion should not fail as the value is a converted usize."),
+            ),
+        ]));
+        let reverted_steps_to_add =
+            if with_reverted_steps { self.resources.n_reverted_steps } else { 0 };
+        *resources.0.get_mut(abi_constants::N_STEPS_RESOURCE).unwrap_or(&mut 0) +=
+            reverted_steps_to_add;
+        resources
     }
 
     /// Computes actual cost of an L1 handler transaction.
