@@ -4,14 +4,16 @@ use std::collections::HashMap;
 use assert_matches::assert_matches;
 use mempool_test_utils::starknet_api_test_utils::{
     create_executable_tx,
+    create_resource_bounds_mapping,
     test_resource_bounds_mapping,
+    VALID_L2_GAS_MAX_PRICE_PER_UNIT,
 };
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
+use starknet_api::transaction::{ResourceBounds, Tip, TransactionHash, ValidResourceBounds};
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState};
@@ -768,6 +770,52 @@ fn test_commit_block_from_different_leader() {
     let expected_queue_txs = [&tx_address0_nonce6].map(TransactionReference::new);
     let expected_mempool_content = MempoolContent::with_queue(expected_queue_txs);
     expected_mempool_content.assert_eq_transaction_queue_content(&mempool);
+}
+
+// Update gas price threshold tests.
+
+#[rstest]
+fn test_update_gas_price_threshold(mut mempool: Mempool) {
+    // Setup.
+    let high_l2_resource_bound = create_resource_bounds_mapping(
+        ResourceBounds::default(),
+        ResourceBounds { max_amount: 0, max_price_per_unit: VALID_L2_GAS_MAX_PRICE_PER_UNIT + 1 },
+        ResourceBounds::default(),
+    );
+
+    let low_l2_resource_bound = create_resource_bounds_mapping(
+        ResourceBounds::default(),
+        ResourceBounds { max_amount: 0, max_price_per_unit: VALID_L2_GAS_MAX_PRICE_PER_UNIT - 1 },
+        ResourceBounds::default(),
+    );
+
+    let high_gas_price_input_tx = add_tx_input!();
+    let low_gas_price_input_tx = add_tx_input!();
+    let mut mempool: Mempool = MempoolContent::with_transaction_queues(
+        TransactionReference::new(&high_gas_price_input_tx.tx),
+        TransactionReference::new(&low_gas_price_input_tx.tx),
+    )
+    .into();
+
+    // Test.
+    // All txs should be in the pending queue.
+    mempool._update_gas_price_threshold(VALID_L2_GAS_MAX_PRICE_PER_UNIT + 2);
+
+    // Assert.
+    mempool.assert_eq_pending_queue_content(&[
+        &high_gas_price_input_tx.tx,
+        &low_gas_price_input_tx.tx,
+    ]);
+
+    // Test.
+    // All txs should be in the pending queue.
+    mempool._update_gas_price_threshold(VALID_L2_GAS_MAX_PRICE_PER_UNIT - 2);
+
+    // Assert.
+    mempool.assert_eq_pending_queue_content(&[
+        &high_gas_price_input_tx.tx,
+        &low_gas_price_input_tx.tx,
+    ]);
 }
 
 // Flow tests.
