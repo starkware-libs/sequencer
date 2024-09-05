@@ -44,16 +44,17 @@ RUN apt update -y && apt install -y lsb-release \
     libzstd-dev \
     libssl-dev \
     pkg-config \
-    gnupg
+    gnupg \
+    unzip
 
-ENV PATH="/usr/local/musl/bin:${PATH}"
-ENV TARGET=x86_64-unknown-linux-musl
-ENV TARGET_CC=gcc
-ENV TARGET_CXX=g++
-ENV TARGET_AR=ar
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable -y
+ENV PATH="/root/.cargo/bin:${PATH}"
 
-RUN ln -s /bin/g++ /bin/musl-g++
-RUN ln -sf /bin/g++ /bin/c++
+RUN cargo install cargo-chef
+
+ENV PROTOC_VERSION=25.1
+RUN curl -L "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip" -o protoc.zip && unzip ./protoc.zip -d $HOME/.local &&  rm ./protoc.zip
+ENV PROTOC=/root/.local/bin/protoc
 
 # Install LLVM 18
 RUN echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" > /etc/apt/sources.list.d/llvm-18.list
@@ -66,6 +67,7 @@ RUN apt update -y && apt install -y --ignore-missing --allow-downgrades \
     llvm-18-dev \
     mlir-18-tools \
     clang-18
+
 ENV MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/
 ENV LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/
 ENV TABLEGEN_180_PREFIX=/usr/lib/llvm-18/
@@ -112,11 +114,6 @@ WORKDIR /app
 # Copy the node executable and its configuration.
 COPY --from=builder /app/target/release/papyrus_node /app/target/release/papyrus_node
 COPY config config
-
-COPY --from=chef /usr/lib/llvm-18/ /usr/lib/llvm-18/
-ENV MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/
-ENV LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/
-ENV TABLEGEN_180_PREFIX=/usr/lib/llvm-18/
 
 # Install tini, a lightweight init system, to call our executable.
 RUN apt install tini
