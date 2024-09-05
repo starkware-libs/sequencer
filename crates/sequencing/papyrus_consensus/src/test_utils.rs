@@ -113,5 +113,6 @@ pub fn proposal(
         round,
         proposer,
         transactions: Vec::new(),
+        valid_round: None,
     })
 }

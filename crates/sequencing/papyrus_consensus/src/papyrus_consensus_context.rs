@@ -224,6 +224,7 @@ impl ConsensusContext for PapyrusConsensusContext {
                     proposer: init.proposer,
                     transactions,
                     block_hash,
+                    valid_round: init.valid_round,
                 };
                 debug!(
                     "Sending proposal: height={:?} id={:?} num_txs={} block_hash={:?}",
@@ -283,6 +284,7 @@ impl From<ProposalWrapper>
             height: BlockNumber(val.0.height),
             round: val.0.round,
             proposer: val.0.proposer,
+            valid_round: val.0.valid_round,
         };
         let (mut content_sender, content_receiver) = mpsc::channel(transactions.len());
         for tx in transactions {

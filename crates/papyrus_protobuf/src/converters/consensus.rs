@@ -30,8 +30,9 @@ impl TryFrom<protobuf::Proposal> for Proposal {
             .ok_or(ProtobufConversionError::MissingField { field_description: "block_hash" })?
             .try_into()?;
         let block_hash = BlockHash(block_hash);
+        let valid_round = value.valid_round;
 
-        Ok(Proposal { height, round, proposer, transactions, block_hash })
+        Ok(Proposal { height, round, proposer, transactions, block_hash, valid_round })
     }
 }
 
@@ -45,6 +46,7 @@ impl From<Proposal> for protobuf::Proposal {
             proposer: Some(value.proposer.into()),
             transactions,
             block_hash: Some(value.block_hash.0.into()),
+            valid_round: value.valid_round,
         }
     }
 }

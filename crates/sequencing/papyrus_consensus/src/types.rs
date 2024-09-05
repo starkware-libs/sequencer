@@ -167,6 +167,7 @@ pub struct ProposalInit {
     pub height: BlockNumber,
     pub round: Round,
     pub proposer: ValidatorId,
+    pub valid_round: Option<Round>,
 }
 
 #[derive(thiserror::Error, PartialEq, Debug)]
