@@ -20,7 +20,7 @@ pub struct TransactionQueueContent {
 impl TransactionQueueContent {
     pub fn _assert_eq_priority_and_pending_queues(&self, tx_queue: &TransactionQueue) {
         self.assert_eq_priority_queue(tx_queue);
-        self._assert_eq_pending_queue(tx_queue);
+        self.assert_eq_pending_queue(tx_queue);
     }
 
     pub fn assert_eq_priority_queue(&self, tx_queue: &TransactionQueue) {
@@ -28,7 +28,7 @@ impl TransactionQueueContent {
         assert_eq!(self.address_to_tx.as_ref().unwrap(), &tx_queue.address_to_tx);
     }
 
-    pub fn _assert_eq_pending_queue(&self, tx_queue: &TransactionQueue) {
+    pub fn assert_eq_pending_queue(&self, tx_queue: &TransactionQueue) {
         assert_eq!(self.pending_queue.as_ref().unwrap(), &tx_queue.pending_queue);
         assert_eq!(self.address_to_tx.as_ref().unwrap(), &tx_queue.address_to_tx);
     }
