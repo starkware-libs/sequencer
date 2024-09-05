@@ -5,6 +5,7 @@ use assert_matches::assert_matches;
 use mempool_test_utils::starknet_api_test_utils::{
     create_executable_tx,
     test_resource_bounds_mapping,
+    VALID_L2_GAS_MAX_PRICE_PER_UNIT,
 };
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
@@ -107,18 +108,18 @@ impl MempoolContentBuilder {
         self
     }
 
-    fn _with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
+    fn with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
     where
         Q: IntoIterator<Item = TransactionReference>,
     {
-        self.tx_queue = Some(self.tx_queue.take().unwrap_or_default()._with_pending(queue_txs));
+        self.tx_queue = Some(self.tx_queue.take().unwrap_or_default().with_pending(queue_txs));
 
         self
     }
 
-    fn _with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
+    fn with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
         self.tx_queue = Some(
-            self.tx_queue.take().unwrap_or_default()._with_gas_price_threshold(gas_price_threshold),
+            self.tx_queue.take().unwrap_or_default().with_gas_price_threshold(gas_price_threshold),
         );
 
         self
@@ -225,6 +226,9 @@ macro_rules! add_tx_input {
     };
     (tip: $tip:expr, tx_hash: $tx_hash:expr) => {
         add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8)
+    };
+    (tx_hash: $tx_hash:expr) => {
+        add_tx_input!(tip: 1, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8)
     };
 }
 
@@ -959,6 +963,52 @@ fn test_account_nonces_removal_in_commit_block(mut mempool: Mempool) {
     // Assert: account is not added to the mempool.
     let expected_mempool_content = MempoolContentBuilder::new().with_account_nonces([]).build();
     expected_mempool_content.assert_eq_account_nonces(&mempool);
+}
+
+// Update gas price threshold tests.
+
+#[rstest]
+fn test_increase_gas_price_threshold() {
+    // Setup.
+    let txs = [&add_tx_input!(tx_hash: 0_u8).tx, &add_tx_input!(tx_hash: 1_u8).tx]
+        .map(TransactionReference::new);
+    let (priority_txs, pending_txs) = ([txs[0]], [txs[1]]);
+    let mut mempool: Mempool = MempoolContentBuilder::new()
+        .with_priority_queue(priority_txs)
+        .with_pending_queue(pending_txs)
+        .with_gas_price_threshold(VALID_L2_GAS_MAX_PRICE_PER_UNIT)
+        .build()
+        .into();
+
+    // Test.
+    // All txs should be in the pending queue.
+    mempool._update_gas_price_threshold(VALID_L2_GAS_MAX_PRICE_PER_UNIT + 1);
+
+    // Assert.
+    let expected_mempool_content = MempoolContentBuilder::new().with_pending_queue(txs).build();
+    expected_mempool_content._assert_eq_transaction_pending_queue_content(&mempool);
+}
+
+#[rstest]
+fn test_decrease_gas_price_threshold() {
+    // Setup.
+    let txs = [&add_tx_input!(tx_hash: 0_u8).tx, &add_tx_input!(tx_hash: 1_u8).tx]
+        .map(TransactionReference::new);
+    let (priority_txs, pending_txs) = ([txs[0]], [txs[1]]);
+    let mut mempool: Mempool = MempoolContentBuilder::new()
+        .with_priority_queue(priority_txs)
+        .with_pending_queue(pending_txs)
+        .with_gas_price_threshold(VALID_L2_GAS_MAX_PRICE_PER_UNIT)
+        .build()
+        .into();
+
+    // Test.
+    // All txs should be in the pending queue.
+    mempool._update_gas_price_threshold(VALID_L2_GAS_MAX_PRICE_PER_UNIT - 1);
+
+    // Assert.
+    let expected_mempool_content = MempoolContentBuilder::new().with_priority_queue(txs).build();
+    expected_mempool_content.assert_eq_transaction_priority_queue_content(&mempool);
 }
 
 // Flow tests.
