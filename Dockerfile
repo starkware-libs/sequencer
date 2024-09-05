@@ -10,32 +10,6 @@
 FROM ubuntu:22.04 AS base
 WORKDIR /app
 
-COPY scripts/install_build_tools.sh .
-COPY scripts/setup_native_deps.sh .
-RUN apt update && apt -y install curl bzip2
-
-
-ENV RUSTUP_HOME=/var/tmp/rust
-ENV CARGO_HOME=${RUSTUP_HOME}
-ENV PATH=$PATH:${RUSTUP_HOME}/bin
-
-RUN ./install_build_tools.sh
-
-RUN cargo install cargo-chef
-RUN apt update && apt -y install unzip
-ENV PROTOC_VERSION=25.1
-RUN curl -L "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip" -o protoc.zip && unzip ./protoc.zip -d $HOME/.local &&  rm ./protoc.zip
-ENV PROTOC=/root/.local/bin/protoc
-
-# # Reinstalling the stable Rust toolchain to ensure a clean environment
-# RUN rustup toolchain uninstall stable-x86_64-unknown-linux-gnu && rustup toolchain install stable-x86_64-unknown-linux-gnu
-
-# # Add the x86_64-unknown-linux-musl target to rustup for compiling statically linked binaries.
-# # This enables the creation of fully self-contained binaries that do not depend on the system's dynamic libraries,
-# # resulting in more portable executables that can run on any Linux distribution.
-# RUN rustup target add x86_64-unknown-linux-musl
-
-# Install dependencies
 RUN apt update -y && apt install -y lsb-release \
     wget \
     curl \
@@ -46,16 +20,17 @@ RUN apt update -y && apt install -y lsb-release \
     libzstd-dev \
     libssl-dev \
     pkg-config \
-    gnupg
+    gnupg \
+    unzip
 
-ENV PATH="/usr/local/musl/bin:${PATH}"
-ENV TARGET=x86_64-unknown-linux-musl
-ENV TARGET_CC=gcc
-ENV TARGET_CXX=g++
-ENV TARGET_AR=ar
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable -y
+ENV PATH="/root/.cargo/bin:${PATH}"
 
-RUN ln -s /bin/g++ /bin/musl-g++
-RUN ln -sf /bin/g++ /bin/c++
+RUN cargo install cargo-chef
+
+ENV PROTOC_VERSION=25.1
+RUN curl -L "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip" -o protoc.zip && unzip ./protoc.zip -d $HOME/.local &&  rm ./protoc.zip
+ENV PROTOC=/root/.local/bin/protoc
 
 # Install LLVM 18
 RUN echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" > /etc/apt/sources.list.d/llvm-18.list
@@ -68,6 +43,7 @@ RUN apt update -y && apt install -y --ignore-missing --allow-downgrades \
     llvm-18-dev \
     mlir-18-tools \
     clang-18
+
 ENV MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/
 ENV LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/
 ENV TABLEGEN_180_PREFIX=/usr/lib/llvm-18/
@@ -114,11 +90,6 @@ WORKDIR /app
 # Copy the node executable and its configuration.
 COPY --from=builder /app/target/release/papyrus_node /app/target/release/papyrus_node
 COPY config config
-
-COPY --from=chef /usr/lib/llvm-18/ /usr/lib/llvm-18/
-ENV MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/
-ENV LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/
-ENV TABLEGEN_180_PREFIX=/usr/lib/llvm-18/
 
 # Install tini, a lightweight init system, to call our executable.
 RUN apt install tini
