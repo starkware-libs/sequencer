@@ -12,7 +12,7 @@ use std::collections::{HashMap, VecDeque};
 use starknet_api::block::BlockHash;
 use tracing::trace;
 
-use crate::types::{Round, ValidatorId};
+use crate::types::{ProposalContentId, Round, ValidatorId};
 
 /// Events which the state machine sends/receives.
 #[derive(Debug, Clone, PartialEq)]
@@ -64,6 +64,7 @@ pub struct StateMachine {
     // events in `events_queue`.
     awaiting_get_proposal: bool,
     events_queue: VecDeque<StateMachineEvent>,
+    locked_value: Option<(ProposalContentId, Round)>,
 }
 
 impl StateMachine {
@@ -79,6 +80,7 @@ impl StateMachine {
             precommits: HashMap::new(),
             awaiting_get_proposal: false,
             events_queue: VecDeque::new(),
+            locked_value: None,
         }
     }
 
@@ -374,6 +376,11 @@ impl StateMachine {
             panic!("Proposal does not match quorum.");
         }
 
+        self.locked_value = match self.locked_value {
+            Some((_, locked_round)) if locked_round >= round => self.locked_value,
+            _ => block_hash.map(|hash| (hash, round)),
+        };
+
         output.append(&mut self.send_precommit(*block_hash, round, leader_fn));
         output
     }
@@ -447,9 +454,19 @@ impl StateMachine {
         self.round = round;
         self.step = Step::Propose;
         if self.id == leader_fn(self.round) {
-            self.awaiting_get_proposal = true;
-            // TODO(matan): Support re-proposing validValue.
-            return VecDeque::from([StateMachineEvent::GetProposal(None, self.round)]);
+            match self.locked_value {
+                Some((proposal_content_id, valid_round)) => {
+                    return VecDeque::from([StateMachineEvent::Proposal(
+                        Some(proposal_content_id),
+                        self.round,
+                        Some(valid_round),
+                    )]);
+                }
+                None => {
+                    self.awaiting_get_proposal = true;
+                    return VecDeque::from([StateMachineEvent::GetProposal(None, self.round)]);
+                }
+            }
         }
         let Some(proposal) = self.proposals.get(&round) else {
             return VecDeque::from([StateMachineEvent::TimeoutPropose(round)]);
