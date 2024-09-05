@@ -1,6 +1,4 @@
-use std::marker::PhantomData;
 use std::net::{IpAddr, SocketAddr};
-use std::sync::Arc;
 
 use async_trait::async_trait;
 use bincode::{deserialize, serialize};
@@ -10,11 +8,11 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use tokio::sync::Mutex;
+use tokio::sync::mpsc::{channel, Sender};
 
 use super::definitions::ComponentServerStarter;
 use crate::component_definitions::{
-    ComponentRequestHandler,
+    ComponentRequestAndResponseSender,
     ServerError,
     APPLICATION_OCTET_STREAM,
 };
@@ -84,17 +82,15 @@ use crate::component_definitions::{
 ///
 /// #[tokio::main]
 /// async fn main() {
-///     // Instantiate the component.
-///     let component = MyComponent {};
+///     // Instantiate a channel to communicate with component.
+///     let (tx, _rx) = tokio::sync::mpsc::channel(32);
 ///
 ///     // Set the ip address and port of the server's socket.
 ///     let ip_address = std::net::IpAddr::V6(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
 ///     let port: u16 = 8080;
 ///
 ///     // Instantiate the server.
-///     let mut server = RemoteComponentServer::<MyComponent, MyRequest, MyResponse>::new(
-///         component, ip_address, port,
-///     );
+///     let mut server = RemoteComponentServer::<MyRequest, MyResponse>::new(tx, ip_address, port);
 ///
 ///     // Start the server in a new task.
 ///     task::spawn(async move {
@@ -102,49 +98,45 @@ use crate::component_definitions::{
 ///     });
 /// }
 /// ```
-pub struct RemoteComponentServer<Component, Request, Response>
+pub struct RemoteComponentServer<Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + Send + 'static,
-    Request: DeserializeOwned + Send + 'static,
-    Response: Serialize + 'static,
+    Request: DeserializeOwned + Send + Sync + 'static,
+    Response: Serialize + Sync + Send + 'static,
 {
     socket: SocketAddr,
-    component: Arc<Mutex<Component>>,
-    _req: PhantomData<Request>,
-    _res: PhantomData<Response>,
+    tx: Sender<ComponentRequestAndResponseSender<Request, Response>>,
 }
 
-impl<Component, Request, Response> RemoteComponentServer<Component, Request, Response>
+impl<Request, Response> RemoteComponentServer<Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + Send + 'static,
-    Request: DeserializeOwned + Send + 'static,
-    Response: Serialize + 'static,
+    Request: DeserializeOwned + Send + Sync + 'static,
+    Response: Serialize + Send + Sync + 'static,
 {
-    pub fn new(component: Component, ip_address: IpAddr, port: u16) -> Self {
-        Self {
-            component: Arc::new(Mutex::new(component)),
-            socket: SocketAddr::new(ip_address, port),
-            _req: PhantomData,
-            _res: PhantomData,
-        }
+    pub fn new(
+        tx: Sender<ComponentRequestAndResponseSender<Request, Response>>,
+        ip_address: IpAddr,
+        port: u16,
+    ) -> Self {
+        Self { tx, socket: SocketAddr::new(ip_address, port) }
     }
 
     async fn handler(
         http_request: HyperRequest<Body>,
-        component: Arc<Mutex<Component>>,
+        tx: Sender<ComponentRequestAndResponseSender<Request, Response>>,
     ) -> Result<HyperResponse<Body>, hyper::Error> {
         let body_bytes = to_bytes(http_request.into_body()).await?;
         let http_response = match deserialize(&body_bytes) {
-            Ok(component_request) => {
-                // Acquire the lock for component computation, release afterwards.
-                let component_response =
-                    { component.lock().await.handle_request(component_request).await };
+            Ok(request) => {
+                let (res_tx, mut res_rx) = channel::<Response>(1);
+                let request_and_res_tx = ComponentRequestAndResponseSender { request, tx: res_tx };
+                tx.send(request_and_res_tx).await.expect("Outbound connection should be open.");
+                let response = res_rx.recv().await.expect("Inbound connection should be open.");
+
                 HyperResponse::builder()
                     .status(StatusCode::OK)
                     .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
                     .body(Body::from(
-                        serialize(&component_response)
-                            .expect("Response serialization should succeed"),
+                        serialize(&response).expect("Response serialization should succeed"),
                     ))
             }
             Err(error) => {
@@ -161,21 +153,15 @@ where
 }
 
 #[async_trait]
-impl<Component, Request, Response> ComponentServerStarter
-    for RemoteComponentServer<Component, Request, Response>
+impl<Request, Response> ComponentServerStarter for RemoteComponentServer<Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + Send + 'static,
     Request: DeserializeOwned + Send + Sync + 'static,
     Response: Serialize + Send + Sync + 'static,
 {
     async fn start(&mut self) {
         let make_svc = make_service_fn(|_conn| {
-            let component = Arc::clone(&self.component);
-            async {
-                Ok::<_, hyper::Error>(service_fn(move |req| {
-                    Self::handler(req, Arc::clone(&component))
-                }))
-            }
+            let tx = self.tx.clone();
+            async { Ok::<_, hyper::Error>(service_fn(move |req| Self::handler(req, tx.clone()))) }
         });
 
         Server::bind(&self.socket.clone()).serve(make_svc).await.unwrap();
