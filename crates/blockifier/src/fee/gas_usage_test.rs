@@ -18,7 +18,12 @@ use crate::fee::gas_usage::{
 use crate::invoke_tx_args;
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::{DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE};
-use crate::transaction::objects::{FeeType, GasVector, StarknetResources};
+use crate::transaction::objects::{
+    FeeType,
+    GasVector,
+    GasVectorComputationMode,
+    StarknetResources,
+};
 use crate::transaction::test_utils::account_invoke_tx;
 use crate::utils::{u128_div_ceil, u128_from_usize};
 use crate::versioned_constants::{ResourceCost, VersionedConstants};
@@ -41,7 +46,11 @@ fn test_get_event_gas_cost(
         StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, call_infos_iter);
     assert_eq!(
         GasVector::default(),
-        starknet_resources.to_gas_vector(versioned_constants, use_kzg_da)
+        starknet_resources.to_gas_vector(
+            versioned_constants,
+            use_kzg_da,
+            &GasVectorComputationMode::NoL2Gas
+        )
     );
 
     let create_event = |keys_size: usize, data_size: usize| OrderedEvent {
@@ -81,7 +90,11 @@ fn test_get_event_gas_cost(
     );
     let starknet_resources =
         StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, call_infos_iter);
-    let gas_vector = starknet_resources.to_gas_vector(versioned_constants, use_kzg_da);
+    let gas_vector = starknet_resources.to_gas_vector(
+        versioned_constants,
+        use_kzg_da,
+        &GasVectorComputationMode::NoL2Gas,
+    );
     assert_eq!(expected, gas_vector);
     assert_ne!(GasVector::default(), gas_vector)
 }
