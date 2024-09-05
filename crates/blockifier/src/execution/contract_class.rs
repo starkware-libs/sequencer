@@ -145,7 +145,7 @@ impl ContractClassV0 {
     }
 
     pub fn try_from_json_string(raw_contract_class: &str) -> Result<ContractClassV0, ProgramError> {
-        let contract_class: ContractClassV0Inner = serde_json::from_str(raw_contract_class)?;
+        let contract_class: ContractClassV0Inner = serde_json::from_value(raw_contract_class)?;
         Ok(ContractClassV0(Arc::new(contract_class)))
     }
 }
@@ -349,15 +349,16 @@ fn get_visited_segments(
     Ok(res)
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
 pub struct ContractClassV1Inner {
+    #[serde(deserialize_with = "deserialize_program")]
     pub program: Program,
     pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPointV1>>,
     pub hints: HashMap<String, Hint>,
     bytecode_segment_lengths: NestedIntList,
 }
 
-#[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Deserialize)]
 pub struct EntryPointV1 {
     pub selector: EntryPointSelector,
     pub offset: EntryPointOffset,

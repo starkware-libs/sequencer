@@ -4597,6 +4597,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "l1-service"
+version = "0.0.0"
+dependencies = [
+ "indexmap 2.2.6",
+ "papyrus_base_layer",
+ "starknet_api",
+ "tokio",
+]
+
+[[package]]
 name = "lalrpop"
 version = "0.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
