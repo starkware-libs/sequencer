@@ -173,23 +173,14 @@ impl TryFrom<DeprecatedContractClass> for ContractClassV0 {
 /// Represents a runnable Cario (Cairo 1) Starknet contract class (meaning, the program is runnable
 /// by the VM). We wrap the actual class in an Arc to avoid cloning the program when cloning the
 /// class.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[serde(try_from = "CasmContractClass")]
 pub struct ContractClassV1(pub Arc<ContractClassV1Inner>);
 impl Deref for ContractClassV1 {
     type Target = ContractClassV1Inner;
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl<'de> Deserialize<'de> for ContractClassV1 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let casm: CasmContractClass = Deserialize::deserialize(deserializer)?;
-        casm.try_into().map_err(|err: ProgramError| DeserializationError::custom(err.to_string()))
     }
 }
 
