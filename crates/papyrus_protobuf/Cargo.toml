@@ -20,6 +20,7 @@ starknet-types-core.workspace = true
 papyrus_test_utils = { workspace = true, optional = true }
 thiserror.workspace = true
 papyrus_common.workspace = true
+tonic-build.workspace = true
 
 [dev-dependencies]
 rand.workspace = true
@@ -29,6 +30,7 @@ papyrus_test_utils.workspace = true
 [build-dependencies]
 prost-build.workspace = true
 protoc-prebuilt.workspace = true
+tonic-build.workspace = true
 
 [package.metadata.cargo-machete]
 # The `rand` and `rand_chacha` crates are used in the `testing` feature, which is optional.
