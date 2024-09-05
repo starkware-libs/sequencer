@@ -8,6 +8,7 @@ message Proposal {
     Address              proposer     = 3;
     repeated Transaction transactions = 4;
     Hash                 block_hash   = 5;
+    optional uint32      valid_round  = 6;
 }
 
 message Vote {

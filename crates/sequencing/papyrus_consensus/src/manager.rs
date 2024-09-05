@@ -38,7 +38,7 @@ where
     ContextT: ConsensusContext<Block = BlockT>,
     SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
     ProposalWrapper: Into<(
-        (BlockNumber, u32, ContractAddress),
+        (BlockNumber, u32, ContractAddress, Option<u32>),
         mpsc::Receiver<BlockT::ProposalChunk>,
         oneshot::Receiver<BlockHash>,
     )>,
@@ -108,7 +108,7 @@ impl MultiHeightManager {
         BlockT: ConsensusBlock,
         ContextT: ConsensusContext<Block = BlockT>,
         ProposalWrapper: Into<(
-            (BlockNumber, u32, ContractAddress),
+            (BlockNumber, u32, ContractAddress, Option<u32>),
             mpsc::Receiver<BlockT::ProposalChunk>,
             oneshot::Receiver<BlockHash>,
         )>,
@@ -166,7 +166,7 @@ impl MultiHeightManager {
         BlockT: ConsensusBlock,
         ContextT: ConsensusContext<Block = BlockT>,
         ProposalWrapper: Into<(
-            (BlockNumber, u32, ContractAddress),
+            (BlockNumber, u32, ContractAddress, Option<u32>),
             mpsc::Receiver<BlockT::ProposalChunk>,
             oneshot::Receiver<BlockHash>,
         )>,

@@ -167,12 +167,13 @@ pub struct ProposalInit {
     pub height: BlockNumber,
     pub round: Round,
     pub proposer: ValidatorId,
+    pub valid_round: Option<Round>,
 }
 
 // TODO(Guy): Remove after implementing broadcast streams.
-impl From<(BlockNumber, u32, ContractAddress)> for ProposalInit {
-    fn from(val: (BlockNumber, u32, ContractAddress)) -> Self {
-        ProposalInit { height: val.0, round: val.1, proposer: val.2 }
+impl From<(BlockNumber, u32, ContractAddress, Option<u32>)> for ProposalInit {
+    fn from(val: (BlockNumber, u32, ContractAddress, Option<u32>)) -> Self {
+        ProposalInit { height: val.0, round: val.1, proposer: val.2, valid_round: val.3 }
     }
 }
 

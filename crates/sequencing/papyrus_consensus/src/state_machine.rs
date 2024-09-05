@@ -23,7 +23,7 @@ pub enum StateMachineEvent {
     /// machine, and the same round sent out.
     GetProposal(Option<BlockHash>, Round),
     /// Consensus message, can be both sent from and to the state machine.
-    Proposal(Option<BlockHash>, Round),
+    Proposal(Option<BlockHash>, Round, Option<Round>), // (block_hash, round, valid_round)
     /// Consensus message, can be both sent from and to the state machine.
     Prevote(Option<BlockHash>, Round),
     /// Consensus message, can be both sent from and to the state machine.
@@ -147,7 +147,7 @@ impl StateMachine {
             let mut resultant_events = self.handle_event_internal(event, leader_fn);
             while let Some(e) = resultant_events.pop_front() {
                 match e {
-                    StateMachineEvent::Proposal(_, _)
+                    StateMachineEvent::Proposal(_, _, _)
                     | StateMachineEvent::Prevote(_, _)
                     | StateMachineEvent::Precommit(_, _) => {
                         self.events_queue.push_back(e.clone());
@@ -186,7 +186,7 @@ impl StateMachine {
             StateMachineEvent::GetProposal(block_hash, round) => {
                 self.handle_get_proposal(block_hash, round)
             }
-            StateMachineEvent::Proposal(block_hash, round) => {
+            StateMachineEvent::Proposal(block_hash, round, _) => {
                 self.handle_proposal(block_hash, round, leader_fn)
             }
             StateMachineEvent::Prevote(block_hash, round) => {
@@ -218,7 +218,7 @@ impl StateMachine {
         assert_eq!(round, self.round);
         self.awaiting_get_proposal = false;
         assert!(block_hash.is_some(), "SHC should pass a valid block hash");
-        VecDeque::from([StateMachineEvent::Proposal(block_hash, round)])
+        VecDeque::from([StateMachineEvent::Proposal(block_hash, round, None)])
     }
 
     // A proposal from a peer (or self) node.
