@@ -5,13 +5,13 @@ use starknet_api::transaction::{
     ContractAddressSalt,
     DeployAccountTransactionV1,
     DeployAccountTransactionV3,
-    DeprecatedResourceBoundsMapping,
     Fee,
     PaymasterData,
     Tip,
     TransactionHash,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 
 use crate::test_utils::{default_testing_resource_bounds, NonceManager};
@@ -23,7 +23,7 @@ pub struct DeployAccountTxArgs {
     pub signature: TransactionSignature,
     pub deployer_address: ContractAddress,
     pub version: TransactionVersion,
-    pub resource_bounds: DeprecatedResourceBoundsMapping,
+    pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,

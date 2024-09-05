@@ -5,9 +5,9 @@ use rstest::rstest;
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::transaction::{
     ContractAddressSalt,
-    DeprecatedResourceBoundsMapping,
     Fee,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
@@ -174,7 +174,7 @@ pub fn test_commit_tx() {
                 assert_eq!(felt!(expected_sequencer_storage_read), actual_sequencer_storage_read,);
             }
         }
-        let tx_context = executor.block_context.to_tx_context(&txs[commit_idx]).unwrap();
+        let tx_context = executor.block_context.to_tx_context(&txs[commit_idx]);
         expected_sequencer_balance_low += actual_fee;
         // Check that the sequencer balance was updated correctly in the state.
         verify_sequencer_balance_update(
@@ -228,7 +228,7 @@ fn test_commit_tx_when_sender_is_sequencer() {
     let read_values_before_commit = fee_transfer_call_info.storage_read_values.clone();
     drop(execution_task_outputs);
 
-    let tx_context = &executor.block_context.to_tx_context(&sequencer_tx[0]).unwrap();
+    let tx_context = &executor.block_context.to_tx_context(&sequencer_tx[0]);
     let fee_token_address =
         executor.block_context.chain_info.fee_token_address(&tx_context.tx_info.fee_type());
     let sequencer_balance_high_before =
@@ -256,7 +256,7 @@ fn test_commit_tx_when_sender_is_sequencer() {
 }
 
 #[rstest]
-fn test_worker_execute(max_resource_bounds: DeprecatedResourceBoundsMapping) {
+fn test_worker_execute(max_resource_bounds: ValidResourceBounds) {
     // Settings.
     let block_context = BlockContext::create_for_account_testing();
     let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
@@ -430,7 +430,7 @@ fn test_worker_execute(max_resource_bounds: DeprecatedResourceBoundsMapping) {
 }
 
 #[rstest]
-fn test_worker_validate(max_resource_bounds: DeprecatedResourceBoundsMapping) {
+fn test_worker_validate(max_resource_bounds: ValidResourceBounds) {
     // Settings.
     let block_context = BlockContext::create_for_account_testing();
     let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
@@ -537,7 +537,7 @@ fn test_worker_validate(max_resource_bounds: DeprecatedResourceBoundsMapping) {
 #[case::declare_cairo1(CairoVersion::Cairo1, TransactionVersion::THREE)]
 fn test_deploy_before_declare(
     max_fee: Fee,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
     #[case] cairo_version: CairoVersion,
     #[case] version: TransactionVersion,
 ) {
@@ -629,7 +629,7 @@ fn test_deploy_before_declare(
 }
 
 #[rstest]
-fn test_worker_commit_phase(max_resource_bounds: DeprecatedResourceBoundsMapping) {
+fn test_worker_commit_phase(max_resource_bounds: ValidResourceBounds) {
     // Settings.
     let block_context = BlockContext::create_for_account_testing();
     let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);

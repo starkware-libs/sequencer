@@ -4,7 +4,6 @@ use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
-    DeprecatedResourceBoundsMapping,
     Fee,
     InvokeTransactionV0,
     InvokeTransactionV1,
@@ -14,6 +13,7 @@ use starknet_api::transaction::{
     TransactionHash,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 
 use crate::abi::abi_utils::selector_from_name;
@@ -28,7 +28,7 @@ pub struct InvokeTxArgs {
     pub sender_address: ContractAddress,
     pub calldata: Calldata,
     pub version: TransactionVersion,
-    pub resource_bounds: DeprecatedResourceBoundsMapping,
+    pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,

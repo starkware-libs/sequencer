@@ -5,13 +5,13 @@ use starknet_api::transaction::{
     DeclareTransactionV0V1,
     DeclareTransactionV2,
     DeclareTransactionV3,
-    DeprecatedResourceBoundsMapping,
     Fee,
     PaymasterData,
     Tip,
     TransactionHash,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 
 use crate::execution::contract_class::ClassInfo;
@@ -25,7 +25,7 @@ pub struct DeclareTxArgs {
     pub signature: TransactionSignature,
     pub sender_address: ContractAddress,
     pub version: TransactionVersion,
-    pub resource_bounds: DeprecatedResourceBoundsMapping,
+    pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,

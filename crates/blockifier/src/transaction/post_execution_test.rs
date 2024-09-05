@@ -2,12 +2,7 @@ use assert_matches::assert_matches;
 use rstest::rstest;
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{
-    Calldata,
-    DeprecatedResourceBoundsMapping,
-    Fee,
-    TransactionVersion,
-};
+use starknet_api::transaction::{Calldata, Fee, TransactionVersion, ValidResourceBounds};
 use starknet_api::{felt, patricia_key};
 use starknet_types_core::felt::Felt;
 
@@ -72,7 +67,7 @@ fn calldata_for_write_and_transfer(
 #[case(TransactionVersion::THREE, FeeType::Strk)]
 fn test_revert_on_overdraft(
     max_fee: Fee,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
     block_context: BlockContext,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
@@ -117,7 +112,7 @@ fn test_revert_on_overdraft(
         resource_bounds: max_resource_bounds.clone(),
         nonce: nonce_manager.next(account_address),
     });
-    let tx_info = approve_tx.create_tx_info().unwrap();
+    let tx_info = approve_tx.create_tx_info();
     let approval_execution_info =
         approve_tx.execute(&mut state, &block_context, true, true).unwrap();
     assert!(!approval_execution_info.is_reverted());
@@ -217,7 +212,7 @@ fn test_revert_on_overdraft(
 #[case(TransactionVersion::THREE, "Insufficient max L1 gas", true)]
 fn test_revert_on_resource_overuse(
     max_fee: Fee,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
     block_context: BlockContext,
     #[case] version: TransactionVersion,
     #[case] expected_error_prefix: &str,

@@ -11,7 +11,7 @@ use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::{Tip, TransactionHash};
+use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState};
@@ -46,6 +46,18 @@ impl MempoolContent {
         }
     }
 
+    fn _with_pool_and_account_nonces<P, A>(pool_txs: P, account_nonce_pairs: A) -> Self
+    where
+        P: IntoIterator<Item = Transaction>,
+        A: IntoIterator<Item = (ContractAddress, Nonce)>,
+    {
+        Self {
+            tx_pool: Some(pool_txs.into_iter().collect()),
+            account_nonces: Some(account_nonce_pairs.into_iter().collect()),
+            ..Self::default()
+        }
+    }
+
     fn with_pool<P>(pool_txs: P) -> Self
     where
         P: IntoIterator<Item = Transaction>,
@@ -60,9 +72,13 @@ impl MempoolContent {
         Self { tx_queue: Some(queue_txs.into_iter().collect()), ..Self::default() }
     }
 
-    fn _with_account_nonces(account_nonce_pairs: Vec<(ContractAddress, Nonce)>) -> Self {
+    fn _with_account_nonces<A>(account_nonce_pairs: A) -> Self
+    where
+        A: IntoIterator<Item = (ContractAddress, Nonce)>,
+    {
         Self { account_nonces: Some(account_nonce_pairs.into_iter().collect()), ..Self::default() }
     }
+
     fn assert_eq_pool_and_queue_content(&self, mempool: &Mempool) {
         self.assert_eq_pool_content(mempool);
         self.assert_eq_queue_content(mempool);
@@ -131,7 +147,8 @@ fn add_tx_expect_error(mempool: &mut Mempool, input: &MempoolInput, expected_err
 /// 2. add_tx_input!(tx_hash: 2, sender_address: 3_u8, tx_nonce: 4, account_nonce: 3)
 /// 3. add_tx_input!(tip: 1, tx_hash: 2, sender_address: 3_u8)
 /// 4. add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0)
-/// 5. add_tx_input!(tip: 1, tx_hash: 2)
+/// 5. add_tx_input!(tx_nonce: 1, account_nonce: 0)
+/// 6. add_tx_input!(tip: 1, tx_hash: 2)
 macro_rules! add_tx_input {
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
         tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr, resource_bounds: $resource_bounds:expr) => {{
@@ -150,7 +167,7 @@ macro_rules! add_tx_input {
     }};
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
         tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {{
-            add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, account_nonce: $account_nonce, resource_bounds: test_resource_bounds_mapping().into())
+            add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, account_nonce: $account_nonce, resource_bounds: ValidResourceBounds::AllResources(test_resource_bounds_mapping()))
     }};
     (tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
         add_tx_input!(tip: 0, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, account_nonce: $account_nonce)
@@ -160,6 +177,9 @@ macro_rules! add_tx_input {
     };
     (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
         add_tx_input!(tip: 1, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce, account_nonce: $account_nonce)
+    };
+    (tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
+        add_tx_input!(tip: 1, tx_hash: 0_u8, sender_address: "0x0", tx_nonce: $tx_nonce, account_nonce: $account_nonce)
     };
     (tip: $tip:expr, tx_hash: $tx_hash:expr) => {
         add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8)
@@ -349,7 +369,7 @@ fn test_get_txs_with_holes_single_account() {
 #[rstest]
 fn test_get_txs_while_decreasing_gas_price_threshold() {
     // Setup.
-    let input_tx = add_tx_input!(tx_hash: 0, tx_nonce: 0_u8, account_nonce: 0_u8);
+    let input_tx = add_tx_input!(tx_nonce: 0_u8, account_nonce: 0_u8);
 
     let pool_txs = [input_tx.tx.clone()];
     let queue_txs = [TransactionReference::new(&input_tx.tx)];

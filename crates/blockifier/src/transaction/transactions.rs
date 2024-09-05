@@ -30,7 +30,7 @@ use crate::state::cached_state::TransactionalState;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, UpdatableState};
 use crate::transaction::constants;
-use crate::transaction::errors::{TransactionExecutionError, TransactionInfoCreationError};
+use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{
     CommonAccountFields,
     CurrentTransactionInfo,
@@ -268,7 +268,7 @@ impl<S: State> Executable<S> for DeclareTransaction {
 }
 
 impl TransactionInfoCreator for DeclareTransaction {
-    fn create_tx_info(&self) -> Result<TransactionInfo, TransactionInfoCreationError> {
+    fn create_tx_info(&self) -> TransactionInfo {
         // TODO(Nir, 01/11/2023): Consider to move this (from all get_tx_info methods).
         let common_fields = CommonAccountFields {
             transaction_hash: self.tx_hash(),
@@ -282,27 +282,27 @@ impl TransactionInfoCreator for DeclareTransaction {
         match &self.tx {
             starknet_api::transaction::DeclareTransaction::V0(tx)
             | starknet_api::transaction::DeclareTransaction::V1(tx) => {
-                Ok(TransactionInfo::Deprecated(DeprecatedTransactionInfo {
+                TransactionInfo::Deprecated(DeprecatedTransactionInfo {
                     common_fields,
                     max_fee: tx.max_fee,
-                }))
+                })
             }
             starknet_api::transaction::DeclareTransaction::V2(tx) => {
-                Ok(TransactionInfo::Deprecated(DeprecatedTransactionInfo {
+                TransactionInfo::Deprecated(DeprecatedTransactionInfo {
                     common_fields,
                     max_fee: tx.max_fee,
-                }))
+                })
             }
             starknet_api::transaction::DeclareTransaction::V3(tx) => {
-                Ok(TransactionInfo::Current(CurrentTransactionInfo {
+                TransactionInfo::Current(CurrentTransactionInfo {
                     common_fields,
-                    resource_bounds: tx.resource_bounds.clone().try_into()?,
+                    resource_bounds: tx.resource_bounds.clone(),
                     tip: tx.tip,
                     nonce_data_availability_mode: tx.nonce_data_availability_mode,
                     fee_data_availability_mode: tx.fee_data_availability_mode,
                     paymaster_data: tx.paymaster_data.clone(),
                     account_deployment_data: tx.account_deployment_data.clone(),
-                }))
+                })
             }
         }
     }
@@ -391,7 +391,7 @@ impl<S: State> Executable<S> for DeployAccountTransaction {
 }
 
 impl TransactionInfoCreator for DeployAccountTransaction {
-    fn create_tx_info(&self) -> Result<TransactionInfo, TransactionInfoCreationError> {
+    fn create_tx_info(&self) -> TransactionInfo {
         let common_fields = CommonAccountFields {
             transaction_hash: self.tx_hash(),
             version: self.version(),
@@ -403,21 +403,21 @@ impl TransactionInfoCreator for DeployAccountTransaction {
 
         match &self.tx() {
             starknet_api::transaction::DeployAccountTransaction::V1(tx) => {
-                Ok(TransactionInfo::Deprecated(DeprecatedTransactionInfo {
+                TransactionInfo::Deprecated(DeprecatedTransactionInfo {
                     common_fields,
                     max_fee: tx.max_fee,
-                }))
+                })
             }
             starknet_api::transaction::DeployAccountTransaction::V3(tx) => {
-                Ok(TransactionInfo::Current(CurrentTransactionInfo {
+                TransactionInfo::Current(CurrentTransactionInfo {
                     common_fields,
-                    resource_bounds: tx.resource_bounds.clone().try_into()?,
+                    resource_bounds: tx.resource_bounds.clone(),
                     tip: tx.tip,
                     nonce_data_availability_mode: tx.nonce_data_availability_mode,
                     fee_data_availability_mode: tx.fee_data_availability_mode,
                     paymaster_data: tx.paymaster_data.clone(),
                     account_deployment_data: AccountDeploymentData::default(),
-                }))
+                })
             }
         }
     }
@@ -509,7 +509,7 @@ impl<S: State> Executable<S> for InvokeTransaction {
 }
 
 impl TransactionInfoCreator for InvokeTransaction {
-    fn create_tx_info(&self) -> Result<TransactionInfo, TransactionInfoCreationError> {
+    fn create_tx_info(&self) -> TransactionInfo {
         let common_fields = CommonAccountFields {
             transaction_hash: self.tx_hash(),
             version: self.version(),
@@ -521,27 +521,27 @@ impl TransactionInfoCreator for InvokeTransaction {
 
         match &self.tx() {
             starknet_api::transaction::InvokeTransaction::V0(tx) => {
-                Ok(TransactionInfo::Deprecated(DeprecatedTransactionInfo {
+                TransactionInfo::Deprecated(DeprecatedTransactionInfo {
                     common_fields,
                     max_fee: tx.max_fee,
-                }))
+                })
             }
             starknet_api::transaction::InvokeTransaction::V1(tx) => {
-                Ok(TransactionInfo::Deprecated(DeprecatedTransactionInfo {
+                TransactionInfo::Deprecated(DeprecatedTransactionInfo {
                     common_fields,
                     max_fee: tx.max_fee,
-                }))
+                })
             }
             starknet_api::transaction::InvokeTransaction::V3(tx) => {
-                Ok(TransactionInfo::Current(CurrentTransactionInfo {
+                TransactionInfo::Current(CurrentTransactionInfo {
                     common_fields,
-                    resource_bounds: tx.resource_bounds.clone().try_into()?,
+                    resource_bounds: tx.resource_bounds.clone(),
                     tip: tx.tip,
                     nonce_data_availability_mode: tx.nonce_data_availability_mode,
                     fee_data_availability_mode: tx.fee_data_availability_mode,
                     paymaster_data: tx.paymaster_data.clone(),
                     account_deployment_data: tx.account_deployment_data.clone(),
-                }))
+                })
             }
         }
     }
@@ -607,8 +607,8 @@ impl<S: State> Executable<S> for L1HandlerTransaction {
 }
 
 impl TransactionInfoCreator for L1HandlerTransaction {
-    fn create_tx_info(&self) -> Result<TransactionInfo, TransactionInfoCreationError> {
-        Ok(TransactionInfo::Deprecated(DeprecatedTransactionInfo {
+    fn create_tx_info(&self) -> TransactionInfo {
+        TransactionInfo::Deprecated(DeprecatedTransactionInfo {
             common_fields: CommonAccountFields {
                 transaction_hash: self.tx_hash,
                 version: self.tx.version,
@@ -618,6 +618,6 @@ impl TransactionInfoCreator for L1HandlerTransaction {
                 only_query: false,
             },
             max_fee: Fee::default(),
-        }))
+        })
     }
 }

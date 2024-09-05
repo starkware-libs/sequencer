@@ -5,10 +5,10 @@ use starknet_api::core::{calculate_contract_address, Nonce};
 use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
-    DeprecatedResourceBoundsMapping,
     Fee,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_api::{calldata, felt};
 
@@ -694,7 +694,7 @@ An ASSERT_EQ instruction failed: 1 != 0.
 /// point selector).
 fn test_contract_ctor_frame_stack_trace(
     block_context: BlockContext,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     let chain_info = &block_context.chain_info;

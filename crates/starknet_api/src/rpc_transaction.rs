@@ -21,10 +21,18 @@ use crate::transaction::{
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
+    DeclareTransaction,
+    DeclareTransactionV3,
+    DeployAccountTransaction,
+    DeployAccountTransactionV3,
+    InvokeTransaction,
+    InvokeTransactionV3,
     PaymasterData,
     Resource,
     Tip,
+    Transaction,
     TransactionSignature,
+    ValidResourceBounds,
 };
 use crate::StarknetApiError;
 
@@ -84,6 +92,16 @@ impl RpcTransaction {
     }
 }
 
+impl From<RpcTransaction> for Transaction {
+    fn from(rpc_transaction: RpcTransaction) -> Self {
+        match rpc_transaction {
+            RpcTransaction::Declare(tx) => Transaction::Declare(tx.into()),
+            RpcTransaction::DeployAccount(tx) => Transaction::DeployAccount(tx.into()),
+            RpcTransaction::Invoke(tx) => Transaction::Invoke(tx.into()),
+        }
+    }
+}
+
 /// A RPC declare transaction.
 ///
 /// This transaction is equivalent to the component DECLARE_TXN in the
@@ -96,6 +114,14 @@ impl RpcTransaction {
 pub enum RpcDeclareTransaction {
     #[serde(rename = "0x3")]
     V3(RpcDeclareTransactionV3),
+}
+
+impl From<RpcDeclareTransaction> for DeclareTransaction {
+    fn from(rpc_declare_transaction: RpcDeclareTransaction) -> Self {
+        match rpc_declare_transaction {
+            RpcDeclareTransaction::V3(tx) => DeclareTransaction::V3(tx.into()),
+        }
+    }
 }
 
 /// A RPC deploy account transaction.
@@ -111,6 +137,14 @@ pub enum RpcDeployAccountTransaction {
     V3(RpcDeployAccountTransactionV3),
 }
 
+impl From<RpcDeployAccountTransaction> for DeployAccountTransaction {
+    fn from(rpc_deploy_account_transaction: RpcDeployAccountTransaction) -> Self {
+        match rpc_deploy_account_transaction {
+            RpcDeployAccountTransaction::V3(tx) => DeployAccountTransaction::V3(tx.into()),
+        }
+    }
+}
+
 /// A RPC invoke transaction.
 ///
 /// This transaction is equivalent to the component INVOKE_TXN in the
@@ -122,6 +156,14 @@ pub enum RpcDeployAccountTransaction {
 pub enum RpcInvokeTransaction {
     #[serde(rename = "0x3")]
     V3(RpcInvokeTransactionV3),
+}
+
+impl From<RpcInvokeTransaction> for InvokeTransaction {
+    fn from(rpc_invoke_tx: RpcInvokeTransaction) -> Self {
+        match rpc_invoke_tx {
+            RpcInvokeTransaction::V3(tx) => InvokeTransaction::V3(tx.into()),
+        }
+    }
 }
 
 /// A declare transaction of a Cairo-v1 contract class that can be added to Starknet through the
@@ -143,6 +185,25 @@ pub struct RpcDeclareTransactionV3 {
     pub fee_data_availability_mode: DataAvailabilityMode,
 }
 
+impl From<RpcDeclareTransactionV3> for DeclareTransactionV3 {
+    fn from(tx: RpcDeclareTransactionV3) -> Self {
+        Self {
+            class_hash: ClassHash::default(), /* FIXME(yael 15/4/24): call the starknet-api
+                                               * function once ready */
+            resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
+            tip: tx.tip,
+            signature: tx.signature,
+            nonce: tx.nonce,
+            compiled_class_hash: tx.compiled_class_hash,
+            sender_address: tx.sender_address,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode,
+            fee_data_availability_mode: tx.fee_data_availability_mode,
+            paymaster_data: tx.paymaster_data,
+            account_deployment_data: tx.account_deployment_data,
+        }
+    }
+}
+
 /// A deploy account transaction that can be added to Starknet through the RPC.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct RpcDeployAccountTransactionV3 {
@@ -158,6 +219,23 @@ pub struct RpcDeployAccountTransactionV3 {
     pub fee_data_availability_mode: DataAvailabilityMode,
 }
 
+impl From<RpcDeployAccountTransactionV3> for DeployAccountTransactionV3 {
+    fn from(tx: RpcDeployAccountTransactionV3) -> Self {
+        Self {
+            resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
+            tip: tx.tip,
+            signature: tx.signature,
+            nonce: tx.nonce,
+            class_hash: tx.class_hash,
+            contract_address_salt: tx.contract_address_salt,
+            constructor_calldata: tx.constructor_calldata,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode,
+            fee_data_availability_mode: tx.fee_data_availability_mode,
+            paymaster_data: tx.paymaster_data,
+        }
+    }
+}
+
 /// An invoke account transaction that can be added to Starknet through the RPC.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct RpcInvokeTransactionV3 {
@@ -171,6 +249,23 @@ pub struct RpcInvokeTransactionV3 {
     pub account_deployment_data: AccountDeploymentData,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
+}
+
+impl From<RpcInvokeTransactionV3> for InvokeTransactionV3 {
+    fn from(tx: RpcInvokeTransactionV3) -> Self {
+        Self {
+            resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
+            tip: tx.tip,
+            signature: tx.signature,
+            nonce: tx.nonce,
+            sender_address: tx.sender_address,
+            calldata: tx.calldata,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode,
+            fee_data_availability_mode: tx.fee_data_availability_mode,
+            paymaster_data: tx.paymaster_data,
+            account_deployment_data: tx.account_deployment_data,
+        }
+    }
 }
 
 // The contract class in SN_API state doesn't have `contract_class_version`, not following the spec.
