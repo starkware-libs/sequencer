@@ -23,6 +23,7 @@ use strum_macros::EnumIter;
 
 use crate::abi::constants as abi_constants;
 use crate::blockifier::block::BlockInfo;
+use crate::context::TransactionContext;
 use crate::execution::call_info::{CallInfo, ExecutionSummary, MessageL1CostInfo, OrderedEvent};
 use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::eth_gas_constants;
@@ -40,7 +41,7 @@ use crate::transaction::errors::{
     TransactionFeeError,
     TransactionPreValidationError,
 };
-use crate::utils::{u128_from_usize, usize_from_u128};
+use crate::utils::{u128_div_ceil, u128_from_usize, usize_from_u128};
 use crate::versioned_constants::VersionedConstants;
 
 #[cfg(test)]
@@ -197,6 +198,21 @@ impl GasVector {
             u128::MAX
         });
         Fee(total)
+    }
+
+    /// Compute l1_gas estimation from gas_vector using the following formula:
+    /// One byte of data costs either 1 data gas (in blob mode) or 16 gas (in calldata
+    /// mode). For gas price GP and data gas price DGP, the discount for using blobs
+    /// would be DGP / (16 * GP).
+    /// X non-data-related gas consumption and Y bytes of data, in non-blob mode, would
+    /// cost (X + 16*Y) units of gas. Applying the discount ratio to the data-related
+    /// summand, we get total_gas = (X + Y * DGP / GP).
+    pub fn to_discounted_l1_gas(&self, tx_context: &TransactionContext) -> u128 {
+        let gas_prices = &tx_context.block_context.block_info.gas_prices;
+        let fee_type = tx_context.tx_info.fee_type();
+        let gas_price = gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
+        let data_gas_price = gas_prices.get_l1_data_gas_price_by_fee_type(&fee_type);
+        self.l1_gas + u128_div_ceil(self.l1_data_gas * u128::from(data_gas_price), gas_price)
     }
 }
 

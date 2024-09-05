@@ -5,7 +5,6 @@ use thiserror::Error;
 use crate::context::TransactionContext;
 use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::fee_utils::{get_balance_and_if_covers_fee, get_fee_by_gas_vector};
-use crate::fee::gas_usage::compute_discounted_gas_from_gas_vector;
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{
@@ -105,8 +104,7 @@ impl FeeCheckReport {
                 // TODO(Dori, 1/7/2024): When data gas limit is added (and enforced) in resource
                 //   bounds, check it here as well (separately, with a different error variant if
                 //   limit exceeded).
-                let total_discounted_gas_used =
-                    compute_discounted_gas_from_gas_vector(gas, tx_context);
+                let total_discounted_gas_used = gas.to_discounted_l1_gas(tx_context);
 
                 if total_discounted_gas_used > max_l1_gas {
                     return Err(FeeCheckError::MaxL1GasAmountExceeded {
