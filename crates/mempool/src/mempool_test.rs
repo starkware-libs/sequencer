@@ -4,14 +4,16 @@ use std::collections::HashMap;
 use assert_matches::assert_matches;
 use mempool_test_utils::starknet_api_test_utils::{
     create_executable_tx,
+    create_resource_bounds_mapping,
     test_resource_bounds_mapping,
+    VALID_L2_GAS_MAX_PRICE_PER_UNIT,
 };
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
+use starknet_api::transaction::{ResourceBounds, Tip, TransactionHash, ValidResourceBounds};
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState};
@@ -174,6 +176,9 @@ macro_rules! add_tx_input {
     };
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr) => {
         add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: 0_u8, account_nonce: 0_u8)
+    };
+    (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr, resource_bounds: $resource_bounds:expr) => {
+        add_tx_input!(tip: 1, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce, account_nonce: $account_nonce, resource_bounds: $resource_bounds)
     };
     (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
         add_tx_input!(tip: 1, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce, account_nonce: $account_nonce)
@@ -712,20 +717,28 @@ fn test_commit_block_includes_all_txs() {
 #[rstest]
 fn test_commit_block_rewinds_nonce() {
     // Setup.
-    let tx_address0_nonce5 = add_tx_input!(tip: 1, tx_hash: 2, sender_address: "0x0", tx_nonce: 5_u8, account_nonce: 4_u8).tx;
+    let resource_bounds_below_threshold = create_resource_bounds_mapping(
+        ResourceBounds::default(),
+        ResourceBounds { max_amount: 0, max_price_per_unit: VALID_L2_GAS_MAX_PRICE_PER_UNIT - 1 },
+        ResourceBounds::default(),
+    );
 
-    let queued_txs = [TransactionReference::new(&tx_address0_nonce5)];
-    let pool_txs = [tx_address0_nonce5];
-    let mut mempool: Mempool = MempoolContent::with_pool_and_queue(pool_txs, queued_txs).into();
+    let tx_address0_nonce5 = add_tx_input!(tx_hash: 1, tx_nonce: 5_u8, account_nonce: 5_u8, resource_bounds: ValidResourceBounds::AllResources(resource_bounds_below_threshold)).tx;
+    let tx_address1_nonce2 = add_tx_input!(tip: 1, tx_hash: 2, sender_address: "0x1", tx_nonce: 2_u8, account_nonce: 2_u8).tx;
+
+    let queued_txs = [&tx_address0_nonce5, &tx_address1_nonce2].map(TransactionReference::new);
+    let mut mempool: Mempool = MempoolContent::with_queue(queued_txs).into();
 
     // Test.
     let state_changes = HashMap::from([
         (contract_address!("0x0"), AccountState { nonce: Nonce(felt!(3_u16)) }),
-        (contract_address!("0x1"), AccountState { nonce: Nonce(felt!(3_u16)) }),
+        (contract_address!("0x1"), AccountState { nonce: Nonce(felt!(0_u16)) }),
+        (contract_address!("0x2"), AccountState { nonce: Nonce(felt!(3_u16)) }),
     ]);
     assert!(mempool.commit_block(state_changes).is_ok());
 
     // Assert.
+    // TODO(Mohammad): use the `assert_eq_two_queues` method once it is implemented.
     let expected_mempool_content = MempoolContent::with_queue([]);
     expected_mempool_content.assert_eq_queue_content(&mempool);
 }
@@ -733,14 +746,26 @@ fn test_commit_block_rewinds_nonce() {
 #[rstest]
 fn test_commit_block_from_different_leader() {
     // Setup.
+    let resource_bounds_below_threshold = create_resource_bounds_mapping(
+        ResourceBounds::default(),
+        ResourceBounds { max_amount: 0, max_price_per_unit: VALID_L2_GAS_MAX_PRICE_PER_UNIT - 1 },
+        ResourceBounds::default(),
+    );
+
     let tx_address0_nonce3 = add_tx_input!(tip: 1, tx_hash: 1, sender_address: "0x0", tx_nonce: 3_u8, account_nonce: 2_u8).tx;
     let tx_address0_nonce5 = add_tx_input!(tip: 1, tx_hash: 2, sender_address: "0x0", tx_nonce: 5_u8, account_nonce: 2_u8).tx;
-    let tx_address0_nonce6 = add_tx_input!(tip: 1, tx_hash: 3, sender_address: "0x0", tx_nonce: 6_u8, account_nonce: 2_u8).tx;
+    let tx_address0_nonce6 = add_tx_input!(tx_hash: 3, tx_nonce: 6_u8, account_nonce: 2_u8, resource_bounds: ValidResourceBounds::AllResources(resource_bounds_below_threshold)).tx;
     let tx_address1_nonce2 = add_tx_input!(tip: 1, tx_hash: 4, sender_address: "0x1", tx_nonce: 2_u8, account_nonce: 2_u8).tx;
+    let tx_address2_nonce1 = add_tx_input!(tip: 1, tx_hash: 5, sender_address: "0x2", tx_nonce: 1_u8, account_nonce: 0_u8).tx;
 
     let queued_txs = [TransactionReference::new(&tx_address1_nonce2)];
-    let pool_txs =
-        [tx_address0_nonce3, tx_address0_nonce5, tx_address0_nonce6.clone(), tx_address1_nonce2];
+    let pool_txs = [
+        tx_address0_nonce3,
+        tx_address0_nonce5,
+        tx_address0_nonce6.clone(),
+        tx_address1_nonce2,
+        tx_address2_nonce1.clone(),
+    ];
     let mut mempool: Mempool = MempoolContent::with_pool_and_queue(pool_txs, queued_txs).into();
 
     // Test.
@@ -748,12 +773,15 @@ fn test_commit_block_from_different_leader() {
         (contract_address!("0x0"), AccountState { nonce: Nonce(felt!(5_u16)) }),
         // A hole, missing nonce 1.
         (contract_address!("0x1"), AccountState { nonce: Nonce(felt!(0_u16)) }),
-        (contract_address!("0x2"), AccountState { nonce: Nonce(felt!(1_u16)) }),
+        (contract_address!("0x2"), AccountState { nonce: Nonce(felt!(0_u16)) }),
+        (contract_address!("0x3"), AccountState { nonce: Nonce(felt!(1_u16)) }),
     ]);
     assert!(mempool.commit_block(state_changes).is_ok());
 
     // Assert.
-    let expected_queue_txs = [&tx_address0_nonce6].map(TransactionReference::new);
+    // TODO(Mohammad): use the `assert_eq_two_queues` method once it is implemented.
+    let expected_queue_txs =
+        [&tx_address0_nonce6, &tx_address2_nonce1].map(TransactionReference::new);
     let expected_mempool_content = MempoolContent::with_queue(expected_queue_txs);
     expected_mempool_content.assert_eq_queue_content(&mempool);
 }
