@@ -34,6 +34,7 @@ auto_impl_get_test_instance! {
         pub proposer: ContractAddress,
         pub transactions: Vec<Transaction>,
         pub block_hash: BlockHash,
+        pub valid_round: Option<u32>,
     }
 }
 
