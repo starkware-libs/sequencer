@@ -154,7 +154,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         init: &ProposalInit,
         block_id: Option<BlockHash>,
     ) -> Result<ShcReturn<BlockT>, ConsensusError> {
-        let sm_proposal = StateMachineEvent::Proposal(block_id, init.round);
+        let sm_proposal = StateMachineEvent::Proposal(block_id, init.round, init.valid_round);
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
         let sm_events = self.state_machine.handle_event(sm_proposal, &leader_fn);
         self.handle_state_machine_events(context, sm_events).await
@@ -282,7 +282,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
                             .await,
                     );
                 }
-                StateMachineEvent::Proposal(_, _) => {
+                StateMachineEvent::Proposal(_, _, _) => {
                     // Ignore proposals sent by the StateMachine as SingleHeightConsensus already
                     // sent this out when responding to a GetProposal.
                     // TODO(matan): How do we handle this when validValue is set?
@@ -341,7 +341,8 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
 
         let (p2p_messages_receiver, block_receiver) = context.build_proposal(self.height).await;
         let (fin_sender, fin_receiver) = oneshot::channel();
-        let init = ProposalInit { height: self.height, round, proposer: self.id };
+        let init =
+            ProposalInit { height: self.height, round, proposer: self.id, valid_round: None };
         // Peering is a permanent component, so if sending to it fails we cannot continue.
         context
             .propose(init, p2p_messages_receiver, fin_receiver)

@@ -225,6 +225,7 @@ impl ConsensusContext for PapyrusConsensusContext {
                     proposer: init.proposer,
                     transactions,
                     block_hash,
+                    valid_round: init.valid_round,
                 };
                 debug!(
                     "Sending proposal: height={:?} id={:?} num_txs={} block_hash={:?}",

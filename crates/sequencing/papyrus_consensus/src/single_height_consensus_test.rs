@@ -23,8 +23,12 @@ lazy_static! {
     static ref VALIDATORS: Vec<ValidatorId> =
         vec![*PROPOSER_ID, *VALIDATOR_ID_1, *VALIDATOR_ID_2, *VALIDATOR_ID_3];
     static ref BLOCK: TestBlock = TestBlock { content: vec![1, 2, 3], id: BlockHash(Felt::ONE) };
-    static ref PROPOSAL_INIT: ProposalInit =
-        ProposalInit { height: BlockNumber(0), round: 0, proposer: *PROPOSER_ID };
+    static ref PROPOSAL_INIT: ProposalInit = ProposalInit {
+        height: BlockNumber(0),
+        round: 0,
+        proposer: *PROPOSER_ID,
+        valid_round: None
+    };
     static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig::default();
 }
 
