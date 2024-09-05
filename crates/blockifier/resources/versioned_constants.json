@@ -30,14 +30,14 @@
         "block_hash_contract_address": 1,
         "call_contract_gas_cost": {
             "entry_point_gas_cost": 1,
-            "step_gas_cost": 827,
+            "step_gas_cost": 860,
             "range_check_gas_cost": 15
         },
         "constructor_entry_point_selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194",
         "default_entry_point_selector": 0,
         "deploy_gas_cost": {
             "entry_point_gas_cost": 1,
-            "step_gas_cost": 1097,
+            "step_gas_cost": 1128,
             "range_check_gas_cost": 18,
             "pedersen_gas_cost": 7
         },
@@ -88,7 +88,7 @@
         "l2_gas_index": 1,
         "library_call_gas_cost": {
             "entry_point_gas_cost": 1,
-            "step_gas_cost": 818,
+            "step_gas_cost": 836,
             "range_check_gas_cost": 15
         },
         "sha256_process_block_gas_cost": {
@@ -100,14 +100,14 @@
         "memory_hole_gas_cost": 10,
         "nop_entry_point_offset": -1,
         "range_check_gas_cost": 70,
-        "pedersen_gas_cost": 4130,
-        "bitwise_builtin_gas_cost": 594,
-        "ecop_gas_cost": 256,
-        "poseidon_gas_cost": 500,
-        "add_mod_gas_cost": 234,
-        "mul_mod_gas_cost": 616,
+        "pedersen_gas_cost": 4050,
+        "bitwise_builtin_gas_cost": 583,
+        "ecop_gas_cost": 4085,
+        "poseidon_gas_cost": 491,
+        "add_mod_gas_cost": 230,
+        "mul_mod_gas_cost": 604,
         "replace_class_gas_cost": {
-            "step_gas_cost": 100,
+            "step_gas_cost": 104,
             "range_check_gas_cost": 1
         },
         "secp256k1_add_gas_cost": {
