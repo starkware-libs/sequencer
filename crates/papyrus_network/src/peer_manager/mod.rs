@@ -6,6 +6,7 @@ use futures::FutureExt;
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::ToSwarm;
 use libp2p::PeerId;
+use peer::Peer;
 use tracing::info;
 
 pub use self::behaviour_impl::ToOtherBehaviourEvent;
@@ -27,8 +28,8 @@ pub enum ReputationModifier {
     Unstable,
 }
 
-pub struct PeerManager<P: PeerTrait + 'static> {
-    peers: HashMap<PeerId, P>,
+pub struct PeerManager {
+    peers: HashMap<PeerId, Peer>,
     // TODO: consider implementing a cleanup mechanism to not store all queries forever
     session_to_peer_map: HashMap<OutboundSessionId, PeerId>,
     config: PeerManagerConfig,
@@ -67,10 +68,7 @@ impl Default for PeerManagerConfig {
 }
 
 #[allow(dead_code)]
-impl<P> PeerManager<P>
-where
-    P: PeerTrait,
-{
+impl PeerManager {
     pub(crate) fn new(config: PeerManagerConfig) -> Self {
         let peers = HashMap::new();
         Self {
@@ -85,7 +83,7 @@ where
         }
     }
 
-    fn add_peer(&mut self, peer: P) {
+    fn add_peer(&mut self, mut peer: Peer) {
         info!("Peer Manager found new peer {:?}", peer.peer_id());
         self.peers.insert(peer.peer_id(), peer);
         // The new peer is unblocked so we don't need to wait for unblocked peer.
@@ -96,7 +94,7 @@ where
     }
 
     #[cfg(test)]
-    fn get_mut_peer(&mut self, peer_id: PeerId) -> Option<&mut P> {
+    fn get_mut_peer(&mut self, peer_id: PeerId) -> Option<&mut Peer> {
         self.peers.get_mut(&peer_id)
     }
 
@@ -223,7 +221,7 @@ impl From<ToOtherBehaviourEvent> for mixed_behaviour::Event {
     }
 }
 
-impl<P: PeerTrait + 'static> BridgedBehaviour for PeerManager<P> {
+impl BridgedBehaviour for PeerManager {
     fn on_other_behaviour_event(&mut self, event: &mixed_behaviour::ToOtherBehaviourEvent) {
         match event {
             mixed_behaviour::ToOtherBehaviourEvent::Sqmr(
@@ -249,7 +247,7 @@ impl<P: PeerTrait + 'static> BridgedBehaviour for PeerManager<P> {
                     return;
                 };
 
-                let peer = P::new(*peer_id, address.clone());
+                let peer = Peer::new(*peer_id, address.clone());
                 self.add_peer(peer);
             }
             _ => {}

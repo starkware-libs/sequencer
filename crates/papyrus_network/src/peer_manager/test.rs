@@ -22,9 +22,9 @@ use crate::peer_manager::peer::{Peer, PeerTrait};
 use crate::peer_manager::{PeerManager, PeerManagerConfig, ReputationModifier};
 use crate::sqmr::OutboundSessionId;
 
-impl<P: PeerTrait> Unpin for PeerManager<P> {}
+impl Unpin for PeerManager {}
 
-impl<P: PeerTrait> Stream for PeerManager<P> {
+impl Stream for PeerManager {
     type Item = ToSwarm<ToOtherBehaviourEvent, Void>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -122,7 +122,7 @@ fn peer_assignment_round_robin() {
 async fn peer_assignment_no_peers() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager<Peer> = PeerManager::new(config.clone());
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Create a session
     let outbound_session_id = OutboundSessionId { value: 1 };
@@ -156,8 +156,8 @@ async fn peer_assignment_no_unblocked_peers() {
     const BLOCKED_UNTIL: Duration = Duration::from_secs(5);
     const TIMEOUT: Duration = Duration::from_secs(1);
     // Create a new peer manager
-    let config = PeerManagerConfig { malicious_timeout: TIMEOUT, unstable_timeout: TIMEOUT };
-    let mut peer_manager: PeerManager<Peer> = PeerManager::new(config.clone());
+    let config = PeerManagerConfig::default();
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Create a session
     let outbound_session_id = OutboundSessionId { value: 1 };
@@ -208,7 +208,7 @@ async fn peer_assignment_no_unblocked_peers() {
 fn report_peer_calls_update_reputation_and_notifies_kad() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager<Peer> = PeerManager::new(config.clone());
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Create a peer
     let peer_id = PeerId::random();
@@ -242,7 +242,7 @@ async fn peer_block_released_after_timeout() {
 #[test]
 fn report_peer_on_unknown_peer_id() {
     // Create a new peer manager
-    let mut peer_manager: PeerManager<Peer> = PeerManager::new(PeerManagerConfig::default());
+    let mut peer_manager: PeerManager = PeerManager::new(PeerManagerConfig::default());
 
     // report peer on an unknown peer_id
     let peer_id = PeerId::random();
@@ -255,7 +255,7 @@ fn report_peer_on_unknown_peer_id() {
 fn report_session_calls_update_reputation() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager<Peer> = PeerManager::new(config.clone());
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Create a peer
     let peer_id = PeerId::random();
@@ -280,7 +280,7 @@ fn report_session_calls_update_reputation() {
 #[test]
 fn report_session_on_unknown_session_id() {
     // Create a new peer manager
-    let mut peer_manager: PeerManager<Peer> = PeerManager::new(PeerManagerConfig::default());
+    let mut peer_manager: PeerManager = PeerManager::new(PeerManagerConfig::default());
 
     // Create a session
     let outbound_session_id = OutboundSessionId { value: 1 };
@@ -294,7 +294,7 @@ fn report_session_on_unknown_session_id() {
 async fn timed_out_peer_not_assignable_to_queries() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager<Peer> = PeerManager::new(config.clone());
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Create a peer
     let peer_id = PeerId::random();
@@ -317,7 +317,7 @@ async fn timed_out_peer_not_assignable_to_queries() {
 fn wrap_around_in_peer_assignment() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager<Peer> = PeerManager::new(config.clone());
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Create a peer
     let peer_id1 = PeerId::random();
@@ -351,7 +351,7 @@ fn wrap_around_in_peer_assignment() {
 fn block_and_allow_inbound_connection() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager<Peer> = PeerManager::new(config.clone());
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Create a peer - report as malicious
     let peer_id1 = PeerId::random();
@@ -391,7 +391,7 @@ fn block_and_allow_inbound_connection() {
 fn assign_non_connected_peer_raises_dial_event() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager<Peer> = PeerManager::new(config.clone());
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Create a peer
     let peer_id = PeerId::random();
@@ -416,7 +416,7 @@ fn assign_non_connected_peer_raises_dial_event() {
 async fn flow_test_assign_non_connected_peer() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager<Peer> = PeerManager::new(config.clone());
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Create a peer
     let peer_id = PeerId::random();
@@ -460,7 +460,7 @@ async fn flow_test_assign_non_connected_peer() {
 fn identify_on_unknown_peer_is_added_to_peer_manager() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager<Peer> = PeerManager::new(config.clone());
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Send Identify event
     let peer_id = PeerId::random();

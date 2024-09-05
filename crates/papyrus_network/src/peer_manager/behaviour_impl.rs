@@ -29,10 +29,7 @@ pub enum ToOtherBehaviourEvent {
     },
 }
 
-impl<P: 'static> NetworkBehaviour for PeerManager<P>
-where
-    P: PeerTrait,
-{
+impl NetworkBehaviour for PeerManager {
     type ConnectionHandler = dummy::ConnectionHandler;
     type ToSwarm = ToOtherBehaviourEvent;
 
