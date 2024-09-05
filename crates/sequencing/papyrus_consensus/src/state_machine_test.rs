@@ -341,3 +341,31 @@ fn dont_handle_enqueued_while_awaiting_get_proposal() {
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::GetProposal(None, ROUND + 2));
     assert!(wrapper.next_event().is_none());
 }
+
+#[test]
+fn return_proposal_if_locked_value_is_set() {
+    let mut wrapper = TestWrapper::new(*PROPOSER_ID, 4, |_: Round| *PROPOSER_ID);
+
+    wrapper.start();
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::GetProposal(None, ROUND));
+    assert!(wrapper.next_event().is_none());
+
+    wrapper.send_get_proposal(BLOCK_HASH, ROUND);
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Proposal(BLOCK_HASH, ROUND));
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(BLOCK_HASH, ROUND));
+    // locked_value is set after receiving a Prevote quorum.
+    wrapper.send_prevote(BLOCK_HASH, ROUND);
+    wrapper.send_prevote(BLOCK_HASH, ROUND);
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrevote(ROUND));
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Precommit(BLOCK_HASH, ROUND));
+
+    wrapper.send_precommit(None, ROUND);
+    wrapper.send_precommit(None, ROUND);
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrecommit(ROUND));
+
+    wrapper.send_timeout_precommit(ROUND);
+
+    // no need to GetProposal since we already have a locked value.
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Proposal(BLOCK_HASH, ROUND + 1));
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(BLOCK_HASH, ROUND + 1));
+}
