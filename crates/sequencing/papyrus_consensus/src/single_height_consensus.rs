@@ -341,7 +341,8 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
 
         let (p2p_messages_receiver, block_receiver) = context.build_proposal(self.height).await;
         let (fin_sender, fin_receiver) = oneshot::channel();
-        let init = ProposalInit { height: self.height, round, proposer: self.id };
+        let init =
+            ProposalInit { height: self.height, round, proposer: self.id, valid_round: None };
         // Peering is a permanent component, so if sending to it fails we cannot continue.
         context
             .propose(init, p2p_messages_receiver, fin_receiver)

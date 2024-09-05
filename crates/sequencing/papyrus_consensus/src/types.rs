@@ -14,6 +14,7 @@ use starknet_api::core::ContractAddress;
 // TODO(matan): Determine the actual type of NodeId.
 pub type ValidatorId = ContractAddress;
 pub type Round = u32;
+pub type ProposalContentId = BlockHash;
 
 /// Interface that any concrete block type must implement to be used by consensus.
 ///
@@ -167,6 +168,7 @@ pub struct ProposalInit {
     pub height: BlockNumber,
     pub round: Round,
     pub proposer: ValidatorId,
+    pub valid_round: Option<Round>,
 }
 
 #[derive(thiserror::Error, PartialEq, Debug)]

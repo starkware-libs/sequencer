@@ -87,8 +87,12 @@ async fn propose() {
     let (fin_sender, fin_receiver) = oneshot::channel();
     fin_sender.send(block.header.block_hash).unwrap();
 
-    let proposal_init =
-        ProposalInit { height: block_number, round: 0, proposer: ContractAddress::default() };
+    let proposal_init = ProposalInit {
+        height: block_number,
+        round: 0,
+        proposer: ContractAddress::default(),
+        valid_round: None,
+    };
     papyrus_context.propose(proposal_init.clone(), content_receiver, fin_receiver).await.unwrap();
 
     let expected_message = ConsensusMessage::Proposal(Proposal {
@@ -97,6 +101,7 @@ async fn propose() {
         proposer: proposal_init.proposer,
         transactions: block.body.transactions,
         block_hash: block.header.block_hash,
+        valid_round: None,
     });
 
     assert_eq!(mock_network.messages_to_broadcast_receiver.next().await.unwrap(), expected_message);

@@ -9,6 +9,7 @@ pub struct Proposal {
     pub proposer: ContractAddress,
     pub transactions: Vec<Transaction>,
     pub block_hash: BlockHash,
+    pub valid_round: Option<u32>,
 }
 
 #[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
