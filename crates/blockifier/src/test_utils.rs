@@ -15,7 +15,14 @@ use std::path::PathBuf;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{Calldata, ContractAddressSalt, TransactionVersion};
+use starknet_api::transaction::{
+    AllResourceBounds,
+    Calldata,
+    ContractAddressSalt,
+    ResourceBounds,
+    TransactionVersion,
+    ValidResourceBounds,
+};
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
 
@@ -200,6 +207,19 @@ pub fn trivial_external_entry_point_with_address(
             .initial_gas_cost,
         ..Default::default()
     }
+}
+
+// TODO: Default testing bounds should probably be AllResourceBounds variant.
+pub fn default_testing_resource_bounds() -> ValidResourceBounds {
+    ValidResourceBounds::L1Gas(ResourceBounds { max_amount: 0, max_price_per_unit: 1 })
+}
+
+pub fn default_testing_all_resource_bounds() -> ValidResourceBounds {
+    ValidResourceBounds::AllResources(AllResourceBounds {
+        l1_gas: ResourceBounds { max_amount: 0, max_price_per_unit: 1 },
+        l2_gas: ResourceBounds { max_amount: 0, max_price_per_unit: 1 },
+        l1_data_gas: ResourceBounds { max_amount: 0, max_price_per_unit: 1 },
+    })
 }
 
 #[macro_export]
