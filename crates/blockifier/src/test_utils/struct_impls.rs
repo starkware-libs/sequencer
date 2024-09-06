@@ -270,6 +270,7 @@ impl NativeContractClassV1 {
         let sierra_program = sierra_contract_class.extract_sierra_program()?;
         let executor = compile_and_load(&sierra_program)?;
 
+        let executor = Arc::new(executor);
         Ok(Self::new(executor, sierra_contract_class)?)
     }
 
