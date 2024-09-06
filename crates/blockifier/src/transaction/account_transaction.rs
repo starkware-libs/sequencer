@@ -12,6 +12,7 @@ use starknet_api::transaction::{
     ResourceBounds,
     TransactionHash,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 
@@ -255,7 +256,7 @@ impl AccountTransaction {
         match tx_info {
             TransactionInfo::Current(context) => {
                 match &context.resource_bounds {
-                    starknet_api::transaction::ValidResourceBounds::L1Gas(ResourceBounds {
+                    ValidResourceBounds::L1Gas(ResourceBounds {
                         max_amount: max_l1_gas_amount,
                         max_price_per_unit: max_l1_gas_price,
                     }) => {
