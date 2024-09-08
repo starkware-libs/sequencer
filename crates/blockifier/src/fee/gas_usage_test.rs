@@ -2,6 +2,7 @@ use std::num::NonZeroU128;
 
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
+use starknet_api::invoke_tx_args;
 use starknet_api::transaction::{EventContent, EventData, EventKey, Fee};
 use starknet_types_core::felt::Felt;
 
@@ -10,15 +11,15 @@ use crate::context::BlockContext;
 use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
 use crate::fee::eth_gas_constants;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
-use crate::fee::gas_usage::{
-    compute_discounted_gas_from_gas_vector,
-    get_da_gas_cost,
-    get_message_segment_length,
-};
-use crate::invoke_tx_args;
+use crate::fee::gas_usage::{get_da_gas_cost, get_message_segment_length};
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::{DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE};
-use crate::transaction::objects::{FeeType, GasVector, StarknetResources};
+use crate::transaction::objects::{
+    FeeType,
+    GasVector,
+    GasVectorComputationMode,
+    StarknetResources,
+};
 use crate::transaction::test_utils::account_invoke_tx;
 use crate::utils::{u128_div_ceil, u128_from_usize};
 use crate::versioned_constants::{ResourceCost, VersionedConstants};
@@ -41,7 +42,11 @@ fn test_get_event_gas_cost(
         StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, call_infos_iter);
     assert_eq!(
         GasVector::default(),
-        starknet_resources.to_gas_vector(versioned_constants, use_kzg_da)
+        starknet_resources.to_gas_vector(
+            versioned_constants,
+            use_kzg_da,
+            &GasVectorComputationMode::NoL2Gas
+        )
     );
 
     let create_event = |keys_size: usize, data_size: usize| OrderedEvent {
@@ -81,7 +86,11 @@ fn test_get_event_gas_cost(
     );
     let starknet_resources =
         StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, call_infos_iter);
-    let gas_vector = starknet_resources.to_gas_vector(versioned_constants, use_kzg_da);
+    let gas_vector = starknet_resources.to_gas_vector(
+        versioned_constants,
+        use_kzg_da,
+        &GasVectorComputationMode::NoL2Gas,
+    );
     assert_eq!(expected, gas_vector);
     assert_ne!(GasVector::default(), gas_vector)
 }
@@ -204,11 +213,11 @@ fn test_get_message_segment_length(
 }
 
 #[rstest]
-fn test_compute_discounted_gas_from_gas_vector() {
+fn test_discounted_gas_from_gas_vector_computation() {
     let tx_context =
         BlockContext::create_for_testing().to_tx_context(&account_invoke_tx(invoke_tx_args! {}));
     let gas_usage = GasVector { l1_gas: 100, l1_data_gas: 2, ..Default::default() };
-    let actual_result = compute_discounted_gas_from_gas_vector(&gas_usage, &tx_context);
+    let actual_result = gas_usage.to_discounted_l1_gas(&tx_context);
 
     let result_div_ceil = gas_usage.l1_gas
         + u128_div_ceil(

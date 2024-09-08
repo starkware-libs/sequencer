@@ -19,7 +19,7 @@ use crate::errors::GatewaySpecError;
 
 #[fixture]
 fn gateway_compiler() -> GatewayCompiler {
-    GatewayCompiler::new_cairo_lang_compiler(SierraToCasmCompilationConfig::default())
+    GatewayCompiler::new_command_line_compiler(SierraToCasmCompilationConfig::default())
 }
 
 #[fixture]
@@ -33,39 +33,17 @@ fn declare_tx_v3() -> RpcDeclareTransactionV3 {
 // TODO(Arni): Redesign this test once the compiler is passed with dependancy injection.
 #[traced_test]
 #[rstest]
-fn test_compile_contract_class_compiled_class_hash_mismatch(
-    gateway_compiler: GatewayCompiler,
-    mut declare_tx_v3: RpcDeclareTransactionV3,
-) {
-    let expected_hash = declare_tx_v3.compiled_class_hash;
-    let wrong_supplied_hash = CompiledClassHash::default();
-    declare_tx_v3.compiled_class_hash = wrong_supplied_hash;
-    let declare_tx = RpcDeclareTransaction::V3(declare_tx_v3);
-
-    let err = gateway_compiler.process_declare_tx(&declare_tx).unwrap_err();
-    assert_eq!(err, GatewaySpecError::CompiledClassHashMismatch);
-    assert!(logs_contain(
-        format!(
-            "Compiled class hash mismatch. Supplied: {:?}, Hash result: {:?}",
-            wrong_supplied_hash, expected_hash
-        )
-        .as_str()
-    ));
-}
-
-// TODO(Arni): Redesign this test once the compiler is passed with dependancy injection.
-#[traced_test]
-#[rstest]
 fn test_compile_contract_class_bytecode_size_validation(declare_tx_v3: RpcDeclareTransactionV3) {
     let gateway_compiler =
-        GatewayCompiler::new_cairo_lang_compiler(SierraToCasmCompilationConfig {
+        GatewayCompiler::new_command_line_compiler(SierraToCasmCompilationConfig {
             max_bytecode_size: 1,
         });
 
     let result = gateway_compiler.process_declare_tx(&RpcDeclareTransaction::V3(declare_tx_v3));
     assert_matches!(result.unwrap_err(), GatewaySpecError::CompilationFailed);
-    let expected_compilation_error =
-        CompilationUtilError::CompilationError("Code size limit exceeded.".to_owned());
+    let expected_compilation_error = CompilationUtilError::CompilationError(
+        "Error: Compilation failed.\n\nCaused by:\n    Code size limit exceeded.\n".to_owned(),
+    );
     assert!(logs_contain(format!("Compilation failed: {:?}", expected_compilation_error).as_str()));
 }
 
@@ -84,7 +62,7 @@ fn test_compile_contract_class_bad_sierra(
     assert_eq!(err, GatewaySpecError::CompilationFailed);
 
     let expected_compilation_error =
-        CompilationUtilError::CompilationError("Invalid Sierra program.".to_owned());
+        CompilationUtilError::CompilationError("Error: Invalid Sierra program.\n".to_owned());
     assert!(logs_contain(format!("Compilation failed: {:?}", expected_compilation_error).as_str()));
 }
 

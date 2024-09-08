@@ -71,7 +71,7 @@ impl P2PSyncServerError {
 type HeaderReceiver = SqmrServerReceiver<HeaderQuery, DataOrFin<SignedBlockHeader>>;
 type StateDiffReceiver = SqmrServerReceiver<StateDiffQuery, DataOrFin<StateDiffChunk>>;
 type TransactionReceiver = SqmrServerReceiver<TransactionQuery, DataOrFin<FullTransaction>>;
-type ClassReceiver = SqmrServerReceiver<ClassQuery, DataOrFin<ApiContractClass>>;
+type ClassReceiver = SqmrServerReceiver<ClassQuery, DataOrFin<(ApiContractClass, ClassHash)>>;
 type EventReceiver = SqmrServerReceiver<EventQuery, DataOrFin<(Event, TransactionHash)>>;
 
 pub struct P2PSyncServerChannels {
@@ -264,7 +264,7 @@ impl FetchBlockDataFromDb for FullTransaction {
     }
 }
 
-impl FetchBlockDataFromDb for ApiContractClass {
+impl FetchBlockDataFromDb for (ApiContractClass, ClassHash) {
     fn fetch_block_data_from_db(
         block_number: BlockNumber,
         txn: &StorageTxn<'_, db::RO>,
@@ -277,15 +277,21 @@ impl FetchBlockDataFromDb for ApiContractClass {
         let deprecated_declared_classes = thin_state_diff.deprecated_declared_classes;
         let mut result = Vec::new();
         for class_hash in &deprecated_declared_classes {
-            result.push(ApiContractClass::DeprecatedContractClass(
-                txn.get_deprecated_class(class_hash)?
-                    .ok_or(P2PSyncServerError::ClassNotFound { class_hash: *class_hash })?,
+            result.push((
+                ApiContractClass::DeprecatedContractClass(
+                    txn.get_deprecated_class(class_hash)?
+                        .ok_or(P2PSyncServerError::ClassNotFound { class_hash: *class_hash })?,
+                ),
+                *class_hash,
             ));
         }
         for (class_hash, _) in &declared_classes {
-            result.push(ApiContractClass::ContractClass(
-                txn.get_class(class_hash)?
-                    .ok_or(P2PSyncServerError::ClassNotFound { class_hash: *class_hash })?,
+            result.push((
+                ApiContractClass::ContractClass(
+                    txn.get_class(class_hash)?
+                        .ok_or(P2PSyncServerError::ClassNotFound { class_hash: *class_hash })?,
+                ),
+                *class_hash,
             ));
         }
         Ok(result)

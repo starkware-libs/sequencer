@@ -7,7 +7,6 @@ use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, Patricia
 use crate::rpc_transaction::{
     ContractClass,
     DataAvailabilityMode,
-    ResourceBoundsMapping,
     RpcDeclareTransaction,
     RpcDeclareTransactionV3,
     RpcDeployAccountTransaction,
@@ -18,6 +17,7 @@ use crate::rpc_transaction::{
 };
 use crate::transaction::{
     AccountDeploymentData,
+    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     PaymasterData,
@@ -27,10 +27,11 @@ use crate::transaction::{
 };
 use crate::{contract_address, felt, patricia_key};
 
-fn create_resource_bounds_for_testing() -> ResourceBoundsMapping {
-    ResourceBoundsMapping {
+fn create_resource_bounds_for_testing() -> AllResourceBounds {
+    AllResourceBounds {
         l1_gas: ResourceBounds { max_amount: 100, max_price_per_unit: 12 },
         l2_gas: ResourceBounds { max_amount: 58, max_price_per_unit: 31 },
+        l1_data_gas: ResourceBounds { max_amount: 66, max_price_per_unit: 25 },
     }
 }
 

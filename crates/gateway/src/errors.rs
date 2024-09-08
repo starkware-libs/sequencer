@@ -33,6 +33,8 @@ pub type GatewayResult<T> = Result<T, GatewaySpecError>;
 impl IntoResponse for GatewaySpecError {
     fn into_response(self) -> Response {
         let as_rpc = self.into_rpc();
+        // TODO(Arni): Fix the status code. The status code should be a HTTP status code - not a
+        // Json RPC error code. status code.
         let status =
             StatusCode::from_u16(u16::try_from(as_rpc.code).expect("Expecting a valid u16"))
                 .expect("Expecting a valid error code");
@@ -50,25 +52,11 @@ impl IntoResponse for GatewaySpecError {
 #[derive(Debug, Error)]
 #[cfg_attr(test, derive(PartialEq))]
 pub enum StatelessTransactionValidatorError {
-    #[error("Expected a positive amount of {resource:?}. Got {resource_bounds:?}.")]
-    ZeroResourceBounds { resource: Resource, resource_bounds: ResourceBounds },
     #[error(
         "Calldata length exceeded maximum: length {calldata_length}
         (allowed length: {max_calldata_length})."
     )]
     CalldataTooLong { calldata_length: usize, max_calldata_length: usize },
-    #[error(
-        "Signature length exceeded maximum: length {signature_length}
-        (allowed length: {max_signature_length})."
-    )]
-    SignatureTooLong { signature_length: usize, max_signature_length: usize },
-    #[error(transparent)]
-    InvalidSierraVersion(#[from] VersionIdError),
-    #[error(
-        "Sierra versions older than {min_version} or newer than {max_version} are not supported. \
-         The Sierra version of the declared contract is {version}."
-    )]
-    UnsupportedSierraVersion { version: VersionId, min_version: VersionId, max_version: VersionId },
     #[error(
         "Cannot declare contract class with size of {contract_class_object_size}; max allowed \
          size: {max_contract_class_object_size}."
@@ -79,30 +67,36 @@ pub enum StatelessTransactionValidatorError {
     },
     #[error("Entry points must be unique and sorted.")]
     EntryPointsNotUniquelySorted,
+    #[error(transparent)]
+    InvalidSierraVersion(#[from] VersionIdError),
+    #[error(
+        "Signature length exceeded maximum: length {signature_length}
+        (allowed length: {max_signature_length})."
+    )]
+    SignatureTooLong { signature_length: usize, max_signature_length: usize },
+    #[error(
+        "Sierra versions older than {min_version} or newer than {max_version} are not supported. \
+         The Sierra version of the declared contract is {version}."
+    )]
+    UnsupportedSierraVersion { version: VersionId, min_version: VersionId, max_version: VersionId },
+    #[error("Expected a positive amount of {resource:?}. Got {resource_bounds:?}.")]
+    ZeroResourceBounds { resource: Resource, resource_bounds: ResourceBounds },
 }
 
 impl From<StatelessTransactionValidatorError> for GatewaySpecError {
     fn from(e: StatelessTransactionValidatorError) -> Self {
         match e {
-            StatelessTransactionValidatorError::ZeroResourceBounds { .. } => {
-                GatewaySpecError::ValidationFailure { data: e.to_string() }
-            }
-            StatelessTransactionValidatorError::CalldataTooLong { .. } => {
-                GatewaySpecError::ValidationFailure { data: e.to_string() }
-            }
-            StatelessTransactionValidatorError::SignatureTooLong { .. } => {
-                GatewaySpecError::ValidationFailure { data: e.to_string() }
-            }
-            StatelessTransactionValidatorError::InvalidSierraVersion(..) => {
-                GatewaySpecError::ValidationFailure { data: e.to_string() }
+            StatelessTransactionValidatorError::ContractClassObjectSizeTooLarge { .. } => {
+                GatewaySpecError::ContractClassSizeIsTooLarge
             }
             StatelessTransactionValidatorError::UnsupportedSierraVersion { .. } => {
                 GatewaySpecError::UnsupportedContractClassVersion
             }
-            StatelessTransactionValidatorError::ContractClassObjectSizeTooLarge { .. } => {
-                GatewaySpecError::ContractClassSizeIsTooLarge
-            }
-            StatelessTransactionValidatorError::EntryPointsNotUniquelySorted => {
+            StatelessTransactionValidatorError::CalldataTooLong { .. }
+            | StatelessTransactionValidatorError::EntryPointsNotUniquelySorted
+            | StatelessTransactionValidatorError::InvalidSierraVersion(..)
+            | StatelessTransactionValidatorError::SignatureTooLong { .. }
+            | StatelessTransactionValidatorError::ZeroResourceBounds { .. } => {
                 GatewaySpecError::ValidationFailure { data: e.to_string() }
             }
         }
@@ -126,14 +120,14 @@ pub enum RPCStateReaderError {
     BlockNotFound(Value),
     #[error("Class hash not found for request {0}")]
     ClassHashNotFound(Value),
-    #[error("Failed to parse gas price {:?}", 0)]
-    GasPriceParsingFailure(GasPrice),
     #[error("Contract address not found for request {0}")]
     ContractAddressNotFound(Value),
-    #[error(transparent)]
-    ReqwestError(#[from] reqwest::Error),
+    #[error("Failed to parse gas price {:?}", 0)]
+    GasPriceParsingFailure(GasPrice),
     #[error("RPC error: {0}")]
     RPCError(StatusCode),
+    #[error(transparent)]
+    ReqwestError(#[from] reqwest::Error),
     #[error("Unexpected error code: {0}")]
     UnexpectedErrorCode(u16),
 }
@@ -166,34 +160,34 @@ pub fn serde_err_to_state_err(err: SerdeError) -> StateError {
 #[derive(Debug, Clone, Eq, PartialEq, Assoc, Error)]
 #[func(pub fn into_rpc(self) -> JsonRpcError<String>)]
 pub enum GatewaySpecError {
-    #[assoc(into_rpc = CLASS_HASH_NOT_FOUND)]
-    ClassHashNotFound,
     #[assoc(into_rpc = CLASS_ALREADY_DECLARED)]
     ClassAlreadyDeclared,
-    #[assoc(into_rpc = INVALID_TRANSACTION_NONCE)]
-    InvalidTransactionNonce,
-    #[assoc(into_rpc = INSUFFICIENT_MAX_FEE)]
-    InsufficientMaxFee,
-    #[assoc(into_rpc = INSUFFICIENT_ACCOUNT_BALANCE)]
-    InsufficientAccountBalance,
-    #[assoc(into_rpc = validation_failure(_data))]
-    ValidationFailure { data: String },
+    #[assoc(into_rpc = CLASS_HASH_NOT_FOUND)]
+    ClassHashNotFound,
+    #[assoc(into_rpc = COMPILED_CLASS_HASH_MISMATCH)]
+    CompiledClassHashMismatch,
     #[assoc(into_rpc = COMPILATION_FAILED)]
     CompilationFailed,
     #[assoc(into_rpc = CONTRACT_CLASS_SIZE_IS_TOO_LARGE)]
     ContractClassSizeIsTooLarge,
-    #[assoc(into_rpc = NON_ACCOUNT)]
-    NonAccount,
     #[assoc(into_rpc = DUPLICATE_TX)]
     DuplicateTx,
-    #[assoc(into_rpc = COMPILED_CLASS_HASH_MISMATCH)]
-    CompiledClassHashMismatch,
-    #[assoc(into_rpc = UNSUPPORTED_TX_VERSION)]
-    UnsupportedTxVersion,
-    #[assoc(into_rpc = UNSUPPORTED_CONTRACT_CLASS_VERSION)]
-    UnsupportedContractClassVersion,
+    #[assoc(into_rpc = INSUFFICIENT_ACCOUNT_BALANCE)]
+    InsufficientAccountBalance,
+    #[assoc(into_rpc = INSUFFICIENT_MAX_FEE)]
+    InsufficientMaxFee,
+    #[assoc(into_rpc = INVALID_TRANSACTION_NONCE)]
+    InvalidTransactionNonce,
+    #[assoc(into_rpc = NON_ACCOUNT)]
+    NonAccount,
     #[assoc(into_rpc = unexpected_error(_data))]
     UnexpectedError { data: String },
+    #[assoc(into_rpc = UNSUPPORTED_CONTRACT_CLASS_VERSION)]
+    UnsupportedContractClassVersion,
+    #[assoc(into_rpc = UNSUPPORTED_TX_VERSION)]
+    UnsupportedTxVersion,
+    #[assoc(into_rpc = validation_failure(_data))]
+    ValidationFailure { data: String },
 }
 
 impl Display for GatewaySpecError {

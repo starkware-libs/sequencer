@@ -5,7 +5,7 @@ use assert_matches::assert_matches;
 use mempool_test_utils::declare_tx_args;
 use mempool_test_utils::starknet_api_test_utils::{
     create_resource_bounds_mapping,
-    external_declare_tx,
+    rpc_declare_tx,
     rpc_tx_for_testing,
     zero_resource_bounds_mapping,
     TransactionType,
@@ -13,9 +13,15 @@ use mempool_test_utils::starknet_api_test_utils::{
 };
 use rstest::rstest;
 use starknet_api::core::EntryPointSelector;
-use starknet_api::rpc_transaction::{ContractClass, EntryPointByType, ResourceBoundsMapping};
+use starknet_api::rpc_transaction::{ContractClass, EntryPointByType};
 use starknet_api::state::EntryPoint;
-use starknet_api::transaction::{Calldata, Resource, ResourceBounds, TransactionSignature};
+use starknet_api::transaction::{
+    AllResourceBounds,
+    Calldata,
+    Resource,
+    ResourceBounds,
+    TransactionSignature,
+};
 use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
 
@@ -67,7 +73,11 @@ fn default_validator_config_for_testing() -> &'static StatelessTransactionValida
         validate_non_zero_l2_gas_fee: false,
         ..default_validator_config_for_testing().clone()
     },
-    create_resource_bounds_mapping(NON_EMPTY_RESOURCE_BOUNDS, ResourceBounds::default()),
+    create_resource_bounds_mapping(
+        NON_EMPTY_RESOURCE_BOUNDS,
+        ResourceBounds::default(),
+        ResourceBounds::default(),
+    ),
     calldata![],
     TransactionSignature::default()
 )]
@@ -77,7 +87,11 @@ fn default_validator_config_for_testing() -> &'static StatelessTransactionValida
         validate_non_zero_l2_gas_fee: true,
         ..default_validator_config_for_testing().clone()
     },
-    create_resource_bounds_mapping(ResourceBounds::default(), NON_EMPTY_RESOURCE_BOUNDS),
+    create_resource_bounds_mapping(
+        ResourceBounds::default(),
+        NON_EMPTY_RESOURCE_BOUNDS,
+        ResourceBounds::default(),
+    ),
     calldata![],
     TransactionSignature::default()
 )]
@@ -87,7 +101,11 @@ fn default_validator_config_for_testing() -> &'static StatelessTransactionValida
         validate_non_zero_l2_gas_fee: true,
         ..default_validator_config_for_testing().clone()
     },
-    create_resource_bounds_mapping(NON_EMPTY_RESOURCE_BOUNDS, NON_EMPTY_RESOURCE_BOUNDS),
+    create_resource_bounds_mapping(
+        NON_EMPTY_RESOURCE_BOUNDS,
+        NON_EMPTY_RESOURCE_BOUNDS,
+        ResourceBounds::default(),
+    ),
     calldata![],
     TransactionSignature::default()
 )]
@@ -111,7 +129,7 @@ fn default_validator_config_for_testing() -> &'static StatelessTransactionValida
 )]
 fn test_positive_flow(
     #[case] config: StatelessTransactionValidatorConfig,
-    #[case] resource_bounds: ResourceBoundsMapping,
+    #[case] resource_bounds: AllResourceBounds,
     #[case] tx_calldata: Calldata,
     #[case] signature: TransactionSignature,
     #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
@@ -141,14 +159,18 @@ fn test_positive_flow(
         validate_non_zero_l2_gas_fee: true,
         ..default_validator_config_for_testing().clone()
     },
-    create_resource_bounds_mapping(NON_EMPTY_RESOURCE_BOUNDS, ResourceBounds::default()),
+    create_resource_bounds_mapping(
+        NON_EMPTY_RESOURCE_BOUNDS,
+        ResourceBounds::default(),
+        ResourceBounds::default(),
+    ),
     StatelessTransactionValidatorError::ZeroResourceBounds{
         resource: Resource::L2Gas, resource_bounds: ResourceBounds::default()
     }
 )]
 fn test_invalid_resource_bounds(
     #[case] config: StatelessTransactionValidatorConfig,
-    #[case] resource_bounds: ResourceBoundsMapping,
+    #[case] resource_bounds: AllResourceBounds,
     #[case] expected_error: StatelessTransactionValidatorError,
     #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
     tx_type: TransactionType,
@@ -283,7 +305,7 @@ fn test_declare_sierra_version_failure(
         StatelessTransactionValidator { config: default_validator_config_for_testing().clone() };
 
     let contract_class = ContractClass { sierra_program, ..Default::default() };
-    let tx = external_declare_tx(declare_tx_args!(contract_class));
+    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
 
     assert_eq!(tx_validator.validate(&tx).unwrap_err(), expected_error);
 }
@@ -303,7 +325,7 @@ fn test_declare_sierra_version_sucsses(#[case] sierra_program: Vec<Felt>) {
         StatelessTransactionValidator { config: default_validator_config_for_testing().clone() };
 
     let contract_class = ContractClass { sierra_program, ..Default::default() };
-    let tx = external_declare_tx(declare_tx_args!(contract_class));
+    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
 
     assert_matches!(tx_validator.validate(&tx), Ok(()));
 }
@@ -322,7 +344,7 @@ fn test_declare_contract_class_size_too_long() {
         ..Default::default()
     };
     let contract_class_length = serde_json::to_string(&contract_class).unwrap().len();
-    let tx = external_declare_tx(declare_tx_args!(contract_class));
+    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
 
     assert_matches!(
         tx_validator.validate(&tx).unwrap_err(),
@@ -390,7 +412,7 @@ fn test_declare_entry_points_not_sorted_by_selector(
         },
         ..Default::default()
     };
-    let tx = external_declare_tx(declare_tx_args!(contract_class));
+    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
 
     assert_eq!(tx_validator.validate(&tx), expected);
 
@@ -403,7 +425,7 @@ fn test_declare_entry_points_not_sorted_by_selector(
         },
         ..Default::default()
     };
-    let tx = external_declare_tx(declare_tx_args!(contract_class));
+    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
 
     assert_eq!(tx_validator.validate(&tx), expected);
 
@@ -416,7 +438,7 @@ fn test_declare_entry_points_not_sorted_by_selector(
         },
         ..Default::default()
     };
-    let tx = external_declare_tx(declare_tx_args!(contract_class));
+    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
 
     assert_eq!(tx_validator.validate(&tx), expected);
 }

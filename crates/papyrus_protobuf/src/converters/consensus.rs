@@ -1,7 +1,11 @@
 #[cfg(test)]
 #[path = "consensus_test.rs"]
 mod consensus_test;
+<<<<<<< HEAD
 use std::convert::{Infallible, TryFrom, TryInto};
+=======
+use std::convert::{TryFrom, TryInto};
+>>>>>>> origin/main
 
 use prost::Message;
 use starknet_api::block::BlockHash;
@@ -110,20 +114,8 @@ impl From<Vote> for protobuf::Vote {
 
 auto_impl_into_and_try_from_vec_u8!(Vote, protobuf::Vote);
 
-// this is needed in case we are converting Vec<u8> into Vec<u8>
-// in the TryFrom<protobuf::StreamMessage> for StreamMessage<T> below
-// It means the try_from will be infallible, but still we need the types
-// to match ProtoBufConversionError, so I added this, as suggested by
-// https://github.com/rust-lang-deprecated/error-chain/issues/229#issuecomment-333406310
-impl From<Infallible> for ProtobufConversionError {
-    fn from(_: Infallible) -> Self {
-        unreachable!()
-    }
-}
-
-impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>>> TryFrom<protobuf::StreamMessage> for StreamMessage<T>
-where
-    ProtobufConversionError: From<<T as TryFrom<Vec<u8>>>::Error>,
+impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
+    TryFrom<protobuf::StreamMessage> for StreamMessage<T>
 {
     type Error = ProtobufConversionError;
 
@@ -137,27 +129,10 @@ where
     }
 }
 
-impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>>> TryFrom<Vec<u8>> for StreamMessage<T>
-where
-    Self: TryFrom<protobuf::StreamMessage>,
-    StreamMessage<T>: TryFrom<protobuf::StreamMessage>,
-    ProtobufConversionError: From<<StreamMessage<T> as TryFrom<protobuf::StreamMessage>>::Error>,
+impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<StreamMessage<T>>
+    for protobuf::StreamMessage
 {
-    type Error = ProtobufConversionError;
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        let protobuf_value = <protobuf::StreamMessage>::decode(&value[..])?;
-        match Self::try_from(protobuf_value) {
-            Ok(value) => Ok(value),
-            Err(e) => Err(e.into()),
-        }
-    }
-}
-
-impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>>> From<StreamMessage<T>> for protobuf::StreamMessage {
-    fn from(value: StreamMessage<T>) -> Self
-    where
-        T: Into<Vec<u8>>,
-    {
+    fn from(value: StreamMessage<T>) -> Self {
         Self {
             message: value.message.into(),
             stream_id: value.stream_id,
@@ -169,10 +144,26 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>>> From<StreamMessage<T>> for protobuf::S
 
 // Can't use auto_impl_into_and_try_from_vec_u8!(StreamMessage, protobuf::StreamMessage);
 // because it doesn't seem to work with generics
-impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>>> From<StreamMessage<T>> for Vec<u8> {
+// TODO(guyn): consider expanding the macro to support generics
+impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<StreamMessage<T>>
+    for Vec<u8>
+{
     fn from(value: StreamMessage<T>) -> Self {
         let protobuf_value = <protobuf::StreamMessage>::from(value);
         protobuf_value.encode_to_vec()
+    }
+}
+
+impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> TryFrom<Vec<u8>>
+    for StreamMessage<T>
+{
+    type Error = ProtobufConversionError;
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        let protobuf_value = <protobuf::StreamMessage>::decode(&value[..])?;
+        match Self::try_from(protobuf_value) {
+            Ok(value) => Ok(value),
+            Err(e) => Err(e),
+        }
     }
 }
 

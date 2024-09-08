@@ -1,6 +1,6 @@
 [package]
 name = "papyrus_protobuf"
-version = "0.4.0-rc.0"
+version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -28,6 +28,7 @@ papyrus_test_utils.workspace = true
 
 [build-dependencies]
 prost-build.workspace = true
+protoc-prebuilt.workspace = true
 
 [package.metadata.cargo-machete]
 # The `rand` and `rand_chacha` crates are used in the `testing` feature, which is optional.

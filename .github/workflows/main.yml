@@ -16,6 +16,11 @@ on:
       - auto_merge_enabled
       - edited
 
+# On PR events, cancel existing CI runs on this same PR for this workflow.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   commitlint:
     runs-on: starkware-ubuntu-latest-small
@@ -69,7 +74,7 @@ jobs:
       - uses: actions/setup-python@v5
         id: setup-pypy
         with:
-          python-version: 'pypy3.9'
+          python-version: "pypy3.9"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
           LD_LIBRARY_PATH: ${{ steps.setup-pypy.outputs.pythonLocation }}/bin
@@ -90,6 +95,14 @@ jobs:
           version: ${{env.PROTOC_VERSION}}
       - run: cargo doc --workspace -r --document-private-items --no-deps
 
+  run-workspace-tests:
+    runs-on: starkware-ubuntu-latest-small
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/install_rust
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test -p workspace_tests
+
   run-tests:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
@@ -107,7 +120,7 @@ jobs:
       - uses: actions/setup-python@v5
         id: setup-pypy
         with:
-          python-version: 'pypy3.9'
+          python-version: "pypy3.9"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
@@ -118,7 +131,6 @@ jobs:
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
           ci/bin/python scripts/run_tests.py --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
-          ci/bin/python scripts/run_tests.py --changes_only --concurrency --commit_id ${{ github.event.pull_request.base.sha }}
         env:
           SEED: 0
 
@@ -129,7 +141,6 @@ jobs:
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
           ci/bin/python scripts/run_tests.py
-          ci/bin/python scripts/run_tests.py --concurrency
         env:
           SEED: 0
 
@@ -142,7 +153,7 @@ jobs:
       - uses: baptiste0928/cargo-install@v3
         with:
           crate: taplo-cli
-          version: '0.9.0'
+          version: "0.9.0"
           locked: true
       - run: scripts/taplo.sh
 
@@ -197,6 +208,9 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Fetch the entire history.
+          fetch-depth: 0
       - uses: ./.github/actions/install_rust
       - name: Set-Up
         run: |
@@ -209,12 +223,48 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v0-rust-ubuntu-20.04"
       - run: npm install -g ganache@7.4.3
-      - name: Coverage
-        run: cargo llvm-cov --codecov -r --output-path codecov.json
+
+      # Setup pypy and link to the location expected by .cargo/config.toml.
+      - uses: actions/setup-python@v5
+        id: setup-pypy
+        with:
+          python-version: "pypy3.9"
+      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
+      - env:
+          LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
+        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+
+      - name: "Run codecov on pull request"
+        id: run_codecov_pr
+        if: github.event_name == 'pull_request'
+        run: |
+          python3 -m venv ci
+          ci/bin/pip install -r scripts/requirements.txt
+          ci/bin/python scripts/run_codecov.py --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
+          if [ -f codecov.json ]; then
+            echo "codecov_output=true" >> $GITHUB_OUTPUT
+          else
+            echo "codecov_output=false" >> $GITHUB_OUTPUT
+          fi
         env:
           SEED: 0
+
+      - name: "Run codecov on push"
+        if: github.event_name == 'push'
+        # TODO: Better support for running tests on push.
+        run: |
+          python3 -m venv ci
+          ci/bin/pip install -r scripts/requirements.txt
+          ci/bin/python scripts/run_codecov.py
+          echo "codecov_output=true" >> $GITHUB_OUTPUT
+        env:
+          SEED: 0
+
       - name: Codecov
+        if: steps.run_codecov_pr.outputs.codecov_output == 'true'
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

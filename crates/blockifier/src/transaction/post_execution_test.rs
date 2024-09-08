@@ -2,25 +2,24 @@ use assert_matches::assert_matches;
 use rstest::rstest;
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{
-    Calldata,
-    DeprecatedResourceBoundsMapping,
-    Fee,
-    TransactionVersion,
-};
-use starknet_api::{felt, patricia_key};
+use starknet_api::transaction::{Calldata, Fee, TransactionVersion, ValidResourceBounds};
+use starknet_api::{felt, invoke_tx_args, patricia_key};
 use starknet_types_core::felt::Felt;
 
 use crate::context::{BlockContext, ChainInfo};
 use crate::fee::fee_checks::FeeCheckError;
-use crate::invoke_tx_args;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{create_calldata, CairoVersion, BALANCE, MAX_L1_GAS_PRICE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
-use crate::transaction::objects::{FeeType, HasRelatedFeeType, TransactionInfoCreator};
+use crate::transaction::objects::{
+    FeeType,
+    GasVectorComputationMode,
+    HasRelatedFeeType,
+    TransactionInfoCreator,
+};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     block_context,
@@ -72,7 +71,7 @@ fn calldata_for_write_and_transfer(
 #[case(TransactionVersion::THREE, FeeType::Strk)]
 fn test_revert_on_overdraft(
     max_fee: Fee,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
     block_context: BlockContext,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
@@ -217,7 +216,7 @@ fn test_revert_on_overdraft(
 #[case(TransactionVersion::THREE, "Insufficient max L1 gas", true)]
 fn test_revert_on_resource_overuse(
     max_fee: Fee,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
     block_context: BlockContext,
     #[case] version: TransactionVersion,
     #[case] expected_error_prefix: &str,
@@ -261,7 +260,11 @@ fn test_revert_on_resource_overuse(
     let actual_gas_usage: u64 = execution_info_measure
         .receipt
         .resources
-        .to_gas_vector(&block_context.versioned_constants, block_context.block_info.use_kzg_da)
+        .to_gas_vector(
+            &block_context.versioned_constants,
+            block_context.block_info.use_kzg_da,
+            &GasVectorComputationMode::NoL2Gas,
+        )
         .unwrap()
         .l1_gas
         .try_into()

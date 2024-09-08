@@ -29,10 +29,7 @@ pub enum ToOtherBehaviourEvent {
     },
 }
 
-impl<P: 'static> NetworkBehaviour for PeerManager<P>
-where
-    P: PeerTrait,
-{
+impl NetworkBehaviour for PeerManager {
     type ConnectionHandler = dummy::ConnectionHandler;
     type ToSwarm = ToOtherBehaviourEvent;
 
@@ -105,7 +102,7 @@ where
                     );
                     return;
                 }
-                let res = self.report_peer(peer_id, super::ReputationModifier::Bad);
+                let res = self.report_peer(peer_id, super::ReputationModifier::Unstable);
                 if res.is_err() {
                     error!("Dial failure of an unknown peer. peer id: {}", peer_id)
                 }

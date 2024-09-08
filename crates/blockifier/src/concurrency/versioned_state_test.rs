@@ -11,8 +11,15 @@ use starknet_api::core::{
     Nonce,
     PatriciaKey,
 };
-use starknet_api::transaction::{Calldata, ContractAddressSalt, DeprecatedResourceBoundsMapping};
-use starknet_api::{calldata, class_hash, contract_address, felt, patricia_key};
+use starknet_api::transaction::{Calldata, ContractAddressSalt, ValidResourceBounds};
+use starknet_api::{
+    calldata,
+    class_hash,
+    contract_address,
+    deploy_account_tx_args,
+    felt,
+    patricia_key,
+};
 
 use crate::abi::abi_utils::{get_fee_token_var_address, get_storage_var_address};
 use crate::concurrency::test_utils::{
@@ -44,7 +51,7 @@ use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{l1_resource_bounds, max_resource_bounds};
 use crate::transaction::transactions::ExecutableTransaction;
-use crate::{compiled_class_hash, deploy_account_tx_args, nonce, storage_key};
+use crate::{compiled_class_hash, nonce, storage_key};
 
 #[fixture]
 pub fn safe_versioned_state(
@@ -201,7 +208,7 @@ fn test_versioned_state_proxy() {
 
 #[rstest]
 // Test parallel execution of two transactions that use the same versioned state.
-fn test_run_parallel_txs(max_resource_bounds: DeprecatedResourceBoundsMapping) {
+fn test_run_parallel_txs(max_resource_bounds: ValidResourceBounds) {
     let block_context = BlockContext::create_for_account_testing();
     let chain_info = &block_context.chain_info;
     let zero_bounds = true;
@@ -233,7 +240,7 @@ fn test_run_parallel_txs(max_resource_bounds: DeprecatedResourceBoundsMapping) {
         &mut NonceManager::default(),
     );
     let account_tx_1 = AccountTransaction::DeployAccount(deploy_account_tx_1);
-    let enforce_fee = account_tx_1.create_tx_info().enforce_fee().unwrap();
+    let enforce_fee = account_tx_1.create_tx_info().enforce_fee();
 
     let class_hash = grindy_account.get_class_hash();
     let ctor_storage_arg = felt!(1_u8);

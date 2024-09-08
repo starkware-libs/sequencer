@@ -5,7 +5,6 @@ use thiserror::Error;
 use crate::context::TransactionContext;
 use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::fee_utils::{get_balance_and_if_covers_fee, get_fee_by_gas_vector};
-use crate::fee::gas_usage::compute_discounted_gas_from_gas_vector;
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{
@@ -61,7 +60,7 @@ impl FeeCheckReport {
         actual_fee: Fee,
         error: FeeCheckError,
         tx_context: &TransactionContext,
-    ) -> TransactionExecutionResult<Self> {
+    ) -> Self {
         let recommended_fee = match error {
             // If the error is insufficient balance, the recommended fee is the actual fee.
             // This recommendation assumes (a) the pre-validation checks were applied and pass (i.e.
@@ -75,14 +74,14 @@ impl FeeCheckReport {
                 match &tx_context.tx_info {
                     TransactionInfo::Current(info) => get_fee_by_gas_vector(
                         &tx_context.block_context.block_info,
-                        GasVector::from_l1_gas(info.l1_resource_bounds()?.max_amount.into()),
+                        GasVector::from_l1_gas(info.l1_resource_bounds().max_amount.into()),
                         &FeeType::Strk,
                     ),
                     TransactionInfo::Deprecated(context) => context.max_fee,
                 }
             }
         };
-        Ok(Self { recommended_fee, error: Some(error) })
+        Self { recommended_fee, error: Some(error) }
     }
 
     /// If the actual cost exceeds the resource bounds on the transaction, returns a fee check
@@ -100,13 +99,12 @@ impl FeeCheckReport {
         match tx_info {
             TransactionInfo::Current(context) => {
                 // Check L1 gas limit.
-                let max_l1_gas = context.l1_resource_bounds()?.max_amount.into();
+                let max_l1_gas = context.l1_resource_bounds().max_amount.into();
 
                 // TODO(Dori, 1/7/2024): When data gas limit is added (and enforced) in resource
                 //   bounds, check it here as well (separately, with a different error variant if
                 //   limit exceeded).
-                let total_discounted_gas_used =
-                    compute_discounted_gas_from_gas_vector(gas, tx_context);
+                let total_discounted_gas_used = gas.to_discounted_l1_gas(tx_context);
 
                 if total_discounted_gas_used > max_l1_gas {
                     return Err(FeeCheckError::MaxL1GasAmountExceeded {
@@ -172,7 +170,7 @@ impl PostValidationReport {
         tx_receipt: &TransactionReceipt,
     ) -> TransactionExecutionResult<()> {
         // If fee is not enforced, no need to check post-execution.
-        if !tx_context.tx_info.enforce_fee()? {
+        if !tx_context.tx_info.enforce_fee() {
             return Ok(());
         }
 
@@ -192,7 +190,7 @@ impl PostExecutionReport {
         let TransactionReceipt { fee, .. } = tx_receipt;
 
         // If fee is not enforced, no need to check post-execution.
-        if !charge_fee || !tx_context.tx_info.enforce_fee()? {
+        if !charge_fee || !tx_context.tx_info.enforce_fee() {
             return Ok(Self(FeeCheckReport::success_report(*fee)));
         }
 
@@ -216,7 +214,7 @@ impl PostExecutionReport {
                         *fee,
                         fee_check_error,
                         tx_context,
-                    )?));
+                    )));
                 }
                 Err(other_error) => return Err(other_error),
             }

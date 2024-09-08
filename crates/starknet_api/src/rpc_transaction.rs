@@ -2,8 +2,6 @@
 #[path = "rpc_transaction_test.rs"]
 mod rpc_transaction_test;
 
-use std::collections::BTreeMap;
-
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 
@@ -18,13 +16,20 @@ use crate::data_availability::DataAvailabilityMode;
 use crate::state::EntryPoint;
 use crate::transaction::{
     AccountDeploymentData,
+    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
+    DeclareTransaction,
+    DeclareTransactionV3,
+    DeployAccountTransaction,
+    DeployAccountTransactionV3,
+    InvokeTransaction,
+    InvokeTransactionV3,
     PaymasterData,
-    Resource,
-    ResourceBounds,
     Tip,
+    Transaction,
     TransactionSignature,
+    ValidResourceBounds,
 };
 use crate::StarknetApiError;
 
@@ -63,7 +68,7 @@ macro_rules! implement_ref_getters {
 impl RpcTransaction {
     implement_ref_getters!(
         (nonce, Nonce),
-        (resource_bounds, ResourceBoundsMapping),
+        (resource_bounds, AllResourceBounds),
         (signature, TransactionSignature),
         (tip, Tip)
     );
@@ -84,6 +89,16 @@ impl RpcTransaction {
     }
 }
 
+impl From<RpcTransaction> for Transaction {
+    fn from(rpc_transaction: RpcTransaction) -> Self {
+        match rpc_transaction {
+            RpcTransaction::Declare(tx) => Transaction::Declare(tx.into()),
+            RpcTransaction::DeployAccount(tx) => Transaction::DeployAccount(tx.into()),
+            RpcTransaction::Invoke(tx) => Transaction::Invoke(tx.into()),
+        }
+    }
+}
+
 /// A RPC declare transaction.
 ///
 /// This transaction is equivalent to the component DECLARE_TXN in the
@@ -96,6 +111,14 @@ impl RpcTransaction {
 pub enum RpcDeclareTransaction {
     #[serde(rename = "0x3")]
     V3(RpcDeclareTransactionV3),
+}
+
+impl From<RpcDeclareTransaction> for DeclareTransaction {
+    fn from(rpc_declare_transaction: RpcDeclareTransaction) -> Self {
+        match rpc_declare_transaction {
+            RpcDeclareTransaction::V3(tx) => DeclareTransaction::V3(tx.into()),
+        }
+    }
 }
 
 /// A RPC deploy account transaction.
@@ -111,6 +134,14 @@ pub enum RpcDeployAccountTransaction {
     V3(RpcDeployAccountTransactionV3),
 }
 
+impl From<RpcDeployAccountTransaction> for DeployAccountTransaction {
+    fn from(rpc_deploy_account_transaction: RpcDeployAccountTransaction) -> Self {
+        match rpc_deploy_account_transaction {
+            RpcDeployAccountTransaction::V3(tx) => DeployAccountTransaction::V3(tx.into()),
+        }
+    }
+}
+
 /// A RPC invoke transaction.
 ///
 /// This transaction is equivalent to the component INVOKE_TXN in the
@@ -124,6 +155,14 @@ pub enum RpcInvokeTransaction {
     V3(RpcInvokeTransactionV3),
 }
 
+impl From<RpcInvokeTransaction> for InvokeTransaction {
+    fn from(rpc_invoke_tx: RpcInvokeTransaction) -> Self {
+        match rpc_invoke_tx {
+            RpcInvokeTransaction::V3(tx) => InvokeTransaction::V3(tx.into()),
+        }
+    }
+}
+
 /// A declare transaction of a Cairo-v1 contract class that can be added to Starknet through the
 /// RPC.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -135,12 +174,31 @@ pub struct RpcDeclareTransactionV3 {
     pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub contract_class: ContractClass,
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: AllResourceBounds,
     pub tip: Tip,
     pub paymaster_data: PaymasterData,
     pub account_deployment_data: AccountDeploymentData,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
+}
+
+impl From<RpcDeclareTransactionV3> for DeclareTransactionV3 {
+    fn from(tx: RpcDeclareTransactionV3) -> Self {
+        Self {
+            class_hash: ClassHash::default(), /* FIXME(yael 15/4/24): call the starknet-api
+                                               * function once ready */
+            resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
+            tip: tx.tip,
+            signature: tx.signature,
+            nonce: tx.nonce,
+            compiled_class_hash: tx.compiled_class_hash,
+            sender_address: tx.sender_address,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode,
+            fee_data_availability_mode: tx.fee_data_availability_mode,
+            paymaster_data: tx.paymaster_data,
+            account_deployment_data: tx.account_deployment_data,
+        }
+    }
 }
 
 /// A deploy account transaction that can be added to Starknet through the RPC.
@@ -151,11 +209,28 @@ pub struct RpcDeployAccountTransactionV3 {
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
     pub constructor_calldata: Calldata,
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: AllResourceBounds,
     pub tip: Tip,
     pub paymaster_data: PaymasterData,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
+}
+
+impl From<RpcDeployAccountTransactionV3> for DeployAccountTransactionV3 {
+    fn from(tx: RpcDeployAccountTransactionV3) -> Self {
+        Self {
+            resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
+            tip: tx.tip,
+            signature: tx.signature,
+            nonce: tx.nonce,
+            class_hash: tx.class_hash,
+            contract_address_salt: tx.contract_address_salt,
+            constructor_calldata: tx.constructor_calldata,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode,
+            fee_data_availability_mode: tx.fee_data_availability_mode,
+            paymaster_data: tx.paymaster_data,
+        }
+    }
 }
 
 /// An invoke account transaction that can be added to Starknet through the RPC.
@@ -165,12 +240,29 @@ pub struct RpcInvokeTransactionV3 {
     pub calldata: Calldata,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: AllResourceBounds,
     pub tip: Tip,
     pub paymaster_data: PaymasterData,
     pub account_deployment_data: AccountDeploymentData,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
+}
+
+impl From<RpcInvokeTransactionV3> for InvokeTransactionV3 {
+    fn from(tx: RpcInvokeTransactionV3) -> Self {
+        Self {
+            resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
+            tip: tx.tip,
+            signature: tx.signature,
+            nonce: tx.nonce,
+            sender_address: tx.sender_address,
+            calldata: tx.calldata,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode,
+            fee_data_availability_mode: tx.fee_data_availability_mode,
+            paymaster_data: tx.paymaster_data,
+            account_deployment_data: tx.account_deployment_data,
+        }
+    }
 }
 
 // The contract class in SN_API state doesn't have `contract_class_version`, not following the spec.
@@ -190,19 +282,4 @@ pub struct EntryPointByType {
     pub external: Vec<EntryPoint>,
     #[serde(rename = "L1_HANDLER")]
     pub l1handler: Vec<EntryPoint>,
-}
-
-// The serialization of the struct in transaction is in capital letters, not following the spec.
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct ResourceBoundsMapping {
-    pub l1_gas: ResourceBounds,
-    pub l2_gas: ResourceBounds,
-}
-
-impl From<ResourceBoundsMapping> for crate::transaction::DeprecatedResourceBoundsMapping {
-    fn from(mapping: ResourceBoundsMapping) -> crate::transaction::DeprecatedResourceBoundsMapping {
-        let map =
-            BTreeMap::from([(Resource::L1Gas, mapping.l1_gas), (Resource::L2Gas, mapping.l2_gas)]);
-        crate::transaction::DeprecatedResourceBoundsMapping(map)
-    }
 }

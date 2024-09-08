@@ -38,6 +38,7 @@ use crate::test_utils::{
 use crate::transaction::objects::{
     DeprecatedTransactionInfo,
     FeeType,
+    GasVectorComputationMode,
     TransactionFeeResult,
     TransactionInfo,
     TransactionResources,
@@ -70,8 +71,7 @@ impl CallEntryPoint {
         let tx_context =
             TransactionContext { block_context: BlockContext::create_for_testing(), tx_info };
         let mut context =
-            EntryPointExecutionContext::new_invoke(Arc::new(tx_context), limit_steps_by_resources)
-                .unwrap();
+            EntryPointExecutionContext::new_invoke(Arc::new(tx_context), limit_steps_by_resources);
         self.execute(state, &mut ExecutionResources::default(), &mut context)
     }
 
@@ -99,8 +99,7 @@ impl CallEntryPoint {
         let mut context = EntryPointExecutionContext::new_validate(
             Arc::new(tx_context),
             limit_steps_by_resources,
-        )
-        .unwrap();
+        );
         self.execute(state, &mut ExecutionResources::default(), &mut context)
     }
 }
@@ -120,6 +119,7 @@ impl TransactionResources {
         let gas_vector = self.to_gas_vector(
             &block_context.versioned_constants,
             block_context.block_info.use_kzg_da,
+            &GasVectorComputationMode::NoL2Gas,
         )?;
         Ok(get_fee_by_gas_vector(&block_context.block_info, gas_vector, fee_type))
     }

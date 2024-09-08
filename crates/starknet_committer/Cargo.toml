@@ -1,6 +1,6 @@
 [package]
 name = "starknet_committer"
-version = "0.1.0-rc.0"
+version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
@@ -13,10 +13,10 @@ hex.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
-starknet-types-core.workspace = true
+starknet-types-core = { workspace = true, features = ["hash"] }
 starknet_patricia = { workspace = true, features = ["testing"] }
 thiserror.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = ["rt"] }
 tracing.workspace = true
 
 [lints]

@@ -18,6 +18,7 @@ use crate::transaction::objects::{
     ExecutionResourcesTraits,
     FeeType,
     GasVector,
+    GasVectorComputationMode,
     TransactionFeeResult,
     TransactionInfo,
 };
@@ -28,13 +29,15 @@ use crate::versioned_constants::VersionedConstants;
 #[path = "fee_test.rs"]
 pub mod test;
 
-/// Calculates the L1 gas consumed when submitting the underlying Cairo program to SHARP.
-/// I.e., returns the heaviest Cairo resource weight (in terms of L1 gas), as the size of
+/// Calculates the gas consumed when submitting the underlying Cairo program to SHARP.
+/// I.e., returns the heaviest Cairo resource weight (in terms of gas), as the size of
 /// a proof is determined similarly - by the (normalized) largest segment.
-pub fn calculate_l1_gas_by_vm_usage(
+/// The result can be in either L1 or L2 gas, according to the gas vector computation mode.
+pub fn get_vm_resources_cost(
     versioned_constants: &VersionedConstants,
     vm_resource_usage: &ExecutionResources,
     n_reverted_steps: usize,
+    computation_mode: &GasVectorComputationMode,
 ) -> TransactionFeeResult<GasVector> {
     // TODO(Yoni, 1/7/2024): rename vm -> cairo.
     let vm_resource_fee_costs = versioned_constants.vm_resource_fee_cost();
@@ -65,7 +68,12 @@ pub fn calculate_l1_gas_by_vm_usage(
         })
         .fold(0, u128::max);
 
-    Ok(GasVector::from_l1_gas(vm_l1_gas_usage))
+    match computation_mode {
+        GasVectorComputationMode::NoL2Gas => Ok(GasVector::from_l1_gas(vm_l1_gas_usage)),
+        GasVectorComputationMode::All => Ok(GasVector::from_l2_gas(
+            versioned_constants.l1_to_l2_gas_price_conversion(vm_l1_gas_usage),
+        )),
+    }
 }
 
 /// Converts the gas vector to a fee.
@@ -107,7 +115,7 @@ pub fn verify_can_pay_committed_bounds(
     let tx_info = &tx_context.tx_info;
     let committed_fee = match tx_info {
         TransactionInfo::Current(context) => {
-            let l1_bounds = context.l1_resource_bounds()?;
+            let l1_bounds = context.l1_resource_bounds();
             let max_amount: u128 = l1_bounds.max_amount.into();
             // Sender will not be charged by `max_price_per_unit`, but this check should not depend
             // on the current gas price.
@@ -122,7 +130,7 @@ pub fn verify_can_pay_committed_bounds(
     } else {
         Err(match tx_info {
             TransactionInfo::Current(context) => {
-                let l1_bounds = context.l1_resource_bounds()?;
+                let l1_bounds = context.l1_resource_bounds();
                 TransactionFeeError::L1GasBoundsExceedBalance {
                     max_amount: l1_bounds.max_amount,
                     max_price: l1_bounds.max_price_per_unit,

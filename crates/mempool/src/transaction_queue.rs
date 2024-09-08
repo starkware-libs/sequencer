@@ -2,15 +2,26 @@ use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::transaction::{
+    AllResourceBounds,
+    ResourceBounds,
+    Tip,
+    TransactionHash,
+    ValidResourceBounds,
+};
 
 use crate::mempool::TransactionReference;
 
+// A queue holding the transaction that with nonces that match account nonces.
 // Note: the derived comparison functionality considers the order guaranteed by the data structures
 // used.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct TransactionQueue {
-    // Priority queue of transactions with associated priority.
+    gas_price_threshold: u128,
+    // Transactions with gas price above gas price threshold (sorted by tip).
     priority_queue: BTreeSet<PriorityTransaction>,
+    // Transactions with gas price below gas price threshold (sorted by price).
+    pending_queue: BTreeSet<PendingTransaction>,
     // Set of account addresses for efficient existence checks.
     address_to_tx: HashMap<ContractAddress, TransactionReference>,
 }
@@ -18,8 +29,6 @@ pub struct TransactionQueue {
 impl TransactionQueue {
     /// Adds a transaction to the mempool, ensuring unique keys.
     /// Panics: if given a duplicate tx.
-    // TODO(Mohammad): Add test for two transactions from the same address, expecting specific
-    // assert.
     pub fn insert(&mut self, tx_reference: TransactionReference) {
         assert_eq!(
             self.address_to_tx.insert(tx_reference.sender_address, tx_reference.clone()),
@@ -27,8 +36,15 @@ impl TransactionQueue {
             "Only a single transaction from the same contract class can be in the mempool at a \
              time."
         );
+
+        let new_tx_successfully_inserted =
+            if tx_reference.get_l2_gas_price() < self.gas_price_threshold {
+                self.pending_queue.insert(tx_reference.into())
+            } else {
+                self.priority_queue.insert(tx_reference.into())
+            };
         assert!(
-            self.priority_queue.insert(tx_reference.into()),
+            new_tx_successfully_inserted,
             "Keys should be unique; duplicates are checked prior."
         );
     }
@@ -57,14 +73,64 @@ impl TransactionQueue {
     /// Removes the transaction of the given account address from the queue.
     /// This is well-defined, since there is at most one transaction per address in the queue.
     pub fn remove(&mut self, address: ContractAddress) -> bool {
-        if let Some(tx) = self.address_to_tx.remove(&address) {
-            return self.priority_queue.remove(&tx.into());
-        }
-        false
+        let Some(tx_reference) = self.address_to_tx.remove(&address) else {
+            return false;
+        };
+
+        self.priority_queue.remove(&tx_reference.clone().into())
+            || self.pending_queue.remove(&tx_reference.into())
     }
 
     pub fn has_ready_txs(&self) -> bool {
         self.priority_queue.is_empty()
+    }
+
+    pub fn _update_gas_price_threshold(&mut self, threshold: u128) {
+        match threshold.cmp(&self.gas_price_threshold) {
+            Ordering::Less => self._promote_txs_to_priority(threshold),
+            Ordering::Greater => self._demote_txs_to_pending(threshold),
+            Ordering::Equal => {}
+        }
+
+        self.gas_price_threshold = threshold;
+    }
+
+    fn _promote_txs_to_priority(&mut self, threshold: u128) {
+        let tmp_split_tx = PendingTransaction(TransactionReference {
+            resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
+                l2_gas: ResourceBounds { max_amount: 0, max_price_per_unit: threshold },
+                ..Default::default()
+            }),
+            sender_address: ContractAddress::default(),
+            nonce: Nonce::default(),
+            tx_hash: TransactionHash::default(),
+            tip: Tip::default(),
+        });
+
+        // Split off the pending queue at the given transaction higher than the threshold.
+        let txs_over_threshold = self.pending_queue.split_off(&tmp_split_tx).into_iter();
+
+        // Insert all transactions from the split point into the priority queue, skip
+        // `tmp_split_tx`.
+        // Note: extend will reorder transactions by `Tip` during insertion, despite them being
+        // initially ordered by fee.
+        self.priority_queue.extend(txs_over_threshold.map(|tx| tx.0.into()));
+    }
+
+    fn _demote_txs_to_pending(&mut self, threshold: u128) {
+        let mut to_remove = Vec::new();
+
+        // Remove all transactions from the priority queue that are below the threshold.
+        for priority_tx in &self.priority_queue {
+            if priority_tx.get_l2_gas_price() < threshold {
+                to_remove.push(priority_tx.clone());
+            }
+        }
+
+        for tx in &to_remove {
+            self.priority_queue.remove(tx);
+        }
+        self.pending_queue.extend(to_remove.into_iter().map(|tx| tx.0.into()));
     }
 }
 

@@ -99,6 +99,7 @@ use starknet_api::state::{
 };
 use starknet_api::transaction::{
     AccountDeploymentData,
+    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     DeclareTransaction,
@@ -112,7 +113,6 @@ use starknet_api::transaction::{
     DeployAccountTransactionV3,
     DeployTransaction,
     DeployTransactionOutput,
-    DeprecatedResourceBoundsMapping,
     Event,
     EventContent,
     EventData,
@@ -142,6 +142,7 @@ use starknet_api::transaction::{
     TransactionOutput,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 
@@ -420,6 +421,11 @@ pub trait GetTestInstance: Sized {
 
 auto_impl_get_test_instance! {
     pub struct AccountDeploymentData(pub Vec<Felt>);
+    pub struct AllResourceBounds {
+        pub l1_gas: ResourceBounds,
+        pub l2_gas: ResourceBounds,
+        pub l1_data_gas: ResourceBounds,
+    }
     pub struct BlockHash(pub StarkHash);
     pub struct BlockHeader {
         pub block_hash: BlockHash,
@@ -517,7 +523,7 @@ auto_impl_get_test_instance! {
         pub sender_address: ContractAddress,
     }
     pub struct DeclareTransactionV3 {
-        pub resource_bounds: DeprecatedResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -550,7 +556,7 @@ auto_impl_get_test_instance! {
         pub constructor_calldata: Calldata,
     }
     pub struct DeployAccountTransactionV3 {
-        pub resource_bounds: DeprecatedResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -657,7 +663,7 @@ auto_impl_get_test_instance! {
         pub calldata: Calldata,
     }
     pub struct InvokeTransactionV3 {
-        pub resource_bounds: DeprecatedResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -722,7 +728,6 @@ auto_impl_get_test_instance! {
         pub max_amount: u64,
         pub max_price_per_unit: u128,
     }
-    pub struct DeprecatedResourceBoundsMapping(pub BTreeMap<Resource, ResourceBounds>);
     pub struct SequencerContractAddress(pub ContractAddress);
     pub struct Signature {
         pub r: Felt,
@@ -782,6 +787,11 @@ auto_impl_get_test_instance! {
     pub struct TypedParameter {
         pub name: String,
         pub r#type: String,
+    }
+
+    pub enum ValidResourceBounds {
+        L1Gas(ResourceBounds) = 0,
+        AllResources(AllResourceBounds) = 1,
     }
 
     pub struct CasmContractClass {

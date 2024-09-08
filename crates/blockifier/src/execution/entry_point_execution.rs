@@ -31,6 +31,7 @@ use crate::execution::execution_utils::{
 };
 use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::state::state_api::State;
+use crate::versioned_constants::GasCosts;
 
 // TODO(spapini): Try to refactor this file into a StarknetRunner struct.
 
@@ -165,8 +166,12 @@ pub fn initialize_execution_context<'a>(
 
     runner.initialize_function_runner_cairo_1(&entry_point.builtins)?;
     let mut read_only_segments = ReadOnlySegments::default();
-    let program_extra_data_length =
-        prepare_program_extra_data(&mut runner, contract_class, &mut read_only_segments)?;
+    let program_extra_data_length = prepare_program_extra_data(
+        &mut runner,
+        contract_class,
+        &mut read_only_segments,
+        &context.versioned_constants().os_constants.gas_costs,
+    )?;
 
     // Instantiate syscall handler.
     let initial_syscall_ptr = runner.vm.add_memory_segment();
@@ -193,14 +198,23 @@ fn prepare_program_extra_data(
     runner: &mut CairoRunner,
     contract_class: &ContractClassV1,
     read_only_segments: &mut ReadOnlySegments,
+    gas_costs: &GasCosts,
 ) -> Result<usize, PreExecutionError> {
-    // Create the builtin cost segment, with dummy values.
-    let mut data = vec![];
+    // Create the builtin cost segment, the builtin order should be the same as the price builtin
+    // array in the os in compiled_class.cairo in load_compiled_class_facts.
+    let builtin_price_array = [
+        gas_costs.pedersen_gas_cost,
+        gas_costs.bitwise_builtin_gas_cost,
+        gas_costs.ecop_gas_cost,
+        gas_costs.poseidon_gas_cost,
+        gas_costs.add_mod_gas_cost,
+        gas_costs.mul_mod_gas_cost,
+    ];
 
-    // TODO(spapini): Put real costs here.
-    for _i in 0..20 {
-        data.push(MaybeRelocatable::from(0));
-    }
+    let data = builtin_price_array
+        .iter()
+        .map(|&x| MaybeRelocatable::from(Felt::from(x)))
+        .collect::<Vec<_>>();
     let builtin_cost_segment_start = read_only_segments.allocate(&mut runner.vm, &data)?;
 
     // Put a pointer to the builtin cost segment at the end of the program (after the

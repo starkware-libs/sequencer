@@ -2,16 +2,19 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::transaction::{DeprecatedResourceBoundsMapping, Resource, Tip, TransactionHash};
+use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput, MempoolResult};
 
+use crate::suspended_transaction_pool::SuspendedTransactionPool;
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
 
 #[cfg(test)]
 #[path = "mempool_test.rs"]
 pub mod mempool_test;
+
+type AccountToNonce = HashMap<ContractAddress, Nonce>;
 
 #[derive(Debug, Default)]
 pub struct Mempool {
@@ -20,8 +23,12 @@ pub struct Mempool {
     tx_pool: TransactionPool,
     // Transactions eligible for sequencing.
     tx_queue: TransactionQueue,
+    // Transactions suspended because they are after a hole.
+    _suspended_tx_pool: SuspendedTransactionPool,
     // Represents the current state of the mempool during block creation.
     mempool_state: HashMap<ContractAddress, AccountState>,
+    // The most recent account nonces received, for all account in the pool.
+    _account_nonces: AccountToNonce,
 }
 
 impl Mempool {
@@ -70,7 +77,11 @@ impl Mempool {
     /// TODO: check Account nonce and balance.
     pub fn add_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
         self.validate_input(&input)?;
-        self.insert_tx(input)
+        let MempoolInput { tx, account: Account { sender_address, state: AccountState { nonce } } } =
+            input;
+        self.tx_pool.insert(tx)?;
+        self.align_to_account_state(sender_address, nonce);
+        Ok(())
     }
 
     /// Update the mempool's internal state according to the committed block (resolves nonce gaps,
@@ -100,14 +111,9 @@ impl Mempool {
         Ok(())
     }
 
-    fn insert_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
-        let MempoolInput { tx, account: Account { sender_address, state: AccountState { nonce } } } =
-            input;
-
-        self.tx_pool.insert(tx)?;
-        self.align_to_account_state(sender_address, nonce);
-
-        Ok(())
+    // TODO(Mohammad): Rename this method once consensus API is added.
+    fn _update_gas_price_threshold(&mut self, threshold: u128) {
+        self.tx_queue._update_gas_price_threshold(threshold);
     }
 
     fn validate_input(&self, input: &MempoolInput) -> MempoolResult<()> {
@@ -170,7 +176,7 @@ impl Mempool {
         // Maybe remove out-of-date transactions.
         // Note: != is equivalent to > in `add_tx`, as lower nonces are rejected in validation.
         if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| queued_nonce != nonce) {
-            self.tx_queue.remove(address);
+            assert!(self.tx_queue.remove(address));
         }
 
         self.tx_pool.remove_up_to_nonce(address, nonce);
@@ -184,7 +190,7 @@ impl Mempool {
     }
 
     #[cfg(test)]
-    pub(crate) fn _tx_pool(&self) -> &TransactionPool {
+    pub(crate) fn tx_pool(&self) -> &TransactionPool {
         &self.tx_pool
     }
 }
@@ -194,13 +200,13 @@ impl Mempool {
 /// TODO(Mohammad): rename this struct to `ThinTransaction` once that name
 /// becomes available, to better reflect its purpose and usage.
 /// TODO(Mohammad): restore the Copy once ResourceBoundsMapping implements it.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TransactionReference {
     pub sender_address: ContractAddress,
     pub nonce: Nonce,
     pub tx_hash: TransactionHash,
     pub tip: Tip,
-    pub resource_bounds: DeprecatedResourceBoundsMapping,
+    pub resource_bounds: ValidResourceBounds,
 }
 
 impl TransactionReference {
@@ -218,10 +224,6 @@ impl TransactionReference {
     }
 
     pub fn get_l2_gas_price(&self) -> u128 {
-        self.resource_bounds
-            .0
-            .get(&Resource::L2Gas)
-            .map(|bounds| bounds.max_price_per_unit)
-            .expect("Expected a valid L2 gas resource bounds.")
+        self.resource_bounds.get_l2_bounds().max_price_per_unit
     }
 }

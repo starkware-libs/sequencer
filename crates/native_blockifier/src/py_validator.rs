@@ -12,7 +12,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::NativeBlockifierResult;
-use crate::py_block_executor::PyGeneralConfig;
+use crate::py_block_executor::PyOsConfig;
 use crate::py_objects::PyVersionedConstantsOverrides;
 use crate::py_state_diff::PyBlockInfo;
 use crate::py_transaction::{py_account_tx, PyClassInfo, PY_TX_PARSING_ERR};
@@ -28,9 +28,9 @@ pub struct PyValidator {
 #[pymethods]
 impl PyValidator {
     #[new]
-    #[pyo3(signature = (general_config, state_reader_proxy, next_block_info, max_nonce_for_validation_skip, py_versioned_constants_overrides))]
+    #[pyo3(signature = (os_config, state_reader_proxy, next_block_info, max_nonce_for_validation_skip, py_versioned_constants_overrides))]
     pub fn create(
-        general_config: PyGeneralConfig,
+        os_config: PyOsConfig,
         state_reader_proxy: &PyAny,
         next_block_info: PyBlockInfo,
         max_nonce_for_validation_skip: PyFelt,
@@ -45,7 +45,7 @@ impl PyValidator {
             VersionedConstants::get_versioned_constants(py_versioned_constants_overrides.into());
         let block_context = BlockContext::new(
             next_block_info.try_into().expect("Failed to convert block info."),
-            general_config.starknet_os_config.into_chain_info(),
+            os_config.into_chain_info(),
             versioned_constants,
             BouncerConfig::max(),
         );
