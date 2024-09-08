@@ -19,19 +19,12 @@ use tracing::{debug, info, instrument};
 
 use crate::config::TimeoutsConfig;
 use crate::single_height_consensus::{ShcReturn, ShcTask, SingleHeightConsensus};
-use crate::types::{
-    ConsensusBlock,
-    ConsensusContext,
-    ConsensusError,
-    Decision,
-    ProposalInit,
-    ValidatorId,
-};
+use crate::types::{ConsensusContext, ConsensusError, Decision, ProposalInit, ValidatorId};
 
 // TODO(dvir): add test for this.
 #[instrument(skip_all, level = "info")]
 #[allow(missing_docs)]
-pub async fn run_consensus<BlockT, ContextT, NetworkReceiverT, SyncReceiverT>(
+pub async fn run_consensus<ContextT, NetworkReceiverT, SyncReceiverT>(
     mut context: ContextT,
     start_height: BlockNumber,
     validator_id: ValidatorId,
@@ -41,14 +34,13 @@ pub async fn run_consensus<BlockT, ContextT, NetworkReceiverT, SyncReceiverT>(
     mut sync_receiver: SyncReceiverT,
 ) -> Result<(), ConsensusError>
 where
-    BlockT: ConsensusBlock,
-    ContextT: ConsensusContext<Block = BlockT>,
+    ContextT: ConsensusContext,
     NetworkReceiverT: Stream<
             Item = (Result<ConsensusMessage, ProtobufConversionError>, BroadcastedMessageManager),
         > + Unpin,
     SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
     ProposalWrapper:
-        Into<(ProposalInit, mpsc::Receiver<BlockT::ProposalChunk>, oneshot::Receiver<BlockHash>)>,
+        Into<(ProposalInit, mpsc::Receiver<ContextT::ProposalChunk>, oneshot::Receiver<BlockHash>)>,
 {
     info!(
         "Running consensus, start_height={}, validator_id={}, consensus_delay={}, timeouts={:?}",
@@ -110,15 +102,14 @@ impl MultiHeightManager {
     /// Assumes that `height` is monotonically increasing across calls for the sake of filtering
     /// `cached_messaged`.
     #[instrument(skip(self, context, network_receiver), level = "info")]
-    pub async fn run_height<BlockT, ContextT, NetworkReceiverT>(
+    pub async fn run_height<ContextT, NetworkReceiverT>(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
         network_receiver: &mut NetworkReceiverT,
-    ) -> Result<Decision<BlockT>, ConsensusError>
+    ) -> Result<Decision, ConsensusError>
     where
-        BlockT: ConsensusBlock,
-        ContextT: ConsensusContext<Block = BlockT>,
+        ContextT: ConsensusContext,
         NetworkReceiverT: Stream<
                 Item = (
                     Result<ConsensusMessage, ProtobufConversionError>,
@@ -127,7 +118,7 @@ impl MultiHeightManager {
             > + Unpin,
         ProposalWrapper: Into<(
             ProposalInit,
-            mpsc::Receiver<BlockT::ProposalChunk>,
+            mpsc::Receiver<ContextT::ProposalChunk>,
             oneshot::Receiver<BlockHash>,
         )>,
     {
@@ -173,19 +164,18 @@ impl MultiHeightManager {
     }
 
     // Handle a single consensus message.
-    async fn handle_message<BlockT, ContextT>(
+    async fn handle_message<ContextT>(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
-        shc: &mut SingleHeightConsensus<BlockT>,
+        shc: &mut SingleHeightConsensus,
         message: ConsensusMessage,
-    ) -> Result<ShcReturn<BlockT>, ConsensusError>
+    ) -> Result<ShcReturn, ConsensusError>
     where
-        BlockT: ConsensusBlock,
-        ContextT: ConsensusContext<Block = BlockT>,
+        ContextT: ConsensusContext,
         ProposalWrapper: Into<(
             ProposalInit,
-            mpsc::Receiver<BlockT::ProposalChunk>,
+            mpsc::Receiver<ContextT::ProposalChunk>,
             oneshot::Receiver<BlockHash>,
         )>,
     {
