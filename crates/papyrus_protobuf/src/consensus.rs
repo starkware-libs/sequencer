@@ -2,6 +2,8 @@ use starknet_api::block::BlockHash;
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
 
+use crate::converters::ProtobufConversionError;
+
 #[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
 pub struct Proposal {
     pub height: u64,
@@ -42,7 +44,7 @@ impl ConsensusMessage {
     }
 }
 #[derive(Debug, Default, Clone, Hash, Eq, PartialEq)]
-pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>>> {
+pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
     pub message: T,
     pub stream_id: u64,
     pub chunk_id: u64,
