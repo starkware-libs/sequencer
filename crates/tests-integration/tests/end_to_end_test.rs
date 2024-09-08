@@ -37,7 +37,7 @@ async fn test_end_to_end() {
     // Only the transactions with nonce 0 should be returned from the mempool,
     // because we haven't merged queue-replenishment yet.
     let expected_tx_hashes_from_get_txs =
-        [account1_invoke_nonce0_tx_hash, account0_deploy_nonce0_tx_hash];
+        [account0_deploy_nonce0_tx_hash, account1_invoke_nonce0_tx_hash];
 
     // This assert should be replaced with 4 once queue-replenishment is merged, also add a tx hole
     // at that point, and ensure the assert doesn't change due to that.
