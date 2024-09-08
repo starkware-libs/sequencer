@@ -9,13 +9,10 @@ use crate::core::{
     ContractAddress,
     Nonce,
 };
-use crate::data_availability::DataAvailabilityMode;
 use crate::rpc_transaction::{RpcDeployAccountTransaction, RpcInvokeTransaction, RpcTransaction};
 use crate::transaction::{
-    AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
-    PaymasterData,
     Tip,
     TransactionHash,
     TransactionHasher,
@@ -111,31 +108,17 @@ impl Transaction {
         }
     }
 
-    // TODO(Arni): Update the function to support all transaction types.
-    pub fn new_from_rpc_tx(
-        rpc_tx: RpcTransaction,
-        tx_hash: TransactionHash,
-        sender_address: ContractAddress,
-    ) -> Transaction {
-        Transaction::Invoke(crate::executable_transaction::InvokeTransaction {
-            tx: crate::transaction::InvokeTransaction::V3(
-                crate::transaction::InvokeTransactionV3 {
-                    sender_address,
-                    tip: *rpc_tx.tip(),
-                    nonce: *rpc_tx.nonce(),
-                    resource_bounds: ValidResourceBounds::AllResources(
-                        rpc_tx.resource_bounds().clone(),
-                    ),
-                    signature: TransactionSignature::default(),
-                    calldata: Calldata::default(),
-                    nonce_data_availability_mode: DataAvailabilityMode::L1,
-                    fee_data_availability_mode: DataAvailabilityMode::L1,
-                    paymaster_data: PaymasterData::default(),
-                    account_deployment_data: AccountDeploymentData::default(),
-                },
-            ),
-            tx_hash,
-        })
+    // TODO(Arni): Delete this function.
+    pub fn new_from_rpc_tx(rpc_tx: RpcTransaction, tx_hash: TransactionHash) -> Transaction {
+        match rpc_tx {
+            RpcTransaction::Invoke(rpc_tx) => {
+                Transaction::Invoke(crate::executable_transaction::InvokeTransaction {
+                    tx: rpc_tx.into(),
+                    tx_hash,
+                })
+            }
+            _ => panic!("Unexpected transaction type"),
+        }
     }
 }
 

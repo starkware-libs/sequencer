@@ -163,11 +163,7 @@ fn process_tx(
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
     Ok(MempoolInput {
-        tx: Transaction::new_from_rpc_tx(
-            copy_of_rpc_tx,
-            validate_info.tx_hash,
-            validate_info.sender_address,
-        ),
+        tx: Transaction::new_from_rpc_tx(copy_of_rpc_tx, validate_info.tx_hash),
         account: Account {
             sender_address: validate_info.sender_address,
             state: AccountState { nonce: validate_info.account_nonce },
