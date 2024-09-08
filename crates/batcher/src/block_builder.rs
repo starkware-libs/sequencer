@@ -3,6 +3,7 @@ use blockifier::blockifier::block::{BlockInfo, BlockNumberHashPair, GasPrices};
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
     TransactionExecutor,
+    TransactionExecutorError as BlockifierTransactionExecutorError,
     TransactionExecutorResult,
     VisitedSegmentsMapping,
 };
@@ -12,6 +13,8 @@ use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::GlobalContractCache;
 use blockifier::state::state_api::StateReader;
+use blockifier::transaction::account_transaction::AccountTransaction;
+use blockifier::transaction::errors::TransactionExecutionError as BlockifierTransactionExecutionError;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
@@ -26,13 +29,22 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 use tokio::sync::Mutex;
+use tokio::{pin, time};
+use tokio_stream::StreamExt;
+use tracing::{debug, info};
 
 use crate::papyrus_state::PapyrusReader;
 use crate::proposal_manager::InputTxStream;
 
 pub struct BlockBuilder {
-    _executor: Mutex<Box<dyn TransactionExecutorTrait>>,
-    _tx_chunk_size: usize,
+    executor: Mutex<Box<dyn TransactionExecutorTrait>>,
+    tx_chunk_size: usize,
+}
+
+impl BlockBuilder {
+    pub fn new(executor: Box<dyn TransactionExecutorTrait>, tx_chunk_size: usize) -> Self {
+        Self { executor: Mutex::new(executor), tx_chunk_size }
+    }
 }
 
 #[derive(Debug, Error)]
@@ -41,6 +53,12 @@ pub enum BlockBuilderError {
     BadTimestamp(#[from] std::num::TryFromIntError),
     #[error(transparent)]
     BlockifierStateError(#[from] StateError),
+    #[error(transparent)]
+    ExecutorError(#[from] BlockifierTransactionExecutorError),
+    #[error(transparent)]
+    TransactionExecutionError(#[from] BlockifierTransactionExecutionError),
+    #[error(transparent)]
+    StreamTransactionsError(#[from] tokio::sync::mpsc::error::SendError<Transaction>),
 }
 
 pub type BlockBuilderResult<T> = Result<T, BlockBuilderError>;
@@ -61,14 +79,82 @@ pub struct ExecutionConfig {
 impl BlockBuilderTrait for BlockBuilder {
     async fn build_block(
         &mut self,
-        _deadline: tokio::time::Instant,
-        _mempool_tx_stream: InputTxStream,
-        _output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
+        deadline: tokio::time::Instant,
+        input_tx_stream: InputTxStream,
+        output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
     ) -> BlockBuilderResult<BlockExecutionArtifacts> {
-        todo!();
+        // TODO(9/10/2024): Reconsider what will be the best duration to wait for the next chunk.
+        let chunk_wait_duration = deadline - tokio::time::Instant::now();
+        let chunk_stream = input_tx_stream.chunks_timeout(self.tx_chunk_size, chunk_wait_duration);
+        pin!(chunk_stream);
+        let mut should_close_block = false;
+        let mut execution_infos = IndexMap::new();
+        // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
+        while !should_close_block && tokio::time::Instant::now() < deadline {
+            let time_to_deadline = deadline - tokio::time::Instant::now();
+            let next_tx_chunk = match time::timeout(time_to_deadline, chunk_stream.next()).await {
+                Err(_) | Ok(None) => {
+                    debug!(
+                        "No further transactions to execute, either the stream is finished or \
+                         timeout was reached."
+                    );
+                    break;
+                }
+                Ok(Some(tx_chunk)) => tx_chunk,
+            };
+            let mut executor_input_chunk = vec![];
+            for tx in &next_tx_chunk {
+                executor_input_chunk
+                    .push(BlockifierTransaction::Account(AccountTransaction::try_from(tx)?));
+            }
+            let results = self.executor.lock().await.add_txs_to_block(&executor_input_chunk);
+            should_close_block = collect_execution_results_and_stream_txs(
+                next_tx_chunk,
+                results,
+                &mut execution_infos,
+                &output_content_sender,
+            )
+            .await?;
+        }
+        let (commitment_state_diff, visited_segments_mapping, bouncer_weights) =
+            self.executor.lock().await.close_block()?;
+        Ok(BlockExecutionArtifacts {
+            execution_infos,
+            commitment_state_diff,
+            visited_segments_mapping,
+            bouncer_weights,
+        })
     }
 }
 
+/// Returns true if the block is full and should be closed, false otherwise.
+async fn collect_execution_results_and_stream_txs(
+    tx_chunk: Vec<Transaction>,
+    results: Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
+    execution_infos: &mut IndexMap<TransactionHash, TransactionExecutionInfo>,
+    output_content_sender: &tokio::sync::mpsc::Sender<Transaction>,
+) -> BlockBuilderResult<bool> {
+    for (input_tx, result) in tx_chunk.into_iter().zip(results.into_iter()) {
+        match result {
+            Ok(tx_execution_info) => {
+                execution_infos.insert(input_tx.tx_hash(), tx_execution_info);
+                output_content_sender.send(input_tx).await?;
+            }
+            // TODO(yael 18/9/2024): add timeout error handling here once this
+            // feature is added.
+            Err(BlockifierTransactionExecutorError::BlockFull) => {
+                info!("Block is full");
+                return Ok(true);
+            }
+            Err(err) => {
+                debug!("Transaction {:?} failed with error: {}.", input_tx, err)
+            }
+        }
+    }
+    Ok(false)
+}
+
+#[cfg_attr(test, derive(Clone))]
 #[derive(Default, Debug, PartialEq)]
 pub struct BlockExecutionArtifacts {
     pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
@@ -165,10 +251,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
         let executor =
             self.preprocess_and_create_transaction_executor(height, retrospective_block_hash)?;
-        Ok(Box::new(BlockBuilder {
-            _executor: Mutex::new(Box::new(executor)),
-            _tx_chunk_size: self.execution_config.tx_chunk_size,
-        }))
+        Ok(Box::new(BlockBuilder::new(Box::new(executor), self.execution_config.tx_chunk_size)))
     }
 }
 
