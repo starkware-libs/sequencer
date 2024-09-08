@@ -69,7 +69,7 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
     invoke_tx(CairoVersion::Cairo1),
     Ok(ValidateInfo{
         tx_hash: TransactionHash(felt!(
-        "0x3b93426272b6e281bc9bde29b91a9fb100c2f9689388c62360b2be2f4e7b493"
+        "0x3c6546364f70395ad7c8d1ce64b990b698be21e786bee2efff57a694f37648e"
         )),
         sender_address: contract_address!("0xc0020000"),
         account_nonce: Nonce::default()
