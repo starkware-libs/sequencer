@@ -1,11 +1,7 @@
 #[cfg(test)]
 #[path = "consensus_test.rs"]
 mod consensus_test;
-<<<<<<< HEAD
-use std::convert::{Infallible, TryFrom, TryInto};
-=======
 use std::convert::{TryFrom, TryInto};
->>>>>>> origin/main
 
 use prost::Message;
 use starknet_api::block::BlockHash;
