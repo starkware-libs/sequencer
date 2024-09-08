@@ -12,6 +12,7 @@ workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
 chrono.workspace = true
+indexmap.workspace = true
 papyrus_config.workspace = true
 papyrus_storage.workspace = true
 serde.workspace = true
