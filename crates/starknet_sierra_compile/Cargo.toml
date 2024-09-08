@@ -9,6 +9,7 @@ version.workspace = true
 workspace = true
 
 [dependencies]
+starknet-sierra-compile = {version = "2.7.0", artifact = "bin" }
 cairo-lang-sierra.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
