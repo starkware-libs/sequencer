@@ -20,7 +20,7 @@ const ONE_MEGA: usize = 1 << 20;
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "Event")]
 pub struct MixedBehaviour {
-    pub peer_manager: peer_manager::PeerManager<peer_manager::peer::Peer>,
+    pub peer_manager: peer_manager::PeerManager,
     pub discovery: Toggle<discovery::Behaviour>,
     pub identify: identify::Behaviour,
     // TODO(shahak): Consider using a different store.
