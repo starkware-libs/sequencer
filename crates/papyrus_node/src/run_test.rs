@@ -1,12 +1,17 @@
 use std::time::Duration;
 
 use metrics_exporter_prometheus::PrometheusBuilder;
-use papyrus_node::config::NodeConfig;
 use papyrus_storage::{open_storage, StorageConfig};
 use papyrus_test_utils::prometheus_is_contained;
 use tempfile::TempDir;
 
-use crate::{run_threads, spawn_storage_metrics_collector};
+use crate::config::NodeConfig;
+use crate::run::{
+    run_threads,
+    spawn_storage_metrics_collector,
+    PapyrusTaskHandles,
+    PapyrusUtilities,
+};
 
 // The mission of this test is to ensure that if an error is returned from one of the spawned tasks,
 // the node will stop, and this error will be returned. This is done by checking the case of an
@@ -19,7 +24,10 @@ async fn run_threads_stop() {
 
     // Error when not supplying legal central URL.
     config.central.url = "_not_legal_url".to_string();
-    let error = run_threads(config).await.expect_err("Should be an error.");
+    let utils = PapyrusUtilities::new(&config).unwrap();
+    let error = run_threads(config, utils, PapyrusTaskHandles::default())
+        .await
+        .expect_err("Should be an error.");
     assert_eq!("relative URL without a base", error.to_string());
 }
 
