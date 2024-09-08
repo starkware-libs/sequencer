@@ -33,6 +33,8 @@ pub type GatewayResult<T> = Result<T, GatewaySpecError>;
 impl IntoResponse for GatewaySpecError {
     fn into_response(self) -> Response {
         let as_rpc = self.into_rpc();
+        // TODO(Arni): Fix the status code. The status code should be a HTTP status code - not a
+        // Json RPC error code. status code.
         let status =
             StatusCode::from_u16(u16::try_from(as_rpc.code).expect("Expecting a valid u16"))
                 .expect("Expecting a valid error code");
