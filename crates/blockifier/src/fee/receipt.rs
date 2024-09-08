@@ -37,6 +37,7 @@ struct TransactionReceiptParameters<'a> {
 
 // TODO(Gilad): Use everywhere instead of passing the `actual_{fee,resources}` tuple, which often
 // get passed around together.
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Default, Debug, PartialEq)]
 pub struct TransactionReceipt {
