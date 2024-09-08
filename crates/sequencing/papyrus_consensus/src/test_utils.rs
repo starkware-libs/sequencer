@@ -6,9 +6,9 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 
 use crate::types::{
-    ConsensusBlock,
     ConsensusContext,
     ConsensusError,
+    ProposalContentId,
     ProposalInit,
     Round,
     ValidatorId,
@@ -21,19 +21,6 @@ pub struct TestBlock {
     pub id: BlockHash,
 }
 
-impl ConsensusBlock for TestBlock {
-    type ProposalChunk = u32;
-    type ProposalIter = std::vec::IntoIter<u32>;
-
-    fn id(&self) -> BlockHash {
-        self.id
-    }
-
-    fn proposal_iter(&self) -> Self::ProposalIter {
-        self.content.clone().into_iter()
-    }
-}
-
 // TODO(matan): When QSelf is supported, switch to automocking `ConsensusContext`.
 mock! {
     pub TestContext {}
@@ -41,17 +28,18 @@ mock! {
     #[async_trait]
     impl ConsensusContext for TestContext {
         type Block = TestBlock;
+        type ProposalChunk = u32;
 
         async fn build_proposal(&self, height: BlockNumber) -> (
             mpsc::Receiver<u32>,
-            oneshot::Receiver<TestBlock>
+            oneshot::Receiver<ProposalContentId>
         );
 
         async fn validate_proposal(
             &self,
             height: BlockNumber,
             content: mpsc::Receiver<u32>
-        ) -> oneshot::Receiver<TestBlock>;
+        ) -> oneshot::Receiver<ProposalContentId>;
 
         async fn validators(&self, height: BlockNumber) -> Vec<ValidatorId>;
 
@@ -68,7 +56,7 @@ mock! {
 
         async fn decision_reached(
             &mut self,
-            block: TestBlock,
+            block: ProposalContentId,
             precommits: Vec<Vote>,
         ) -> Result<(), ConsensusError>;
     }
