@@ -1,12 +1,10 @@
 use std::io::Write;
-use std::path::PathBuf;
 use std::process::Command;
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass;
 use tempfile::NamedTempFile;
 
-use crate::build_utils::binary_path;
 use crate::config::SierraToCasmCompilationConfig;
 use crate::errors::CompilationUtilError;
 use crate::SierraToCasmCompiler;
@@ -14,13 +12,18 @@ use crate::SierraToCasmCompiler;
 #[derive(Clone)]
 pub struct CommandLineCompiler {
     pub config: SierraToCasmCompilationConfig,
-    path_to_starknet_sierra_compile_binary: PathBuf,
+    path_to_starknet_sierra_compile_binary: String,
 }
 
 impl CommandLineCompiler {
     pub fn new(config: SierraToCasmCompilationConfig) -> Self {
-        Self { config, path_to_starknet_sierra_compile_binary: binary_path() }
+        Self { config, path_to_starknet_sierra_compile_binary: new_binary_path() }
     }
+}
+
+fn new_binary_path() -> String {
+    // "starknet-sierra-compile".to_owned()
+    env!("CARGO_BIN_FILE_STARKNET_SIERRA_COMPILE").to_string()
 }
 
 impl SierraToCasmCompiler for CommandLineCompiler {
@@ -39,7 +42,7 @@ impl SierraToCasmCompiler for CommandLineCompiler {
 
         // Set the parameters for the compile process.
         // TODO(Arni): Setup the ulimit for the process.
-        let mut command = Command::new(self.path_to_starknet_sierra_compile_binary.as_os_str());
+        let mut command = Command::new(&self.path_to_starknet_sierra_compile_binary);
         command.args([
             temp_file_path,
             "--add-pythonic-hints",
