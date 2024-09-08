@@ -10096,6 +10096,7 @@ dependencies = [
  "blockifier",
  "chrono",
  "futures",
+ "indexmap 2.5.0",
  "mempool_test_utils",
  "mockall",
  "papyrus_config",
