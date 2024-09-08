@@ -12,6 +12,8 @@ use tokio::sync::Mutex;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::{debug, error, info, instrument};
 
+use crate::block_builder::ExecutionConfig;
+
 // TODO: Should be defined in SN_API probably (shared with the consensus).
 pub type ProposalId = u64;
 
@@ -76,6 +78,7 @@ pub type ProposalsManagerResult<T> = Result<T, ProposalsManagerError>;
 #[allow(dead_code)]
 pub(crate) struct ProposalsManager {
     config: ProposalsManagerConfig,
+    execution_config: ExecutionConfig,
     mempool_client: SharedMempoolClient,
     /// The block proposal that is currently being proposed, if any.
     /// At any given time, there can be only one proposal being actively executed (either proposed
@@ -86,8 +89,17 @@ pub(crate) struct ProposalsManager {
 impl ProposalsManager {
     // TODO: Remove dead_code attribute.
     #[allow(dead_code)]
-    pub fn new(config: ProposalsManagerConfig, mempool_client: SharedMempoolClient) -> Self {
-        Self { config, mempool_client, proposal_in_generation: Arc::new(Mutex::new(None)) }
+    pub fn new(
+        config: ProposalsManagerConfig,
+        execution_config: ExecutionConfig,
+        mempool_client: SharedMempoolClient,
+    ) -> Self {
+        Self {
+            config,
+            execution_config,
+            mempool_client,
+            proposal_in_generation: Arc::new(Mutex::new(None)),
+        }
     }
 
     /// Starts a new block proposal generation task for the given proposal_id and height with

@@ -8865,8 +8865,11 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "async-trait",
+ "blockifier",
+ "chrono",
  "mockall",
  "papyrus_config",
+ "rstest",
  "serde",
  "starknet_api",
  "starknet_batcher_types",
