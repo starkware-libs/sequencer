@@ -15,6 +15,7 @@ cairo-lang-utils.workspace = true
 papyrus_config.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+starknet-sierra-compile = { package = "starknet-sierra-compile", version = "2.7.0", artifact = "bin"}
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 tempfile.workspace = true

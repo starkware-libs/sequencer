@@ -8823,6 +8823,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet-sierra-compile"
+version = "2.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34df43ff00b682637b32f45eac5bbf8158c4abf11137da673213e9219300d590"
+dependencies = [
+ "anyhow",
+ "cairo-lang-sierra",
+ "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
+ "clap",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "starknet-types-core"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9149,6 +9164,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "starknet-sierra-compile",
  "starknet-types-core",
  "starknet_api",
  "tempfile",
