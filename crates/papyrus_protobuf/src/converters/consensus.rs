@@ -125,19 +125,6 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
     }
 }
 
-impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> TryFrom<Vec<u8>>
-    for StreamMessage<T>
-{
-    type Error = ProtobufConversionError;
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        let protobuf_value = <protobuf::StreamMessage>::decode(&value[..])?;
-        match Self::try_from(protobuf_value) {
-            Ok(value) => Ok(value),
-            Err(e) => Err(e),
-        }
-    }
-}
-
 impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<StreamMessage<T>>
     for protobuf::StreamMessage
 {
@@ -160,6 +147,19 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<
     fn from(value: StreamMessage<T>) -> Self {
         let protobuf_value = <protobuf::StreamMessage>::from(value);
         protobuf_value.encode_to_vec()
+    }
+}
+
+impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> TryFrom<Vec<u8>>
+    for StreamMessage<T>
+{
+    type Error = ProtobufConversionError;
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        let protobuf_value = <protobuf::StreamMessage>::decode(&value[..])?;
+        match Self::try_from(protobuf_value) {
+            Ok(value) => Ok(value),
+            Err(e) => Err(e),
+        }
     }
 }
 

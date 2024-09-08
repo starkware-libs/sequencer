@@ -5,6 +5,7 @@ use crate::consensus::{ConsensusMessage, Proposal, StreamMessage};
 
 // TODO(guyn): add tests for other serializable objects in consensus
 
+// TODO(guyn): try to make the macro work with generics
 impl GetTestInstance for StreamMessage<ConsensusMessage> {
     fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
         Self {
