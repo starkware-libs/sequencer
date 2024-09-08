@@ -126,7 +126,7 @@ pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient
     let execution_config = ExecutionConfig {
         chain_info: ChainInfo::default(),
         execute_config: TransactionExecutorConfig::default(),
-        bouncer_config: BouncerConfig::default(),
+        bouncer_config: BouncerConfig::empty(),
         sequencer_address: ContractAddress::default(),
         use_kzg_da: true,
         tx_chunk_size: 100,
