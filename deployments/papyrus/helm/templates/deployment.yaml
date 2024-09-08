@@ -37,6 +37,9 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: {{ template "papyrus.name" . }}-data
+        - name: config-volume
+          configMap:
+            name: {{ template "papyrus.name" . }}-config
         {{- if .Values.backup.enabled }}
         - name: run
           configMap:
@@ -69,23 +72,7 @@ spec:
         {{- end }}
         args:
           - --config_file
-          - /app/config/papyrus/presets/{{ .Values.starknet.preset }}
-          - --base_layer.node_url
-          - {{ .Values.base_layer_node_url }}
-          {{- if .Values.p2p.enabled }}
-          - --network.tcp_port
-          - {{ .Values.p2p.config.networkTcpPort | quote }}
-          - --storage.db_config.path_prefix
-          - {{ .Values.p2p.config.storageDbConfigPathPrefix | quote }}
-          - --network.#is_none
-          - {{ .Values.p2p.config.networkIsNone | quote }}
-          {{- if not .Values.p2p.bootstrap }}
-          - --network.bootstrap_peer_multiaddr.#is_none
-          - {{ .Values.p2p.nodeConfig.bootstrapServer.multiaddrIsNone | quote }}
-          - --network.bootstrap_peer_multiaddr
-          - {{ include "p2p.bootstrapPeerMultiaddr" . | quote }}
-          {{- end}}
-          {{- end }}
+          - /app/config/papyrus/presets/{{ .Values.starknet.preset }},/app/config/papyrus/custom/config.json
           {{ range $key, $value := .Values.deployment.extraArgs }}
           {{- if $value }}
           - --{{ $key }}
@@ -103,13 +90,16 @@ spec:
         - containerPort: {{ .Values.service.ports.monitoring.port }}
           name: monitoring
         {{- end }}
-        {{- if .Values.p2p.enabled }}
-        - containerPort: {{ .Values.p2p.config.networkTcpPort }}
+        {{- if .Values.p2pService.enabled }}
+        - containerPort: {{ .Values.p2pService.port }}
           name: p2p
         {{- end }}
         volumeMounts:
         - name: data
           mountPath: /app/data
+        - name: config-volume
+          mountPath: /app/config/papyrus/custom/config.json
+          subPath: config.json
         envFrom:
         - configMapRef:
             name: {{ template "papyrus.name" . }}-config
@@ -121,11 +111,14 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /app/data
+        - name: config-volume
+          mountPath: /app/config/papyrus/custom/config.json
+          subPath: config.json
         - name: run
           mountPath: /app/run
         envFrom:
         - configMapRef:
-            name: {{ template "papyrus.name" . }}-config
+            name: {{ template "papyrus.name" . }}-env
         - secretRef:
             name: {{ template "papyrus.name" . }}-aws-creds
         {{- end }}
