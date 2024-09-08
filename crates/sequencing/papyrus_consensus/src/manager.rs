@@ -19,12 +19,12 @@ use tracing::{debug, info, instrument};
 
 use crate::config::TimeoutsConfig;
 use crate::single_height_consensus::{ShcReturn, ShcTask, SingleHeightConsensus};
-use crate::types::{ConsensusBlock, ConsensusContext, ConsensusError, Decision, ValidatorId};
+use crate::types::{ConsensusContext, ConsensusError, Decision, ValidatorId};
 
 // TODO(dvir): add test for this.
 #[instrument(skip_all, level = "info")]
 #[allow(missing_docs)]
-pub async fn run_consensus<BlockT, ContextT, BroadcastClientT, SyncReceiverT>(
+pub async fn run_consensus<ContextT, BroadcastClientT, SyncReceiverT>(
     mut context: ContextT,
     start_height: BlockNumber,
     validator_id: ValidatorId,
@@ -34,13 +34,12 @@ pub async fn run_consensus<BlockT, ContextT, BroadcastClientT, SyncReceiverT>(
     mut sync_receiver: SyncReceiverT,
 ) -> Result<(), ConsensusError>
 where
-    BlockT: ConsensusBlock,
-    ContextT: ConsensusContext<Block = BlockT>,
+    ContextT: ConsensusContext,
     BroadcastClientT: BroadcastClientTrait<ConsensusMessage>,
     SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
     ProposalWrapper: Into<(
         (BlockNumber, u32, ContractAddress, Option<u32>),
-        mpsc::Receiver<BlockT::ProposalChunk>,
+        mpsc::Receiver<ContextT::ProposalChunk>,
         oneshot::Receiver<BlockHash>,
     )>,
 {
@@ -99,19 +98,18 @@ impl MultiHeightManager {
     /// Assumes that `height` is monotonically increasing across calls for the sake of filtering
     /// `cached_messaged`.
     #[instrument(skip(self, context, broadcast_client), level = "info")]
-    pub async fn run_height<BlockT, ContextT, BroadcastClientT>(
+    pub async fn run_height<ContextT, BroadcastClientT>(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
         broadcast_client: &mut BroadcastClientT,
-    ) -> Result<Decision<BlockT>, ConsensusError>
+    ) -> Result<Decision, ConsensusError>
     where
-        BlockT: ConsensusBlock,
-        ContextT: ConsensusContext<Block = BlockT>,
+        ContextT: ConsensusContext,
         BroadcastClientT: BroadcastClientTrait<ConsensusMessage>,
         ProposalWrapper: Into<(
             (BlockNumber, u32, ContractAddress, Option<u32>),
-            mpsc::Receiver<BlockT::ProposalChunk>,
+            mpsc::Receiver<ContextT::ProposalChunk>,
             oneshot::Receiver<BlockHash>,
         )>,
     {
@@ -157,19 +155,18 @@ impl MultiHeightManager {
     }
 
     // Handle a single consensus message.
-    async fn handle_message<BlockT, ContextT>(
+    async fn handle_message<ContextT>(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
-        shc: &mut SingleHeightConsensus<BlockT>,
+        shc: &mut SingleHeightConsensus,
         message: ConsensusMessage,
-    ) -> Result<ShcReturn<BlockT>, ConsensusError>
+    ) -> Result<ShcReturn, ConsensusError>
     where
-        BlockT: ConsensusBlock,
-        ContextT: ConsensusContext<Block = BlockT>,
+        ContextT: ConsensusContext,
         ProposalWrapper: Into<(
             (BlockNumber, u32, ContractAddress, Option<u32>),
-            mpsc::Receiver<BlockT::ProposalChunk>,
+            mpsc::Receiver<ContextT::ProposalChunk>,
             oneshot::Receiver<BlockHash>,
         )>,
     {

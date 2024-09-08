@@ -10,9 +10,9 @@ use futures::channel::{mpsc, oneshot};
 use futures::sink::SinkExt;
 use futures::StreamExt;
 use papyrus_consensus::types::{
-    ConsensusBlock,
     ConsensusContext,
     ConsensusError,
+    ProposalContentId,
     ProposalInit,
     Round,
     ValidatorId,
@@ -36,20 +36,6 @@ pub struct PapyrusConsensusBlock {
     id: BlockHash,
 }
 
-impl ConsensusBlock for PapyrusConsensusBlock {
-    type ProposalChunk = Transaction;
-    type ProposalIter = std::vec::IntoIter<Transaction>;
-
-    fn id(&self) -> BlockHash {
-        self.id
-    }
-
-    fn proposal_iter(&self) -> Self::ProposalIter {
-        self.content.clone().into_iter()
-    }
-}
-
-#[allow(missing_docs)]
 pub struct PapyrusConsensusContext {
     storage_reader: StorageReader,
     network_broadcast_sender: BroadcastTopicSender<ConsensusMessage>,
@@ -81,11 +67,12 @@ const CHANNEL_SIZE: usize = 5000;
 #[async_trait]
 impl ConsensusContext for PapyrusConsensusContext {
     type Block = PapyrusConsensusBlock;
+    type ProposalChunk = Transaction;
 
     async fn build_proposal(
         &self,
         height: BlockNumber,
-    ) -> (mpsc::Receiver<Transaction>, oneshot::Receiver<PapyrusConsensusBlock>) {
+    ) -> (mpsc::Receiver<Transaction>, oneshot::Receiver<ProposalContentId>) {
         let (mut sender, receiver) = mpsc::channel(CHANNEL_SIZE);
         let (fin_sender, fin_receiver) = oneshot::channel();
 
@@ -117,9 +104,7 @@ impl ConsensusContext for PapyrusConsensusContext {
                         panic!("Block in {height} was not found in storage despite waiting for it")
                     })
                     .block_hash;
-                fin_sender
-                    .send(PapyrusConsensusBlock { content: transactions, id: block_hash })
-                    .expect("Send should succeed");
+                fin_sender.send(block_hash).expect("Send should succeed");
             }
             .instrument(debug_span!("consensus_build_proposal")),
         );
@@ -131,7 +116,7 @@ impl ConsensusContext for PapyrusConsensusContext {
         &self,
         height: BlockNumber,
         mut content: mpsc::Receiver<Transaction>,
-    ) -> oneshot::Receiver<PapyrusConsensusBlock> {
+    ) -> oneshot::Receiver<ProposalContentId> {
         let (fin_sender, fin_receiver) = oneshot::channel();
 
         let storage_reader = self.storage_reader.clone();
@@ -173,11 +158,9 @@ impl ConsensusContext for PapyrusConsensusContext {
                     .block_hash;
 
                 // This can happen as a result of sync interrupting `run_height`.
-                fin_sender
-                    .send(PapyrusConsensusBlock { content: transactions, id: block_hash })
-                    .unwrap_or_else(|_| {
-                        warn!("Failed to send block to consensus. height={height}");
-                    })
+                fin_sender.send(block_hash).unwrap_or_else(|_| {
+                    warn!("Failed to send block to consensus. height={height}");
+                })
             }
             .instrument(debug_span!("consensus_validate_proposal")),
         );
@@ -247,14 +230,11 @@ impl ConsensusContext for PapyrusConsensusContext {
 
     async fn decision_reached(
         &mut self,
-        block: Self::Block,
+        block: ProposalContentId,
         precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError> {
         let height = precommits[0].height;
-        info!(
-            "Finished consensus for height: {height}. Agreed on block with id: {:x}",
-            block.id().0
-        );
+        info!("Finished consensus for height: {height}. Agreed on block: {:}", block);
         if let Some(sender) = &mut self.sync_broadcast_sender {
             sender.send(precommits[0].clone()).await?;
         }

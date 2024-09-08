@@ -21,9 +21,9 @@ use super::{run_consensus, MultiHeightManager};
 use crate::config::TimeoutsConfig;
 use crate::test_utils::{precommit, prevote, proposal};
 use crate::types::{
-    ConsensusBlock,
     ConsensusContext,
     ConsensusError,
+    ProposalContentId,
     ProposalInit,
     Round,
     ValidatorId,
@@ -45,36 +45,24 @@ pub struct TestBlock {
     pub id: BlockHash,
 }
 
-impl ConsensusBlock for TestBlock {
-    type ProposalChunk = Transaction;
-    type ProposalIter = std::vec::IntoIter<Transaction>;
-
-    fn id(&self) -> BlockHash {
-        self.id
-    }
-
-    fn proposal_iter(&self) -> Self::ProposalIter {
-        self.content.clone().into_iter()
-    }
-}
-
 mock! {
     pub TestContext {}
 
     #[async_trait]
     impl ConsensusContext for TestContext {
         type Block = TestBlock;
+        type ProposalChunk = Transaction;
 
         async fn build_proposal(&self, height: BlockNumber) -> (
             mpsc::Receiver<Transaction>,
-            oneshot::Receiver<TestBlock>
+            oneshot::Receiver<ProposalContentId>
         );
 
         async fn validate_proposal(
             &self,
             height: BlockNumber,
             content: mpsc::Receiver<Transaction>
-        ) -> oneshot::Receiver<TestBlock>;
+        ) -> oneshot::Receiver<ProposalContentId>;
 
         async fn validators(&self, height: BlockNumber) -> Vec<ValidatorId>;
 
@@ -91,7 +79,7 @@ mock! {
 
         async fn decision_reached(
             &mut self,
-            block: TestBlock,
+            block: ProposalContentId,
             precommits: Vec<Vote>,
         ) -> Result<(), ConsensusError>;
     }
@@ -122,7 +110,7 @@ async fn manager_multiple_heights_unordered() {
         .expect_validate_proposal()
         .return_once(move |_, _| {
             let (block_sender, block_receiver) = oneshot::channel();
-            block_sender.send(TestBlock { content: Vec::new(), id: BlockHash(Felt::ONE) }).unwrap();
+            block_sender.send(BlockHash(Felt::ONE)).unwrap();
             block_receiver
         })
         .times(1);
@@ -135,14 +123,14 @@ async fn manager_multiple_heights_unordered() {
         .run_height(&mut context, BlockNumber(1), &mut broadcast_client_channels)
         .await
         .unwrap();
-    assert_eq!(decision.block.id(), BlockHash(Felt::ONE));
+    assert_eq!(decision.block, BlockHash(Felt::ONE));
 
     // Run the manager for height 2.
     context
         .expect_validate_proposal()
         .return_once(move |_, _| {
             let (block_sender, block_receiver) = oneshot::channel();
-            block_sender.send(TestBlock { content: Vec::new(), id: BlockHash(Felt::TWO) }).unwrap();
+            block_sender.send(BlockHash(Felt::TWO)).unwrap();
             block_receiver
         })
         .times(1);
@@ -150,7 +138,7 @@ async fn manager_multiple_heights_unordered() {
         .run_height(&mut context, BlockNumber(2), &mut broadcast_client_channels)
         .await
         .unwrap();
-    assert_eq!(decision.block.id(), BlockHash(Felt::TWO));
+    assert_eq!(decision.block, BlockHash(Felt::TWO));
 }
 
 #[tokio::test]
@@ -161,14 +149,14 @@ async fn run_consensus_sync() {
 
     context.expect_validate_proposal().return_once(move |_, _| {
         let (block_sender, block_receiver) = oneshot::channel();
-        block_sender.send(TestBlock { content: Vec::new(), id: BlockHash(Felt::TWO) }).unwrap();
+        block_sender.send(BlockHash(Felt::TWO)).unwrap();
         block_receiver
     });
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_broadcast().returning(move |_| Ok(()));
     context.expect_decision_reached().return_once(move |block, votes| {
-        assert_eq!(block.id(), BlockHash(Felt::TWO));
+        assert_eq!(block, BlockHash(Felt::TWO));
         assert_eq!(votes[0].height, 2);
         decision_tx.send(()).unwrap();
         Ok(())
@@ -218,7 +206,7 @@ async fn run_consensus_sync_cancellation_safety() {
 
     context.expect_validate_proposal().return_once(move |_, _| {
         let (block_sender, block_receiver) = oneshot::channel();
-        block_sender.send(TestBlock { content: Vec::new(), id: BlockHash(Felt::ONE) }).unwrap();
+        block_sender.send(BlockHash(Felt::ONE)).unwrap();
         block_receiver
     });
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
@@ -231,7 +219,7 @@ async fn run_consensus_sync_cancellation_safety() {
     );
     context.expect_broadcast().returning(move |_| Ok(()));
     context.expect_decision_reached().return_once(|block, votes| {
-        assert_eq!(block.id(), BlockHash(Felt::ONE));
+        assert_eq!(block, BlockHash(Felt::ONE));
         assert_eq!(votes[0].height, 1);
         decision_tx.send(()).unwrap();
         Ok(())
@@ -284,7 +272,7 @@ async fn test_timeouts() {
     let mut context = MockTestContext::new();
     context.expect_validate_proposal().returning(move |_, _| {
         let (block_sender, block_receiver) = oneshot::channel();
-        block_sender.send(TestBlock { content: Vec::new(), id: BlockHash(Felt::ONE) }).unwrap();
+        block_sender.send(BlockHash(Felt::ONE)).unwrap();
         block_receiver
     });
     context
@@ -308,7 +296,7 @@ async fn test_timeouts() {
     let manager_handle = tokio::spawn(async move {
         let decision =
             manager.run_height(&mut context, BlockNumber(1), &mut broadcast_client).await.unwrap();
-        assert_eq!(decision.block.id(), BlockHash(Felt::ONE));
+        assert_eq!(decision.block, BlockHash(Felt::ONE));
     });
 
     // Wait for the timeout to be triggered.
