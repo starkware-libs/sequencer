@@ -118,15 +118,15 @@ pub fn zero_resource_bounds_mapping() -> AllResourceBounds {
 pub fn test_resource_bounds_mapping() -> AllResourceBounds {
     create_resource_bounds_mapping(
         ResourceBounds {
-            max_amount: VALID_L1_GAS_MAX_AMOUNT,
+            max_amount: VALID_L1_GAS_MAX_AMOUNT*10,
             max_price_per_unit: VALID_L1_GAS_MAX_PRICE_PER_UNIT,
         },
         ResourceBounds {
-            max_amount: VALID_L2_GAS_MAX_AMOUNT,
+            max_amount: VALID_L2_GAS_MAX_AMOUNT*10,
             max_price_per_unit: VALID_L2_GAS_MAX_PRICE_PER_UNIT,
         },
         ResourceBounds {
-            max_amount: VALID_L1_DATA_GAS_MAX_AMOUNT,
+            max_amount: VALID_L1_DATA_GAS_MAX_AMOUNT*10,
             max_price_per_unit: VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT,
         },
     )
