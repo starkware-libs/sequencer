@@ -91,7 +91,6 @@ async fn broadcast_subscriber_end_to_end_test() {
 
     let subscriber_channels2_1 =
         network_manager2.register_broadcast_topic::<Number>(topic1.clone(), BUFFER_SIZE).unwrap();
-
     let subscriber_channels2_2 =
         network_manager2.register_broadcast_topic::<Number>(topic2.clone(), BUFFER_SIZE).unwrap();
 
