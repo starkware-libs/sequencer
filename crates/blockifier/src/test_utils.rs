@@ -102,6 +102,9 @@ pub const DEFAULT_ETH_L1_GAS_PRICE: u128 = 100 * u128::pow(10, 9); // Given in u
 pub const DEFAULT_STRK_L1_GAS_PRICE: u128 = 100 * u128::pow(10, 9); // Given in units of STRK.
 pub const DEFAULT_ETH_L1_DATA_GAS_PRICE: u128 = u128::pow(10, 6); // Given in units of Wei.
 pub const DEFAULT_STRK_L1_DATA_GAS_PRICE: u128 = u128::pow(10, 9); // Given in units of STRK.
+pub const DEFAULT_L1_DATA_GAS_MAX_AMOUNT: u64 = u128::pow(10, 6);
+pub const DEFAULT_STRK_L2_GAS_PRICE: u128 = u128::pow(10, 9);
+pub const DEFAULT_L2_GAS_MAX_AMOUNT: u64 = u128::pow(10, 6);
 
 // The block number of the BlockContext being used for testing.
 pub const CURRENT_BLOCK_NUMBER: u64 = 2001;
