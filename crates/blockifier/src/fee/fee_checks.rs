@@ -1,4 +1,11 @@
-use starknet_api::transaction::Fee;
+use itertools::izip;
+use starknet_api::transaction::{
+    AllResourceBounds,
+    Fee,
+    Resource,
+    ResourceBounds,
+    ValidResourceBounds,
+};
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
@@ -16,8 +23,10 @@ use crate::transaction::objects::{
 
 #[derive(Clone, Copy, Debug, Error)]
 pub enum FeeCheckError {
-    #[error("Insufficient max L1 gas: max amount: {max_amount}, actual used: {actual_amount}.")]
-    MaxL1GasAmountExceeded { max_amount: u128, actual_amount: u128 },
+    #[error(
+        "Insufficient max {resource} gas: max amount: {max_amount}, actual used: {actual_amount}."
+    )]
+    MaxGasAmountExceeded { resource: Resource, max_amount: u128, actual_amount: u128 },
     #[error("Insufficient max fee: max fee: {}, actual fee: {}.", max_fee.0, actual_fee.0)]
     MaxFeeExceeded { max_fee: Fee, actual_fee: Fee },
     #[error(
@@ -26,6 +35,8 @@ pub enum FeeCheckError {
     )]
     InsufficientFeeTokenBalance { fee: Fee, balance_low: Felt, balance_high: Felt },
 }
+
+pub(crate) type FeeCheckResult<T> = Result<T, FeeCheckError>;
 
 /// This struct holds the result of fee checks: recommended fee to charge (useful in post-execution
 /// revert flow) and an error if the check failed.
@@ -70,7 +81,7 @@ impl FeeCheckReport {
             // If the error is resource overdraft, the recommended fee is the resource bounds.
             // If the transaction passed pre-validation checks (i.e. balance initially covered the
             // resource bounds), the sender should be able to pay this fee.
-            FeeCheckError::MaxFeeExceeded { .. } | FeeCheckError::MaxL1GasAmountExceeded { .. } => {
+            FeeCheckError::MaxFeeExceeded { .. } | FeeCheckError::MaxGasAmountExceeded { .. } => {
                 match &tx_context.tx_info {
                     TransactionInfo::Current(info) => get_fee_by_gas_vector(
                         &tx_context.block_context.block_info,
@@ -95,34 +106,21 @@ impl FeeCheckReport {
 
         // First, compare the actual resources used against the upper bound(s) defined by the
         // sender.
-        // TODO(Aner, 21/01/24) modify for 4844 (include check for blob_gas).
         match tx_info {
-            TransactionInfo::Current(context) => {
-                // Check L1 gas limit.
-                let max_l1_gas = context.l1_resource_bounds().max_amount.into();
-
-                // TODO(Dori, 1/7/2024): When data gas limit is added (and enforced) in resource
-                //   bounds, check it here as well (separately, with a different error variant if
-                //   limit exceeded).
-                let total_discounted_gas_used = gas.to_discounted_l1_gas(tx_context);
-
-                if total_discounted_gas_used > max_l1_gas {
-                    return Err(FeeCheckError::MaxL1GasAmountExceeded {
-                        max_amount: max_l1_gas,
-                        actual_amount: total_discounted_gas_used,
-                    })?;
-                }
-            }
+            TransactionInfo::Current(context) => Ok(FeeCheckReport::check_resources_within_bounds(
+                &context.resource_bounds,
+                gas,
+                tx_context,
+            )?),
             TransactionInfo::Deprecated(context) => {
                 // Check max fee.
                 let max_fee = context.max_fee;
                 if fee > &max_fee {
                     return Err(FeeCheckError::MaxFeeExceeded { max_fee, actual_fee: *fee })?;
                 }
+                Ok(())
             }
         }
-
-        Ok(())
     }
 
     /// If the actual cost exceeds the sender's balance, returns a fee check error.
@@ -138,6 +136,66 @@ impl FeeCheckReport {
             return Ok(());
         }
         Err(FeeCheckError::InsufficientFeeTokenBalance { fee, balance_low, balance_high })?
+    }
+
+    /// Checks that the actual resources used are within the bounds set by the sender.
+    fn check_resources_within_bounds(
+        valid_resource_bounds: &ValidResourceBounds,
+        gas_vector: &GasVector,
+        tx_context: &TransactionContext,
+    ) -> FeeCheckResult<()> {
+        // TODO(Aviv): delete the tx_context parameter.
+        match valid_resource_bounds {
+            ValidResourceBounds::AllResources(all_resource_bounds) => {
+                // Iterate over resources and check actual_amount <= max_amount.
+                FeeCheckReport::check_all_resources_within_bounds(all_resource_bounds, gas_vector)
+            }
+            ValidResourceBounds::L1Gas(l1_bounds) => {
+                // Check that the total discounted l1 gas used <= l1_bounds.max_amount.
+                FeeCheckReport::check_l1_gas_within_bounds(l1_bounds, gas_vector, tx_context)
+            }
+        }
+    }
+
+    fn check_all_resources_within_bounds(
+        all_resource_bounds: &AllResourceBounds,
+        gas_vector: &GasVector,
+    ) -> FeeCheckResult<()> {
+        for (resource, max_amount, actual_amount) in izip!(
+            [Resource::L1Gas, Resource::L2Gas, Resource::L1DataGas],
+            [
+                all_resource_bounds.l1_gas.max_amount.into(),
+                all_resource_bounds.l2_gas.max_amount.into(),
+                all_resource_bounds.l1_data_gas.max_amount.into(),
+            ],
+            [gas_vector.l1_gas, gas_vector.l2_gas, gas_vector.l1_data_gas]
+        ) {
+            if max_amount < actual_amount {
+                return Err(FeeCheckError::MaxGasAmountExceeded {
+                    resource,
+                    max_amount,
+                    actual_amount,
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    fn check_l1_gas_within_bounds(
+        &l1_bounds: &ResourceBounds,
+        gas_vector: &GasVector,
+        tx_context: &TransactionContext,
+    ) -> FeeCheckResult<()> {
+        let total_discounted_gas_used = gas_vector.to_discounted_l1_gas(tx_context);
+        if total_discounted_gas_used > l1_bounds.max_amount.into() {
+            return Err(FeeCheckError::MaxGasAmountExceeded {
+                resource: Resource::L1Gas,
+                max_amount: l1_bounds.max_amount.into(),
+                actual_amount: total_discounted_gas_used,
+            });
+        }
+        Ok(())
     }
 }
 

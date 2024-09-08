@@ -47,7 +47,7 @@ use crate::{
 
 pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
-pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 203484;
+pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 500000;
 pub const VALID_L2_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 pub const VALID_L1_DATA_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
@@ -126,7 +126,7 @@ pub fn test_resource_bounds_mapping() -> AllResourceBounds {
             max_price_per_unit: VALID_L2_GAS_MAX_PRICE_PER_UNIT,
         },
         ResourceBounds {
-            max_amount: VALID_L1_DATA_GAS_MAX_AMOUNT,
+            max_amount: VALID_L1_DATA_GAS_MAX_AMOUNT * 10,
             max_price_per_unit: VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT,
         },
     )
