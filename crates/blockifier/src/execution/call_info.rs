@@ -25,7 +25,7 @@ macro_rules! retdata {
     };
 }
 
-#[cfg_attr(test, derive(Clone))]
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct OrderedEvent {
@@ -33,7 +33,7 @@ pub struct OrderedEvent {
     pub event: EventContent,
 }
 
-#[cfg_attr(test, derive(Clone))]
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct MessageToL1 {
@@ -41,7 +41,7 @@ pub struct MessageToL1 {
     pub payload: L2ToL1Payload,
 }
 
-#[cfg_attr(test, derive(Clone))]
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct OrderedL2ToL1Message {
@@ -50,7 +50,7 @@ pub struct OrderedL2ToL1Message {
 }
 
 /// Represents the effects of executing a single entry point.
-#[cfg_attr(test, derive(Clone))]
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CallExecution {
@@ -96,6 +96,7 @@ impl Sum for ExecutionSummary {
 }
 
 /// Represents the full effects of executing an entry point, including the inner calls it invoked.
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CallInfo {
