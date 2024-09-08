@@ -10,6 +10,8 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
+blockifier.workspace = true
+chrono.workspace = true
 papyrus_config.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
