@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 use std::num::NonZeroU128;
+use std::pin::Pin;
 
 use async_trait::async_trait;
 use blockifier::blockifier::block::{BlockInfo, BlockNumberHashPair, GasPrices};
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
     TransactionExecutor,
+    TransactionExecutorError as BlockifierTransactionExecutorError,
     TransactionExecutorResult,
     VisitedSegmentsMapping,
 };
@@ -15,6 +17,8 @@ use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::GlobalContractCache;
 use blockifier::state::state_api::StateReader;
+use blockifier::transaction::account_transaction::AccountTransaction;
+use blockifier::transaction::errors::TransactionExecutionError as BlockifierTransactionExecutionError;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
@@ -27,13 +31,19 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 use tokio::sync::Mutex;
+use tokio_stream::{Stream, StreamExt};
+use tracing::{debug, info};
 
 use crate::papyrus_state::PapyrusReader;
 use crate::proposal_manager::InputTxStream;
 
-pub struct BlockBuilder {
-    _executor: Mutex<Box<dyn BlockifierTransactionExecutorTrait>>,
-    _txs_chunk_size: usize,
+#[cfg_attr(test, derive(Clone))]
+#[derive(Default, Debug, PartialEq)]
+pub struct BlockExecutionArtifacts {
+    pub execution_infos: HashMap<TransactionHash, TransactionExecutionInfo>,
+    pub commitment_state_diff: CommitmentStateDiff,
+    pub visited_segments_mapping: VisitedSegmentsMapping,
+    pub bouncer_weights: BouncerWeights,
 }
 
 #[derive(Debug, Error)]
@@ -42,6 +52,12 @@ pub enum BlockBuilderError {
     BadTimestamp(#[from] std::num::TryFromIntError),
     #[error(transparent)]
     BlockifierStateError(#[from] StateError),
+    #[error(transparent)]
+    ExecutionError(#[from] BlockifierTransactionExecutorError),
+    #[error(transparent)]
+    TransactionExecutionError(#[from] BlockifierTransactionExecutionError),
+    #[error(transparent)]
+    StreamTransactionsError(#[from] tokio::sync::mpsc::error::SendError<Transaction>),
 }
 
 pub type BlockBuilderResult<T> = Result<T, BlockBuilderError>;
@@ -54,19 +70,99 @@ pub struct ExecutionConfig {
     pub bouncer_config: BouncerConfig,
     pub sequencer_address: ContractAddress,
     pub use_kzg_da: bool,
-    pub txs_chunk_size: usize,
+    pub tx_chunk_size: usize,
     pub versioned_constants_overrides: VersionedConstantsOverrides,
+}
+
+pub struct BlockBuilder {
+    executor: Mutex<Box<dyn BlockifierTransactionExecutorTrait>>,
+    tx_chunk_size: usize,
+}
+
+impl BlockBuilder {
+    pub fn new(
+        executor: Box<dyn BlockifierTransactionExecutorTrait>,
+        tx_chunk_size: usize,
+    ) -> Self {
+        Self { executor: Mutex::new(executor), tx_chunk_size }
+    }
+
+    async fn get_tx_chunk<'a>(
+        &self,
+        mempool_tx_stream: &mut Pin<&'a mut (impl Stream<Item = Transaction> + 'a)>,
+    ) -> BlockBuilderResult<TransactionChunk> {
+        let mut txs_in_blockifier_format = Vec::new();
+        let mut txs_in_mempool_format = Vec::new();
+        while txs_in_blockifier_format.len() < self.tx_chunk_size {
+            match mempool_tx_stream.next().await {
+                // TODO: the stream should be a enum and not tx, update once the BatcherClient trait
+                // is ready
+                Some(mempool_tx) => {
+                    txs_in_mempool_format.push(mempool_tx.clone());
+                    let blockifier_tx =
+                        BlockifierTransaction::Account(AccountTransaction::try_from(mempool_tx)?);
+                    txs_in_blockifier_format.push(blockifier_tx);
+                }
+                None => {
+                    break;
+                }
+            }
+        }
+        assert_eq!(txs_in_blockifier_format.len(), txs_in_mempool_format.len());
+        Ok(TransactionChunk {
+            mempool_format: txs_in_mempool_format,
+            blockifier_format: txs_in_blockifier_format,
+        })
+    }
 }
 
 #[async_trait]
 impl BlockBuilderTrait for BlockBuilder {
     async fn build_block(
         &mut self,
-        _deadline: tokio::time::Instant,
-        _mempool_tx_stream: InputTxStream,
-        _output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
+        deadline: tokio::time::Instant,
+        mempool_tx_stream: InputTxStream,
+        output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
     ) -> BlockBuilderResult<BlockExecutionArtifacts> {
-        todo!();
+        let mut execution_infos = HashMap::new();
+        tokio::pin!(mempool_tx_stream);
+        let mut close_block = false;
+        while !close_block && tokio::time::Instant::now() < deadline {
+            let txs_chunk = self.get_tx_chunk(&mut mempool_tx_stream).await?;
+            let results = self.executor.lock().await.add_txs_to_block(&txs_chunk.blockifier_format);
+            for (mempool_tx, result) in
+                txs_chunk.mempool_format.into_iter().zip(results.into_iter())
+            {
+                match result {
+                    Ok(tx_execution_info) => {
+                        execution_infos.insert(mempool_tx.tx_hash(), tx_execution_info);
+                        output_content_sender.send(mempool_tx).await?;
+                    }
+                    Err(err) => match err {
+                        // TODO(yael 18/9/2024): add timeout error handling here once this feature
+                        // is added.
+                        BlockifierTransactionExecutorError::BlockFull => {
+                            info!("Block is full");
+                            close_block = true;
+                        }
+                        _ => {
+                            debug!("Transaction {:?} failed with error: {}.", mempool_tx, err);
+                        }
+                    },
+                }
+            }
+        }
+        let (commitment_state_diff, visited_segments_mapping, bouncer_weights) =
+            self.executor.lock().await.close_block()?;
+        Ok(BlockExecutionArtifacts {
+            execution_infos,
+            commitment_state_diff,
+            visited_segments_mapping,
+            bouncer_weights,
+        })
+
+        // TODO how to update the mempool which transactions suceeded? maybe it's the
+        // orchestrator's responsibilty
     }
 }
 
@@ -77,14 +173,12 @@ pub fn get_gas_prices() -> GasPrices {
     GasPrices::new(one, one, one, one, one, one)
 }
 
-#[derive(Default, Debug, PartialEq)]
-pub struct BlockExecutionArtifacts {
-    // TODO(yael): what is the best id for mapping? tx_hash or tx_id? depends on the orchestrator
-    // needs.
-    pub execution_infos: HashMap<TransactionHash, TransactionExecutionInfo>,
-    pub commitment_state_diff: CommitmentStateDiff,
-    pub visited_segments_mapping: VisitedSegmentsMapping,
-    pub bouncer_weights: BouncerWeights,
+#[derive(Debug)]
+// A struct that holds a chunk of transactions in two formats: mempool format and blockifier format.
+// Note: both vectors should hold the same transactions in the same order.
+struct TransactionChunk {
+    mempool_format: Vec<Transaction>,
+    blockifier_format: Vec<BlockifierTransaction>,
 }
 
 #[async_trait]
@@ -179,10 +273,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
         let executor =
             self.create_transaction_executor(next_block_number, retrospective_block_hash)?;
-        Ok(Box::new(BlockBuilder {
-            _executor: Mutex::new(executor),
-            _txs_chunk_size: self.execution_config.txs_chunk_size,
-        }))
+        Ok(Box::new(BlockBuilder::new(executor, self.execution_config.tx_chunk_size)))
     }
 }
 
