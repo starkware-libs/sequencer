@@ -4,6 +4,7 @@ use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
+    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     Fee,
@@ -299,6 +300,25 @@ pub fn run_invoke_tx(
 /// No guarantees on the values of the other resources bounds.
 pub fn l1_resource_bounds(max_amount: u64, max_price: u128) -> ValidResourceBounds {
     ValidResourceBounds::L1Gas(ResourceBounds { max_amount, max_price_per_unit: max_price })
+}
+
+#[fixture]
+pub fn all_resource_bounds(
+    #[default(20)] l1_max_amount: u64,
+    #[default(100)] l1_max_price: u128,
+    #[default(20)] l2_max_amount: u64,
+    #[default(100)] l2_max_price: u128,
+    #[default(20)] l1_data_max_amount: u64,
+    #[default(100)] l1_data_max_price: u128,
+) -> ValidResourceBounds {
+    ValidResourceBounds::AllResources(AllResourceBounds {
+        l1_gas: ResourceBounds { max_amount: l1_max_amount, max_price_per_unit: l1_max_price },
+        l2_gas: ResourceBounds { max_amount: l2_max_amount, max_price_per_unit: l2_max_price },
+        l1_data_gas: ResourceBounds {
+            max_amount: l1_data_max_amount,
+            max_price_per_unit: l1_data_max_price,
+        },
+    })
 }
 
 pub fn calculate_class_info_for_testing(contract_class: ContractClass) -> ClassInfo {
