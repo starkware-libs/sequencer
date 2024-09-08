@@ -50,7 +50,7 @@ pub trait SwarmTrait: Stream<Item = Event> + Unpin {
 
     fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash);
 
-    fn report_peer(&mut self, peer_id: PeerId);
+    fn report_peer_as_malicious(&mut self, peer_id: PeerId);
 
     fn add_new_supported_inbound_protocol(&mut self, protocol_name: StreamProtocol);
 
@@ -125,8 +125,9 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
         }
     }
 
-    fn report_peer(&mut self, peer_id: PeerId) {
-        let _ = self.behaviour_mut().peer_manager.report_peer(peer_id, ReputationModifier::Bad {});
+    fn report_peer_as_malicious(&mut self, peer_id: PeerId) {
+        let _ =
+            self.behaviour_mut().peer_manager.report_peer(peer_id, ReputationModifier::Malicious);
     }
 
     fn add_new_supported_inbound_protocol(&mut self, protocol: StreamProtocol) {
