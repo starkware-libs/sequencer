@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
+use std::sync::Arc;
 
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::{
@@ -10,14 +11,14 @@ use starknet_api::transaction::{
     ValidResourceBounds,
 };
 
-use crate::mempool::TransactionReference;
+use crate::mempool::{GasPriceThreshold, TransactionReference};
 
 // A queue holding the transaction that with nonces that match account nonces.
 // Note: the derived comparison functionality considers the order guaranteed by the data structures
 // used.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct TransactionQueue {
-    gas_price_threshold: u128,
+    gas_price_threshold: Arc<GasPriceThreshold>,
     // Transactions with gas price above gas price threshold (sorted by tip).
     priority_queue: BTreeSet<PriorityTransaction>,
     // Transactions with gas price below gas price threshold (sorted by price).
@@ -37,12 +38,13 @@ impl TransactionQueue {
              time."
         );
 
-        let new_tx_successfully_inserted =
-            if tx_reference.get_l2_gas_price() < self.gas_price_threshold {
-                self.pending_queue.insert(tx_reference.into())
-            } else {
-                self.priority_queue.insert(tx_reference.into())
-            };
+        let new_tx_successfully_inserted = if tx_reference.get_l2_gas_price()
+            < self.gas_price_threshold.get_gas_price_threshold()
+        {
+            self.pending_queue.insert(tx_reference.into())
+        } else {
+            self.priority_queue.insert(tx_reference.into())
+        };
         assert!(
             new_tx_successfully_inserted,
             "Keys should be unique; duplicates are checked prior."
@@ -85,14 +87,20 @@ impl TransactionQueue {
         self.priority_queue.is_empty()
     }
 
-    pub fn _update_gas_price_threshold(&mut self, threshold: u128) {
-        match threshold.cmp(&self.gas_price_threshold) {
+    pub fn _update_gas_price_threshold(&mut self, gas_price_threshold: Arc<GasPriceThreshold>) {
+        let prev_threshold = self.gas_price_threshold.get_gas_price_threshold();
+        let threshold = gas_price_threshold.get_gas_price_threshold();
+        println!(
+            "MoNas: Inside TXQ: Updating gas price threshold to: {}, prev threshold: {}",
+            threshold, prev_threshold
+        );
+
+        match threshold.cmp(&prev_threshold) {
             Ordering::Less => self._promote_txs_to_priority(threshold),
             Ordering::Greater => self._demote_txs_to_pending(threshold),
             Ordering::Equal => {}
         }
-
-        self.gas_price_threshold = threshold;
+        self.gas_price_threshold = gas_price_threshold;
     }
 
     fn _promote_txs_to_priority(&mut self, threshold: u128) {

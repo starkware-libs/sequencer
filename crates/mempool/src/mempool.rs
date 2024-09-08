@@ -1,4 +1,7 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
+use std::sync::Arc;
 
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
@@ -6,6 +9,7 @@ use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput, MempoolResult};
 
+use crate::partition_manager::PartitionManager;
 use crate::suspended_transaction_pool::SuspendedTransactionPool;
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -27,13 +31,23 @@ pub struct Mempool {
     _suspended_tx_pool: SuspendedTransactionPool,
     // Represents the current state of the mempool during block creation.
     mempool_state: HashMap<ContractAddress, AccountState>,
+
+    _pm: PartitionManager,
     // The most recent account nonces received, for all account in the pool.
     _account_nonces: AccountToNonce,
+
+    // The gas price threshold for the mempool.
+    _gas_price_threshold: Rc<RefCell<GasPriceThreshold>>,
 }
 
 impl Mempool {
     pub fn empty() -> Self {
-        Mempool::default()
+        let gas_price_threshold = Arc::new(GasPriceThreshold::default());
+
+        let mut mempool = Self::default();
+        mempool.tx_queue._update_gas_price_threshold(gas_price_threshold.clone());
+        mempool._pm._update_gas_price_threshold(gas_price_threshold);
+        mempool
     }
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
@@ -113,7 +127,10 @@ impl Mempool {
 
     // TODO(Mohammad): Rename this method once consensus API is added.
     fn _update_gas_price_threshold(&mut self, threshold: u128) {
-        self.tx_queue._update_gas_price_threshold(threshold);
+        self._gas_price_threshold.borrow_mut().gas_price_threshold = threshold;
+        // let gas_price = Arc::new(GasPriceThreshold { gas_price_threshold: threshold });
+        // self.tx_queue._update_gas_price_threshold(gas_price.clone());
+        // self._pm._update_gas_price_threshold(gas_price);
     }
 
     fn validate_input(&self, input: &MempoolInput) -> MempoolResult<()> {
@@ -225,5 +242,16 @@ impl TransactionReference {
 
     pub fn get_l2_gas_price(&self) -> u128 {
         self.resource_bounds.get_l2_bounds().max_price_per_unit
+    }
+}
+
+#[derive(Debug, Default, Eq, PartialEq)]
+pub struct GasPriceThreshold {
+    gas_price_threshold: u128,
+}
+
+impl GasPriceThreshold {
+    pub fn get_gas_price_threshold(&self) -> u128 {
+        self.gas_price_threshold
     }
 }
