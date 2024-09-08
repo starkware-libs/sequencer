@@ -841,6 +841,7 @@ pub struct ResourcesByVersion {
     pub deprecated_resources: ResourcesParams,
 }
 
+#[derive(Clone)]
 pub struct VersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
