@@ -1,4 +1,3 @@
-use std::ops::Range;
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
@@ -9,9 +8,6 @@ use futures::FutureExt;
 use mockall::automock;
 use rstest::{fixture, rstest};
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::felt;
-use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
-use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::ProposalId;
 use starknet_mempool_types::communication::MockMempoolClient;
 use tokio_stream::wrappers::ReceiverStream;
@@ -29,6 +25,7 @@ use crate::proposal_manager::{
     ProposalManagerConfig,
     ProposalManagerError,
 };
+use crate::test_utils::test_txs;
 
 pub type OutputTxStream = ReceiverStream<Transaction>;
 
@@ -194,17 +191,6 @@ async fn multiple_proposals_generation_fail(
 fn arbitrary_deadline() -> tokio::time::Instant {
     const GENERATION_TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
     tokio::time::Instant::now() + GENERATION_TIMEOUT
-}
-
-pub fn test_txs(tx_hash_range: Range<usize>) -> Vec<Transaction> {
-    tx_hash_range
-        .map(|i| {
-            Transaction::Invoke(executable_invoke_tx(InvokeTxArgs {
-                tx_hash: TransactionHash(felt!(u128::try_from(i).unwrap())),
-                ..Default::default()
-            }))
-        })
-        .collect()
 }
 
 fn simulate_build_block(n_txs: Option<usize>) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
