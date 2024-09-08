@@ -15,10 +15,14 @@ use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::communication::MockMempoolClient;
 use tokio_stream::StreamExt;
 
-use crate::proposal_manager::{
+use crate::block_builder::{
+    BlockBuilderResult,
     BlockBuilderTrait,
-    InputTxStream,
+    BlockExecutionArtifacts,
     MockBlockBuilderFactoryTrait,
+};
+use crate::proposal_manager::{
+    InputTxStream,
     OutputTxStream,
     ProposalManager,
     ProposalManagerConfig,
@@ -64,7 +68,7 @@ async fn proposal_generation_success(
     block_builder_factory
         .expect_create_block_builder()
         .once()
-        .returning(move || simulate_build_block(Some(n_txs)));
+        .returning(move |_, _| simulate_build_block(Some(n_txs)));
 
     mempool_client.expect_get_txs().once().returning(|max_n_txs| Ok(test_txs(0..max_n_txs)));
 
@@ -83,7 +87,7 @@ async fn proposal_generation_success(
 
     let (output_content_sender, stream) = output_streaming;
     proposal_manager
-        .build_block_proposal(0, arbitrary_deadline(), output_content_sender)
+        .build_block_proposal(0, None, arbitrary_deadline(), output_content_sender)
         .await
         .unwrap();
 
@@ -103,7 +107,7 @@ async fn consecutive_proposal_generations_success(
     block_builder_factory
         .expect_create_block_builder()
         .times(2)
-        .returning(move || simulate_build_block(Some(n_txs)));
+        .returning(move |_, _| simulate_build_block(Some(n_txs)));
 
     let expected_txs = test_txs(0..proposal_manager_config.max_txs_per_mempool_request);
     let mempool_txs = expected_txs.clone();
@@ -117,7 +121,7 @@ async fn consecutive_proposal_generations_success(
 
     let (output_content_sender, stream) = output_streaming(proposal_manager_config.clone());
     proposal_manager
-        .build_block_proposal(0, arbitrary_deadline(), output_content_sender)
+        .build_block_proposal(0, None, arbitrary_deadline(), output_content_sender)
         .await
         .unwrap();
 
@@ -128,7 +132,7 @@ async fn consecutive_proposal_generations_success(
 
     let (output_content_sender, stream) = output_streaming(proposal_manager_config);
     proposal_manager
-        .build_block_proposal(1, arbitrary_deadline(), output_content_sender)
+        .build_block_proposal(1, None, arbitrary_deadline(), output_content_sender)
         .await
         .unwrap();
 
@@ -149,7 +153,7 @@ async fn multiple_proposals_generation_fail(
     block_builder_factory
         .expect_create_block_builder()
         .once()
-        .returning(|| simulate_build_block(None));
+        .returning(|_, _| simulate_build_block(None));
 
     mempool_client.expect_get_txs().returning(|_| Ok(vec![]));
 
@@ -162,7 +166,7 @@ async fn multiple_proposals_generation_fail(
     // A proposal that will never finish.
     let (output_content_sender, _stream) = output_streaming(proposal_manager_config.clone());
     proposal_manager
-        .build_block_proposal(0, arbitrary_deadline(), output_content_sender)
+        .build_block_proposal(0, None, arbitrary_deadline(), output_content_sender)
         .await
         .unwrap();
 
@@ -170,7 +174,7 @@ async fn multiple_proposals_generation_fail(
     let (another_output_content_sender, _another_stream) =
         output_streaming(proposal_manager_config);
     let another_generate_request = proposal_manager
-        .build_block_proposal(1, arbitrary_deadline(), another_output_content_sender)
+        .build_block_proposal(1, None, arbitrary_deadline(), another_output_content_sender)
         .await;
     assert_matches!(
         another_generate_request,
@@ -186,7 +190,7 @@ fn arbitrary_deadline() -> tokio::time::Instant {
     tokio::time::Instant::now() + GENERATION_TIMEOUT
 }
 
-fn test_txs(tx_hash_range: Range<usize>) -> Vec<Transaction> {
+pub fn test_txs(tx_hash_range: Range<usize>) -> Vec<Transaction> {
     tx_hash_range
         .map(|i| {
             Transaction::Invoke(executable_invoke_tx(InvokeTxArgs {
@@ -197,15 +201,15 @@ fn test_txs(tx_hash_range: Range<usize>) -> Vec<Transaction> {
         .collect()
 }
 
-fn simulate_build_block(n_txs: Option<usize>) -> Arc<dyn BlockBuilderTrait> {
+fn simulate_build_block(n_txs: Option<usize>) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
     let mut mock_block_builder = MockBlockBuilderTraitWrapper::new();
-    mock_block_builder.expect_build_block().return_once(
+    mock_block_builder.expect_build_block_wrapper().return_once(
         move |deadline, mempool_tx_stream, output_content_sender| {
             simulate_block_builder(deadline, mempool_tx_stream, output_content_sender, n_txs)
                 .boxed()
         },
     );
-    Arc::new(mock_block_builder)
+    Ok(Box::new(mock_block_builder))
 }
 
 async fn simulate_block_builder(
@@ -213,33 +217,35 @@ async fn simulate_block_builder(
     mempool_tx_stream: InputTxStream,
     output_sender: tokio::sync::mpsc::Sender<Transaction>,
     n_txs_to_take: Option<usize>,
-) {
+) -> BlockBuilderResult<BlockExecutionArtifacts> {
     let mut mempool_tx_stream = mempool_tx_stream.take(n_txs_to_take.unwrap_or(usize::MAX));
     while let Some(tx) = mempool_tx_stream.next().await {
         output_sender.send(tx).await.unwrap();
     }
+
+    Ok(BlockExecutionArtifacts::default())
 }
 
 // A wrapper trait to allow mocking the BlockBuilderTrait in tests.
 #[cfg_attr(test, automock)]
 trait BlockBuilderTraitWrapper: Send + Sync {
     // Equivalent to: async fn build_block(&self, deadline: tokio::time::Instant);
-    fn build_block(
+    fn build_block_wrapper(
         &self,
         deadline: tokio::time::Instant,
         tx_stream: InputTxStream,
         output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
-    ) -> BoxFuture<'_, ()>;
+    ) -> BoxFuture<'_, BlockBuilderResult<BlockExecutionArtifacts>>;
 }
 
 #[async_trait]
 impl<T: BlockBuilderTraitWrapper> BlockBuilderTrait for T {
     async fn build_block(
-        &self,
+        &mut self,
         deadline: tokio::time::Instant,
         tx_stream: InputTxStream,
         output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
-    ) {
-        self.build_block(deadline, tx_stream, output_content_sender).await
+    ) -> BlockBuilderResult<BlockExecutionArtifacts> {
+        self.build_block_wrapper(deadline, tx_stream, output_content_sender).await
     }
 }

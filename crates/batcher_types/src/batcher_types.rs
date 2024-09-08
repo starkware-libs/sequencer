@@ -1,6 +1,7 @@
+use blockifier::blockifier::block::BlockNumberHashPair;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::BlockNumber;
 use starknet_api::core::TransactionCommitment;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
@@ -18,7 +19,7 @@ pub struct ProposalCommitment {
 pub struct BuildProposalInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,
-    pub block_hash_10_blocks_ago: BlockHash,
+    pub retrospective_block_hash: BlockNumberHashPair,
     // TODO: Should we get the gas price here?
 }
 
