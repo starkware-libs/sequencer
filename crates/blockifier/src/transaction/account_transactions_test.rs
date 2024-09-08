@@ -14,6 +14,7 @@ use starknet_api::transaction::{
     ContractAddressSalt,
     DeclareTransactionV2,
     Fee,
+    Resource,
     TransactionHash,
     TransactionVersion,
     ValidResourceBounds,
@@ -1024,7 +1025,12 @@ fn test_insufficient_max_fee_reverts(
     .unwrap();
     assert!(tx_execution_info2.is_reverted());
     assert!(tx_execution_info2.receipt.fee == actual_fee_depth1);
-    assert!(tx_execution_info2.revert_error.unwrap().starts_with("Insufficient max L1 gas:"));
+    assert!(
+        tx_execution_info2
+            .revert_error
+            .unwrap()
+            .starts_with(&format!("Insufficient max {resource}", resource = Resource::L1Gas))
+    );
 
     // Invoke the `recurse` function with depth of 824 and the actual fee of depth 1 as max_fee.
     // This call should fail due to no remaining steps (execution steps based on max_fee are bounded
