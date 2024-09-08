@@ -102,6 +102,7 @@ use crate::transaction::errors::{
 use crate::transaction::objects::{
     FeeType,
     GasVector,
+    GasVectorComputationMode,
     HasRelatedFeeType,
     StarknetResources,
     TransactionExecutionInfo,
@@ -1917,11 +1918,11 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     };
     assert_eq!(
         expected_gas,
-        actual_execution_info
-            .receipt
-            .resources
-            .starknet_resources
-            .to_gas_vector(versioned_constants, use_kzg_da)
+        actual_execution_info.receipt.resources.starknet_resources.to_gas_vector(
+            versioned_constants,
+            use_kzg_da,
+            &GasVectorComputationMode::NoL2Gas,
+        )
     );
 
     let total_gas = expected_tx_resources
