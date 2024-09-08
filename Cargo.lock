@@ -8993,6 +8993,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_gateway_types"
+version = "0.0.0"
+
+[[package]]
 name = "starknet_mempool"
 version = "0.0.0"
 dependencies = [

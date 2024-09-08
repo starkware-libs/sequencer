@@ -11,6 +11,7 @@ members = [
   "crates/consensus_manager",
   "crates/consensus_manager_types",
   "crates/gateway",
+  "crates/gateway_types",
   "crates/mempool",
   "crates/mempool_infra",
   "crates/mempool_node",
