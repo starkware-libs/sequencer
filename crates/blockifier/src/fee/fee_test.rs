@@ -5,7 +5,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::rstest;
 use starknet_api::invoke_tx_args;
-use starknet_api::transaction::Fee;
+use starknet_api::transaction::{Fee, Resource, ValidResourceBounds};
 
 use crate::abi::constants::N_STEPS_RESOURCE;
 use crate::blockifier::block::GasPrices;
@@ -20,9 +20,11 @@ use crate::test_utils::{
     BALANCE,
     DEFAULT_ETH_L1_DATA_GAS_PRICE,
     DEFAULT_ETH_L1_GAS_PRICE,
+    DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE,
 };
 use crate::transaction::objects::{GasVector, GasVectorComputationMode};
-use crate::transaction::test_utils::{account_invoke_tx, l1_resource_bounds};
+use crate::transaction::test_utils::{account_invoke_tx, all_resource_bounds, l1_resource_bounds};
 use crate::utils::u128_from_usize;
 use crate::versioned_constants::VersionedConstants;
 
@@ -190,9 +192,66 @@ fn test_discounted_gas_overdraft(
         let expected_actual_amount = u128_from_usize(l1_gas_used)
             + (u128_from_usize(l1_data_gas_used) * data_gas_price) / gas_price;
         assert_matches!(
-            error, FeeCheckError::MaxL1GasAmountExceeded { max_amount, actual_amount }
-            if max_amount == u128::from(gas_bound) && actual_amount == expected_actual_amount
+            error, FeeCheckError::MaxGasAmountExceeded { resource, max_amount, actual_amount }
+            if max_amount == u128::from(gas_bound) && actual_amount == expected_actual_amount && resource == Resource::L1Gas
         )
+    } else {
+        assert_matches!(report.error(), None);
+    }
+}
+
+#[rstest]
+#[case::l1_bound_overdraft(1000, 0, 0, true)]
+#[case::l2_bound_overdraft(0, 10000, 0, true)]
+#[case::l1_data_bound_overdraft(0, 0, 1000, true)]
+#[case::no_overdraft(0, 0, 0, false)]
+fn test_post_execution_gas_overdraft_all_resource_bounds(
+    all_resource_bounds: ValidResourceBounds,
+    #[case] l1_gas_used: u128,
+    #[case] l2_gas_used: u128,
+    #[case] l1_data_gas_used: u128,
+    #[case] expect_failure: bool,
+) {
+    let mut block_context = BlockContext::create_for_account_testing();
+    block_context.block_info.gas_prices = GasPrices::new(
+        DEFAULT_ETH_L1_GAS_PRICE.try_into().unwrap(),
+        DEFAULT_STRK_L1_GAS_PRICE.try_into().unwrap(),
+        DEFAULT_ETH_L1_DATA_GAS_PRICE.try_into().unwrap(),
+        DEFAULT_STRK_L1_DATA_GAS_PRICE.try_into().unwrap(),
+        VersionedConstants::latest_constants()
+            .l1_to_l2_gas_price_conversion(DEFAULT_ETH_L1_GAS_PRICE)
+            .try_into()
+            .unwrap(),
+        VersionedConstants::latest_constants()
+            .l1_to_l2_gas_price_conversion(DEFAULT_STRK_L1_GAS_PRICE)
+            .try_into()
+            .unwrap(),
+    );
+
+    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
+    let mut state = test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
+    let tx = account_invoke_tx(invoke_tx_args! {
+        sender_address: account.get_instance_address(0),
+        resource_bounds: all_resource_bounds,
+    });
+
+    let tx_receipt = TransactionReceipt {
+        fee: Fee(0),
+        gas: GasVector { l1_gas: l1_gas_used, l2_gas: l2_gas_used, l1_data_gas: l1_data_gas_used },
+        ..Default::default()
+    };
+    let charge_fee = true;
+    let report = PostExecutionReport::new(
+        &mut state,
+        &block_context.to_tx_context(&tx),
+        &tx_receipt,
+        charge_fee,
+    )
+    .unwrap();
+
+    if expect_failure {
+        let error = report.error().unwrap();
+        assert_matches!(error, FeeCheckError::MaxGasAmountExceeded { .. })
     } else {
         assert_matches!(report.error(), None);
     }
