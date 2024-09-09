@@ -10,7 +10,7 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
-use starknet_mempool_types::communication::SharedMempoolClient;
+use starknet_mempool_types::communication::{MempoolWrapperInput, SharedMempoolClient};
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use tracing::{error, info, instrument};
@@ -110,7 +110,8 @@ async fn add_tx(
 
     let tx_hash = mempool_input.tx.tx_hash();
 
-    app_state.mempool_client.add_tx(mempool_input).await.map_err(|e| {
+    let mempool_wrapper_input = MempoolWrapperInput { mempool_input, message_metadata: None };
+    app_state.mempool_client.add_tx(mempool_wrapper_input).await.map_err(|e| {
         error!("Failed to send tx to mempool: {}", e);
         GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
     })?;
