@@ -12,6 +12,7 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'crates/committer_cli/**'
+      - 'crates/starknet_api/**'
       - 'crates/starknet_committer/**'
       - 'crates/starknet_patricia/**'
 
@@ -27,6 +28,7 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'crates/committer_cli/**'
+      - 'crates/starknet_api/**'
       - 'crates/starknet_committer/**'
       - 'crates/starknet_patricia/**'
 

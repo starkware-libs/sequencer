@@ -32,7 +32,6 @@ members = [
   "crates/papyrus_storage",
   "crates/papyrus_sync",
   "crates/papyrus_test_utils",
-  "crates/sequencing/papyrus_block_builder",
   "crates/sequencing/papyrus_consensus",
   "crates/starknet_api",
   "crates/starknet_client",
@@ -130,7 +129,7 @@ mockall = "0.12.1"
 mockito = "1.4.0"
 num-bigint = "0.4"
 num-integer = "0.1.45"
-num-rational = { version = "0.4", features = ["serde"] }
+num-rational = "0.4"
 num-traits = "0.2.15"
 once_cell = "1.19.0"
 os_info = "3.6.0"
@@ -152,13 +151,14 @@ papyrus_test_utils = { path = "crates/papyrus_test_utils", version = "0.0.0" }
 parity-scale-codec = "=3.6.9"
 parity-scale-codec-derive = "=3.6.9"
 paste = "1.0.15"
-phf = { version = "0.11", features = ["macros"] }
+phf = "0.11"
 pretty_assertions = "1.4.0"
 primitive-types = "0.12.1"
 prometheus-parse = "0.2.4"
 prost = "0.12.1"
 prost-build = "0.12.1"
 prost-types = "0.12.1"
+protoc-prebuilt = "0.3.0"
 pyo3 = "0.19.1"
 pyo3-log = "0.8.1"
 quote = "1.0.26"
@@ -167,7 +167,7 @@ rand_chacha = "0.3.1"
 rand_distr = "0.4.3"
 regex = "1.10.4"
 replace_with = "0.1.7"
-reqwest = { version = "0.11", features = ["blocking", "json"] }
+reqwest = "0.11"
 rstest = "0.17.0"
 rustc-hex = "2.1.0"
 schemars = "0.8.12"
@@ -180,7 +180,7 @@ sha3 = "0.10.8"
 simple_logger = "4.0.0"
 starknet-core = "0.6.0"
 starknet-crypto = "0.5.1"
-starknet-types-core = { version = "0.1.5", features = ["hash", "prime-bigint", "std"] }
+starknet-types-core = "0.1.5"
 starknet_api = { path = "crates/starknet_api", version = "0.0.0" }
 starknet_batcher = { path = "crates/batcher", version = "0.0.0" }
 starknet_batcher_types = { path = "crates/batcher_types", version = "0.0.0" }
@@ -208,7 +208,7 @@ test-log = "0.2.14"
 test-with = "0.9.3"
 thiserror = "1.0.37"
 tikv-jemallocator = "0.5.4"
-tokio = { version = "1.37.0", features = ["full"] }
+tokio = "1.37.0"
 tokio-retry = "0.3"
 tokio-stream = "0.1.8"
 tokio-test = "0.4.4"

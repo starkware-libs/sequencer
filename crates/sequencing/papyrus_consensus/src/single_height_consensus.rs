@@ -48,6 +48,8 @@ pub(crate) struct SingleHeightConsensus<BlockT: ConsensusBlock> {
     proposals: HashMap<Round, Option<BlockT>>,
     prevotes: HashMap<(Round, ValidatorId), Vote>,
     precommits: HashMap<(Round, ValidatorId), Vote>,
+    last_prevote: Option<Vote>,
+    last_precommit: Option<Vote>,
 }
 
 impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
@@ -68,6 +70,8 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
             proposals: HashMap::new(),
             prevotes: HashMap::new(),
             precommits: HashMap::new(),
+            last_prevote: None,
+            last_precommit: None,
         }
     }
 
@@ -112,7 +116,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         }
         let Entry::Vacant(proposal_entry) = self.proposals.entry(init.round) else {
             warn!("Round {} already has a proposal, ignoring", init.round);
-            return Ok(ShcReturn::Tasks(vec![]));
+            return Ok(ShcReturn::Tasks(Vec::new()));
         };
 
         let block_receiver = context.validate_proposal(self.height, p2p_messages_receiver).await;
@@ -172,22 +176,48 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         }
     }
 
-    pub async fn handle_task<ContextT: ConsensusContext<Block = BlockT>>(
+    pub async fn handle_event<ContextT: ConsensusContext<Block = BlockT>>(
         &mut self,
         context: &mut ContextT,
-        task: ShcTask,
+        event: StateMachineEvent,
     ) -> Result<ShcReturn<BlockT>, ConsensusError> {
-        debug!("Received task: {:?}", task);
-        match task.event {
+        debug!("Received Event: {:?}", event);
+        match event {
             StateMachineEvent::TimeoutPropose(_)
             | StateMachineEvent::TimeoutPrevote(_)
             | StateMachineEvent::TimeoutPrecommit(_) => {
                 let leader_fn =
                     |round: Round| -> ValidatorId { context.proposer(self.height, round) };
-                let sm_events = self.state_machine.handle_event(task.event, &leader_fn);
+                let sm_events = self.state_machine.handle_event(event, &leader_fn);
                 self.handle_state_machine_events(context, sm_events).await
             }
-            _ => unimplemented!("Unexpected task: {:?}", task),
+            StateMachineEvent::Prevote(block_hash, round) => {
+                let Some(last_vote) = &self.last_prevote else {
+                    return Err(ConsensusError::InvalidEvent("No prevote to send".to_string()));
+                };
+                if last_vote.round > round {
+                    return Ok(ShcReturn::Tasks(Vec::new()));
+                }
+                context.broadcast(ConsensusMessage::Vote(last_vote.clone())).await?;
+                Ok(ShcReturn::Tasks(vec![ShcTask {
+                    duration: self.timeouts.prevote_timeout,
+                    event: StateMachineEvent::Prevote(block_hash, round),
+                }]))
+            }
+            StateMachineEvent::Precommit(block_hash, round) => {
+                let Some(last_vote) = &self.last_precommit else {
+                    return Err(ConsensusError::InvalidEvent("No precommit to send".to_string()));
+                };
+                if last_vote.round > round {
+                    return Ok(ShcReturn::Tasks(Vec::new()));
+                }
+                context.broadcast(ConsensusMessage::Vote(last_vote.clone())).await?;
+                Ok(ShcReturn::Tasks(vec![ShcTask {
+                    duration: self.timeouts.precommit_timeout,
+                    event: StateMachineEvent::Precommit(block_hash, round),
+                }]))
+            }
+            _ => unimplemented!("Unexpected event: {:?}", event),
         }
     }
 
@@ -198,10 +228,8 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         vote: Vote,
     ) -> Result<ShcReturn<BlockT>, ConsensusError> {
         if !self.validators.contains(&vote.voter) {
-            return Err(ConsensusError::InvalidVote(
-                vote.clone(),
-                format!("voter {:?} not in validators {:?}", vote.voter, self.validators),
-            ));
+            debug!("Ignoring vote from voter not in validators: vote={:?}", vote);
+            return Ok(ShcReturn::Tasks(Vec::new()));
         }
 
         let (votes, sm_vote) = match vote.vote_type {
@@ -227,7 +255,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
                     ));
                 } else {
                     // Replay, ignore.
-                    return Ok(ShcReturn::Tasks(vec![]));
+                    return Ok(ShcReturn::Tasks(Vec::new()));
                 }
             }
         }
@@ -243,7 +271,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         context: &mut ContextT,
         mut events: VecDeque<StateMachineEvent>,
     ) -> Result<ShcReturn<BlockT>, ConsensusError> {
-        let mut ret_val = vec![];
+        let mut ret_val = Vec::new();
         while let Some(event) = events.pop_front() {
             trace!("Handling event: {:?}", event);
             match event {
@@ -263,12 +291,26 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
                     return self.handle_state_machine_decision(block_hash, round).await;
                 }
                 StateMachineEvent::Prevote(block_hash, round) => {
-                    self.handle_state_machine_vote(context, block_hash, round, VoteType::Prevote)
-                        .await?;
+                    ret_val.extend(
+                        self.handle_state_machine_vote(
+                            context,
+                            block_hash,
+                            round,
+                            VoteType::Prevote,
+                        )
+                        .await?,
+                    );
                 }
                 StateMachineEvent::Precommit(block_hash, round) => {
-                    self.handle_state_machine_vote(context, block_hash, round, VoteType::Precommit)
-                        .await?;
+                    ret_val.extend(
+                        self.handle_state_machine_vote(
+                            context,
+                            block_hash,
+                            round,
+                            VoteType::Precommit,
+                        )
+                        .await?,
+                    );
                 }
                 StateMachineEvent::TimeoutPropose(_) => {
                     ret_val.push(ShcTask { duration: self.timeouts.proposal_timeout, event });
@@ -326,18 +368,32 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         block_hash: Option<BlockHash>,
         round: Round,
         vote_type: VoteType,
-    ) -> Result<ShcReturn<BlockT>, ConsensusError> {
-        let votes = match vote_type {
-            VoteType::Prevote => &mut self.prevotes,
-            VoteType::Precommit => &mut self.precommits,
+    ) -> Result<Vec<ShcTask>, ConsensusError> {
+        let (votes, last_vote, duration, event) = match vote_type {
+            VoteType::Prevote => (
+                &mut self.prevotes,
+                &mut self.last_prevote,
+                self.timeouts.prevote_timeout,
+                StateMachineEvent::Prevote(block_hash, round),
+            ),
+            VoteType::Precommit => (
+                &mut self.precommits,
+                &mut self.last_precommit,
+                self.timeouts.precommit_timeout,
+                StateMachineEvent::Precommit(block_hash, round),
+            ),
         };
         let vote = Vote { vote_type, height: self.height.0, round, block_hash, voter: self.id };
         if let Some(old) = votes.insert((round, self.id), vote.clone()) {
             // TODO(matan): Consider refactoring not to panic, rather log and return the error.
             panic!("State machine should not send repeat votes: old={:?}, new={:?}", old, vote);
         }
-        context.broadcast(ConsensusMessage::Vote(vote)).await?;
-        Ok(ShcReturn::Tasks(vec![]))
+        context.broadcast(ConsensusMessage::Vote(vote.clone())).await?;
+        if last_vote.as_ref().map_or(false, |last| round < last.round) {
+            return Ok(Vec::new());
+        }
+        *last_vote = Some(vote);
+        Ok(vec![ShcTask { duration, event }])
     }
 
     #[instrument(skip_all)]

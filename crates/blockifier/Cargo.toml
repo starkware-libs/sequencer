@@ -37,11 +37,11 @@ keccak.workspace = true
 log.workspace = true
 num-bigint.workspace = true
 num-integer.workspace = true
-num-rational.workspace = true
+num-rational = { workspace = true, features = ["serde"] }
 num-traits.workspace = true
 papyrus_config.workspace = true
 paste.workspace = true
-phf.workspace = true
+phf = { workspace = true, features = ["macros"] }
 rand = { workspace = true, optional = true }
 rstest = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }

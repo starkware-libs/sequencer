@@ -1,13 +1,17 @@
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 
-use super::fee_utils::calculate_l1_gas_by_vm_usage;
+use super::fee_utils::get_vm_resources_cost;
 use crate::abi::constants;
-use crate::context::{BlockContext, TransactionContext};
+use crate::context::BlockContext;
 use crate::fee::eth_gas_constants;
 use crate::state::cached_state::StateChangesCount;
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::objects::{GasVector, HasRelatedFeeType, TransactionPreValidationResult};
-use crate::utils::{u128_div_ceil, u128_from_usize};
+use crate::transaction::objects::{
+    GasVector,
+    GasVectorComputationMode,
+    TransactionPreValidationResult,
+};
+use crate::utils::u128_from_usize;
 
 #[cfg(test)]
 #[path = "gas_usage_test.rs"]
@@ -144,6 +148,7 @@ fn get_event_emission_cost(n_topics: usize, data_length: usize) -> GasVector {
 pub fn estimate_minimal_gas_vector(
     block_context: &BlockContext,
     tx: &AccountTransaction,
+    gas_usage_vector_computation_mode: &GasVectorComputationMode,
 ) -> TransactionPreValidationResult<GasVector> {
     // TODO(Dori, 1/8/2023): Give names to the constant VM step estimates and regression-test them.
     let BlockContext { block_info, versioned_constants, .. } = block_context;
@@ -180,24 +185,10 @@ pub fn estimate_minimal_gas_vector(
 
     let resources = ExecutionResources { n_steps: os_steps_for_type, ..Default::default() };
     Ok(get_da_gas_cost(&state_changes_by_account_transaction, block_info.use_kzg_da)
-        + calculate_l1_gas_by_vm_usage(versioned_constants, &resources, 0)?)
-}
-
-/// Compute l1_gas estimation from gas_vector using the following formula:
-/// One byte of data costs either 1 data gas (in blob mode) or 16 gas (in calldata
-/// mode). For gas price GP and data gas price DGP, the discount for using blobs
-/// would be DGP / (16 * GP).
-/// X non-data-related gas consumption and Y bytes of data, in non-blob mode, would
-/// cost (X + 16*Y) units of gas. Applying the discount ratio to the data-related
-/// summand, we get total_gas = (X + Y * DGP / GP).
-pub fn compute_discounted_gas_from_gas_vector(
-    gas_usage_vector: &GasVector,
-    tx_context: &TransactionContext,
-) -> u128 {
-    let gas_prices = &tx_context.block_context.block_info.gas_prices;
-    let GasVector { l1_gas: gas_usage, l1_data_gas: blob_gas_usage, .. } = gas_usage_vector;
-    let fee_type = tx_context.tx_info.fee_type();
-    let gas_price = gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
-    let data_gas_price = gas_prices.get_l1_data_gas_price_by_fee_type(&fee_type);
-    gas_usage + u128_div_ceil(blob_gas_usage * u128::from(data_gas_price), gas_price)
+        + get_vm_resources_cost(
+            versioned_constants,
+            &resources,
+            0,
+            gas_usage_vector_computation_mode,
+        )?)
 }

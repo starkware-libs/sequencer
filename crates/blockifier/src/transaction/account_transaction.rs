@@ -25,7 +25,7 @@ use crate::fee::fee_utils::{
     get_sequencer_balance_keys,
     verify_can_pay_committed_bounds,
 };
-use crate::fee::gas_usage::{compute_discounted_gas_from_gas_vector, estimate_minimal_gas_vector};
+use crate::fee::gas_usage::estimate_minimal_gas_vector;
 use crate::retdata;
 use crate::state::cached_state::{StateChanges, TransactionalState};
 use crate::state::state_api::{State, StateReader, UpdatableState};
@@ -33,7 +33,6 @@ use crate::transaction::constants;
 use crate::transaction::errors::{
     TransactionExecutionError,
     TransactionFeeError,
-    TransactionInfoCreationError,
     TransactionPreValidationError,
 };
 use crate::transaction::objects::{
@@ -229,11 +228,13 @@ impl AccountTransaction {
         &self,
         tx_context: &TransactionContext,
     ) -> TransactionPreValidationResult<()> {
-        let minimal_l1_gas_amount_vector =
-            estimate_minimal_gas_vector(&tx_context.block_context, self)?;
+        let minimal_l1_gas_amount_vector = estimate_minimal_gas_vector(
+            &tx_context.block_context,
+            self,
+            &tx_context.get_gas_vector_computation_mode(),
+        )?;
         // TODO(Aner, 30/01/24): modify once data gas limit is enforced.
-        let minimal_l1_gas_amount =
-            compute_discounted_gas_from_gas_vector(&minimal_l1_gas_amount_vector, tx_context);
+        let minimal_l1_gas_amount = minimal_l1_gas_amount_vector.to_discounted_l1_gas(tx_context);
 
         let TransactionContext { block_context, tx_info } = tx_context;
         let block_info = &block_context.block_info;
@@ -681,7 +682,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         block_context: &BlockContext,
         execution_flags: ExecutionFlags,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
-        let tx_context = Arc::new(block_context.to_tx_context(self)?);
+        let tx_context = Arc::new(block_context.to_tx_context(self));
         self.verify_tx_version(tx_context.tx_info.version())?;
 
         // Nonce and fee check should be done before running user code.
@@ -738,8 +739,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
 }
 
 impl TransactionInfoCreator for AccountTransaction {
-    // TODO(Nimrod): This function should return `TransactionInfo` without a result.
-    fn create_tx_info(&self) -> Result<TransactionInfo, TransactionInfoCreationError> {
+    fn create_tx_info(&self) -> TransactionInfo {
         match self {
             Self::Declare(tx) => tx.create_tx_info(),
             Self::DeployAccount(tx) => tx.create_tx_info(),

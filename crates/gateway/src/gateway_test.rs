@@ -1,22 +1,24 @@
 use std::sync::Arc;
 
+use assert_matches::assert_matches;
 use axum::body::{Bytes, HttpBody};
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::CairoVersion;
-use mempool_test_utils::starknet_api_test_utils::{create_executable_tx, invoke_tx};
+use mempool_test_utils::starknet_api_test_utils::{create_executable_tx, declare_tx, invoke_tx};
 use mockall::predicate::eq;
-use starknet_api::core::ContractAddress;
-use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::core::{CompiledClassHash, ContractAddress};
+use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
+use starknet_api::transaction::{TransactionHash, ValidResourceBounds};
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig};
+use crate::errors::GatewaySpecError;
 use crate::gateway::{add_tx, AppState, SharedMempoolClient};
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
@@ -34,7 +36,7 @@ pub fn app_state(
         stateful_tx_validator: Arc::new(StatefulTransactionValidator {
             config: StatefulTransactionValidatorConfig::create_for_testing(),
         }),
-        gateway_compiler: GatewayCompiler::new_cairo_lang_compiler(
+        gateway_compiler: GatewayCompiler::new_command_line_compiler(
             SierraToCasmCompilationConfig::default(),
         ),
         state_reader_factory: Arc::new(state_reader_factory),
@@ -72,7 +74,7 @@ async fn test_add_tx() {
                 tx_hash,
                 *tx.tip(),
                 *tx.nonce(),
-                tx.resource_bounds().clone().into(),
+                ValidResourceBounds::AllResources(tx.resource_bounds().clone()),
             ),
             account: Account { sender_address, state: AccountState { nonce: *tx.nonce() } },
         }))
@@ -91,6 +93,25 @@ async fn test_add_tx() {
 
 async fn to_bytes(res: Response) -> Bytes {
     res.into_body().collect().await.unwrap().to_bytes()
+}
+
+// Gateway spec errors tests.
+// TODO(Arni): Add tests for all the error cases. Check the response (use `into_response` on the
+// result of `add_tx`).
+
+#[tokio::test]
+async fn test_compiled_class_hash_mismatch() {
+    let mut declare_tx =
+        assert_matches!(declare_tx(), RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => tx);
+    declare_tx.compiled_class_hash = CompiledClassHash::default();
+    let tx = RpcTransaction::Declare(RpcDeclareTransaction::V3(declare_tx));
+
+    let mock_mempool_client = MockMempoolClient::new();
+    let state_reader_factory = local_test_state_reader_factory(CairoVersion::Cairo1, false);
+    let app_state = app_state(Arc::new(mock_mempool_client), state_reader_factory);
+
+    let err = add_tx(State(app_state), tx.into()).await.unwrap_err();
+    assert_matches!(err, GatewaySpecError::CompiledClassHashMismatch);
 }
 
 fn calculate_hash(rpc_tx: &RpcTransaction) -> TransactionHash {
