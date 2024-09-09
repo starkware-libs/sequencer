@@ -34,7 +34,6 @@ pub trait ConsensusBlock: Send {
     /// Iterator for accessing the proposal's content.
     // An associated type is used instead of returning `impl Iterator` due to object safety.
     type ProposalIter: Iterator<Item = Self::ProposalChunk>;
-
     /// Identifies the block for the sake of Consensus voting.
     // The proposal's round must not be included in the ID, as, beyond being a detail of
     // consensus, Tendermint must be able to progress a value across multiple rounds of a given
@@ -167,6 +166,12 @@ pub struct ProposalInit {
     pub height: BlockNumber,
     pub round: Round,
     pub proposer: ValidatorId,
+}
+
+impl From<(BlockNumber, u32, ContractAddress)> for ProposalInit {
+    fn from(val: (BlockNumber, u32, ContractAddress)) -> Self {
+        ProposalInit { height: val.0, round: val.1, proposer: val.2 }
+    }
 }
 
 #[derive(thiserror::Error, PartialEq, Debug)]

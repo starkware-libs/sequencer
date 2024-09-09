@@ -1,0 +1,35 @@
+[package]
+name = "papyrus_consensus_orchestrator"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Implements the consensus context and orchestrates the node's components accordingly"
+
+[dependencies]
+async-trait.workspace = true
+clap = { workspace = true, features = ["derive"] }
+fs2 = "0.4"
+futures.workspace = true
+lazy_static.workspace = true
+lru.workspace = true
+metrics.workspace = true
+papyrus_common.workspace = true
+papyrus_config.workspace = true
+papyrus_consensus.workspace = true
+papyrus_network.workspace = true
+papyrus_protobuf.workspace = true
+papyrus_storage.workspace = true
+serde = { workspace = true, features = ["derive"] }
+starknet-types-core.workspace = true
+starknet_api.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["full"] }
+tracing.workspace = true
+
+[dev-dependencies]
+mockall.workspace = true
+papyrus_network = { workspace = true, features = ["testing"] }
+papyrus_storage = { workspace = true, features = ["testing"] }
+papyrus_test_utils.workspace = true
+test-case.workspace = true

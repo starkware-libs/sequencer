@@ -1,5 +1,6 @@
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
+use papyrus_consensus::types::{ConsensusBlock, ConsensusContext, ProposalInit};
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
@@ -14,7 +15,6 @@ use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
 
 use crate::papyrus_consensus_context::{PapyrusConsensusBlock, PapyrusConsensusContext};
-use crate::types::{ConsensusBlock, ConsensusContext, ProposalInit};
 
 // TODO(dvir): consider adding tests for times, i.e, the calls are returned immediately and nothing
 // happen until it should (for example, not creating a block before we have it in storage).

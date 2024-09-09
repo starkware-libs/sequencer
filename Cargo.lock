@@ -6211,6 +6211,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "papyrus_consensus_orchestrator"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "clap",
+ "fs2",
+ "futures",
+ "lazy_static",
+ "lru",
+ "metrics 0.21.1",
+ "mockall",
+ "papyrus_common",
+ "papyrus_config",
+ "papyrus_consensus",
+ "papyrus_network",
+ "papyrus_protobuf",
+ "papyrus_storage",
+ "papyrus_test_utils",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "test-case",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "papyrus_execution"
 version = "0.0.0"
 dependencies = [
@@ -6333,6 +6361,7 @@ dependencies = [
  "papyrus_common",
  "papyrus_config",
  "papyrus_consensus",
+ "papyrus_consensus_orchestrator",
  "papyrus_monitoring_gateway",
  "papyrus_network",
  "papyrus_p2p_sync",
@@ -6404,6 +6433,7 @@ dependencies = [
 name = "papyrus_protobuf"
 version = "0.0.0"
 dependencies = [
+ "futures",
  "indexmap 2.2.6",
  "lazy_static",
  "papyrus_common",
