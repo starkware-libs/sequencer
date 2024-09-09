@@ -111,10 +111,10 @@ pub async fn test_regression_single_tree() {
     let start = std::time::Instant::now();
     // Benchmark the single tree flow test.
     let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
-        leaf_modifications.clone(),
+        leaf_modifications,
         storage,
         root_hash,
-        OriginalSkeletonStorageTrieConfig::new(&leaf_modifications, false),
+        OriginalSkeletonStorageTrieConfig::new(false),
     )
     .await;
     let execution_time = std::time::Instant::now() - start;

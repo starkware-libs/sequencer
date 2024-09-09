@@ -187,10 +187,10 @@ impl PythonTest {
                     serde_json::from_str(Self::non_optional_input(input)?)?;
                 // 2. Run the test.
                 let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
-                    leaf_modifications.clone(),
+                    leaf_modifications,
                     storage,
                     root_hash,
-                    OriginalSkeletonStorageTrieConfig::new(&leaf_modifications, false),
+                    OriginalSkeletonStorageTrieConfig::new(false),
                 )
                 .await;
                 // 3. Serialize and return output.
