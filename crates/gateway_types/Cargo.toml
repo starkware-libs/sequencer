@@ -7,3 +7,11 @@ repository.workspace = true
 
 [lints]
 workspace = true
+
+[dependencies]
+async-trait.workspace = true
+mockall.workspace = true
+serde = { workspace = true, features = ["derive"] }
+starknet_api.workspace = true
+starknet_mempool_infra.workspace = true
+thiserror.workspace = true
