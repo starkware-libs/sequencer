@@ -1,5 +1,4 @@
-use blockifier::transaction::account_transaction::AccountTransaction;
-use starknet_api::core::{ChainId, ContractAddress};
+use starknet_api::core::ChainId;
 use starknet_api::executable_transaction::{
     DeclareTransaction as ExecutableDeclareTransaction,
     DeployAccountTransaction as ExecutableDeployAccountTransaction,
@@ -7,7 +6,6 @@ use starknet_api::executable_transaction::{
     Transaction as ExecutableTransaction,
 };
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
-use starknet_api::transaction::DeclareTransaction;
 use tracing::{debug, error};
 
 use crate::compilation::GatewayCompiler;
@@ -76,19 +74,4 @@ fn compile_contract_and_build_executable_declare_tx(
         })?;
 
     Ok(executable_declare_tx)
-}
-
-// TODO(yael 9/5/54): Should be implemented as part of InternalTransaction in starknet-api
-pub fn get_sender_address(tx: &AccountTransaction) -> ContractAddress {
-    match tx {
-        AccountTransaction::Declare(tx) => match &tx.tx {
-            DeclareTransaction::V3(tx) => tx.sender_address,
-            _ => panic!("Unsupported transaction version"),
-        },
-        AccountTransaction::DeployAccount(tx) => tx.contract_address(),
-        AccountTransaction::Invoke(tx) => match &tx.tx() {
-            starknet_api::transaction::InvokeTransaction::V3(tx) => tx.sender_address,
-            _ => panic!("Unsupported transaction version"),
-        },
-    }
 }
