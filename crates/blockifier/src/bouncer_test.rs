@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use cairo_vm::types::builtin_name::BuiltinName;
 use rstest::rstest;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
-use starknet_api::{class_hash, contract_address, felt, patricia_key};
+use starknet_api::{class_hash, contract_address, felt, patricia_key, storage_key};
 
 use super::BouncerConfig;
 use crate::blockifier::transaction_executor::{
@@ -14,7 +14,6 @@ use crate::bouncer::{verify_tx_weights_in_bounds, Bouncer, BouncerWeights, Built
 use crate::context::BlockContext;
 use crate::execution::call_info::ExecutionSummary;
 use crate::state::cached_state::{StateChangesKeys, TransactionalState};
-use crate::storage_key;
 use crate::test_utils::initial_test_state::test_state;
 use crate::transaction::errors::TransactionExecutionError;
 

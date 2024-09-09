@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use rstest::rstest;
 use starknet_api::core::{ContractAddress, PatriciaKey};
-use starknet_api::{contract_address, felt, patricia_key};
+use starknet_api::{contract_address, felt, patricia_key, storage_key};
 
 use crate::abi::sierra_types::{SierraType, SierraU128};
 use crate::concurrency::scheduler::{Scheduler, Task, TransactionStatus};
@@ -12,7 +12,6 @@ use crate::concurrency::test_utils::{safe_versioned_state_for_testing, DEFAULT_C
 use crate::concurrency::versioned_state::ThreadSafeVersionedState;
 use crate::state::cached_state::{CachedState, ContractClassMapping, StateMaps};
 use crate::state::state_api::UpdatableState;
-use crate::storage_key;
 use crate::test_utils::dict_state_reader::DictStateReader;
 
 const CONTRACT_ADDRESS: &str = "0x18031991";
