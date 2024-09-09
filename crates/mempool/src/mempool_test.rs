@@ -25,6 +25,8 @@ use crate::transaction_queue::TransactionQueue;
 
 /// Represents the internal content of the mempool.
 /// Enables customized (and potentially inconsistent) creation for unit testing.
+// TODO(Ayelet): Consider adding a `MempoolContentBuilder` for more flexibility, instead of multiple
+// `with_x_and_y` methods.
 #[derive(Debug, Default)]
 struct MempoolContent {
     tx_pool: Option<TransactionPool>,
@@ -33,6 +35,23 @@ struct MempoolContent {
 }
 
 impl MempoolContent {
+    fn with_pool_and_queue_and_account_nonces<P, Q, A>(
+        pool_txs: P,
+        queue_txs: Q,
+        account_nonce_pairs: A,
+    ) -> Self
+    where
+        P: IntoIterator<Item = Transaction>,
+        Q: IntoIterator<Item = TransactionReference>,
+        A: IntoIterator<Item = (ContractAddress, Nonce)>,
+    {
+        Self {
+            tx_pool: Some(pool_txs.into_iter().collect()),
+            tx_queue: Some(queue_txs.into_iter().collect()),
+            account_nonces: Some(account_nonce_pairs.into_iter().collect()),
+        }
+    }
+
     fn with_pool_and_queue<P, Q>(pool_txs: P, queue_txs: Q) -> Self
     where
         P: IntoIterator<Item = Transaction>,
@@ -856,7 +875,26 @@ fn test_account_nonces_removal_in_commit_block(mut mempool: Mempool) {
     assert_eq!(mempool.commit_block(state_changes), Ok(()));
 
     // Assert: account is not added to the mempool.
-    let expected_mempool_content = MempoolContent::with_account_nonces(vec![]);
+    let expected_mempool_content = MempoolContent::with_account_nonces([]);
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
+}
+
+#[rstest]
+fn test_account_nonces_removal_in_get_txs() {
+    // Setup.
+    let input = add_tx_input!(tx_nonce: 0_u8, account_nonce: 0_u8);
+    let account_nonces = [(input.account.sender_address, input.account.state.nonce)];
+    let queue_txs = [TransactionReference::new(&input.tx)];
+    let pool_txs = [input.tx];
+    let mut mempool: Mempool =
+        MempoolContent::with_pool_and_queue_and_account_nonces(pool_txs, queue_txs, account_nonces)
+            .into();
+
+    // Test.
+    mempool.get_txs(1).unwrap();
+
+    // Assert: account is removed from account nonces.
+    let expected_mempool_content = MempoolContent::with_account_nonces([]);
     expected_mempool_content.assert_eq_account_nonces(&mempool);
 }
 
