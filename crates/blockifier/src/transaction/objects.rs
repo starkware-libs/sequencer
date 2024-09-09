@@ -350,28 +350,36 @@ impl StarknetResources {
         versioned_constants: &VersionedConstants,
         mode: &GasVectorComputationMode,
     ) -> GasVector {
-        let l2_resources_in_l1_gas = self.get_calldata_and_signature_cost(versioned_constants)
-            + self.get_code_cost(versioned_constants)
-            + self.get_events_cost(versioned_constants);
+        // Cost in L2 gas.
+        let l2_archival_data_costs = [
+            self.get_calldata_and_signature_cost(versioned_constants),
+            self.get_code_cost(versioned_constants),
+            self.get_events_cost(versioned_constants),
+        ];
         match mode {
-            GasVectorComputationMode::All => GasVector::from_l2_gas(
-                versioned_constants.l1_to_l2_gas_price_conversion(l2_resources_in_l1_gas),
+            GasVectorComputationMode::All => {
+                GasVector::from_l2_gas(l2_archival_data_costs.iter().sum())
+            }
+            GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(
+                l2_archival_data_costs
+                    .map(|cost| versioned_constants.convert_l2_to_l1_gas(cost))
+                    .iter()
+                    .sum(),
             ),
-            GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(l2_resources_in_l1_gas),
         }
     }
 
     /// Returns the cost for transaction calldata and transaction signature. Each felt costs a
     /// fixed and configurable amount of gas. This cost represents the cost of storing the
-    /// calldata and the signature on L2.  The result is given in L1 gas units.
-    // TODO(Nimrod, 1/10/2024): Calculate cost in L2 gas units.
+    /// calldata and the signature on L2.  The result is given in L2 gas units.
     pub fn get_calldata_and_signature_cost(
         &self,
         versioned_constants: &VersionedConstants,
     ) -> u128 {
         // TODO(Avi, 20/2/2024): Calculate the number of bytes instead of the number of felts.
         let total_data_size = u128_from_usize(self.calldata_length + self.signature_length);
-        (versioned_constants.l2_resource_gas_costs.gas_per_data_felt * total_data_size).to_integer()
+        (versioned_constants.archival_data_gas_costs.gas_per_data_felt * total_data_size)
+            .to_integer()
     }
 
     /// Returns an estimation of the gas usage for processing L1<>L2 messages on L1. Accounts for
@@ -419,10 +427,9 @@ impl StarknetResources {
         (message_segment_length, gas_weight)
     }
 
-    /// Returns the cost of declared class codes in L1 gas units.
-    // TODO(Nimrod, 1/10/2024): Calculate cost in L2 gas units.
+    /// Returns the cost of declared class codes in L2 gas units.
     pub fn get_code_cost(&self, versioned_constants: &VersionedConstants) -> u128 {
-        (versioned_constants.l2_resource_gas_costs.gas_per_code_byte
+        (versioned_constants.archival_data_gas_costs.gas_per_code_byte
             * u128_from_usize(self.code_size))
         .to_integer()
     }
@@ -433,12 +440,11 @@ impl StarknetResources {
         get_da_gas_cost(&self.state_changes_for_fee, use_kzg_da)
     }
 
-    /// Returns the cost of the transaction's emmited events in L1 gas units.
-    // TODO(Nimrod, 1/10/2024): Calculate cost in L2 gas units.
+    /// Returns the cost of the transaction's emmited events in L2 gas units.
     pub fn get_events_cost(&self, versioned_constants: &VersionedConstants) -> u128 {
-        let l2_resource_gas_costs = &versioned_constants.l2_resource_gas_costs;
+        let archival_data_gas_costs = &versioned_constants.archival_data_gas_costs;
         let (event_key_factor, data_word_cost) =
-            (l2_resource_gas_costs.event_key_factor, l2_resource_gas_costs.gas_per_data_felt);
+            (archival_data_gas_costs.event_key_factor, archival_data_gas_costs.gas_per_data_felt);
         (data_word_cost * (event_key_factor * self.total_event_keys + self.total_event_data_size))
             .to_integer()
     }
