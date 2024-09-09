@@ -31,6 +31,7 @@ use starknet_api::{
     deploy_account_tx_args,
     felt,
     invoke_tx_args,
+    nonce,
     patricia_key,
 };
 use starknet_types_core::felt::Felt;
@@ -132,7 +133,6 @@ use crate::versioned_constants::VersionedConstants;
 use crate::{
     check_transaction_execution_error_for_custom_hint,
     check_transaction_execution_error_for_invalid_scenario,
-    nonce,
     retdata,
 };
 

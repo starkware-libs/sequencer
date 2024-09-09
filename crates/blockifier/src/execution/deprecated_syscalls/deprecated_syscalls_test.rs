@@ -17,7 +17,7 @@ use starknet_api::transaction::{
     TransactionHash,
     TransactionVersion,
 };
-use starknet_api::{calldata, felt};
+use starknet_api::{calldata, felt, nonce, storage_key};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
@@ -50,7 +50,7 @@ use crate::transaction::objects::{
     TransactionInfo,
 };
 use crate::versioned_constants::VersionedConstants;
-use crate::{check_entry_point_execution_error_for_custom_hint, nonce, retdata, storage_key};
+use crate::{check_entry_point_execution_error_for_custom_hint, retdata};
 
 #[test]
 fn test_storage_read_write() {

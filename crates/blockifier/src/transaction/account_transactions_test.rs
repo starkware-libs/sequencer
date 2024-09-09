@@ -27,7 +27,9 @@ use starknet_api::{
     deploy_account_tx_args,
     felt,
     invoke_tx_args,
+    nonce,
     patricia_key,
+    storage_key,
 };
 use starknet_types_core::felt::Felt;
 
@@ -36,6 +38,7 @@ use crate::abi::abi_utils::{
     get_storage_var_address,
     selector_from_name,
 };
+use crate::check_transaction_execution_error_for_invalid_scenario;
 use crate::context::BlockContext;
 use crate::execution::contract_class::{ContractClass, ContractClassV1};
 use crate::execution::entry_point::EntryPointExecutionContext;
@@ -85,7 +88,6 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{DeclareTransaction, ExecutableTransaction, ExecutionFlags};
-use crate::{check_transaction_execution_error_for_invalid_scenario, nonce, storage_key};
 
 #[rstest]
 fn test_circuit(block_context: BlockContext, max_resource_bounds: ValidResourceBounds) {
