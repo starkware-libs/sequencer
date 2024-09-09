@@ -1,5 +1,5 @@
 use crate::contract_class::ClassInfo;
-use crate::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::executable_transaction::DeclareTransaction as ExecutableDeclareTransaction;
 use crate::transaction::{
@@ -12,7 +12,6 @@ use crate::transaction::{
     PaymasterData,
     Tip,
     TransactionHash,
-    TransactionHasher,
     TransactionSignature,
     TransactionVersion,
     ValidResourceBounds,
@@ -125,10 +124,7 @@ pub fn executable_declare_tx(
     declare_tx_args: DeclareTxArgs,
     class_info: ClassInfo,
 ) -> ExecutableDeclareTransaction {
-    let transaction_version = declare_tx_args.version;
+    let tx_hash = declare_tx_args.tx_hash;
     let tx = declare_tx(declare_tx_args);
-    let tx_hash = tx
-        .calculate_transaction_hash(&ChainId::create_for_testing(), &transaction_version)
-        .unwrap();
     ExecutableDeclareTransaction { tx, tx_hash, class_info }
 }
