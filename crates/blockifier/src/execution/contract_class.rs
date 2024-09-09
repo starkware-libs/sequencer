@@ -56,6 +56,7 @@ use crate::transaction::errors::TransactionExecutionError;
 pub mod test;
 
 pub type ContractClassResult<T> = Result<T, ContractClassError>;
+pub type LookupTable<'a> = HashMap<usize, &'a FunctionId>;
 
 /// Represents a runnable Starknet contract class (meaning, the program is runnable by the VM).
 #[derive(Clone, Debug, PartialEq, derive_more::From)]
@@ -673,7 +674,7 @@ impl NativeContractClassV1Inner {
         // function name is what is used by Cairo Native to lookup the function.
         // Therefore it's not enough to know the function index and we need enrich the contract
         // entry point with FunctionIds from SierraProgram.
-        let lookup_fid: HashMap<usize, &FunctionId> =
+        let lookup_fid: LookupTable<'_> =
             HashMap::from_iter(sierra_program.funcs.iter().map(|fid| {
                 // This exception should never occur as the id is also in [SierraContractClass]
                 let id: usize = fid.id.id.try_into().expect("function id exceeds usize");
@@ -717,7 +718,7 @@ impl NativeContractEntryPoints {
     ///
     /// On failure returns the first FunctionId that it couldn't find.
     fn try_from(
-        lookup: &HashMap<usize, &FunctionId>,
+        lookup: &LookupTable<'_>,
         sierra_ep: &SierraContractEntryPoints,
     ) -> Result<NativeContractEntryPoints, NativeEntryPointError> {
         let constructor = sierra_ep
@@ -763,7 +764,7 @@ struct NativeEntryPoint {
 
 impl NativeEntryPoint {
     fn try_from(
-        lookup: &HashMap<usize, &FunctionId>,
+        lookup: &LookupTable<'_>,
         contract_ep: &ContractEntryPoint,
     ) -> Result<NativeEntryPoint, NativeEntryPointError> {
         let &function_id = lookup
