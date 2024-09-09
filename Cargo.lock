@@ -8986,6 +8986,14 @@ dependencies = [
 [[package]]
 name = "starknet_gateway_types"
 version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "mockall",
+ "serde",
+ "starknet_api",
+ "starknet_mempool_infra",
+ "thiserror",
+]
 
 [[package]]
 name = "starknet_http_server"
