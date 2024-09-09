@@ -32,8 +32,6 @@ pub struct DeclareTxArgs {
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub compiled_class_hash: CompiledClassHash,
-    // TODO(Arni): Consider removing this field.
-    pub tx_hash: TransactionHash,
 }
 
 impl Default for DeclareTxArgs {
@@ -52,7 +50,6 @@ impl Default for DeclareTxArgs {
             nonce: Nonce::default(),
             class_hash: ClassHash::default(),
             compiled_class_hash: CompiledClassHash::default(),
-            tx_hash: TransactionHash::default(),
         }
     }
 }
@@ -124,7 +121,8 @@ pub fn executable_declare_tx(
     declare_tx_args: DeclareTxArgs,
     class_info: ClassInfo,
 ) -> ExecutableDeclareTransaction {
-    let tx_hash = declare_tx_args.tx_hash;
+    let default_tx_hash = TransactionHash::default();
     let tx = declare_tx(declare_tx_args);
-    ExecutableDeclareTransaction { tx, tx_hash, class_info }
+
+    ExecutableDeclareTransaction { tx, tx_hash: default_tx_hash, class_info }
 }
