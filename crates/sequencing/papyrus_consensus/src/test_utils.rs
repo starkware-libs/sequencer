@@ -30,16 +30,22 @@ mock! {
         type Block = TestBlock;
         type ProposalChunk = u32;
 
-        async fn build_proposal(&self, height: BlockNumber) -> (
+        async fn build_proposal(&mut self, height: BlockNumber) -> (
             mpsc::Receiver<u32>,
             oneshot::Receiver<ProposalContentId>
         );
 
         async fn validate_proposal(
-            &self,
+            &mut self,
             height: BlockNumber,
             content: mpsc::Receiver<u32>
         ) -> oneshot::Receiver<ProposalContentId>;
+
+        async fn get_proposal(
+            &self,
+            height: BlockNumber,
+            id: ProposalContentId,
+        ) -> mpsc::Receiver<u32>;
 
         async fn validators(&self, height: BlockNumber) -> Vec<ValidatorId>;
 

@@ -22,7 +22,7 @@ const TEST_CHANNEL_SIZE: usize = 10;
 
 #[tokio::test]
 async fn build_proposal() {
-    let (block, papyrus_context, _mock_network, _) = test_setup();
+    let (block, mut papyrus_context, _mock_network, _) = test_setup();
     let block_number = block.header.block_number;
 
     let (mut proposal_receiver, fin_receiver) = papyrus_context.build_proposal(block_number).await;
@@ -39,7 +39,7 @@ async fn build_proposal() {
 
 #[tokio::test]
 async fn validate_proposal_success() {
-    let (block, papyrus_context, _mock_network, _) = test_setup();
+    let (block, mut papyrus_context, _mock_network, _) = test_setup();
     let block_number = block.header.block_number;
 
     let (mut validate_sender, validate_receiver) = mpsc::channel(TEST_CHANNEL_SIZE);
@@ -56,7 +56,7 @@ async fn validate_proposal_success() {
 
 #[tokio::test]
 async fn validate_proposal_fail() {
-    let (block, papyrus_context, _mock_network, _) = test_setup();
+    let (block, mut papyrus_context, _mock_network, _) = test_setup();
     let block_number = block.header.block_number;
 
     let different_block = get_test_block(4, None, None, None);
