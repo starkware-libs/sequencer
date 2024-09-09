@@ -10,7 +10,15 @@ use starknet_api::transaction::{
     TransactionVersion,
     ValidResourceBounds,
 };
-use starknet_api::{contract_address, declare_tx_args, felt, invoke_tx_args, patricia_key};
+use starknet_api::{
+    contract_address,
+    declare_tx_args,
+    felt,
+    invoke_tx_args,
+    nonce,
+    patricia_key,
+    storage_key,
+};
 use starknet_types_core::felt::Felt;
 
 use super::WorkerExecutor;
@@ -47,7 +55,6 @@ use crate::transaction::test_utils::{
     max_resource_bounds,
 };
 use crate::transaction::transaction_execution::Transaction;
-use crate::{nonce, storage_key};
 
 fn trivial_calldata_invoke_tx(
     account_address: ContractAddress,
