@@ -2,6 +2,7 @@ use rstest::fixture;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
+use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
@@ -33,7 +34,6 @@ use crate::test_utils::invoke::invoke_tx;
 use crate::test_utils::{
     create_calldata,
     CairoVersion,
-    NonceManager,
     BALANCE,
     MAX_FEE,
     MAX_L1_GAS_AMOUNT,
