@@ -8882,9 +8882,13 @@ name = "starknet_batcher_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "chrono",
+ "derive_more",
  "mockall",
  "papyrus_proc_macros",
  "serde",
+ "starknet_api",
+ "starknet_consensus_manager_types",
  "starknet_mempool_infra",
  "thiserror",
 ]
@@ -8958,6 +8962,7 @@ name = "starknet_consensus_manager_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "derive_more",
  "mockall",
  "papyrus_proc_macros",
  "serde",
