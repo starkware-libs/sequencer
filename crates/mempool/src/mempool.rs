@@ -29,6 +29,8 @@ pub struct Mempool {
     mempool_state: HashMap<ContractAddress, AccountState>,
     // The most recent account nonces received, for all account in the pool.
     _account_nonces: AccountToNonce,
+    // Client for sending transactions to other peers.
+    _p2p_client: SharedMempoolP2PSenderClient,
 }
 
 impl Mempool {
