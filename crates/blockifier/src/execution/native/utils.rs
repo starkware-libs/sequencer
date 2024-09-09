@@ -50,6 +50,9 @@ pub fn run_native_executor(
     );
 
     let run_result = match execution_result {
+        Err(runner_err) => {
+            Err(EntryPointExecutionError::NativeUnexpectedError { source: runner_err })
+        }
         Ok(res) if res.failure_flag => Err(EntryPointExecutionError::NativeExecutionError {
             info: if !res.return_values.is_empty() {
                 decode_felts_as_str(&res.return_values)
@@ -57,9 +60,6 @@ pub fn run_native_executor(
                 String::from("Unknown error")
             },
         }),
-        Err(runner_err) => {
-            Err(EntryPointExecutionError::NativeUnexpectedError { source: runner_err })
-        }
         Ok(res) => Ok(res),
     }?;
 
