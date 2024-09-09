@@ -839,7 +839,7 @@ pub type BroadcastTopicSender<T> = With<
 >;
 
 // TODO(alonl): remove clone
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BroadcastedMessageManager {
     peer_id: PeerId,
 }

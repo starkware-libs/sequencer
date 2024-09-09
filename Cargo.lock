@@ -8972,6 +8972,7 @@ dependencies = [
  "derive_more",
  "itertools 0.12.1",
  "mempool_test_utils",
+ "papyrus_network",
  "pretty_assertions",
  "rstest",
  "starknet-types-core",
@@ -9080,6 +9081,7 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "mockall",
+ "papyrus_network",
  "papyrus_proc_macros",
  "serde",
  "starknet_api",
