@@ -28,3 +28,30 @@ impl NonceManager {
         }
     }
 }
+
+/// A utility macro to create a [`Nonce`] from a hex string / unsigned integer
+/// representation.
+#[macro_export]
+macro_rules! nonce {
+    ($s:expr) => {
+        $crate::core::Nonce(starknet_types_core::felt::Felt::from($s))
+    };
+}
+
+/// A utility macro to create a [`crate::state::StorageKey`] from a hex string / unsigned integer
+/// representation.
+#[macro_export]
+macro_rules! storage_key {
+    ($s:expr) => {
+        $crate::state::StorageKey(starknet_api::patricia_key!($s))
+    };
+}
+
+/// A utility macro to create a [`crate::core::CompiledClassHash`] from a hex string /
+/// unsigned integer representation.
+#[macro_export]
+macro_rules! compiled_class_hash {
+    ($s:expr) => {
+        $crate::core::CompiledClassHash(starknet_types_core::felt::Felt::from($s))
+    };
+}
