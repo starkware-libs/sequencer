@@ -9,6 +9,14 @@ use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::sink::SinkExt;
 use futures::StreamExt;
+use papyrus_consensus::types::{
+    ConsensusBlock,
+    ConsensusContext,
+    ConsensusError,
+    ProposalInit,
+    Round,
+    ValidatorId,
+};
 use papyrus_network::network_manager::BroadcastTopicSender;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, Vote};
 use papyrus_storage::body::BodyStorageReader;
@@ -19,19 +27,10 @@ use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
 use tracing::{debug, debug_span, info, warn, Instrument};
 
-use crate::types::{
-    ConsensusBlock,
-    ConsensusContext,
-    ConsensusError,
-    ProposalInit,
-    Round,
-    ValidatorId,
-};
-use crate::ProposalWrapper;
-
 // TODO: add debug messages and span to the tasks.
 
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
+#[allow(missing_docs)]
 pub struct PapyrusConsensusBlock {
     content: Vec<Transaction>,
     id: BlockHash,
@@ -50,6 +49,7 @@ impl ConsensusBlock for PapyrusConsensusBlock {
     }
 }
 
+#[allow(missing_docs)]
 pub struct PapyrusConsensusContext {
     storage_reader: StorageReader,
     network_broadcast_sender: BroadcastTopicSender<ConsensusMessage>,
@@ -60,6 +60,7 @@ pub struct PapyrusConsensusContext {
 impl PapyrusConsensusContext {
     // TODO(dvir): remove the dead code attribute after we will use this function.
     #[allow(dead_code)]
+    #[allow(missing_docs)]
     pub fn new(
         storage_reader: StorageReader,
         network_broadcast_sender: BroadcastTopicSender<ConsensusMessage>,
@@ -272,27 +273,4 @@ async fn wait_for_block(
         tokio::time::sleep(SLEEP_BETWEEN_CHECK_FOR_BLOCK).await;
     }
     Ok(())
-}
-
-impl From<ProposalWrapper>
-    for (ProposalInit, mpsc::Receiver<Transaction>, oneshot::Receiver<BlockHash>)
-{
-    fn from(val: ProposalWrapper) -> Self {
-        let transactions: Vec<Transaction> = val.0.transactions.into_iter().collect();
-        let proposal_init = ProposalInit {
-            height: BlockNumber(val.0.height),
-            round: val.0.round,
-            proposer: val.0.proposer,
-        };
-        let (mut content_sender, content_receiver) = mpsc::channel(transactions.len());
-        for tx in transactions {
-            content_sender.try_send(tx).expect("Send should succeed");
-        }
-        content_sender.close_channel();
-
-        let (fin_sender, fin_receiver) = oneshot::channel();
-        fin_sender.send(val.0.block_hash).expect("Send should succeed");
-
-        (proposal_init, content_receiver, fin_receiver)
-    }
 }

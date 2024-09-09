@@ -169,6 +169,13 @@ pub struct ProposalInit {
     pub proposer: ValidatorId,
 }
 
+// TODO(Guy): Remove after implementing broadcast streams.
+impl From<(BlockNumber, u32, ContractAddress)> for ProposalInit {
+    fn from(val: (BlockNumber, u32, ContractAddress)) -> Self {
+        ProposalInit { height: val.0, round: val.1, proposer: val.2 }
+    }
+}
+
 #[derive(thiserror::Error, PartialEq, Debug)]
 pub enum ConsensusError {
     #[error(transparent)]

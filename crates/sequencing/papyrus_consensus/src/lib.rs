@@ -6,8 +6,6 @@
 pub mod config;
 pub mod manager;
 #[allow(missing_docs)]
-pub mod papyrus_consensus_context;
-#[allow(missing_docs)]
 pub mod simulation_network_receiver;
 #[allow(missing_docs)]
 pub mod single_height_consensus;
@@ -18,4 +16,4 @@ pub(crate) mod test_utils;
 #[allow(missing_docs)]
 pub mod types;
 
-pub use manager::{run_consensus, ProposalWrapper};
+pub use manager::run_consensus;
