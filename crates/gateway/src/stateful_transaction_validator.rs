@@ -23,7 +23,6 @@ use tracing::error;
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::StatefulTransactionValidatorResult;
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
-use crate::utils::get_sender_address;
 
 #[cfg(test)]
 #[path = "stateful_transaction_validator_test.rs"]
@@ -75,6 +74,9 @@ impl StatefulTransactionValidator {
         executable_tx: &ExecutableTransaction,
         mut validator: V,
     ) -> StatefulTransactionValidatorResult<ValidateInfo> {
+        let tx_hash = executable_tx.tx_hash();
+        let sender_address = executable_tx.contract_address();
+
         let account_tx = AccountTransaction::try_from(
             // TODO(Arni): create a try_from for &ExecutableTransaction.
             executable_tx.clone(),
@@ -83,8 +85,6 @@ impl StatefulTransactionValidator {
             error!("Failed to convert executable transaction into account transaction: {}", error);
             GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
         })?;
-        let tx_hash = account_tx.tx_hash();
-        let sender_address = get_sender_address(&account_tx);
         let account_nonce = validator.get_nonce(sender_address).map_err(|e| {
             error!("Failed to get nonce for sender address {}: {}", sender_address, e);
             GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
@@ -149,6 +149,7 @@ pub fn get_latest_block_info(
     })
 }
 
+// TODO(Arni): Remove irrelevant fields.
 /// Holds members created by the stateful transaction validator, needed for
 /// [`MempoolInput`](starknet_mempool_types::mempool_types::MempoolInput).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
