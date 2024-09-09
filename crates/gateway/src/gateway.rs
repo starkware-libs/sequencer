@@ -110,7 +110,7 @@ async fn add_tx(
 
     let tx_hash = mempool_input.tx.tx_hash();
 
-    app_state.mempool_client.add_tx(mempool_input).await.map_err(|e| {
+    app_state.mempool_client.add_tx(mempool_input, None).await.map_err(|e| {
         error!("Failed to send tx to mempool: {}", e);
         GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
     })?;

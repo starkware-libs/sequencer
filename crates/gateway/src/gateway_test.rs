@@ -66,19 +66,23 @@ async fn test_add_tx() {
     mock_mempool_client
         .expect_add_tx()
         .once()
-        .with(eq(MempoolInput {
-            // TODO(Arni): Use external_to_executable_tx instead of `create_executable_tx`. Consider
-            // creating a `convertor for testing` that does not do the compilation.
-            tx: create_executable_tx(
-                sender_address,
-                tx_hash,
-                *tx.tip(),
-                *tx.nonce(),
-                ValidResourceBounds::AllResources(tx.resource_bounds().clone()),
-            ),
-            account: Account { sender_address, state: AccountState { nonce: *tx.nonce() } },
-        }))
-        .return_once(|_| Ok(()));
+        .with(
+            eq(MempoolInput {
+                // TODO(Arni): Use external_to_executable_tx instead of `create_executable_tx`.
+                // Consider creating a `convertor for testing` that does not do the
+                // compilation.
+                tx: create_executable_tx(
+                    sender_address,
+                    tx_hash,
+                    *tx.tip(),
+                    *tx.nonce(),
+                    ValidResourceBounds::AllResources(tx.resource_bounds().clone()),
+                ),
+                account: Account { sender_address, state: AccountState { nonce: *tx.nonce() } },
+            }),
+            eq(None),
+        )
+        .return_once(|_, _| Ok(()));
     let state_reader_factory = local_test_state_reader_factory(CairoVersion::Cairo1, false);
     let app_state = app_state(Arc::new(mock_mempool_client), state_reader_factory);
 
