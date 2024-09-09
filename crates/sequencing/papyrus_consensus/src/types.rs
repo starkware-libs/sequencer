@@ -45,7 +45,7 @@ pub trait ConsensusContext {
     ///   and building it. If the block fails to be built, the Sender will be dropped by
     ///   ConsensusContext.
     async fn build_proposal(
-        &self,
+        &mut self,
         height: BlockNumber,
     ) -> (mpsc::Receiver<Self::ProposalChunk>, oneshot::Receiver<ProposalContentId>);
 
@@ -62,10 +62,28 @@ pub trait ConsensusContext {
     /// - A receiver for the block id. If a valid block cannot be built the Sender will be dropped
     ///   by ConsensusContext.
     async fn validate_proposal(
-        &self,
+        &mut self,
         height: BlockNumber,
         content: mpsc::Receiver<Self::ProposalChunk>,
     ) -> oneshot::Receiver<ProposalContentId>;
+
+    /// This function is called by consensus to retrieve the content of a previously built or
+    /// validated block proposal. It expects that this call will return immediately, allowing
+    /// consensus to stream in the block's content if the proposal with the given
+    /// `ProposalContentId` and `height` has been successfully built or validated in prior
+    /// stages.
+    ///
+    /// Params:
+    /// - `height`: The height of the block that was built or validated.
+    /// - `id`: The `ProposalContentId` associated with the block's content.
+    ///
+    /// Returns:
+    /// - A receiver for the stream of the block's content.
+    async fn get_proposal(
+        &self,
+        height: BlockNumber,
+        id: ProposalContentId,
+    ) -> mpsc::Receiver<Self::ProposalChunk>;
 
     /// Get the set of validators for a given height. These are the nodes that can propose and vote
     /// on blocks.
