@@ -1,4 +1,4 @@
-use crate::patricia_merkle_tree::node_data::leaf::Leaf;
+use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::types::NodeIndex;
 
@@ -11,6 +11,7 @@ pub trait OriginalSkeletonTreeConfig<L: Leaf> {
     /// Compares the previous leaf to the modified and returns true if they are equal.
     fn compare_leaf(
         &self,
+        leaf_modifications: &LeafModifications<L>,
         index: &NodeIndex,
         previous_leaf: &L,
     ) -> OriginalSkeletonTreeResult<bool>;
@@ -20,36 +21,32 @@ pub trait OriginalSkeletonTreeConfig<L: Leaf> {
 #[macro_export]
 macro_rules! generate_trie_config {
     ($struct_name:ident, $leaf_type:ty) => {
-        pub struct $struct_name<'a> {
-            modifications:
-                &'a $crate::patricia_merkle_tree::node_data::leaf::LeafModifications<$leaf_type>,
+        pub struct $struct_name{
             compare_modified_leaves: bool,
         }
 
-        impl<'a> $struct_name<'a> {
+        impl $struct_name{
             #[allow(dead_code)]
             pub fn new(
-                modifications: &'a $crate::patricia_merkle_tree::node_data::leaf::LeafModifications<
-                    $leaf_type,
-                >,
                 compare_modified_leaves: bool,
             ) -> Self {
-                Self { modifications, compare_modified_leaves }
+                Self {compare_modified_leaves }
             }
         }
 
-        impl OriginalSkeletonTreeConfig<$leaf_type> for $struct_name<'_> {
+        impl OriginalSkeletonTreeConfig<$leaf_type> for $struct_name{
             fn compare_modified_leaves(&self) -> bool {
                 self.compare_modified_leaves
             }
 
             fn compare_leaf(
                 &self,
+                leaf_modifications: &$crate::patricia_merkle_tree::node_data::leaf::LeafModifications<$leaf_type>,
                 index: &NodeIndex,
                 previous_leaf: &$leaf_type,
             ) -> OriginalSkeletonTreeResult<bool> {
-                let new_leaf = self
-                    .modifications
+                let new_leaf =
+                    leaf_modifications
                     .get(index)
                     .ok_or(OriginalSkeletonTreeError::ReadModificationsError(*index))?;
                 Ok(new_leaf == previous_leaf)

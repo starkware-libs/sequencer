@@ -1,4 +1,5 @@
 use starknet_patricia::generate_trie_config;
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
@@ -21,6 +22,7 @@ impl OriginalSkeletonTreeConfig<ContractState> for OriginalSkeletonContractsTrie
 
     fn compare_leaf(
         &self,
+        _leaf_modifications: &LeafModifications<ContractState>,
         _index: &NodeIndex,
         _previous_leaf: &ContractState,
     ) -> OriginalSkeletonTreeResult<bool> {
