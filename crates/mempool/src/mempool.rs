@@ -6,6 +6,7 @@ use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput, MempoolResult};
 
+use crate::partition_manager::PartitionManager;
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
 
@@ -26,6 +27,8 @@ pub struct Mempool {
     mempool_state: HashMap<ContractAddress, AccountState>,
     // The most recent account nonces received, for all account in the pool.
     account_nonces: AccountToNonce,
+    // The partition manager handles transaction partitioning for eviction.
+    partition_manager: PartitionManager,
 }
 
 impl Mempool {
@@ -58,6 +61,7 @@ impl Mempool {
         let mut eligible_txs: Vec<Transaction> = Vec::with_capacity(n_txs);
         for tx_ref in &eligible_tx_references {
             let tx = self.tx_pool.remove(tx_ref.tx_hash)?;
+            self.partition_manager.remove(tx_ref);
             let address = tx.contract_address();
             if !self.tx_pool.contains_account(address) {
                 self.account_nonces.remove(&address);
@@ -80,7 +84,9 @@ impl Mempool {
         self.validate_input(&input)?;
         let MempoolInput { tx, account: Account { sender_address, state: AccountState { nonce } } } =
             input;
+        let tx_reference = TransactionReference::new(&tx);
         self.tx_pool.insert(tx)?;
+        self.partition_manager.insert(tx_reference, nonce)?;
         self.align_to_account_state(sender_address, nonce);
         Ok(())
     }
@@ -115,6 +121,7 @@ impl Mempool {
     // TODO(Mohammad): Rename this method once consensus API is added.
     fn _update_gas_price_threshold(&mut self, threshold: u128) {
         self.tx_queue._update_gas_price_threshold(threshold);
+        self.partition_manager._update_gas_price_threshold(threshold);
     }
 
     fn validate_input(&self, input: &MempoolInput) -> MempoolResult<()> {
@@ -182,6 +189,8 @@ impl Mempool {
 
         // Remove from pool.
         self.tx_pool.remove_up_to_nonce(address, nonce);
+
+        self.partition_manager.align_with_current_state(address, nonce);
 
         if self.tx_pool.contains_account(address) {
             match self.account_nonces.get(&address) {

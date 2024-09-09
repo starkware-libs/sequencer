@@ -105,6 +105,7 @@ impl From<MempoolContent> for Mempool {
             tx_queue: tx_queue.unwrap_or_default(),
             // TODO: Add implementation when needed.
             mempool_state: Default::default(),
+            partition_manager: Default::default(),
             account_nonces: account_nonces.unwrap_or_default(),
         }
     }
