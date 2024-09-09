@@ -68,9 +68,17 @@ async fn test_add_tx() {
         .expect_add_tx()
         .once()
         .with(eq(MempoolWrapperInput {
+            // TODO(Arni): Use external_to_executable_tx instead of `create_executable_tx`. Consider
+            // creating a `convertor for testing` that does not do the compilation.
             mempool_input: MempoolInput {
-                tx: executable_tx,
-                account: Account { sender_address, state: AccountState { nonce: *rpc_tx.nonce() } },
+                tx: create_executable_tx(
+                    sender_address,
+                    tx_hash,
+                    *tx.tip(),
+                    *tx.nonce(),
+                    ValidResourceBounds::AllResources(*tx.resource_bounds()),
+                ),
+                account: Account { sender_address, state: AccountState { nonce: *tx.nonce() } },
             },
             message_metadata: None,
         }))
