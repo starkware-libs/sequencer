@@ -119,8 +119,10 @@ pub struct EntryPointExecutionContext {
     // We use `Arc` to avoid the clone of this potentially large object, as inner calls
     // are created during execution.
     pub tx_context: Arc<TransactionContext>,
-    // VM execution limits.
+    // VM execution limits in terms of cairo steps.
     pub vm_run_resources: RunResources,
+    // Sierra gas limits.
+    pub remaining_gas: u64,
     /// Used for tracking events order during the current execution.
     pub n_emitted_events: usize,
     /// Used for tracking L2-to-L1 messages order during the current execution.
@@ -141,6 +143,7 @@ impl EntryPointExecutionContext {
         let max_steps = Self::max_steps(&tx_context, &mode, limit_steps_by_resources);
         Self {
             vm_run_resources: RunResources::new(max_steps),
+            remaining_gas: u64::MAX, // Should be concluded from the resource bounds like max_steps.
             n_emitted_events: 0,
             n_sent_messages_to_l1: 0,
             tx_context: tx_context.clone(),
