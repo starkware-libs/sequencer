@@ -82,7 +82,6 @@ use crate::test_utils::{
     NonceManager,
     SaltManager,
     BALANCE,
-    CHAIN_ID_NAME,
     CURRENT_BLOCK_NUMBER,
     CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
     CURRENT_BLOCK_TIMESTAMP,
@@ -1767,13 +1766,13 @@ fn test_only_query_flag(
     let sender_address = account.get_instance_address(0);
     let test_contract_address = test_contract.get_instance_address(0);
     let expected_tx_info = vec![
-        version,                                                     // Transaction version.
-        *sender_address.0.key(),                                     // Account address.
-        Felt::ZERO,                                                  // Max fee.
-        Felt::ZERO,                                                  // Signature.
-        Felt::ZERO,                                                  // Transaction hash.
-        felt!(&*ChainId::Other(CHAIN_ID_NAME.to_string()).as_hex()), // Chain ID.
-        Felt::ZERO,                                                  // Nonce.
+        version,                                         // Transaction version.
+        *sender_address.0.key(),                         // Account address.
+        Felt::ZERO,                                      // Max fee.
+        Felt::ZERO,                                      // Signature.
+        Felt::ZERO,                                      // Transaction hash.
+        felt!(&*ChainId::create_for_testing().as_hex()), // Chain ID.
+        Felt::ZERO,                                      // Nonce.
     ];
 
     let expected_resource_bounds = vec![
