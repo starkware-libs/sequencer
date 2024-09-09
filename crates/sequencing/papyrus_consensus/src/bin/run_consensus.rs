@@ -344,6 +344,7 @@ async fn main() {
 
     let logs_dir = tmpdir.to_str().unwrap().to_string();
     let db_dir = papyrus_args.db_dir.clone().unwrap_or_else(|| logs_dir.clone());
+    fs::create_dir(&logs_dir).unwrap();
 
     if db_dir != logs_dir {
         let actual_dirs = fs::read_dir(&db_dir)
