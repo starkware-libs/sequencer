@@ -17,6 +17,10 @@ name = "central_source_integration_test"
 path = "src/bin/central_source_integration_test.rs"
 required-features = ["futures-util", "tokio-stream"]
 
+[[bin]]
+name = "run_consensus"
+path = "src/bin/run_consensus.rs"
+
 [dependencies]
 anyhow.workspace = true
 clap = { workspace = true }
