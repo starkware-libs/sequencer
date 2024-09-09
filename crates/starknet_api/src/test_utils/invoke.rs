@@ -1,5 +1,6 @@
-use crate::calldata;
-use crate::core::{ContractAddress, Nonce};
+use std::sync::LazyLock;
+
+use crate::core::{ContractAddress, EntryPointSelector, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::executable_transaction::InvokeTransaction as ExecutableInvokeTransaction;
 use crate::transaction::{
@@ -7,6 +8,7 @@ use crate::transaction::{
     Calldata,
     Fee,
     InvokeTransaction,
+    InvokeTransactionV0,
     InvokeTransactionV1,
     InvokeTransactionV3,
     PaymasterData,
@@ -16,6 +18,7 @@ use crate::transaction::{
     TransactionVersion,
     ValidResourceBounds,
 };
+use crate::{calldata, felt};
 
 #[derive(Clone)]
 pub struct InvokeTxArgs {
@@ -73,15 +76,29 @@ macro_rules! invoke_tx_args {
     };
 }
 
+/// V0 transactions should always select the `__execute__` entry point.
+/// The original code from the blockifier crate was:
+///
+/// crate::abi::abi_utils::selector_from_name(
+///     crate::transaction::constants::EXECUTE_ENTRY_POINT_NAME
+/// )
+static EXECUTE_ENTRY_POINT_SELECTOR: LazyLock<EntryPointSelector> = LazyLock::new(|| {
+    const EXECUTE_ENTRY_POINT_NAME_THROUGH_KECCAK: &str =
+        "0x15d40a3d6ca2ac30f4031e42be28da9b056fef9bb7357ac5e85627ee876e5ad";
+
+    EntryPointSelector(felt!(EXECUTE_ENTRY_POINT_NAME_THROUGH_KECCAK))
+});
+
 pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
     // TODO: Make TransactionVersion an enum and use match here.
     if invoke_args.version == TransactionVersion::ZERO {
-        // TODO(Arni): Implement V0. See blockifier test utils for reference. There is an issue with
-        // the computation of the entry_point_selector.
-        panic!(
-            "This test util does not supported creation of transaction version: {:?}.",
-            invoke_args.version
-        );
+        InvokeTransaction::V0(InvokeTransactionV0 {
+            max_fee: invoke_args.max_fee,
+            calldata: invoke_args.calldata,
+            contract_address: invoke_args.sender_address,
+            signature: invoke_args.signature,
+            entry_point_selector: *EXECUTE_ENTRY_POINT_SELECTOR,
+        })
     } else if invoke_args.version == TransactionVersion::ONE {
         InvokeTransaction::V1(InvokeTransactionV1 {
             max_fee: invoke_args.max_fee,
