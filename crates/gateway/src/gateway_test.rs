@@ -13,7 +13,7 @@ use starknet_api::core::{CompiledClassHash, ContractAddress};
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
 use starknet_api::transaction::{TransactionHash, ValidResourceBounds};
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_mempool_types::communication::MockMempoolClient;
+use starknet_mempool_types::communication::{MempoolWrapperInput, MockMempoolClient};
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 
@@ -57,6 +57,7 @@ fn create_tx() -> (RpcTransaction, SenderAddress) {
     (tx, sender_address)
 }
 
+// TODO: add test with Some broadcasted message metadata
 #[tokio::test]
 async fn test_add_tx() {
     let (tx, sender_address) = create_tx();
@@ -66,17 +67,20 @@ async fn test_add_tx() {
     mock_mempool_client
         .expect_add_tx()
         .once()
-        .with(eq(MempoolInput {
+        .with(eq(MempoolWrapperInput {
             // TODO(Arni): Use external_to_executable_tx instead of `create_executable_tx`. Consider
             // creating a `convertor for testing` that does not do the compilation.
-            tx: create_executable_tx(
-                sender_address,
-                tx_hash,
-                *tx.tip(),
-                *tx.nonce(),
-                ValidResourceBounds::AllResources(tx.resource_bounds().clone()),
-            ),
-            account: Account { sender_address, state: AccountState { nonce: *tx.nonce() } },
+            mempool_input: MempoolInput {
+                tx: create_executable_tx(
+                    sender_address,
+                    tx_hash,
+                    *tx.tip(),
+                    *tx.nonce(),
+                    ValidResourceBounds::AllResources(tx.resource_bounds().clone()),
+                ),
+                account: Account { sender_address, state: AccountState { nonce: *tx.nonce() } },
+            },
+            message_metadata: None,
         }))
         .return_once(|_| Ok(()));
     let state_reader_factory = local_test_state_reader_factory(CairoVersion::Cairo1, false);
