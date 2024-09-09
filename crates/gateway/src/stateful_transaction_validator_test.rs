@@ -6,7 +6,7 @@ use blockifier::context::BlockContext;
 use blockifier::test_utils::CairoVersion;
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
 use mempool_test_utils::starknet_api_test_utils::{
-    executable_invoke_tx,
+    executable_invoke_tx as create_executable_invoke_tx,
     TEST_SENDER_ADDRESS,
     VALID_L1_GAS_MAX_AMOUNT,
     VALID_L1_GAS_MAX_PRICE_PER_UNIT,
@@ -17,8 +17,10 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
+use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::transaction::TransactionHash;
-use starknet_api::{contract_address, felt, patricia_key};
+use starknet_api::{contract_address, deploy_account_tx_args, felt, invoke_tx_args, patricia_key};
 use starknet_types_core::felt::Felt;
 
 use super::ValidateInfo;
@@ -62,16 +64,17 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
 // TODO(Arni): consider testing declare and deploy account.
 #[rstest]
 #[case::valid_tx(
-    executable_invoke_tx(CairoVersion::Cairo1),
+    create_executable_invoke_tx(CairoVersion::Cairo1),
     Ok(ValidateInfo{
-        tx_hash: TransactionHash(felt!(
-        "0x3b93426272b6e281bc9bde29b91a9fb100c2f9689388c62360b2be2f4e7b493"
-        )),
+        tx_hash: TransactionHash::default(),
         sender_address: contract_address!("0xc0020000"),
         account_nonce: Nonce::default()
     })
 )]
-#[case::invalid_tx(executable_invoke_tx(CairoVersion::Cairo1), Err(STATEFUL_VALIDATOR_FEE_ERROR))]
+#[case::invalid_tx(
+    create_executable_invoke_tx(CairoVersion::Cairo1),
+    Err(STATEFUL_VALIDATOR_FEE_ERROR)
+)]
 fn test_stateful_tx_validator(
     #[case] executable_tx: Transaction,
     #[case] expected_result: BlockifierStatefulValidatorResult<ValidateInfo>,
@@ -126,30 +129,24 @@ fn test_instantiate_validator() {
 
 #[rstest]
 #[case::should_skip_validation(
-    Transaction::Invoke(starknet_api::test_utils::invoke::executable_invoke_tx(
-        starknet_api::invoke_tx_args!(nonce: Nonce(Felt::ONE))
-    )),
+    Transaction::Invoke(executable_invoke_tx(invoke_tx_args!(nonce: Nonce(Felt::ONE)))),
     Nonce::default(),
     true
 )]
 #[case::should_not_skip_validation_nonce_over_max_nonce_for_skip(
-    Transaction::Invoke(starknet_api::test_utils::invoke::executable_invoke_tx(
-        starknet_api::invoke_tx_args!(nonce: Nonce(Felt::ZERO))
-    )),
+    Transaction::Invoke(executable_invoke_tx(invoke_tx_args!(nonce: Nonce(Felt::ZERO)))),
     Nonce::default(),
     false
 )]
 #[case::should_not_skip_validation_non_invoke(
     Transaction::DeployAccount(
-        starknet_api::test_utils::deploy_account::executable_deploy_account_tx(
-            starknet_api::deploy_account_tx_args!(), Nonce::default()
-        )
+        executable_deploy_account_tx(deploy_account_tx_args!(), Nonce::default())
     ),
     Nonce::default(),
     false)]
 #[case::should_not_skip_validation_account_nonce_1(
-    Transaction::Invoke(starknet_api::test_utils::invoke::executable_invoke_tx(
-        starknet_api::invoke_tx_args!(
+    Transaction::Invoke(executable_invoke_tx(
+        invoke_tx_args!(
             nonce: Nonce(Felt::ONE),
             sender_address: TEST_SENDER_ADDRESS.into()
         )

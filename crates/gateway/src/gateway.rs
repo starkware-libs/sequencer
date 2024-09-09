@@ -130,8 +130,6 @@ fn process_tx(
     // Perform stateless validations.
     stateless_tx_validator.validate(&tx)?;
 
-    // TODO(Arni): remove copy_of_rpc_tx and use executable_tx directly as the mempool input.
-    let copy_of_rpc_tx = tx.clone();
     let executable_tx = compile_contract_and_build_executable_tx(
         tx,
         &gateway_compiler,
@@ -152,11 +150,7 @@ fn process_tx(
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
     Ok(MempoolInput {
-        tx: Transaction::new_from_rpc_tx(
-            copy_of_rpc_tx,
-            validate_info.tx_hash,
-            validate_info.sender_address,
-        ),
+        tx: executable_tx,
         account: Account {
             sender_address: validate_info.sender_address,
             state: AccountState { nonce: validate_info.account_nonce },
