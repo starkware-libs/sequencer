@@ -45,7 +45,7 @@ pub trait ConsensusContext {
     ///   and building it. If the block fails to be built, the Sender will be dropped by
     ///   ConsensusContext.
     async fn build_proposal(
-        &self,
+        &mut self,
         height: BlockNumber,
     ) -> (mpsc::Receiver<Self::ProposalChunk>, oneshot::Receiver<ProposalContentId>);
 
@@ -62,7 +62,7 @@ pub trait ConsensusContext {
     /// - A receiver for the block id. If a valid block cannot be built the Sender will be dropped
     ///   by ConsensusContext.
     async fn validate_proposal(
-        &self,
+        &mut self,
         height: BlockNumber,
         content: mpsc::Receiver<Self::ProposalChunk>,
     ) -> oneshot::Receiver<ProposalContentId>;

@@ -3,6 +3,8 @@
 mod papyrus_consensus_context_test;
 
 use core::panic;
+use std::collections::{BTreeMap, HashMap};
+use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -17,6 +19,7 @@ use papyrus_storage::{StorageError, StorageReader};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
+use tokio::sync::Mutex;
 use tracing::{debug, debug_span, info, warn, Instrument};
 
 use crate::types::{
@@ -37,11 +40,14 @@ pub struct PapyrusConsensusBlock {
     id: BlockHash,
 }
 
+type ActiveProposals = BTreeMap<BlockNumber, HashMap<ProposalContentId, Vec<Transaction>>>;
+
 pub struct PapyrusConsensusContext {
     storage_reader: StorageReader,
     network_broadcast_sender: BroadcastTopicSender<ConsensusMessage>,
     validators: Vec<ValidatorId>,
     sync_broadcast_sender: Option<BroadcastTopicSender<Vote>>,
+    active_proposals: Arc<Mutex<ActiveProposals>>,
 }
 
 impl PapyrusConsensusContext {
@@ -58,7 +64,22 @@ impl PapyrusConsensusContext {
             network_broadcast_sender,
             validators: (0..num_validators).map(ContractAddress::from).collect(),
             sync_broadcast_sender,
+            active_proposals: Arc::new(Mutex::new(BTreeMap::new())),
         }
+    }
+
+    pub async fn get_proposal(
+        &self,
+        height: BlockNumber,
+        id: ProposalContentId,
+    ) -> mpsc::Receiver<Vec<Transaction>> {
+        let (mut tx, rx) = mpsc::channel(1);
+        if let Some(proposals_at_height) = self.active_proposals.lock().await.get(&height) {
+            if let Some(transactions) = proposals_at_height.get(&id) {
+                let _ = tx.send(transactions.clone()).await;
+            }
+        }
+        rx
     }
 }
 
@@ -70,13 +91,14 @@ impl ConsensusContext for PapyrusConsensusContext {
     type ProposalChunk = Transaction;
 
     async fn build_proposal(
-        &self,
+        &mut self,
         height: BlockNumber,
     ) -> (mpsc::Receiver<Transaction>, oneshot::Receiver<ProposalContentId>) {
         let (mut sender, receiver) = mpsc::channel(CHANNEL_SIZE);
         let (fin_sender, fin_receiver) = oneshot::channel();
 
         let storage_reader = self.storage_reader.clone();
+        let active_proposals = Arc::clone(&self.active_proposals);
         tokio::spawn(
             async move {
                 // TODO(dvir): consider fix this for the case of reverts. If between the check that
@@ -104,6 +126,13 @@ impl ConsensusContext for PapyrusConsensusContext {
                         panic!("Block in {height} was not found in storage despite waiting for it")
                     })
                     .block_hash;
+
+                let mut proposals = active_proposals.lock().await;
+                proposals
+                    .entry(height)
+                    .or_insert_with(HashMap::new)
+                    .insert(block_hash, transactions.clone());
+
                 fin_sender.send(block_hash).expect("Send should succeed");
             }
             .instrument(debug_span!("consensus_build_proposal")),
@@ -113,13 +142,14 @@ impl ConsensusContext for PapyrusConsensusContext {
     }
 
     async fn validate_proposal(
-        &self,
+        &mut self,
         height: BlockNumber,
         mut content: mpsc::Receiver<Transaction>,
     ) -> oneshot::Receiver<ProposalContentId> {
         let (fin_sender, fin_receiver) = oneshot::channel();
 
         let storage_reader = self.storage_reader.clone();
+        let active_proposals = Arc::clone(&self.active_proposals);
         tokio::spawn(
             async move {
                 // TODO(dvir): consider fix this for the case of reverts. If between the check that
@@ -156,6 +186,12 @@ impl ConsensusContext for PapyrusConsensusContext {
                         panic!("Block in {height} was not found in storage despite waiting for it")
                     })
                     .block_hash;
+
+                let mut proposals = active_proposals.lock().await;
+                proposals
+                    .entry(height)
+                    .or_insert_with(HashMap::new)
+                    .insert(block_hash, transactions.clone());
 
                 // This can happen as a result of sync interrupting `run_height`.
                 fin_sender.send(block_hash).unwrap_or_else(|_| {
@@ -239,6 +275,8 @@ impl ConsensusContext for PapyrusConsensusContext {
             sender.send(precommits[0].clone()).await?;
         }
 
+        let mut proposals = self.active_proposals.lock().await;
+        proposals.retain(|&h, _| h > BlockNumber(height));
         Ok(())
     }
 }
