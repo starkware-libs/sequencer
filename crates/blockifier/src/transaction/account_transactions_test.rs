@@ -9,6 +9,7 @@ use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress,
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
+use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
@@ -54,7 +55,6 @@ use crate::test_utils::{
     get_tx_resources,
     u64_from_usize,
     CairoVersion,
-    NonceManager,
     BALANCE,
     DEFAULT_STRK_L1_GAS_PRICE,
     MAX_FEE,

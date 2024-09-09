@@ -2,6 +2,7 @@ use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::core::ContractAddress;
+use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
     Calldata,
     Fee,
@@ -29,7 +30,6 @@ use crate::test_utils::{
     get_tx_resources,
     u64_from_usize,
     CairoVersion,
-    NonceManager,
     BALANCE,
     MAX_FEE,
     MAX_L1_GAS_AMOUNT,

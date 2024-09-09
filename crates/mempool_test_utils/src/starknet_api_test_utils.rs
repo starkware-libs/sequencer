@@ -7,7 +7,7 @@ use std::rc::Rc;
 use std::sync::OnceLock;
 
 use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::{create_trivial_calldata, CairoVersion, NonceManager};
+use blockifier::test_utils::{create_trivial_calldata, CairoVersion};
 use serde_json::to_string_pretty;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -19,6 +19,7 @@ use starknet_api::rpc_transaction::{
     RpcInvokeTransactionV3,
     RpcTransaction,
 };
+use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
     AccountDeploymentData,
     AllResourceBounds,

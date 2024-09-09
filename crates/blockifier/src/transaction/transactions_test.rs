@@ -11,6 +11,7 @@ use rstest::{fixture, rstest};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce, PatriciaKey};
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
     Calldata,
     EventContent,
@@ -80,7 +81,6 @@ use crate::test_utils::{
     get_tx_resources,
     test_erc20_sequencer_balance_key,
     CairoVersion,
-    NonceManager,
     SaltManager,
     BALANCE,
     CURRENT_BLOCK_NUMBER,
