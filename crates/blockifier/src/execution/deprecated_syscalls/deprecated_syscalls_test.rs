@@ -8,7 +8,13 @@ use rstest::rstest;
 use starknet_api::core::{calculate_contract_address, ChainId, PatriciaKey};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
-    Calldata, ContractAddressSalt, EventContent, EventData, EventKey, Fee, TransactionHash,
+    Calldata,
+    ContractAddressSalt,
+    EventContent,
+    EventData,
+    EventKey,
+    Fee,
+    TransactionHash,
     TransactionVersion,
 };
 use starknet_api::{calldata, felt};
@@ -27,13 +33,22 @@ use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
-    calldata_for_deploy_test, get_syscall_resources, trivial_external_entry_point_new,
-    CairoVersion, CHAIN_ID_NAME, CURRENT_BLOCK_NUMBER, CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
-    CURRENT_BLOCK_TIMESTAMP, CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE, TEST_SEQUENCER_ADDRESS,
+    calldata_for_deploy_test,
+    get_syscall_resources,
+    trivial_external_entry_point_new,
+    CairoVersion,
+    CHAIN_ID_NAME,
+    CURRENT_BLOCK_NUMBER,
+    CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
+    CURRENT_BLOCK_TIMESTAMP,
+    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
+    TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::constants::QUERY_VERSION_BASE_BIT;
 use crate::transaction::objects::{
-    CommonAccountFields, DeprecatedTransactionInfo, TransactionInfo,
+    CommonAccountFields,
+    DeprecatedTransactionInfo,
+    TransactionInfo,
 };
 use crate::versioned_constants::VersionedConstants;
 use crate::{check_entry_point_execution_error_for_custom_hint, nonce, retdata, storage_key};

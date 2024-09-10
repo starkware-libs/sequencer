@@ -5,38 +5,65 @@ use std::sync::Arc;
 
 use ark_ec::short_weierstrass::{Affine, Projective, SWCurveConfig};
 use cairo_native::starknet::{
-    BlockInfo, ExecutionInfo, ExecutionInfoV2, Secp256k1Point, Secp256r1Point,
-    StarknetSyscallHandler, SyscallResult, TxInfo, TxV2Info, U256,
+    BlockInfo,
+    ExecutionInfo,
+    ExecutionInfoV2,
+    Secp256k1Point,
+    Secp256r1Point,
+    StarknetSyscallHandler,
+    SyscallResult,
+    TxInfo,
+    TxV2Info,
+    U256,
 };
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_traits::{ToPrimitive, Zero};
 use starknet_api::core::{
-    calculate_contract_address, ClassHash, ContractAddress, EntryPointSelector, EthAddress,
+    calculate_contract_address,
+    ClassHash,
+    ContractAddress,
+    EntryPointSelector,
+    EthAddress,
     PatriciaKey,
 };
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
-    Calldata, ContractAddressSalt, EventContent, EventData, EventKey, L2ToL1Payload,
+    Calldata,
+    ContractAddressSalt,
+    EventContent,
+    EventData,
+    EventKey,
+    L2ToL1Payload,
 };
 use starknet_types_core::felt::Felt;
 
 use super::utils::{
-    big4int_to_u256, calculate_resource_bounds, contract_address_to_native_felt,
-    default_tx_v2_info, encode_str_as_felts, u256_to_biguint,
+    big4int_to_u256,
+    calculate_resource_bounds,
+    contract_address_to_native_felt,
+    default_tx_v2_info,
+    encode_str_as_felts,
+    u256_to_biguint,
 };
 use crate::abi::constants;
 use crate::execution::call_info::{CallInfo, MessageToL1, OrderedEvent, OrderedL2ToL1Message};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::contract_class::ContractClass;
 use crate::execution::entry_point::{
-    CallEntryPoint, CallType, ConstructorContext, EntryPointExecutionContext,
+    CallEntryPoint,
+    CallType,
+    ConstructorContext,
+    EntryPointExecutionContext,
 };
 use crate::execution::execution_utils::{execute_deployment, max_fee_for_execution_info};
 use crate::execution::syscalls::hint_processor::{
-    SyscallCounter, SyscallExecutionError, BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
-    INVALID_INPUT_LENGTH_ERROR, OUT_OF_GAS_ERROR,
+    SyscallCounter,
+    SyscallExecutionError,
+    BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
+    INVALID_INPUT_LENGTH_ERROR,
+    OUT_OF_GAS_ERROR,
 };
 use crate::execution::syscalls::{exceeds_event_size_limit, SyscallSelector};
 use crate::state::state_api::State;

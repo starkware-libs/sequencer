@@ -5,7 +5,9 @@ use super::utils::run_native_executor;
 use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::NativeContractClassV1;
 use crate::execution::entry_point::{
-    CallEntryPoint, EntryPointExecutionContext, EntryPointExecutionResult,
+    CallEntryPoint,
+    EntryPointExecutionContext,
+    EntryPointExecutionResult,
 };
 use crate::state::state_api::State;
 

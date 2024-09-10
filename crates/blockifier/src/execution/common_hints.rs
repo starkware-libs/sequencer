@@ -3,10 +3,12 @@ use std::ops::Shl;
 use std::rc::Rc;
 
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
-    BuiltinHintProcessor, HintFunc,
+    BuiltinHintProcessor,
+    HintFunc,
 };
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_integer_from_var_name, insert_value_from_var_name,
+    get_integer_from_var_name,
+    insert_value_from_var_name,
 };
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::serde::deserialize_program::ApTracking;
@@ -18,7 +20,8 @@ use num_bigint::BigUint;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::hint_code::{
-    NORMALIZE_ADDRESS_SET_IS_250_HINT, NORMALIZE_ADDRESS_SET_IS_SMALL_HINT,
+    NORMALIZE_ADDRESS_SET_IS_250_HINT,
+    NORMALIZE_ADDRESS_SET_IS_SMALL_HINT,
 };
 
 /// Transaction execution mode.

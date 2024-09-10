@@ -1684,7 +1684,7 @@ dependencies = [
 [[package]]
 name = "cairo-native"
 version = "0.2.0"
-source = "git+https://github.com/lambdaclass/cairo_native?branch=contract_executor#45ece4b58c67a89886329461ce220cfda83361d3"
+source = "git+https://github.com/lambdaclass/cairo_native?branch=contract_executor#d1e5ee73b4641154219e19473b6e053d26c35c87"
 dependencies = [
  "anyhow",
  "aquamarine",
@@ -1735,7 +1735,7 @@ dependencies = [
 [[package]]
 name = "cairo-native-runtime"
 version = "0.2.0"
-source = "git+https://github.com/lambdaclass/cairo_native?branch=contract_executor#45ece4b58c67a89886329461ce220cfda83361d3"
+source = "git+https://github.com/lambdaclass/cairo_native?branch=contract_executor#d1e5ee73b4641154219e19473b6e053d26c35c87"
 dependencies = [
  "cairo-lang-sierra-gas",
  "lazy_static",
@@ -6342,7 +6342,7 @@ version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af1844ef2428cc3e1cb900be36181049ef3d3193c63e43026cfe202983b27a56"
 dependencies = [
- "proc-macro-crate 3.2.0",
+ "proc-macro-crate 1.3.1",
  "proc-macro2",
  "quote",
  "syn 2.0.76",

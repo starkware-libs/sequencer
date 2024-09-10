@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use cairo_native::executor::ce::ContractExecutor;
+use cairo_native::executor::contract::ContractExecutor;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
 use starknet_api::block::{BlockNumber, BlockTimestamp};

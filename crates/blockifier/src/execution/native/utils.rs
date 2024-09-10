@@ -4,7 +4,7 @@ use ark_ff::BigInt;
 use cairo_lang_sierra::ids::FunctionId;
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoint;
 use cairo_native::execution_result::ContractExecutionResult;
-use cairo_native::executor::ce::ContractExecutor;
+use cairo_native::executor::contract::ContractExecutor;
 use cairo_native::starknet::{ResourceBounds, SyscallResult, TxV2Info, U256};
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use itertools::Itertools;
