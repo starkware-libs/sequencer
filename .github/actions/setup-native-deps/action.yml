@@ -13,5 +13,4 @@ runs:
       uses: actions/checkout@v3
     - name: Install Cairo Native Runtime Dependencies
       id: set-env-vars
-      shell: bash
-      run: sudo ./scripts/setup_native_deps.sh
+      run: sudo bash ./scripts/setup_native_deps.sh
