@@ -57,11 +57,9 @@ setup_llvm_deps() {
 
 	# GitHub Actions specific
 	[ -n "$GITHUB_ACTIONS" ] && {
-		{
-			echo "MLIR_SYS_180_PREFIX=$MLIR_SYS_180_PREFIX"
-			echo "LLVM_SYS_181_PREFIX=$LLVM_SYS_181_PREFIX"
-			echo "TABLEGEN_180_PREFIX=$TABLEGEN_180_PREFIX"
-		} >> "$GITHUB_ENV"
+    echo "MLIR_SYS_180_PREFIX=/usr/lib/llvm-18" >> "$GITHUB_ENV"
+    echo "LLVM_SYS_181_PREFIX=/usr/lib/llvm-18" >> "$GITHUB_ENV"
+    echo "TABLEGEN_180_PREFIX=/usr/lib/llvm-18" >> "$GITHUB_ENV"
 	}
 }
 
