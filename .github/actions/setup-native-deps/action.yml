@@ -19,7 +19,8 @@ runs:
     - name: Install Cairo Native Runtime Dependencies
       id: set-runtime-deps
       shell: bash
-      run: ./scripts/setup_native_deps.sh
+      run: |
+        sudo ./scripts/setup_native_deps.sh
 
     - name: Set Environment Variables
       id: set-env-vars
@@ -28,3 +29,9 @@ runs:
         echo "MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV &&
         echo "LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV &&
         echo "TABLEGEN_180_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV
+    - name: Verify LLVM installation
+      shell: bash
+      run: |
+        echo "PATH=$PATH"
+        which llvm-config
+        llvm-config --version
