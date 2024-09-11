@@ -9,9 +9,6 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Checkout
-      uses: actions/checkout@v3
-
     - name: Make script executable
       shell: bash
       run: chmod +x ./scripts/setup_native_deps.sh
