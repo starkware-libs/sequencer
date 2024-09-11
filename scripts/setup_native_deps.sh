@@ -46,9 +46,9 @@ setup_llvm_deps() {
 			mlir-18-tools \
 			clang-18
 
-		MLIR_SYS_180_PREFIX=/usr/lib/llvm-18
-		LLVM_SYS_181_PREFIX=/usr/lib/llvm-18
-		TABLEGEN_180_PREFIX=/usr/lib/llvm-18
+		MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/
+		LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/
+		TABLEGEN_180_PREFIX=/usr/lib/llvm-18/
 
 		export MLIR_SYS_180_PREFIX
 		export LLVM_SYS_181_PREFIX
