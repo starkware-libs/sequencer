@@ -17,7 +17,7 @@ runs:
       run: chmod +x ./scripts/setup_native_deps.sh
 
     - name: Install Cairo Native Runtime Dependencies
-      id: set-env-vars
+      id: set-runtime-deps
       shell: bash
       run: ./scripts/setup_native_deps.sh
 
