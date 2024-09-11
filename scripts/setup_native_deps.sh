@@ -23,7 +23,10 @@ setup_llvm_deps() {
 		LLVM_SYS_181_PREFIX="$MLIR_SYS_180_PREFIX"
 		TABLEGEN_180_PREFIX="$MLIR_SYS_180_PREFIX"
 
-		export LIBRARY_PATH MLIR_SYS_180_PREFIX LLVM_SYS_181_PREFIX TABLEGEN_180_PREFIX
+		export LIBRARY_PATH
+		export MLIR_SYS_180_PREFIX
+		export LLVM_SYS_181_PREFIX
+		export TABLEGEN_180_PREFIX
 		;;
 	Linux)
     export DEBIAN_FRONTEND=noninteractive
@@ -47,7 +50,9 @@ setup_llvm_deps() {
 		LLVM_SYS_181_PREFIX=/usr/lib/llvm-18
 		TABLEGEN_180_PREFIX=/usr/lib/llvm-18
 
-		export MLIR_SYS_180_PREFIX LLVM_SYS_181_PREFIX TABLEGEN_180_PREFIX
+		export MLIR_SYS_180_PREFIX
+		export LLVM_SYS_181_PREFIX
+		export TABLEGEN_180_PREFIX
 		;;
 	*)
 		echo "Error: Unsupported operating system"
