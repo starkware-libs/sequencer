@@ -57,9 +57,9 @@ setup_llvm_deps() {
 
 	# GitHub Actions specific
 	[ -n "$GITHUB_ACTIONS" ] && {
-    echo "MLIR_SYS_180_PREFIX=/usr/lib/llvm-18" >> "$GITHUB_ENV"
-    echo "LLVM_SYS_181_PREFIX=/usr/lib/llvm-18" >> "$GITHUB_ENV"
-    echo "TABLEGEN_180_PREFIX=/usr/lib/llvm-18" >> "$GITHUB_ENV"
+    echo "MLIR_SYS_180_PREFIX=$MLIR_SYS_180_PREFIX" >> $GITHUB_ENV
+    echo "LLVM_SYS_181_PREFIX=$LLVM_SYS_181_PREFIX" >> $GITHUB_ENV
+    echo "TABLEGEN_180_PREFIX=$TABLEGEN_180_PREFIX" >> $GITHUB_ENV
 	}
 }
 
@@ -97,7 +97,7 @@ install_cairo_native_runtime() {
 
 	export CAIRO_NATIVE_RUNTIME_LIBRARY="$PWD/libcairo_native_runtime.so"
 
-	[ -n "$GITHUB_ACTIONS" ] && echo "CAIRO_NATIVE_RUNTIME_LIBRARY=$CAIRO_NATIVE_RUNTIME_LIBRARY" >> "$GITHUB_ENV"
+	[ -n "$GITHUB_ACTIONS" ] && echo "CAIRO_NATIVE_RUNTIME_LIBRARY=$CAIRO_NATIVE_RUNTIME_LIBRARY" >> $GITHUB_ENV
 }
 
 main() {
