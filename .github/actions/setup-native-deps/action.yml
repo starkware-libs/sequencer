@@ -29,9 +29,3 @@ runs:
         echo "MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV &&
         echo "LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV &&
         echo "TABLEGEN_180_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV
-    - name: Verify LLVM installation
-      shell: bash
-      run: |
-        echo "PATH=$PATH"
-        which llvm-config
-        llvm-config --version
