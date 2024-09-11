@@ -14,4 +14,4 @@ runs:
     - name: Install Cairo Native Runtime Dependencies
       id: set-env-vars
       shell: bash
-      run: ./scripts/install.sh
+      run: ./scripts/setup_native_deps.sh
