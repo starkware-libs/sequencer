@@ -31,7 +31,7 @@ runs:
         path: "cairo_native"
 
     - name: Install Cairo Native Runtime Dependencies
-      id: set-env-vars
+      id: set-runtime-deps
       shell: bash
       run: |
         cd ./cairo_native &&
