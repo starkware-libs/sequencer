@@ -52,3 +52,4 @@ function main() {
 }
 
 main "$@"
+
