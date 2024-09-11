@@ -21,10 +21,10 @@ runs:
       shell: bash
       run: ./scripts/setup_native_deps.sh
 
-#    - name: Set Environment Variables
-#      id: set-env-vars
-#      shell: bash
-#      run: |
-#        echo "MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV &&
-#        echo "LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV &&
-#        echo "TABLEGEN_180_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV
+    - name: Set Environment Variables
+      id: set-env-vars
+      shell: bash
+      run: |
+        echo "MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV &&
+        echo "LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV &&
+        echo "TABLEGEN_180_PREFIX=/usr/lib/llvm-18/" >> $GITHUB_ENV
