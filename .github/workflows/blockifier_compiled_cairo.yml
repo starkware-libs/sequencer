@@ -26,6 +26,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
 
+      - name: Set up Native Dependencies
+        uses: ./.github/actions/setup-native-deps
+        id: native-deps
+
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
         id: setup-pypy
