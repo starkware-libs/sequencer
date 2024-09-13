@@ -36,6 +36,16 @@ pub fn verify_contract_class_version(
                 cairo_version: 1,
             })
         }
-        ContractClass::V1Native(_) => todo!("Sierra verify contract class version"),
+        ContractClass::V1Native(_) => {
+            if declare_version == TransactionVersion::TWO
+                || declare_version == TransactionVersion::THREE
+            {
+                return Ok(());
+            }
+            Err(TransactionExecutionError::ContractClassVersionMismatch {
+                declare_version,
+                cairo_version: 1,
+            })
+        }
     }
 }
