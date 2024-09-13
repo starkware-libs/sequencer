@@ -103,11 +103,7 @@ impl TransactionInfo {
 
     pub fn enforce_fee(&self) -> bool {
         match self {
-            TransactionInfo::Current(context) => {
-                let l1_bounds = context.l1_resource_bounds();
-                let max_amount: u128 = l1_bounds.max_amount.into();
-                max_amount * l1_bounds.max_price_per_unit > 0
-            }
+            TransactionInfo::Current(context) => context.resource_bounds.max_possible_fee() > 0,
             TransactionInfo::Deprecated(context) => context.max_fee != Fee(0),
         }
     }
