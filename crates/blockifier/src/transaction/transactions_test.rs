@@ -92,8 +92,10 @@ use crate::test_utils::{
     CURRENT_BLOCK_TIMESTAMP,
     CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
     MAX_FEE,
+    MAX_L1_DATA_GAS_PRICE,
     MAX_L1_GAS_AMOUNT,
     MAX_L1_GAS_PRICE,
+    MAX_L2_GAS_PRICE,
     TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::account_transaction::AccountTransaction;
@@ -816,16 +818,39 @@ fn assert_failure_if_resource_bounds_exceed_balance(
                 if max_fee == context.max_fee
             );
         }
-        TransactionInfo::Current(context) => {
-            let l1_bounds = context.l1_resource_bounds();
-            assert_matches!(
+        TransactionInfo::Current(context) => match &context.resource_bounds {
+            ValidResourceBounds::L1Gas(l1_bounds) => assert_matches!(
                 invalid_tx.execute(state, block_context, true, true).unwrap_err(),
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
                         TransactionFeeError::L1GasBoundsExceedBalance{ max_amount, max_price, .. }))
                 if max_amount == l1_bounds.max_amount && max_price == l1_bounds.max_price_per_unit
-            );
-        }
+            ),
+            ValidResourceBounds::AllResources(AllResourceBounds {
+                l1_gas: l1_bounds,
+                l2_gas: l2_bounds,
+                l1_data_gas: l1_data_bounds,
+            }) => {
+                assert_matches!(
+                    invalid_tx.execute(state, block_context, true, true).unwrap_err(),
+                    TransactionExecutionError::TransactionPreValidationError(
+                        TransactionPreValidationError::TransactionFeeError(
+                            TransactionFeeError::ResourcesBoundsExceedBalance{
+                                l1_max_amount,
+                                l1_max_price,
+                                l1_data_max_amount,
+                                l1_data_max_price,
+                                l2_max_amount,
+                                l2_max_price, .. }
+                        )
+                    )
+                    if l1_max_amount == l1_bounds.max_amount && l1_max_price == l1_bounds.max_price_per_unit
+                    && l2_max_amount == l2_bounds.max_amount && l2_max_price == l2_bounds.max_price_per_unit
+                    && l1_data_max_amount == l1_data_bounds.max_amount
+                    && l1_data_max_price == l1_data_bounds.max_price_per_unit
+                );
+            }
+        },
     };
 }
 
@@ -851,9 +876,11 @@ fn test_max_fee_exceeds_balance(
 
     let invalid_max_fee = Fee(BALANCE + 1);
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-    let balance_over_gas_price: u64 =
+    let balance_over_l1_gas_price: u64 =
         (BALANCE / MAX_L1_GAS_PRICE).try_into().expect("Failed to convert u128 to u64.");
-    let invalid_resource_bounds = l1_resource_bounds(balance_over_gas_price + 1, MAX_L1_GAS_PRICE);
+
+    let invalid_l1_resource_bounds =
+        l1_resource_bounds(balance_over_l1_gas_price + 1, MAX_L1_GAS_PRICE);
 
     // V1 Invoke.
     let invalid_tx = account_invoke_tx(invoke_tx_args! {
@@ -865,8 +892,8 @@ fn test_max_fee_exceeds_balance(
 
     // V3 invoke.
     let invalid_tx = account_invoke_tx(invoke_tx_args! {
-        resource_bounds: invalid_resource_bounds.clone(),
-        ..default_args
+        resource_bounds: invalid_l1_resource_bounds.clone(),
+        ..default_args.clone()
     });
     assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
 
@@ -888,11 +915,52 @@ fn test_max_fee_exceeds_balance(
             class_hash: contract_to_declare.get_class_hash(),
             compiled_class_hash: contract_to_declare.get_compiled_class_hash(),
             sender_address: account_contract_address,
-            resource_bounds: invalid_resource_bounds,
+            resource_bounds: invalid_l1_resource_bounds.clone(),
         },
         class_info,
     );
     assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
+
+    // Test all resource bounds.
+    // TODO!(Aner): remove magic numbers, use function to calculate minimal amounts.
+    let min_l1 = 1652;
+    let min_l2 = 44;
+    let balance_over_l2_gas_price: u64 =
+        (BALANCE / MAX_L2_GAS_PRICE).try_into().expect("Failed to convert u128 to u64.");
+    let balance_over_l1_data_gas_price: u64 =
+        (BALANCE / MAX_L1_DATA_GAS_PRICE).try_into().expect("Failed to convert u128 to u64.");
+    // In the following cases, the balance is not enough to cover the gas price of the transaction.
+    // Minimal amounts are used to avoid failing the test due to min gas usage not covered.
+    for (l1_max_amount, l2_max_amount, l1_data_max_amount) in [
+        (balance_over_l1_gas_price + 1, min_l2, 0),
+        (min_l1, balance_over_l2_gas_price + 1, 0),
+        (min_l1, min_l2, balance_over_l1_data_gas_price + 1),
+        (
+            balance_over_l1_gas_price / 3 + 1,
+            balance_over_l2_gas_price / 3 + 1,
+            balance_over_l1_data_gas_price / 3 + 1,
+        ),
+    ] {
+        let invalid_resource_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
+            l1_gas: ResourceBounds {
+                max_amount: l1_max_amount,
+                max_price_per_unit: MAX_L1_GAS_PRICE,
+            },
+            l2_gas: ResourceBounds {
+                max_amount: l2_max_amount,
+                max_price_per_unit: MAX_L2_GAS_PRICE,
+            },
+            l1_data_gas: ResourceBounds {
+                max_amount: l1_data_max_amount,
+                max_price_per_unit: MAX_L1_DATA_GAS_PRICE,
+            },
+        });
+        let invalid_tx = account_invoke_tx(invoke_tx_args! {
+            resource_bounds: invalid_resource_bounds,
+            ..default_args.clone()
+        });
+        assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
+    }
 }
 
 // TODO(Aner, 21/01/24) modify for 4844 (taking blob_gas into account).

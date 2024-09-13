@@ -98,6 +98,8 @@ pub const MAX_L1_GAS_AMOUNT: u64 = 1000000;
 #[allow(clippy::as_conversions)]
 pub const MAX_L1_GAS_AMOUNT_U128: u128 = MAX_L1_GAS_AMOUNT as u128;
 pub const MAX_L1_GAS_PRICE: u128 = DEFAULT_STRK_L1_GAS_PRICE;
+pub const MAX_L2_GAS_PRICE: u128 = DEFAULT_STRK_L2_GAS_PRICE;
+pub const MAX_L1_DATA_GAS_PRICE: u128 = DEFAULT_STRK_L1_DATA_GAS_PRICE;
 pub const MAX_RESOURCE_COMMITMENT: u128 = MAX_L1_GAS_AMOUNT_U128 * MAX_L1_GAS_PRICE;
 pub const MAX_FEE: u128 = MAX_L1_GAS_AMOUNT_U128 * DEFAULT_ETH_L1_GAS_PRICE;
 
@@ -107,6 +109,7 @@ pub const BALANCE: u128 = 10 * const_max(MAX_FEE, MAX_RESOURCE_COMMITMENT);
 
 pub const DEFAULT_ETH_L1_GAS_PRICE: u128 = 100 * u128::pow(10, 9); // Given in units of Wei.
 pub const DEFAULT_STRK_L1_GAS_PRICE: u128 = 100 * u128::pow(10, 9); // Given in units of STRK.
+pub const DEFAULT_STRK_L2_GAS_PRICE: u128 = 25 * u128::pow(10, 5); // Given in units of STRK.
 pub const DEFAULT_ETH_L1_DATA_GAS_PRICE: u128 = u128::pow(10, 6); // Given in units of Wei.
 pub const DEFAULT_STRK_L1_DATA_GAS_PRICE: u128 = u128::pow(10, 9); // Given in units of STRK.
 
