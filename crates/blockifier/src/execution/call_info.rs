@@ -24,7 +24,8 @@ macro_rules! retdata {
     };
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+#[cfg_attr(test, derive(Clone))]
+#[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct OrderedEvent {
     pub order: usize,
     pub event: EventContent,
@@ -38,7 +39,7 @@ pub struct MessageL1CostInfo {
 
 impl MessageL1CostInfo {
     pub fn calculate<'a>(
-        call_infos: impl Iterator<Item = &'a CallInfo>,
+        call_infos: impl Iterator<Item=&'a CallInfo>,
         l1_handler_payload_size: Option<usize>,
     ) -> Self {
         let mut l2_to_l1_payload_lengths = Vec::new();
@@ -53,13 +54,15 @@ impl MessageL1CostInfo {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+#[cfg_attr(test, derive(Clone))]
+#[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct MessageToL1 {
     pub to_address: EthAddress,
     pub payload: L2ToL1Payload,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+#[cfg_attr(test, derive(Clone))]
+#[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct OrderedL2ToL1Message {
     pub order: usize,
     pub message: MessageToL1,
@@ -70,7 +73,8 @@ pub fn get_payload_lengths(l2_to_l1_messages: &[OrderedL2ToL1Message]) -> Vec<us
 }
 
 /// Represents the effects of executing a single entry point.
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+#[cfg_attr(test, derive(Clone))]
+#[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CallExecution {
     pub retdata: Retdata,
     pub events: Vec<OrderedEvent>,
@@ -100,7 +104,7 @@ impl Add for ExecutionSummary {
 }
 
 impl Sum for ExecutionSummary {
-    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+    fn sum<I: Iterator<Item=Self>>(iter: I) -> Self {
         iter.fold(ExecutionSummary::default(), |acc, x| acc + x)
     }
 }
@@ -158,7 +162,7 @@ impl TestExecutionSummary {
 }
 
 /// Represents the full effects of executing an entry point, including the inner calls it invoked.
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+#[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CallInfo {
     pub call: CallEntryPoint,
     pub execution: CallExecution,

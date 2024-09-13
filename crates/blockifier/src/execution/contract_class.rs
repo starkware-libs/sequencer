@@ -5,11 +5,7 @@ use std::sync::Arc;
 use cairo_lang_casm;
 use cairo_lang_casm::hints::Hint;
 use cairo_lang_sierra::ids::FunctionId;
-use cairo_lang_starknet_classes::casm_contract_class::{
-    CasmContractClass,
-    CasmContractEntryPoint,
-    StarknetSierraCompilationError,
-};
+use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use cairo_lang_starknet_classes::contract_class::{
     ContractClass as SierraContractClass,
     ContractEntryPoint,
@@ -611,21 +607,6 @@ impl NativeContractClassV1 {
         Ok(Self(Arc::new(contract)))
     }
 
-    pub fn to_casm_contract_class(
-        self,
-    ) -> Result<CasmContractClass, StarknetSierraCompilationError> {
-        let sierra_contract_class = SierraContractClass {
-            // Cloning because these are behind an Arc.
-            sierra_program: self.sierra_program.clone(),
-            entry_points_by_type: self.fallback_entry_points_by_type.clone(),
-            abi: None,
-            sierra_program_debug_info: None,
-            contract_class_version: String::default(),
-        };
-
-        CasmContractClass::from_contract_class(sierra_contract_class, false, usize::MAX)
-    }
-
     /// Returns an entry point into the natively compiled contract.
     pub fn get_entry_point(&self, call: &CallEntryPoint) -> Result<&FunctionId, PreExecutionError> {
         if call.entry_point_type == EntryPointType::Constructor
@@ -657,7 +638,6 @@ pub struct NativeContractClassV1Inner {
     entry_points_by_type: NativeContractEntryPoints,
     // Storing the raw sierra program and entry points to be able to fallback to the vm
     sierra_program: Vec<BigUintAsHex>,
-    fallback_entry_points_by_type: SierraContractEntryPoints,
 }
 
 impl NativeContractClassV1Inner {
@@ -688,7 +668,6 @@ impl NativeContractClassV1Inner {
                 &sierra_contract_class.entry_points_by_type,
             )?,
             sierra_program: sierra_contract_class.sierra_program,
-            fallback_entry_points_by_type: sierra_contract_class.entry_points_by_type,
         })
     }
 }
