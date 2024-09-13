@@ -1,4 +1,5 @@
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use std::time::Instant;
 
 use super::syscall_handler::NativeSyscallHandler;
 use super::utils::run_native_executor;
@@ -28,8 +29,18 @@ pub fn execute_entry_point_call(
         context,
     );
 
-    println!("Blockifier-Native: running the Native Executor");
+    let _contract_span = tracing::info_span!(
+        "native contract execution",
+        class_hash = ?call.class_hash,
+    )
+    .entered();
+    tracing::info!("native contract execution started");
+
+    let pre_execution_instant = Instant::now();
     let result = run_native_executor(&contract_class.executor, function_id, call, syscall_handler);
-    println!("Blockifier-Native: Native Executor finished running");
+    let execution_time = pre_execution_instant.elapsed();
+
+    tracing::info!(time = ?execution_time, "native contract execution finished");
+
     result
 }
