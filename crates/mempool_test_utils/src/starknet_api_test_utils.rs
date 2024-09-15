@@ -11,7 +11,7 @@ use blockifier::test_utils::{create_trivial_calldata, CairoVersion};
 use serde_json::to_string_pretty;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::executable_transaction::{InvokeTransaction, Transaction};
+use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::{
     ContractClass,
     RpcDeclareTransactionV3,
@@ -28,7 +28,6 @@ use starknet_api::transaction::{
     PaymasterData,
     ResourceBounds,
     Tip,
-    TransactionHash,
     TransactionSignature,
     TransactionVersion,
     ValidResourceBounds,
@@ -584,30 +583,4 @@ pub fn rpc_tx_to_json(tx: &RpcTransaction) -> String {
 
     // Serialize back to pretty JSON string
     to_string_pretty(&tx_json).expect("Failed to serialize transaction")
-}
-
-pub fn create_executable_tx(
-    sender_address: ContractAddress,
-    tx_hash: TransactionHash,
-    tip: Tip,
-    nonce: Nonce,
-    resource_bounds: ValidResourceBounds,
-) -> Transaction {
-    Transaction::Invoke(InvokeTransaction {
-        tx: starknet_api::transaction::InvokeTransaction::V3(
-            starknet_api::transaction::InvokeTransactionV3 {
-                sender_address,
-                tip,
-                nonce,
-                resource_bounds,
-                signature: TransactionSignature::default(),
-                calldata: Calldata::default(),
-                nonce_data_availability_mode: DataAvailabilityMode::L1,
-                fee_data_availability_mode: DataAvailabilityMode::L1,
-                paymaster_data: PaymasterData::default(),
-                account_deployment_data: AccountDeploymentData::default(),
-            },
-        ),
-        tx_hash,
-    })
 }

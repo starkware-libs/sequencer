@@ -31,6 +31,7 @@ pub struct DeployAccountTxArgs {
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
     pub constructor_calldata: Calldata,
+    pub tx_hash: TransactionHash,
 }
 
 impl Default for DeployAccountTxArgs {
@@ -49,6 +50,7 @@ impl Default for DeployAccountTxArgs {
             class_hash: ClassHash::default(),
             contract_address_salt: ContractAddressSalt::default(),
             constructor_calldata: Calldata::default(),
+            tx_hash: TransactionHash::default(),
         }
     }
 }
@@ -106,7 +108,7 @@ pub fn executable_deploy_account_tx(
     deploy_tx_args: DeployAccountTxArgs,
     nonce: Nonce,
 ) -> ExecutableDeployAccountTransaction {
-    let default_tx_hash = TransactionHash::default();
+    let tx_hash = deploy_tx_args.tx_hash;
     let contract_address = calculate_contract_address(
         deploy_tx_args.contract_address_salt,
         deploy_tx_args.class_hash,
@@ -116,5 +118,5 @@ pub fn executable_deploy_account_tx(
     .unwrap();
     let tx = deploy_account_tx(deploy_tx_args, nonce);
 
-    ExecutableDeployAccountTransaction { tx, tx_hash: default_tx_hash, contract_address }
+    ExecutableDeployAccountTransaction { tx, tx_hash, contract_address }
 }
