@@ -7,14 +7,9 @@ use std::hash::{Hash, Hasher};
 use std::num::NonZeroUsize;
 use std::task::Poll;
 
-use async_trait::async_trait;
 use futures::{Stream, StreamExt};
 use lru::LruCache;
-use papyrus_network::network_manager::{
-    BroadcastClientChannels,
-    BroadcastClientTrait,
-    BroadcastedMessageManager,
-};
+use papyrus_network::network_manager::{BroadcastedMessageManager, GenericReceiver};
 use papyrus_protobuf::consensus::ConsensusMessage;
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::BlockHash;
@@ -34,8 +29,11 @@ use tracing::{debug, instrument};
 ///       message A was dropped by this struct in one run, it should be dropped in the rerun. This
 ///       is as opposed to using a stateful RNG where the random number is a function of all the
 ///       previous calls to the RNG.
-pub struct NetworkReceiver<BroadcastClientT> {
-    pub receiver: BroadcastClientT,
+pub struct NetworkReceiver {
+    pub broadcasted_messages_receiver: GenericReceiver<(
+        Result<ConsensusMessage, ProtobufConversionError>,
+        BroadcastedMessageManager,
+    )>,
     // Cache is used so that repeat sends of a message can be processed differently. For example,
     // if a message is dropped resending it should result in a new decision.
     pub cache: LruCache<ConsensusMessage, u32>,
@@ -46,12 +44,12 @@ pub struct NetworkReceiver<BroadcastClientT> {
     pub invalid_probability: f64,
 }
 
-impl<BroadcastClientT> NetworkReceiver<BroadcastClientT>
-where
-    BroadcastClientT: BroadcastClientTrait<ConsensusMessage>,
-{
+impl NetworkReceiver {
     pub fn new(
-        receiver: BroadcastClientT,
+        broadcasted_messages_receiver: GenericReceiver<(
+            Result<ConsensusMessage, ProtobufConversionError>,
+            BroadcastedMessageManager,
+        )>,
         cache_size: usize,
         seed: u64,
         drop_probability: f64,
@@ -60,7 +58,7 @@ where
         assert!((0.0..=1.0).contains(&drop_probability));
         assert!((0.0..=1.0).contains(&invalid_probability));
         Self {
-            receiver,
+            broadcasted_messages_receiver,
             cache: LruCache::new(NonZeroUsize::new(cache_size).unwrap()),
             seed,
             drop_probability,
@@ -128,10 +126,7 @@ where
     }
 }
 
-impl<BroadcastClientT> Stream for NetworkReceiver<BroadcastClientT>
-where
-    BroadcastClientT: BroadcastClientTrait<ConsensusMessage>,
-{
+impl Stream for NetworkReceiver {
     type Item = (Result<ConsensusMessage, ProtobufConversionError>, BroadcastedMessageManager);
 
     fn poll_next(
@@ -139,7 +134,7 @@ where
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         loop {
-            let item = self.receiver.poll_next_unpin(cx);
+            let item = self.broadcasted_messages_receiver.poll_next_unpin(cx);
             let (msg, broadcasted_message_manager) = match item {
                 Poll::Ready(Some((Ok(msg), broadcasted_message_manager))) => {
                     (msg, broadcasted_message_manager)
@@ -150,18 +145,5 @@ where
                 return Poll::Ready(Some((Ok(msg), broadcasted_message_manager)));
             }
         }
-    }
-}
-
-#[async_trait]
-impl BroadcastClientTrait<ConsensusMessage>
-    for NetworkReceiver<BroadcastClientChannels<ConsensusMessage>>
-{
-    async fn report_message(&mut self, message_manager: BroadcastedMessageManager) {
-        self.receiver.report_message(message_manager).await;
-    }
-
-    async fn continue_propagation(&mut self, message_manager: &BroadcastedMessageManager) {
-        self.receiver.continue_propagation(message_manager).await;
     }
 }
