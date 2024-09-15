@@ -591,7 +591,8 @@ An ASSERT_EQ instruction failed: 1 != 0.
     // Clean pc locations from the trace.
     let re = Regex::new(r"pc=0:[0-9]+").unwrap();
     let cleaned_expected_error = &re.replace_all(&expected_error, "pc=0:*");
-    let actual_error = account_tx.execute(state, block_context, true, true).unwrap_err();
+    let charge_fee = account_tx.enforce_fee();
+    let actual_error = account_tx.execute(state, block_context, charge_fee, true).unwrap_err();
     let actual_error_str = actual_error.to_string();
     let cleaned_actual_error = &re.replace_all(&actual_error_str, "pc=0:*");
     // Compare actual trace to the expected trace (sans pc locations).
@@ -617,6 +618,7 @@ fn test_account_ctor_frame_stack_trace(
             scenario: INVALID,
             class_hash,
             max_fee: BALANCE,
+            resource_bounds: max_l1_resource_bounds(),
             validate_constructor: true,
             ..Default::default()
         });
