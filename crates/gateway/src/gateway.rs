@@ -160,19 +160,19 @@ fn process_tx(
         }
     }
 
-    let validator = stateful_tx_validator.instantiate_validator(state_reader_factory)?;
-    // TODO(Yael 31/7/24): refactor after IntrnalTransaction is ready, delete validate_info and
-    // compute all the info outside of run_validate.
-    let validate_info = stateful_tx_validator.run_validate(&executable_tx, validator)?;
+    let mut validator = stateful_tx_validator.instantiate_validator(state_reader_factory)?;
     let sender_address = executable_tx.contract_address();
+    let account_nonce = validator.get_nonce(sender_address).map_err(|e| {
+        error!("Failed to get nonce for sender address {}: {}", sender_address, e);
+        GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+    })?;
+
+    stateful_tx_validator.run_validate(&executable_tx, account_nonce, validator)?;
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
     Ok(MempoolInput {
         tx: executable_tx,
-        account: Account {
-            sender_address,
-            state: AccountState { nonce: validate_info.account_nonce },
-        },
+        account: Account { sender_address, state: AccountState { nonce: account_nonce } },
     })
 }
 
