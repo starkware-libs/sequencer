@@ -119,6 +119,7 @@ use crate::transaction::objects::{
     HasRelatedFeeType,
     TransactionExecutionInfo,
     TransactionInfo,
+    TransactionInfoCreator,
 };
 use crate::transaction::test_utils::{
     account_invoke_tx,
@@ -808,7 +809,8 @@ fn test_state_get_fee_token_balance(
         version: tx_version,
         nonce: Nonce::default(),
     });
-    account_tx.execute(state, block_context, true, true).unwrap();
+    let charge_fee = account_tx.enforce_fee();
+    account_tx.execute(state, block_context, charge_fee, true).unwrap();
 
     // Get balance from state, and validate.
     let (low, high) =
@@ -823,10 +825,13 @@ fn assert_failure_if_resource_bounds_exceed_balance(
     block_context: &BlockContext,
     invalid_tx: AccountTransaction,
 ) {
-    match block_context.to_tx_context(&invalid_tx).tx_info {
+    let tx_info = invalid_tx.create_tx_info();
+    let charge_fee = tx_info.enforce_fee();
+
+    match tx_info {
         TransactionInfo::Deprecated(context) => {
             assert_matches!(
-                invalid_tx.execute(state, block_context, true, true).unwrap_err(),
+                invalid_tx.execute(state, block_context, charge_fee, true).unwrap_err(),
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
                         TransactionFeeError::MaxFeeExceedsBalance{ max_fee, .. }))
@@ -836,7 +841,7 @@ fn assert_failure_if_resource_bounds_exceed_balance(
         TransactionInfo::Current(context) => {
             let l1_bounds = context.l1_resource_bounds();
             assert_matches!(
-                invalid_tx.execute(state, block_context, true, true).unwrap_err(),
+                invalid_tx.execute(state, block_context, charge_fee, true).unwrap_err(),
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
                         TransactionFeeError::GasBoundsExceedBalance{resource, max_amount, max_price, .. }))
@@ -1734,7 +1739,10 @@ fn test_validate_accounts_tx(
         additional_data: None,
         ..default_args
     });
-    let error = account_tx.execute(state, block_context, true, true).unwrap_err();
+    // All tx has default resource bounds, thus the default charge fee is the same for all.
+    let default_charge_fee = account_tx.enforce_fee();
+
+    let error = account_tx.execute(state, block_context, default_charge_fee, true).unwrap_err();
     check_tx_execution_error_for_invalid_scenario!(cairo_version, error, validate_constructor,);
 
     // Try to call another contract (forbidden).
@@ -1747,7 +1755,7 @@ fn test_validate_accounts_tx(
         resource_bounds: ValidResourceBounds::create_for_testing(),
         ..default_args
     });
-    let error = account_tx.execute(state, block_context, true, true).unwrap_err();
+    let error = account_tx.execute(state, block_context, default_charge_fee, true).unwrap_err();
     check_tx_execution_error_for_custom_hint!(
         &error,
         "Unauthorized syscall call_contract in execution mode Validate.",
@@ -1763,7 +1771,7 @@ fn test_validate_accounts_tx(
             resource_bounds: ValidResourceBounds::create_for_testing(),
             ..default_args
         });
-        let error = account_tx.execute(state, block_context, true, true).unwrap_err();
+        let error = account_tx.execute(state, block_context, default_charge_fee, true).unwrap_err();
         check_tx_execution_error_for_custom_hint!(
             &error,
             "Unauthorized syscall get_block_hash in execution mode Validate.",
@@ -1778,7 +1786,7 @@ fn test_validate_accounts_tx(
             resource_bounds: ValidResourceBounds::create_for_testing(),
             ..default_args
         });
-        let error = account_tx.execute(state, block_context, true, true).unwrap_err();
+        let error = account_tx.execute(state, block_context, default_charge_fee, true).unwrap_err();
         check_tx_execution_error_for_custom_hint!(
             &error,
             "Unauthorized syscall get_sequencer_address in execution mode Validate.",
@@ -1802,7 +1810,7 @@ fn test_validate_accounts_tx(
             ..default_args
         },
     );
-    let result = account_tx.execute(state, block_context, true, true);
+    let result = account_tx.execute(state, block_context, default_charge_fee, true);
     assert!(result.is_ok(), "Execution failed: {:?}", result.unwrap_err());
 
     if tx_type != TransactionType::DeployAccount {
@@ -1819,7 +1827,7 @@ fn test_validate_accounts_tx(
                 ..default_args
             },
         );
-        let result = account_tx.execute(state, block_context, true, true);
+        let result = account_tx.execute(state, block_context, default_charge_fee, true);
         assert!(result.is_ok(), "Execution failed: {:?}", result.unwrap_err());
     }
 
@@ -1839,7 +1847,7 @@ fn test_validate_accounts_tx(
                 ..default_args
             },
         );
-        let result = account_tx.execute(state, block_context, true, true);
+        let result = account_tx.execute(state, block_context, default_charge_fee, true);
         assert!(result.is_ok(), "Execution failed: {:?}", result.unwrap_err());
 
         // Call the syscall get_block_timestamp and assert the returned timestamp was modified
@@ -1855,7 +1863,7 @@ fn test_validate_accounts_tx(
                 ..default_args
             },
         );
-        let result = account_tx.execute(state, block_context, true, true);
+        let result = account_tx.execute(state, block_context, default_charge_fee, true);
         assert!(result.is_ok(), "Execution failed: {:?}", result.unwrap_err());
     }
 
@@ -1877,7 +1885,7 @@ fn test_validate_accounts_tx(
                 ..default_args
             },
         );
-        let result = account_tx.execute(state, block_context, true, true);
+        let result = account_tx.execute(state, block_context, default_charge_fee, true);
         assert!(result.is_ok(), "Execution failed: {:?}", result.unwrap_err());
     }
 }
@@ -2021,8 +2029,8 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     let key = calldata.0[1];
     let value = calldata.0[2];
     let payload_size = tx.payload_size();
-
-    let actual_execution_info = tx.execute(state, block_context, true, true).unwrap();
+    let charge_fee = false; //AvivG : do we want enforce_fee impl for L1 handler?
+    let actual_execution_info = tx.execute(state, block_context, charge_fee, true).unwrap();
 
     // Build the expected call info.
     let accessed_storage_key = StorageKey::try_from(key).unwrap();
@@ -2146,7 +2154,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // always uptade the storage instad.
     state.set_storage_at(contract_address, StorageKey::try_from(key).unwrap(), Felt::ZERO).unwrap();
     let tx_no_fee = L1HandlerTransaction::create_for_testing(Fee(0), contract_address);
-    let error = tx_no_fee.execute(state, block_context, true, true).unwrap_err();
+    let error = tx_no_fee.execute(state, block_context, charge_fee, true).unwrap_err();
     // Today, we check that the paid_fee is positive, no matter what was the actual fee.
     let expected_actual_fee =
         expected_execution_info.receipt.resources.calculate_tx_fee(block_context, &FeeType::Eth);
