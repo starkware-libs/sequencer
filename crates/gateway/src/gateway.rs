@@ -43,6 +43,8 @@ pub struct AppState {
     pub mempool_client: SharedMempoolClient,
 }
 
+// TODO(Tsabary): Disable the deprecated axum http server in this module.
+
 impl Gateway {
     pub fn new(
         config: GatewayConfig,
@@ -80,6 +82,11 @@ impl Gateway {
             .route("/add_tx", post(add_tx))
             .with_state(self.app_state.clone())
     }
+
+    pub async fn add_tx(&mut self, tx: RpcTransaction) -> GatewayResult<TransactionHash> {
+        let app_state = self.app_state.clone();
+        internal_add_tx(app_state, tx).await
+    }
 }
 
 // Gateway handlers.
@@ -94,6 +101,14 @@ async fn add_tx(
     State(app_state): State<AppState>,
     Json(tx): Json<RpcTransaction>,
 ) -> GatewayResult<Json<TransactionHash>> {
+    let tx_hash = internal_add_tx(app_state, tx).await?;
+    Ok(Json(tx_hash))
+}
+
+async fn internal_add_tx(
+    app_state: AppState,
+    tx: RpcTransaction,
+) -> GatewayResult<TransactionHash> {
     let mempool_input = tokio::task::spawn_blocking(move || {
         process_tx(
             app_state.stateless_tx_validator,
@@ -116,7 +131,7 @@ async fn add_tx(
         GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
     })?;
     // TODO: Also return `ContractAddress` for deploy and `ClassHash` for Declare.
-    Ok(Json(tx_hash))
+    Ok(tx_hash)
 }
 
 fn process_tx(
