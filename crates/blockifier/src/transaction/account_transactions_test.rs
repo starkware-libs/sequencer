@@ -615,7 +615,9 @@ fn test_fail_deploy_account(
 
     let initial_balance = state.get_fee_token_balance(deploy_address, fee_token_address).unwrap();
 
-    let error = deploy_account_tx.execute(state, &block_context, true, true).unwrap_err();
+    let charge_fee = deploy_account_tx.create_tx_info().enforce_fee();
+
+    let error = deploy_account_tx.execute(state, &block_context, charge_fee, true).unwrap_err();
     // Check the error is as expected. Assure the error message is not nonce or fee related.
     check_tx_execution_error_for_invalid_scenario!(cairo_version, error, false);
 
