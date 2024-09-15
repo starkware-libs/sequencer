@@ -8,6 +8,7 @@ use thiserror::Error;
 
 use crate::execution::call_info::Retdata;
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
+use crate::execution::execution_utils::format_panic_data;
 use crate::execution::stack_trace::gen_transaction_execution_error_trace;
 use crate::fee::fee_checks::FeeCheckError;
 use crate::state::errors::StateError;
@@ -81,6 +82,8 @@ pub enum TransactionExecutionError {
     FeeCheckError(#[from] FeeCheckError),
     #[error(transparent)]
     FromStr(#[from] FromStrError),
+    #[error("The `validate` entry point panicked with {}.", format_panic_data(&panic_reason.0))]
+    PanicInValidate { panic_reason: Retdata },
     #[error("The `validate` entry point should return `VALID`. Got {actual:?}.")]
     InvalidValidateReturnData { actual: Retdata },
     #[error(
