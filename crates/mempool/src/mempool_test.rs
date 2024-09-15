@@ -2,17 +2,15 @@ use std::cmp::Reverse;
 use std::collections::HashMap;
 
 use assert_matches::assert_matches;
-use mempool_test_utils::starknet_api_test_utils::{
-    create_executable_tx,
-    test_resource_bounds_mapping,
-};
+use mempool_test_utils::starknet_api_test_utils::test_resource_bounds_mapping;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::StarkHash;
+use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
-use starknet_api::{contract_address, felt, patricia_key};
+use starknet_api::{contract_address, felt, invoke_tx_args, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState};
 use starknet_types_core::felt::Felt;
@@ -151,17 +149,19 @@ fn commit_block(
     assert_eq!(mempool.commit_block(state_changes), Ok(()));
 }
 
-/// Creates an executable transaction with the given field subset (the rest receive default values).
+/// Creates an executable invoke transaction with the given field subset (the rest receive default
+/// values).
 macro_rules! tx {
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
         tx_nonce: $tx_nonce:expr, resource_bounds: $resource_bounds:expr) => {{
-        create_executable_tx(
-            contract_address!($sender_address),
-            TransactionHash(StarkHash::from($tx_hash)),
-            Tip($tip),
-            Nonce(felt!($tx_nonce)),
-            $resource_bounds,
-        )
+            let sender_address = contract_address!($sender_address);
+            Transaction::Invoke(executable_invoke_tx(invoke_tx_args!{
+                sender_address: sender_address,
+                tx_hash: TransactionHash(StarkHash::from($tx_hash)),
+                tip: Tip($tip),
+                nonce: Nonce(felt!($tx_nonce)),
+                resource_bounds: $resource_bounds,
+            }))
     }};
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, tx_nonce: $tx_nonce:expr) => {
         tx!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, resource_bounds: ValidResourceBounds::AllResources(test_resource_bounds_mapping()))
