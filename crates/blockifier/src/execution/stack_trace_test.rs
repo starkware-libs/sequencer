@@ -5,12 +5,13 @@ use starknet_api::core::{calculate_contract_address, Nonce};
 use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
+    Fee,
     TransactionSignature,
     TransactionVersion,
     ValidResourceBounds,
 };
 use starknet_api::{calldata, felt, invoke_tx_args};
-use starknet_api::transaction::Fee;
+
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::context::{BlockContext, ChainInfo};
