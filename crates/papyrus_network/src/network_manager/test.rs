@@ -24,7 +24,7 @@ use super::swarm_trait::{Event, SwarmTrait};
 use super::{BroadcastTopicChannels, GenericNetworkManager};
 use crate::gossipsub_impl::{self, Topic};
 use crate::mixed_behaviour;
-use crate::network_manager::{BroadcastClientChannels, ServerQueryManager};
+use crate::network_manager::ServerQueryManager;
 use crate::sqmr::behaviour::{PeerNotConnected, SessionIdNotFoundError};
 use crate::sqmr::{Bytes, GenericEvent, InboundSessionId, OutboundSessionId};
 
@@ -358,13 +358,11 @@ async fn receive_broadcasted_message_and_report_it() {
 
     let mut network_manager = GenericNetworkManager::generic_new(mock_swarm, None);
 
-    let BroadcastTopicChannels { broadcast_client_channels, .. } =
-        network_manager.register_broadcast_topic::<Bytes>(topic.clone(), BUFFER_SIZE).unwrap();
-    let BroadcastClientChannels {
+    let BroadcastTopicChannels {
         mut reported_messages_sender,
         mut broadcasted_messages_receiver,
         ..
-    } = broadcast_client_channels;
+    } = network_manager.register_broadcast_topic::<Bytes>(topic.clone(), BUFFER_SIZE).unwrap();
 
     tokio::select! {
         _ = network_manager.run() => panic!("network manager ended"),
