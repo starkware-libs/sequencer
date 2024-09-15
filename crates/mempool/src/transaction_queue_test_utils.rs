@@ -18,7 +18,7 @@ pub struct TransactionQueueContent {
 }
 
 impl TransactionQueueContent {
-    pub fn _with_priority_and_pending<Q, P>(priority_txs: Q, pending_txs: P) -> Self
+    pub fn with_priority_and_pending<Q, P>(priority_txs: Q, pending_txs: P) -> Self
     where
         Q: IntoIterator<Item = TransactionReference>,
         P: IntoIterator<Item = TransactionReference>,
@@ -39,7 +39,7 @@ impl TransactionQueueContent {
         Self { priority_queue, pending_queue, address_to_tx }
     }
 
-    pub fn _assert_eq_priority_and_pending_content(&self, tx_queue: &TransactionQueue) {
+    pub fn assert_eq_priority_and_pending_content(&self, tx_queue: &TransactionQueue) {
         assert_eq!(self.priority_queue, tx_queue.priority_queue);
         assert_eq!(self.pending_queue, tx_queue.pending_queue);
         assert_eq!(self.address_to_tx, tx_queue.address_to_tx);
