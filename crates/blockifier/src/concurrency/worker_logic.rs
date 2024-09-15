@@ -22,11 +22,7 @@ use crate::state::cached_state::{
     TransactionalState,
 };
 use crate::state::state_api::{StateReader, UpdatableState};
-use crate::transaction::objects::{
-    TransactionExecutionInfo,
-    TransactionExecutionResult,
-    TransactionInfoCreator,
-};
+use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
 

@@ -19,7 +19,6 @@ use crate::state::errors::StateError;
 use crate::state::state_api::StateReader;
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
-// use crate::transaction::objects::TransactionInfoCreator;
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::ValidatableTransaction;
 
