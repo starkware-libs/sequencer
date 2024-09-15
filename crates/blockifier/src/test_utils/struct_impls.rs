@@ -49,11 +49,12 @@ impl CallEntryPoint {
     /// Executes the call directly, without account context. Limits the number of steps by resource
     /// bounds.
     pub fn execute_directly(self, state: &mut dyn State) -> EntryPointExecutionResult<CallInfo> {
+        let limit_steps_by_resources = false; // Do not limit steps by resources as we use default reasources.
         self.execute_directly_given_tx_info(
             state,
             // TODO(Yoni, 1/12/2024): change the default to V3.
             TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
-            true,
+            limit_steps_by_resources,
             ExecutionMode::Execute,
         )
     }
@@ -82,10 +83,11 @@ impl CallEntryPoint {
         self,
         state: &mut dyn State,
     ) -> EntryPointExecutionResult<CallInfo> {
+        let limit_steps_by_resources = false; // Do not limit steps by resources as we use default reasources.
         self.execute_directly_given_tx_info(
             state,
             TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
-            true,
+            limit_steps_by_resources,
             ExecutionMode::Validate,
         )
     }

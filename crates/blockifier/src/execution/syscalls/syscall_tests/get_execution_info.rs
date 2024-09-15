@@ -243,7 +243,6 @@ fn test_get_execution_info(
         ),
         ..trivial_external_entry_point_with_address(test_contract_address)
     };
-
     let result =
         entry_point_call.execute_directly_given_tx_info(state, tx_info, false, execution_mode);
 

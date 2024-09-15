@@ -510,7 +510,6 @@ impl AccountTransaction {
 
             initial_gas: remaining_gas_for_fee_transfer,
         };
-
         let mut context = EntryPointExecutionContext::new_invoke(tx_context, true);
 
         Ok(fee_transfer_call
