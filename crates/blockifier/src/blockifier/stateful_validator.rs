@@ -95,7 +95,7 @@ impl<S: StateReader> StatefulValidator<S> {
     ) -> StatefulValidatorResult<()> {
         let strict_nonce_check = false;
         // Run pre-validation in charge fee mode to perform fee and balance related checks.
-        let charge_fee = true;
+        let charge_fee = tx.enforce_fee();
         tx.perform_pre_validation_stage(
             self.tx_executor.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
             tx_context,
