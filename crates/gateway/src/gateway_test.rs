@@ -12,13 +12,13 @@ use mockall::predicate::eq;
 use starknet_api::core::{CompiledClassHash, ContractAddress};
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
 use starknet_api::transaction::{TransactionHash, ValidResourceBounds};
+use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig};
-use crate::errors::GatewaySpecError;
 use crate::gateway::{add_tx, AppState, SharedMempoolClient};
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
