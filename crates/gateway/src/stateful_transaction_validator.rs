@@ -71,13 +71,9 @@ impl StatefulTransactionValidator {
     pub fn run_validate<V: StatefulTransactionValidatorTrait>(
         &self,
         executable_tx: &ExecutableTransaction,
+        account_nonce: Nonce,
         mut validator: V,
-    ) -> StatefulTransactionValidatorResult<ValidateInfo> {
-        let sender_address = executable_tx.contract_address();
-        let account_nonce = validator.get_nonce(sender_address).map_err(|e| {
-            error!("Failed to get nonce for sender address {}: {}", sender_address, e);
-            GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
-        })?;
+    ) -> StatefulTransactionValidatorResult<()> {
         let skip_validate = skip_stateful_validations(executable_tx, account_nonce);
         let account_tx = AccountTransaction::try_from(
             // TODO(Arni): create a try_from for &ExecutableTransaction.
@@ -90,7 +86,7 @@ impl StatefulTransactionValidator {
         validator
             .validate(account_tx, skip_validate)
             .map_err(|err| GatewaySpecError::ValidationFailure { data: err.to_string() })?;
-        Ok(ValidateInfo { account_nonce })
+        Ok(())
     }
 
     pub fn instantiate_validator(
@@ -144,11 +140,4 @@ pub fn get_latest_block_info(
         error!("Failed to get latest block info: {}", e);
         GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
     })
-}
-
-/// Holds members created by the stateful transaction validator, needed for
-/// [`MempoolInput`](starknet_mempool_types::mempool_types::MempoolInput).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ValidateInfo {
-    pub account_nonce: Nonce,
 }
