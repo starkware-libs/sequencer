@@ -1117,7 +1117,12 @@ impl ValidResourceBounds {
     // TODO(Nimrod): Default testing bounds should probably be AllResourceBounds variant.
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_testing() -> Self {
-        Self::L1Gas(ResourceBounds { max_amount: 0, max_price_per_unit: 1 })
+        let resource_bounds = AllResourceBounds {
+            l1_gas: ResourceBounds { max_amount: 0, max_price_per_unit: 1 },
+            l2_gas: ResourceBounds { max_amount: 0, max_price_per_unit: 1 },
+            l1_data_gas: ResourceBounds { max_amount: 0, max_price_per_unit: 1 },
+        };
+        Self::AllResources(resource_bounds)
     }
 }
 

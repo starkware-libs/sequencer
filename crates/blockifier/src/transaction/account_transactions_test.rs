@@ -525,6 +525,7 @@ fn test_recursion_depth_exceeded(
 fn test_revert_invoke(
     block_context: BlockContext,
     max_fee: Fee,
+    max_l1_resource_bounds: ValidResourceBounds,
     #[case] transaction_version: TransactionVersion,
     #[case] fee_type: FeeType,
 ) {
@@ -543,6 +544,7 @@ fn test_revert_invoke(
         &block_context,
         invoke_tx_args! {
             max_fee,
+            resource_bounds: max_l1_resource_bounds,
             sender_address: account_address,
             calldata: create_calldata(
                 test_contract_address,
@@ -615,7 +617,7 @@ fn test_fail_deploy_account(
 
     let initial_balance = state.get_fee_token_balance(deploy_address, fee_token_address).unwrap();
 
-    let charge_fee = deploy_account_tx.create_tx_info().enforce_fee();
+    let charge_fee = deploy_account_tx.enforce_fee();
 
     let error = deploy_account_tx.execute(state, &block_context, charge_fee, true).unwrap_err();
     // Check the error is as expected. Assure the error message is not nonce or fee related.
