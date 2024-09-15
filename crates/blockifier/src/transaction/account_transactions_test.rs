@@ -81,6 +81,7 @@ use crate::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use crate::transaction::objects::{FeeType, HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
     account_invoke_tx,
+    all_resource_bounds,
     block_context,
     calculate_class_info_for_testing,
     create_account_tx_for_validate_test_nonce_0,
@@ -636,7 +637,7 @@ fn test_recursion_depth_exceeded(
 fn test_revert_invoke(
     block_context: BlockContext,
     max_fee: Fee,
-    default_all_resource_bounds: ValidResourceBounds,
+    all_resource_bounds: ValidResourceBounds,
     #[case] transaction_version: TransactionVersion,
     #[case] fee_type: FeeType,
 ) {
@@ -655,7 +656,7 @@ fn test_revert_invoke(
         &block_context,
         invoke_tx_args! {
             max_fee,
-            resource_bounds: default_all_resource_bounds,
+            resource_bounds: all_resource_bounds,
             sender_address: account_address,
             calldata: create_calldata(
                 test_contract_address,

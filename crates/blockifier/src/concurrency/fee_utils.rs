@@ -56,11 +56,9 @@ pub fn complete_fee_transfer_flow(
             sequencer_balance,
         );
     } else {
-        assert_eq!(
-            tx_execution_info.receipt.fee,
-            Fee(0),
-            "Transaction with no fee transfer info must have zero fee."
-        )
+        // Assumes we set the charge fee flag to the transaction enforce fee value.
+        let charge_fee = tx_context.tx_info.enforce_fee();
+        assert!(!charge_fee, "Transaction with no fee transfer info must not enforce a fee charge.")
     }
 }
 
