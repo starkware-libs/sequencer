@@ -324,6 +324,7 @@ pub fn run_invoke_tx(
     invoke_args: InvokeTxArgs,
 ) -> TransactionExecutionResult<TransactionExecutionInfo> {
     let tx = account_invoke_tx(invoke_args);
+    // Fee charging is not enforced in some tests.
     let charge_fee = tx.enforce_fee();
 
     tx.execute(state, block_context, charge_fee, true)
