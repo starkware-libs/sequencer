@@ -306,6 +306,8 @@ impl GasVector {
     /// X non-data-related gas consumption and Y bytes of data, in non-blob mode, would
     /// cost (X + 16*Y) units of gas. Applying the discount ratio to the data-related
     /// summand, we get total_gas = (X + Y * DGP / GP).
+    /// If this function is called with kzg_flag==false, then l1_data_gas==0, and this dicount
+    /// function does nothing.
     pub fn to_discounted_l1_gas(&self, tx_context: &TransactionContext) -> u128 {
         let gas_prices = &tx_context.block_context.block_info.gas_prices;
         let fee_type = tx_context.tx_info.fee_type();
