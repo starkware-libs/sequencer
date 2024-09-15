@@ -7,3 +7,23 @@ repository.workspace = true
 
 [lints]
 workspace = true
+
+[dependencies]
+async-trait.workspace = true
+axum.workspace = true
+starknet_api.workspace = true
+starknet_gateway.workspace = true
+starknet_gateway_types.workspace = true
+starknet_mempool_infra.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+assert_matches.workspace = true
+cairo-lang-sierra-to-casm.workspace = true
+mockall.workspace = true
+mockito.workspace = true
+num-bigint.workspace = true
+pretty_assertions.workspace = true
+rstest.workspace = true
+starknet_mempool.workspace = true
+tracing-test.workspace = true

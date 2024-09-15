@@ -8998,6 +8998,24 @@ dependencies = [
 [[package]]
 name = "starknet_http_server"
 version = "0.0.0"
+dependencies = [
+ "assert_matches",
+ "async-trait",
+ "axum",
+ "cairo-lang-sierra-to-casm",
+ "mockall",
+ "mockito 1.4.0",
+ "num-bigint 0.4.5",
+ "pretty_assertions",
+ "rstest",
+ "starknet_api",
+ "starknet_gateway",
+ "starknet_gateway_types",
+ "starknet_mempool",
+ "starknet_mempool_infra",
+ "tracing",
+ "tracing-test",
+]
 
 [[package]]
 name = "starknet_mempool"
