@@ -165,6 +165,7 @@ impl AccountTransaction {
         (signature, TransactionSignature),
         (nonce, Nonce),
         (resource_bounds, ValidResourceBounds),
+        (max_fee, Fee),
         (tip, Tip),
         (nonce_data_availability_mode, DataAvailabilityMode),
         (fee_data_availability_mode, DataAvailabilityMode),
@@ -284,6 +285,26 @@ impl AccountTransaction {
         }
     }
 
+    pub fn enforce_fee(&self) -> bool {
+        let version = self.version();
+        if version == TransactionVersion::ZERO
+            || version == TransactionVersion::ONE
+            || version == TransactionVersion::TWO
+        {
+            self.max_fee() != Fee(0)
+        } else {
+            // TransactionVersion::THREE =>
+            self.resource_bounds().max_possible_fee() > Fee(0)
+        }
+        // Aviv: why doesnt work? [dervie PartialEq]
+        // match version {
+        //     TransactionVersion::ZERO => self.max_fee() != Fee(0),
+        //     TransactionVersion::ONE => self.max_fee() != Fee(0),
+        //     TransactionVersion::TWO => self.max_fee() != Fee(0),
+        //     TransactionVersion::THREE => self.resource_bounds().max_possible_fee() > Fee(0)
+        // }
+    }
+
     // Performs static checks before executing validation entry point.
     // Note that nonce is incremented during these checks.
     pub fn perform_pre_validation_stage<S: State + StateReader>(
@@ -296,7 +317,7 @@ impl AccountTransaction {
         let tx_info = &tx_context.tx_info;
         Self::handle_nonce(state, tx_info, strict_nonce_check)?;
 
-        if charge_fee && tx_info.enforce_fee() {
+        if charge_fee {
             self.check_fee_bounds(tx_context)?;
 
             verify_can_pay_committed_bounds(state, tx_context)?;

@@ -59,6 +59,13 @@ impl Transaction {
         }
     }
 
+    pub fn enforce_fee(&self) -> bool {
+        match self {
+            Self::AccountTransaction(tx) => tx.enforce_fee(),
+            Self::L1HandlerTransaction(tx) => tx.enforce_fee(),
+        }
+    }
+
     pub fn from_api(
         tx: StarknetApiTransaction,
         tx_hash: TransactionHash,
