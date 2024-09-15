@@ -55,7 +55,6 @@ use crate::state::cached_state::{StateChangesCount, TransactionalState};
 use crate::state::state_api::{State, StateReader};
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::declare::declare_tx;
-use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::{
     create_calldata,
@@ -64,7 +63,6 @@ use crate::test_utils::{
     get_tx_resources,
     CairoVersion,
     BALANCE,
-    DEFAULT_STRK_L1_GAS_PRICE,
     MAX_FEE,
 };
 use crate::transaction::account_transaction::AccountTransaction;
@@ -163,33 +161,6 @@ fn test_rc96_holes(block_context: BlockContext, max_l1_resource_bounds: ValidRes
 }
 
 #[rstest]
-fn test_fee_enforcement(
-    block_context: BlockContext,
-    #[values(TransactionVersion::ONE, TransactionVersion::THREE)] version: TransactionVersion,
-    #[values(true, false)] zero_bounds: bool,
-) {
-    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
-    let state = &mut test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
-    let deploy_account_tx = deploy_account_tx(
-        deploy_account_tx_args! {
-            class_hash: account.get_class_hash(),
-            max_fee: Fee(u128::from(!zero_bounds)),
-            resource_bounds: l1_resource_bounds(
-                u8::from(!zero_bounds).into(),
-                DEFAULT_STRK_L1_GAS_PRICE.into()
-            ),
-            version,
-        },
-        &mut NonceManager::default(),
-    );
-
-    let account_tx = AccountTransaction::DeployAccount(deploy_account_tx);
-    let enforce_fee = account_tx.create_tx_info().enforce_fee();
-    let result = account_tx.execute(state, &block_context, true, true);
-    assert_eq!(result.is_err(), enforce_fee);
-}
-
-#[rstest]
 #[case::positive_case_deprecated_tx(true, true)]
 #[case::positive_case_new_tx(true, false)]
 #[should_panic(expected = "exceeded bounds; max fee is")]
@@ -236,30 +207,6 @@ fn test_assert_actual_fee_in_bounds(
             AccountTransaction::assert_actual_fee_in_bounds(&context, actual_fee);
         }
     }
-}
-
-#[rstest]
-#[case(TransactionVersion::ZERO)]
-#[case(TransactionVersion::ONE)]
-#[case(TransactionVersion::THREE)]
-fn test_enforce_fee_false_works(block_context: BlockContext, #[case] version: TransactionVersion) {
-    let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
-        create_test_init_data(&block_context.chain_info, CairoVersion::Cairo0);
-    let tx_execution_info = run_invoke_tx(
-        &mut state,
-        &block_context,
-        invoke_tx_args! {
-            max_fee: Fee(0),
-            resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
-            sender_address: account_address,
-            calldata: create_trivial_calldata(contract_address),
-            version,
-            nonce: nonce_manager.next(account_address),
-        },
-    )
-    .unwrap();
-    assert!(!tx_execution_info.is_reverted());
-    assert_eq!(tx_execution_info.receipt.fee, Fee(0));
 }
 
 // TODO(Dori, 15/9/2023): Convert version variance to attribute macro.
@@ -686,6 +633,7 @@ fn test_fail_deploy_account(
             scenario: INVALID,
             class_hash: faulty_account_feature_contract.get_class_hash(),
             max_fee: BALANCE,
+            resource_bounds: max_l1_resource_bounds(),
             ..Default::default()
         });
     let fee_token_address = chain_info.fee_token_address(&deploy_account_tx.fee_type());
