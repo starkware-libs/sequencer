@@ -1371,7 +1371,6 @@ fn test_declare_tx(
         None,
         ExecutionSummary::default(),
     );
-
     let account_tx = declare_tx(
         declare_tx_args! {
             max_fee: MAX_FEE,
@@ -1409,12 +1408,17 @@ fn test_declare_tx(
 
     // Build expected fee transfer call info.
     let expected_actual_fee = actual_execution_info.receipt.fee;
-    let expected_fee_transfer_call_info = expected_fee_transfer_call_info(
-        tx_context,
-        sender_address,
-        expected_actual_fee,
-        FeatureContract::ERC20(CairoVersion::Cairo0).get_class_hash(),
-    );
+    // V0 transactions do not handle fee.
+    let expected_fee_transfer_call_info = if tx_version == TransactionVersion::ZERO {
+        None
+    } else {
+        expected_fee_transfer_call_info(
+            tx_context,
+            sender_address,
+            expected_actual_fee,
+            FeatureContract::ERC20(CairoVersion::Cairo0).get_class_hash(),
+        )
+    };
 
     let da_gas = starknet_resources.state.to_gas_vector(use_kzg_da);
     let expected_cairo_resources = get_expected_cairo_resources(
