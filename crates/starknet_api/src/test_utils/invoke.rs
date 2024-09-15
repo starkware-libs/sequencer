@@ -32,6 +32,7 @@ pub struct InvokeTxArgs {
     pub account_deployment_data: AccountDeploymentData,
     pub nonce: Nonce,
     pub only_query: bool,
+    pub tx_hash: TransactionHash,
 }
 
 impl Default for InvokeTxArgs {
@@ -50,6 +51,7 @@ impl Default for InvokeTxArgs {
             account_deployment_data: AccountDeploymentData::default(),
             nonce: Nonce::default(),
             only_query: false,
+            tx_hash: TransactionHash::default(),
         }
     }
 }
@@ -107,8 +109,8 @@ pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
 }
 
 pub fn executable_invoke_tx(invoke_args: InvokeTxArgs) -> ExecutableInvokeTransaction {
-    let default_tx_hash = TransactionHash::default();
+    let tx_hash = invoke_args.tx_hash;
     let tx = invoke_tx(invoke_args);
 
-    ExecutableInvokeTransaction { tx, tx_hash: default_tx_hash }
+    ExecutableInvokeTransaction { tx, tx_hash }
 }
