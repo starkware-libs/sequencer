@@ -132,6 +132,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     fn execute_tx(&self, tx_index: TxIndex) {
         let mut tx_versioned_state = self.state.pin_version(tx_index);
         let tx = &self.chunk[tx_index];
+        // Fee charging is not enforced in some tests.
         let tx_charge_fee = tx.create_tx_info().enforce_fee();
         let mut transactional_state =
             TransactionalState::create_transactional(&mut tx_versioned_state);

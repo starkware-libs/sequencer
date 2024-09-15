@@ -1368,10 +1368,11 @@ fn test_declare_tx(
         None,
         ExecutionSummary::default(),
     );
-
+    // For V0 transactions, the max fee is always 0.
+    let max_fee = if tx_version == TransactionVersion::ZERO { Fee(0) } else { MAX_FEE };
     let account_tx = declare_tx(
         declare_tx_args! {
-            max_fee: MAX_FEE,
+            max_fee,
             sender_address,
             version: tx_version,
             resource_bounds: max_l1_resource_bounds,
@@ -1390,7 +1391,8 @@ fn test_declare_tx(
     );
     let fee_type = &account_tx.fee_type();
     let tx_context = &block_context.to_tx_context(&account_tx);
-    let actual_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
+    let charge_fee = account_tx.enforce_fee();
+    let actual_execution_info = account_tx.execute(state, block_context, charge_fee, true).unwrap();
 
     // Build expected validate call info.
     let expected_validate_call_info = declare_validate_callinfo(
@@ -1406,12 +1408,17 @@ fn test_declare_tx(
 
     // Build expected fee transfer call info.
     let expected_actual_fee = actual_execution_info.receipt.fee;
-    let expected_fee_transfer_call_info = expected_fee_transfer_call_info(
-        tx_context,
-        sender_address,
-        expected_actual_fee,
-        FeatureContract::ERC20(CairoVersion::Cairo0).get_class_hash(),
-    );
+    // V0 transactions do not run hadle_fee.
+    let expected_fee_transfer_call_info = if tx_version == TransactionVersion::ZERO {
+        None
+    } else {
+        expected_fee_transfer_call_info(
+            tx_context,
+            sender_address,
+            expected_actual_fee,
+            FeatureContract::ERC20(CairoVersion::Cairo0).get_class_hash(),
+        )
+    };
 
     let da_gas = starknet_resources.state.to_gas_vector(use_kzg_da);
     let expected_cairo_resources = get_expected_cairo_resources(
