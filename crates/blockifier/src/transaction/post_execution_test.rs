@@ -113,8 +113,9 @@ fn test_revert_on_overdraft(
         nonce: nonce_manager.next(account_address),
     });
     let tx_info = approve_tx.create_tx_info();
+    let charge_fee = tx_info.enforce_fee();
     let approval_execution_info =
-        approve_tx.execute(&mut state, &block_context, true, true).unwrap();
+        approve_tx.execute(&mut state, &block_context, charge_fee, true).unwrap();
     assert!(!approval_execution_info.is_reverted());
 
     // Transfer a valid amount of funds to compute the cost of a successful

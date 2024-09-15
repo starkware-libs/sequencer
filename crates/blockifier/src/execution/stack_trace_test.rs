@@ -27,6 +27,7 @@ use crate::transaction::constants::{
     VALIDATE_DEPLOY_ENTRY_POINT_NAME,
     VALIDATE_ENTRY_POINT_NAME,
 };
+use crate::transaction::objects::TransactionInfoCreator;
 use crate::transaction::test_utils::{
     account_invoke_tx,
     block_context,
@@ -620,7 +621,8 @@ Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f ('Invalid s
     // Clean pc locations from the trace.
     let re = Regex::new(r"pc=0:[0-9]+").unwrap();
     let cleaned_expected_error = &re.replace_all(&expected_error, "pc=0:*");
-    let actual_error = account_tx.execute(state, block_context, true, true).unwrap_err();
+    let charge_fee = account_tx.create_tx_info().enforce_fee();
+    let actual_error = account_tx.execute(state, block_context, charge_fee, true).unwrap_err(); 
     let actual_error_str = actual_error.to_string();
     let cleaned_actual_error = &re.replace_all(&actual_error_str, "pc=0:*");
     // Compare actual trace to the expected trace (sans pc locations).
@@ -683,7 +685,8 @@ An ASSERT_EQ instruction failed: 1 != 0.
     };
 
     // Compare expected and actual error.
-    let error = deploy_account_tx.execute(state, &block_context, true, true).unwrap_err();
+    let charge_fee = deploy_account_tx.create_tx_info().enforce_fee();
+    let error = deploy_account_tx.execute(state, &block_context, charge_fee, true).unwrap_err();
     assert_eq!(error.to_string(), expected_error);
 }
 
