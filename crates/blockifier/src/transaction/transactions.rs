@@ -599,6 +599,10 @@ impl L1HandlerTransaction {
         // The calldata includes the "from" field, which is not a part of the payload.
         self.tx.calldata.0.len() - 1
     }
+    pub fn enforce_fee(&self) -> bool {
+        // AvivG: todo understand this
+        false
+    }
 }
 
 impl HasRelatedFeeType for L1HandlerTransaction {
