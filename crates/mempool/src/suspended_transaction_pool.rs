@@ -11,4 +11,8 @@ pub struct SuspendedTransactionPool {
     _suspended_tx_pool: AddressNonceToTransaction,
 }
 
-impl SuspendedTransactionPool {}
+impl SuspendedTransactionPool {
+    pub fn _remove(&mut self, tx: &TransactionReference) -> bool {
+        self._suspended_tx_pool.remove(&(tx.sender_address, tx.nonce)).is_some()
+    }
+}
