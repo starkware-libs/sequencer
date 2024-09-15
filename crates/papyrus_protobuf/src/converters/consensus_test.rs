@@ -38,6 +38,13 @@ auto_impl_get_test_instance! {
     }
 }
 
+auto_impl_get_test_instance! {
+    pub enum VoteType {
+        Prevote = 0,
+        Precommit = 1,
+    }
+}
+
 impl GetTestInstance for StreamMessage<ConsensusMessage> {
     fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
         Self {
@@ -85,9 +92,13 @@ fn convert_vote_to_vec_u8_and_back() {
     assert_eq!(vote, res_data);
 }
 
-auto_impl_get_test_instance! {
-    pub enum VoteType {
-        Prevote = 0,
-        Precommit = 1,
-    }
+#[test]
+fn convert_proposal_to_vec_u8_and_back() {
+    let mut rng = get_rng();
+
+    let proposal = Proposal::get_test_instance(&mut rng);
+
+    let bytes_data: Vec<u8> = proposal.clone().into();
+    let res_data = Proposal::try_from(bytes_data).unwrap();
+    assert_eq!(proposal, res_data);
 }

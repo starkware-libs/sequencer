@@ -52,6 +52,8 @@ impl From<Proposal> for protobuf::Proposal {
     }
 }
 
+auto_impl_into_and_try_from_vec_u8!(Proposal, protobuf::Proposal);
+
 impl TryFrom<protobuf::vote::VoteType> for VoteType {
     type Error = ProtobufConversionError;
 
