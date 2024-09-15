@@ -8998,6 +8998,40 @@ dependencies = [
 [[package]]
 name = "starknet_http_server"
 version = "0.0.0"
+dependencies = [
+ "assert_matches",
+ "async-trait",
+ "axum",
+ "blockifier",
+ "cairo-lang-sierra-to-casm",
+ "cairo-lang-starknet-classes",
+ "enum-assoc",
+ "hyper",
+ "mempool_test_utils",
+ "mockall",
+ "mockito 1.4.0",
+ "num-bigint 0.4.5",
+ "papyrus_config",
+ "papyrus_rpc",
+ "pretty_assertions",
+ "reqwest",
+ "rstest",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_gateway",
+ "starknet_gateway_types",
+ "starknet_mempool",
+ "starknet_mempool_infra",
+ "starknet_mempool_types",
+ "starknet_sierra_compile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-test",
+ "validator",
+]
 
 [[package]]
 name = "starknet_mempool"
