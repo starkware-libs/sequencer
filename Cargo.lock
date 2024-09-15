@@ -6292,7 +6292,6 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "async-stream",
- "async-trait",
  "bytes",
  "deadqueue",
  "defaultmap",
