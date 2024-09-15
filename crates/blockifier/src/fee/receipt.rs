@@ -1,6 +1,6 @@
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::ContractAddress;
-use starknet_api::transaction::Fee;
+use starknet_api::transaction::{Fee, TransactionVersion};
 
 use crate::context::TransactionContext;
 use crate::execution::call_info::ExecutionSummary;
@@ -92,13 +92,15 @@ impl TransactionReceipt {
             tx_context.block_context.block_info.use_kzg_da,
             &tx_context.get_gas_vector_computation_mode(),
         );
-
-        // L1 handler transactions are not charged an L2 fee but it is compared to the L1 fee.
-        let fee = if tx_context.tx_info.enforce_fee() || tx_type == TransactionType::L1Handler {
-            tx_context.tx_info.get_fee_by_gas_vector(&tx_context.block_context.block_info, gas)
-        } else {
+        // Backward-compatibility.
+        let fee = if tx_type == TransactionType::Declare
+            && tx_context.tx_info.version() == TransactionVersion::ZERO
+        {
             Fee(0)
+        } else {
+            tx_context.tx_info.get_fee_by_gas_vector(&tx_context.block_context.block_info, gas)
         };
+
         let da_gas = tx_resources
             .starknet_resources
             .state

@@ -543,6 +543,7 @@ fn test_revert_invoke(
         &block_context,
         invoke_tx_args! {
             max_fee,
+            resource_bounds: max_l1_resource_bounds(),
             sender_address: account_address,
             calldata: create_calldata(
                 test_contract_address,
@@ -615,7 +616,7 @@ fn test_fail_deploy_account(
 
     let initial_balance = state.get_fee_token_balance(deploy_address, fee_token_address).unwrap();
 
-    let charge_fee = deploy_account_tx.create_tx_info().enforce_fee();
+    let charge_fee = deploy_account_tx.enforce_fee();
 
     let error = deploy_account_tx.execute(state, &block_context, charge_fee, true).unwrap_err();
     // Check the error is as expected. Assure the error message is not nonce or fee related.
@@ -943,7 +944,7 @@ fn test_max_fee_to_max_steps_conversion(
         nonce: nonce_manager.next(account_address),
     });
     let tx_context1 = Arc::new(block_context.to_tx_context(&account_tx1));
-    let charge_fee1 = account_tx1.create_tx_info().enforce_fee();
+    let charge_fee1 = account_tx1.enforce_fee();
     let execution_context1 = EntryPointExecutionContext::new_invoke(tx_context1, charge_fee1);
     let max_steps_limit1 = execution_context1.vm_run_resources.get_n_steps();
     let tx_execution_info1 = account_tx1.execute(&mut state, &block_context, true, true).unwrap();
@@ -965,7 +966,7 @@ fn test_max_fee_to_max_steps_conversion(
         nonce: nonce_manager.next(account_address),
     });
     let tx_context2 = Arc::new(block_context.to_tx_context(&account_tx2));
-    let charge_fee2 = account_tx2.create_tx_info().enforce_fee();
+    let charge_fee2 = account_tx2.enforce_fee();
     let execution_context2 = EntryPointExecutionContext::new_invoke(tx_context2, charge_fee2);
     let max_steps_limit2 = execution_context2.vm_run_resources.get_n_steps();
     let tx_execution_info2 = account_tx2.execute(&mut state, &block_context, true, true).unwrap();

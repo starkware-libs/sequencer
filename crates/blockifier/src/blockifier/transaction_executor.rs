@@ -104,6 +104,7 @@ impl<S: StateReader> TransactionExecutor<S> {
         let mut transactional_state = TransactionalState::create_transactional(
             self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
         );
+        // Fee charging is not enforced in some transaction simulations and tests.
         let tx_charge_fee = tx.create_tx_info().enforce_fee();
 
         // Executing a single transaction cannot be done in a concurrent mode.
