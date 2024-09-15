@@ -16,7 +16,7 @@ use starknet_gateway::config::{
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
-use starknet_gateway::errors::GatewaySpecError;
+use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_node::config::MempoolNodeConfig;
 use tokio::net::TcpListener;
 
