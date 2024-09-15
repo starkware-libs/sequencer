@@ -115,7 +115,7 @@ impl<S: StateReader> StatefulValidator<S> {
         let mut execution_resources = ExecutionResources::default();
         let tx_context = Arc::new(self.tx_executor.block_context.to_tx_context(tx));
 
-        let limit_steps_by_resources =  tx.create_tx_info().enforce_fee(); //aviv: was true;
+        let limit_steps_by_resources = tx.create_tx_info().enforce_fee(); //aviv: was true;
         let validate_call_info = tx.validate_tx(
             self.tx_executor.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
             &mut execution_resources,
