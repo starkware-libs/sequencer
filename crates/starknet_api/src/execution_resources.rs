@@ -6,6 +6,7 @@ use strum_macros::EnumIter;
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 pub struct GasVector {
     pub l1_gas: u64,
+    pub l2_gas: u64,
     pub l1_data_gas: u64,
 }
 

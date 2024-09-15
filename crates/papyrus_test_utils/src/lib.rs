@@ -1134,7 +1134,7 @@ impl GetTestInstance for ExecutionResources {
 
 impl GetTestInstance for GasVector {
     fn get_test_instance(rng: &mut ChaCha8Rng) -> Self {
-        Self { l1_gas: rng.next_u64(), l1_data_gas: rng.next_u64() }
+        Self { l1_gas: rng.next_u64(), l2_gas: rng.next_u64(), l1_data_gas: rng.next_u64() }
     }
 }
 
