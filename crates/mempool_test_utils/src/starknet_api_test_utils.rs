@@ -562,6 +562,8 @@ pub fn rpc_tx_to_json(tx: &RpcTransaction) -> String {
     to_string_pretty(&tx_json).expect("Failed to serialize transaction")
 }
 
+// TODO(Arni): Delete this function. It is covered by
+// [`starknet_api::test_utils::invoke::executable_invoke_tx`].
 pub fn create_executable_tx(
     sender_address: ContractAddress,
     tx_hash: TransactionHash,
