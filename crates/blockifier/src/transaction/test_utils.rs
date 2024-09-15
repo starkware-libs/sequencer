@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use rstest::fixture;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
@@ -316,10 +318,18 @@ pub fn run_invoke_tx(
     block_context: &BlockContext,
     invoke_args: InvokeTxArgs,
 ) -> TransactionExecutionResult<TransactionExecutionInfo> {
+<<<<<<< HEAD
     let tx = account_invoke_tx(invoke_args);
     let charge_fee = tx.enforce_fee();
 
     tx.execute(state, block_context, charge_fee, true)
+=======
+    let tx = account_invoke_tx(invoke_args.clone());
+    let tx_context = Arc::new(block_context.to_tx_context(&tx));
+    let charge_fee = tx_context.tx_info.enforce_fee();
+
+    account_invoke_tx(invoke_args).execute(state, block_context, charge_fee, true)
+>>>>>>> 4b0018270 (chore(blockifier): have charge_fee flag represent enforce_fee return value)
 }
 
 /// Creates a `ResourceBoundsMapping` with the given `max_amount` and `max_price` for L1 gas limits.
