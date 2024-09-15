@@ -825,6 +825,47 @@ fn assert_failure_if_resource_bounds_exceed_balance(
 }
 
 #[rstest]
+fn test_estimate_minimal_gas_vector(
+    mut block_context: BlockContext,
+    #[values(true, false)] use_kzg_da: bool,
+    #[values(GasVectorComputationMode::NoL2Gas, GasVectorComputationMode::All)]
+    gas_vector_computation_mode: GasVectorComputationMode,
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
+) {
+    block_context.block_info.use_kzg_da = use_kzg_da;
+    let block_context = &block_context;
+    let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+
+    let valid_invoke_tx_args = invoke_tx_args! {
+        sender_address: account_contract.get_instance_address(0),
+        calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
+        max_fee: Fee(MAX_FEE)
+    };
+
+    // The minimal gas estimate does not depend on tx version.
+    let tx = &account_invoke_tx(valid_invoke_tx_args);
+    let minimal_gas_vector =
+        estimate_minimal_gas_vector(block_context, tx, &gas_vector_computation_mode).unwrap();
+    let minimal_l1_gas = minimal_gas_vector.l1_gas;
+    let minimal_l2_gas = minimal_gas_vector.l2_gas;
+    let minimal_l1_data_gas = minimal_gas_vector.l1_data_gas;
+    if gas_vector_computation_mode == GasVectorComputationMode::NoL2Gas || !use_kzg_da {
+        assert!(minimal_l1_gas > 0);
+    }
+    if gas_vector_computation_mode == GasVectorComputationMode::NoL2Gas {
+        assert_eq!(minimal_l2_gas, 0);
+    } else {
+        assert!(minimal_l2_gas > 0);
+    }
+    if use_kzg_da {
+        assert!(minimal_l1_data_gas > 0);
+    } else {
+        assert_eq!(minimal_l1_data_gas, 0);
+    }
+}
+
+#[rstest]
 fn test_max_fee_exceeds_balance(
     block_context: BlockContext,
     max_resource_bounds: ValidResourceBounds,
