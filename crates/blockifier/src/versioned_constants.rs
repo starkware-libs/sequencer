@@ -9,6 +9,7 @@ use indexmap::{IndexMap, IndexSet};
 use num_rational::Ratio;
 use num_traits::Inv;
 use paste::paste;
+use semver::Version;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer};
 use serde_json::{Map, Number, Value};
@@ -90,6 +91,8 @@ pub struct VersionedConstants {
     pub archival_data_gas_costs: ArchivalDataGasCosts,
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
+    #[serde(default)]
+    pub min_compiler_version_for_gas_usage: String,
     // BACKWARD COMPATIBILITY: If true, the segment_arena builtin instance counter will be
     // multiplied by 3. This offsets a bug in the old vm where the counter counted the number of
     // cells used by instances of the builtin, instead of the number of instances.
@@ -249,6 +252,10 @@ impl VersionedConstants {
             invoke_tx_max_n_steps,
             ..Self::latest_constants().clone()
         }
+    }
+
+    pub fn get_min_compiler_version_for_gas_usage(&self) -> Version {
+        Version::parse(&self.min_compiler_version_for_gas_usage).unwrap_or(Version::new(0, 0, 0))
     }
 }
 

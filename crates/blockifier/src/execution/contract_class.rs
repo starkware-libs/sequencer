@@ -18,8 +18,9 @@ use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use itertools::Itertools;
+use semver::Version;
 use serde::de::Error as DeserializationError;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
@@ -44,6 +45,14 @@ use crate::transaction::errors::TransactionExecutionError;
 pub mod test;
 
 pub type ContractClassResult<T> = Result<T, ContractClassError>;
+
+/// The resource used to run a contract function.
+#[derive(Clone, Copy, Default, Debug, Eq, PartialEq, Serialize)]
+pub enum RunResource {
+    #[default]
+    CairoSteps, // AKA VM mode.
+    SierraGas, // AKA Sierra mode.
+}
 
 /// Represents a runnable Starknet contract class (meaning, the program is runnable by the VM).
 #[derive(Clone, Debug, Eq, PartialEq, derive_more::From)]
@@ -93,11 +102,19 @@ impl ContractClass {
             ContractClass::V1(class) => class.bytecode_length(),
         }
     }
+
+    /// Returns whether this contract should run using Cairo steps or Sierra gas.
+    pub fn run_resource(&self, min_sierra_version: &Version) -> RunResource {
+        match self {
+            ContractClass::V0(_) => RunResource::CairoSteps,
+            ContractClass::V1(contract_class) => contract_class.run_resource(min_sierra_version),
+        }
+    }
 }
 
 // V0.
 
-/// Represents a runnable Cario 0 Starknet contract class (meaning, the program is runnable by the
+/// Represents a runnable Cairo 0 Starknet contract class (meaning, the program is runnable by the
 /// VM). We wrap the actual class in an Arc to avoid cloning the program when cloning the
 /// class.
 // Note: when deserializing from a SN API class JSON string, the ABI field is ignored
@@ -142,6 +159,10 @@ impl ContractClassV0 {
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, hashed_data_size)]),
         }
+    }
+
+    pub fn run_resource(&self) -> RunResource {
+        RunResource::CairoSteps
     }
 
     pub fn try_from_json_string(raw_contract_class: &str) -> Result<ContractClassV0, ProgramError> {
@@ -219,6 +240,17 @@ impl ContractClassV1 {
                 selector: call.entry_point_selector,
                 typ: call.entry_point_type,
             }),
+        }
+    }
+
+    /// Returns whether this contract should run using Cairo steps or Sierra gas.
+    pub fn run_resource(&self, min_sierra_version: &Version) -> RunResource {
+        let res = Version::parse(&self.compiler_version);
+        if res.is_ok_and(|version| &version <= min_sierra_version) {
+            RunResource::SierraGas
+        } else {
+            // If version is not a valid semver, fall back to using cairo steps (VM execution mode).
+            RunResource::CairoSteps
         }
     }
 
