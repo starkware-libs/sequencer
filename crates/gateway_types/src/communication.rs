@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use mockall::predicate::*;
 use mockall::*;
 use serde::{Deserialize, Serialize};
+use starknet_api::transaction::TransactionHash;
 use starknet_mempool_infra::component_client::{
     ClientError,
     LocalComponentClient,
@@ -27,7 +28,7 @@ pub type SharedGatewayClient = Arc<dyn GatewayClient>;
 #[automock]
 #[async_trait]
 pub trait GatewayClient: Send + Sync {
-    async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<()>;
+    async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash>;
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -37,7 +38,7 @@ pub enum GatewayRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum GatewayResponse {
-    AddTransaction(GatewayResult<()>),
+    AddTransaction(GatewayResult<TransactionHash>),
 }
 
 #[derive(Clone, Debug, Error)]
@@ -50,7 +51,7 @@ pub enum GatewayClientError {
 
 #[async_trait]
 impl GatewayClient for LocalGatewayClientImpl {
-    async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<()> {
+    async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash> {
         let request = GatewayRequest::AddTransaction(gateway_input);
         let response = self.send(request).await;
         match response {
@@ -64,7 +65,7 @@ impl GatewayClient for LocalGatewayClientImpl {
 
 #[async_trait]
 impl GatewayClient for RemoteGatewayClientImpl {
-    async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<()> {
+    async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash> {
         let request = GatewayRequest::AddTransaction(gateway_input);
         let response = self.send(request).await?;
         match response {
