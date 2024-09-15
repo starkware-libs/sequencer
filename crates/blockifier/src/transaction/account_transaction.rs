@@ -463,7 +463,7 @@ impl AccountTransaction {
         charge_fee: bool,
         concurrency_mode: bool,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
-        if !charge_fee || actual_fee == Fee(0) {
+        if !charge_fee {
             // Fee charging is not enforced in some transaction simulations and tests.
             return Ok(None);
         }
