@@ -1,0 +1,12 @@
+[package]
+name = "starknet_native_compile"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+license-file.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

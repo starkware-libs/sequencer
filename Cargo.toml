@@ -44,6 +44,7 @@ members = [
   "crates/starknet_api",
   "crates/starknet_client",
   "crates/starknet_committer",
+  "crates/starknet_native_compile",
   "crates/starknet_patricia",
   "crates/starknet_sierra_compile",
   "crates/task_executor",
