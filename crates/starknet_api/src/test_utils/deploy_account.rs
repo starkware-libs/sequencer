@@ -1,5 +1,6 @@
-use crate::core::{ClassHash, ContractAddress, Nonce};
+use crate::core::{calculate_contract_address, ClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
+use crate::executable_transaction::DeployAccountTransaction as ExecutableDeployAccountTransaction;
 use crate::transaction::{
     Calldata,
     ContractAddressSalt,
@@ -9,6 +10,7 @@ use crate::transaction::{
     Fee,
     PaymasterData,
     Tip,
+    TransactionHash,
     TransactionSignature,
     TransactionVersion,
     ValidResourceBounds,
@@ -98,4 +100,21 @@ pub fn deploy_account_tx(
     } else {
         panic!("Unsupported transaction version: {:?}.", deploy_tx_args.version)
     }
+}
+
+pub fn executable_deploy_account_tx(
+    deploy_tx_args: DeployAccountTxArgs,
+    nonce: Nonce,
+) -> ExecutableDeployAccountTransaction {
+    let default_tx_hash = TransactionHash::default();
+    let contract_address = calculate_contract_address(
+        deploy_tx_args.contract_address_salt,
+        deploy_tx_args.class_hash,
+        &deploy_tx_args.constructor_calldata,
+        deploy_tx_args.deployer_address,
+    )
+    .unwrap();
+    let tx = deploy_account_tx(deploy_tx_args, nonce);
+
+    ExecutableDeployAccountTransaction { tx, tx_hash: default_tx_hash, contract_address }
 }

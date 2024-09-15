@@ -6148,18 +6148,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "papyrus_block_builder"
-version = "0.0.0"
-dependencies = [
- "papyrus_storage",
- "papyrus_test_utils",
- "pretty_assertions",
- "starknet_api",
- "thiserror",
- "tracing",
-]
-
-[[package]]
 name = "papyrus_common"
 version = "0.0.0"
 dependencies = [
@@ -9100,6 +9088,19 @@ dependencies = [
  "tokio",
  "tracing",
  "validator",
+]
+
+[[package]]
+name = "starknet_mempool_p2p"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "papyrus_network",
+ "papyrus_proc_macros",
+ "serde",
+ "starknet_api",
+ "starknet_mempool_infra",
+ "thiserror",
 ]
 
 [[package]]

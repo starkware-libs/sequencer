@@ -5,6 +5,7 @@ use starknet_api::core::ContractAddress;
 use starknet_api::transaction::{
     Calldata,
     Fee,
+    Resource,
     TransactionSignature,
     TransactionVersion,
     ValidResourceBounds,
@@ -264,9 +265,9 @@ fn test_simulate_validate_charge_fee_pre_validate(
                 result.unwrap_err(),
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
-                        TransactionFeeError::MaxL1GasAmountTooLow { .. }
+                        TransactionFeeError::MaxGasAmountTooLow { resource , .. }
                     )
-                )
+                ) if resource == Resource::L1Gas
             );
         }
     }
@@ -308,9 +309,10 @@ fn test_simulate_validate_charge_fee_pre_validate(
                 result.unwrap_err(),
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
-                        TransactionFeeError::L1GasBoundsExceedBalance { .. }
+                        TransactionFeeError::GasBoundsExceedBalance {resource, .. }
                     )
                 )
+                if resource == Resource::L1Gas
             );
         }
     }
@@ -338,9 +340,10 @@ fn test_simulate_validate_charge_fee_pre_validate(
                 result.unwrap_err(),
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
-                        TransactionFeeError::MaxL1GasPriceTooLow { .. }
+                        TransactionFeeError::MaxGasPriceTooLow { resource, .. }
                     )
                 )
+                if resource == Resource::L1Gas
             );
         }
     }

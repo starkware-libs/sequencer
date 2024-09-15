@@ -70,6 +70,13 @@ impl ChainId {
     pub fn as_hex(&self) -> String {
         format!("0x{}", hex::encode(self.to_string()))
     }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn create_for_testing() -> Self {
+        const CHAIN_ID_NAME: &str = "SN_GOERLI";
+
+        ChainId::Other(CHAIN_ID_NAME.to_string())
+    }
 }
 
 /// The address of a contract, used for example in [StateDiff](`crate::state::StateDiff`),

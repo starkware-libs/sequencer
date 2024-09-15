@@ -30,6 +30,8 @@ pub type SharedMempoolClient = Arc<dyn MempoolClient>;
 #[automock]
 #[async_trait]
 pub trait MempoolClient: Send + Sync {
+    // TODO: Add Option<BroadcastedMessageManager> as an argument for add_transaction
+    // TODO: Rename tx to transaction
     async fn add_tx(&self, mempool_input: MempoolInput) -> MempoolClientResult<()>;
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<Transaction>>;
 }
