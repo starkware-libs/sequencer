@@ -19,6 +19,7 @@ use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,
     EntryPointExecutionResult,
+    ResourceCountMode,
 };
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, PreExecutionError};
 use crate::execution::execution_utils::{
@@ -83,6 +84,21 @@ pub fn execute_entry_point_call(
     // Fix the resources, in order to calculate the usage of this run at the end.
     let previous_resources = syscall_handler.resources.clone();
 
+    // Save the current count mode and the remaining gas.
+    let cur_count_mode = syscall_handler.context.count_mode;
+    let cur_remaining_gas = syscall_handler.context.remaining_gas;
+
+    // Dummy variable to simulate the flow. Should be concluded from `contract_class`.
+    let is_sierra_contract = false;
+
+    // Set new count mode.
+    syscall_handler.context.count_mode =
+        if is_sierra_contract && cur_count_mode == ResourceCountMode::SierraGas {
+            cur_count_mode
+        } else {
+            ResourceCountMode::CairoSteps
+        };
+
     // Execute.
     let bytecode_length = contract_class.bytecode_length();
     let program_segment_size = bytecode_length + program_extra_data_length;
@@ -96,6 +112,14 @@ pub fn execute_entry_point_call(
         program_segment_size,
         bytecode_length,
     )?;
+
+    // Revert the remaining gas if it's not trusted.
+    if syscall_handler.context.count_mode == ResourceCountMode::CairoSteps {
+        // Don't trust the gas calculation - revert the remaining gas.
+        syscall_handler.context.remaining_gas = cur_remaining_gas
+    }
+    // Revert the count mode.
+    syscall_handler.context.count_mode = cur_count_mode;
 
     let call_info = finalize_execution(
         runner,

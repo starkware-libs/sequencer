@@ -123,6 +123,8 @@ pub struct EntryPointExecutionContext {
     pub vm_run_resources: RunResources,
     // Sierra gas limits.
     pub remaining_gas: u64,
+    // Current count mode.
+    pub count_mode: ResourceCountMode,
     /// Used for tracking events order during the current execution.
     pub n_emitted_events: usize,
     /// Used for tracking L2-to-L1 messages order during the current execution.
@@ -144,6 +146,7 @@ impl EntryPointExecutionContext {
         Self {
             vm_run_resources: RunResources::new(max_steps),
             remaining_gas: u64::MAX, // Should be concluded from the resource bounds like max_steps.
+            count_mode: ResourceCountMode::CairoSteps, // Should be concluded from the tx's context.
             n_emitted_events: 0,
             n_sent_messages_to_l1: 0,
             tx_context: tx_context.clone(),
@@ -386,4 +389,12 @@ impl Drop for RecursionDepthGuard {
     fn drop(&mut self) {
         *self.current_depth.borrow_mut() -= 1;
     }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+/// Indicates how we limit execution and how we calculate fees of a transaction.
+pub enum ResourceCountMode {
+    // Better name?
+    CairoSteps,
+    SierraGas, // Supported only for Cairo 1 contracts with compiler version >= ?.
 }

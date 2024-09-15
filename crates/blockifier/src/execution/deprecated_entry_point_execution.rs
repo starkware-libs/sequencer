@@ -19,6 +19,7 @@ use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,
     EntryPointExecutionResult,
+    ResourceCountMode,
 };
 use crate::execution::errors::{PostExecutionError, PreExecutionError};
 use crate::execution::execution_utils::{read_execution_retdata, Args, ReadOnlySegments};
@@ -62,8 +63,19 @@ pub fn execute_entry_point_call(
     // Fix the VM resources, in order to calculate the usage of this run at the end.
     let previous_resources = syscall_handler.resources.clone();
 
+    // Save the current count mode and the remaining gas.
+    let cur_count_mode = syscall_handler.context.count_mode;
+    let cur_remaining_gas = syscall_handler.context.remaining_gas;
+
+    // Since we run Cairo 0, only cairo steps measure is trusted.
+    syscall_handler.context.count_mode = ResourceCountMode::CairoSteps;
+
     // Execute.
     run_entry_point(&mut runner, &mut syscall_handler, entry_point_pc, args)?;
+
+    // Revert the count mode and the remaining gas.
+    syscall_handler.context.count_mode = cur_count_mode;
+    syscall_handler.context.remaining_gas = cur_remaining_gas;
 
     Ok(finalize_execution(
         runner,
