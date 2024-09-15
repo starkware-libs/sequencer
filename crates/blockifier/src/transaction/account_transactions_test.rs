@@ -177,8 +177,8 @@ fn test_fee_enforcement(
     );
 
     let account_tx = AccountTransaction::DeployAccount(deploy_account_tx);
-    let enforce_fee = account_tx.create_tx_info().enforce_fee();
-    let result = account_tx.execute(state, &block_context, true, true);
+    let enforce_fee = account_tx.enforce_fee();
+    let result = account_tx.execute(state, &block_context, enforce_fee, true);
     assert_eq!(result.is_err(), enforce_fee);
 }
 
@@ -203,7 +203,7 @@ fn test_enforce_fee_false_works(block_context: BlockContext, #[case] version: Tr
     )
     .unwrap();
     assert!(!tx_execution_info.is_reverted());
-    assert_eq!(tx_execution_info.receipt.fee, Fee(0));
+    assert!(tx_execution_info.fee_transfer_call_info.is_none());
 }
 
 // TODO(Dori, 15/9/2023): Convert version variance to attribute macro.
@@ -600,6 +600,7 @@ fn test_fail_deploy_account(
             scenario: INVALID,
             class_hash: faulty_account_feature_contract.get_class_hash(),
             max_fee: Fee(BALANCE),
+            resource_bounds: max_l1_resource_bounds(),
             ..Default::default()
         });
     let fee_token_address = chain_info.fee_token_address(&deploy_account_tx.fee_type());

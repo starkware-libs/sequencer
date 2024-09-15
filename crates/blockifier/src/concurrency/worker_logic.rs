@@ -22,7 +22,11 @@ use crate::state::cached_state::{
     TransactionalState,
 };
 use crate::state::state_api::{StateReader, UpdatableState};
-use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
+use crate::transaction::objects::{
+    TransactionExecutionInfo,
+    TransactionExecutionResult,
+    TransactionInfoCreator,
+};
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
 
@@ -128,10 +132,11 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     fn execute_tx(&self, tx_index: TxIndex) {
         let mut tx_versioned_state = self.state.pin_version(tx_index);
         let tx = &self.chunk[tx_index];
+        let tx_charge_fee = tx.create_tx_info().enforce_fee();
         let mut transactional_state =
             TransactionalState::create_transactional(&mut tx_versioned_state);
         let execution_flags =
-            ExecutionFlags { charge_fee: true, validate: true, concurrency_mode: true };
+            ExecutionFlags { charge_fee: tx_charge_fee, validate: true, concurrency_mode: true };
         let execution_result =
             tx.execute_raw(&mut transactional_state, self.block_context, execution_flags);
 
