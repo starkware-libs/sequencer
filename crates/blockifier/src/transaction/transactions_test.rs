@@ -11,6 +11,7 @@ use rstest::{fixture, rstest};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce, PatriciaKey};
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::transaction::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::{
     AllResourceBounds,
@@ -966,8 +967,8 @@ fn test_insufficient_resource_bounds(
         execution_error,
         TransactionExecutionError::TransactionPreValidationError(
             TransactionPreValidationError::TransactionFeeError(
-                TransactionFeeError::MaxL1GasAmountTooLow{
-                    max_l1_gas_amount, minimal_l1_gas_amount }))
+                TransactionFeeError::MaxGasAmountTooLow{ gas_type: L1Gas, max_gas_amount:
+                    max_l1_gas_amount, minimal_gas_amount: minimal_l1_gas_amount }))
         if max_l1_gas_amount == insufficient_max_l1_gas_amount &&
         minimal_l1_gas_amount == minimal_l1_gas_as_u64
     );
@@ -992,15 +993,25 @@ fn test_insufficient_resource_bounds(
     );
 
     // Max L1 gas price too low, new resource bounds.
+    let minimal_gas_vector =
+        estimate_minimal_gas_vector(block_context, tx, &GasVectorComputationMode::All).unwrap();
     // TODO: update l1_data max_amount and l2_data max_amount once minimal estimations are done.
     let insufficient_max_l1_gas_price = u128::from(actual_strk_l1_gas_price) - 1;
-    let invalid_v3_tx = account_invoke_tx(invoke_tx_args! {
-        resource_bounds: ValidResourceBounds::AllResources(
-            AllResourceBounds{
-                l1_gas: ResourceBounds{max_amount: minimal_l1_gas, max_price_per_unit: insufficient_max_l1_gas_price },
-                l2_gas: ResourceBounds { max_amount: 0, max_price_per_unit: actual_strk_l2_gas_price.into() },
-                l1_data_gas: ResourceBounds { max_amount: 0, max_price_per_unit: actual_strk_l1_data_gas_price.into() }
-            }),
+    let invalid_v3_tx = account_invoke_tx(InvokeTxArgs {
+        resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
+            l1_gas: ResourceBounds {
+                max_amount: minimal_gas_vector.l1_gas.try_into().unwrap(),
+                max_price_per_unit: insufficient_max_l1_gas_price,
+            },
+            l2_gas: ResourceBounds {
+                max_amount: minimal_gas_vector.l2_gas.try_into().unwrap(),
+                max_price_per_unit: actual_strk_l2_gas_price.into(),
+            },
+            l1_data_gas: ResourceBounds {
+                max_amount: minimal_gas_vector.l1_data_gas.try_into().unwrap(),
+                max_price_per_unit: actual_strk_l1_data_gas_price.into(),
+            },
+        }),
         ..valid_invoke_tx_args.clone()
     });
     let execution_error = invalid_v3_tx.execute(state, block_context, true, true).unwrap_err();
@@ -1016,13 +1027,21 @@ fn test_insufficient_resource_bounds(
     // TODO(Aner): add test for low Max L1 data gas price and L2 gas price
     // Max L1 data gas price too low (new resource bounds).
     let insufficient_max_l1_data_gas_price = u128::from(actual_strk_l1_data_gas_price) - 1;
-    let invalid_v3_tx = account_invoke_tx(invoke_tx_args! {
-        resource_bounds: ValidResourceBounds::AllResources(
-            AllResourceBounds{
-                l1_gas: ResourceBounds{max_amount: minimal_l1_gas, max_price_per_unit: actual_strk_l1_gas_price.into() },
-                l2_gas: ResourceBounds { max_amount: 0, max_price_per_unit: actual_strk_l2_gas_price.into() },
-                l1_data_gas: ResourceBounds { max_amount: 0, max_price_per_unit: insufficient_max_l1_data_gas_price }
-            }),
+    let invalid_v3_tx = account_invoke_tx(InvokeTxArgs {
+        resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
+            l1_gas: ResourceBounds {
+                max_amount: minimal_gas_vector.l1_gas.try_into().unwrap(),
+                max_price_per_unit: actual_strk_l1_gas_price.into(),
+            },
+            l2_gas: ResourceBounds {
+                max_amount: minimal_gas_vector.l2_gas.try_into().unwrap(),
+                max_price_per_unit: actual_strk_l2_gas_price.into(),
+            },
+            l1_data_gas: ResourceBounds {
+                max_amount: minimal_gas_vector.l1_data_gas.try_into().unwrap(),
+                max_price_per_unit: insufficient_max_l1_data_gas_price,
+            },
+        }),
         ..valid_invoke_tx_args.clone()
     });
     let execution_error = invalid_v3_tx.execute(state, block_context, true, true).unwrap_err();
@@ -1038,14 +1057,22 @@ fn test_insufficient_resource_bounds(
 
     // Max L2 gas price too low (new resource bounds).
     let insufficient_max_l2_gas_price = u128::from(actual_strk_l2_gas_price) - 1;
-    let invalid_v3_tx = account_invoke_tx(invoke_tx_args! {
-        resource_bounds: ValidResourceBounds::AllResources(
-            AllResourceBounds{
-                l1_gas: ResourceBounds{max_amount: minimal_l1_gas, max_price_per_unit: actual_strk_l1_gas_price.into() },
-                l2_gas: ResourceBounds { max_amount: 0, max_price_per_unit: insufficient_max_l2_gas_price },
-                l1_data_gas: ResourceBounds { max_amount: 0, max_price_per_unit: actual_strk_l1_data_gas_price.into() }
-            }),
-        ..valid_invoke_tx_args
+    let invalid_v3_tx = account_invoke_tx(InvokeTxArgs {
+        resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
+            l1_gas: ResourceBounds {
+                max_amount: minimal_gas_vector.l1_gas.try_into().unwrap(),
+                max_price_per_unit: actual_strk_l1_gas_price.into(),
+            },
+            l2_gas: ResourceBounds {
+                max_amount: minimal_gas_vector.l2_gas.try_into().unwrap(),
+                max_price_per_unit: insufficient_max_l2_gas_price,
+            },
+            l1_data_gas: ResourceBounds {
+                max_amount: minimal_gas_vector.l1_data_gas.try_into().unwrap(),
+                max_price_per_unit: actual_strk_l1_data_gas_price.into(),
+            },
+        }),
+        ..valid_invoke_tx_args.clone()
     });
     let execution_error = invalid_v3_tx.execute(state, block_context, true, true).unwrap_err();
     assert_matches!(

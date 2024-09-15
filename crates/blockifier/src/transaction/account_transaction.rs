@@ -38,6 +38,7 @@ use crate::transaction::errors::{
     TransactionFeeError,
     TransactionPreValidationError,
 };
+use crate::transaction::objects::GasVectorComputationMode::{All, NoL2Gas};
 use crate::transaction::objects::{
     DeprecatedTransactionInfo,
     HasRelatedFeeType,
@@ -232,14 +233,21 @@ impl AccountTransaction {
         tx_context: &TransactionContext,
     ) -> TransactionPreValidationResult<()> {
         // TODO(Aner): seprate to cases based on context.resource_bounds type
-        let minimal_l1_gas_amount_vector = estimate_minimal_gas_vector(
+        let minimal_gas_amount_vector = estimate_minimal_gas_vector(
             &tx_context.block_context,
             self,
             &tx_context.get_gas_vector_computation_mode(),
         )?;
 
-        // TODO(Aner, 30/01/24): modify once data gas limit is enforced.
-        let minimal_l1_gas_amount = minimal_l1_gas_amount_vector.to_discounted_l1_gas(tx_context);
+        let minimal_l1_gas_amount: u64 = match &tx_context.get_gas_vector_computation_mode() {
+            All => minimal_gas_amount_vector
+                .to_discounted_l1_gas(tx_context)
+                .try_into()
+                .expect("Failed to convert u128 to u64."),
+            NoL2Gas => {
+                minimal_gas_amount_vector.l1_gas.try_into().expect("Failed to convert u128 to u64.")
+            }
+        };
 
         let TransactionContext { block_context, tx_info } = tx_context;
         let block_info = &block_context.block_info;
@@ -251,16 +259,11 @@ impl AccountTransaction {
                         max_amount: max_l1_gas_amount,
                         max_price_per_unit: max_l1_gas_price,
                     }) => {
-                        let max_l1_gas_amount_as_u128: u128 = (*max_l1_gas_amount).into();
-                        if max_l1_gas_amount_as_u128 < minimal_l1_gas_amount {
-                            return Err(TransactionFeeError::MaxL1GasAmountTooLow {
-                                max_l1_gas_amount: *max_l1_gas_amount,
-                                // TODO(Ori, 1/2/2024): Write an indicative expect message
-                                // explaining why the convertion
-                                // works.
-                                minimal_l1_gas_amount: (minimal_l1_gas_amount
-                                    .try_into()
-                                    .expect("Failed to convert u128 to u64.")),
+                        if max_l1_gas_amount < &minimal_l1_gas_amount {
+                            return Err(TransactionFeeError::MaxGasAmountTooLow {
+                                gas_type: L1Gas,
+                                max_gas_amount: *max_l1_gas_amount,
+                                minimal_gas_amount: minimal_l1_gas_amount,
                             })?;
                         }
 
@@ -277,23 +280,38 @@ impl AccountTransaction {
                     starknet_api::transaction::ValidResourceBounds::AllResources(
                         AllResourceBounds { l1_gas, l2_gas, l1_data_gas },
                     ) => {
-                        let max_l1_gas_amount_as_u128: u128 = l1_gas.max_amount.into();
-                        if max_l1_gas_amount_as_u128 < minimal_l1_gas_amount {
-                            return Err(TransactionFeeError::MaxL1GasAmountTooLow {
-                                max_l1_gas_amount: l1_gas.max_amount,
-                                // TODO(Ori, 1/2/2024): Write an indicative expect message
-                                // explaining why the convertion
-                                // works.
-                                minimal_l1_gas_amount: (minimal_l1_gas_amount
+                        // TODO!(Aner): add tests for l1_data_gas_minimal_amount and
+                        // l2_gas_minimal_amount
+                        for (gas_type, max_gas_amount, minimal_gas_amount) in [
+                            (L1Gas, l1_gas.max_amount, minimal_l1_gas_amount),
+                            (
+                                L1DataGas,
+                                l1_data_gas.max_amount,
+                                minimal_gas_amount_vector
+                                    .l1_data_gas
                                     .try_into()
-                                    .expect("Failed to convert u128 to u64.")),
-                            })?;
+                                    .expect("Failed to convert u128 to u64."),
+                            ),
+                            (
+                                L2Gas,
+                                l2_gas.max_amount,
+                                minimal_gas_amount_vector
+                                    .l2_gas
+                                    .try_into()
+                                    .expect("Failed to convert u128 to u64."),
+                            ),
+                        ] {
+                            if max_gas_amount < minimal_gas_amount {
+                                return Err(TransactionFeeError::MaxGasAmountTooLow {
+                                    gas_type,
+                                    max_gas_amount,
+                                    minimal_gas_amount,
+                                })?;
+                            }
                         }
-                        // TODO(Aner): add checks for minimal_l1_data_gas and minimal_l2_gas
 
                         let GasPricesForFeeType { l1_gas_price, l1_data_gas_price, l2_gas_price } =
                             block_info.gas_prices.get_gas_prices_by_fee_type(fee_type);
-                        // TODO!(Aner): add tests for l1_data_gas_price and l2_gas_price
                         for (gas_type, max_gas_price, actual_gas_price) in [
                             (L1Gas, l1_gas.max_price_per_unit, l1_gas_price.into()),
                             (L1DataGas, l1_data_gas.max_price_per_unit, l1_data_gas_price.into()),
@@ -313,7 +331,7 @@ impl AccountTransaction {
             TransactionInfo::Deprecated(context) => {
                 let max_fee = context.max_fee;
                 let min_fee =
-                    get_fee_by_gas_vector(block_info, minimal_l1_gas_amount_vector, fee_type);
+                    get_fee_by_gas_vector(block_info, minimal_gas_amount_vector, fee_type);
                 if max_fee < min_fee {
                     return Err(TransactionFeeError::MaxFeeTooLow { min_fee, max_fee })?;
                 }
