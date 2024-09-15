@@ -135,12 +135,13 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         &self,
         state: &mut TransactionalState<'_, U>,
         block_context: &BlockContext,
-        _execution_flags: ExecutionFlags,
+        execution_flags: ExecutionFlags,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         let tx_context = Arc::new(block_context.to_tx_context(self));
-
+        let limit_steps_by_resources = execution_flags.charge_fee;
         let mut execution_resources = ExecutionResources::default();
-        let mut context = EntryPointExecutionContext::new_invoke(tx_context.clone(), true);
+        let mut context =
+            EntryPointExecutionContext::new_invoke(tx_context.clone(), limit_steps_by_resources);
         let mut remaining_gas = block_context.versioned_constants.tx_default_initial_gas();
         let execute_call_info =
             self.run_execute(state, &mut execution_resources, &mut context, &mut remaining_gas)?;
