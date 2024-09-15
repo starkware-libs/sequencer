@@ -1368,10 +1368,11 @@ fn test_declare_tx(
         None,
         ExecutionSummary::default(),
     );
-
+    // For V0 transactions, the max fee is always 0.
+    let max_fee = if tx_version == TransactionVersion::ZERO { Fee(0) } else { MAX_FEE };
     let account_tx = declare_tx(
         declare_tx_args! {
-            max_fee: MAX_FEE,
+            max_fee,
             sender_address,
             version: tx_version,
             resource_bounds: max_l1_resource_bounds,
@@ -1390,7 +1391,8 @@ fn test_declare_tx(
     );
     let fee_type = &account_tx.fee_type();
     let tx_context = &block_context.to_tx_context(&account_tx);
-    let actual_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
+    let charge_fee = account_tx.enforce_fee();
+    let actual_execution_info = account_tx.execute(state, block_context, charge_fee, true).unwrap();
 
     // Build expected validate call info.
     let expected_validate_call_info = declare_validate_callinfo(
