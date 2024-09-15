@@ -138,9 +138,10 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         _execution_flags: ExecutionFlags,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         let tx_context = Arc::new(block_context.to_tx_context(self));
-
+        let limit_steps_by_resources = false;
         let mut execution_resources = ExecutionResources::default();
-        let mut context = EntryPointExecutionContext::new_invoke(tx_context.clone(), true);
+        let mut context =
+            EntryPointExecutionContext::new_invoke(tx_context.clone(), limit_steps_by_resources);
         let mut remaining_gas = tx_context.initial_sierra_gas();
         let execute_call_info =
             self.run_execute(state, &mut execution_resources, &mut context, &mut remaining_gas)?;
