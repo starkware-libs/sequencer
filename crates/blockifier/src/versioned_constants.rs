@@ -9,6 +9,7 @@ use indexmap::{IndexMap, IndexSet};
 use num_rational::Ratio;
 use num_traits::Inv;
 use paste::paste;
+use semver::Version;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer};
 use serde_json::{Map, Number, Value};
@@ -75,6 +76,13 @@ define_versioned_constants! {
 }
 
 pub type ResourceCost = Ratio<u128>;
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, PartialOrd)]
+pub struct CompilerVersion(pub Version);
+impl Default for CompilerVersion {
+    fn default() -> Self {
+        Self(Version::new(0, 0, 0))
+    }
+}
 
 /// Contains constants for the Blockifier that may vary between versions.
 /// Additional constants in the JSON file, not used by Blockifier but included for transparency, are
@@ -90,6 +98,7 @@ pub struct VersionedConstants {
     pub archival_data_gas_costs: ArchivalDataGasCosts,
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
+    pub min_compiler_version_for_sierra_gas: CompilerVersion,
     // BACKWARD COMPATIBILITY: If true, the segment_arena builtin instance counter will be
     // multiplied by 3. This offsets a bug in the old vm where the counter counted the number of
     // cells used by instances of the builtin, instead of the number of instances.

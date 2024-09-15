@@ -42,6 +42,7 @@ fn get_json_value_without_defaults() -> serde_json::Value {
     {
         "invoke_tx_max_n_steps": 2,
         "validate_max_n_steps": 1,
+        "min_compiler_version_for_sierra_gas": "1.2.3",
         "os_constants": {},
         "os_resources": {
             "execute_syscalls":{},
@@ -119,7 +120,6 @@ fn test_default_values() {
 
     let versioned_constants: VersionedConstants =
         serde_json::from_value(json_value_without_defaults).unwrap();
-
     assert_eq!(versioned_constants.get_validate_block_number_rounding(), 1);
     assert_eq!(versioned_constants.get_validate_timestamp_rounding(), 1);
 
