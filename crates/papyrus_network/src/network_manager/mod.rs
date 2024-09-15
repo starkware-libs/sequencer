@@ -9,7 +9,6 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use async_trait::async_trait;
 use futures::channel::mpsc::{Receiver, SendError, Sender};
 use futures::channel::oneshot;
 use futures::future::{ready, BoxFuture, Ready};
@@ -237,12 +236,12 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             .clone()
             .with(|manager: BroadcastedMessageManager| ready(Ok(manager.peer_id)));
         let continue_propagation_sender = self.continue_propagation_sender.clone();
-        let broadcast_client_channels = BroadcastClientChannels {
+        Ok(BroadcastTopicChannels {
+            messages_to_broadcast_sender,
             broadcasted_messages_receiver,
             reported_messages_sender: Box::new(reported_messages_sender),
             continue_propagation_sender: Box::new(continue_propagation_sender),
-        };
-        Ok(BroadcastTopicChannels { messages_to_broadcast_sender, broadcast_client_channels })
+        })
     }
 
     fn handle_swarm_event(&mut self, event: SwarmEvent<mixed_behaviour::Event>) {
@@ -854,40 +853,7 @@ type BroadcastReceivedMessagesConverterFn<T> =
 
 pub struct BroadcastTopicChannels<T: TryFrom<Bytes>> {
     pub messages_to_broadcast_sender: BroadcastTopicSender<T>,
-    pub broadcast_client_channels: BroadcastClientChannels<T>,
-}
-
-pub struct BroadcastClientChannels<T: TryFrom<Bytes>> {
-    broadcasted_messages_receiver: BroadcastTopicReceiver<T>,
-    reported_messages_sender: GenericSender<BroadcastedMessageManager>,
-    continue_propagation_sender: GenericSender<BroadcastedMessageManager>,
-}
-
-impl<T: TryFrom<Bytes>> Stream for BroadcastClientChannels<T> {
-    type Item = (Result<T, <T as TryFrom<Bytes>>::Error>, BroadcastedMessageManager);
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<(Result<T, <T as TryFrom<Bytes>>::Error>, BroadcastedMessageManager)>> {
-        self.broadcasted_messages_receiver.poll_next_unpin(cx)
-    }
-}
-
-#[async_trait]
-pub trait BroadcastClientTrait<T: TryFrom<Bytes>>:
-    Stream<Item = (Result<T, <T as TryFrom<Bytes>>::Error>, BroadcastedMessageManager)> + Unpin
-{
-    async fn report_message(&mut self, message_manager: BroadcastedMessageManager);
-    async fn continue_propagation(&mut self, message_manager: &BroadcastedMessageManager);
-}
-
-#[async_trait]
-impl<T: TryFrom<Bytes>> BroadcastClientTrait<T> for BroadcastClientChannels<T> {
-    async fn report_message(&mut self, message_manager: BroadcastedMessageManager) {
-        let _ = self.reported_messages_sender.send(message_manager).await;
-    }
-
-    async fn continue_propagation(&mut self, message_manager: &BroadcastedMessageManager) {
-        let _ = self.continue_propagation_sender.send(message_manager.clone()).await;
-    }
+    pub broadcasted_messages_receiver: BroadcastTopicReceiver<T>,
+    pub reported_messages_sender: GenericSender<BroadcastedMessageManager>,
+    pub continue_propagation_sender: GenericSender<BroadcastedMessageManager>,
 }
