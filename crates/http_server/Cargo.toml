@@ -7,3 +7,12 @@ repository.workspace = true
 
 [lints]
 workspace = true
+
+[dependencies]
+async-trait.workspace = true
+axum.workspace = true
+starknet_api.workspace = true
+starknet_gateway.workspace = true
+starknet_gateway_types.workspace = true
+starknet_mempool_infra.workspace = true
+tracing.workspace = true
