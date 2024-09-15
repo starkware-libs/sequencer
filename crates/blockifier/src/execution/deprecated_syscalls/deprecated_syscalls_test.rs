@@ -491,7 +491,7 @@ fn test_tx_info(#[values(false, true)] only_query: bool) {
         },
         max_fee,
     });
-    let limit_steps_by_resources = true;
+    let limit_steps_by_resources = false; // Do not limit steps by resources as account is not funded.
     let result = entry_point_call
         .execute_directly_given_tx_info(&mut state, tx_info, limit_steps_by_resources)
         .unwrap();
