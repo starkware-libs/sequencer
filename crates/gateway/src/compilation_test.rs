@@ -10,12 +10,12 @@ use starknet_api::rpc_transaction::{
     RpcDeclareTransactionV3,
     RpcTransaction,
 };
+use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_sierra_compile::errors::CompilationUtilError;
 use tracing_test::traced_test;
 
 use crate::compilation::GatewayCompiler;
-use crate::errors::GatewaySpecError;
 
 #[fixture]
 fn gateway_compiler() -> GatewayCompiler {

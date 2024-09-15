@@ -22,11 +22,11 @@ use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::{Resource, TransactionHash};
 use starknet_api::{contract_address, felt, patricia_key};
+use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_types_core::felt::Felt;
 
 use super::ValidateInfo;
 use crate::config::StatefulTransactionValidatorConfig;
-use crate::errors::GatewaySpecError;
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
 use crate::state_reader_test_utils::local_test_state_reader_factory;
 use crate::stateful_transaction_validator::{

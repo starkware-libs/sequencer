@@ -9,6 +9,7 @@ use axum::{Json, Router};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
@@ -17,7 +18,7 @@ use tracing::{error, info, instrument};
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{GatewayConfig, GatewayNetworkConfig, RpcStateReaderConfig};
-use crate::errors::{GatewayResult, GatewayRunError, GatewaySpecError};
+use crate::errors::{GatewayResult, GatewayRunError};
 use crate::rpc_state_reader::RpcStateReaderFactory;
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
