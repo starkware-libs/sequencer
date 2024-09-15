@@ -14,6 +14,7 @@ futures.workspace = true
 lazy_static.workspace = true
 lru.workspace = true
 metrics.workspace = true
+nix = "0.20.0"
 papyrus_common.workspace = true
 papyrus_config.workspace = true
 papyrus_network.workspace = true
