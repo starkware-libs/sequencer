@@ -24,8 +24,8 @@ pub enum TransactionFeeError {
     #[error("Actual fee ({}) exceeded paid fee on L1 ({}).", actual_fee.0, paid_fee.0)]
     InsufficientFee { paid_fee: Fee, actual_fee: Fee },
     #[error(
-        "Resource {resource} Gas bounds (max amount: {max_amount}, max price): {max_price}) \
-         exceed balance ({balance})."
+        "Resource {resource} Gas bounds (max amount: {max_amount}, max price: {max_price}) exceed \
+         balance ({balance})."
     )]
     GasBoundsExceedBalance {
         resource: Resource,
