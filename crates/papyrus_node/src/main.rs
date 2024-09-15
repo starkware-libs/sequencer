@@ -21,7 +21,7 @@ use papyrus_consensus::types::ConsensusError;
 use papyrus_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use papyrus_monitoring_gateway::MonitoringServer;
 use papyrus_network::gossipsub_impl::Topic;
-use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
+use papyrus_network::network_manager::NetworkManager;
 use papyrus_network::{network_manager, NetworkConfig};
 use papyrus_node::config::NodeConfig;
 use papyrus_node::version::VERSION_FULL;
@@ -107,8 +107,7 @@ fn run_consensus(
 
     let network_channels = network_manager
         .register_broadcast_topic(Topic::new(config.network_topic.clone()), BUFFER_SIZE)?;
-    let BroadcastTopicChannels { messages_to_broadcast_sender, broadcast_client_channels } =
-        network_channels;
+    let messages_to_broadcast_sender = network_channels.messages_to_broadcast_sender.clone();
     // TODO(matan): connect this to an actual channel.
     if let Some(test_config) = config.test.as_ref() {
         let sync_channels = network_manager
@@ -120,7 +119,7 @@ fn run_consensus(
             Some(sync_channels.messages_to_broadcast_sender),
         );
         let sync_receiver =
-            sync_channels.broadcast_client_channels.map(|(vote, _report_sender)| {
+            sync_channels.broadcasted_messages_receiver.map(|(vote, _report_sender)| {
                 BlockNumber(vote.expect("Sync channel should never have errors").height)
             });
         Ok(tokio::spawn(papyrus_consensus::run_consensus(
@@ -129,7 +128,7 @@ fn run_consensus(
             config.validator_id,
             config.consensus_delay,
             config.timeouts.clone(),
-            broadcast_client_channels,
+            network_channels,
             sync_receiver,
         )))
     } else {
@@ -145,7 +144,7 @@ fn run_consensus(
             config.validator_id,
             config.consensus_delay,
             config.timeouts.clone(),
-            broadcast_client_channels,
+            network_channels,
             futures::stream::pending(),
         )))
     }
