@@ -1368,7 +1368,6 @@ fn test_declare_tx(
         None,
         ExecutionSummary::default(),
     );
-
     let account_tx = declare_tx(
         declare_tx_args! {
             max_fee: MAX_FEE,
