@@ -485,6 +485,7 @@ pub struct TransactionResources {
     pub n_reverted_steps: usize,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum GasVectorComputationMode {
     All,
     NoL2Gas,
