@@ -319,6 +319,17 @@ impl DeclareTransaction {
             DeclareTransaction::V3(_) => TransactionVersion::THREE,
         }
     }
+
+    pub fn max_fee(&self) -> Fee {
+        match self {
+            Self::V0(tx) => tx.max_fee,
+            Self::V1(tx) => tx.max_fee,
+            Self::V2(tx) => tx.max_fee,
+            // Aviv: i took this based on getters implementation for V3: resource_bounds. better
+            // implementaion ?
+            Self::V3(_) => panic!("do not support max_fee; only available for V0-V2 transactions."),
+        }
+    }
 }
 
 impl TransactionHasher for DeclareTransaction {
@@ -430,6 +441,15 @@ impl DeployAccountTransaction {
         match self {
             DeployAccountTransaction::V1(_) => TransactionVersion::ONE,
             DeployAccountTransaction::V3(_) => TransactionVersion::THREE,
+        }
+    }
+
+    pub fn max_fee(&self) -> Fee {
+        match self {
+            Self::V1(tx) => tx.max_fee,
+            // Aviv: i took this based on getters implementation for V3: resource_bounds. better
+            // implementaion ?
+            Self::V3(_) => panic!("do not support max_fee; only available for V0-V2 transactions."),
         }
     }
 }
@@ -587,6 +607,15 @@ impl InvokeTransaction {
             InvokeTransaction::V0(_) => TransactionVersion::ZERO,
             InvokeTransaction::V1(_) => TransactionVersion::ONE,
             InvokeTransaction::V3(_) => TransactionVersion::THREE,
+        }
+    }
+    pub fn max_fee(&self) -> Fee {
+        match self {
+            Self::V0(tx) => tx.max_fee,
+            Self::V1(tx) => tx.max_fee,
+            // Aviv: i took this based on getters implementation for V3: resource_bounds. better
+            // implementaion ?
+            Self::V3(_) => panic!("do not support max_fee; only available for V0-V2 transactions."),
         }
     }
 }

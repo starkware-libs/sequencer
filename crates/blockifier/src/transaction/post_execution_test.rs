@@ -112,9 +112,10 @@ fn test_revert_on_overdraft(
         resource_bounds: max_l1_resource_bounds,
         nonce: nonce_manager.next(account_address),
     });
-    let tx_info = approve_tx.create_tx_info();
+    let fee_type = approve_tx.create_tx_info().fee_type();
+    let charge_fee = approve_tx.enforce_fee();
     let approval_execution_info =
-        approve_tx.execute(&mut state, &block_context, true, true).unwrap();
+        approve_tx.execute(&mut state, &block_context, charge_fee, true).unwrap();
     assert!(!approval_execution_info.is_reverted());
 
     // Transfer a valid amount of funds to compute the cost of a successful
@@ -145,7 +146,7 @@ fn test_revert_on_overdraft(
 
     // Check the current balance, before next transaction.
     let (balance, _) = state
-        .get_fee_token_balance(account_address, chain_info.fee_token_address(&tx_info.fee_type()))
+        .get_fee_token_balance(account_address, chain_info.fee_token_address(&fee_type))
         .unwrap();
 
     // Attempt to transfer the entire balance, such that no funds remain to pay transaction fee.
@@ -187,7 +188,7 @@ fn test_revert_on_overdraft(
         state
             .get_fee_token_balance(
                 account_address,
-                chain_info.fee_token_address(&tx_info.fee_type()),
+                chain_info.fee_token_address(&fee_type),
             )
             .unwrap(),
         (expected_new_balance, felt!(0_u8))
@@ -196,7 +197,7 @@ fn test_revert_on_overdraft(
         state
             .get_fee_token_balance(
                 recipient_address,
-                chain_info.fee_token_address(&tx_info.fee_type())
+                chain_info.fee_token_address(&fee_type)
             )
             .unwrap(),
         (final_received_amount, felt!(0_u8))
