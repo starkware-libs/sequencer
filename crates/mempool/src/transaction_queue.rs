@@ -12,6 +12,10 @@ use starknet_api::transaction::{
 
 use crate::mempool::TransactionReference;
 
+#[cfg(test)]
+#[path = "transaction_queue_test_utils.rs"]
+pub mod transaction_queue_test_utils;
+
 // A queue holding the transaction that with nonces that match account nonces.
 // Note: the derived comparison functionality considers the order guaranteed by the data structures
 // used.
