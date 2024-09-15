@@ -203,7 +203,6 @@ fn test_enforce_fee_false_works(block_context: BlockContext, #[case] version: Tr
     )
     .unwrap();
     assert!(!tx_execution_info.is_reverted());
-    assert_eq!(tx_execution_info.receipt.fee, Fee(0));
 }
 
 // TODO(Dori, 15/9/2023): Convert version variance to attribute macro.
@@ -541,6 +540,7 @@ fn test_revert_invoke(
         &block_context,
         invoke_tx_args! {
             max_fee,
+            resource_bounds: max_l1_resource_bounds(),
             sender_address: account_address,
             calldata: create_calldata(
                 test_contract_address,

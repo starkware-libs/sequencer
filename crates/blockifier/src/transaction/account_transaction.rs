@@ -500,7 +500,7 @@ impl AccountTransaction {
         charge_fee: bool,
         concurrency_mode: bool,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
-        if !charge_fee || actual_fee == Fee(0) {
+        if !charge_fee {
             // Fee charging is not enforced in some transaction simulations and tests.
             return Ok(None);
         }
@@ -549,8 +549,9 @@ impl AccountTransaction {
                 .gas_costs
                 .default_initial_gas_cost,
         };
-
-        let mut context = EntryPointExecutionContext::new_invoke(tx_context, true);
+        let limit_steps_by_resources = tx_info.enforce_fee();
+        let mut context =
+            EntryPointExecutionContext::new_invoke(tx_context, limit_steps_by_resources);
 
         Ok(fee_transfer_call
             .execute(state, &mut ExecutionResources::default(), &mut context)
