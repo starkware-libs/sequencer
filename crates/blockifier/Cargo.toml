@@ -45,6 +45,7 @@ rand = { workspace = true, optional = true }
 rstest = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
+semver.workspace = true
 sha2.workspace = true
 sha3.workspace = true
 starknet-types-core.workspace = true
