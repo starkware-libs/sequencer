@@ -22,7 +22,7 @@ use crate::state::cached_state::{CachedState, CommitmentStateDiff, Transactional
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult};
 use crate::transaction::errors::TransactionExecutionError;
-use crate::transaction::objects::TransactionExecutionInfo;
+use crate::transaction::objects::{TransactionExecutionInfo, TransactionInfoCreator};
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
 
@@ -104,9 +104,11 @@ impl<S: StateReader> TransactionExecutor<S> {
         let mut transactional_state = TransactionalState::create_transactional(
             self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
         );
+        let tx_charge_fee = tx.create_tx_info().enforce_fee();
+
         // Executing a single transaction cannot be done in a concurrent mode.
         let execution_flags =
-            ExecutionFlags { charge_fee: true, validate: true, concurrency_mode: false };
+            ExecutionFlags { charge_fee: tx_charge_fee, validate: true, concurrency_mode: false };
         let tx_execution_result =
             tx.execute_raw(&mut transactional_state, &self.block_context, execution_flags);
         match tx_execution_result {
