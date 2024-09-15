@@ -1122,15 +1122,25 @@ fn test_insufficient_resource_bounds(
     );
 
     // Max L1 gas price too low, new resource bounds.
+    let minimal_gas_vector =
+        estimate_minimal_gas_vector(block_context, tx, &GasVectorComputationMode::All).unwrap();
     // TODO: update l1_data max_amount and l2_data max_amount once minimal estimations are done.
     let insufficient_max_l1_gas_price = u128::from(actual_strk_l1_gas_price) - 1;
-    let invalid_v3_tx = account_invoke_tx(invoke_tx_args! {
-        resource_bounds: ValidResourceBounds::AllResources(
-            AllResourceBounds{
-                l1_gas: ResourceBounds{max_amount: minimal_l1_gas, max_price_per_unit: insufficient_max_l1_gas_price },
-                l2_gas: ResourceBounds { max_amount: 0, max_price_per_unit: actual_strk_l2_gas_price.into() },
-                l1_data_gas: ResourceBounds { max_amount: 0, max_price_per_unit: actual_strk_l1_data_gas_price.into() }
-            }),
+    let invalid_v3_tx = account_invoke_tx(InvokeTxArgs {
+        resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
+            l1_gas: ResourceBounds {
+                max_amount: minimal_gas_vector.l1_gas.try_into().unwrap(),
+                max_price_per_unit: insufficient_max_l1_gas_price,
+            },
+            l2_gas: ResourceBounds {
+                max_amount: minimal_gas_vector.l2_gas.try_into().unwrap(),
+                max_price_per_unit: actual_strk_l2_gas_price.into(),
+            },
+            l1_data_gas: ResourceBounds {
+                max_amount: minimal_gas_vector.l1_data_gas.try_into().unwrap(),
+                max_price_per_unit: actual_strk_l1_data_gas_price.into(),
+            },
+        }),
         ..valid_invoke_tx_args.clone()
     });
     let execution_error = invalid_v3_tx.execute(state, block_context, true, true).unwrap_err();
