@@ -9691,8 +9691,11 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "async-trait",
+ "futures",
+ "mempool_test_utils",
  "mockall",
  "papyrus_config",
+ "rstest",
  "serde",
  "starknet_api",
  "starknet_batcher_types",
