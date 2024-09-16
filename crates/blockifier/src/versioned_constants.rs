@@ -81,6 +81,7 @@ pub type ResourceCost = Ratio<u128>;
 /// automatically ignored during deserialization.
 /// Instances of this struct for specific Starknet versions can be selected by using the above enum.
 #[derive(Clone, Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct VersionedConstants {
     // Limits.
     #[serde(default = "EventLimits::max")]
