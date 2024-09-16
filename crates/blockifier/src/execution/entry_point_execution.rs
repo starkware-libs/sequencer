@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::time::Instant;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
@@ -16,17 +17,11 @@ use starknet_types_core::felt::Felt;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{ContractClassV1, EntryPointV1};
 use crate::execution::entry_point::{
-    CallEntryPoint,
-    EntryPointExecutionContext,
-    EntryPointExecutionResult,
+    CallEntryPoint, EntryPointExecutionContext, EntryPointExecutionResult,
 };
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, PreExecutionError};
 use crate::execution::execution_utils::{
-    read_execution_retdata,
-    write_felt,
-    write_maybe_relocatable,
-    Args,
-    ReadOnlySegments,
+    read_execution_retdata, write_felt, write_maybe_relocatable, Args, ReadOnlySegments,
     SEGMENT_ARENA_BUILTIN_SIZE,
 };
 use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
@@ -85,7 +80,16 @@ pub fn execute_entry_point_call(
     // Execute.
     let bytecode_length = contract_class.bytecode_length();
     let program_segment_size = bytecode_length + program_extra_data_length;
+
+    let _contract_span =
+        tracing::info_span!("vm contract execution", class_hash = class_hash.to_string()).entered();
+    tracing::info!("vm contract execution started");
+
+    let pre_execution_instant = Instant::now();
     run_entry_point(&mut runner, &mut syscall_handler, entry_point, args, program_segment_size)?;
+    let execution_time = pre_execution_instant.elapsed().as_millis();
+
+    tracing::info!(time = execution_time, "vm contract execution finished");
 
     // Collect the set PC values that were visited during the entry point execution.
     register_visited_pcs(
