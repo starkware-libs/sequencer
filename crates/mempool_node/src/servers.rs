@@ -49,6 +49,7 @@ pub fn create_servers(
     let gateway_server = if config.components.gateway.execute {
         Some(Box::new(create_gateway_server(
             components.gateway.expect("Gateway is not initialized."),
+            communication.take_gateway_rx(),
         )))
     } else {
         None
