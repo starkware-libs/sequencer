@@ -9,3 +9,4 @@ data:
   backup.sh: |
     {{- tpl (.Files.Get "files/backup.sh") . | nindent 4 }}
 {{- end }}
+

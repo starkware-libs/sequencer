@@ -3,21 +3,21 @@ use papyrus_test_utils::{get_rng, GetTestInstance};
 use rand::random;
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasVector};
 use starknet_api::transaction::{
+    AllResourceBounds,
     DeclareTransaction,
     DeclareTransactionOutput,
     DeployAccountTransaction,
     DeployAccountTransactionOutput,
     DeployTransactionOutput,
-    DeprecatedResourceBoundsMapping,
     FullTransaction,
     InvokeTransaction,
     InvokeTransactionOutput,
     L1HandlerTransactionOutput,
-    Resource,
     ResourceBounds,
     Transaction as StarknetApiTransaction,
     TransactionHash,
     TransactionOutput,
+    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 
@@ -40,7 +40,7 @@ fn convert_l1_handler_transaction_to_vec_u8_and_back() {
     let transaction = StarknetApiTransaction::L1Handler(transaction);
 
     let transaction_output = create_transaction_output!(L1HandlerTransactionOutput, L1Handler);
-    convert_transaction_to_vec_u8_and_back(transaction, transaction_output);
+    assert_transaction_to_vec_u8_and_back(transaction, transaction_output);
 }
 
 #[test]
@@ -50,7 +50,7 @@ fn convert_deploy_transaction_to_vec_u8_and_back() {
     let transaction = StarknetApiTransaction::Deploy(transaction);
 
     let transaction_output = create_transaction_output!(DeployTransactionOutput, Deploy);
-    convert_transaction_to_vec_u8_and_back(transaction, transaction_output);
+    assert_transaction_to_vec_u8_and_back(transaction, transaction_output);
 }
 
 #[test]
@@ -61,7 +61,7 @@ fn convert_declare_transaction_v0_to_vec_u8_and_back() {
     let transaction = StarknetApiTransaction::Declare(DeclareTransaction::V0(transaction));
 
     let transaction_output = create_transaction_output!(DeclareTransactionOutput, Declare);
-    convert_transaction_to_vec_u8_and_back(transaction, transaction_output);
+    assert_transaction_to_vec_u8_and_back(transaction, transaction_output);
 }
 
 #[test]
@@ -72,7 +72,7 @@ fn convert_declare_transaction_v1_to_vec_u8_and_back() {
     let transaction = StarknetApiTransaction::Declare(DeclareTransaction::V1(transaction));
 
     let transaction_output = create_transaction_output!(DeclareTransactionOutput, Declare);
-    convert_transaction_to_vec_u8_and_back(transaction, transaction_output);
+    assert_transaction_to_vec_u8_and_back(transaction, transaction_output);
 }
 
 #[test]
@@ -82,7 +82,7 @@ fn convert_declare_transaction_v2_to_vec_u8_and_back() {
     let transaction = StarknetApiTransaction::Declare(DeclareTransaction::V2(transaction));
 
     let transaction_output = create_transaction_output!(DeclareTransactionOutput, Declare);
-    convert_transaction_to_vec_u8_and_back(transaction, transaction_output);
+    assert_transaction_to_vec_u8_and_back(transaction, transaction_output);
 }
 
 #[test]
@@ -94,7 +94,7 @@ fn convert_declare_transaction_v3_to_vec_u8_and_back() {
     let transaction = StarknetApiTransaction::Declare(DeclareTransaction::V3(transaction));
 
     let transaction_output = create_transaction_output!(DeclareTransactionOutput, Declare);
-    convert_transaction_to_vec_u8_and_back(transaction, transaction_output);
+    assert_transaction_to_vec_u8_and_back(transaction, transaction_output);
 }
 
 #[test]
@@ -104,7 +104,7 @@ fn convert_invoke_transaction_v0_to_vec_u8_and_back() {
     let transaction = StarknetApiTransaction::Invoke(InvokeTransaction::V0(transaction));
 
     let transaction_output = create_transaction_output!(InvokeTransactionOutput, Invoke);
-    convert_transaction_to_vec_u8_and_back(transaction, transaction_output);
+    assert_transaction_to_vec_u8_and_back(transaction, transaction_output);
 }
 
 #[test]
@@ -114,7 +114,7 @@ fn convert_invoke_transaction_v1_to_vec_u8_and_back() {
     let transaction = StarknetApiTransaction::Invoke(InvokeTransaction::V1(transaction));
 
     let transaction_output = create_transaction_output!(InvokeTransactionOutput, Invoke);
-    convert_transaction_to_vec_u8_and_back(transaction, transaction_output);
+    assert_transaction_to_vec_u8_and_back(transaction, transaction_output);
 }
 
 #[test]
@@ -126,7 +126,7 @@ fn convert_invoke_transaction_v3_to_vec_u8_and_back() {
     let transaction = StarknetApiTransaction::Invoke(InvokeTransaction::V3(transaction));
 
     let transaction_output = create_transaction_output!(InvokeTransactionOutput, Invoke);
-    convert_transaction_to_vec_u8_and_back(transaction, transaction_output);
+    assert_transaction_to_vec_u8_and_back(transaction, transaction_output);
 }
 
 #[test]
@@ -139,7 +139,7 @@ fn convert_deploy_account_transaction_v1_to_vec_u8_and_back() {
 
     let transaction_output =
         create_transaction_output!(DeployAccountTransactionOutput, DeployAccount);
-    convert_transaction_to_vec_u8_and_back(transaction, transaction_output);
+    assert_transaction_to_vec_u8_and_back(transaction, transaction_output);
 }
 
 #[test]
@@ -153,7 +153,7 @@ fn convert_deploy_account_transaction_v3_to_vec_u8_and_back() {
 
     let transaction_output =
         create_transaction_output!(DeployAccountTransactionOutput, DeployAccount);
-    convert_transaction_to_vec_u8_and_back(transaction, transaction_output);
+    assert_transaction_to_vec_u8_and_back(transaction, transaction_output);
 }
 
 #[test]
@@ -164,7 +164,7 @@ fn fin_transaction_to_bytes_and_back() {
     assert!(res_data.0.is_none());
 }
 
-fn convert_transaction_to_vec_u8_and_back(
+fn assert_transaction_to_vec_u8_and_back(
     transaction: StarknetApiTransaction,
     transaction_output: TransactionOutput,
 ) {
@@ -196,13 +196,10 @@ lazy_static! {
         da_gas_consumed: GasVector::default(),
         gas_consumed: GasVector::default(),
     };
-    static ref RESOURCE_BOUNDS_MAPPING: DeprecatedResourceBoundsMapping =
-        DeprecatedResourceBoundsMapping(
-            [
-                (Resource::L1Gas, ResourceBounds { max_amount: 0x5, max_price_per_unit: 0x6 }),
-                (Resource::L2Gas, ResourceBounds { max_amount: 0x5, max_price_per_unit: 0x6 }),
-            ]
-            .into_iter()
-            .collect(),
-        );
+    static ref RESOURCE_BOUNDS_MAPPING: ValidResourceBounds =
+        ValidResourceBounds::AllResources(AllResourceBounds {
+            l1_gas: ResourceBounds { max_amount: 0x5, max_price_per_unit: 0x6 },
+            l2_gas: ResourceBounds { max_amount: 0x500, max_price_per_unit: 0x600 },
+            l1_data_gas: ResourceBounds { max_amount: 0x30, max_price_per_unit: 0x30 }
+        });
 }

@@ -33,7 +33,7 @@ starknet_patricia = { workspace = true, features = ["testing"] }
 strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing-subscriber.workspace = true
 tracing.workspace = true
 

@@ -21,10 +21,10 @@ use tokio::sync::Mutex;
 use tokio::time::sleep;
 
 use super::swarm_trait::{Event, SwarmTrait};
-use super::GenericNetworkManager;
+use super::{BroadcastTopicChannels, GenericNetworkManager};
 use crate::gossipsub_impl::{self, Topic};
 use crate::mixed_behaviour;
-use crate::network_manager::ServerQueryManager;
+use crate::network_manager::{BroadcastClientChannels, ServerQueryManager};
 use crate::sqmr::behaviour::{PeerNotConnected, SessionIdNotFoundError};
 use crate::sqmr::{Bytes, GenericEvent, InboundSessionId, OutboundSessionId};
 
@@ -185,7 +185,7 @@ impl SwarmTrait for MockSwarm {
         }
     }
 
-    fn report_peer(&mut self, peer_id: PeerId) {
+    fn report_peer_as_malicious(&mut self, peer_id: PeerId) {
         for sender in &self.reported_peer_senders {
             sender.unbounded_send(peer_id).unwrap();
         }
@@ -201,6 +201,11 @@ impl SwarmTrait for MockSwarm {
         _session_id: crate::sqmr::SessionId,
     ) -> Result<PeerId, SessionIdNotFoundError> {
         Ok(PeerId::random())
+    }
+
+    // TODO (shahak): Add test for continue propagation.
+    fn continue_propagation(&mut self, _message_manager: super::BroadcastedMessageManager) {
+        unimplemented!()
     }
 }
 
@@ -353,22 +358,25 @@ async fn receive_broadcasted_message_and_report_it() {
 
     let mut network_manager = GenericNetworkManager::generic_new(mock_swarm, None);
 
-    let mut broadcasted_messages_receiver = network_manager
-        .register_broadcast_topic::<Bytes>(topic.clone(), BUFFER_SIZE)
-        .unwrap()
-        .broadcasted_messages_receiver;
+    let BroadcastTopicChannels { broadcast_client_channels, .. } =
+        network_manager.register_broadcast_topic::<Bytes>(topic.clone(), BUFFER_SIZE).unwrap();
+    let BroadcastClientChannels {
+        mut reported_messages_sender,
+        mut broadcasted_messages_receiver,
+        ..
+    } = broadcast_client_channels;
 
     tokio::select! {
         _ = network_manager.run() => panic!("network manager ended"),
         // We need to do the entire calculation in the future here so that the network will keep
         // running while we call report_callback.
-        reported_peer_result = tokio::time::timeout(TIMEOUT, broadcasted_messages_receiver.next())
-            .then(|result| {
-                let (message_result, broadcasted_message_manager) = result.unwrap().unwrap();
-                assert_eq!(message, message_result.unwrap());
-                broadcasted_message_manager.report_peer();
-                tokio::time::timeout(TIMEOUT, reported_peer_receiver.next())
-            }) => {
+        reported_peer_result = tokio::time::timeout(TIMEOUT, async {
+            let result = broadcasted_messages_receiver.next().await;
+            let (message_result, broadcasted_message_manager) = result.unwrap();
+            assert_eq!(message, message_result.unwrap());
+            reported_messages_sender.send(broadcasted_message_manager).await.unwrap();
+            reported_peer_receiver.next().await
+        }) => {
             assert_eq!(originated_peer_id, reported_peer_result.unwrap().unwrap());
         }
     }

@@ -23,10 +23,11 @@ use strum_macros::EnumIter;
 
 use crate::abi::constants as abi_constants;
 use crate::blockifier::block::BlockInfo;
+use crate::context::TransactionContext;
 use crate::execution::call_info::{CallInfo, ExecutionSummary, MessageL1CostInfo, OrderedEvent};
 use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::eth_gas_constants;
-use crate::fee::fee_utils::{calculate_l1_gas_by_vm_usage, get_fee_by_gas_vector};
+use crate::fee::fee_utils::{get_fee_by_gas_vector, get_vm_resources_cost};
 use crate::fee::gas_usage::{
     get_consumed_message_to_l2_emissions_cost,
     get_da_gas_cost,
@@ -38,10 +39,9 @@ use crate::transaction::constants;
 use crate::transaction::errors::{
     TransactionExecutionError,
     TransactionFeeError,
-    TransactionInfoCreationError,
     TransactionPreValidationError,
 };
-use crate::utils::{u128_from_usize, usize_from_u128};
+use crate::utils::{u128_div_ceil, u128_from_usize, usize_from_u128};
 use crate::versioned_constants::VersionedConstants;
 
 #[cfg(test)]
@@ -171,6 +171,10 @@ impl GasVector {
         Self { l1_data_gas, ..Default::default() }
     }
 
+    pub fn from_l2_gas(l2_gas: u128) -> Self {
+        Self { l2_gas, ..Default::default() }
+    }
+
     /// Computes the cost (in fee token units) of the gas vector (saturating on overflow).
     pub fn saturated_cost(&self, gas_price: u128, blob_gas_price: u128) -> Fee {
         let l1_gas_cost = self.l1_gas.checked_mul(gas_price).unwrap_or_else(|| {
@@ -198,6 +202,21 @@ impl GasVector {
             u128::MAX
         });
         Fee(total)
+    }
+
+    /// Compute l1_gas estimation from gas_vector using the following formula:
+    /// One byte of data costs either 1 data gas (in blob mode) or 16 gas (in calldata
+    /// mode). For gas price GP and data gas price DGP, the discount for using blobs
+    /// would be DGP / (16 * GP).
+    /// X non-data-related gas consumption and Y bytes of data, in non-blob mode, would
+    /// cost (X + 16*Y) units of gas. Applying the discount ratio to the data-related
+    /// summand, we get total_gas = (X + Y * DGP / GP).
+    pub fn to_discounted_l1_gas(&self, tx_context: &TransactionContext) -> u128 {
+        let gas_prices = &tx_context.block_context.block_info.gas_prices;
+        let fee_type = tx_context.tx_info.fee_type();
+        let gas_price = gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
+        let data_gas_price = gas_prices.get_l1_data_gas_price_by_fee_type(&fee_type);
+        self.l1_gas + u128_div_ceil(self.l1_data_gas * u128::from(data_gas_price), gas_price)
     }
 }
 
@@ -312,31 +331,55 @@ impl StarknetResources {
     }
 
     /// Returns the gas cost of the starknet resources, summing all components.
+    /// The L2 gas amount may be converted to L1 gas (depending on the gas vector computation mode).
     pub fn to_gas_vector(
         &self,
         versioned_constants: &VersionedConstants,
         use_kzg_da: bool,
+        mode: &GasVectorComputationMode,
     ) -> GasVector {
-        self.get_calldata_and_signature_cost(versioned_constants)
-            + self.get_code_cost(versioned_constants)
+        self.get_l2_archival_data_cost(versioned_constants, mode)
             + self.get_state_changes_cost(use_kzg_da)
             + self.get_messages_cost()
-            + self.get_events_cost(versioned_constants)
     }
 
-    // Returns the gas cost for transaction calldata and transaction signature. Each felt costs a
-    // fixed and configurable amount of gas. This cost represents the cost of storing the
-    // calldata and the signature on L2.
+    /// Returns the cost of the transaction's archival data, for example, calldata, signature, code,
+    /// and events.
+    pub fn get_l2_archival_data_cost(
+        &self,
+        versioned_constants: &VersionedConstants,
+        mode: &GasVectorComputationMode,
+    ) -> GasVector {
+        // Cost in L2 gas.
+        let l2_archival_data_costs = [
+            self.get_calldata_and_signature_cost(versioned_constants),
+            self.get_code_cost(versioned_constants),
+            self.get_events_cost(versioned_constants),
+        ];
+        match mode {
+            GasVectorComputationMode::All => {
+                GasVector::from_l2_gas(l2_archival_data_costs.iter().sum())
+            }
+            GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(
+                l2_archival_data_costs
+                    .map(|cost| versioned_constants.convert_l2_to_l1_gas(cost))
+                    .iter()
+                    .sum(),
+            ),
+        }
+    }
+
+    /// Returns the cost for transaction calldata and transaction signature. Each felt costs a
+    /// fixed and configurable amount of gas. This cost represents the cost of storing the
+    /// calldata and the signature on L2.  The result is given in L2 gas units.
     pub fn get_calldata_and_signature_cost(
         &self,
         versioned_constants: &VersionedConstants,
-    ) -> GasVector {
+    ) -> u128 {
         // TODO(Avi, 20/2/2024): Calculate the number of bytes instead of the number of felts.
         let total_data_size = u128_from_usize(self.calldata_length + self.signature_length);
-        let l1_gas = (versioned_constants.l2_resource_gas_costs.gas_per_data_felt
-            * total_data_size)
-            .to_integer();
-        GasVector::from_l1_gas(l1_gas)
+        (versioned_constants.archival_data_gas_costs.gas_per_data_felt * total_data_size)
+            .to_integer()
     }
 
     /// Returns an estimation of the gas usage for processing L1<>L2 messages on L1. Accounts for
@@ -384,13 +427,11 @@ impl StarknetResources {
         (message_segment_length, gas_weight)
     }
 
-    /// Returns the gas cost of declared class codes.
-    pub fn get_code_cost(&self, versioned_constants: &VersionedConstants) -> GasVector {
-        GasVector::from_l1_gas(
-            (versioned_constants.l2_resource_gas_costs.gas_per_code_byte
-                * u128_from_usize(self.code_size))
-            .to_integer(),
-        )
+    /// Returns the cost of declared class codes in L2 gas units.
+    pub fn get_code_cost(&self, versioned_constants: &VersionedConstants) -> u128 {
+        (versioned_constants.archival_data_gas_costs.gas_per_code_byte
+            * u128_from_usize(self.code_size))
+        .to_integer()
     }
 
     /// Returns the gas cost of the transaction's state changes.
@@ -399,16 +440,13 @@ impl StarknetResources {
         get_da_gas_cost(&self.state_changes_for_fee, use_kzg_da)
     }
 
-    /// Returns the gas cost of the transaction's emmited events.
-    pub fn get_events_cost(&self, versioned_constants: &VersionedConstants) -> GasVector {
-        let l2_resource_gas_costs = &versioned_constants.l2_resource_gas_costs;
+    /// Returns the cost of the transaction's emmited events in L2 gas units.
+    pub fn get_events_cost(&self, versioned_constants: &VersionedConstants) -> u128 {
+        let archival_data_gas_costs = &versioned_constants.archival_data_gas_costs;
         let (event_key_factor, data_word_cost) =
-            (l2_resource_gas_costs.event_key_factor, l2_resource_gas_costs.gas_per_data_felt);
-        let l1_gas: u128 = (data_word_cost
-            * (event_key_factor * self.total_event_keys + self.total_event_data_size))
-            .to_integer();
-
-        GasVector::from_l1_gas(l1_gas)
+            (archival_data_gas_costs.event_key_factor, archival_data_gas_costs.gas_per_data_felt);
+        (data_word_cost * (event_key_factor * self.total_event_keys + self.total_event_data_size))
+            .to_integer()
     }
 
     pub fn get_onchain_data_segment_length(&self) -> usize {
@@ -447,48 +485,28 @@ pub struct TransactionResources {
     pub n_reverted_steps: usize,
 }
 
+#[derive(Debug, PartialEq)]
+pub enum GasVectorComputationMode {
+    All,
+    NoL2Gas,
+}
+
 impl TransactionResources {
-    /// Computes and returns the total L1 gas consumption.
-    /// We add the l1_gas_usage (which may include, for example, the direct cost of L2-to-L1
-    /// messages) to the gas consumed by Cairo VM resource.
+    /// Computes and returns the total gas consumption. The L2 gas amount may be converted
+    /// to L1 gas (depending on the gas vector computation mode).
     pub fn to_gas_vector(
         &self,
         versioned_constants: &VersionedConstants,
         use_kzg_da: bool,
+        computation_mode: &GasVectorComputationMode,
     ) -> TransactionFeeResult<GasVector> {
-        Ok(self.starknet_resources.to_gas_vector(versioned_constants, use_kzg_da)
-            + calculate_l1_gas_by_vm_usage(
+        Ok(self.starknet_resources.to_gas_vector(versioned_constants, use_kzg_da, computation_mode)
+            + get_vm_resources_cost(
                 versioned_constants,
                 &self.vm_resources,
                 self.n_reverted_steps,
+                computation_mode,
             )?)
-    }
-
-    pub fn to_resources_mapping(
-        &self,
-        versioned_constants: &VersionedConstants,
-        use_kzg_da: bool,
-        with_reverted_steps: bool,
-    ) -> ResourcesMapping {
-        let GasVector { l1_gas, l1_data_gas, .. } =
-            self.starknet_resources.to_gas_vector(versioned_constants, use_kzg_da);
-        let mut resources = self.vm_resources.to_resources_mapping();
-        resources.0.extend(HashMap::from([
-            (
-                abi_constants::L1_GAS_USAGE.to_string(),
-                usize_from_u128(l1_gas)
-                    .expect("This conversion should not fail as the value is a converted usize."),
-            ),
-            (
-                abi_constants::BLOB_GAS_USAGE.to_string(),
-                usize_from_u128(l1_data_gas)
-                    .expect("This conversion should not fail as the value is a converted usize."),
-            ),
-        ]));
-        let reverted_steps_to_add = if with_reverted_steps { self.n_reverted_steps } else { 0 };
-        *resources.0.get_mut(abi_constants::N_STEPS_RESOURCE).unwrap_or(&mut 0) +=
-            reverted_steps_to_add;
-        resources
     }
 
     pub fn total_charged_steps(&self) -> usize {
@@ -570,5 +588,5 @@ pub enum FeeType {
 }
 
 pub trait TransactionInfoCreator {
-    fn create_tx_info(&self) -> Result<TransactionInfo, TransactionInfoCreationError>;
+    fn create_tx_info(&self) -> TransactionInfo;
 }

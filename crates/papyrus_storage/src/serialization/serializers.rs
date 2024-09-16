@@ -76,6 +76,7 @@ use starknet_api::state::{
 };
 use starknet_api::transaction::{
     AccountDeploymentData,
+    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     DeclareTransaction,
@@ -89,7 +90,6 @@ use starknet_api::transaction::{
     DeployAccountTransactionV3,
     DeployTransaction,
     DeployTransactionOutput,
-    DeprecatedResourceBoundsMapping,
     Event,
     EventContent,
     EventData,
@@ -119,6 +119,7 @@ use starknet_api::transaction::{
     TransactionOutput,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 use tracing::warn;
@@ -147,6 +148,11 @@ const COMPRESSION_THRESHOLD_BYTES: usize = 384;
 
 auto_storage_serde! {
     pub struct AccountDeploymentData(pub Vec<Felt>);
+    pub struct AllResourceBounds {
+        pub l1_gas: ResourceBounds,
+        pub l2_gas: ResourceBounds,
+        pub l1_data_gas: ResourceBounds,
+    }
     pub struct BlockHash(pub StarkHash);
     pub struct StorageBlockHeader {
         pub block_hash: BlockHash,
@@ -211,7 +217,7 @@ auto_storage_serde! {
         pub sender_address: ContractAddress,
     }
     pub struct DeclareTransactionV3 {
-        pub resource_bounds: DeprecatedResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -361,7 +367,6 @@ auto_storage_serde! {
         pub max_amount: u64,
         pub max_price_per_unit: u128,
     }
-    pub struct DeprecatedResourceBoundsMapping(pub BTreeMap<Resource, ResourceBounds>);
     pub struct SequencerContractAddress(pub ContractAddress);
     pub struct Signature {
         pub r: Felt,
@@ -419,6 +424,10 @@ auto_storage_serde! {
     }
     pub struct TransactionSignature(pub Vec<Felt>);
     pub struct TransactionVersion(pub Felt);
+    pub enum ValidResourceBounds {
+        L1Gas(ResourceBounds) = 0,
+        AllResources(AllResourceBounds) = 1,
+    }
     pub struct Version{
         pub major: u32,
         pub minor: u32,
@@ -1162,7 +1171,7 @@ auto_storage_serde_conditionally_compressed! {
     }
 
     pub struct DeployAccountTransactionV3 {
-        pub resource_bounds: DeprecatedResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -1198,7 +1207,7 @@ auto_storage_serde_conditionally_compressed! {
     }
 
     pub struct InvokeTransactionV3 {
-        pub resource_bounds: DeprecatedResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,

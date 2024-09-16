@@ -2,6 +2,13 @@ use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::transaction::{
+    AllResourceBounds,
+    ResourceBounds,
+    Tip,
+    TransactionHash,
+    ValidResourceBounds,
+};
 
 use crate::mempool::TransactionReference;
 
@@ -76,6 +83,54 @@ impl TransactionQueue {
 
     pub fn has_ready_txs(&self) -> bool {
         self.priority_queue.is_empty()
+    }
+
+    pub fn _update_gas_price_threshold(&mut self, threshold: u128) {
+        match threshold.cmp(&self.gas_price_threshold) {
+            Ordering::Less => self._promote_txs_to_priority(threshold),
+            Ordering::Greater => self._demote_txs_to_pending(threshold),
+            Ordering::Equal => {}
+        }
+
+        self.gas_price_threshold = threshold;
+    }
+
+    fn _promote_txs_to_priority(&mut self, threshold: u128) {
+        let tmp_split_tx = PendingTransaction(TransactionReference {
+            resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
+                l2_gas: ResourceBounds { max_amount: 0, max_price_per_unit: threshold },
+                ..Default::default()
+            }),
+            sender_address: ContractAddress::default(),
+            nonce: Nonce::default(),
+            tx_hash: TransactionHash::default(),
+            tip: Tip::default(),
+        });
+
+        // Split off the pending queue at the given transaction higher than the threshold.
+        let txs_over_threshold = self.pending_queue.split_off(&tmp_split_tx).into_iter();
+
+        // Insert all transactions from the split point into the priority queue, skip
+        // `tmp_split_tx`.
+        // Note: extend will reorder transactions by `Tip` during insertion, despite them being
+        // initially ordered by fee.
+        self.priority_queue.extend(txs_over_threshold.map(|tx| tx.0.into()));
+    }
+
+    fn _demote_txs_to_pending(&mut self, threshold: u128) {
+        let mut to_remove = Vec::new();
+
+        // Remove all transactions from the priority queue that are below the threshold.
+        for priority_tx in &self.priority_queue {
+            if priority_tx.get_l2_gas_price() < threshold {
+                to_remove.push(priority_tx.clone());
+            }
+        }
+
+        for tx in &to_remove {
+            self.priority_queue.remove(tx);
+        }
+        self.pending_queue.extend(to_remove.into_iter().map(|tx| tx.0.into()));
     }
 }
 

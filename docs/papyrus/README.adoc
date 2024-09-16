@@ -46,32 +46,6 @@ Use it at your own risk.
 
 * https://www.rust-lang.org/tools/install[Rust] must be installed. Minimum supported version is `1.76`.
 * You must have access to an Ethereum node. For example, you can use a node provider such as Infura.
-* link: https://grpc.io/docs/protoc-installation[Protoc]
-  - You'll need Protoc only for compiling the link:../crates/papyrus_network/[papyrus_network] crate.
-  - Make sure you have version 15 or higher installed. If not:
-    1. Remove your current Protoc installation:
-+
-[source,bash]
-----
-sudo apt remove protoc/protobuf-compiler
-----
-
-    2. Install version 15 or higher (replace DIR with your preferred installation directory):
-+
-[source,bash]
-----
-DIR="$HOME/.local"
-curl -L "https://github.com/protocolbuffers/protobuf/releases/download/v25.1/protoc-25.1-linux-x86_64.zip" -o protoc.zip
-unzip ./protoc.zip -d $DIR
-rm ./protoc.zip
-----
-
-    3. Add DIR to your PATH if it's not already there:
-+
-[source,bash]
-----
-export PATH=$PATH:$DIR/bin
-----
 
 [discrete]
 ==== Procedure
@@ -258,6 +232,11 @@ cargo run --release --package papyrus_node --bin papyrus_node -- \
         --base_layer.node_url <ethereum_node_url> \
         --network.bootstrap_peer_multiaddr.#is_none false \
         --network.bootstrap_peer_multiaddr /ip4/<other_peer_ip_address>/tcp/<tcp_port>/p2p/<peer_id>
+----
+
+You can also use DNS instead of ip4 by typing 
+----
+        --network.bootstrap_peer_multiaddr /dns/<other_peer_dns_address>/tcp/<tcp_port>/p2p/<peer_id>
 ----
 
 ==== P2P Sync (with bootstrap connection)

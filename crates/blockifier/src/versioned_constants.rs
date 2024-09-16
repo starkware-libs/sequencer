@@ -7,6 +7,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use indexmap::{IndexMap, IndexSet};
 use num_rational::Ratio;
+use num_traits::Inv;
 use paste::paste;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer};
@@ -69,6 +70,7 @@ define_versioned_constants! {
     (V0_13_1, "../resources/versioned_constants_13_1.json"),
     (V0_13_1_1, "../resources/versioned_constants_13_1_1.json"),
     (V0_13_2, "../resources/versioned_constants_13_2.json"),
+    (V0_13_2_1, "../resources/versioned_constants_13_2_1.json"),
     (Latest, "../resources/versioned_constants.json"),
 }
 
@@ -85,7 +87,7 @@ pub struct VersionedConstants {
     pub tx_event_limits: EventLimits,
     pub invoke_tx_max_n_steps: u32,
     #[serde(default)]
-    pub l2_resource_gas_costs: L2ResourceGasCosts,
+    pub archival_data_gas_costs: ArchivalDataGasCosts,
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
     // BACKWARD COMPATIBILITY: If true, the segment_arena builtin instance counter will be
@@ -124,12 +126,22 @@ impl VersionedConstants {
         Self::get(StarknetVersion::Latest)
     }
 
-    /// Converts from l1 gas cost to l2 gas cost with **upward rounding**
-    pub fn l1_to_l2_gas_price_conversion(&self, l1_gas_price: u128) -> u128 {
-        let l1_to_l2_gas_price_ratio: Ratio<u128> =
-            Ratio::new(1, u128::from(self.os_constants.gas_costs.step_gas_cost))
-                * self.vm_resource_fee_cost()["n_steps"];
-        *(l1_to_l2_gas_price_ratio * l1_gas_price).ceil().numer()
+    /// Converts from L1 gas to L2 gas with **upward rounding**.
+    pub fn convert_l1_to_l2_gas(&self, l1_gas: u128) -> u128 {
+        let l1_to_l2_gas_price_ratio = self.l1_to_l2_gas_price_ratio().inv();
+        *(l1_to_l2_gas_price_ratio * l1_gas).ceil().numer()
+    }
+
+    /// Converts from L2 gas to L1 gas **rounding towards zero**.
+    pub fn convert_l2_to_l1_gas(&self, l2_gas: u128) -> u128 {
+        let l2_to_l1_gas_price_ratio = self.l1_to_l2_gas_price_ratio();
+        (l2_to_l1_gas_price_ratio * l2_gas).to_integer()
+    }
+
+    /// Returns the following ratio: L2_gas_price/L1_gas_price.
+    pub fn l1_to_l2_gas_price_ratio(&self) -> ResourceCost {
+        Ratio::new(1, u128::from(self.os_constants.gas_costs.step_gas_cost))
+            * self.vm_resource_fee_cost()["n_steps"]
     }
 
     /// Returns the initial gas of any transaction to run with.
@@ -185,8 +197,9 @@ impl VersionedConstants {
 
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_account_testing() -> Self {
+        let step_cost = ResourceCost::from_integer(1);
         let vm_resource_fee_cost = Arc::new(HashMap::from([
-            (crate::abi::constants::N_STEPS_RESOURCE.to_string(), ResourceCost::from_integer(1)),
+            (crate::abi::constants::N_STEPS_RESOURCE.to_string(), step_cost),
             (BuiltinName::pedersen.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
             (
                 BuiltinName::range_check.to_str_with_suffix().to_string(),
@@ -205,24 +218,13 @@ impl VersionedConstants {
             (BuiltinName::mul_mod.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
         ]));
 
-        Self { vm_resource_fee_cost, ..Self::create_for_testing() }
-    }
-
-    // A more complicated instance to increase test coverage.
-    #[cfg(any(feature = "testing", test))]
-    pub fn create_float_for_testing() -> Self {
-        let vm_resource_fee_cost = Arc::new(HashMap::from([
-            (crate::abi::constants::N_STEPS_RESOURCE.to_string(), ResourceCost::new(25, 10000)),
-            (BuiltinName::pedersen.to_str_with_suffix().to_string(), ResourceCost::new(8, 100)),
-            (BuiltinName::range_check.to_str_with_suffix().to_string(), ResourceCost::new(4, 100)),
-            (BuiltinName::ecdsa.to_str_with_suffix().to_string(), ResourceCost::new(512, 100)),
-            (BuiltinName::bitwise.to_str_with_suffix().to_string(), ResourceCost::new(16, 100)),
-            (BuiltinName::poseidon.to_str_with_suffix().to_string(), ResourceCost::new(8, 100)),
-            (BuiltinName::output.to_str_with_suffix().to_string(), ResourceCost::from_integer(0)),
-            (BuiltinName::ec_op.to_str_with_suffix().to_string(), ResourceCost::new(256, 100)),
-        ]));
-
-        Self { vm_resource_fee_cost, ..Self::create_for_testing() }
+        // Maintain the ratio between L1 gas price and L2 gas price.
+        let latest = Self::create_for_testing();
+        let latest_step_cost = latest.vm_resource_fee_cost["n_steps"];
+        let mut archival_data_gas_costs = latest.archival_data_gas_costs;
+        archival_data_gas_costs.gas_per_code_byte *= latest_step_cost / step_cost;
+        archival_data_gas_costs.gas_per_data_felt *= latest_step_cost / step_cost;
+        Self { vm_resource_fee_cost, archival_data_gas_costs, ..latest }
     }
 
     pub fn latest_constants_with_overrides(
@@ -259,7 +261,7 @@ impl TryFrom<&Path> for VersionedConstants {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
-pub struct L2ResourceGasCosts {
+pub struct ArchivalDataGasCosts {
     // TODO(barak, 18/03/2024): Once we start charging per byte change to milligas_per_data_byte,
     // divide the value by 32 in the JSON file.
     pub gas_per_data_felt: ResourceCost,
@@ -455,10 +457,17 @@ impl<'de> Deserialize<'de> for OsResources {
 #[derive(Debug, Default, Deserialize)]
 pub struct GasCosts {
     pub step_gas_cost: u64,
+    pub memory_hole_gas_cost: u64,
     // Range check has a hard-coded cost higher than its proof percentage to avoid the overhead of
     // retrieving its price from the table.
     pub range_check_gas_cost: u64,
-    pub memory_hole_gas_cost: u64,
+    // Priced builtins.
+    pub pedersen_gas_cost: u64,
+    pub bitwise_builtin_gas_cost: u64,
+    pub ecop_gas_cost: u64,
+    pub poseidon_gas_cost: u64,
+    pub add_mod_gas_cost: u64,
+    pub mul_mod_gas_cost: u64,
     // An estimation of the initial gas for a transaction to run with. This solution is
     // temporary and this value will be deduced from the transaction's fields.
     pub initial_gas_cost: u64,
@@ -512,7 +521,7 @@ impl OsConstants {
     // not used by the blockifier but included for transparency. These constanst will be ignored
     // during the creation of the struct containing the gas costs.
 
-    const ADDITIONAL_FIELDS: [&'static str; 25] = [
+    const ADDITIONAL_FIELDS: [&'static str; 27] = [
         "block_hash_contract_address",
         "constructor_entry_point_selector",
         "default_entry_point_selector",
@@ -529,6 +538,8 @@ impl OsConstants {
         "l1_handler_version",
         "l2_gas",
         "l2_gas_index",
+        "l1_data_gas",
+        "l1_data_gas_index",
         "nop_entry_point_offset",
         "sierra_array_len_bound",
         "stored_block_hash_buffer",

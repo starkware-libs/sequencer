@@ -169,16 +169,24 @@ pub struct ProposalInit {
     pub proposer: ValidatorId,
 }
 
+// TODO(Guy): Remove after implementing broadcast streams.
+impl From<(BlockNumber, u32, ContractAddress)> for ProposalInit {
+    fn from(val: (BlockNumber, u32, ContractAddress)) -> Self {
+        ProposalInit { height: val.0, round: val.1, proposer: val.2 }
+    }
+}
+
 #[derive(thiserror::Error, PartialEq, Debug)]
 pub enum ConsensusError {
     #[error(transparent)]
     Canceled(#[from] oneshot::Canceled),
     #[error(transparent)]
     ProtobufConversionError(#[from] ProtobufConversionError),
+    /// This should never occur, since events are internally generated.
+    #[error("Invalid event: {0}")]
+    InvalidEvent(String),
     #[error("Invalid proposal sent by peer {0:?} at height {1}: {2}")]
     InvalidProposal(ValidatorId, BlockNumber, String),
-    #[error("Invalid vote {0:?}. {1}")]
-    InvalidVote(Vote, String),
     #[error(transparent)]
     SendError(#[from] mpsc::SendError),
     #[error("Conflicting messages for block {0}. Old: {1:?}, New: {2:?}")]

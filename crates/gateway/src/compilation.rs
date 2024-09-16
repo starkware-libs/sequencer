@@ -3,9 +3,9 @@ use std::sync::Arc;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use starknet_api::contract_class::ClassInfo;
-use starknet_api::core::CompiledClassHash;
 use starknet_api::rpc_transaction::RpcDeclareTransaction;
 use starknet_sierra_compile::cairo_lang_compiler::CairoLangSierraToCasmCompiler;
+use starknet_sierra_compile::command_line_compiler::CommandLineCompiler;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_sierra_compile::utils::into_contract_class_for_compilation;
 use starknet_sierra_compile::SierraToCasmCompiler;
@@ -24,6 +24,11 @@ pub struct GatewayCompiler {
 }
 
 impl GatewayCompiler {
+    pub fn new_command_line_compiler(config: SierraToCasmCompilationConfig) -> Self {
+        Self { sierra_to_casm_compiler: Arc::new(CommandLineCompiler::new(config)) }
+    }
+
+    // TODO(Arni): Cosider deleting `CairoLangSierraToCasmCompiler`.
     pub fn new_cairo_lang_compiler(config: SierraToCasmCompilationConfig) -> Self {
         Self { sierra_to_casm_compiler: Arc::new(CairoLangSierraToCasmCompiler { config }) }
     }
@@ -31,7 +36,7 @@ impl GatewayCompiler {
     /// Formats the contract class for compilation, compiles it, and returns the compiled contract
     /// class wrapped in a [`ClassInfo`].
     /// Assumes the contract class is of a Sierra program which is compiled to Casm.
-    pub fn process_declare_tx(
+    pub(crate) fn process_declare_tx(
         &self,
         declare_tx: &RpcDeclareTransaction,
     ) -> GatewayResult<ClassInfo> {
@@ -40,8 +45,6 @@ impl GatewayCompiler {
         let cairo_lang_contract_class = into_contract_class_for_compilation(rpc_contract_class);
 
         let casm_contract_class = self.compile(cairo_lang_contract_class)?;
-
-        validate_compiled_class_hash(&casm_contract_class, &tx.compiled_class_hash)?;
 
         Ok(ClassInfo {
             casm_contract_class,
@@ -66,21 +69,4 @@ impl GatewayCompiler {
             }
         }
     }
-}
-
-/// Validates that the compiled class hash of the compiled contract class matches the supplied
-/// compiled class hash.
-fn validate_compiled_class_hash(
-    casm_contract_class: &CasmContractClass,
-    supplied_compiled_class_hash: &CompiledClassHash,
-) -> GatewayResult<()> {
-    let compiled_class_hash = CompiledClassHash(casm_contract_class.compiled_class_hash());
-    if compiled_class_hash != *supplied_compiled_class_hash {
-        debug!(
-            "Compiled class hash mismatch. Supplied: {:?}, Hash result: {:?}",
-            supplied_compiled_class_hash, compiled_class_hash
-        );
-        return Err(GatewaySpecError::CompiledClassHashMismatch);
-    }
-    Ok(())
 }

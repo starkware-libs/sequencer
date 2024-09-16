@@ -21,7 +21,6 @@ const Configuration = {
         'scope-enum': [2, 'always', [
             'base_layer',
             'batcher',
-            'block_builder',
             'block_hash',
             'blockifier',
             'ci',

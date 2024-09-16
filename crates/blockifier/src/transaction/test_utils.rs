@@ -1,20 +1,21 @@
 use rstest::fixture;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
-    DeprecatedResourceBoundsMapping,
     Fee,
     InvokeTransactionV0,
     InvokeTransactionV1,
     InvokeTransactionV3,
-    Resource,
     ResourceBounds,
     TransactionHash,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
-use starknet_api::{calldata, felt};
+use starknet_api::{calldata, declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
@@ -25,13 +26,12 @@ use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::declare::declare_tx;
-use crate::test_utils::deploy_account::{deploy_account_tx, DeployAccountTxArgs};
+use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::invoke::{invoke_tx, InvokeTxArgs};
+use crate::test_utils::invoke::invoke_tx;
 use crate::test_utils::{
     create_calldata,
-    default_testing_resource_bounds,
     CairoVersion,
     NonceManager,
     BALANCE,
@@ -44,7 +44,6 @@ use crate::transaction::constants;
 use crate::transaction::objects::{FeeType, TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{ExecutableTransaction, InvokeTransaction};
-use crate::{declare_tx_args, deploy_account_tx_args, invoke_tx_args};
 
 // Corresponding constants to the ones in faulty_account.
 pub const VALID: u64 = 0;
@@ -83,7 +82,7 @@ pub fn max_fee() -> Fee {
 }
 
 #[fixture]
-pub fn max_resource_bounds() -> DeprecatedResourceBoundsMapping {
+pub fn max_resource_bounds() -> ValidResourceBounds {
     l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE)
 }
 
@@ -146,7 +145,7 @@ pub struct FaultyAccountTxCreatorArgs {
     pub tx_version: TransactionVersion,
     pub scenario: u64,
     pub max_fee: Fee,
-    pub resource_bounds: DeprecatedResourceBoundsMapping,
+    pub resource_bounds: ValidResourceBounds,
     // Should be None unless scenario is CALL_CONTRACT.
     pub additional_data: Option<Vec<Felt>>,
     // Should be use with tx_type Declare or InvokeFunction.
@@ -173,7 +172,7 @@ impl Default for FaultyAccountTxCreatorArgs {
             contract_address_salt: ContractAddressSalt::default(),
             validate_constructor: false,
             max_fee: Fee::default(),
-            resource_bounds: default_testing_resource_bounds(),
+            resource_bounds: ValidResourceBounds::create_for_testing(),
             declared_contract: None,
         }
     }
@@ -298,12 +297,8 @@ pub fn run_invoke_tx(
 
 /// Creates a `ResourceBoundsMapping` with the given `max_amount` and `max_price` for L1 gas limits.
 /// No guarantees on the values of the other resources bounds.
-pub fn l1_resource_bounds(max_amount: u64, max_price: u128) -> DeprecatedResourceBoundsMapping {
-    DeprecatedResourceBoundsMapping::try_from(vec![
-        (Resource::L1Gas, ResourceBounds { max_amount, max_price_per_unit: max_price }),
-        (Resource::L2Gas, ResourceBounds { max_amount: 0, max_price_per_unit: 0 }),
-    ])
-    .unwrap()
+pub fn l1_resource_bounds(max_amount: u64, max_price: u128) -> ValidResourceBounds {
+    ValidResourceBounds::L1Gas(ResourceBounds { max_amount, max_price_per_unit: max_price })
 }
 
 pub fn calculate_class_info_for_testing(contract_class: ContractClass) -> ClassInfo {

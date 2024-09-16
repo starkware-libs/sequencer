@@ -2,19 +2,21 @@ use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::core::ContractAddress;
-use starknet_api::felt;
 use starknet_api::transaction::{
     Calldata,
-    DeprecatedResourceBoundsMapping,
     Fee,
+    Resource,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
+use starknet_api::{felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
 use crate::context::{BlockContext, ChainInfo};
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
+use crate::nonce;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
@@ -38,7 +40,12 @@ use crate::transaction::errors::{
     TransactionFeeError,
     TransactionPreValidationError,
 };
-use crate::transaction::objects::{FeeType, GasVector, TransactionExecutionInfo};
+use crate::transaction::objects::{
+    FeeType,
+    GasVector,
+    GasVectorComputationMode,
+    TransactionExecutionInfo,
+};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     l1_resource_bounds,
@@ -47,7 +54,6 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
-use crate::{invoke_tx_args, nonce};
 const VALIDATE_GAS_OVERHEAD: u64 = 21;
 
 struct FlavorTestInitialState {
@@ -129,7 +135,11 @@ fn check_gas_and_fee(
         tx_execution_info
             .receipt
             .resources
-            .to_gas_vector(&block_context.versioned_constants, block_context.block_info.use_kzg_da)
+            .to_gas_vector(
+                &block_context.versioned_constants,
+                block_context.block_info.use_kzg_da,
+                &GasVectorComputationMode::NoL2Gas,
+            )
             .unwrap()
             .l1_gas,
         expected_actual_gas.into()
@@ -255,9 +265,9 @@ fn test_simulate_validate_charge_fee_pre_validate(
                 result.unwrap_err(),
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
-                        TransactionFeeError::MaxL1GasAmountTooLow { .. }
+                        TransactionFeeError::MaxGasAmountTooLow { resource , .. }
                     )
-                )
+                ) if resource == Resource::L1Gas
             );
         }
     }
@@ -299,9 +309,10 @@ fn test_simulate_validate_charge_fee_pre_validate(
                 result.unwrap_err(),
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
-                        TransactionFeeError::L1GasBoundsExceedBalance { .. }
+                        TransactionFeeError::GasBoundsExceedBalance {resource, .. }
                     )
                 )
+                if resource == Resource::L1Gas
             );
         }
     }
@@ -329,9 +340,10 @@ fn test_simulate_validate_charge_fee_pre_validate(
                 result.unwrap_err(),
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
-                        TransactionFeeError::MaxL1GasPriceTooLow { .. }
+                        TransactionFeeError::MaxGasPriceTooLow { resource, .. }
                     )
                 )
+                if resource == Resource::L1Gas
             );
         }
     }
@@ -349,7 +361,7 @@ fn test_simulate_validate_charge_fee_fail_validate(
     #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
 ) {
     let block_context = BlockContext::create_for_account_testing();
     let max_fee = Fee(MAX_FEE);
@@ -411,7 +423,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
-    max_resource_bounds: DeprecatedResourceBoundsMapping,
+    max_resource_bounds: ValidResourceBounds,
 ) {
     let block_context = BlockContext::create_for_account_testing();
     let chain_info = &block_context.chain_info;
@@ -474,10 +486,10 @@ fn test_simulate_validate_charge_fee_mid_execution(
 
     // Second scenario: limit resources via sender bounds. Should revert if and only if step limit
     // is derived from sender bounds (`charge_fee` mode).
-    let (gas_bound, fee_bound) = gas_and_fee(6001, validate, &fee_type);
+    let (gas_bound, fee_bound) = gas_and_fee(6047, validate, &fee_type);
     // If `charge_fee` is true, execution is limited by sender bounds, so less resources will be
     // used. Otherwise, execution is limited by block bounds, so more resources will be used.
-    let (limited_gas_used, limited_fee) = gas_and_fee(7653, validate, &fee_type);
+    let (limited_gas_used, limited_fee) = gas_and_fee(7699, validate, &fee_type);
     let (unlimited_gas_used, unlimited_fee) = gas_and_fee(
         u64_from_usize(
             get_syscall_resources(SyscallSelector::CallContract).n_steps
@@ -651,7 +663,7 @@ fn test_simulate_validate_charge_fee_post_execution(
         u64_from_usize(
             get_syscall_resources(SyscallSelector::CallContract).n_steps
                 + get_tx_resources(TransactionType::InvokeFunction).n_steps
-                + 4244,
+                + 4268,
         ),
         validate,
         &fee_type,
@@ -685,6 +697,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     .execute(&mut state, &block_context, charge_fee, validate)
     .unwrap();
     assert_eq!(tx_execution_info.is_reverted(), charge_fee);
+
     if charge_fee {
         assert!(
             tx_execution_info

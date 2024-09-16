@@ -91,7 +91,6 @@ async fn broadcast_subscriber_end_to_end_test() {
 
     let subscriber_channels2_1 =
         network_manager2.register_broadcast_topic::<Number>(topic1.clone(), BUFFER_SIZE).unwrap();
-
     let subscriber_channels2_2 =
         network_manager2.register_broadcast_topic::<Number>(topic2.clone(), BUFFER_SIZE).unwrap();
 
@@ -106,20 +105,20 @@ async fn broadcast_subscriber_end_to_end_test() {
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 let number1 = Number(1);
                 let number2 = Number(2);
-                let mut broadcasted_messages_receiver2_1 =
-                    subscriber_channels2_1.broadcasted_messages_receiver;
-                let mut broadcasted_messages_receiver2_2 =
-                    subscriber_channels2_2.broadcasted_messages_receiver;
+                let mut broadcast_client2_1 =
+                    subscriber_channels2_1.broadcast_client_channels;
+                let mut broadcast_client2_2 =
+                    subscriber_channels2_2.broadcast_client_channels;
                 subscriber_channels1_1.messages_to_broadcast_sender.send(number1).await.unwrap();
                 subscriber_channels1_2.messages_to_broadcast_sender.send(number2).await.unwrap();
                 let (received_number1, _report_callback) =
-                    broadcasted_messages_receiver2_1.next().await.unwrap();
+                    broadcast_client2_1.next().await.unwrap();
                 let (received_number2, _report_callback) =
-                    broadcasted_messages_receiver2_2.next().await.unwrap();
+                    broadcast_client2_2.next().await.unwrap();
                 assert_eq!(received_number1.unwrap(), number1);
                 assert_eq!(received_number2.unwrap(), number2);
-                assert!(broadcasted_messages_receiver2_1.next().now_or_never().is_none());
-                assert!(broadcasted_messages_receiver2_2.next().now_or_never().is_none());
+                assert!(broadcast_client2_1.next().now_or_never().is_none());
+                assert!(broadcast_client2_2.next().now_or_never().is_none());
             }
         ) => {
             result.unwrap()

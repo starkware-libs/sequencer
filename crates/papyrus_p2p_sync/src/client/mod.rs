@@ -15,12 +15,14 @@ use std::time::Duration;
 use futures::channel::mpsc::SendError;
 use futures::Stream;
 use header::HeaderStreamBuilder;
+use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_config::converters::deserialize_seconds_to_duration;
 use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_network::network_manager::SqmrClientSender;
 use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_protobuf::sync::{
+    ClassQuery,
     DataOrFin,
     HeaderQuery,
     SignedBlockHeader,
@@ -31,6 +33,7 @@ use papyrus_protobuf::sync::{
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, BlockSignature};
+use starknet_api::core::ClassHash;
 use starknet_api::transaction::FullTransaction;
 use state_diff::StateDiffStreamBuilder;
 use stream_builder::{DataStreamBuilder, DataStreamResult};
@@ -175,11 +178,14 @@ pub enum P2PSyncClientError {
 type HeaderSqmrSender = SqmrClientSender<HeaderQuery, DataOrFin<SignedBlockHeader>>;
 type StateSqmrDiffSender = SqmrClientSender<StateDiffQuery, DataOrFin<StateDiffChunk>>;
 type TransactionSqmrSender = SqmrClientSender<TransactionQuery, DataOrFin<FullTransaction>>;
+type ClassSqmrSender = SqmrClientSender<ClassQuery, DataOrFin<(ApiContractClass, ClassHash)>>;
 
 pub struct P2PSyncClientChannels {
     header_sender: HeaderSqmrSender,
     state_diff_sender: StateSqmrDiffSender,
     transaction_sender: TransactionSqmrSender,
+    #[allow(dead_code)]
+    class_sender: ClassSqmrSender,
 }
 
 impl P2PSyncClientChannels {
@@ -187,8 +193,9 @@ impl P2PSyncClientChannels {
         header_sender: HeaderSqmrSender,
         state_diff_sender: StateSqmrDiffSender,
         transaction_sender: TransactionSqmrSender,
+        class_sender: ClassSqmrSender,
     ) -> Self {
-        Self { header_sender, state_diff_sender, transaction_sender }
+        Self { header_sender, state_diff_sender, transaction_sender, class_sender }
     }
     pub(crate) fn create_stream(
         self,

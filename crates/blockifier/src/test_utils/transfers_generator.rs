@@ -2,14 +2,13 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::{Calldata, Fee, TransactionVersion};
-use starknet_api::{calldata, felt};
+use starknet_api::{calldata, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::blockifier::config::{ConcurrencyConfig, TransactionExecutorConfig};
 use crate::blockifier::transaction_executor::TransactionExecutor;
 use crate::context::{BlockContext, ChainInfo};
-use crate::invoke_tx_args;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;

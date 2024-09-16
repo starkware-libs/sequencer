@@ -2,23 +2,16 @@ use std::time::{Duration, Instant};
 
 use libp2p::swarm::ConnectionId;
 use libp2p::{Multiaddr, PeerId};
-#[cfg(test)]
-use mockall::automock;
-use tracing::{error, info};
+use tracing::info;
 
-use super::ReputationModifier;
-
-#[cfg_attr(test, automock)]
 pub trait PeerTrait {
     fn new(peer_id: PeerId, multiaddr: Multiaddr) -> Self;
 
-    fn update_reputation(&mut self, reason: ReputationModifier);
+    fn update_reputation(&mut self, timeout_duration: Duration);
 
     fn peer_id(&self) -> PeerId;
 
     fn multiaddr(&self) -> Multiaddr;
-
-    fn set_timeout_duration(&mut self, duration: Duration);
 
     fn is_blocked(&self) -> bool;
 
@@ -36,36 +29,22 @@ pub trait PeerTrait {
 pub struct Peer {
     peer_id: PeerId,
     multiaddr: Multiaddr,
-    timed_out_until: Option<Instant>,
-    timeout_duration: Option<Duration>,
+    timed_out_until: Instant,
     connection_ids: Vec<ConnectionId>,
 }
 
 impl PeerTrait for Peer {
     fn new(peer_id: PeerId, multiaddr: Multiaddr) -> Self {
-        Self {
-            peer_id,
-            multiaddr,
-            timeout_duration: None,
-            timed_out_until: None,
-            connection_ids: Vec::new(),
-        }
+        Self { peer_id, multiaddr, timed_out_until: get_instant_now(), connection_ids: Vec::new() }
     }
 
-    fn update_reputation(&mut self, _reason: ReputationModifier) {
-        if let Some(timeout_duration) = self.timeout_duration {
-            info!(
-                "Peer {:?} misbehaved. Blacklisting it for {:.3} seconds.",
-                self.peer_id,
-                timeout_duration.as_secs_f64(),
-            );
-            self.timed_out_until = Some(Instant::now() + timeout_duration);
-        } else {
-            error!(
-                "Peer {:?} misbehaved but its timeout duration wasn't set. Not doing anything.",
-                self.peer_id
-            );
-        }
+    fn update_reputation(&mut self, timeout_duration: Duration) {
+        self.timed_out_until = get_instant_now() + timeout_duration;
+        info!(
+            "Peer {:?} misbehaved. Blacklisting it for {:.3} seconds.",
+            self.peer_id,
+            timeout_duration.as_secs_f64(),
+        );
     }
 
     fn peer_id(&self) -> PeerId {
@@ -76,20 +55,16 @@ impl PeerTrait for Peer {
         self.multiaddr.clone()
     }
 
-    fn set_timeout_duration(&mut self, duration: Duration) {
-        self.timeout_duration = Some(duration);
-    }
-
     fn is_blocked(&self) -> bool {
-        if let Some(timed_out_until) = self.timed_out_until {
-            timed_out_until > Instant::now()
-        } else {
-            false
-        }
+        self.timed_out_until > get_instant_now()
     }
 
     fn blocked_until(&self) -> Instant {
-        self.timed_out_until.unwrap_or_else(Instant::now)
+        if self.timed_out_until > get_instant_now() {
+            self.timed_out_until
+        } else {
+            get_instant_now()
+        }
     }
 
     fn connection_ids(&self) -> &Vec<ConnectionId> {
@@ -103,4 +78,15 @@ impl PeerTrait for Peer {
     fn remove_connection_id(&mut self, connection_id: ConnectionId) {
         self.connection_ids.retain(|&id| id != connection_id);
     }
+}
+
+#[cfg(not(test))]
+fn get_instant_now() -> Instant {
+    Instant::now()
+}
+
+// In tests we simulate time passing using tokio, so we need to use tokio's Instant instead of std.
+#[cfg(test)]
+fn get_instant_now() -> Instant {
+    tokio::time::Instant::now().into_std()
 }
