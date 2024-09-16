@@ -9117,6 +9117,16 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "papyrus_network",
+ "starknet_mempool_infra",
+ "starknet_mempool_p2p_sender_types",
+]
+
+[[package]]
+name = "starknet_mempool_p2p_sender_types"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "papyrus_network",
  "papyrus_proc_macros",
  "serde",
  "starknet_api",
