@@ -8977,6 +8977,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_mempool_infra",
+ "starknet_mempool_p2p",
  "starknet_mempool_types",
  "tokio",
 ]
