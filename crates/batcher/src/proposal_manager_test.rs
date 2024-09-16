@@ -3,7 +3,7 @@ use std::sync::Arc;
 use assert_matches::assert_matches;
 use starknet_mempool_types::communication::MockMempoolClient;
 
-use crate::proposals_manager::{ProposalManager, ProposalManagerConfig, ProposalManagerError};
+use crate::proposal_manager::{ProposalManager, ProposalManagerConfig, ProposalManagerError};
 
 const GENERATION_TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
 
