@@ -17,6 +17,7 @@ use papyrus_config::presentation::get_config_presentation;
 use papyrus_config::validators::config_validate;
 use papyrus_config::ConfigError;
 use papyrus_consensus::config::ConsensusConfig;
+use papyrus_consensus::simulation_network_receiver::NetworkReceiver;
 use papyrus_consensus::types::ConsensusError;
 use papyrus_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use papyrus_monitoring_gateway::MonitoringServer;
@@ -119,6 +120,14 @@ fn run_consensus(
             config.num_validators,
             Some(sync_channels.messages_to_broadcast_sender),
         );
+        let network_receiver = NetworkReceiver::new(
+            broadcast_client_channels,
+            test_config.cache_size,
+            test_config.random_seed,
+            test_config.drop_probability,
+            test_config.invalid_probability,
+        );
+
         let sync_receiver =
             sync_channels.broadcast_client_channels.map(|(vote, _report_sender)| {
                 BlockNumber(vote.expect("Sync channel should never have errors").height)
@@ -129,7 +138,7 @@ fn run_consensus(
             config.validator_id,
             config.consensus_delay,
             config.timeouts.clone(),
-            broadcast_client_channels,
+            network_receiver,
             sync_receiver,
         )))
     } else {
