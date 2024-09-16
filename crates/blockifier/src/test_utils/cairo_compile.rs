@@ -190,6 +190,10 @@ fn prepare_cairo1_compiler_deps(git_tag_override: Option<String>) {
     // Checkout the required version in the compiler repo.
     run_and_verify_output(Command::new("git").args([
         "-C",
+        "fetch --tags",
+    ]));
+    run_and_verify_output(Command::new("git").args([
+        "-C",
         cairo_repo_path.to_str().unwrap(),
         "checkout",
         &tag,
