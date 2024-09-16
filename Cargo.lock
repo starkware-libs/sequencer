@@ -9111,6 +9111,7 @@ dependencies = [
  "starknet_consensus_manager",
  "starknet_consensus_manager_types",
  "starknet_gateway",
+ "starknet_gateway_types",
  "starknet_mempool",
  "starknet_mempool_infra",
  "starknet_mempool_types",
