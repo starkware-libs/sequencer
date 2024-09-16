@@ -289,6 +289,101 @@
     "privacy": "Public",
     "value": false
   },
+  "http_server_config.network_config.ip": {
+    "description": "The gateway server ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "http_server_config.network_config.port": {
+    "description": "The gateway server port.",
+    "privacy": "Public",
+    "value": 8080
+  },
+  "http_server_config.stateful_tx_validator_config.chain_info.chain_id": {
+    "description": "The chain ID of the StarkNet chain.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "http_server_config.stateful_tx_validator_config.chain_info.fee_token_addresses.eth_fee_token_address": {
+    "description": "Address of the ETH fee token.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "http_server_config.stateful_tx_validator_config.chain_info.fee_token_addresses.strk_fee_token_address": {
+    "description": "Address of the STRK fee token.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "http_server_config.stateful_tx_validator_config.max_nonce_for_validation_skip": {
+    "description": "Maximum nonce for which the validation is skipped.",
+    "privacy": "Public",
+    "value": "0x1"
+  },
+  "http_server_config.stateful_tx_validator_config.max_recursion_depth": {
+    "description": "Maximum recursion depth for nested calls during blockifier validation.",
+    "privacy": "Public",
+    "value": 50
+  },
+  "http_server_config.stateful_tx_validator_config.validate_max_n_steps": {
+    "description": "Maximum number of steps the validation function is allowed to take.",
+    "privacy": "Public",
+    "value": 1000000
+  },
+  "http_server_config.stateless_tx_validator_config.max_calldata_length": {
+    "description": "Limitation of calldata length.",
+    "privacy": "Public",
+    "value": 4000
+  },
+  "http_server_config.stateless_tx_validator_config.max_contract_class_object_size": {
+    "description": "Limitation of contract class object size.",
+    "privacy": "Public",
+    "value": 4089446
+  },
+  "http_server_config.stateless_tx_validator_config.max_sierra_version.major": {
+    "description": "The major version of the configuration.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "http_server_config.stateless_tx_validator_config.max_sierra_version.minor": {
+    "description": "The minor version of the configuration.",
+    "privacy": "Public",
+    "value": 5
+  },
+  "http_server_config.stateless_tx_validator_config.max_sierra_version.patch": {
+    "description": "The patch version of the configuration.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "http_server_config.stateless_tx_validator_config.max_signature_length": {
+    "description": "Limitation of signature length.",
+    "privacy": "Public",
+    "value": 4000
+  },
+  "http_server_config.stateless_tx_validator_config.min_sierra_version.major": {
+    "description": "The major version of the configuration.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "http_server_config.stateless_tx_validator_config.min_sierra_version.minor": {
+    "description": "The minor version of the configuration.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "http_server_config.stateless_tx_validator_config.min_sierra_version.patch": {
+    "description": "The patch version of the configuration.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "http_server_config.stateless_tx_validator_config.validate_non_zero_l1_gas_fee": {
+    "description": "If true, validates that a transaction has non-zero L1 resource bounds.",
+    "privacy": "Public",
+    "value": true
+  },
+  "http_server_config.stateless_tx_validator_config.validate_non_zero_l2_gas_fee": {
+    "description": "If true, validates that a transaction has non-zero L2 resource bounds.",
+    "privacy": "Public",
+    "value": false
+  },
   "rpc_state_reader_config.json_rpc_version": {
     "description": "The json rpc version.",
     "privacy": "Public",
