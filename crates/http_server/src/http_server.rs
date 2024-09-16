@@ -7,7 +7,6 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_gateway::config::{GatewayConfig, GatewayNetworkConfig};
 use starknet_gateway::errors::GatewayRunError;
 use starknet_gateway_types::communication::SharedGatewayClient;
 use starknet_gateway_types::errors::GatewaySpecError;
@@ -15,13 +14,12 @@ use starknet_gateway_types::gateway_types::{GatewayInput, MessageMetadata};
 use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
 use tracing::{error, info, instrument};
 
+use crate::config::HttpServerConfig;
+
 pub type HttpServerResult<T> = Result<T, GatewaySpecError>;
 
-// TODO(Tsabary/Lev): Create a separate HttpServerConfig, remove redundant fields from
-// GatewayConfig.
-
 pub struct HttpServer {
-    pub config: GatewayConfig,
+    pub config: HttpServerConfig,
     app_state: AppState,
 }
 
@@ -31,14 +29,14 @@ pub struct AppState {
 }
 
 impl HttpServer {
-    pub fn new(config: GatewayConfig, gateway_client: SharedGatewayClient) -> Self {
+    pub fn new(config: HttpServerConfig, gateway_client: SharedGatewayClient) -> Self {
         let app_state = AppState { gateway_client };
         HttpServer { config, app_state }
     }
 
     pub async fn run(&mut self) -> Result<(), GatewayRunError> {
-        // Parses the bind address from GatewayConfig, returning an error for invalid addresses.
-        let GatewayNetworkConfig { ip, port } = self.config.network_config;
+        // Parses the bind address from HttpServerConfig, returning an error for invalid addresses.
+        let HttpServerConfig { ip, port } = self.config;
         let addr = SocketAddr::new(ip, port);
         let app = self.app();
 
@@ -77,7 +75,10 @@ async fn add_tx(
     Ok(Json(tx_hash))
 }
 
-pub fn create_gateway(config: GatewayConfig, gateway_client: SharedGatewayClient) -> HttpServer {
+pub fn create_http_server(
+    config: HttpServerConfig,
+    gateway_client: SharedGatewayClient,
+) -> HttpServer {
     HttpServer::new(config, gateway_client)
 }
 
