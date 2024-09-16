@@ -362,7 +362,7 @@ impl StarknetResources {
             }
             GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(
                 l2_archival_data_costs
-                    .map(|cost| versioned_constants.convert_l2_to_l1_gas(cost))
+                    .map(|cost| versioned_constants.convert_l2_to_l1_gas_amount_round_up(cost))
                     .iter()
                     .sum(),
             ),

@@ -70,9 +70,9 @@ pub fn get_vm_resources_cost(
 
     match computation_mode {
         GasVectorComputationMode::NoL2Gas => Ok(GasVector::from_l1_gas(vm_l1_gas_usage)),
-        GasVectorComputationMode::All => {
-            Ok(GasVector::from_l2_gas(versioned_constants.convert_l1_to_l2_gas(vm_l1_gas_usage)))
-        }
+        GasVectorComputationMode::All => Ok(GasVector::from_l2_gas(
+            versioned_constants.convert_l1_to_l2_gas_amount_round_up(vm_l1_gas_usage),
+        )),
     }
 }
 
