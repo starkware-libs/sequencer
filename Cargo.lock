@@ -9010,8 +9010,11 @@ dependencies = [
  "mockall",
  "mockito 1.4.0",
  "num-bigint 0.4.5",
+ "papyrus_config",
  "pretty_assertions",
  "rstest",
+ "serde",
+ "serde_json",
  "starknet_api",
  "starknet_gateway",
  "starknet_gateway_types",
@@ -9019,6 +9022,7 @@ dependencies = [
  "starknet_mempool_infra",
  "tracing",
  "tracing-test",
+ "validator",
 ]
 
 [[package]]

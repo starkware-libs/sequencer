@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use starknet_batcher::config::BatcherConfig;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
+use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_infra::component_definitions::{
     LocalComponentCommunicationConfig,
     RemoteComponentCommunicationConfig,
@@ -237,6 +238,9 @@ pub struct MempoolNodeConfig {
     pub consensus_manager_config: ConsensusManagerConfig,
     #[validate]
     pub gateway_config: GatewayConfig,
+    // TODO(Tsabary/Lev): replace http_server_config's type with HttpServerConfig.
+    #[validate]
+    pub http_server_config: GatewayConfig,
     #[validate]
     pub rpc_state_reader_config: RpcStateReaderConfig,
     #[validate]
@@ -254,6 +258,7 @@ impl SerializeConfig for MempoolNodeConfig {
                 "consensus_manager_config",
             ),
             append_sub_config_name(self.gateway_config.dump(), "gateway_config"),
+            append_sub_config_name(self.http_server_config.dump(), "http_server_config"),
             append_sub_config_name(self.rpc_state_reader_config.dump(), "rpc_state_reader_config"),
             append_sub_config_name(self.compiler_config.dump(), "compiler_config"),
         ];
