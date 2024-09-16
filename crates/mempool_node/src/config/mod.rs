@@ -120,6 +120,16 @@ impl ComponentExecutionConfig {
         }
     }
 
+    pub fn http_server_default_config() -> Self {
+        Self {
+            execute: true,
+            location: LocationType::Local,
+            component_type: ComponentType::IndependentComponent,
+            local_config: None,
+            remote_config: None,
+        }
+    }
+
     pub fn mempool_default_config() -> Self {
         Self {
             execute: true,
@@ -185,6 +195,8 @@ pub struct ComponentConfig {
     #[validate]
     pub gateway: ComponentExecutionConfig,
     #[validate]
+    pub http_server: ComponentExecutionConfig,
+    #[validate]
     pub mempool: ComponentExecutionConfig,
 }
 
@@ -194,6 +206,7 @@ impl Default for ComponentConfig {
             batcher: ComponentExecutionConfig::batcher_default_config(),
             consensus_manager: ComponentExecutionConfig::consensus_manager_default_config(),
             gateway: ComponentExecutionConfig::gateway_default_config(),
+            http_server: ComponentExecutionConfig::http_server_default_config(),
             mempool: ComponentExecutionConfig::mempool_default_config(),
         }
     }
@@ -238,9 +251,8 @@ pub struct MempoolNodeConfig {
     pub consensus_manager_config: ConsensusManagerConfig,
     #[validate]
     pub gateway_config: GatewayConfig,
-    // TODO(Tsabary/Lev): replace http_server_config's type with HttpServerConfig.
     #[validate]
-    pub http_server_config: GatewayConfig,
+    pub http_server_config: HttpServerConfig,
     #[validate]
     pub rpc_state_reader_config: RpcStateReaderConfig,
     #[validate]
