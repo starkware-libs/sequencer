@@ -11,15 +11,18 @@ use rstest::{fixture, rstest};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce, PatriciaKey};
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
+use starknet_api::transaction::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::{
+    AllResourceBounds,
     Calldata,
     EventContent,
     EventData,
     EventKey,
     Fee,
     L2ToL1Payload,
-    Resource,
+    ResourceBounds,
     TransactionSignature,
     TransactionVersion,
     ValidResourceBounds,
@@ -45,6 +48,7 @@ use crate::abi::abi_utils::{
 };
 use crate::abi::constants as abi_constants;
 use crate::abi::sierra_types::next_storage_key;
+use crate::blockifier::block::GasPricesForFeeType;
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{
     CallExecution,
@@ -819,7 +823,7 @@ fn assert_failure_if_resource_bounds_exceed_balance(
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
                         TransactionFeeError::GasBoundsExceedBalance{resource, max_amount, max_price, .. }))
-                if max_amount == l1_bounds.max_amount && max_price == l1_bounds.max_price_per_unit && resource == Resource::L1Gas
+                if max_amount == l1_bounds.max_amount && max_price == l1_bounds.max_price_per_unit && resource == L1Gas
             );
         }
     };
@@ -924,7 +928,113 @@ fn test_max_fee_exceeds_balance(
     assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
 }
 
-// TODO(Aner, 21/01/24) modify for 4844 (taking blob_gas into account).
+#[rstest]
+fn test_insufficient_new_resource_bounds(
+    block_context: BlockContext,
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
+) {
+    // TODO(Aner): test also with use_kzg_flag == true
+
+    let block_context = &block_context;
+    let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let state = &mut test_state(
+        &block_context.chain_info,
+        BALANCE,
+        &[(account_contract, 1), (test_contract, 1)],
+    );
+    let valid_invoke_tx_args = invoke_tx_args! {
+        sender_address: account_contract.get_instance_address(0),
+        calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
+        max_fee: Fee(MAX_FEE)
+    };
+    let tx = &account_invoke_tx(valid_invoke_tx_args.clone());
+
+    // V3 transaction.
+    let GasPricesForFeeType {
+        l1_gas_price: actual_strk_l1_gas_price,
+        l1_data_gas_price: actual_strk_l1_data_gas_price,
+        l2_gas_price: actual_strk_l2_gas_price,
+    } = block_context.block_info.gas_prices.get_gas_prices_by_fee_type(&FeeType::Strk);
+
+    let minimal_gas_vector =
+        estimate_minimal_gas_vector(block_context, tx, &GasVectorComputationMode::All).unwrap();
+
+    let default_resource_bounds = AllResourceBounds {
+        l1_gas: ResourceBounds {
+            max_amount: minimal_gas_vector.l1_gas.try_into().unwrap(),
+            max_price_per_unit: actual_strk_l1_gas_price.into(),
+        },
+        l2_gas: ResourceBounds {
+            max_amount: minimal_gas_vector.l2_gas.try_into().unwrap(),
+            max_price_per_unit: actual_strk_l2_gas_price.into(),
+        },
+        l1_data_gas: ResourceBounds {
+            max_amount: minimal_gas_vector.l1_data_gas.try_into().unwrap(),
+            max_price_per_unit: actual_strk_l1_data_gas_price.into(),
+        },
+    };
+
+    // Max gas price too low, new resource bounds.
+    // TODO(Aner): add a test for more than 1 insufficient resource price, after error message
+    // contains all insufficient resources.
+    for (insufficient_resource, insufficient_price_resource_bounds) in [
+        (
+            L1Gas,
+            AllResourceBounds {
+                l1_gas: ResourceBounds {
+                    max_amount: default_resource_bounds.l1_gas.max_amount,
+                    max_price_per_unit: u128::from(actual_strk_l1_gas_price) - 1,
+                },
+                ..default_resource_bounds
+            },
+        ),
+        (
+            L2Gas,
+            AllResourceBounds {
+                l2_gas: ResourceBounds {
+                    max_amount: default_resource_bounds.l2_gas.max_amount,
+                    max_price_per_unit: u128::from(actual_strk_l2_gas_price) - 1,
+                },
+                ..default_resource_bounds
+            },
+        ),
+        (
+            L1DataGas,
+            AllResourceBounds {
+                l1_data_gas: ResourceBounds {
+                    max_amount: default_resource_bounds.l1_data_gas.max_amount,
+                    max_price_per_unit: u128::from(actual_strk_l1_data_gas_price) - 1,
+                },
+                ..default_resource_bounds
+            },
+        ),
+    ] {
+        let invalid_v3_tx = account_invoke_tx(InvokeTxArgs {
+            resource_bounds: ValidResourceBounds::AllResources(insufficient_price_resource_bounds),
+            ..valid_invoke_tx_args.clone()
+        });
+        let execution_error = invalid_v3_tx.execute(state, block_context, true, true).unwrap_err();
+        assert_matches!(
+            execution_error,
+            TransactionExecutionError::TransactionPreValidationError(
+                TransactionPreValidationError::TransactionFeeError(
+                    TransactionFeeError::MaxGasPriceTooLow{
+                        resource,
+                        ..}))
+            if resource == insufficient_resource
+        );
+    }
+
+    // Verify successful execution on default resource bounds.
+    account_invoke_tx(InvokeTxArgs {
+        resource_bounds: ValidResourceBounds::AllResources(default_resource_bounds),
+        ..valid_invoke_tx_args.clone()
+    })
+    .execute(state, block_context, true, true)
+    .expect("Transaction failed with default prices");
+}
+
 #[rstest]
 fn test_insufficient_resource_bounds(
     block_context: BlockContext,
@@ -974,7 +1084,11 @@ fn test_insufficient_resource_bounds(
     );
 
     // Test V3 transaction.
-    let actual_strk_l1_gas_price = gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk);
+    let GasPricesForFeeType {
+        l1_gas_price: actual_strk_l1_gas_price,
+        l1_data_gas_price: actual_strk_l1_data_gas_price,
+        l2_gas_price: actual_strk_l2_gas_price,
+    } = gas_prices.get_gas_prices_by_fee_type(&FeeType::Strk);
 
     // Max L1 gas amount too low.
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
@@ -997,16 +1111,37 @@ fn test_insufficient_resource_bounds(
                     max_gas_amount,
                     minimal_gas_amount}))
         if max_gas_amount == insufficient_max_l1_gas_amount &&
-        minimal_gas_amount == minimal_l1_gas_as_u64 && resource == Resource::L1Gas
+        minimal_gas_amount == minimal_l1_gas_as_u64 && resource == L1Gas
     );
 
-    // Max L1 gas price too low.
+    // Max L1 gas price too low, old resource bounds.
+    let insufficient_max_l1_gas_price = u128::from(actual_strk_l1_gas_price) - 1;
+    let minimal_l1_gas = minimal_l1_gas.try_into().unwrap();
+    let invalid_v3_tx = account_invoke_tx(invoke_tx_args! {
+        resource_bounds: l1_resource_bounds(minimal_l1_gas, insufficient_max_l1_gas_price),
+        ..valid_invoke_tx_args.clone()
+    });
+    let execution_error = invalid_v3_tx.execute(state, block_context, true, true).unwrap_err();
+    assert_matches!(
+        execution_error,
+        TransactionExecutionError::TransactionPreValidationError(
+            TransactionPreValidationError::TransactionFeeError(
+                TransactionFeeError::MaxGasPriceTooLow{ resource: L1Gas ,max_gas_price: max_l1_gas_price, actual_gas_price: actual_l1_gas_price }))
+        if max_l1_gas_price == insufficient_max_l1_gas_price &&
+        actual_l1_gas_price == actual_strk_l1_gas_price.into()
+    );
+
+    // Max L1 gas price too low, new resource bounds.
+    // TODO: update l1_data max_amount and l2_data max_amount once minimal estimations are done.
     let insufficient_max_l1_gas_price = u128::from(actual_strk_l1_gas_price) - 1;
     let invalid_v3_tx = account_invoke_tx(invoke_tx_args! {
-        // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
-        // works.
-        resource_bounds: l1_resource_bounds(minimal_l1_gas.try_into().expect("Failed to convert u128 to u64."), insufficient_max_l1_gas_price),
-        ..valid_invoke_tx_args
+        resource_bounds: ValidResourceBounds::AllResources(
+            AllResourceBounds{
+                l1_gas: ResourceBounds{max_amount: minimal_l1_gas, max_price_per_unit: insufficient_max_l1_gas_price },
+                l2_gas: ResourceBounds { max_amount: 0, max_price_per_unit: actual_strk_l2_gas_price.into() },
+                l1_data_gas: ResourceBounds { max_amount: 0, max_price_per_unit: actual_strk_l1_data_gas_price.into() }
+            }),
+        ..valid_invoke_tx_args.clone()
     });
     let execution_error = invalid_v3_tx.execute(state, block_context, true, true).unwrap_err();
     assert_matches!(
@@ -1019,9 +1154,8 @@ fn test_insufficient_resource_bounds(
                     actual_gas_price}))
         if max_gas_price == insufficient_max_l1_gas_price &&
         actual_gas_price == actual_strk_l1_gas_price.into() &&
-        resource == Resource::L1Gas
+        resource == L1Gas
     );
-
     // TODO(Aner): Add test for low max L1 data gas price and L2 gas price.
 }
 
@@ -1064,10 +1198,7 @@ fn test_actual_fee_gt_resource_bounds(
     let execution_result = invalid_tx.execute(state, block_context, true, true).unwrap();
     let execution_error = execution_result.revert_error.unwrap();
     // Test error.
-    assert!(
-        execution_error
-            .starts_with(&format!("Insufficient max {resource}", resource = Resource::L1Gas))
-    );
+    assert!(execution_error.starts_with(&format!("Insufficient max {resource}", resource = L1Gas)));
     // Test that fee was charged.
     let minimal_fee = Fee(minimal_l1_gas
         * u128::from(
@@ -1821,13 +1952,13 @@ fn test_only_query_flag(
     ];
 
     let expected_resource_bounds = vec![
-        Felt::TWO,                       // Length of ResourceBounds array.
-        felt!(Resource::L1Gas.to_hex()), // Resource.
-        felt!(MAX_L1_GAS_AMOUNT),        // Max amount.
-        felt!(MAX_L1_GAS_PRICE),         // Max price per unit.
-        felt!(Resource::L2Gas.to_hex()), // Resource.
-        Felt::ZERO,                      // Max amount.
-        Felt::ZERO,                      // Max price per unit.
+        Felt::TWO,                // Length of ResourceBounds array.
+        felt!(L1Gas.to_hex()),    // Resource.
+        felt!(MAX_L1_GAS_AMOUNT), // Max amount.
+        felt!(MAX_L1_GAS_PRICE),  // Max price per unit.
+        felt!(L2Gas.to_hex()),    // Resource.
+        Felt::ZERO,               // Max amount.
+        Felt::ZERO,               // Max price per unit.
     ];
 
     let expected_unsupported_fields = vec![
