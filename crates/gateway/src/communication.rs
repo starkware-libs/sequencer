@@ -12,6 +12,7 @@ use starknet_gateway_types::communication::{GatewayRequest, GatewayResponse};
 use starknet_gateway_types::errors::GatewayError;
 use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
 
+
 #[async_trait]
 impl ComponentRequestHandler<GatewayRequest, GatewayResponse> for Gateway {
     async fn handle_request(&mut self, request: GatewayRequest) -> GatewayResponse {
