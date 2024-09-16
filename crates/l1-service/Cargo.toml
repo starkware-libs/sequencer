@@ -1,0 +1,16 @@
+[package]
+name = "l1-service"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+license-file.workspace = true
+
+[dependencies]
+indexmap.workspace = true
+papyrus_base_layer.workspace = true
+starknet_api.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true
