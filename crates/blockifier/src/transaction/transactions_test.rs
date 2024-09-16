@@ -938,11 +938,12 @@ fn test_max_fee_exceeds_balance(
 
 #[rstest]
 fn test_insufficient_new_resource_bounds(
-    block_context: BlockContext,
+    mut block_context: BlockContext,
+    #[values(true, false)] use_kzg_da: bool,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
 ) {
     // TODO(Aner): test also with use_kzg_flag == true
-
+    block_context.block_info.use_kzg_da = use_kzg_da;
     let block_context = &block_context;
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
@@ -984,51 +985,71 @@ fn test_insufficient_new_resource_bounds(
     };
 
     // Verify successful execution on default resource bounds.
-    account_invoke_tx(InvokeTxArgs {
+    let valid_resources_tx = account_invoke_tx(InvokeTxArgs {
         resource_bounds: ValidResourceBounds::AllResources(default_resource_bounds),
         ..valid_invoke_tx_args.clone()
     })
-    .execute(state, block_context, true, true)
-    .expect("Transaction failed with default prices");
+    .execute(state, block_context, true, true);
 
-    // Max gas price too low, new resource bounds.
-    // TODO(Aner): add a test for more than 1 insufficient resource price, after error message
+    let next_nonce = match valid_resources_tx {
+        Ok(_) => 1,
+        Err(err) => match err {
+            TransactionExecutionError::TransactionPreValidationError(
+                TransactionPreValidationError::TransactionFeeError(
+                    TransactionFeeError::MaxGasAmountTooLow { .. },
+                ),
+            ) => panic!("Transaction failed with expected minimal amount."),
+            TransactionExecutionError::TransactionPreValidationError(
+                TransactionPreValidationError::TransactionFeeError(
+                    TransactionFeeError::MaxGasPriceTooLow { .. },
+                ),
+            ) => panic!("Transaction failed with expected minimal price."),
+            _ => 0,
+        },
+    };
+
+    // Max gas amount too low, new resource bounds.
+    // TODO(Aner): add a test for more than 1 insufficient resource amount, after error message
     // contains all insufficient resources.
-    for (insufficient_resource, insufficient_price_resource_bounds) in [
-        (
-            L1Gas,
-            AllResourceBounds {
-                l1_gas: ResourceBounds {
-                    max_amount: default_resource_bounds.l1_gas.max_amount,
-                    max_price_per_unit: u128::from(actual_strk_l1_gas_price) - 1,
-                },
-                ..default_resource_bounds
-            },
-        ),
-        (
-            L2Gas,
-            AllResourceBounds {
-                l2_gas: ResourceBounds {
-                    max_amount: default_resource_bounds.l2_gas.max_amount,
-                    max_price_per_unit: u128::from(actual_strk_l2_gas_price) - 1,
-                },
-                ..default_resource_bounds
-            },
-        ),
-        (
-            L1DataGas,
-            AllResourceBounds {
-                l1_data_gas: ResourceBounds {
-                    max_amount: default_resource_bounds.l1_data_gas.max_amount,
-                    max_price_per_unit: u128::from(actual_strk_l1_data_gas_price) - 1,
-                },
-                ..default_resource_bounds
-            },
-        ),
-    ] {
+    let resources_with_positive_amount = match use_kzg_da {
+        true => [L2Gas, L1DataGas],
+        false => [L1Gas, L2Gas],
+    };
+    for insufficient_resource in resources_with_positive_amount {
+        let mut invalid_resources = default_resource_bounds;
+        match insufficient_resource {
+            L1Gas => invalid_resources.l1_gas.max_amount -= 1,
+            L2Gas => invalid_resources.l2_gas.max_amount -= 1,
+            L1DataGas => invalid_resources.l1_data_gas.max_amount -= 1,
+        }
         let invalid_v3_tx = account_invoke_tx(InvokeTxArgs {
-            resource_bounds: ValidResourceBounds::AllResources(insufficient_price_resource_bounds),
-            nonce: nonce!(1),
+            resource_bounds: ValidResourceBounds::AllResources(invalid_resources),
+            nonce: nonce!(next_nonce),
+            ..valid_invoke_tx_args.clone()
+        });
+        let execution_error = invalid_v3_tx.execute(state, block_context, true, true).unwrap_err();
+        assert_matches!(
+            execution_error,
+            TransactionExecutionError::TransactionPreValidationError(
+                TransactionPreValidationError::TransactionFeeError(
+                    TransactionFeeError::MaxGasAmountTooLow{
+                        resource,
+                        ..}))
+            if resource == insufficient_resource
+        );
+    }
+
+    for insufficient_resource in [L1Gas, L2Gas, L1DataGas] {
+        let mut invalid_resources = default_resource_bounds;
+        match insufficient_resource {
+            L1Gas => invalid_resources.l1_gas.max_price_per_unit -= 1,
+            L2Gas => invalid_resources.l2_gas.max_price_per_unit -= 1,
+            L1DataGas => invalid_resources.l1_data_gas.max_price_per_unit -= 1,
+        }
+
+        let invalid_v3_tx = account_invoke_tx(InvokeTxArgs {
+            resource_bounds: ValidResourceBounds::AllResources(invalid_resources),
+            nonce: nonce!(next_nonce),
             ..valid_invoke_tx_args.clone()
         });
         let execution_error = invalid_v3_tx.execute(state, block_context, true, true).unwrap_err();
@@ -1093,7 +1114,7 @@ fn test_insufficient_resource_bounds(
     // Test V3 transaction.
     let actual_strk_l1_gas_price = gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk);
 
-    // Max L1 gas amount too low.
+    // Max L1 gas amount too low, old resource bounds.
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
     let insufficient_max_l1_gas_amount =
         (minimal_l1_gas - 1).try_into().expect("Failed to convert u128 to u64.");
