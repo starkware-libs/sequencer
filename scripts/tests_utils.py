@@ -45,7 +45,7 @@ def get_modified_packages(files: List[str]) -> Set[str]:
     packages = set()
     for file in files:
         for p_name, p_path in tree.items():
-            if os.path.abspath(file).startswith(p_path):
+            if os.path.abspath(file) == p_path:
                 packages.add(p_name)
     return packages
 
