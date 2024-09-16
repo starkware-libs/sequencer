@@ -122,12 +122,11 @@ pub fn verify_can_pay_committed_bounds(
                 {
                     Fee(u128::from(l1_gas.max_amount) * l1_gas.max_price_per_unit)
                 }
-                // TODO!(Aner): add tests
                 AllResources(AllResourceBounds { l1_gas, l2_gas, l1_data_gas }) => {
                     // Committed fee is sum of products (resource_max_amount * resource_max_price)
                     // of the different resources.
-                    // The Sender will not be charged by`max_price_per_unit`, but this check should
-                    // not depend on the current gas price
+                    // The Sender will not be charged by `max_price_per_unit`, but this check should
+                    // not depend on the current gas prices.
                     Fee(u128::from(l1_gas.max_amount) * l1_gas.max_price_per_unit
                         + u128::from(l1_data_gas.max_amount) * l1_data_gas.max_price_per_unit
                         + u128::from(l2_gas.max_amount) * l2_gas.max_price_per_unit)
