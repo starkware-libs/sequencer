@@ -43,13 +43,13 @@ pub async fn create_config(rpc_server_addr: SocketAddr) -> MempoolNodeConfig {
     MempoolNodeConfig { gateway_config, rpc_state_reader_config, ..MempoolNodeConfig::default() }
 }
 
-/// A test utility client for interacting with a gateway server.
-pub struct GatewayClient {
+/// A test utility client for interacting with an http server.
+pub struct HttpTestClient {
     socket: SocketAddr,
     client: Client,
 }
 
-impl GatewayClient {
+impl HttpTestClient {
     pub fn new(socket: SocketAddr) -> Self {
         let client = Client::new();
         Self { socket, client }
