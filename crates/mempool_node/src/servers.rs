@@ -8,6 +8,7 @@ use starknet_consensus_manager::communication::{
     LocalConsensusManagerServer,
 };
 use starknet_gateway::communication::{create_gateway_server, GatewayServer};
+use starknet_http_server::communication::{create_http_server, HttpServer};
 use starknet_mempool::communication::{create_mempool_server, MempoolServer};
 use starknet_mempool_infra::component_server::ComponentServerStarter;
 use tracing::error;
@@ -20,6 +21,7 @@ pub struct Servers {
     pub batcher: Option<Box<LocalBatcherServer>>,
     pub consensus_manager: Option<Box<LocalConsensusManagerServer>>,
     pub gateway: Option<Box<GatewayServer>>,
+    pub http_server: Option<Box<HttpServer>>,
     pub mempool: Option<Box<MempoolServer>>,
 }
 
@@ -51,7 +53,13 @@ pub fn create_servers(
     } else {
         None
     };
-
+    let http_server = if config.components.http_server.execute {
+        Some(Box::new(create_http_server(
+            components.http_server.expect("Http Server is not initialized."),
+        )))
+    } else {
+        None
+    };
     let mempool_server = if config.components.mempool.execute {
         Some(Box::new(create_mempool_server(
             components.mempool.expect("Mempool is not initialized."),
@@ -65,6 +73,7 @@ pub fn create_servers(
         batcher: batcher_server,
         consensus_manager: consensus_manager_server,
         gateway: gateway_server,
+        http_server,
         mempool: mempool_server,
     }
 }
