@@ -107,7 +107,7 @@ fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderCo
 /// Tests run in parallel, so servers (like RPC or web) running on separate tests must have
 /// different ports, otherwise the server will fail with "address already in use".
 pub async fn get_available_socket() -> SocketAddr {
-    // Dinamically select port.
+    // Dynamically select port.
     // First, set the port to 0 (dynamic port).
     TcpListener::bind("127.0.0.1:0")
         .await

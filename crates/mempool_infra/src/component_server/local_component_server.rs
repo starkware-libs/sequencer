@@ -140,6 +140,8 @@ where
     Response: Send + Sync,
 {
     async fn start(&mut self) {
+        // TODO(Tsabary/Lev): Find a better mechanism than the if condition to determine what to
+        // run.
         if start_component(&mut self.component).await {
             request_response_loop(&mut self.rx, &mut self.component).await;
         }

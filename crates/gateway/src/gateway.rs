@@ -1,11 +1,7 @@
 use std::clone::Clone;
-use std::net::SocketAddr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use axum::extract::State;
-use axum::routing::{get, post};
-use axum::{Json, Router};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -17,8 +13,8 @@ use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use tracing::{error, info, instrument};
 
 use crate::compilation::GatewayCompiler;
-use crate::config::{GatewayConfig, GatewayNetworkConfig, RpcStateReaderConfig};
-use crate::errors::{GatewayResult, GatewayRunError};
+use crate::config::{GatewayConfig, RpcStateReaderConfig};
+use crate::errors::GatewayResult;
 use crate::rpc_state_reader::RpcStateReaderFactory;
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
@@ -43,8 +39,6 @@ pub struct AppState {
     pub mempool_client: SharedMempoolClient,
 }
 
-// TODO(Tsabary): Disable the deprecated axum http server in this module.
-
 impl Gateway {
     pub fn new(
         config: GatewayConfig,
@@ -66,43 +60,10 @@ impl Gateway {
         Gateway { config, app_state }
     }
 
-    pub async fn run(&mut self) -> Result<(), GatewayRunError> {
-        // Parses the bind address from GatewayConfig, returning an error for invalid addresses.
-        let GatewayNetworkConfig { ip, port } = self.config.network_config;
-        let addr = SocketAddr::new(ip, port);
-        let app = self.app();
-
-        // Create a server that runs forever.
-        Ok(axum::Server::bind(&addr).serve(app.into_make_service()).await?)
-    }
-
-    pub fn app(&self) -> Router {
-        Router::new()
-            .route("/is_alive", get(is_alive))
-            .route("/add_tx", post(add_tx))
-            .with_state(self.app_state.clone())
-    }
-
     pub async fn add_tx(&mut self, tx: RpcTransaction) -> GatewayResult<TransactionHash> {
         let app_state = self.app_state.clone();
         internal_add_tx(app_state, tx).await
     }
-}
-
-// Gateway handlers.
-
-#[instrument]
-async fn is_alive() -> GatewayResult<String> {
-    unimplemented!("Future handling should be implemented here.");
-}
-
-#[instrument(skip(app_state))]
-async fn add_tx(
-    State(app_state): State<AppState>,
-    Json(tx): Json<RpcTransaction>,
-) -> GatewayResult<Json<TransactionHash>> {
-    let tx_hash = internal_add_tx(app_state, tx).await?;
-    Ok(Json(tx_hash))
 }
 
 #[instrument(skip(app_state))]
@@ -208,6 +169,6 @@ pub fn create_gateway(
 impl ComponentStarter for Gateway {
     async fn start(&mut self) -> Result<(), ComponentStartError> {
         info!("Gateway::start()");
-        self.run().await.map_err(|_| ComponentStartError::InternalComponentError)
+        Ok(())
     }
 }
