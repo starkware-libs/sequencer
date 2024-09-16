@@ -81,23 +81,20 @@ pub type ResourceCost = Ratio<u128>;
 /// automatically ignored during deserialization.
 /// Instances of this struct for specific Starknet versions can be selected by using the above enum.
 #[derive(Clone, Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct VersionedConstants {
     // Limits.
-    #[serde(default = "EventLimits::max")]
     pub tx_event_limits: EventLimits,
     pub invoke_tx_max_n_steps: u32,
-    #[serde(default)]
     pub archival_data_gas_costs: ArchivalDataGasCosts,
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
     // BACKWARD COMPATIBILITY: If true, the segment_arena builtin instance counter will be
     // multiplied by 3. This offsets a bug in the old vm where the counter counted the number of
     // cells used by instances of the builtin, instead of the number of instances.
-    #[serde(default)]
     pub segment_arena_cells: bool,
 
     // Transactions settings.
-    #[serde(default)]
     pub disable_cairo0_redeclaration: bool,
 
     // Cairo OS constants.
@@ -112,6 +109,9 @@ pub struct VersionedConstants {
     // TODO: Consider making this a struct, this will require change the way we access these
     // values.
     vm_resource_fee_cost: Arc<HashMap<String, ResourceCost>>,
+    // Just to make sure the value exists, but don't use the actual values.
+    #[allow(dead_code)]
+    gateway: serde::de::IgnoredAny,
 }
 
 impl VersionedConstants {
@@ -277,16 +277,6 @@ pub struct EventLimits {
     pub max_data_length: usize,
     pub max_keys_length: usize,
     pub max_n_emitted_events: usize,
-}
-
-impl EventLimits {
-    fn max() -> Self {
-        Self {
-            max_data_length: usize::MAX,
-            max_keys_length: usize::MAX,
-            max_n_emitted_events: usize::MAX,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
