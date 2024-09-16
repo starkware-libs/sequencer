@@ -8996,6 +8996,7 @@ dependencies = [
  "starknet_api",
  "starknet_mempool_infra",
  "thiserror",
+ "tracing",
 ]
 
 [[package]]
@@ -9006,10 +9007,12 @@ dependencies = [
  "axum",
  "papyrus_config",
  "serde",
+ "serde_json",
  "starknet_api",
  "starknet_gateway",
  "starknet_gateway_types",
  "starknet_mempool_infra",
+ "tokio",
  "tracing",
  "validator",
 ]
@@ -9073,6 +9076,7 @@ dependencies = [
  "starknet_client",
  "starknet_gateway",
  "starknet_gateway_types",
+ "starknet_http_server",
  "starknet_mempool_infra",
  "starknet_mempool_node",
  "starknet_mempool_types",
