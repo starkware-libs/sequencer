@@ -28,10 +28,11 @@ async fn signed_headers_basic_flow() {
     let TestArgs {
         p2p_sync,
         storage_reader,
-        mut header_receiver,
+        mut mock_header_response_manager,
         // The test will fail if we drop these
-        state_diff_receiver: _state_diff_query_receiver,
-        transaction_receiver: _transaction_query_receiver,
+        mock_state_diff_response_manager: _mock_state_diff_response_manager,
+        mock_transaction_response_manager: _mock_transaction_response_manager,
+        mock_class_response_manager: _mock_class_response_manager,
         ..
     } = setup();
     let block_hashes_and_signatures =
@@ -44,7 +45,8 @@ async fn signed_headers_basic_flow() {
             let end_block_number = (query_index + 1) * HEADER_QUERY_LENGTH;
 
             // Receive query and validate it.
-            let mut mock_header_responses_manager = header_receiver.next().await.unwrap();
+            let mut mock_header_responses_manager =
+                mock_header_response_manager.next().await.unwrap();
             assert_eq!(
                 *mock_header_responses_manager.query(),
                 Ok(HeaderQuery(Query {
@@ -110,17 +112,18 @@ async fn sync_sends_new_header_query_if_it_got_partial_responses() {
 
     let TestArgs {
         p2p_sync,
-        mut header_receiver,
+        mut mock_header_response_manager,
         // The test will fail if we drop these
-        state_diff_receiver: _state_diff_query_receiver,
-        transaction_receiver: _transaction_query_receiver,
+        mock_state_diff_response_manager: _state_diff_receiver,
+        mock_transaction_response_manager: _transaction_receiver,
+        mock_class_response_manager: _class_receiver,
         ..
     } = setup();
     let block_hashes_and_signatures = create_block_hashes_and_signatures(NUM_ACTUAL_RESPONSES);
 
     // Create a future that will receive a query, send partial responses and receive the next query.
     let parse_queries_future = async move {
-        let mut mock_header_responses_manager = header_receiver.next().await.unwrap();
+        let mut mock_header_responses_manager = mock_header_response_manager.next().await.unwrap();
 
         for (i, (block_hash, signature)) in block_hashes_and_signatures.into_iter().enumerate() {
             mock_header_responses_manager
@@ -146,11 +149,13 @@ async fn sync_sends_new_header_query_if_it_got_partial_responses() {
         tokio::time::resume();
 
         // First unwrap is for the timeout. Second unwrap is for the Option returned from Stream.
-        let mock_header_responses_manager =
-            timeout(TIMEOUT_FOR_NEW_QUERY_AFTER_PARTIAL_RESPONSE, header_receiver.next())
-                .await
-                .unwrap()
-                .unwrap();
+        let mock_header_responses_manager = timeout(
+            TIMEOUT_FOR_NEW_QUERY_AFTER_PARTIAL_RESPONSE,
+            mock_header_response_manager.next(),
+        )
+        .await
+        .unwrap()
+        .unwrap();
 
         assert_eq!(
             *mock_header_responses_manager.query(),

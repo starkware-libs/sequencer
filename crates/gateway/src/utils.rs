@@ -27,10 +27,11 @@ use starknet_api::transaction::{
     TransactionHasher,
     ValidResourceBounds,
 };
+use starknet_gateway_types::errors::GatewaySpecError;
 use tracing::{debug, error};
 
 use crate::compilation::GatewayCompiler;
-use crate::errors::{GatewayResult, GatewaySpecError, StatefulTransactionValidatorResult};
+use crate::errors::{GatewayResult, StatefulTransactionValidatorResult};
 
 /// Converts an RPC transaction to an executable transaction.
 /// Note, for declare transaction this step is heavy, as it requires compilation of Sierra to

@@ -234,6 +234,11 @@ cargo run --release --package papyrus_node --bin papyrus_node -- \
         --network.bootstrap_peer_multiaddr /ip4/<other_peer_ip_address>/tcp/<tcp_port>/p2p/<peer_id>
 ----
 
+You can also use DNS instead of ip4 by typing 
+----
+        --network.bootstrap_peer_multiaddr /dns/<other_peer_dns_address>/tcp/<tcp_port>/p2p/<peer_id>
+----
+
 ==== P2P Sync (with bootstrap connection)
 [source, bash]
 ----

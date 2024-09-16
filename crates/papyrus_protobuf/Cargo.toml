@@ -9,6 +9,8 @@ license-file.workspace = true
 testing = ["papyrus_test_utils", "rand", "rand_chacha"]
 
 [dependencies]
+# TODO(Guy): Remove after implementing broadcast streams.
+futures.workspace = true
 indexmap.workspace = true
 lazy_static.workspace = true
 primitive-types.workspace = true

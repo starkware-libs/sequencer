@@ -14,11 +14,12 @@ use mockall::automock;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
 use starknet_api::transaction::TransactionHash;
+use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_types_core::felt::Felt;
 use tracing::error;
 
 use crate::config::StatefulTransactionValidatorConfig;
-use crate::errors::{GatewaySpecError, StatefulTransactionValidatorResult};
+use crate::errors::StatefulTransactionValidatorResult;
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 use crate::utils::{get_sender_address, rpc_tx_to_account_tx};
 

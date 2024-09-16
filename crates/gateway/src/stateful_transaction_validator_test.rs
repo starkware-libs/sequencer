@@ -20,13 +20,13 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::{Resource, TransactionHash};
 use starknet_api::{contract_address, felt, patricia_key};
+use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_types_core::felt::Felt;
 
 use super::ValidateInfo;
 use crate::config::StatefulTransactionValidatorConfig;
-use crate::errors::GatewaySpecError;
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
 use crate::state_reader_test_utils::local_test_state_reader_factory;
 use crate::stateful_transaction_validator::{
@@ -37,7 +37,8 @@ use crate::stateful_transaction_validator::{
 pub const STATEFUL_VALIDATOR_FEE_ERROR: BlockifierStatefulValidatorError =
     BlockifierStatefulValidatorError::TransactionPreValidationError(
         TransactionPreValidationError::TransactionFeeError(
-            TransactionFeeError::L1GasBoundsExceedBalance {
+            TransactionFeeError::GasBoundsExceedBalance {
+                resource: Resource::L1DataGas,
                 max_amount: VALID_L1_GAS_MAX_AMOUNT,
                 max_price: VALID_L1_GAS_MAX_PRICE_PER_UNIT,
                 balance: BigUint::ZERO,

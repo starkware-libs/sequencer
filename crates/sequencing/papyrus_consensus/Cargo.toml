@@ -18,7 +18,6 @@ papyrus_common.workspace = true
 papyrus_config.workspace = true
 papyrus_network.workspace = true
 papyrus_protobuf.workspace = true
-papyrus_storage.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true

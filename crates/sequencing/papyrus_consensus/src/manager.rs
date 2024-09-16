@@ -12,20 +12,14 @@ use futures::stream::FuturesUnordered;
 use futures::{Stream, StreamExt};
 use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
 use papyrus_network::network_manager::BroadcastClientTrait;
-use papyrus_protobuf::consensus::{ConsensusMessage, Proposal};
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalWrapper};
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::core::ContractAddress;
 use tracing::{debug, info, instrument};
 
 use crate::config::TimeoutsConfig;
 use crate::single_height_consensus::{ShcReturn, ShcTask, SingleHeightConsensus};
-use crate::types::{
-    ConsensusBlock,
-    ConsensusContext,
-    ConsensusError,
-    Decision,
-    ProposalInit,
-    ValidatorId,
-};
+use crate::types::{ConsensusBlock, ConsensusContext, ConsensusError, Decision, ValidatorId};
 
 // TODO(dvir): add test for this.
 #[instrument(skip_all, level = "info")]
@@ -44,8 +38,11 @@ where
     ContextT: ConsensusContext<Block = BlockT>,
     BroadcastClientT: BroadcastClientTrait<ConsensusMessage>,
     SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
-    ProposalWrapper:
-        Into<(ProposalInit, mpsc::Receiver<BlockT::ProposalChunk>, oneshot::Receiver<BlockHash>)>,
+    ProposalWrapper: Into<(
+        (BlockNumber, u32, ContractAddress),
+        mpsc::Receiver<BlockT::ProposalChunk>,
+        oneshot::Receiver<BlockHash>,
+    )>,
 {
     info!(
         "Running consensus, start_height={}, validator_id={}, consensus_delay={}, timeouts={:?}",
@@ -82,11 +79,6 @@ where
     }
 }
 
-// `Proposal` is defined in the protobuf crate so we can't implement `Into` for it because of the
-// orphan rule. This wrapper enables us to implement `Into` for the inner `Proposal`.
-#[allow(missing_docs)]
-pub struct ProposalWrapper(pub Proposal);
-
 /// Runs Tendermint repeatedly across different heights. Handles issues which are not explicitly
 /// part of the single height consensus algorithm (e.g. messages from future heights).
 #[derive(Debug, Default)]
@@ -118,7 +110,7 @@ impl MultiHeightManager {
         ContextT: ConsensusContext<Block = BlockT>,
         BroadcastClientT: BroadcastClientTrait<ConsensusMessage>,
         ProposalWrapper: Into<(
-            ProposalInit,
+            (BlockNumber, u32, ContractAddress),
             mpsc::Receiver<BlockT::ProposalChunk>,
             oneshot::Receiver<BlockHash>,
         )>,
@@ -176,7 +168,7 @@ impl MultiHeightManager {
         BlockT: ConsensusBlock,
         ContextT: ConsensusContext<Block = BlockT>,
         ProposalWrapper: Into<(
-            ProposalInit,
+            (BlockNumber, u32, ContractAddress),
             mpsc::Receiver<BlockT::ProposalChunk>,
             oneshot::Receiver<BlockHash>,
         )>,
@@ -198,7 +190,7 @@ impl MultiHeightManager {
                 let (proposal_init, content_receiver, fin_receiver) =
                     ProposalWrapper(proposal).into();
                 let res = shc
-                    .handle_proposal(context, proposal_init, content_receiver, fin_receiver)
+                    .handle_proposal(context, proposal_init.into(), content_receiver, fin_receiver)
                     .await?;
                 Ok(res)
             }

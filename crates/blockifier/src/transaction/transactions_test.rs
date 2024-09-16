@@ -18,6 +18,7 @@ use starknet_api::transaction::{
     EventKey,
     Fee,
     L2ToL1Payload,
+    Resource,
     TransactionSignature,
     TransactionVersion,
     ValidResourceBounds,
@@ -383,8 +384,8 @@ fn add_kzg_da_resources_to_resources_mapping(
         },
         validate_gas_consumed: 4740, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 159980,
-        inner_call_initial_gas: 9999635280,
+        execute_gas_consumed: 163280,
+        inner_call_initial_gas: 9999631980,
     },
     CairoVersion::Cairo1)]
 fn test_invoke_tx(
@@ -817,11 +818,44 @@ fn assert_failure_if_resource_bounds_exceed_balance(
                 invalid_tx.execute(state, block_context, true, true).unwrap_err(),
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
-                        TransactionFeeError::L1GasBoundsExceedBalance{ max_amount, max_price, .. }))
-                if max_amount == l1_bounds.max_amount && max_price == l1_bounds.max_price_per_unit
+                        TransactionFeeError::GasBoundsExceedBalance{resource, max_amount, max_price, .. }))
+                if max_amount == l1_bounds.max_amount && max_price == l1_bounds.max_price_per_unit && resource == Resource::L1Gas
             );
         }
     };
+}
+
+#[rstest]
+fn test_estimate_minimal_gas_vector(
+    mut block_context: BlockContext,
+    #[values(true, false)] use_kzg_da: bool,
+    #[values(GasVectorComputationMode::NoL2Gas, GasVectorComputationMode::All)]
+    gas_vector_computation_mode: GasVectorComputationMode,
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
+) {
+    block_context.block_info.use_kzg_da = use_kzg_da;
+    let block_context = &block_context;
+    let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+
+    let valid_invoke_tx_args = invoke_tx_args! {
+        sender_address: account_contract.get_instance_address(0),
+        calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
+        max_fee: Fee(MAX_FEE)
+    };
+
+    // The minimal gas estimate does not depend on tx version.
+    let tx = &account_invoke_tx(valid_invoke_tx_args);
+    let minimal_gas_vector =
+        estimate_minimal_gas_vector(block_context, tx, &gas_vector_computation_mode).unwrap();
+    let minimal_l1_gas = minimal_gas_vector.l1_gas;
+    let minimal_l2_gas = minimal_gas_vector.l2_gas;
+    let minimal_l1_data_gas = minimal_gas_vector.l1_data_gas;
+    if gas_vector_computation_mode == GasVectorComputationMode::NoL2Gas || !use_kzg_da {
+        assert!(minimal_l1_gas > 0);
+    }
+    assert_eq!(minimal_l2_gas > 0, gas_vector_computation_mode == GasVectorComputationMode::All);
+    assert_eq!(minimal_l1_data_gas > 0, use_kzg_da);
 }
 
 #[rstest]
@@ -935,7 +969,7 @@ fn test_insufficient_resource_bounds(
         execution_error,
         TransactionExecutionError::TransactionPreValidationError(
             TransactionPreValidationError::TransactionFeeError(
-                TransactionFeeError::MaxFeeTooLow { min_fee, max_fee }))
+                TransactionFeeError::MaxFeeTooLow {  min_fee, max_fee }))
         if max_fee == invalid_max_fee && min_fee == minimal_fee
     );
 
@@ -958,10 +992,12 @@ fn test_insufficient_resource_bounds(
         execution_error,
         TransactionExecutionError::TransactionPreValidationError(
             TransactionPreValidationError::TransactionFeeError(
-                TransactionFeeError::MaxL1GasAmountTooLow{
-                    max_l1_gas_amount, minimal_l1_gas_amount }))
-        if max_l1_gas_amount == insufficient_max_l1_gas_amount &&
-        minimal_l1_gas_amount == minimal_l1_gas_as_u64
+                TransactionFeeError::MaxGasAmountTooLow{
+                    resource,
+                    max_gas_amount,
+                    minimal_gas_amount}))
+        if max_gas_amount == insufficient_max_l1_gas_amount &&
+        minimal_gas_amount == minimal_l1_gas_as_u64 && resource == Resource::L1Gas
     );
 
     // Max L1 gas price too low.
@@ -977,9 +1013,13 @@ fn test_insufficient_resource_bounds(
         execution_error,
         TransactionExecutionError::TransactionPreValidationError(
             TransactionPreValidationError::TransactionFeeError(
-                TransactionFeeError::MaxL1GasPriceTooLow{ max_l1_gas_price, actual_l1_gas_price }))
-        if max_l1_gas_price == insufficient_max_l1_gas_price &&
-        actual_l1_gas_price == actual_strk_l1_gas_price.into()
+                TransactionFeeError::MaxGasPriceTooLow{
+                    resource,
+                    max_gas_price,
+                    actual_gas_price}))
+        if max_gas_price == insufficient_max_l1_gas_price &&
+        actual_gas_price == actual_strk_l1_gas_price.into() &&
+        resource == Resource::L1Gas
     );
 }
 
@@ -1984,7 +2024,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     assert_matches!(
         error,
         TransactionExecutionError::TransactionFeeError(
-            TransactionFeeError::InsufficientL1Fee { paid_fee, actual_fee, })
+            TransactionFeeError::InsufficientFee {paid_fee, actual_fee, })
             if paid_fee == Fee(0) && actual_fee == expected_actual_fee
     );
 }

@@ -1,5 +1,8 @@
 use futures::{SinkExt, StreamExt};
-use papyrus_network::network_manager::test_utils::create_test_broadcasted_message_manager;
+use papyrus_network::network_manager::test_utils::{
+    create_test_broadcast_client_channels,
+    create_test_broadcasted_message_manager,
+};
 use papyrus_protobuf::consensus::ConsensusMessage;
 use test_case::test_case;
 
@@ -16,14 +19,14 @@ const INVALID_PROBABILITY: f64 = 0.5;
 #[test_case(false, false; "repeat_proposal")]
 #[tokio::test]
 async fn test_invalid(distinct_messages: bool, is_vote: bool) {
-    let (mut sender, receiver) = futures::channel::mpsc::unbounded();
+    let (mut sender, receiver) = create_test_broadcast_client_channels();
     let mut receiver = NetworkReceiver::new(receiver, CACHE_SIZE, SEED, 0.0, INVALID_PROBABILITY);
     let mut invalid_messages = 0;
 
     for height in 0..1000 {
         let msg = create_consensus_msg(if distinct_messages { height } else { 0 }, is_vote);
         let broadcasted_message_manager = create_test_broadcasted_message_manager();
-        sender.send((Ok(msg.clone()), broadcasted_message_manager)).await.unwrap();
+        sender.send((msg.clone().into(), broadcasted_message_manager)).await.unwrap();
         if receiver.next().await.unwrap().0.unwrap() != msg {
             invalid_messages += 1;
         }
@@ -37,14 +40,14 @@ async fn test_invalid(distinct_messages: bool, is_vote: bool) {
 #[test_case(false, false; "repeat_proposal")]
 #[tokio::test]
 async fn test_drops(distinct_messages: bool, is_vote: bool) {
-    let (mut sender, receiver) = futures::channel::mpsc::unbounded();
+    let (mut sender, receiver) = create_test_broadcast_client_channels();
     let mut receiver = NetworkReceiver::new(receiver, CACHE_SIZE, SEED, DROP_PROBABILITY, 0.0);
     let mut num_received = 0;
 
     for height in 0..1000 {
         let msg = create_consensus_msg(if distinct_messages { height } else { 0 }, is_vote);
         let broadcasted_message_manager = create_test_broadcasted_message_manager();
-        sender.send((Ok(msg.clone()), broadcasted_message_manager)).await.unwrap();
+        sender.send((msg.clone().into(), broadcasted_message_manager)).await.unwrap();
     }
     drop(sender);
 

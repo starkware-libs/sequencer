@@ -11,9 +11,12 @@ members = [
   "crates/consensus_manager",
   "crates/consensus_manager_types",
   "crates/gateway",
+  "crates/gateway_types",
+  "crates/http_server",
   "crates/mempool",
   "crates/mempool_infra",
   "crates/mempool_node",
+  "crates/mempool_p2p",
   "crates/mempool_test_utils",
   "crates/mempool_types",
   "crates/native_blockifier",
@@ -33,6 +36,7 @@ members = [
   "crates/papyrus_sync",
   "crates/papyrus_test_utils",
   "crates/sequencing/papyrus_consensus",
+  "crates/sequencing/papyrus_consensus_orchestrator",
   "crates/starknet_api",
   "crates/starknet_client",
   "crates/starknet_committer",
@@ -73,14 +77,12 @@ byteorder = "1.4.3"
 bytes = "1"
 cached = "0.44.0"
 cairo-felt = "0.9.1"
-cairo-lang-casm = "2.7.1"
-cairo-lang-runner = "2.7.1"
-cairo-lang-sierra = "=2.7.1"
-cairo-lang-sierra-to-casm = "2.7.1"
-cairo-lang-starknet-classes = "2.7.1"
-cairo-lang-utils = "2.7.1"
-# This is a temporary dependency, will be removed once the new version of cairo-native is released to main.
-cairo-native = { git = "https://github.com/lambdaclass/cairo_native", rev = "354ef2b8088785e859a618418c62bfb8c995faff" }
+cairo-lang-casm = "2.8.0"
+cairo-lang-runner = "2.8.0"
+cairo-lang-sierra = "=2.8.0"
+cairo-lang-sierra-to-casm = "2.8.0"
+cairo-lang-starknet-classes = "2.8.0"
+cairo-lang-utils = "2.8.0"
 cairo-vm = "=1.0.1"
 camelpaste = "0.1.0"
 chrono = "0.4.26"
@@ -138,6 +140,7 @@ papyrus_base_layer = { path = "crates/papyrus_base_layer", version = "0.0.0" }
 papyrus_common = { path = "crates/papyrus_common", version = "0.0.0" }
 papyrus_config = { path = "crates/papyrus_config", version = "0.0.0" }
 papyrus_consensus = { path = "crates/sequencing/papyrus_consensus", version = "0.0.0" }
+papyrus_consensus_orchestrator = { path = "crates/sequencing/papyrus_consensus_orchestrator", version = "0.0.0" }
 papyrus_execution = { path = "crates/papyrus_execution", version = "0.0.0" }
 papyrus_monitoring_gateway = { path = "crates/papyrus_monitoring_gateway", version = "0.0.0" }
 papyrus_network = { path = "crates/papyrus_network", version = "0.0.0" }
@@ -179,7 +182,7 @@ sha2 = "0.10.8"
 sha3 = "0.10.8"
 simple_logger = "4.0.0"
 starknet-core = "0.6.0"
-starknet-crypto = "0.5.1"
+starknet-crypto = "0.7.1"
 starknet-types-core = "0.1.5"
 starknet_api = { path = "crates/starknet_api", version = "0.0.0" }
 starknet_batcher = { path = "crates/batcher", version = "0.0.0" }
@@ -189,6 +192,7 @@ starknet_committer = { path = "crates/starknet_committer", version = "0.0.0" }
 starknet_consensus_manager = { path = "crates/consensus_manager", version = "0.0.0" }
 starknet_consensus_manager_types = { path = "crates/consensus_manager_types", version = "0.0.0" }
 starknet_gateway = { path = "crates/gateway", version = "0.0.0" }
+starknet_gateway_types = { path = "crates/gateway_types", version = "0.0.0" }
 starknet_mempool = { path = "crates/mempool", version = "0.0.0" }
 starknet_mempool_infra = { path = "crates/mempool_infra", version = "0.0.0" }
 starknet_mempool_node = { path = "crates/mempool_node", version = "0.0.0" }

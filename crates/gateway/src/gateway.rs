@@ -9,6 +9,7 @@ use axum::{Json, Router};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
@@ -17,7 +18,7 @@ use tracing::{error, info, instrument};
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{GatewayConfig, GatewayNetworkConfig, RpcStateReaderConfig};
-use crate::errors::{GatewayResult, GatewayRunError, GatewaySpecError};
+use crate::errors::{GatewayResult, GatewayRunError};
 use crate::rpc_state_reader::RpcStateReaderFactory;
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
@@ -41,6 +42,8 @@ pub struct AppState {
     pub gateway_compiler: GatewayCompiler,
     pub mempool_client: SharedMempoolClient,
 }
+
+// TODO(Tsabary): Disable the deprecated axum http server in this module.
 
 impl Gateway {
     pub fn new(
@@ -79,6 +82,11 @@ impl Gateway {
             .route("/add_tx", post(add_tx))
             .with_state(self.app_state.clone())
     }
+
+    pub async fn add_tx(&mut self, tx: RpcTransaction) -> GatewayResult<TransactionHash> {
+        let app_state = self.app_state.clone();
+        internal_add_tx(app_state, tx).await
+    }
 }
 
 // Gateway handlers.
@@ -93,6 +101,15 @@ async fn add_tx(
     State(app_state): State<AppState>,
     Json(tx): Json<RpcTransaction>,
 ) -> GatewayResult<Json<TransactionHash>> {
+    let tx_hash = internal_add_tx(app_state, tx).await?;
+    Ok(Json(tx_hash))
+}
+
+#[instrument(skip(app_state))]
+async fn internal_add_tx(
+    app_state: AppState,
+    tx: RpcTransaction,
+) -> GatewayResult<TransactionHash> {
     let mempool_input = tokio::task::spawn_blocking(move || {
         process_tx(
             app_state.stateless_tx_validator,
@@ -115,7 +132,7 @@ async fn add_tx(
         GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
     })?;
     // TODO: Also return `ContractAddress` for deploy and `ClassHash` for Declare.
-    Ok(Json(tx_hash))
+    Ok(tx_hash)
 }
 
 fn process_tx(

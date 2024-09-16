@@ -49,32 +49,24 @@ pub struct Signature {
     pub s: Felt,
 }
 
-fn to_field_element(felt: &Felt) -> starknet_crypto::FieldElement {
-    starknet_crypto::FieldElement::from_mont(felt.to_raw_reversed())
-}
-
 /// Verifies the authenticity of a signed message hash given the public key of the signer.
 pub fn verify_message_hash_signature(
     message_hash: &Felt,
     signature: &Signature,
     public_key: &PublicKey,
 ) -> Result<bool, CryptoError> {
-    starknet_crypto::verify(
-        &to_field_element(&public_key.0),
-        &to_field_element(message_hash),
-        &to_field_element(&signature.r),
-        &to_field_element(&signature.s),
+    starknet_crypto::verify(&public_key.0, message_hash, &signature.r, &signature.s).map_err(
+        |err| match err {
+            starknet_crypto::VerifyError::InvalidPublicKey => {
+                CryptoError::InvalidPublicKey(*public_key)
+            }
+            starknet_crypto::VerifyError::InvalidMessageHash => {
+                CryptoError::InvalidMessageHash(*message_hash)
+            }
+            starknet_crypto::VerifyError::InvalidR => CryptoError::InvalidR(signature.r),
+            starknet_crypto::VerifyError::InvalidS => CryptoError::InvalidS(signature.s),
+        },
     )
-    .map_err(|err| match err {
-        starknet_crypto::VerifyError::InvalidPublicKey => {
-            CryptoError::InvalidPublicKey(*public_key)
-        }
-        starknet_crypto::VerifyError::InvalidMessageHash => {
-            CryptoError::InvalidMessageHash(*message_hash)
-        }
-        starknet_crypto::VerifyError::InvalidR => CryptoError::InvalidR(signature.r),
-        starknet_crypto::VerifyError::InvalidS => CryptoError::InvalidS(signature.s),
-    })
 }
 
 // Collect elements for applying hash chain.
