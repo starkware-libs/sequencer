@@ -106,6 +106,9 @@ use crate::test_utils::{
     DEFAULT_L1_GAS_AMOUNT,
     DEFAULT_STRK_L1_GAS_PRICE,
     MAX_FEE,
+    MAX_L1_DATA_GAS_PRICE,
+    MAX_L1_GAS_PRICE,
+    MAX_L2_GAS_PRICE,
     TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::account_transaction::AccountTransaction;
@@ -151,6 +154,8 @@ use crate::{
 
 static VERSIONED_CONSTANTS: LazyLock<VersionedConstants> =
     LazyLock::new(VersionedConstants::create_for_testing);
+
+const ONE_GAS: GasAmount = GasAmount(1);
 
 #[fixture]
 fn default_initial_gas_cost() -> u64 {
@@ -850,16 +855,39 @@ fn assert_failure_if_resource_bounds_exceed_balance(
                 if max_fee == context.max_fee
             );
         }
-        TransactionInfo::Current(context) => {
-            let l1_bounds = context.l1_resource_bounds();
-            assert_matches!(
+        TransactionInfo::Current(context) => match &context.resource_bounds {
+            ValidResourceBounds::L1Gas(l1_bounds) => assert_matches!(
                 invalid_tx.execute(state, block_context, true, true).unwrap_err(),
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
-                        TransactionFeeError::GasBoundsExceedBalance{resource, max_amount, max_price, .. }))
+                        TransactionFeeError::GasBoundsExceedBalance{ resource, max_amount, max_price, .. }))
                 if max_amount == l1_bounds.max_amount && max_price == l1_bounds.max_price_per_unit && resource == L1Gas
-            );
-        }
+            ),
+            ValidResourceBounds::AllResources(AllResourceBounds {
+                l1_gas: l1_bounds,
+                l2_gas: l2_bounds,
+                l1_data_gas: l1_data_bounds,
+            }) => {
+                assert_matches!(
+                    invalid_tx.execute(state, block_context, true, true).unwrap_err(),
+                    TransactionExecutionError::TransactionPreValidationError(
+                        TransactionPreValidationError::TransactionFeeError(
+                            TransactionFeeError::ResourcesBoundsExceedBalance{
+                                l1_max_amount,
+                                l1_max_price,
+                                l1_data_max_amount,
+                                l1_data_max_price,
+                                l2_max_amount,
+                                l2_max_price, .. }
+                        )
+                    )
+                    if l1_max_amount == l1_bounds.max_amount && l1_max_price == l1_bounds.max_price_per_unit
+                    && l2_max_amount == l2_bounds.max_amount && l2_max_price == l2_bounds.max_price_per_unit
+                    && l1_data_max_amount == l1_data_bounds.max_amount
+                    && l1_data_max_price == l1_data_bounds.max_price_per_unit
+                );
+            }
+        },
     };
 }
 
@@ -901,10 +929,12 @@ fn test_estimate_minimal_gas_vector(
 
 #[rstest]
 fn test_max_fee_exceeds_balance(
-    block_context: BlockContext,
+    mut block_context: BlockContext,
     default_l1_resource_bounds: ValidResourceBounds,
+    #[values(true, false)] use_kzg_da: bool,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
 ) {
+    block_context.block_info.use_kzg_da = use_kzg_da;
     let block_context = &block_context;
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
@@ -921,9 +951,9 @@ fn test_max_fee_exceeds_balance(
 
     let invalid_max_fee = Fee(BALANCE.0 + 1);
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-    let balance_over_gas_price = BALANCE.checked_div(DEFAULT_STRK_L1_GAS_PRICE).unwrap();
-    let invalid_resource_bounds =
-        l1_resource_bounds((balance_over_gas_price.0 + 1).into(), DEFAULT_STRK_L1_GAS_PRICE.into());
+    let max_l1_gas_amount = BALANCE.checked_div(DEFAULT_STRK_L1_GAS_PRICE).unwrap();
+    let invalid_l1_resource_bounds =
+        l1_resource_bounds((max_l1_gas_amount.0 + 1).into(), DEFAULT_STRK_L1_GAS_PRICE.into());
 
     // V1 Invoke.
     let invalid_tx = account_invoke_tx(invoke_tx_args! {
@@ -935,8 +965,8 @@ fn test_max_fee_exceeds_balance(
 
     // V3 invoke.
     let invalid_tx = account_invoke_tx(invoke_tx_args! {
-        resource_bounds: invalid_resource_bounds,
-        ..default_args
+        resource_bounds: invalid_l1_resource_bounds,
+        ..default_args.clone()
     });
     assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
 
@@ -958,11 +988,55 @@ fn test_max_fee_exceeds_balance(
             class_hash: contract_to_declare.get_class_hash(),
             compiled_class_hash: contract_to_declare.get_compiled_class_hash(),
             sender_address: account_contract_address,
-            resource_bounds: invalid_resource_bounds,
+            resource_bounds: invalid_l1_resource_bounds,
         },
         class_info,
     );
     assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
+
+    // Test all resource bounds.
+    // TODO!(Aner): remove magic numbers, use function to calculate minimal amounts.
+    let min_l1_amount = GasAmount(1652);
+    let min_l2_amount = GasAmount(445900);
+    let min_l1_data_amount = GasAmount(128);
+    let max_l2_gas_amount = BALANCE.checked_div(MAX_L2_GAS_PRICE).unwrap();
+    let max_l1_data_gas_amount = BALANCE.checked_div(MAX_L1_DATA_GAS_PRICE).unwrap();
+    // Ensure that in the following, the test won't fall on min amount too low.
+    assert!(max_l1_gas_amount / 3 + ONE_GAS >= min_l1_amount);
+    assert!(max_l2_gas_amount / 3 + ONE_GAS >= min_l2_amount);
+    assert!(max_l1_data_gas_amount / 3 + ONE_GAS >= min_l1_data_amount);
+    // In the following cases, the balance is not enough to cover the gas price of the transaction.
+    // Minimal amounts are used to avoid failing the test due to min gas usage not covered.
+    for (l1_max_amount, l2_max_amount, l1_data_max_amount) in [
+        (max_l1_gas_amount + ONE_GAS, min_l2_amount, min_l1_data_amount),
+        (min_l1_amount, max_l2_gas_amount + ONE_GAS, min_l1_data_amount),
+        (min_l1_amount, min_l2_amount, max_l1_data_gas_amount + ONE_GAS),
+        (
+            max_l1_gas_amount / 3 + ONE_GAS,
+            max_l2_gas_amount / 3 + ONE_GAS,
+            max_l1_data_gas_amount / 3 + ONE_GAS,
+        ),
+    ] {
+        let invalid_resource_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
+            l1_gas: ResourceBounds {
+                max_amount: l1_max_amount,
+                max_price_per_unit: MAX_L1_GAS_PRICE.get(),
+            },
+            l2_gas: ResourceBounds {
+                max_amount: l2_max_amount,
+                max_price_per_unit: MAX_L2_GAS_PRICE.get(),
+            },
+            l1_data_gas: ResourceBounds {
+                max_amount: l1_data_max_amount,
+                max_price_per_unit: MAX_L1_DATA_GAS_PRICE.get(),
+            },
+        });
+        let invalid_tx = account_invoke_tx(invoke_tx_args! {
+            resource_bounds: invalid_resource_bounds,
+            ..default_args.clone()
+        });
+        assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
+    }
 }
 
 #[rstest]
