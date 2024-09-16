@@ -22,6 +22,7 @@ pub type GatewayClientResult<T> = Result<T, GatewayClientError>;
 pub type GatewayRequestAndResponseSender =
     ComponentRequestAndResponseSender<GatewayRequest, GatewayResponse>;
 pub type SharedGatewayClient = Arc<dyn GatewayClient>;
+use tracing::{error, instrument};
 
 /// Serves as the gateway's shared interface. Requires `Send + Sync` to allow transferring
 /// and sharing resources (inputs, futures) across threads.
@@ -51,6 +52,7 @@ pub enum GatewayClientError {
 
 #[async_trait]
 impl GatewayClient for LocalGatewayClientImpl {
+    #[instrument(skip(self))]
     async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash> {
         let request = GatewayRequest::AddTransaction(gateway_input);
         let response = self.send(request).await;
@@ -65,6 +67,7 @@ impl GatewayClient for LocalGatewayClientImpl {
 
 #[async_trait]
 impl GatewayClient for RemoteGatewayClientImpl {
+    #[instrument(skip(self))]
     async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash> {
         let request = GatewayRequest::AddTransaction(gateway_input);
         let response = self.send(request).await?;

@@ -19,3 +19,7 @@ starknet_gateway_types.workspace = true
 starknet_mempool_infra.workspace = true
 tracing.workspace = true
 validator.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+tokio = { workspace = true, features = ["rt"] }
