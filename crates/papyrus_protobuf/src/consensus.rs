@@ -4,7 +4,6 @@ use futures::channel::{mpsc, oneshot};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
-
 use crate::converters::ProtobufConversionError;
 
 #[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
@@ -85,8 +84,7 @@ pub struct StreamHandler<
 impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
     StreamHandler<T>
 {
-    pub fn new() -> Self {
-        let (sender, receiver) = mpsc::channel(100);
+    pub fn new(sender: mpsc::Sender<StreamMessage<T>>, receiver: mpsc::Receiver<StreamMessage<T>>) -> Self {
         StreamHandler {
             sender,
             receiver,
@@ -100,12 +98,16 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     }
 
     pub async fn receive(&mut self) -> StreamMessage<T> {
-        self.receiver.try_next().expect("Receive should succeed").expect("Receive should succeed")
+        while let Ok(Some(value)) = self.receiver.recv(){
+            value
+        
     }
 
     pub async fn listen(&mut self) {
         loop {
+            println!("Listening for messages");
             let message = self.receive().await;
+            println!("Received message: {}", message.chunk_id);
             let stream_id = message.stream_id;
             let chunk_id = message.chunk_id;
             let next_chunk_id = self.next_chunk_ids.entry(stream_id).or_insert(0);
@@ -186,9 +188,41 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     }
 }
 
-#[test]
-fn test_stream_handler() {}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
+    fn make_random_message(stream_id: u64, chunk_id: u64, fin: bool) -> StreamMessage<ConsensusMessage> {
+        StreamMessage {
+            message: ConsensusMessage::Proposal(Proposal::default()),
+            stream_id,
+            chunk_id,
+            fin,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_stream_handler() {
+        let (mut tx_input, rx_input) = futures::channel::mpsc::channel::<StreamMessage<ConsensusMessage>>(100);
+        let (tx_output, mut rx_output) = futures::channel::mpsc::channel::<StreamMessage<ConsensusMessage>>(100);
+        let mut h = StreamHandler::new(tx_output, rx_input);
+        println!("Sending message");
+        tx_input.try_send(make_random_message(0, 0, false)).expect("Send should succeed");
+
+        println!("Spawning task");
+        let _h = tokio::spawn(async move {
+            h.listen().await;
+        });
+
+        // wait a bit for the task to start
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        let _message = rx_output.try_next().expect("Receive should succeed").expect("Receive should succeed");
+
+        
+
+    }
+    
+}
 // TODO(Guy): Remove after implementing broadcast streams.
 #[allow(missing_docs)]
 pub struct ProposalWrapper(pub Proposal);
