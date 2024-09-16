@@ -9005,11 +9005,14 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "axum",
+ "papyrus_config",
+ "serde",
  "starknet_api",
  "starknet_gateway",
  "starknet_gateway_types",
  "starknet_mempool_infra",
  "tracing",
+ "validator",
 ]
 
 [[package]]
