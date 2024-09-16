@@ -981,7 +981,49 @@ fn test_insufficient_new_resource_bounds(
         ..valid_invoke_tx_args.clone()
     })
     .execute(state, block_context, true, true)
-    .expect("Transaction failed with default prices");
+    .expect("Transaction failed with expected prices and minimal amounts.");
+    // Max gas amount too low, new resource bounds.
+    // TODO(Aner): add a test for more than 1 insufficient resource amount, after error message
+    // contains all insufficient resources.
+    // TODO(Aner): add test scenario for l1_data_gas when kzg_flag==true
+    for (insufficient_resource, insufficient_amount_resource_bounds) in [
+        (
+            L1Gas,
+            AllResourceBounds {
+                l1_gas: ResourceBounds {
+                    max_amount: default_resource_bounds.l1_gas.max_amount - 1,
+                    max_price_per_unit: actual_strk_l1_gas_price.into(),
+                },
+                ..default_resource_bounds
+            },
+        ),
+        (
+            L2Gas,
+            AllResourceBounds {
+                l2_gas: ResourceBounds {
+                    max_amount: default_resource_bounds.l2_gas.max_amount - 1,
+                    max_price_per_unit: actual_strk_l2_gas_price.into(),
+                },
+                ..default_resource_bounds
+            },
+        ),
+    ] {
+        let invalid_v3_tx = account_invoke_tx(InvokeTxArgs {
+            resource_bounds: ValidResourceBounds::AllResources(insufficient_amount_resource_bounds),
+            nonce: nonce!(1),
+            ..valid_invoke_tx_args.clone()
+        });
+        let execution_error = invalid_v3_tx.execute(state, block_context, true, true).unwrap_err();
+        assert_matches!(
+            execution_error,
+            TransactionExecutionError::TransactionPreValidationError(
+                TransactionPreValidationError::TransactionFeeError(
+                    TransactionFeeError::MaxGasAmountTooLow{
+                        resource,
+                        ..}))
+            if resource == insufficient_resource
+        );
+    }
 
     // Max gas price too low, new resource bounds.
     // TODO(Aner): add a test for more than 1 insufficient resource price, after error message
@@ -1087,7 +1129,7 @@ fn test_insufficient_resource_bounds(
     // Test V3 transaction.
     let actual_strk_l1_gas_price = gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk);
 
-    // Max L1 gas amount too low.
+    // Max L1 gas amount too low, old resource bounds.
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
     let insufficient_max_l1_gas_amount =
         (minimal_l1_gas - 1).try_into().expect("Failed to convert u128 to u64.");
