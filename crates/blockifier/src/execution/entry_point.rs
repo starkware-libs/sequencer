@@ -10,6 +10,7 @@ use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::transaction::{Calldata, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
+use super::contract_class::TrackingResource;
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants;
 use crate::context::{BlockContext, TransactionContext};
@@ -102,6 +103,14 @@ impl CallEntryPoint {
         self.class_hash = Some(class_hash);
         let contract_class = state.get_compiled_contract_class(class_hash)?;
 
+        // If contract class can't run with cairo native, set the initial gas to infinity.
+        let versioned_constants = context.tx_context.block_context.versioned_constants();
+        if contract_class
+            .tracking_resource(&versioned_constants.min_compiler_version_for_sierra_gas)
+            == TrackingResource::CairoSteps
+        {
+            self.initial_gas = versioned_constants.tx_initial_gas()
+        }
         execute_entry_point_call(self, contract_class, state, resources, context)
     }
 }

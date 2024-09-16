@@ -4,7 +4,7 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
-use starknet_api::transaction::ValidResourceBounds;
+use starknet_api::transaction::{AllResourceBounds, ValidResourceBounds};
 
 use crate::blockifier::block::BlockInfo;
 use crate::bouncer::BouncerConfig;
@@ -38,6 +38,19 @@ impl TransactionContext {
                 ValidResourceBounds::L1Gas(_) => GasVectorComputationMode::NoL2Gas,
             },
             TransactionInfo::Deprecated(_) => GasVectorComputationMode::NoL2Gas,
+        }
+    }
+
+    pub fn initial_sierra_gas(&self) -> u64 {
+        let default_initial_gas = self.block_context.versioned_constants.tx_initial_gas();
+        match &self.tx_info {
+            TransactionInfo::Current(tx_info) => match tx_info.resource_bounds {
+                ValidResourceBounds::L1Gas(_) => default_initial_gas,
+                ValidResourceBounds::AllResources(AllResourceBounds { l2_gas, .. }) => {
+                    l2_gas.max_amount
+                }
+            },
+            TransactionInfo::Deprecated(_) => default_initial_gas,
         }
     }
 }
