@@ -54,21 +54,37 @@ pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufCon
     pub fin: bool,
 }
 
-pub struct StreamHandler<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
+impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> std::fmt::Display
+    for StreamMessage<T>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let message: Vec<u8> = self.message.clone().into();
+        write!(
+            f,
+            "StreamMessage {{ message: {:?}, stream_id: {}, chunk_id: {}, fin: {} }}",
+            message, self.stream_id, self.chunk_id, self.fin
+        )
+    }
+}
+
+pub struct StreamHandler<
+    T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
+> {
     pub sender: mpsc::Sender<StreamMessage<T>>,
     pub receiver: mpsc::Receiver<StreamMessage<T>>,
 
     // these dictionaries are keyed on the stream_id
-    pub next_chunk_ids: BTreeMap<u64, u32>,
+    pub next_chunk_ids: BTreeMap<u64, u64>,
 
     // there is a separate message buffer for each stream,
     // each message buffer is keyed by the chunk_id of the first message in
     // a contiguous sequence of messages (saved in a Vec)
-    pub message_buffers: BTreeMap<u64, BTreeMap<u32, Vec<StreamMessage<T>>>>,
+    pub message_buffers: BTreeMap<u64, BTreeMap<u64, Vec<StreamMessage<T>>>>,
 }
 
-// impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
-impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> StreamHandler<T> {
+impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
+    StreamHandler<T>
+{
     pub fn new() -> Self {
         let (sender, receiver) = mpsc::channel(100);
         StreamHandler {
@@ -84,11 +100,7 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> Strea
     }
 
     pub async fn receive(&mut self) -> StreamMessage<T> {
-        self.receiver
-            .try_next()
-            .await
-            .expect("Receive should succeed")
-            .expect("Receive should succeed")
+        self.receiver.try_next().expect("Receive should succeed").expect("Receive should succeed")
     }
 
     pub async fn listen(&mut self) {
@@ -100,12 +112,15 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> Strea
 
             // this means we can just send the message without buffering it
             if chunk_id == *next_chunk_id {
-                self.send(message).await;
+                let fin = message.fin;
+                self.sender.try_send(message).expect("Send should succeed");
                 *next_chunk_id += 1;
-                if message.fin {
+                if fin {
                     // remove the buffer if the stream is finished
                     self.message_buffers.remove(&stream_id);
                 }
+                // try to drain the buffer
+                self.drain_buffer(stream_id);
             } else {
                 // save the message in the buffer.
                 self.store(message);
@@ -113,41 +128,66 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> Strea
         }
     }
 
+    // go over each vector in the buffer, push to the end of it if the chunk_id is contiguous
+    // if no vector has a contiguous chunk_id, start a new vector
     fn store(&mut self, message: StreamMessage<T>) {
         let stream_id = message.stream_id;
         let chunk_id = message.chunk_id;
-        let mut buffer = self.message_buffers.entry(stream_id).or_insert(BTreeMap::new());
-        for id in buffer.keys() {
-            if id > chunk_id {
+        let buffer = self.message_buffers.entry(stream_id).or_insert(BTreeMap::new());
+        let keys = buffer.keys().cloned().collect::<Vec<u64>>();
+        for id in keys {
+            // go over the keys in order from smallest to largest id
+            let last_id = buffer[&id].last().unwrap().chunk_id;
+
+            if last_id == chunk_id - 1 {
+                // we can just add the message to the end of the vector
+                buffer.get_mut(&id).unwrap().push(message);
+                return;
+            }
+
+            if last_id > chunk_id {
+                // no vector with last chunk_id will match, we can just start a new vector
                 buffer.insert(chunk_id, vec![message]);
                 return;
             }
+
+            if chunk_id >= id || last_id < chunk_id - 1 {
+                // this message should already be inside this vector!
+                let old_message = buffer[&id].iter().filter(|m| m.chunk_id == chunk_id).next();
+                if let Some(old_message) = old_message {
+                    panic!(
+                        "Two messages with the same chunk_id in buffer! Old message: {}, new \
+                         message: {}",
+                        old_message, message
+                    );
+                } else if let None = old_message {
+                    panic!("Message with chunk_id {} should be in buffer but is not! ", chunk_id);
+                }
+            }
         }
-        // self.message_buffers
-        //     .entry(stream_id)
-        //     .or_insert(BTreeMap::new())
-        //     .entry(chunk_id)
-        //     .or_insert(Vec::new())
-        //     .push(message);
     }
 
     // Tries to drain as many messages as possible from the buffer (in order)
     // DOES NOT guarantee that the buffer will be empty after calling this function
     fn drain_buffer(&mut self, stream_id: u64) {
-        if let Some(mut buffer) = self.message_buffers.get(&stream_id) {
-            let mut chunk_id = self.next_chunk_ids.entry(stream_id).or_insert(0);
+        if let Some(buffer) = self.message_buffers.get_mut(&stream_id) {
+            let chunk_id = self.next_chunk_ids.entry(stream_id).or_insert(0);
 
-            // try to drain each vec of message one by one, if they are in order
-            while let Some(messages) = buffer.get(chunk_id) {
+            // drain each vec of messages one by one, if they are in order
+            // to drain a vector, we must match the first id (the key) with the chunk_id
+            // this while loop will keep draining vectors one by one, until chunk_id doesn't match
+            while let Some(messages) = buffer.remove(chunk_id) {
                 for message in messages {
-                    self.send(message);
+                    self.sender.try_send(message).expect("Send should succeed");
                     *chunk_id += 1;
                 }
-                buffer.remove(chunk_id);
             }
         }
     }
 }
+
+#[test]
+fn test_stream_handler() {}
 
 // TODO(Guy): Remove after implementing broadcast streams.
 #[allow(missing_docs)]
