@@ -69,7 +69,7 @@ pub trait StateReader {
 ///
 /// Reader functionality should be delegated to the associated type; which is passed in by
 /// dependency-injection.
-pub trait State: StateReader {
+pub trait State: StateReader + VisitedPC {
     /// Sets the storage value under the given key in the given contract instance.
     fn set_storage_at(
         &mut self,
@@ -103,11 +103,13 @@ pub trait State: StateReader {
         class_hash: ClassHash,
         compiled_class_hash: CompiledClassHash,
     ) -> StateResult<()>;
+}
 
+pub trait VisitedPC {
     /// Marks the given set of PC values as visited for the given class hash.
     // TODO(lior): Once we have a BlockResources object, move this logic there. Make sure reverted
     //   entry points do not affect the final set of PCs.
-    fn add_visited_pcs(&mut self, class_hash: ClassHash, pcs: &HashSet<usize>);
+    fn add_visited_pcs(&mut self, _class_hash: ClassHash, _pcs: &HashSet<usize>) {}
 }
 
 /// A class defining the API for updating a state with transactions writes.

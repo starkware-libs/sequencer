@@ -11,7 +11,7 @@ use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::context::TransactionContext;
 use crate::execution::contract_class::ContractClass;
 use crate::state::errors::StateError;
-use crate::state::state_api::{State, StateReader, StateResult, UpdatableState};
+use crate::state::state_api::{State, StateReader, StateResult, UpdatableState, VisitedPC};
 use crate::transaction::objects::TransactionExecutionInfo;
 use crate::utils::{strict_subtract_mappings, subtract_mappings};
 
@@ -274,7 +274,9 @@ impl<S: StateReader> State for CachedState<S> {
         self.cache.get_mut().set_compiled_class_hash_write(class_hash, compiled_class_hash);
         Ok(())
     }
+}
 
+impl<S: StateReader> VisitedPC for CachedState<S> {
     fn add_visited_pcs(&mut self, class_hash: ClassHash, pcs: &HashSet<usize>) {
         self.visited_pcs.entry(class_hash).or_default().extend(pcs);
     }
