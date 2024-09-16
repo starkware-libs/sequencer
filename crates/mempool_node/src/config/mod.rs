@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use starknet_batcher::config::BatcherConfig;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
+use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_infra::component_definitions::{
     LocalComponentCommunicationConfig,
     RemoteComponentCommunicationConfig,
@@ -119,6 +120,16 @@ impl ComponentExecutionConfig {
         }
     }
 
+    pub fn http_server_default_config() -> Self {
+        Self {
+            execute: true,
+            location: LocationType::Local,
+            component_type: ComponentType::IndependentComponent,
+            local_config: None,
+            remote_config: None,
+        }
+    }
+
     pub fn mempool_default_config() -> Self {
         Self {
             execute: true,
@@ -184,6 +195,8 @@ pub struct ComponentConfig {
     #[validate]
     pub gateway: ComponentExecutionConfig,
     #[validate]
+    pub http_server: ComponentExecutionConfig,
+    #[validate]
     pub mempool: ComponentExecutionConfig,
 }
 
@@ -193,6 +206,7 @@ impl Default for ComponentConfig {
             batcher: ComponentExecutionConfig::batcher_default_config(),
             consensus_manager: ComponentExecutionConfig::consensus_manager_default_config(),
             gateway: ComponentExecutionConfig::gateway_default_config(),
+            http_server: ComponentExecutionConfig::http_server_default_config(),
             mempool: ComponentExecutionConfig::mempool_default_config(),
         }
     }
@@ -238,6 +252,8 @@ pub struct MempoolNodeConfig {
     #[validate]
     pub gateway_config: GatewayConfig,
     #[validate]
+    pub http_server_config: HttpServerConfig,
+    #[validate]
     pub rpc_state_reader_config: RpcStateReaderConfig,
     #[validate]
     pub compiler_config: SierraToCasmCompilationConfig,
@@ -254,6 +270,7 @@ impl SerializeConfig for MempoolNodeConfig {
                 "consensus_manager_config",
             ),
             append_sub_config_name(self.gateway_config.dump(), "gateway_config"),
+            append_sub_config_name(self.http_server_config.dump(), "http_server_config"),
             append_sub_config_name(self.rpc_state_reader_config.dump(), "rpc_state_reader_config"),
             append_sub_config_name(self.compiler_config.dump(), "compiler_config"),
         ];
