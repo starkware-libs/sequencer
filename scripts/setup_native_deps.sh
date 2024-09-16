@@ -41,7 +41,7 @@ setup_llvm_deps() {
 
     apt-get update && apt-get upgrade -y
     apt-get install -y zstd
-    apt-get install llvm-18 llvm-18-dev llvm-18-runtime clang-18 clang-tools-18 lld-18 libpolly-18-dev libmlir-18-dev mlir-18-tools
+    apt-get install -y llvm-18 llvm-18-dev llvm-18-runtime clang-18 clang-tools-18 lld-18 libpolly-18-dev libmlir-18-dev mlir-18-tools
     apt-get install -y libgmp3-dev
 
 		MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/
@@ -98,7 +98,7 @@ install_cairo_native_runtime() {
 	mv ./cairo_native/target/release/libcairo_native_runtime.a ./libcairo_native_runtime.so
 	rm -rf ./cairo_native
 
-	export CAIRO_NATIVE_RUNTIME_LIBRARY="$PWD/libcairo_native_runtime.so"
+	export CAIRO_NATIVE_RUNTIME_LIBRARY="$(pwd)/libcairo_native_runtime.so"
 
 	[ -n "$GITHUB_ACTIONS" ] && echo "CAIRO_NATIVE_RUNTIME_LIBRARY=$CAIRO_NATIVE_RUNTIME_LIBRARY" >> $GITHUB_ENV
 }
