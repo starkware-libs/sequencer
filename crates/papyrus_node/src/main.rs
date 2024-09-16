@@ -2,7 +2,7 @@ use std::env::args;
 
 use papyrus_config::ConfigError;
 use papyrus_node::config::NodeConfig;
-use papyrus_node::run::{run, PapyrusTaskHandles, PapyrusUtilities};
+use papyrus_node::run::{run, PapyrusResources, PapyrusTaskHandles};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -12,6 +12,6 @@ async fn main() -> anyhow::Result<()> {
     }
     let config = config?;
 
-    let utils = PapyrusUtilities::new(&config)?;
-    run(config, utils, PapyrusTaskHandles::default()).await
+    let resources = PapyrusResources::new(&config)?;
+    run(config, resources, PapyrusTaskHandles::default()).await
 }
