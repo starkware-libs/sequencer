@@ -11,6 +11,9 @@ use validator::Validate;
 
 use crate::compiler_version::VersionId;
 
+// TODO(Tsabary/Lev): Remove the redundant network_config: GatewayNetworkConfig field from
+// GatewayConfig.
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct GatewayConfig {
     pub network_config: GatewayNetworkConfig,
