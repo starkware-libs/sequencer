@@ -9074,6 +9074,7 @@ dependencies = [
  "starknet_client",
  "starknet_gateway",
  "starknet_gateway_types",
+ "starknet_http_server",
  "starknet_mempool_infra",
  "starknet_mempool_node",
  "starknet_mempool_types",

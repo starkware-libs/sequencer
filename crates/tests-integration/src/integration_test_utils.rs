@@ -17,6 +17,7 @@ use starknet_gateway::config::{
     StatelessTransactionValidatorConfig,
 };
 use starknet_gateway_types::errors::GatewaySpecError;
+use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_node::config::MempoolNodeConfig;
 use tokio::net::TcpListener;
 
@@ -37,10 +38,21 @@ async fn create_gateway_config() -> GatewayConfig {
     GatewayConfig { network_config, stateless_tx_validator_config, stateful_tx_validator_config }
 }
 
+async fn create_http_server_config() -> HttpServerConfig {
+    let socket = get_available_socket().await;
+    HttpServerConfig { ip: socket.ip(), port: socket.port() }
+}
+
 pub async fn create_config(rpc_server_addr: SocketAddr) -> MempoolNodeConfig {
     let gateway_config = create_gateway_config().await;
+    let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
-    MempoolNodeConfig { gateway_config, rpc_state_reader_config, ..MempoolNodeConfig::default() }
+    MempoolNodeConfig {
+        gateway_config,
+        http_server_config,
+        rpc_state_reader_config,
+        ..MempoolNodeConfig::default()
+    }
 }
 
 /// A test utility client for interacting with an http server.
