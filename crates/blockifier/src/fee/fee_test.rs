@@ -5,7 +5,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::rstest;
 use starknet_api::invoke_tx_args;
-use starknet_api::transaction::Fee;
+use starknet_api::transaction::{AllResourceBounds, Fee, ResourceBounds, ValidResourceBounds};
 
 use crate::abi::constants::N_STEPS_RESOURCE;
 use crate::blockifier::block::GasPrices;
@@ -22,7 +22,7 @@ use crate::test_utils::{
     DEFAULT_ETH_L1_GAS_PRICE,
 };
 use crate::transaction::objects::{GasVector, GasVectorComputationMode};
-use crate::transaction::test_utils::{account_invoke_tx, l1_resource_bounds};
+use crate::transaction::test_utils::{account_invoke_tx, block_context, l1_resource_bounds};
 use crate::utils::u128_from_usize;
 use crate::versioned_constants::VersionedConstants;
 
@@ -196,4 +196,24 @@ fn test_discounted_gas_overdraft(
     } else {
         assert_matches!(report.error(), None);
     }
+}
+
+#[rstest]
+#[case::from_l2_gas(1000, ValidResourceBounds::AllResources(AllResourceBounds {
+    l2_gas: ResourceBounds { max_amount: 1000, max_price_per_unit: 1 },
+    ..Default::default()
+}))]
+#[case::default(VersionedConstants::create_for_account_testing().tx_initial_gas(),
+    ValidResourceBounds::L1Gas(ResourceBounds {max_amount: 3000, max_price_per_unit: 9}
+))]
+
+fn test_initial_sierra_gas(
+    #[case] expected: u64,
+    #[case] resource_bounds: ValidResourceBounds,
+    block_context: BlockContext,
+) {
+    let tx_args = invoke_tx_args!(resource_bounds);
+    let account_tx = account_invoke_tx(tx_args);
+    let actual = block_context.to_tx_context(&account_tx).initial_sierra_gas();
+    assert_eq!(actual, expected);
 }

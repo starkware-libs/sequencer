@@ -458,7 +458,7 @@ fn test_invoke_tx(
     };
     let expected_execute_call = CallEntryPoint {
         entry_point_selector: selector_from_name(constants::EXECUTE_ENTRY_POINT_NAME),
-        initial_gas: tx_initial_gas() - expected_arguments.validate_gas_consumed,
+        initial_gas: tx_context.initial_sierra_gas() - expected_arguments.validate_gas_consumed,
         ..expected_validate_call_info.as_ref().unwrap().call.clone()
     };
     let expected_return_result_retdata = Retdata(expected_return_result_calldata);
