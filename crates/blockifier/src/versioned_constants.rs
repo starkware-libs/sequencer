@@ -126,16 +126,26 @@ impl VersionedConstants {
         Self::get(StarknetVersion::Latest)
     }
 
-    /// Converts from L1 gas to L2 gas with **upward rounding**.
-    pub fn convert_l1_to_l2_gas(&self, l1_gas: u128) -> u128 {
+    /// Converts from L1 gas price to L2 gas price **rounding towards zero**.
+    pub fn convert_l1_to_l2_gas_price(&self, l1_gas: u128) -> u128 {
+        (self.l1_to_l2_gas_price_ratio() * l1_gas).to_integer()
+    }
+
+    /// Converts from L1 gas amount to L2 gas amount with **upward rounding**.
+    pub fn convert_l1_to_l2_gas_amount(&self, l1_gas: u128) -> u128 {
         let l1_to_l2_gas_price_ratio = self.l1_to_l2_gas_price_ratio().inv();
         *(l1_to_l2_gas_price_ratio * l1_gas).ceil().numer()
     }
 
-    /// Converts from L2 gas to L1 gas **rounding towards zero**.
-    pub fn convert_l2_to_l1_gas(&self, l2_gas: u128) -> u128 {
-        let l2_to_l1_gas_price_ratio = self.l1_to_l2_gas_price_ratio();
-        (l2_to_l1_gas_price_ratio * l2_gas).to_integer()
+    /// Converts from L2 gas price to L1 gas price with **upward rounding**.
+    pub fn convert_l2_to_l1_gas_price(&self, l2_gas: u128) -> u128 {
+        *(self.l1_to_l2_gas_price_ratio().inv() * l2_gas).ceil().numer()
+    }
+
+    /// Converts from L2 gas amount to L1 gas amount **rounding towards zero**.
+    pub fn convert_l2_to_l1_gas_amount(&self, l2_gas: u128) -> u128 {
+        let l2_to_l1_gas_amount_ratio = self.l1_to_l2_gas_price_ratio();
+        (l2_to_l1_gas_amount_ratio * l2_gas).to_integer()
     }
 
     /// Returns the following ratio: L2_gas_price/L1_gas_price.
