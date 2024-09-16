@@ -16,6 +16,10 @@ use tracing::{error, info, instrument};
 
 use crate::config::HttpServerConfig;
 
+#[cfg(test)]
+#[path = "http_server_test.rs"]
+pub mod http_server_test;
+
 pub type HttpServerResult<T> = Result<T, GatewaySpecError>;
 
 pub struct HttpServer {
@@ -34,11 +38,13 @@ impl HttpServer {
         HttpServer { config, app_state }
     }
 
+    // TODO(Tsabary/Lev): Rename "GatewayRunError" to "HttpServerRunError".
     pub async fn run(&mut self) -> Result<(), GatewayRunError> {
         // Parses the bind address from HttpServerConfig, returning an error for invalid addresses.
         let HttpServerConfig { ip, port } = self.config;
         let addr = SocketAddr::new(ip, port);
         let app = self.app();
+        info!("HttpServer running using socket: {}", addr);
 
         // Create a server that runs forever.
         Ok(axum::Server::bind(&addr).serve(app.into_make_service()).await?)
@@ -66,11 +72,18 @@ async fn add_tx(
 ) -> HttpServerResult<Json<TransactionHash>> {
     let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx.clone(), message_metadata: None };
 
-    let tx_hash = app_state.gateway_client.add_tx(gateway_input).await.map_err(|join_err| {
+    let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|join_err| {
         error!("Failed to process tx: {}", join_err);
         GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
-    })?;
+    });
 
+    add_tx_result_as_json(add_tx_result)
+}
+
+pub(crate) fn add_tx_result_as_json(
+    result: Result<TransactionHash, GatewaySpecError>,
+) -> HttpServerResult<Json<TransactionHash>> {
+    let tx_hash = result?;
     Ok(Json(tx_hash))
 }
 
