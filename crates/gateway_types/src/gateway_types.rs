@@ -9,7 +9,7 @@ pub struct MessageMetadata {}
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GatewayInput {
     pub rpc_tx: RpcTransaction,
-    pub message_metadata: MessageMetadata,
+    pub message_metadata: Option<MessageMetadata>,
 }
 
 pub type GatewayResult<T> = Result<T, GatewayError>;
