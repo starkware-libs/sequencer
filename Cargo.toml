@@ -198,6 +198,7 @@ starknet_gateway_types = { path = "crates/gateway_types", version = "0.0.0" }
 starknet_mempool = { path = "crates/mempool", version = "0.0.0" }
 starknet_mempool_infra = { path = "crates/mempool_infra", version = "0.0.0" }
 starknet_mempool_node = { path = "crates/mempool_node", version = "0.0.0" }
+starknet_mempool_p2p = { path = "crates/mempool_p2p", version = "0.0.0" }
 starknet_mempool_types = { path = "crates/mempool_types", version = "0.0.0" }
 starknet_patricia = { path = "crates/starknet_patricia", version = "0.0.0" }
 starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.0.0" }
