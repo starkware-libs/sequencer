@@ -1,10 +1,6 @@
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
-use axum::body::{Bytes, HttpBody};
-use axum::extract::State;
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::{create_executable_tx, declare_tx, invoke_tx};
@@ -19,7 +15,7 @@ use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig};
-use crate::gateway::{add_tx, AppState, SharedMempoolClient};
+use crate::gateway::{internal_add_tx, AppState, SharedMempoolClient};
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
@@ -86,17 +82,9 @@ async fn test_add_tx() {
     let state_reader_factory = local_test_state_reader_factory(CairoVersion::Cairo1, false);
     let app_state = app_state(Arc::new(mock_mempool_client), state_reader_factory);
 
-    let response = add_tx(State(app_state), tx.into()).await.into_response();
+    let response_tx_hash = internal_add_tx(app_state, tx).await.unwrap();
 
-    let status_code = response.status();
-    let response_bytes = &to_bytes(response).await;
-
-    assert_eq!(status_code, StatusCode::OK, "{response_bytes:?}");
-    assert_eq!(tx_hash, serde_json::from_slice(response_bytes).unwrap());
-}
-
-async fn to_bytes(res: Response) -> Bytes {
-    res.into_body().collect().await.unwrap().to_bytes()
+    assert_eq!(tx_hash, response_tx_hash);
 }
 
 // Gateway spec errors tests.
@@ -114,7 +102,7 @@ async fn test_compiled_class_hash_mismatch() {
     let state_reader_factory = local_test_state_reader_factory(CairoVersion::Cairo1, false);
     let app_state = app_state(Arc::new(mock_mempool_client), state_reader_factory);
 
-    let err = add_tx(State(app_state), tx.into()).await.unwrap_err();
+    let err = internal_add_tx(app_state, tx).await.unwrap_err();
     assert_matches!(err, GatewaySpecError::CompiledClassHashMismatch);
 }
 

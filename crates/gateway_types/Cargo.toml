@@ -19,3 +19,4 @@ serde_json.workspace = true
 starknet_api.workspace = true
 starknet_mempool_infra.workspace = true
 thiserror.workspace = true
+tracing.workspace = true
