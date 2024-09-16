@@ -195,6 +195,7 @@ starknet_consensus_manager = { path = "crates/consensus_manager", version = "0.0
 starknet_consensus_manager_types = { path = "crates/consensus_manager_types", version = "0.0.0" }
 starknet_gateway = { path = "crates/gateway", version = "0.0.0" }
 starknet_gateway_types = { path = "crates/gateway_types", version = "0.0.0" }
+starknet_http_server = { path = "crates/http_server", version = "0.0.0" }
 starknet_mempool = { path = "crates/mempool", version = "0.0.0" }
 starknet_mempool_infra = { path = "crates/mempool_infra", version = "0.0.0" }
 starknet_mempool_node = { path = "crates/mempool_node", version = "0.0.0" }
