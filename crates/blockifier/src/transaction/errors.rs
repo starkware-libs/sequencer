@@ -40,8 +40,8 @@ pub enum TransactionFeeError {
         balance: BigUint,
     },
     #[error(
-        "Resource {resource} Gas bounds (max amount: {max_amount}, max price): {max_price}) \
-         exceed balance ({balance})."
+        "Resource {resource} Gas bounds (max amount: {max_amount}, max price: {max_price}) exceed \
+         balance ({balance})."
     )]
     GasBoundsExceedBalance {
         resource: Resource,
