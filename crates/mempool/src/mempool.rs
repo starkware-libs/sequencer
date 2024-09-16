@@ -231,10 +231,9 @@ impl TransactionReference {
             nonce: tx.nonce(),
             tx_hash: tx.tx_hash(),
             tip: tx.tip().expect("Expected a valid tip value."),
-            resource_bounds: tx
+            resource_bounds: *tx
                 .resource_bounds()
-                .expect("Expected a valid resource bounds value.")
-                .clone(),
+                .expect("Expected a valid resource bounds value."),
         }
     }
 

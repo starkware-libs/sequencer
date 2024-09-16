@@ -123,9 +123,7 @@ impl Transaction {
                     sender_address,
                     tip: *rpc_tx.tip(),
                     nonce: *rpc_tx.nonce(),
-                    resource_bounds: ValidResourceBounds::AllResources(
-                        rpc_tx.resource_bounds().clone(),
-                    ),
+                    resource_bounds: ValidResourceBounds::AllResources(*rpc_tx.resource_bounds()),
                     signature: TransactionSignature::default(),
                     calldata: Calldata::default(),
                     nonce_data_availability_mode: DataAvailabilityMode::L1,

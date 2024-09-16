@@ -234,7 +234,7 @@ pub fn create_account_tx_for_validate_test(
             declare_tx(
                 declare_tx_args! {
                     max_fee,
-                    resource_bounds: resource_bounds.clone(),
+                    resource_bounds,
                     signature,
                     sender_address,
                     version: tx_version,
@@ -255,7 +255,7 @@ pub fn create_account_tx_for_validate_test(
             let deploy_account_tx = deploy_account_tx(
                 deploy_account_tx_args! {
                     max_fee,
-                    resource_bounds: resource_bounds.clone(),
+                    resource_bounds,
                     signature,
                     version: tx_version,
                     class_hash,

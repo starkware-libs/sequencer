@@ -894,7 +894,7 @@ fn test_max_fee_exceeds_balance(
 
     // V3 invoke.
     let invalid_tx = account_invoke_tx(invoke_tx_args! {
-        resource_bounds: invalid_resource_bounds.clone(),
+        resource_bounds: invalid_resource_bounds,
         ..default_args
     });
     assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
@@ -1225,7 +1225,7 @@ fn test_declare_tx(
             max_fee: Fee(MAX_FEE),
             sender_address,
             version: tx_version,
-            resource_bounds: max_resource_bounds.clone(),
+            resource_bounds: max_resource_bounds,
             class_hash,
             compiled_class_hash,
             nonce: nonce_manager.next(sender_address),
@@ -1358,7 +1358,7 @@ fn test_deploy_account_tx(
     let account_class_hash = account.get_class_hash();
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
     let deploy_account = deploy_account_tx(
-        deploy_account_tx_args! { resource_bounds: max_resource_bounds.clone(), class_hash: account_class_hash },
+        deploy_account_tx_args! { resource_bounds: max_resource_bounds, class_hash: account_class_hash },
         &mut nonce_manager,
     );
 
