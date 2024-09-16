@@ -97,6 +97,10 @@ pub async fn run_component_servers(
     let gateway_future =
         get_server_future("Gateway", config.components.gateway.execute, servers.gateway);
 
+    // HttpServer server.
+    let http_server_future =
+        get_server_future("HttpServer", config.components.http_server.execute, servers.http_server);
+
     // Mempool server.
     let mempool_future =
         get_server_future("Mempool", config.components.mempool.execute, servers.mempool);
@@ -105,6 +109,7 @@ pub async fn run_component_servers(
     let batcher_handle = tokio::spawn(batcher_future);
     let consensus_manager_handle = tokio::spawn(consensus_manager_future);
     let gateway_handle = tokio::spawn(gateway_future);
+    let http_server_handle = tokio::spawn(http_server_future);
     let mempool_handle = tokio::spawn(mempool_future);
 
     tokio::select! {
@@ -118,6 +123,10 @@ pub async fn run_component_servers(
         }
         res = gateway_handle => {
             error!("Gateway Server stopped.");
+            res?
+        }
+        res = http_server_handle => {
+            error!("Http Server stopped.");
             res?
         }
         res = mempool_handle => {
