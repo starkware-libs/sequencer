@@ -4,6 +4,7 @@ use futures::channel::{mpsc, oneshot};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
+
 use crate::converters::ProtobufConversionError;
 
 #[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
@@ -66,14 +67,37 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     }
 }
 
+pub struct StreamHandlerConfig {
+    pub timeout_seconds: Option<u64>,
+    pub timeout_millis: Option<u64>,
+    pub max_buffer_size: Option<usize>,
+    pub max_num_streams: Option<usize>,
+    pub verbose: bool,
+}
+
+impl Default for StreamHandlerConfig {
+    fn default() -> Self {
+        StreamHandlerConfig {
+            timeout_seconds: None,
+            timeout_millis: None,
+            max_buffer_size: None,
+            max_num_streams: None,
+            verbose: false,
+        }
+    }
+}
+
 pub struct StreamHandler<
     T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
 > {
+    pub config: StreamHandlerConfig,
+
     pub sender: mpsc::Sender<StreamMessage<T>>,
     pub receiver: mpsc::Receiver<StreamMessage<T>>,
 
     // these dictionaries are keyed on the stream_id
     pub next_chunk_ids: BTreeMap<u64, u64>,
+    pub fin_was_received: BTreeMap<u64, bool>,
 
     // there is a separate message buffer for each stream,
     // each message buffer is keyed by the chunk_id of the first message in
@@ -84,50 +108,79 @@ pub struct StreamHandler<
 impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
     StreamHandler<T>
 {
-    pub fn new(sender: mpsc::Sender<StreamMessage<T>>, receiver: mpsc::Receiver<StreamMessage<T>>) -> Self {
+    pub fn new(
+        config: StreamHandlerConfig,
+        sender: mpsc::Sender<StreamMessage<T>>,
+        receiver: mpsc::Receiver<StreamMessage<T>>,
+    ) -> Self {
         StreamHandler {
+            config,
             sender,
             receiver,
             next_chunk_ids: BTreeMap::new(),
+            fin_was_received: BTreeMap::new(),
             message_buffers: BTreeMap::new(),
         }
     }
 
-    pub async fn send(&mut self, message: StreamMessage<T>) {
-        self.sender.try_send(message).expect("Send should succeed");
-    }
-
-    pub async fn receive(&mut self) -> StreamMessage<T> {
-        while let Ok(Some(value)) = self.receiver.recv(){
-            value
-        
-    }
-
     pub async fn listen(&mut self) {
+        let t0 = std::time::Instant::now();
+        println!("config timeout_millis: {:?}", self.config.timeout_millis);
         loop {
-            println!("Listening for messages");
-            let message = self.receive().await;
-            println!("Received message: {}", message.chunk_id);
-            let stream_id = message.stream_id;
-            let chunk_id = message.chunk_id;
-            let next_chunk_id = self.next_chunk_ids.entry(stream_id).or_insert(0);
+            println!("Listening for messages for {} milliseconds", t0.elapsed().as_millis());
 
-            // this means we can just send the message without buffering it
-            if chunk_id == *next_chunk_id {
-                let fin = message.fin;
-                self.sender.try_send(message).expect("Send should succeed");
-                *next_chunk_id += 1;
-                if fin {
-                    // remove the buffer if the stream is finished
-                    self.message_buffers.remove(&stream_id);
+            if let Some(timeout) = self.config.timeout_seconds {
+                if t0.elapsed().as_secs() > timeout {
+                    break;
                 }
-                // try to drain the buffer
-                self.drain_buffer(stream_id);
-            } else {
-                // save the message in the buffer.
-                self.store(message);
             }
-        }
+
+            if let Some(timeout) = self.config.timeout_millis {
+                if t0.elapsed().as_millis() > timeout.into() {
+                    break;
+                }
+            }
+
+            if let Ok(message) = self.receiver.try_next() {
+                if let None = message {
+                    // message is none in case the channel was closed!
+                    break;
+                }
+
+                let message = message.unwrap(); // code above handles case where message is None
+
+                println!("Received message: {}", message.chunk_id);
+                let stream_id = message.stream_id;
+                let chunk_id = message.chunk_id;
+                let next_chunk_id = self.next_chunk_ids.entry(stream_id).or_insert(0);
+
+                // this means we can just send the message without buffering it
+                if chunk_id == *next_chunk_id {
+                    let fin = message.fin;
+                    self.sender.try_send(message).expect("Send should succeed");
+                    *next_chunk_id += 1;
+                    if fin {
+                        // remove the buffer if the stream is finished and the buffer is empty
+                        self.fin_was_received.insert(stream_id, true);
+                    }
+                    // try to drain the buffer
+                    self.drain_buffer(stream_id);
+                } else if chunk_id > *next_chunk_id {
+                    // save the message in the buffer.
+                    self.store(message);
+                } else {
+                    panic!(
+                        "Received message with chunk_id {} that is smaller than the next chunk_id \
+                         {}",
+                        chunk_id, next_chunk_id
+                    );
+                }
+            } else {
+                // Err comes when the channel is open but no message was received
+                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            }
+        } // end of loop
+        println!("Done listening for messages");
     }
 
     // go over each vector in the buffer, push to the end of it if the chunk_id is contiguous
@@ -141,20 +194,19 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
             // go over the keys in order from smallest to largest id
             let last_id = buffer[&id].last().unwrap().chunk_id;
 
+            // we can just add the message to the end of the vector
             if last_id == chunk_id - 1 {
-                // we can just add the message to the end of the vector
                 buffer.get_mut(&id).unwrap().push(message);
                 return;
             }
 
+            // no vector with last chunk_id will match, skip the rest of the loop
             if last_id > chunk_id {
-                // no vector with last chunk_id will match, we can just start a new vector
-                buffer.insert(chunk_id, vec![message]);
-                return;
+                break;
             }
 
+            // this message should already be inside this vector!
             if chunk_id >= id || last_id < chunk_id - 1 {
-                // this message should already be inside this vector!
                 let old_message = buffer[&id].iter().filter(|m| m.chunk_id == chunk_id).next();
                 if let Some(old_message) = old_message {
                     panic!(
@@ -167,6 +219,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                 }
             }
         }
+        buffer.insert(chunk_id, vec![message]);
     }
 
     // Tries to drain as many messages as possible from the buffer (in order)
@@ -184,6 +237,9 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                     *chunk_id += 1;
                 }
             }
+            if buffer.is_empty() && self.fin_was_received.get(&stream_id).is_some() {
+                self.message_buffers.remove(&stream_id);
+            }
         }
     }
 }
@@ -192,7 +248,11 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
 mod tests {
     use super::*;
 
-    fn make_random_message(stream_id: u64, chunk_id: u64, fin: bool) -> StreamMessage<ConsensusMessage> {
+    fn make_random_message(
+        stream_id: u64,
+        chunk_id: u64,
+        fin: bool,
+    ) -> StreamMessage<ConsensusMessage> {
         StreamMessage {
             message: ConsensusMessage::Proposal(Proposal::default()),
             stream_id,
@@ -201,28 +261,99 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_stream_handler() {
-        let (mut tx_input, rx_input) = futures::channel::mpsc::channel::<StreamMessage<ConsensusMessage>>(100);
-        let (tx_output, mut rx_output) = futures::channel::mpsc::channel::<StreamMessage<ConsensusMessage>>(100);
-        let mut h = StreamHandler::new(tx_output, rx_input);
-        println!("Sending message");
-        tx_input.try_send(make_random_message(0, 0, false)).expect("Send should succeed");
+    fn do_vecs_match<T: PartialEq>(a: &Vec<T>, b: &Vec<T>) -> bool {
+        let matching = a.iter().zip(b.iter()).filter(|&(a, b)| a == b).count();
+        matching == a.len() && matching == b.len()
+    }
 
-        println!("Spawning task");
-        let _h = tokio::spawn(async move {
+    #[tokio::test]
+    async fn test_stream_handler_in_order() {
+        let (mut tx_input, rx_input) =
+            futures::channel::mpsc::channel::<StreamMessage<ConsensusMessage>>(100);
+        let (tx_output, mut rx_output) =
+            futures::channel::mpsc::channel::<StreamMessage<ConsensusMessage>>(100);
+
+        let mut config = StreamHandlerConfig::default();
+        config.verbose = true;
+        let mut h = StreamHandler::new(config, tx_output, rx_input);
+
+        let stream_id = 127;
+        for i in 0..10 {
+            let message = make_random_message(stream_id, i, i == 9);
+            tx_input.try_send(message).expect("Send should succeed");
+        }
+        tx_input.close_channel(); // this should signal the handler to break out of the loop
+
+        let join_handle = tokio::spawn(async move {
             h.listen().await;
+            h
         });
 
-        // wait a bit for the task to start
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-        let _message = rx_output.try_next().expect("Receive should succeed").expect("Receive should succeed");
+        let h = join_handle.await.expect("Task should succeed");
+        println!("Handler.message_buffers: {:?}", h.message_buffers);
+        assert!(h.message_buffers.is_empty());
 
-        
-
+        for i in 0..10 {
+            let _message = rx_output
+                .try_next()
+                .expect(&format!("Receive message {i} should succeed"))
+                .expect(&format!("Receive message {i} should succeed"));
+        }
     }
-    
+
+    #[tokio::test]
+    async fn test_stream_handler_in_reverse() {
+        let (mut tx_input, rx_input) =
+            futures::channel::mpsc::channel::<StreamMessage<ConsensusMessage>>(100);
+        let (tx_output, mut rx_output) =
+            futures::channel::mpsc::channel::<StreamMessage<ConsensusMessage>>(100);
+
+        let mut config = StreamHandlerConfig::default();
+        config.verbose = true;
+        config.timeout_millis = Some(100);
+        let mut h = StreamHandler::new(config, tx_output, rx_input);
+
+        let stream_id = 127;
+        for i in 0..5 {
+            let message = make_random_message(stream_id, 5 - i, false);
+            tx_input.try_send(message).expect("Send should succeed");
+        }
+
+        let join_handle = tokio::spawn(async move {
+            h.listen().await;
+            h
+        });
+        let mut h = join_handle.await.expect("Task should succeed");
+        println!("Handler.message_buffers: {:?}", h.message_buffers);
+        assert_eq!(h.message_buffers.len(), 1);
+        assert_eq!(h.message_buffers[&stream_id].len(), 5);
+        let range: Vec<u64> = (1..6).collect();
+        let keys = h.message_buffers[&stream_id].clone().into_keys().collect();
+        assert!(do_vecs_match(&keys, &range));
+
+        // now send the last message
+        tx_input.try_send(make_random_message(stream_id, 0, true)).expect("Send should succeed");
+
+        tx_input.close_channel(); // this should signal the handler to break out of the loop
+
+        let join_handle = tokio::spawn(async move {
+            h.listen().await;
+            h
+        });
+
+        let h = join_handle.await.expect("Task should succeed");
+        println!("Handler.message_buffers: {:?}", h.message_buffers);
+        assert!(h.message_buffers.is_empty());
+
+        for i in 0..6 {
+            let _message = rx_output
+                .try_next()
+                .expect(&format!("Receive message {i} should succeed"))
+                .expect(&format!("Receive message {i} should succeed"));
+        }
+    }
 }
+
 // TODO(Guy): Remove after implementing broadcast streams.
 #[allow(missing_docs)]
 pub struct ProposalWrapper(pub Proposal);
