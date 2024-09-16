@@ -31,7 +31,7 @@ impl TransactionQueue {
     /// Panics: if given a duplicate tx.
     pub fn insert(&mut self, tx_reference: TransactionReference) {
         assert_eq!(
-            self.address_to_tx.insert(tx_reference.sender_address, tx_reference.clone()),
+            self.address_to_tx.insert(tx_reference.sender_address, tx_reference),
             None,
             "Only a single transaction from the same contract class can be in the mempool at a \
              time."
@@ -77,7 +77,7 @@ impl TransactionQueue {
             return false;
         };
 
-        self.priority_queue.remove(&tx_reference.clone().into())
+        self.priority_queue.remove(&tx_reference.into())
             || self.pending_queue.remove(&tx_reference.into())
     }
 
