@@ -22,6 +22,7 @@ use crate::test_utils::{
     DEFAULT_ETH_L1_GAS_PRICE,
     DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
     DEFAULT_L2_GAS_MAX_AMOUNT,
+    DEFAULT_STRK_L1_GAS_PRICE,
     MAX_L1_GAS_AMOUNT,
 };
 use crate::transaction::objects::{GasVector, GasVectorComputationMode};
@@ -157,10 +158,14 @@ fn test_discounted_gas_overdraft(
         DEFAULT_ETH_L1_DATA_GAS_PRICE.try_into().unwrap(),
         data_gas_price.try_into().unwrap(),
         VersionedConstants::latest_constants()
-            .convert_l1_to_l2_gas(DEFAULT_ETH_L1_GAS_PRICE)
+            .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE)
             .try_into()
             .unwrap(),
-        VersionedConstants::latest_constants().convert_l1_to_l2_gas(gas_price).try_into().unwrap(),
+        VersionedConstants::latest_constants()
+            //TODO!(Aner): fix test parameters to allow using `gas_price` here!
+            .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE)
+            .try_into()
+            .unwrap(),
     );
 
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);

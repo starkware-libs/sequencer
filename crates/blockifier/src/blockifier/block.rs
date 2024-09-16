@@ -1,6 +1,5 @@
 use std::num::NonZeroU128;
 
-use log::warn;
 use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp};
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
@@ -47,18 +46,18 @@ impl GasPrices {
         strk_l2_gas_price: NonZeroU128,
     ) -> Self {
         // TODO(Aner): fix backwards compatibility.
-        let expected_eth_l2_gas_price =
-            VersionedConstants::latest_constants().convert_l1_to_l2_gas(eth_l1_gas_price.into());
+        let expected_eth_l2_gas_price = VersionedConstants::latest_constants()
+            .convert_l1_to_l2_gas_price_round_up(eth_l1_gas_price.into());
         if u128::from(eth_l2_gas_price) != expected_eth_l2_gas_price {
-            warn!(
+            panic!(
                 "eth_l2_gas_price does not match expected! eth_l2_gas_price:{eth_l2_gas_price}, \
                  expected:{expected_eth_l2_gas_price}."
             )
         }
-        let expected_strk_l2_gas_price =
-            VersionedConstants::latest_constants().convert_l1_to_l2_gas(strk_l1_gas_price.into());
+        let expected_strk_l2_gas_price = VersionedConstants::latest_constants()
+            .convert_l1_to_l2_gas_price_round_up(strk_l1_gas_price.into());
         if u128::from(strk_l2_gas_price) != expected_strk_l2_gas_price {
-            warn!(
+            panic!(
                 "strk_l2_gas_price does not match expected! \
                  strk_l2_gas_price:{strk_l2_gas_price}, expected:{expected_strk_l2_gas_price}."
             )
