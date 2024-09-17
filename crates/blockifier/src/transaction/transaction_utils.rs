@@ -25,7 +25,7 @@ pub fn verify_contract_class_version(
                 cairo_version: 0,
             })
         }
-        ContractClass::V1(_) => {
+        ContractClass::V1(_) | ContractClass::V1Native(_) => {
             if declare_version == TransactionVersion::TWO
                 || declare_version == TransactionVersion::THREE
             {
@@ -36,6 +36,5 @@ pub fn verify_contract_class_version(
                 cairo_version: 1,
             })
         }
-        ContractClass::V1Native(_) => todo!("Native verify contract class version."),
     }
 }

@@ -84,16 +84,12 @@ pub enum EntryPointExecutionError {
     CairoRunError(#[from] CairoRunError),
     #[error("Execution failed. Failure reason: {}.", format_panic_data(.error_data))]
     ExecutionFailed { error_data: Vec<Felt> },
-    #[error("Failed to convert Sierra to Casm: {0}")]
-    FailedToConvertSierraToCasm(String),
     #[error("Internal error: {0}")]
     InternalError(String),
     #[error("Invalid input: {input_descriptor}; {info}")]
     InvalidExecutionInput { input_descriptor: String, info: String },
     #[error("Native execution error: {info}")]
     NativeExecutionError { info: String },
-    #[error("Native Fallback Error: {info}")]
-    NativeFallbackError { info: Box<EntryPointExecutionError> },
     #[error("Native unexpected error: {source}")]
     NativeUnexpectedError {
         #[source]

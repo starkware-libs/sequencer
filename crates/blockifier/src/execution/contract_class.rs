@@ -8,7 +8,7 @@ use cairo_lang_sierra::ids::FunctionId;
 use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use cairo_lang_starknet_classes::contract_class::{
     ContractClass as SierraContractClass,
-    ContractEntryPoint,
+    ContractEntryPoint as SierraContractEntryPoint,
     ContractEntryPoints as SierraContractEntryPoints,
 };
 use cairo_lang_starknet_classes::NestedIntList;
@@ -53,6 +53,16 @@ pub mod test;
 
 pub type ContractClassResult<T> = Result<T, ContractClassError>;
 pub type LookupTable<'a> = HashMap<usize, &'a FunctionId>;
+
+fn assert_entry_point_not_constructor(call: &CallEntryPoint) -> Result<(), PreExecutionError> {
+    if call.entry_point_type == EntryPointType::Constructor
+        && call.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
+    {
+        Err(PreExecutionError::InvalidConstructorEntryPointName)
+    } else {
+        Ok(())
+    }
+}
 
 /// Represents a runnable Starknet contract class (meaning, the program is runnable by the VM).
 #[derive(Clone, Debug, PartialEq, derive_more::From)]
@@ -214,11 +224,7 @@ impl ContractClassV1 {
         &self,
         call: &CallEntryPoint,
     ) -> Result<EntryPointV1, PreExecutionError> {
-        if call.entry_point_type == EntryPointType::Constructor
-            && call.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
-        {
-            return Err(PreExecutionError::InvalidConstructorEntryPointName);
-        }
+        assert_entry_point_not_constructor(call)?;
 
         let entry_points_of_same_type = &self.0.entry_points_by_type[&call.entry_point_type];
         let filtered_entry_points: Vec<_> = entry_points_of_same_type
@@ -600,11 +606,7 @@ impl NativeContractClassV1 {
 
     /// Returns an entry point into the natively compiled contract.
     pub fn get_entry_point(&self, call: &CallEntryPoint) -> Result<&FunctionId, PreExecutionError> {
-        if call.entry_point_type == EntryPointType::Constructor
-            && call.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
-        {
-            return Err(PreExecutionError::InvalidConstructorEntryPointName);
-        }
+        assert_entry_point_not_constructor(call)?;
 
         let entry_points_of_same_type = &self.0.entry_points_by_type[call.entry_point_type];
         let filtered_entry_points: Vec<_> = entry_points_of_same_type
@@ -639,6 +641,7 @@ impl NativeContractClassV1Inner {
         // This exception should never occur as it was also used to create the AotNativeExecutor.
         let sierra_program =
             sierra_contract_class.extract_sierra_program().expect("can't extract sierra program");
+
         // Note [Cairo Native ABI]
         // The supplied (compiled) sierra program might have been populated with debug info and this
         // affects the ABI, because the debug info is appended to the function name and the
@@ -646,10 +649,10 @@ impl NativeContractClassV1Inner {
         // Therefore it's not enough to know the function index and we need enrich the contract
         // entry point with FunctionIds from SierraProgram.
         let lookup_fid: LookupTable<'_> =
-            HashMap::from_iter(sierra_program.funcs.iter().map(|fid| {
+            HashMap::from_iter(sierra_program.funcs.iter().map(|func| {
                 // This exception should never occur as the id is also in [SierraContractClass]
-                let id: usize = fid.id.id.try_into().expect("function id exceeds usize");
-                (id, &fid.id)
+                let id: usize = func.id.id.try_into().expect("function id exceeds usize");
+                (id, &func.id)
             }));
 
         Ok(NativeContractClassV1Inner {
@@ -689,22 +692,22 @@ impl NativeContractEntryPoints {
     /// On failure returns the first FunctionId that it couldn't find.
     fn try_from(
         lookup: &LookupTable<'_>,
-        sierra_ep: &SierraContractEntryPoints,
+        sierra_eps: &SierraContractEntryPoints,
     ) -> Result<NativeContractEntryPoints, NativeEntryPointError> {
-        let constructor = sierra_ep
+        let constructor = sierra_eps
             .constructor
             .iter()
-            .map(|c| NativeEntryPoint::try_from(lookup, c))
+            .map(|sierra_ep| NativeEntryPoint::try_from(lookup, sierra_ep))
             .collect::<Result<_, _>>()?;
-        let external = sierra_ep
+        let external = sierra_eps
             .external
             .iter()
-            .map(|c| NativeEntryPoint::try_from(lookup, c))
+            .map(|sierra_ep| NativeEntryPoint::try_from(lookup, sierra_ep))
             .collect::<Result<_, _>>()?;
-        let l1_handler = sierra_ep
+        let l1_handler = sierra_eps
             .l1_handler
             .iter()
-            .map(|c| NativeEntryPoint::try_from(lookup, c))
+            .map(|sierra_ep| NativeEntryPoint::try_from(lookup, sierra_ep))
             .collect::<Result<_, _>>()?;
 
         Ok(NativeContractEntryPoints { constructor, external, l1_handler })
@@ -735,12 +738,12 @@ struct NativeEntryPoint {
 impl NativeEntryPoint {
     fn try_from(
         lookup: &LookupTable<'_>,
-        contract_ep: &ContractEntryPoint,
+        sierra_ep: &SierraContractEntryPoint,
     ) -> Result<NativeEntryPoint, NativeEntryPointError> {
         let &function_id = lookup
-            .get(&contract_ep.function_idx)
-            .ok_or(NativeEntryPointError::FunctionIdNotFound(contract_ep.function_idx))?;
-        let selector = contract_entrypoint_to_entrypoint_selector(contract_ep);
+            .get(&sierra_ep.function_idx)
+            .ok_or(NativeEntryPointError::FunctionIdNotFound(sierra_ep.function_idx))?;
+        let selector = contract_entrypoint_to_entrypoint_selector(sierra_ep);
         Ok(NativeEntryPoint { selector, function_id: function_id.clone() })
     }
 }
