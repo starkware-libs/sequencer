@@ -211,6 +211,7 @@ pub struct CommonAccountFields {
 }
 
 /// Contains the information gathered by the execution of a transaction.
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(Serialize, serde::Deserialize))]
 #[derive(Debug, Default, PartialEq)]
 pub struct TransactionExecutionInfo {

@@ -12,7 +12,7 @@ workspace = true
 [features]
 concurrency = []
 jemalloc = ["dep:tikv-jemallocator"]
-testing = ["rand", "rstest"]
+testing = ["mockall", "rand", "rstest"]
 transaction_serde = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -34,6 +34,7 @@ indexmap.workspace = true
 itertools.workspace = true
 keccak.workspace = true
 log.workspace = true
+mockall = { workspace = true, optional = true }
 num-bigint.workspace = true
 num-integer.workspace = true
 num-rational = { workspace = true, features = ["serde"] }
@@ -60,6 +61,7 @@ toml.workspace = true
 assert_matches.workspace = true
 criterion = { workspace = true, features = ["html_reports"] }
 glob.workspace = true
+mockall.workspace = true
 pretty_assertions.workspace = true
 rand.workspace = true
 regex.workspace = true

@@ -13,7 +13,9 @@ async-trait.workspace = true
 blockifier.workspace = true
 chrono.workspace = true
 papyrus_config.workspace = true
+papyrus_storage.workspace = true
 serde.workspace = true
+starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_batcher_types.workspace = true
 starknet_mempool_infra.workspace = true
@@ -26,5 +28,5 @@ validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
-mockall.workspace = true
+mempool_test_utils.workspace = true
 rstest.workspace = true

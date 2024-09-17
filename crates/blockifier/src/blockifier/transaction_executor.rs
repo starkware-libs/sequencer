@@ -9,6 +9,8 @@ use std::sync::Mutex;
 
 use itertools::FoldWhile::{Continue, Done};
 use itertools::Itertools;
+#[cfg(any(test, feature = "testing"))]
+use mockall::automock;
 use starknet_api::core::ClassHash;
 use thiserror::Error;
 
@@ -293,5 +295,31 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         self.block_state.replace(block_state_after_commit);
 
         tx_execution_results
+    }
+}
+
+#[cfg_attr(any(test, feature = "testing"), automock)]
+pub trait TransactionExecutorTrait {
+    fn add_txs_to_block(
+        &mut self,
+        txs: &[Transaction],
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>>;
+    fn close_block(
+        &mut self,
+    ) -> TransactionExecutorResult<(CommitmentStateDiff, VisitedSegmentsMapping, BouncerWeights)>;
+}
+
+impl<S: StateReader + Send + Sync> TransactionExecutorTrait for TransactionExecutor<S> {
+    fn add_txs_to_block(
+        &mut self,
+        txs: &[Transaction],
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
+        self.execute_txs(txs)
+    }
+    fn close_block(
+        &mut self,
+    ) -> TransactionExecutorResult<(CommitmentStateDiff, VisitedSegmentsMapping, BouncerWeights)>
+    {
+        self.finalize()
     }
 }
