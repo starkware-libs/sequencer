@@ -22,6 +22,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
+      - name: Set up Native Dependencies
+        uses: ./.github/actions/setup-native-deps
+        id: native-deps
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt update; sudo apt -y install libclang-dev
         # Install libclang-dev that is not a part of the ubuntu vm in github actions.
