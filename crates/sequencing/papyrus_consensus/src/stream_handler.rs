@@ -12,8 +12,8 @@ mod stream_handler_test;
 pub struct StreamHandlerConfig {
     pub timeout_seconds: Option<u64>,
     pub timeout_millis: Option<u64>,
-    pub max_buffer_size: Option<usize>,
-    pub max_num_streams: Option<usize>,
+    pub max_buffer_size: Option<u64>,
+    pub max_num_streams: Option<u64>,
 }
 
 impl Default for StreamHandlerConfig {
@@ -39,6 +39,7 @@ pub struct StreamHandler<
     pub next_chunk_ids: BTreeMap<u64, u64>,
     pub fin_chunk_id: BTreeMap<u64, u64>,
     pub max_chunk_id: BTreeMap<u64, u64>,
+    pub num_buffered: BTreeMap<u64, u64>,
 
     // there is a separate message buffer for each stream,
     // each message buffer is keyed by the chunk_id of the first message in
@@ -61,6 +62,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
             next_chunk_ids: BTreeMap::new(),
             fin_chunk_id: BTreeMap::new(),
             max_chunk_id: BTreeMap::new(),
+            num_buffered: BTreeMap::new(),
             message_buffers: BTreeMap::new(),
         }
     }
@@ -98,6 +100,13 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                 let chunk_id = message.chunk_id;
                 let next_chunk_id = self.next_chunk_ids.entry(stream_id).or_insert(0);
 
+                self.num_buffered
+                    .entry(stream_id)
+                    .and_modify(|num_buffered| {
+                        *num_buffered += 1;
+                    })
+                    .or_insert(1); // first message
+
                 self.max_chunk_id
                     .entry(stream_id)
                     .and_modify(|max_chunk_id| {
@@ -106,6 +115,14 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                         }
                     })
                     .or_insert(chunk_id);
+
+                // check if this there are too many streams
+                if let Some(max_streams) = self.config.max_num_streams {
+                    let num_streams = self.num_buffered.len() as u64;
+                    if num_streams > max_streams {
+                        panic!("Max number of streams reached! {}", max_streams);
+                    }
+                }
 
                 if message.fin {
                     // there is guaranteed to be a maximum chunk_id for this stream, as we have
@@ -160,6 +177,12 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     fn store(&mut self, message: StreamMessage<T>) {
         let stream_id = message.stream_id;
         let chunk_id = message.chunk_id;
+        let num_buf = self.num_buffered.get(&stream_id).unwrap();
+        if let Some(max_buf_size) = self.config.max_buffer_size {
+            if *num_buf > max_buf_size {
+                panic!("Buffer is full! stream_id= {} with {} messages!", stream_id, num_buf);
+            }
+        }
         let buffer = self.message_buffers.entry(stream_id).or_insert(BTreeMap::new());
         let keys = buffer.keys().cloned().collect::<Vec<u64>>();
         for id in keys {
@@ -199,6 +222,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     fn drain_buffer(&mut self, stream_id: u64) {
         if let Some(buffer) = self.message_buffers.get_mut(&stream_id) {
             let chunk_id = self.next_chunk_ids.entry(stream_id).or_insert(0);
+            let num_buf = self.num_buffered.get_mut(&stream_id).unwrap();
 
             // drain each vec of messages one by one, if they are in order
             // to drain a vector, we must match the first id (the key) with the chunk_id
@@ -207,6 +231,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                 for message in messages {
                     self.sender.try_send(message).expect("Send should succeed");
                     *chunk_id += 1;
+                    *num_buf -= 1;
                 }
             }
 
@@ -221,6 +246,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                 self.next_chunk_ids.remove(&stream_id);
                 self.fin_chunk_id.remove(&stream_id);
                 self.max_chunk_id.remove(&stream_id);
+                self.num_buffered.remove(&stream_id);
             }
         }
     }
