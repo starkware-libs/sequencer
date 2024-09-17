@@ -57,7 +57,7 @@
   "components.consensus_manager.component_type": {
     "description": "The component type.",
     "privacy": "Public",
-    "value": "AsynchronousComponent"
+    "value": "SynchronousComponent"
   },
   "components.consensus_manager.execute": {
     "description": "The component execution flag.",
