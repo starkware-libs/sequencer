@@ -24,6 +24,9 @@ const MINIMAL_GANACHE_VERSION: u8 = 7;
 //      30                      300                     0x300
 // The blockchain is at Ethereum block number 31.
 // Note: Requires Ganache@7.4.3 installed.
+// TODO: `Ganache` and `ethers` have both been deprecated. Also, `ethers`s' replacement, `alloy`,
+// no longer supports `Ganache`. Once we decide on a Ganache replacement, fix this test and fully
+// remove `ethers`.
 fn get_test_ethereum_node() -> (TestEthereumNodeHandle, EthereumContractAddress) {
     const SN_CONTRACT_ADDR: &str = "0xe2aF2c1AE11fE13aFDb7598D0836398108a4db0A";
     // Verify correct Ganache version.
