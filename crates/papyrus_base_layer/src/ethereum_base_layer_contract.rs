@@ -3,7 +3,8 @@ use std::future::IntoFuture;
 
 use alloy_contract::{ContractInstance, Interface};
 use alloy_dyn_abi::SolType;
-use alloy_json_abi::JsonAbi;
+use alloy_json_rpc::RpcError;
+use alloy_primitives::hex::FromHexError;
 use alloy_primitives::Address;
 use alloy_provider::network::Ethereum;
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
@@ -23,17 +24,17 @@ use crate::BaseLayerContract;
 #[derive(thiserror::Error, Debug)]
 pub enum EthereumBaseLayerError {
     #[error(transparent)]
-    FromHex(#[from] alloy_primitives::hex::FromHexError),
+    Contract(#[from] alloy_contract::Error),
     #[error(transparent)]
-    Url(#[from] ParseError),
+    FromHex(#[from] FromHexError),
+    #[error(transparent)]
+    RpcError(#[from] RpcError<TransportErrorKind>),
     #[error(transparent)]
     Serde(#[from] serde_json::Error),
     #[error(transparent)]
-    Contract(#[from] alloy_contract::Error),
-    #[error(transparent)]
     TypeError(#[from] alloy_sol_types::Error),
     #[error(transparent)]
-    RpcError(#[from] alloy_json_rpc::RpcError<TransportErrorKind>),
+    Url(#[from] ParseError),
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
@@ -71,18 +72,18 @@ impl Default for EthereumBaseLayerConfig {
     }
 }
 
+#[derive(Debug)]
 pub struct EthereumBaseLayerContract {
     contract: ContractInstance<Http<Client>, RootProvider<Http<Client>>, Ethereum>,
 }
 
 impl EthereumBaseLayerContract {
     pub fn new(config: EthereumBaseLayerConfig) -> Result<Self, EthereumBaseLayerError> {
-        let address = config.starknet_contract_address.parse::<Address>()?;
+        let address: Address = config.starknet_contract_address.parse()?;
         let client = ProviderBuilder::new().on_http(config.node_url.parse()?);
 
         // The solidity contract was pre-compiled, and only the relevant functions were kept.
-        let abi: JsonAbi =
-            serde_json::from_str::<JsonAbi>(include_str!("core_contract_latest_block.abi"))?;
+        let abi = serde_json::from_str(include_str!("core_contract_latest_block.abi"))?;
         Ok(Self { contract: ContractInstance::new(address, client, Interface::new(abi)) })
     }
 }
@@ -93,14 +94,14 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
     async fn latest_proved_block(
         &self,
-        min_confirmations: Option<u64>,
+        finality: Option<u64>,
     ) -> Result<Option<(BlockNumber, BlockHash)>, Self::Error> {
         let ethereum_block_number = self
             .contract
             .provider()
             .get_block_number()
             .await?
-            .checked_sub(min_confirmations.unwrap_or(0).into());
+            .checked_sub(finality.unwrap_or_default());
         let Some(ethereum_block_number) = ethereum_block_number else {
             return Ok(None);
         };
