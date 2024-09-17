@@ -364,7 +364,7 @@ fn test_max_fee_limit_validate(
         declare_tx_args! {
             class_hash: grindy_class_hash,
             sender_address: account_address,
-            resource_bounds: max_resource_bounds.clone(),
+            resource_bounds: max_resource_bounds,
             nonce: nonce_manager.next(account_address),
         },
         class_info,
@@ -381,7 +381,7 @@ fn test_max_fee_limit_validate(
         chain_info,
         deploy_account_tx_args! {
             class_hash: grindy_class_hash,
-            resource_bounds: max_resource_bounds.clone(),
+            resource_bounds: max_resource_bounds,
             constructor_calldata: calldata![ctor_grind_arg, ctor_storage_arg],
         },
     );
@@ -397,7 +397,7 @@ fn test_max_fee_limit_validate(
         chain_info,
         deploy_account_tx_args! {
             class_hash: grindy_class_hash,
-            resource_bounds: max_resource_bounds.clone(),
+            resource_bounds: max_resource_bounds,
             constructor_calldata: calldata![ctor_grind_arg, ctor_storage_arg],
         },
     );
@@ -1311,7 +1311,7 @@ fn test_concurrency_execute_fee_transfer(
     sender_address: account.get_instance_address(0),
     max_fee,
     calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
-    resource_bounds: max_resource_bounds.clone(),
+    resource_bounds: max_resource_bounds,
     version
     });
     let fee_type = &account_tx.fee_type();

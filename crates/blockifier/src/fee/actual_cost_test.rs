@@ -333,7 +333,7 @@ fn test_calculate_tx_gas_usage(
     let account_tx = account_invoke_tx(invoke_tx_args! {
             sender_address: account_contract_address,
             calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
-            resource_bounds: max_resource_bounds.clone(),
+            resource_bounds: max_resource_bounds,
     });
     let calldata_length = account_tx.calldata_length();
     let signature_length = account_tx.signature_length();
