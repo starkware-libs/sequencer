@@ -58,6 +58,15 @@ license-file = "LICENSE"
 [workspace.dependencies]
 # fixating the version of parity-scale-codec and parity-scale-codec-derive due to an error in udeps.
 # TODO: Remove this once udeps is fixed.
+alloy-contract = "0.3.5"
+alloy-dyn-abi = "0.8.3"
+alloy-json-abi = "0.8.3"
+alloy-json-rpc = "0.3.5"
+alloy-primitives = "0.8.3"
+alloy-provider = "0.3.5"
+alloy-sol-types = "0.8.3"
+alloy-transport = "0.3.5"
+alloy-transport-http = "0.3.5"
 anyhow = "1.0.44"
 ark-ec = "0.4.2"
 ark-ff = "0.4.0-alpha.7"
