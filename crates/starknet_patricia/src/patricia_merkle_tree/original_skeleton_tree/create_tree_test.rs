@@ -213,7 +213,7 @@ fn test_create_tree(
         .into_iter()
         .map(|(idx, leaf)| (NodeIndex::from_subtree_index(idx, subtree_height), leaf))
         .collect();
-    let config = OriginalSkeletonMockTrieConfig::new(&leaf_modifications, compare_modified_leaves);
+    let config = OriginalSkeletonMockTrieConfig::new(compare_modified_leaves);
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
     let skeleton_tree = OriginalSkeletonTreeImpl::create::<MockLeaf>(
@@ -221,6 +221,7 @@ fn test_create_tree(
         root_hash,
         sorted_leaf_indices,
         &config,
+        &leaf_modifications,
     )
     .unwrap();
     assert_eq!(&skeleton_tree.nodes, &expected_skeleton_nodes);

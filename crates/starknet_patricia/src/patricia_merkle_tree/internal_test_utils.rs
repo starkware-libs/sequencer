@@ -11,9 +11,7 @@ use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, NodeData, PathToBottom};
 use crate::patricia_merkle_tree::node_data::leaf::{Leaf, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
-use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
     HashFunction,

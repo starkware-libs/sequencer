@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::node_data::leaf::Leaf;
+use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
@@ -21,6 +21,7 @@ pub trait OriginalSkeletonTree<'a>: Sized {
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
+        leaf_modifications: &LeafModifications<L>,
     ) -> OriginalSkeletonTreeResult<Self>;
 
     fn get_nodes(&self) -> &OriginalSkeletonNodeMap;
@@ -32,6 +33,7 @@ pub trait OriginalSkeletonTree<'a>: Sized {
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
+        leaf_modifications: &LeafModifications<L>,
     ) -> OriginalSkeletonTreeResult<(Self, HashMap<NodeIndex, L>)>;
 
     #[allow(dead_code)]
@@ -51,8 +53,9 @@ impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
+        leaf_modifications: &LeafModifications<L>,
     ) -> OriginalSkeletonTreeResult<Self> {
-        Self::create_impl(storage, root_hash, sorted_leaf_indices, config)
+        Self::create_impl(storage, root_hash, sorted_leaf_indices, config, leaf_modifications)
     }
 
     fn get_nodes(&self) -> &OriginalSkeletonNodeMap {
@@ -68,8 +71,15 @@ impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
+        leaf_modifications: &LeafModifications<L>,
     ) -> OriginalSkeletonTreeResult<(Self, HashMap<NodeIndex, L>)> {
-        Self::create_and_get_previous_leaves_impl(storage, root_hash, sorted_leaf_indices, config)
+        Self::create_and_get_previous_leaves_impl(
+            storage,
+            root_hash,
+            sorted_leaf_indices,
+            leaf_modifications,
+            config,
+        )
     }
 
     fn get_sorted_leaf_indices(&self) -> SortedLeafIndices<'a> {
