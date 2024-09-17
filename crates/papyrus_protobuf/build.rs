@@ -3,7 +3,8 @@ use std::io::Result;
 
 fn main() -> Result<()> {
     println!("Building");
-    let (protoc_bin, _) = protoc_prebuilt::init("27.0").unwrap();
+    let (protoc_bin, _) = protoc_prebuilt::init("27.0")
+        .expect("Please run gh auth login to enable protoc compilation");
     env::set_var("PROTOC", protoc_bin);
     prost_build::compile_protos(
         &[
