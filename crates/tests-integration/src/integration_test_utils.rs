@@ -11,7 +11,6 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway::config::{
     GatewayConfig,
-    GatewayNetworkConfig,
     RpcStateReaderConfig,
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
@@ -31,11 +30,9 @@ async fn create_gateway_config() -> GatewayConfig {
         ..Default::default()
     };
 
-    let socket = get_available_socket().await;
-    let network_config = GatewayNetworkConfig { ip: socket.ip(), port: socket.port() };
     let stateful_tx_validator_config = StatefulTransactionValidatorConfig::create_for_testing();
 
-    GatewayConfig { network_config, stateless_tx_validator_config, stateful_tx_validator_config }
+    GatewayConfig { stateless_tx_validator_config, stateful_tx_validator_config }
 }
 
 async fn create_http_server_config() -> HttpServerConfig {
