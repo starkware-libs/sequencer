@@ -1428,3 +1428,31 @@ fn test_concurrent_fee_transfer_when_sender_is_sequencer(
         assert_eq!(state.get_storage_at(fee_token_address, seq_key).unwrap(), felt!(seq_value));
     }
 }
+
+#[rstest]
+fn test_revert_in_execute(block_context: BlockContext, max_resource_bounds: ValidResourceBounds) {
+    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+    let chain_info = &block_context.chain_info;
+    let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
+    let account_address = account.get_instance_address(0);
+    let mut nonce_manager = NonceManager::default();
+
+    // Invoke a function that changes the state and reverts.
+    let tx_args = invoke_tx_args! {
+        sender_address: account_address,
+        calldata: Calldata(vec![].into()),
+        nonce: nonce_manager.next(account_address)
+    };
+
+    // Skip validate phase, as we want to test the revert in the execute phase.
+    let validate = false;
+    let tx_execution_info = account_invoke_tx(invoke_tx_args! {
+        resource_bounds: max_resource_bounds,
+        ..tx_args
+    })
+    .execute(state, &block_context, true, validate)
+    .unwrap();
+
+    assert!(tx_execution_info.is_reverted());
+    assert!(tx_execution_info.revert_error.unwrap().contains("Failed to deserialize param #1"));
+}
