@@ -47,8 +47,6 @@ pub enum ComponentType {
     IndependentComponent,
     // A component that requires an infra server, and has no internal mutating task.
     SynchronousComponent,
-    // A component that requires an infra server, and has an internal mutating task.
-    AsynchronousComponent,
 }
 // TODO(Lev/Tsabary): Change the enum values to more discriptive.
 
@@ -157,7 +155,7 @@ impl ComponentExecutionConfig {
         Self {
             execute: true,
             location: LocationType::Local,
-            component_type: ComponentType::AsynchronousComponent,
+            component_type: ComponentType::SynchronousComponent,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
         }
