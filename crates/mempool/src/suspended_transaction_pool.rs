@@ -15,4 +15,12 @@ impl _SuspendedTransactionPool {
     pub fn _contains(&self, address: ContractAddress, nonce: Nonce) -> bool {
         self.suspended_tx_pool.contains_key(&(address, nonce))
     }
+
+    pub fn _insert(&mut self, tx: TransactionReference) {
+        assert_eq!(
+            self.suspended_tx_pool.insert((tx.sender_address, tx.nonce), tx),
+            None,
+            "Keys should be unique; duplicates are checked prior."
+        );
+    }
 }
