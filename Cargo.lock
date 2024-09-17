@@ -6785,7 +6785,6 @@ version = "0.0.0"
 dependencies = [
  "alloy-contract",
  "alloy-dyn-abi",
- "alloy-json-abi",
  "alloy-json-rpc",
  "alloy-primitives",
  "alloy-provider",
