@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::RandomState;
+use std::sync::atomic::AtomicUsize;
 
 use ark_ff::BigInt;
 use cairo_lang_sierra::ids::FunctionId;
@@ -11,12 +12,19 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use itertools::Itertools;
 use num_bigint::BigUint;
 use num_traits::ToBytes;
+use sierra_emu::{ProgramTrace, StateDump};
 use starknet_api::core::{ContractAddress, EntryPointSelector};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::Resource;
 use starknet_types_core::felt::Felt;
 
-use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent, OrderedL2ToL1Message, Retdata};
+use crate::execution::call_info::{
+    CallExecution,
+    CallInfo,
+    OrderedEvent,
+    OrderedL2ToL1Message,
+    Retdata,
+};
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionResult};
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
@@ -69,33 +77,50 @@ pub fn run_native_executor(
 }
 
 pub fn run_sierra_emu_executor(
-    native_executor: &AotNativeExecutor,
+    mut vm: sierra_emu::VirtualMachine<&mut NativeSyscallHandler<'_>>,
     function_id: &FunctionId,
     call: CallEntryPoint,
-    mut syscall_handler: NativeSyscallHandler<'_>,
 ) -> EntryPointExecutionResult<CallInfo> {
-    let execution_result = native_executor.invoke_contract_dynamic(
-        function_id,
-        &call.calldata.0,
-        Some(call.initial_gas.into()),
-        &mut syscall_handler,
-    );
+    let function = vm.registry().get_function(function_id).unwrap().clone();
 
-    let run_result = match execution_result {
-        Ok(res) if res.failure_flag => Err(EntryPointExecutionError::NativeExecutionError {
-            info: if !res.return_values.is_empty() {
-                decode_felts_as_str(&res.return_values)
+    static COUNTER: AtomicUsize = AtomicUsize::new(0);
+    let counter_value = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+    vm.call_contract(&function, call.initial_gas.into(), call.calldata.0.iter().cloned());
+
+    let mut trace = ProgramTrace::new();
+
+    while let Some((statement_idx, state)) = vm.step() {
+        trace.push(StateDump::new(statement_idx, state));
+    }
+
+    let execution_result = sierra_emu::ContractExecutionResult::from_trace(&trace).unwrap();
+
+    let trace = serde_json::to_string_pretty(&trace).unwrap();
+    std::fs::create_dir_all("traces/emu/").unwrap();
+    std::fs::write(format!("traces/emu/trace_{}.json", counter_value), trace).unwrap();
+
+    if execution_result.failure_flag {
+        Err(EntryPointExecutionError::NativeExecutionError {
+            info: if !execution_result.return_values.is_empty() {
+                decode_felts_as_str(&execution_result.return_values)
+            } else if let Some(error_msg) = execution_result.error_msg.clone() {
+                error_msg
             } else {
                 String::from("Unknown error")
             },
-        }),
-        Err(runner_err) => {
-            Err(EntryPointExecutionError::NativeUnexpectedError { source: runner_err })
-        }
-        Ok(res) => Ok(res),
-    }?;
+        })?;
+    }
 
-    create_callinfo(call, run_result, syscall_handler)
+    create_callinfo_emu(
+        call.clone(),
+        execution_result,
+        vm.syscall_handler.events.clone(),
+        vm.syscall_handler.l2_to_l1_messages.clone(),
+        vm.syscall_handler.inner_calls.clone(),
+        vm.syscall_handler.storage_read_values.clone(),
+        vm.syscall_handler.accessed_storage_keys.clone(),
+    )
 }
 
 fn create_callinfo(

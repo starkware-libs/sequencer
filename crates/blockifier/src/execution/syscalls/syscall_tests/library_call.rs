@@ -14,14 +14,18 @@ use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::syscalls::syscall_tests::constants::{
-    REQUIRED_GAS_LIBRARY_CALL_TEST, REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
+    REQUIRED_GAS_LIBRARY_CALL_TEST,
+    REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
 };
 use crate::execution::syscalls::SyscallSelector;
 use crate::retdata;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
-    get_syscall_resources, trivial_external_entry_point_new, CairoVersion, BALANCE,
+    get_syscall_resources,
+    trivial_external_entry_point_new,
+    CairoVersion,
+    BALANCE,
 };
 
 #[test_case(FeatureContract::TestContract(CairoVersion::Native), 187670; "Native"

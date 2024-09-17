@@ -649,7 +649,7 @@ pub struct NativeContractClassV1Inner {
     entry_points_by_type: NativeContractEntryPoints,
     // Storing the raw sierra program and entry points to be able to fallback to the vm
     sierra_program_raw: Vec<BigUintAsHex>,
-    program: cairo_lang_sierra::program::Program, // for sierra emu
+    pub program: cairo_lang_sierra::program::Program, // for sierra emu
     fallback_entry_points_by_type: SierraContractEntryPoints,
 }
 

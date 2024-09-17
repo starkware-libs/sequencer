@@ -5,38 +5,65 @@ use std::sync::Arc;
 
 use ark_ec::short_weierstrass::{Affine, Projective, SWCurveConfig};
 use cairo_native::starknet::{
-    BlockInfo, ExecutionInfo, ExecutionInfoV2, Secp256k1Point, Secp256r1Point,
-    StarknetSyscallHandler, SyscallResult, TxInfo, TxV2Info, U256,
+    BlockInfo,
+    ExecutionInfo,
+    ExecutionInfoV2,
+    Secp256k1Point,
+    Secp256r1Point,
+    StarknetSyscallHandler,
+    SyscallResult,
+    TxInfo,
+    TxV2Info,
+    U256,
 };
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_traits::{ToPrimitive, Zero};
 use starknet_api::core::{
-    calculate_contract_address, ClassHash, ContractAddress, EntryPointSelector, EthAddress,
+    calculate_contract_address,
+    ClassHash,
+    ContractAddress,
+    EntryPointSelector,
+    EthAddress,
     PatriciaKey,
 };
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
-    Calldata, ContractAddressSalt, EventContent, EventData, EventKey, L2ToL1Payload,
+    Calldata,
+    ContractAddressSalt,
+    EventContent,
+    EventData,
+    EventKey,
+    L2ToL1Payload,
 };
 use starknet_types_core::felt::Felt;
 
 use super::utils::{
-    big4int_to_u256, calculate_resource_bounds, contract_address_to_native_felt,
-    default_tx_v2_info, encode_str_as_felts, u256_to_biguint,
+    big4int_to_u256,
+    calculate_resource_bounds,
+    contract_address_to_native_felt,
+    default_tx_v2_info,
+    encode_str_as_felts,
+    u256_to_biguint,
 };
 use crate::abi::constants;
 use crate::execution::call_info::{CallInfo, MessageToL1, OrderedEvent, OrderedL2ToL1Message};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::contract_class::ContractClass;
 use crate::execution::entry_point::{
-    CallEntryPoint, CallType, ConstructorContext, EntryPointExecutionContext,
+    CallEntryPoint,
+    CallType,
+    ConstructorContext,
+    EntryPointExecutionContext,
 };
 use crate::execution::execution_utils::{execute_deployment, max_fee_for_execution_info};
 use crate::execution::syscalls::hint_processor::{
-    SyscallCounter, SyscallExecutionError, BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
-    INVALID_INPUT_LENGTH_ERROR, OUT_OF_GAS_ERROR,
+    SyscallCounter,
+    SyscallExecutionError,
+    BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
+    INVALID_INPUT_LENGTH_ERROR,
+    OUT_OF_GAS_ERROR,
 };
 use crate::execution::syscalls::{exceeds_event_size_limit, SyscallSelector};
 use crate::state::state_api::State;
@@ -875,28 +902,61 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 pub mod sierra_emu_impl {
     use std::sync::Arc;
 
-    use sierra_emu::starknet::{
-        BlockInfo, ExecutionInfo, ExecutionInfoV2, ResourceBounds, Secp256k1Point, Secp256r1Point, SyscallResult, TxInfo, TxV2Info, U256
-    };
-    use starknet_api::{core::{calculate_contract_address, ClassHash, ContractAddress, EntryPointSelector, EthAddress, PatriciaKey}, data_availability::DataAvailabilityMode, deprecated_contract_class::EntryPointType, state::StorageKey, transaction::{Calldata, ContractAddressSalt, EventContent, EventData, EventKey, L2ToL1Payload}};
-    use starknet_types_core::felt::Felt;
     use num_traits::ToPrimitive;
-
-    use crate::{
-        abi::constants,
-        execution::{
-            call_info::{MessageToL1, OrderedEvent, OrderedL2ToL1Message}, common_hints::ExecutionMode, contract_class::ContractClass, entry_point::{CallEntryPoint, CallType, ConstructorContext}, execution_utils::{execute_deployment, max_fee_for_execution_info}, native::utils::{
-                calculate_resource_bounds, contract_address_to_native_felt, default_tx_v2_info_sierra_emu, encode_str_as_felts
-            }, syscalls::{
-                exceeds_event_size_limit, hint_processor::{SyscallExecutionError, BLOCK_NUMBER_OUT_OF_RANGE_ERROR, INVALID_INPUT_LENGTH_ERROR, OUT_OF_GAS_ERROR}, SyscallSelector
-            }
-        },
-        transaction::objects::TransactionInfo,
+    use sierra_emu::starknet::{
+        BlockInfo,
+        ExecutionInfo,
+        ExecutionInfoV2,
+        ResourceBounds,
+        Secp256k1Point,
+        Secp256r1Point,
+        SyscallResult,
+        TxInfo,
+        TxV2Info,
+        U256,
     };
+    use starknet_api::core::{
+        calculate_contract_address,
+        ClassHash,
+        ContractAddress,
+        EntryPointSelector,
+        EthAddress,
+        PatriciaKey,
+    };
+    use starknet_api::data_availability::DataAvailabilityMode;
+    use starknet_api::deprecated_contract_class::EntryPointType;
+    use starknet_api::state::StorageKey;
+    use starknet_api::transaction::{
+        Calldata,
+        ContractAddressSalt,
+        EventContent,
+        EventData,
+        EventKey,
+        L2ToL1Payload,
+    };
+    use starknet_types_core::felt::Felt;
 
     use super::{to_u256_native, NativeSyscallHandler, Secp256Point};
-
-
+    use crate::abi::constants;
+    use crate::execution::call_info::{MessageToL1, OrderedEvent, OrderedL2ToL1Message};
+    use crate::execution::common_hints::ExecutionMode;
+    use crate::execution::contract_class::ContractClass;
+    use crate::execution::entry_point::{CallEntryPoint, CallType, ConstructorContext};
+    use crate::execution::execution_utils::{execute_deployment, max_fee_for_execution_info};
+    use crate::execution::native::utils::{
+        calculate_resource_bounds,
+        contract_address_to_native_felt,
+        default_tx_v2_info_sierra_emu,
+        encode_str_as_felts,
+    };
+    use crate::execution::syscalls::hint_processor::{
+        SyscallExecutionError,
+        BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
+        INVALID_INPUT_LENGTH_ERROR,
+        OUT_OF_GAS_ERROR,
+    };
+    use crate::execution::syscalls::{exceeds_event_size_limit, SyscallSelector};
+    use crate::transaction::objects::TransactionInfo;
 
     impl<'state> sierra_emu::starknet::StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
         fn get_block_hash(
@@ -925,14 +985,14 @@ pub mod sierra_emu_impl {
             if current_block_number < constants::STORED_BLOCK_HASH_BUFFER
                 || block_number > current_block_number - constants::STORED_BLOCK_HASH_BUFFER
             {
-                // `panic` is unreachable in this case, also this is covered by tests so we can safely
-                // unwrap
+                // `panic` is unreachable in this case, also this is covered by tests so we can
+                // safely unwrap
                 let out_of_range_felt = Felt::from_hex(BLOCK_NUMBER_OUT_OF_RANGE_ERROR).unwrap();
 
                 // This error is wrapped into a `SyscallExecutionError::SyscallError` in the VM
                 // implementation, but here it would be more convenient to return it directly, since
-                // wrapping it like VM does will result in a double encoding to felts, which adds extra
-                // layer of complication
+                // wrapping it like VM does will result in a double encoding to felts, which adds
+                // extra layer of complication
                 return Err(vec![out_of_range_felt]);
             }
 
