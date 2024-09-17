@@ -17,7 +17,7 @@ use papyrus_consensus::config::ConsensusConfig;
 use papyrus_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use papyrus_monitoring_gateway::MonitoringServer;
 use papyrus_network::gossipsub_impl::Topic;
-use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
+use papyrus_network::network_manager::NetworkManager;
 use papyrus_network::{network_manager, NetworkConfig};
 use papyrus_p2p_sync::client::{P2PSyncClient, P2PSyncClientChannels};
 use papyrus_p2p_sync::server::{P2PSyncServer, P2PSyncServerChannels};
@@ -165,11 +165,9 @@ fn build_consensus(
 
     let network_channels = network_manager
         .register_broadcast_topic(Topic::new(config.network_topic.clone()), BUFFER_SIZE)?;
-    let BroadcastTopicChannels { messages_to_broadcast_sender, broadcast_client_channels } =
-        network_channels;
     let context = PapyrusConsensusContext::new(
         storage_reader.clone(),
-        messages_to_broadcast_sender,
+        network_channels.messages_to_broadcast_sender.clone(),
         config.num_validators,
         None,
     );
@@ -180,7 +178,7 @@ fn build_consensus(
             config.validator_id,
             config.consensus_delay,
             config.timeouts.clone(),
-            broadcast_client_channels,
+            network_channels,
             futures::stream::pending(),
         )
         .await?)
