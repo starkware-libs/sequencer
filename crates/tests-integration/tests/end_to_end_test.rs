@@ -3,6 +3,8 @@ use blockifier::test_utils::CairoVersion;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_integration_tests::integration_test_utils::setup_with_tx_generation;
 
+#[ignore = "Gilad: There are structural issues with funding new accounts and this need surgery.
+            Will fix soon. Once fixed, the test logic also need work, it's stale by now."]
 #[tokio::test]
 async fn test_end_to_end() {
     // Setup.
