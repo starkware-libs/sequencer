@@ -3,7 +3,6 @@ use std::future::IntoFuture;
 
 use alloy_contract::{ContractInstance, Interface};
 use alloy_dyn_abi::SolType;
-use alloy_json_abi::JsonAbi;
 use alloy_primitives::Address;
 use alloy_provider::network::Ethereum;
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
@@ -77,12 +76,11 @@ pub struct EthereumBaseLayerContract {
 
 impl EthereumBaseLayerContract {
     pub fn new(config: EthereumBaseLayerConfig) -> Result<Self, EthereumBaseLayerError> {
-        let address = config.starknet_contract_address.parse::<Address>()?;
+        let address: Address = config.starknet_contract_address.parse()?;
         let client = ProviderBuilder::new().on_http(config.node_url.parse()?);
 
         // The solidity contract was pre-compiled, and only the relevant functions were kept.
-        let abi: JsonAbi =
-            serde_json::from_str::<JsonAbi>(include_str!("core_contract_latest_block.abi"))?;
+        let abi = serde_json::from_str(include_str!("core_contract_latest_block.abi"))?;
         Ok(Self { contract: ContractInstance::new(address, client, Interface::new(abi)) })
     }
 }
@@ -100,7 +98,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             .provider()
             .get_block_number()
             .await?
-            .checked_sub(min_confirmations.unwrap_or(0).into());
+            .checked_sub(min_confirmations.unwrap_or_default());
         let Some(ethereum_block_number) = ethereum_block_number else {
             return Ok(None);
         };
