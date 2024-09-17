@@ -25,6 +25,7 @@ use thiserror::Error;
 use crate::abi::sierra_types::SierraTypeError;
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message};
 use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
+use crate::execution::contract_class::TrackingResource;
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::execution_utils::{
@@ -811,7 +812,10 @@ pub fn execute_inner_call(
     }
 
     let retdata_segment = create_retdata_segment(vm, syscall_handler, raw_retdata)?;
-    update_remaining_gas(remaining_gas, &call_info);
+    if syscall_handler.context.tracking_resource == TrackingResource::SierraGas {
+        // Gas calculations are trusted.
+        update_remaining_gas(remaining_gas, &call_info);
+    }
 
     syscall_handler.inner_calls.push(call_info);
 

@@ -103,16 +103,26 @@ impl CallEntryPoint {
         self.class_hash = Some(class_hash);
         let contract_class = state.get_compiled_contract_class(class_hash)?;
 
-        // If the contract class should run in VM mode, set a high initial gas so it won't limit the
-        // run.
         let versioned_constants = context.tx_context.block_context.versioned_constants();
+
+        // Save current resource track mode.
+        let cur_tracking_resource = context.tracking_resource;
+
+        // If the contract class should run in VM mode, set a high initial gas so it won't limit the
+        // run and override the resource track mode.
         if contract_class
             .tracking_resource(&versioned_constants.min_compiler_version_for_sierra_gas)
             == TrackingResource::CairoSteps
         {
-            self.initial_gas = versioned_constants.tx_initial_gas()
+            self.initial_gas = versioned_constants.tx_initial_gas();
+            context.tracking_resource = TrackingResource::CairoSteps;
         }
-        execute_entry_point_call(self, contract_class, state, resources, context)
+
+        let call_info = execute_entry_point_call(self, contract_class, state, resources, context);
+
+        // Revert resource track mode.
+        context.tracking_resource = cur_tracking_resource;
+        call_info
     }
 }
 
@@ -140,6 +150,9 @@ pub struct EntryPointExecutionContext {
 
     // The execution mode affects the behavior of the hint processor.
     pub execution_mode: ExecutionMode,
+
+    // The way resources are currently tracked.
+    pub tracking_resource: TrackingResource,
 }
 
 impl EntryPointExecutionContext {
@@ -156,6 +169,9 @@ impl EntryPointExecutionContext {
             tx_context: tx_context.clone(),
             current_recursion_depth: Default::default(),
             execution_mode: mode,
+            // Setting SierraGas variant at the root is equivalent to set it according to the first
+            // entry point.
+            tracking_resource: TrackingResource::SierraGas,
         }
     }
 
