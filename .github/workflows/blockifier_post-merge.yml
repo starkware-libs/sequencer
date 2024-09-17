@@ -21,6 +21,10 @@ jobs:
         with:
           prefix-key: "v0-rust-ubuntu-20.04"
 
+      - name: Set up Native Dependencies
+        uses: ./.github/actions/setup-native-deps
+        id: native-deps
+
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
         id: setup-pypy

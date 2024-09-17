@@ -76,7 +76,7 @@ jobs:
 
       # List the existing benchmarks.
       - run: |
-            cargo bench -p committer_cli -- --list | grep ': benchmark$' | sed -e "s/: benchmark$//" > benchmarks_list.txt
+          cargo bench -p committer_cli -- --list | grep ': benchmark$' | sed -e "s/: benchmark$//" > benchmarks_list.txt
 
       # Benchmark the old code.
       - run: cargo bench -p committer_cli
@@ -119,6 +119,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: fs.readFileSync('bench_new.txt', 'utf8'),
+              path: 'Commits'
             })
 
   gcs-push:
