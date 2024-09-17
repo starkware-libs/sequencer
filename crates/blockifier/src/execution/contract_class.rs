@@ -644,13 +644,19 @@ impl NativeContractClassV1 {
     }
 }
 
-#[derive(Debug)]
 pub struct NativeContractClassV1Inner {
     pub executor: Arc<AotNativeExecutor>,
     entry_points_by_type: NativeContractEntryPoints,
     // Storing the raw sierra program and entry points to be able to fallback to the vm
     sierra_program_raw: Vec<BigUintAsHex>,
+    program: cairo_lang_sierra::program::Program, // for sierra emu
     fallback_entry_points_by_type: SierraContractEntryPoints,
+}
+
+impl std::fmt::Debug for NativeContractClassV1Inner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "NativeContractClassV1Inner")
+    }
 }
 
 impl NativeContractClassV1Inner {
@@ -682,6 +688,7 @@ impl NativeContractClassV1Inner {
                 &sierra_contract_class.entry_points_by_type,
             )?,
             sierra_program_raw: sierra_contract_class.sierra_program,
+            program: sierra_program.clone(),
             fallback_entry_points_by_type: sierra_contract_class.entry_points_by_type,
         })
     }

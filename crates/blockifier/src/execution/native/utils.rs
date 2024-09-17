@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::hash::RandomState;
 
 use ark_ff::BigInt;
 use cairo_lang_sierra::ids::FunctionId;
@@ -11,10 +12,11 @@ use itertools::Itertools;
 use num_bigint::BigUint;
 use num_traits::ToBytes;
 use starknet_api::core::{ContractAddress, EntryPointSelector};
+use starknet_api::state::StorageKey;
 use starknet_api::transaction::Resource;
 use starknet_types_core::felt::Felt;
 
-use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
+use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent, OrderedL2ToL1Message, Retdata};
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionResult};
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
@@ -37,6 +39,36 @@ pub fn contract_entrypoint_to_entrypoint_selector(
 }
 
 pub fn run_native_executor(
+    native_executor: &AotNativeExecutor,
+    function_id: &FunctionId,
+    call: CallEntryPoint,
+    mut syscall_handler: NativeSyscallHandler<'_>,
+) -> EntryPointExecutionResult<CallInfo> {
+    let execution_result = native_executor.invoke_contract_dynamic(
+        function_id,
+        &call.calldata.0,
+        Some(call.initial_gas.into()),
+        &mut syscall_handler,
+    );
+
+    let run_result = match execution_result {
+        Ok(res) if res.failure_flag => Err(EntryPointExecutionError::NativeExecutionError {
+            info: if !res.return_values.is_empty() {
+                decode_felts_as_str(&res.return_values)
+            } else {
+                String::from("Unknown error")
+            },
+        }),
+        Err(runner_err) => {
+            Err(EntryPointExecutionError::NativeUnexpectedError { source: runner_err })
+        }
+        Ok(res) => Ok(res),
+    }?;
+
+    create_callinfo(call, run_result, syscall_handler)
+}
+
+pub fn run_sierra_emu_executor(
     native_executor: &AotNativeExecutor,
     function_id: &FunctionId,
     call: CallEntryPoint,
@@ -102,6 +134,46 @@ fn create_callinfo(
     })
 }
 
+pub fn create_callinfo_emu(
+    call: CallEntryPoint,
+    run_result: sierra_emu::ContractExecutionResult,
+    events: Vec<OrderedEvent>,
+    l2_to_l1_messages: Vec<OrderedL2ToL1Message>,
+    inner_calls: Vec<CallInfo>,
+    storage_read_values: Vec<Felt>,
+    accessed_storage_keys: HashSet<StorageKey, RandomState>,
+) -> Result<CallInfo, EntryPointExecutionError> {
+    let gas_consumed = {
+        let low = run_result.remaining_gas as u64;
+        let high = (run_result.remaining_gas >> 64) as u64;
+        if high != 0 {
+            return Err(EntryPointExecutionError::NativeExecutionError {
+                info: "Overflow: gas consumed bigger than 64 bit".into(),
+            });
+        }
+        call.initial_gas - low
+    };
+
+    Ok(CallInfo {
+        call,
+        execution: CallExecution {
+            retdata: Retdata(run_result.return_values),
+            events,
+            l2_to_l1_messages,
+            failed: run_result.failure_flag,
+            gas_consumed,
+        },
+        resources: ExecutionResources {
+            n_steps: 0,
+            n_memory_holes: 0,
+            builtin_instance_counter: HashMap::default(),
+        },
+        inner_calls,
+        storage_read_values,
+        accessed_storage_keys,
+    })
+}
+
 pub fn u256_to_biguint(u256: U256) -> BigUint {
     let lo = BigUint::from(u256.lo);
     let hi = BigUint::from(u256.hi);
@@ -152,6 +224,24 @@ pub fn decode_felts_as_str(encoding: &[Felt]) -> String {
 
 pub fn default_tx_v2_info() -> TxV2Info {
     TxV2Info {
+        version: Default::default(),
+        account_contract_address: Default::default(),
+        max_fee: 0,
+        signature: vec![],
+        transaction_hash: Default::default(),
+        chain_id: Default::default(),
+        nonce: Default::default(),
+        resource_bounds: vec![],
+        tip: 0,
+        paymaster_data: vec![],
+        nonce_data_availability_mode: 0,
+        fee_data_availability_mode: 0,
+        account_deployment_data: vec![],
+    }
+}
+
+pub fn default_tx_v2_info_sierra_emu() -> sierra_emu::starknet::TxV2Info {
+    sierra_emu::starknet::TxV2Info {
         version: Default::default(),
         account_contract_address: Default::default(),
         max_fee: 0,
