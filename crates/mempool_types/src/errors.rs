@@ -7,6 +7,8 @@ use thiserror::Error;
 pub enum MempoolError {
     #[error("Duplicate transaction, sender address: {address}, nonce: {:?}", nonce)]
     DuplicateNonce { address: ContractAddress, nonce: Nonce },
+    #[error("Duplicate transaction, sender address: {address}, nonce: {:?}", nonce)]
+    DuplicateNonce { address: ContractAddress, nonce: Nonce },
     #[error("Duplicate transaction, with hash: {tx_hash}")]
     DuplicateTransaction { tx_hash: TransactionHash },
     #[error("Transaction with hash: {tx_hash} not found")]

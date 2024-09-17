@@ -4,6 +4,10 @@ use starknet_api::executable_transaction::Transaction;
 
 use crate::errors::MempoolError;
 
+// TODO(Mohammad): Ask product to supply the values of these constants.
+pub const FEE_ESCALATION_THRESHOLD_NUMERATOR: u128 = 6;
+pub const FEE_ESCALATION_THRESHOLD_DENOMINATOR: u128 = 5;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct AccountState {
     pub nonce: Nonce,
