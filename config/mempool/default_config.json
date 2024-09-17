@@ -194,16 +194,6 @@
     "privacy": "Public",
     "value": 1
   },
-  "gateway_config.network_config.ip": {
-    "description": "The gateway server ip.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
-  },
-  "gateway_config.network_config.port": {
-    "description": "The gateway server port.",
-    "privacy": "Public",
-    "value": 8080
-  },
   "gateway_config.stateful_tx_validator_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
     "privacy": "Public",
