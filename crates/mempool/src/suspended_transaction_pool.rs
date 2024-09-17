@@ -23,4 +23,8 @@ impl _SuspendedTransactionPool {
             "Keys should be unique; duplicates are checked prior."
         );
     }
+
+    pub fn _remove(&mut self, tx: &TransactionReference) -> bool {
+        self.suspended_tx_pool.remove(&(tx.sender_address, tx.nonce)).is_some()
+    }
 }
