@@ -214,7 +214,7 @@ impl Mempool {
 /// execution fields).
 /// TODO(Mohammad): rename this struct to `ThinTransaction` once that name
 /// becomes available, to better reflect its purpose and usage.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Copy, Debug, Eq, PartialEq)]
 pub struct TransactionReference {
     pub sender_address: ContractAddress,
     pub nonce: Nonce,
