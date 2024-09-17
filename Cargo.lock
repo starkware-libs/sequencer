@@ -9874,11 +9874,13 @@ dependencies = [
  "derive_more 0.99.17",
  "itertools 0.12.1",
  "mempool_test_utils",
+ "papyrus_network",
  "pretty_assertions",
  "rstest",
  "starknet-types-core",
  "starknet_api",
  "starknet_mempool_infra",
+ "starknet_mempool_p2p",
  "starknet_mempool_types",
  "tokio",
 ]
