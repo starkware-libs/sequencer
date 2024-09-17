@@ -42,7 +42,7 @@ pub struct MessageL1CostInfo {
 
 impl MessageL1CostInfo {
     pub fn calculate<'a>(
-        call_infos: impl Iterator<Item=&'a CallInfo>,
+        call_infos: impl Iterator<Item = &'a CallInfo>,
         l1_handler_payload_size: Option<usize>,
     ) -> Self {
         let mut l2_to_l1_payload_lengths = Vec::new();
@@ -110,7 +110,7 @@ impl Add for ExecutionSummary {
 }
 
 impl Sum for ExecutionSummary {
-    fn sum<I: Iterator<Item=Self>>(iter: I) -> Self {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         iter.fold(ExecutionSummary::default(), |acc, x| acc + x)
     }
 }
