@@ -485,7 +485,7 @@ async fn get_block_w_full_transactions() {
     let block_hash = BlockHash(random::<u64>().into());
     let sequencer_address = SequencerContractAddress(random::<u64>().into());
     let timestamp = BlockTimestamp(random::<u64>());
-    let starknet_version = StarknetVersion("test".to_owned());
+    let starknet_version = StarknetVersion(vec![123]);
     block.header.block_hash = block_hash;
     block.header.sequencer = sequencer_address;
     block.header.timestamp = timestamp;
@@ -605,7 +605,7 @@ async fn get_block_w_full_transactions() {
             },
             l1_data_gas_price: ResourcePrice::default(),
             l1_da_mode: L1DataAvailabilityMode::Calldata,
-            starknet_version: starknet_version.0.clone(),
+            starknet_version: starknet_version.to_string(),
         }),
         status: None,
         transactions: Transactions::Full(rpc_transactions),
@@ -618,7 +618,7 @@ async fn get_block_w_full_transactions() {
         *pending_block.timestamp_mutable() = pending_timestamp;
         *pending_block.sequencer_address_mutable() = pending_sequencer_address;
         pending_block.set_l1_gas_price(&pending_l1_gas_price);
-        *pending_block.starknet_version_mutable() = starknet_version.0;
+        *pending_block.starknet_version_mutable() = starknet_version.to_string();
     }
     // Using call_api_then_assert_and_validate_schema_for_result in order to validate the schema for
     // pending block.
@@ -662,7 +662,7 @@ async fn get_block_w_full_transactions_and_receipts() {
     let block_hash = BlockHash(random::<u64>().into());
     let sequencer_address = SequencerContractAddress(random::<u64>().into());
     let timestamp = BlockTimestamp(random::<u64>());
-    let starknet_version = StarknetVersion("test".to_owned());
+    let starknet_version = StarknetVersion(vec![123]);
     let block_number = block.header.block_number;
     block.header.block_hash = block_hash;
     block.header.sequencer = sequencer_address;
@@ -788,7 +788,7 @@ async fn get_block_w_full_transactions_and_receipts() {
             },
             l1_data_gas_price: ResourcePrice::default(),
             l1_da_mode: L1DataAvailabilityMode::Calldata,
-            starknet_version: starknet_version.0.clone(),
+            starknet_version: starknet_version.to_string(),
         }),
         status: None,
         transactions: Transactions::FullWithReceipts(
@@ -811,7 +811,7 @@ async fn get_block_w_full_transactions_and_receipts() {
         *pending_block.timestamp_mutable() = pending_timestamp;
         *pending_block.sequencer_address_mutable() = pending_sequencer_address;
         pending_block.set_l1_gas_price(&pending_l1_gas_price);
-        *pending_block.starknet_version_mutable() = starknet_version.0;
+        *pending_block.starknet_version_mutable() = starknet_version.to_string();
     }
     // Using call_api_then_assert_and_validate_schema_for_result again in order to validate the
     // schema for pending block too.
@@ -855,7 +855,7 @@ async fn get_block_w_transaction_hashes() {
     let block_hash = BlockHash(random::<u64>().into());
     let sequencer_address = SequencerContractAddress(random::<u64>().into());
     let timestamp = BlockTimestamp(random::<u64>());
-    let starknet_version = StarknetVersion("test".to_owned());
+    let starknet_version = StarknetVersion(vec![123]);
     block.header.block_hash = block_hash;
     block.header.sequencer = sequencer_address;
     block.header.timestamp = timestamp;
@@ -971,7 +971,7 @@ async fn get_block_w_transaction_hashes() {
             },
             l1_data_gas_price: ResourcePrice::default(),
             l1_da_mode: L1DataAvailabilityMode::Calldata,
-            starknet_version: starknet_version.0.clone(),
+            starknet_version: starknet_version.to_string(),
         }),
         status: None,
         transactions: Transactions::Hashes(
@@ -989,7 +989,7 @@ async fn get_block_w_transaction_hashes() {
         *pending_block.timestamp_mutable() = pending_timestamp;
         *pending_block.sequencer_address_mutable() = pending_sequencer_address;
         pending_block.set_l1_gas_price(&pending_l1_gas_price);
-        *pending_block.starknet_version_mutable() = starknet_version.0;
+        *pending_block.starknet_version_mutable() = starknet_version.to_string();
     }
     // Using call_api_then_assert_and_validate_schema_for_result in order to validate the schema for
     // pending block.

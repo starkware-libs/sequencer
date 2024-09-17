@@ -73,7 +73,7 @@ fn test_block_hash_regression() {
             price_in_fri: GasPrice(10),
             price_in_wei: GasPrice(9),
         },
-        starknet_version: StarknetVersion("10".to_owned()),
+        starknet_version: StarknetVersion(vec![10]),
         parent_hash: BlockHash(Felt::from(11_u8)),
     };
     let transactions_data = vec![TransactionHashingData {
@@ -113,7 +113,7 @@ fn change_field_of_hash_input() {
         sequencer: SequencerContractAddress(ContractAddress::from(1_u128)),
         timestamp: BlockTimestamp(1),
         l1_da_mode: L1DataAvailabilityMode::Blob,
-        starknet_version: StarknetVersion("0.1.0".to_string()),
+        starknet_version: StarknetVersion(vec![0, 1, 0]),
     };
 
     let block_commitments = BlockHeaderCommitments {

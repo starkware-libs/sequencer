@@ -52,7 +52,7 @@ pub struct BlockPostV0_13_1 {
     pub transaction_receipts: Vec<TransactionReceipt>,
     // Default since old blocks don't include this field.
     #[serde(default)]
-    pub starknet_version: String,
+    pub starknet_version: StarknetVersion,
     // Additions to the block structure in V0.13.1.
     pub l1_da_mode: L1DataAvailabilityMode,
     // Replacing the eth_l1_gas_price & strk_l1_gas_price fields with a single field.
@@ -213,7 +213,7 @@ impl Block {
         }
     }
 
-    pub fn starknet_version(&self) -> String {
+    pub fn starknet_version(&self) -> StarknetVersion {
         match self {
             Block::PostV0_13_1(block) => block.starknet_version.clone(),
         }
@@ -305,7 +305,7 @@ impl Block {
             state_diff_length: self.state_diff_length(),
             n_transactions,
             n_events,
-            starknet_version: StarknetVersion(self.starknet_version()),
+            starknet_version: self.starknet_version(),
         };
 
         let (transactions, transaction_receipts) = self.get_body();
