@@ -73,10 +73,6 @@ jobs:
         with:
           toolchain: nightly-2023-07-05
 
-      - name: set up native dependencies
-        uses: ./.github/actions/setup-native-deps
-        id: native-deps
-
       - name: Verify cairo contract recompilation (both cairo versions).
         run: cd sequencer &&
           pip install -r crates/blockifier/tests/requirements.txt &&
