@@ -12,7 +12,6 @@ use starknet_api::transaction::{
     DeployAccountTransactionV3,
     Fee,
     PaymasterData,
-    ResourceBoundsMapping,
     Tip,
     TransactionHash,
     TransactionSignature,
@@ -64,7 +63,7 @@ impl TryFrom<PyDeployAccountTransactionV3> for DeployAccountTransactionV3 {
     type Error = NativeBlockifierInputError;
     fn try_from(tx: PyDeployAccountTransactionV3) -> Result<Self, Self::Error> {
         Ok(Self {
-            resource_bounds: ResourceBoundsMapping::try_from(tx.resource_bounds)?,
+            resource_bounds: tx.resource_bounds.try_into()?,
             tip: Tip(tx.tip),
             signature: TransactionSignature(from_py_felts(tx.signature)),
             nonce: Nonce(tx.nonce.0),

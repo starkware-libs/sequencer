@@ -9,7 +9,7 @@ use blockifier::execution::call_info::{
     Retdata as BlockifierRetdata,
 };
 use blockifier::execution::entry_point::CallType as BlockifierCallType;
-use blockifier::transaction::objects::{GasVector, TransactionExecutionInfo};
+use blockifier::transaction::objects::{FeeType, GasVector, TransactionExecutionInfo};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources as VmExecutionResources;
 use indexmap::IndexMap;
@@ -153,16 +153,16 @@ pub(crate) fn tx_execution_output_to_fee_estimation(
     block_context: &BlockContext,
 ) -> ExecutionResult<FeeEstimation> {
     let gas_prices = &block_context.block_info().gas_prices;
-    let (gas_price, data_gas_price) = match tx_execution_output.price_unit {
-        PriceUnit::Wei => (
-            GasPrice(gas_prices.eth_l1_gas_price.get()),
-            GasPrice(gas_prices.eth_l1_data_gas_price.get()),
+    let (gas_price, data_gas_price) = (
+        GasPrice(
+            gas_prices.get_l1_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
         ),
-        PriceUnit::Fri => (
-            GasPrice(gas_prices.strk_l1_gas_price.get()),
-            GasPrice(gas_prices.strk_l1_data_gas_price.get()),
+        GasPrice(
+            gas_prices
+                .get_l1_data_gas_price_by_fee_type(&tx_execution_output.price_unit.into())
+                .get(),
         ),
-    };
+    );
 
     let gas_vector = tx_execution_output.execution_info.receipt.gas;
 
@@ -520,4 +520,13 @@ pub enum PriceUnit {
     Wei,
     /// Fri.
     Fri,
+}
+
+impl From<PriceUnit> for FeeType {
+    fn from(value: PriceUnit) -> Self {
+        match value {
+            PriceUnit::Wei => FeeType::Eth,
+            PriceUnit::Fri => FeeType::Strk,
+        }
+    }
 }

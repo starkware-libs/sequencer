@@ -33,3 +33,10 @@ message ConsensusMessage {
         Vote     vote     = 2;
     }
 }
+
+message StreamMessage {
+    bytes message = 1;
+    uint64 stream_id = 2;
+    uint64 chunk_id = 3;
+    bool fin = 4;
+}

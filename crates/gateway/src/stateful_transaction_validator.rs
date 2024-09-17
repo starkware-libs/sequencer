@@ -14,13 +14,14 @@ use mockall::automock;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
 use starknet_api::transaction::TransactionHash;
+use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_types_core::felt::Felt;
 use tracing::error;
 
 use crate::config::StatefulTransactionValidatorConfig;
-use crate::errors::{GatewaySpecError, StatefulTransactionValidatorResult};
+use crate::errors::StatefulTransactionValidatorResult;
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
-use crate::utils::{external_tx_to_account_tx, get_sender_address};
+use crate::utils::{get_sender_address, rpc_tx_to_account_tx};
 
 #[cfg(test)]
 #[path = "stateful_transaction_validator_test.rs"]
@@ -69,22 +70,19 @@ impl StatefulTransactionValidator {
     // conversion is also relevant for the Mempool.
     pub fn run_validate<V: StatefulTransactionValidatorTrait>(
         &self,
-        external_tx: &RpcTransaction,
+        rpc_tx: &RpcTransaction,
         optional_class_info: Option<ClassInfo>,
         mut validator: V,
     ) -> StatefulTransactionValidatorResult<ValidateInfo> {
-        let account_tx = external_tx_to_account_tx(
-            external_tx,
-            optional_class_info,
-            &self.config.chain_info.chain_id,
-        )?;
+        let account_tx =
+            rpc_tx_to_account_tx(rpc_tx, optional_class_info, &self.config.chain_info.chain_id)?;
         let tx_hash = account_tx.tx_hash();
         let sender_address = get_sender_address(&account_tx);
         let account_nonce = validator.get_nonce(sender_address).map_err(|e| {
             error!("Failed to get nonce for sender address {}: {}", sender_address, e);
             GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
         })?;
-        let skip_validate = skip_stateful_validations(external_tx, account_nonce);
+        let skip_validate = skip_stateful_validations(rpc_tx, account_nonce);
         validator
             .validate(account_tx, skip_validate)
             .map_err(|err| GatewaySpecError::ValidationFailure { data: err.to_string() })?;

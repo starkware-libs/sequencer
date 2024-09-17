@@ -10,6 +10,7 @@ message ResourceLimits {
 message ResourceBounds {
     ResourceLimits l1_gas = 1;
     ResourceLimits l2_gas = 2;
+    ResourceLimits l1_data_gas = 3;
 }
 
 message AccountSignature {
@@ -139,6 +140,7 @@ message Transaction
         InvokeV3 invoke_v3 = 10;
         L1HandlerV0 l1_handler = 11;
     }
+    Hash transaction_hash = 12;
 }
 
 message TransactionWithReceipt {

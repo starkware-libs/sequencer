@@ -7,6 +7,7 @@ use prost::Message;
 use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, Nonce};
 use starknet_api::transaction::{
     AccountDeploymentData,
+    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     DeclareTransaction,
@@ -18,20 +19,21 @@ use starknet_api::transaction::{
     DeployAccountTransactionV3,
     DeployTransaction,
     Fee,
+    FullTransaction,
     InvokeTransaction,
     InvokeTransactionV0,
     InvokeTransactionV1,
     InvokeTransactionV3,
     L1HandlerTransaction,
     PaymasterData,
-    Resource,
     ResourceBounds,
-    ResourceBoundsMapping,
     Tip,
     Transaction,
+    TransactionHash,
     TransactionOutput,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 
@@ -45,7 +47,7 @@ use super::ProtobufConversionError;
 use crate::sync::{DataOrFin, Query, TransactionQuery};
 use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};
 
-impl TryFrom<protobuf::TransactionsResponse> for DataOrFin<(Transaction, TransactionOutput)> {
+impl TryFrom<protobuf::TransactionsResponse> for DataOrFin<FullTransaction> {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::TransactionsResponse) -> Result<Self, Self::Error> {
         let Some(transaction_message) = value.transaction_message else {
@@ -58,23 +60,29 @@ impl TryFrom<protobuf::TransactionsResponse> for DataOrFin<(Transaction, Transac
             protobuf::transactions_response::TransactionMessage::TransactionWithReceipt(
                 tx_with_receipt,
             ) => {
-                let result: (Transaction, TransactionOutput) = tx_with_receipt.try_into()?;
+                let result: FullTransaction = tx_with_receipt.try_into()?;
                 Ok(DataOrFin(Some(result)))
             }
             protobuf::transactions_response::TransactionMessage::Fin(_) => Ok(DataOrFin(None)),
         }
     }
 }
-impl From<DataOrFin<(Transaction, TransactionOutput)>> for protobuf::TransactionsResponse {
-    fn from(value: DataOrFin<(Transaction, TransactionOutput)>) -> Self {
+impl From<DataOrFin<FullTransaction>> for protobuf::TransactionsResponse {
+    fn from(value: DataOrFin<FullTransaction>) -> Self {
         match value.0 {
-            Some((transaction, output)) => protobuf::TransactionsResponse {
-                transaction_message: Some(
-                    protobuf::transactions_response::TransactionMessage::TransactionWithReceipt(
-                        protobuf::TransactionWithReceipt::from((transaction, output)),
+            Some(FullTransaction { transaction, transaction_output, transaction_hash }) => {
+                protobuf::TransactionsResponse {
+                    transaction_message: Some(
+                        protobuf::transactions_response::TransactionMessage::TransactionWithReceipt(
+                            protobuf::TransactionWithReceipt::from(FullTransaction {
+                                transaction,
+                                transaction_output,
+                                transaction_hash,
+                            }),
+                        ),
                     ),
-                ),
-            },
+                }
+            }
             None => protobuf::TransactionsResponse {
                 transaction_message: Some(
                     protobuf::transactions_response::TransactionMessage::Fin(protobuf::Fin {}),
@@ -84,45 +92,100 @@ impl From<DataOrFin<(Transaction, TransactionOutput)>> for protobuf::Transaction
     }
 }
 
-auto_impl_into_and_try_from_vec_u8!(
-    DataOrFin<(Transaction, TransactionOutput)>,
-    protobuf::TransactionsResponse
-);
+auto_impl_into_and_try_from_vec_u8!(DataOrFin<FullTransaction>, protobuf::TransactionsResponse);
 
-impl TryFrom<protobuf::TransactionWithReceipt> for (Transaction, TransactionOutput) {
+impl TryFrom<protobuf::TransactionWithReceipt> for FullTransaction {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::TransactionWithReceipt) -> Result<Self, Self::Error> {
-        let transaction = Transaction::try_from(value.transaction.ok_or(
-            ProtobufConversionError::MissingField {
+        let (transaction, transaction_hash) = <(Transaction, TransactionHash)>::try_from(
+            value.transaction.ok_or(ProtobufConversionError::MissingField {
                 field_description: "TransactionWithReceipt::transaction",
-            },
-        )?)?;
+            })?,
+        )?;
 
-        let output = TransactionOutput::try_from(value.receipt.ok_or(
+        let transaction_output = TransactionOutput::try_from(value.receipt.ok_or(
             ProtobufConversionError::MissingField {
                 field_description: "TransactionWithReceipt::output",
             },
         )?)?;
-        Ok((transaction, output))
+        Ok(FullTransaction { transaction, transaction_output, transaction_hash })
     }
 }
 
-impl From<(Transaction, TransactionOutput)> for protobuf::TransactionWithReceipt {
-    fn from(value: (Transaction, TransactionOutput)) -> Self {
-        let transaction = value.0.into();
-        let mut receipt = value.1.into();
+impl From<FullTransaction> for protobuf::TransactionWithReceipt {
+    fn from(value: FullTransaction) -> Self {
+        let FullTransaction { transaction, transaction_output, transaction_hash } = value;
+        let transaction = (transaction, transaction_hash).into();
+        let mut receipt = transaction_output.into();
         set_price_unit_based_on_transaction(&mut receipt, &transaction);
         Self { transaction: Some(transaction), receipt: Some(receipt) }
     }
 }
 
+impl TryFrom<protobuf::Transaction> for (Transaction, TransactionHash) {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::Transaction) -> Result<Self, Self::Error> {
+        let txn = value.txn.ok_or(ProtobufConversionError::MissingField {
+            field_description: "Transaction::txn",
+        })?;
+        let tx_hash = value
+            .transaction_hash
+            .ok_or(ProtobufConversionError::MissingField {
+                field_description: "Transaction::transaction_hash",
+            })?
+            .try_into()
+            .map(TransactionHash)?;
+
+        let txn = match txn {
+            protobuf::transaction::Txn::DeclareV0(declare_v0) => Transaction::Declare(
+                DeclareTransaction::V0(DeclareTransactionV0V1::try_from(declare_v0)?),
+            ),
+            protobuf::transaction::Txn::DeclareV1(declare_v1) => Transaction::Declare(
+                DeclareTransaction::V1(DeclareTransactionV0V1::try_from(declare_v1)?),
+            ),
+            protobuf::transaction::Txn::DeclareV2(declare_v2) => Transaction::Declare(
+                DeclareTransaction::V2(DeclareTransactionV2::try_from(declare_v2)?),
+            ),
+            protobuf::transaction::Txn::DeclareV3(declare_v3) => Transaction::Declare(
+                DeclareTransaction::V3(DeclareTransactionV3::try_from(declare_v3)?),
+            ),
+            protobuf::transaction::Txn::Deploy(deploy) => {
+                Transaction::Deploy(DeployTransaction::try_from(deploy)?)
+            }
+            protobuf::transaction::Txn::DeployAccountV1(deploy_account_v1) => {
+                Transaction::DeployAccount(DeployAccountTransaction::V1(
+                    DeployAccountTransactionV1::try_from(deploy_account_v1)?,
+                ))
+            }
+            protobuf::transaction::Txn::DeployAccountV3(deploy_account_v3) => {
+                Transaction::DeployAccount(DeployAccountTransaction::V3(
+                    DeployAccountTransactionV3::try_from(deploy_account_v3)?,
+                ))
+            }
+            protobuf::transaction::Txn::InvokeV0(invoke_v0) => Transaction::Invoke(
+                InvokeTransaction::V0(InvokeTransactionV0::try_from(invoke_v0)?),
+            ),
+            protobuf::transaction::Txn::InvokeV1(invoke_v1) => Transaction::Invoke(
+                InvokeTransaction::V1(InvokeTransactionV1::try_from(invoke_v1)?),
+            ),
+            protobuf::transaction::Txn::InvokeV3(invoke_v3) => Transaction::Invoke(
+                InvokeTransaction::V3(InvokeTransactionV3::try_from(invoke_v3)?),
+            ),
+            protobuf::transaction::Txn::L1Handler(l1_handler) => {
+                Transaction::L1Handler(L1HandlerTransaction::try_from(l1_handler)?)
+            }
+        };
+        Ok((txn, tx_hash))
+    }
+}
+
+// TODO(eitan): remove when consensus uses BroadcastedTransaction
 impl TryFrom<protobuf::Transaction> for Transaction {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::Transaction) -> Result<Self, Self::Error> {
         let txn = value.txn.ok_or(ProtobufConversionError::MissingField {
             field_description: "Transaction::txn",
         })?;
-
         Ok(match txn {
             protobuf::transaction::Txn::DeclareV0(declare_v0) => Transaction::Declare(
                 DeclareTransaction::V0(DeclareTransactionV0V1::try_from(declare_v0)?),
@@ -164,50 +227,122 @@ impl TryFrom<protobuf::Transaction> for Transaction {
         })
     }
 }
-
-impl From<Transaction> for protobuf::Transaction {
-    fn from(value: Transaction) -> Self {
-        match value {
+impl From<(Transaction, TransactionHash)> for protobuf::Transaction {
+    fn from(value: (Transaction, TransactionHash)) -> Self {
+        let txn = value.0;
+        let txn_hash = value.1;
+        match txn {
             Transaction::Declare(DeclareTransaction::V0(declare_v0)) => protobuf::Transaction {
                 txn: Some(protobuf::transaction::Txn::DeclareV0(declare_v0.into())),
+                transaction_hash: Some(txn_hash.0.into()),
             },
             Transaction::Declare(DeclareTransaction::V1(declare_v1)) => protobuf::Transaction {
                 txn: Some(protobuf::transaction::Txn::DeclareV1(declare_v1.into())),
+                transaction_hash: Some(txn_hash.0.into()),
             },
             Transaction::Declare(DeclareTransaction::V2(declare_v2)) => protobuf::Transaction {
                 txn: Some(protobuf::transaction::Txn::DeclareV2(declare_v2.into())),
+                transaction_hash: Some(txn_hash.0.into()),
             },
             Transaction::Declare(DeclareTransaction::V3(declare_v3)) => protobuf::Transaction {
                 txn: Some(protobuf::transaction::Txn::DeclareV3(declare_v3.into())),
+                transaction_hash: Some(txn_hash.0.into()),
             },
             Transaction::Deploy(deploy) => protobuf::Transaction {
                 txn: Some(protobuf::transaction::Txn::Deploy(deploy.into())),
+                transaction_hash: Some(txn_hash.0.into()),
             },
             Transaction::DeployAccount(deploy_account) => match deploy_account {
                 DeployAccountTransaction::V1(deploy_account_v1) => protobuf::Transaction {
                     txn: Some(protobuf::transaction::Txn::DeployAccountV1(
                         deploy_account_v1.into(),
                     )),
+                    transaction_hash: Some(txn_hash.0.into()),
                 },
                 DeployAccountTransaction::V3(deploy_account_v3) => protobuf::Transaction {
                     txn: Some(protobuf::transaction::Txn::DeployAccountV3(
                         deploy_account_v3.into(),
                     )),
+                    transaction_hash: Some(txn_hash.0.into()),
                 },
             },
             Transaction::Invoke(invoke) => match invoke {
                 InvokeTransaction::V0(invoke_v0) => protobuf::Transaction {
                     txn: Some(protobuf::transaction::Txn::InvokeV0(invoke_v0.into())),
+                    transaction_hash: Some(txn_hash.0.into()),
                 },
                 InvokeTransaction::V1(invoke_v1) => protobuf::Transaction {
                     txn: Some(protobuf::transaction::Txn::InvokeV1(invoke_v1.into())),
+                    transaction_hash: Some(txn_hash.0.into()),
                 },
                 InvokeTransaction::V3(invoke_v3) => protobuf::Transaction {
                     txn: Some(protobuf::transaction::Txn::InvokeV3(invoke_v3.into())),
+                    transaction_hash: Some(txn_hash.0.into()),
                 },
             },
             Transaction::L1Handler(l1_handler) => protobuf::Transaction {
                 txn: Some(protobuf::transaction::Txn::L1Handler(l1_handler.into())),
+                transaction_hash: Some(txn_hash.0.into()),
+            },
+        }
+    }
+}
+
+// TODO(eitan): remove when consensus uses BroadcastedTransaction
+impl From<Transaction> for protobuf::Transaction {
+    fn from(value: Transaction) -> Self {
+        match value {
+            Transaction::Declare(DeclareTransaction::V0(declare_v0)) => protobuf::Transaction {
+                txn: Some(protobuf::transaction::Txn::DeclareV0(declare_v0.into())),
+                transaction_hash: None,
+            },
+            Transaction::Declare(DeclareTransaction::V1(declare_v1)) => protobuf::Transaction {
+                txn: Some(protobuf::transaction::Txn::DeclareV1(declare_v1.into())),
+                transaction_hash: None,
+            },
+            Transaction::Declare(DeclareTransaction::V2(declare_v2)) => protobuf::Transaction {
+                txn: Some(protobuf::transaction::Txn::DeclareV2(declare_v2.into())),
+                transaction_hash: None,
+            },
+            Transaction::Declare(DeclareTransaction::V3(declare_v3)) => protobuf::Transaction {
+                txn: Some(protobuf::transaction::Txn::DeclareV3(declare_v3.into())),
+                transaction_hash: None,
+            },
+            Transaction::Deploy(deploy) => protobuf::Transaction {
+                txn: Some(protobuf::transaction::Txn::Deploy(deploy.into())),
+                transaction_hash: None,
+            },
+            Transaction::DeployAccount(deploy_account) => match deploy_account {
+                DeployAccountTransaction::V1(deploy_account_v1) => protobuf::Transaction {
+                    txn: Some(protobuf::transaction::Txn::DeployAccountV1(
+                        deploy_account_v1.into(),
+                    )),
+                    transaction_hash: None,
+                },
+                DeployAccountTransaction::V3(deploy_account_v3) => protobuf::Transaction {
+                    txn: Some(protobuf::transaction::Txn::DeployAccountV3(
+                        deploy_account_v3.into(),
+                    )),
+                    transaction_hash: None,
+                },
+            },
+            Transaction::Invoke(invoke) => match invoke {
+                InvokeTransaction::V0(invoke_v0) => protobuf::Transaction {
+                    txn: Some(protobuf::transaction::Txn::InvokeV0(invoke_v0.into())),
+                    transaction_hash: None,
+                },
+                InvokeTransaction::V1(invoke_v1) => protobuf::Transaction {
+                    txn: Some(protobuf::transaction::Txn::InvokeV1(invoke_v1.into())),
+                    transaction_hash: None,
+                },
+                InvokeTransaction::V3(invoke_v3) => protobuf::Transaction {
+                    txn: Some(protobuf::transaction::Txn::InvokeV3(invoke_v3.into())),
+                    transaction_hash: None,
+                },
+            },
+            Transaction::L1Handler(l1_handler) => protobuf::Transaction {
+                txn: Some(protobuf::transaction::Txn::L1Handler(l1_handler.into())),
+                transaction_hash: None,
             },
         }
     }
@@ -305,7 +440,7 @@ impl From<DeployAccountTransactionV1> for protobuf::transaction::DeployAccountV1
 impl TryFrom<protobuf::transaction::DeployAccountV3> for DeployAccountTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::DeployAccountV3) -> Result<Self, Self::Error> {
-        let resource_bounds = ResourceBoundsMapping::try_from(value.resource_bounds.ok_or(
+        let resource_bounds = ValidResourceBounds::try_from(value.resource_bounds.ok_or(
             ProtobufConversionError::MissingField {
                 field_description: "DeployAccountV3::resource_bounds",
             },
@@ -415,41 +550,39 @@ impl From<DeployAccountTransactionV3> for protobuf::transaction::DeployAccountV3
     }
 }
 
-impl TryFrom<protobuf::ResourceBounds> for ResourceBoundsMapping {
+impl TryFrom<protobuf::ResourceBounds> for ValidResourceBounds {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::ResourceBounds) -> Result<Self, Self::Error> {
-        let mut resource_bounds = ResourceBoundsMapping::default();
         let Some(l1_gas) = value.l1_gas else {
             return Err(ProtobufConversionError::MissingField {
                 field_description: "ResourceBounds::l1_gas",
             });
         };
-        let max_amount = l1_gas.max_amount;
-        let max_price_per_unit_felt = Felt::try_from(l1_gas.max_price_per_unit.ok_or(
-            ProtobufConversionError::MissingField {
-                field_description: "ResourceBounds::l1_gas::max_price_per_unit",
-            },
-        )?)?;
-        let max_price_per_unit =
-            try_from_starkfelt_to_u128(max_price_per_unit_felt).map_err(|_| {
-                ProtobufConversionError::OutOfRangeValue {
-                    type_description: "u128",
-                    value_as_str: format!("{max_price_per_unit_felt:?}"),
-                }
-            })?;
-
-        resource_bounds
-            .0
-            .insert(Resource::L1Gas, ResourceBounds { max_amount, max_price_per_unit });
         let Some(l2_gas) = value.l2_gas else {
             return Err(ProtobufConversionError::MissingField {
                 field_description: "ResourceBounds::l2_gas",
             });
         };
-        let max_amount = l2_gas.max_amount;
-        let max_price_per_unit_felt = Felt::try_from(l2_gas.max_price_per_unit.ok_or(
+        // TODO(Shahak): Assert data gas is not none once we remove support for 0.13.2.
+        let l1_data_gas = value.l1_data_gas.unwrap_or_default();
+        let l1_gas: ResourceBounds = l1_gas.try_into()?;
+        let l2_gas: ResourceBounds = l2_gas.try_into()?;
+        let l1_data_gas: ResourceBounds = l1_data_gas.try_into()?;
+        Ok(if l1_data_gas.is_zero() && l2_gas.is_zero() {
+            ValidResourceBounds::L1Gas(l1_gas)
+        } else {
+            ValidResourceBounds::AllResources(AllResourceBounds { l1_gas, l2_gas, l1_data_gas })
+        })
+    }
+}
+
+impl TryFrom<protobuf::ResourceLimits> for ResourceBounds {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::ResourceLimits) -> Result<Self, Self::Error> {
+        let max_amount = value.max_amount;
+        let max_price_per_unit_felt = Felt::try_from(value.max_price_per_unit.ok_or(
             ProtobufConversionError::MissingField {
-                field_description: "ResourceBounds::l2_gas::max_price_per_unit",
+                field_description: "ResourceBounds::ResourceLimits::max_price_per_unit",
             },
         )?)?;
         let max_price_per_unit =
@@ -459,36 +592,37 @@ impl TryFrom<protobuf::ResourceBounds> for ResourceBoundsMapping {
                     value_as_str: format!("{max_price_per_unit_felt:?}"),
                 }
             })?;
-        resource_bounds
-            .0
-            .insert(Resource::L2Gas, ResourceBounds { max_amount, max_price_per_unit });
-        Ok(resource_bounds)
+        Ok(ResourceBounds { max_amount, max_price_per_unit })
     }
 }
 
-impl From<ResourceBoundsMapping> for protobuf::ResourceBounds {
-    fn from(value: ResourceBoundsMapping) -> Self {
-        let mut res = protobuf::ResourceBounds::default();
+impl From<ResourceBounds> for protobuf::ResourceLimits {
+    fn from(value: ResourceBounds) -> Self {
+        protobuf::ResourceLimits {
+            max_amount: value.max_amount,
+            max_price_per_unit: Some(Felt::from(value.max_price_per_unit).into()),
+        }
+    }
+}
 
-        let resource_bounds_default = ResourceBounds::default();
-        let resource_bounds_l1 = value.0.get(&Resource::L1Gas).unwrap_or(&resource_bounds_default);
-
-        let resource_limits_l1 = protobuf::ResourceLimits {
-            max_amount: resource_bounds_l1.max_amount,
-            max_price_per_unit: Some(Felt::from(resource_bounds_l1.max_price_per_unit).into()),
-        };
-        res.l1_gas = Some(resource_limits_l1);
-
-        let resource_bounds_default = ResourceBounds::default();
-        let resource_bounds_l2 = value.0.get(&Resource::L2Gas).unwrap_or(&resource_bounds_default);
-
-        let resource_limits_l2 = protobuf::ResourceLimits {
-            max_amount: resource_bounds_l2.max_amount,
-            max_price_per_unit: Some(Felt::from(resource_bounds_l2.max_price_per_unit).into()),
-        };
-        res.l2_gas = Some(resource_limits_l2);
-
-        res
+impl From<ValidResourceBounds> for protobuf::ResourceBounds {
+    fn from(value: ValidResourceBounds) -> Self {
+        match value {
+            ValidResourceBounds::L1Gas(l1_gas) => protobuf::ResourceBounds {
+                l1_gas: Some(l1_gas.into()),
+                l2_gas: Some(value.get_l2_bounds().into()),
+                l1_data_gas: Some(ResourceBounds::default().into()),
+            },
+            ValidResourceBounds::AllResources(AllResourceBounds {
+                l1_gas,
+                l2_gas,
+                l1_data_gas,
+            }) => protobuf::ResourceBounds {
+                l1_gas: Some(l1_gas.into()),
+                l2_gas: Some(l2_gas.into()),
+                l1_data_gas: Some(l1_data_gas.into()),
+            },
+        }
     }
 }
 
@@ -621,7 +755,7 @@ impl From<InvokeTransactionV1> for protobuf::transaction::InvokeV1 {
 impl TryFrom<protobuf::transaction::InvokeV3> for InvokeTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::InvokeV3) -> Result<Self, Self::Error> {
-        let resource_bounds = ResourceBoundsMapping::try_from(value.resource_bounds.ok_or(
+        let resource_bounds = ValidResourceBounds::try_from(value.resource_bounds.ok_or(
             ProtobufConversionError::MissingField {
                 field_description: "InvokeV3::resource_bounds",
             },
@@ -939,7 +1073,7 @@ impl From<DeclareTransactionV2> for protobuf::transaction::DeclareV2 {
 impl TryFrom<protobuf::transaction::DeclareV3> for DeclareTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::DeclareV3) -> Result<Self, Self::Error> {
-        let resource_bounds = ResourceBoundsMapping::try_from(value.resource_bounds.ok_or(
+        let resource_bounds = ValidResourceBounds::try_from(value.resource_bounds.ok_or(
             ProtobufConversionError::MissingField {
                 field_description: "DeclareV3::resource_bounds",
             },

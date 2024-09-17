@@ -21,13 +21,12 @@ use starknet_api::transaction::{
     InvokeTransactionV1,
     InvokeTransactionV3,
     L1HandlerTransaction,
-    Resource,
     ResourceBounds,
-    ResourceBoundsMapping,
     Tip,
     Transaction,
     TransactionHash,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
@@ -220,16 +219,14 @@ pub(crate) fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {
 
 // An implementation of the SNIP: https://github.com/EvyatarO/SNIPs/blob/snip-8/SNIPS/snip-8.md
 fn get_tip_resource_bounds_hash(
-    resource_bounds_mapping: &ResourceBoundsMapping,
+    resource_bounds: &ValidResourceBounds,
     tip: &Tip,
 ) -> Result<Felt, StarknetApiError> {
-    let l1_resource_bounds =
-        resource_bounds_mapping.0.get(&Resource::L1Gas).expect("Missing l1 resource");
-    let l1_resource = get_concat_resource(l1_resource_bounds, L1_GAS)?;
+    let l1_resource_bounds = resource_bounds.get_l1_bounds();
+    let l2_resource_bounds = resource_bounds.get_l2_bounds();
 
-    let l2_resource_bounds =
-        resource_bounds_mapping.0.get(&Resource::L2Gas).expect("Missing l2 resource");
-    let l2_resource = get_concat_resource(l2_resource_bounds, L2_GAS)?;
+    let l1_resource = get_concat_resource(&l1_resource_bounds, L1_GAS)?;
+    let l2_resource = get_concat_resource(&l2_resource_bounds, L2_GAS)?;
 
     Ok(HashChain::new()
         .chain(&tip.0.into())

@@ -9,18 +9,21 @@ use axum::{Json, Router};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
+use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use tracing::{error, info, instrument};
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{GatewayConfig, GatewayNetworkConfig, RpcStateReaderConfig};
-use crate::errors::{GatewayResult, GatewayRunError, GatewaySpecError};
+use crate::errors::{GatewayResult, GatewayRunError};
 use crate::rpc_state_reader::RpcStateReaderFactory;
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
+use crate::utils::compile_contract_and_build_executable_tx;
 
 #[cfg(test)]
 #[path = "gateway_test.rs"]
@@ -39,6 +42,8 @@ pub struct AppState {
     pub gateway_compiler: GatewayCompiler,
     pub mempool_client: SharedMempoolClient,
 }
+
+// TODO(Tsabary): Disable the deprecated axum http server in this module.
 
 impl Gateway {
     pub fn new(
@@ -77,6 +82,11 @@ impl Gateway {
             .route("/add_tx", post(add_tx))
             .with_state(self.app_state.clone())
     }
+
+    pub async fn add_tx(&mut self, tx: RpcTransaction) -> GatewayResult<TransactionHash> {
+        let app_state = self.app_state.clone();
+        internal_add_tx(app_state, tx).await
+    }
 }
 
 // Gateway handlers.
@@ -91,6 +101,15 @@ async fn add_tx(
     State(app_state): State<AppState>,
     Json(tx): Json<RpcTransaction>,
 ) -> GatewayResult<Json<TransactionHash>> {
+    let tx_hash = internal_add_tx(app_state, tx).await?;
+    Ok(Json(tx_hash))
+}
+
+#[instrument(skip(app_state))]
+async fn internal_add_tx(
+    app_state: AppState,
+    tx: RpcTransaction,
+) -> GatewayResult<TransactionHash> {
     let mempool_input = tokio::task::spawn_blocking(move || {
         process_tx(
             app_state.stateless_tx_validator,
@@ -113,7 +132,7 @@ async fn add_tx(
         GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
     })?;
     // TODO: Also return `ContractAddress` for deploy and `ClassHash` for Declare.
-    Ok(Json(tx_hash))
+    Ok(tx_hash)
 }
 
 fn process_tx(
@@ -128,10 +147,27 @@ fn process_tx(
     // Perform stateless validations.
     stateless_tx_validator.validate(&tx)?;
 
-    // Compile Sierra to Casm.
-    let optional_class_info = match &tx {
-        RpcTransaction::Declare(declare_tx) => {
-            Some(gateway_compiler.process_declare_tx(declare_tx)?)
+    // TODO(Arni): remove copy_of_rpc_tx and use executable_tx directly as the mempool input.
+    let copy_of_rpc_tx = tx.clone();
+    let executable_tx = compile_contract_and_build_executable_tx(
+        tx,
+        &gateway_compiler,
+        &stateful_tx_validator.config.chain_info.chain_id,
+    )?;
+
+    // Perfom post compilation validations.
+    if let Transaction::Declare(executable_declare_tx) = &executable_tx {
+        if !executable_declare_tx.validate_compiled_class_hash() {
+            return Err(GatewaySpecError::CompiledClassHashMismatch);
+        }
+    }
+
+    let optional_class_info = match executable_tx {
+        starknet_api::executable_transaction::Transaction::Declare(tx) => {
+            Some(tx.class_info.try_into().map_err(|e| {
+                error!("Failed to convert Starknet API ClassInfo to Blockifier ClassInfo: {:?}", e);
+                GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+            })?)
         }
         _ => None,
     };
@@ -139,11 +175,16 @@ fn process_tx(
     let validator = stateful_tx_validator.instantiate_validator(state_reader_factory)?;
     // TODO(Yael 31/7/24): refactor after IntrnalTransaction is ready, delete validate_info and
     // compute all the info outside of run_validate.
-    let validate_info = stateful_tx_validator.run_validate(&tx, optional_class_info, validator)?;
+    let validate_info =
+        stateful_tx_validator.run_validate(&copy_of_rpc_tx, optional_class_info, validator)?;
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
     Ok(MempoolInput {
-        tx: Transaction::new_from_rpc_tx(tx, validate_info.tx_hash, validate_info.sender_address),
+        tx: Transaction::new_from_rpc_tx(
+            copy_of_rpc_tx,
+            validate_info.tx_hash,
+            validate_info.sender_address,
+        ),
         account: Account {
             sender_address: validate_info.sender_address,
             state: AccountState { nonce: validate_info.account_nonce },
@@ -154,10 +195,11 @@ fn process_tx(
 pub fn create_gateway(
     config: GatewayConfig,
     rpc_state_reader_config: RpcStateReaderConfig,
-    gateway_compiler: GatewayCompiler,
+    compiler_config: SierraToCasmCompilationConfig,
     mempool_client: SharedMempoolClient,
 ) -> Gateway {
     let state_reader_factory = Arc::new(RpcStateReaderFactory { config: rpc_state_reader_config });
+    let gateway_compiler = GatewayCompiler::new_command_line_compiler(compiler_config);
 
     Gateway::new(config, state_reader_factory, gateway_compiler, mempool_client)
 }

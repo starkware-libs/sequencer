@@ -1,6 +1,6 @@
 [package]
 name = "blockifier"
-version = "0.8.0-rc.1"
+version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -13,6 +13,7 @@ workspace = true
 concurrency = []
 jemalloc = ["dep:tikv-jemallocator"]
 testing = ["rand", "rstest"]
+transaction_serde = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -37,12 +38,11 @@ keccak.workspace = true
 log.workspace = true
 num-bigint.workspace = true
 num-integer.workspace = true
-num-rational.workspace = true
+num-rational = { workspace = true, features = ["serde"] }
 num-traits.workspace = true
-once_cell.workspace = true
 papyrus_config.workspace = true
 paste.workspace = true
-phf.workspace = true
+phf = { workspace = true, features = ["macros"] }
 rand = { workspace = true, optional = true }
 rstest = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }

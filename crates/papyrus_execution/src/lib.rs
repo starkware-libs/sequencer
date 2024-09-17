@@ -22,7 +22,6 @@ pub mod objects;
 use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::num::NonZeroU128;
-use std::path::Path;
 use std::sync::Arc;
 
 use blockifier::blockifier::block::{pre_process_block, BlockInfo, BlockNumberHashPair, GasPrices};
@@ -44,13 +43,15 @@ use blockifier::transaction::objects::{
 };
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::transaction::transactions::ExecutableTransaction;
-use blockifier::versioned_constants::VersionedConstants;
+use blockifier::versioned_constants::{
+    StarknetVersion as BlockifierStarknetVersion,
+    VersionedConstants,
+};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use execution_utils::{get_trace_constructor, induced_state_diff};
 use objects::{PriceUnit, TransactionSimulationOutput};
-use once_cell::sync::Lazy;
 use papyrus_common::transaction_hash::get_transaction_hash;
 use papyrus_common::TransactionOptions;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
@@ -98,20 +99,6 @@ const INITIAL_GAS_COST: u64 = 10000000000;
 
 /// Result type for execution functions.
 pub type ExecutionResult<T> = Result<T, ExecutionError>;
-
-static VERSIONED_CONSTANTS_13_0: Lazy<VersionedConstants> = Lazy::new(|| {
-    VersionedConstants::try_from(Path::new("./resources/versioned_constants_13_0.json"))
-        .expect("Versioned constants JSON file is malformed")
-});
-static VERSIONED_CONSTANTS_13_1: Lazy<VersionedConstants> = Lazy::new(|| {
-    VersionedConstants::try_from(Path::new("./resources/versioned_constants_13_1.json"))
-        .expect("Versioned constants JSON file is malformed")
-});
-
-static VERSIONED_CONSTANTS_13_2: Lazy<VersionedConstants> = Lazy::new(|| {
-    VersionedConstants::try_from(Path::new("./resources/versioned_constants_13_2.json"))
-        .expect("Versioned constants JSON file is malformed")
-});
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
 /// Parameters that are needed for execution.
@@ -268,8 +255,7 @@ pub fn execute_call(
             tx_info: TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
         }),
         true, // limit_steps_by_resources
-    )
-    .map_err(|err| ExecutionError::ContractError(err.into()))?;
+    );
 
     let res = call_entry_point
         .execute(&mut cached_state, &mut ExecutionResources::default(), &mut context)
@@ -360,16 +346,15 @@ fn create_block_context(
         use_kzg_da,
         block_number,
         // TODO(yair): What to do about blocks pre 0.13.1 where the data gas price were 0?
-        gas_prices: GasPrices {
-            eth_l1_gas_price: NonZeroU128::new(l1_gas_price.price_in_wei.0)
-                .unwrap_or(NonZeroU128::MIN),
-            strk_l1_gas_price: NonZeroU128::new(l1_gas_price.price_in_fri.0)
-                .unwrap_or(NonZeroU128::MIN),
-            eth_l1_data_gas_price: NonZeroU128::new(l1_data_gas_price.price_in_wei.0)
-                .unwrap_or(NonZeroU128::MIN),
-            strk_l1_data_gas_price: NonZeroU128::new(l1_data_gas_price.price_in_fri.0)
-                .unwrap_or(NonZeroU128::MIN),
-        },
+        gas_prices: GasPrices::new(
+            NonZeroU128::new(l1_gas_price.price_in_wei.0).unwrap_or(NonZeroU128::MIN),
+            NonZeroU128::new(l1_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
+            NonZeroU128::new(l1_data_gas_price.price_in_wei.0).unwrap_or(NonZeroU128::MIN),
+            NonZeroU128::new(l1_data_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
+            // TODO(Aner - Shahak): fix to come from pending_data/block_header.
+            NonZeroU128::MIN,
+            NonZeroU128::MIN,
+        ),
     };
     let chain_info = ChainInfo {
         chain_id,
@@ -874,18 +859,19 @@ fn get_versioned_constants(
     starknet_version: Option<&StarknetVersion>,
 ) -> ExecutionResult<&'static VersionedConstants> {
     let versioned_constants = match starknet_version {
-        Some(starknet_version) => match starknet_version {
-            StarknetVersion(version) if version == STARKNET_VERSION_O_13_0 => {
-                &VERSIONED_CONSTANTS_13_0
-            }
-            StarknetVersion(version) if version == STARKNET_VERSION_O_13_1 => {
-                &VERSIONED_CONSTANTS_13_1
-            }
-            StarknetVersion(version) if version == STARKNET_VERSION_O_13_2 => {
-                &VERSIONED_CONSTANTS_13_2
-            }
-            _ => VersionedConstants::latest_constants(),
-        },
+        Some(starknet_version) => {
+            let version = starknet_version.to_string();
+            let blockifier_starknet_version = if version == STARKNET_VERSION_O_13_0 {
+                BlockifierStarknetVersion::V0_13_0
+            } else if version == STARKNET_VERSION_O_13_1 {
+                BlockifierStarknetVersion::V0_13_1
+            } else if version == STARKNET_VERSION_O_13_2 {
+                BlockifierStarknetVersion::V0_13_2
+            } else {
+                BlockifierStarknetVersion::Latest
+            };
+            VersionedConstants::get(blockifier_starknet_version)
+        }
         None => VersionedConstants::latest_constants(),
     };
     Ok(versioned_constants)

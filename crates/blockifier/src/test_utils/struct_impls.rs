@@ -24,7 +24,6 @@ use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::state::state_api::State;
 use crate::test_utils::{
     get_raw_contract_class,
-    CHAIN_ID_NAME,
     CURRENT_BLOCK_NUMBER,
     CURRENT_BLOCK_TIMESTAMP,
     DEFAULT_ETH_L1_DATA_GAS_PRICE,
@@ -38,6 +37,7 @@ use crate::test_utils::{
 use crate::transaction::objects::{
     DeprecatedTransactionInfo,
     FeeType,
+    GasVectorComputationMode,
     TransactionFeeResult,
     TransactionInfo,
     TransactionResources,
@@ -70,8 +70,7 @@ impl CallEntryPoint {
         let tx_context =
             TransactionContext { block_context: BlockContext::create_for_testing(), tx_info };
         let mut context =
-            EntryPointExecutionContext::new_invoke(Arc::new(tx_context), limit_steps_by_resources)
-                .unwrap();
+            EntryPointExecutionContext::new_invoke(Arc::new(tx_context), limit_steps_by_resources);
         self.execute(state, &mut ExecutionResources::default(), &mut context)
     }
 
@@ -99,8 +98,7 @@ impl CallEntryPoint {
         let mut context = EntryPointExecutionContext::new_validate(
             Arc::new(tx_context),
             limit_steps_by_resources,
-        )
-        .unwrap();
+        );
         self.execute(state, &mut ExecutionResources::default(), &mut context)
     }
 }
@@ -120,6 +118,7 @@ impl TransactionResources {
         let gas_vector = self.to_gas_vector(
             &block_context.versioned_constants,
             block_context.block_info.use_kzg_da,
+            &GasVectorComputationMode::NoL2Gas,
         )?;
         Ok(get_fee_by_gas_vector(&block_context.block_info, gas_vector, fee_type))
     }
@@ -143,7 +142,7 @@ impl GasCosts {
 impl ChainInfo {
     pub fn create_for_testing() -> Self {
         Self {
-            chain_id: ChainId::Other(CHAIN_ID_NAME.to_string()),
+            chain_id: ChainId::create_for_testing(),
             fee_token_addresses: FeeTokenAddresses {
                 eth_fee_token_address: contract_address!(TEST_ERC20_CONTRACT_ADDRESS),
                 strk_fee_token_address: contract_address!(TEST_ERC20_CONTRACT_ADDRESS2),
@@ -158,12 +157,20 @@ impl BlockInfo {
             block_number: BlockNumber(CURRENT_BLOCK_NUMBER),
             block_timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
             sequencer_address: contract_address!(TEST_SEQUENCER_ADDRESS),
-            gas_prices: GasPrices {
-                eth_l1_gas_price: DEFAULT_ETH_L1_GAS_PRICE.try_into().unwrap(),
-                strk_l1_gas_price: DEFAULT_STRK_L1_GAS_PRICE.try_into().unwrap(),
-                eth_l1_data_gas_price: DEFAULT_ETH_L1_DATA_GAS_PRICE.try_into().unwrap(),
-                strk_l1_data_gas_price: DEFAULT_STRK_L1_DATA_GAS_PRICE.try_into().unwrap(),
-            },
+            gas_prices: GasPrices::new(
+                DEFAULT_ETH_L1_GAS_PRICE.try_into().unwrap(),
+                DEFAULT_STRK_L1_GAS_PRICE.try_into().unwrap(),
+                DEFAULT_ETH_L1_DATA_GAS_PRICE.try_into().unwrap(),
+                DEFAULT_STRK_L1_DATA_GAS_PRICE.try_into().unwrap(),
+                VersionedConstants::latest_constants()
+                    .convert_l1_to_l2_gas(DEFAULT_ETH_L1_GAS_PRICE)
+                    .try_into()
+                    .unwrap(),
+                VersionedConstants::latest_constants()
+                    .convert_l1_to_l2_gas(DEFAULT_STRK_L1_GAS_PRICE)
+                    .try_into()
+                    .unwrap(),
+            ),
             use_kzg_da: false,
         }
     }

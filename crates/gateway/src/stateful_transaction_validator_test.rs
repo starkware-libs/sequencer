@@ -8,8 +8,8 @@ use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidat
 use mempool_test_utils::invoke_tx_args;
 use mempool_test_utils::starknet_api_test_utils::{
     deploy_account_tx,
-    external_invoke_tx,
     invoke_tx,
+    rpc_invoke_tx,
     TEST_SENDER_ADDRESS,
     VALID_L1_GAS_MAX_AMOUNT,
     VALID_L1_GAS_MAX_PRICE_PER_UNIT,
@@ -20,15 +20,13 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::{Resource, TransactionHash};
 use starknet_api::{contract_address, felt, patricia_key};
-use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
+use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_types_core::felt::Felt;
 
 use super::ValidateInfo;
-use crate::compilation::GatewayCompiler;
 use crate::config::StatefulTransactionValidatorConfig;
-use crate::errors::GatewaySpecError;
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
 use crate::state_reader_test_utils::local_test_state_reader_factory;
 use crate::stateful_transaction_validator::{
@@ -39,7 +37,8 @@ use crate::stateful_transaction_validator::{
 pub const STATEFUL_VALIDATOR_FEE_ERROR: BlockifierStatefulValidatorError =
     BlockifierStatefulValidatorError::TransactionPreValidationError(
         TransactionPreValidationError::TransactionFeeError(
-            TransactionFeeError::L1GasBoundsExceedBalance {
+            TransactionFeeError::GasBoundsExceedBalance {
+                resource: Resource::L1DataGas,
                 max_amount: VALID_L1_GAS_MAX_AMOUNT,
                 max_price: VALID_L1_GAS_MAX_PRICE_PER_UNIT,
                 balance: BigUint::ZERO,
@@ -64,12 +63,13 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
     }
 }
 
+// TODO(Arni): consider testing declare and deploy account.
 #[rstest]
 #[case::valid_tx(
     invoke_tx(CairoVersion::Cairo1),
     Ok(ValidateInfo{
         tx_hash: TransactionHash(felt!(
-        "0x152b8dd0c30e95fa3a4ee7a9398fcfc46fb00c048b4fdcfa9958c64d65899b8"
+        "0x3b93426272b6e281bc9bde29b91a9fb100c2f9689388c62360b2be2f4e7b493"
         )),
         sender_address: contract_address!("0xc0020000"),
         account_nonce: Nonce::default()
@@ -77,19 +77,10 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
 )]
 #[case::invalid_tx(invoke_tx(CairoVersion::Cairo1), Err(STATEFUL_VALIDATOR_FEE_ERROR))]
 fn test_stateful_tx_validator(
-    #[case] external_tx: RpcTransaction,
+    #[case] rpc_tx: RpcTransaction,
     #[case] expected_result: BlockifierStatefulValidatorResult<ValidateInfo>,
     stateful_validator: StatefulTransactionValidator,
 ) {
-    let optional_class_info = match &external_tx {
-        RpcTransaction::Declare(declare_tx) => Some(
-            GatewayCompiler::new_cairo_lang_compiler(SierraToCasmCompilationConfig::default())
-                .process_declare_tx(declare_tx)
-                .unwrap(),
-        ),
-        _ => None,
-    };
-
     let expected_result_as_stateful_transaction_result =
         expected_result.as_ref().map(|validate_info| *validate_info).map_err(|blockifier_error| {
             GatewaySpecError::ValidationFailure { data: blockifier_error.to_string() }
@@ -99,7 +90,7 @@ fn test_stateful_tx_validator(
     mock_validator.expect_validate().return_once(|_, _| expected_result.map(|_| ()));
     mock_validator.expect_get_nonce().returning(|_| Ok(Nonce(Felt::ZERO)));
 
-    let result = stateful_validator.run_validate(&external_tx, optional_class_info, mock_validator);
+    let result = stateful_validator.run_validate(&rpc_tx, None, mock_validator);
     assert_eq!(result, expected_result_as_stateful_transaction_result);
 }
 
@@ -139,28 +130,28 @@ fn test_instantiate_validator() {
 
 #[rstest]
 #[case::should_skip_validation(
-    external_invoke_tx(invoke_tx_args!{nonce: Nonce(Felt::ONE)}),
+    rpc_invoke_tx(invoke_tx_args!{nonce: Nonce(Felt::ONE)}),
     Nonce::default(),
     true
 )]
 #[case::should_not_skip_validation_nonce_over_max_nonce_for_skip(
-    external_invoke_tx(invoke_tx_args!{nonce: Nonce(Felt::TWO)}),
+    rpc_invoke_tx(invoke_tx_args!{nonce: Nonce(Felt::TWO)}),
     Nonce::default(),
     false
 )]
 #[case::should_not_skip_validation_non_invoke(deploy_account_tx(), Nonce::default(), false)]
 #[case::should_not_skip_validation_account_nonce_1(
-    external_invoke_tx(invoke_tx_args!{sender_address: ContractAddress::from(TEST_SENDER_ADDRESS), nonce: Nonce(Felt::ONE)}),
+    rpc_invoke_tx(invoke_tx_args!{sender_address: ContractAddress::from(TEST_SENDER_ADDRESS), nonce: Nonce(Felt::ONE)}),
     Nonce(Felt::ONE),
     false
 )]
 fn test_skip_stateful_validation(
-    #[case] external_tx: RpcTransaction,
+    #[case] rpc_tx: RpcTransaction,
     #[case] sender_nonce: Nonce,
     #[case] should_skip_validate: bool,
     stateful_validator: StatefulTransactionValidator,
 ) {
-    let sender_address = external_tx.calculate_sender_address().unwrap();
+    let sender_address = rpc_tx.calculate_sender_address().unwrap();
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator
         .expect_get_nonce()
@@ -170,5 +161,5 @@ fn test_skip_stateful_validation(
         .expect_validate()
         .withf(move |_, skip_validate| *skip_validate == should_skip_validate)
         .returning(|_, _| Ok(()));
-    let _ = stateful_validator.run_validate(&external_tx, None, mock_validator);
+    let _ = stateful_validator.run_validate(&rpc_tx, None, mock_validator);
 }

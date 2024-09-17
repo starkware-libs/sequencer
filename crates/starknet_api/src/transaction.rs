@@ -1,11 +1,10 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::sync::Arc;
 
 use derive_more::{Display, From};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
-use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 use crate::block::{BlockHash, BlockNumber};
@@ -43,6 +42,13 @@ pub trait TransactionHasher {
         chain_id: &ChainId,
         transaction_version: &TransactionVersion,
     ) -> Result<TransactionHash, StarknetApiError>;
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
+pub struct FullTransaction {
+    pub transaction: Transaction,
+    pub transaction_output: TransactionOutput,
+    pub transaction_hash: TransactionHash,
 }
 
 /// A transaction.
@@ -209,7 +215,7 @@ impl TransactionHasher for DeclareTransactionV2 {
 /// A declare V3 transaction.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct DeclareTransactionV3 {
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
@@ -318,7 +324,7 @@ impl TransactionHasher for DeployAccountTransactionV1 {
 /// A deploy account V3 transaction.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeployAccountTransactionV3 {
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
@@ -455,7 +461,7 @@ impl TransactionHasher for InvokeTransactionV1 {
 /// An invoke V3 transaction.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct InvokeTransactionV3 {
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
@@ -860,13 +866,26 @@ impl From<Tip> for Felt {
 
 /// Execution resource.
 #[derive(
-    Clone, Copy, Debug, Deserialize, EnumIter, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Deserialize,
+    EnumIter,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    Display,
 )]
 pub enum Resource {
     #[serde(rename = "L1_GAS")]
     L1Gas,
     #[serde(rename = "L2_GAS")]
     L2Gas,
+    #[serde(rename = "L1_DATA")]
+    L1DataGas,
 }
 
 /// Fee bounds for an execution resource.
@@ -874,6 +893,7 @@ pub enum Resource {
 #[derive(
     Clone, Copy, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize,
 )]
+// TODO(Nimrod): Consider renaming this struct.
 pub struct ResourceBounds {
     // Specifies the maximum amount of each resource allowed for usage during the execution.
     #[serde(serialize_with = "u64_to_hex", deserialize_with = "hex_to_u64")]
@@ -882,6 +902,13 @@ pub struct ResourceBounds {
     // Specifies the maximum price the user is willing to pay for each resource unit.
     #[serde(serialize_with = "u128_to_hex", deserialize_with = "hex_to_u128")]
     pub max_price_per_unit: u128,
+}
+
+impl ResourceBounds {
+    /// Returns true iff both the max amount and the max amount per unit is zero.
+    pub fn is_zero(&self) -> bool {
+        self.max_amount == 0 && self.max_price_per_unit == 0
+    }
 }
 
 fn u64_to_hex<S>(value: &u64, serializer: S) -> Result<S::Ok, S::Error>
@@ -916,25 +943,123 @@ where
 
 /// A mapping from execution resources to their corresponding fee bounds..
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct ResourceBoundsMapping(pub BTreeMap<Resource, ResourceBounds>);
+// TODO(Nimrod): Remove this struct definition.
+pub struct DeprecatedResourceBoundsMapping(pub BTreeMap<Resource, ResourceBounds>);
 
-impl TryFrom<Vec<(Resource, ResourceBounds)>> for ResourceBoundsMapping {
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub enum ValidResourceBounds {
+    L1Gas(ResourceBounds), // Pre 0.13.3. Only L1 gas. L2 bounds are signed but never used.
+    AllResources(AllResourceBounds),
+}
+
+impl ValidResourceBounds {
+    pub fn get_l1_bounds(&self) -> ResourceBounds {
+        match self {
+            Self::L1Gas(l1_bounds) => *l1_bounds,
+            Self::AllResources(AllResourceBounds { l1_gas, .. }) => *l1_gas,
+        }
+    }
+
+    pub fn get_l2_bounds(&self) -> ResourceBounds {
+        match self {
+            Self::L1Gas(_) => ResourceBounds::default(),
+            Self::AllResources(AllResourceBounds { l2_gas, .. }) => *l2_gas,
+        }
+    }
+
+    // TODO(Nimrod): Default testing bounds should probably be AllResourceBounds variant.
+    #[cfg(any(feature = "testing", test))]
+    pub fn create_for_testing() -> Self {
+        Self::L1Gas(ResourceBounds { max_amount: 0, max_price_per_unit: 1 })
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize)]
+pub struct AllResourceBounds {
+    pub l1_gas: ResourceBounds,
+    pub l2_gas: ResourceBounds,
+    pub l1_data_gas: ResourceBounds,
+}
+
+impl AllResourceBounds {
+    pub fn get_bound(&self, resource: Resource) -> ResourceBounds {
+        match resource {
+            Resource::L1Gas => self.l1_gas,
+            Resource::L2Gas => self.l2_gas,
+            Resource::L1DataGas => self.l1_data_gas,
+        }
+    }
+}
+
+/// Deserializes raw resource bounds, given as map, into valid resource bounds.
+// TODO(Nimrod): Figure out how to get same result with adding #[derive(Deserialize)].
+impl<'de> Deserialize<'de> for ValidResourceBounds {
+    fn deserialize<D>(de: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw_resource_bounds: BTreeMap<Resource, ResourceBounds> = Deserialize::deserialize(de)?;
+        ValidResourceBounds::try_from(DeprecatedResourceBoundsMapping(raw_resource_bounds))
+            .map_err(serde::de::Error::custom)
+    }
+}
+
+/// Serializes ValidResourceBounds as map for Backwards compatibility.
+// TODO(Nimrod): Figure out how to get same result with adding #[derive(Serialize)].
+impl Serialize for ValidResourceBounds {
+    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let map = match self {
+            ValidResourceBounds::L1Gas(l1_gas) => BTreeMap::from([
+                (Resource::L1Gas, *l1_gas),
+                (Resource::L2Gas, ResourceBounds::default()),
+            ]),
+            ValidResourceBounds::AllResources(AllResourceBounds {
+                l1_gas,
+                l2_gas,
+                l1_data_gas,
+            }) => BTreeMap::from([
+                (Resource::L1Gas, *l1_gas),
+                (Resource::L2Gas, *l2_gas),
+                (Resource::L1DataGas, *l1_data_gas),
+            ]),
+        };
+        DeprecatedResourceBoundsMapping(map).serialize(s)
+    }
+}
+
+impl TryFrom<DeprecatedResourceBoundsMapping> for ValidResourceBounds {
     type Error = StarknetApiError;
     fn try_from(
-        resource_resource_bounds_pairs: Vec<(Resource, ResourceBounds)>,
+        resource_bounds_mapping: DeprecatedResourceBoundsMapping,
     ) -> Result<Self, Self::Error> {
-        let n_variants = Resource::iter().count();
-        let unique_resources: HashSet<Resource> =
-            HashSet::from_iter(resource_resource_bounds_pairs.iter().map(|(k, _)| *k));
-        if unique_resources.len() != n_variants
-            || resource_resource_bounds_pairs.len() != n_variants
-        {
-            Err(StarknetApiError::InvalidResourceMappingInitializer(format!(
-                "{:?}",
-                resource_resource_bounds_pairs
-            )))
+        if let (Some(l1_bounds), Some(l2_bounds)) = (
+            resource_bounds_mapping.0.get(&Resource::L1Gas),
+            resource_bounds_mapping.0.get(&Resource::L2Gas),
+        ) {
+            match resource_bounds_mapping.0.get(&Resource::L1DataGas) {
+                Some(data_bounds) => Ok(Self::AllResources(AllResourceBounds {
+                    l1_gas: *l1_bounds,
+                    l1_data_gas: *data_bounds,
+                    l2_gas: *l2_bounds,
+                })),
+                None => {
+                    if l2_bounds.is_zero() {
+                        Ok(Self::L1Gas(*l1_bounds))
+                    } else {
+                        Err(StarknetApiError::InvalidResourceMappingInitializer(format!(
+                            "Missing data gas bounds but L2 gas bound is not zero: \
+                             {resource_bounds_mapping:?}",
+                        )))
+                    }
+                }
+            }
         } else {
-            Ok(Self(resource_resource_bounds_pairs.into_iter().collect::<BTreeMap<_, _>>()))
+            Err(StarknetApiError::InvalidResourceMappingInitializer(format!(
+                "{resource_bounds_mapping:?}",
+            )))
         }
     }
 }

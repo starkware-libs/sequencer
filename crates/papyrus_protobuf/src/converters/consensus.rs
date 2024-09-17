@@ -1,3 +1,6 @@
+#[cfg(test)]
+#[path = "consensus_test.rs"]
+mod consensus_test;
 use std::convert::{TryFrom, TryInto};
 
 use prost::Message;
@@ -5,7 +8,7 @@ use starknet_api::block::BlockHash;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::Transaction;
 
-use crate::consensus::{ConsensusMessage, Proposal, Vote, VoteType};
+use crate::consensus::{ConsensusMessage, Proposal, StreamMessage, Vote, VoteType};
 use crate::converters::ProtobufConversionError;
 use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};
 
@@ -48,6 +51,8 @@ impl From<Proposal> for protobuf::Proposal {
         }
     }
 }
+
+auto_impl_into_and_try_from_vec_u8!(Proposal, protobuf::Proposal);
 
 impl TryFrom<protobuf::vote::VoteType> for VoteType {
     type Error = ProtobufConversionError;
@@ -106,6 +111,59 @@ impl From<Vote> for protobuf::Vote {
 }
 
 auto_impl_into_and_try_from_vec_u8!(Vote, protobuf::Vote);
+
+impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
+    TryFrom<protobuf::StreamMessage> for StreamMessage<T>
+{
+    type Error = ProtobufConversionError;
+
+    fn try_from(value: protobuf::StreamMessage) -> Result<Self, Self::Error> {
+        Ok(Self {
+            message: T::try_from(value.message)?,
+            stream_id: value.stream_id,
+            chunk_id: value.chunk_id,
+            fin: value.fin,
+        })
+    }
+}
+
+impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<StreamMessage<T>>
+    for protobuf::StreamMessage
+{
+    fn from(value: StreamMessage<T>) -> Self {
+        Self {
+            message: value.message.into(),
+            stream_id: value.stream_id,
+            chunk_id: value.chunk_id,
+            fin: value.fin,
+        }
+    }
+}
+
+// Can't use auto_impl_into_and_try_from_vec_u8!(StreamMessage, protobuf::StreamMessage);
+// because it doesn't seem to work with generics
+// TODO(guyn): consider expanding the macro to support generics
+impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<StreamMessage<T>>
+    for Vec<u8>
+{
+    fn from(value: StreamMessage<T>) -> Self {
+        let protobuf_value = <protobuf::StreamMessage>::from(value);
+        protobuf_value.encode_to_vec()
+    }
+}
+
+impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> TryFrom<Vec<u8>>
+    for StreamMessage<T>
+{
+    type Error = ProtobufConversionError;
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        let protobuf_value = <protobuf::StreamMessage>::decode(&value[..])?;
+        match Self::try_from(protobuf_value) {
+            Ok(value) => Ok(value),
+            Err(e) => Err(e),
+        }
+    }
+}
 
 impl TryFrom<protobuf::ConsensusMessage> for ConsensusMessage {
     type Error = ProtobufConversionError;

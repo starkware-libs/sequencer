@@ -118,7 +118,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         let tx_context = Arc::new(block_context.to_tx_context(self));
 
         let mut execution_resources = ExecutionResources::default();
-        let mut context = EntryPointExecutionContext::new_invoke(tx_context.clone(), true)?;
+        let mut context = EntryPointExecutionContext::new_invoke(tx_context.clone(), true);
         let mut remaining_gas = block_context.versioned_constants.tx_initial_gas();
         let execute_call_info =
             self.run_execute(state, &mut execution_resources, &mut context, &mut remaining_gas)?;
@@ -141,7 +141,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         // For now, assert only that any amount of fee was paid.
         // The error message still indicates the required fee.
         if paid_fee == Fee(0) {
-            return Err(TransactionFeeError::InsufficientL1Fee { paid_fee, actual_fee })?;
+            return Err(TransactionFeeError::InsufficientFee { paid_fee, actual_fee })?;
         }
 
         Ok(TransactionExecutionInfo {

@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use axum::body::Body;
 use blockifier::test_utils::contracts::FeatureContract;
 use mempool_test_utils::starknet_api_test_utils::{
-    external_tx_to_json,
+    rpc_tx_to_json,
     MultiAccountTransactionGenerator,
 };
 use reqwest::{Client, Response};
@@ -16,7 +16,7 @@ use starknet_gateway::config::{
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
-use starknet_gateway::errors::GatewaySpecError;
+use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_node::config::MempoolNodeConfig;
 use tokio::net::TcpListener;
 
@@ -43,13 +43,13 @@ pub async fn create_config(rpc_server_addr: SocketAddr) -> MempoolNodeConfig {
     MempoolNodeConfig { gateway_config, rpc_state_reader_config, ..MempoolNodeConfig::default() }
 }
 
-/// A test utility client for interacting with a gateway server.
-pub struct GatewayClient {
+/// A test utility client for interacting with an http server.
+pub struct HttpTestClient {
     socket: SocketAddr,
     client: Client,
 }
 
-impl GatewayClient {
+impl HttpTestClient {
     pub fn new(socket: SocketAddr) -> Self {
         let client = Client::new();
         Self { socket, client }
@@ -70,7 +70,7 @@ impl GatewayClient {
     // Prefer using assert_add_tx_success or other higher level methods of this client, to ensure
     // tests are boilerplate and implementation-detail free.
     pub async fn add_tx(&self, tx: &RpcTransaction) -> Response {
-        let tx_json = external_tx_to_json(tx);
+        let tx_json = rpc_tx_to_json(tx);
         self.client
             .post(format!("http://{}/add_tx", self.socket))
             .header("content-type", "application/json")

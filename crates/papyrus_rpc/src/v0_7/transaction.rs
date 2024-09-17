@@ -29,6 +29,7 @@ use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::serde_utils::bytes_from_hex_str;
 use starknet_api::transaction::{
     AccountDeploymentData,
+    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     DeployTransaction,
@@ -154,17 +155,43 @@ pub struct ResourceBoundsMapping {
     pub l2_gas: ResourceBounds,
 }
 
-impl From<ResourceBoundsMapping> for starknet_api::transaction::ResourceBoundsMapping {
+impl From<ResourceBoundsMapping> for starknet_api::transaction::DeprecatedResourceBoundsMapping {
     fn from(value: ResourceBoundsMapping) -> Self {
         Self([(Resource::L1Gas, value.l1_gas), (Resource::L2Gas, value.l2_gas)].into())
     }
 }
 
-impl From<starknet_api::transaction::ResourceBoundsMapping> for ResourceBoundsMapping {
-    fn from(value: starknet_api::transaction::ResourceBoundsMapping) -> Self {
+impl From<starknet_api::transaction::DeprecatedResourceBoundsMapping> for ResourceBoundsMapping {
+    fn from(value: starknet_api::transaction::DeprecatedResourceBoundsMapping) -> Self {
         Self {
             l1_gas: value.0.get(&Resource::L1Gas).cloned().unwrap_or_default(),
             l2_gas: value.0.get(&Resource::L2Gas).cloned().unwrap_or_default(),
+        }
+    }
+}
+
+impl TryFrom<ResourceBoundsMapping> for starknet_api::transaction::ValidResourceBounds {
+    type Error = ErrorObjectOwned;
+    fn try_from(value: ResourceBoundsMapping) -> Result<Self, Self::Error> {
+        if !value.l2_gas.is_zero() {
+            Err(internal_server_error("Got a transaction with non zero l2 gas."))
+        } else {
+            Ok(Self::L1Gas(value.l1_gas))
+        }
+    }
+}
+
+impl From<starknet_api::transaction::ValidResourceBounds> for ResourceBoundsMapping {
+    fn from(value: starknet_api::transaction::ValidResourceBounds) -> Self {
+        match value {
+            starknet_api::transaction::ValidResourceBounds::L1Gas(l1_gas) => {
+                Self { l1_gas, l2_gas: ResourceBounds::default() }
+            }
+            starknet_api::transaction::ValidResourceBounds::AllResources(AllResourceBounds {
+                l1_gas,
+                l2_gas,
+                ..
+            }) => Self { l1_gas, l2_gas },
         }
     }
 }

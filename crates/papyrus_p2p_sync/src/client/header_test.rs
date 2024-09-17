@@ -1,5 +1,4 @@
-use futures::{SinkExt, StreamExt};
-use papyrus_network::network_manager::SqmrClientPayload;
+use futures::StreamExt;
 use papyrus_protobuf::sync::{
     BlockHashOrNumber,
     DataOrFin,
@@ -29,10 +28,11 @@ async fn signed_headers_basic_flow() {
     let TestArgs {
         p2p_sync,
         storage_reader,
-        mut header_receiver,
+        mut mock_header_response_manager,
         // The test will fail if we drop these
-        state_diff_receiver: _state_diff_query_receiver,
-        transaction_receiver: _transaction_query_receiver,
+        mock_state_diff_response_manager: _mock_state_diff_response_manager,
+        mock_transaction_response_manager: _mock_transaction_response_manager,
+        mock_class_response_manager: _mock_class_response_manager,
         ..
     } = setup();
     let block_hashes_and_signatures =
@@ -45,19 +45,16 @@ async fn signed_headers_basic_flow() {
             let end_block_number = (query_index + 1) * HEADER_QUERY_LENGTH;
 
             // Receive query and validate it.
-            let SqmrClientPayload {
-                query,
-                report_receiver: _report_receiver,
-                responses_sender: mut headers_sender,
-            } = header_receiver.next().await.unwrap();
+            let mut mock_header_responses_manager =
+                mock_header_response_manager.next().await.unwrap();
             assert_eq!(
-                query,
-                HeaderQuery(Query {
+                *mock_header_responses_manager.query(),
+                Ok(HeaderQuery(Query {
                     start_block: BlockHashOrNumber::Number(BlockNumber(start_block_number)),
                     direction: Direction::Forward,
                     limit: HEADER_QUERY_LENGTH,
                     step: 1,
-                })
+                }))
             );
 
             for (i, (block_hash, block_signature)) in block_hashes_and_signatures
@@ -67,8 +64,8 @@ async fn signed_headers_basic_flow() {
                 .skip(start_block_number.try_into().expect("Failed converting u64 to usize"))
             {
                 // Send responses
-                headers_sender
-                    .send(Ok(DataOrFin(Some(SignedBlockHeader {
+                mock_header_responses_manager
+                    .send_response(DataOrFin(Some(SignedBlockHeader {
                         block_header: BlockHeader {
                             block_number: BlockNumber(i.try_into().unwrap()),
                             block_hash: *block_hash,
@@ -76,7 +73,7 @@ async fn signed_headers_basic_flow() {
                             ..Default::default()
                         },
                         signatures: vec![*block_signature],
-                    }))))
+                    })))
                     .await
                     .unwrap();
 
@@ -95,7 +92,7 @@ async fn signed_headers_basic_flow() {
                     txn.get_block_signature(block_number).unwrap().unwrap();
                 assert_eq!(*block_signature, actual_block_signature);
             }
-            headers_sender.send(Ok(DataOrFin(None))).await.unwrap();
+            mock_header_responses_manager.send_response(DataOrFin(None)).await.unwrap();
         }
     };
 
@@ -115,25 +112,22 @@ async fn sync_sends_new_header_query_if_it_got_partial_responses() {
 
     let TestArgs {
         p2p_sync,
-        mut header_receiver,
+        mut mock_header_response_manager,
         // The test will fail if we drop these
-        state_diff_receiver: _state_diff_query_receiver,
-        transaction_receiver: _transaction_query_receiver,
+        mock_state_diff_response_manager: _state_diff_receiver,
+        mock_transaction_response_manager: _transaction_receiver,
+        mock_class_response_manager: _class_receiver,
         ..
     } = setup();
     let block_hashes_and_signatures = create_block_hashes_and_signatures(NUM_ACTUAL_RESPONSES);
 
     // Create a future that will receive a query, send partial responses and receive the next query.
     let parse_queries_future = async move {
-        let SqmrClientPayload {
-            query: _query,
-            report_receiver: _report_receiver,
-            responses_sender: mut headers_sender,
-        } = header_receiver.next().await.unwrap();
+        let mut mock_header_responses_manager = mock_header_response_manager.next().await.unwrap();
 
         for (i, (block_hash, signature)) in block_hashes_and_signatures.into_iter().enumerate() {
-            headers_sender
-                .send(Ok(DataOrFin(Some(SignedBlockHeader {
+            mock_header_responses_manager
+                .send_response(DataOrFin(Some(SignedBlockHeader {
                     block_header: BlockHeader {
                         block_number: BlockNumber(i.try_into().unwrap()),
                         block_hash,
@@ -141,11 +135,11 @@ async fn sync_sends_new_header_query_if_it_got_partial_responses() {
                         ..Default::default()
                     },
                     signatures: vec![signature],
-                }))))
+                })))
                 .await
                 .unwrap();
         }
-        headers_sender.send(Ok(DataOrFin(None))).await.unwrap();
+        mock_header_responses_manager.send_response(DataOrFin(None)).await.unwrap();
 
         // Wait for the sync to enter sleep due to partial responses. Then, simulate time has
         // passed.
@@ -155,23 +149,22 @@ async fn sync_sends_new_header_query_if_it_got_partial_responses() {
         tokio::time::resume();
 
         // First unwrap is for the timeout. Second unwrap is for the Option returned from Stream.
-        let SqmrClientPayload {
-            query,
-            report_receiver: _report_receiver,
-            responses_sender: _responses_sender,
-        } = timeout(TIMEOUT_FOR_NEW_QUERY_AFTER_PARTIAL_RESPONSE, header_receiver.next())
-            .await
-            .unwrap()
-            .unwrap();
+        let mock_header_responses_manager = timeout(
+            TIMEOUT_FOR_NEW_QUERY_AFTER_PARTIAL_RESPONSE,
+            mock_header_response_manager.next(),
+        )
+        .await
+        .unwrap()
+        .unwrap();
 
         assert_eq!(
-            query,
-            HeaderQuery(Query {
+            *mock_header_responses_manager.query(),
+            Ok(HeaderQuery(Query {
                 start_block: BlockHashOrNumber::Number(BlockNumber(NUM_ACTUAL_RESPONSES.into())),
                 direction: Direction::Forward,
                 limit: HEADER_QUERY_LENGTH,
                 step: 1,
-            })
+            }))
         );
     };
 

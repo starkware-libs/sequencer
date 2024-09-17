@@ -1,6 +1,6 @@
 [package]
 name = "papyrus_network"
-version = "0.4.0-rc.0"
+version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -10,11 +10,13 @@ testing = []
 
 [dependencies]
 async-stream.workspace = true
+async-trait.workspace = true
 bytes.workspace = true
 derive_more.workspace = true
 futures.workspace = true
 lazy_static.workspace = true
 libp2p = { workspace = true, features = [
+  "dns",
   "gossipsub",
   "identify",
   "kad",
@@ -31,7 +33,7 @@ papyrus_common.workspace = true
 papyrus_config.workspace = true
 replace_with.workspace = true
 serde = { workspace = true, features = ["derive"] }
-starknet_api = { path = "../starknet_api", version = "0.13.0-rc.0" }
+starknet_api.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 tokio-retry.workspace = true

@@ -62,14 +62,11 @@ pub enum ContractClass {
     V1Native(NativeContractClassV1),
 }
 
-impl TryFrom<starknet_api::contract_class::ContractClass> for ContractClass {
+impl TryFrom<CasmContractClass> for ContractClass {
     type Error = ProgramError;
 
-    fn try_from(
-        contract_class: starknet_api::contract_class::ContractClass,
-    ) -> Result<Self, Self::Error> {
-        let starknet_api::contract_class::ContractClass::V1(contract_class_v1) = contract_class;
-        Ok(ContractClass::V1(contract_class_v1.try_into()?))
+    fn try_from(contract_class: CasmContractClass) -> Result<Self, Self::Error> {
+        Ok(ContractClass::V1(contract_class.try_into()?))
     }
 }
 
@@ -270,6 +267,7 @@ impl ContractClassV1 {
             program: Default::default(),
             entry_points_by_type: Default::default(),
             hints: Default::default(),
+            compiler_version: Default::default(),
             bytecode_segment_lengths: NestedIntList::Leaf(0),
         }))
     }
@@ -288,7 +286,7 @@ pub fn estimate_casm_hash_computation_resources(
         NestedIntList::Leaf(length) => {
             // The entire contract is a single segment (old Sierra contracts).
             &ExecutionResources {
-                n_steps: 474,
+                n_steps: 463,
                 n_memory_holes: 0,
                 builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 10)]),
             } + &poseidon_hash_many_cost(*length)
@@ -296,7 +294,7 @@ pub fn estimate_casm_hash_computation_resources(
         NestedIntList::Node(segments) => {
             // The contract code is segmented by its functions.
             let mut execution_resources = ExecutionResources {
-                n_steps: 491,
+                n_steps: 480,
                 n_memory_holes: 0,
                 builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 11)]),
             };
@@ -371,6 +369,7 @@ pub struct ContractClassV1Inner {
     pub program: Program,
     pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPointV1>>,
     pub hints: HashMap<String, Hint>,
+    pub compiler_version: String,
     bytecode_segment_lengths: NestedIntList,
 }
 
@@ -384,18 +383,6 @@ pub struct EntryPointV1 {
 impl EntryPointV1 {
     pub fn pc(&self) -> usize {
         self.offset.0
-    }
-}
-
-impl TryFrom<starknet_api::contract_class::ContractClassV1> for ContractClassV1 {
-    type Error = ProgramError;
-
-    fn try_from(
-        contract_class: starknet_api::contract_class::ContractClassV1,
-    ) -> Result<Self, Self::Error> {
-        let starknet_api::contract_class::ContractClassV1::Casm(casm_contract_class) =
-            contract_class;
-        casm_contract_class.try_into()
     }
 }
 
@@ -465,6 +452,7 @@ impl TryFrom<CasmContractClass> for ContractClassV1 {
             program,
             entry_points_by_type,
             hints: string_to_hint,
+            compiler_version: class.compiler_version,
             bytecode_segment_lengths,
         })))
     }
@@ -522,13 +510,16 @@ impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
 
     fn try_from(class_info: starknet_api::contract_class::ClassInfo) -> Result<Self, Self::Error> {
         let starknet_api::contract_class::ClassInfo {
-            contract_class,
+            casm_contract_class,
             sierra_program_length,
             abi_length,
         } = class_info;
 
-        let contract_class: ContractClass = contract_class.try_into()?;
-        Ok(Self { contract_class, sierra_program_length, abi_length })
+        Ok(Self {
+            contract_class: casm_contract_class.try_into()?,
+            sierra_program_length,
+            abi_length,
+        })
     }
 }
 

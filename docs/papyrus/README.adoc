@@ -46,32 +46,6 @@ Use it at your own risk.
 
 * https://www.rust-lang.org/tools/install[Rust] must be installed. Minimum supported version is `1.76`.
 * You must have access to an Ethereum node. For example, you can use a node provider such as Infura.
-* link: https://grpc.io/docs/protoc-installation[Protoc]
-  - You'll need Protoc only for compiling the link:../crates/papyrus_network/[papyrus_network] crate.
-  - Make sure you have version 15 or higher installed. If not:
-    1. Remove your current Protoc installation:
-+
-[source,bash]
-----
-sudo apt remove protoc/protobuf-compiler
-----
-
-    2. Install version 15 or higher (replace DIR with your preferred installation directory):
-+
-[source,bash]
-----
-DIR="$HOME/.local"
-curl -L "https://github.com/protocolbuffers/protobuf/releases/download/v25.1/protoc-25.1-linux-x86_64.zip" -o protoc.zip
-unzip ./protoc.zip -d $DIR
-rm ./protoc.zip
-----
-
-    3. Add DIR to your PATH if it's not already there:
-+
-[source,bash]
-----
-export PATH=$PATH:$DIR/bin
-----
 
 [discrete]
 ==== Procedure
@@ -224,6 +198,66 @@ docker run --rm --name papyrus\
 ----
 
 For more information, see https://docs.docker.com/config/containers/resource_constraints/#limit-a-containers-access-to-memory[Limit a container's access to memory] in the Docker documentation.
+
+=== Running Papyrus using p2p sync
+
+.For this configuration, we will use the following flags:
+. `--network.#is_none false` will turn on the p2p networking component for this node and allow it to serve incoming requests.
+. `--sync.#is_none true` will turn off central syncing.
+. `--p2p_sync.#is_none false` will turn on p2p syncing, meaning the node will make sync requests to other connected nodes.
+. A pair of flags `--bootstrap_peer_multiaddr` and `--bootstrap_peer_multiaddr.#is_none` are used to inform the node of some other node that exists in the network, from which your node will discover other peers in the network.
+.. As a non-bootstrap node, you need to set `--bootstrap_peer_multiaddr.#is_none false` and provide an address to a bootstrap node in `--bootstrap_peer_multiaddr <bootstrap_node_address>`.
+.. As a bootstrap node, you should not set values for these flags.
+
+* it is usually custom to have a single or few bootstrap nodes in the network with predetermined addresses and have new nodes join the network using them.
+
+.Here are three examples of running p2p nodes with various configurations:
+1. Boostrap node without sync - can be used by other nodes for discovery but not for syncing.
+2. Syncing from central gateway, and connected to bootstrap peer.
+3. Syncing using p2p and connected to bootstrap peer (it will discover 2 and sync from it).
+
+==== Boostrap node without sync
+[source, bash]
+----
+cargo run --release --package papyrus_node --bin papyrus_node -- \
+        --base_layer.node_url <ethereum_node_url> \
+        --network.secret_key <secret_key> \
+        --sync.#is_none true
+----
+
+==== Central Sync (with bootstrap connection)
+[source, bash]
+----
+cargo run --release --package papyrus_node --bin papyrus_node -- \
+        --base_layer.node_url <ethereum_node_url> \
+        --network.bootstrap_peer_multiaddr.#is_none false \
+        --network.bootstrap_peer_multiaddr /ip4/<other_peer_ip_address>/tcp/<tcp_port>/p2p/<peer_id>
+----
+
+You can also use DNS instead of ip4 by typing 
+----
+        --network.bootstrap_peer_multiaddr /dns/<other_peer_dns_address>/tcp/<tcp_port>/p2p/<peer_id>
+----
+
+==== P2P Sync (with bootstrap connection)
+[source, bash]
+----
+cargo run --release --package papyrus_node --bin papyrus_node -- \
+        --base_layer.node_url <ethereum_node_url> \
+        --network.bootstrap_peer_multiaddr.#is_none false \
+        --network.bootstrap_peer_multiaddr /ip4/<other_peer_ip_address>/tcp/<tcp_port>/p2p/<peer_id> \
+        --sync.#is_none true \
+        --p2p_sync.#is_none false
+----
+
+[NOTE]
+====
+.In case you are running more than one node on the same machine, notice you will have to specify the following fields (to avoid collisions):
+* network.tcp_port
+* monitoring_gateway.server_address
+* rpc.server_address
+* storage.db_config.path_prefix
+====
 
 == Sending API requests to the node
 

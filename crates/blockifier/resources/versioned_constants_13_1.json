@@ -9,22 +9,23 @@
         "max_contract_bytecode_size": 81920
     },
     "invoke_tx_max_n_steps": 4000000,
-    "l2_resource_gas_costs": {
+    "archival_data_gas_costs": {
         "gas_per_data_felt": [
-            128,
-            1000
+            5120,
+            1
         ],
         "event_key_factor": [
             2,
             1
         ],
         "gas_per_code_byte": [
-            875,
-            1000
+            35000,
+            1
         ]
     },
     "max_recursion_depth": 50,
     "segment_arena_cells": true,
+    "disable_cairo0_redeclaration": false,
     "os_constants": {
         "nop_entry_point_offset": -1,
         "entry_point_type_external": 0,
@@ -43,6 +44,12 @@
         "stored_block_hash_buffer": 10,
         "step_gas_cost": 100,
         "range_check_gas_cost": 70,
+        "pedersen_gas_cost": 0,
+        "bitwise_builtin_gas_cost": 0,
+        "ecop_gas_cost": 0,
+        "poseidon_gas_cost": 0,
+        "add_mod_gas_cost": 0,
+        "mul_mod_gas_cost": 0,
         "memory_hole_gas_cost": 10,
         "initial_gas_cost": {
             "step_gas_cost": 100000000

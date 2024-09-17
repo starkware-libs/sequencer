@@ -3,6 +3,7 @@ use std::sync::Arc;
 use cached::proc_macro::cached;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::ContractAddress;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::transaction::Calldata;
 use starknet_api::{calldata, felt};
 
@@ -12,7 +13,6 @@ use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
 use crate::state::state_api::State;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::invoke::InvokeTxArgs;
 use crate::test_utils::BALANCE;
 use crate::transaction::constants;
 use crate::transaction::objects::FeeType;
@@ -75,8 +75,7 @@ fn fee_transfer_resources(
                 Arc::new(block_context.to_tx_context(&account_invoke_tx(InvokeTxArgs::default()))),
                 ExecutionMode::Execute,
                 false,
-            )
-            .unwrap(),
+            ),
         )
         .unwrap()
         .resources
