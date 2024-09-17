@@ -332,7 +332,7 @@ impl TryFrom<protobuf::receipt::ExecutionResources> for ExecutionResources {
 
 impl From<protobuf::receipt::execution_resources::GasVector> for GasVector {
     fn from(value: protobuf::receipt::execution_resources::GasVector) -> Self {
-        GasVector { l1_gas: value.l1_gas, l1_data_gas: value.l1_data_gas }
+        GasVector { l1_gas: value.l1_gas, l1_data_gas: value.l1_data_gas, l2_gas: value.l2_gas }
     }
 }
 
@@ -361,6 +361,7 @@ impl From<GasVector> for protobuf::receipt::execution_resources::GasVector {
         protobuf::receipt::execution_resources::GasVector {
             l1_gas: value.l1_gas,
             l1_data_gas: value.l1_data_gas,
+            l2_gas: value.l2_gas,
         }
     }
 }

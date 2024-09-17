@@ -159,6 +159,7 @@ async fn to_starknet_api_block_and_version() {
 #[tokio::test]
 async fn to_starknet_api_block_and_version_0_13_1() {
     let raw_block = read_resource_file("reader/block_post_0_13_1.json");
+    println!("{}", raw_block);
     let block: Block = serde_json::from_str(&raw_block).unwrap();
     let expected_num_of_tx_outputs = block.transactions().len();
     let starknet_api_block = block.to_starknet_api_block_and_version().unwrap();

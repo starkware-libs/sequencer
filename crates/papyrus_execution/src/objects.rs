@@ -389,6 +389,7 @@ fn vm_resources_to_execution_resources(
         memory_holes: vm_resources.n_memory_holes as u64,
         da_gas_consumed: StarknetApiGasVector {
             l1_gas: l1_gas.try_into().map_err(|_| ExecutionError::GasConsumedOutOfRange)?,
+            l2_gas: l1_gas.try_into().map_err(|_| ExecutionError::GasConsumedOutOfRange)?,
             l1_data_gas: l1_data_gas
                 .try_into()
                 .map_err(|_| ExecutionError::GasConsumedOutOfRange)?,

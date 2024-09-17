@@ -290,6 +290,7 @@ auto_storage_serde! {
     pub struct GasVector {
         pub l1_gas: u64,
         pub l1_data_gas: u64,
+        pub l2_gas: u64,
     }
     pub struct GlobalRoot(pub StarkHash);
     pub struct H160(pub [u8; 20]);
