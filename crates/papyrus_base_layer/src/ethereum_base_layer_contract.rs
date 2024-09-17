@@ -1,18 +1,21 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::future::IntoFuture;
 
+use alloy_contract::{ContractInstance, Interface};
+use alloy_dyn_abi::SolType;
+use alloy_json_abi::JsonAbi;
+use alloy_primitives::Address;
+use alloy_provider::network::Ethereum;
+use alloy_provider::{Provider, ProviderBuilder, RootProvider};
+use alloy_sol_types::sol_data;
+use alloy_transport::TransportErrorKind;
+use alloy_transport_http::{Client, Http};
 use async_trait::async_trait;
-use ethers::abi::{Abi, AbiEncode};
-use ethers::contract::Contract;
-use ethers::prelude::{AbiError, Address, ContractError, Http, Middleware, Provider};
-use ethers::providers::ProviderError;
-use ethers::types::{I256, U256};
 use papyrus_config::dumping::{ser_param, ser_required_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::hash::StarkHash;
-use starknet_api::StarknetApiError;
 use url::ParseError;
 
 use crate::BaseLayerContract;
@@ -20,19 +23,17 @@ use crate::BaseLayerContract;
 #[derive(thiserror::Error, Debug)]
 pub enum EthereumBaseLayerError {
     #[error(transparent)]
-    FromHex(#[from] rustc_hex::FromHexError),
-    #[error(transparent)]
-    Abi(#[from] AbiError),
+    FromHex(#[from] alloy_primitives::hex::FromHexError),
     #[error(transparent)]
     Url(#[from] ParseError),
     #[error(transparent)]
     Serde(#[from] serde_json::Error),
     #[error(transparent)]
-    Provider(#[from] ProviderError),
+    Contract(#[from] alloy_contract::Error),
     #[error(transparent)]
-    BadContract(#[from] ContractError<Provider<Http>>),
+    TypeError(#[from] alloy_sol_types::Error),
     #[error(transparent)]
-    StarknetApi(#[from] StarknetApiError),
+    RpcError(#[from] alloy_json_rpc::RpcError<TransportErrorKind>),
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
@@ -71,16 +72,18 @@ impl Default for EthereumBaseLayerConfig {
 }
 
 pub struct EthereumBaseLayerContract {
-    contract: Contract<Provider<Http>>,
+    contract: ContractInstance<Http<Client>, RootProvider<Http<Client>>, Ethereum>,
 }
 
 impl EthereumBaseLayerContract {
     pub fn new(config: EthereumBaseLayerConfig) -> Result<Self, EthereumBaseLayerError> {
         let address = config.starknet_contract_address.parse::<Address>()?;
-        let client: Provider<Http> = Provider::<Http>::try_from(config.node_url)?;
+        let client = ProviderBuilder::new().on_http(config.node_url.parse()?);
+
         // The solidity contract was pre-compiled, and only the relevant functions were kept.
-        let abi: Abi = serde_json::from_str::<Abi>(include_str!("core_contract_latest_block.abi"))?;
-        Ok(Self { contract: Contract::new(address, abi, Arc::new(client)) })
+        let abi: JsonAbi =
+            serde_json::from_str::<JsonAbi>(include_str!("core_contract_latest_block.abi"))?;
+        Ok(Self { contract: ContractInstance::new(address, client, Interface::new(abi)) })
     }
 }
 
@@ -94,7 +97,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     ) -> Result<Option<(BlockNumber, BlockHash)>, Self::Error> {
         let ethereum_block_number = self
             .contract
-            .client()
+            .provider()
             .get_block_number()
             .await?
             .checked_sub(min_confirmations.unwrap_or(0).into());
@@ -103,16 +106,19 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         };
 
         let call_state_block_number =
-            self.contract.method::<_, I256>("stateBlockNumber", ())?.block(ethereum_block_number);
+            self.contract.function("stateBlockNumber", &[])?.block(ethereum_block_number.into());
         let call_state_block_hash =
-            self.contract.method::<_, U256>("stateBlockHash", ())?.block(ethereum_block_number);
-        let (state_block_number, state_block_hash) =
-            tokio::try_join!(call_state_block_number.call(), call_state_block_hash.call())?;
+            self.contract.function("stateBlockHash", &[])?.block(ethereum_block_number.into());
+
+        let (state_block_number, state_block_hash) = tokio::try_join!(
+            call_state_block_number.call_raw().into_future(),
+            call_state_block_hash.call_raw().into_future()
+        )?;
 
         Ok(Some((
-            BlockNumber(state_block_number.as_u64()),
+            BlockNumber(sol_data::Uint::<64>::abi_decode(&state_block_number, true)?),
             // TODO: use safe conversion.
-            BlockHash(StarkHash::from_hex_unchecked(state_block_hash.encode_hex().as_str())),
+            BlockHash(StarkHash::from_hex_unchecked(&state_block_hash.to_string())),
         )))
     }
 }
