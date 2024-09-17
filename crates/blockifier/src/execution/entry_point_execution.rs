@@ -90,12 +90,12 @@ pub fn execute_entry_point_call(
     let _contract_span =
         tracing::info_span!("vm contract execution", class_hash = class_hash.to_string()).entered();
     tracing::info!("vm contract execution started");
-
     let pre_execution_instant = Instant::now();
-    run_entry_point(&mut runner, &mut syscall_handler, entry_point, args, program_segment_size)?;
+    let result =
+        run_entry_point(&mut runner, &mut syscall_handler, entry_point, args, program_segment_size);
     let execution_time = pre_execution_instant.elapsed().as_millis();
-
     tracing::info!(time = execution_time, "vm contract execution finished");
+    result?;
 
     // Collect the set PC values that were visited during the entry point execution.
     register_visited_pcs(
