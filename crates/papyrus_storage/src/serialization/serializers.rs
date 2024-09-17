@@ -386,7 +386,7 @@ auto_storage_serde! {
     pub enum StructType {
         Struct = 0,
     }
-    pub struct StarknetVersion(pub String);
+    pub struct StarknetVersion(pub Vec<u8>);
     pub struct StateDiffCommitment(pub PoseidonHash);
     pub struct Tip(pub u64);
     pub struct TransactionCommitment(pub StarkHash);

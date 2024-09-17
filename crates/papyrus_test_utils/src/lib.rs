@@ -479,7 +479,7 @@ auto_impl_get_test_instance! {
         MulMod = 9,
         RangeCheck96 = 10,
     }
-    pub struct StarknetVersion(pub String);
+    pub struct StarknetVersion(pub Vec<u8>);
     pub struct Calldata(pub Arc<Vec<Felt>>);
     pub struct ClassHash(pub StarkHash);
     pub struct CompiledClassHash(pub StarkHash);
