@@ -8932,6 +8932,7 @@ dependencies = [
  "starknet_consensus_manager_types",
  "starknet_mempool_infra",
  "tokio",
+ "tracing",
  "validator",
 ]
 

@@ -1,8 +1,7 @@
-use std::future::pending;
-
 use async_trait::async_trait;
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
+use tracing::info;
 
 use crate::config::ConsensusManagerConfig;
 
@@ -30,8 +29,7 @@ pub fn create_consensus_manager(
 #[async_trait]
 impl ComponentStarter for ConsensusManager {
     async fn start(&mut self) -> Result<(), ComponentStartError> {
-        // TODO(Tsabary/Matan): implement this and remove the pending.
-        let () = pending().await;
+        info!("ConsensusManager::start()");
         Ok(())
     }
 }
