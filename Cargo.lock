@@ -6180,6 +6180,7 @@ dependencies = [
  "fs2",
  "futures",
  "lazy_static",
+ "log",
  "lru",
  "metrics 0.21.1",
  "mockall",

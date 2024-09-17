@@ -12,6 +12,7 @@ clap = { workspace = true, features = ["derive"] }
 fs2 = "0.4"
 futures.workspace = true
 lazy_static.workspace = true
+log.workspace = true
 lru.workspace = true
 metrics.workspace = true
 papyrus_common.workspace = true

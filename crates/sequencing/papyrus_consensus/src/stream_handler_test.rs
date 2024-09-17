@@ -88,7 +88,6 @@ mod tests {
             h
         });
         let mut h = join_handle.await.expect("Task should succeed");
-        // println!("Handler.message_buffers: {:?}", h.message_buffers);
         assert_eq!(h.message_buffers.len(), 1);
         assert_eq!(h.message_buffers[&stream_id].len(), 5);
         let range: Vec<u64> = (1..6).collect();
@@ -106,7 +105,6 @@ mod tests {
         });
 
         let h = join_handle.await.expect("Task should succeed");
-        println!("Handler.message_buffers: {:?}", h.message_buffers);
         assert!(h.message_buffers.is_empty());
 
         for i in 0..6 {
@@ -201,10 +199,6 @@ mod tests {
         }
 
         // stream_id1 should be gone
-        println!(
-            "Handler.message_buffers.keys= {:?}",
-            h.message_buffers.keys().collect::<Vec<&u64>>()
-        );
         assert!(do_vecs_match(&h.message_buffers.clone().into_keys().collect(), &vec![1, 10]));
 
         // the other two streams should be the same as before
@@ -286,11 +280,9 @@ mod tests {
         // this should panic since we are sending the same message twice!
         let join_handle = tokio::spawn(async move {
             h.listen().await;
-            h
         });
 
-        h = join_handle.await.expect("Task should succeed");
-        println!("Handler.message_buffers: {:?}", h.message_buffers);
+        join_handle.await.expect("Task should succeed");
     }
 
     #[tokio::test]
@@ -304,11 +296,9 @@ mod tests {
         // this should panic since the fin was received on chunk_id 42, but we are sending 45
         let join_handle = tokio::spawn(async move {
             h.listen().await;
-            h
         });
 
-        h = join_handle.await.expect("Task should succeed");
-        println!("Handler.message_buffers: {:?}", h.message_buffers);
+        join_handle.await.expect("Task should succeed");
     }
 
     #[tokio::test]
@@ -322,11 +312,9 @@ mod tests {
         // this should panic since the fin was received on chunk_id 42, but we are sending 45
         let join_handle = tokio::spawn(async move {
             h.listen().await;
-            h
         });
 
-        h = join_handle.await.expect("Task should succeed");
-        println!("Handler.message_buffers: {:?}", h.message_buffers);
+        join_handle.await.expect("Task should succeed");
     }
 
     #[tokio::test]
@@ -343,11 +331,9 @@ mod tests {
         // this should panic since there are too many buffered messages
         let join_handle = tokio::spawn(async move {
             h.listen().await;
-            h
         });
 
-        h = join_handle.await.expect("Task should succeed");
-        println!("Handler.message_buffers: {:?}", h.message_buffers);
+        join_handle.await.expect("Task should succeed");
     }
 
     #[tokio::test]
@@ -364,10 +350,8 @@ mod tests {
         // this should panic since there are too many streams at the same time
         let join_handle = tokio::spawn(async move {
             h.listen().await;
-            h
         });
 
-        h = join_handle.await.expect("Task should succeed");
-        println!("Handler.message_buffers: {:?}", h.message_buffers);
+        join_handle.await.expect("Task should succeed");
     }
 }
