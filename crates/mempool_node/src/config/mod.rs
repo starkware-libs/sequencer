@@ -43,12 +43,13 @@ pub enum LocationType {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ComponentType {
-    // A component that does not require an infra server, and has an internal mutating task.
-    IndependentComponent,
-    // A component that requires an infra server, and has no internal mutating task.
-    SynchronousComponent,
+    // A component that perpetually runs upon start up, and does not receive requests from other
+    // components. Example: an http server that listens to external requests.
+    SelfInvokingComponent,
+    // A component that runs upon receiving a request from another component. It cannot invoke
+    // itself. Example: a mempool that receives transactions from the gateway.
+    RequestServingComponent,
 }
-// TODO(Lev/Tsabary): Change the enum values to more discriptive.
 
 /// The single component configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
@@ -99,7 +100,7 @@ impl Default for ComponentExecutionConfig {
         Self {
             execute: true,
             location: LocationType::Local,
-            component_type: ComponentType::SynchronousComponent,
+            component_type: ComponentType::RequestServingComponent,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
         }
@@ -112,7 +113,7 @@ impl ComponentExecutionConfig {
         Self {
             execute: true,
             location: LocationType::Local,
-            component_type: ComponentType::IndependentComponent,
+            component_type: ComponentType::SelfInvokingComponent,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
         }
@@ -135,7 +136,7 @@ impl ComponentExecutionConfig {
         Self {
             execute: true,
             location: LocationType::Local,
-            component_type: ComponentType::SynchronousComponent,
+            component_type: ComponentType::RequestServingComponent,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
         }
@@ -145,7 +146,7 @@ impl ComponentExecutionConfig {
         Self {
             execute: true,
             location: LocationType::Local,
-            component_type: ComponentType::SynchronousComponent,
+            component_type: ComponentType::RequestServingComponent,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
         }
@@ -155,7 +156,7 @@ impl ComponentExecutionConfig {
         Self {
             execute: true,
             location: LocationType::Local,
-            component_type: ComponentType::SynchronousComponent,
+            component_type: ComponentType::RequestServingComponent,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
         }
