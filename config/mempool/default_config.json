@@ -12,7 +12,7 @@
   "components.batcher.component_type": {
     "description": "The component type.",
     "privacy": "Public",
-    "value": "SynchronousComponent"
+    "value": "Reactive"
   },
   "components.batcher.execute": {
     "description": "The component execution flag.",
@@ -57,7 +57,7 @@
   "components.consensus_manager.component_type": {
     "description": "The component type.",
     "privacy": "Public",
-    "value": "SynchronousComponent"
+    "value": "Reactive"
   },
   "components.consensus_manager.execute": {
     "description": "The component execution flag.",
@@ -102,7 +102,7 @@
   "components.gateway.component_type": {
     "description": "The component type.",
     "privacy": "Public",
-    "value": "IndependentComponent"
+    "value": "Autonomous"
   },
   "components.gateway.execute": {
     "description": "The component execution flag.",
@@ -147,7 +147,7 @@
   "components.mempool.component_type": {
     "description": "The component type.",
     "privacy": "Public",
-    "value": "SynchronousComponent"
+    "value": "Reactive"
   },
   "components.mempool.execute": {
     "description": "The component execution flag.",
