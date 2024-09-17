@@ -114,7 +114,10 @@ impl TransactionQueue {
         // `tmp_split_tx`.
         // Note: extend will reorder transactions by `Tip` during insertion, despite them being
         // initially ordered by fee.
-        self.priority_queue.extend(txs_over_threshold.map(|tx| tx.0.into()));
+        self.priority_queue.extend(
+            txs_over_threshold
+                .map(|tx| <TransactionReference as Into<PriorityTransaction>>::into(tx.0)),
+        );
     }
 
     fn _demote_txs_to_pending(&mut self, threshold: u128) {
@@ -123,19 +126,23 @@ impl TransactionQueue {
         // Remove all transactions from the priority queue that are below the threshold.
         for priority_tx in &self.priority_queue {
             if priority_tx.get_l2_gas_price() < threshold {
-                to_remove.push(priority_tx.clone());
+                to_remove.push(*priority_tx);
             }
         }
 
         for tx in &to_remove {
             self.priority_queue.remove(tx);
         }
-        self.pending_queue.extend(to_remove.into_iter().map(|tx| tx.0.into()));
+        self.pending_queue.extend(
+            to_remove
+                .into_iter()
+                .map(|tx| <TransactionReference as Into<PendingTransaction>>::into(tx.0)),
+        );
     }
 }
 
 /// Encapsulates a transaction reference to assess its order (i.e., gas price).
-#[derive(Clone, Debug, derive_more::Deref, derive_more::From)]
+#[derive(Clone, Copy, Debug, derive_more::Deref, derive_more::From)]
 struct PendingTransaction(pub TransactionReference);
 
 /// Compare transactions based only on their gas price, using the Eq trait. It ensures that
@@ -167,7 +174,7 @@ impl PartialOrd for PendingTransaction {
 
 /// This struct behaves similarly to `PendingTransaction`, encapsulating a transaction reference
 /// to assess its order (i.e., tip); see its documentation for more details.
-#[derive(Clone, Debug, derive_more::Deref, derive_more::From)]
+#[derive(Clone, Copy, Debug, derive_more::Deref, derive_more::From)]
 struct PriorityTransaction(pub TransactionReference);
 
 impl PartialEq for PriorityTransaction {
