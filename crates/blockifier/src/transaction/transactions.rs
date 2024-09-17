@@ -296,7 +296,7 @@ impl TransactionInfoCreator for DeclareTransaction {
             starknet_api::transaction::DeclareTransaction::V3(tx) => {
                 TransactionInfo::Current(CurrentTransactionInfo {
                     common_fields,
-                    resource_bounds: tx.resource_bounds.clone(),
+                    resource_bounds: tx.resource_bounds,
                     tip: tx.tip,
                     nonce_data_availability_mode: tx.nonce_data_availability_mode,
                     fee_data_availability_mode: tx.fee_data_availability_mode,
@@ -411,7 +411,7 @@ impl TransactionInfoCreator for DeployAccountTransaction {
             starknet_api::transaction::DeployAccountTransaction::V3(tx) => {
                 TransactionInfo::Current(CurrentTransactionInfo {
                     common_fields,
-                    resource_bounds: tx.resource_bounds.clone(),
+                    resource_bounds: tx.resource_bounds,
                     tip: tx.tip,
                     nonce_data_availability_mode: tx.nonce_data_availability_mode,
                     fee_data_availability_mode: tx.fee_data_availability_mode,
@@ -535,7 +535,7 @@ impl TransactionInfoCreator for InvokeTransaction {
             starknet_api::transaction::InvokeTransaction::V3(tx) => {
                 TransactionInfo::Current(CurrentTransactionInfo {
                     common_fields,
-                    resource_bounds: tx.resource_bounds.clone(),
+                    resource_bounds: tx.resource_bounds,
                     tip: tx.tip,
                     nonce_data_availability_mode: tx.nonce_data_availability_mode,
                     fee_data_availability_mode: tx.fee_data_availability_mode,

@@ -11,7 +11,7 @@ use starknet_gateway::config::{GatewayConfig, GatewayNetworkConfig};
 use starknet_gateway::errors::GatewayRunError;
 use starknet_gateway_types::communication::SharedGatewayClient;
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_gateway_types::gateway_types::{GatewayInput, MessageMetadata};
+use starknet_gateway_types::gateway_types::GatewayInput;
 use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
 use tracing::{error, info, instrument};
 
@@ -66,8 +66,7 @@ async fn add_tx(
     State(app_state): State<AppState>,
     Json(tx): Json<RpcTransaction>,
 ) -> HttpServerResult<Json<TransactionHash>> {
-    let gateway_input: GatewayInput =
-        GatewayInput { rpc_tx: tx.clone(), message_metadata: MessageMetadata {} };
+    let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx.clone(), message_metadata: None };
 
     let tx_hash = app_state.gateway_client.add_tx(gateway_input).await.map_err(|join_err| {
         error!("Failed to process tx: {}", join_err);

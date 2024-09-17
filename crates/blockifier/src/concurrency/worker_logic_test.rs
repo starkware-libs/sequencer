@@ -281,7 +281,7 @@ fn test_worker_execute(max_resource_bounds: ValidResourceBounds) {
             "test_storage_read_write",
             &[*storage_key.0.key(),storage_value ], // Calldata:  address, value.
         ),
-        resource_bounds: max_resource_bounds.clone(),
+        resource_bounds: max_resource_bounds,
         nonce: nonce_manager.next(account_address)
     });
 
@@ -294,7 +294,7 @@ fn test_worker_execute(max_resource_bounds: ValidResourceBounds) {
             "test_storage_read_write",
             &[*storage_key.0.key(),storage_value ], // Calldata:  address, value.
         ),
-        resource_bounds: max_resource_bounds.clone(),
+        resource_bounds: max_resource_bounds,
         nonce: nonce_manager.next(account_address)
 
     });
@@ -457,7 +457,7 @@ fn test_worker_validate(max_resource_bounds: ValidResourceBounds) {
             "test_storage_read_write",
             &[*storage_key.0.key(),storage_value0 ], // Calldata:  address, value.
         ),
-        resource_bounds: max_resource_bounds.clone(),
+        resource_bounds: max_resource_bounds,
         nonce: nonce_manager.next(account_address)
     });
 
@@ -558,7 +558,7 @@ fn test_deploy_before_declare(
     let declare_tx = declare_tx(
         declare_tx_args! {
             sender_address: account_address_0,
-            resource_bounds: max_resource_bounds.clone(),
+            resource_bounds: max_resource_bounds,
             class_hash: test_class_hash,
             compiled_class_hash: test_compiled_class_hash,
             version,
@@ -657,7 +657,7 @@ fn test_worker_commit_phase(max_resource_bounds: ValidResourceBounds) {
             Transaction::AccountTransaction(account_invoke_tx(invoke_tx_args! {
                 sender_address,
                 calldata: calldata.clone(),
-                resource_bounds: max_resource_bounds.clone(),
+                resource_bounds: max_resource_bounds,
                 nonce: nonce_manager.next(sender_address)
             }))
         })

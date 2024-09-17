@@ -364,7 +364,7 @@ fn test_max_fee_limit_validate(
         declare_tx_args! {
             class_hash: grindy_class_hash,
             sender_address: account_address,
-            resource_bounds: max_resource_bounds.clone(),
+            resource_bounds: max_resource_bounds,
             nonce: nonce_manager.next(account_address),
         },
         class_info,
@@ -381,7 +381,7 @@ fn test_max_fee_limit_validate(
         chain_info,
         deploy_account_tx_args! {
             class_hash: grindy_class_hash,
-            resource_bounds: max_resource_bounds.clone(),
+            resource_bounds: max_resource_bounds,
             constructor_calldata: calldata![ctor_grind_arg, ctor_storage_arg],
         },
     );
@@ -397,7 +397,7 @@ fn test_max_fee_limit_validate(
         chain_info,
         deploy_account_tx_args! {
             class_hash: grindy_class_hash,
-            resource_bounds: max_resource_bounds.clone(),
+            resource_bounds: max_resource_bounds,
             constructor_calldata: calldata![ctor_grind_arg, ctor_storage_arg],
         },
     );
@@ -1311,7 +1311,7 @@ fn test_concurrency_execute_fee_transfer(
     sender_address: account.get_instance_address(0),
     max_fee,
     calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
-    resource_bounds: max_resource_bounds.clone(),
+    resource_bounds: max_resource_bounds,
     version
     });
     let fee_type = &account_tx.fee_type();
@@ -1427,4 +1427,32 @@ fn test_concurrent_fee_transfer_when_sender_is_sequencer(
     {
         assert_eq!(state.get_storage_at(fee_token_address, seq_key).unwrap(), felt!(seq_value));
     }
+}
+
+#[rstest]
+fn test_revert_in_execute(block_context: BlockContext, max_resource_bounds: ValidResourceBounds) {
+    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+    let chain_info = &block_context.chain_info;
+    let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
+    let account_address = account.get_instance_address(0);
+    let mut nonce_manager = NonceManager::default();
+
+    // Invoke a function that changes the state and reverts.
+    let tx_args = invoke_tx_args! {
+        sender_address: account_address,
+        calldata: Calldata(vec![].into()),
+        nonce: nonce_manager.next(account_address)
+    };
+
+    // Skip validate phase, as we want to test the revert in the execute phase.
+    let validate = false;
+    let tx_execution_info = account_invoke_tx(invoke_tx_args! {
+        resource_bounds: max_resource_bounds,
+        ..tx_args
+    })
+    .execute(state, &block_context, true, validate)
+    .unwrap();
+
+    assert!(tx_execution_info.is_reverted());
+    assert!(tx_execution_info.revert_error.unwrap().contains("Failed to deserialize param #1"));
 }
