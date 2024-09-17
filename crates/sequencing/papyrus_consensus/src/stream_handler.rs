@@ -70,7 +70,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     pub async fn listen(&mut self) {
         let t0 = std::time::Instant::now();
         loop {
-            println!("Listening for messages for {} milliseconds", t0.elapsed().as_millis());
+            log::debug!("Listening for messages for {} milliseconds", t0.elapsed().as_millis());
 
             if let Some(timeout) = self.config.timeout_seconds {
                 if t0.elapsed().as_secs() > timeout {
@@ -92,9 +92,11 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
 
                 let message = message.unwrap(); // code above handles case where message is None
 
-                println!(
+                log::debug!(
                     "Received: stream_id= {}, chunk_id= {}, fin= {}",
-                    message.stream_id, message.chunk_id, message.fin
+                    message.stream_id,
+                    message.chunk_id,
+                    message.fin
                 );
                 let stream_id = message.stream_id;
                 let chunk_id = message.chunk_id;
@@ -169,7 +171,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                 tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
             }
         } // end of loop
-        println!("Done listening for messages");
+        log::debug!("Done listening for messages");
     }
 
     // go over each vector in the buffer, push to the end of it if the chunk_id is contiguous
@@ -236,9 +238,9 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
             }
 
             if let Some(fin_chunk_id) = self.fin_chunk_id.get(&stream_id) {
-                println!("buffer.is_empty()= {}, fin= {}", buffer.is_empty(), fin_chunk_id);
+                log::debug!("buffer.is_empty()= {}, fin= {}", buffer.is_empty(), fin_chunk_id);
             } else {
-                println!("buffer.is_empty()= {}, fin= None", buffer.is_empty());
+                log::debug!("buffer.is_empty()= {}, fin= None", buffer.is_empty());
             }
 
             if buffer.is_empty() && self.fin_chunk_id.get(&stream_id).is_some() {
