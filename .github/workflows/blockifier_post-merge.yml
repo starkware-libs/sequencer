@@ -20,10 +20,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: "v0-rust-ubuntu-20.04"
-          
-      - name: Set up Native Dependencies
-        uses: ./.github/actions/setup-native-deps
-        id: native-deps
 
       - name: Set up Native Dependencies
         uses: ./.github/actions/setup-native-deps
