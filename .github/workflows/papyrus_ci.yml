@@ -2,7 +2,7 @@ name: Papyrus-CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - '.github/workflows/papyrus_ci.yml'
       - 'Dockerfile'
@@ -31,7 +31,7 @@ on:
       - 'crates/starknet_client/**'
 
   merge_group:
-    types: [ checks_requested ]
+    types: [checks_requested]
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
@@ -48,9 +48,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
-      - name: Set up Native Dependencies
-        uses: ./.github/actions/setup-native-deps
-        id: native-deps
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
@@ -70,9 +67,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
-      - name: Set up Native Dependencies
-        uses: ./.github/actions/setup-native-deps
-        id: native-deps
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
@@ -92,9 +86,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Set up Native Dependencies
-        uses: ./.github/actions/setup-native-deps
-        id: native-deps
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
@@ -116,9 +107,6 @@ jobs:
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
-      - name: Set up Native Dependencies
-        uses: ./.github/actions/setup-native-deps
-        id: native-deps
       - run: >
           cargo test -r
           --test latency_histogram
@@ -134,9 +122,6 @@ jobs:
       - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
       - uses: Noelware/setup-protoc@1.1.0
-      - name: Set up Native Dependencies
-        uses: ./.github/actions/setup-native-deps
-        id: native-deps
 
       - run: |
           cargo test -p papyrus_node --no-default-features
@@ -155,9 +140,7 @@ jobs:
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
-      - name: Set up Native Dependencies
-        uses: ./.github/actions/setup-native-deps
-        id: native-deps
+
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - uses: Swatinem/rust-cache@v2
@@ -214,9 +197,6 @@ jobs:
             target_directory:
               - 'crates/papyrus_storage/src/db/**'
       - uses: ./.github/actions/install_rust
-      - name: Set up Native Dependencies
-        uses: ./.github/actions/setup-native-deps
-        id: native-deps
       - uses: Swatinem/rust-cache@v2
       # repeat this job 32 times. this is a random test for part of the code that may cause a corrupted database.
       - run: for run in {1..32}; do cargo test -r -p papyrus_storage -- --include-ignored common_prefix_compare_with_simple_table_random; done
