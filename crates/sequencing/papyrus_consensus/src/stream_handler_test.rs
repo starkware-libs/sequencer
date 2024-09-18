@@ -75,7 +75,6 @@ mod tests {
     #[tokio::test]
     async fn test_stream_handler_in_reverse() {
         let (mut h, mut tx_input, mut rx_output) = setup_test();
-        h.config.timeout_millis = Some(100);
 
         let stream_id = 127;
         for i in 0..5 {
@@ -84,7 +83,7 @@ mod tests {
         }
 
         let join_handle = tokio::spawn(async move {
-            h.listen().await;
+            h.listen_with_timeout(100).await;
             h
         });
         let mut h = join_handle.await.expect("Task should succeed");
@@ -123,7 +122,6 @@ mod tests {
     #[tokio::test]
     async fn test_stream_handler_multiple_streams() {
         let (mut h, mut tx_input, mut rx_output) = setup_test();
-        h.config.timeout_millis = Some(100);
 
         let stream_id1 = 127; // send all messages in order (except the first one)
         let stream_id2 = 10; // send in reverse order (except the first one)
@@ -149,7 +147,7 @@ mod tests {
         }
 
         let join_handle = tokio::spawn(async move {
-            h.listen().await;
+            h.listen_with_timeout(100).await;
             h
         });
         let mut h = join_handle.await.expect("Task should succeed");
@@ -179,7 +177,7 @@ mod tests {
         // send the last message on stream_id1
         tx_input.try_send(make_random_message(stream_id1, 0, false)).expect("Send should succeed");
         let join_handle = tokio::spawn(async move {
-            h.listen().await;
+            h.listen_with_timeout(100).await;
             h
         });
 
@@ -214,7 +212,7 @@ mod tests {
         // send the last message on stream_id2
         tx_input.try_send(make_random_message(stream_id2, 0, false)).expect("Send should succeed");
         let join_handle = tokio::spawn(async move {
-            h.listen().await;
+            h.listen_with_timeout(100).await;
             h
         });
 
