@@ -91,7 +91,12 @@ impl ContractClass {
         match self {
             ContractClass::V0(class) => class.estimate_casm_hash_computation_resources(),
             ContractClass::V1(class) => class.estimate_casm_hash_computation_resources(),
-            ContractClass::V1Native(_) => todo!("Native estimate casm hash computation resources."),
+            ContractClass::V1Native(_) => {
+                panic!(
+                    "estimate_casm_hash_computation_resources is not supported for native \
+                     contracts."
+                )
+            }
         }
     }
 
@@ -104,7 +109,9 @@ impl ContractClass {
                 panic!("get_visited_segments is not supported for v0 contracts.")
             }
             ContractClass::V1(class) => class.get_visited_segments(visited_pcs),
-            ContractClass::V1Native(_) => todo!("Native visited segments."),
+            ContractClass::V1Native(_) => {
+                panic!("get_visited_segments is not supported for native contracts.")
+            }
         }
     }
 
@@ -112,7 +119,9 @@ impl ContractClass {
         match self {
             ContractClass::V0(class) => class.bytecode_length(),
             ContractClass::V1(class) => class.bytecode_length(),
-            ContractClass::V1Native(_) => todo!("Native estimate casm hash computation resources."),
+            ContractClass::V1Native(_) => {
+                panic!("bytecode_length is not supported for native contracts.")
+            }
         }
     }
 
