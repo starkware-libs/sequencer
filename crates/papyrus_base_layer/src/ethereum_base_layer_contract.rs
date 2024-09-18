@@ -16,6 +16,7 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, Serialized
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::hash::StarkHash;
+use starknet_types_core::felt;
 use url::Url;
 
 use crate::BaseLayerContract;
@@ -24,6 +25,8 @@ use crate::BaseLayerContract;
 pub enum EthereumBaseLayerError {
     #[error(transparent)]
     Contract(#[from] alloy_contract::Error),
+    #[error(transparent)]
+    FeltParseError(#[from] felt::FromStrError),
     #[error(transparent)]
     RpcError(#[from] RpcError<TransportErrorKind>),
     #[error(transparent)]
@@ -120,8 +123,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
         Ok(Some((
             BlockNumber(sol_data::Uint::<64>::abi_decode(&state_block_number, true)?),
-            // TODO: use safe conversion.
-            BlockHash(StarkHash::from_hex_unchecked(&state_block_hash.to_string())),
+            BlockHash(StarkHash::from_hex(&state_block_hash.to_string())?),
         )))
     }
 }
