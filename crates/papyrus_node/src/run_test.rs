@@ -10,7 +10,7 @@ use crate::run::{
     run_threads,
     spawn_storage_metrics_collector,
     PapyrusTaskHandles,
-    PapyrusUtilities,
+    PapyrusResources,
 };
 
 // The mission of this test is to ensure that if an error is returned from one of the spawned tasks,
@@ -24,7 +24,7 @@ async fn run_threads_stop() {
 
     // Error when not supplying legal central URL.
     config.central.url = "_not_legal_url".to_string();
-    let utils = PapyrusUtilities::new(&config).unwrap();
+    let utils = PapyrusResources::new(&config).unwrap();
     let error = run_threads(config, utils, PapyrusTaskHandles::default())
         .await
         .expect_err("Should be an error.");

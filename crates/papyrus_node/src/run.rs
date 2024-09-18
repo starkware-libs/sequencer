@@ -55,7 +55,7 @@ const GENESIS_HASH: &str = "0x0";
 // Duration between updates to the storage metrics (those in the collect_storage_metrics function).
 const STORAGE_METRICS_UPDATE_INTERVAL: Duration = Duration::from_secs(10);
 
-pub struct PapyrusUtilities {
+pub struct PapyrusResources {
     pub storage_reader: StorageReader,
     pub storage_writer: StorageWriter,
     pub maybe_network_manager: Option<NetworkManager>,
@@ -65,7 +65,7 @@ pub struct PapyrusUtilities {
     pub pending_classes: Arc<RwLock<PendingClasses>>,
 }
 
-impl PapyrusUtilities {
+impl PapyrusResources {
     pub fn new(config: &NodeConfig) -> anyhow::Result<Self> {
         let (storage_reader, storage_writer) = open_storage(config.storage.clone())?;
         let (maybe_network_manager, local_peer_id) = register_to_network(config.network.clone())?;
@@ -278,16 +278,16 @@ async fn run_sync(
 }
 
 fn build_monitoring_server(
-    utils: &PapyrusUtilities,
+    resources: &PapyrusResources,
     config: &NodeConfig,
 ) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
     let monitoring_server = MonitoringServer::new(
         config.monitoring_gateway.clone(),
         get_config_presentation(config, true)?,
         get_config_presentation(config, false)?,
-        utils.storage_reader.clone(),
+        resources.storage_reader.clone(),
         VERSION_FULL,
-        utils.local_peer_id.clone(),
+        resources.local_peer_id.clone(),
     )?;
     Ok(tokio::spawn(async move { Ok(monitoring_server.run_server().await?) }))
 }
@@ -347,17 +347,20 @@ async fn build_sync_client(
 
 async fn run_threads(
     config: NodeConfig,
-    mut utils: PapyrusUtilities,
+    mut resources: PapyrusResources,
     tasks: PapyrusTaskHandles,
 ) -> anyhow::Result<()> {
     let storage_metrics_handle = tasks.storage_metrics_handle.unwrap_or_else(|| {
         build_storage_metrics(
             config.monitoring_gateway.collect_metrics,
-            utils.storage_reader.clone(),
+            resources.storage_reader.clone(),
         )
     });
     let p2p_sync_server_handle = tasks.p2p_sync_server_handle.unwrap_or_else(|| {
-        build_p2p_sync_server(utils.maybe_network_manager.as_mut(), utils.storage_reader.clone())
+        build_p2p_sync_server(
+            resources.maybe_network_manager.as_mut(),
+            resources.storage_reader.clone(),
+        )
     });
 
     let consensus_handle = if let Some(handle) = tasks.consensus_handle {
@@ -365,15 +368,15 @@ async fn run_threads(
     } else {
         build_consensus(
             config.consensus.as_ref(),
-            utils.storage_reader.clone(),
-            utils.maybe_network_manager.as_mut(),
+            resources.storage_reader.clone(),
+            resources.maybe_network_manager.as_mut(),
         )?
     };
 
     let monitoring_server_handle = if let Some(handle) = tasks.monitoring_server_handle {
         handle
     } else {
-        build_monitoring_server(&utils, &config)?
+        build_monitoring_server(&resources, &config)?
     };
 
     let rpc_server_handle = if let Some(handle) = tasks.rpc_server_handle {
@@ -381,10 +384,10 @@ async fn run_threads(
     } else {
         create_rpc_server_future(
             &config,
-            utils.shared_highest_block.clone(),
-            utils.pending_data.clone(),
-            utils.pending_classes.clone(),
-            utils.storage_reader.clone(),
+            resources.shared_highest_block.clone(),
+            resources.pending_data.clone(),
+            resources.pending_classes.clone(),
+            resources.storage_reader.clone(),
         )
         .await?
     };
@@ -393,20 +396,20 @@ async fn run_threads(
         handle
     } else {
         build_sync_client(
-            utils.maybe_network_manager.as_mut(),
-            utils.storage_reader.clone(),
-            utils.storage_writer,
+            resources.maybe_network_manager.as_mut(),
+            resources.storage_reader.clone(),
+            resources.storage_writer,
             &config,
-            utils.shared_highest_block.clone(),
-            utils.pending_data.clone(),
-            utils.pending_classes.clone(),
+            resources.shared_highest_block.clone(),
+            resources.pending_data.clone(),
+            resources.pending_classes.clone(),
         )
         .await
     };
 
     // Run last, since the network manager is passed to other tasks during setup.
     let network_handle =
-        tasks.network_handle.unwrap_or_else(|| match utils.maybe_network_manager {
+        tasks.network_handle.unwrap_or_else(|| match resources.maybe_network_manager {
             Some(manager) => tokio::spawn(async move { Ok(manager.run().await?) }),
             None => tokio::spawn(pending()),
         });
@@ -476,7 +479,7 @@ fn configure_tracing() {
 
 pub async fn run(
     config: NodeConfig,
-    utils: PapyrusUtilities,
+    resources: PapyrusResources,
     tasks: PapyrusTaskHandles,
 ) -> anyhow::Result<()> {
     configure_tracing();
@@ -491,5 +494,5 @@ pub async fn run(
         .expect("This should be the first and only time we set this value.");
 
     info!("Booting up.");
-    run_threads(config, utils, tasks).await
+    run_threads(config, resources, tasks).await
 }

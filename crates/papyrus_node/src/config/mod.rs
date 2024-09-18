@@ -3,6 +3,9 @@ mod config_test;
 #[cfg(feature = "rpc")]
 pub mod pointers;
 
+/// Not cfg(test) because it's used for system tests which compile normally.
+pub mod test_utils;
+
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
 use std::io::{BufWriter, Write};
