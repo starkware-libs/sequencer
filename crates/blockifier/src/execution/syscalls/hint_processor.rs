@@ -17,7 +17,7 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{AllResourceBounds, Calldata, ValidResourceBounds};
+use starknet_api::transaction::{AllResourceBounds, Calldata, Resource, ValidResourceBounds};
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
@@ -201,12 +201,6 @@ pub const INVALID_INPUT_LENGTH_ERROR: &str =
 // "Invalid argument";
 pub const INVALID_ARGUMENT: &str =
     "0x00000000000000000000000000000000496e76616c696420617267756d656e74";
-// "L1_GAS";
-pub const L1_GAS: &str = "0x00000000000000000000000000000000000000000000000000004c315f474153";
-// "L2_GAS";
-pub const L2_GAS: &str = "0x00000000000000000000000000000000000000000000000000004c325f474153";
-// "L1_DATA";
-pub const L1_DATA: &str = "0x000000000000000000000000000000000000000000000000004c315f44415441";
 
 /// Executes Starknet syscalls (stateful protocol hints) during the execution of an entry point
 /// call.
@@ -464,9 +458,12 @@ impl<'a> SyscallHintProcessor<'a> {
         vm: &mut VirtualMachine,
         tx_info: &CurrentTransactionInfo,
     ) -> SyscallResult<(Relocatable, Relocatable)> {
-        let l1_gas_as_felt = Felt::from_hex(L1_GAS).map_err(SyscallExecutionError::from)?;
-        let l2_gas_as_felt = Felt::from_hex(L2_GAS).map_err(SyscallExecutionError::from)?;
-        let l1_data_gas_as_felt = Felt::from_hex(L1_DATA).map_err(SyscallExecutionError::from)?;
+        let l1_gas_as_felt =
+            Felt::from_hex(Resource::L1Gas.to_hex()).map_err(SyscallExecutionError::from)?;
+        let l2_gas_as_felt =
+            Felt::from_hex(Resource::L2Gas.to_hex()).map_err(SyscallExecutionError::from)?;
+        let l1_data_gas_as_felt =
+            Felt::from_hex(Resource::L1DataGas.to_hex()).map_err(SyscallExecutionError::from)?;
 
         let l1_gas_bounds = tx_info.resource_bounds.get_l1_bounds();
         let l2_gas_bounds = tx_info.resource_bounds.get_l2_bounds();

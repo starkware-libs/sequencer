@@ -56,7 +56,7 @@ use crate::execution::call_info::{
 };
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
-use crate::execution::syscalls::hint_processor::{EmitEventError, L1_GAS, L2_GAS};
+use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::fee_utils::balance_to_big_uint;
@@ -1819,13 +1819,13 @@ fn test_only_query_flag(
     ];
 
     let expected_resource_bounds = vec![
-        Felt::TWO,                // Length of ResourceBounds array.
-        felt!(L1_GAS),            // Resource.
-        felt!(MAX_L1_GAS_AMOUNT), // Max amount.
-        felt!(MAX_L1_GAS_PRICE),  // Max price per unit.
-        felt!(L2_GAS),            // Resource.
-        Felt::ZERO,               // Max amount.
-        Felt::ZERO,               // Max price per unit.
+        Felt::TWO,                       // Length of ResourceBounds array.
+        felt!(Resource::L1Gas.to_hex()), // Resource.
+        felt!(MAX_L1_GAS_AMOUNT),        // Max amount.
+        felt!(MAX_L1_GAS_PRICE),         // Max price per unit.
+        felt!(Resource::L2Gas.to_hex()), // Resource.
+        Felt::ZERO,                      // Max amount.
+        Felt::ZERO,                      // Max price per unit.
     ];
 
     let expected_unsupported_fields = vec![
