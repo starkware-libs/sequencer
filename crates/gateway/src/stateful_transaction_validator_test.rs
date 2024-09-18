@@ -21,9 +21,8 @@ use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::{Resource, TransactionHash};
-use starknet_api::{contract_address, felt, patricia_key};
+use starknet_api::{contract_address, felt, nonce, patricia_key};
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_types_core::felt::Felt;
 
 use super::ValidateInfo;
 use crate::config::StatefulTransactionValidatorConfig;
@@ -88,7 +87,7 @@ fn test_stateful_tx_validator(
 
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator.expect_validate().return_once(|_, _| expected_result.map(|_| ()));
-    mock_validator.expect_get_nonce().returning(|_| Ok(Nonce(Felt::ZERO)));
+    mock_validator.expect_get_nonce().returning(|_| Ok(nonce!(0)));
 
     let result = stateful_validator.run_validate(&rpc_tx, None, mock_validator);
     assert_eq!(result, expected_result_as_stateful_transaction_result);
@@ -130,19 +129,21 @@ fn test_instantiate_validator() {
 
 #[rstest]
 #[case::should_skip_validation(
-    rpc_invoke_tx(invoke_tx_args!{nonce: Nonce(Felt::ONE)}),
+    rpc_invoke_tx(invoke_tx_args!{nonce: nonce!(1)}),
     Nonce::default(),
     true
 )]
 #[case::should_not_skip_validation_nonce_over_max_nonce_for_skip(
-    rpc_invoke_tx(invoke_tx_args!{nonce: Nonce(Felt::TWO)}),
+    rpc_invoke_tx(invoke_tx_args!{nonce: nonce!(2)}),
     Nonce::default(),
     false
 )]
 #[case::should_not_skip_validation_non_invoke(deploy_account_tx(), Nonce::default(), false)]
 #[case::should_not_skip_validation_account_nonce_1(
-    rpc_invoke_tx(invoke_tx_args!{sender_address: ContractAddress::from(TEST_SENDER_ADDRESS), nonce: Nonce(Felt::ONE)}),
-    Nonce(Felt::ONE),
+    rpc_invoke_tx(invoke_tx_args!{
+        sender_address: ContractAddress::from(TEST_SENDER_ADDRESS), nonce: nonce!(1)
+    }),
+    nonce!(1),
     false
 )]
 fn test_skip_stateful_validation(
