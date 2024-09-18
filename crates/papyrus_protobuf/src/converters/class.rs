@@ -268,7 +268,7 @@ impl From<state::ContractClass> for protobuf::Cairo1Class {
     }
 }
 
-impl TryFrom<protobuf::EntryPoint> for deprecated_contract_class::EntryPoint {
+impl TryFrom<protobuf::EntryPoint> for deprecated_contract_class::EntryPointV0 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::EntryPoint) -> Result<Self, Self::Error> {
         let selector_felt =
@@ -281,12 +281,12 @@ impl TryFrom<protobuf::EntryPoint> for deprecated_contract_class::EntryPoint {
             value.offset.try_into().expect("Failed converting u64 to usize"),
         );
 
-        Ok(deprecated_contract_class::EntryPoint { selector, offset })
+        Ok(deprecated_contract_class::EntryPointV0 { selector, offset })
     }
 }
 
-impl From<deprecated_contract_class::EntryPoint> for protobuf::EntryPoint {
-    fn from(value: deprecated_contract_class::EntryPoint) -> Self {
+impl From<deprecated_contract_class::EntryPointV0> for protobuf::EntryPoint {
+    fn from(value: deprecated_contract_class::EntryPointV0) -> Self {
         protobuf::EntryPoint {
             selector: Some(value.selector.0.into()),
             offset: u64::try_from(value.offset.0).expect("Failed converting usize to u64"),

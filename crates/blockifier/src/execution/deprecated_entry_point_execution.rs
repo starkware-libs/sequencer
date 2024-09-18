@@ -6,12 +6,11 @@ use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner, ExecutionResources};
 use starknet_api::core::EntryPointSelector;
-use starknet_api::deprecated_contract_class::EntryPointType;
+use starknet_api::deprecated_contract_class::EntryPointV0;
 use starknet_api::hash::StarkHash;
 
 use super::execution_utils::SEGMENT_ARENA_BUILTIN_SIZE;
-use crate::abi::abi_utils::selector_from_name;
-use crate::abi::constants::{CONSTRUCTOR_ENTRY_POINT_NAME, DEFAULT_ENTRY_POINT_SELECTOR};
+use crate::abi::constants::DEFAULT_ENTRY_POINT_SELECTOR;
 use crate::execution::call_info::{CallExecution, CallInfo};
 use crate::execution::contract_class::ContractClassV0;
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallHintProcessor;
@@ -94,7 +93,7 @@ pub fn initialize_execution_context<'a>(
     }
 
     // Resolve initial PC from EP indicator.
-    let entry_point_pc = resolve_entry_point_pc(call, &contract_class)?;
+    let entry_point_pc = contract_class.get_entry_point(call)?;
     // Instantiate Cairo runner.
     let proof_mode = false;
     let trace_enabled = false;
@@ -120,52 +119,15 @@ pub fn initialize_execution_context<'a>(
     Ok(VmExecutionContext { runner, syscall_handler, initial_syscall_ptr, entry_point_pc })
 }
 
-pub fn resolve_entry_point_pc(
+pub fn handle_default_entry_point(
+    entry_point: &EntryPointV0,
     call: &CallEntryPoint,
-    contract_class: &ContractClassV0,
-) -> Result<usize, PreExecutionError> {
-    if call.entry_point_type == EntryPointType::Constructor
-        && call.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
-    {
-        return Err(PreExecutionError::InvalidConstructorEntryPointName);
+) -> Result<EntryPointV0, PreExecutionError> {
+    if entry_point.selector == EntryPointSelector(StarkHash::from(DEFAULT_ENTRY_POINT_SELECTOR)) {
+        Ok(entry_point.clone())
+    } else {
+        Err(PreExecutionError::EntryPointNotFound(call.entry_point_selector))
     }
-
-    let entry_points_of_same_type = &contract_class.entry_points_by_type[&call.entry_point_type];
-    let filtered_entry_points: Vec<_> = entry_points_of_same_type
-        .iter()
-        .filter(|ep| ep.selector == call.entry_point_selector)
-        .collect();
-
-    // Returns the default entrypoint if the given selector is missing.
-    if filtered_entry_points.is_empty() {
-        match entry_points_of_same_type.first() {
-            Some(entry_point) => {
-                if entry_point.selector
-                    == EntryPointSelector(StarkHash::from(DEFAULT_ENTRY_POINT_SELECTOR))
-                {
-                    return Ok(entry_point.offset.0);
-                } else {
-                    return Err(PreExecutionError::EntryPointNotFound(call.entry_point_selector));
-                }
-            }
-            None => {
-                return Err(PreExecutionError::NoEntryPointOfTypeFound(call.entry_point_type));
-            }
-        }
-    }
-
-    if filtered_entry_points.len() > 1 {
-        return Err(PreExecutionError::DuplicatedEntryPointSelector {
-            selector: call.entry_point_selector,
-            typ: call.entry_point_type,
-        });
-    }
-
-    // Filtered entry points contain exactly one element.
-    let entry_point = filtered_entry_points
-        .first()
-        .expect("The number of entry points with the given selector is exactly one.");
-    Ok(entry_point.offset.0)
 }
 
 pub fn prepare_call_arguments(

@@ -14,7 +14,8 @@ use starknet_api::felt;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
-use crate::execution::contract_class::{ContractClassV1, EntryPointV1};
+use crate::execution::contract_class::{ContractClass, ContractClassV1, EntryPoint, EntryPointV1};
+use crate::execution::deprecated_entry_point_execution::handle_default_entry_point;
 use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,
@@ -143,6 +144,44 @@ fn register_visited_pcs(
     }
     state.add_visited_pcs(class_hash, &class_visited_pcs);
     Ok(())
+}
+
+pub fn get_entry_point(
+    contract_class: &ContractClass,
+    call: &CallEntryPoint,
+) -> Result<EntryPoint, PreExecutionError> {
+    call.verify_constructor()?;
+
+    let entry_points_of_same_type =
+        &contract_class.entry_points_of_same_type(call.entry_point_type);
+    let filtered_entry_points: Vec<_> = entry_points_of_same_type
+        .iter()
+        .filter(|ep| *ep.selector() == call.entry_point_selector)
+        .collect();
+
+    match &filtered_entry_points[..] {
+        [] => match contract_class {
+            ContractClass::V0(_contract_class) => match entry_points_of_same_type.first() {
+                Some(entry_point) => match entry_point {
+                    EntryPoint::V0(entry_point) => {
+                        Ok(EntryPoint::V0(handle_default_entry_point(entry_point, call)?))
+                    }
+                    EntryPoint::V1(_) | EntryPoint::Native(_) => {
+                        panic!("Unexpected entry point type")
+                    }
+                },
+                None => Err(PreExecutionError::EntryPointNotFound(call.entry_point_selector)),
+            },
+            ContractClass::V1(_) | ContractClass::V1Native(_) => {
+                Err(PreExecutionError::EntryPointNotFound(call.entry_point_selector))
+            }
+        },
+        [entry_point] => Ok((**entry_point).clone()),
+        _ => Err(PreExecutionError::DuplicatedEntryPointSelector {
+            selector: call.entry_point_selector,
+            typ: call.entry_point_type,
+        }),
+    }
 }
 
 pub fn initialize_execution_context<'a>(
