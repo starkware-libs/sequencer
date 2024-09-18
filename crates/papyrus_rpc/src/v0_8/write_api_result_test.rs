@@ -12,7 +12,7 @@ use starknet_client::writer::objects::response::{
 
 use super::{AddDeclareOkResult, AddDeployAccountOkResult, AddInvokeOkResult};
 use crate::test_utils::{get_starknet_spec_api_schema_for_method_results, SpecFile};
-use crate::version_config::VERSION_0_7 as VERSION;
+use crate::version_config::VERSION_0_8 as VERSION;
 
 auto_impl_get_test_instance! {
     pub struct AddInvokeOkResult {

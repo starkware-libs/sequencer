@@ -1062,7 +1062,10 @@ fn test_actual_fee_gt_resource_bounds(
     let execution_result = invalid_tx.execute(state, block_context, true, true).unwrap();
     let execution_error = execution_result.revert_error.unwrap();
     // Test error.
-    assert!(execution_error.starts_with("Insufficient max L1 gas:"));
+    assert!(
+        execution_error
+            .starts_with(&format!("Insufficient max {resource}", resource = Resource::L1Gas))
+    );
     // Test that fee was charged.
     let minimal_fee = Fee(minimal_l1_gas
         * u128::from(
