@@ -40,7 +40,7 @@ use super::{
     ResourceBoundsMapping,
 };
 use crate::test_utils::{get_starknet_spec_api_schema_for_components, SpecFile};
-use crate::version_config::VERSION_0_7 as Version;
+use crate::version_config::VERSION_0_8 as Version;
 
 fn validate_tx_fits_rpc(tx: BroadcastedDeclareTransaction) {
     lazy_static! {
