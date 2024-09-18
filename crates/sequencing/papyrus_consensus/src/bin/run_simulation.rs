@@ -117,7 +117,7 @@ struct PapyrusArgs {
     prevote_timeout: Option<f64>,
     #[arg(long = "precommit_timeout", help = "The timeout (seconds) for a precommit.")]
     precommit_timeout: Option<f64>,
-    #[arg(long = "cache_size", help = "Cache size for the test simulation.")]
+    #[arg(long = "cache_size", help = "The cache size for the test network receiver.")]
     cache_size: Option<usize>,
     #[arg(long = "random_seed", help = "Random seed for test simulation.")]
     random_seed: Option<u64>,
@@ -267,8 +267,7 @@ async fn build_node(data_dir: &str, logs_dir: &str, i: usize, papyrus_args: &Pap
          --network.#is_none false --base_layer.node_url {} --storage.db_config.path_prefix {} \
          --consensus.#is_none false --consensus.validator_id 0x{} --consensus.num_validators {} \
          --network.tcp_port {} --rpc.server_address 127.0.0.1:{} \
-         --monitoring_gateway.server_address 127.0.0.1:{} --consensus.test.#is_none false \
-         --collect_metrics true ",
+         --monitoring_gateway.server_address 127.0.0.1:{} --collect_metrics true ",
         papyrus_args.base_layer_node_url,
         data_dir,
         i,
@@ -282,16 +281,24 @@ async fn build_node(data_dir: &str, logs_dir: &str, i: usize, papyrus_args: &Pap
         ("timeouts.proposal_timeout", papyrus_args.proposal_timeout),
         ("timeouts.prevote_timeout", papyrus_args.prevote_timeout),
         ("timeouts.precommit_timeout", papyrus_args.precommit_timeout),
-        ("test.drop_probability", papyrus_args.drop_probability),
-        ("test.invalid_probability", papyrus_args.invalid_probability),
-        // Convert optional parameters to f64 for consistency in the vector,
-        // types were validated during parsing.
-        ("test.cache_size", papyrus_args.cache_size.map(|v| v as f64)),
-        ("test.random_seed", papyrus_args.random_seed.map(|v| v as f64)),
     ];
-    for (key, value) in conditional_params.iter() {
+    for (key, value) in conditional_params {
         if let Some(v) = value {
             cmd.push_str(&format!("--consensus.{} {} ", key, v));
+        }
+    }
+
+    let conditional_test_params = [
+        ("drop_probability", papyrus_args.drop_probability),
+        ("invalid_probability", papyrus_args.invalid_probability),
+        // Convert optional parameters to f64 for consistency in the vector,
+        // types were validated during parsing.
+        ("cache_size", papyrus_args.cache_size.map(|v| v as f64)),
+        ("random_seed", papyrus_args.random_seed.map(|v| v as f64)),
+    ];
+    for (key, value) in conditional_test_params {
+        if let Some(v) = value {
+            cmd.push_str(&format!("--test.{} {} ", key, v));
         }
     }
 

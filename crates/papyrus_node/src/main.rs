@@ -13,5 +13,6 @@ async fn main() -> anyhow::Result<()> {
     let config = config?;
 
     let resources = PapyrusResources::new(&config)?;
-    run(config, resources, PapyrusTaskHandles::default()).await
+    let tasks = PapyrusTaskHandles::default();
+    run(config, resources, tasks).await
 }
