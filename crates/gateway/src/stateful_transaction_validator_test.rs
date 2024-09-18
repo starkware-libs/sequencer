@@ -20,9 +20,8 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::transaction::Resource;
-use starknet_api::{deploy_account_tx_args, invoke_tx_args};
+use starknet_api::{deploy_account_tx_args, invoke_tx_args, nonce};
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_types_core::felt::Felt;
 
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
@@ -86,7 +85,7 @@ fn test_stateful_tx_validator(
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator.expect_validate().return_once(|_, _| expected_result.map(|_| ()));
 
-    let account_nonce = Nonce(Felt::ZERO);
+    let account_nonce = nonce!(0);
     let result = stateful_validator.run_validate(&executable_tx, account_nonce, mock_validator);
     assert_eq!(result, expected_result_as_stateful_transaction_result);
 }
@@ -127,29 +126,29 @@ fn test_instantiate_validator() {
 
 #[rstest]
 #[case::should_skip_validation(
-    Transaction::Invoke(executable_invoke_tx(invoke_tx_args!(nonce: Nonce(Felt::ONE)))),
-    Nonce::default(),
+    Transaction::Invoke(executable_invoke_tx(invoke_tx_args!(nonce: nonce!(1)))),
+    nonce!(0),
     true
 )]
 #[case::should_not_skip_validation_nonce_over_max_nonce_for_skip(
-    Transaction::Invoke(executable_invoke_tx(invoke_tx_args!(nonce: Nonce(Felt::ZERO)))),
-    Nonce::default(),
+    Transaction::Invoke(executable_invoke_tx(invoke_tx_args!(nonce: nonce!(0)))),
+    nonce!(0),
     false
 )]
 #[case::should_not_skip_validation_non_invoke(
     Transaction::DeployAccount(
-        executable_deploy_account_tx(deploy_account_tx_args!(), Nonce::default())
+        executable_deploy_account_tx(deploy_account_tx_args!(), nonce!(0))
     ),
-    Nonce::default(),
+    nonce!(0),
     false)]
 #[case::should_not_skip_validation_account_nonce_1(
     Transaction::Invoke(executable_invoke_tx(
         invoke_tx_args!(
-            nonce: Nonce(Felt::ONE),
+            nonce: nonce!(1),
             sender_address: TEST_SENDER_ADDRESS.into()
         )
     )),
-    Nonce(Felt::ONE),
+    nonce!(1),
     false
 )]
 fn test_skip_stateful_validation(
