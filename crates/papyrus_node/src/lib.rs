@@ -7,4 +7,6 @@ pub mod config;
 #[cfg(test)]
 mod precision_test;
 pub mod run;
+/// Not cfg(test) because it's used for component tests which compile normally.
+pub mod test_utils;
 pub mod version;
