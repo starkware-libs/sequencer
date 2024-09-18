@@ -480,14 +480,24 @@ fn test_add_tx(mut mempool: Mempool) {
     add_tx_inputs.sort_by_key(|input| std::cmp::Reverse(input.tx.tip().unwrap()));
 
     // Assert: transactions are ordered by priority.
+    let expected_account_nonces: Vec<(ContractAddress, Nonce)> = add_tx_inputs
+        .iter()
+        .map(|input| {
+            let Account { sender_address, state: AccountState { nonce } } = input.account;
+            (sender_address, nonce)
+        })
+        .collect();
     let expected_queue_txs: Vec<TransactionReference> =
         add_tx_inputs.iter().map(|input| TransactionReference::new(&input.tx)).collect();
     let expected_pool_txs = add_tx_inputs.into_iter().map(|input| input.tx);
     let expected_mempool_content = MempoolContentBuilder::new()
         .with_pool(expected_pool_txs)
         .with_queue(expected_queue_txs)
+        .with_account_nonces(expected_account_nonces)
         .build();
-    expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
+    expected_mempool_content.assert_eq_transaction_pool_content(&mempool);
+    expected_mempool_content.assert_eq_transaction_queue_content(&mempool);
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
 }
 
 #[rstest]
@@ -837,23 +847,7 @@ fn test_commit_block_from_different_leader() {
     expected_mempool_content.assert_eq_transaction_queue_content(&mempool);
 }
 
-// `account_nonces` tests.
-
-#[rstest]
-fn test_account_nonces_update_in_add_tx(mut mempool: Mempool) {
-    // Setup.
-    let input = add_tx_input!(tx_nonce: 1_u8, account_nonce: 1_u8);
-
-    // Test: update through new input.
-    add_tx(&mut mempool, &input);
-
-    // Assert.
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_account_nonces([(input.account.sender_address, input.account.state.nonce)])
-        .build();
-    expected_mempool_content.assert_eq_account_nonces(&mempool);
-}
-
+// account_nonces tests.
 #[rstest]
 fn test_account_nonce_does_not_decrease_in_add_tx() {
     // Setup.
