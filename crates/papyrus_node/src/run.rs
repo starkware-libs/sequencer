@@ -7,7 +7,6 @@ use std::process::exit;
 use std::sync::Arc;
 use std::time::Duration;
 
-use futures::stream::StreamExt;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_common::metrics::COLLECT_PROFILING_METRICS;
 use papyrus_common::pending_classes::PendingClasses;
@@ -30,7 +29,7 @@ use papyrus_sync::sources::base_layer::{BaseLayerSourceError, EthereumBaseLayerS
 use papyrus_sync::sources::central::{CentralError, CentralSource, CentralSourceConfig};
 use papyrus_sync::sources::pending::PendingSource;
 use papyrus_sync::{StateSync, SyncConfig};
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::BlockHash;
 use starknet_api::felt;
 use starknet_client::reader::objects::pending_data::{PendingBlock, PendingBlockOrDeprecated};
 use starknet_client::reader::PendingData;
@@ -57,10 +56,10 @@ const GENESIS_HASH: &str = "0x0";
 const STORAGE_METRICS_UPDATE_INTERVAL: Duration = Duration::from_secs(10);
 
 pub struct PapyrusUtilities {
-    storage_reader: StorageReader,
-    storage_writer: StorageWriter,
-    maybe_network_manager: Option<NetworkManager>,
-    local_peer_id: String,
+    pub storage_reader: StorageReader,
+    pub storage_writer: StorageWriter,
+    pub maybe_network_manager: Option<NetworkManager>,
+    pub local_peer_id: String,
 }
 
 impl PapyrusUtilities {
@@ -71,14 +70,18 @@ impl PapyrusUtilities {
     }
 }
 
+/// Struct which allows configuring how the node will run.
+/// - If left `None`, the task will be spawn with its default (prod) configuration.
+/// - If set to Some, that variant of the task will be run, and the default ignored.
+///     - If you want to disable a task set it to `Some(tokio::spawn(pending()))`.
 pub struct PapyrusTaskHandles {
-    storage_metrics_handle: Option<JoinHandle<anyhow::Result<()>>>,
-    sync_client_and_rpc_server_handles:
+    pub storage_metrics_handle: Option<JoinHandle<anyhow::Result<()>>>,
+    pub sync_client_and_rpc_server_handles:
         Option<(JoinHandle<anyhow::Result<()>>, JoinHandle<anyhow::Result<()>>)>,
-    monitoring_server_handle: Option<JoinHandle<anyhow::Result<()>>>,
-    p2p_sync_server_handle: Option<JoinHandle<anyhow::Result<()>>>,
-    consensus_handle: Option<JoinHandle<anyhow::Result<()>>>,
-    network_handle: Option<JoinHandle<anyhow::Result<()>>>,
+    pub monitoring_server_handle: Option<JoinHandle<anyhow::Result<()>>>,
+    pub p2p_sync_server_handle: Option<JoinHandle<anyhow::Result<()>>>,
+    pub consensus_handle: Option<JoinHandle<anyhow::Result<()>>>,
+    pub network_handle: Option<JoinHandle<anyhow::Result<()>>>,
 }
 
 impl Default for PapyrusTaskHandles {
@@ -141,53 +144,26 @@ fn build_consensus(
         .register_broadcast_topic(Topic::new(config.network_topic.clone()), BUFFER_SIZE)?;
     let BroadcastTopicChannels { messages_to_broadcast_sender, broadcast_client_channels } =
         network_channels;
-    // TODO(matan): connect this to an actual channel.
-    if let Some(test_config) = config.test.as_ref() {
-        let sync_channels = network_manager
-            .register_broadcast_topic(Topic::new(test_config.sync_topic.clone()), BUFFER_SIZE)?;
-        let context = PapyrusConsensusContext::new(
-            storage_reader.clone(),
-            messages_to_broadcast_sender,
-            config.num_validators,
-            Some(sync_channels.messages_to_broadcast_sender),
-        );
-        let sync_receiver =
-            sync_channels.broadcast_client_channels.map(|(vote, _report_sender)| {
-                BlockNumber(vote.expect("Sync channel should never have errors").height)
-            });
-        Ok(tokio::spawn(async move {
-            Ok(papyrus_consensus::run_consensus(
-                context,
-                config.start_height,
-                config.validator_id,
-                config.consensus_delay,
-                config.timeouts.clone(),
-                broadcast_client_channels,
-                sync_receiver,
-            )
-            .await?)
-        }))
-    } else {
-        let context = PapyrusConsensusContext::new(
-            storage_reader.clone(),
-            messages_to_broadcast_sender,
-            config.num_validators,
-            None,
-        );
-        Ok(tokio::spawn(async move {
-            Ok(papyrus_consensus::run_consensus(
-                context,
-                config.start_height,
-                config.validator_id,
-                config.consensus_delay,
-                config.timeouts.clone(),
-                broadcast_client_channels,
-                futures::stream::pending(),
-            )
-            .await?)
-        }))
-    }
+    let context = PapyrusConsensusContext::new(
+        storage_reader.clone(),
+        messages_to_broadcast_sender,
+        config.num_validators,
+        None,
+    );
+    Ok(tokio::spawn(async move {
+        Ok(papyrus_consensus::run_consensus(
+            context,
+            config.start_height,
+            config.validator_id,
+            config.consensus_delay,
+            config.timeouts.clone(),
+            broadcast_client_channels,
+            futures::stream::pending(),
+        )
+        .await?)
+    }))
 }
+
 fn spawn_storage_metrics_collector(
     storage_reader: StorageReader,
     update_interval: Duration,

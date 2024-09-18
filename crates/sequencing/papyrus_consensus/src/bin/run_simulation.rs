@@ -142,9 +142,11 @@ struct RunConsensusArgs {
         default_value = "60", value_parser = parse_duration
     )]
     stagnation_threshold: Duration,
-    #[arg(long = "duration", help = "Maximum test duration in seconds.", 
-    default_value = "123456789123456789", 
-    value_parser = parse_duration)]
+    #[arg(
+        long = "duration", help = "Maximum test duration in seconds.",
+        default_value = "123456789123456789",
+        value_parser = parse_duration
+    )]
     max_test_duration: Duration,
 }
 
@@ -261,7 +263,7 @@ async fn build_node(data_dir: &str, logs_dir: &str, i: usize, papyrus_args: &Pap
     let data_dir = format!("{}/data{}", data_dir, i);
 
     let mut cmd = format!(
-        "RUST_LOG=papyrus_consensus=debug,papyrus=info target/release/papyrus_node \
+        "RUST_LOG=papyrus_consensus=debug,papyrus=info target/release/run_consensus \
          --network.#is_none false --base_layer.node_url {} --storage.db_config.path_prefix {} \
          --consensus.#is_none false --consensus.validator_id 0x{} --consensus.num_validators {} \
          --network.tcp_port {} --rpc.server_address 127.0.0.1:{} \
@@ -367,7 +369,7 @@ async fn main() {
 
     println!("Running cargo build...");
     Command::new("cargo")
-        .args(["build", "--release", "--package", "papyrus_node"])
+        .args(["build", "--release", "--package", "papyrus_node", "--bin", "run_consensus"])
         .status()
         .unwrap();
 
