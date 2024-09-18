@@ -36,7 +36,8 @@ impl<
     async fn latest_proved_block(
         &self,
     ) -> Result<Option<(BlockNumber, BlockHash)>, BaseLayerSourceError> {
-        self.latest_proved_block(None)
+        let finality = 0;
+        self.latest_proved_block(finality)
             .await
             .map_err(|e| BaseLayerSourceError::BaseLayerContractError(Box::new(e)))
     }
