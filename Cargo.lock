@@ -1018,6 +1018,7 @@ dependencies = [
  "rand 0.8.5",
  "regex",
  "rstest",
+ "semver",
  "serde",
  "serde_json",
  "sha2",
