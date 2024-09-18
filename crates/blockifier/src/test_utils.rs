@@ -114,35 +114,6 @@ pub const CURRENT_BLOCK_NUMBER_FOR_VALIDATE: u64 = 2000;
 pub const CURRENT_BLOCK_TIMESTAMP: u64 = 1072023;
 pub const CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE: u64 = 1069200;
 
-// TODO(Yoni, 1/1/2025): move to SN API.
-/// A utility macro to create a [`Nonce`](starknet_api::core::Nonce) from a hex string / unsigned
-/// integer representation.
-#[macro_export]
-macro_rules! nonce {
-    ($s:expr) => {
-        starknet_api::core::Nonce(starknet_types_core::felt::Felt::from($s))
-    };
-}
-
-// TODO(Yoni, 1/1/2025): move to SN API.
-/// A utility macro to create a [`StorageKey`] from a hex string / unsigned integer representation.
-#[macro_export]
-macro_rules! storage_key {
-    ($s:expr) => {
-        starknet_api::state::StorageKey(starknet_api::patricia_key!($s))
-    };
-}
-
-// TODO(Yoni, 1/1/2025): move to SN API.
-/// A utility macro to create a [`starknet_api::core::CompiledClassHash`] from a hex string /
-/// unsigned integer representation.
-#[macro_export]
-macro_rules! compiled_class_hash {
-    ($s:expr) => {
-        starknet_api::core::CompiledClassHash(starknet_types_core::felt::Felt::from($s))
-    };
-}
-
 #[derive(Default)]
 pub struct SaltManager {
     next_salt: u8,
