@@ -226,6 +226,17 @@ async fn build_sync_client(
     }
 }
 
+fn build_p2p_sync_server(
+    maybe_sync_server_channels: Option<P2PSyncServerChannels>,
+    storage_reader: StorageReader,
+) -> JoinHandle<anyhow::Result<()>> {
+    let Some(p2p_sync_server_channels) = maybe_sync_server_channels else {
+        return tokio::spawn(pending());
+    };
+    let p2p_sync_server = P2PSyncServer::new(storage_reader.clone(), p2p_sync_server_channels);
+    tokio::spawn(async move { Ok(p2p_sync_server.run().await) })
+}
+
 async fn run_threads(config: NodeConfig) -> anyhow::Result<()> {
     let (storage_reader, storage_writer) = open_storage(config.storage.clone())?;
 
@@ -286,15 +297,8 @@ async fn run_threads(config: NodeConfig) -> anyhow::Result<()> {
     .await?;
 
     // P2P Sync Server task.
-    let p2p_sync_server_future = match maybe_sync_server_channels {
-        Some(p2p_sync_server_channels) => {
-            let p2p_sync_server =
-                P2PSyncServer::new(storage_reader.clone(), p2p_sync_server_channels);
-            p2p_sync_server.run().boxed()
-        }
-        None => pending().boxed(),
-    };
-    let p2p_sync_server_handle = tokio::spawn(p2p_sync_server_future);
+    let p2p_sync_server_handle =
+        build_p2p_sync_server(maybe_sync_server_channels, storage_reader.clone());
 
     // Sync task.
     let sync_client_handle = build_sync_client(
@@ -327,7 +331,7 @@ async fn run_threads(config: NodeConfig) -> anyhow::Result<()> {
         }
         res = p2p_sync_server_handle => {
             error!("P2P Sync server stopped");
-            res?
+            res??
         }
         res = network_handle => {
             error!("Network stopped.");
