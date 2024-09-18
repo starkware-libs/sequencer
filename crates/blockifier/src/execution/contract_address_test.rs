@@ -1,9 +1,9 @@
 use rstest::rstest;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_api::{calldata, felt};
 
-use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;

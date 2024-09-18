@@ -3,13 +3,13 @@ use std::collections::{HashMap, HashSet};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pretty_assertions::assert_eq;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::execution_utils::format_panic_data;
 use starknet_api::transaction::fields::GasVectorComputationMode;
 use starknet_api::{calldata, felt, storage_key};
 use test_case::test_case;
 
-use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources};
 use crate::execution::entry_point::{CallEntryPoint, CallType};

@@ -6,6 +6,11 @@ use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use num_traits::Inv;
 use pretty_assertions::{assert_eq, assert_ne};
 use rstest::rstest;
+use starknet_api::abi::abi_utils::{
+    get_fee_token_var_address,
+    get_storage_var_address,
+    selector_from_name,
+};
 use starknet_api::block::GasPrice;
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::executable_transaction::{
@@ -47,11 +52,6 @@ use starknet_api::{
 };
 use starknet_types_core::felt::Felt;
 
-use crate::abi::abi_utils::{
-    get_fee_token_var_address,
-    get_storage_var_address,
-    selector_from_name,
-};
 use crate::check_tx_execution_error_for_invalid_scenario;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;

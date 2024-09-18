@@ -1,15 +1,10 @@
 use sha3::{Digest, Keccak256};
-use starknet_api::core::{
-    ContractAddress,
-    EntryPointSelector,
-    PatriciaKey,
-    L2_ADDRESS_UPPER_BOUND,
-};
-use starknet_api::state::StorageKey;
 use starknet_types_core::felt::{Felt, NonZeroFelt};
 use starknet_types_core::hash::{Pedersen, StarkHash};
 
 use crate::abi::constants;
+use crate::core::{ContractAddress, EntryPointSelector, PatriciaKey, L2_ADDRESS_UPPER_BOUND};
+use crate::state::StorageKey;
 
 #[cfg(test)]
 #[path = "abi_utils_test.rs"]
