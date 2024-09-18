@@ -3,6 +3,7 @@ use std::sync::Mutex;
 
 use rstest::rstest;
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
+use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
     ContractAddressSalt,
     Fee,
@@ -32,7 +33,6 @@ use crate::test_utils::{
     create_calldata,
     create_trivial_calldata,
     CairoVersion,
-    NonceManager,
     BALANCE,
     TEST_ERC20_CONTRACT_ADDRESS2,
 };
