@@ -42,8 +42,8 @@ pub enum BlockHashVersion {
 impl From<BlockHashVersion> for StarknetVersion {
     fn from(value: BlockHashVersion) -> Self {
         match value {
-            BlockHashVersion::VO_13_2 => Self("0.13.2".to_owned()),
-            BlockHashVersion::VO_13_3 => Self("0.13.3".to_owned()),
+            BlockHashVersion::VO_13_2 => Self(vec![0, 13, 2]),
+            BlockHashVersion::VO_13_3 => Self(vec![0, 13, 3]),
         }
     }
 }
@@ -107,7 +107,9 @@ pub fn calculate_block_hash(
                 (header.starknet_version >= BlockHashVersion::VO_13_3.into())
                     .then_some(l2_gas_prices.into_iter())
             })
-            .chain(&ascii_as_felt(&header.starknet_version.0).expect("Expect ASCII version"))
+            .chain(
+                &ascii_as_felt(&header.starknet_version.to_string()).expect("Expect ASCII version"),
+            )
             .chain(&Felt::ZERO)
             .chain(&header.parent_hash.0)
             .get_poseidon_hash(),

@@ -63,7 +63,7 @@ impl From<starknet_api::block::BlockHeader> for BlockHeader {
                 price_in_fri: header.l1_data_gas_price.price_in_fri,
             },
             l1_da_mode: header.l1_da_mode,
-            starknet_version: header.starknet_version.0,
+            starknet_version: header.starknet_version.to_string(),
         }
     }
 }
