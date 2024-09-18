@@ -43,7 +43,7 @@ use crate::versioned_constants::CompilerVersion;
 pub mod test;
 
 pub type ContractClassResult<T> = Result<T, ContractClassError>;
-pub type LookupTable<'a> = HashMap<usize, &'a FunctionId>;
+pub type LookupVector<'a> = Vec<&'a FunctionId>;
 
 /// The resource used to run a contract function.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -660,15 +660,8 @@ impl NativeContractClassV1Inner {
         let sierra_program =
             sierra_contract_class.extract_sierra_program().expect("can't extract sierra program");
 
-        // Note [Cairo Native ABI]
-        // The supplied (compiled) sierra program might have been populated with debug info and this
-        // affects the ABI, because the debug info is appended to the function name and the
-        // function name is what is used by Cairo Native to lookup the function.
-        // Therefore it's not enough to know the function index and we need enrich the contract
-        // entry point with FunctionIds from SierraProgram.
-        let lookup_fid: LookupTable<'_> = HashMap::from_iter(
-            sierra_program.funcs.iter().enumerate().map(|(idx, func)| (idx, &func.id)),
-        );
+        let lookup_fid: LookupVector<'_> =
+            sierra_program.funcs.iter().map(|func| &func.id).collect();
 
         Ok(NativeContractClassV1Inner {
             executor,
@@ -706,7 +699,7 @@ impl NativeContractEntryPoints {
     ///
     /// On failure returns the first FunctionId that it couldn't find.
     fn try_from(
-        lookup: &LookupTable<'_>,
+        lookup: &LookupVector<'_>,
         sierra_eps: &SierraContractEntryPoints,
     ) -> Result<NativeContractEntryPoints, NativeEntryPointError> {
         let constructor = sierra_eps
@@ -752,11 +745,11 @@ struct NativeEntryPoint {
 
 impl NativeEntryPoint {
     fn try_from(
-        lookup: &LookupTable<'_>,
+        lookup: &LookupVector<'_>,
         sierra_ep: &SierraContractEntryPoint,
     ) -> Result<NativeEntryPoint, NativeEntryPointError> {
         let &function_id = lookup
-            .get(&sierra_ep.function_idx)
+            .get(sierra_ep.function_idx)
             .ok_or(NativeEntryPointError::FunctionIdNotFound(sierra_ep.function_idx))?;
         let selector = contract_entrypoint_to_entrypoint_selector(sierra_ep);
         Ok(NativeEntryPoint { selector, function_id: function_id.clone() })
