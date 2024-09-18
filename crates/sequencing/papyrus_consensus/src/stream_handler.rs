@@ -71,88 +71,111 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     /// Listen for messages on the receiver channel, buffering them if necessary.
     /// Guarntees that messages are sent in order.
     pub async fn listen(&mut self) {
-        let t0 = std::time::Instant::now();
-        loop {
+        let mut still_open = true;
+        while still_open {
             if let Ok(message) = self.receiver.try_next() {
-                let message = match message {
-                    Some(message) => message,
-                    None => {
-                        // message is none in case the channel was closed!
-                        break;
-                    }
-                };
-                let stream_id = message.stream_id;
-                let chunk_id = message.chunk_id;
-                let next_chunk_id = self.next_chunk_ids.entry(stream_id).or_insert(0);
-
-                self.num_buffered
-                    .entry(stream_id)
-                    .and_modify(|num_buffered| {
-                        *num_buffered += 1;
-                    })
-                    .or_insert(1); // first message
-
-                self.max_chunk_id
-                    .entry(stream_id)
-                    .and_modify(|max_chunk_id| {
-                        if chunk_id > *max_chunk_id {
-                            *max_chunk_id = chunk_id;
-                        }
-                    })
-                    .or_insert(chunk_id);
-
-                // check if this there are too many streams
-                if let Some(max_streams) = self.config.max_num_streams {
-                    let num_streams = self.num_buffered.len() as u64;
-                    if num_streams > max_streams {
-                        panic!("Max number of streams reached! {}", max_streams);
-                    }
-                }
-
-                if message.fin {
-                    if let Some(max_chunk_id) = self.max_chunk_id.get(&stream_id) {
-                        if *max_chunk_id > chunk_id {
-                            panic!(
-                                "Received fin message with chunk_id {} that is smaller than the \
-                                 max_chunk_id {}",
-                                chunk_id, max_chunk_id
-                            );
-                        }
-                        self.fin_chunk_id.insert(stream_id, chunk_id);
-                    }
-                }
-
-                // Check that chunk_id is not bigger than the fin_chunk_id.
-                if let Some(fin_chunk_id) = self.fin_chunk_id.get(&stream_id) {
-                    if chunk_id > *fin_chunk_id {
-                        panic!(
-                            "Received message with chunk_id {} that is bigger than the \
-                             fin_chunk_id {}",
-                            chunk_id, fin_chunk_id
-                        );
-                    }
-                }
-
-                // This means we can just send the message without buffering it.
-                if chunk_id == *next_chunk_id {
-                    self.sender.try_send(message).expect("Send should succeed");
-                    *next_chunk_id += 1;
-                    // Try to drain the buffer.
-                    self.drain_buffer(stream_id);
-                } else if chunk_id > *next_chunk_id {
-                    // Save the message in the buffer.
-                    self.store(message);
-                } else {
-                    panic!(
-                        "Received message with chunk_id {} that is smaller than next_chunk_id {}",
-                        chunk_id, next_chunk_id
-                    );
-                }
+                still_open = self.handle_message(message);
             } else {
                 // Err comes when the channel is open but no message was received.
                 tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
             }
-        } // end of loop
+        }
+    }
+
+    #[cfg(test)]
+    pub async fn listen_with_timeout(&mut self, timeout_millis: u128) {
+        let mut still_open = true;
+        let t0 = std::time::Instant::now();
+        while still_open {
+            if t0.elapsed().as_millis() > timeout_millis {
+                break;
+            }
+            if let Ok(message) = self.receiver.try_next() {
+                still_open = self.handle_message(message);
+            } else {
+                // Err comes when the channel is open but no message was received.
+                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+            }
+        }
+    }
+
+    // Handle the message, return true if the channel is still open.
+    fn handle_message(&mut self, message: Option<StreamMessage<T>>) -> bool {
+        let message = match message {
+            Some(message) => message,
+            None => {
+                // Message is none in case the channel was closed!
+                return false;
+            }
+        };
+        let stream_id = message.stream_id;
+        let chunk_id = message.chunk_id;
+        let next_chunk_id = self.next_chunk_ids.entry(stream_id).or_insert(0);
+
+        self.num_buffered
+            .entry(stream_id)
+            .and_modify(|num_buffered| {
+                *num_buffered += 1;
+            })
+            .or_insert(1); // first message
+
+        self.max_chunk_id
+            .entry(stream_id)
+            .and_modify(|max_chunk_id| {
+                if chunk_id > *max_chunk_id {
+                    *max_chunk_id = chunk_id;
+                }
+            })
+            .or_insert(chunk_id);
+
+        // Check if this there are too many streams:
+        if let Some(max_streams) = self.config.max_num_streams {
+            let num_streams = self.num_buffered.len() as u64;
+            if num_streams > max_streams {
+                panic!("Max number of streams reached! {}", max_streams);
+            }
+        }
+
+        if message.fin {
+            if let Some(max_chunk_id) = self.max_chunk_id.get(&stream_id) {
+                if *max_chunk_id > chunk_id {
+                    panic!(
+                        "Received fin message with chunk_id {} that is smaller than the \
+                         max_chunk_id {}",
+                        chunk_id, max_chunk_id
+                    );
+                }
+                self.fin_chunk_id.insert(stream_id, chunk_id);
+            }
+        }
+
+        // Check that chunk_id is not bigger than the fin_chunk_id.
+        if let Some(fin_chunk_id) = self.fin_chunk_id.get(&stream_id) {
+            if chunk_id > *fin_chunk_id {
+                panic!(
+                    "Received message with chunk_id {} that is bigger than the fin_chunk_id {}",
+                    chunk_id, fin_chunk_id
+                );
+            }
+        }
+
+        // This means we can just send the message without buffering it.
+        if chunk_id == *next_chunk_id {
+            self.sender.try_send(message).expect("Send should succeed");
+            *next_chunk_id += 1;
+            // Try to drain the buffer.
+            self.drain_buffer(stream_id);
+        } else if chunk_id > *next_chunk_id {
+            // Save the message in the buffer.
+            self.store(message);
+        } else {
+            panic!(
+                "Received message with chunk_id {} that is smaller than next_chunk_id {}",
+                chunk_id, next_chunk_id
+            );
+        }
+
+        true // Everything is fine, the channel is still open.
     }
 
     // Go over each vector in the buffer, push to the end of it if the chunk_id is contiguous
