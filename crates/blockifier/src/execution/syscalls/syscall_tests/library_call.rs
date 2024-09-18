@@ -138,7 +138,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
     };
 
     let storage_entry_point_resources = ExecutionResources {
-        n_steps: 249,
+        n_steps: 247,
         n_memory_holes: 0,
         builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 7)]),
     };
@@ -157,7 +157,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
 
     let library_call_resources = &get_syscall_resources(SyscallSelector::LibraryCall)
         + &ExecutionResources {
-            n_steps: 394,
+            n_steps: 392,
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 15)]),
         };
@@ -188,7 +188,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
 
     let main_call_resources = &(&get_syscall_resources(SyscallSelector::LibraryCall) * 3)
         + &ExecutionResources {
-            n_steps: 761,
+            n_steps: 757,
             n_memory_holes: 2,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 27)]),
         };
