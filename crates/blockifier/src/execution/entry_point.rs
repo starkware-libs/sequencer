@@ -15,6 +15,7 @@ use crate::abi::constants;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
+use crate::execution::contract_class::TrackingResource;
 use crate::execution::errors::{
     ConstructorEntryPointExecutionError,
     EntryPointExecutionError,
@@ -130,6 +131,8 @@ pub struct EntryPointExecutionContext {
 
     // The execution mode affects the behavior of the hint processor.
     pub execution_mode: ExecutionMode,
+    // The stack of tracking resources from the first entry point to the current.
+    pub tracking_resource: Vec<TrackingResource>,
 }
 
 impl EntryPointExecutionContext {
@@ -146,6 +149,7 @@ impl EntryPointExecutionContext {
             tx_context: tx_context.clone(),
             current_recursion_depth: Default::default(),
             execution_mode: mode,
+            tracking_resource: vec![],
         }
     }
 

@@ -48,6 +48,7 @@ pub mod test;
 pub type ContractClassResult<T> = Result<T, ContractClassError>;
 
 /// The resource used to run a contract function.
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq, Serialize)]
 pub enum TrackingResource {
     #[default]

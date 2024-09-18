@@ -25,7 +25,7 @@ use starknet_types_core::felt::Felt;
 use super::entry_point::ConstructorEntryPointExecutionResult;
 use super::errors::ConstructorEntryPointExecutionError;
 use crate::execution::call_info::{CallInfo, Retdata};
-use crate::execution::contract_class::ContractClass;
+use crate::execution::contract_class::{ContractClass, TrackingResource};
 use crate::execution::entry_point::{
     execute_constructor_entry_point,
     CallEntryPoint,
@@ -51,7 +51,16 @@ pub fn execute_entry_point_call(
     resources: &mut ExecutionResources,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
-    match contract_class {
+    let tracking_resource = contract_class
+        .tracking_resource(&context.versioned_constants().min_compiler_version_for_sierra_gas);
+    // Once we ran with CairoSteps, we will continue to run using it for all nested calls.
+    if context.tracking_resource.last().is_some_and(|x| *x == TrackingResource::CairoSteps) {
+        context.tracking_resource.push(TrackingResource::CairoSteps);
+    } else {
+        context.tracking_resource.push(tracking_resource);
+    }
+
+    let res = match contract_class {
         ContractClass::V0(contract_class) => {
             deprecated_entry_point_execution::execute_entry_point_call(
                 call,
@@ -68,11 +77,16 @@ pub fn execute_entry_point_call(
             resources,
             context,
         ),
-    }
+    };
+
+    context.tracking_resource.pop();
+    res
 }
 
 pub fn update_remaining_gas(remaining_gas: &mut u64, call_info: &CallInfo) {
-    *remaining_gas -= call_info.execution.gas_consumed;
+    if call_info.tracking_resource == TrackingResource::SierraGas {
+        *remaining_gas -= call_info.execution.gas_consumed;
+    }
 }
 
 pub fn read_execution_retdata(

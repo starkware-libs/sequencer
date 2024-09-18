@@ -27,6 +27,7 @@ use crate::test_utils::{
     CairoVersion,
     BALANCE,
 };
+use crate::versioned_constants::VersionedConstants;
 
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), REQUIRED_GAS_LIBRARY_CALL_TEST; "VM")]
 fn test_library_call(test_contract: FeatureContract, expected_gas: u64) {
@@ -142,6 +143,12 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         n_memory_holes: 0,
         builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 7)]),
     };
+
+    // The default VersionedConstants is used in the execute_directly call bellow.
+    let tracking_resource = test_contract.get_class().tracking_resource(
+        &VersionedConstants::create_for_testing().min_compiler_version_for_sierra_gas,
+    ); // Fixed version that should be lower than the one in version constants.
+
     let nested_storage_call_info = CallInfo {
         call: nested_storage_entry_point,
         execution: CallExecution {
@@ -150,6 +157,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
             ..CallExecution::default()
         },
         resources: storage_entry_point_resources.clone(),
+        tracking_resource,
         storage_read_values: vec![felt!(value + 1)],
         accessed_storage_keys: HashSet::from([StorageKey(patricia_key!(key + 1))]),
         ..Default::default()
@@ -161,6 +169,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 15)]),
         };
+
     let library_call_info = CallInfo {
         call: library_entry_point,
         execution: CallExecution {
@@ -170,6 +179,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         },
         resources: library_call_resources,
         inner_calls: vec![nested_storage_call_info],
+        tracking_resource,
         ..Default::default()
     };
 
@@ -183,6 +193,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         resources: storage_entry_point_resources,
         storage_read_values: vec![felt!(value)],
         accessed_storage_keys: HashSet::from([StorageKey(patricia_key!(key))]),
+        tracking_resource,
         ..Default::default()
     };
 
@@ -201,6 +212,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         },
         resources: main_call_resources,
         inner_calls: vec![library_call_info, storage_call_info],
+        tracking_resource,
         ..Default::default()
     };
 
