@@ -48,8 +48,9 @@ pub mod test;
 pub type ContractClassResult<T> = Result<T, ContractClassError>;
 
 /// The resource used to run a contract function.
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq, Serialize)]
-pub enum TrackingResource {
+pub enum TrackedResource {
     #[default]
     CairoSteps, // AKA VM mode.
     SierraGas, // AKA Sierra mode.
@@ -105,11 +106,11 @@ impl ContractClass {
     }
 
     /// Returns whether this contract should run using Cairo steps or Sierra gas.
-    pub fn tracking_resource(&self, min_sierra_version: &CompilerVersion) -> TrackingResource {
+    pub fn tracked_resource(&self, min_sierra_version: &CompilerVersion) -> TrackedResource {
         match self {
-            ContractClass::V0(_) => TrackingResource::CairoSteps,
+            ContractClass::V0(_) => TrackedResource::CairoSteps,
             ContractClass::V1(contract_class) => {
-                contract_class.tracking_resource(min_sierra_version)
+                contract_class.tracked_resource(min_sierra_version)
             }
         }
     }
@@ -164,8 +165,8 @@ impl ContractClassV0 {
         }
     }
 
-    pub fn tracking_resource(&self) -> TrackingResource {
-        TrackingResource::CairoSteps
+    pub fn tracked_resource(&self) -> TrackedResource {
+        TrackedResource::CairoSteps
     }
 
     pub fn try_from_json_string(raw_contract_class: &str) -> Result<ContractClassV0, ProgramError> {
@@ -247,11 +248,11 @@ impl ContractClassV1 {
     }
 
     /// Returns whether this contract should run using Cairo steps or Sierra gas.
-    pub fn tracking_resource(&self, min_sierra_version: &CompilerVersion) -> TrackingResource {
+    pub fn tracked_resource(&self, min_sierra_version: &CompilerVersion) -> TrackedResource {
         if *min_sierra_version <= self.compiler_version {
-            TrackingResource::SierraGas
+            TrackedResource::SierraGas
         } else {
-            TrackingResource::CairoSteps
+            TrackedResource::CairoSteps
         }
     }
 
