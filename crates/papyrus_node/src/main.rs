@@ -166,11 +166,18 @@ fn run_consensus(
 async fn run_threads(config: NodeConfig) -> anyhow::Result<()> {
     let (storage_reader, storage_writer) = open_storage(config.storage.clone())?;
 
-    let storage_metrics_handle = if config.monitoring_gateway.collect_metrics {
-        spawn_storage_metrics_collector(storage_reader.clone(), STORAGE_METRICS_UPDATE_INTERVAL)
-    } else {
-        tokio::spawn(pending())
-    };
+    // The sync is the only writer of the syncing state.
+    let shared_highest_block = Arc::new(RwLock::new(None));
+    let pending_data = Arc::new(RwLock::new(PendingData {
+        // The pending data might change later to DeprecatedPendingBlock, depending on the response
+        // from the feeder gateway.
+        block: PendingBlockOrDeprecated::Current(PendingBlock {
+            parent_block_hash: BlockHash(felt!(GENESIS_HASH)),
+            ..Default::default()
+        }),
+        ..Default::default()
+    }));
+    let pending_classes = Arc::new(RwLock::new(PendingClasses::default()));
 
     // P2P network.
     let (
@@ -191,6 +198,12 @@ async fn run_threads(config: NodeConfig) -> anyhow::Result<()> {
         }
     });
 
+    let storage_metrics_handle = spawn_storage_metrics_collector(
+        config.monitoring_gateway.collect_metrics,
+        storage_reader.clone(),
+        STORAGE_METRICS_UPDATE_INTERVAL,
+    );
+
     // Monitoring server.
     let monitoring_server = MonitoringServer::new(
         config.monitoring_gateway.clone(),
@@ -201,19 +214,6 @@ async fn run_threads(config: NodeConfig) -> anyhow::Result<()> {
         local_peer_id,
     )?;
     let monitoring_server_handle = monitoring_server.spawn_server().await;
-
-    // The sync is the only writer of the syncing state.
-    let shared_highest_block = Arc::new(RwLock::new(None));
-    let pending_data = Arc::new(RwLock::new(PendingData {
-        // The pending data might change later to DeprecatedPendingBlock, depending on the response
-        // from the feeder gateway.
-        block: PendingBlockOrDeprecated::Current(PendingBlock {
-            parent_block_hash: BlockHash(felt!(GENESIS_HASH)),
-            ..Default::default()
-        }),
-        ..Default::default()
-    }));
-    let pending_classes = Arc::new(RwLock::new(PendingClasses::default()));
 
     // JSON-RPC server.
     let server_handle_future = create_rpc_server_future(
@@ -270,7 +270,7 @@ async fn run_threads(config: NodeConfig) -> anyhow::Result<()> {
     tokio::select! {
         res = storage_metrics_handle => {
             error!("collecting storage metrics stopped.");
-            res?
+            res??
         }
         res = server_handle_future => {
             error!("RPC server stopped.");
@@ -418,16 +418,21 @@ fn configure_tracing() {
 }
 
 fn spawn_storage_metrics_collector(
+    collect_metrics: bool,
     storage_reader: StorageReader,
-    update_interval: Duration,
-) -> JoinHandle<()> {
+    interval: Duration,
+) -> JoinHandle<anyhow::Result<()>> {
+    if !collect_metrics {
+        return tokio::spawn(pending());
+    }
+
     tokio::spawn(
         async move {
             loop {
                 if let Err(error) = update_storage_metrics(&storage_reader) {
                     warn!("Failed to update storage metrics: {error}");
                 }
-                tokio::time::sleep(update_interval).await;
+                tokio::time::sleep(interval).await;
             }
         }
         .instrument(debug_span!("collect_storage_metrics")),
