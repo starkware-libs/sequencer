@@ -99,14 +99,10 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
     async fn latest_proved_block(
         &self,
-        finality: Option<u64>,
+        finality: u64,
     ) -> Result<Option<(BlockNumber, BlockHash)>, Self::Error> {
-        let ethereum_block_number = self
-            .contract
-            .provider()
-            .get_block_number()
-            .await?
-            .checked_sub(finality.unwrap_or_default());
+        let ethereum_block_number =
+            self.contract.provider().get_block_number().await?.checked_sub(finality);
         let Some(ethereum_block_number) = ethereum_block_number else {
             return Ok(None);
         };
