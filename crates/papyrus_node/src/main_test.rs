@@ -35,7 +35,7 @@ async fn storage_metrics_collector() {
 
     assert!(prometheus_is_contained(handle.render(), "storage_free_pages_number", &[]).is_none());
 
-    spawn_storage_metrics_collector(storage_reader, Duration::from_secs(1));
+    spawn_storage_metrics_collector(true, storage_reader, Duration::from_secs(1));
     // To make sure the metrics in the spawned thread are updated.
     tokio::time::sleep(Duration::from_millis(1)).await;
 
