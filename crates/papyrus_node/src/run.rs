@@ -60,13 +60,35 @@ pub struct PapyrusUtilities {
     pub storage_writer: StorageWriter,
     pub maybe_network_manager: Option<NetworkManager>,
     pub local_peer_id: String,
+    pub shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
+    pub pending_data: Arc<RwLock<PendingData>>,
+    pub pending_classes: Arc<RwLock<PendingClasses>>,
 }
 
 impl PapyrusUtilities {
     pub fn new(config: &NodeConfig) -> anyhow::Result<Self> {
         let (storage_reader, storage_writer) = open_storage(config.storage.clone())?;
         let (maybe_network_manager, local_peer_id) = register_to_network(config.network.clone())?;
-        Ok(Self { storage_reader, storage_writer, maybe_network_manager, local_peer_id })
+        let shared_highest_block = Arc::new(RwLock::new(None));
+        let pending_data = Arc::new(RwLock::new(PendingData {
+            // The pending data might change later to DeprecatedPendingBlock, depending on the
+            // response from the feeder gateway.
+            block: PendingBlockOrDeprecated::Current(PendingBlock {
+                parent_block_hash: BlockHash(felt!(GENESIS_HASH)),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }));
+        let pending_classes = Arc::new(RwLock::new(PendingClasses::default()));
+        Ok(Self {
+            storage_reader,
+            storage_writer,
+            maybe_network_manager,
+            local_peer_id,
+            shared_highest_block,
+            pending_data,
+            pending_classes,
+        })
     }
 }
 
@@ -76,8 +98,8 @@ impl PapyrusUtilities {
 ///     - If you want to disable a task set it to `Some(tokio::spawn(pending()))`.
 pub struct PapyrusTaskHandles {
     pub storage_metrics_handle: Option<JoinHandle<anyhow::Result<()>>>,
-    pub sync_client_and_rpc_server_handles:
-        Option<(JoinHandle<anyhow::Result<()>>, JoinHandle<anyhow::Result<()>>)>,
+    pub rpc_server_handle: Option<JoinHandle<anyhow::Result<()>>>,
+    pub sync_client_handle: Option<JoinHandle<anyhow::Result<()>>>,
     pub monitoring_server_handle: Option<JoinHandle<anyhow::Result<()>>>,
     pub p2p_sync_server_handle: Option<JoinHandle<anyhow::Result<()>>>,
     pub consensus_handle: Option<JoinHandle<anyhow::Result<()>>>,
@@ -88,7 +110,8 @@ impl Default for PapyrusTaskHandles {
     fn default() -> Self {
         Self {
             storage_metrics_handle: None,
-            sync_client_and_rpc_server_handles: None,
+            rpc_server_handle: None,
+            sync_client_handle: None,
             monitoring_server_handle: None,
             p2p_sync_server_handle: None,
             consensus_handle: None,
@@ -269,37 +292,16 @@ fn build_monitoring_server(
     Ok(tokio::spawn(async move { Ok(monitoring_server.run_server().await?) }))
 }
 
-async fn build_sync_client_and_rpc_server(
+async fn build_sync_client(
     maybe_network_manager: Option<&mut NetworkManager>,
     storage_reader: StorageReader,
     storage_writer: StorageWriter,
     config: &NodeConfig,
-) -> anyhow::Result<(JoinHandle<anyhow::Result<()>>, JoinHandle<anyhow::Result<()>>)> {
-    // The sync is the only writer of the syncing state.
-    let shared_highest_block = Arc::new(RwLock::new(None));
-    let pending_data = Arc::new(RwLock::new(PendingData {
-        // The pending data might change later to DeprecatedPendingBlock, depending on the response
-        // from the feeder gateway.
-        block: PendingBlockOrDeprecated::Current(PendingBlock {
-            parent_block_hash: BlockHash(felt!(GENESIS_HASH)),
-            ..Default::default()
-        }),
-        ..Default::default()
-    }));
-    let pending_classes = Arc::new(RwLock::new(PendingClasses::default()));
-
-    // JSON-RPC server.
-    let server_handle = create_rpc_server_future(
-        config,
-        shared_highest_block.clone(),
-        pending_data.clone(),
-        pending_classes.clone(),
-        storage_reader.clone(),
-    )
-    .await?;
-
-    // Sync task.
-    let sync_handle = match (config.sync, config.p2p_sync) {
+    shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
+    pending_data: Arc<RwLock<PendingData>>,
+    pending_classes: Arc<RwLock<PendingClasses>>,
+) -> JoinHandle<anyhow::Result<()>> {
+    match (config.sync, config.p2p_sync) {
         (Some(_), Some(_)) => {
             panic!("One of --sync.#is_none or --p2p_sync.#is_none must be turned on");
         }
@@ -340,8 +342,7 @@ async fn build_sync_client_and_rpc_server(
             );
             tokio::spawn(async move { Ok(p2p_sync.run().await?) })
         }
-    };
-    Ok((sync_handle, server_handle))
+    }
 }
 
 async fn run_threads(
@@ -375,20 +376,33 @@ async fn run_threads(
         build_monitoring_server(&utils, &config)?
     };
 
-    let (sync_client_handle, rpc_server_handle) =
-        if let Some((sync_client_handle, rpc_server_handle)) =
-            tasks.sync_client_and_rpc_server_handles
-        {
-            (sync_client_handle, rpc_server_handle)
-        } else {
-            build_sync_client_and_rpc_server(
-                utils.maybe_network_manager.as_mut(),
-                utils.storage_reader.clone(),
-                utils.storage_writer,
-                &config,
-            )
-            .await?
-        };
+    let rpc_server_handle = if let Some(handle) = tasks.rpc_server_handle {
+        handle
+    } else {
+        create_rpc_server_future(
+            &config,
+            utils.shared_highest_block.clone(),
+            utils.pending_data.clone(),
+            utils.pending_classes.clone(),
+            utils.storage_reader.clone(),
+        )
+        .await?
+    };
+
+    let sync_client_handle = if let Some(handle) = tasks.sync_client_handle {
+        handle
+    } else {
+        build_sync_client(
+            utils.maybe_network_manager.as_mut(),
+            utils.storage_reader.clone(),
+            utils.storage_writer,
+            &config,
+            utils.shared_highest_block.clone(),
+            utils.pending_data.clone(),
+            utils.pending_classes.clone(),
+        )
+        .await
+    };
 
     // Run last, since the network manager is passed to other tasks during setup.
     let network_handle =
