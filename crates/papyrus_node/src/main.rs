@@ -240,7 +240,7 @@ async fn spawn_sync_client(
         }
         (None, None) => tokio::spawn(pending()),
         (Some(sync_config), None) => {
-            let configs = (sync_config.clone(), config.central.clone(), config.base_layer.clone());
+            let configs = (sync_config, config.central.clone(), config.base_layer.clone());
             let storage = (storage_reader.clone(), storage_writer);
             tokio::spawn(run_sync(
                 configs,
@@ -307,7 +307,10 @@ fn spawn_p2p_sync_server(
     );
 
     let p2p_sync_server = P2PSyncServer::new(storage_reader.clone(), p2p_sync_server_channels);
-    tokio::spawn(async move { Ok(p2p_sync_server.run().await) })
+    tokio::spawn(async move {
+        p2p_sync_server.run().await;
+        Ok(())
+    })
 }
 
 async fn run_threads(config: NodeConfig, mut resources: PapyrusResources) -> anyhow::Result<()> {
@@ -400,7 +403,7 @@ async fn run_threads(config: NodeConfig, mut resources: PapyrusResources) -> any
         }
     };
     error!("Task ended with unexpected Ok.");
-    return Ok(());
+    Ok(())
 }
 
 fn build_network_manager(
