@@ -133,6 +133,7 @@ impl ContractClass {
             ContractClass::V1(contract_class) => {
                 contract_class.tracking_resource(min_sierra_version)
             }
+            ContractClass::V1Native(_) => TrackingResource::SierraGas,
         }
     }
 }
