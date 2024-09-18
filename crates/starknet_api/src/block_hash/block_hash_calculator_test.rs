@@ -73,6 +73,7 @@ fn test_block_hash_regression() {
             price_in_fri: GasPrice(10),
             price_in_wei: GasPrice(9),
         },
+        l2_gas_price: GasPricePerToken { price_in_fri: GasPrice(11), price_in_wei: GasPrice(12) },
         starknet_version: StarknetVersion("10".to_owned()),
         parent_hash: BlockHash(Felt::from(11_u8)),
     };
@@ -86,7 +87,7 @@ fn test_block_hash_regression() {
     let block_commitments =
         calculate_block_commitments(&transactions_data, &state_diff, block_header.l1_da_mode);
 
-    let expected_hash = felt!("0x061e4998d51a248f1d0288d7e17f6287757b0e5e6c5e1e58ddf740616e312134");
+    let expected_hash = felt!("0x75ebad05e0b18dbfbabec32edffed5992b24f8d2d9666d04982971eac0ab06f");
 
     assert_eq!(BlockHash(expected_hash), calculate_block_hash(block_header, block_commitments),);
 }
@@ -109,6 +110,7 @@ fn change_field_of_hash_input() {
             price_in_fri: GasPrice(1),
             price_in_wei: GasPrice(1),
         },
+        l2_gas_price: GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) },
         state_root: GlobalRoot(Felt::ONE),
         sequencer: SequencerContractAddress(ContractAddress::from(1_u128)),
         timestamp: BlockTimestamp(1),
