@@ -81,13 +81,6 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                         break;
                     }
                 };
-
-                log::debug!(
-                    "Received: stream_id= {}, chunk_id= {}, fin= {}",
-                    message.stream_id,
-                    message.chunk_id,
-                    message.fin
-                );
                 let stream_id = message.stream_id;
                 let chunk_id = message.chunk_id;
                 let next_chunk_id = self.next_chunk_ids.entry(stream_id).or_insert(0);
@@ -160,7 +153,6 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                 tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
             }
         } // end of loop
-        log::debug!("Done listening for messages");
     }
 
     // Go over each vector in the buffer, push to the end of it if the chunk_id is contiguous
@@ -224,12 +216,6 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                     *chunk_id += 1;
                     *num_buf -= 1;
                 }
-            }
-
-            if let Some(fin_chunk_id) = self.fin_chunk_id.get(&stream_id) {
-                log::debug!("buffer.is_empty()= {}, fin= {}", buffer.is_empty(), fin_chunk_id);
-            } else {
-                log::debug!("buffer.is_empty()= {}, fin= None", buffer.is_empty());
             }
 
             if buffer.is_empty() && self.fin_chunk_id.get(&stream_id).is_some() {
