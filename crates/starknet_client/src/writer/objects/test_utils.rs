@@ -4,8 +4,8 @@ use papyrus_test_utils::{auto_impl_get_test_instance, get_number_of_variants, Ge
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::deprecated_contract_class::{
     ContractClassAbiEntry as DeprecatedContractClassAbiEntry,
-    EntryPoint as DeprecatedEntryPoint,
     EntryPointType as DeprecatedEntryPointType,
+    EntryPointV0 as DeprecatedEntryPoint,
 };
 use starknet_api::transaction::TransactionHash;
 
