@@ -9881,6 +9881,10 @@ dependencies = [
  "starknet_api",
  "starknet_mempool_infra",
  "starknet_mempool_p2p",
+<<<<<<< HEAD
+=======
+ "starknet_mempool_p2p_sender_types",
+>>>>>>> 6d52a6b54 (refactor(mempool): add mempool p2p sender client to mempool wrapper)
  "starknet_mempool_types",
  "tokio",
 ]
@@ -9975,6 +9979,7 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "papyrus_network",
+ "starknet_api",
  "starknet_mempool_infra",
  "starknet_mempool_p2p_types",
 ]

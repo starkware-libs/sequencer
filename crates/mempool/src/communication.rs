@@ -7,7 +7,8 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
 use starknet_mempool_infra::component_runner::ComponentStarter;
 use starknet_mempool_infra::component_server::{LocalComponentServer, RemoteComponentServer};
-use starknet_mempool_p2p::sender::{EmptyMempoolP2pSenderClient, SharedMempoolP2pSenderClient};
+use starknet_mempool_p2p::sender::EmptyMempoolP2pSenderClient;
+use starknet_mempool_p2p_sender_types::communication::SharedMempoolP2pSenderClient;
 use starknet_mempool_types::communication::{
     MempoolRequest,
     MempoolRequestAndResponseSender,

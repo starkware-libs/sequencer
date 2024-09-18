@@ -1,6 +1,10 @@
 use async_trait::async_trait;
+use papyrus_network::network_manager::BroadcastedMessageManager;
+use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
 use starknet_mempool_p2p_types::communication::{
+    MempoolP2pSenderClient,
+    MempoolP2pSenderClientResult,
     MempoolP2pSenderRequest,
     MempoolP2pSenderResponse,
 };

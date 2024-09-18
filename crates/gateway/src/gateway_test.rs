@@ -76,7 +76,7 @@ async fn test_add_tx() {
                     tx_hash,
                     *tx.tip(),
                     *tx.nonce(),
-                    ValidResourceBounds::AllResources(*tx.resource_bounds()),
+                    ValidResourceBounds::AllResources(tx.resource_bounds().clone()),
                 ),
                 account: Account { sender_address, state: AccountState { nonce: *tx.nonce() } },
             },
