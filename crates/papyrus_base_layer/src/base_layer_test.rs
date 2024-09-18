@@ -8,10 +8,13 @@ use starknet_api::felt;
 use tar::Archive;
 use tempfile::{tempdir, TempDir};
 
-use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseLayerContract};
+use crate::ethereum_base_layer_contract::{
+    EthereumBaseLayerConfig,
+    EthereumBaseLayerContract,
+    EthereumContractAddress,
+};
 use crate::BaseLayerContract;
 
-type EthereumContractAddress = String;
 type TestEthereumNodeHandle = (GanacheInstance, TempDir);
 
 const MINIMAL_GANACHE_VERSION: u8 = 7;
@@ -65,7 +68,7 @@ fn get_test_ethereum_node() -> (TestEthereumNodeHandle, EthereumContractAddress)
     let db_path = ganache_db.path().join(DB_NAME);
     let ganache = Ganache::new().args(["--db", db_path.to_str().unwrap()]).spawn();
 
-    ((ganache, ganache_db), SN_CONTRACT_ADDR.to_owned())
+    ((ganache, ganache_db), SN_CONTRACT_ADDR.to_string().parse().unwrap())
 }
 
 #[test_with::executable(ganache)]
@@ -73,8 +76,10 @@ fn get_test_ethereum_node() -> (TestEthereumNodeHandle, EthereumContractAddress)
 // Note: the test requires ganache-cli installed, otherwise it is ignored.
 async fn latest_proved_block_ethereum() {
     let (node_handle, starknet_contract_address) = get_test_ethereum_node();
-    let config =
-        EthereumBaseLayerConfig { node_url: node_handle.0.endpoint(), starknet_contract_address };
+    let config = EthereumBaseLayerConfig {
+        node_url: node_handle.0.endpoint().parse().unwrap(),
+        starknet_contract_address,
+    };
     let contract = EthereumBaseLayerContract::new(config).unwrap();
 
     let first_sn_state_update = (BlockNumber(100), BlockHash(felt!("0x100")));
