@@ -45,6 +45,7 @@ paste.workspace = true
 phf = { workspace = true, features = ["macros"] }
 rand = { workspace = true, optional = true }
 rstest = { workspace = true, optional = true }
+semver.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 sha2.workspace = true

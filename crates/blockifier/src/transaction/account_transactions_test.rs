@@ -9,11 +9,13 @@ use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress,
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
+use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
     DeclareTransactionV2,
     Fee,
+    Resource,
     TransactionHash,
     TransactionVersion,
     ValidResourceBounds,
@@ -54,7 +56,6 @@ use crate::test_utils::{
     get_tx_resources,
     u64_from_usize,
     CairoVersion,
-    NonceManager,
     BALANCE,
     DEFAULT_STRK_L1_GAS_PRICE,
     MAX_FEE,
@@ -1042,7 +1043,12 @@ fn test_insufficient_max_fee_reverts(
     .unwrap();
     assert!(tx_execution_info2.is_reverted());
     assert!(tx_execution_info2.receipt.fee == actual_fee_depth1);
-    assert!(tx_execution_info2.revert_error.unwrap().starts_with("Insufficient max L1 gas:"));
+    assert!(
+        tx_execution_info2
+            .revert_error
+            .unwrap()
+            .starts_with(&format!("Insufficient max {resource}", resource = Resource::L1Gas))
+    );
 
     // Invoke the `recurse` function with depth of 824 and the actual fee of depth 1 as max_fee.
     // This call should fail due to no remaining steps (execution steps based on max_fee are bounded

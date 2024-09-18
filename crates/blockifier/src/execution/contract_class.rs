@@ -26,8 +26,9 @@ use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use itertools::Itertools;
+use semver::Version;
 use serde::de::Error as DeserializationError;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
@@ -45,6 +46,7 @@ use crate::execution::execution_utils::{poseidon_hash_many_cost, sn_api_to_cairo
 use crate::execution::native::utils::contract_entrypoint_to_entrypoint_selector;
 use crate::fee::eth_gas_constants;
 use crate::transaction::errors::TransactionExecutionError;
+use crate::versioned_constants::CompilerVersion;
 
 #[cfg(test)]
 #[path = "contract_class_test.rs"]
@@ -52,6 +54,14 @@ pub mod test;
 
 pub type ContractClassResult<T> = Result<T, ContractClassError>;
 pub type LookupVector<'a> = Vec<&'a FunctionId>;
+
+/// The resource used to run a contract function.
+#[derive(Clone, Copy, Default, Debug, Eq, PartialEq, Serialize)]
+pub enum TrackingResource {
+    #[default]
+    CairoSteps, // AKA VM mode.
+    SierraGas, // AKA Sierra mode.
+}
 
 /// Represents a runnable Starknet contract class (meaning, the program is runnable by the VM).
 #[derive(Clone, Debug, PartialEq, derive_more::From)]
@@ -115,11 +125,21 @@ impl ContractClass {
             }
         }
     }
+
+    /// Returns whether this contract should run using Cairo steps or Sierra gas.
+    pub fn tracking_resource(&self, min_sierra_version: &CompilerVersion) -> TrackingResource {
+        match self {
+            ContractClass::V0(_) => TrackingResource::CairoSteps,
+            ContractClass::V1(contract_class) => {
+                contract_class.tracking_resource(min_sierra_version)
+            }
+        }
+    }
 }
 
 // V0.
 
-/// Represents a runnable Cario 0 Starknet contract class (meaning, the program is runnable by the
+/// Represents a runnable Cairo 0 Starknet contract class (meaning, the program is runnable by the
 /// VM). We wrap the actual class in an Arc to avoid cloning the program when cloning the
 /// class.
 // Note: when deserializing from a SN API class JSON string, the ABI field is ignored
@@ -164,6 +184,10 @@ impl ContractClassV0 {
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, hashed_data_size)]),
         }
+    }
+
+    pub fn tracking_resource(&self) -> TrackingResource {
+        TrackingResource::CairoSteps
     }
 
     pub fn try_from_json_string(raw_contract_class: &str) -> Result<ContractClassV0, ProgramError> {
@@ -237,6 +261,15 @@ impl ContractClassV1 {
                 selector: call.entry_point_selector,
                 typ: call.entry_point_type,
             }),
+        }
+    }
+
+    /// Returns whether this contract should run using Cairo steps or Sierra gas.
+    pub fn tracking_resource(&self, min_sierra_version: &CompilerVersion) -> TrackingResource {
+        if *min_sierra_version <= self.compiler_version {
+            TrackingResource::SierraGas
+        } else {
+            TrackingResource::CairoSteps
         }
     }
 
@@ -373,7 +406,7 @@ pub struct ContractClassV1Inner {
     pub program: Program,
     pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPointV1>>,
     pub hints: HashMap<String, Hint>,
-    pub compiler_version: String,
+    pub compiler_version: CompilerVersion,
     bytecode_segment_lengths: NestedIntList,
 }
 
@@ -451,12 +484,15 @@ impl TryFrom<CasmContractClass> for ContractClassV1 {
         let bytecode_segment_lengths = class
             .bytecode_segment_lengths
             .unwrap_or_else(|| NestedIntList::Leaf(program.data_len()));
-
+        let compiler_version = CompilerVersion(
+            Version::parse(&class.compiler_version)
+                .unwrap_or_else(|_| panic!("Invalid version: '{}'", class.compiler_version)),
+        );
         Ok(Self(Arc::new(ContractClassV1Inner {
             program,
             entry_points_by_type,
             hints: string_to_hint,
-            compiler_version: class.compiler_version,
+            compiler_version,
             bytecode_segment_lengths,
         })))
     }

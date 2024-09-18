@@ -1018,6 +1018,7 @@ dependencies = [
  "rand 0.8.5",
  "regex",
  "rstest",
+ "semver",
  "serde",
  "serde_json",
  "sha2",
@@ -6702,7 +6703,6 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "async-stream",
- "async-trait",
  "bytes",
  "deadqueue",
  "defaultmap",
@@ -9360,6 +9360,7 @@ dependencies = [
  "starknet_consensus_manager_types",
  "starknet_mempool_infra",
  "tokio",
+ "tracing",
  "validator",
 ]
 
@@ -9425,6 +9426,7 @@ dependencies = [
  "starknet_api",
  "starknet_mempool_infra",
  "thiserror",
+ "tracing",
 ]
 
 [[package]]
@@ -9433,11 +9435,16 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "axum",
+ "papyrus_config",
+ "serde",
+ "serde_json",
  "starknet_api",
  "starknet_gateway",
  "starknet_gateway_types",
  "starknet_mempool_infra",
+ "tokio",
  "tracing",
+ "validator",
 ]
 
 [[package]]
@@ -9499,6 +9506,7 @@ dependencies = [
  "starknet_client",
  "starknet_gateway",
  "starknet_gateway_types",
+ "starknet_http_server",
  "starknet_mempool_infra",
  "starknet_mempool_node",
  "starknet_mempool_types",
@@ -9530,6 +9538,8 @@ dependencies = [
  "starknet_consensus_manager",
  "starknet_consensus_manager_types",
  "starknet_gateway",
+ "starknet_gateway_types",
+ "starknet_http_server",
  "starknet_mempool",
  "starknet_mempool_infra",
  "starknet_mempool_types",

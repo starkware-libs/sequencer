@@ -8,10 +8,11 @@ use lazy_static::lazy_static;
 use mockall::mock;
 use mockall::predicate::eq;
 use papyrus_network::network_manager::test_utils::{
-    create_test_broadcast_client_channels,
     create_test_broadcasted_message_manager,
+    mock_register_broadcast_topic,
+    MockBroadcastedMessagesSender,
+    TestSubscriberChannels,
 };
-use papyrus_network::network_manager::BroadcastedMessageManager;
 use papyrus_protobuf::consensus::{ConsensusMessage, Vote};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::transaction::Transaction;
@@ -97,17 +98,16 @@ mock! {
     }
 }
 
-async fn send(
-    sender: &mut futures::channel::mpsc::Sender<(Vec<u8>, BroadcastedMessageManager)>,
-    msg: ConsensusMessage,
-) {
+async fn send(sender: &mut MockBroadcastedMessagesSender<ConsensusMessage>, msg: ConsensusMessage) {
     let broadcasted_message_manager = create_test_broadcasted_message_manager();
-    sender.send((msg.into(), broadcasted_message_manager)).await.unwrap();
+    sender.send((msg, broadcasted_message_manager)).await.unwrap();
 }
 
 #[tokio::test]
 async fn manager_multiple_heights_unordered() {
-    let (mut sender, mut broadcast_client_channels) = create_test_broadcast_client_channels();
+    let TestSubscriberChannels { mock_network, mut subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    let mut sender = mock_network.broadcasted_messages_sender;
     // Send messages for height 2 followed by those for height 1.
     send(&mut sender, proposal(Felt::TWO, 2, 0, *PROPOSER_ID)).await;
     send(&mut sender, prevote(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
@@ -131,10 +131,8 @@ async fn manager_multiple_heights_unordered() {
     context.expect_broadcast().returning(move |_| Ok(()));
 
     let mut manager = MultiHeightManager::new(*VALIDATOR_ID, TIMEOUTS.clone());
-    let decision = manager
-        .run_height(&mut context, BlockNumber(1), &mut broadcast_client_channels)
-        .await
-        .unwrap();
+    let decision =
+        manager.run_height(&mut context, BlockNumber(1), &mut subscriber_channels).await.unwrap();
     assert_eq!(decision.block.id(), BlockHash(Felt::ONE));
 
     // Run the manager for height 2.
@@ -146,10 +144,8 @@ async fn manager_multiple_heights_unordered() {
             block_receiver
         })
         .times(1);
-    let decision = manager
-        .run_height(&mut context, BlockNumber(2), &mut broadcast_client_channels)
-        .await
-        .unwrap();
+    let decision =
+        manager.run_height(&mut context, BlockNumber(2), &mut subscriber_channels).await.unwrap();
     assert_eq!(decision.block.id(), BlockHash(Felt::TWO));
 }
 
@@ -175,7 +171,9 @@ async fn run_consensus_sync() {
     });
 
     // Send messages for height 2.
-    let (mut network_sender, broadcast_client) = create_test_broadcast_client_channels();
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    let mut network_sender = mock_network.broadcasted_messages_sender;
     send(&mut network_sender, proposal(Felt::TWO, 2, 0, *PROPOSER_ID)).await;
     send(&mut network_sender, prevote(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
     send(&mut network_sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
@@ -189,7 +187,7 @@ async fn run_consensus_sync() {
             *VALIDATOR_ID,
             Duration::ZERO,
             TIMEOUTS.clone(),
-            broadcast_client,
+            subscriber_channels,
             &mut sync_receiver,
         )
         .await
@@ -237,7 +235,8 @@ async fn run_consensus_sync_cancellation_safety() {
         Ok(())
     });
 
-    let (mut network_sender, broadcast_client) = create_test_broadcast_client_channels();
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
     let (mut sync_sender, mut sync_receiver) = mpsc::unbounded();
 
     let consensus_handle = tokio::spawn(async move {
@@ -247,11 +246,12 @@ async fn run_consensus_sync_cancellation_safety() {
             *VALIDATOR_ID,
             Duration::ZERO,
             TIMEOUTS.clone(),
-            broadcast_client,
+            subscriber_channels,
             &mut sync_receiver,
         )
         .await
     });
+    let mut network_sender = mock_network.broadcasted_messages_sender;
 
     // Send a proposal for height 1.
     send(&mut network_sender, proposal(Felt::ONE, 1, 0, *PROPOSER_ID)).await;
@@ -274,7 +274,9 @@ async fn run_consensus_sync_cancellation_safety() {
 
 #[tokio::test]
 async fn test_timeouts() {
-    let (mut sender, mut broadcast_client) = create_test_broadcast_client_channels();
+    let TestSubscriberChannels { mock_network, mut subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    let mut sender = mock_network.broadcasted_messages_sender;
     send(&mut sender, proposal(Felt::ONE, 1, 0, *PROPOSER_ID)).await;
     send(&mut sender, prevote(None, 1, 0, *VALIDATOR_ID_2)).await;
     send(&mut sender, prevote(None, 1, 0, *VALIDATOR_ID_3)).await;
@@ -306,8 +308,10 @@ async fn test_timeouts() {
 
     let mut manager = MultiHeightManager::new(*VALIDATOR_ID, TIMEOUTS.clone());
     let manager_handle = tokio::spawn(async move {
-        let decision =
-            manager.run_height(&mut context, BlockNumber(1), &mut broadcast_client).await.unwrap();
+        let decision = manager
+            .run_height(&mut context, BlockNumber(1), &mut subscriber_channels)
+            .await
+            .unwrap();
         assert_eq!(decision.block.id(), BlockHash(Felt::ONE));
     });
 

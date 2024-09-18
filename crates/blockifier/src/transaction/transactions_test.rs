@@ -11,6 +11,7 @@ use rstest::{fixture, rstest};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce, PatriciaKey};
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
     Calldata,
     EventContent,
@@ -80,7 +81,6 @@ use crate::test_utils::{
     get_tx_resources,
     test_erc20_sequencer_balance_key,
     CairoVersion,
-    NonceManager,
     SaltManager,
     BALANCE,
     CURRENT_BLOCK_NUMBER,
@@ -1062,7 +1062,10 @@ fn test_actual_fee_gt_resource_bounds(
     let execution_result = invalid_tx.execute(state, block_context, true, true).unwrap();
     let execution_error = execution_result.revert_error.unwrap();
     // Test error.
-    assert!(execution_error.starts_with("Insufficient max L1 gas:"));
+    assert!(
+        execution_error
+            .starts_with(&format!("Insufficient max {resource}", resource = Resource::L1Gas))
+    );
     // Test that fee was charged.
     let minimal_fee = Fee(minimal_l1_gas
         * u128::from(

@@ -13,7 +13,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
+use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Calldata, ContractAddressSalt, TransactionVersion};
 use starknet_api::{contract_address, felt, patricia_key};
@@ -102,6 +102,9 @@ pub const DEFAULT_ETH_L1_GAS_PRICE: u128 = 100 * u128::pow(10, 9); // Given in u
 pub const DEFAULT_STRK_L1_GAS_PRICE: u128 = 100 * u128::pow(10, 9); // Given in units of STRK.
 pub const DEFAULT_ETH_L1_DATA_GAS_PRICE: u128 = u128::pow(10, 6); // Given in units of Wei.
 pub const DEFAULT_STRK_L1_DATA_GAS_PRICE: u128 = u128::pow(10, 9); // Given in units of STRK.
+pub const DEFAULT_L1_DATA_GAS_MAX_AMOUNT: u64 = u64::pow(10, 6);
+pub const DEFAULT_STRK_L2_GAS_PRICE: u128 = u128::pow(10, 9);
+pub const DEFAULT_L2_GAS_MAX_AMOUNT: u64 = u64::pow(10, 6);
 
 // The block number of the BlockContext being used for testing.
 pub const CURRENT_BLOCK_NUMBER: u64 = 2001;
@@ -111,29 +114,9 @@ pub const CURRENT_BLOCK_NUMBER_FOR_VALIDATE: u64 = 2000;
 pub const CURRENT_BLOCK_TIMESTAMP: u64 = 1072023;
 pub const CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE: u64 = 1069200;
 
-#[derive(Default)]
-pub struct NonceManager {
-    next_nonce: HashMap<ContractAddress, Felt>,
-}
-
-impl NonceManager {
-    pub fn next(&mut self, account_address: ContractAddress) -> Nonce {
-        let next = self.next_nonce.remove(&account_address).unwrap_or_default();
-        self.next_nonce.insert(account_address, next + 1);
-        Nonce(next)
-    }
-
-    /// Decrements the nonce of the account, unless it is zero.
-    pub fn rollback(&mut self, account_address: ContractAddress) {
-        let current = *self.next_nonce.get(&account_address).unwrap_or(&Felt::default());
-        if current != Felt::ZERO {
-            self.next_nonce.insert(account_address, current - 1);
-        }
-    }
-}
-
 // TODO(Yoni, 1/1/2025): move to SN API.
-/// A utility macro to create a [`Nonce`] from a hex string / unsigned integer representation.
+/// A utility macro to create a [`Nonce`](starknet_api::core::Nonce) from a hex string / unsigned
+/// integer representation.
 #[macro_export]
 macro_rules! nonce {
     ($s:expr) => {

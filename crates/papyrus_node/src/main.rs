@@ -108,28 +108,31 @@ fn run_consensus(
 
     let network_channels = network_manager
         .register_broadcast_topic(Topic::new(config.network_topic.clone()), BUFFER_SIZE)?;
-    let BroadcastTopicChannels { messages_to_broadcast_sender, broadcast_client_channels } =
-        network_channels;
     // TODO(matan): connect this to an actual channel.
     if let Some(test_config) = config.test.as_ref() {
         let sync_channels = network_manager
             .register_broadcast_topic(Topic::new(test_config.sync_topic.clone()), BUFFER_SIZE)?;
         let context = PapyrusConsensusContext::new(
             storage_reader.clone(),
-            messages_to_broadcast_sender,
+            network_channels.messages_to_broadcast_sender.clone(),
             config.num_validators,
             Some(sync_channels.messages_to_broadcast_sender),
         );
         let network_receiver = NetworkReceiver::new(
-            broadcast_client_channels,
+            network_channels.broadcasted_messages_receiver,
             test_config.cache_size,
             test_config.random_seed,
             test_config.drop_probability,
             test_config.invalid_probability,
         );
-
+        let broadcast_channels = BroadcastTopicChannels {
+            messages_to_broadcast_sender: network_channels.messages_to_broadcast_sender,
+            broadcasted_messages_receiver: Box::new(network_receiver),
+            reported_messages_sender: network_channels.reported_messages_sender,
+            continue_propagation_sender: network_channels.continue_propagation_sender,
+        };
         let sync_receiver =
-            sync_channels.broadcast_client_channels.map(|(vote, _report_sender)| {
+            sync_channels.broadcasted_messages_receiver.map(|(vote, _report_sender)| {
                 BlockNumber(vote.expect("Sync channel should never have errors").height)
             });
         Ok(tokio::spawn(papyrus_consensus::run_consensus(
@@ -138,13 +141,13 @@ fn run_consensus(
             config.validator_id,
             config.consensus_delay,
             config.timeouts.clone(),
-            network_receiver,
+            broadcast_channels,
             sync_receiver,
         )))
     } else {
         let context = PapyrusConsensusContext::new(
             storage_reader.clone(),
-            messages_to_broadcast_sender,
+            network_channels.messages_to_broadcast_sender.clone(),
             config.num_validators,
             None,
         );
@@ -154,7 +157,7 @@ fn run_consensus(
             config.validator_id,
             config.consensus_delay,
             config.timeouts.clone(),
-            broadcast_client_channels,
+            network_channels,
             futures::stream::pending(),
         )))
     }

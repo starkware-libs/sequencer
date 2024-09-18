@@ -57,7 +57,7 @@
   "components.consensus_manager.component_type": {
     "description": "The component type.",
     "privacy": "Public",
-    "value": "AsynchronousComponent"
+    "value": "SynchronousComponent"
   },
   "components.consensus_manager.execute": {
     "description": "The component execution flag.",
@@ -194,16 +194,6 @@
     "privacy": "Public",
     "value": 1
   },
-  "gateway_config.network_config.ip": {
-    "description": "The gateway server ip.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
-  },
-  "gateway_config.network_config.port": {
-    "description": "The gateway server port.",
-    "privacy": "Public",
-    "value": 8080
-  },
   "gateway_config.stateful_tx_validator_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
     "privacy": "Public",
@@ -288,6 +278,16 @@
     "description": "If true, validates that a transaction has non-zero L2 resource bounds.",
     "privacy": "Public",
     "value": false
+  },
+  "http_server_config.ip": {
+    "description": "The http server ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "http_server_config.port": {
+    "description": "The http server port.",
+    "privacy": "Public",
+    "value": 8080
   },
   "rpc_state_reader_config.json_rpc_version": {
     "description": "The json rpc version.",

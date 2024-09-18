@@ -53,7 +53,7 @@ impl From<starknet_api::block::BlockHeader> for BlockHeader {
                 price_in_wei: header.l1_gas_price.price_in_wei,
                 price_in_fri: header.l1_gas_price.price_in_fri,
             },
-            starknet_version: header.starknet_version.0,
+            starknet_version: header.starknet_version.to_string(),
         }
     }
 }
