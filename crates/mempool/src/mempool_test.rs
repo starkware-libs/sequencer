@@ -485,7 +485,7 @@ fn test_add_tx_multi_nonce_success(mut mempool: Mempool) {
     let input_address_0_nonce_0 =
         add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8);
     let input_address_1_nonce_0 =
-        add_tx_input!(tx_hash: 2, sender_address: "0x1", tx_nonce: 0_u8,account_nonce: 0_u8);
+        add_tx_input!(tx_hash: 2, sender_address: "0x1", tx_nonce: 0_u8, account_nonce: 0_u8);
     let input_address_0_nonce_1 =
         add_tx_input!(tx_hash: 3, sender_address: "0x0", tx_nonce: 1_u8, account_nonce: 0_u8);
 
@@ -533,14 +533,24 @@ fn test_add_tx_lower_than_queued_nonce() {
         add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8);
 
     let queue_txs = [TransactionReference::new(&valid_input.tx)];
-    let expected_mempool_content = MempoolContentBuilder::new().with_queue(queue_txs).build();
+    let account_nonce_pairs =
+        [(valid_input.account.sender_address, valid_input.account.state.nonce)];
+    let expected_mempool_content = MempoolContentBuilder::new()
+        .with_queue(queue_txs.clone())
+        .with_account_nonces(account_nonce_pairs)
+        .build();
     let pool_txs = [valid_input.tx];
-    let mut mempool: Mempool =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build().into();
+    let mut mempool: Mempool = MempoolContentBuilder::new()
+        .with_pool(pool_txs)
+        .with_queue(queue_txs)
+        .with_account_nonces(account_nonce_pairs)
+        .build()
+        .into();
 
     // Test and assert the original transaction remains.
     assert_matches!(mempool.add_tx(lower_nonce_input), Err(MempoolError::DuplicateNonce { .. }));
     expected_mempool_content.assert_eq_transaction_queue_content(&mempool);
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
 }
 
 #[rstest]
@@ -832,24 +842,6 @@ fn test_account_nonces_update_in_add_tx(mut mempool: Mempool) {
     let expected_mempool_content = MempoolContentBuilder::new()
         .with_account_nonces(vec![(input.account.sender_address, input.account.state.nonce)])
         .build();
-    expected_mempool_content.assert_eq_account_nonces(&mempool);
-}
-
-#[rstest]
-fn test_account_nonce_does_not_decrease_in_add_tx() {
-    // Setup.
-    let input_with_lower_account_nonce = add_tx_input!(tx_nonce: 0_u8, account_nonce: 0_u8);
-    let account_nonces =
-        [(input_with_lower_account_nonce.account.sender_address, Nonce(felt!(2_u8)))];
-    let mut mempool: Mempool =
-        MempoolContentBuilder::new().with_account_nonces(account_nonces).build().into();
-
-    // Test: receives a transaction with a lower account nonce.
-    add_tx(&mut mempool, &input_with_lower_account_nonce);
-
-    // Assert: the account nonce is not updated.
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_account_nonces(account_nonces).build();
     expected_mempool_content.assert_eq_account_nonces(&mempool);
 }
 
