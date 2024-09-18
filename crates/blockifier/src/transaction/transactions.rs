@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use serde::{Deserialize, Serialize};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::transaction::{
@@ -324,7 +325,7 @@ impl TransactionInfoCreator for DeclareTransaction {
         }
     }
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeployAccountTransaction {
     pub tx: starknet_api::executable_transaction::DeployAccountTransaction,
     // Indicates the presence of the only_query bit in the version.
@@ -440,10 +441,12 @@ impl TransactionInfoCreator for DeployAccountTransaction {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InvokeTransaction {
+    #[serde(flatten)]
     pub tx: starknet_api::executable_transaction::InvokeTransaction,
     // Indicates the presence of the only_query bit in the version.
+    #[serde(default)]
     pub only_query: bool,
 }
 
@@ -564,7 +567,7 @@ impl TransactionInfoCreator for InvokeTransaction {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct L1HandlerTransaction {
     pub tx: starknet_api::transaction::L1HandlerTransaction,
     pub tx_hash: TransactionHash,
