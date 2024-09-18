@@ -888,6 +888,18 @@ pub enum Resource {
     L1DataGas,
 }
 
+impl Resource {
+    pub fn to_hex(&self) -> &'static str {
+        match self {
+            Resource::L1Gas => "0x00000000000000000000000000000000000000000000000000004c315f474153",
+            Resource::L2Gas => "0x00000000000000000000000000000000000000000000000000004c325f474153",
+            Resource::L1DataGas => {
+                "0x000000000000000000000000000000000000000000000000004c315f44415441"
+            }
+        }
+    }
+}
+
 /// Fee bounds for an execution resource.
 /// TODO(Yael): add types ResourceAmount and ResourcePrice and use them instead of u64 and u128.
 #[derive(
