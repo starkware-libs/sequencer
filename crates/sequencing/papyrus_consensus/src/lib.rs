@@ -11,7 +11,6 @@ pub mod simulation_network_receiver;
 pub mod single_height_consensus;
 #[allow(missing_docs)]
 pub mod state_machine;
-#[allow(missing_docs)]
 pub mod stream_handler;
 #[cfg(test)]
 pub(crate) mod test_utils;

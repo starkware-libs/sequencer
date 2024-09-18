@@ -9,47 +9,48 @@ use papyrus_protobuf::converters::ProtobufConversionError;
 #[path = "stream_handler_test.rs"]
 mod stream_handler_test;
 
+/// Configuration for the StreamHandler.
+#[derive(Default)]
 pub struct StreamHandlerConfig {
-    pub timeout_seconds: Option<u64>,
-    pub timeout_millis: Option<u64>,
+    /// The maximum buffer size for each stream (if None, will have not limit).
     pub max_buffer_size: Option<u64>,
+    /// The maximum number of streams that can be buffered at the same time (if None, will have not
+    /// limit).
     pub max_num_streams: Option<u64>,
 }
 
-impl Default for StreamHandlerConfig {
-    fn default() -> Self {
-        StreamHandlerConfig {
-            timeout_seconds: None,
-            timeout_millis: None,
-            max_buffer_size: None,
-            max_num_streams: None,
-        }
-    }
-}
-
+/// A StreamHandler is responsible for buffering and sending messages in order.
 pub struct StreamHandler<
     T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
 > {
+    /// Configuration for the StreamHandler (things like max buffer size, etc.).
     pub config: StreamHandlerConfig,
 
+    /// An end of a channel used to send out the messages in the correct order.
     pub sender: mpsc::Sender<StreamMessage<T>>,
+    /// An end of a channel used to receive messages.
     pub receiver: mpsc::Receiver<StreamMessage<T>>,
 
-    // these dictionaries are keyed on the stream_id
+    // All these maps are keyed on the stream_id.
+    /// The next chunk_id that is expected for each stream.
     pub next_chunk_ids: BTreeMap<u64, u64>,
+    /// The chunk_id of the message that is marked as "fin" (the last message).
     pub fin_chunk_id: BTreeMap<u64, u64>,
+    /// The maximum chunk_id that was received for each stream.
     pub max_chunk_id: BTreeMap<u64, u64>,
+    /// The number of messages that are currently buffered for each stream.
     pub num_buffered: BTreeMap<u64, u64>,
 
-    // there is a separate message buffer for each stream,
-    // each message buffer is keyed by the chunk_id of the first message in
-    // a contiguous sequence of messages (saved in a Vec)
+    /// A separate message buffer for each stream_id. For each stream_id there's a nested BTreeMap.
+    /// Each nested map is keyed by the chunk_id of the first message it contains.
+    /// The messages in each nested map are stored in a contiguous sequence of messages (as a Vec).
     pub message_buffers: BTreeMap<u64, BTreeMap<u64, Vec<StreamMessage<T>>>>,
 }
 
 impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
     StreamHandler<T>
 {
+    /// Create a new StreamHandler.
     pub fn new(
         config: StreamHandlerConfig,
         sender: mpsc::Sender<StreamMessage<T>>,
@@ -67,30 +68,19 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         }
     }
 
+    /// Listen for messages on the receiver channel, buffering them if necessary.
+    /// Guarntees that messages are sent in order.
     pub async fn listen(&mut self) {
         let t0 = std::time::Instant::now();
         loop {
-            log::debug!("Listening for messages for {} milliseconds", t0.elapsed().as_millis());
-
-            if let Some(timeout) = self.config.timeout_seconds {
-                if t0.elapsed().as_secs() > timeout {
-                    break;
-                }
-            }
-
-            if let Some(timeout) = self.config.timeout_millis {
-                if t0.elapsed().as_millis() > timeout.into() {
-                    break;
-                }
-            }
-
             if let Ok(message) = self.receiver.try_next() {
-                if let None = message {
-                    // message is none in case the channel was closed!
-                    break;
-                }
-
-                let message = message.unwrap(); // code above handles case where message is None
+                let message = match message {
+                    Some(message) => message,
+                    None => {
+                        // message is none in case the channel was closed!
+                        break;
+                    }
+                };
 
                 log::debug!(
                     "Received: stream_id= {}, chunk_id= {}, fin= {}",
@@ -127,20 +117,19 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                 }
 
                 if message.fin {
-                    // there is guaranteed to be a maximum chunk_id for this stream, as we have
-                    // received at least one message
-                    let max_chunk_id = self.max_chunk_id.get(&stream_id).unwrap();
-                    if *max_chunk_id > chunk_id {
-                        panic!(
-                            "Received fin message with chunk_id {} that is smaller than the \
-                             max_chunk_id {}",
-                            chunk_id, max_chunk_id
-                        );
+                    if let Some(max_chunk_id) = self.max_chunk_id.get(&stream_id) {
+                        if *max_chunk_id > chunk_id {
+                            panic!(
+                                "Received fin message with chunk_id {} that is smaller than the \
+                                 max_chunk_id {}",
+                                chunk_id, max_chunk_id
+                            );
+                        }
+                        self.fin_chunk_id.insert(stream_id, chunk_id);
                     }
-                    self.fin_chunk_id.insert(stream_id, chunk_id);
                 }
 
-                // check that chunk_id is not bigger than the fin_chunk_id
+                // Check that chunk_id is not bigger than the fin_chunk_id.
                 if let Some(fin_chunk_id) = self.fin_chunk_id.get(&stream_id) {
                     if chunk_id > *fin_chunk_id {
                         panic!(
@@ -151,14 +140,14 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                     }
                 }
 
-                // this means we can just send the message without buffering it
+                // This means we can just send the message without buffering it.
                 if chunk_id == *next_chunk_id {
                     self.sender.try_send(message).expect("Send should succeed");
                     *next_chunk_id += 1;
-                    // try to drain the buffer
+                    // Try to drain the buffer.
                     self.drain_buffer(stream_id);
                 } else if chunk_id > *next_chunk_id {
-                    // save the message in the buffer.
+                    // Save the message in the buffer.
                     self.store(message);
                 } else {
                     panic!(
@@ -167,15 +156,15 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                     );
                 }
             } else {
-                // Err comes when the channel is open but no message was received
-                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                // Err comes when the channel is open but no message was received.
+                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
             }
         } // end of loop
         log::debug!("Done listening for messages");
     }
 
-    // go over each vector in the buffer, push to the end of it if the chunk_id is contiguous
-    // if no vector has a contiguous chunk_id, start a new vector
+    // Go over each vector in the buffer, push to the end of it if the chunk_id is contiguous
+    // if no vector has a contiguous chunk_id, start a new vector.
     fn store(&mut self, message: StreamMessage<T>) {
         let stream_id = message.stream_id;
         let chunk_id = message.chunk_id;
@@ -188,21 +177,21 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         let buffer = self.message_buffers.entry(stream_id).or_insert(BTreeMap::new());
         let keys = buffer.keys().cloned().collect::<Vec<u64>>();
         for id in keys {
-            // go over the keys in order from smallest to largest id
+            // Go over the keys in order from smallest to largest id.
             let last_id = buffer[&id].last().unwrap().chunk_id;
 
-            // we can just add the message to the end of the vector
+            // We can just add the message to the end of the vector.
             if last_id == chunk_id - 1 {
                 buffer.get_mut(&id).unwrap().push(message);
                 return;
             }
 
-            // no vector with last chunk_id will match, skip the rest of the loop
+            // No vector with last chunk_id will match, skip the rest of the loop.
             if last_id > chunk_id {
                 break;
             }
 
-            // this message should already be inside this vector!
+            // This message should already be inside this vector!
             if chunk_id >= id || last_id < chunk_id - 1 {
                 let old_message = buffer[&id].iter().filter(|m| m.chunk_id == chunk_id).next();
                 if let Some(old_message) = old_message {
@@ -211,7 +200,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                          message: {}",
                         old_message, message
                     );
-                } else if let None = old_message {
+                } else if old_message.is_none() {
                     panic!("Message with chunk_id {} should be in buffer but is not! ", chunk_id);
                 }
             }
@@ -219,16 +208,16 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         buffer.insert(chunk_id, vec![message]);
     }
 
-    // Tries to drain as many messages as possible from the buffer (in order)
-    // DOES NOT guarantee that the buffer will be empty after calling this function
+    // Tries to drain as many messages as possible from the buffer (in order),
+    // DOES NOT guarantee that the buffer will be empty after calling this function.
     fn drain_buffer(&mut self, stream_id: u64) {
         if let Some(buffer) = self.message_buffers.get_mut(&stream_id) {
             let chunk_id = self.next_chunk_ids.entry(stream_id).or_insert(0);
             let num_buf = self.num_buffered.get_mut(&stream_id).unwrap();
 
-            // drain each vec of messages one by one, if they are in order
-            // to drain a vector, we must match the first id (the key) with the chunk_id
-            // this while loop will keep draining vectors one by one, until chunk_id doesn't match
+            // Drain each vec of messages one by one, if they are in order.
+            // To drain a vector, we must match the first id (the key) with the chunk_id.
+            // This while loop will keep draining vectors one by one, until chunk_id doesn't match.
             while let Some(messages) = buffer.remove(chunk_id) {
                 for message in messages {
                     self.sender.try_send(message).expect("Send should succeed");

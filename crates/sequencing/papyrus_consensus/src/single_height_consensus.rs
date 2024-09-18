@@ -120,6 +120,7 @@ impl<BlockT: ConsensusBlock> SingleHeightConsensus<BlockT> {
         };
 
         let block_receiver = context.validate_proposal(self.height, p2p_messages_receiver).await;
+        // (ProposalContentId, ProposalFin)
 
         let block = match block_receiver.await {
             Ok(block) => block,
