@@ -543,11 +543,23 @@ fn test_add_tx_lower_than_queued_nonce() {
     let lower_nonce_input =
         add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8);
 
-    let queue_txs = [TransactionReference::new(&valid_input.tx)];
-    let expected_mempool_content = MempoolContentBuilder::new().with_queue(queue_txs).build();
-    let pool_txs = [valid_input.tx];
-    let mut mempool =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build_into_mempool();
+    let MempoolInput {
+        tx: valid_input_tx,
+        account: Account { sender_address, state: AccountState { nonce } },
+    } = valid_input;
+    let queue_txs = [TransactionReference::new(&valid_input_tx)];
+    let account_nonces = [(sender_address, nonce)];
+    let expected_mempool_content = MempoolContentBuilder::new()
+        .with_queue(queue_txs)
+        .with_account_nonces(account_nonces)
+        .build();
+
+    let pool_txs = [valid_input_tx];
+    let mut mempool = MempoolContentBuilder::new()
+        .with_pool(pool_txs)
+        .with_queue(queue_txs)
+        .with_account_nonces(account_nonces)
+        .build_into_mempool();
 
     // Test and assert the original transaction remains.
     add_tx_expect_error(
@@ -559,6 +571,7 @@ fn test_add_tx_lower_than_queued_nonce() {
         },
     );
     expected_mempool_content.assert_eq_transaction_queue_content(&mempool);
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
 }
 
 #[rstest]
