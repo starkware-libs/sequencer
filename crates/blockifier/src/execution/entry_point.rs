@@ -14,14 +14,13 @@ use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants;
+use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::errors::{
-    ConstructorEntryPointExecutionError,
-    EntryPointExecutionError,
-    PreExecutionError,
+    ConstructorEntryPointExecutionError, EntryPointExecutionError, PreExecutionError,
 };
 use crate::execution::execution_utils::execute_entry_point_call_wrapper;
 use crate::state::state_api::{State, StateResult};
@@ -172,6 +171,15 @@ impl CallEntryPoint {
         }
 
         execution_result
+    }
+    pub fn verify_constructor(&self) -> Result<(), PreExecutionError> {
+        if self.entry_point_type == EntryPointType::Constructor
+            && self.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
+        {
+            Err(PreExecutionError::InvalidConstructorEntryPointName)
+        } else {
+            Ok(())
+        }
     }
 }
 

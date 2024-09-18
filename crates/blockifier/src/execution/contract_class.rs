@@ -28,8 +28,7 @@ use starknet_api::deprecated_contract_class::{
 };
 use starknet_types_core::felt::Felt;
 
-use crate::abi::abi_utils::selector_from_name;
-use crate::abi::constants::{self, CONSTRUCTOR_ENTRY_POINT_NAME};
+use crate::abi::constants::{self};
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::errors::{ContractClassError, NativeEntryPointError, PreExecutionError};
 use crate::execution::execution_utils::{poseidon_hash_many_cost, sn_api_to_cairo_vm_program};
@@ -237,7 +236,7 @@ impl ContractClassV1 {
         &self,
         call: &CallEntryPoint,
     ) -> Result<EntryPointV1, PreExecutionError> {
-        assert_entry_point_not_constructor(call)?;
+        call.verify_constructor()?;
 
         let entry_points_of_same_type = &self.0.entry_points_by_type[&call.entry_point_type];
         let filtered_entry_points: Vec<_> = entry_points_of_same_type
@@ -624,7 +623,7 @@ impl NativeContractClassV1 {
 
     /// Returns an entry point into the natively compiled contract.
     pub fn get_entry_point(&self, call: &CallEntryPoint) -> Result<&FunctionId, PreExecutionError> {
-        assert_entry_point_not_constructor(call)?;
+        call.verify_constructor()?;
 
         let entry_points_of_same_type = &self.0.entry_points_by_type[call.entry_point_type];
         let filtered_entry_points: Vec<_> = entry_points_of_same_type
