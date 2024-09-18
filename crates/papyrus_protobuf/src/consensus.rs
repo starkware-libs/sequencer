@@ -59,8 +59,8 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         let message: Vec<u8> = self.message.clone().into();
         write!(
             f,
-            "StreamMessage {{ message: {:?}, stream_id: {}, chunk_id: {}, fin: {} }}",
-            message, self.stream_id, self.chunk_id, self.fin
+            "StreamMessage {{ message: {:?}, stream_id: {}, message_id: {}, fin: {} }}",
+            message, self.stream_id, self.message_id, self.fin
         )
     }
 }

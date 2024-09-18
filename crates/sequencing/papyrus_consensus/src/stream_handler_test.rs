@@ -8,13 +8,13 @@ mod tests {
 
     fn make_random_message(
         stream_id: u64,
-        chunk_id: u64,
+        message_id: u64,
         fin: bool,
     ) -> StreamMessage<ConsensusMessage> {
         StreamMessage {
             message: ConsensusMessage::Proposal(Proposal::default()),
             stream_id,
-            chunk_id,
+            message_id,
             fin,
         }
     }
@@ -65,7 +65,7 @@ mod tests {
                 .expect(&format!("Receive message {i} should succeed"))
                 .expect(&format!("Receive message {i} should succeed"));
             assert_eq!(message.stream_id, stream_id);
-            assert_eq!(message.chunk_id, i);
+            assert_eq!(message.message_id, i);
             if i == 9 {
                 assert_eq!(message.fin, true);
             }
@@ -112,7 +112,7 @@ mod tests {
                 .expect(&format!("Receive message {i} should succeed"))
                 .expect(&format!("Receive message {i} should succeed"));
             assert_eq!(message.stream_id, stream_id);
-            assert_eq!(message.chunk_id, i);
+            assert_eq!(message.message_id, i);
             if i == 5 {
                 assert_eq!(message.fin, true);
             }
@@ -190,7 +190,7 @@ mod tests {
                 .expect(&format!("Receive message {i} should succeed"))
                 .expect(&format!("Receive message {i} should succeed"));
             assert_eq!(message.stream_id, stream_id1);
-            assert_eq!(message.chunk_id, i);
+            assert_eq!(message.message_id, i);
             if i == 9 {
                 assert_eq!(message.fin, true);
             }
@@ -225,7 +225,7 @@ mod tests {
                 .expect(&format!("Receive message {i} should succeed"))
                 .expect(&format!("Receive message {i} should succeed"));
             assert_eq!(message.stream_id, stream_id2);
-            assert_eq!(message.chunk_id, i);
+            assert_eq!(message.message_id, i);
             if i == 5 {
                 assert_eq!(message.fin, true);
             }
@@ -256,7 +256,7 @@ mod tests {
                 .expect(&format!("Receive message {i} should succeed"))
                 .expect(&format!("Receive message {i} should succeed"));
             assert_eq!(message.stream_id, stream_id3);
-            assert_eq!(message.chunk_id, i);
+            assert_eq!(message.message_id, i);
             assert_eq!(message.fin, false);
         }
 
@@ -291,7 +291,7 @@ mod tests {
         tx_input.try_send(make_random_message(13, 45, false)).expect("Send should succeed");
         tx_input.close_channel(); // this should signal the handler to break out of the loop
 
-        // this should panic since the fin was received on chunk_id 42, but we are sending 45
+        // this should panic since the fin was received on message_id 42, but we are sending 45
         let join_handle = tokio::spawn(async move {
             h.listen().await;
         });
@@ -307,7 +307,7 @@ mod tests {
         tx_input.try_send(make_random_message(13, 42, true)).expect("Send should succeed");
         tx_input.close_channel(); // this should signal the handler to break out of the loop
 
-        // this should panic since the fin was received on chunk_id 42, but we are sending 45
+        // this should panic since the fin was received on message_id 42, but we are sending 45
         let join_handle = tokio::spawn(async move {
             h.listen().await;
         });
