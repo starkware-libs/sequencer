@@ -12,8 +12,8 @@ alloy-json-rpc.workspace = true
 alloy-primitives.workspace = true
 alloy-provider.workspace = true
 alloy-sol-types.workspace = true
-alloy-transport.workspace = true
 alloy-transport-http.workspace = true
+alloy-transport.workspace = true
 async-trait.workspace = true
 ethers.workspace = true
 papyrus_config.workspace = true
@@ -22,7 +22,7 @@ serde_json.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
-url.workspace = true
+url = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
 ethers-core.workspace = true

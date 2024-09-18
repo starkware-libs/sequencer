@@ -4,8 +4,7 @@ use std::future::IntoFuture;
 use alloy_contract::{ContractInstance, Interface};
 use alloy_dyn_abi::SolType;
 use alloy_json_rpc::RpcError;
-use alloy_primitives::hex::FromHexError;
-use alloy_primitives::Address;
+pub(crate) use alloy_primitives::Address as EthereumContractAddress;
 use alloy_provider::network::Ethereum;
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
 use alloy_sol_types::sol_data;
@@ -17,7 +16,7 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, Serialized
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::hash::StarkHash;
-use url::ParseError;
+use url::Url;
 
 use crate::BaseLayerContract;
 
@@ -26,22 +25,17 @@ pub enum EthereumBaseLayerError {
     #[error(transparent)]
     Contract(#[from] alloy_contract::Error),
     #[error(transparent)]
-    FromHex(#[from] FromHexError),
-    #[error(transparent)]
     RpcError(#[from] RpcError<TransportErrorKind>),
     #[error(transparent)]
     Serde(#[from] serde_json::Error),
     #[error(transparent)]
     TypeError(#[from] alloy_sol_types::Error),
-    #[error(transparent)]
-    Url(#[from] ParseError),
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct EthereumBaseLayerConfig {
-    // TODO(yair): consider using types.
-    pub node_url: String,
-    pub starknet_contract_address: String,
+    pub node_url: Url,
+    pub starknet_contract_address: EthereumContractAddress,
 }
 
 impl SerializeConfig for EthereumBaseLayerConfig {
@@ -65,9 +59,12 @@ impl SerializeConfig for EthereumBaseLayerConfig {
 
 impl Default for EthereumBaseLayerConfig {
     fn default() -> Self {
+        let starknet_contract_address =
+            "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4".parse().unwrap();
+
         Self {
-            node_url: "https://mainnet.infura.io/v3/<your_api_key>".to_string(),
-            starknet_contract_address: "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4".to_string(),
+            node_url: "https://mainnet.infura.io/v3/<your_api_key>".parse().unwrap(),
+            starknet_contract_address,
         }
     }
 }
@@ -79,12 +76,17 @@ pub struct EthereumBaseLayerContract {
 
 impl EthereumBaseLayerContract {
     pub fn new(config: EthereumBaseLayerConfig) -> Result<Self, EthereumBaseLayerError> {
-        let address: Address = config.starknet_contract_address.parse()?;
-        let client = ProviderBuilder::new().on_http(config.node_url.parse()?);
+        let client = ProviderBuilder::new().on_http(config.node_url);
 
         // The solidity contract was pre-compiled, and only the relevant functions were kept.
         let abi = serde_json::from_str(include_str!("core_contract_latest_block.abi"))?;
-        Ok(Self { contract: ContractInstance::new(address, client, Interface::new(abi)) })
+        Ok(Self {
+            contract: ContractInstance::new(
+                config.starknet_contract_address,
+                client,
+                Interface::new(abi),
+            ),
+        })
     }
 }
 
