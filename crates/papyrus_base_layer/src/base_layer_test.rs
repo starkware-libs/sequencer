@@ -86,13 +86,13 @@ async fn latest_proved_block_ethereum() {
     let second_sn_state_update = (BlockNumber(200), BlockHash(felt!("0x200")));
     let third_sn_state_update = (BlockNumber(300), BlockHash(felt!("0x300")));
 
-    type Scenario = (Option<u64>, Option<(BlockNumber, BlockHash)>);
+    type Scenario = (u64, Option<(BlockNumber, BlockHash)>);
     let scenarios: Vec<Scenario> = vec![
-        (None, Some(third_sn_state_update)),
-        (Some(5), Some(third_sn_state_update)),
-        (Some(15), Some(second_sn_state_update)),
-        (Some(25), Some(first_sn_state_update)),
-        (Some(1000), None),
+        (0, Some(third_sn_state_update)),
+        (5, Some(third_sn_state_update)),
+        (15, Some(second_sn_state_update)),
+        (25, Some(first_sn_state_update)),
+        (1000, None),
     ];
     for (scenario, expected) in scenarios {
         let latest_block = contract.latest_proved_block(scenario).await.unwrap();
