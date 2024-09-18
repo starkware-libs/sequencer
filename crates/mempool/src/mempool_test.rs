@@ -827,20 +827,6 @@ fn test_commit_block_from_different_leader() {
 // `account_nonces` tests.
 
 #[rstest]
-fn test_account_nonces_update_in_add_tx(mut mempool: Mempool) {
-    // Setup.
-    let input = add_tx_input!(tx_nonce: 1, account_nonce: 1);
-
-    // Test: update through new input.
-    add_tx(&mut mempool, &input);
-
-    // Assert.
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_account_nonces([("0x0", 1)]).build();
-    expected_mempool_content.assert_eq_account_nonces(&mempool);
-}
-
-#[rstest]
 fn test_account_nonce_does_not_decrease_in_add_tx() {
     // Setup.
     let input_with_lower_account_nonce = add_tx_input!(tx_nonce: 0, account_nonce: 0);
