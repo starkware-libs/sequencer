@@ -6,6 +6,8 @@ use std::sync::Arc;
 use cairo_vm::vm::runners::cairo_runner::{ExecutionResources, ResourceTracker, RunResources};
 use num_traits::{Inv, Zero};
 use serde::Serialize;
+use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::state::StorageKey;
@@ -18,9 +20,6 @@ use starknet_api::transaction::fields::{
 use starknet_api::transaction::TransactionVersion;
 use starknet_types_core::felt::Felt;
 
-use crate::abi::abi_utils::selector_from_name;
-use crate::abi::constants;
-use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
@@ -468,7 +467,7 @@ pub fn handle_empty_constructor(
             class_hash: Some(ctor_context.class_hash),
             code_address: ctor_context.code_address,
             entry_point_type: EntryPointType::Constructor,
-            entry_point_selector: selector_from_name(constants::CONSTRUCTOR_ENTRY_POINT_NAME),
+            entry_point_selector: selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME),
             calldata: Calldata::default(),
             storage_address: ctor_context.storage_address,
             caller_address: ctor_context.caller_address,

@@ -1,11 +1,10 @@
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::calldata;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{TransactionHash, TransactionVersion};
 use starknet_types_core::felt::Felt;
-
-use crate::abi::abi_utils::selector_from_name;
 
 pub fn l1handler_tx(l1_fee: Fee, contract_address: ContractAddress) -> L1HandlerTransaction {
     let calldata = calldata![

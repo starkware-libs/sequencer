@@ -1,5 +1,6 @@
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::ContractAddress;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
@@ -8,7 +9,6 @@ use starknet_api::transaction::TransactionVersion;
 use starknet_api::{calldata, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
-use crate::abi::abi_utils::selector_from_name;
 use crate::blockifier::config::{ConcurrencyConfig, TransactionExecutorConfig};
 use crate::blockifier::transaction_executor::TransactionExecutor;
 use crate::context::{BlockContext, ChainInfo};

@@ -7,7 +7,7 @@ use starknet_api::transaction::{EventContent, EventData, EventKey};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
-use crate::abi::abi_utils::selector_from_name;
+use starknet_api::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
 use crate::execution::entry_point::CallEntryPoint;

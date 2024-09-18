@@ -1,5 +1,4 @@
 use assert_matches::assert_matches;
-use blockifier::abi::abi_utils::selector_from_name;
 use blockifier::execution::call_info::CallExecution;
 use blockifier::execution::entry_point::CallEntryPoint;
 use blockifier::retdata;
@@ -11,6 +10,7 @@ use blockifier::test_utils::{trivial_external_entry_point_new, CairoVersion};
 use indexmap::IndexMap;
 use papyrus_storage::class::ClassStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::state::{StateDiff, StorageKey};

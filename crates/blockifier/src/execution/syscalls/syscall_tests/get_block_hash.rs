@@ -6,7 +6,7 @@ use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
-use crate::abi::abi_utils::selector_from_name;
+use starknet_api::abi::abi_utils::selector_from_name;
 use crate::abi::constants;
 use crate::context::ChainInfo;
 use crate::execution::call_info::CallExecution;

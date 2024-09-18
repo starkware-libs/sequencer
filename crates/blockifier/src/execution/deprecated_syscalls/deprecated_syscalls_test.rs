@@ -20,7 +20,7 @@ use starknet_api::{calldata, felt, nonce, storage_key};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
-use crate::abi::abi_utils::selector_from_name;
+use starknet_api::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources, OrderedEvent};
 use crate::execution::common_hints::ExecutionMode;

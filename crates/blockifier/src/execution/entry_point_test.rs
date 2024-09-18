@@ -8,7 +8,7 @@ use starknet_api::execution_utils::format_panic_data;
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::{calldata, felt, storage_key};
 
-use crate::abi::abi_utils::{get_storage_var_address, selector_from_name};
+use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, CallInfo};
 use crate::execution::entry_point::CallEntryPoint;

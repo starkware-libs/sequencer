@@ -5,7 +5,7 @@ use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::L2ToL1Payload;
 use test_case::test_case;
 
-use crate::abi::abi_utils::selector_from_name;
+use starknet_api::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, MessageToL1, OrderedL2ToL1Message};
 use crate::execution::entry_point::CallEntryPoint;

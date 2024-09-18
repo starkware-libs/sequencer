@@ -18,7 +18,7 @@ use starknet_api::{
     storage_key,
 };
 
-use crate::abi::abi_utils::{get_fee_token_var_address, get_storage_var_address};
+use starknet_api::abi::abi_utils::{get_fee_token_var_address, get_storage_var_address};
 use crate::concurrency::test_utils::{
     class_hash,
     contract_address,

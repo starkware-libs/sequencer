@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use rstest::rstest;
+use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
@@ -11,7 +12,6 @@ use starknet_api::{contract_address, declare_tx_args, felt, invoke_tx_args, nonc
 use starknet_types_core::felt::Felt;
 
 use super::WorkerExecutor;
-use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::bouncer::Bouncer;
 use crate::concurrency::fee_utils::STORAGE_READ_SEQUENCER_BALANCE_INDICES;
 use crate::concurrency::scheduler::{Task, TransactionStatus};

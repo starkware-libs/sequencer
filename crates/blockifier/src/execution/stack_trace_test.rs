@@ -2,6 +2,8 @@ use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use regex::Regex;
 use rstest::rstest;
+use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::core::{
     calculate_contract_address,
     ClassHash,
@@ -28,8 +30,6 @@ use starknet_api::transaction::TransactionVersion;
 use starknet_api::{calldata, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
-use crate::abi::abi_utils::selector_from_name;
-use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::context::{BlockContext, ChainInfo};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::entry_point::CallEntryPoint;

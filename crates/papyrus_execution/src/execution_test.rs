@@ -3,7 +3,6 @@
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
-use blockifier::abi::abi_utils::get_storage_var_address;
 use blockifier::execution::call_info::Retdata;
 use blockifier::execution::errors::ConstructorEntryPointExecutionError;
 use blockifier::execution::stack_trace::gen_tx_execution_error_trace;
@@ -12,6 +11,7 @@ use blockifier::versioned_constants::VersionedConstants;
 use indexmap::indexmap;
 use papyrus_storage::test_utils::get_test_storage;
 use pretty_assertions::assert_eq;
+use starknet_api::abi::abi_utils::get_storage_var_address;
 use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::core::{ChainId, CompiledClassHash, EntryPointSelector};
 use starknet_api::state::{StateNumber, ThinStateDiff};

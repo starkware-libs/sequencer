@@ -9,7 +9,7 @@ use starknet_api::transaction::fields::GasVectorComputationMode;
 use starknet_api::{calldata, felt, storage_key};
 use test_case::test_case;
 
-use crate::abi::abi_utils::selector_from_name;
+use starknet_api::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources};
 use crate::execution::entry_point::{CallEntryPoint, CallType};
