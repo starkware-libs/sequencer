@@ -14,7 +14,7 @@ use starknet_api::felt;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
-use crate::execution::contract_class::{ContractClassV1, EntryPointV1};
+use crate::execution::contract_class::{ContractClassV1, EntryPointV1, TrackedResource};
 use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,
@@ -63,6 +63,8 @@ pub fn execute_entry_point_call(
         "Class hash must not be None when executing an entry point.".into(),
     ))?;
 
+    let tracked_resource =
+        *context.tracked_resource.last().expect("Unexpected empty tracked resource.");
     let VmExecutionContext {
         mut runner,
         mut syscall_handler,
@@ -103,6 +105,7 @@ pub fn execute_entry_point_call(
         previous_resources,
         n_total_args,
         program_extra_data_length,
+        tracked_resource,
     )?;
     if call_info.execution.failed {
         return Err(EntryPointExecutionError::ExecutionFailed {
@@ -373,6 +376,7 @@ pub fn finalize_execution(
     previous_resources: ExecutionResources,
     n_total_args: usize,
     program_extra_data_length: usize,
+    tracked_resource: TrackedResource,
 ) -> Result<CallInfo, PostExecutionError> {
     // Close memory holes in segments (OS code touches those memory cells, we simulate it).
     let program_start_ptr = runner
@@ -421,6 +425,7 @@ pub fn finalize_execution(
         },
         resources: full_call_resources.filter_unused_builtins(),
         inner_calls: syscall_handler.inner_calls,
+        tracked_resource,
         storage_read_values: syscall_handler.read_values,
         accessed_storage_keys: syscall_handler.accessed_keys,
     })
