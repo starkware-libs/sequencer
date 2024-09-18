@@ -146,7 +146,7 @@ use crate::test_utils::{
     validate_schema,
     SpecFile,
 };
-use crate::version_config::VERSION_0_7 as VERSION;
+use crate::version_config::VERSION_0_8 as VERSION;
 
 lazy_static! {
     pub static ref GAS_PRICE: GasPricePerToken = GasPricePerToken{
@@ -214,7 +214,7 @@ async fn execution_call() {
 
     call_api_then_assert_and_validate_schema_for_result(
         &module,
-        "starknet_V0_7_call",
+        "starknet_V0_8_call",
         vec![
             Box::new(CallRequest {
                 contract_address: *DEPRECATED_CONTRACT_ADDRESS,
@@ -232,7 +232,7 @@ async fn execution_call() {
     // Calling a non-existent contract.
     let err = module
         .call::<_, Vec<Felt>>(
-            "starknet_V0_7_call",
+            "starknet_V0_8_call",
             (
                 CallRequest {
                     contract_address: ContractAddress(patricia_key!("0x1234")),
@@ -250,7 +250,7 @@ async fn execution_call() {
     // Calling a non-existent block.
     let err = module
         .call::<_, Vec<Felt>>(
-            "starknet_V0_7_call",
+            "starknet_V0_8_call",
             (
                 CallRequest {
                     contract_address: ContractAddress(patricia_key!("0x1234")),
@@ -268,7 +268,7 @@ async fn execution_call() {
     // Calling a non-existent function (contract error).
     let err = module
         .call::<_, Vec<Felt>>(
-            "starknet_V0_7_call",
+            "starknet_V0_8_call",
             (
                 CallRequest {
                     contract_address: *DEPRECATED_CONTRACT_ADDRESS,
@@ -302,7 +302,7 @@ async fn execution_call() {
 
     module
         .call::<_, Vec<Felt>>(
-            "starknet_V0_7_call",
+            "starknet_V0_8_call",
             (
                 CallRequest { contract_address, entry_point_selector, calldata },
                 BlockId::HashOrNumber(BlockHashOrNumber::Number(BlockNumber(0))),
@@ -329,7 +329,7 @@ async fn pending_execution_call() {
 
     let res = module
         .call::<_, Vec<Felt>>(
-            "starknet_V0_7_call",
+            "starknet_V0_8_call",
             (
                 CallRequest {
                     contract_address: *DEPRECATED_CONTRACT_ADDRESS,
@@ -363,7 +363,7 @@ async fn pending_execution_call() {
 
     module
         .call::<_, Vec<Felt>>(
-            "starknet_V0_7_call",
+            "starknet_V0_8_call",
             (
                 CallRequest { contract_address, entry_point_selector, calldata },
                 BlockId::Tag(Tag::Pending),
@@ -396,7 +396,7 @@ async fn call_estimate_fee() {
 
     call_api_then_assert_and_validate_schema_for_result(
         &module,
-        "starknet_V0_7_estimateFee",
+        "starknet_V0_8_estimateFee",
         vec![
             Box::new(vec![invoke.clone()]),
             Box::<Vec<SimulationFlag>>::default(),
@@ -412,7 +412,7 @@ async fn call_estimate_fee() {
     // price produces a different fee.
     let res = module
         .call::<_, Vec<FeeEstimation>>(
-            "starknet_V0_7_estimateFee",
+            "starknet_V0_8_estimateFee",
             (
                 vec![invoke.clone()],
                 Vec::<SimulationFlag>::new(),
@@ -427,7 +427,7 @@ async fn call_estimate_fee() {
     // mode produces a different fee.
     let res = module
         .call::<_, Vec<FeeEstimation>>(
-            "starknet_V0_7_estimateFee",
+            "starknet_V0_8_estimateFee",
             (
                 vec![invoke.clone()],
                 Vec::<SimulationFlag>::new(),
@@ -442,7 +442,7 @@ async fn call_estimate_fee() {
     // TODO(yair): test with an account contract which has a lengthy validate function.
     let res = module
         .call::<_, Vec<FeeEstimation>>(
-            "starknet_V0_7_estimateFee",
+            "starknet_V0_8_estimateFee",
             (
                 vec![invoke],
                 Vec::<SimulationFlag>::from([SimulationFlag::SkipValidate]),
@@ -469,7 +469,7 @@ async fn call_estimate_fee() {
         }));
     let res = module
         .call::<_, Vec<FeeEstimation>>(
-            "starknet_V0_7_estimateFee",
+            "starknet_V0_8_estimateFee",
             (
                 vec![non_existent_entry_point],
                 Vec::<SimulationFlag>::new(),
@@ -522,7 +522,7 @@ async fn pending_call_estimate_fee() {
 
     let res = module
         .call::<_, Vec<FeeEstimation>>(
-            "starknet_V0_7_estimateFee",
+            "starknet_V0_8_estimateFee",
             (vec![invoke.clone()], Vec::<SimulationFlag>::new(), BlockId::Tag(Tag::Pending)),
         )
         .await
@@ -586,7 +586,7 @@ async fn test_call_simulate(
 
     let mut res = call_and_validate_schema_for_result::<_, Vec<SimulatedTransaction>>(
         module,
-        "starknet_V0_7_simulateTransactions",
+        "starknet_V0_8_simulateTransactions",
         vec![Box::new(block_id), Box::new(vec![invoke]), Box::<Vec<SimulationFlag>>::default()],
         &VERSION,
         SpecFile::TraceApi,
@@ -627,7 +627,7 @@ async fn test_call_simulate(
 
     let res = module
         .call::<_, Vec<SimulatedTransaction>>(
-            "starknet_V0_7_simulateTransactions",
+            "starknet_V0_8_simulateTransactions",
             (block_id, vec![invoke], Vec::<SimulationFlag>::new()),
         )
         .await
@@ -667,7 +667,7 @@ async fn call_simulate_skip_validate() {
 
     let mut res = call_and_validate_schema_for_result::<_, Vec<SimulatedTransaction>>(
         &module,
-        "starknet_V0_7_simulateTransactions",
+        "starknet_V0_8_simulateTransactions",
         vec![
             Box::new(BlockId::HashOrNumber(BlockHashOrNumber::Number(BlockNumber(0)))),
             Box::new(vec![invoke]),
@@ -716,7 +716,7 @@ async fn call_simulate_skip_fee_charge() {
 
     let mut res = call_and_validate_schema_for_result::<_, Vec<SimulatedTransaction>>(
         &module,
-        "starknet_V0_7_simulateTransactions",
+        "starknet_V0_8_simulateTransactions",
         vec![
             Box::new(BlockId::HashOrNumber(BlockHashOrNumber::Number(BlockNumber(0)))),
             Box::new(vec![invoke]),
@@ -829,7 +829,7 @@ async fn trace_block_transactions_regular_and_pending() {
 
     let tx_1_trace = call_and_validate_schema_for_result::<_, TransactionTrace>(
         &module,
-        "starknet_V0_7_traceTransaction",
+        "starknet_V0_8_traceTransaction",
         vec![Box::new(tx_hash1)],
         &VERSION,
         SpecFile::TraceApi,
@@ -839,7 +839,7 @@ async fn trace_block_transactions_regular_and_pending() {
     assert_matches!(tx_1_trace, TransactionTrace::Invoke(_));
 
     let tx_2_trace = module
-        .call::<_, TransactionTrace>("starknet_V0_7_traceTransaction", [tx_hash2])
+        .call::<_, TransactionTrace>("starknet_V0_8_traceTransaction", [tx_hash2])
         .await
         .unwrap();
 
@@ -847,7 +847,7 @@ async fn trace_block_transactions_regular_and_pending() {
 
     let res = call_and_validate_schema_for_result::<_, Vec<TransactionTraceWithHash>>(
         &module,
-        "starknet_V0_7_traceBlockTransactions",
+        "starknet_V0_8_traceBlockTransactions",
         vec![Box::new(BlockId::HashOrNumber(BlockHashOrNumber::Number(BlockNumber(3))))],
         &VERSION,
         SpecFile::TraceApi,
@@ -903,7 +903,7 @@ async fn trace_block_transactions_regular_and_pending() {
 
     let res = module
         .call::<_, Vec<TransactionTraceWithHash>>(
-            "starknet_V0_7_traceBlockTransactions",
+            "starknet_V0_8_traceBlockTransactions",
             [BlockId::Tag(Tag::Pending)],
         )
         .await
@@ -917,12 +917,12 @@ async fn trace_block_transactions_regular_and_pending() {
 
     // Ask for trace of transactions in the pending block.
     let pending_tx_1_trace = module
-        .call::<_, TransactionTrace>("starknet_V0_7_traceTransaction", [tx_hash1])
+        .call::<_, TransactionTrace>("starknet_V0_8_traceTransaction", [tx_hash1])
         .await
         .unwrap();
     assert_eq!(pending_tx_1_trace, tx_1_trace);
     let pending_tx_2_trace = module
-        .call::<_, TransactionTrace>("starknet_V0_7_traceTransaction", [tx_hash2])
+        .call::<_, TransactionTrace>("starknet_V0_8_traceTransaction", [tx_hash2])
         .await
         .unwrap();
     assert_eq!(pending_tx_2_trace, tx_2_trace);
@@ -1041,21 +1041,21 @@ async fn trace_block_transactions_and_trace_transaction_execution_context() {
 
     validate_result(
         module
-            .call::<_, TransactionTrace>("starknet_V0_7_traceTransaction", [tx_hash1])
+            .call::<_, TransactionTrace>("starknet_V0_8_traceTransaction", [tx_hash1])
             .await
             .unwrap(),
     );
 
     validate_result(
         module
-            .call::<_, TransactionTrace>("starknet_V0_7_traceTransaction", [tx_hash2])
+            .call::<_, TransactionTrace>("starknet_V0_8_traceTransaction", [tx_hash2])
             .await
             .unwrap(),
     );
 
     let res = module
         .call::<_, Vec<TransactionTraceWithHash>>(
-            "starknet_V0_7_traceBlockTransactions",
+            "starknet_V0_8_traceBlockTransactions",
             [BlockId::HashOrNumber(BlockHashOrNumber::Number(BlockNumber(3)))],
         )
         .await
@@ -1160,21 +1160,21 @@ async fn pending_trace_block_transactions_and_trace_transaction_execution_contex
 
     validate_result(
         module
-            .call::<_, TransactionTrace>("starknet_V0_7_traceTransaction", [tx_hash1])
+            .call::<_, TransactionTrace>("starknet_V0_8_traceTransaction", [tx_hash1])
             .await
             .unwrap(),
     );
 
     validate_result(
         module
-            .call::<_, TransactionTrace>("starknet_V0_7_traceTransaction", [tx_hash2])
+            .call::<_, TransactionTrace>("starknet_V0_8_traceTransaction", [tx_hash2])
             .await
             .unwrap(),
     );
 
     let res = module
         .call::<_, Vec<TransactionTraceWithHash>>(
-            "starknet_V0_7_traceBlockTransactions",
+            "starknet_V0_8_traceBlockTransactions",
             [BlockId::Tag(Tag::Pending)],
         )
         .await
@@ -1214,7 +1214,7 @@ async fn call_estimate_message_fee() {
 
     call_api_then_assert_and_validate_schema_for_result(
         &module,
-        "starknet_V0_7_estimateMessageFee",
+        "starknet_V0_8_estimateMessageFee",
         vec![
             Box::new(MESSAGE_FROM_L1.clone()),
             Box::new(BlockId::HashOrNumber(BlockHashOrNumber::Number(BlockNumber(0)))),

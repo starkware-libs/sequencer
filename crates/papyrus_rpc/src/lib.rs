@@ -12,8 +12,7 @@ mod rpc_test;
 mod syncing_state;
 #[cfg(test)]
 mod test_utils;
-mod v0_6;
-mod v0_7;
+mod v0_8;
 mod version_config;
 
 use std::collections::BTreeMap;
@@ -48,19 +47,19 @@ use starknet_client::RetryConfig;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, instrument};
 // Aliasing the latest version of the RPC.
-use v0_7 as latest;
-pub use v0_7::api::CompiledContractClass;
+use v0_8 as latest;
+pub use v0_8::api::CompiledContractClass;
 use validator::Validate;
 
 use crate::api::get_methods_from_supported_apis;
 use crate::middleware::{deny_requests_with_unsupported_path, proxy_rpc_request};
 use crate::syncing_state::get_last_synced_block;
-pub use crate::v0_6::transaction::{
-    InvokeTransaction as InvokeTransactionRPC0_6,
-    InvokeTransactionV1 as InvokeTransactionV1RPC0_6,
-    TransactionVersion1 as TransactionVersion1RPC0_6,
+pub use crate::v0_8::transaction::{
+    InvokeTransaction as InvokeTransactionRPC0_8,
+    InvokeTransactionV1 as InvokeTransactionV1RPC0_8,
+    TransactionVersion1 as TransactionVersion1RPC0_8,
 };
-pub use crate::v0_6::write_api_result::AddInvokeOkResult as AddInvokeOkResultRPC0_6;
+pub use crate::v0_8::write_api_result::AddInvokeOkResult as AddInvokeOkResultRPC0_8;
 
 // TODO(shahak): Consider adding genesis hash to the config to support chains that have
 // different genesis hash.

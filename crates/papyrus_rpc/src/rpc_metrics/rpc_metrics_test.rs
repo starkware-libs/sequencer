@@ -34,10 +34,10 @@ use crate::test_utils::{
 
 #[test]
 fn get_method_and_version_test() {
-    let method_name = "starknet_V0_6_0_blockNumber";
+    let method_name = "starknet_V0_8_0_blockNumber";
     let (method, version) = get_method_and_version(method_name);
     assert_eq!(method, "blockNumber");
-    assert_eq!(version, "V0_6_0");
+    assert_eq!(version, "V0_8_0");
 }
 
 // Ignored because server_metrics test is running in parallel and we are unable to install multiple
@@ -45,7 +45,7 @@ fn get_method_and_version_test() {
 #[ignore]
 #[test]
 fn logger_test() {
-    let full_method_name = "starknet_V0_6_0_blockNumber";
+    let full_method_name = "starknet_V0_8_0_blockNumber";
     let (method, version) = get_method_and_version(full_method_name);
     let labels = vec![(METHOD_LABEL, method.as_str()), (VERSION_LABEL, version.as_str())];
     let illegal_method_label = vec![(METHOD_LABEL, ILLEGAL_METHOD)];
@@ -119,7 +119,7 @@ fn logger_test() {
     );
 
     // Illegal method.
-    let bad_method_name = "starknet_V0_6_0_illegal_method";
+    let bad_method_name = "starknet_V0_8_0_illegal_method";
     let (method, version) = get_method_and_version(bad_method_name);
     let bad_labels = vec![(METHOD_LABEL, method.as_str()), (VERSION_LABEL, version.as_str())];
     logger.on_result(
@@ -178,7 +178,7 @@ async fn server_metrics() {
         let mut incoming_get_state_update = String::new();
         let mut failing_get_state_update = String::new();
         let metrics = prometheus_handle.render();
-        for line in metrics.split('\n').filter(|line| line.contains("V0_6")) {
+        for line in metrics.split('\n').filter(|line| line.contains("V0_8")) {
             if line.contains("rpc_incoming_requests{method=\"blockNumber\"") {
                 println!("{}", line);
                 line.split(' ').last().unwrap().clone_into(&mut incoming_block_number);
@@ -216,8 +216,8 @@ async fn server_metrics() {
     assert_eq!(incoming_get_state_update, "0");
     assert_eq!(failing_get_state_update, "0");
 
-    send_request(server_address, "starknet_blockNumber", "", "V0_6").await;
-    send_request(server_address, "starknet_getStateUpdate", r#"{"block_number": 7}"#, "V0_6").await;
+    send_request(server_address, "starknet_blockNumber", "", "V0_8").await;
+    send_request(server_address, "starknet_getStateUpdate", r#"{"block_number": 7}"#, "V0_8").await;
 
     let (
         incoming_block_number,
