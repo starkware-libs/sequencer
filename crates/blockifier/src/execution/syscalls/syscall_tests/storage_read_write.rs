@@ -1,8 +1,8 @@
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::state::StorageKey;
 use starknet_api::{calldata, felt};
 use test_case::test_case;
 
-use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;

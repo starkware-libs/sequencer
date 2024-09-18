@@ -1,4 +1,5 @@
 use pretty_assertions::assert_eq;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_utils::format_panic_data;
 use starknet_api::state::StorageKey;
@@ -6,7 +7,6 @@ use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
-use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants;
 use crate::context::ChainInfo;
 use crate::execution::call_info::CallExecution;

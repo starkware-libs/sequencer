@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use blockifier::abi::abi_utils::get_storage_var_address;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::indexmap;
 use lazy_static::lazy_static;
@@ -11,6 +10,7 @@ use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::{StorageReader, StorageWriter};
 use serde::de::DeserializeOwned;
+use starknet_api::abi::abi_utils::get_storage_var_address;
 use starknet_api::block::{
     BlockBody,
     BlockHash,

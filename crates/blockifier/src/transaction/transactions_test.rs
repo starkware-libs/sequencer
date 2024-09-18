@@ -8,6 +8,12 @@ use num_bigint::BigUint;
 use num_traits::Pow;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
+use starknet_api::abi::abi_utils::{
+    get_fee_token_var_address,
+    get_storage_var_address,
+    selector_from_name,
+};
+use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::block::GasPriceVector;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce};
@@ -49,12 +55,6 @@ use starknet_api::{
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
-use crate::abi::abi_utils::{
-    get_fee_token_var_address,
-    get_storage_var_address,
-    selector_from_name,
-};
-use crate::abi::constants as abi_constants;
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{
     CallExecution,
@@ -1765,7 +1765,7 @@ fn test_deploy_account_tx(
             class_hash: Some(account_class_hash),
             code_address: None,
             entry_point_type: EntryPointType::Constructor,
-            entry_point_selector: selector_from_name(abi_constants::CONSTRUCTOR_ENTRY_POINT_NAME),
+            entry_point_selector: selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME),
             storage_address: deployed_account_address,
             initial_gas: user_initial_gas.unwrap_or(GasAmount(default_initial_gas_cost())).0,
             ..Default::default()

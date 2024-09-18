@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
+use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::ContractAddress;
 use starknet_api::felt;
 use starknet_api::transaction::fields::Fee;
 use strum::IntoEnumIterator;
 
-use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::context::ChainInfo;
 use crate::state::cached_state::CachedState;
 use crate::test_utils::contracts::FeatureContract;

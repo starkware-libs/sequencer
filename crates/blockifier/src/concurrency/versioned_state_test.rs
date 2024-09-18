@@ -4,6 +4,7 @@ use std::thread;
 
 use assert_matches::assert_matches;
 use rstest::{fixture, rstest};
+use starknet_api::abi::abi_utils::{get_fee_token_var_address, get_storage_var_address};
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::fields::{ContractAddressSalt, ValidResourceBounds};
@@ -18,7 +19,6 @@ use starknet_api::{
     storage_key,
 };
 
-use crate::abi::abi_utils::{get_fee_token_var_address, get_storage_var_address};
 use crate::concurrency::test_utils::{
     class_hash,
     contract_address,

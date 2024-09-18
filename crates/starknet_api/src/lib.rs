@@ -2,6 +2,7 @@
 //!
 //! [`Starknet`]: https://starknet.io/
 
+pub mod abi;
 pub mod block;
 pub mod block_hash;
 pub mod contract_class;

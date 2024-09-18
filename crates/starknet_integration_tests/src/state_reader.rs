@@ -2,7 +2,6 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
-use blockifier::abi::abi_utils::get_fee_token_var_address;
 use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{
@@ -27,6 +26,7 @@ use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::test_utils::{get_test_storage, get_test_storage_with_config_by_scope};
 use papyrus_storage::{StorageConfig, StorageReader, StorageWriter};
+use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{
     BlockBody,
     BlockHeader,
