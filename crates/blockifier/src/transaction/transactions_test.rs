@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::fs::File;
 use std::sync::{Arc, LazyLock};
 
 use assert_matches::assert_matches;
@@ -13,17 +14,10 @@ use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
-    Calldata,
-    EventContent,
-    EventData,
-    EventKey,
-    Fee,
-    L2ToL1Payload,
-    Resource,
-    TransactionSignature,
-    TransactionVersion,
-    ValidResourceBounds,
+    Calldata, EventContent, EventData, EventKey, Fee, L2ToL1Payload, Resource, TransactionSignature, TransactionVersion, ValidResourceBounds
 };
+use starknet_api::transaction::InvokeTransaction::V1 as V1;
+use starknet_api::transaction::InvokeTransaction::V3 as V3;
 use starknet_api::{
     calldata,
     class_hash,
@@ -136,6 +130,8 @@ use crate::{
     check_transaction_execution_error_for_invalid_scenario,
     retdata,
 };
+
+use super::InvokeTransaction;
 
 static VERSIONED_CONSTANTS: LazyLock<VersionedConstants> =
     LazyLock::new(VersionedConstants::create_for_testing);
@@ -2166,4 +2162,12 @@ fn test_emit_event_exceeds_limit(
 fn test_balance_print() {
     let int = balance_to_big_uint(&Felt::from(16_u64), &Felt::from(1_u64));
     assert!(format!("{}", int) == (BigUint::from(u128::MAX) + BigUint::from(17_u128)).to_string());
+}
+
+#[test]
+fn test_deserialize_invoke_tx() {
+    let raw_invoke = File::open("./src/transaction/invoke_transactions.json").unwrap();
+    let invoke_transactions = serde_json::from_reader::<_, Vec<InvokeTransaction>>(raw_invoke).unwrap();
+    assert_matches!(&invoke_transactions[0].tx.tx, V1 { .. });
+    assert_matches!(&invoke_transactions[1].tx.tx, V3 { .. });
 }

@@ -221,7 +221,9 @@ impl DeployAccountTransaction {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct InvokeTransaction {
+    #[serde(flatten)]
     pub tx: crate::transaction::InvokeTransaction,
+    #[serde(rename = "transaction_hash")]
     pub tx_hash: TransactionHash,
 }
 
