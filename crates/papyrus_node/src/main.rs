@@ -16,8 +16,6 @@ use papyrus_config::presentation::get_config_presentation;
 use papyrus_config::validators::config_validate;
 use papyrus_config::ConfigError;
 use papyrus_consensus::config::ConsensusConfig;
-use papyrus_consensus::simulation_network_receiver::NetworkReceiver;
-use papyrus_consensus::types::ConsensusError;
 use papyrus_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use papyrus_monitoring_gateway::MonitoringServer;
 use papyrus_network::gossipsub_impl::Topic;
@@ -58,6 +56,44 @@ const GENESIS_HASH: &str = "0x0";
 // Duration between updates to the storage metrics (those in the collect_storage_metrics function).
 const STORAGE_METRICS_UPDATE_INTERVAL: Duration = Duration::from_secs(10);
 
+pub struct PapyrusUtilities {
+    storage_reader: StorageReader,
+    storage_writer: StorageWriter,
+    maybe_network_manager: Option<NetworkManager>,
+    local_peer_id: String,
+}
+
+impl PapyrusUtilities {
+    pub fn new(config: &NodeConfig) -> anyhow::Result<Self> {
+        let (storage_reader, storage_writer) = open_storage(config.storage.clone())?;
+        let (maybe_network_manager, local_peer_id) = register_to_network(config.network.clone())?;
+        Ok(Self { storage_reader, storage_writer, maybe_network_manager, local_peer_id })
+    }
+}
+
+pub struct PapyrusTaskHandles {
+    storage_metrics_handle: Option<JoinHandle<anyhow::Result<()>>>,
+    sync_client_and_rpc_server_handles:
+        Option<(JoinHandle<anyhow::Result<()>>, JoinHandle<anyhow::Result<()>>)>,
+    monitoring_server_handle: Option<JoinHandle<anyhow::Result<()>>>,
+    p2p_sync_server_handle: Option<JoinHandle<anyhow::Result<()>>>,
+    consensus_handle: Option<JoinHandle<anyhow::Result<()>>>,
+    network_handle: Option<JoinHandle<anyhow::Result<()>>>,
+}
+
+impl Default for PapyrusTaskHandles {
+    fn default() -> Self {
+        Self {
+            storage_metrics_handle: None,
+            sync_client_and_rpc_server_handles: None,
+            monitoring_server_handle: None,
+            p2p_sync_server_handle: None,
+            consensus_handle: None,
+            network_handle: None,
+        }
+    }
+}
+
 #[cfg(feature = "rpc")]
 async fn create_rpc_server_future(
     config: &NodeConfig,
@@ -65,7 +101,7 @@ async fn create_rpc_server_future(
     pending_data: Arc<RwLock<PendingData>>,
     pending_classes: Arc<RwLock<PendingClasses>>,
     storage_reader: StorageReader,
-) -> anyhow::Result<JoinHandle<()>> {
+) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
     let (_, server_handle) = run_server(
         &config.rpc,
         shared_highest_block,
@@ -75,7 +111,7 @@ async fn create_rpc_server_future(
         VERSION_FULL,
     )
     .await?;
-    Ok(tokio::spawn(server_handle.stopped()))
+    Ok(tokio::spawn(async move { Ok(server_handle.stopped().await) }))
 }
 
 #[cfg(not(feature = "rpc"))]
@@ -85,7 +121,7 @@ async fn create_rpc_server_future(
     _pending_data: Arc<RwLock<PendingData>>,
     _pending_classes: Arc<RwLock<PendingClasses>>,
     _storage_reader: StorageReader,
-) -> anyhow::Result<JoinHandle<()>> {
+) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
     Ok(tokio::spawn(pending()))
 }
 
@@ -93,11 +129,12 @@ fn build_consensus(
     config: Option<&ConsensusConfig>,
     storage_reader: StorageReader,
     network_manager: Option<&mut NetworkManager>,
-) -> anyhow::Result<JoinHandle<Result<(), ConsensusError>>> {
+) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
     let (Some(config), Some(network_manager)) = (config, network_manager) else {
         info!("Consensus is disabled.");
         return Ok(tokio::spawn(pending()));
     };
+    let config = config.clone();
     debug!("Consensus configuration: {config:?}");
 
     let network_channels = network_manager
@@ -129,15 +166,18 @@ fn build_consensus(
             sync_channels.broadcasted_messages_receiver.map(|(vote, _report_sender)| {
                 BlockNumber(vote.expect("Sync channel should never have errors").height)
             });
-        Ok(tokio::spawn(papyrus_consensus::run_consensus(
-            context,
-            config.start_height,
-            config.validator_id,
-            config.consensus_delay,
-            config.timeouts.clone(),
-            broadcast_channels,
-            sync_receiver,
-        )))
+        Ok(tokio::spawn(async move {
+            Ok(papyrus_consensus::run_consensus(
+                context,
+                config.start_height,
+                config.validator_id,
+                config.consensus_delay,
+                config.timeouts.clone(),
+                broadcast_channels,
+                sync_receiver,
+            )
+            .await?)
+        }))
     } else {
         let context = PapyrusConsensusContext::new(
             storage_reader.clone(),
@@ -145,21 +185,37 @@ fn build_consensus(
             config.num_validators,
             None,
         );
-        Ok(tokio::spawn(papyrus_consensus::run_consensus(
-            context,
-            config.start_height,
-            config.validator_id,
-            config.consensus_delay,
-            config.timeouts.clone(),
-            network_channels,
-            futures::stream::pending(),
-        )))
+        Ok(tokio::spawn(async move {
+            Ok(papyrus_consensus::run_consensus(
+                context,
+                config.start_height,
+                config.validator_id,
+                config.consensus_delay,
+                config.timeouts.clone(),
+                network_channels,
+                futures::stream::pending(),
+            )
+            .await?)
+        }))
     }
 }
 
-fn build_storage_metrics(collect_metrics: bool, storage_reader: StorageReader) -> JoinHandle<()> {
+fn build_storage_metrics(
+    collect_metrics: bool,
+    storage_reader: StorageReader,
+) -> JoinHandle<anyhow::Result<()>> {
     if collect_metrics {
-        spawn_storage_metrics_collector(storage_reader, STORAGE_METRICS_UPDATE_INTERVAL)
+        tokio::spawn(
+            async move {
+                loop {
+                    if let Err(error) = update_storage_metrics(&storage_reader) {
+                        warn!("Failed to update storage metrics: {error}");
+                    }
+                    tokio::time::sleep(STORAGE_METRICS_UPDATE_INTERVAL).await;
+                }
+            }
+            .instrument(debug_span!("collect_storage_metrics")),
+        )
     } else {
         tokio::spawn(pending())
     }
@@ -168,7 +224,7 @@ fn build_storage_metrics(collect_metrics: bool, storage_reader: StorageReader) -
 fn build_p2p_sync_server(
     network_manager: Option<&mut NetworkManager>,
     storage_reader: StorageReader,
-) -> JoinHandle<()> {
+) -> JoinHandle<anyhow::Result<()>> {
     let Some(network_manager) = network_manager else {
         info!("P2P Sync is disabled.");
         return tokio::spawn(pending());
@@ -194,7 +250,7 @@ fn build_p2p_sync_server(
     );
 
     let p2p_sync_server = P2PSyncServer::new(storage_reader.clone(), p2p_sync_server_channels);
-    tokio::spawn(p2p_sync_server.run())
+    tokio::spawn(async move { Ok(p2p_sync_server.run().await) })
 }
 
 async fn run_sync(
@@ -227,12 +283,27 @@ async fn run_sync(
     Ok(sync.run().await?)
 }
 
+fn build_monitoring_server(
+    utils: &PapyrusUtilities,
+    config: &NodeConfig,
+) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
+    let monitoring_server = MonitoringServer::new(
+        config.monitoring_gateway.clone(),
+        get_config_presentation(config, true)?,
+        get_config_presentation(config, false)?,
+        utils.storage_reader.clone(),
+        VERSION_FULL,
+        utils.local_peer_id.clone(),
+    )?;
+    Ok(tokio::spawn(async move { Ok(monitoring_server.run_server().await?) }))
+}
+
 async fn build_sync_client_and_rpc_server(
     maybe_network_manager: Option<&mut NetworkManager>,
     storage_reader: StorageReader,
     storage_writer: StorageWriter,
     config: &NodeConfig,
-) -> anyhow::Result<(JoinHandle<anyhow::Result<()>>, JoinHandle<()>)> {
+) -> anyhow::Result<(JoinHandle<anyhow::Result<()>>, JoinHandle<anyhow::Result<()>>)> {
     // The sync is the only writer of the syncing state.
     let shared_highest_block = Arc::new(RwLock::new(None));
     let pending_data = Arc::new(RwLock::new(PendingData {
@@ -302,54 +373,68 @@ async fn build_sync_client_and_rpc_server(
     Ok((sync_handle, server_handle))
 }
 
-async fn run_threads(config: NodeConfig) -> anyhow::Result<()> {
-    // Create basic utilities.
-    let (storage_reader, storage_writer) = open_storage(config.storage.clone())?;
-    let (mut maybe_network_manager, local_peer_id) = register_to_network(config.network.clone())?;
+async fn run_threads(
+    config: NodeConfig,
+    mut utils: PapyrusUtilities,
+    tasks: PapyrusTaskHandles,
+) -> anyhow::Result<()> {
+    let storage_metrics_handle = tasks.storage_metrics_handle.unwrap_or_else(|| {
+        build_storage_metrics(
+            config.monitoring_gateway.collect_metrics,
+            utils.storage_reader.clone(),
+        )
+    });
+    let p2p_sync_server_handle = tasks.p2p_sync_server_handle.unwrap_or_else(|| {
+        build_p2p_sync_server(utils.maybe_network_manager.as_mut(), utils.storage_reader.clone())
+    });
 
-    // Create tasks.
-    let storage_metrics_handle =
-        build_storage_metrics(config.monitoring_gateway.collect_metrics, storage_reader.clone());
-    let p2p_sync_server_handle =
-        build_p2p_sync_server(maybe_network_manager.as_mut(), storage_reader.clone());
-    let consensus_handle = build_consensus(
-        config.consensus.as_ref(),
-        storage_reader.clone(),
-        maybe_network_manager.as_mut(),
-    )?;
-    let (sync_client_handle, rpc_server_handle) = build_sync_client_and_rpc_server(
-        maybe_network_manager.as_mut(),
-        storage_reader.clone(),
-        storage_writer,
-        &config,
-    )
-    .await?;
-    let monitoring_server = MonitoringServer::new(
-        config.monitoring_gateway.clone(),
-        get_config_presentation(&config, true)?,
-        get_config_presentation(&config, false)?,
-        storage_reader.clone(),
-        VERSION_FULL,
-        local_peer_id,
-    )?;
-    let monitoring_server_handle =
-        tokio::spawn(async move { monitoring_server.run_server().await });
+    let consensus_handle = if let Some(handle) = tasks.consensus_handle {
+        handle
+    } else {
+        build_consensus(
+            config.consensus.as_ref(),
+            utils.storage_reader.clone(),
+            utils.maybe_network_manager.as_mut(),
+        )?
+    };
+
+    let monitoring_server_handle = if let Some(handle) = tasks.monitoring_server_handle {
+        handle
+    } else {
+        build_monitoring_server(&utils, &config)?
+    };
+
+    let (sync_client_handle, rpc_server_handle) =
+        if let Some((sync_client_handle, rpc_server_handle)) =
+            tasks.sync_client_and_rpc_server_handles
+        {
+            (sync_client_handle, rpc_server_handle)
+        } else {
+            build_sync_client_and_rpc_server(
+                utils.maybe_network_manager.as_mut(),
+                utils.storage_reader.clone(),
+                utils.storage_writer,
+                &config,
+            )
+            .await?
+        };
 
     // Run last, since the network manager is passed to other tasks during setup.
-    let network_handle = match maybe_network_manager {
-        Some(manager) => tokio::spawn(manager.run()),
-        None => tokio::spawn(pending()),
-    };
+    let network_handle =
+        tasks.network_handle.unwrap_or_else(|| match utils.maybe_network_manager {
+            Some(manager) => tokio::spawn(async move { Ok(manager.run().await?) }),
+            None => tokio::spawn(pending()),
+        });
 
     // Run tasks.
     tokio::select! {
         res = storage_metrics_handle => {
             error!("collecting storage metrics stopped.");
-            res?
+            res??
         }
         res = rpc_server_handle => {
             error!("RPC server stopped.");
-            res?
+            res??
         }
         res = monitoring_server_handle => {
             error!("Monitoring server stopped.");
@@ -361,7 +446,7 @@ async fn run_threads(config: NodeConfig) -> anyhow::Result<()> {
         }
         res = p2p_sync_server_handle => {
             error!("P2P Sync server stopped");
-            res?
+            res??
         }
         res = network_handle => {
             error!("Network stopped.");
@@ -404,33 +489,13 @@ fn configure_tracing() {
     tracing_subscriber::registry().with(fmt_layer).with(level_filter_layer).init();
 }
 
-fn spawn_storage_metrics_collector(
-    storage_reader: StorageReader,
-    update_interval: Duration,
-) -> JoinHandle<()> {
-    tokio::spawn(
-        async move {
-            loop {
-                if let Err(error) = update_storage_metrics(&storage_reader) {
-                    warn!("Failed to update storage metrics: {error}");
-                }
-                tokio::time::sleep(update_interval).await;
-            }
-        }
-        .instrument(debug_span!("collect_storage_metrics")),
-    )
-}
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let config = NodeConfig::load_and_process(args().collect());
-    if let Err(ConfigError::CommandInput(clap_err)) = config {
-        clap_err.exit();
-    }
-
+async fn run(
+    config: NodeConfig,
+    utils: PapyrusUtilities,
+    tasks: PapyrusTaskHandles,
+) -> anyhow::Result<()> {
     configure_tracing();
 
-    let config = config?;
     if let Err(errors) = config_validate(&config) {
         error!("{}", errors);
         exit(1);
@@ -441,5 +506,17 @@ async fn main() -> anyhow::Result<()> {
         .expect("This should be the first and only time we set this value.");
 
     info!("Booting up.");
-    run_threads(config).await
+    run_threads(config, utils, tasks).await
+}
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let config = NodeConfig::load_and_process(args().collect());
+    if let Err(ConfigError::CommandInput(clap_err)) = config {
+        clap_err.exit();
+    }
+    let config = config?;
+
+    let utils = PapyrusUtilities::new(&config)?;
+    run(config, utils, PapyrusTaskHandles::default()).await
 }
