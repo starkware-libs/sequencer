@@ -9,6 +9,7 @@ use starknet_api::state::StorageKey;
 use starknet_api::transaction::{EventContent, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::fee::gas_usage::get_message_segment_length;
 use crate::state::cached_state::StorageEntry;
@@ -122,6 +123,7 @@ pub struct CallInfo {
     pub execution: CallExecution,
     pub resources: ExecutionResources,
     pub inner_calls: Vec<CallInfo>,
+    pub tracked_resource: TrackedResource,
 
     // Additional information gathered during execution.
     pub storage_read_values: Vec<Felt>,
