@@ -121,7 +121,7 @@ fn test_circuit(block_context: BlockContext, max_resource_bounds: ValidResourceB
     .unwrap();
 
     assert!(tx_execution_info.revert_error.is_none());
-    assert_eq!(tx_execution_info.receipt.gas, GasVector::from_l1_gas(6806));
+    assert_eq!(tx_execution_info.receipt.gas, GasVector::from_l1_gas(6866));
 }
 
 #[rstest]
@@ -160,7 +160,7 @@ fn test_rc96_holes(block_context: BlockContext, max_resource_bounds: ValidResour
             [&BuiltinName::range_check96],
         24
     );
-    assert_eq!(tx_execution_info.receipt.gas, GasVector::from_l1_gas(6722));
+    assert_eq!(tx_execution_info.receipt.gas, GasVector::from_l1_gas(6782));
 }
 
 #[rstest]
