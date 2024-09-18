@@ -6,4 +6,5 @@
 pub mod config;
 #[cfg(test)]
 mod precision_test;
+pub mod run;
 pub mod version;
