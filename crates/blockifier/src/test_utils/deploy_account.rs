@@ -1,8 +1,8 @@
 use starknet_api::core::calculate_contract_address;
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
+use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::TransactionHash;
 
-use crate::test_utils::NonceManager;
 use crate::transaction::transactions::DeployAccountTransaction;
 
 pub fn deploy_account_tx(
