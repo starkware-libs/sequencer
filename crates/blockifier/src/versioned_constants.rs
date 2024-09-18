@@ -97,6 +97,9 @@ pub struct VersionedConstants {
     // Transactions settings.
     pub disable_cairo0_redeclaration: bool,
 
+    // Compiler settings.
+    pub enable_reverts: bool,
+
     // Cairo OS constants.
     // Note: if loaded from a json file, there are some assumptions made on its structure.
     // See the struct's docstring for more details.
