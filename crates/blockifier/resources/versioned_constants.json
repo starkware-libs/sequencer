@@ -215,7 +215,7 @@
                 "n_memory_holes": 0
             },
             "Deploy": {
-                "n_steps": 1128,
+                "n_steps": 1130,
                 "builtin_instance_counter": {
                     "pedersen_builtin": 7,
                     "range_check_builtin": 18
@@ -400,7 +400,7 @@
                 "n_memory_holes": 0
             },
             "StorageRead": {
-                "n_steps": 89,
+                "n_steps": 87,
                 "builtin_instance_counter": {
                     "range_check_builtin": 1
                 },
@@ -418,7 +418,7 @@
             "Declare": {
                 "deprecated_resources": {
                     "constant": {
-                        "n_steps": 3161,
+                        "n_steps": 3162,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 16,
                             "range_check_builtin": 56,
@@ -434,7 +434,7 @@
                 },
                 "resources": {
                     "constant": {
-                        "n_steps": 3293,
+                        "n_steps": 3305,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 4,
                             "range_check_builtin": 64,
@@ -452,7 +452,7 @@
             "DeployAccount": {
                 "deprecated_resources": {
                     "constant": {
-                        "n_steps": 4114,
+                        "n_steps": 4118,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 23,
                             "range_check_builtin": 72
@@ -469,7 +469,7 @@
                 },
                 "resources": {
                     "constant": {
-                        "n_steps": 4263,
+                        "n_steps": 4278,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 11,
                             "range_check_builtin": 80,
@@ -489,7 +489,7 @@
             "InvokeFunction": {
                 "deprecated_resources": {
                     "constant": {
-                        "n_steps": 3854,
+                        "n_steps": 3855,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 14,
                             "range_check_builtin": 69
@@ -506,7 +506,7 @@
                 },
                 "resources": {
                     "constant": {
-                        "n_steps": 4027,
+                        "n_steps": 4039,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 4,
                             "range_check_builtin": 77,
