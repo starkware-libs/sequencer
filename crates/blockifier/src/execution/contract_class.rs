@@ -6,8 +6,6 @@ use cairo_lang_casm;
 use cairo_lang_casm::hints::Hint;
 use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use cairo_lang_starknet_classes::NestedIntList;
-#[allow(unused_imports)]
-use cairo_native::executor::AotNativeExecutor;
 use cairo_vm::serde::deserialize_program::{
     ApTracking,
     FlowTrackingData,
