@@ -109,6 +109,21 @@ impl PapyrusResources {
     }
 }
 
+fn build_network_manager(
+    network_config: Option<NetworkConfig>,
+) -> anyhow::Result<(Option<NetworkManager>, String)> {
+    let Some(network_config) = network_config else {
+        return Ok((None, "".to_string()));
+    };
+    let network_manager = network_manager::NetworkManager::new(
+        network_config.clone(),
+        Some(VERSION_FULL.to_string()),
+    );
+    let local_peer_id = network_manager.get_local_peer_id();
+
+    Ok((Some(network_manager), local_peer_id))
+}
+
 #[cfg(feature = "rpc")]
 async fn spawn_rpc_server(
     config: &NodeConfig,
@@ -470,21 +485,6 @@ async fn run_threads(
     Ok(())
 }
 
-fn build_network_manager(
-    network_config: Option<NetworkConfig>,
-) -> anyhow::Result<(Option<NetworkManager>, String)> {
-    let Some(network_config) = network_config else {
-        return Ok((None, "".to_string()));
-    };
-    let network_manager = network_manager::NetworkManager::new(
-        network_config.clone(),
-        Some(VERSION_FULL.to_string()),
-    );
-    let local_peer_id = network_manager.get_local_peer_id();
-
-    Ok((Some(network_manager), local_peer_id))
-}
-
 // TODO(yair): add dynamic level filtering.
 // TODO(dan): filter out logs from dependencies (happens when RUST_LOG=DEBUG)
 // TODO(yair): define and implement configurable filtering.
@@ -520,16 +520,13 @@ fn spawn_storage_metrics_collector(
     )
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let config = NodeConfig::load_and_process(args().collect());
-    if let Err(ConfigError::CommandInput(clap_err)) = config {
-        clap_err.exit();
-    }
-
+pub async fn run(
+    config: NodeConfig,
+    resources: PapyrusResources,
+    tasks: PapyrusTaskHandles,
+) -> anyhow::Result<()> {
     configure_tracing();
 
-    let config = config?;
     if let Err(errors) = config_validate(&config) {
         error!("{}", errors);
         exit(1);
@@ -540,6 +537,16 @@ async fn main() -> anyhow::Result<()> {
         .expect("This should be the first and only time we set this value.");
 
     info!("Booting up.");
+    run_threads(config, resources, tasks).await
+}
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let config = NodeConfig::load_and_process(args().collect());
+    if let Err(ConfigError::CommandInput(clap_err)) = config {
+        clap_err.exit();
+    }
+    let config = config?;
 
     let resources = PapyrusResources::new(&config)?;
     let tasks = PapyrusTaskHandles::default();
