@@ -7,7 +7,6 @@ use std::process::exit;
 use std::sync::Arc;
 use std::time::Duration;
 
-use futures::stream::StreamExt;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_common::metrics::COLLECT_PROFILING_METRICS;
 use papyrus_common::pending_classes::PendingClasses;
@@ -15,11 +14,10 @@ use papyrus_common::BlockHashAndNumber;
 use papyrus_config::presentation::get_config_presentation;
 use papyrus_config::validators::config_validate;
 use papyrus_consensus::config::ConsensusConfig;
-use papyrus_consensus::simulation_network_receiver::NetworkReceiver;
 use papyrus_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use papyrus_monitoring_gateway::MonitoringServer;
 use papyrus_network::gossipsub_impl::Topic;
-use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
+use papyrus_network::network_manager::NetworkManager;
 use papyrus_network::{network_manager, NetworkConfig};
 use papyrus_p2p_sync::client::{P2PSyncClient, P2PSyncClientChannels};
 use papyrus_p2p_sync::server::{P2PSyncServer, P2PSyncServerChannels};
@@ -31,7 +29,7 @@ use papyrus_sync::sources::base_layer::{BaseLayerSourceError, EthereumBaseLayerS
 use papyrus_sync::sources::central::{CentralError, CentralSource, CentralSourceConfig};
 use papyrus_sync::sources::pending::PendingSource;
 use papyrus_sync::{StateSync, SyncConfig};
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::BlockHash;
 use starknet_api::felt;
 use starknet_client::reader::objects::pending_data::{PendingBlock, PendingBlockOrDeprecated};
 use starknet_client::reader::PendingData;
@@ -188,65 +186,24 @@ fn spawn_consensus(
 
     let network_channels = network_manager
         .register_broadcast_topic(Topic::new(config.network_topic.clone()), BUFFER_SIZE)?;
-    // TODO(matan): connect this to an actual channel.
-    if let Some(test_config) = config.test.as_ref() {
-        let sync_channels = network_manager
-            .register_broadcast_topic(Topic::new(test_config.sync_topic.clone()), BUFFER_SIZE)?;
-        let context = PapyrusConsensusContext::new(
-            storage_reader.clone(),
-            network_channels.messages_to_broadcast_sender.clone(),
-            config.num_validators,
-            Some(sync_channels.messages_to_broadcast_sender),
-        );
-        let network_receiver = NetworkReceiver::new(
-            network_channels.broadcasted_messages_receiver,
-            test_config.cache_size,
-            test_config.random_seed,
-            test_config.drop_probability,
-            test_config.invalid_probability,
-        );
-        let broadcast_channels = BroadcastTopicChannels {
-            messages_to_broadcast_sender: network_channels.messages_to_broadcast_sender,
-            broadcasted_messages_receiver: Box::new(network_receiver),
-            reported_messages_sender: network_channels.reported_messages_sender,
-            continue_propagation_sender: network_channels.continue_propagation_sender,
-        };
-        let sync_receiver =
-            sync_channels.broadcasted_messages_receiver.map(|(vote, _report_sender)| {
-                BlockNumber(vote.expect("Sync channel should never have errors").height)
-            });
-        Ok(tokio::spawn(async move {
-            Ok(papyrus_consensus::run_consensus(
-                context,
-                config.start_height,
-                config.validator_id,
-                config.consensus_delay,
-                config.timeouts.clone(),
-                broadcast_channels,
-                sync_receiver,
-            )
-            .await?)
-        }))
-    } else {
-        let context = PapyrusConsensusContext::new(
-            storage_reader.clone(),
-            network_channels.messages_to_broadcast_sender.clone(),
-            config.num_validators,
-            None,
-        );
-        Ok(tokio::spawn(async move {
-            Ok(papyrus_consensus::run_consensus(
-                context,
-                config.start_height,
-                config.validator_id,
-                config.consensus_delay,
-                config.timeouts.clone(),
-                network_channels,
-                futures::stream::pending(),
-            )
-            .await?)
-        }))
-    }
+    let context = PapyrusConsensusContext::new(
+        storage_reader.clone(),
+        network_channels.messages_to_broadcast_sender.clone(),
+        config.num_validators,
+        None,
+    );
+    Ok(tokio::spawn(async move {
+        Ok(papyrus_consensus::run_consensus(
+            context,
+            config.start_height,
+            config.validator_id,
+            config.consensus_delay,
+            config.timeouts.clone(),
+            network_channels,
+            futures::stream::pending(),
+        )
+        .await?)
+    }))
 }
 
 async fn run_sync(
