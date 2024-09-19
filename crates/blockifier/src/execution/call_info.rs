@@ -4,10 +4,9 @@ use std::ops::Add;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::Serialize;
-use starknet_api::core::{ClassHash, ContractAddress, EthAddress, PatriciaKey};
+use starknet_api::core::{ClassHash, EthAddress};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{EventContent, L2ToL1Payload};
-use starknet_api::{felt, patricia_key};
 use starknet_types_core::felt::Felt;
 
 use crate::execution::entry_point::CallEntryPoint;
@@ -112,58 +111,6 @@ impl Add for ExecutionSummary {
 impl Sum for ExecutionSummary {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         iter.fold(ExecutionSummary::default(), |acc, x| acc + x)
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct TestExecutionSummary {
-    pub num_of_events: usize,
-    pub num_of_messages: usize,
-    pub class_hash: ClassHash,
-    pub storage_address: ContractAddress,
-    pub storage_key: StorageKey,
-}
-
-impl TestExecutionSummary {
-    pub fn new(
-        num_of_events: usize,
-        num_of_messages: usize,
-        class_hash: ClassHash,
-        storage_address: &str,
-        storage_key: &str,
-    ) -> Self {
-        TestExecutionSummary {
-            num_of_events,
-            num_of_messages,
-            class_hash,
-            storage_address: ContractAddress(patricia_key!(storage_address)),
-            storage_key: StorageKey(patricia_key!(storage_key)),
-        }
-    }
-
-    pub fn to_call_info(&self) -> CallInfo {
-        CallInfo {
-            call: CallEntryPoint {
-                class_hash: Some(self.class_hash),
-                storage_address: self.storage_address,
-                ..Default::default()
-            },
-            execution: CallExecution {
-                events: (0..self.num_of_events).map(|_| OrderedEvent::default()).collect(),
-                l2_to_l1_messages: (0..self.num_of_messages)
-                    .map(|i| OrderedL2ToL1Message {
-                        order: i,
-                        message: MessageToL1 {
-                            to_address: EthAddress::default(),
-                            payload: L2ToL1Payload(vec![Felt::default()]),
-                        },
-                    })
-                    .collect(),
-                ..Default::default()
-            },
-            accessed_storage_keys: vec![self.storage_key].into_iter().collect(),
-            ..Default::default()
-        }
     }
 }
 
