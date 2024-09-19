@@ -1,13 +1,52 @@
 import argparse
 import subprocess
-from typing import List, Set
+from typing import List, Tuple
+import toml
+import json
+import asyncio
 
 
-def verify_unpublished(crates: List[str]):
+async def crate_version_exists(crate_name: str, version: str) -> Tuple[str, bool]:
+
+    response = subprocess.run(
+        ["curl", "-s", f"https://crates.io/api/v1/crates/{crate_name}"],
+        capture_output=True,
+        text=True,
+    )
+
+    crate_metadata = json.loads(response.stdout)
+    already_published = version in [v["num"] for v in crate_metadata["versions"]]
+    print(
+        f"Crate {crate_name} version {version} "
+        f"{'exists' if already_published else 'does not exist'} on crates.io"
+    )
+    return crate_name, already_published
+
+
+def get_workspace_version() -> str:
+    try:
+        cargo_data = toml.load("Cargo.toml")
+
+        return cargo_data["workspace"]["package"]["version"]
+    except (KeyError, TypeError):
+        raise ValueError("Version key not found in Cargo.toml")
+
+
+async def verify_unpublished(crates: List[str]):
     """
     Asserts that none of the crates in the set have been published.
     """
-    raise NotImplementedError("Not implemented yet.")
+
+    version = get_workspace_version()
+
+    tasks = [crate_version_exists(crate_name=crate, version=version) for crate in crates]
+    results = await asyncio.gather(*tasks)
+
+    already_published = [crate for crate, unpublished in results if unpublished]
+
+    assert (
+        not already_published
+    ), f"Crates {already_published} have already been published with {version=}."
 
 
 def get_package_and_dependencies_in_order(crate: str) -> List[str]:
@@ -44,7 +83,7 @@ def publish_crate_and_dependencies(crate: str, dry_run: bool):
     assert crate == dependencies[-1], f"{crate} should be the last element of '{dependencies}'."
 
     # Do not attempt to publish anything if even one of the dependencies is already published.
-    verify_unpublished(crates=dependencies)
+    asyncio.run(verify_unpublished(crates=dependencies))
 
     base_command_template = "cargo publish -p {crate}" + f"{' --dry-run' if dry_run else ''}"
     # Publish order is important.
