@@ -338,34 +338,36 @@ impl StarknetResources {
         use_kzg_da: bool,
         mode: &GasVectorComputationMode,
     ) -> GasVector {
-        self.get_l2_archival_data_cost(versioned_constants, mode)
+        self.get_archival_data_cost(versioned_constants, mode)
             + self.get_state_changes_cost(use_kzg_da)
             + self.get_messages_cost()
     }
 
     /// Returns the cost of the transaction's archival data, for example, calldata, signature, code,
     /// and events.
-    pub fn get_l2_archival_data_cost(
+    pub fn get_archival_data_cost(
         &self,
         versioned_constants: &VersionedConstants,
         mode: &GasVectorComputationMode,
     ) -> GasVector {
-        // Cost in L2 gas.
-        let l2_archival_data_costs = [
-            self.get_calldata_and_signature_cost(versioned_constants),
-            self.get_code_cost(versioned_constants),
-            self.get_events_cost(versioned_constants),
-        ];
         match mode {
+            // Cost in L2 gas.
             GasVectorComputationMode::All => {
+                let l2_archival_data_costs = [
+                    self.get_calldata_and_signature_cost(versioned_constants),
+                    self.get_code_cost(versioned_constants),
+                    self.get_events_cost(versioned_constants),
+                ];
                 GasVector::from_l2_gas(l2_archival_data_costs.iter().sum())
             }
-            GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(
-                l2_archival_data_costs
-                    .map(|cost| versioned_constants.convert_l2_to_l1_gas(cost))
-                    .iter()
-                    .sum(),
-            ),
+            GasVectorComputationMode::NoL2Gas => {
+                let l1_archival_data_costs = [
+                    self.get_calldata_and_signature_cost(versioned_constants),
+                    self.get_code_cost(versioned_constants),
+                    self.get_events_cost(versioned_constants),
+                ];
+                GasVector::from_l1_gas(l1_archival_data_costs.iter().sum())
+            }
         }
     }
 

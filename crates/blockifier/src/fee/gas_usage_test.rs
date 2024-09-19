@@ -82,10 +82,9 @@ fn test_get_event_gas_cost(
     let call_infos_iter = call_infos.iter();
     let expected = GasVector::from_l1_gas(
         // 8 keys and 11 data words overall.
-        (data_word_cost
-            * versioned_constants.l1_to_l2_gas_price_ratio()
-            * (event_key_factor * 8_u128 + 11_u128))
-            .to_integer(),
+        versioned_constants.convert_l2_to_l1_gas_amount_round_up(
+            (data_word_cost * (event_key_factor * 8_u128 + 11_u128)).to_integer(),
+        ),
     );
     let starknet_resources =
         StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, call_infos_iter);
