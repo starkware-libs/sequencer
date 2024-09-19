@@ -116,7 +116,7 @@ fn test_valid_component_execution_config(#[case] location: LocationType) {
         remote_config,
         ..ComponentExecutionConfig::default()
     };
-    assert!(component_exe_config.validate().is_ok());
+    assert_eq!(component_exe_config.validate(), Ok(()));
 }
 
 #[test]

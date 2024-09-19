@@ -148,7 +148,7 @@ fn commit_block(
         (contract_address!(address), AccountState { nonce: Nonce(felt!(nonce)) })
     }));
 
-    assert!(mempool.commit_block(state_changes).is_ok());
+    assert_eq!(mempool.commit_block(state_changes), Ok(()));
 }
 
 /// Creates a valid input for mempool's `add_tx` with optional default values.
