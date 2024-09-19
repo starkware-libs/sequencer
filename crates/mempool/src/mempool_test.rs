@@ -12,7 +12,7 @@ use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
 use starknet_api::{contract_address, felt, invoke_tx_args, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::{AccountNonce, AccountState};
+use starknet_mempool_types::mempool_types::AccountState;
 use starknet_types_core::felt::Felt;
 
 use crate::mempool::{AccountToNonce, Mempool, MempoolInput, TransactionReference};
@@ -164,9 +164,11 @@ fn commit_block(
     mempool: &mut Mempool,
     state_changes: impl IntoIterator<Item = (&'static str, u8)>,
 ) {
-    let state_changes = HashMap::from_iter(state_changes.into_iter().map(|(address, nonce)| {
-        (contract_address!(address), AccountNonce { nonce: Nonce(felt!(nonce)) })
-    }));
+    let state_changes = HashMap::from_iter(
+        state_changes
+            .into_iter()
+            .map(|(address, nonce)| (contract_address!(address), Nonce(felt!(nonce)))),
+    );
 
     assert_eq!(mempool.commit_block(state_changes), Ok(()));
 }
@@ -915,7 +917,7 @@ fn test_account_nonces_update_in_commit_block() {
     let committed_nonce = Nonce(Felt::ZERO);
 
     // Test: update through a commit block.
-    let state_changes = HashMap::from([(sender_address, AccountNonce { nonce: committed_nonce })]);
+    let state_changes = HashMap::from([(sender_address, committed_nonce)]);
     assert_eq!(mempool.commit_block(state_changes), Ok(()));
 
     // Assert.
@@ -938,8 +940,7 @@ fn test_account_nonce_does_not_decrease_in_commit_block() {
         .build_into_mempool();
 
     // Test: commits state change of a lower account nonce.
-    let state_changes =
-        HashMap::from([(sender_address, AccountNonce { nonce: Nonce(felt!(0_u8)) })]);
+    let state_changes = HashMap::from([(sender_address, Nonce(felt!(0_u8)))]);
     assert_eq!(mempool.commit_block(state_changes), Ok(()));
 
     // Assert: the account nonce is not updated.
