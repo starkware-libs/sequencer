@@ -21,24 +21,18 @@ use starknet_api::transaction::{
     InvokeTransactionV1,
     InvokeTransactionV3,
     L1HandlerTransaction,
-    ResourceBounds,
-    Tip,
     Transaction,
     TransactionHash,
     TransactionVersion,
-    ValidResourceBounds,
 };
+use starknet_api::transaction_hash::get_tip_resource_bounds_hash;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, Poseidon, StarkHash as CoreStarkHash};
 
 use crate::TransactionOptions;
 
-type ResourceName = [u8; 7];
-
 const DATA_AVAILABILITY_MODE_BITS: usize = 32;
-const L1_GAS: &ResourceName = b"\0L1_GAS";
-const L2_GAS: &ResourceName = b"\0L2_GAS";
 
 lazy_static! {
     static ref DECLARE: Felt =
@@ -215,39 +209,6 @@ impl HashChain {
 pub(crate) fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {
     Felt::from_hex(hex::encode(ascii_str).as_str())
         .map_err(|_| StarknetApiError::OutOfRange { string: ascii_str.to_string() })
-}
-
-// An implementation of the SNIP: https://github.com/EvyatarO/SNIPs/blob/snip-8/SNIPS/snip-8.md
-fn get_tip_resource_bounds_hash(
-    resource_bounds: &ValidResourceBounds,
-    tip: &Tip,
-) -> Result<Felt, StarknetApiError> {
-    let l1_resource_bounds = resource_bounds.get_l1_bounds();
-    let l2_resource_bounds = resource_bounds.get_l2_bounds();
-
-    let l1_resource = get_concat_resource(&l1_resource_bounds, L1_GAS)?;
-    let l2_resource = get_concat_resource(&l2_resource_bounds, L2_GAS)?;
-
-    Ok(HashChain::new()
-        .chain(&tip.0.into())
-        .chain(&l1_resource)
-        .chain(&l2_resource)
-        .get_poseidon_hash())
-}
-
-// Receives resource_bounds and resource_name and returns:
-// [0 | resource_name (56 bit) | max_amount (64 bit) | max_price_per_unit (128 bit)].
-// An implementation of the SNIP: https://github.com/EvyatarO/SNIPs/blob/snip-8/SNIPS/snip-8.md.
-fn get_concat_resource(
-    resource_bounds: &ResourceBounds,
-    resource_name: &ResourceName,
-) -> Result<Felt, StarknetApiError> {
-    let max_amount = resource_bounds.max_amount.to_be_bytes();
-    let max_price = resource_bounds.max_price_per_unit.to_be_bytes();
-    let concat_bytes =
-        [[0_u8].as_slice(), resource_name.as_slice(), max_amount.as_slice(), max_price.as_slice()]
-            .concat();
-    Ok(Felt::from_bytes_be(&concat_bytes.try_into().expect("Expect 32 bytes")))
 }
 
 // Receives nonce_mode and fee_mode and returns:
