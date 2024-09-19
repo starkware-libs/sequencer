@@ -11,13 +11,6 @@ on:
       - synchronize
   # Scan on-demand through GitHub Actions interface:
   workflow_dispatch: {}
-  # Scan mainline branches if there are changes to .github/workflows/semgrep.yml:
-  push:
-    branches:
-      - main
-      - main-v[0-9].**
-    paths:
-      - .github/workflows/security-scan.yml
   # Schedule the CI job (this method uses cron syntax):
   schedule:
     - cron: '20 20 * * *' # Sets Semgrep to scan every day at 17:20 UTC.
