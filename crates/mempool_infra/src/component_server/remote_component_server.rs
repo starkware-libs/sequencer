@@ -1,7 +1,7 @@
 use std::net::{IpAddr, SocketAddr};
+use std::sync::Arc;
 
 use async_trait::async_trait;
-use bincode::{deserialize, serialize};
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::service::{make_service_fn, service_fn};
@@ -11,9 +11,11 @@ use serde::Serialize;
 use tokio::sync::mpsc::Sender;
 
 use super::definitions::ComponentServerStarter;
-use crate::component_client::send_locally;
+use crate::component_client::{send_locally, ClientError};
 use crate::component_definitions::{
+    BincodeSerializable,
     ComponentRequestAndResponseSender,
+    SerdeWrapper,
     ServerError,
     APPLICATION_OCTET_STREAM,
 };
@@ -63,14 +65,14 @@ use crate::component_definitions::{
 /// }
 ///
 /// // Define your request and response types
-/// #[derive(Deserialize)]
+/// #[derive(Serialize, Deserialize)]
 /// struct MyRequest {
 ///     pub content: String,
 /// }
 ///
-/// #[derive(Serialize)]
+/// #[derive(Serialize, Deserialize)]
 /// struct MyResponse {
-///     pub content: String,
+///     content: String,
 /// }
 ///
 /// // Define your request processing logic
@@ -101,8 +103,8 @@ use crate::component_definitions::{
 /// ```
 pub struct RemoteComponentServer<Request, Response>
 where
-    Request: DeserializeOwned + Send + Sync + 'static,
-    Response: Serialize + Send + Sync + 'static,
+    Request: Serialize + DeserializeOwned + Send + Sync + 'static,
+    Response: Serialize + DeserializeOwned + Send + Sync + 'static,
 {
     socket: SocketAddr,
     tx: Sender<ComponentRequestAndResponseSender<Request, Response>>,
@@ -110,8 +112,8 @@ where
 
 impl<Request, Response> RemoteComponentServer<Request, Response>
 where
-    Request: DeserializeOwned + Send + Sync + 'static,
-    Response: Serialize + Send + Sync + 'static,
+    Request: Serialize + DeserializeOwned + Send + Sync + 'static,
+    Response: Serialize + DeserializeOwned + Send + Sync + 'static,
 {
     pub fn new(
         tx: Sender<ComponentRequestAndResponseSender<Request, Response>>,
@@ -126,20 +128,28 @@ where
         tx: Sender<ComponentRequestAndResponseSender<Request, Response>>,
     ) -> Result<HyperResponse<Body>, hyper::Error> {
         let body_bytes = to_bytes(http_request.into_body()).await?;
-        let http_response = match deserialize(&body_bytes) {
+
+        let http_response = match SerdeWrapper::<Request>::from_bincode(&body_bytes)
+            .map_err(|e| ClientError::ResponseDeserializationFailure(Arc::new(e)))
+            .map(|open| open.data)
+        {
             Ok(request) => {
                 let response = send_locally(tx, request).await;
                 HyperResponse::builder()
                     .status(StatusCode::OK)
                     .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
                     .body(Body::from(
-                        serialize(&response).expect("Response serialization should succeed"),
+                        SerdeWrapper { data: response }
+                            .to_bincode()
+                            .expect("Response serialization should succeed"),
                     ))
             }
             Err(error) => {
                 let server_error = ServerError::RequestDeserializationFailure(error.to_string());
                 HyperResponse::builder().status(StatusCode::BAD_REQUEST).body(Body::from(
-                    serialize(&server_error).expect("Server error serialization should succeed"),
+                    SerdeWrapper { data: server_error }
+                        .to_bincode()
+                        .expect("Server error serialization should succeed"),
                 ))
             }
         }
@@ -152,8 +162,8 @@ where
 #[async_trait]
 impl<Request, Response> ComponentServerStarter for RemoteComponentServer<Request, Response>
 where
-    Request: DeserializeOwned + Send + Sync + 'static,
-    Response: Serialize + Send + Sync + 'static,
+    Request: Serialize + DeserializeOwned + Send + Sync + 'static,
+    Response: Serialize + DeserializeOwned + Send + Sync + 'static,
 {
     async fn start(&mut self) {
         let make_svc = make_service_fn(|_conn| {

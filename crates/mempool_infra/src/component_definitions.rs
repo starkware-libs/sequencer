@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
+use std::fmt::Debug;
 use std::net::IpAddr;
 
 use async_trait::async_trait;
+use bincode::{deserialize, serialize};
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -112,5 +114,28 @@ impl SerializeConfig for RemoteComponentCommunicationConfig {
 impl Default for RemoteComponentCommunicationConfig {
     fn default() -> Self {
         Self { ip: "0.0.0.0".parse().unwrap(), port: 8080, retries: DEFAULT_RETRIES }
+    }
+}
+
+// Generic wrapper struct
+#[derive(Serialize, Deserialize)]
+pub(crate) struct SerdeWrapper<T> {
+    pub data: T,
+}
+
+// Trait to define our serialization and deserialization behavior
+pub(crate) trait BincodeSerializable: Sized {
+    fn to_bincode(&self) -> Result<Vec<u8>, bincode::Error>;
+    fn from_bincode(bytes: &[u8]) -> Result<Self, bincode::Error>;
+}
+
+// Implement the trait for our wrapper
+impl<T: Serialize + for<'de> Deserialize<'de>> BincodeSerializable for SerdeWrapper<T> {
+    fn to_bincode(&self) -> Result<Vec<u8>, bincode::Error> {
+        serialize(self)
+    }
+
+    fn from_bincode(bytes: &[u8]) -> Result<Self, bincode::Error> {
+        deserialize(bytes)
     }
 }

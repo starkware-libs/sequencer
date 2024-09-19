@@ -9,23 +9,23 @@ pub(crate) type ValueB = u8;
 pub(crate) type ResultA = ClientResult<ValueA>;
 pub(crate) type ResultB = ClientResult<ValueB>;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ComponentARequest {
     AGetValue,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ComponentAResponse {
     AGetValue(ValueA),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ComponentBRequest {
     BGetValue,
     BSetValue(ValueB),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ComponentBResponse {
     BGetValue(ValueB),
     BSetValue,
