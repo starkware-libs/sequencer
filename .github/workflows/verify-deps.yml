@@ -12,9 +12,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
-      - name: Set up Native Dependencies
-        uses: ./.github/actions/setup-native-deps
-        id: native-deps
       - name: Update Dependencies
         run: cargo update --verbose
       - name: Build

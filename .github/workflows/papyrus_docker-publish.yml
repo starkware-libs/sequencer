@@ -3,8 +3,8 @@ name: Papyrus-Docker-Publish
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
-    tags: [ "v*.*.*" ]
+    branches: [main]
+    tags: ["v*.*.*"]
     paths:
       - '.github/workflows/papyrus_docker-publish.yml'
       - 'crates/papyrus**/**'
@@ -25,7 +25,7 @@ env:
 
 jobs:
   docker-build-push:
-    runs-on: starkware-ubuntu-latest-large
+    runs-on: starkware-ubuntu-latest-medium
 
     steps:
       - name: Checkout repository
