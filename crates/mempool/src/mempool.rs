@@ -4,12 +4,7 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::{
-    AccountNonce,
-    AccountState,
-    MempoolInput,
-    MempoolResult,
-};
+use starknet_mempool_types::mempool_types::{AccountState, MempoolInput, MempoolResult};
 
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -27,8 +22,8 @@ pub struct Mempool {
     tx_pool: TransactionPool,
     // Transactions eligible for sequencing.
     tx_queue: TransactionQueue,
-    // Represents the current state of the mempool during block creation.
-    mempool_state: HashMap<ContractAddress, AccountNonce>,
+    // Represents the state of the mempool during block creation.
+    mempool_state: HashMap<ContractAddress, Nonce>,
     // The most recent account nonces received, for all account in the pool.
     account_nonces: AccountToNonce,
 }
@@ -71,8 +66,8 @@ impl Mempool {
         }
 
         // Update the mempool state with the given transactions' nonces.
-        for tx in &eligible_txs {
-            self.mempool_state.entry(tx.contract_address()).or_default().nonce = tx.nonce();
+        for tx_ref in &eligible_tx_references {
+            self.mempool_state.insert(tx_ref.sender_address, tx_ref.nonce);
         }
 
         Ok(eligible_txs)
@@ -97,9 +92,9 @@ impl Mempool {
     // block.
     pub fn commit_block(
         &mut self,
-        state_changes: HashMap<ContractAddress, AccountNonce>,
+        state_changes: HashMap<ContractAddress, Nonce>,
     ) -> MempoolResult<()> {
-        for (&address, AccountNonce { nonce }) in &state_changes {
+        for (&address, nonce) in &state_changes {
             let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
             self.align_to_account_state(address, next_nonce);
         }
@@ -138,9 +133,7 @@ impl Mempool {
         // Stateful checks.
 
         // Check nonce against mempool state.
-        if let Some(AccountNonce { nonce: mempool_state_nonce }) =
-            self.mempool_state.get(&sender_address)
-        {
+        if let Some(mempool_state_nonce) = self.mempool_state.get(&sender_address) {
             if mempool_state_nonce >= &tx_nonce {
                 return Err(duplicate_nonce_error);
             }
