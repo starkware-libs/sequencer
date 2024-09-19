@@ -2,16 +2,20 @@
 use std::collections::BTreeMap;
 
 use futures::channel::mpsc;
+use futures::StreamExt;
+use papyrus_network::network_manager::BroadcastClientTrait;
 use papyrus_protobuf::consensus::StreamMessage;
 use papyrus_protobuf::converters::ProtobufConversionError;
+
+use crate::types::ConsensusError;
 
 #[cfg(test)]
 #[path = "stream_handler_test.rs"]
 mod stream_handler_test;
 
-/// Configuration for the StreamHandler.
+/// Configuration for the StreamCollector.
 #[derive(Default)]
-pub struct StreamHandlerConfig {
+pub struct StreamCollectorConfig {
     /// The maximum buffer size for each stream (None -> no limit).
     pub max_buffer_size: Option<u64>,
     /// The maximum number of streams that can be buffered at the same time (None -> no limit).
@@ -34,17 +38,21 @@ struct StreamStats {
     num_buffered: u64,
 }
 
-/// A StreamHandler is responsible for buffering and sending messages in order.
-pub struct StreamHandler<
+pub struct StreamCollector<
+    BroadcastClientT: BroadcastClientTrait<StreamMessage<T>>,
     T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
 > {
-    /// Configuration for the StreamHandler (things like max buffer size, etc.).
-    pub config: StreamHandlerConfig,
+    /// Configuration for the StreamCollector (things like max buffer size, etc.).
+    pub config: StreamCollectorConfig,
 
-    /// An end of a channel used to send out the messages in the correct order.
-    pub sender: mpsc::Sender<StreamMessage<T>>,
-    /// An end of a channel used to receive messages.
-    pub receiver: mpsc::Receiver<StreamMessage<T>>,
+    /// A broadcast client (receiver) that gets messages from the network.
+    pub receiver: BroadcastClientT,
+
+    /// A channel used to send receivers, one for each stream that was opened.
+    /// These channels will be closed once all messages for a stream are transmitted.
+    pub sender: mpsc::Sender<mpsc::Receiver<StreamMessage<T>>>,
+
+    sender_per_stream: BTreeMap<StreamId, mpsc::Sender<StreamMessage<T>>>,
 
     // Some statistics about each stream.
     stats_per_stream: BTreeMap<StreamId, StreamStats>,
@@ -53,23 +61,30 @@ pub struct StreamHandler<
     /// Each nested map is keyed by the message_id of the first message it contains.
     /// The messages in each nested map are stored in a contiguous sequence of messages (as a Vec).
     message_buffers: BTreeMap<StreamId, BTreeMap<MessageId, Vec<StreamMessage<T>>>>,
+
+    /// the highest number of stream_id we've used so far
+    last_stream_id: StreamId,
 }
 
-impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
-    StreamHandler<T>
+impl<
+    BroadcastClientT: BroadcastClientTrait<StreamMessage<T>>,
+    T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
+> StreamCollector<BroadcastClientT, T>
 {
-    /// Create a new StreamHandler.
+    /// Create a new StreamCollector.
     pub fn new(
-        config: StreamHandlerConfig,
-        sender: mpsc::Sender<StreamMessage<T>>,
-        receiver: mpsc::Receiver<StreamMessage<T>>,
+        config: StreamCollectorConfig,
+        receiver: BroadcastClientT,
+        sender: mpsc::Sender<mpsc::Receiver<StreamMessage<T>>>,
     ) -> Self {
-        StreamHandler {
+        StreamCollector {
             config,
-            sender,
             receiver,
+            sender,
+            sender_per_stream: BTreeMap::new(),
             stats_per_stream: BTreeMap::new(),
             message_buffers: BTreeMap::new(),
+            last_stream_id: 0,
         }
     }
 
@@ -77,26 +92,26 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     /// Guarntees that messages are sent in order.
     pub async fn listen(&mut self) {
         loop {
-            if let Ok(message) = self.receiver.try_next() {
-                if !self.handle_message(message) {
+            let (message, broadcasted_message_manager) =
+                self.receiver.next().await.ok_or_else(|| {
+                    ConsensusError::InternalNetworkError(
+                        "NetworkReceiver should never be closed".to_string(),
+                    )
+                });
+            let message = match message {
+                Some(message) => message,
+                None => {
+                    // Message is none in case the channel was closed!
                     break;
                 }
-            } else {
-                // Err comes when the channel is open but no message was received.
-                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-            }
+            };
+            let peer_bytes: () = broadcasted_message_manager.peer_id.to_bytes();
+            // self.handle_message(message, peer_bytes);
         }
     }
 
     // Handle the message, return true if the channel is still open.
-    fn handle_message(&mut self, message: Option<StreamMessage<T>>) -> bool {
-        let message = match message {
-            Some(message) => message,
-            None => {
-                // Message is none in case the channel was closed!
-                return false;
-            }
-        };
+    fn handle_message(&mut self, message: StreamMessage<T>) {
         let stream_id = message.stream_id;
         let message_id = message.message_id;
         if !self.stats_per_stream.contains_key(&stream_id) {
@@ -159,8 +174,6 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                 stream_id, message_id, stats.next_message_id
             );
         }
-
-        true // Everything is fine, the channel is still open.
     }
 
     // Go over each vector in the buffer, push to the end of it if the message_id is contiguous.
