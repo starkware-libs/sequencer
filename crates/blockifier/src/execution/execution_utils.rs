@@ -71,6 +71,10 @@ pub fn execute_entry_point_call(
     }
 }
 
+pub fn update_remaining_gas(remaining_gas: &mut u64, call_info: &CallInfo) {
+    *remaining_gas -= call_info.execution.gas_consumed;
+}
+
 pub fn read_execution_retdata(
     runner: &CairoRunner,
     retdata_size: MaybeRelocatable,

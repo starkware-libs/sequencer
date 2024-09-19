@@ -43,12 +43,12 @@ use crate::execution::entry_point::{CallEntryPoint, CallType, ConstructorContext
 use crate::execution::execution_utils::{
     execute_deployment,
     felt_from_ptr,
+    update_remaining_gas,
     write_felt,
     write_maybe_relocatable,
     ReadOnlySegment,
 };
 use crate::execution::syscalls::hint_processor::{INVALID_INPUT_LENGTH_ERROR, OUT_OF_GAS_ERROR};
-use crate::transaction::transaction_utils::update_remaining_gas;
 use crate::versioned_constants::{EventLimits, VersionedConstants};
 
 pub mod hint_processor;
