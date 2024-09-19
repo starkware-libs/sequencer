@@ -5,7 +5,7 @@ use starknet_api::executable_transaction::Transaction;
 use crate::errors::MempoolError;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct AccountState {
+pub struct AccountNonce {
     pub nonce: Nonce,
     // TODO: add balance field when needed.
 }
@@ -14,7 +14,7 @@ pub struct AccountState {
 pub struct Account {
     // TODO(Ayelet): Consider removing this field as it is duplicated in ThinTransaction.
     pub sender_address: ContractAddress,
-    pub state: AccountState,
+    pub state: AccountNonce,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
