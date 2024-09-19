@@ -12,7 +12,7 @@ use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
 use starknet_api::{contract_address, felt, invoke_tx_args, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::{Account, AccountNonce};
+use starknet_mempool_types::mempool_types::{AccountNonce, AccountState};
 use starknet_types_core::felt::Felt;
 
 use crate::mempool::{AccountToNonce, Mempool, MempoolInput, TransactionReference};
@@ -209,7 +209,7 @@ macro_rules! add_tx_input {
         let tx = tx!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, resource_bounds: $resource_bounds);
         let sender_address = contract_address!($sender_address);
         let account_nonce = Nonce(felt!($account_nonce));
-        let account = Account { sender_address, state: AccountNonce {nonce: account_nonce}};
+        let account = AccountState { sender_address, state: AccountNonce {nonce: account_nonce}};
 
         MempoolInput { tx, account }
     }};
@@ -563,7 +563,7 @@ fn test_add_tx_lower_than_queued_nonce() {
 
     let MempoolInput {
         tx: valid_input_tx,
-        account: Account { sender_address, state: AccountState { nonce } },
+        account: AccountState { sender_address, state: AccountNonce { nonce } },
     } = valid_input;
     let queue_txs = [TransactionReference::new(&valid_input_tx)];
     let account_nonces = [(sender_address, nonce)];
@@ -907,7 +907,7 @@ fn test_account_nonce_does_not_decrease_in_add_tx() {
 fn test_account_nonces_update_in_commit_block() {
     // Setup.
     let input = add_tx_input!(tx_nonce: 2_u8, account_nonce: 0_u8);
-    let Account { sender_address, state: AccountNonce { nonce } } = input.account;
+    let AccountState { sender_address, state: AccountNonce { nonce } } = input.account;
     let pool_txs = [input.tx];
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs)
@@ -930,7 +930,8 @@ fn test_account_nonces_update_in_commit_block() {
 fn test_account_nonce_does_not_decrease_in_commit_block() {
     // Setup.
     let input_account_nonce_2 = add_tx_input!(tx_nonce: 3_u8, account_nonce: 2_u8);
-    let Account { sender_address, state: AccountNonce { nonce } } = input_account_nonce_2.account;
+    let AccountState { sender_address, state: AccountNonce { nonce } } =
+        input_account_nonce_2.account;
     let account_nonces = [(sender_address, nonce)];
     let pool_txs = [input_account_nonce_2.tx];
     let mut mempool = MempoolContentBuilder::new()
