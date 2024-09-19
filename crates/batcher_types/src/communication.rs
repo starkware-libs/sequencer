@@ -45,13 +45,13 @@ pub trait BatcherClient: Send + Sync {
     ) -> BatcherClientResult<BatcherFnTwoReturnValue>;
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum BatcherRequest {
     BatcherFnOne(BatcherFnOneInput),
     BatcherFnTwo(BatcherFnTwoInput),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum BatcherResponse {
     BatcherFnOne(BatcherResult<BatcherFnOneReturnValue>),
     BatcherFnTwo(BatcherResult<BatcherFnTwoReturnValue>),
