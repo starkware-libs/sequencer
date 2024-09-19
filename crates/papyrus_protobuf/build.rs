@@ -2,8 +2,10 @@ use std::env;
 use std::io::{Error, ErrorKind, Result};
 use std::process::Command;
 
-fn parse_protoc_version(protoc_version_str: &str) -> Result<Vec<u32>> {
-    Ok(protoc_version_str.split('.').map(|part| part.parse::<u32>().unwrap()).collect())
+fn parse_protoc_version(protoc_version_str: &str) -> (u32, u32) {
+    let version_numbers: Vec<u32> =
+        protoc_version_str.split('.').map(|part| part.parse::<u32>().unwrap()).collect();
+    (version_numbers.first().unwrap().to_owned(), version_numbers.get(1).unwrap_or(&0).to_owned())
 }
 
 fn validate_preinstalled_protoc() -> Result<()> {
@@ -19,9 +21,7 @@ fn validate_preinstalled_protoc() -> Result<()> {
         Some(version) => version,
         None => return Err(Error::new(ErrorKind::Other, "protoc version not found")),
     };
-    let mut protoc_version_parts = parse_protoc_version(protoc_version_str)?.into_iter();
-    let major = protoc_version_parts.next().expect("Protoc version did not have a major number");
-    let minor = protoc_version_parts.next().unwrap_or(0);
+    let (major, minor) = parse_protoc_version(protoc_version_str);
 
     if major < 3 || (major == 3 && minor < 15) {
         Err(Error::new(
@@ -34,7 +34,7 @@ fn validate_preinstalled_protoc() -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    // If Protoc is installed use it, if not complie using prebuilt protoc.
+    // If Protoc is installed use it, if not compile using prebuilt protoc.
     println!("Building");
     if validate_preinstalled_protoc().is_err() {
         println!("Building using prebuilt protoc");
