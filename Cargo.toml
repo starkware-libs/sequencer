@@ -13,6 +13,7 @@ members = [
   "crates/gateway",
   "crates/gateway_types",
   "crates/http_server",
+  "crates/l1-provider",
   "crates/mempool",
   "crates/mempool_infra",
   "crates/mempool_node",
