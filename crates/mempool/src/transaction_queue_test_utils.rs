@@ -42,23 +42,23 @@ impl TransactionQueueContent {
 
 #[derive(Debug, Default)]
 pub struct TransactionQueueContentBuilder {
-    _priority_queue: Option<BTreeSet<PriorityTransaction>>,
+    priority_queue: Option<BTreeSet<PriorityTransaction>>,
     _pending_queue: Option<BTreeSet<PendingTransaction>>,
-    _address_to_tx: Option<AddressToTransactionReference>,
+    address_to_tx: Option<AddressToTransactionReference>,
     _gas_price_threshold: Option<u128>,
 }
 
 impl TransactionQueueContentBuilder {
-    pub fn _with_priority<P>(mut self, priority_txs: P) -> Self
+    pub fn with_priority<P>(mut self, priority_txs: P) -> Self
     where
         P: IntoIterator<Item = TransactionReference>,
     {
         let priority_txs: Vec<TransactionReference> = priority_txs.into_iter().collect();
 
-        self._address_to_tx.get_or_insert_with(HashMap::new).extend(
+        self.address_to_tx.get_or_insert_with(HashMap::new).extend(
             priority_txs.iter().map(|tx_reference| (tx_reference.sender_address, *tx_reference)),
         );
-        self._priority_queue =
+        self.priority_queue =
             Some(priority_txs.into_iter().map(PriorityTransaction::from).collect());
 
         self
@@ -70,7 +70,7 @@ impl TransactionQueueContentBuilder {
     {
         let pending_txs_vec: Vec<TransactionReference> = pending_txs.into_iter().collect();
 
-        self._address_to_tx.get_or_insert_with(HashMap::new).extend(
+        self.address_to_tx.get_or_insert_with(HashMap::new).extend(
             pending_txs_vec.iter().map(|tx_reference| (tx_reference.sender_address, *tx_reference)),
         );
         self._pending_queue =
@@ -84,11 +84,11 @@ impl TransactionQueueContentBuilder {
         self
     }
 
-    pub fn _build(self) -> TransactionQueueContent {
+    pub fn build(self) -> TransactionQueueContent {
         TransactionQueueContent {
-            priority_queue: self._priority_queue,
+            priority_queue: self.priority_queue,
             pending_queue: self._pending_queue,
-            address_to_tx: self._address_to_tx,
+            address_to_tx: self.address_to_tx,
             gas_price_threshold: self._gas_price_threshold,
         }
     }
