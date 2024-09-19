@@ -68,7 +68,7 @@ pub trait BatcherClient: Send + Sync {
     async fn decision_reached(&self, input: DecisionReachedInput) -> BatcherClientResult<()>;
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum BatcherRequest {
     BuildProposal(BuildProposalInput),
     GetProposalContent(GetProposalContentInput),
@@ -78,7 +78,7 @@ pub enum BatcherRequest {
     DecisionReached(DecisionReachedInput),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum BatcherResponse {
     BuildProposal(BatcherResult<()>),
     GetProposalContent(BatcherResult<GetProposalContentResponse>),

@@ -26,7 +26,7 @@ pub type MempoolRequestAndResponseSender =
     ComponentRequestAndResponseSender<MempoolRequest, MempoolResponse>;
 pub type SharedMempoolClient = Arc<dyn MempoolClient>;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct MempoolWrapperInput {
     pub mempool_input: MempoolInput,
     pub message_metadata: Option<BroadcastedMessageManager>,
@@ -43,13 +43,13 @@ pub trait MempoolClient: Send + Sync {
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<Transaction>>;
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum MempoolRequest {
     AddTransaction(MempoolWrapperInput),
     GetTransactions(usize),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum MempoolResponse {
     AddTransaction(MempoolResult<()>),
     GetTransactions(MempoolResult<Vec<Transaction>>),
