@@ -152,16 +152,17 @@ struct RunConsensusArgs {
 }
 
 struct LockDir {
-    file: File,
+    dirname: String,
+    lockfile: File,
 }
 
 impl LockDir {
-    pub fn new(db_dir: &str) -> std::io::Result<Self> {
-        let lockfile_path = format!("{}/lockfile", db_dir);
-        let file = File::create(&lockfile_path)?;
+    pub fn new(db_dir: String) -> std::io::Result<Self> {
+        let lockfile_path = format!("{}/lockfile", &db_dir);
+        let lockfile = File::create(&lockfile_path)?;
 
-        match file.try_lock_exclusive() {
-            Ok(_) => Ok(LockDir { file }),
+        match lockfile.try_lock_exclusive() {
+            Ok(_) => Ok(LockDir { dirname: db_dir, lockfile }),
             Err(e) => Err(e),
         }
     }
@@ -169,7 +170,7 @@ impl LockDir {
 
 impl Drop for LockDir {
     fn drop(&mut self) {
-        let _ = self.file.unlock();
+        let _ = self.lockfile.unlock();
     }
 }
 
@@ -340,22 +341,22 @@ async fn build_all_nodes(data_dir: &str, logs_dir: &str, papyrus_args: &PapyrusA
     nodes
 }
 
-#[tokio::main]
-async fn main() {
-    let Cli { papyrus_args, run_consensus_args } = Cli::parse();
-    assert!(
-        papyrus_args.num_validators >= 2,
-        "At least 2 validators are required for the simulation."
-    );
-
+// Setup the directories for storing artifacts from the nodes.
+//
+// For the logs this creates a new temporary directory for storing logs.
+//
+// For the DB files this may optionally reuse an existing directory, if one is passed by the user or
+// create new DB files. This is useful since syncing the DB files can take a long time. We therefore
+// lock the DB directory to make sure other simulations are not also using it.
+fn setup_artifact_dirs(papyrus_args: &PapyrusArgs) -> (String, LockDir) {
     let now_ns = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
     let mut tmpdir = std::env::temp_dir();
     tmpdir.push(format!("run_consensus_{now_ns}"));
 
     let logs_dir = tmpdir.to_str().unwrap().to_string();
-    let db_dir = papyrus_args.db_dir.clone().unwrap_or_else(|| logs_dir.clone());
     fs::create_dir(&logs_dir).unwrap();
 
+    let db_dir = papyrus_args.db_dir.clone().unwrap_or_else(|| logs_dir.clone());
     if db_dir != logs_dir {
         let actual_dirs = fs::read_dir(&db_dir)
             .unwrap()
@@ -371,21 +372,39 @@ async fn main() {
             fs::create_dir_all(format!("{}/data{}", db_dir, i)).unwrap();
         }
     }
+    let db_lock = LockDir::new(db_dir).unwrap();
 
-    // Acquire lock on the db_dir
-    let _lock = LockDir::new(&db_dir).unwrap();
-
-    println!("Running cargo build...");
-    let build_status = Command::new("cargo")
-        .args(["build", "--release", "--package", "papyrus_node", "--bin", "run_consensus"])
-        .status()
-        .unwrap();
-    assert!(build_status.success());
-
-    println!("DB files will be stored in: {db_dir}");
+    println!("DB files will be stored in: {}", &db_lock.dirname);
     println!("Logs will be stored in: {logs_dir}");
+    (logs_dir, db_lock)
+}
 
-    let nodes = build_all_nodes(&db_dir, &logs_dir, &papyrus_args).await;
+#[tokio::main]
+async fn main() {
+    let Cli { papyrus_args, run_consensus_args } = Cli::parse();
+    assert!(
+        papyrus_args.num_validators >= 2,
+        "At least 2 validators are required for the simulation."
+    );
+
+    let (logs_dir, db_lock) = setup_artifact_dirs(&papyrus_args);
+
+    println!("Compiling node binary...");
+    let build_status = Command::new("cargo")
+        .args([
+            "build",
+            "--release",
+            "--package",
+            "papyrus_node",
+            "--bin",
+            "run_consensus",
+            "--features",
+            "testing",
+        ])
+        .status();
+    assert!(build_status.unwrap().success());
+
+    let nodes = build_all_nodes(&db_lock.dirname, &logs_dir, &papyrus_args).await;
 
     println!("Running validators...");
     run_simulation(
@@ -395,7 +414,6 @@ async fn main() {
     )
     .await;
 
-    println!("DB files were stored in: {}", db_dir);
-    println!("Logs were stored in: {}", logs_dir);
-    println!("Simulation complete.");
+    println!("DB files were stored in: {}", &db_lock.dirname);
+    println!("Logs were stored in: {}", &logs_dir);
 }
