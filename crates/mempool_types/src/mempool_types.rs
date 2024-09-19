@@ -11,7 +11,7 @@ pub struct AccountNonce {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct Account {
+pub struct AccountState {
     // TODO(Ayelet): Consider removing this field as it is duplicated in ThinTransaction.
     pub sender_address: ContractAddress,
     pub state: AccountNonce,
@@ -20,7 +20,7 @@ pub struct Account {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MempoolInput {
     pub tx: Transaction,
-    pub account: Account,
+    pub account: AccountState,
 }
 
 pub type MempoolResult<T> = Result<T, MempoolError>;
