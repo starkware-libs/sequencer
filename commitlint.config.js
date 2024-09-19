@@ -34,6 +34,7 @@ const Configuration = {
             'fee',
             'gateway',
             'JSON-RPC',
+            'l1-provider',
             'load_test',
             'mempool_infra',
             'mempool_node',
