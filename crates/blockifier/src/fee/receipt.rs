@@ -22,7 +22,7 @@ use crate::transaction::transaction_types::TransactionType;
 use crate::utils::usize_from_u128;
 
 #[cfg(test)]
-#[path = "actual_cost_test.rs"]
+#[path = "receipt_test.rs"]
 pub mod test;
 
 /// Parameters required to compute actual cost of a transaction.
