@@ -1,13 +1,42 @@
 import argparse
 import subprocess
-from typing import List, Set
+from typing import List, Optional
+import toml
+
+
+def crate_version_exists(crate_name: str, version: str) -> bool:
+
+    crate_api_endpoint = f"api/v1/crates/{crate_name}"
+    response = subprocess.run(
+        ["curl", "-s", f"https://crates.io/{crate_api_endpoint}"],
+        capture_output=True,
+        text=True,
+    )
+
+    already_published = f"{crate_api_endpoint}/{version}" in response.stdout
+    print(
+        f"Crate {crate_name} version {version} "
+        f"{'exists' if already_published else 'does not exist'} on crates.io"
+    )
+    return already_published
+
+
+def get_workspace_version() -> str:
+    try:
+        cargo_data = toml.load("Cargo.toml")
+
+        return cargo_data["workspace"]["package"]["version"]
+    except (KeyError, TypeError):
+        raise ValueError("Version key not found in Cargo.toml")
 
 
 def verify_unpublished(crates: List[str]):
     """
     Asserts that none of the crates in the set have been published.
     """
-    raise NotImplementedError("Not implemented yet.")
+    version = get_workspace_version()
+    for crate in crates:
+        assert not crate_version_exists(crate_name=crate, version=version)
 
 
 def get_package_and_dependencies_in_order(crate: str) -> List[str]:
