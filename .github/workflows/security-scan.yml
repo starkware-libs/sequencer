@@ -3,15 +3,19 @@ name: Semgrep
 
 on:
   # Scan changed files in PRs (diff-aware scanning):
-  pull_request: {}
+  pull_request:
+    types:
+      - opened
+      - reopened
   # Scan on-demand through GitHub Actions interface:
   workflow_dispatch: {}
   # Scan mainline branches if there are changes to .github/workflows/semgrep.yml:
   push:
     branches:
       - main
+      - main-v[0-9].**
     paths:
-      - .github/workflows/semgrep.yml
+      - .github/workflows/security-scan.yml
   # Schedule the CI job (this method uses cron syntax):
   schedule:
     - cron: '20 20 * * *' # Sets Semgrep to scan every day at 17:20 UTC.
@@ -22,7 +26,7 @@ jobs:
     # User definable name of this GitHub Actions job.
     name: semgrep/ci
     # If you are self-hosting, change the following `runs-on` value:
-    runs-on: ubuntu-latest
+    runs-on: starkware-ubuntu-latest-medium
 
     container:
       # A Docker image with Semgrep installed. Do not change this.
