@@ -88,7 +88,7 @@ auto_impl_get_test_instance!(
 auto_impl_get_test_instance!(
     pub enum ProposalPart {
         Init(ProposalInit) = 0,
-        Batch(TransactionBatch) = 1,
+        Transactions(TransactionBatch) = 1,
         Fin(ProposalFin) = 2,
     }
 );

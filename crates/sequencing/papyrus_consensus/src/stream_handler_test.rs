@@ -69,7 +69,7 @@ mod tests {
             assert_eq!(message.stream_id, stream_id);
             assert_eq!(message.message_id, i);
             if i == 9 {
-                assert_eq!(message.fin, true);
+                assert!(message.fin);
             }
         }
     }
@@ -116,7 +116,7 @@ mod tests {
             assert_eq!(message.stream_id, stream_id);
             assert_eq!(message.message_id, i);
             if i == 5 {
-                assert_eq!(message.fin, true);
+                assert!(message.fin);
             }
         }
     }
@@ -194,7 +194,7 @@ mod tests {
             assert_eq!(message.stream_id, stream_id1);
             assert_eq!(message.message_id, i);
             if i == 9 {
-                assert_eq!(message.fin, true);
+                assert!(message.fin);
             }
         }
 
@@ -229,7 +229,7 @@ mod tests {
             assert_eq!(message.stream_id, stream_id2);
             assert_eq!(message.message_id, i);
             if i == 5 {
-                assert_eq!(message.fin, true);
+                assert!(message.fin);
             }
         }
 
@@ -259,7 +259,7 @@ mod tests {
                 .expect(&format!("Receive message {i} should succeed"));
             assert_eq!(message.stream_id, stream_id3);
             assert_eq!(message.message_id, i);
-            assert_eq!(message.fin, false);
+            assert!(!message.fin);
         }
 
         // stream_id3 should still be there, because we didn't send a fin
