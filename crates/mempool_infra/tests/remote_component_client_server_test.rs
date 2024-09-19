@@ -22,13 +22,24 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Request, Response, Server, StatusCode, Uri};
 use rstest::rstest;
 use serde::Serialize;
-use starknet_mempool_infra::component_client::{ClientError, ClientResult, RemoteComponentClient};
+use starknet_mempool_infra::component_client::{
+    ClientError,
+    ClientResult,
+    LocalComponentClient,
+    RemoteComponentClient,
+};
 use starknet_mempool_infra::component_definitions::{
+    ComponentRequestAndResponseSender,
     ComponentRequestHandler,
     ServerError,
     APPLICATION_OCTET_STREAM,
 };
-use starknet_mempool_infra::component_server::{ComponentServerStarter, RemoteComponentServer};
+use starknet_mempool_infra::component_server::{
+    ComponentServerStarter,
+    LocalComponentServer,
+    RemoteComponentServer,
+};
+use tokio::sync::mpsc::channel;
 use tokio::sync::Mutex;
 use tokio::task;
 
@@ -108,10 +119,10 @@ impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for Componen
 }
 
 async fn verify_error(
-    a_client: impl ComponentAClientTrait,
+    a_remote_client: impl ComponentAClientTrait,
     expected_error_contained_keywords: &[&str],
 ) {
-    let Err(error) = a_client.a_get_value().await else {
+    let Err(error) = a_remote_client.a_get_value().await else {
         panic!("Expected an error.");
     };
     assert_error_contains_keywords(error.to_string(), expected_error_contained_keywords)
@@ -156,29 +167,41 @@ where
 }
 
 async fn setup_for_tests(setup_value: ValueB, a_port: u16, b_port: u16) {
-    let a_client = ComponentAClient::new(LOCAL_IP, a_port, MAX_RETRIES);
-    let b_client = ComponentBClient::new(LOCAL_IP, b_port, MAX_RETRIES);
+    let a_remote_client = ComponentAClient::new(LOCAL_IP, a_port, MAX_RETRIES);
+    let b_remote_client = ComponentBClient::new(LOCAL_IP, b_port, MAX_RETRIES);
 
-    let component_a = ComponentA::new(Box::new(b_client));
-    let component_b = ComponentB::new(setup_value, Box::new(a_client.clone()));
+    let component_a = ComponentA::new(Box::new(b_remote_client));
+    let component_b = ComponentB::new(setup_value, Box::new(a_remote_client.clone()));
 
-    let mut component_a_server = RemoteComponentServer::<
-        ComponentA,
-        ComponentARequest,
-        ComponentAResponse,
-    >::new(component_a, LOCAL_IP, a_port);
-    let mut component_b_server = RemoteComponentServer::<
-        ComponentB,
-        ComponentBRequest,
-        ComponentBResponse,
-    >::new(component_b, LOCAL_IP, b_port);
+    let (tx_a, rx_a) =
+        channel::<ComponentRequestAndResponseSender<ComponentARequest, ComponentAResponse>>(32);
+    let (tx_b, rx_b) =
+        channel::<ComponentRequestAndResponseSender<ComponentBRequest, ComponentBResponse>>(32);
+
+    let a_local_client = LocalComponentClient::<ComponentARequest, ComponentAResponse>::new(tx_a);
+    let b_local_client = LocalComponentClient::<ComponentBRequest, ComponentBResponse>::new(tx_b);
+
+    let mut component_a_local_server = LocalComponentServer::new(component_a, rx_a);
+    let mut component_b_local_server = LocalComponentServer::new(component_b, rx_b);
+
+    let mut component_a_remote_server =
+        RemoteComponentServer::new(a_local_client, LOCAL_IP, a_port);
+    let mut component_b_remote_server =
+        RemoteComponentServer::new(b_local_client, LOCAL_IP, b_port);
 
     task::spawn(async move {
-        component_a_server.start().await;
+        component_a_local_server.start().await;
+    });
+    task::spawn(async move {
+        component_b_local_server.start().await;
     });
 
     task::spawn(async move {
-        component_b_server.start().await;
+        component_a_remote_server.start().await;
+    });
+
+    task::spawn(async move {
+        component_b_remote_server.start().await;
     });
 
     // Todo(uriel): Get rid of this
@@ -189,9 +212,9 @@ async fn setup_for_tests(setup_value: ValueB, a_port: u16, b_port: u16) {
 async fn test_proper_setup() {
     let setup_value: ValueB = 90;
     setup_for_tests(setup_value, A_PORT_TEST_SETUP, B_PORT_TEST_SETUP).await;
-    let a_client = ComponentAClient::new(LOCAL_IP, A_PORT_TEST_SETUP, MAX_RETRIES);
-    let b_client = ComponentBClient::new(LOCAL_IP, B_PORT_TEST_SETUP, MAX_RETRIES);
-    test_a_b_functionality(a_client, b_client, setup_value.into()).await;
+    let a_remote_client = ComponentAClient::new(LOCAL_IP, A_PORT_TEST_SETUP, MAX_RETRIES);
+    let b_remote_client = ComponentBClient::new(LOCAL_IP, B_PORT_TEST_SETUP, MAX_RETRIES);
+    test_a_b_functionality(a_remote_client, b_remote_client, setup_value.into()).await;
 }
 
 #[tokio::test]
