@@ -65,6 +65,40 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     }
 }
 
+/// This message must be sent first when proposing a new block.
+pub struct ProposalInit {
+    /// The height of the consensus (block number).
+    pub height: u64,
+    /// The current round of the consensus.
+    pub round: u32,
+    /// The last round that was valid.
+    pub valid_round: u32, // TODO(guyn): should this be optional?
+    /// Address of the one who proposed the block.
+    pub proposer: ContractAddress,
+}
+
+/// There is one or more batches of transactions in a proposed block.
+pub struct TransactionBatch {
+    /// The transactions in the batch.
+    pub transactions: Vec<Transaction>,
+}
+
+/// The propsal is done when receiving this fin message, which contains the block hash.
+pub struct ProposalFin {
+    /// The block hash of the proposed block.
+    pub block_hash: BlockHash,
+}
+
+/// A part of the proposal.
+pub enum ProposalPart {
+    /// The initialization part of the proposal.
+    Init(ProposalInit),
+    /// A part of the proposal that contains one or more transactions.
+    Transactions(TransactionBatch),
+    /// The final part of the proposal, including the block hash.
+    Fin(ProposalFin),
+}
+
 // TODO(Guy): Remove after implementing broadcast streams.
 #[allow(missing_docs)]
 pub struct ProposalWrapper(pub Proposal);
