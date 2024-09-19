@@ -187,7 +187,7 @@ fn test_bouncer_try_update(
     use crate::fee::resources::{ComputationResources, TransactionResources};
 
     let state = &mut test_state(&BlockContext::create_for_account_testing().chain_info, 0, &[]);
-    let mut transactional_state = TransactionalState::create_transactional(state);
+    let mut transactional_state = TransactionalState::create_transactional_for_testing(state);
 
     // Setup the bouncer.
     let block_max_capacity = BouncerWeights {

@@ -7,6 +7,7 @@ use strum::IntoEnumIterator;
 use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::context::ChainInfo;
 use crate::state::cached_state::CachedState;
+use crate::state::visited_pcs::VisitedPcsSet;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::CairoVersion;
@@ -40,7 +41,7 @@ pub fn test_state_inner(
     initial_balances: u128,
     contract_instances: &[(FeatureContract, u16)],
     erc20_contract_version: CairoVersion,
-) -> CachedState<DictStateReader> {
+) -> CachedState<DictStateReader, VisitedPcsSet> {
     let mut class_hash_to_class = HashMap::new();
     let mut address_to_class_hash = HashMap::new();
 
@@ -87,6 +88,6 @@ pub fn test_state(
     chain_info: &ChainInfo,
     initial_balances: u128,
     contract_instances: &[(FeatureContract, u16)],
-) -> CachedState<DictStateReader> {
+) -> CachedState<DictStateReader, VisitedPcsSet> {
     test_state_inner(chain_info, initial_balances, contract_instances, CairoVersion::Cairo0)
 }

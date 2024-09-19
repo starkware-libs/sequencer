@@ -27,6 +27,7 @@ use crate::execution::contract_class::{ClassInfo, ContractClass};
 use crate::fee::resources::GasVectorComputationMode;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
+use crate::state::visited_pcs::VisitedPcsSet;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::declare::declare_tx;
 use crate::test_utils::deploy_account::deploy_account_tx;
@@ -117,7 +118,7 @@ pub fn block_context() -> BlockContext {
 
 /// Struct containing the data usually needed to initialize a test.
 pub struct TestInitData {
-    pub state: CachedState<DictStateReader>,
+    pub state: CachedState<DictStateReader, VisitedPcsSet>,
     pub account_address: ContractAddress,
     pub contract_address: ContractAddress,
     pub nonce_manager: NonceManager,
@@ -126,7 +127,7 @@ pub struct TestInitData {
 /// Deploys a new account with the given class hash, funds with both fee tokens, and returns the
 /// deploy tx and address.
 pub fn deploy_and_fund_account(
-    state: &mut CachedState<DictStateReader>,
+    state: &mut CachedState<DictStateReader, VisitedPcsSet>,
     nonce_manager: &mut NonceManager,
     chain_info: &ChainInfo,
     deploy_tx_args: DeployAccountTxArgs,
@@ -312,7 +313,7 @@ pub fn account_invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
 }
 
 pub fn run_invoke_tx(
-    state: &mut CachedState<DictStateReader>,
+    state: &mut CachedState<DictStateReader, VisitedPcsSet>,
     block_context: &BlockContext,
     invoke_args: InvokeTxArgs,
 ) -> TransactionExecutionResult<TransactionExecutionInfo> {

@@ -20,6 +20,7 @@ use std::time::Duration;
 use blockifier::context::BlockContext;
 use blockifier::state::cached_state::{CachedState, TransactionalState};
 use blockifier::state::state_api::State;
+use blockifier::state::visited_pcs::VisitedPcsSet;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::initial_test_state::test_state;
@@ -28,9 +29,15 @@ use blockifier::test_utils::transfers_generator::{
     TransfersGenerator,
     TransfersGeneratorConfig,
 };
-use blockifier::test_utils::{create_calldata, CairoVersion, BALANCE};
+use blockifier::test_utils::{
+    create_calldata,
+    CairoVersion,
+    BALANCE,
+    MAX_L1_GAS_AMOUNT,
+    MAX_L1_GAS_PRICE,
+};
 use blockifier::transaction::account_transaction::AccountTransaction;
-use blockifier::transaction::test_utils::{account_invoke_tx, block_context, max_resource_bounds};
+use blockifier::transaction::test_utils::{account_invoke_tx, block_context, l1_resource_bounds};
 use blockifier::transaction::transactions::ExecutableTransaction;
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use starknet_api::core::ClassHash;
@@ -67,7 +74,7 @@ pub fn cached_state_benchmark(c: &mut Criterion) {
     }
 
     // The state shared across all iterations.
-    let mut cached_state: CachedState<DictStateReader> = CachedState::default();
+    let mut cached_state: CachedState<DictStateReader, VisitedPcsSet> = CachedState::default();
 
     c.bench_function("cached_state", move |benchmark| {
         benchmark.iter_batched(
@@ -83,107 +90,107 @@ pub fn cached_state_benchmark(c: &mut Criterion) {
                 let mut random_arrays = Vec::new();
 
                 let class_hash = create_class_hash("a");
-                let random_array = get_random_array(11393).into_iter().collect();
+                let random_array = get_random_array(11393);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("a");
-                let random_array = get_random_array(453).into_iter().collect();
+                let random_array = get_random_array(453);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("a");
-                let random_array = get_random_array(604).into_iter().collect();
+                let random_array = get_random_array(604);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("a");
-                let random_array = get_random_array(806).into_iter().collect();
+                let random_array = get_random_array(806);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("b");
-                let random_array = get_random_array(1327).into_iter().collect();
+                let random_array = get_random_array(1327);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("b");
-                let random_array = get_random_array(1135).into_iter().collect();
+                let random_array = get_random_array(1135);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("b");
-                let random_array = get_random_array(213).into_iter().collect();
+                let random_array = get_random_array(213);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("b");
-                let random_array = get_random_array(135).into_iter().collect();
+                let random_array = get_random_array(135);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("c");
-                let random_array = get_random_array(348).into_iter().collect();
+                let random_array = get_random_array(348);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("c");
-                let random_array = get_random_array(88).into_iter().collect();
+                let random_array = get_random_array(88);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("c");
-                let random_array = get_random_array(348).into_iter().collect();
+                let random_array = get_random_array(348);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("c");
-                let random_array = get_random_array(348).into_iter().collect();
+                let random_array = get_random_array(348);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("d");
-                let random_array = get_random_array(875).into_iter().collect();
+                let random_array = get_random_array(875);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("d");
-                let random_array = get_random_array(450).into_iter().collect();
+                let random_array = get_random_array(450);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("d");
-                let random_array = get_random_array(255).into_iter().collect();
+                let random_array = get_random_array(255);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("d");
-                let random_array = get_random_array(210).into_iter().collect();
+                let random_array = get_random_array(210);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("d");
-                let random_array = get_random_array(1403).into_iter().collect();
+                let random_array = get_random_array(1403);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("d");
-                let random_array = get_random_array(210).into_iter().collect();
+                let random_array = get_random_array(210);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("d");
-                let random_array = get_random_array(210).into_iter().collect();
+                let random_array = get_random_array(210);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("e");
-                let random_array = get_random_array(2386).into_iter().collect();
+                let random_array = get_random_array(2386);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
                 let class_hash = create_class_hash("e");
-                let random_array = get_random_array(3602).into_iter().collect();
+                let random_array = get_random_array(3602);
                 class_hashes.push(class_hash);
                 random_arrays.push(random_array);
 
@@ -204,9 +211,10 @@ pub fn cached_state_benchmark(c: &mut Criterion) {
 
 pub fn execution_benchmark(c: &mut Criterion) {
     /// This function sets up and returns all the objects required to execute an invoke transaction.
-    fn prepare_account_tx() -> (AccountTransaction, CachedState<DictStateReader>, BlockContext) {
+    fn prepare_account_tx()
+    -> (AccountTransaction, CachedState<DictStateReader, VisitedPcsSet>, BlockContext) {
         let block_context = block_context();
-        let max_resource_bounds = max_resource_bounds();
+        let max_resource_bounds = l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE);
         let cairo_version = CairoVersion::Cairo1;
         let account = FeatureContract::AccountWithoutValidations(cairo_version);
         let test_contract = FeatureContract::TestContract(cairo_version);
