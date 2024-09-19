@@ -18,7 +18,7 @@ use crate::transaction::objects::{
 #[derive(Clone, Copy, Debug, Error)]
 pub enum FeeCheckError {
     #[error(
-        "Insufficient max {resource} gas: max amount: {max_amount}, actual used: {actual_amount}."
+        "Insufficient max {resource}: max amount: {max_amount}, actual used: {actual_amount}."
     )]
     MaxGasAmountExceeded { resource: Resource, max_amount: u128, actual_amount: u128 },
     #[error("Insufficient max fee: max fee: {}, actual fee: {}.", max_fee.0, actual_fee.0)]
