@@ -2,30 +2,31 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_mempool_infra::component_client::ClientResult;
 use starknet_mempool_infra::component_runner::ComponentStarter;
+use starknet_types_core::felt::Felt;
 
-pub(crate) type ValueA = u32;
-pub(crate) type ValueB = u8;
+pub(crate) type ValueA = Felt;
+pub(crate) type ValueB = Felt;
 
 pub(crate) type ResultA = ClientResult<ValueA>;
 pub(crate) type ResultB = ClientResult<ValueB>;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ComponentARequest {
     AGetValue,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ComponentAResponse {
     AGetValue(ValueA),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ComponentBRequest {
     BGetValue,
     BSetValue(ValueB),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ComponentBResponse {
     BGetValue(ValueB),
     BSetValue,
@@ -52,8 +53,7 @@ impl ComponentA {
     }
 
     pub async fn a_get_value(&self) -> ValueA {
-        let b_value = self.b.b_get_value().await.unwrap();
-        b_value.into()
+        self.b.b_get_value().await.unwrap()
     }
 }
 
@@ -92,7 +92,7 @@ pub(crate) async fn test_a_b_functionality(
 
     let new_expected_value: ValueA = expected_value + 1;
     // Check that setting a new value to component B succeeds.
-    assert!(b_client.b_set_value(new_expected_value.try_into().unwrap()).await.is_ok());
+    assert!(b_client.b_set_value(new_expected_value).await.is_ok());
     // Check the new value in component B through client A.
     assert_eq!(a_client.a_get_value().await.unwrap(), new_expected_value);
 }

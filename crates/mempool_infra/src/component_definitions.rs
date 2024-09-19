@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt::Debug;
 use std::net::IpAddr;
 
 use async_trait::async_trait;
@@ -7,8 +8,10 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::mpsc::{Receiver, Sender};
+use tracing::error;
 use validator::Validate;
 
+pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 const DEFAULT_CHANNEL_BUFFER_SIZE: usize = 32;
 const DEFAULT_RETRIES: usize = 3;
 
@@ -44,8 +47,6 @@ where
     pub request: Request,
     pub tx: Sender<Response>,
 }
-
-pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 
 #[derive(Debug, Error, Deserialize, Serialize, Clone)]
 pub enum ServerError {

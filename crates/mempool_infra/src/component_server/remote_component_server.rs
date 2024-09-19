@@ -1,7 +1,7 @@
 use std::net::{IpAddr, SocketAddr};
+use std::sync::Arc;
 
 use async_trait::async_trait;
-use bincode::{deserialize, serialize};
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::service::{make_service_fn, service_fn};
@@ -10,8 +10,9 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use super::definitions::ComponentServerStarter;
-use crate::component_client::LocalComponentClient;
+use crate::component_client::{ClientError, LocalComponentClient};
 use crate::component_definitions::{ServerError, APPLICATION_OCTET_STREAM};
+use crate::serde_utils::BincodeSerdeWrapper;
 
 /// The `RemoteComponentServer` struct is a generic server that handles requests and responses for a
 /// specified component. It receives requests, processes them using the provided component, and
@@ -59,14 +60,14 @@ use crate::component_definitions::{ServerError, APPLICATION_OCTET_STREAM};
 /// }
 ///
 /// // Define your request and response types
-/// #[derive(Deserialize)]
+/// #[derive(Serialize, Deserialize, Debug)]
 /// struct MyRequest {
 ///     pub content: String,
 /// }
 ///
-/// #[derive(Serialize)]
+/// #[derive(Serialize, Deserialize, Debug)]
 /// struct MyResponse {
-///     pub content: String,
+///     content: String,
 /// }
 ///
 /// // Define your request processing logic
@@ -99,8 +100,8 @@ use crate::component_definitions::{ServerError, APPLICATION_OCTET_STREAM};
 /// ```
 pub struct RemoteComponentServer<Request, Response>
 where
-    Request: DeserializeOwned + Send + Sync + 'static,
-    Response: Serialize + Send + Sync + 'static,
+    Request: Serialize + DeserializeOwned + Send + Sync + 'static,
+    Response: Serialize + DeserializeOwned + Send + Sync + 'static,
 {
     socket: SocketAddr,
     local_client: LocalComponentClient<Request, Response>,
@@ -108,8 +109,8 @@ where
 
 impl<Request, Response> RemoteComponentServer<Request, Response>
 where
-    Request: DeserializeOwned + Send + Sync + 'static,
-    Response: Serialize + Send + Sync + 'static,
+    Request: Serialize + DeserializeOwned + std::fmt::Debug + Send + Sync + 'static,
+    Response: Serialize + DeserializeOwned + std::fmt::Debug + Send + Sync + 'static,
 {
     pub fn new(
         local_client: LocalComponentClient<Request, Response>,
@@ -119,25 +120,32 @@ where
         Self { local_client, socket: SocketAddr::new(ip_address, port) }
     }
 
-    async fn handler(
+    async fn remote_component_server_handler(
         http_request: HyperRequest<Body>,
         local_client: LocalComponentClient<Request, Response>,
     ) -> Result<HyperResponse<Body>, hyper::Error> {
         let body_bytes = to_bytes(http_request.into_body()).await?;
-        let http_response = match deserialize(&body_bytes) {
+
+        let http_response = match BincodeSerdeWrapper::<Request>::from_bincode(&body_bytes)
+            .map_err(|e| ClientError::ResponseDeserializationFailure(Arc::new(e)))
+        {
             Ok(request) => {
                 let response = local_client.send(request).await;
                 HyperResponse::builder()
                     .status(StatusCode::OK)
                     .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
                     .body(Body::from(
-                        serialize(&response).expect("Response serialization should succeed"),
+                        BincodeSerdeWrapper::new(response)
+                            .to_bincode()
+                            .expect("Response serialization should succeed"),
                     ))
             }
             Err(error) => {
                 let server_error = ServerError::RequestDeserializationFailure(error.to_string());
                 HyperResponse::builder().status(StatusCode::BAD_REQUEST).body(Body::from(
-                    serialize(&server_error).expect("Server error serialization should succeed"),
+                    BincodeSerdeWrapper::new(server_error)
+                        .to_bincode()
+                        .expect("Server error serialization should succeed"),
                 ))
             }
         }
@@ -150,15 +158,15 @@ where
 #[async_trait]
 impl<Request, Response> ComponentServerStarter for RemoteComponentServer<Request, Response>
 where
-    Request: DeserializeOwned + Send + Sync + 'static,
-    Response: Serialize + Send + Sync + 'static,
+    Request: Serialize + DeserializeOwned + Send + Sync + std::fmt::Debug + 'static,
+    Response: Serialize + DeserializeOwned + Send + Sync + std::fmt::Debug + 'static,
 {
     async fn start(&mut self) {
         let make_svc = make_service_fn(|_conn| {
             let local_client = self.local_client.clone();
             async {
                 Ok::<_, hyper::Error>(service_fn(move |req| {
-                    Self::handler(req, local_client.clone())
+                    Self::remote_component_server_handler(req, local_client.clone())
                 }))
             }
         });

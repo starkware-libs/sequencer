@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 use std::net::IpAddr;
 use std::sync::Arc;
 
-use bincode::{deserialize, serialize};
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::{Body, Client, Request as HyperRequest, Response as HyperResponse, StatusCode, Uri};
@@ -11,6 +10,7 @@ use serde::Serialize;
 
 use super::definitions::{ClientError, ClientResult};
 use crate::component_definitions::APPLICATION_OCTET_STREAM;
+use crate::serde_utils::BincodeSerdeWrapper;
 
 /// The `RemoteComponentClient` struct is a generic client for sending component requests and
 /// receiving responses asynchronously through HTTP connection.
@@ -35,12 +35,12 @@ use crate::component_definitions::APPLICATION_OCTET_STREAM;
 /// use crate::starknet_mempool_infra::component_client::RemoteComponentClient;
 ///
 /// // Define your request and response types
-/// #[derive(Serialize)]
+/// #[derive(Serialize, Deserialize, Debug, Clone)]
 /// struct MyRequest {
 ///     pub content: String,
 /// }
 ///
-/// #[derive(Deserialize)]
+/// #[derive(Serialize, Deserialize, Debug)]
 /// struct MyResponse {
 ///     content: String,
 /// }
@@ -79,8 +79,8 @@ where
 
 impl<Request, Response> RemoteComponentClient<Request, Response>
 where
-    Request: Serialize,
-    Response: DeserializeOwned,
+    Request: Serialize + DeserializeOwned + std::fmt::Debug + Clone,
+    Response: Serialize + DeserializeOwned + std::fmt::Debug,
 {
     pub fn new(ip_address: IpAddr, port: u16, max_retries: usize) -> Self {
         let uri = match ip_address {
@@ -98,23 +98,25 @@ where
         // Construct and request, and send it up to 'max_retries' times. Return if received a
         // successful response.
         for _ in 0..self.max_retries {
-            let http_request = self.construct_http_request(&component_request);
+            let http_request = self.construct_http_request(component_request.clone());
             let res = self.try_send(http_request).await;
             if res.is_ok() {
                 return res;
             }
         }
-        // Construct and send the request, return the received respone regardless whether it
+        // Construct and send the request, return the received response regardless whether it
         // successful or not.
-        let http_request = self.construct_http_request(&component_request);
+        let http_request = self.construct_http_request(component_request);
         self.try_send(http_request).await
     }
 
-    fn construct_http_request(&self, component_request: &Request) -> HyperRequest<Body> {
+    fn construct_http_request(&self, component_request: Request) -> HyperRequest<Body> {
         HyperRequest::post(self.uri.clone())
             .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
             .body(Body::from(
-                serialize(component_request).expect("Request serialization should succeed"),
+                BincodeSerdeWrapper::new(component_request)
+                    .to_bincode()
+                    .expect("Request serialization should succeed"),
             ))
             .expect("Request building should succeed")
     }
@@ -138,12 +140,14 @@ where
 
 async fn get_response_body<Response>(response: HyperResponse<Body>) -> Result<Response, ClientError>
 where
-    Response: DeserializeOwned,
+    Response: Serialize + DeserializeOwned + std::fmt::Debug,
 {
     let body_bytes = to_bytes(response.into_body())
         .await
         .map_err(|e| ClientError::ResponseParsingFailure(Arc::new(e)))?;
-    deserialize(&body_bytes).map_err(|e| ClientError::ResponseDeserializationFailure(Arc::new(e)))
+
+    BincodeSerdeWrapper::<Response>::from_bincode(&body_bytes)
+        .map_err(|e| ClientError::ResponseDeserializationFailure(Arc::new(e)))
 }
 
 // Can't derive because derive forces the generics to also be `Clone`, which we prefer not to do
