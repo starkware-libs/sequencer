@@ -21,7 +21,6 @@ starknet_api.workspace = true
 starknet-types-core.workspace = true
 papyrus_test_utils = { workspace = true, optional = true }
 thiserror.workspace = true
-tokio = { workspace = true, features = ["full"] }
 papyrus_common.workspace = true
 
 [dev-dependencies]

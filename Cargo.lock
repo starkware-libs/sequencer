@@ -6425,7 +6425,6 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "thiserror",
- "tokio",
 ]
 
 [[package]]
