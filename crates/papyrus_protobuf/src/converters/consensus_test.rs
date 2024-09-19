@@ -18,7 +18,17 @@ use starknet_api::transaction::{
     ValidResourceBounds,
 };
 
-use crate::consensus::{ConsensusMessage, Proposal, StreamMessage, Vote, VoteType};
+use crate::consensus::{
+    ConsensusMessage,
+    Proposal,
+    ProposalFin,
+    ProposalInit,
+    ProposalPart,
+    StreamMessage,
+    TransactionBatch,
+    Vote,
+    VoteType,
+};
 
 auto_impl_get_test_instance! {
     pub enum ConsensusMessage {
@@ -53,6 +63,35 @@ auto_impl_get_test_instance! {
         Precommit = 1,
     }
 }
+
+auto_impl_get_test_instance!(
+    pub struct ProposalInit {
+        pub height: u64,
+        pub round: u32,
+        pub valid_round: u32,
+        pub proposer: ContractAddress,
+    }
+);
+
+auto_impl_get_test_instance!(
+    pub struct TransactionBatch {
+        pub transactions: Vec<Transaction>,
+    }
+);
+
+auto_impl_get_test_instance!(
+    pub struct ProposalFin {
+        pub block_hash: BlockHash,
+    }
+);
+
+auto_impl_get_test_instance!(
+    pub enum ProposalPart {
+        Init(ProposalInit) = 0,
+        Batch(TransactionBatch) = 1,
+        Fin(ProposalFin) = 2,
+    }
+);
 
 impl GetTestInstance for StreamMessage<ConsensusMessage> {
     fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
@@ -135,4 +174,48 @@ fn convert_proposal_to_vec_u8_and_back() {
     let bytes_data: Vec<u8> = proposal.clone().into();
     let res_data = Proposal::try_from(bytes_data).unwrap();
     assert_eq!(proposal, res_data);
+}
+
+#[test]
+fn convert_proposal_init_to_vec_u8_and_back() {
+    let mut rng = get_rng();
+
+    let proposal_init = ProposalInit::get_test_instance(&mut rng);
+
+    let bytes_data: Vec<u8> = proposal_init.clone().into();
+    let res_data = ProposalInit::try_from(bytes_data).unwrap();
+    assert_eq!(proposal_init, res_data);
+}
+
+#[test]
+fn convert_transaction_batch_to_vec_u8_and_back() {
+    let mut rng = get_rng();
+
+    let transaction_batch = TransactionBatch::get_test_instance(&mut rng);
+
+    let bytes_data: Vec<u8> = transaction_batch.clone().into();
+    let res_data = TransactionBatch::try_from(bytes_data).unwrap();
+    assert_eq!(transaction_batch, res_data);
+}
+
+#[test]
+fn convert_proposal_fin_to_vec_u8_and_back() {
+    let mut rng = get_rng();
+
+    let proposal_fin = ProposalFin::get_test_instance(&mut rng);
+
+    let bytes_data: Vec<u8> = proposal_fin.clone().into();
+    let res_data = ProposalFin::try_from(bytes_data).unwrap();
+    assert_eq!(proposal_fin, res_data);
+}
+
+#[test]
+fn convert_proposal_part_to_vec_u8_and_back() {
+    let mut rng = get_rng();
+
+    let proposal_part = ProposalPart::get_test_instance(&mut rng);
+
+    let bytes_data: Vec<u8> = proposal_part.clone().into();
+    let res_data = ProposalPart::try_from(bytes_data).unwrap();
+    assert_eq!(proposal_part, res_data);
 }
