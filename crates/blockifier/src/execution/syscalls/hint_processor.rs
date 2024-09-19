@@ -31,6 +31,7 @@ use crate::execution::execution_utils::{
     felt_from_ptr,
     felt_range_from_ptr,
     max_fee_for_execution_info,
+    update_remaining_gas,
     write_maybe_relocatable,
     ReadOnlySegment,
     ReadOnlySegments,
@@ -73,7 +74,6 @@ use crate::execution::syscalls::{
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
 use crate::transaction::objects::{CurrentTransactionInfo, TransactionInfo};
-use crate::transaction::transaction_utils::update_remaining_gas;
 
 pub type SyscallCounter = HashMap<SyscallSelector, usize>;
 

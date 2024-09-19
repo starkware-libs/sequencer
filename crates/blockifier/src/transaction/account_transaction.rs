@@ -19,6 +19,7 @@ use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::{CallInfo, Retdata};
 use crate::execution::contract_class::ContractClass;
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
+use crate::execution::execution_utils::update_remaining_gas;
 use crate::fee::fee_checks::{FeeCheckReportFields, PostExecutionReport};
 use crate::fee::fee_utils::{
     get_fee_by_gas_vector,
@@ -46,7 +47,6 @@ use crate::transaction::objects::{
     TransactionPreValidationResult,
 };
 use crate::transaction::transaction_types::TransactionType;
-use crate::transaction::transaction_utils::update_remaining_gas;
 use crate::transaction::transactions::{
     DeclareTransaction,
     DeployAccountTransaction,
