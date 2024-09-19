@@ -129,6 +129,22 @@ async fn spawn_rpc_server(
     Ok(tokio::spawn(pending()))
 }
 
+fn spawn_monitoring_server(
+    storage_reader: StorageReader,
+    local_peer_id: String,
+    config: &NodeConfig,
+) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
+    let monitoring_server = MonitoringServer::new(
+        config.monitoring_gateway.clone(),
+        get_config_presentation(config, true)?,
+        get_config_presentation(config, false)?,
+        storage_reader,
+        VERSION_FULL,
+        local_peer_id,
+    )?;
+    Ok(tokio::spawn(async move { Ok(monitoring_server.run_server().await?) }))
+}
+
 fn spawn_consensus(
     config: Option<&ConsensusConfig>,
     storage_reader: StorageReader,
@@ -336,15 +352,11 @@ async fn run_threads(config: NodeConfig, mut resources: PapyrusResources) -> any
     );
 
     // Monitoring server.
-    let monitoring_server = MonitoringServer::new(
-        config.monitoring_gateway.clone(),
-        get_config_presentation(&config, true)?,
-        get_config_presentation(&config, false)?,
+    let monitoring_server_handle = spawn_monitoring_server(
         resources.storage_reader.clone(),
-        VERSION_FULL,
-        resources.local_peer_id,
+        resources.local_peer_id.clone(),
+        &config,
     )?;
-    let monitoring_server_handle = monitoring_server.spawn_server().await;
 
     // JSON-RPC server.
     let rpc_server_handle = spawn_rpc_server(
