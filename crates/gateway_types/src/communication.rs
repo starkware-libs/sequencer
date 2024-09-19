@@ -64,18 +64,3 @@ impl GatewayClient for LocalGatewayClientImpl {
         }
     }
 }
-
-#[async_trait]
-impl GatewayClient for RemoteGatewayClientImpl {
-    #[instrument(skip(self))]
-    async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash> {
-        let request = GatewayRequest::AddTransaction(gateway_input);
-        let response = self.send(request).await?;
-        match response {
-            GatewayResponse::AddTransaction(Ok(response)) => Ok(response),
-            GatewayResponse::AddTransaction(Err(response)) => {
-                Err(GatewayClientError::GatewayError(response))
-            }
-        }
-    }
-}
