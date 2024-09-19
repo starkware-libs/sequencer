@@ -19,11 +19,11 @@ pub struct TransactionQueueContent {
 
 impl TransactionQueueContent {
     pub fn _assert_eq_priority_and_pending_queues(&self, tx_queue: &TransactionQueue) {
-        self._assert_eq_priority_queue(tx_queue);
+        self.assert_eq_priority_queue(tx_queue);
         self._assert_eq_pending_queue(tx_queue);
     }
 
-    pub fn _assert_eq_priority_queue(&self, tx_queue: &TransactionQueue) {
+    pub fn assert_eq_priority_queue(&self, tx_queue: &TransactionQueue) {
         assert_eq!(self.priority_queue.as_ref().unwrap(), &tx_queue.priority_queue);
         assert_eq!(self.address_to_tx.as_ref().unwrap(), &tx_queue.address_to_tx);
     }
@@ -42,11 +42,11 @@ pub struct TransactionQueueContentBuilder {
 }
 
 impl TransactionQueueContentBuilder {
-    pub fn _new() -> Self {
+    pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn _with_priority<P>(mut self, priority_txs: P) -> Self
+    pub fn with_priority<P>(mut self, priority_txs: P) -> Self
     where
         P: IntoIterator<Item = TransactionReference>,
     {
@@ -70,7 +70,7 @@ impl TransactionQueueContentBuilder {
         self
     }
 
-    pub fn _build(self) -> TransactionQueueContent {
+    pub fn build(self) -> TransactionQueueContent {
         TransactionQueueContent {
             priority_queue: self._priority_queue,
             pending_queue: self._pending_queue,
