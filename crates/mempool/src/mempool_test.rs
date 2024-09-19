@@ -139,6 +139,18 @@ fn add_tx_expect_error(mempool: &mut Mempool, input: &MempoolInput, expected_err
     assert_eq!(mempool.add_tx(input.clone()), Err(expected_error));
 }
 
+#[track_caller]
+fn commit_block(
+    mempool: &mut Mempool,
+    state_changes: impl IntoIterator<Item = (&'static str, u8)>,
+) {
+    let state_changes = HashMap::from_iter(state_changes.into_iter().map(|(address, nonce)| {
+        (contract_address!(address), AccountState { nonce: Nonce(felt!(nonce)) })
+    }));
+
+    assert!(mempool.commit_block(state_changes).is_ok());
+}
+
 /// Creates a valid input for mempool's `add_tx` with optional default values.
 /// Usage:
 /// 1. add_tx_input!(tip: 1, tx_hash: 2, sender_address: 3_u8, tx_nonce: 4, account_nonce: 3)
@@ -414,11 +426,12 @@ fn test_get_txs_while_decreasing_gas_price_threshold() {
     assert!(txs.is_empty());
 
     // Updating the gas price threshold should happen in a new block creation.
-    assert!(mempool.commit_block(HashMap::default()).is_ok());
+    let state_changes = [];
+    commit_block(&mut mempool, state_changes);
+
     // Low gas price threshold, the transaction should be returned.
     mempool._update_gas_price_threshold(100);
     let txs = mempool.get_txs(1).unwrap();
-
     assert_eq!(txs, &[input_tx.tx]);
 }
 
@@ -441,7 +454,9 @@ fn test_get_txs_while_increasing_gas_price_threshold() {
     assert_eq!(txs, &[input_tx_nonce_0.tx]);
 
     // Updating the gas price threshold should happen in a new block creation.
-    assert!(mempool.commit_block(HashMap::default()).is_ok());
+    let state_changes = [];
+    commit_block(&mut mempool, state_changes);
+
     // High gas price threshold, no transactions should be returned.
     mempool._update_gas_price_threshold(1000000000000);
     let txs = mempool.get_txs(1).unwrap();
@@ -754,11 +769,8 @@ fn test_commit_block_includes_all_txs() {
         .into();
 
     // Test.
-    let state_changes = HashMap::from([
-        (contract_address!("0x0"), AccountState { nonce: Nonce(felt!(3_u16)) }),
-        (contract_address!("0x1"), AccountState { nonce: Nonce(felt!(2_u16)) }),
-    ]);
-    assert!(mempool.commit_block(state_changes).is_ok());
+    let state_changes = [("0x0", 3_u8), ("0x1", 2_u8)];
+    commit_block(&mut mempool, state_changes);
 
     // Assert.
     let expected_mempool_content =
@@ -777,11 +789,8 @@ fn test_commit_block_rewinds_nonce() {
         MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queued_txs).build().into();
 
     // Test.
-    let state_changes = HashMap::from([
-        (contract_address!("0x0"), AccountState { nonce: Nonce(felt!(3_u16)) }),
-        (contract_address!("0x1"), AccountState { nonce: Nonce(felt!(3_u16)) }),
-    ]);
-    assert!(mempool.commit_block(state_changes).is_ok());
+    let state_changes = [("0x0", 3_u8), ("0x1", 3_u8)];
+    commit_block(&mut mempool, state_changes);
 
     // Assert.
     let expected_mempool_content = MempoolContentBuilder::new().with_queue([]).build();
@@ -803,13 +812,9 @@ fn test_commit_block_from_different_leader() {
         MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queued_txs).build().into();
 
     // Test.
-    let state_changes = HashMap::from([
-        (contract_address!("0x0"), AccountState { nonce: Nonce(felt!(5_u16)) }),
-        // A hole, missing nonce 1.
-        (contract_address!("0x1"), AccountState { nonce: Nonce(felt!(0_u16)) }),
-        (contract_address!("0x2"), AccountState { nonce: Nonce(felt!(1_u16)) }),
-    ]);
-    assert!(mempool.commit_block(state_changes).is_ok());
+    let state_changes =
+        [("0x0", 5_u8), ("0x1", 0_u8), /* A hole, missing nonce 1. */ ("0x2", 1_u8)];
+    commit_block(&mut mempool, state_changes);
 
     // Assert.
     let expected_queue_txs = [&tx_address0_nonce6].map(TransactionReference::new);
@@ -903,13 +908,9 @@ fn test_account_nonce_does_not_decrease_in_commit_block() {
 
 #[rstest]
 fn test_account_nonces_removal_in_commit_block(mut mempool: Mempool) {
-    // Setup.
-    let address = contract_address!("0x0");
-    let nonce = Nonce(felt!(0_u8));
-
     // Test: commit block returns information about account that is not in the mempool.
-    let state_changes = HashMap::from([(address, AccountState { nonce })]);
-    assert_eq!(mempool.commit_block(state_changes), Ok(()));
+    let state_changes = [("0x0", 0_u8)];
+    commit_block(&mut mempool, state_changes);
 
     // Assert: account is not added to the mempool.
     let expected_mempool_content = MempoolContentBuilder::new().with_account_nonces([]).build();
@@ -986,11 +987,8 @@ fn test_flow_partial_commit_block() {
     assert_eq!(txs, &[tx_address1_nonce1, tx_address2_nonce2]);
 
     // Not included in block: `tx_address2_nonce2`, `tx_address1_nonce1`.
-    let state_changes = HashMap::from([
-        (contract_address!("0x0"), AccountState { nonce: Nonce(felt!(3_u16)) }),
-        (contract_address!("0x1"), AccountState { nonce: Nonce(felt!(0_u16)) }),
-    ]);
-    assert!(mempool.commit_block(state_changes).is_ok());
+    let state_changes = [("0x0", 3_u8), ("0x1", 0_u8)];
+    commit_block(&mut mempool, state_changes);
 
     // Assert.
     let expected_pool_txs = [tx_address0_nonce5, tx_address0_nonce6, tx_address1_nonce2];
@@ -1014,9 +1012,8 @@ fn test_flow_commit_block_closes_hole() {
         MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queued_txs).build().into();
 
     // Test.
-    let state_changes =
-        HashMap::from([(contract_address!("0x0"), AccountState { nonce: Nonce(felt!(4_u8)) })]);
-    assert!(mempool.commit_block(state_changes).is_ok());
+    let state_changes = [("0x0", 4_u8)];
+    commit_block(&mut mempool, state_changes);
 
     // Assert: hole was indeed closed.
     let expected_queue_txs = [&tx_nonce5].map(TransactionReference::new);
@@ -1053,9 +1050,8 @@ fn test_flow_send_same_nonce_tx_after_previous_not_included() {
     assert_eq!(txs, &[tx_nonce3, tx_input_nonce4.tx.clone()]);
 
     // Transaction with nonce 4 is not included in the block.
-    let state_changes =
-        HashMap::from([(contract_address!("0x0"), AccountState { nonce: Nonce(felt!(3_u16)) })]);
-    assert!(mempool.commit_block(state_changes).is_ok());
+    let state_changes = [("0x0", 3_u8)];
+    commit_block(&mut mempool, state_changes);
 
     add_tx(&mut mempool, &tx_input_nonce4);
     let txs = mempool.get_txs(1).unwrap();
@@ -1090,9 +1086,8 @@ fn test_tx_pool_capacity(mut mempool: Mempool) {
 
     // Test and assert: updates pool capacity when a transaction is removed upon receiving state
     // changes.
-    let state_changes =
-        HashMap::from([(contract_address!("0x0"), AccountState { nonce: Nonce(felt!(4_u8)) })]);
-    assert!(mempool.commit_block(state_changes).is_ok());
+    let state_changes = [("0x0", 4_u8)];
+    commit_block(&mut mempool, state_changes);
     assert_eq!(mempool.tx_pool().n_txs(), 1);
 
     // Test and assert: remove the transactions, counter does not go below 0.
