@@ -113,8 +113,6 @@ fn process_tx(
     // Perform stateless validations.
     stateless_tx_validator.validate(&tx)?;
 
-    // TODO(Arni): remove copy_of_rpc_tx and use executable_tx directly as the mempool input.
-    let copy_of_rpc_tx = tx.clone();
     let executable_tx = compile_contract_and_build_executable_tx(
         tx,
         &gateway_compiler,
@@ -128,29 +126,14 @@ fn process_tx(
         }
     }
 
-    let optional_class_info = match executable_tx {
-        starknet_api::executable_transaction::Transaction::Declare(tx) => {
-            Some(tx.class_info.try_into().map_err(|e| {
-                error!("Failed to convert Starknet API ClassInfo to Blockifier ClassInfo: {:?}", e);
-                GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
-            })?)
-        }
-        _ => None,
-    };
-
     let validator = stateful_tx_validator.instantiate_validator(state_reader_factory)?;
     // TODO(Yael 31/7/24): refactor after IntrnalTransaction is ready, delete validate_info and
     // compute all the info outside of run_validate.
-    let validate_info =
-        stateful_tx_validator.run_validate(&copy_of_rpc_tx, optional_class_info, validator)?;
+    let validate_info = stateful_tx_validator.run_validate(&executable_tx, validator)?;
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
     Ok(MempoolInput {
-        tx: Transaction::new_from_rpc_tx(
-            copy_of_rpc_tx,
-            validate_info.tx_hash,
-            validate_info.sender_address,
-        ),
+        tx: executable_tx,
         account: Account {
             sender_address: validate_info.sender_address,
             state: AccountState { nonce: validate_info.account_nonce },
