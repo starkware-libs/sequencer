@@ -66,6 +66,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
 }
 
 /// This message must be sent first when proposing a new block.
+#[derive(Debug, Clone, PartialEq)]
 pub struct ProposalInit {
     /// The height of the consensus (block number).
     pub height: u64,
@@ -78,18 +79,21 @@ pub struct ProposalInit {
 }
 
 /// There is one or more batches of transactions in a proposed block.
+#[derive(Debug, Clone, PartialEq)]
 pub struct TransactionBatch {
     /// The transactions in the batch.
     pub transactions: Vec<Transaction>,
 }
 
 /// The propsal is done when receiving this fin message, which contains the block hash.
+#[derive(Debug, Clone, PartialEq)]
 pub struct ProposalFin {
     /// The block hash of the proposed block.
     pub block_hash: BlockHash,
 }
 
 /// A part of the proposal.
+#[derive(Debug, Clone, PartialEq)]
 pub enum ProposalPart {
     /// The initialization part of the proposal.
     Init(ProposalInit),
