@@ -88,24 +88,6 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         }
     }
 
-    #[cfg(test)]
-    pub async fn listen_with_timeout(&mut self, timeout_millis: u128) {
-        let t0 = std::time::Instant::now();
-        loop {
-            if t0.elapsed().as_millis() > timeout_millis {
-                break;
-            }
-            if let Ok(message) = self.receiver.try_next() {
-                if !self.handle_message(message) {
-                    break;
-                }
-            } else {
-                // Err comes when the channel is open but no message was received.
-                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-            }
-        }
-    }
-
     // Handle the message, return true if the channel is still open.
     fn handle_message(&mut self, message: Option<StreamMessage<T>>) -> bool {
         let message = match message {
@@ -125,7 +107,8 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         if let Some(max_streams) = self.config.max_num_streams {
             let num_streams = self.stats_per_stream.len() as u64;
             if num_streams > max_streams {
-                panic!("Max number of streams reached! {}", max_streams);
+                // TODO(guyn): replace panics with more graceful error handling
+                panic!("Maximum number of streams reached! {}", max_streams);
             }
         }
 
@@ -138,18 +121,22 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         if message.fin {
             stats.fin_message_id = Some(message_id);
             if stats.max_message_id > message_id {
+                // TODO(guyn): replace panics with more graceful error handling
                 panic!(
-                    "Received fin message with message_id {} that is smaller than the \
-                     max_message_id {}",
-                    message_id, stats.max_message_id
+                    "Received fin message with id that is smaller than a previous message! \
+                     stream_id: {}, fin_message_id: {}, max_message_id: {}",
+                    stream_id, message_id, stats.max_message_id
                 );
             }
         }
 
         // Check that message_id is not bigger than the fin_message_id.
         if message_id > stats.fin_message_id.unwrap_or(u64::MAX) {
+            // TODO(guyn): replace panics with more graceful error handling
             panic!(
-                "Received message with message_id {} that is bigger than the fin_message_id {}",
+                "Received message with id that is bigger than the id of the fin message! \
+                 stream_id: {}, message_id: {}, fin_message_id: {}",
+                stream_id,
                 message_id,
                 stats.fin_message_id.unwrap_or(u64::MAX)
             );
@@ -165,17 +152,19 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
             // Save the message in the buffer.
             self.store(message);
         } else {
+            // TODO(guyn): replace panics with more graceful error handling
             panic!(
-                "Received message with message_id {} that is smaller than next_message_id {}",
-                message_id, stats.next_message_id
+                "Received message with id that is smaller than the next message expected! \
+                 stream_id: {}, message_id: {}, next_message_id: {}",
+                stream_id, message_id, stats.next_message_id
             );
         }
 
         true // Everything is fine, the channel is still open.
     }
 
-    // Go over each vector in the buffer, push to the end of it if the message_id is contiguous
-    // if no vector has a contiguous message_id, start a new vector.
+    // Go over each vector in the buffer, push to the end of it if the message_id is contiguous.
+    // If no vector has a contiguous message_id, start a new vector.
     fn store(&mut self, message: StreamMessage<T>) {
         let stream_id = message.stream_id;
         let message_id = message.message_id;
@@ -184,6 +173,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
 
         if let Some(max_buf_size) = self.config.max_buffer_size {
             if stats.num_buffered > max_buf_size {
+                // TODO(guyn): replace panics with more graceful error handling
                 panic!(
                     "Buffer is full! stream_id= {} with {} messages!",
                     stream_id, stats.num_buffered
@@ -211,15 +201,18 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
             if message_id >= id || last_id < message_id - 1 {
                 let old_message = buffer[&id].iter().filter(|m| m.message_id == message_id).next();
                 if let Some(old_message) = old_message {
+                    // TODO(guyn): replace panics with more graceful error handling
                     panic!(
-                        "Two messages with the same message_id in buffer! Old message: {}, new \
-                         message: {}",
-                        old_message, message
+                        "Two messages with the same message_id in buffer! stream_id: {}, old \
+                         message: {}, new message: {}",
+                        stream_id, old_message, message
                     );
                 } else if old_message.is_none() {
+                    // TODO(guyn): replace panics with more graceful error handling
                     panic!(
-                        "Message with message_id {} should be in buffer but is not! ",
-                        message_id
+                        "Message with this id should be in buffer, but is not! 
+                        stream_id: {}, message_id: {}",
+                        stream_id, message_id
                     );
                 }
             }

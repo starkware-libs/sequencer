@@ -4,6 +4,8 @@ use super::{StreamHandler, StreamHandlerConfig};
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use super::*;
 
     fn make_random_message(
@@ -83,7 +85,7 @@ mod tests {
         }
 
         let join_handle = tokio::spawn(async move {
-            h.listen_with_timeout(100).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
             h
         });
         let mut h = join_handle.await.expect("Task should succeed");
@@ -147,7 +149,7 @@ mod tests {
         }
 
         let join_handle = tokio::spawn(async move {
-            h.listen_with_timeout(100).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
             h
         });
         let mut h = join_handle.await.expect("Task should succeed");
@@ -177,7 +179,7 @@ mod tests {
         // send the last message on stream_id1
         tx_input.try_send(make_random_message(stream_id1, 0, false)).expect("Send should succeed");
         let join_handle = tokio::spawn(async move {
-            h.listen_with_timeout(100).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
             h
         });
 
@@ -212,7 +214,7 @@ mod tests {
         // send the last message on stream_id2
         tx_input.try_send(make_random_message(stream_id2, 0, false)).expect("Send should succeed");
         let join_handle = tokio::spawn(async move {
-            h.listen_with_timeout(100).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
             h
         });
 
