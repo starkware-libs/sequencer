@@ -1,5 +1,6 @@
-use tokio::sync::mpsc::{channel, Sender};
+use tokio::sync::mpsc::Sender;
 
+use crate::component_client::send_locally;
 use crate::component_definitions::ComponentRequestAndResponseSender;
 
 /// The `LocalComponentClient` struct is a generic client for sending component requests and
@@ -71,11 +72,7 @@ where
     // TODO(Tsabary, 1/5/2024): Consider implementation for messages without expected responses.
 
     pub async fn send(&self, request: Request) -> Response {
-        let (res_tx, mut res_rx) = channel::<Response>(1);
-        let request_and_res_tx = ComponentRequestAndResponseSender { request, tx: res_tx };
-        self.tx.send(request_and_res_tx).await.expect("Outbound connection should be open.");
-
-        res_rx.recv().await.expect("Inbound connection should be open.")
+        send_locally(self.tx.clone(), request).await
     }
 }
 

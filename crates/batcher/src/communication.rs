@@ -1,5 +1,3 @@
-use std::net::IpAddr;
-
 use async_trait::async_trait;
 use starknet_batcher_types::communication::{
     BatcherRequest,
@@ -7,27 +5,18 @@ use starknet_batcher_types::communication::{
     BatcherResponse,
 };
 use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
-use starknet_mempool_infra::component_server::{LocalComponentServer, RemoteComponentServer};
+use starknet_mempool_infra::component_server::LocalComponentServer;
 use tokio::sync::mpsc::Receiver;
 
 use crate::batcher::Batcher;
 
 pub type LocalBatcherServer = LocalComponentServer<Batcher, BatcherRequest, BatcherResponse>;
-pub type RemoteBatcherServer = RemoteComponentServer<Batcher, BatcherRequest, BatcherResponse>;
 
 pub fn create_local_batcher_server(
     batcher: Batcher,
     rx_batcher: Receiver<BatcherRequestAndResponseSender>,
 ) -> LocalBatcherServer {
     LocalComponentServer::new(batcher, rx_batcher)
-}
-
-pub fn create_remote_batcher_server(
-    batcher: Batcher,
-    ip_address: IpAddr,
-    port: u16,
-) -> RemoteBatcherServer {
-    RemoteComponentServer::new(batcher, ip_address, port)
 }
 
 #[async_trait]

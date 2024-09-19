@@ -24,11 +24,17 @@ use rstest::rstest;
 use serde::Serialize;
 use starknet_mempool_infra::component_client::{ClientError, ClientResult, RemoteComponentClient};
 use starknet_mempool_infra::component_definitions::{
+    ComponentRequestAndResponseSender,
     ComponentRequestHandler,
     ServerError,
     APPLICATION_OCTET_STREAM,
 };
-use starknet_mempool_infra::component_server::{ComponentServerStarter, RemoteComponentServer};
+use starknet_mempool_infra::component_server::{
+    ComponentServerStarter,
+    LocalComponentServer,
+    RemoteComponentServer,
+};
+use tokio::sync::mpsc::channel;
 use tokio::sync::Mutex;
 use tokio::task;
 
@@ -162,23 +168,30 @@ async fn setup_for_tests(setup_value: ValueB, a_port: u16, b_port: u16) {
     let component_a = ComponentA::new(Box::new(b_client));
     let component_b = ComponentB::new(setup_value, Box::new(a_client.clone()));
 
-    let mut component_a_server = RemoteComponentServer::<
-        ComponentA,
-        ComponentARequest,
-        ComponentAResponse,
-    >::new(component_a, LOCAL_IP, a_port);
-    let mut component_b_server = RemoteComponentServer::<
-        ComponentB,
-        ComponentBRequest,
-        ComponentBResponse,
-    >::new(component_b, LOCAL_IP, b_port);
+    let (tx_a, rx_a) =
+        channel::<ComponentRequestAndResponseSender<ComponentARequest, ComponentAResponse>>(32);
+    let (tx_b, rx_b) =
+        channel::<ComponentRequestAndResponseSender<ComponentBRequest, ComponentBResponse>>(32);
+
+    let mut component_a_local_server = LocalComponentServer::new(component_a, rx_a);
+    let mut component_b_local_server = LocalComponentServer::new(component_b, rx_b);
+
+    let mut component_a_remote_server = RemoteComponentServer::new(tx_a, LOCAL_IP, a_port);
+    let mut component_b_remote_server = RemoteComponentServer::new(tx_b, LOCAL_IP, b_port);
 
     task::spawn(async move {
-        component_a_server.start().await;
+        component_a_local_server.start().await;
+    });
+    task::spawn(async move {
+        component_b_local_server.start().await;
     });
 
     task::spawn(async move {
-        component_b_server.start().await;
+        component_a_remote_server.start().await;
+    });
+
+    task::spawn(async move {
+        component_b_remote_server.start().await;
     });
 
     // Todo(uriel): Get rid of this
