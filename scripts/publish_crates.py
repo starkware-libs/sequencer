@@ -1,16 +1,53 @@
 import argparse
 import subprocess
-from typing import List, Set
+from typing import List, Optional
+import toml
 
 
-def verify_unpublished(crates: Set[str]):
+def check_crate_version_exists(crate_name: str, version: str) -> bool:
+
+    # Use subprocess to run curl and get the crate information
+    response = subprocess.run(
+        ["curl", "-s", f"https://crates.io/api/v1/crates/{crate_name}"],
+        capture_output=True,
+        text=True,
+    )
+
+    # Check if the response contains the specific version
+    if version in response.stdout:
+        print(f"Crate {crate_name} version {version} exists on crates.io")
+        return True
+    else:
+        print(f"Crate {crate_name} version {version} does not exist on crates.io")
+        return False
+
+
+def get_workspace_version(cargo_toml_path) -> str:
+    try:
+        # Load the Cargo.toml file
+        cargo_data = toml.load(cargo_toml_path)
+
+        # Return the version from the workspace package if available
+        return cargo_data["workspace"]["package"]["version"]
+    except (KeyError, TypeError):
+        raise ValueError("Version key not found in Cargo.toml")
+
+
+def verify_unpublished(crates: List[str], version: Optional[str] = None):
     """
     Asserts that none of the crates in the set have been published.
     """
-    raise NotImplementedError("Not implemented yet.")
+    if not version:
+        version = get_workspace_version("Cargo.toml")
+    for crate in crates:
+        # Check if the crate has been published
+        # If the crate has been published, exit the script
+        assert not check_crate_version_exists(crate_name=crate, version=version)
 
 
-def get_package_and_dependencies_in_order(crate: str) -> List[str]:
+def get_package_and_dependencies_in_order(
+    crate: str, all_crates_dependencies: List[str]
+) -> List[str]:
     """
     Returns a list of all local (member) crates that the input crate depends on, in topological
     order. I.e, if crate A depends on crate B, then B will appear before A in the list.
@@ -19,7 +56,7 @@ def get_package_and_dependencies_in_order(crate: str) -> List[str]:
     # We use the `depth` prefix to easily sort the dependencies in topological order: higher depth
     # means the crate is depended on by the crate at the lower depth.
     prefixed_tree = (
-        subprocess.check_output(["cargo", "tree", "-p", crate, "--prefix", "depth"], check=True)
+        subprocess.check_output(["cargo", "tree", "-p", crate, "--prefix", "depth"])
         .decode()
         .splitlines()
     )
@@ -34,41 +71,56 @@ def get_package_and_dependencies_in_order(crate: str) -> List[str]:
         dependency = dependency_with_depth.lstrip("0123456789")
         # The same package may appear multiple times, and with different depths. Always keep the
         # highest depth only.
-        if dependency not in ordered_dependencies:
+        if dependency not in ordered_dependencies and dependency not in all_crates_dependencies:
             ordered_dependencies.append(dependency)
     return ordered_dependencies
 
 
-def publish_crate_and_dependencies(crate: str, dry_run: bool):
-    dependencies = get_package_and_dependencies_in_order(package_name=crate)
-    assert crate == dependencies[-1], f"{crate} should be the last element of '{dependencies}'."
+def publish_crates_and_dependencies(crates: List[str], dry_run: bool, skip_version_check: bool):
 
-    # Do not attempt to publish anything if even one of the dependencies is already published.
-    verify_unpublished(crates=dependencies)
+    all_crates_dependencies: List[str] = []
+    for crate in crates:
+        dependencies = get_package_and_dependencies_in_order(
+            crate=crate, all_crates_dependencies=all_crates_dependencies
+        )
+        all_crates_dependencies.extend(dependencies)
+
+    # If the version check is skipped, we assume that the version is already published.
+    if not skip_version_check:
+        # Do not attempt to publish anything if even one of the dependencies is already published.
+        verify_unpublished(crates=all_crates_dependencies)
 
     base_command_template = "cargo publish -p {crate}" + f"{' --dry-run' if dry_run else ''}"
     # Publish order is important.
     cmd = " && ".join(
-        [base_command_template.format(crate=dependency) for dependency in dependencies]
+        [base_command_template.format(crate=dependency) for dependency in all_crates_dependencies]
     )
 
-    print(f"Publishing {crate} ({dry_run=}) and its dependencies: {dependencies}...")
+    print(f"Publishing crates: {all_crates_dependencies} ({dry_run=})...")
     print(cmd, flush=True)
-    subprocess.run(cmd.split(), check=True, shell=True)
+    subprocess.run(cmd, check=True, shell=True)
     print(f"Done.")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Publish a crate and it's dependencies in the local workspace."
+        description="Publish multiple crates and their dependencies in the local workspace."
     )
     parser.add_argument(
-        "--crate", type=str, help="Crate to publish (dependencies will also be published)."
+        "--crates",
+        type=str,
+        help="List of crates to publish (dependencies will also be published).",
+        nargs="+",
     )
     parser.add_argument("--dry_run", required=False, action="store_true", help="Dry run.")
+    parser.add_argument(
+        "--skip_version_check", required=False, action="store_true", help="Skip version check."
+    )
     args = parser.parse_args()
 
-    publish_crate_and_dependencies(crate=args.crate, dry_run=args.dry_run)
+    publish_crates_and_dependencies(
+        crates=args.crates, dry_run=args.dry_run, skip_version_check=args.skip_version_check
+    )
 
 
 if __name__ == "__main__":
