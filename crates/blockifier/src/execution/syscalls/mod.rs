@@ -491,28 +491,6 @@ pub fn library_call(
     Ok(LibraryCallResponse { segment: retdata_segment })
 }
 
-// LibraryCallL1Handler syscall.
-
-pub fn library_call_l1_handler(
-    request: LibraryCallRequest,
-    vm: &mut VirtualMachine,
-    syscall_handler: &mut SyscallHintProcessor<'_>,
-    remaining_gas: &mut u64,
-) -> SyscallResult<LibraryCallResponse> {
-    let call_to_external = false;
-    let retdata_segment = execute_library_call(
-        syscall_handler,
-        vm,
-        request.class_hash,
-        call_to_external,
-        request.function_selector,
-        request.calldata,
-        remaining_gas,
-    )?;
-
-    Ok(LibraryCallResponse { segment: retdata_segment })
-}
-
 // ReplaceClass syscall.
 
 #[derive(Debug, Eq, PartialEq)]
