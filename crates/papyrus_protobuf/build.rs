@@ -1,12 +1,19 @@
-use std::env;
-use std::io::{Error, ErrorKind, Result};
+use std::io::{Error, ErrorKind};
 use std::process::Command;
+use std::{env, io};
 
-fn parse_protoc_version(protoc_version_str: &str) -> Result<Vec<u32>> {
-    Ok(protoc_version_str.split('.').map(|part| part.parse::<u32>().unwrap()).collect())
+fn parse_protoc_version(protoc_version_str: &str) -> io::Result<(u32, u32)> {
+    // Returns Result<(major, minor)> numbers. If the minor doesn't exist, returns 0 as minor. If
+    // the major doesn't exist, returns an error.
+    let version_numbers: Vec<u32> =
+        protoc_version_str.split('.').map(|part| part.parse::<u32>().unwrap()).collect();
+    Ok((
+        version_numbers.first().ok_or(Error::new(ErrorKind::Other, ""))?.to_owned(),
+        version_numbers.get(1).unwrap_or(&0).to_owned(),
+    ))
 }
 
-fn validate_preinstalled_protoc() -> Result<()> {
+fn validate_preinstalled_protoc() -> io::Result<()> {
     let protoc = env::var("PROTOC").unwrap_or("protoc".to_string());
 
     let protoc_version =
@@ -14,14 +21,11 @@ fn validate_preinstalled_protoc() -> Result<()> {
             .to_string();
 
     let parts: Vec<&str> = protoc_version.split_whitespace().collect();
-    // let protoc_version_str = parts.get(1).expect("Failed to determine protoc version");
     let protoc_version_str = match parts.get(1) {
         Some(version) => version,
         None => return Err(Error::new(ErrorKind::Other, "protoc version not found")),
     };
-    let mut protoc_version_parts = parse_protoc_version(protoc_version_str)?.into_iter();
-    let major = protoc_version_parts.next().expect("Protoc version did not have a major number");
-    let minor = protoc_version_parts.next().unwrap_or(0);
+    let (major, minor) = parse_protoc_version(protoc_version_str)?;
 
     if major < 3 || (major == 3 && minor < 15) {
         Err(Error::new(
@@ -33,8 +37,8 @@ fn validate_preinstalled_protoc() -> Result<()> {
     }
 }
 
-fn main() -> Result<()> {
-    // If Protoc is installed use it, if not complie using prebuilt protoc.
+fn main() -> io::Result<()> {
+    // If Protoc is installed use it, if not compile using prebuilt protoc.
     println!("Building");
     if validate_preinstalled_protoc().is_err() {
         println!("Building using prebuilt protoc");
