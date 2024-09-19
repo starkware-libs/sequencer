@@ -129,8 +129,8 @@ fn create_callinfo(
     syscall_handler: NativeSyscallHandler<'_>,
 ) -> Result<CallInfo, EntryPointExecutionError> {
     let gas_consumed = {
-        let low = run_result.remaining_gas as u64;
-        let high = (run_result.remaining_gas >> 64) as u64;
+        let low: u64 = run_result.remaining_gas.try_into().unwrap();
+        let high: u64 = (run_result.remaining_gas >> 64).try_into().unwrap();
         if high != 0 {
             return Err(EntryPointExecutionError::NativeExecutionError {
                 info: "Overflow: gas consumed bigger than 64 bit".into(),
@@ -169,8 +169,8 @@ pub fn create_callinfo_emu(
     accessed_storage_keys: HashSet<StorageKey, RandomState>,
 ) -> Result<CallInfo, EntryPointExecutionError> {
     let gas_consumed = {
-        let low = run_result.remaining_gas as u64;
-        let high = (run_result.remaining_gas >> 64) as u64;
+        let low: u64 = run_result.remaining_gas.try_into().unwrap();
+        let high: u64 = (run_result.remaining_gas >> 64).try_into().unwrap();
         if high != 0 {
             return Err(EntryPointExecutionError::NativeExecutionError {
                 info: "Overflow: gas consumed bigger than 64 bit".into(),
