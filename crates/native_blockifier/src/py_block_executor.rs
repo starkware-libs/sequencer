@@ -8,6 +8,7 @@ use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::execution::call_info::CallInfo;
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::global_cache::GlobalContractCache;
+use blockifier::state::visited_pcs::VisitedPcsSet;
 use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier::utils::usize_from_u64;
@@ -120,7 +121,7 @@ pub struct PyBlockExecutor {
     pub tx_executor_config: TransactionExecutorConfig,
     pub chain_info: ChainInfo,
     pub versioned_constants: VersionedConstants,
-    pub tx_executor: Option<TransactionExecutor<PapyrusReader>>,
+    pub tx_executor: Option<TransactionExecutor<PapyrusReader, VisitedPcsSet>>,
     /// `Send` trait is required for `pyclass` compatibility as Python objects must be threadsafe.
     pub storage: Box<dyn Storage + Send>,
     pub global_contract_cache: GlobalContractCache,
@@ -396,7 +397,7 @@ impl PyBlockExecutor {
 }
 
 impl PyBlockExecutor {
-    pub fn tx_executor(&mut self) -> &mut TransactionExecutor<PapyrusReader> {
+    pub fn tx_executor(&mut self) -> &mut TransactionExecutor<PapyrusReader, VisitedPcsSet> {
         self.tx_executor.as_mut().expect("Transaction executor should be initialized")
     }
 

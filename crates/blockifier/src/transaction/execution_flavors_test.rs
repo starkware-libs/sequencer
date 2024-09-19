@@ -22,6 +22,7 @@ use crate::execution::syscalls::SyscallSelector;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::StateReader;
+use crate::state::visited_pcs::{VisitedPcs, VisitedPcsSet};
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
@@ -54,7 +55,7 @@ use crate::utils::u64_from_usize;
 const VALIDATE_GAS_OVERHEAD: GasAmount = GasAmount(21);
 
 struct FlavorTestInitialState {
-    pub state: CachedState<DictStateReader>,
+    pub state: CachedState<DictStateReader, VisitedPcsSet>,
     pub account_address: ContractAddress,
     pub faulty_account_address: ContractAddress,
     pub test_contract_address: ContractAddress,
@@ -84,9 +85,9 @@ fn create_flavors_test_state(
 
 /// Checks that balance of the account decreased if and only if `charge_fee` is true.
 /// Returns the new balance.
-fn check_balance<S: StateReader>(
+fn check_balance<S: StateReader, V: VisitedPcs>(
     current_balance: Felt,
-    state: &CachedState<S>,
+    state: &mut CachedState<S, V>,
     account_address: ContractAddress,
     chain_info: &ChainInfo,
     fee_type: &FeeType,
@@ -177,7 +178,7 @@ fn get_pre_validate_test_args(
     cairo_version: CairoVersion,
     version: TransactionVersion,
     only_query: bool,
-) -> (BlockContext, CachedState<DictStateReader>, InvokeTxArgs, NonceManager) {
+) -> (BlockContext, CachedState<DictStateReader, VisitedPcsSet>, InvokeTxArgs, NonceManager) {
     let block_context = BlockContext::create_for_account_testing();
     let max_fee = MAX_FEE;
     // The max resource bounds fixture is not used here because this function already has the
@@ -592,7 +593,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     );
     let current_balance = check_balance(
         current_balance,
-        &state,
+        &mut state,
         account_address,
         &block_context.chain_info,
         &fee_type,
@@ -642,8 +643,14 @@ fn test_simulate_validate_charge_fee_mid_execution(
         // charged final fee is shown in actual_fee.
         if charge_fee { limited_fee } else { unlimited_fee },
     );
-    let current_balance =
-        check_balance(current_balance, &state, account_address, chain_info, &fee_type, charge_fee);
+    let current_balance = check_balance(
+        current_balance,
+        &mut state,
+        account_address,
+        chain_info,
+        &fee_type,
+        charge_fee,
+    );
 
     // Third scenario: only limit is block bounds. Expect resources consumed to be identical,
     // whether or not `charge_fee` is true.
@@ -682,7 +689,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
         block_limit_fee,
         block_limit_fee,
     );
-    check_balance(current_balance, &state, account_address, chain_info, &fee_type, charge_fee);
+    check_balance(current_balance, &mut state, account_address, chain_info, &fee_type, charge_fee);
 }
 
 #[rstest]
@@ -773,8 +780,14 @@ fn test_simulate_validate_charge_fee_post_execution(
         if charge_fee { just_not_enough_fee_bound } else { unlimited_fee },
         if charge_fee { revert_fee } else { unlimited_fee },
     );
-    let current_balance =
-        check_balance(current_balance, &state, account_address, chain_info, &fee_type, charge_fee);
+    let current_balance = check_balance(
+        current_balance,
+        &mut state,
+        account_address,
+        chain_info,
+        &fee_type,
+        charge_fee,
+    );
 
     // Second scenario: balance too low.
     // Execute a transfer, and make sure we get the expected result.
@@ -841,7 +854,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     );
     check_balance(
         current_balance,
-        &state,
+        &mut state,
         account_address,
         chain_info,
         &fee_type,

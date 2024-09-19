@@ -13,6 +13,7 @@ use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
 use crate::state::cached_state::CachedState;
+use crate::state::visited_pcs::VisitedPcsSet;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
@@ -187,7 +188,7 @@ fn test_storage_var() {
 
 /// Runs test scenarios that could fail the OS run and therefore must be caught in the Blockifier.
 fn run_security_test(
-    state: &mut CachedState<DictStateReader>,
+    state: &mut CachedState<DictStateReader, VisitedPcsSet>,
     security_contract: FeatureContract,
     expected_error: &str,
     entry_point_name: &str,

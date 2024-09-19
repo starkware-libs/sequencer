@@ -9,6 +9,7 @@ use crate::execution::call_info::{CallExecution, Retdata};
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
 use crate::state::cached_state::CachedState;
+use crate::state::visited_pcs::VisitedPcsSet;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
@@ -27,7 +28,7 @@ fn test_calculate_contract_address() {
         constructor_calldata: &Calldata,
         calldata: Calldata,
         deployer_address: ContractAddress,
-        state: &mut CachedState<DictStateReader>,
+        state: &mut CachedState<DictStateReader, VisitedPcsSet>,
     ) {
         let versioned_constants = VersionedConstants::create_for_testing();
         let entry_point_call = CallEntryPoint {

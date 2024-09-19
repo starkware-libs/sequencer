@@ -10,6 +10,7 @@ use crate::abi::abi_utils::selector_from_name;
 use crate::blockifier::config::{ConcurrencyConfig, TransactionExecutorConfig};
 use crate::blockifier::transaction_executor::TransactionExecutor;
 use crate::context::{BlockContext, ChainInfo};
+use crate::state::visited_pcs::VisitedPcsSet;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
@@ -63,7 +64,7 @@ pub enum RecipientGeneratorType {
 pub struct TransfersGenerator {
     account_addresses: Vec<ContractAddress>,
     chain_info: ChainInfo,
-    executor: TransactionExecutor<DictStateReader>,
+    executor: TransactionExecutor<DictStateReader, VisitedPcsSet>,
     nonce_manager: NonceManager,
     sender_index: usize,
     random_recipient_generator: Option<StdRng>,

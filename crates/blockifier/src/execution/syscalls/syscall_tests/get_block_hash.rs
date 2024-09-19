@@ -14,6 +14,7 @@ use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::execution_utils::format_panic_data;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
+use crate::state::visited_pcs::VisitedPcsSet;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
@@ -25,7 +26,9 @@ use crate::test_utils::{
 };
 use crate::{check_entry_point_execution_error_for_custom_hint, retdata};
 
-fn initialize_state(test_contract: FeatureContract) -> (CachedState<DictStateReader>, Felt, Felt) {
+fn initialize_state(
+    test_contract: FeatureContract,
+) -> (CachedState<DictStateReader, VisitedPcsSet>, Felt, Felt) {
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
 

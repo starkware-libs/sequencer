@@ -1,4 +1,3 @@
-use std::collections::{HashMap, HashSet};
 use std::panic::{self, catch_unwind, AssertUnwindSafe};
 use std::sync::{Arc, Mutex};
 
@@ -7,7 +6,7 @@ use itertools::Itertools;
 use starknet_api::core::ClassHash;
 use thiserror::Error;
 
-use crate::blockifier::block::{pre_process_block, BlockNumberHashPair};
+use super::block::{pre_process_block, BlockNumberHashPair};
 use crate::blockifier::config::TransactionExecutorConfig;
 use crate::bouncer::{Bouncer, BouncerWeights};
 use crate::concurrency::worker_logic::WorkerExecutor;
@@ -15,6 +14,7 @@ use crate::context::BlockContext;
 use crate::state::cached_state::{CachedState, CommitmentStateDiff, TransactionalState};
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult};
+use crate::state::visited_pcs::VisitedPcs;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::TransactionExecutionInfo;
 use crate::transaction::transaction_execution::Transaction;
@@ -40,7 +40,8 @@ pub type TransactionExecutorResult<T> = Result<T, TransactionExecutorError>;
 pub type VisitedSegmentsMapping = Vec<(ClassHash, Vec<usize>)>;
 
 /// A transaction executor, used for building a single block.
-pub struct TransactionExecutor<S: StateReader> {
+// TODO(Gilad): make this hold TransactionContext instead of BlockContext.
+pub struct TransactionExecutor<S: StateReader, V: VisitedPcs> {
     pub block_context: BlockContext,
     pub bouncer: Bouncer,
     // Note: this config must not affect the execution result (e.g. state diff and traces).
@@ -51,10 +52,10 @@ pub struct TransactionExecutor<S: StateReader> {
     // block state to the worker executor - operating at the chunk level - and gets it back after
     // committing the chunk. The block state is wrapped with an Option<_> to allow setting it to
     // `None` while it is moved to the worker executor.
-    pub block_state: Option<CachedState<S>>,
+    pub block_state: Option<CachedState<S, V>>,
 }
 
-impl<S: StateReader> TransactionExecutor<S> {
+impl<S: StateReader, V: VisitedPcs> TransactionExecutor<S, V> {
     /// Performs pre-processing required for block building before creating the executor.
     pub fn pre_process_and_create(
         initial_state_reader: S,
@@ -73,7 +74,7 @@ impl<S: StateReader> TransactionExecutor<S> {
 
     // TODO(Yoni): consider making this c-tor private.
     pub fn new(
-        block_state: CachedState<S>,
+        block_state: CachedState<S, V>,
         block_context: BlockContext,
         config: TransactionExecutorConfig,
     ) -> Self {
@@ -159,7 +160,8 @@ impl<S: StateReader> TransactionExecutor<S> {
                     .as_ref()
                     .expect(BLOCK_STATE_ACCESS_ERR)
                     .get_compiled_contract_class(*class_hash)?;
-                Ok((*class_hash, contract_class.get_visited_segments(class_visited_pcs)?))
+                let class_visited_pcs = V::to_set(class_visited_pcs.clone());
+                Ok((*class_hash, contract_class.get_visited_segments(&class_visited_pcs)?))
             })
             .collect::<TransactionExecutorResult<_>>()?;
 
@@ -172,7 +174,11 @@ impl<S: StateReader> TransactionExecutor<S> {
     }
 }
 
-impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
+impl<S, V> TransactionExecutor<S, V>
+where
+    S: StateReader + Send + Sync,
+    V: VisitedPcs + Send + Sync,
+{
     /// Executes the given transactions on the state maintained by the executor.
     /// Stops if and when there is no more room in the block, and returns the executed transactions'
     /// results.
@@ -220,6 +226,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         chunk: &[Transaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
         use crate::concurrency::utils::AbortIfPanic;
+        use crate::concurrency::worker_logic::ExecutionTaskOutput;
 
         let block_state = self.block_state.take().expect("The block state should be `Some`.");
 
@@ -263,20 +270,20 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
 
         let n_committed_txs = worker_executor.scheduler.get_n_committed_txs();
         let mut tx_execution_results = Vec::new();
-        let mut visited_pcs: HashMap<ClassHash, HashSet<usize>> = HashMap::new();
+        let mut visited_pcs: V = V::new();
         for execution_output in worker_executor.execution_outputs.iter() {
             if tx_execution_results.len() >= n_committed_txs {
                 break;
             }
-            let locked_execution_output = execution_output
+            let locked_execution_output: ExecutionTaskOutput<V> = execution_output
                 .lock()
                 .expect("Failed to lock execution output.")
                 .take()
                 .expect("Output must be ready.");
             tx_execution_results
                 .push(locked_execution_output.result.map_err(TransactionExecutorError::from));
-            for (class_hash, class_visited_pcs) in locked_execution_output.visited_pcs {
-                visited_pcs.entry(class_hash).or_default().extend(class_visited_pcs);
+            for (class_hash, class_visited_pcs) in locked_execution_output.visited_pcs.iter() {
+                visited_pcs.extend(class_hash, class_visited_pcs);
             }
         }
 

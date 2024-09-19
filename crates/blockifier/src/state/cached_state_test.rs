@@ -18,6 +18,7 @@ use starknet_api::{
 
 use crate::context::{BlockContext, ChainInfo};
 use crate::state::cached_state::*;
+use crate::state::visited_pcs::VisitedPcsSet;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
@@ -25,7 +26,7 @@ use crate::test_utils::CairoVersion;
 const CONTRACT_ADDRESS: &str = "0x100";
 
 fn set_initial_state_values(
-    state: &mut CachedState<DictStateReader>,
+    state: &mut CachedState<DictStateReader, VisitedPcsSet>,
     class_hash_to_class: ContractClassMapping,
     nonce_initial_values: HashMap<ContractAddress, Nonce>,
     class_hash_initial_values: HashMap<ContractAddress, ClassHash>,
@@ -41,7 +42,7 @@ fn set_initial_state_values(
 
 #[test]
 fn get_uninitialized_storage_value() {
-    let state: CachedState<DictStateReader> = CachedState::default();
+    let state: CachedState<DictStateReader, VisitedPcsSet> = CachedState::default();
     let contract_address = contract_address!("0x1");
     let key = storage_key!(0x10_u16);
 
@@ -57,13 +58,14 @@ fn get_and_set_storage_value() {
     let storage_val0: Felt = felt!("0x1");
     let storage_val1: Felt = felt!("0x5");
 
-    let mut state = CachedState::from(DictStateReader {
-        storage_view: HashMap::from([
-            ((contract_address0, key0), storage_val0),
-            ((contract_address1, key1), storage_val1),
-        ]),
-        ..Default::default()
-    });
+    let mut state: CachedState<DictStateReader, VisitedPcsSet> =
+        CachedState::from(DictStateReader {
+            storage_view: HashMap::from([
+                ((contract_address0, key0), storage_val0),
+                ((contract_address1, key1), storage_val1),
+            ]),
+            ..Default::default()
+        });
     assert_eq!(state.get_storage_at(contract_address0, key0).unwrap(), storage_val0);
     assert_eq!(state.get_storage_at(contract_address1, key1).unwrap(), storage_val1);
 
@@ -106,7 +108,7 @@ fn cast_between_storage_mapping_types() {
 
 #[test]
 fn get_uninitialized_value() {
-    let state: CachedState<DictStateReader> = CachedState::default();
+    let state: CachedState<DictStateReader, VisitedPcsSet> = CachedState::default();
     let contract_address = contract_address!("0x1");
 
     assert_eq!(state.get_nonce_at(contract_address).unwrap(), Nonce::default());
@@ -114,7 +116,8 @@ fn get_uninitialized_value() {
 
 #[test]
 fn declare_contract() {
-    let mut state = CachedState::from(DictStateReader { ..Default::default() });
+    let mut state: CachedState<DictStateReader, VisitedPcsSet> =
+        CachedState::from(DictStateReader { ..Default::default() });
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let class_hash = test_contract.get_class_hash();
     let contract_class = test_contract.get_class();
@@ -143,13 +146,14 @@ fn get_and_increment_nonce() {
     let contract_address2 = contract_address!("0x200");
     let initial_nonce = Nonce(felt!(1_u8));
 
-    let mut state = CachedState::from(DictStateReader {
-        address_to_nonce: HashMap::from([
-            (contract_address1, initial_nonce),
-            (contract_address2, initial_nonce),
-        ]),
-        ..Default::default()
-    });
+    let mut state: CachedState<DictStateReader, VisitedPcsSet> =
+        CachedState::from(DictStateReader {
+            address_to_nonce: HashMap::from([
+                (contract_address1, initial_nonce),
+                (contract_address2, initial_nonce),
+            ]),
+            ..Default::default()
+        });
     assert_eq!(state.get_nonce_at(contract_address1).unwrap(), initial_nonce);
     assert_eq!(state.get_nonce_at(contract_address2).unwrap(), initial_nonce);
 
@@ -189,7 +193,7 @@ fn get_contract_class() {
 
 #[test]
 fn get_uninitialized_class_hash_value() {
-    let state: CachedState<DictStateReader> = CachedState::default();
+    let state: CachedState<DictStateReader, VisitedPcsSet> = CachedState::default();
     let valid_contract_address = contract_address!("0x1");
 
     assert_eq!(state.get_class_hash_at(valid_contract_address).unwrap(), ClassHash::default());
@@ -198,7 +202,7 @@ fn get_uninitialized_class_hash_value() {
 #[test]
 fn set_and_get_contract_hash() {
     let contract_address = contract_address!("0x1");
-    let mut state: CachedState<DictStateReader> = CachedState::default();
+    let mut state: CachedState<DictStateReader, VisitedPcsSet> = CachedState::default();
     let class_hash = class_hash!("0x10");
 
     assert!(state.set_class_hash_at(contract_address, class_hash).is_ok());
@@ -207,7 +211,7 @@ fn set_and_get_contract_hash() {
 
 #[test]
 fn cannot_set_class_hash_to_uninitialized_contract() {
-    let mut state: CachedState<DictStateReader> = CachedState::default();
+    let mut state: CachedState<DictStateReader, VisitedPcsSet> = CachedState::default();
 
     let uninitialized_contract_address = ContractAddress::default();
     let class_hash = class_hash!("0x100");
@@ -297,8 +301,8 @@ fn cached_state_state_diff_conversion() {
     assert_eq!(expected_state_diff, state.to_state_diff().unwrap().into());
 }
 
-fn create_state_changes_for_test<S: StateReader>(
-    state: &mut CachedState<S>,
+fn create_state_changes_for_test<S: StateReader, V: VisitedPcs>(
+    state: &mut CachedState<S, V>,
     sender_address: Option<ContractAddress>,
     fee_token_address: ContractAddress,
 ) -> StateChanges {
@@ -339,7 +343,7 @@ fn create_state_changes_for_test<S: StateReader>(
 fn test_from_state_changes_for_fee_charge(
     #[values(Some(contract_address!("0x102")), None)] sender_address: Option<ContractAddress>,
 ) {
-    let mut state: CachedState<DictStateReader> = CachedState::default();
+    let mut state: CachedState<DictStateReader, VisitedPcsSet> = CachedState::default();
     let fee_token_address = contract_address!("0x17");
     let state_changes =
         create_state_changes_for_test(&mut state, sender_address, fee_token_address);
@@ -360,7 +364,7 @@ fn test_state_changes_merge(
 ) {
     // Create a transactional state containing the `create_state_changes_for_test` logic, get the
     // state changes and then commit.
-    let mut state: CachedState<DictStateReader> = CachedState::default();
+    let mut state: CachedState<DictStateReader, VisitedPcsSet> = CachedState::default();
     let mut transactional_state = TransactionalState::create_transactional(&mut state);
     let block_context = BlockContext::create_for_testing();
     let fee_token_address = block_context.chain_info.fee_token_addresses.eth_fee_token_address;
@@ -430,7 +434,7 @@ fn test_contract_cache_is_used() {
     let contract_class = test_contract.get_class();
     let mut reader = DictStateReader::default();
     reader.class_hash_to_class.insert(class_hash, contract_class.clone());
-    let state = CachedState::new(reader);
+    let state: CachedState<DictStateReader, VisitedPcsSet> = CachedState::new(reader);
 
     // Assert local cache is initialized empty.
     assert!(state.class_hash_to_class.borrow().get(&class_hash).is_none());

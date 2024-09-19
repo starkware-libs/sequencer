@@ -339,7 +339,7 @@ async fn build_all_nodes(data_dir: &str, logs_dir: &str, papyrus_args: &PapyrusA
 
     let mut nodes = Vec::new();
 
-    nodes.push(build_node(data_dir, logs_dir, 1, papyrus_args).await); // Bootstrap 
+    nodes.push(build_node(data_dir, logs_dir, 1, papyrus_args).await); // Bootstrap
 
     for i in 2..papyrus_args.num_validators {
         nodes.push(build_node(data_dir, logs_dir, i, papyrus_args).await);

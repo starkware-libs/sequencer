@@ -10,6 +10,7 @@ use crate::execution::call_info::CallInfo;
 use crate::fee::fee_utils::get_sequencer_balance_keys;
 use crate::state::cached_state::{ContractClassMapping, StateMaps};
 use crate::state::state_api::UpdatableState;
+use crate::state::visited_pcs::VisitedPcs;
 use crate::transaction::objects::TransactionExecutionInfo;
 
 #[cfg(test)]
@@ -22,10 +23,10 @@ mod test;
 pub(crate) const STORAGE_READ_SEQUENCER_BALANCE_INDICES: (usize, usize) = (2, 3);
 
 // Completes the fee transfer flow if needed (if the transfer was made in concurrent mode).
-pub fn complete_fee_transfer_flow(
+pub fn complete_fee_transfer_flow<V: VisitedPcs, U: UpdatableState<Pcs = V>>(
     tx_context: &TransactionContext,
     tx_execution_info: &mut TransactionExecutionInfo,
-    state: &mut impl UpdatableState,
+    state: &mut U,
 ) {
     if tx_context.is_sequencer_the_sender() {
         // When the sequencer is the sender, we use the sequential (full) fee transfer.
@@ -93,9 +94,9 @@ pub fn fill_sequencer_balance_reads(
     storage_read_values[high_index] = high;
 }
 
-pub fn add_fee_to_sequencer_balance(
+pub fn add_fee_to_sequencer_balance<V: VisitedPcs, U: UpdatableState<Pcs = V>>(
     fee_token_address: ContractAddress,
-    state: &mut impl UpdatableState,
+    state: &mut U,
     actual_fee: Fee,
     block_context: &BlockContext,
     sequencer_balance: (Felt, Felt),
@@ -120,5 +121,5 @@ pub fn add_fee_to_sequencer_balance(
         ]),
         ..StateMaps::default()
     };
-    state.apply_writes(&writes, &ContractClassMapping::default(), &HashMap::default());
+    state.apply_writes(&writes, &ContractClassMapping::default(), &V::default());
 }

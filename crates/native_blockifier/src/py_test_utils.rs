@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use blockifier::execution::contract_class::ContractClassV0;
 use blockifier::state::cached_state::CachedState;
+use blockifier::state::visited_pcs::VisitedPcsSet;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use starknet_api::core::ClassHash;
 use starknet_api::{class_hash, felt};
@@ -12,7 +13,7 @@ pub const TOKEN_FOR_TESTING_CONTRACT_PATH: &str =
     "./src/starkware/starknet/core/test_contract/starknet_compiled_contracts_lib/starkware/\
      starknet/core/test_contract/token_for_testing.json";
 
-pub fn create_py_test_state() -> CachedState<DictStateReader> {
+pub fn create_py_test_state() -> CachedState<DictStateReader, VisitedPcsSet> {
     let class_hash_to_class = HashMap::from([(
         class_hash!(TOKEN_FOR_TESTING_CLASS_HASH),
         ContractClassV0::from_file(TOKEN_FOR_TESTING_CONTRACT_PATH).into(),

@@ -34,6 +34,7 @@ use blockifier::execution::entry_point::{
     EntryPointExecutionContext,
 };
 use blockifier::state::cached_state::CachedState;
+use blockifier::state::visited_pcs::VisitedPcsSet;
 use blockifier::transaction::errors::TransactionExecutionError as BlockifierTransactionExecutionError;
 use blockifier::transaction::objects::{
     DeprecatedTransactionInfo,
@@ -290,7 +291,7 @@ fn verify_contract_exists(
 }
 
 fn create_block_context(
-    cached_state: &mut CachedState<ExecutionStateReader>,
+    cached_state: &mut CachedState<ExecutionStateReader, VisitedPcsSet>,
     block_context_number: BlockNumber,
     chain_id: ChainId,
     storage_reader: &StorageReader,
@@ -689,7 +690,7 @@ impl From<(usize, BlockifierTransactionExecutionError)> for ExecutionError {
 
 fn get_10_blocks_ago(
     block_number: &BlockNumber,
-    cached_state: &CachedState<ExecutionStateReader>,
+    cached_state: &CachedState<ExecutionStateReader, VisitedPcsSet>,
 ) -> ExecutionResult<Option<BlockNumberHashPair>> {
     if block_number.0 < 10 {
         return Ok(None);
