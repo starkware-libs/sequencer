@@ -935,7 +935,7 @@ impl ValidatableTransaction for AccountTransaction {
 
         // Validate return data.
         let contract_class = state.get_compiled_contract_class(class_hash)?;
-        if let ContractClass::V1(_) = contract_class {
+        if matches!(contract_class, ContractClass::V1(_) | ContractClass::V1Native(_)) {
             // The account contract class is a Cairo 1.0 contract; the `validate` entry point should
             // return `VALID`.
             let expected_retdata = retdata![Felt::from_hex(constants::VALIDATE_RETDATA)?];
