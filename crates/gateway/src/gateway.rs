@@ -8,7 +8,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
 use starknet_mempool_types::communication::{MempoolWrapperInput, SharedMempoolClient};
-use starknet_mempool_types::mempool_types::{AccountNonce, AccountState, MempoolInput};
+use starknet_mempool_types::mempool_types::{AccountState, MempoolInput};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use tracing::{error, info, instrument};
 
@@ -138,7 +138,7 @@ fn process_tx(
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
     Ok(MempoolInput {
         tx: executable_tx,
-        account: AccountState { sender_address, state: AccountNonce { nonce: account_nonce } },
+        account: AccountState { sender_address, nonce: account_nonce },
     })
 }
 

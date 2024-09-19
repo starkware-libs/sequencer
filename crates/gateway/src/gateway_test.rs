@@ -9,7 +9,7 @@ use starknet_api::executable_transaction::{InvokeTransaction, Transaction};
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::{MempoolWrapperInput, MockMempoolClient};
-use starknet_mempool_types::mempool_types::{AccountNonce, AccountState, MempoolInput};
+use starknet_mempool_types::mempool_types::{AccountState, MempoolInput};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 
 use crate::compilation::GatewayCompiler;
@@ -70,10 +70,7 @@ async fn test_add_tx() {
         .with(eq(MempoolWrapperInput {
             mempool_input: MempoolInput {
                 tx: executable_tx,
-                account: AccountState {
-                    sender_address,
-                    state: AccountNonce { nonce: *rpc_tx.nonce() },
-                },
+                account: AccountState { sender_address, nonce: *rpc_tx.nonce() },
             },
             message_metadata: None,
         }))
