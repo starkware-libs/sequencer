@@ -32,7 +32,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::abi::constants::{self};
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::errors::{ContractClassError, NativeEntryPointError, PreExecutionError};
+use crate::execution::errors::{ContractClassError, PreExecutionError};
 use crate::execution::execution_utils::{poseidon_hash_many_cost, sn_api_to_cairo_vm_program};
 use crate::execution::native::utils::contract_entrypoint_to_entrypoint_selector;
 use crate::fee::eth_gas_constants;
@@ -44,7 +44,6 @@ use crate::versioned_constants::CompilerVersion;
 pub mod test;
 
 pub type ContractClassResult<T> = Result<T, ContractClassError>;
-pub type LookupVector<'a> = Vec<&'a FunctionId>;
 
 /// The resource used to run a contract function.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -677,10 +676,10 @@ impl NativeContractClassV1 {
     pub fn new(
         executor: AotNativeExecutor,
         sierra_contract_class: SierraContractClass,
-    ) -> Result<NativeContractClassV1, NativeEntryPointError> {
-        let contract = NativeContractClassV1Inner::new(executor, sierra_contract_class)?;
+    ) -> NativeContractClassV1 {
+        let contract = NativeContractClassV1Inner::new(executor, sierra_contract_class);
 
-        Ok(Self(Arc::new(contract)))
+        Self(Arc::new(contract))
     }
 
     /// Returns an entry point into the natively compiled contract.
@@ -708,30 +707,17 @@ impl NativeContractClassV1 {
 pub struct NativeContractClassV1Inner {
     pub executor: AotNativeExecutor,
     entry_points_by_type: NativeContractEntryPoints,
-    // Storing the raw sierra program and entry points to be able to fallback to the vm
+    // Storing the raw sierra program and entry points to be able to compare the contract class
     sierra_program: Vec<BigUintAsHex>,
 }
 
 impl NativeContractClassV1Inner {
-    fn new(
-        executor: AotNativeExecutor,
-        sierra_contract_class: SierraContractClass,
-    ) -> Result<Self, NativeEntryPointError> {
-        // This exception should never occur as it was also used to create the AotNativeExecutor.
-        let sierra_program =
-            sierra_contract_class.extract_sierra_program().expect("can't extract sierra program");
-
-        let lookup_fid: LookupVector<'_> =
-            sierra_program.funcs.iter().map(|func| &func.id).collect();
-
-        Ok(NativeContractClassV1Inner {
+    fn new(executor: AotNativeExecutor, sierra_contract_class: SierraContractClass) -> Self {
+        NativeContractClassV1Inner {
             executor,
-            entry_points_by_type: NativeContractEntryPoints::try_from(
-                &lookup_fid,
-                &sierra_contract_class.entry_points_by_type,
-            )?,
+            entry_points_by_type: NativeContractEntryPoints::from(&sierra_contract_class),
             sierra_program: sierra_contract_class.sierra_program,
-        })
+        }
     }
 }
 
@@ -747,7 +733,6 @@ impl PartialEq for NativeContractClassV1Inner {
 #[derive(Debug, PartialEq)]
 /// Modelled after [SierraContractEntryPoints]
 /// and enriched with information for the Cairo Native ABI.
-/// See Note [Cairo Native ABI]
 struct NativeContractEntryPoints {
     constructor: Vec<NativeEntryPoint>,
     external: Vec<NativeEntryPoint>,
@@ -755,31 +740,27 @@ struct NativeContractEntryPoints {
 }
 
 impl NativeContractEntryPoints {
-    /// Convert [SierraContractEntryPoints] to [NativeContractEntryPoints] via a
-    /// [FunctionId] lookup table.
-    ///
-    /// On failure returns the first FunctionId that it couldn't find.
-    fn try_from(
-        lookup: &LookupVector<'_>,
-        sierra_eps: &SierraContractEntryPoints,
-    ) -> Result<NativeContractEntryPoints, NativeEntryPointError> {
-        let constructor = sierra_eps
-            .constructor
-            .iter()
-            .map(|sierra_ep| NativeEntryPoint::try_from(lookup, sierra_ep))
-            .collect::<Result<_, _>>()?;
-        let external = sierra_eps
-            .external
-            .iter()
-            .map(|sierra_ep| NativeEntryPoint::try_from(lookup, sierra_ep))
-            .collect::<Result<_, _>>()?;
-        let l1_handler = sierra_eps
-            .l1_handler
-            .iter()
-            .map(|sierra_ep| NativeEntryPoint::try_from(lookup, sierra_ep))
-            .collect::<Result<_, _>>()?;
+    fn sierra_eps_to_native_eps(
+        lookup: &[&FunctionId],
+        sierra_eps: &[SierraContractEntryPoint],
+    ) -> Vec<NativeEntryPoint> {
+        sierra_eps.iter().map(|sierra_ep| NativeEntryPoint::from(lookup, sierra_ep)).collect()
+    }
+}
 
-        Ok(NativeContractEntryPoints { constructor, external, l1_handler })
+impl From<&SierraContractClass> for NativeContractEntryPoints {
+    fn from(sierra_contract_class: &SierraContractClass) -> Self {
+        let program = sierra_contract_class.extract_sierra_program().unwrap();
+
+        let lookup = program.funcs.iter().map(|func| &func.id).collect::<Vec<&FunctionId>>();
+
+        let sierra_eps = &sierra_contract_class.entry_points_by_type;
+
+        NativeContractEntryPoints {
+            constructor: Self::sierra_eps_to_native_eps(&lookup, &sierra_eps.constructor),
+            external: Self::sierra_eps_to_native_eps(&lookup, &sierra_eps.external),
+            l1_handler: Self::sierra_eps_to_native_eps(&lookup, &sierra_eps.l1_handler),
+        }
     }
 }
 
@@ -805,14 +786,11 @@ struct NativeEntryPoint {
 }
 
 impl NativeEntryPoint {
-    fn try_from(
-        lookup: &LookupVector<'_>,
-        sierra_ep: &SierraContractEntryPoint,
-    ) -> Result<NativeEntryPoint, NativeEntryPointError> {
-        let &function_id = lookup
-            .get(sierra_ep.function_idx)
-            .ok_or(NativeEntryPointError::FunctionIdNotFound(sierra_ep.function_idx))?;
-        let selector = contract_entrypoint_to_entrypoint_selector(sierra_ep);
-        Ok(NativeEntryPoint { selector, function_id: function_id.clone() })
+    fn from(lookup: &[&FunctionId], sierra_ep: &SierraContractEntryPoint) -> NativeEntryPoint {
+        let &function_id = lookup.get(sierra_ep.function_idx).unwrap();
+        NativeEntryPoint {
+            selector: contract_entrypoint_to_entrypoint_selector(sierra_ep),
+            function_id: function_id.clone(),
+        }
     }
 }
