@@ -4,7 +4,7 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::{Account, AccountNonce, MempoolResult};
+use starknet_mempool_types::mempool_types::{AccountState, AccountNonce, MempoolResult};
 
 use crate::mempool::TransactionReference;
 
@@ -97,9 +97,9 @@ impl TransactionPool {
 
     pub fn get_next_eligible_tx(
         &self,
-        current_account_state: Account,
+        current_account_state: AccountState,
     ) -> MempoolResult<Option<&TransactionReference>> {
-        let Account { sender_address, state: AccountNonce { nonce } } = current_account_state;
+        let AccountState { sender_address, state: AccountNonce { nonce } } = current_account_state;
         // TOOD(Ayelet): Change to StarknetApiError.
         let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
         Ok(self.get_by_address_and_nonce(sender_address, next_nonce))
