@@ -39,11 +39,14 @@ def verify_unpublished(crates: List[str], version: Optional[str] = None):
         assert not check_crate_version_exists(crate_name=crate, version=version)
 
 
-def get_package_and_dependencies_in_order(crate: str) -> List[str]:
+def get_package_and_dependencies_in_order(
+    crate: str, all_crates_dependencies: List[str]
+) -> List[str]:
     """
-    Returns a list of all local (member) crates that the input crate depends on, in topological
+    Returns a list of all local (member) crates that the input crates depends on, in topological
     order. I.e, if crate A depends on crate B, then B will appear before A in the list.
-    The output list also includes the input crate (last element).
+    The output list also includes the input crates.
+    Each crate is only included once in the output list.
     """
     # We use the `depth` prefix to easily sort the dependencies in topological order: higher depth
     # means the crate is depended on by the crate at the lower depth.
@@ -63,25 +66,32 @@ def get_package_and_dependencies_in_order(crate: str) -> List[str]:
         dependency = dependency_with_depth.lstrip("0123456789")
         # The same package may appear multiple times, and with different depths. Always keep the
         # highest depth only.
-        if dependency not in ordered_dependencies:
+        if dependency not in ordered_dependencies and dependency not in all_crates_dependencies:
             ordered_dependencies.append(dependency)
     return ordered_dependencies
 
 
-def publish_crate_and_dependencies(crate: str, dry_run: bool):
-    dependencies = get_package_and_dependencies_in_order(crate=crate)
-    assert crate == dependencies[-1], f"{crate} should be the last element of '{dependencies}'."
+def publish_crates_and_dependencies(crates: List[str], dry_run: bool, skip_version_check: bool):
 
-    # Do not attempt to publish anything if even one of the dependencies is already published.
-    verify_unpublished(crates=dependencies)
+    all_crates_dependencies: List[str] = []
+    for crate in crates:
+        all_crates_dependencies.extend(
+            get_package_and_dependencies_in_order(
+                crate=crate, all_crates_dependencies=all_crates_dependencies
+            )
+        )
+
+    if not skip_version_check:
+        # Do not attempt to publish anything if even one of the dependencies is already published.
+        verify_unpublished(crates=all_crates_dependencies)
 
     base_command_template = "cargo publish -p {crate}" + f"{' --dry-run' if dry_run else ''}"
     # Publish order is important.
     cmd = " && ".join(
-        [base_command_template.format(crate=dependency) for dependency in dependencies]
+        [base_command_template.format(crate=dependency) for dependency in all_crates_dependencies]
     )
 
-    print(f"Publishing {crate} ({dry_run=}) and its dependencies: {dependencies}...")
+    print(f"Publishing crates: {all_crates_dependencies} ({dry_run=})...")
     print(cmd, flush=True)
     subprocess.run(cmd, check=True, shell=True)
     print(f"Done.")
@@ -89,15 +99,23 @@ def publish_crate_and_dependencies(crate: str, dry_run: bool):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Publish a crate and it's dependencies in the local workspace."
+        description="Publish multiple crates and their dependencies in the local workspace."
     )
     parser.add_argument(
-        "--crate", type=str, help="Crate to publish (dependencies will also be published)."
+        "--crates",
+        type=str,
+        help="List of crates to publish (dependencies will also be published).",
+        nargs="+",
     )
     parser.add_argument("--dry_run", required=False, action="store_true", help="Dry run.")
+    parser.add_argument(
+        "--skip_version_check", required=False, action="store_true", help="Skip version check."
+    )
     args = parser.parse_args()
 
-    publish_crate_and_dependencies(crate=args.crate, dry_run=args.dry_run)
+    publish_crates_and_dependencies(
+        crates=args.crates, dry_run=args.dry_run, skip_version_check=args.skip_version_check
+    )
 
 
 if __name__ == "__main__":
