@@ -1,6 +1,6 @@
 import argparse
 import subprocess
-from typing import List
+from typing import List, Optional
 import toml
 import json
 
@@ -31,7 +31,7 @@ def get_workspace_version() -> str:
         raise ValueError("Version key not found in Cargo.toml")
 
 
-def verify_unpublished(crates: List[str]):
+def verify_unpublished(crates: List[str], version: Optional[str] = None):
     """
     Asserts that none of the crates in the set have been published.
     """
