@@ -15,7 +15,7 @@ use starknet_api::core::{ContractAddress, EntryPointSelector};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
-use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message};
+use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message, Retdata};
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
 use crate::execution::native::utils::encode_str_as_felts;
 use crate::execution::syscalls::hint_processor::OUT_OF_GAS_ERROR;
@@ -25,8 +25,8 @@ use crate::transaction::transaction_utils::update_remaining_gas;
 pub struct NativeSyscallHandler<'state> {
     // Input for execution.
     pub state: &'state mut dyn State,
-    pub execution_resources: &'state mut ExecutionResources,
-    pub execution_context: &'state mut EntryPointExecutionContext,
+    pub resources: &'state mut ExecutionResources,
+    pub context: &'state mut EntryPointExecutionContext,
 
     // Call information.
     pub caller_address: ContractAddress,
@@ -38,9 +38,9 @@ pub struct NativeSyscallHandler<'state> {
     pub l2_to_l1_messages: Vec<OrderedL2ToL1Message>,
     pub inner_calls: Vec<CallInfo>,
 
-    // Additional execution result info.
-    pub storage_read_values: Vec<Felt>,
-    pub accessed_storage_keys: HashSet<StorageKey, RandomState>,
+    // Additional information gathered during execution.
+    pub read_values: Vec<Felt>,
+    pub accessed_keys: HashSet<StorageKey, RandomState>,
 }
 
 impl<'state> NativeSyscallHandler<'state> {
@@ -49,21 +49,21 @@ impl<'state> NativeSyscallHandler<'state> {
         caller_address: ContractAddress,
         contract_address: ContractAddress,
         entry_point_selector: EntryPointSelector,
-        execution_resources: &'state mut ExecutionResources,
-        execution_context: &'state mut EntryPointExecutionContext,
+        resources: &'state mut ExecutionResources,
+        context: &'state mut EntryPointExecutionContext,
     ) -> NativeSyscallHandler<'state> {
         NativeSyscallHandler {
             state,
             caller_address,
             contract_address,
             entry_point_selector: entry_point_selector.0,
-            execution_resources,
-            execution_context,
+            resources,
+            context,
             events: Vec::new(),
             l2_to_l1_messages: Vec::new(),
             inner_calls: Vec::new(),
-            storage_read_values: Vec::new(),
-            accessed_storage_keys: HashSet::new(),
+            read_values: Vec::new(),
+            accessed_keys: HashSet::new(),
         }
     }
 
@@ -71,9 +71,9 @@ impl<'state> NativeSyscallHandler<'state> {
         &mut self,
         entry_point: CallEntryPoint,
         remaining_gas: &mut u128,
-    ) -> SyscallResult<CallInfo> {
+    ) -> SyscallResult<Retdata> {
         let call_info = entry_point
-            .execute(self.state, self.execution_resources, self.execution_context)
+            .execute(self.state, self.resources, self.context)
             .map_err(|e| encode_str_as_felts(&e.to_string()))?;
         let retdata = call_info.execution.retdata.0.clone();
 
@@ -84,9 +84,11 @@ impl<'state> NativeSyscallHandler<'state> {
 
         self.update_remaining_gas(remaining_gas, &call_info);
 
-        self.inner_calls.push(call_info.clone());
+        let retdata = call_info.execution.retdata.clone();
 
-        Ok(call_info)
+        self.inner_calls.push(call_info);
+
+        Ok(retdata)
     }
 
     pub fn update_remaining_gas(&mut self, remaining_gas: &mut u128, call_info: &CallInfo) {
@@ -110,11 +112,14 @@ impl<'state> NativeSyscallHandler<'state> {
     ) -> SyscallResult<()> {
         // Refund `SYSCALL_BASE_GAS_COST` as it was pre-charged.
         let required_gas =
-            u128::from(syscall_gas_cost - self.execution_context.gas_costs().syscall_base_gas_cost);
+            u128::from(syscall_gas_cost - self.context.gas_costs().syscall_base_gas_cost);
 
         if *remaining_gas < required_gas {
             // Out of gas failure.
-            return Err(vec![Felt::from_hex(OUT_OF_GAS_ERROR).unwrap()]);
+            return Err(vec![
+                Felt::from_hex(OUT_OF_GAS_ERROR)
+                    .expect("Failed to parse OUT_OF_GAS_ERROR hex string"),
+            ]);
         }
 
         *remaining_gas -= required_gas;

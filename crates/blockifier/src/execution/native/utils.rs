@@ -1,5 +1,5 @@
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoint;
-use num_traits::ToBytes;
+use itertools::Itertools;
 use starknet_api::core::EntryPointSelector;
 use starknet_types_core::felt::Felt;
 
