@@ -37,6 +37,8 @@ use starknet_mempool_infra::component_server::{
 use tokio::sync::mpsc::channel;
 use tokio::sync::Mutex;
 use tokio::task;
+use starknet_types_core::felt::Felt;
+use starknet_mempool_infra::trace_util::configure_tracing;
 
 type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentAResponse>;
 type ComponentBClient = RemoteComponentClient<ComponentBRequest, ComponentBResponse>;
@@ -59,7 +61,7 @@ const ARBITRARY_DATA: &str = "arbitrary data";
 const DESERIALIZE_REQ_ERROR_MESSAGE: &str = "Could not deserialize client request";
 // ClientError::ResponseDeserializationFailure error message.
 const DESERIALIZE_RES_ERROR_MESSAGE: &str = "Could not deserialize server response";
-const VALID_VALUE_A: ValueA = 1;
+const VALID_VALUE_A: ValueA = Felt::ONE;
 
 #[async_trait]
 impl ComponentAClientTrait for RemoteComponentClient<ComponentARequest, ComponentAResponse> {
@@ -198,9 +200,17 @@ async fn setup_for_tests(setup_value: ValueB, a_port: u16, b_port: u16) {
     task::yield_now().await;
 }
 
+
+
+
 #[tokio::test]
 async fn test_proper_setup() {
-    let setup_value: ValueB = 90;
+    configure_tracing();
+
+
+
+
+    let setup_value: ValueB = Felt::from(90);
     setup_for_tests(setup_value, A_PORT_TEST_SETUP, B_PORT_TEST_SETUP).await;
     let a_client = ComponentAClient::new(LOCAL_IP, A_PORT_TEST_SETUP, MAX_RETRIES);
     let b_client = ComponentBClient::new(LOCAL_IP, B_PORT_TEST_SETUP, MAX_RETRIES);
@@ -211,7 +221,7 @@ async fn test_proper_setup() {
 async fn test_faulty_client_setup() {
     // Todo(uriel): Find a better way to pass expected value to the setup
     // 123 is some arbitrary value, we don't check it anyway.
-    setup_for_tests(123, A_PORT_FAULTY_CLIENT, B_PORT_FAULTY_CLIENT).await;
+    setup_for_tests(Felt::from(123), A_PORT_FAULTY_CLIENT, B_PORT_FAULTY_CLIENT).await;
 
     struct FaultyAClient;
 

@@ -2,9 +2,10 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_mempool_infra::component_client::ClientResult;
 use starknet_mempool_infra::component_runner::ComponentStarter;
+use starknet_types_core::felt::Felt;
 
-pub(crate) type ValueA = u32;
-pub(crate) type ValueB = u8;
+pub(crate) type ValueA = Felt;
+pub(crate) type ValueB = Felt;
 
 pub(crate) type ResultA = ClientResult<ValueA>;
 pub(crate) type ResultB = ClientResult<ValueB>;

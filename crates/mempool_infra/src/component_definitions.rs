@@ -10,9 +10,14 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::mpsc::{Receiver, Sender};
 use validator::Validate;
+use tracing::{debug, error, info, instrument};
 
 const DEFAULT_CHANNEL_BUFFER_SIZE: usize = 32;
 const DEFAULT_RETRIES: usize = 3;
+
+#[cfg(test)]
+#[path = "component_definitions_test.rs"]
+pub mod component_definitions_test;
 
 #[async_trait]
 pub trait ComponentRequestHandler<Request, Response> {
@@ -117,8 +122,10 @@ impl Default for RemoteComponentCommunicationConfig {
     }
 }
 
+
+
 // Generic wrapper struct
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, std::fmt::Debug)]
 pub(crate) struct SerdeWrapper<T> {
     pub data: T,
 }
@@ -130,11 +137,13 @@ pub(crate) trait BincodeSerializable: Sized {
 }
 
 // Implement the trait for our wrapper
-impl<T: Serialize + for<'de> Deserialize<'de>> BincodeSerializable for SerdeWrapper<T> {
+impl<T: Serialize + for<'de> Deserialize<'de>> BincodeSerializable for SerdeWrapper<T> where T: std::fmt::Debug {
+    #[instrument]
     fn to_bincode(&self) -> Result<Vec<u8>, bincode::Error> {
         serialize(self)
     }
 
+    #[instrument]
     fn from_bincode(bytes: &[u8]) -> Result<Self, bincode::Error> {
         deserialize(bytes)
     }

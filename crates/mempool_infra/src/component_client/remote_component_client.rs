@@ -78,8 +78,8 @@ where
 
 impl<Request, Response> RemoteComponentClient<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Clone,
-    Response: Serialize + DeserializeOwned,
+    Request: Serialize + DeserializeOwned + std::fmt::Debug+ Clone,
+    Response: Serialize + DeserializeOwned+ std::fmt::Debug,
 {
     pub fn new(ip_address: IpAddr, port: u16, max_retries: usize) -> Self {
         let uri = match ip_address {
@@ -139,7 +139,7 @@ where
 
 async fn get_response_body<Response>(response: HyperResponse<Body>) -> Result<Response, ClientError>
 where
-    Response: Serialize + DeserializeOwned,
+    Response: Serialize + DeserializeOwned + std::fmt::Debug,
 {
     let body_bytes = to_bytes(response.into_body())
         .await

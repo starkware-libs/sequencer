@@ -19,6 +19,7 @@ use starknet_mempool_infra::component_definitions::{
 use starknet_mempool_infra::component_server::{ComponentServerStarter, LocalComponentServer};
 use tokio::sync::mpsc::channel;
 use tokio::task;
+use starknet_types_core::felt::Felt;
 
 use crate::common::{test_a_b_functionality, ComponentA, ComponentB, ValueA, ValueB};
 
@@ -81,7 +82,7 @@ impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for Componen
 
 #[tokio::test]
 async fn test_setup() {
-    let setup_value: ValueB = 30;
+    let setup_value: ValueB = Felt::from(30);
     let expected_value: ValueA = setup_value.into();
 
     let (tx_a, rx_a) =
