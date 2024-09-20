@@ -3,7 +3,7 @@ edition.workspace = true
 license.workspace = true
 name = "starknet_gateway"
 repository.workspace = true
-version = "0.0.0"
+version.workspace = true
 
 [lints]
 workspace = true
@@ -16,7 +16,6 @@ async-trait.workspace = true
 axum.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
-enum-assoc.workspace = true
 hyper.workspace = true
 mempool_test_utils.workspace = true
 papyrus_config.workspace = true
@@ -26,6 +25,7 @@ serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+starknet_gateway_types.workspace = true
 starknet_mempool_infra.workspace = true
 starknet_mempool_types.workspace = true
 starknet_sierra_compile.workspace = true
@@ -38,7 +38,7 @@ validator.workspace = true
 assert_matches.workspace = true
 cairo-lang-sierra-to-casm.workspace = true
 mockall.workspace = true
-mockito = "1.4.0"
+mockito.workspace = true
 num-bigint.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true

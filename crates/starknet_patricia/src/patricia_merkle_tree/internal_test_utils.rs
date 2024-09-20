@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use ethnum::U256;
 use rand::rngs::ThreadRng;
 use rstest::{fixture, rstest};
@@ -9,13 +7,11 @@ use crate::generate_trie_config;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
-use crate::patricia_merkle_tree::node_data::errors::LeafResult;
+use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, NodeData, PathToBottom};
-use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications, SkeletonLeaf};
+use crate::patricia_merkle_tree::node_data::leaf::{Leaf, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
-use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
     HashFunction,
@@ -52,15 +48,19 @@ impl Deserializable for MockLeaf {
 }
 
 impl Leaf for MockLeaf {
+    type Input = Felt;
+    type Output = String;
+
     fn is_empty(&self) -> bool {
         self.0 == Felt::ZERO
     }
 
-    async fn create(
-        index: &NodeIndex,
-        leaf_modifications: Arc<LeafModifications<Self>>,
-    ) -> LeafResult<Self> {
-        Self::from_modifications(index, leaf_modifications)
+    // Create a leaf with value equal to input. If input is `Felt::MAX`, returns an error.
+    async fn create(input: Self::Input) -> LeafResult<(Self, Self::Output)> {
+        if input == Felt::MAX {
+            return Err(LeafError::LeafComputationError("Leaf computation error".to_string()));
+        }
+        Ok((Self(input), input.to_hex()))
     }
 }
 

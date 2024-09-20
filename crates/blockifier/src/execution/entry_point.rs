@@ -12,6 +12,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants;
+use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
@@ -22,7 +23,7 @@ use crate::execution::errors::{
 };
 use crate::execution::execution_utils::execute_entry_point_call;
 use crate::state::state_api::State;
-use crate::transaction::objects::{HasRelatedFeeType, TransactionExecutionResult, TransactionInfo};
+use crate::transaction::objects::{HasRelatedFeeType, TransactionInfo};
 use crate::transaction::transaction_types::TransactionType;
 use crate::utils::{u128_from_usize, usize_from_u128};
 use crate::versioned_constants::{GasCosts, VersionedConstants};
@@ -38,6 +39,7 @@ pub type EntryPointExecutionResult<T> = Result<T, EntryPointExecutionError>;
 pub type ConstructorEntryPointExecutionResult<T> = Result<T, ConstructorEntryPointExecutionError>;
 
 /// Represents a the type of the call (used for debugging).
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq, Serialize)]
 pub enum CallType {
     #[default]
@@ -45,6 +47,7 @@ pub enum CallType {
     Delegate = 1,
 }
 /// Represents a call to an entry point of a Starknet contract.
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CallEntryPoint {
     // The class hash is not given if it can be deduced from the storage address.
@@ -102,6 +105,16 @@ impl CallEntryPoint {
 
         execute_entry_point_call(self, contract_class, state, resources, context)
     }
+
+    pub fn verify_constructor(&self) -> Result<(), PreExecutionError> {
+        if self.entry_point_type == EntryPointType::Constructor
+            && self.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
+        {
+            Err(PreExecutionError::InvalidConstructorEntryPointName)
+        } else {
+            Ok(())
+        }
+    }
 }
 
 pub struct ConstructorContext {
@@ -135,29 +148,26 @@ impl EntryPointExecutionContext {
         tx_context: Arc<TransactionContext>,
         mode: ExecutionMode,
         limit_steps_by_resources: bool,
-    ) -> TransactionExecutionResult<Self> {
-        let max_steps = Self::max_steps(&tx_context, &mode, limit_steps_by_resources)?;
-        Ok(Self {
+    ) -> Self {
+        let max_steps = Self::max_steps(&tx_context, &mode, limit_steps_by_resources);
+        Self {
             vm_run_resources: RunResources::new(max_steps),
             n_emitted_events: 0,
             n_sent_messages_to_l1: 0,
             tx_context: tx_context.clone(),
             current_recursion_depth: Default::default(),
             execution_mode: mode,
-        })
+        }
     }
 
     pub fn new_validate(
         tx_context: Arc<TransactionContext>,
         limit_steps_by_resources: bool,
-    ) -> TransactionExecutionResult<Self> {
+    ) -> Self {
         Self::new(tx_context, ExecutionMode::Validate, limit_steps_by_resources)
     }
 
-    pub fn new_invoke(
-        tx_context: Arc<TransactionContext>,
-        limit_steps_by_resources: bool,
-    ) -> TransactionExecutionResult<Self> {
+    pub fn new_invoke(tx_context: Arc<TransactionContext>, limit_steps_by_resources: bool) -> Self {
         Self::new(tx_context, ExecutionMode::Execute, limit_steps_by_resources)
     }
 
@@ -168,7 +178,7 @@ impl EntryPointExecutionContext {
         tx_context: &TransactionContext,
         mode: &ExecutionMode,
         limit_steps_by_resources: bool,
-    ) -> TransactionExecutionResult<usize> {
+    ) -> usize {
         let TransactionContext { block_context, tx_info } = tx_context;
         let BlockContext { block_info, versioned_constants, .. } = block_context;
         let block_upper_bound = match mode {
@@ -184,8 +194,8 @@ impl EntryPointExecutionContext {
                 .expect("Failed to convert invoke_tx_max_n_steps (u32) to usize."),
         };
 
-        if !limit_steps_by_resources || !tx_info.enforce_fee()? {
-            return Ok(block_upper_bound);
+        if !limit_steps_by_resources || !tx_info.enforce_fee() {
+            return block_upper_bound;
         }
 
         let gas_per_step = versioned_constants
@@ -214,7 +224,7 @@ impl EntryPointExecutionContext {
                 // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the
                 // convertion works.
                 context
-                    .l1_resource_bounds()?
+                    .l1_resource_bounds()
                     .max_amount
                     .try_into()
                     .expect("Failed to convert u64 to usize.")
@@ -236,7 +246,7 @@ impl EntryPointExecutionContext {
             );
             usize::MAX
         });
-        Ok(min(tx_upper_bound, block_upper_bound))
+        min(tx_upper_bound, block_upper_bound)
     }
 
     /// Returns the available steps in run resources.

@@ -44,6 +44,10 @@ jobs:
 
       - run: brew install protobuf@$PROTOC_VERSION
 
+      - name: Set up Native Dependencies
+        uses: ./.github/actions/setup-native-deps
+        id: native-deps
+
       - name: Build node
         run: cargo build -r -p papyrus_node
 
@@ -58,6 +62,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
+      - name: Set up Native Dependencies
+        uses: ./.github/actions/setup-native-deps
+        id: native-deps
       - uses: Swatinem/rust-cache@v2
       - run: npm install -g ganache@7.4.3
 
@@ -75,6 +82,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
+      - name: Set up Native Dependencies
+        uses: ./.github/actions/setup-native-deps
+        id: native-deps
       - run: cargo build -r -p papyrus_load_test
 
   integration-test:
@@ -84,6 +94,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
+      - name: Set up Native Dependencies
+        uses: ./.github/actions/setup-native-deps
+        id: native-deps
       - run: >
           cargo test -r
           --test latency_histogram
@@ -100,4 +113,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
       - uses: Swatinem/rust-cache@v2
+      - name: Set up Native Dependencies
+        uses: ./.github/actions/setup-native-deps
+        id: native-deps
       - run: for run in {1..100}; do cargo test -r -p papyrus_storage -- --include-ignored common_prefix_compare_with_simple_table_random; done

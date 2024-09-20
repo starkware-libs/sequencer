@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::transaction::{ResourceBoundsMapping, Tip, TransactionHash};
+use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput, MempoolResult};
 
@@ -13,6 +13,8 @@ use crate::transaction_queue::TransactionQueue;
 #[path = "mempool_test.rs"]
 pub mod mempool_test;
 
+type AccountToNonce = HashMap<ContractAddress, Nonce>;
+
 #[derive(Debug, Default)]
 pub struct Mempool {
     // TODO: add docstring explaining visibility and coupling of the fields.
@@ -22,6 +24,8 @@ pub struct Mempool {
     tx_queue: TransactionQueue,
     // Represents the current state of the mempool during block creation.
     mempool_state: HashMap<ContractAddress, AccountState>,
+    // The most recent account nonces received, for all account in the pool.
+    account_nonces: AccountToNonce,
 }
 
 impl Mempool {
@@ -32,7 +36,7 @@ impl Mempool {
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
     pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {
-        self.tx_queue.iter()
+        self.tx_queue.iter_over_ready_txs()
     }
 
     /// Retrieves up to `n_txs` transactions with the highest priority from the mempool.
@@ -44,8 +48,8 @@ impl Mempool {
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
         let mut n_remaining_txs = n_txs;
 
-        while n_remaining_txs > 0 && !self.tx_queue.is_empty() {
-            let chunk = self.tx_queue.pop_chunk(n_remaining_txs);
+        while n_remaining_txs > 0 && !self.tx_queue.has_ready_txs() {
+            let chunk = self.tx_queue.pop_ready_chunk(n_remaining_txs);
             self.enqueue_next_eligible_txs(&chunk)?;
             n_remaining_txs -= chunk.len();
             eligible_tx_references.extend(chunk);
@@ -54,6 +58,10 @@ impl Mempool {
         let mut eligible_txs: Vec<Transaction> = Vec::with_capacity(n_txs);
         for tx_ref in &eligible_tx_references {
             let tx = self.tx_pool.remove(tx_ref.tx_hash)?;
+            let address = tx.contract_address();
+            if !self.tx_pool.contains_account(address) {
+                self.account_nonces.remove(&address);
+            }
             eligible_txs.push(tx);
         }
 
@@ -70,7 +78,11 @@ impl Mempool {
     /// TODO: check Account nonce and balance.
     pub fn add_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
         self.validate_input(&input)?;
-        self.insert_tx(input)
+        let MempoolInput { tx, account: Account { sender_address, state: AccountState { nonce } } } =
+            input;
+        self.tx_pool.insert(tx)?;
+        self.align_to_account_state(sender_address, nonce);
+        Ok(())
     }
 
     /// Update the mempool's internal state according to the committed block (resolves nonce gaps,
@@ -100,14 +112,9 @@ impl Mempool {
         Ok(())
     }
 
-    fn insert_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
-        let MempoolInput { tx, account: Account { sender_address, state: AccountState { nonce } } } =
-            input;
-
-        self.tx_pool.insert(tx)?;
-        self.align_to_account_state(sender_address, nonce);
-
-        Ok(())
+    // TODO(Mohammad): Rename this method once consensus API is added.
+    fn _update_gas_price_threshold(&mut self, threshold: u128) {
+        self.tx_queue._update_gas_price_threshold(threshold);
     }
 
     fn validate_input(&self, input: &MempoolInput) -> MempoolResult<()> {
@@ -157,7 +164,7 @@ impl Mempool {
             if let Some(next_tx_reference) =
                 self.tx_pool.get_next_eligible_tx(current_account_state)?
             {
-                self.tx_queue.insert(next_tx_reference.clone());
+                self.tx_queue.insert(*next_tx_reference);
             }
         }
 
@@ -170,21 +177,35 @@ impl Mempool {
         // Maybe remove out-of-date transactions.
         // Note: != is equivalent to > in `add_tx`, as lower nonces are rejected in validation.
         if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| queued_nonce != nonce) {
-            self.tx_queue.remove(address);
+            assert!(self.tx_queue.remove(address), "Expected to remove address from queue.");
         }
 
+        // Remove from pool.
         self.tx_pool.remove_up_to_nonce(address, nonce);
+
+        if self.tx_pool.contains_account(address) {
+            match self.account_nonces.get(&address) {
+                // Skip updating the account nonce if it is greater than the received nonce.
+                Some(current_account_nonce) if current_account_nonce > &nonce => {}
+                _ => {
+                    self.account_nonces.insert(address, nonce);
+                }
+            }
+        } else {
+            // Remove address if no transactions from it left.
+            self.account_nonces.remove(&address);
+        }
 
         // Maybe close nonce gap.
         if self.tx_queue.get_nonce(address).is_none() {
             if let Some(tx_reference) = self.tx_pool.get_by_address_and_nonce(address, nonce) {
-                self.tx_queue.insert(tx_reference.clone());
+                self.tx_queue.insert(*tx_reference);
             }
         }
     }
 
     #[cfg(test)]
-    pub(crate) fn _tx_pool(&self) -> &TransactionPool {
+    pub(crate) fn tx_pool(&self) -> &TransactionPool {
         &self.tx_pool
     }
 }
@@ -193,14 +214,13 @@ impl Mempool {
 /// execution fields).
 /// TODO(Mohammad): rename this struct to `ThinTransaction` once that name
 /// becomes available, to better reflect its purpose and usage.
-/// TODO(Mohammad): restore the Copy once ResourceBoundsMapping implements it.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TransactionReference {
     pub sender_address: ContractAddress,
     pub nonce: Nonce,
     pub tx_hash: TransactionHash,
     pub tip: Tip,
-    pub resource_bounds: ResourceBoundsMapping,
+    pub resource_bounds: ValidResourceBounds,
 }
 
 impl TransactionReference {
@@ -209,9 +229,14 @@ impl TransactionReference {
             sender_address: tx.contract_address(),
             nonce: tx.nonce(),
             tx_hash: tx.tx_hash(),
-            tip: tx.tip().expect("Expected a valid tip value, but received None."),
-            // TODO(Mohammad): add resource bounds to the transaction.
-            resource_bounds: ResourceBoundsMapping::default(),
+            tip: tx.tip().expect("Expected a valid tip value."),
+            resource_bounds: *tx
+                .resource_bounds()
+                .expect("Expected a valid resource bounds value."),
         }
+    }
+
+    pub fn get_l2_gas_price(&self) -> u128 {
+        self.resource_bounds.get_l2_bounds().max_price_per_unit
     }
 }

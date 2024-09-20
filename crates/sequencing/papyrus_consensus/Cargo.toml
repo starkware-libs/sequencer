@@ -1,6 +1,6 @@
 [package]
 name = "papyrus_consensus"
-version = "0.4.0-rc.0"
+version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
@@ -8,6 +8,8 @@ description = "Reach consensus for Starknet"
 
 [dependencies]
 async-trait.workspace = true
+clap = { workspace = true, features = ["derive"] }
+fs2 = "0.4"
 futures.workspace = true
 lazy_static.workspace = true
 lru.workspace = true
@@ -16,7 +18,6 @@ papyrus_common.workspace = true
 papyrus_config.workspace = true
 papyrus_network.workspace = true
 papyrus_protobuf.workspace = true
-papyrus_storage.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true

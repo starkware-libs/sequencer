@@ -11,8 +11,7 @@ fn convert_event_to_vec_u8_and_back() {
     let transaction_hash = TransactionHash::get_test_instance(&mut rng);
 
     let data = DataOrFin(Some((event, transaction_hash)));
-    let bytes_data = Vec::<u8>::from(data.clone());
-    let res_data = DataOrFin::try_from(bytes_data).unwrap();
+    let res_data = DataOrFin::try_from(data.clone()).unwrap();
     assert_eq!(data, res_data);
 }
 

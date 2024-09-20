@@ -129,6 +129,21 @@
     "privacy": "Public",
     "value": "consensus_test_sync"
   },
+  "consensus.timeouts.precommit_timeout": {
+    "description": "The timeout (seconds) for a precommit.",
+    "privacy": "Public",
+    "value": 1.0
+  },
+  "consensus.timeouts.prevote_timeout": {
+    "description": "The timeout (seconds) for a prevote.",
+    "privacy": "Public",
+    "value": 1.0
+  },
+  "consensus.timeouts.proposal_timeout": {
+    "description": "The timeout (seconds) for a proposal.",
+    "privacy": "Public",
+    "value": 3.0
+  },
   "consensus.validator_id": {
     "description": "A required param! The validator id of the node.",
     "param_type": "String",
@@ -164,6 +179,16 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "network.advertised_multiaddr": {
+    "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
+    "privacy": "Public",
+    "value": ""
+  },
+  "network.advertised_multiaddr.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "network.bootstrap_peer_multiaddr": {
     "description": "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
     "privacy": "Public",
@@ -178,16 +203,6 @@
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
-  },
-  "network.hardcoded_external_multiaddr": {
-    "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
-    "privacy": "Public",
-    "value": ""
-  },
-  "network.hardcoded_external_multiaddr.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "network.idle_connection_timeout": {
     "description": "Amount of time in seconds that a connection with no active sessions will stay alive.",
@@ -388,6 +403,11 @@
     "description": "Max amount of blocks to download in a stream.",
     "privacy": "Public",
     "value": 1000
+  },
+  "sync.collect_pending_data": {
+    "description": "Whether to collect data on pending blocks.",
+    "privacy": "Public",
+    "value": false
   },
   "sync.recoverable_error_sleep_duration": {
     "description": "Waiting time in seconds before restarting synchronization after a recoverable error.",

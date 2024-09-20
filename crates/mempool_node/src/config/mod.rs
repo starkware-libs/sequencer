@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use starknet_batcher::config::BatcherConfig;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
+use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_infra::component_definitions::{
     LocalComponentCommunicationConfig,
     RemoteComponentCommunicationConfig,
@@ -46,8 +47,6 @@ pub enum ComponentType {
     IndependentComponent,
     // A component that requires an infra server, and has no internal mutating task.
     SynchronousComponent,
-    // A component that requires an infra server, and has an internal mutating task.
-    AsynchronousComponent,
 }
 // TODO(Lev/Tsabary): Change the enum values to more discriptive.
 
@@ -119,6 +118,19 @@ impl ComponentExecutionConfig {
         }
     }
 
+    // TODO(Tsabary/Lev): There's a bug here: the http server component does not need a local nor a
+    // remote config. However, the validation function requires that at least one of them is set. As
+    // a workaround I've set the local one, but this should be addressed.
+    pub fn http_server_default_config() -> Self {
+        Self {
+            execute: true,
+            location: LocationType::Local,
+            component_type: ComponentType::IndependentComponent,
+            local_config: Some(LocalComponentCommunicationConfig::default()),
+            remote_config: None,
+        }
+    }
+
     pub fn mempool_default_config() -> Self {
         Self {
             execute: true,
@@ -143,7 +155,7 @@ impl ComponentExecutionConfig {
         Self {
             execute: true,
             location: LocationType::Local,
-            component_type: ComponentType::AsynchronousComponent,
+            component_type: ComponentType::SynchronousComponent,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
         }
@@ -184,6 +196,8 @@ pub struct ComponentConfig {
     #[validate]
     pub gateway: ComponentExecutionConfig,
     #[validate]
+    pub http_server: ComponentExecutionConfig,
+    #[validate]
     pub mempool: ComponentExecutionConfig,
 }
 
@@ -193,6 +207,7 @@ impl Default for ComponentConfig {
             batcher: ComponentExecutionConfig::batcher_default_config(),
             consensus_manager: ComponentExecutionConfig::consensus_manager_default_config(),
             gateway: ComponentExecutionConfig::gateway_default_config(),
+            http_server: ComponentExecutionConfig::http_server_default_config(),
             mempool: ComponentExecutionConfig::mempool_default_config(),
         }
     }
@@ -213,9 +228,13 @@ impl SerializeConfig for ComponentConfig {
 }
 
 pub fn validate_components_config(components: &ComponentConfig) -> Result<(), ValidationError> {
+    // TODO(Tsabary/Lev): We need to come up with a better mechanism for this validation, simply
+    // listing all components and expecting one to remember adding a new component to this list does
+    // not suffice.
     if components.gateway.execute
         || components.mempool.execute
         || components.batcher.execute
+        || components.http_server.execute
         || components.consensus_manager.execute
     {
         return Ok(());
@@ -238,6 +257,8 @@ pub struct MempoolNodeConfig {
     #[validate]
     pub gateway_config: GatewayConfig,
     #[validate]
+    pub http_server_config: HttpServerConfig,
+    #[validate]
     pub rpc_state_reader_config: RpcStateReaderConfig,
     #[validate]
     pub compiler_config: SierraToCasmCompilationConfig,
@@ -254,6 +275,7 @@ impl SerializeConfig for MempoolNodeConfig {
                 "consensus_manager_config",
             ),
             append_sub_config_name(self.gateway_config.dump(), "gateway_config"),
+            append_sub_config_name(self.http_server_config.dump(), "http_server_config"),
             append_sub_config_name(self.rpc_state_reader_config.dump(), "rpc_state_reader_config"),
             append_sub_config_name(self.compiler_config.dump(), "compiler_config"),
         ];

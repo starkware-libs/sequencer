@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use cairo_native::error::Error as NativeRunnerError;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
@@ -84,21 +83,10 @@ pub enum EntryPointExecutionError {
     CairoRunError(#[from] CairoRunError),
     #[error("Execution failed. Failure reason: {}.", format_panic_data(.error_data))]
     ExecutionFailed { error_data: Vec<Felt> },
-    #[error("Failed to convert Sierra to Casm: {0}")]
-    FailedToConvertSierraToCasm(String),
     #[error("Internal error: {0}")]
     InternalError(String),
     #[error("Invalid input: {input_descriptor}; {info}")]
     InvalidExecutionInput { input_descriptor: String, info: String },
-    #[error("Native execution error: {info}")]
-    NativeExecutionError { info: String },
-    #[error("Native Fallback Error: {info}")]
-    NativeFallbackError { info: Box<EntryPointExecutionError> },
-    #[error("Native unexpected error: {source}")]
-    NativeUnexpectedError {
-        #[source]
-        source: NativeRunnerError,
-    },
     #[error(transparent)]
     PostExecutionError(#[from] PostExecutionError),
     #[error(transparent)]
@@ -109,12 +97,6 @@ pub enum EntryPointExecutionError {
     StateError(#[from] StateError),
     #[error(transparent)]
     TraceError(#[from] TraceError),
-}
-
-#[derive(Debug, Error)]
-pub enum NativeEntryPointError {
-    #[error("FunctionId {0} not found")]
-    FunctionIdNotFound(usize),
 }
 
 #[derive(Debug, Error)]

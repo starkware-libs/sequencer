@@ -13,10 +13,11 @@ mod precision_test;
 pub mod scenarios;
 pub mod transactions;
 
+use std::sync::LazyLock;
 use std::{env, fs};
 
 use goose::goose::{GooseUser, TransactionError};
-use once_cell::sync::{Lazy, OnceCell};
+use once_cell::sync::OnceCell;
 use rand::Rng;
 use serde::Deserialize;
 use serde_json::{json, Value as jsonVal};
@@ -109,7 +110,7 @@ const TRACE_BLOCK_TRANSACTIONS_BY_HASH_WEIGHT: usize = 10;
 const TRACE_BLOCK_TRANSACTIONS_BY_NUMBER_WEIGHT: usize = 10;
 const TRACE_TRANSACTION_WEIGHT: usize = 10;
 
-static RPC_VERSION_ID: Lazy<String> = Lazy::new(|| match std::env::var("VERSION_ID") {
+static RPC_VERSION_ID: LazyLock<String> = LazyLock::new(|| match std::env::var("VERSION_ID") {
     Ok(version_id) => version_id,
     Err(_) => unreachable!("VERSION_ID environment variable is not set"),
 });

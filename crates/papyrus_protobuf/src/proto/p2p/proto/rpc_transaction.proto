@@ -1,0 +1,18 @@
+syntax = "proto3";
+import "p2p/proto/class.proto";
+import "p2p/proto/common.proto";
+import "p2p/proto/transaction.proto";
+
+message RpcTransaction
+{
+    message DeclareV3 {
+        Transaction.DeclareV3 declare_v3 = 1;
+        Cairo1Class contract_class = 2;
+    }
+
+    oneof txn {
+        DeclareV3 declare_v3 = 1;
+        Transaction.DeployAccountV3 deploy_account_v3 = 2;
+        Transaction.InvokeV3 invoke_v3 = 3;
+    }
+}

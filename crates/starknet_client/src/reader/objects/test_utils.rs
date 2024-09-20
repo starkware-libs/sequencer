@@ -21,12 +21,12 @@ use starknet_api::transaction::{
     L1ToL2Payload,
     L2ToL1Payload,
     PaymasterData,
-    ResourceBoundsMapping,
     Tip,
     TransactionHash,
     TransactionOffsetInBlock,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 
@@ -60,7 +60,7 @@ auto_impl_get_test_instance! {
         Reserved = 0,
     }
     pub struct IntermediateDeclareTransaction {
-        pub resource_bounds: Option<ResourceBoundsMapping>,
+        pub resource_bounds: Option<ValidResourceBounds>,
         pub tip: Option<Tip>,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -76,7 +76,7 @@ auto_impl_get_test_instance! {
         pub transaction_hash: TransactionHash,
     }
     pub struct IntermediateDeployAccountTransaction {
-        pub resource_bounds: Option<ResourceBoundsMapping>,
+        pub resource_bounds: Option<ValidResourceBounds>,
         pub tip: Option<Tip>,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -100,7 +100,7 @@ auto_impl_get_test_instance! {
         pub version: TransactionVersion,
     }
     pub struct IntermediateInvokeTransaction {
-        pub resource_bounds: Option<ResourceBoundsMapping>,
+        pub resource_bounds: Option<ValidResourceBounds>,
         pub tip: Option<Tip>,
         pub calldata: Calldata,
         pub sender_address: ContractAddress,

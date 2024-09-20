@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use axum::body::Body;
 use blockifier::test_utils::contracts::FeatureContract;
 use mempool_test_utils::starknet_api_test_utils::{
-    external_tx_to_json,
+    rpc_tx_to_json,
     MultiAccountTransactionGenerator,
 };
 use reqwest::{Client, Response};
@@ -11,12 +11,12 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway::config::{
     GatewayConfig,
-    GatewayNetworkConfig,
     RpcStateReaderConfig,
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
-use starknet_gateway::errors::GatewaySpecError;
+use starknet_gateway_types::errors::GatewaySpecError;
+use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_node::config::MempoolNodeConfig;
 use tokio::net::TcpListener;
 
@@ -30,26 +30,35 @@ async fn create_gateway_config() -> GatewayConfig {
         ..Default::default()
     };
 
-    let socket = get_available_socket().await;
-    let network_config = GatewayNetworkConfig { ip: socket.ip(), port: socket.port() };
     let stateful_tx_validator_config = StatefulTransactionValidatorConfig::create_for_testing();
 
-    GatewayConfig { network_config, stateless_tx_validator_config, stateful_tx_validator_config }
+    GatewayConfig { stateless_tx_validator_config, stateful_tx_validator_config }
+}
+
+async fn create_http_server_config() -> HttpServerConfig {
+    let socket = get_available_socket().await;
+    HttpServerConfig { ip: socket.ip(), port: socket.port() }
 }
 
 pub async fn create_config(rpc_server_addr: SocketAddr) -> MempoolNodeConfig {
     let gateway_config = create_gateway_config().await;
+    let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
-    MempoolNodeConfig { gateway_config, rpc_state_reader_config, ..MempoolNodeConfig::default() }
+    MempoolNodeConfig {
+        gateway_config,
+        http_server_config,
+        rpc_state_reader_config,
+        ..MempoolNodeConfig::default()
+    }
 }
 
-/// A test utility client for interacting with a gateway server.
-pub struct GatewayClient {
+/// A test utility client for interacting with an http server.
+pub struct HttpTestClient {
     socket: SocketAddr,
     client: Client,
 }
 
-impl GatewayClient {
+impl HttpTestClient {
     pub fn new(socket: SocketAddr) -> Self {
         let client = Client::new();
         Self { socket, client }
@@ -70,7 +79,7 @@ impl GatewayClient {
     // Prefer using assert_add_tx_success or other higher level methods of this client, to ensure
     // tests are boilerplate and implementation-detail free.
     pub async fn add_tx(&self, tx: &RpcTransaction) -> Response {
-        let tx_json = external_tx_to_json(tx);
+        let tx_json = rpc_tx_to_json(tx);
         self.client
             .post(format!("http://{}/add_tx", self.socket))
             .header("content-type", "application/json")
@@ -95,7 +104,7 @@ fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderCo
 /// Tests run in parallel, so servers (like RPC or web) running on separate tests must have
 /// different ports, otherwise the server will fail with "address already in use".
 pub async fn get_available_socket() -> SocketAddr {
-    // Dinamically select port.
+    // Dynamically select port.
     // First, set the port to 0 (dynamic port).
     TcpListener::bind("127.0.0.1:0")
         .await

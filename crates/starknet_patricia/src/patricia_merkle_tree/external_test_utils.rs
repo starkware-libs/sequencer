@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use ethnum::U256;
 use rand::Rng;
@@ -66,7 +65,7 @@ pub fn get_random_u256<R: Rng>(rng: &mut R, low: U256, high: U256) -> U256 {
 }
 
 pub async fn tree_computation_flow<L, TH>(
-    leaf_modifications: Arc<LeafModifications<L>>,
+    leaf_modifications: LeafModifications<L>,
     storage: &MapStorage,
     root_hash: HashOutput,
     config: impl OriginalSkeletonTreeConfig<L>,
@@ -77,9 +76,14 @@ where
 {
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
-    let mut original_skeleton =
-        OriginalSkeletonTreeImpl::create(storage, root_hash, sorted_leaf_indices, &config)
-            .expect("Failed to create the original skeleton tree");
+    let mut original_skeleton = OriginalSkeletonTreeImpl::create(
+        storage,
+        root_hash,
+        sorted_leaf_indices,
+        &config,
+        &leaf_modifications,
+    )
+    .expect("Failed to create the original skeleton tree");
 
     let updated_skeleton: UpdatedSkeletonTreeImpl = UpdatedSkeletonTree::create(
         &mut original_skeleton,
@@ -98,7 +102,7 @@ where
     )
     .expect("Failed to create the updated skeleton tree");
 
-    FilledTreeImpl::<L>::create::<TH>(updated_skeleton.into(), leaf_modifications)
+    FilledTreeImpl::<L>::create_with_existing_leaves::<TH>(updated_skeleton, leaf_modifications)
         .await
         .expect("Failed to create the filled tree")
 }
@@ -116,8 +120,7 @@ pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 
         .collect::<LeafModifications<L>>();
 
     let filled_tree =
-        tree_computation_flow::<L, TH>(Arc::new(leaf_modifications), &storage, root_hash, config)
-            .await;
+        tree_computation_flow::<L, TH>(leaf_modifications, &storage, root_hash, config).await;
 
     let hash_result = filled_tree.get_root_hash();
 

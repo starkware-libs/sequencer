@@ -1,27 +1,25 @@
 use std::sync::Arc;
 
-use axum::body::{Bytes, HttpBody};
-use axum::extract::State;
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
+use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::CairoVersion;
-use mempool_test_utils::starknet_api_test_utils::{create_executable_tx, invoke_tx};
+use mempool_test_utils::starknet_api_test_utils::{create_executable_tx, declare_tx, invoke_tx};
 use mockall::predicate::eq;
-use starknet_api::core::ContractAddress;
-use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::TransactionHash;
-use starknet_mempool_types::communication::MockMempoolClient;
+use starknet_api::core::{CompiledClassHash, ContractAddress};
+use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
+use starknet_api::transaction::{TransactionHash, ValidResourceBounds};
+use starknet_gateway_types::errors::GatewaySpecError;
+use starknet_mempool_types::communication::{MempoolWrapperInput, MockMempoolClient};
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig};
-use crate::gateway::{add_tx, AppState, SharedMempoolClient};
+use crate::gateway::{internal_add_tx, AppState, SharedMempoolClient};
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
-use crate::utils::external_tx_to_account_tx;
+use crate::utils::rpc_tx_to_account_tx;
 
 pub fn app_state(
     mempool_client: SharedMempoolClient,
@@ -34,7 +32,7 @@ pub fn app_state(
         stateful_tx_validator: Arc::new(StatefulTransactionValidator {
             config: StatefulTransactionValidatorConfig::create_for_testing(),
         }),
-        gateway_compiler: GatewayCompiler::new_cairo_lang_compiler(
+        gateway_compiler: GatewayCompiler::new_command_line_compiler(
             SierraToCasmCompilationConfig::default(),
         ),
         state_reader_factory: Arc::new(state_reader_factory),
@@ -55,6 +53,7 @@ fn create_tx() -> (RpcTransaction, SenderAddress) {
     (tx, sender_address)
 }
 
+// TODO: add test with Some broadcasted message metadata
 #[tokio::test]
 async fn test_add_tx() {
     let (tx, sender_address) = create_tx();
@@ -64,39 +63,59 @@ async fn test_add_tx() {
     mock_mempool_client
         .expect_add_tx()
         .once()
-        .with(eq(MempoolInput {
+        .with(eq(MempoolWrapperInput {
             // TODO(Arni): Use external_to_executable_tx instead of `create_executable_tx`. Consider
             // creating a `convertor for testing` that does not do the compilation.
-            tx: create_executable_tx(sender_address, tx_hash, *tx.tip(), *tx.nonce()),
-            account: Account { sender_address, state: AccountState { nonce: *tx.nonce() } },
+            mempool_input: MempoolInput {
+                tx: create_executable_tx(
+                    sender_address,
+                    tx_hash,
+                    *tx.tip(),
+                    *tx.nonce(),
+                    ValidResourceBounds::AllResources(*tx.resource_bounds()),
+                ),
+                account: Account { sender_address, state: AccountState { nonce: *tx.nonce() } },
+            },
+            message_metadata: None,
         }))
         .return_once(|_| Ok(()));
     let state_reader_factory = local_test_state_reader_factory(CairoVersion::Cairo1, false);
     let app_state = app_state(Arc::new(mock_mempool_client), state_reader_factory);
 
-    let response = add_tx(State(app_state), tx.into()).await.into_response();
+    let response_tx_hash = internal_add_tx(app_state, tx).await.unwrap();
 
-    let status_code = response.status();
-    let response_bytes = &to_bytes(response).await;
-
-    assert_eq!(status_code, StatusCode::OK, "{response_bytes:?}");
-    assert_eq!(tx_hash, serde_json::from_slice(response_bytes).unwrap());
+    assert_eq!(tx_hash, response_tx_hash);
 }
 
-async fn to_bytes(res: Response) -> Bytes {
-    res.into_body().collect().await.unwrap().to_bytes()
+// Gateway spec errors tests.
+// TODO(Arni): Add tests for all the error cases. Check the response (use `into_response` on the
+// result of `add_tx`).
+
+#[tokio::test]
+async fn test_compiled_class_hash_mismatch() {
+    let mut declare_tx =
+        assert_matches!(declare_tx(), RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => tx);
+    declare_tx.compiled_class_hash = CompiledClassHash::default();
+    let tx = RpcTransaction::Declare(RpcDeclareTransaction::V3(declare_tx));
+
+    let mock_mempool_client = MockMempoolClient::new();
+    let state_reader_factory = local_test_state_reader_factory(CairoVersion::Cairo1, false);
+    let app_state = app_state(Arc::new(mock_mempool_client), state_reader_factory);
+
+    let err = internal_add_tx(app_state, tx).await.unwrap_err();
+    assert_matches!(err, GatewaySpecError::CompiledClassHashMismatch);
 }
 
-fn calculate_hash(external_tx: &RpcTransaction) -> TransactionHash {
-    let optional_class_info = match &external_tx {
+fn calculate_hash(rpc_tx: &RpcTransaction) -> TransactionHash {
+    let optional_class_info = match &rpc_tx {
         RpcTransaction::Declare(_declare_tx) => {
             panic!("Declare transactions are not supported in this test")
         }
         _ => None,
     };
 
-    let account_tx = external_tx_to_account_tx(
-        external_tx,
+    let account_tx = rpc_tx_to_account_tx(
+        rpc_tx,
         optional_class_info,
         &ChainInfo::create_for_testing().chain_id,
     )

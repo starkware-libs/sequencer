@@ -1,12 +1,12 @@
 [package]
 name = "starknet_task_executor"
-version = "0.0.0"
+version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
 
 [dependencies]
-tokio.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [dev-dependencies]
 futures.workspace = true

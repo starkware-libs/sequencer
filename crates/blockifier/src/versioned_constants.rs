@@ -1,14 +1,15 @@
 use std::collections::{HashMap, HashSet};
 use std::io;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use indexmap::{IndexMap, IndexSet};
 use num_rational::Ratio;
-use once_cell::sync::Lazy;
+use num_traits::Inv;
 use paste::paste;
+use semver::Version;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer};
 use serde_json::{Map, Number, Value};
@@ -43,7 +44,7 @@ macro_rules! define_versioned_constants {
             $(
                 pub(crate) const [<VERSIONED_CONSTANTS_ $variant:upper _JSON>]: &str =
                     include_str!($path_to_json);
-                static [<VERSIONED_CONSTANTS_ $variant:upper>]: Lazy<VersionedConstants> = Lazy::new(|| {
+                static [<VERSIONED_CONSTANTS_ $variant:upper>]: LazyLock<VersionedConstants> = LazyLock::new(|| {
                     serde_json::from_str([<VERSIONED_CONSTANTS_ $variant:upper _JSON>])
                         .expect(&format!("Versioned constants {} is malformed.", $path_to_json))
                 });
@@ -70,33 +71,39 @@ define_versioned_constants! {
     (V0_13_1, "../resources/versioned_constants_13_1.json"),
     (V0_13_1_1, "../resources/versioned_constants_13_1_1.json"),
     (V0_13_2, "../resources/versioned_constants_13_2.json"),
+    (V0_13_2_1, "../resources/versioned_constants_13_2_1.json"),
     (Latest, "../resources/versioned_constants.json"),
 }
 
 pub type ResourceCost = Ratio<u128>;
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, PartialOrd)]
+pub struct CompilerVersion(pub Version);
+impl Default for CompilerVersion {
+    fn default() -> Self {
+        Self(Version::new(0, 0, 0))
+    }
+}
 
 /// Contains constants for the Blockifier that may vary between versions.
 /// Additional constants in the JSON file, not used by Blockifier but included for transparency, are
 /// automatically ignored during deserialization.
 /// Instances of this struct for specific Starknet versions can be selected by using the above enum.
 #[derive(Clone, Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct VersionedConstants {
     // Limits.
-    #[serde(default = "EventLimits::max")]
     pub tx_event_limits: EventLimits,
     pub invoke_tx_max_n_steps: u32,
-    #[serde(default)]
-    pub l2_resource_gas_costs: L2ResourceGasCosts,
+    pub archival_data_gas_costs: ArchivalDataGasCosts,
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
+    pub min_compiler_version_for_sierra_gas: CompilerVersion,
     // BACKWARD COMPATIBILITY: If true, the segment_arena builtin instance counter will be
     // multiplied by 3. This offsets a bug in the old vm where the counter counted the number of
     // cells used by instances of the builtin, instead of the number of instances.
-    #[serde(default)]
     pub segment_arena_cells: bool,
 
     // Transactions settings.
-    #[serde(default)]
     pub disable_cairo0_redeclaration: bool,
 
     // Cairo OS constants.
@@ -111,6 +118,9 @@ pub struct VersionedConstants {
     // TODO: Consider making this a struct, this will require change the way we access these
     // values.
     vm_resource_fee_cost: Arc<HashMap<String, ResourceCost>>,
+    // Just to make sure the value exists, but don't use the actual values.
+    #[allow(dead_code)]
+    gateway: serde::de::IgnoredAny,
 }
 
 impl VersionedConstants {
@@ -123,6 +133,24 @@ impl VersionedConstants {
     /// To use custom constants, initialize the struct from a file using `try_from`.
     pub fn latest_constants() -> &'static Self {
         Self::get(StarknetVersion::Latest)
+    }
+
+    /// Converts from L1 gas to L2 gas with **upward rounding**.
+    pub fn convert_l1_to_l2_gas(&self, l1_gas: u128) -> u128 {
+        let l1_to_l2_gas_price_ratio = self.l1_to_l2_gas_price_ratio().inv();
+        *(l1_to_l2_gas_price_ratio * l1_gas).ceil().numer()
+    }
+
+    /// Converts from L2 gas to L1 gas **rounding towards zero**.
+    pub fn convert_l2_to_l1_gas(&self, l2_gas: u128) -> u128 {
+        let l2_to_l1_gas_price_ratio = self.l1_to_l2_gas_price_ratio();
+        (l2_to_l1_gas_price_ratio * l2_gas).to_integer()
+    }
+
+    /// Returns the following ratio: L2_gas_price/L1_gas_price.
+    pub fn l1_to_l2_gas_price_ratio(&self) -> ResourceCost {
+        Ratio::new(1, u128::from(self.os_constants.gas_costs.step_gas_cost))
+            * self.vm_resource_fee_cost()["n_steps"]
     }
 
     /// Returns the initial gas of any transaction to run with.
@@ -178,8 +206,9 @@ impl VersionedConstants {
 
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_account_testing() -> Self {
+        let step_cost = ResourceCost::from_integer(1);
         let vm_resource_fee_cost = Arc::new(HashMap::from([
-            (crate::abi::constants::N_STEPS_RESOURCE.to_string(), ResourceCost::from_integer(1)),
+            (crate::abi::constants::N_STEPS_RESOURCE.to_string(), step_cost),
             (BuiltinName::pedersen.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
             (
                 BuiltinName::range_check.to_str_with_suffix().to_string(),
@@ -198,24 +227,13 @@ impl VersionedConstants {
             (BuiltinName::mul_mod.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
         ]));
 
-        Self { vm_resource_fee_cost, ..Self::create_for_testing() }
-    }
-
-    // A more complicated instance to increase test coverage.
-    #[cfg(any(feature = "testing", test))]
-    pub fn create_float_for_testing() -> Self {
-        let vm_resource_fee_cost = Arc::new(HashMap::from([
-            (crate::abi::constants::N_STEPS_RESOURCE.to_string(), ResourceCost::new(25, 10000)),
-            (BuiltinName::pedersen.to_str_with_suffix().to_string(), ResourceCost::new(8, 100)),
-            (BuiltinName::range_check.to_str_with_suffix().to_string(), ResourceCost::new(4, 100)),
-            (BuiltinName::ecdsa.to_str_with_suffix().to_string(), ResourceCost::new(512, 100)),
-            (BuiltinName::bitwise.to_str_with_suffix().to_string(), ResourceCost::new(16, 100)),
-            (BuiltinName::poseidon.to_str_with_suffix().to_string(), ResourceCost::new(8, 100)),
-            (BuiltinName::output.to_str_with_suffix().to_string(), ResourceCost::from_integer(0)),
-            (BuiltinName::ec_op.to_str_with_suffix().to_string(), ResourceCost::new(256, 100)),
-        ]));
-
-        Self { vm_resource_fee_cost, ..Self::create_for_testing() }
+        // Maintain the ratio between L1 gas price and L2 gas price.
+        let latest = Self::create_for_testing();
+        let latest_step_cost = latest.vm_resource_fee_cost["n_steps"];
+        let mut archival_data_gas_costs = latest.archival_data_gas_costs;
+        archival_data_gas_costs.gas_per_code_byte *= latest_step_cost / step_cost;
+        archival_data_gas_costs.gas_per_data_felt *= latest_step_cost / step_cost;
+        Self { vm_resource_fee_cost, archival_data_gas_costs, ..latest }
     }
 
     pub fn latest_constants_with_overrides(
@@ -225,32 +243,21 @@ impl VersionedConstants {
         Self { validate_max_n_steps, max_recursion_depth, ..Self::latest_constants().clone() }
     }
 
-    // TODO(Amos, 1/8/2024): Remove the explicit `validate_max_n_steps` & `max_recursion_depth`,
-    // they should be part of the general override.
-    /// `versioned_constants_base_overrides` are used if they are provided, otherwise the latest
-    /// versioned constants are used. `validate_max_n_steps` & `max_recursion_depth` override both.
+    /// Returns the latest versioned constants after applying the given overrides.
     pub fn get_versioned_constants(
         versioned_constants_overrides: VersionedConstantsOverrides,
     ) -> Self {
         let VersionedConstantsOverrides {
             validate_max_n_steps,
             max_recursion_depth,
-            versioned_constants_base_overrides,
+            invoke_tx_max_n_steps,
         } = versioned_constants_overrides;
-        let base_overrides = match versioned_constants_base_overrides {
-            Some(versioned_constants_base_overrides) => {
-                log::debug!(
-                    "Using provided `versioned_constants_base_overrides` (with additional \
-                     overrides)."
-                );
-                versioned_constants_base_overrides
-            }
-            None => {
-                log::debug!("Using latest versioned constants (with additional overrides).");
-                Self::latest_constants().clone()
-            }
-        };
-        Self { validate_max_n_steps, max_recursion_depth, ..base_overrides }
+        Self {
+            validate_max_n_steps,
+            max_recursion_depth,
+            invoke_tx_max_n_steps,
+            ..Self::latest_constants().clone()
+        }
     }
 }
 
@@ -263,7 +270,7 @@ impl TryFrom<&Path> for VersionedConstants {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
-pub struct L2ResourceGasCosts {
+pub struct ArchivalDataGasCosts {
     // TODO(barak, 18/03/2024): Once we start charging per byte change to milligas_per_data_byte,
     // divide the value by 32 in the JSON file.
     pub gas_per_data_felt: ResourceCost,
@@ -279,16 +286,6 @@ pub struct EventLimits {
     pub max_data_length: usize,
     pub max_keys_length: usize,
     pub max_n_emitted_events: usize,
-}
-
-impl EventLimits {
-    fn max() -> Self {
-        Self {
-            max_data_length: usize::MAX,
-            max_keys_length: usize::MAX,
-            max_n_emitted_events: usize::MAX,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -459,8 +456,17 @@ impl<'de> Deserialize<'de> for OsResources {
 #[derive(Debug, Default, Deserialize)]
 pub struct GasCosts {
     pub step_gas_cost: u64,
-    pub range_check_gas_cost: u64,
     pub memory_hole_gas_cost: u64,
+    // Range check has a hard-coded cost higher than its proof percentage to avoid the overhead of
+    // retrieving its price from the table.
+    pub range_check_gas_cost: u64,
+    // Priced builtins.
+    pub pedersen_gas_cost: u64,
+    pub bitwise_builtin_gas_cost: u64,
+    pub ecop_gas_cost: u64,
+    pub poseidon_gas_cost: u64,
+    pub add_mod_gas_cost: u64,
+    pub mul_mod_gas_cost: u64,
     // An estimation of the initial gas for a transaction to run with. This solution is
     // temporary and this value will be deduced from the transaction's fields.
     pub initial_gas_cost: u64,
@@ -514,7 +520,7 @@ impl OsConstants {
     // not used by the blockifier but included for transparency. These constanst will be ignored
     // during the creation of the struct containing the gas costs.
 
-    const ADDITIONAL_FIELDS: [&'static str; 25] = [
+    const ADDITIONAL_FIELDS: [&'static str; 27] = [
         "block_hash_contract_address",
         "constructor_entry_point_selector",
         "default_entry_point_selector",
@@ -531,6 +537,8 @@ impl OsConstants {
         "l1_handler_version",
         "l2_gas",
         "l2_gas_index",
+        "l1_data_gas",
+        "l1_data_gas_index",
         "nop_entry_point_offset",
         "sierra_array_len_bound",
         "stored_block_hash_buffer",
@@ -747,5 +755,5 @@ pub struct ResourcesByVersion {
 pub struct VersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
-    pub versioned_constants_base_overrides: Option<VersionedConstants>,
+    pub invoke_tx_max_n_steps: u32,
 }

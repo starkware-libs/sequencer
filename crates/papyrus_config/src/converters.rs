@@ -48,6 +48,15 @@ where
     Ok(Duration::from_secs(secs))
 }
 
+/// Deserializes float seconds to duration object.
+pub fn deserialize_float_seconds_to_duration<'de, D>(de: D) -> Result<Duration, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let secs: f64 = Deserialize::deserialize(de)?;
+    Ok(Duration::from_secs_f64(secs))
+}
+
 /// Serializes a map to "k1:v1 k2:v2" string structure.
 pub fn serialize_optional_map(optional_map: &Option<HashMap<String, String>>) -> String {
     match optional_map {

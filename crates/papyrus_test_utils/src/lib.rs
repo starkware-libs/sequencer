@@ -88,6 +88,17 @@ use starknet_api::deprecated_contract_class::{
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasVector};
 use starknet_api::felt;
 use starknet_api::hash::{PoseidonHash, StarkHash};
+use starknet_api::rpc_transaction::{
+    ContractClass as RpcContractClass,
+    EntryPointByType as RpcEntryPointByType,
+    RpcDeclareTransaction,
+    RpcDeclareTransactionV3,
+    RpcDeployAccountTransaction,
+    RpcDeployAccountTransactionV3,
+    RpcInvokeTransaction,
+    RpcInvokeTransactionV3,
+    RpcTransaction,
+};
 use starknet_api::state::{
     ContractClass,
     EntryPoint,
@@ -99,6 +110,7 @@ use starknet_api::state::{
 };
 use starknet_api::transaction::{
     AccountDeploymentData,
+    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     DeclareTransaction,
@@ -132,7 +144,6 @@ use starknet_api::transaction::{
     PaymasterData,
     Resource,
     ResourceBounds,
-    ResourceBoundsMapping,
     RevertedTransactionExecutionStatus,
     Tip,
     Transaction,
@@ -142,6 +153,7 @@ use starknet_api::transaction::{
     TransactionOutput,
     TransactionSignature,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 
@@ -420,6 +432,11 @@ pub trait GetTestInstance: Sized {
 
 auto_impl_get_test_instance! {
     pub struct AccountDeploymentData(pub Vec<Felt>);
+    pub struct AllResourceBounds {
+        pub l1_gas: ResourceBounds,
+        pub l2_gas: ResourceBounds,
+        pub l1_data_gas: ResourceBounds,
+    }
     pub struct BlockHash(pub StarkHash);
     pub struct BlockHeader {
         pub block_hash: BlockHash,
@@ -462,7 +479,7 @@ auto_impl_get_test_instance! {
         MulMod = 9,
         RangeCheck96 = 10,
     }
-    pub struct StarknetVersion(pub String);
+    pub struct StarknetVersion(pub Vec<u8>);
     pub struct Calldata(pub Arc<Vec<Felt>>);
     pub struct ClassHash(pub StarkHash);
     pub struct CompiledClassHash(pub StarkHash);
@@ -517,7 +534,7 @@ auto_impl_get_test_instance! {
         pub sender_address: ContractAddress,
     }
     pub struct DeclareTransactionV3 {
-        pub resource_bounds: ResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -550,7 +567,7 @@ auto_impl_get_test_instance! {
         pub constructor_calldata: Calldata,
     }
     pub struct DeployAccountTransactionV3 {
-        pub resource_bounds: ResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -657,7 +674,7 @@ auto_impl_get_test_instance! {
         pub calldata: Calldata,
     }
     pub struct InvokeTransactionV3 {
-        pub resource_bounds: ResourceBoundsMapping,
+        pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
@@ -722,7 +739,68 @@ auto_impl_get_test_instance! {
         pub max_amount: u64,
         pub max_price_per_unit: u128,
     }
-    pub struct ResourceBoundsMapping(pub BTreeMap<Resource, ResourceBounds>);
+    pub struct RpcContractClass {
+        pub sierra_program: Vec<Felt>,
+        pub contract_class_version: String,
+        pub entry_points_by_type: RpcEntryPointByType,
+        pub abi: String,
+    }
+    pub enum RpcTransaction {
+        Declare(RpcDeclareTransaction) = 0,
+        DeployAccount(RpcDeployAccountTransaction) = 1,
+        Invoke(RpcInvokeTransaction) = 2,
+    }
+    pub enum RpcDeclareTransaction {
+        V3(RpcDeclareTransactionV3) = 0,
+    }
+    pub struct RpcDeclareTransactionV3 {
+        pub resource_bounds: AllResourceBounds,
+        pub tip: Tip,
+        pub signature: TransactionSignature,
+        pub nonce: Nonce,
+        pub contract_class: RpcContractClass,
+        pub compiled_class_hash: CompiledClassHash,
+        pub sender_address: ContractAddress,
+        pub nonce_data_availability_mode: DataAvailabilityMode,
+        pub fee_data_availability_mode: DataAvailabilityMode,
+        pub paymaster_data: PaymasterData,
+        pub account_deployment_data: AccountDeploymentData,
+    }
+    pub enum RpcDeployAccountTransaction {
+        V3(RpcDeployAccountTransactionV3) = 0,
+    }
+    pub struct RpcDeployAccountTransactionV3 {
+        pub resource_bounds: AllResourceBounds,
+        pub tip: Tip,
+        pub signature: TransactionSignature,
+        pub nonce: Nonce,
+        pub class_hash: ClassHash,
+        pub contract_address_salt: ContractAddressSalt,
+        pub constructor_calldata: Calldata,
+        pub nonce_data_availability_mode: DataAvailabilityMode,
+        pub fee_data_availability_mode: DataAvailabilityMode,
+        pub paymaster_data: PaymasterData,
+    }
+    pub struct RpcEntryPointByType {
+        pub constructor: Vec<EntryPoint>,
+        pub external: Vec<EntryPoint>,
+        pub l1handler: Vec<EntryPoint>,
+    }
+    pub enum RpcInvokeTransaction {
+        V3(RpcInvokeTransactionV3) = 0,
+    }
+    pub struct RpcInvokeTransactionV3 {
+        pub resource_bounds: AllResourceBounds,
+        pub tip: Tip,
+        pub signature: TransactionSignature,
+        pub nonce: Nonce,
+        pub sender_address: ContractAddress,
+        pub calldata: Calldata,
+        pub nonce_data_availability_mode: DataAvailabilityMode,
+        pub fee_data_availability_mode: DataAvailabilityMode,
+        pub paymaster_data: PaymasterData,
+        pub account_deployment_data: AccountDeploymentData,
+    }
     pub struct SequencerContractAddress(pub ContractAddress);
     pub struct Signature {
         pub r: Felt,
@@ -782,6 +860,11 @@ auto_impl_get_test_instance! {
     pub struct TypedParameter {
         pub name: String,
         pub r#type: String,
+    }
+
+    pub enum ValidResourceBounds {
+        L1Gas(ResourceBounds) = 0,
+        AllResources(AllResourceBounds) = 1,
     }
 
     pub struct CasmContractClass {

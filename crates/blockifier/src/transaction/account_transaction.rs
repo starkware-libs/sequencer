@@ -7,6 +7,7 @@ use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::transaction::{
     Calldata,
     Fee,
+    Resource,
     ResourceBounds,
     TransactionHash,
     TransactionVersion,
@@ -25,7 +26,7 @@ use crate::fee::fee_utils::{
     get_sequencer_balance_keys,
     verify_can_pay_committed_bounds,
 };
-use crate::fee::gas_usage::{compute_discounted_gas_from_gas_vector, estimate_minimal_gas_vector};
+use crate::fee::gas_usage::estimate_minimal_gas_vector;
 use crate::retdata;
 use crate::state::cached_state::{StateChanges, TransactionalState};
 use crate::state::state_api::{State, StateReader, UpdatableState};
@@ -170,6 +171,14 @@ impl AccountTransaction {
         signature.0.len()
     }
 
+    pub fn tx_hash(&self) -> TransactionHash {
+        match self {
+            Self::Declare(tx) => tx.tx_hash(),
+            Self::DeployAccount(tx) => tx.tx_hash(),
+            Self::Invoke(tx) => tx.tx_hash(),
+        }
+    }
+
     fn verify_tx_version(&self, version: TransactionVersion) -> TransactionExecutionResult<()> {
         let allowed_versions: Vec<TransactionVersion> = match self {
             // Support `Declare` of version 0 in order to allow bootstrapping of a new system.
@@ -207,7 +216,7 @@ impl AccountTransaction {
         let tx_info = &tx_context.tx_info;
         Self::handle_nonce(state, tx_info, strict_nonce_check)?;
 
-        if charge_fee && tx_info.enforce_fee()? {
+        if charge_fee && tx_info.enforce_fee() {
             self.check_fee_bounds(tx_context)?;
 
             verify_can_pay_committed_bounds(state, tx_context)?;
@@ -220,11 +229,13 @@ impl AccountTransaction {
         &self,
         tx_context: &TransactionContext,
     ) -> TransactionPreValidationResult<()> {
-        let minimal_l1_gas_amount_vector =
-            estimate_minimal_gas_vector(&tx_context.block_context, self)?;
+        let minimal_l1_gas_amount_vector = estimate_minimal_gas_vector(
+            &tx_context.block_context,
+            self,
+            &tx_context.get_gas_vector_computation_mode(),
+        )?;
         // TODO(Aner, 30/01/24): modify once data gas limit is enforced.
-        let minimal_l1_gas_amount =
-            compute_discounted_gas_from_gas_vector(&minimal_l1_gas_amount_vector, tx_context);
+        let minimal_l1_gas_amount = minimal_l1_gas_amount_vector.to_discounted_l1_gas(tx_context);
 
         let TransactionContext { block_context, tx_info } = tx_context;
         let block_info = &block_context.block_info;
@@ -234,15 +245,16 @@ impl AccountTransaction {
                 let ResourceBounds {
                     max_amount: max_l1_gas_amount,
                     max_price_per_unit: max_l1_gas_price,
-                } = context.l1_resource_bounds()?;
+                } = context.l1_resource_bounds();
 
                 let max_l1_gas_amount_as_u128: u128 = max_l1_gas_amount.into();
                 if max_l1_gas_amount_as_u128 < minimal_l1_gas_amount {
-                    return Err(TransactionFeeError::MaxL1GasAmountTooLow {
-                        max_l1_gas_amount,
+                    return Err(TransactionFeeError::MaxGasAmountTooLow {
+                        resource: Resource::L1Gas,
+                        max_gas_amount: max_l1_gas_amount,
                         // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why
                         // the convertion works.
-                        minimal_l1_gas_amount: (minimal_l1_gas_amount
+                        minimal_gas_amount: (minimal_l1_gas_amount
                             .try_into()
                             .expect("Failed to convert u128 to u64.")),
                     })?;
@@ -251,9 +263,10 @@ impl AccountTransaction {
                 let actual_l1_gas_price =
                     block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type);
                 if max_l1_gas_price < actual_l1_gas_price.into() {
-                    return Err(TransactionFeeError::MaxL1GasPriceTooLow {
-                        max_l1_gas_price,
-                        actual_l1_gas_price: actual_l1_gas_price.into(),
+                    return Err(TransactionFeeError::MaxGasPriceTooLow {
+                        resource: Resource::L1Gas,
+                        max_gas_price: max_l1_gas_price,
+                        actual_gas_price: actual_l1_gas_price.into(),
                     })?;
                 }
             }
@@ -312,16 +325,13 @@ impl AccountTransaction {
         }
     }
 
-    fn assert_actual_fee_in_bounds(
-        tx_context: &Arc<TransactionContext>,
-        actual_fee: Fee,
-    ) -> TransactionExecutionResult<()> {
+    fn assert_actual_fee_in_bounds(tx_context: &Arc<TransactionContext>, actual_fee: Fee) {
         match &tx_context.tx_info {
             TransactionInfo::Current(context) => {
                 let ResourceBounds {
                     max_amount: max_l1_gas_amount,
                     max_price_per_unit: max_l1_gas_price,
-                } = context.l1_resource_bounds()?;
+                } = context.l1_resource_bounds();
                 if actual_fee > Fee(u128::from(max_l1_gas_amount) * max_l1_gas_price) {
                     panic!(
                         "Actual fee {:#?} exceeded bounds; max amount is {:#?}, max price is
@@ -339,7 +349,6 @@ impl AccountTransaction {
                 }
             }
         }
-        Ok(())
     }
 
     fn handle_fee<S: StateReader>(
@@ -356,7 +365,7 @@ impl AccountTransaction {
         }
 
         // TODO(Amos, 8/04/2024): Add test for this assert.
-        Self::assert_actual_fee_in_bounds(&tx_context, actual_fee)?;
+        Self::assert_actual_fee_in_bounds(&tx_context, actual_fee);
 
         let fee_transfer_call_info = if concurrency_mode && !tx_context.is_sequencer_the_sender() {
             Self::concurrency_execute_fee_transfer(state, tx_context, actual_fee)?
@@ -396,7 +405,7 @@ impl AccountTransaction {
             initial_gas: block_context.versioned_constants.os_constants.gas_costs.initial_gas_cost,
         };
 
-        let mut context = EntryPointExecutionContext::new_invoke(tx_context, true)?;
+        let mut context = EntryPointExecutionContext::new_invoke(tx_context, true);
 
         Ok(fee_transfer_call
             .execute(state, &mut ExecutionResources::default(), &mut context)
@@ -465,7 +474,7 @@ impl AccountTransaction {
             // Also, the execution context required form the `DeployAccount` execute phase is
             // validation context.
             let mut execution_context =
-                EntryPointExecutionContext::new_validate(tx_context.clone(), charge_fee)?;
+                EntryPointExecutionContext::new_validate(tx_context.clone(), charge_fee);
             execute_call_info =
                 self.run_execute(state, &mut resources, &mut execution_context, remaining_gas)?;
             validate_call_info = self.handle_validate_tx(
@@ -478,7 +487,7 @@ impl AccountTransaction {
             )?;
         } else {
             let mut execution_context =
-                EntryPointExecutionContext::new_invoke(tx_context.clone(), charge_fee)?;
+                EntryPointExecutionContext::new_invoke(tx_context.clone(), charge_fee);
             validate_call_info = self.handle_validate_tx(
                 state,
                 &mut resources,
@@ -522,7 +531,7 @@ impl AccountTransaction {
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
         let mut resources = ExecutionResources::default();
         let mut execution_context =
-            EntryPointExecutionContext::new_invoke(tx_context.clone(), charge_fee)?;
+            EntryPointExecutionContext::new_invoke(tx_context.clone(), charge_fee);
         // Run the validation, and if execution later fails, only keep the validation diff.
         let validate_call_info = self.handle_validate_tx(
             state,
@@ -667,14 +676,6 @@ impl AccountTransaction {
 
         self.run_revertible(state, tx_context, remaining_gas, validate, charge_fee)
     }
-
-    pub fn tx_hash(&self) -> TransactionHash {
-        match self {
-            AccountTransaction::Declare(tx) => tx.tx_hash(),
-            AccountTransaction::DeployAccount(tx) => tx.tx_hash(),
-            AccountTransaction::Invoke(tx) => tx.tx_hash(),
-        }
-    }
 }
 
 impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
@@ -791,7 +792,7 @@ impl ValidatableTransaction for AccountTransaction {
         limit_steps_by_resources: bool,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
         let mut context =
-            EntryPointExecutionContext::new_validate(tx_context, limit_steps_by_resources)?;
+            EntryPointExecutionContext::new_validate(tx_context, limit_steps_by_resources);
         let tx_info = &context.tx_context.tx_info;
         if tx_info.is_v0() {
             return Ok(None);
@@ -824,10 +825,18 @@ impl ValidatableTransaction for AccountTransaction {
 
         // Validate return data.
         let contract_class = state.get_compiled_contract_class(class_hash)?;
-        if let ContractClass::V1(_) = contract_class {
+        if matches!(contract_class, ContractClass::V1(_) | ContractClass::V1Native(_)) {
             // The account contract class is a Cairo 1.0 contract; the `validate` entry point should
             // return `VALID`.
             let expected_retdata = retdata![Felt::from_hex(constants::VALIDATE_RETDATA)?];
+
+            if validate_call_info.execution.failed {
+                // TODO(ilya): Add a test for this case.
+                return Err(TransactionExecutionError::PanicInValidate {
+                    panic_reason: validate_call_info.execution.retdata,
+                });
+            }
+
             if validate_call_info.execution.retdata != expected_retdata {
                 return Err(TransactionExecutionError::InvalidValidateReturnData {
                     actual: validate_call_info.execution.retdata,

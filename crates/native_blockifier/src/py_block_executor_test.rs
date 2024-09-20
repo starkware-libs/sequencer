@@ -10,7 +10,7 @@ use starknet_api::core::ClassHash;
 use starknet_api::{class_hash, felt};
 use starknet_types_core::felt::Felt;
 
-use crate::py_block_executor::{PyBlockExecutor, PyGeneralConfig};
+use crate::py_block_executor::{PyBlockExecutor, PyOsConfig};
 use crate::py_objects::PyConcurrencyConfig;
 use crate::py_state_diff::{PyBlockInfo, PyStateDiff};
 use crate::py_utils::PyFelt;
@@ -19,14 +19,14 @@ use crate::test_utils::MockStorage;
 #[test]
 fn global_contract_cache_update() {
     // Initialize executor and set a contract class on the state.
-    let casm = CasmContractClass::default();
+    let casm = CasmContractClass { compiler_version: "0.1.0".to_string(), ..Default::default() };
     let contract_class = ContractClass::V1(ContractClassV1::try_from(casm.clone()).unwrap());
     let class_hash = class_hash!("0x1");
 
     let temp_storage_path = tempfile::tempdir().unwrap().into_path();
     let mut block_executor = PyBlockExecutor::create_for_testing(
         PyConcurrencyConfig::default(),
-        PyGeneralConfig::default(),
+        PyOsConfig::default(),
         temp_storage_path,
         4000,
     );

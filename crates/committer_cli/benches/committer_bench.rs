@@ -8,12 +8,11 @@
 // gcloud storage cp LOCAL_FILE gs://committer-testing-artifacts/NEW_PREFIX/tree_flow_inputs.json).
 
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use committer_cli::commands::commit;
 use committer_cli::parse_input::read::parse_input;
 use committer_cli::tests::utils::parse_from_python::TreeFlowInput;
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
@@ -39,17 +38,22 @@ pub fn single_tree_flow_benchmark(criterion: &mut Criterion) {
         .into_iter()
         .map(|(k, v)| (NodeIndex::FIRST_LEAF + k, v))
         .collect::<LeafModifications<StarknetStorageValue>>();
-    let arc_leaf_modifications = Arc::new(leaf_modifications.clone());
 
-    criterion.bench_function("tree_computation_flow", |benchmark| {
-        benchmark.iter(|| {
-            runtime.block_on(tree_computation_flow::<StarknetStorageValue, TreeHashFunctionImpl>(
-                Arc::clone(&arc_leaf_modifications),
-                &storage,
-                root_hash,
-                OriginalSkeletonStorageTrieConfig::new(&leaf_modifications, false),
-            ));
-        })
+    criterion.bench_function("tree_computation_flow", move |benchmark| {
+        benchmark.iter_batched(
+            || leaf_modifications.clone(),
+            |leaf_modifications_input| {
+                runtime.block_on(
+                    tree_computation_flow::<StarknetStorageValue, TreeHashFunctionImpl>(
+                        leaf_modifications_input,
+                        &storage,
+                        root_hash,
+                        OriginalSkeletonStorageTrieConfig::new(false),
+                    ),
+                );
+            },
+            BatchSize::LargeInput,
+        )
     });
 }
 

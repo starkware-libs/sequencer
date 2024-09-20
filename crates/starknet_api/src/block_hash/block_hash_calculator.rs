@@ -1,4 +1,5 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
+
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Poseidon;
@@ -7,7 +8,7 @@ use super::event_commitment::{calculate_event_commitment, EventLeafElement};
 use super::receipt_commitment::{calculate_receipt_commitment, ReceiptElement};
 use super::state_diff_hash::calculate_state_diff_hash;
 use super::transaction_commitment::{calculate_transaction_commitment, TransactionLeafElement};
-use crate::block::{BlockHash, BlockHeaderWithoutHash};
+use crate::block::{BlockHash, BlockHeaderWithoutHash, StarknetVersion};
 use crate::core::{EventCommitment, ReceiptCommitment, StateDiffCommitment, TransactionCommitment};
 use crate::crypto::utils::HashChain;
 use crate::data_availability::L1DataAvailabilityMode;
@@ -27,9 +28,25 @@ use crate::transaction_hash::ascii_as_felt;
 #[path = "block_hash_calculator_test.rs"]
 mod block_hash_calculator_test;
 
-static STARKNET_BLOCK_HASH0: Lazy<Felt> = Lazy::new(|| {
+static STARKNET_BLOCK_HASH0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_BLOCK_HASH0").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH0'")
 });
+
+#[allow(non_camel_case_types)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum BlockHashVersion {
+    VO_13_2,
+    VO_13_3,
+}
+
+impl From<BlockHashVersion> for StarknetVersion {
+    fn from(value: BlockHashVersion) -> Self {
+        match value {
+            BlockHashVersion::VO_13_2 => Self(vec![0, 13, 2]),
+            BlockHashVersion::VO_13_3 => Self(vec![0, 13, 3]),
+        }
+    }
+}
 
 /// The common fields of transaction output types.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
@@ -49,7 +66,7 @@ pub struct TransactionHashingData {
 }
 
 /// Commitments of a block.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct BlockHeaderCommitments {
     pub transaction_commitment: TransactionCommitment,
     pub event_commitment: EventCommitment,
@@ -68,6 +85,8 @@ pub fn calculate_block_hash(
     header: BlockHeaderWithoutHash,
     block_commitments: BlockHeaderCommitments,
 ) -> BlockHash {
+    let l2_gas_prices =
+        [&header.l2_gas_price.price_in_wei.0.into(), &header.l2_gas_price.price_in_fri.0.into()];
     BlockHash(
         HashChain::new()
             .chain(&STARKNET_BLOCK_HASH0)
@@ -84,7 +103,13 @@ pub fn calculate_block_hash(
             .chain(&header.l1_gas_price.price_in_fri.0.into())
             .chain(&header.l1_data_gas_price.price_in_wei.0.into())
             .chain(&header.l1_data_gas_price.price_in_fri.0.into())
-            .chain(&ascii_as_felt(&header.starknet_version.0).expect("Expect ASCII version"))
+            .chain_iter_if_fn(|| {
+                (header.starknet_version >= BlockHashVersion::VO_13_3.into())
+                    .then_some(l2_gas_prices.into_iter())
+            })
+            .chain(
+                &ascii_as_felt(&header.starknet_version.to_string()).expect("Expect ASCII version"),
+            )
             .chain(&Felt::ZERO)
             .chain(&header.parent_hash.0)
             .get_poseidon_hash(),

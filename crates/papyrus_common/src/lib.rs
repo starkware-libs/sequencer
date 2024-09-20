@@ -2,13 +2,11 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 
-pub mod block_hash;
 pub mod class_hash;
 pub mod deprecated_class_abi;
 pub mod metrics;
 pub mod pending_classes;
 pub mod state;
-pub mod state_diff_commitment;
 pub mod storage_query;
 pub mod transaction_hash;
 

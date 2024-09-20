@@ -12,6 +12,7 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'crates/committer_cli/**'
+      - 'crates/starknet_api/**'
       - 'crates/starknet_committer/**'
       - 'crates/starknet_patricia/**'
 
@@ -27,12 +28,19 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'crates/committer_cli/**'
+      - 'crates/starknet_api/**'
       - 'crates/starknet_committer/**'
       - 'crates/starknet_patricia/**'
+
+# On PR events, cancel existing CI runs on this same PR for this workflow.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   run-regression-tests:
     runs-on: starkware-ubuntu-latest-small
+    if: ${{ github.event_name == 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
@@ -49,6 +57,7 @@ jobs:
 
   benchmarking:
     runs-on: starkware-ubuntu-latest-small
+    if: ${{ github.event_name == 'pull_request' }}
     steps:
       # Checkout the base branch to get the old code.
       - uses: actions/checkout@v4
@@ -67,7 +76,7 @@ jobs:
 
       # List the existing benchmarks.
       - run: |
-            cargo bench -p committer_cli -- --list | grep ': benchmark$' | sed -e "s/: benchmark$//" > benchmarks_list.txt
+          cargo bench -p committer_cli -- --list | grep ': benchmark$' | sed -e "s/: benchmark$//" > benchmarks_list.txt
 
       # Benchmark the old code.
       - run: cargo bench -p committer_cli
@@ -114,7 +123,7 @@ jobs:
             })
 
   gcs-push:
-    runs-on: ubuntu-20.04
+    runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
@@ -135,7 +144,7 @@ jobs:
         run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
 
       - name: Build CLI binary
-        run: cargo build -p committer_cli -r --bin committer_cli --target-dir CLI_TARGET
+        run: ./build_native_in_docker.sh cargo build -p committer_cli -r --bin committer_cli --target-dir CLI_TARGET
 
       - id: auth
         uses: "google-github-actions/auth@v2"

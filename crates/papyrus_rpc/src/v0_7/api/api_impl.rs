@@ -1492,7 +1492,7 @@ async fn read_pending_data<Mode: TransactionKind>(
                 strk_l1_gas_price: latest_header.l1_gas_price.price_in_fri,
                 timestamp: latest_header.timestamp,
                 sequencer_address: latest_header.sequencer,
-                starknet_version: latest_header.starknet_version.0,
+                starknet_version: latest_header.starknet_version.to_string(),
                 ..Default::default()
             }),
             state_update: ClientPendingStateUpdate {
