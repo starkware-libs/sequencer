@@ -5,11 +5,7 @@ use std::sync::Arc;
 use cairo_lang_casm;
 use cairo_lang_casm::hints::Hint;
 use cairo_lang_sierra::ids::FunctionId;
-use cairo_lang_starknet_classes::casm_contract_class::{
-    CasmContractClass,
-    CasmContractEntryPoint,
-    StarknetSierraCompilationError,
-};
+use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use cairo_lang_starknet_classes::contract_class::{
     ContractClass as SierraContractClass,
     ContractEntryPoint,
@@ -41,6 +37,7 @@ use starknet_api::deprecated_contract_class::{
     Program as DeprecatedProgram,
 };
 use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::{Poseidon, StarkHash};
 
 use super::entry_point::EntryPointExecutionResult;
 use super::errors::EntryPointExecutionError;
@@ -611,21 +608,6 @@ impl NativeContractClassV1 {
         Ok(Self(Arc::new(contract)))
     }
 
-    pub fn to_casm_contract_class(
-        self,
-    ) -> Result<CasmContractClass, StarknetSierraCompilationError> {
-        let sierra_contract_class = SierraContractClass {
-            // Cloning because these are behind an Arc.
-            sierra_program: self.sierra_program_raw.clone(),
-            entry_points_by_type: self.fallback_entry_points_by_type.clone(),
-            abi: None,
-            sierra_program_debug_info: None,
-            contract_class_version: String::default(),
-        };
-
-        CasmContractClass::from_contract_class(sierra_contract_class, false, usize::MAX)
-    }
-
     /// Returns an entry point into the natively compiled contract.
     pub fn get_entrypoint(
         &self,
@@ -644,13 +626,18 @@ impl NativeContractClassV1 {
     }
 }
 
-#[derive(Debug)]
 pub struct NativeContractClassV1Inner {
     pub executor: Arc<AotNativeExecutor>,
     entry_points_by_type: NativeContractEntryPoints,
-    // Storing the raw sierra program and entry points to be able to fallback to the vm
-    sierra_program_raw: Vec<BigUintAsHex>,
-    fallback_entry_points_by_type: SierraContractEntryPoints,
+    pub program: cairo_lang_sierra::program::Program, // for sierra emu
+    // Used for PartialEq
+    sierra_program_hash: starknet_api::hash::StarkHash,
+}
+
+impl std::fmt::Debug for NativeContractClassV1Inner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "NativeContractClassV1Inner")
+    }
 }
 
 impl NativeContractClassV1Inner {
@@ -681,10 +668,18 @@ impl NativeContractClassV1Inner {
                 &lookup_fid,
                 &sierra_contract_class.entry_points_by_type,
             )?,
-            sierra_program_raw: sierra_contract_class.sierra_program,
-            fallback_entry_points_by_type: sierra_contract_class.entry_points_by_type,
+            program: sierra_program.clone(),
+            sierra_program_hash: calculate_sierra_program_hash(
+                sierra_contract_class.sierra_program,
+            ),
         })
     }
+}
+
+fn calculate_sierra_program_hash(sierra: Vec<BigUintAsHex>) -> starknet_api::hash::StarkHash {
+    let sierra_felts: Vec<Felt> =
+        sierra.iter().map(|big_uint| &big_uint.value).map_into().collect();
+    Poseidon::hash_array(&sierra_felts)
 }
 
 // The location where the compiled contract is loaded into memory will not
@@ -692,7 +687,7 @@ impl NativeContractClassV1Inner {
 impl PartialEq for NativeContractClassV1Inner {
     fn eq(&self, other: &Self) -> bool {
         self.entry_points_by_type == other.entry_points_by_type
-            && self.sierra_program_raw == other.sierra_program_raw
+            && self.sierra_program_hash == other.sierra_program_hash
     }
 }
 

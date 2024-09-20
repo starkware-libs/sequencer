@@ -3,7 +3,11 @@ use starknet_api::core::ClassHash;
 use starknet_api::{class_hash, felt};
 
 use crate::execution::call_info::{
-    CallExecution, CallInfo, ExecutionSummary, OrderedEvent, TestExecutionSummary,
+    CallExecution,
+    CallInfo,
+    ExecutionSummary,
+    OrderedEvent,
+    TestExecutionSummary,
 };
 use crate::execution::entry_point::CallEntryPoint;
 use crate::transaction::objects::TransactionExecutionInfo;
