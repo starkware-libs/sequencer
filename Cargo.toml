@@ -194,7 +194,7 @@ sha3 = "0.10.8"
 simple_logger = "4.0.0"
 starknet-core = "0.6.0"
 starknet-crypto = "0.7.1"
-starknet-types-core = "0.1.5"
+starknet-types-core = "0.1.6"
 starknet_api = { path = "crates/starknet_api", version = "0.0.0" }
 starknet_batcher = { path = "crates/batcher", version = "0.0.0" }
 starknet_batcher_types = { path = "crates/batcher_types", version = "0.0.0" }
