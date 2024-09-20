@@ -6,7 +6,7 @@ use itertools::Itertools;
 use starknet_api::core::ClassHash;
 use thiserror::Error;
 
-use super::block::{pre_process_block, BlockNumberHashPair};
+use crate::blockifier::block::{pre_process_block, BlockNumberHashPair};
 use crate::blockifier::config::TransactionExecutorConfig;
 use crate::bouncer::{Bouncer, BouncerWeights};
 use crate::concurrency::worker_logic::WorkerExecutor;
@@ -40,7 +40,6 @@ pub type TransactionExecutorResult<T> = Result<T, TransactionExecutorError>;
 pub type VisitedSegmentsMapping = Vec<(ClassHash, Vec<usize>)>;
 
 /// A transaction executor, used for building a single block.
-// TODO(Gilad): make this hold TransactionContext instead of BlockContext.
 pub struct TransactionExecutor<S: StateReader, V: VisitedPcs> {
     pub block_context: BlockContext,
     pub bouncer: Bouncer,
