@@ -34,12 +34,12 @@ use crate::component_definitions::{BincodeSerializable, SerdeWrapper, APPLICATIO
 /// use crate::starknet_mempool_infra::component_client::RemoteComponentClient;
 ///
 /// // Define your request and response types
-/// #[derive(Serialize, Deserialize, Clone)]
+/// #[derive(Serialize, Deserialize, Debug, Clone)]
 /// struct MyRequest {
 ///     pub content: String,
 /// }
 ///
-/// #[derive(Serialize, Deserialize)]
+/// #[derive(Serialize, Deserialize, Debug)]
 /// struct MyResponse {
 ///     content: String,
 /// }
@@ -78,8 +78,8 @@ where
 
 impl<Request, Response> RemoteComponentClient<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + std::fmt::Debug+ Clone,
-    Response: Serialize + DeserializeOwned+ std::fmt::Debug,
+    Request: Serialize + DeserializeOwned + std::fmt::Debug + Clone,
+    Response: Serialize + DeserializeOwned + std::fmt::Debug,
 {
     pub fn new(ip_address: IpAddr, port: u16, max_retries: usize) -> Self {
         let uri = match ip_address {

@@ -9,8 +9,8 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::mpsc::{Receiver, Sender};
-use validator::Validate;
 use tracing::{debug, error, info, instrument};
+use validator::Validate;
 
 const DEFAULT_CHANNEL_BUFFER_SIZE: usize = 32;
 const DEFAULT_RETRIES: usize = 3;
@@ -122,8 +122,6 @@ impl Default for RemoteComponentCommunicationConfig {
     }
 }
 
-
-
 // Generic wrapper struct
 #[derive(Serialize, Deserialize, std::fmt::Debug)]
 pub(crate) struct SerdeWrapper<T> {
@@ -137,13 +135,16 @@ pub(crate) trait BincodeSerializable: Sized {
 }
 
 // Implement the trait for our wrapper
-impl<T: Serialize + for<'de> Deserialize<'de>> BincodeSerializable for SerdeWrapper<T> where T: std::fmt::Debug {
-    #[instrument]
+impl<T: Serialize + for<'de> Deserialize<'de>> BincodeSerializable for SerdeWrapper<T>
+where
+    T: std::fmt::Debug,
+{
+    #[instrument(err, ret)]
     fn to_bincode(&self) -> Result<Vec<u8>, bincode::Error> {
         serialize(self)
     }
 
-    #[instrument]
+    #[instrument(err, ret)]
     fn from_bincode(bytes: &[u8]) -> Result<Self, bincode::Error> {
         deserialize(bytes)
     }

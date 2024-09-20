@@ -65,12 +65,12 @@ use crate::component_definitions::{
 /// }
 ///
 /// // Define your request and response types
-/// #[derive(Serialize, Deserialize)]
+/// #[derive(Serialize, Deserialize, Debug)]
 /// struct MyRequest {
 ///     pub content: String,
 /// }
 ///
-/// #[derive(Serialize, Deserialize)]
+/// #[derive(Serialize, Deserialize, Debug)]
 /// struct MyResponse {
 ///     content: String,
 /// }
@@ -112,8 +112,8 @@ where
 
 impl<Request, Response> RemoteComponentServer<Request, Response>
 where
-    Request: Serialize + DeserializeOwned+ std::fmt::Debug + Send + Sync + 'static,
-    Response: Serialize + DeserializeOwned + std::fmt::Debug+ Send + Sync + 'static,
+    Request: Serialize + DeserializeOwned + std::fmt::Debug + Send + Sync + 'static,
+    Response: Serialize + DeserializeOwned + std::fmt::Debug + Send + Sync + 'static,
 {
     pub fn new(
         tx: Sender<ComponentRequestAndResponseSender<Request, Response>>,
@@ -162,8 +162,8 @@ where
 #[async_trait]
 impl<Request, Response> ComponentServerStarter for RemoteComponentServer<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Send + Sync+ std::fmt::Debug + 'static,
-    Response: Serialize + DeserializeOwned + Send + Sync+ std::fmt::Debug + 'static,
+    Request: Serialize + DeserializeOwned + Send + Sync + std::fmt::Debug + 'static,
+    Response: Serialize + DeserializeOwned + Send + Sync + std::fmt::Debug + 'static,
 {
     async fn start(&mut self) {
         let make_svc = make_service_fn(|_conn| {
