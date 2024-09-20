@@ -687,27 +687,19 @@ struct NativeContractEntryPoints {
     l1_handler: Vec<NativeEntryPoint>,
 }
 
-impl NativeContractEntryPoints {
-    fn sierra_eps_to_native_eps(
-        lookup: &[&FunctionId],
-        sierra_eps: &[SierraContractEntryPoint],
-    ) -> Vec<NativeEntryPoint> {
-        sierra_eps.iter().map(|sierra_ep| NativeEntryPoint::from(lookup, sierra_ep)).collect()
-    }
-}
-
 impl From<&SierraContractClass> for NativeContractEntryPoints {
     fn from(sierra_contract_class: &SierraContractClass) -> Self {
-        let program = sierra_contract_class.extract_sierra_program().unwrap();
+        let program =
+            sierra_contract_class.extract_sierra_program().expect("Can't get sierra program.");
 
-        let lookup = program.funcs.iter().map(|func| &func.id).collect::<Vec<&FunctionId>>();
+        let func_ids = program.funcs.iter().map(|func| &func.id).collect::<Vec<&FunctionId>>();
 
-        let sierra_eps = &sierra_contract_class.entry_points_by_type;
+        let entry_points_by_type = &sierra_contract_class.entry_points_by_type;
 
         NativeContractEntryPoints {
-            constructor: Self::sierra_eps_to_native_eps(&lookup, &sierra_eps.constructor),
-            external: Self::sierra_eps_to_native_eps(&lookup, &sierra_eps.external),
-            l1_handler: Self::sierra_eps_to_native_eps(&lookup, &sierra_eps.l1_handler),
+            constructor: sierra_eps_to_native_eps(&func_ids, &entry_points_by_type.constructor),
+            external: sierra_eps_to_native_eps(&func_ids, &entry_points_by_type.external),
+            l1_handler: sierra_eps_to_native_eps(&func_ids, &entry_points_by_type.l1_handler),
         }
     }
 }
@@ -724,6 +716,13 @@ impl Index<EntryPointType> for NativeContractEntryPoints {
     }
 }
 
+fn sierra_eps_to_native_eps(
+    func_ids: &[&FunctionId],
+    sierra_eps: &[SierraContractEntryPoint],
+) -> Vec<NativeEntryPoint> {
+    sierra_eps.iter().map(|sierra_ep| NativeEntryPoint::from(func_ids, sierra_ep)).collect()
+}
+
 #[derive(Debug, PartialEq)]
 /// Provides a relation between a function in a contract and a compiled contract.
 struct NativeEntryPoint {
@@ -734,8 +733,8 @@ struct NativeEntryPoint {
 }
 
 impl NativeEntryPoint {
-    fn from(lookup: &[&FunctionId], sierra_ep: &SierraContractEntryPoint) -> NativeEntryPoint {
-        let &function_id = lookup.get(sierra_ep.function_idx).unwrap();
+    fn from(func_ids: &[&FunctionId], sierra_ep: &SierraContractEntryPoint) -> NativeEntryPoint {
+        let &function_id = func_ids.get(sierra_ep.function_idx).expect("Can't find function id.");
         NativeEntryPoint {
             selector: contract_entrypoint_to_entrypoint_selector(sierra_ep),
             function_id: function_id.clone(),
