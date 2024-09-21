@@ -162,9 +162,6 @@ fn commit_block(
 /// 7. add_tx_input!(tip: 1, tx_hash: 2)
 /// 8. add_tx_input!()
 
-// TODO(Mohammad): remove the unused macro once the non-default resource bounds and default
-// transaction input are implemented.
-#[allow(unused_macro_rules)]
 macro_rules! add_tx_input {
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
         tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr, resource_bounds: $resource_bounds:expr) => {{
@@ -191,9 +188,6 @@ macro_rules! add_tx_input {
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr) => {
         add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: 0_u8, account_nonce: 0_u8)
     };
-    (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr, resource_bounds: $resource_bounds:expr) => {
-        add_tx_input!(tip: 1, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce, account_nonce: $account_nonce, resource_bounds: $resource_bounds)
-    };
     (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
         add_tx_input!(tip: 1, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce, account_nonce: $account_nonce)
     };
@@ -202,9 +196,6 @@ macro_rules! add_tx_input {
     };
     (tip: $tip:expr, tx_hash: $tx_hash:expr) => {
         add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8)
-    };
-    () => {
-        add_tx_input!(tip: 0, tx_hash: 0, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8)
     };
 }
 
