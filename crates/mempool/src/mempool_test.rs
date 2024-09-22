@@ -176,6 +176,12 @@ macro_rules! tx {
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr) => {
         tx!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: 0_u8)
     };
+    (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr) => {
+        tx!(tip: 0, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce)
+    };
+    (tx_nonce: $tx_nonce:expr) => {
+        tx!(tip: 0, tx_hash: 0, sender_address: "0x0", tx_nonce: $tx_nonce)
+    };
 }
 
 /// Creates an input for `add_tx` with the given field subset (the rest receive default values).
@@ -231,14 +237,14 @@ fn mempool() -> Mempool {
 #[case::test_get_less_than_all_eligible_txs(2)]
 fn test_get_txs_returns_by_priority_order(#[case] requested_txs: usize) {
     // Setup.
-    let tx_tip_20_account_0 = tx!(tip: 20, tx_hash: 1, sender_address: "0x0");
-    let tx_tip_30_account_1 = tx!(tip: 30, tx_hash: 2, sender_address: "0x1");
-    let tx_tip_10_account_2 = tx!(tip: 10, tx_hash: 3, sender_address: "0x2");
+    let mut txs = [
+        tx!(tip: 20, tx_hash: 1, sender_address: "0x0"),
+        tx!(tip: 30, tx_hash: 2, sender_address: "0x1"),
+        tx!(tip: 10, tx_hash: 3, sender_address: "0x2"),
+    ];
 
-    let mut txs = vec![tx_tip_20_account_0, tx_tip_30_account_1, tx_tip_10_account_2];
     let tx_references_iterator = txs.iter().map(TransactionReference::new);
     let txs_iterator = txs.iter().cloned();
-
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(txs_iterator)
         .with_queue(tx_references_iterator)
@@ -318,8 +324,8 @@ fn test_get_txs_replenishes_queue_only_between_chunks() {
 fn test_get_txs_replenishes_queue_multi_account_between_chunks() {
     // Setup.
     let tx_address_0_nonce_0 = tx!(tip: 30, tx_hash: 1, sender_address: "0x0", tx_nonce: 0_u8);
-    let tx_address_1_nonce_0 = tx!(tip: 20, tx_hash: 2, sender_address: "0x1", tx_nonce: 0_u8);
     let tx_address_0_nonce_1 = tx!(tip: 30, tx_hash: 3, sender_address: "0x0", tx_nonce: 1_u8);
+    let tx_address_1_nonce_0 = tx!(tip: 20, tx_hash: 2, sender_address: "0x1", tx_nonce: 0_u8);
     let tx_address_1_nonce_1 = tx!(tip: 20, tx_hash: 4, sender_address: "0x1", tx_nonce: 1_u8);
 
     let queue_txs = [&tx_address_0_nonce_0, &tx_address_1_nonce_0].map(TransactionReference::new);
@@ -379,9 +385,7 @@ fn test_get_txs_with_holes_multiple_accounts() {
 #[rstest]
 fn test_get_txs_with_holes_single_account() {
     // Setup.
-    let input_nonce_1 = add_tx_input!(tx_hash: 0, tx_nonce: 1_u8, account_nonce: 0_u8);
-
-    let pool_txs = [input_nonce_1.tx];
+    let pool_txs = [tx!(tx_nonce: 1_u8)];
     let queue_txs = [];
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs.clone())
@@ -402,12 +406,13 @@ fn test_get_txs_with_holes_single_account() {
 #[rstest]
 fn test_get_txs_while_decreasing_gas_price_threshold() {
     // Setup.
-    let input_tx = add_tx_input!(tx_nonce: 0_u8, account_nonce: 0_u8);
+    let tx = tx!(tx_nonce: 0_u8);
 
-    let pool_txs = [input_tx.tx.clone()];
-    let queue_txs = [TransactionReference::new(&input_tx.tx)];
-    let mut mempool =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build_into_mempool();
+    let queue_txs = [TransactionReference::new(&tx)];
+    let mut mempool = MempoolContentBuilder::new()
+        .with_pool([tx.clone()])
+        .with_queue(queue_txs)
+        .build_into_mempool();
 
     // Test.
     // High gas price threshold, no transactions should be returned.
@@ -422,26 +427,27 @@ fn test_get_txs_while_decreasing_gas_price_threshold() {
     // Low gas price threshold, the transaction should be returned.
     mempool._update_gas_price_threshold(100);
     let txs = mempool.get_txs(1).unwrap();
-    assert_eq!(txs, &[input_tx.tx]);
+    assert_eq!(txs, &[tx]);
 }
 
 #[rstest]
 fn test_get_txs_while_increasing_gas_price_threshold() {
     // Setup.
     // Both transactions have the same gas price.
-    let input_tx_nonce_0 = add_tx_input!(tx_nonce: 0_u8, account_nonce: 0_u8);
-    let input_tx_nonce_1 = add_tx_input!(tx_hash: 1, tx_nonce: 1_u8, account_nonce: 0_u8);
+    let tx_nonce_0 = tx!(tx_hash: 0, tx_nonce: 0_u8);
+    let tx_nonce_1 = tx!(tx_hash: 1, tx_nonce: 1_u8);
 
-    let pool_txs = [input_tx_nonce_0.tx.clone(), input_tx_nonce_1.tx];
-    let queue_txs = [TransactionReference::new(&input_tx_nonce_0.tx)];
-    let mut mempool =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build_into_mempool();
+    let queue_txs = [TransactionReference::new(&tx_nonce_0)];
+    let mut mempool = MempoolContentBuilder::new()
+        .with_pool([tx_nonce_0.clone(), tx_nonce_1])
+        .with_queue(queue_txs)
+        .build_into_mempool();
 
     // Test.
     // Low gas price threshold, the transaction should be returned.
     mempool._update_gas_price_threshold(100);
     let txs = mempool.get_txs(1).unwrap();
-    assert_eq!(txs, &[input_tx_nonce_0.tx]);
+    assert_eq!(txs, &[tx_nonce_0]);
 
     // Updating the gas price threshold should happen in a new block creation.
     let state_changes = [];
@@ -489,10 +495,10 @@ fn test_add_tx_multi_nonce_success(mut mempool: Mempool) {
     // Setup.
     let input_address_0_nonce_0 =
         add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0_u8, account_nonce: 0_u8);
-    let input_address_1_nonce_0 =
-        add_tx_input!(tx_hash: 2, sender_address: "0x1", tx_nonce: 0_u8,account_nonce: 0_u8);
     let input_address_0_nonce_1 =
         add_tx_input!(tx_hash: 3, sender_address: "0x0", tx_nonce: 1_u8, account_nonce: 0_u8);
+    let input_address_1_nonce_0 =
+        add_tx_input!(tx_hash: 2, sender_address: "0x1", tx_nonce: 0_u8,account_nonce: 0_u8);
 
     // Test.
     add_tx(&mut mempool, &input_address_0_nonce_0);
@@ -514,7 +520,7 @@ fn test_add_tx_multi_nonce_success(mut mempool: Mempool) {
 #[rstest]
 fn test_add_tx_with_duplicate_tx(mut mempool: Mempool) {
     // Setup.
-    let input = add_tx_input!(tip: 50, tx_hash: Felt::ONE);
+    let input = add_tx_input!(tip: 50, tx_hash: 1);
     let duplicate_input = input.clone();
 
     // Test.
@@ -579,8 +585,7 @@ fn test_add_tx_updates_queue_with_higher_account_nonce() {
 #[rstest]
 fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
     // Setup.
-    let input1 = add_tx_input!(tip: 1, tx_hash: 2);
-
+    let input1 = add_tx_input!(tip: 1, tx_hash: 2, sender_address: "0x0");
     // Create a transaction with identical tip, it should be allowed through since the priority
     // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
     let input2 = add_tx_input!(tip: 1, tx_hash: 1, sender_address: "0x1");
@@ -630,13 +635,12 @@ fn test_add_tx_delete_tx_with_lower_nonce_than_account_nonce() {
 }
 
 #[rstest]
-fn test_tip_priority_over_tx_hash(mut mempool: Mempool) {
+fn test_add_tx_tip_priority_over_tx_hash(mut mempool: Mempool) {
     // Setup.
-    let input_big_tip_small_hash = add_tx_input!(tip: 2, tx_hash: Felt::ONE);
-
+    let input_big_tip_small_hash = add_tx_input!(tip: 2, tx_hash: 1, sender_address: "0x0");
     // Create a transaction with identical tip, it should be allowed through since the priority
     // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
-    let input_small_tip_big_hash = add_tx_input!(tip: 1, tx_hash: Felt::TWO, sender_address: "0x1");
+    let input_small_tip_big_hash = add_tx_input!(tip: 1, tx_hash: 2, sender_address: "0x1");
 
     // Test.
     add_tx(&mut mempool, &input_big_tip_small_hash);
@@ -675,7 +679,7 @@ fn test_add_tx_account_state_fills_hole(mut mempool: Mempool) {
 #[rstest]
 fn test_add_tx_sequential_nonces(mut mempool: Mempool) {
     // Setup.
-    let input_nonce_0 = add_tx_input!(tx_nonce: 0_u8, account_nonce: 0_u8);
+    let input_nonce_0 = add_tx_input!(tx_hash: 0, tx_nonce: 0_u8, account_nonce: 0_u8);
     let input_nonce_1 = add_tx_input!(tx_hash: 1, tx_nonce: 1_u8, account_nonce: 0_u8);
 
     // Test.
@@ -845,7 +849,7 @@ fn test_account_nonces_update_in_add_tx(mut mempool: Mempool) {
 
     // Assert.
     let expected_mempool_content = MempoolContentBuilder::new()
-        .with_account_nonces(vec![(input.account.sender_address, input.account.state.nonce)])
+        .with_account_nonces([(input.account.sender_address, input.account.state.nonce)])
         .build();
     expected_mempool_content.assert_eq_account_nonces(&mempool);
 }
@@ -886,7 +890,7 @@ fn test_account_nonces_update_in_commit_block() {
 
     // Assert.
     let expected_mempool_content = MempoolContentBuilder::new()
-        .with_account_nonces(vec![(sender_address, committed_nonce.try_increment().unwrap())])
+        .with_account_nonces([(sender_address, committed_nonce.try_increment().unwrap())])
         .build();
     expected_mempool_content.assert_eq_account_nonces(&mempool);
 }
