@@ -45,7 +45,7 @@ message StreamMessage {
 message ProposalInit {
     uint64 height = 1;
     uint32 round = 2;
-    uint32 valid_round = 3;  // TODO(guyn): should this be optional? 
+    optional uint32 valid_round = 3;
     Address proposer = 4;
 }
 
@@ -54,7 +54,7 @@ message TransactionBatch {
 }
 
 message ProposalFin {
-    Hash block_hash = 1;
+    Hash proposal_content_id = 1;
 }
 
 // Network format:
@@ -64,7 +64,8 @@ message ProposalFin {
 message ProposalPart {
     oneof message {
         ProposalInit init = 1;
-        TransactionBatch transactions = 2;
-        ProposalFin fin = 3;
+        ProposalFin fin = 2;
+        TransactionBatch transactions = 3;
+        
     }
 }

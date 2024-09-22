@@ -73,7 +73,7 @@ pub struct ProposalInit {
     /// The current round of the consensus.
     pub round: u32,
     /// The last round that was valid.
-    pub valid_round: u32, // TODO(guyn): should this be optional?
+    pub valid_round: Option<u32>,
     /// Address of the one who proposed the block.
     pub proposer: ContractAddress,
 }
@@ -89,7 +89,7 @@ pub struct TransactionBatch {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProposalFin {
     /// The block hash of the proposed block.
-    pub block_hash: BlockHash,
+    pub proposal_content_id: BlockHash,
 }
 
 /// A part of the proposal.

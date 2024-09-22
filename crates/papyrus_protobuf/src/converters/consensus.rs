@@ -180,7 +180,7 @@ impl TryFrom<protobuf::ProposalInit> for ProposalInit {
     fn try_from(value: protobuf::ProposalInit) -> Result<Self, Self::Error> {
         let height = value.height;
         let round = value.round;
-        let valid_round = round; // TODO(guyn): should this be optional? 
+        let valid_round = value.valid_round;
         let proposer = value
             .proposer
             .ok_or(ProtobufConversionError::MissingField { field_description: "proposer" })?
@@ -226,18 +226,20 @@ auto_impl_into_and_try_from_vec_u8!(TransactionBatch, protobuf::TransactionBatch
 impl TryFrom<protobuf::ProposalFin> for ProposalFin {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::ProposalFin) -> Result<Self, Self::Error> {
-        let block_hash: StarkHash = value
-            .block_hash
-            .ok_or(ProtobufConversionError::MissingField { field_description: "block_hash" })?
+        let proposal_content_id: StarkHash = value
+            .proposal_content_id
+            .ok_or(ProtobufConversionError::MissingField {
+                field_description: "proposal_content_id",
+            })?
             .try_into()?;
-        let block_hash = BlockHash(block_hash);
-        Ok(ProposalFin { block_hash })
+        let proposal_content_id = BlockHash(proposal_content_id);
+        Ok(ProposalFin { proposal_content_id })
     }
 }
 
 impl From<ProposalFin> for protobuf::ProposalFin {
     fn from(value: ProposalFin) -> Self {
-        protobuf::ProposalFin { block_hash: Some(value.block_hash.0.into()) }
+        protobuf::ProposalFin { proposal_content_id: Some(value.proposal_content_id.0.into()) }
     }
 }
 
