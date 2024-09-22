@@ -432,7 +432,7 @@ impl<
         );
         let time_delta = Utc::now()
             - Utc
-                .timestamp_opt(block.header.timestamp.0 as i64, 0)
+                .timestamp_opt(block.header.block_header_without_hash.timestamp.0 as i64, 0)
                 .single()
                 .expect("block timestamp should be valid");
         let header_latency = time_delta.num_seconds();
@@ -579,16 +579,16 @@ impl<
             })?
             .block_hash;
 
-        if prev_hash != block.header.parent_hash {
+        if prev_hash != block.header.block_header_without_hash.parent_hash {
             // A revert detected, log and restart sync loop.
             info!(
                 "Detected revert while processing block {}. Parent hash of the incoming block is \
                  {}, current block hash is {}.",
-                block_number, block.header.parent_hash, prev_hash
+                block_number, block.header.block_header_without_hash.parent_hash, prev_hash
             );
             return Err(StateSyncError::ParentBlockHashMismatch {
                 block_number,
-                expected_parent_block_hash: block.header.parent_hash,
+                expected_parent_block_hash: block.header.block_header_without_hash.parent_hash,
                 stored_parent_block_hash: prev_hash,
             });
         }

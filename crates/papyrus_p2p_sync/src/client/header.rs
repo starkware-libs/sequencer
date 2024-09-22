@@ -20,9 +20,12 @@ impl BlockData for SignedBlockHeader {
     ) -> Result<(), StorageError> {
         storage_writer
             .begin_rw_txn()?
-            .append_header(self.block_header.block_number, &self.block_header)?
+            .append_header(
+                self.block_header.block_header_without_hash.block_number,
+                &self.block_header,
+            )?
             .append_block_signature(
-                self.block_header.block_number,
+                self.block_header.block_header_without_hash.block_number,
                 self
                     .signatures
                     // In the future we will support multiple signatures.
@@ -34,12 +37,12 @@ impl BlockData for SignedBlockHeader {
             .commit()?;
         gauge!(
             papyrus_metrics::PAPYRUS_HEADER_MARKER,
-            self.block_header.block_number.unchecked_next().0 as f64
+            self.block_header.block_header_without_hash.block_number.unchecked_next().0 as f64
         );
         // TODO(shahak): Fix code dup with central sync
         let time_delta = Utc::now()
             - Utc
-                .timestamp_opt(self.block_header.timestamp.0 as i64, 0)
+                .timestamp_opt(self.block_header.block_header_without_hash.timestamp.0 as i64, 0)
                 .single()
                 .expect("block timestamp should be valid");
         let header_latency = time_delta.num_seconds();
@@ -78,10 +81,15 @@ impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
             };
             // TODO(shahak): Check that parent_hash is the same as the previous block's hash
             // and handle reverts.
-            if block_number != signed_block_header.block_header.block_number {
+            if block_number
+                != signed_block_header.block_header.block_header_without_hash.block_number
+            {
                 return Err(P2PSyncClientError::HeadersUnordered {
                     expected_block_number: block_number,
-                    actual_block_number: signed_block_header.block_header.block_number,
+                    actual_block_number: signed_block_header
+                        .block_header
+                        .block_header_without_hash
+                        .block_number,
                 });
             }
             if signed_block_header.signatures.len() != ALLOWED_SIGNATURES_LENGTH {

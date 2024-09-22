@@ -320,7 +320,8 @@ fn create_block_context(
             let header = storage_reader
                 .begin_ro_txn()?
                 .get_block_header(block_context_number)?
-                .expect("Should have block header.");
+                .expect("Should have block header.")
+                .block_header_without_hash;
             (
                 header.block_number,
                 header.timestamp,
@@ -698,7 +699,7 @@ fn get_10_blocks_ago(
         return Ok(None);
     };
     Ok(Some(BlockNumberHashPair {
-        number: header_10_blocks_ago.block_number,
+        number: header_10_blocks_ago.block_header_without_hash.block_number,
         hash: header_10_blocks_ago.block_hash,
     }))
 }
