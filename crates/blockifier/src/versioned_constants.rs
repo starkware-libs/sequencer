@@ -22,7 +22,7 @@ use crate::execution::errors::PostExecutionError;
 use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::execution::syscalls::SyscallSelector;
 use crate::transaction::errors::TransactionExecutionError;
-use crate::transaction::objects::StarknetResources;
+use crate::transaction::objects::{GasVectorComputationMode, StarknetResources};
 use crate::transaction::transaction_types::TransactionType;
 
 #[cfg(test)]
@@ -94,6 +94,7 @@ pub struct VersionedConstants {
     // Limits.
     pub tx_event_limits: EventLimits,
     pub invoke_tx_max_n_steps: u32,
+    pub deprecated_l2_resource_gas_costs: ArchivalDataGasCosts,
     pub archival_data_gas_costs: ArchivalDataGasCosts,
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
@@ -275,6 +276,13 @@ impl VersionedConstants {
             max_recursion_depth,
             invoke_tx_max_n_steps,
             ..Self::latest_constants().clone()
+        }
+    }
+
+    pub fn get_gas_costs(&self, mode: &GasVectorComputationMode) -> &ArchivalDataGasCosts {
+        match mode {
+            GasVectorComputationMode::All => &self.archival_data_gas_costs,
+            GasVectorComputationMode::NoL2Gas => &self.deprecated_l2_resource_gas_costs,
         }
     }
 }
