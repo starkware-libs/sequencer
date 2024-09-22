@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{
     Block as starknet_api_block,
     BlockHash,
+    BlockHeaderWithoutHash,
     BlockNumber,
     BlockTimestamp,
     GasPricePerToken,
@@ -299,15 +300,18 @@ impl Block {
         // Get the header.
         let header = starknet_api::block::BlockHeader {
             block_hash: self.block_hash(),
-            parent_hash: self.parent_block_hash(),
-            block_number: self.block_number(),
-            l1_gas_price: self.l1_gas_price(),
-            l2_gas_price: self.l2_gas_price(),
-            state_root: self.state_root(),
-            sequencer: self.sequencer_address(),
-            timestamp: self.timestamp(),
-            l1_data_gas_price: self.l1_data_gas_price(),
-            l1_da_mode: self.l1_da_mode(),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                parent_hash: self.parent_block_hash(),
+                block_number: self.block_number(),
+                l1_gas_price: self.l1_gas_price(),
+                l2_gas_price: self.l2_gas_price(),
+                state_root: self.state_root(),
+                sequencer: self.sequencer_address(),
+                timestamp: self.timestamp(),
+                l1_data_gas_price: self.l1_data_gas_price(),
+                l1_da_mode: self.l1_da_mode(),
+                starknet_version: self.starknet_version(),
+            },
             state_diff_commitment: self.state_diff_commitment(),
             transaction_commitment,
             event_commitment,
@@ -315,7 +319,6 @@ impl Block {
             state_diff_length: self.state_diff_length(),
             n_transactions,
             n_events,
-            starknet_version: self.starknet_version(),
         };
 
         let (transactions, transaction_receipts) = self.get_body();
@@ -331,7 +334,7 @@ impl Block {
             if i != receipt.transaction_index.0 {
                 return Err(ReaderClientError::TransactionReceiptsError(
                     TransactionReceiptsError::MismatchTransactionIndex {
-                        block_number: header.block_number,
+                        block_number: header.block_header_without_hash.block_number,
                         tx_index: TransactionOffsetInBlock(i),
                         tx_hash: transaction.transaction_hash(),
                         receipt_tx_index: receipt.transaction_index,
@@ -344,7 +347,7 @@ impl Block {
             if transaction.transaction_hash() != receipt.transaction_hash {
                 return Err(ReaderClientError::TransactionReceiptsError(
                     TransactionReceiptsError::MismatchTransactionHash {
-                        block_number: header.block_number,
+                        block_number: header.block_header_without_hash.block_number,
                         tx_index: TransactionOffsetInBlock(i),
                         tx_hash: transaction.transaction_hash(),
                         receipt_tx_hash: receipt.transaction_hash,
@@ -358,7 +361,7 @@ impl Block {
             {
                 return Err(ReaderClientError::TransactionReceiptsError(
                     TransactionReceiptsError::MismatchFields {
-                        block_number: header.block_number,
+                        block_number: header.block_header_without_hash.block_number,
                         tx_index: TransactionOffsetInBlock(i),
                         tx_hash: transaction.transaction_hash(),
                         tx_type: transaction.transaction_type(),
