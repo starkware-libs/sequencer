@@ -16,6 +16,7 @@ use starknet_api::block::{
     BlockBody,
     BlockHash,
     BlockHeader,
+    BlockHeaderWithoutHash,
     BlockNumber,
     BlockTimestamp,
     GasPrice,
@@ -113,9 +114,12 @@ pub fn prepare_storage(mut storage_writer: StorageWriter) {
         .append_header(
             BlockNumber(0),
             &BlockHeader {
-                l1_gas_price: *GAS_PRICE,
-                sequencer: *SEQUENCER_ADDRESS,
-                timestamp: *BLOCK_TIMESTAMP,
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    l1_gas_price: *GAS_PRICE,
+                    sequencer: *SEQUENCER_ADDRESS,
+                    timestamp: *BLOCK_TIMESTAMP,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )
@@ -174,11 +178,14 @@ pub fn prepare_storage(mut storage_writer: StorageWriter) {
         .append_header(
             BlockNumber(1),
             &BlockHeader {
-                l1_gas_price: *GAS_PRICE,
-                sequencer: *SEQUENCER_ADDRESS,
-                timestamp: *BLOCK_TIMESTAMP,
                 block_hash: BlockHash(felt!(1_u128)),
-                parent_hash: BlockHash(felt!(0_u128)),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    l1_gas_price: *GAS_PRICE,
+                    sequencer: *SEQUENCER_ADDRESS,
+                    timestamp: *BLOCK_TIMESTAMP,
+                    parent_hash: BlockHash(felt!(0_u128)),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )

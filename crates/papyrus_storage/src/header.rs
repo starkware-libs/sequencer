@@ -42,6 +42,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{
     BlockHash,
     BlockHeader,
+    BlockHeaderWithoutHash,
     BlockNumber,
     BlockSignature,
     BlockTimestamp,
@@ -166,15 +167,18 @@ impl<'env, Mode: TransactionKind> HeaderStorageReader for StorageTxn<'env, Mode>
         };
         Ok(Some(BlockHeader {
             block_hash: block_header.block_hash,
-            parent_hash: block_header.parent_hash,
-            block_number: block_header.block_number,
-            l1_gas_price: block_header.l1_gas_price,
-            l1_data_gas_price: block_header.l1_data_gas_price,
-            l2_gas_price: block_header.l2_gas_price,
-            state_root: block_header.state_root,
-            sequencer: block_header.sequencer,
-            timestamp: block_header.timestamp,
-            l1_da_mode: block_header.l1_da_mode,
+            block_header_without_hash: BlockHeaderWithoutHash {
+                parent_hash: block_header.parent_hash,
+                block_number: block_header.block_number,
+                l1_gas_price: block_header.l1_gas_price,
+                l1_data_gas_price: block_header.l1_data_gas_price,
+                l2_gas_price: block_header.l2_gas_price,
+                state_root: block_header.state_root,
+                sequencer: block_header.sequencer,
+                timestamp: block_header.timestamp,
+                l1_da_mode: block_header.l1_da_mode,
+                starknet_version,
+            },
             state_diff_commitment: block_header.state_diff_commitment,
             transaction_commitment: block_header.transaction_commitment,
             event_commitment: block_header.event_commitment,
@@ -182,7 +186,6 @@ impl<'env, Mode: TransactionKind> HeaderStorageReader for StorageTxn<'env, Mode>
             state_diff_length: block_header.state_diff_length,
             n_transactions: block_header.n_transactions,
             n_events: block_header.n_events,
-            starknet_version,
         }))
     }
 
@@ -245,15 +248,15 @@ impl<'env> HeaderStorageWriter for StorageTxn<'env, RW> {
 
         let storage_block_header = StorageBlockHeader {
             block_hash: block_header.block_hash,
-            parent_hash: block_header.parent_hash,
-            block_number: block_header.block_number,
-            l1_gas_price: block_header.l1_gas_price,
-            l1_data_gas_price: block_header.l1_data_gas_price,
-            l2_gas_price: block_header.l2_gas_price,
-            state_root: block_header.state_root,
-            sequencer: block_header.sequencer,
-            timestamp: block_header.timestamp,
-            l1_da_mode: block_header.l1_da_mode,
+            parent_hash: block_header.block_header_without_hash.parent_hash,
+            block_number: block_header.block_header_without_hash.block_number,
+            l1_gas_price: block_header.block_header_without_hash.l1_gas_price,
+            l1_data_gas_price: block_header.block_header_without_hash.l1_data_gas_price,
+            l2_gas_price: block_header.block_header_without_hash.l2_gas_price,
+            state_root: block_header.block_header_without_hash.state_root,
+            sequencer: block_header.block_header_without_hash.sequencer,
+            timestamp: block_header.block_header_without_hash.timestamp,
+            l1_da_mode: block_header.block_header_without_hash.l1_da_mode,
             state_diff_commitment: block_header.state_diff_commitment.clone(),
             transaction_commitment: block_header.transaction_commitment,
             event_commitment: block_header.event_commitment,
@@ -272,7 +275,10 @@ impl<'env> HeaderStorageWriter for StorageTxn<'env, RW> {
             block_number,
         )?;
 
-        self.update_starknet_version(&block_number, &block_header.starknet_version)
+        self.update_starknet_version(
+            &block_number,
+            &block_header.block_header_without_hash.starknet_version,
+        )
     }
 
     // TODO(shahak): Internalize this function.
@@ -352,15 +358,18 @@ impl<'env> HeaderStorageWriter for StorageTxn<'env, RW> {
             self,
             Some(BlockHeader {
                 block_hash: reverted_header.block_hash,
-                parent_hash: reverted_header.parent_hash,
-                block_number: reverted_header.block_number,
-                l1_gas_price: reverted_header.l1_gas_price,
-                l1_data_gas_price: reverted_header.l1_data_gas_price,
-                l2_gas_price: reverted_header.l2_gas_price,
-                state_root: reverted_header.state_root,
-                sequencer: reverted_header.sequencer,
-                timestamp: reverted_header.timestamp,
-                l1_da_mode: reverted_header.l1_da_mode,
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    parent_hash: reverted_header.parent_hash,
+                    block_number: reverted_header.block_number,
+                    l1_gas_price: reverted_header.l1_gas_price,
+                    l1_data_gas_price: reverted_header.l1_data_gas_price,
+                    l2_gas_price: reverted_header.l2_gas_price,
+                    state_root: reverted_header.state_root,
+                    sequencer: reverted_header.sequencer,
+                    timestamp: reverted_header.timestamp,
+                    l1_da_mode: reverted_header.l1_da_mode,
+                    starknet_version,
+                },
                 state_diff_commitment: reverted_header.state_diff_commitment,
                 transaction_commitment: reverted_header.transaction_commitment,
                 event_commitment: reverted_header.event_commitment,
@@ -368,7 +377,6 @@ impl<'env> HeaderStorageWriter for StorageTxn<'env, RW> {
                 state_diff_length: reverted_header.state_diff_length,
                 n_transactions: reverted_header.n_transactions,
                 n_events: reverted_header.n_events,
-                starknet_version,
             }),
             reverted_block_signature,
         ))

@@ -8,7 +8,7 @@ use papyrus_protobuf::sync::{
     SignedBlockHeader,
 };
 use papyrus_storage::header::HeaderStorageReader;
-use starknet_api::block::{BlockHeader, BlockNumber};
+use starknet_api::block::{BlockHeader, BlockHeaderWithoutHash, BlockNumber};
 use tokio::time::timeout;
 
 use super::test_utils::{
@@ -67,8 +67,11 @@ async fn signed_headers_basic_flow() {
                 mock_header_responses_manager
                     .send_response(DataOrFin(Some(SignedBlockHeader {
                         block_header: BlockHeader {
-                            block_number: BlockNumber(i.try_into().unwrap()),
                             block_hash: *block_hash,
+                            block_header_without_hash: BlockHeaderWithoutHash {
+                                block_number: BlockNumber(i.try_into().unwrap()),
+                                ..Default::default()
+                            },
                             state_diff_length: Some(0),
                             ..Default::default()
                         },
@@ -86,7 +89,7 @@ async fn signed_headers_basic_flow() {
                 let txn = storage_reader.begin_ro_txn().unwrap();
                 assert_eq!(block_number.unchecked_next(), txn.get_header_marker().unwrap());
                 let block_header = txn.get_block_header(block_number).unwrap().unwrap();
-                assert_eq!(block_number, block_header.block_number);
+                assert_eq!(block_number, block_header.block_header_without_hash.block_number);
                 assert_eq!(*block_hash, block_header.block_hash);
                 let actual_block_signature =
                     txn.get_block_signature(block_number).unwrap().unwrap();
@@ -129,8 +132,11 @@ async fn sync_sends_new_header_query_if_it_got_partial_responses() {
             mock_header_responses_manager
                 .send_response(DataOrFin(Some(SignedBlockHeader {
                     block_header: BlockHeader {
-                        block_number: BlockNumber(i.try_into().unwrap()),
                         block_hash,
+                        block_header_without_hash: BlockHeaderWithoutHash {
+                            block_number: BlockNumber(i.try_into().unwrap()),
+                            ..Default::default()
+                        },
                         state_diff_length: Some(0),
                         ..Default::default()
                     },

@@ -18,7 +18,7 @@ use papyrus_storage::state::StateStorageReader;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use rand::RngCore;
 use rand_chacha::ChaCha8Rng;
-use starknet_api::block::{BlockHeader, BlockNumber};
+use starknet_api::block::{BlockHeader, BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
@@ -81,8 +81,11 @@ async fn state_diff_basic_flow() {
             mock_header_responses_manager
                 .send_response(DataOrFin(Some(SignedBlockHeader {
                     block_header: BlockHeader {
-                        block_number: BlockNumber(i.try_into().unwrap()),
                         block_hash: *block_hash,
+                        block_header_without_hash: BlockHeaderWithoutHash {
+                            block_number: BlockNumber(i.try_into().unwrap()),
+                            ..Default::default()
+                        },
                         state_diff_length: Some(state_diff.len()),
                         ..Default::default()
                     },
@@ -337,8 +340,11 @@ async fn validate_state_diff_fails(
         mock_header_responses_manager
             .send_response(DataOrFin(Some(SignedBlockHeader {
                 block_header: BlockHeader {
-                    block_number: BlockNumber(0),
                     block_hash,
+                    block_header_without_hash: BlockHeaderWithoutHash {
+                        block_number: BlockNumber(0),
+                        ..Default::default()
+                    },
                     state_diff_length: Some(state_diff_length_in_header),
                     ..Default::default()
                 },
