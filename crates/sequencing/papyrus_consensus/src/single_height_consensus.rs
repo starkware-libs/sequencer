@@ -9,7 +9,7 @@ use std::time::Duration;
 use futures::channel::{mpsc, oneshot};
 use papyrus_protobuf::consensus::{ConsensusMessage, Vote, VoteType};
 use starknet_api::block::{BlockHash, BlockNumber};
-use tracing::{debug, info, instrument, trace, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::config::TimeoutsConfig;
 use crate::state_machine::{StateMachine, StateMachineEvent};
@@ -281,10 +281,9 @@ impl SingleHeightConsensus {
                             .await,
                     );
                 }
-                StateMachineEvent::Proposal(_, _, _) => {
-                    // Ignore proposals sent by the StateMachine as SingleHeightConsensus already
-                    // sent this out when responding to a GetProposal.
-                    // TODO(matan): How do we handle this when validValue is set?
+                StateMachineEvent::Proposal(block_hash, round, valid_round) => {
+                    self.handle_state_machine_proposal(context, block_hash, round, valid_round)
+                        .await;
                 }
                 StateMachineEvent::Decision(block_hash, round) => {
                     return self.handle_state_machine_decision(block_hash, round).await;
@@ -346,7 +345,7 @@ impl SingleHeightConsensus {
         context
             .propose(init, p2p_messages_receiver, fin_receiver)
             .await
-            .expect("Failed sending Proposal to Peering");
+            .expect("Failed broadcasting Proposal");
         let block = block_receiver.await.expect("Block building failed.");
         // If we choose to ignore this error, we should carefully consider how this affects
         // Tendermint. The partially synchronous model assumes all messages arrive at some point,
@@ -359,6 +358,45 @@ impl SingleHeightConsensus {
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
         self.state_machine
             .handle_event(StateMachineEvent::GetProposal(Some(block), round), &leader_fn)
+    }
+
+    #[instrument(skip(self, context), level = "debug")]
+    async fn handle_state_machine_proposal<ContextT: ConsensusContext>(
+        &mut self,
+        context: &mut ContextT,
+        block_hash: Option<BlockHash>,
+        round: Round,
+        valid_round: Option<Round>,
+    ) {
+        let Some(block_hash) = block_hash else {
+            error!("StateMachine should not propose a None block_hash");
+            return;
+        };
+        let Some(valid_round) = valid_round else {
+            // newly built so just streamed
+            return;
+        };
+        let id = self
+            .proposals
+            .get(&valid_round)
+            .expect("proposals should have proposal for valid_round")
+            .expect("proposal should not be None");
+        assert_eq!(id, block_hash, "proposal should match the stored proposal");
+        let content_receiver = context.get_proposal(self.height, id).await;
+        let init = ProposalInit {
+            height: self.height,
+            round,
+            proposer: self.id,
+            valid_round: Some(valid_round),
+        };
+        let (fin_sender, fin_receiver) = oneshot::channel();
+        fin_sender.send(id).expect("Send should succeed");
+        context
+            .propose(init, content_receiver, fin_receiver)
+            .await
+            .expect("Failed broadcasting Proposal");
+        let old = self.proposals.insert(round, Some(block_hash));
+        assert!(old.is_none(), "There should be no entry for this round.");
     }
 
     #[instrument(skip_all)]
