@@ -15,7 +15,13 @@ use papyrus_storage::test_utils::get_test_storage;
 use papyrus_test_utils::get_rng;
 use pretty_assertions::assert_eq;
 use rand::seq::SliceRandom;
-use starknet_api::block::{BlockHash, BlockHeader, BlockNumber, BlockStatus};
+use starknet_api::block::{
+    BlockHash,
+    BlockHeader,
+    BlockHeaderWithoutHash,
+    BlockNumber,
+    BlockStatus,
+};
 use tower::BoxError;
 
 use crate::middleware::proxy_rpc_request;
@@ -196,14 +202,17 @@ fn get_block_status_test() {
 
     for block_number in 0..2 {
         let header = BlockHeader {
-            block_number: BlockNumber(block_number),
             block_hash: BlockHash(block_number.into()),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                block_number: BlockNumber(block_number),
+                ..Default::default()
+            },
             ..Default::default()
         };
         writer
             .begin_rw_txn()
             .unwrap()
-            .append_header(header.block_number, &header)
+            .append_header(header.block_header_without_hash.block_number, &header)
             .unwrap()
             .commit()
             .unwrap();

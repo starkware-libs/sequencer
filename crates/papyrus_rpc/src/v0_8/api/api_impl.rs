@@ -21,7 +21,7 @@ use papyrus_storage::compiled_class::CasmStorageReader;
 use papyrus_storage::db::{TransactionKind, RO};
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageReader, StorageTxn};
-use starknet_api::block::{BlockHash, BlockNumber, BlockStatus};
+use starknet_api::block::{BlockHash, BlockHeaderWithoutHash, BlockNumber, BlockStatus};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, GlobalRoot, Nonce};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{StateNumber, StorageKey};
@@ -1479,7 +1479,10 @@ async fn read_pending_data<Mode: TransactionKind>(
     let latest_header = match get_latest_block_number(txn)? {
         Some(latest_block_number) => get_block_header_by_number(txn, latest_block_number)?,
         None => starknet_api::block::BlockHeader {
-            parent_hash: BlockHash(StarkHash::from_hex_unchecked(GENESIS_HASH)),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                parent_hash: BlockHash(StarkHash::from_hex_unchecked(GENESIS_HASH)),
+                ..Default::default()
+            },
             ..Default::default()
         },
     };
@@ -1490,15 +1493,21 @@ async fn read_pending_data<Mode: TransactionKind>(
         Ok(PendingData {
             block: PendingBlockOrDeprecated::Deprecated(DeprecatedPendingBlock {
                 parent_block_hash: latest_header.block_hash,
-                eth_l1_gas_price: latest_header.l1_gas_price.price_in_wei,
-                strk_l1_gas_price: latest_header.l1_gas_price.price_in_fri,
-                timestamp: latest_header.timestamp,
-                sequencer_address: latest_header.sequencer,
-                starknet_version: latest_header.starknet_version.to_string(),
+                eth_l1_gas_price: latest_header.block_header_without_hash.l1_gas_price.price_in_wei,
+                strk_l1_gas_price: latest_header
+                    .block_header_without_hash
+                    .l1_gas_price
+                    .price_in_fri,
+                timestamp: latest_header.block_header_without_hash.timestamp,
+                sequencer_address: latest_header.block_header_without_hash.sequencer,
+                starknet_version: latest_header
+                    .block_header_without_hash
+                    .starknet_version
+                    .to_string(),
                 ..Default::default()
             }),
             state_update: ClientPendingStateUpdate {
-                old_root: latest_header.state_root,
+                old_root: latest_header.block_header_without_hash.state_root,
                 state_diff: Default::default(),
             },
         })

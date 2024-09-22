@@ -44,6 +44,7 @@ use starknet_api::block::{
     Block as StarknetApiBlock,
     BlockHash,
     BlockHeader,
+    BlockHeaderWithoutHash,
     BlockNumber,
     BlockStatus,
     BlockTimestamp,
@@ -260,7 +261,7 @@ async fn block_hash_and_number() {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(block.header.block_number, &block.header)
+        .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .commit()
         .unwrap();
@@ -278,7 +279,10 @@ async fn block_hash_and_number() {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_state_diff(block.header.block_number, starknet_api::state::ThinStateDiff::default())
+        .append_state_diff(
+            block.header.block_header_without_hash.block_number,
+            starknet_api::state::ThinStateDiff::default(),
+        )
         .unwrap()
         .commit()
         .unwrap();
@@ -290,7 +294,7 @@ async fn block_hash_and_number() {
         SpecFile::StarknetApiOpenrpc,
         &BlockHashAndNumber {
             block_hash: block.header.block_hash,
-            block_number: block.header.block_number,
+            block_number: block.header.block_header_without_hash.block_number,
         },
     )
     .await;
@@ -399,11 +403,14 @@ async fn get_block_transaction_count() {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(block.header.block_number, &block.header)
+        .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
-        .append_body(block.header.block_number, block.body)
+        .append_body(block.header.block_header_without_hash.block_number, block.body)
         .unwrap()
-        .append_state_diff(block.header.block_number, starknet_api::state::ThinStateDiff::default())
+        .append_state_diff(
+            block.header.block_header_without_hash.block_number,
+            starknet_api::state::ThinStateDiff::default(),
+        )
         .unwrap()
         .commit()
         .unwrap();
@@ -423,7 +430,9 @@ async fn get_block_transaction_count() {
     let res = module
         .call::<_, usize>(
             method_name,
-            [BlockId::HashOrNumber(BlockHashOrNumber::Number(block.header.block_number))],
+            [BlockId::HashOrNumber(BlockHashOrNumber::Number(
+                block.header.block_header_without_hash.block_number,
+            ))],
         )
         .await
         .unwrap();
@@ -487,17 +496,20 @@ async fn get_block_w_full_transactions() {
     let timestamp = BlockTimestamp(random::<u64>());
     let starknet_version = StarknetVersion(vec![123]);
     block.header.block_hash = block_hash;
-    block.header.sequencer = sequencer_address;
-    block.header.timestamp = timestamp;
-    block.header.starknet_version = starknet_version.clone();
+    block.header.block_header_without_hash.sequencer = sequencer_address;
+    block.header.block_header_without_hash.timestamp = timestamp;
+    block.header.block_header_without_hash.starknet_version = starknet_version.clone();
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(block.header.block_number, &block.header)
+        .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
-        .append_body(block.header.block_number, block.body.clone())
+        .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
-        .append_state_diff(block.header.block_number, starknet_api::state::ThinStateDiff::default())
+        .append_state_diff(
+            block.header.block_header_without_hash.block_number,
+            starknet_api::state::ThinStateDiff::default(),
+        )
         .unwrap()
         .commit()
         .unwrap();
@@ -663,19 +675,22 @@ async fn get_block_w_full_transactions_and_receipts() {
     let sequencer_address = SequencerContractAddress(random::<u64>().into());
     let timestamp = BlockTimestamp(random::<u64>());
     let starknet_version = StarknetVersion(vec![123]);
-    let block_number = block.header.block_number;
+    let block_number = block.header.block_header_without_hash.block_number;
     block.header.block_hash = block_hash;
-    block.header.sequencer = sequencer_address;
-    block.header.timestamp = timestamp;
-    block.header.starknet_version = starknet_version.clone();
+    block.header.block_header_without_hash.sequencer = sequencer_address;
+    block.header.block_header_without_hash.timestamp = timestamp;
+    block.header.block_header_without_hash.starknet_version = starknet_version.clone();
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(block.header.block_number, &block.header)
+        .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
-        .append_body(block.header.block_number, block.body.clone())
+        .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
-        .append_state_diff(block.header.block_number, starknet_api::state::ThinStateDiff::default())
+        .append_state_diff(
+            block.header.block_header_without_hash.block_number,
+            starknet_api::state::ThinStateDiff::default(),
+        )
         .unwrap()
         .commit()
         .unwrap();
@@ -857,16 +872,19 @@ async fn get_block_w_transaction_hashes() {
     let timestamp = BlockTimestamp(random::<u64>());
     let starknet_version = StarknetVersion(vec![123]);
     block.header.block_hash = block_hash;
-    block.header.sequencer = sequencer_address;
-    block.header.timestamp = timestamp;
+    block.header.block_header_without_hash.sequencer = sequencer_address;
+    block.header.block_header_without_hash.timestamp = timestamp;
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(block.header.block_number, &block.header)
+        .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
-        .append_body(block.header.block_number, block.body.clone())
+        .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
-        .append_state_diff(block.header.block_number, starknet_api::state::ThinStateDiff::default())
+        .append_state_diff(
+            block.header.block_header_without_hash.block_number,
+            starknet_api::state::ThinStateDiff::default(),
+        )
         .unwrap()
         .commit()
         .unwrap();
@@ -1031,8 +1049,11 @@ async fn get_class() {
     let parent_header = BlockHeader::default();
     let header = BlockHeader {
         block_hash: BlockHash(felt!("0x1")),
-        block_number: BlockNumber(1),
-        parent_hash: parent_header.block_hash,
+        block_header_without_hash: BlockHeaderWithoutHash {
+            block_number: BlockNumber(1),
+            parent_hash: parent_header.block_hash,
+            ..Default::default()
+        },
         ..BlockHeader::default()
     };
     let (diff, classes, deprecated_classes) =
@@ -1040,15 +1061,15 @@ async fn get_class() {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(parent_header.block_number, &parent_header)
+        .append_header(parent_header.block_header_without_hash.block_number, &parent_header)
         .unwrap()
         .append_state_diff(
-            parent_header.block_number,
+            parent_header.block_header_without_hash.block_number,
             starknet_api::state::ThinStateDiff::default(),
         )
         .unwrap()
         .append_classes(
-            parent_header.block_number,
+            parent_header.block_header_without_hash.block_number,
             &classes.iter().map(|(class_hash, class)| (*class_hash, class)).collect::<Vec<_>>(),
             &deprecated_classes
                 .iter()
@@ -1056,9 +1077,9 @@ async fn get_class() {
                 .collect::<Vec<_>>(),
         )
         .unwrap()
-        .append_header(header.block_number, &header)
+        .append_header(header.block_header_without_hash.block_number, &header)
         .unwrap()
-        .append_state_diff(header.block_number, diff.clone())
+        .append_state_diff(header.block_header_without_hash.block_number, diff.clone())
         .unwrap()
         .commit()
         .unwrap();
@@ -1086,7 +1107,12 @@ async fn get_class() {
     let res = module
         .call::<_, DeprecatedContractClass>(
             method_name,
-            (BlockId::HashOrNumber(BlockHashOrNumber::Number(header.block_number)), *class_hash),
+            (
+                BlockId::HashOrNumber(BlockHashOrNumber::Number(
+                    header.block_header_without_hash.block_number,
+                )),
+                *class_hash,
+            ),
         )
         .await
         .unwrap();
@@ -1112,7 +1138,9 @@ async fn get_class() {
         &module,
         method_name,
         vec![
-            Box::new(BlockId::HashOrNumber(BlockHashOrNumber::Number(header.block_number))),
+            Box::new(BlockId::HashOrNumber(BlockHashOrNumber::Number(
+                header.block_header_without_hash.block_number,
+            ))),
             Box::new(ClassHash(felt!("0x7"))),
         ],
         &VERSION,
@@ -1139,7 +1167,12 @@ async fn get_class() {
     let res = module
         .call::<_, ContractClass>(
             method_name,
-            (BlockId::HashOrNumber(BlockHashOrNumber::Number(header.block_number)), *class_hash),
+            (
+                BlockId::HashOrNumber(BlockHashOrNumber::Number(
+                    header.block_header_without_hash.block_number,
+                )),
+                *class_hash,
+            ),
         )
         .await
         .unwrap();
@@ -1151,7 +1184,9 @@ async fn get_class() {
         .call::<_, DeprecatedContractClass>(
             method_name,
             (
-                BlockId::HashOrNumber(BlockHashOrNumber::Number(parent_header.block_number)),
+                BlockId::HashOrNumber(BlockHashOrNumber::Number(
+                    parent_header.block_header_without_hash.block_number,
+                )),
                 *class_hash,
             ),
         )
@@ -1197,9 +1232,9 @@ async fn get_transaction_status() {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(block.header.block_number, &block.header)
+        .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
-        .append_body(block.header.block_number, block.body.clone())
+        .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
         .commit()
         .unwrap();
@@ -1240,7 +1275,9 @@ async fn get_transaction_status() {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .update_base_layer_block_marker(&block.header.block_number.unchecked_next())
+        .update_base_layer_block_marker(
+            &block.header.block_header_without_hash.block_number.unchecked_next(),
+        )
         .unwrap()
         .commit()
         .unwrap();
@@ -1314,9 +1351,9 @@ async fn get_transaction_receipt() {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(block.header.block_number, &block.header)
+        .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
-        .append_body(block.header.block_number, block.body.clone())
+        .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
         .commit()
         .unwrap();
@@ -1343,7 +1380,7 @@ async fn get_transaction_receipt() {
         finality_status: TransactionFinalityStatus::AcceptedOnL2,
         transaction_hash,
         block_hash: block.header.block_hash,
-        block_number: block.header.block_number,
+        block_number: block.header.block_header_without_hash.block_number,
         output,
     };
     call_api_then_assert_and_validate_schema_for_result(
@@ -1360,7 +1397,9 @@ async fn get_transaction_receipt() {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .update_base_layer_block_marker(&block.header.block_number.unchecked_next())
+        .update_base_layer_block_marker(
+            &block.header.block_header_without_hash.block_number.unchecked_next(),
+        )
         .unwrap()
         .commit()
         .unwrap();
@@ -1441,8 +1480,11 @@ async fn get_class_at() {
     let parent_header = BlockHeader::default();
     let header = BlockHeader {
         block_hash: BlockHash(felt!("0x1")),
-        block_number: BlockNumber(1),
-        parent_hash: parent_header.block_hash,
+        block_header_without_hash: BlockHeaderWithoutHash {
+            block_number: BlockNumber(1),
+            parent_hash: parent_header.block_hash,
+            ..Default::default()
+        },
         ..BlockHeader::default()
     };
     let (mut diff, classes, deprecated_classes) =
@@ -1453,15 +1495,15 @@ async fn get_class_at() {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(parent_header.block_number, &parent_header)
+        .append_header(parent_header.block_header_without_hash.block_number, &parent_header)
         .unwrap()
         .append_state_diff(
-            parent_header.block_number,
+            parent_header.block_header_without_hash.block_number,
             starknet_api::state::ThinStateDiff::default(),
         )
         .unwrap()
         .append_classes(
-            parent_header.block_number,
+            parent_header.block_header_without_hash.block_number,
             &classes.iter().map(|(class_hash, class)| (*class_hash, class)).collect::<Vec<_>>(),
             &deprecated_classes
                 .iter()
@@ -1469,9 +1511,9 @@ async fn get_class_at() {
                 .collect::<Vec<_>>(),
         )
         .unwrap()
-        .append_header(header.block_number, &header)
+        .append_header(header.block_header_without_hash.block_number, &header)
         .unwrap()
-        .append_state_diff(header.block_number, diff.clone())
+        .append_state_diff(header.block_header_without_hash.block_number, diff.clone())
         .unwrap()
         .commit()
         .unwrap();
@@ -1516,7 +1558,12 @@ async fn get_class_at() {
     let res = module
         .call::<_, DeprecatedContractClass>(
             method_name,
-            (BlockId::HashOrNumber(BlockHashOrNumber::Number(header.block_number)), *address),
+            (
+                BlockId::HashOrNumber(BlockHashOrNumber::Number(
+                    header.block_header_without_hash.block_number,
+                )),
+                *address,
+            ),
         )
         .await
         .unwrap();
@@ -1542,7 +1589,12 @@ async fn get_class_at() {
     let res = module
         .call::<_, ContractClass>(
             method_name,
-            (BlockId::HashOrNumber(BlockHashOrNumber::Number(header.block_number)), *address),
+            (
+                BlockId::HashOrNumber(BlockHashOrNumber::Number(
+                    header.block_header_without_hash.block_number,
+                )),
+                *address,
+            ),
         )
         .await
         .unwrap();
@@ -1574,7 +1626,9 @@ async fn get_class_at() {
         &module,
         method_name,
         vec![
-            Box::new(BlockId::HashOrNumber(BlockHashOrNumber::Number(header.block_number))),
+            Box::new(BlockId::HashOrNumber(BlockHashOrNumber::Number(
+                header.block_header_without_hash.block_number,
+            ))),
             Box::new(ContractAddress(patricia_key!("0x12"))),
         ],
         &VERSION,
@@ -1588,7 +1642,9 @@ async fn get_class_at() {
         .call::<_, DeprecatedContractClass>(
             method_name,
             (
-                BlockId::HashOrNumber(BlockHashOrNumber::Number(parent_header.block_number)),
+                BlockId::HashOrNumber(BlockHashOrNumber::Number(
+                    parent_header.block_header_without_hash.block_number,
+                )),
                 *address,
             ),
         )
@@ -1635,9 +1691,9 @@ async fn get_class_hash_at() {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(header.block_number, &header)
+        .append_header(header.block_header_without_hash.block_number, &header)
         .unwrap()
-        .append_state_diff(header.block_number, diff.clone())
+        .append_state_diff(header.block_header_without_hash.block_number, diff.clone())
         .unwrap()
         // No need to write the class definitions.
         .commit()
@@ -1674,7 +1730,12 @@ async fn get_class_hash_at() {
     let res = module
         .call::<_, ClassHash>(
             method_name,
-            (BlockId::HashOrNumber(BlockHashOrNumber::Number(header.block_number)), *address),
+            (
+                BlockId::HashOrNumber(BlockHashOrNumber::Number(
+                    header.block_header_without_hash.block_number,
+                )),
+                *address,
+            ),
         )
         .await
         .unwrap();
@@ -1743,7 +1804,9 @@ async fn get_class_hash_at() {
         &module,
         method_name,
         vec![
-            Box::new(BlockId::HashOrNumber(BlockHashOrNumber::Number(header.block_number))),
+            Box::new(BlockId::HashOrNumber(BlockHashOrNumber::Number(
+                header.block_header_without_hash.block_number,
+            ))),
             Box::new(ContractAddress(patricia_key!("0x12"))),
         ],
         &VERSION,
@@ -1791,9 +1854,9 @@ async fn get_nonce() {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(header.block_number, &header)
+        .append_header(header.block_header_without_hash.block_number, &header)
         .unwrap()
-        .append_state_diff(header.block_number, diff.clone())
+        .append_state_diff(header.block_header_without_hash.block_number, diff.clone())
         .unwrap()
         .commit()
         .unwrap();
@@ -1818,7 +1881,12 @@ async fn get_nonce() {
     let res = module
         .call::<_, Nonce>(
             method_name,
-            (BlockId::HashOrNumber(BlockHashOrNumber::Number(header.block_number)), *address),
+            (
+                BlockId::HashOrNumber(BlockHashOrNumber::Number(
+                    header.block_header_without_hash.block_number,
+                )),
+                *address,
+            ),
         )
         .await
         .unwrap();
@@ -1880,7 +1948,9 @@ async fn get_nonce() {
         &module,
         method_name,
         vec![
-            Box::new(BlockId::HashOrNumber(BlockHashOrNumber::Number(header.block_number))),
+            Box::new(BlockId::HashOrNumber(BlockHashOrNumber::Number(
+                header.block_header_without_hash.block_number,
+            ))),
             Box::new(ContractAddress(patricia_key!("0x31"))),
         ],
         &VERSION,
@@ -1928,9 +1998,9 @@ async fn get_storage_at() {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(header.block_number, &header)
+        .append_header(header.block_header_without_hash.block_number, &header)
         .unwrap()
-        .append_state_diff(header.block_number, diff.clone())
+        .append_state_diff(header.block_header_without_hash.block_number, diff.clone())
         .unwrap()
         .commit()
         .unwrap();
@@ -1957,7 +2027,13 @@ async fn get_storage_at() {
     let res = module
         .call::<_, Felt>(
             method_name,
-            (*address, *key, BlockId::HashOrNumber(BlockHashOrNumber::Number(header.block_number))),
+            (
+                *address,
+                *key,
+                BlockId::HashOrNumber(BlockHashOrNumber::Number(
+                    header.block_header_without_hash.block_number,
+                )),
+            ),
         )
         .await
         .unwrap();
@@ -2053,7 +2129,9 @@ async fn get_storage_at() {
             (
                 *BLOCK_HASH_TABLE_ADDRESS,
                 key,
-                BlockId::HashOrNumber(BlockHashOrNumber::Number(header.block_number)),
+                BlockId::HashOrNumber(BlockHashOrNumber::Number(
+                    header.block_header_without_hash.block_number,
+                )),
             ),
         )
         .await
@@ -2187,7 +2265,7 @@ async fn get_transaction_by_hash() {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_body(block.header.block_number, block.body.clone())
+        .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
         .commit()
         .unwrap();
@@ -2275,11 +2353,14 @@ async fn get_transaction_by_block_id_and_index() {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(block.header.block_number, &block.header)
+        .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
-        .append_body(block.header.block_number, block.body.clone())
+        .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
-        .append_state_diff(block.header.block_number, starknet_api::state::ThinStateDiff::default())
+        .append_state_diff(
+            block.header.block_header_without_hash.block_number,
+            starknet_api::state::ThinStateDiff::default(),
+        )
         .unwrap()
         .commit()
         .unwrap();
@@ -2307,7 +2388,12 @@ async fn get_transaction_by_block_id_and_index() {
     let res = module
         .call::<_, TransactionWithHash>(
             method_name,
-            (BlockId::HashOrNumber(BlockHashOrNumber::Number(block.header.block_number)), 0),
+            (
+                BlockId::HashOrNumber(BlockHashOrNumber::Number(
+                    block.header.block_header_without_hash.block_number,
+                )),
+                0,
+            ),
         )
         .await
         .unwrap();
@@ -2400,35 +2486,38 @@ async fn get_state_update() {
     let expected_pending_old_root = GlobalRoot(felt!("0x1234"));
     let header = BlockHeader {
         block_hash: BlockHash(felt!("0x1")),
-        block_number: BlockNumber(1),
-        parent_hash: parent_header.block_hash,
-        state_root: expected_pending_old_root,
+        block_header_without_hash: BlockHeaderWithoutHash {
+            block_number: BlockNumber(1),
+            parent_hash: parent_header.block_hash,
+            state_root: expected_pending_old_root,
+            ..Default::default()
+        },
         ..BlockHeader::default()
     };
     let diff = starknet_api::state::ThinStateDiff::from(get_test_state_diff());
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(parent_header.block_number, &parent_header)
+        .append_header(parent_header.block_header_without_hash.block_number, &parent_header)
         .unwrap()
         .append_state_diff(
-            parent_header.block_number,
+            parent_header.block_header_without_hash.block_number,
             starknet_api::state::ThinStateDiff::default(),
         )
         .unwrap()
-        .append_header(header.block_number, &header)
+        .append_header(header.block_header_without_hash.block_number, &header)
         .unwrap()
-        .append_state_diff(header.block_number, diff.clone())
+        .append_state_diff(header.block_header_without_hash.block_number, diff.clone())
         .unwrap()
         // No need to write the class definitions
         .commit()
         .unwrap();
 
-    let expected_old_root = parent_header.state_root;
+    let expected_old_root = parent_header.block_header_without_hash.state_root;
     let expected_state_diff = ThinStateDiff::from(diff);
     let expected_update = StateUpdate::AcceptedStateUpdate(AcceptedStateUpdate {
         block_hash: header.block_hash,
-        new_root: header.state_root,
+        new_root: header.block_header_without_hash.state_root,
         old_root: expected_old_root,
         state_diff: expected_state_diff.clone(),
     });
@@ -2448,7 +2537,9 @@ async fn get_state_update() {
     let res = module
         .call::<_, StateUpdate>(
             method_name,
-            [BlockId::HashOrNumber(BlockHashOrNumber::Number(header.block_number))],
+            [BlockId::HashOrNumber(BlockHashOrNumber::Number(
+                header.block_header_without_hash.block_number,
+            ))],
         )
         .await
         .unwrap();
@@ -2622,8 +2713,8 @@ impl BlockMetadata {
     ) -> StarknetApiBlock {
         // Generate a block with no events, And then add the events manually.
         let mut block = get_test_block(self.0.len(), Some(0), None, None);
-        block.header.parent_hash = parent_hash;
-        block.header.block_number = block_number;
+        block.header.block_header_without_hash.parent_hash = parent_hash;
+        block.header.block_header_without_hash.block_number = block_number;
         block.header.block_hash = BlockHash(rng.next_u64().into());
         // Randomize the transaction hashes because get_test_block returns constant hashes
         for transaction_hash in &mut block.body.transaction_hashes {
@@ -2736,7 +2827,7 @@ async fn test_get_events(
             .append_body(block_number, block.body)
             .unwrap()
             .append_state_diff(
-                block.header.block_number,
+                block.header.block_header_without_hash.block_number,
                 starknet_api::state::ThinStateDiff::default(),
             )
             .unwrap();
@@ -3259,11 +3350,14 @@ async fn get_events_invalid_ct() {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(block.header.block_number, &block.header)
+        .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
-        .append_body(block.header.block_number, block.body)
+        .append_body(block.header.block_header_without_hash.block_number, block.body)
         .unwrap()
-        .append_state_diff(block.header.block_number, starknet_api::state::ThinStateDiff::default())
+        .append_state_diff(
+            block.header.block_header_without_hash.block_number,
+            starknet_api::state::ThinStateDiff::default(),
+        )
         .unwrap()
         .commit()
         .unwrap();
@@ -3296,9 +3390,12 @@ async fn serialize_returns_valid_json() {
     let parent_block = starknet_api::block::Block::default();
     let block = starknet_api::block::Block {
         header: BlockHeader {
-            parent_hash: parent_block.header.block_hash,
             block_hash: BlockHash(felt!("0x1")),
-            block_number: BlockNumber(1),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                parent_hash: parent_block.header.block_hash,
+                block_number: BlockNumber(1),
+                ..Default::default()
+            },
             ..BlockHeader::default()
         },
         body: get_test_body(5, Some(5), None, None),
@@ -3323,25 +3420,28 @@ async fn serialize_returns_valid_json() {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(parent_block.header.block_number, &parent_block.header)
+        .append_header(
+            parent_block.header.block_header_without_hash.block_number,
+            &parent_block.header,
+        )
         .unwrap()
-        .append_body(parent_block.header.block_number, parent_block.body)
+        .append_body(parent_block.header.block_header_without_hash.block_number, parent_block.body)
         .unwrap()
         .append_state_diff(
-            parent_block.header.block_number,
+            parent_block.header.block_header_without_hash.block_number,
             starknet_api::state::ThinStateDiff::default(),
         )
         .unwrap()
-        .append_classes(parent_block.header.block_number, &[], &[])
+        .append_classes(parent_block.header.block_header_without_hash.block_number, &[], &[])
         .unwrap()
-        .append_header(block.header.block_number, &block.header)
+        .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
-        .append_body(block.header.block_number, block.body.clone())
+        .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
-        .append_state_diff(block.header.block_number, thin_state_diff)
+        .append_state_diff(block.header.block_header_without_hash.block_number, thin_state_diff)
         .unwrap()
         .append_classes(
-            block.header.block_number,
+            block.header.block_header_without_hash.block_number,
             &classes.iter().map(|(class_hash, class)| (*class_hash, class)).collect::<Vec<_>>(),
             &deprecated_classes
                 .iter()
@@ -3518,12 +3618,12 @@ async fn get_deprecated_class_state_mutability() {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(header.block_number, &header)
+        .append_header(header.block_header_without_hash.block_number, &header)
         .unwrap()
-        .append_state_diff(header.block_number, state_diff)
+        .append_state_diff(header.block_header_without_hash.block_number, state_diff)
         .unwrap()
         .append_classes(
-            header.block_number,
+            header.block_header_without_hash.block_number,
             &[],
             &[
                 (ClassHash(felt!("0x0")), &class_without_state_mutability),

@@ -1,6 +1,12 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
-use starknet_api::block::{BlockHash, BlockHeader, BlockNumber, BlockSignature};
+use starknet_api::block::{
+    BlockHash,
+    BlockHeader,
+    BlockHeaderWithoutHash,
+    BlockNumber,
+    BlockSignature,
+};
 use starknet_api::felt;
 
 use crate::header::{HeaderStorageReader, HeaderStorageWriter, StarknetVersion};
@@ -145,7 +151,10 @@ async fn starknet_version() {
     fn block_header(hash: u8, starknet_version: StarknetVersion) -> BlockHeader {
         BlockHeader {
             block_hash: BlockHash(felt!(hash)),
-            starknet_version,
+            block_header_without_hash: BlockHeaderWithoutHash {
+                starknet_version,
+                ..Default::default()
+            },
             ..BlockHeader::default()
         }
     }
