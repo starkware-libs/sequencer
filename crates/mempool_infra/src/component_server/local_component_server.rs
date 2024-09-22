@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use async_trait::async_trait;
 use tokio::sync::mpsc::Receiver;
 use tracing::error;
@@ -107,30 +109,9 @@ use crate::component_runner::ComponentStarter;
 ///     assert!(response.content == "request example processed".to_string(), "Unexpected response");
 /// }
 /// ```
-pub struct LocalComponentServer<Component, Request, Response>
-where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter,
-    Request: Send + Sync,
-    Response: Send + Sync,
-{
-    component: Component,
-    rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
-}
-
-impl<Component, Request, Response> LocalComponentServer<Component, Request, Response>
-where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter,
-    Request: Send + Sync,
-    Response: Send + Sync,
-{
-    pub fn new(
-        component: Component,
-        rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
-    ) -> Self {
-        Self { component, rx }
-    }
-}
-
+pub type LocalComponentServer<Component, Request, Response> =
+    BaseLocalComponentServer<Component, Request, Response, BlockingLocalServerType>;
+pub struct BlockingLocalServerType {}
 #[async_trait]
 impl<Component, Request, Response> ComponentServerStarter
     for LocalComponentServer<Component, Request, Response>
@@ -148,29 +129,9 @@ where
     }
 }
 
-pub struct LocalActiveComponentServer<Component, Request, Response>
-where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send + Sync,
-    Request: Send + Sync,
-    Response: Send + Sync,
-{
-    component: Component,
-    rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
-}
-
-impl<Component, Request, Response> LocalActiveComponentServer<Component, Request, Response>
-where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send + Sync,
-    Request: Send + Sync,
-    Response: Send + Sync,
-{
-    pub fn new(
-        component: Component,
-        rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
-    ) -> Self {
-        Self { component, rx }
-    }
-}
+pub type LocalActiveComponentServer<Component, Request, Response> =
+    BaseLocalComponentServer<Component, Request, Response, NonBlockingLocalServerType>;
+pub struct NonBlockingLocalServerType {}
 
 #[async_trait]
 impl<Component, Request, Response> ComponentServerStarter
@@ -194,5 +155,31 @@ where
             }
         };
         error!("Server ended with unexpected Ok.");
+    }
+}
+
+pub struct BaseLocalComponentServer<Component, Request, Response, LocalServerType>
+where
+    Component: ComponentRequestHandler<Request, Response> + ComponentStarter,
+    Request: Send + Sync,
+    Response: Send + Sync,
+{
+    component: Component,
+    rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    _local_server_type: PhantomData<LocalServerType>,
+}
+
+impl<Component, Request, Response, LocalServerType>
+    BaseLocalComponentServer<Component, Request, Response, LocalServerType>
+where
+    Component: ComponentRequestHandler<Request, Response> + ComponentStarter,
+    Request: Send + Sync,
+    Response: Send + Sync,
+{
+    pub fn new(
+        component: Component,
+        rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    ) -> Self {
+        Self { component, rx, _local_server_type: PhantomData }
     }
 }
