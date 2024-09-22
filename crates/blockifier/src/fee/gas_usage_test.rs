@@ -32,6 +32,8 @@ fn versioned_constants() -> &'static VersionedConstants {
 fn test_get_event_gas_cost(
     versioned_constants: &VersionedConstants,
     #[values(false, true)] use_kzg_da: bool,
+    #[values(GasVectorComputationMode::NoL2Gas, GasVectorComputationMode::All)]
+    gas_vector_computation_mode: GasVectorComputationMode,
 ) {
     let archival_data_gas_costs = &versioned_constants.archival_data_gas_costs;
     let (event_key_factor, data_word_cost) =
@@ -45,7 +47,7 @@ fn test_get_event_gas_cost(
         starknet_resources.to_gas_vector(
             versioned_constants,
             use_kzg_da,
-            &GasVectorComputationMode::NoL2Gas
+            &gas_vector_computation_mode
         )
     );
 
@@ -80,21 +82,22 @@ fn test_get_event_gas_cost(
     };
     let call_infos = vec![call_info_1, call_info_2, call_info_3];
     let call_infos_iter = call_infos.iter();
-    let expected = GasVector::from_l1_gas(
-        // 8 keys and 11 data words overall.
-        (data_word_cost
-            * versioned_constants.l1_to_l2_gas_price_ratio()
-            * (event_key_factor * 8_u128 + 11_u128))
-            .to_integer(),
-    );
+    // 8 keys and 11 data words overall.
+    let expected = (data_word_cost * (event_key_factor * 8_u128 + 11_u128)).to_integer();
+    let expected_gas_vector = match gas_vector_computation_mode {
+        GasVectorComputationMode::NoL2Gas => {
+            GasVector::from_l1_gas(versioned_constants.convert_l2_to_l1_gas(expected))
+        }
+        GasVectorComputationMode::All => GasVector::from_l2_gas(expected),
+    };
     let starknet_resources =
         StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, call_infos_iter);
     let gas_vector = starknet_resources.to_gas_vector(
         versioned_constants,
         use_kzg_da,
-        &GasVectorComputationMode::NoL2Gas,
+        &gas_vector_computation_mode,
     );
-    assert_eq!(expected, gas_vector);
+    assert_eq!(expected_gas_vector, gas_vector);
     assert_ne!(GasVector::default(), gas_vector)
 }
 
