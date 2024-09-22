@@ -9899,6 +9899,7 @@ dependencies = [
  "pretty_assertions",
  "rstest",
  "serde",
+ "starknet-types-core",
  "thiserror",
  "tokio",
  "tracing",
