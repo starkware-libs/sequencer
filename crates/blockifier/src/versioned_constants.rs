@@ -94,6 +94,7 @@ pub struct VersionedConstants {
     // Limits.
     pub tx_event_limits: EventLimits,
     pub invoke_tx_max_n_steps: u32,
+    pub deprecated_l2_resource_gas_costs: ArchivalDataGasCosts,
     pub archival_data_gas_costs: ArchivalDataGasCosts,
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
@@ -287,7 +288,7 @@ impl TryFrom<&Path> for VersionedConstants {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct ArchivalDataGasCosts {
     // TODO(barak, 18/03/2024): Once we start charging per byte change to milligas_per_data_byte,
     // divide the value by 32 in the JSON file.
