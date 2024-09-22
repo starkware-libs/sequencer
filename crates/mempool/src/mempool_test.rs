@@ -785,11 +785,13 @@ fn test_commit_block_rewinds_nonce() {
     // Setup.
     let tx_address_0_nonce_5 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 5_u8);
 
+    let account_nonces = [(tx_address_0_nonce_5.contract_address(), tx_address_0_nonce_5.nonce())];
     let queued_txs = [TransactionReference::new(&tx_address_0_nonce_5)];
     let pool_txs = [tx_address_0_nonce_5];
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs)
         .with_queue(queued_txs)
+        .with_account_nonces(account_nonces)
         .build_into_mempool();
 
     // Test.
@@ -797,7 +799,8 @@ fn test_commit_block_rewinds_nonce() {
     commit_block(&mut mempool, state_changes);
 
     // Assert.
-    let expected_mempool_content = MempoolContentBuilder::new().with_queue([]).build();
+    let expected_mempool_content =
+        MempoolContentBuilder::new().with_queue([]).with_account_nonces(account_nonces).build();
     expected_mempool_content.assert_eq_transaction_queue_content(&mempool);
 }
 
@@ -892,29 +895,6 @@ fn test_account_nonces_update_in_commit_block() {
     let expected_mempool_content = MempoolContentBuilder::new()
         .with_account_nonces([(sender_address, committed_nonce.try_increment().unwrap())])
         .build();
-    expected_mempool_content.assert_eq_account_nonces(&mempool);
-}
-
-#[rstest]
-fn test_account_nonce_does_not_decrease_in_commit_block() {
-    // Setup.
-    let input_account_nonce_2 = add_tx_input!(tx_nonce: 3_u8, account_nonce: 2_u8);
-    let Account { sender_address, state: AccountState { nonce } } = input_account_nonce_2.account;
-    let account_nonces = [(sender_address, nonce)];
-    let pool_txs = [input_account_nonce_2.tx];
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool(pool_txs)
-        .with_account_nonces(account_nonces)
-        .build_into_mempool();
-
-    // Test: commits state change of a lower account nonce.
-    let state_changes =
-        HashMap::from([(sender_address, AccountState { nonce: Nonce(felt!(0_u8)) })]);
-    assert_eq!(mempool.commit_block(state_changes), Ok(()));
-
-    // Assert: the account nonce is not updated.
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_account_nonces(account_nonces).build();
     expected_mempool_content.assert_eq_account_nonces(&mempool);
 }
 
