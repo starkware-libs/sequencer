@@ -33,13 +33,8 @@ const Configuration = {
             'execution',
             'fee',
             'gateway',
-<<<<<<< HEAD
-||||||| 9e02307ff
-            'helm',
-=======
             'helm',
             'infra',
->>>>>>> origin/main-v0.13.2
             'JSON-RPC',
             'l1-provider',
             'load_test',
