@@ -27,6 +27,7 @@ use libp2p::swarm::{
     ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId};
+use serde::{Deserialize, Serialize};
 use tokio_retry::strategy::ExponentialBackoff;
 
 use crate::mixed_behaviour;
@@ -181,7 +182,7 @@ impl NetworkBehaviour for Behaviour {
     }
 }
 
-// TODO(alon): add to NetworkConfig
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DiscoveryConfig {
     pub bootstrap_dial_retry_config: RetryConfig,
     pub heartbeat_interval: Duration,
@@ -196,7 +197,7 @@ impl Default for DiscoveryConfig {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RetryConfig {
     pub base_delay_millis: u64,
     pub max_delay: Duration,
