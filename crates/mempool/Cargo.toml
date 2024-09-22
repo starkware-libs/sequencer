@@ -11,11 +11,11 @@ workspace = true
 [dependencies]
 async-trait.workspace = true
 derive_more.workspace = true
-starknet_mempool_p2p_sender_types.workspace = true
 papyrus_network.workspace = true
 starknet_api.workspace = true
 starknet_mempool_infra.workspace = true
 starknet_mempool_p2p.workspace = true
+starknet_mempool_p2p_types.workspace = true
 starknet_mempool_types.workspace = true
 tokio.workspace = true
 
