@@ -107,6 +107,10 @@ impl MempoolContentBuilder {
             account_nonces: self.account_nonces,
         }
     }
+
+    fn build_into_mempool(self) -> Mempool {
+        self.build().into()
+    }
 }
 
 impl FromIterator<Transaction> for TransactionPool {
@@ -235,11 +239,10 @@ fn test_get_txs_returns_by_priority_order(#[case] requested_txs: usize) {
     let tx_references_iterator = txs.iter().map(TransactionReference::new);
     let txs_iterator = txs.iter().cloned();
 
-    let mut mempool: Mempool = MempoolContentBuilder::new()
+    let mut mempool = MempoolContentBuilder::new()
         .with_pool(txs_iterator)
         .with_queue(tx_references_iterator)
-        .build()
-        .into();
+        .build_into_mempool();
 
     // Test.
     let fetched_txs = mempool.get_txs(requested_txs).unwrap();
@@ -271,11 +274,10 @@ fn test_get_txs_multi_nonce() {
 
     let queue_txs = [&tx_nonce_0].map(TransactionReference::new);
     let pool_txs = [tx_nonce_0, tx_nonce_1, tx_nonce_2];
-    let mut mempool: Mempool = MempoolContentBuilder::new()
+    let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs.clone())
         .with_queue(queue_txs)
-        .build()
-        .into();
+        .build_into_mempool();
 
     // Test.
     let fetched_txs = mempool.get_txs(3).unwrap();
@@ -297,8 +299,8 @@ fn test_get_txs_replenishes_queue_only_between_chunks() {
     let queue_txs = [&tx_address_0_nonce_0, &tx_address_1_nonce_0].map(TransactionReference::new);
     let pool_txs =
         [&tx_address_0_nonce_0, &tx_address_0_nonce_1, &tx_address_1_nonce_0].map(|tx| tx.clone());
-    let mut mempool: Mempool =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build().into();
+    let mut mempool =
+        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build_into_mempool();
 
     // Test.
     let txs = mempool.get_txs(3).unwrap();
@@ -328,8 +330,8 @@ fn test_get_txs_replenishes_queue_multi_account_between_chunks() {
         &tx_address_1_nonce_1,
     ]
     .map(|tx| tx.clone());
-    let mut mempool: Mempool =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build().into();
+    let mut mempool =
+        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build_into_mempool();
 
     // Test.
     let txs = mempool.get_txs(2).unwrap();
@@ -356,8 +358,8 @@ fn test_get_txs_with_holes_multiple_accounts() {
 
     let queue_txs = [TransactionReference::new(&tx_address_1_nonce_0)];
     let pool_txs = [tx_address_0_nonce_1.clone(), tx_address_1_nonce_0.clone()];
-    let mut mempool: Mempool =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build().into();
+    let mut mempool =
+        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build_into_mempool();
 
     // Test.
     let txs = mempool.get_txs(2).unwrap();
@@ -381,11 +383,10 @@ fn test_get_txs_with_holes_single_account() {
 
     let pool_txs = [input_nonce_1.tx];
     let queue_txs = [];
-    let mut mempool: Mempool = MempoolContentBuilder::new()
+    let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs.clone())
         .with_queue(queue_txs)
-        .build()
-        .into();
+        .build_into_mempool();
 
     // Test.
     let txs = mempool.get_txs(1).unwrap();
@@ -405,8 +406,8 @@ fn test_get_txs_while_decreasing_gas_price_threshold() {
 
     let pool_txs = [input_tx.tx.clone()];
     let queue_txs = [TransactionReference::new(&input_tx.tx)];
-    let mut mempool: Mempool =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build().into();
+    let mut mempool =
+        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build_into_mempool();
 
     // Test.
     // High gas price threshold, no transactions should be returned.
@@ -433,8 +434,8 @@ fn test_get_txs_while_increasing_gas_price_threshold() {
 
     let pool_txs = [input_tx_nonce_0.tx.clone(), input_tx_nonce_1.tx];
     let queue_txs = [TransactionReference::new(&input_tx_nonce_0.tx)];
-    let mut mempool: Mempool =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build().into();
+    let mut mempool =
+        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build_into_mempool();
 
     // Test.
     // Low gas price threshold, the transaction should be returned.
@@ -539,8 +540,8 @@ fn test_add_tx_lower_than_queued_nonce() {
     let queue_txs = [TransactionReference::new(&valid_input.tx)];
     let expected_mempool_content = MempoolContentBuilder::new().with_queue(queue_txs).build();
     let pool_txs = [valid_input.tx];
-    let mut mempool: Mempool =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build().into();
+    let mut mempool =
+        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build_into_mempool();
 
     // Test and assert the original transaction remains.
     add_tx_expect_error(
@@ -563,7 +564,7 @@ fn test_add_tx_updates_queue_with_higher_account_nonce() {
         add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1_u8, account_nonce: 1_u8);
 
     let queue_txs = [TransactionReference::new(&input.tx)];
-    let mut mempool: Mempool = MempoolContentBuilder::new().with_queue(queue_txs).build().into();
+    let mut mempool = MempoolContentBuilder::new().with_queue(queue_txs).build_into_mempool();
 
     // Test.
     add_tx(&mut mempool, &higher_account_nonce_input);
@@ -612,8 +613,8 @@ fn test_add_tx_delete_tx_with_lower_nonce_than_account_nonce() {
 
     let queue_txs = [TransactionReference::new(&tx_nonce_0_account_nonce_0.tx)];
     let pool_txs = [tx_nonce_0_account_nonce_0.tx];
-    let mut mempool: Mempool =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build().into();
+    let mut mempool =
+        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build_into_mempool();
 
     // Test.
     add_tx(&mut mempool, &tx_nonce_1_account_nonce_1);
@@ -733,8 +734,8 @@ fn test_add_tx_after_get_txs_fails_on_duplicate_nonce() {
 
     let pool_txs = [input_tx.tx.clone()];
     let queue_txs = [TransactionReference::new(&input_tx.tx)];
-    let mut mempool: Mempool =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build().into();
+    let mut mempool =
+        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build_into_mempool();
 
     // Test.
     mempool.get_txs(1).unwrap();
@@ -760,11 +761,10 @@ fn test_commit_block_includes_all_txs() {
         .map(TransactionReference::new);
     let pool_txs =
         [tx_address_0_nonce_4, tx_address_0_nonce_5, tx_address_1_nonce_3, tx_address_2_nonce_1];
-    let mut mempool: Mempool = MempoolContentBuilder::new()
+    let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs.clone())
         .with_queue(queue_txs)
-        .build()
-        .into();
+        .build_into_mempool();
 
     // Test.
     let state_changes = [("0x0", 3_u8), ("0x1", 2_u8)];
@@ -783,8 +783,10 @@ fn test_commit_block_rewinds_nonce() {
 
     let queued_txs = [TransactionReference::new(&tx_address_0_nonce_5)];
     let pool_txs = [tx_address_0_nonce_5];
-    let mut mempool: Mempool =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queued_txs).build().into();
+    let mut mempool = MempoolContentBuilder::new()
+        .with_pool(pool_txs)
+        .with_queue(queued_txs)
+        .build_into_mempool();
 
     // Test.
     let state_changes = [("0x0", 3_u8), ("0x1", 3_u8)];
@@ -810,8 +812,10 @@ fn test_commit_block_from_different_leader() {
         tx_address_0_nonce_6.clone(),
         tx_address_1_nonce_2,
     ];
-    let mut mempool: Mempool =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queued_txs).build().into();
+    let mut mempool = MempoolContentBuilder::new()
+        .with_pool(pool_txs)
+        .with_queue(queued_txs)
+        .build_into_mempool();
 
     // Test.
     let state_changes = [
@@ -852,8 +856,8 @@ fn test_account_nonce_does_not_decrease_in_add_tx() {
     let input_with_lower_account_nonce = add_tx_input!(tx_nonce: 0_u8, account_nonce: 0_u8);
     let account_nonces =
         [(input_with_lower_account_nonce.account.sender_address, Nonce(felt!(2_u8)))];
-    let mut mempool: Mempool =
-        MempoolContentBuilder::new().with_account_nonces(account_nonces).build().into();
+    let mut mempool =
+        MempoolContentBuilder::new().with_account_nonces(account_nonces).build_into_mempool();
 
     // Test: receives a transaction with a lower account nonce.
     add_tx(&mut mempool, &input_with_lower_account_nonce);
@@ -870,11 +874,10 @@ fn test_account_nonces_update_in_commit_block() {
     let input = add_tx_input!(tx_nonce: 2_u8, account_nonce: 0_u8);
     let Account { sender_address, state: AccountState { nonce } } = input.account;
     let pool_txs = [input.tx];
-    let mut mempool: Mempool = MempoolContentBuilder::new()
+    let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs)
         .with_account_nonces([(sender_address, nonce)])
-        .build()
-        .into();
+        .build_into_mempool();
     let committed_nonce = Nonce(Felt::ZERO);
 
     // Test: update through a commit block.
@@ -895,11 +898,10 @@ fn test_account_nonce_does_not_decrease_in_commit_block() {
     let Account { sender_address, state: AccountState { nonce } } = input_account_nonce_2.account;
     let account_nonces = [(sender_address, nonce)];
     let pool_txs = [input_account_nonce_2.tx];
-    let mut mempool: Mempool = MempoolContentBuilder::new()
+    let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs)
         .with_account_nonces(account_nonces)
-        .build()
-        .into();
+        .build_into_mempool();
 
     // Test: commits state change of a lower account nonce.
     let state_changes =
@@ -974,8 +976,8 @@ fn test_flow_partial_commit_block() {
         &tx_address_2_nonce_2,
     ]
     .map(|tx| tx.clone());
-    let mut mempool: Mempool =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build().into();
+    let mut mempool =
+        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build_into_mempool();
 
     // Test.
 
@@ -1006,8 +1008,10 @@ fn test_flow_commit_block_closes_hole() {
 
     let queued_txs = [TransactionReference::new(&tx_nonce_3)];
     let pool_txs = [tx_nonce_3, tx_nonce_5.clone()];
-    let mut mempool: Mempool =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queued_txs).build().into();
+    let mut mempool = MempoolContentBuilder::new()
+        .with_pool(pool_txs)
+        .with_queue(queued_txs)
+        .build_into_mempool();
 
     // Test.
     let state_changes = [("0x0", 4_u8)];
@@ -1038,8 +1042,8 @@ fn test_flow_send_same_nonce_tx_after_previous_not_included() {
 
     let queue_txs = [TransactionReference::new(&tx_nonce_3)];
     let pool_txs = [&tx_nonce_3, &tx_input_nonce_4.tx, &tx_nonce_5].map(|tx| tx.clone());
-    let mut mempool: Mempool =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build().into();
+    let mut mempool =
+        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build_into_mempool();
 
     // Test.
     let txs = mempool.get_txs(2).unwrap();
