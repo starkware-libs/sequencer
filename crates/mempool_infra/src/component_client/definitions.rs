@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use hyper::StatusCode;
 use thiserror::Error;
 
@@ -20,3 +21,10 @@ pub enum ClientError {
 }
 
 pub type ClientResult<T> = Result<T, ClientError>;
+
+#[async_trait]
+pub trait ClientMonitorApi {
+    async fn is_alive(&self) -> bool {
+        true
+    }
+}

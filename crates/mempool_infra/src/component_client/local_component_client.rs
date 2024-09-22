@@ -1,6 +1,14 @@
+use async_trait::async_trait;
 use tokio::sync::mpsc::{channel, Sender};
 
-use crate::component_definitions::ComponentRequestAndResponseSender;
+use super::ClientMonitorApi;
+use crate::component_definitions::{
+    ComponentRequestAndResponseSender,
+    MonitoringRequest,
+    MonitoringResponse,
+    RequestAndMonitor,
+    ResponseAndMonitor,
+};
 
 /// The `LocalComponentClient` struct is a generic client for sending component requests and
 /// receiving responses asynchronously.
@@ -51,6 +59,7 @@ use crate::component_definitions::ComponentRequestAndResponseSender;
 /// # Notes
 /// - The `LocalComponentClient` struct is designed to work in an asynchronous environment,
 ///   utilizing Tokio's async runtime and channels.
+
 pub struct LocalComponentClient<Request, Response>
 where
     Request: Send + Sync,
@@ -70,12 +79,44 @@ where
 
     // TODO(Tsabary, 1/5/2024): Consider implementation for messages without expected responses.
 
-    pub async fn send(&self, request: Request) -> Response {
-        let (res_tx, mut res_rx) = channel::<Response>(1);
+    async fn internal_send(
+        &self,
+        request: RequestAndMonitor<Request>,
+    ) -> ResponseAndMonitor<Response> {
+        let (res_tx, mut res_rx) = channel::<ResponseAndMonitor<Response>>(1);
         let request_and_res_tx = ComponentRequestAndResponseSender { request, tx: res_tx };
         self.tx.send(request_and_res_tx).await.expect("Outbound connection should be open.");
 
         res_rx.recv().await.expect("Inbound connection should be open.")
+    }
+
+    pub async fn send(&self, request: Request) -> Response {
+        let request = RequestAndMonitor::Component(request);
+        let res = self.internal_send(request).await;
+        match res {
+            ResponseAndMonitor::Component(response) => response,
+            _ => panic!("Unexpected response variant."),
+        }
+    }
+
+    pub async fn send_alive(&self) -> bool {
+        let request = RequestAndMonitor::Monitoring(MonitoringRequest::IsAlive);
+        let res = self.internal_send(request).await;
+        match res {
+            ResponseAndMonitor::Monitoring(MonitoringResponse::IsAlive(is_alive)) => is_alive,
+            _ => panic!("Unexpected response variant."),
+        }
+    }
+}
+
+#[async_trait]
+impl<Request, Response> ClientMonitorApi for LocalComponentClient<Request, Response>
+where
+    Request: Send + Sync,
+    Response: Send + Sync,
+{
+    async fn is_alive(&self) -> bool {
+        self.send_alive().await
     }
 }
 

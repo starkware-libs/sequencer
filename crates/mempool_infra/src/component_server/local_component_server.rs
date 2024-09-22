@@ -3,7 +3,11 @@ use tokio::sync::mpsc::Receiver;
 use tracing::error;
 
 use super::definitions::{request_response_loop, start_component, ComponentServerStarter};
-use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
+use crate::component_definitions::{
+    ComponentMonitor,
+    ComponentRequestAndResponseSender,
+    ComponentRequestHandler,
+};
 use crate::component_runner::ComponentStarter;
 
 /// The `LocalComponentServer` struct is a generic server that handles requests and responses for a
@@ -37,7 +41,9 @@ use crate::component_runner::ComponentStarter;
 /// use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
 /// use tokio::task;
 ///
+/// use crate::starknet_mempool_infra::component_client::LocalComponentClient;
 /// use crate::starknet_mempool_infra::component_definitions::{
+///     ComponentMonitor,
 ///     ComponentRequestAndResponseSender,
 ///     ComponentRequestHandler,
 /// };
@@ -55,6 +61,9 @@ use crate::component_runner::ComponentStarter;
 ///         Ok(())
 ///     }
 /// }
+///
+/// #[async_trait]
+/// impl ComponentMonitor for MyComponent {}
 ///
 /// // Define your request and response types
 /// struct MyRequest {
@@ -80,6 +89,9 @@ use crate::component_runner::ComponentStarter;
 ///         ComponentRequestAndResponseSender<MyRequest, MyResponse>,
 ///     >(100);
 ///
+///     // Instantiate the client.
+///     let client = LocalComponentClient::new(tx);
+///
 ///     // Instantiate the component.
 ///     let component = MyComponent {};
 ///
@@ -95,15 +107,10 @@ use crate::component_runner::ComponentStarter;
 ///     task::yield_now().await;
 ///
 ///     // Create the request and the response channel.
-///     let (res_tx, mut res_rx) = tokio::sync::mpsc::channel::<MyResponse>(1);
 ///     let request = MyRequest { content: "request example".to_string() };
-///     let request_and_res_tx = ComponentRequestAndResponseSender { request, tx: res_tx };
 ///
-///     // Send the request.
-///     tx.send(request_and_res_tx).await.unwrap();
-///
-///     // Receive the response.
-///     let response = res_rx.recv().await.unwrap();
+///     // Send the request and receive responce.
+///     let response = client.send(request).await;
 ///     assert!(response.content == "request example processed".to_string(), "Unexpected response");
 /// }
 /// ```
@@ -135,7 +142,11 @@ where
 impl<Component, Request, Response> ComponentServerStarter
     for LocalComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Send + Sync,
+    Component: ComponentRequestHandler<Request, Response>
+        + ComponentStarter
+        + ComponentMonitor
+        + Send
+        + Sync,
     Request: Send + Sync,
     Response: Send + Sync,
 {
@@ -176,7 +187,12 @@ where
 impl<Component, Request, Response> ComponentServerStarter
     for LocalActiveComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send + Sync,
+    Component: ComponentRequestHandler<Request, Response>
+        + ComponentStarter
+        + ComponentMonitor
+        + Clone
+        + Send
+        + Sync,
     Request: Send + Sync,
     Response: Send + Sync,
 {

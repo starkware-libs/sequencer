@@ -14,7 +14,12 @@ use tokio::sync::Mutex;
 
 use super::definitions::ComponentServerStarter;
 use crate::component_definitions::{
+    ComponentMonitor,
     ComponentRequestHandler,
+    MonitoringRequest,
+    MonitoringResponse,
+    RequestAndMonitor,
+    ResponseAndMonitor,
     ServerError,
     APPLICATION_OCTET_STREAM,
 };
@@ -47,7 +52,10 @@ use crate::component_definitions::{
 /// use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
 /// use tokio::task;
 ///
-/// use crate::starknet_mempool_infra::component_definitions::ComponentRequestHandler;
+/// use crate::starknet_mempool_infra::component_definitions::{
+///     ComponentMonitor,
+///     ComponentRequestHandler,
+/// };
 /// use crate::starknet_mempool_infra::component_server::{
 ///     ComponentServerStarter,
 ///     RemoteComponentServer,
@@ -55,6 +63,9 @@ use crate::component_definitions::{
 ///
 /// // Define your component
 /// struct MyComponent {}
+///
+/// #[async_trait]
+/// impl ComponentMonitor for MyComponent {}
 ///
 /// #[async_trait]
 /// impl ComponentStarter for MyComponent {
@@ -104,7 +115,7 @@ use crate::component_definitions::{
 /// ```
 pub struct RemoteComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + Send + 'static,
+    Component: ComponentRequestHandler<Request, Response> + ComponentMonitor + Send + 'static,
     Request: DeserializeOwned + Send + 'static,
     Response: Serialize + 'static,
 {
@@ -116,7 +127,7 @@ where
 
 impl<Component, Request, Response> RemoteComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + Send + 'static,
+    Component: ComponentRequestHandler<Request, Response> + ComponentMonitor + Send + 'static,
     Request: DeserializeOwned + Send + 'static,
     Response: Serialize + 'static,
 {
@@ -137,8 +148,16 @@ where
         let http_response = match deserialize(&body_bytes) {
             Ok(component_request) => {
                 // Acquire the lock for component computation, release afterwards.
-                let component_response =
-                    { component.lock().await.handle_request(component_request).await };
+                let component_response = match component_request {
+                    RequestAndMonitor::Component(request) => ResponseAndMonitor::Component(
+                        component.lock().await.handle_request(request).await,
+                    ),
+                    RequestAndMonitor::Monitoring(MonitoringRequest::IsAlive) => {
+                        ResponseAndMonitor::Monitoring(MonitoringResponse::IsAlive(
+                            component.lock().await.is_alive().await,
+                        ))
+                    }
+                };
                 HyperResponse::builder()
                     .status(StatusCode::OK)
                     .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
@@ -164,7 +183,7 @@ where
 impl<Component, Request, Response> ComponentServerStarter
     for RemoteComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + Send + 'static,
+    Component: ComponentRequestHandler<Request, Response> + ComponentMonitor + Send + 'static,
     Request: DeserializeOwned + Send + Sync + 'static,
     Response: Serialize + Send + Sync + 'static,
 {

@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::executable_transaction::Transaction;
 use starknet_mempool_infra::component_client::{
     ClientError,
+    ClientMonitorApi,
     LocalComponentClient,
     RemoteComponentClient,
 };
@@ -36,12 +37,14 @@ pub struct MempoolWrapperInput {
 /// sharing resources (inputs, futures) across threads.
 #[automock]
 #[async_trait]
-pub trait MempoolClient: Send + Sync {
+pub trait MempoolClient: ClientMonitorApi + Send + Sync {
     // TODO: Add Option<BroadcastedMessageManager> as an argument for add_transaction
     // TODO: Rename tx to transaction
     async fn add_tx(&self, mempool_input: MempoolWrapperInput) -> MempoolClientResult<()>;
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<Transaction>>;
 }
+
+impl ClientMonitorApi for MockMempoolClient {}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum MempoolRequest {
