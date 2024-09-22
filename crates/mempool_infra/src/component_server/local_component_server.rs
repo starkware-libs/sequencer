@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
+use thiserror::Error;
 use tokio::sync::mpsc::Receiver;
 use tracing::error;
 
@@ -121,6 +122,8 @@ where
     Response: Send + Sync,
 {
     async fn start(&mut self) {
+        self.set_started();
+
         // TODO(Tsabary/Lev): Find a better mechanism than the if condition to determine what to
         // run.
         if start_component(&mut self.component).await {
@@ -142,6 +145,8 @@ where
     Response: Send + Sync,
 {
     async fn start(&mut self) {
+        self.set_started();
+
         let mut component = self.component.clone();
         let component_future = async move { component.start().await };
         let request_response_future = request_response_loop(&mut self.rx, &mut self.component);
@@ -166,6 +171,7 @@ where
 {
     component: Component,
     rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    started: bool,
     _local_server_type: PhantomData<LocalServerType>,
 }
 
@@ -180,6 +186,27 @@ where
         component: Component,
         rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     ) -> Self {
-        Self { component, rx, _local_server_type: PhantomData }
+        Self { component, rx, started: false, _local_server_type: PhantomData }
     }
+
+    pub fn replace_component(
+        &mut self,
+        component: Component,
+    ) -> Result<(), ComponentReplacementError> {
+        if self.started {
+            return Err(ComponentReplacementError::ComponentAlreadyRunning {});
+        }
+        self.component = component;
+        Ok(())
+    }
+
+    fn set_started(&mut self) {
+        self.started = true;
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum ComponentReplacementError {
+    #[error("Component already has been started")]
+    ComponentAlreadyRunning {},
 }
