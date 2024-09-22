@@ -219,7 +219,14 @@ fn convert_proposal_fin_to_vec_u8_and_back() {
 fn convert_proposal_part_to_vec_u8_and_back() {
     let mut rng = get_rng();
 
-    let proposal_part = ProposalPart::get_test_instance(&mut rng);
+    let mut proposal_part = ProposalPart::get_test_instance(&mut rng);
+
+    match proposal_part {
+        ProposalPart::Transactions(ref mut transaction_batch) => {
+            add_gas_values_to_transaction_temporary_hack(&mut transaction_batch.transactions);
+        }
+        _ => {}
+    }
 
     let bytes_data: Vec<u8> = proposal_part.clone().into();
     let res_data = ProposalPart::try_from(bytes_data).unwrap();
