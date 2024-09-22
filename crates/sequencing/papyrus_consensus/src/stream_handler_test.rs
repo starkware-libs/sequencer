@@ -1,16 +1,13 @@
-use futures::channel::mpsc::Sender;
-use futures::stream::Stream;
-use papyrus_network::network_manager::BroadcastedMessageManager;
+use futures::channel::mpsc;
+use papyrus_network::gossipsub_impl::Topic;
+use papyrus_network::network_manager::{
+    BroadcastTopicChannels,
+    GenericNetworkManager,
+    GenericReceiver,
+};
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, StreamMessage};
 
 use super::{MessageId, StreamCollector, StreamCollectorConfig, StreamId};
-
-type BroadcastClient = Stream<
-    Item = (
-        Result<ConsensusMessage, <ConsensusMessage as TryFrom<Vec<u8>>>::Error>,
-        BroadcastedMessageManager,
-    ),
->;
 
 #[cfg(test)]
 mod tests {
@@ -39,16 +36,23 @@ mod tests {
     }
 
     fn setup_test() -> (
-        StreamCollector<BroadcastClient, ConsensusMessage>,
-        futures::channel::mpsc::Sender<StreamMessage<ConsensusMessage>>,
-        futures::channel::mpsc::Receiver<StreamMessage<ConsensusMessage>>,
+        StreamCollector<ConsensusMessage>,
+        GenericReceiver<StreamMessage<ConsensusMessage>>, /* tx_input (transmitter inputting
+                                                           * into StreamCollector) */
+        mpsc::Receiver<mpsc::Receiver<StreamMessage<ConsensusMessage>>>, /* rx_output (receiver
+                                                                          * outputting from
+                                                                          * StreamCollector) */
     ) {
-        let (tx_input, rx_input) =
-            futures::channel::mpsc::channel::<StreamMessage<ConsensusMessage>>(100);
+        let (tx_input, rx_input) = mpsc::channel::<StreamMessage<ConsensusMessage>>(100);
+        let tx_input = Box::new(tx_input);
+        let rx_input = Box::new(rx_input);
+
         let (tx_output, rx_output) =
-            futures::channel::mpsc::channel::<StreamMessage<ConsensusMessage>>(100);
+            mpsc::channel::<mpsc::Receiver<StreamMessage<ConsensusMessage>>>(100);
         let config = StreamCollectorConfig::default();
-        let handler = StreamCollector::new(config, tx_output, rx_input);
+
+        let handler = StreamCollector::new(config, rx_input, tx_output);
+
         (handler, tx_input, rx_output)
     }
 

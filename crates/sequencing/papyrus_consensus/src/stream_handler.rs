@@ -2,8 +2,8 @@
 use std::collections::BTreeMap;
 
 use futures::channel::mpsc;
-use futures::StreamExt;
-use papyrus_network::network_manager::BroadcastClientTrait;
+use papyrus_network::network_manager::GenericReceiver;
+// use papyrus_network::network_manager::BroadcastedMessageManager;
 use papyrus_protobuf::consensus::StreamMessage;
 use papyrus_protobuf::converters::ProtobufConversionError;
 
@@ -47,14 +47,13 @@ struct StreamStats {
 }
 
 pub struct StreamCollector<
-    BroadcastClientT: BroadcastClientTrait<StreamMessage<T>>,
     T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
 > {
     /// Configuration for the StreamCollector (things like max buffer size, etc.).
     pub config: StreamCollectorConfig,
 
     /// A broadcast client (receiver) that gets messages from the network.
-    pub receiver: BroadcastClientT,
+    pub receiver: GenericReceiver<T>,
 
     /// A channel used to send receivers, one for each stream that was opened.
     /// Each channel will be closed once all messages for a stream are transmitted.
@@ -74,15 +73,13 @@ pub struct StreamCollector<
     // last_stream_id: StreamId,
 }
 
-impl<
-    BroadcastClientT: BroadcastClientTrait<StreamMessage<T>>,
-    T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
-> StreamCollector<BroadcastClientT, T>
+impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
+    StreamCollector<T>
 {
     /// Create a new StreamCollector.
     pub fn new(
         config: StreamCollectorConfig,
-        receiver: BroadcastClientT,
+        receiver: GenericReceiver<T>,
         sender: mpsc::Sender<mpsc::Receiver<StreamMessage<T>>>,
     ) -> Self {
         StreamCollector {
