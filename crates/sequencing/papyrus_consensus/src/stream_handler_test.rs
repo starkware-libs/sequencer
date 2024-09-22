@@ -1,6 +1,16 @@
+use futures::channel::mpsc::Sender;
+use futures::stream::Stream;
+use papyrus_network::network_manager::BroadcastedMessageManager;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, StreamMessage};
 
-use super::{StreamHandler, StreamHandlerConfig};
+use super::{MessageId, StreamCollector, StreamCollectorConfig, StreamId};
+
+type BroadcastClient = Stream<
+    Item = (
+        Result<ConsensusMessage, <ConsensusMessage as TryFrom<Vec<u8>>>::Error>,
+        BroadcastedMessageManager,
+    ),
+>;
 
 #[cfg(test)]
 mod tests {
@@ -9,8 +19,8 @@ mod tests {
     use super::*;
 
     fn make_random_message(
-        stream_id: u64,
-        message_id: u64,
+        stream_id: StreamId,
+        message_id: MessageId,
         fin: bool,
     ) -> StreamMessage<ConsensusMessage> {
         StreamMessage {
@@ -29,7 +39,7 @@ mod tests {
     }
 
     fn setup_test() -> (
-        StreamHandler<ConsensusMessage>,
+        StreamCollector<BroadcastClient, ConsensusMessage>,
         futures::channel::mpsc::Sender<StreamMessage<ConsensusMessage>>,
         futures::channel::mpsc::Receiver<StreamMessage<ConsensusMessage>>,
     ) {
@@ -37,8 +47,8 @@ mod tests {
             futures::channel::mpsc::channel::<StreamMessage<ConsensusMessage>>(100);
         let (tx_output, rx_output) =
             futures::channel::mpsc::channel::<StreamMessage<ConsensusMessage>>(100);
-        let config = StreamHandlerConfig::default();
-        let handler = StreamHandler::new(config, tx_output, rx_input);
+        let config = StreamCollectorConfig::default();
+        let handler = StreamCollector::new(config, tx_output, rx_input);
         (handler, tx_input, rx_output)
     }
 
