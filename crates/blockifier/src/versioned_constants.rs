@@ -94,6 +94,7 @@ pub struct VersionedConstants {
     // Limits.
     pub tx_event_limits: EventLimits,
     pub invoke_tx_max_n_steps: u32,
+    pub deprecated_l2_resource_gas_costs: DeprecatedL2ResourceGasCosts,
     pub archival_data_gas_costs: ArchivalDataGasCosts,
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
@@ -285,6 +286,18 @@ impl TryFrom<&Path> for VersionedConstants {
     fn try_from(path: &Path) -> Result<Self, Self::Error> {
         Ok(serde_json::from_reader(std::fs::File::open(path)?)?)
     }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct DeprecatedL2ResourceGasCosts {
+    // TODO(barak, 18/03/2024): Once we start charging per byte change to milligas_per_data_byte,
+    // divide the value by 32 in the JSON file.
+    pub gas_per_data_felt: ResourceCost,
+    pub event_key_factor: ResourceCost,
+    // TODO(avi, 15/04/2024): This constant was changed to 32 milligas in the JSON file, but the
+    // actual number we wanted is 1/32 gas per byte. Change the value to 1/32 in the next version
+    // where rational numbers are supported.
+    pub gas_per_code_byte: ResourceCost,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
