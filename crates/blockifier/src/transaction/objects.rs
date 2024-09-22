@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use num_rational::Ratio;
 use num_traits::Pow;
 use serde::Serialize;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -354,17 +355,31 @@ impl StarknetResources {
             // Cost in L2 gas.
             GasVectorComputationMode::All => {
                 let l2_archival_data_costs = [
-                    self.get_calldata_and_signature_cost(versioned_constants),
-                    self.get_code_cost(versioned_constants),
-                    self.get_events_cost(versioned_constants),
+                    self.get_calldata_and_signature_cost(
+                        versioned_constants.archival_data_gas_costs.gas_per_data_felt,
+                    ),
+                    self.get_code_cost(
+                        versioned_constants.archival_data_gas_costs.gas_per_code_byte,
+                    ),
+                    self.get_events_cost(
+                        versioned_constants.archival_data_gas_costs.event_key_factor,
+                        versioned_constants.archival_data_gas_costs.gas_per_data_felt,
+                    ),
                 ];
                 GasVector::from_l2_gas(l2_archival_data_costs.iter().sum())
             }
             GasVectorComputationMode::NoL2Gas => {
                 let l1_archival_data_costs = [
-                    self.get_calldata_and_signature_cost(versioned_constants),
-                    self.get_code_cost(versioned_constants),
-                    self.get_events_cost(versioned_constants),
+                    self.get_calldata_and_signature_cost(
+                        versioned_constants.deprecated_l2_resource_gas_costs.gas_per_data_felt,
+                    ),
+                    self.get_code_cost(
+                        versioned_constants.deprecated_l2_resource_gas_costs.gas_per_code_byte,
+                    ),
+                    self.get_events_cost(
+                        versioned_constants.deprecated_l2_resource_gas_costs.event_key_factor,
+                        versioned_constants.deprecated_l2_resource_gas_costs.gas_per_data_felt,
+                    ),
                 ];
                 GasVector::from_l1_gas(l1_archival_data_costs.iter().sum())
             }
@@ -374,14 +389,10 @@ impl StarknetResources {
     /// Returns the cost for transaction calldata and transaction signature. Each felt costs a
     /// fixed and configurable amount of gas. This cost represents the cost of storing the
     /// calldata and the signature on L2.  The result is given in L2 gas units.
-    pub fn get_calldata_and_signature_cost(
-        &self,
-        versioned_constants: &VersionedConstants,
-    ) -> u128 {
+    pub fn get_calldata_and_signature_cost(&self, gas_per_data_felt: Ratio<u128>) -> u128 {
         // TODO(Avi, 20/2/2024): Calculate the number of bytes instead of the number of felts.
         let total_data_size = u128_from_usize(self.calldata_length + self.signature_length);
-        (versioned_constants.archival_data_gas_costs.gas_per_data_felt * total_data_size)
-            .to_integer()
+        (gas_per_data_felt * total_data_size).to_integer()
     }
 
     /// Returns an estimation of the gas usage for processing L1<>L2 messages on L1. Accounts for
@@ -430,10 +441,8 @@ impl StarknetResources {
     }
 
     /// Returns the cost of declared class codes in L2 gas units.
-    pub fn get_code_cost(&self, versioned_constants: &VersionedConstants) -> u128 {
-        (versioned_constants.archival_data_gas_costs.gas_per_code_byte
-            * u128_from_usize(self.code_size))
-        .to_integer()
+    pub fn get_code_cost(&self, gas_per_code_byte: Ratio<u128>) -> u128 {
+        (gas_per_code_byte * u128_from_usize(self.code_size)).to_integer()
     }
 
     /// Returns the gas cost of the transaction's state changes.
@@ -443,10 +452,11 @@ impl StarknetResources {
     }
 
     /// Returns the cost of the transaction's emmited events in L2 gas units.
-    pub fn get_events_cost(&self, versioned_constants: &VersionedConstants) -> u128 {
-        let archival_data_gas_costs = &versioned_constants.archival_data_gas_costs;
-        let (event_key_factor, data_word_cost) =
-            (archival_data_gas_costs.event_key_factor, archival_data_gas_costs.gas_per_data_felt);
+    pub fn get_events_cost(
+        &self,
+        event_key_factor: Ratio<u128>,
+        data_word_cost: Ratio<u128>,
+    ) -> u128 {
         (data_word_cost * (event_key_factor * self.total_event_keys + self.total_event_data_size))
             .to_integer()
     }
