@@ -59,7 +59,7 @@ impl GetTestInstance for StreamMessage<ConsensusMessage> {
         Self {
             message: ConsensusMessage::Proposal(Proposal::default()),
             stream_id: rng.gen_range(0..100),
-            chunk_id: rng.gen_range(0..1000),
+            message_id: rng.gen_range(0..1000),
             fin: rng.gen_bool(0.5),
         }
     }

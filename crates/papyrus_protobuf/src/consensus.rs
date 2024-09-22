@@ -48,7 +48,7 @@ impl ConsensusMessage {
 pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
     pub message: T,
     pub stream_id: u64,
-    pub chunk_id: u64,
+    pub message_id: u64,
     pub fin: bool,
 }
 
