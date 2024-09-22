@@ -10,12 +10,10 @@ function clean() {
 
 function build() {
     echo "Building..."
-    pushd crates/native_blockifier
-    pypy3.9 -m venv venv
-    source venv/bin/activate
+    pypy3.9 -m venv /tmp/venv
+    source /tmp/venv/bin/activate
     cargo build --release -p native_blockifier --features "testing" || clean
     clean
-    popd
 }
 
 build
