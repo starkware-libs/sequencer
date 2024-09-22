@@ -1,7 +1,3 @@
-#[cfg(test)]
-#[path = "transaction_hash_test.rs"]
-mod transaction_hash_test;
-
 use lazy_static::lazy_static;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{calculate_contract_address, ChainId, ContractAddress};

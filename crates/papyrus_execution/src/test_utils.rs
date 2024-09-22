@@ -10,7 +10,6 @@ use papyrus_storage::compiled_class::CasmStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::{StorageReader, StorageWriter};
-use papyrus_test_utils::read_json_file;
 use serde::de::DeserializeOwned;
 use starknet_api::block::{
     BlockBody,
@@ -32,6 +31,7 @@ use starknet_api::core::{
 };
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{ContractClass, StateNumber, ThinStateDiff};
+use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::{
     Calldata,
     DeclareTransactionV0V1,

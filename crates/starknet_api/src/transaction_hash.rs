@@ -31,6 +31,10 @@ use crate::transaction::{
 };
 use crate::StarknetApiError;
 
+#[cfg(test)]
+#[path = "transaction_hash_test.rs"]
+mod transaction_hash_test;
+
 type ResourceName = [u8; 7];
 
 const DATA_AVAILABILITY_MODE_BITS: usize = 32;
