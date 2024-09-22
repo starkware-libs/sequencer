@@ -11,7 +11,7 @@ use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::test_utils::{
     block_context,
     create_account_tx_for_validate_test_nonce_0,
-    max_resource_bounds,
+    max_l1_resource_bounds,
     FaultyAccountTxCreatorArgs,
     INVALID,
     VALID,
@@ -33,7 +33,7 @@ fn test_transaction_validator(
     #[case] validate_constructor: bool,
     #[case] tx_version: TransactionVersion,
     block_context: BlockContext,
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     let chain_info = &block_context.chain_info;
@@ -54,7 +54,7 @@ fn test_transaction_validator(
         validate_constructor,
         // TODO(Arni, 1/5/2024): Add test for insufficient maximal resources.
         max_fee: Fee(BALANCE),
-        resource_bounds: max_resource_bounds,
+        resource_bounds: max_l1_resource_bounds,
         ..Default::default()
     };
 
@@ -75,7 +75,7 @@ fn test_transaction_validator(
 }
 
 #[rstest]
-fn test_transaction_validator_skip_validate(max_resource_bounds: ValidResourceBounds) {
+fn test_transaction_validator_skip_validate(max_l1_resource_bounds: ValidResourceBounds) {
     let block_context = BlockContext::create_for_testing();
     let faulty_account = FeatureContract::FaultyAccount(CairoVersion::Cairo1);
     let state = test_state(&block_context.chain_info, BALANCE, &[(faulty_account, 1)]);
@@ -87,7 +87,7 @@ fn test_transaction_validator_skip_validate(max_resource_bounds: ValidResourceBo
         tx_version: TransactionVersion::THREE,
         sender_address: faulty_account.get_instance_address(0),
         class_hash: faulty_account.get_class_hash(),
-        resource_bounds: max_resource_bounds,
+        resource_bounds: max_l1_resource_bounds,
         ..Default::default()
     });
 
