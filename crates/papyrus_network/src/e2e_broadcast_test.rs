@@ -7,9 +7,12 @@ use libp2p::{Multiaddr, Swarm};
 use libp2p_swarm_test::SwarmExt;
 use starknet_api::core::ChainId;
 
+use crate::discovery::DiscoveryConfig;
 use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour::MixedBehaviour;
 use crate::network_manager::GenericNetworkManager;
+use crate::peer_manager::peer::Peer;
+use crate::peer_manager::PeerManagerConfig;
 use crate::sqmr;
 use crate::sqmr::Bytes;
 
@@ -23,6 +26,8 @@ async fn create_swarm(bootstrap_peer_multiaddr: Option<Multiaddr>) -> Swarm<Mixe
             sqmr::Config::default(),
             ChainId::Mainnet,
             None,
+            DiscoveryConfig::default(),
+            PeerManagerConfig::default(),
         )
     });
     // Not using SwarmExt::listen because it panics if the swarm emits other events

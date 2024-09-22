@@ -610,6 +610,8 @@ impl NetworkManager {
             advertised_multiaddr,
             secret_key,
             chain_id,
+            discovery_config,
+            peer_manager_config,
         } = config;
 
         let listen_addresses = vec![
@@ -625,6 +627,8 @@ impl NetworkManager {
                 sqmr::Config { session_timeout },
                 chain_id,
                 node_version,
+                discovery_config,
+                peer_manager_config,
             )
         });
         let advertised_multiaddr = advertised_multiaddr.map(|address| {
