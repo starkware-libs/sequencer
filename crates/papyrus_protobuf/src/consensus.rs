@@ -1,4 +1,8 @@
 use futures::channel::{mpsc, oneshot};
+#[cfg(any(feature = "testing", test))]
+use papyrus_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
+#[cfg(any(feature = "testing", test))]
+use rand::Rng;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
@@ -101,6 +105,62 @@ pub enum ProposalPart {
     Transactions(TransactionBatch),
     /// The final part of the proposal, including the block hash.
     Fin(ProposalFin),
+}
+
+#[cfg(any(feature = "testing", test))]
+auto_impl_get_test_instance! {
+    pub enum ConsensusMessage {
+        Proposal(Proposal) = 0,
+        Vote(Vote) = 1,
+    }
+    pub struct Proposal {
+        pub height: u64,
+        pub round: u32,
+        pub proposer: ContractAddress,
+        pub transactions: Vec<Transaction>,
+        pub block_hash: BlockHash,
+    }
+    pub struct Vote {
+        pub vote_type: VoteType,
+        pub height: u64,
+        pub round: u32,
+        pub block_hash: Option<BlockHash>,
+        pub voter: ContractAddress,
+    }
+    pub enum VoteType {
+        Prevote = 0,
+        Precommit = 1,
+    }
+    pub struct ProposalInit {
+        pub height: u64,
+        pub round: u32,
+        pub valid_round: Option<u32>,
+        pub proposer: ContractAddress,
+    }
+    pub struct ProposalFin {
+        pub proposal_content_id: BlockHash,
+    }
+    pub struct TransactionBatch {
+        pub transactions: Vec<Transaction>,
+    }
+    pub enum ProposalPart {
+        Init(ProposalInit) = 0,
+        Fin(ProposalFin) = 1,
+        Transactions(TransactionBatch) = 2,
+    }
+
+}
+
+#[cfg(any(feature = "testing", test))]
+impl GetTestInstance for StreamMessage<ConsensusMessage> {
+    fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
+        Self {
+            message: ConsensusMessage::Proposal(Proposal::default()),
+            stream_id: rng.gen_range(0..100),
+            message_id: rng.gen_range(0..1000),
+            fin: rng.gen_bool(0.5),
+        }
+    }
 }
 
 // TODO(Guy): Remove after implementing broadcast streams.

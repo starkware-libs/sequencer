@@ -54,6 +54,7 @@ message TransactionBatch {
 }
 
 message ProposalFin {
+    // Identifies all of the content streamed in the proposal.
     Hash proposal_content_id = 1;
 }
 
