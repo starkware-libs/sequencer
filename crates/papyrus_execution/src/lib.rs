@@ -53,7 +53,6 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use execution_utils::{get_trace_constructor, induced_state_diff};
 use objects::{PriceUnit, TransactionSimulationOutput};
 use papyrus_common::transaction_hash::get_transaction_hash;
-use papyrus_common::TransactionOptions;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::header::HeaderStorageReader;
@@ -80,6 +79,7 @@ use starknet_api::transaction::{
     L1HandlerTransaction,
     Transaction,
     TransactionHash,
+    TransactionOptions,
     TransactionVersion,
 };
 use starknet_api::{contract_address, felt, patricia_key, StarknetApiError};

@@ -16,15 +16,6 @@ pub struct BlockHashAndNumber {
     pub block_number: BlockNumber,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
-pub struct TransactionOptions {
-    /// Transaction that shouldn't be broadcasted to StarkNet. For example, users that want to
-    /// test the execution result of a transaction without the risk of it being rebroadcasted (the
-    /// signature will be different while the execution remain the same). Using this flag will
-    /// modify the transaction version by setting the 128-th bit to 1.
-    pub only_query: bool,
-}
-
 pub(crate) fn usize_into_felt(u: usize) -> Felt {
     u128::try_from(u).expect("Expect at most 128 bits").into()
 }
