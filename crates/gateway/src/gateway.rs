@@ -130,12 +130,13 @@ fn process_tx(
     // TODO(Yael 31/7/24): refactor after IntrnalTransaction is ready, delete validate_info and
     // compute all the info outside of run_validate.
     let validate_info = stateful_tx_validator.run_validate(&executable_tx, validator)?;
+    let sender_address = executable_tx.contract_address();
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
     Ok(MempoolInput {
         tx: executable_tx,
         account: Account {
-            sender_address: validate_info.sender_address,
+            sender_address,
             state: AccountState { nonce: validate_info.account_nonce },
         },
     })
