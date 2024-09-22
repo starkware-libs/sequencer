@@ -24,7 +24,6 @@ use starknet_api::{deploy_account_tx_args, invoke_tx_args};
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_types_core::felt::Felt;
 
-use super::ValidateInfo;
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
 use crate::state_reader_test_utils::local_test_state_reader_factory;
@@ -66,7 +65,7 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
 #[rstest]
 #[case::valid_tx(
     create_executable_invoke_tx(CairoVersion::Cairo1),
-    Ok(ValidateInfo{account_nonce: Nonce::default()})
+    Ok(())
 )]
 #[case::invalid_tx(
     create_executable_invoke_tx(CairoVersion::Cairo1),
@@ -74,19 +73,21 @@ fn stateful_validator(block_context: BlockContext) -> StatefulTransactionValidat
 )]
 fn test_stateful_tx_validator(
     #[case] executable_tx: Transaction,
-    #[case] expected_result: BlockifierStatefulValidatorResult<ValidateInfo>,
+    #[case] expected_result: BlockifierStatefulValidatorResult<()>,
     stateful_validator: StatefulTransactionValidator,
 ) {
-    let expected_result_as_stateful_transaction_result =
-        expected_result.as_ref().map(|validate_info| *validate_info).map_err(|blockifier_error| {
-            GatewaySpecError::ValidationFailure { data: blockifier_error.to_string() }
+    let expected_result_as_stateful_transaction_result = expected_result
+        .as_ref()
+        .map(|validate_result| *validate_result)
+        .map_err(|blockifier_error| GatewaySpecError::ValidationFailure {
+            data: blockifier_error.to_string(),
         });
 
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator.expect_validate().return_once(|_, _| expected_result.map(|_| ()));
-    mock_validator.expect_get_nonce().returning(|_| Ok(Nonce(Felt::ZERO)));
 
-    let result = stateful_validator.run_validate(&executable_tx, mock_validator);
+    let account_nonce = Nonce(Felt::ZERO);
+    let result = stateful_validator.run_validate(&executable_tx, account_nonce, mock_validator);
     assert_eq!(result, expected_result_as_stateful_transaction_result);
 }
 
@@ -157,16 +158,10 @@ fn test_skip_stateful_validation(
     #[case] should_skip_validate: bool,
     stateful_validator: StatefulTransactionValidator,
 ) {
-    let sender_address = executable_tx.contract_address();
-
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator
-        .expect_get_nonce()
-        .withf(move |contract_address| *contract_address == sender_address)
-        .returning(move |_| Ok(sender_nonce));
     mock_validator
         .expect_validate()
         .withf(move |_, skip_validate| *skip_validate == should_skip_validate)
         .returning(|_, _| Ok(()));
-    let _ = stateful_validator.run_validate(&executable_tx, mock_validator);
+    let _ = stateful_validator.run_validate(&executable_tx, sender_nonce, mock_validator);
 }
