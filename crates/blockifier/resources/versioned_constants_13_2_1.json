@@ -9,6 +9,20 @@
         "max_contract_bytecode_size": 81920
     },
     "invoke_tx_max_n_steps": 10000000,
+    "deprecated_l2_resource_gas_costs": {
+        "gas_per_data_felt": [
+            128,
+            1000
+        ],
+        "event_key_factor": [
+            2,
+            1
+        ],
+        "gas_per_code_byte": [
+            875,
+            1000
+        ]
+    },
     "archival_data_gas_costs": {
         "gas_per_data_felt": [
             5120,
