@@ -12,8 +12,8 @@ use crate::blockifier::transaction_executor::{
 };
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
-use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::fee_checks::PostValidationReport;
+use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::CachedState;
 use crate::state::errors::StateError;
 use crate::state::state_api::StateReader;

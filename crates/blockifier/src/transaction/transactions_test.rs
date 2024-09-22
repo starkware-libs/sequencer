@@ -11,6 +11,7 @@ use rstest::{fixture, rstest};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce, PatriciaKey};
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
     Calldata,
     EventContent,
@@ -31,6 +32,7 @@ use starknet_api::{
     deploy_account_tx_args,
     felt,
     invoke_tx_args,
+    nonce,
     patricia_key,
 };
 use starknet_types_core::felt::Felt;
@@ -54,15 +56,15 @@ use crate::execution::call_info::{
 };
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
-use crate::execution::syscalls::hint_processor::{EmitEventError, L1_GAS, L2_GAS};
+use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::execution::syscalls::SyscallSelector;
-use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::fee_utils::balance_to_big_uint;
 use crate::fee::gas_usage::{
     estimate_minimal_gas_vector,
     get_da_gas_cost,
     get_onchain_data_segment_length,
 };
+use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::{CachedState, StateChangesCount, TransactionalState};
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader};
@@ -80,7 +82,6 @@ use crate::test_utils::{
     get_tx_resources,
     test_erc20_sequencer_balance_key,
     CairoVersion,
-    NonceManager,
     SaltManager,
     BALANCE,
     CURRENT_BLOCK_NUMBER,
@@ -133,7 +134,6 @@ use crate::versioned_constants::VersionedConstants;
 use crate::{
     check_transaction_execution_error_for_custom_hint,
     check_transaction_execution_error_for_invalid_scenario,
-    nonce,
     retdata,
 };
 
@@ -384,8 +384,8 @@ fn add_kzg_da_resources_to_resources_mapping(
         },
         validate_gas_consumed: 4740, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 159980,
-        inner_call_initial_gas: 9999635280,
+        execute_gas_consumed: 163280,
+        inner_call_initial_gas: 9999631980,
     },
     CairoVersion::Cairo1)]
 fn test_invoke_tx(
@@ -894,7 +894,7 @@ fn test_max_fee_exceeds_balance(
 
     // V3 invoke.
     let invalid_tx = account_invoke_tx(invoke_tx_args! {
-        resource_bounds: invalid_resource_bounds.clone(),
+        resource_bounds: invalid_resource_bounds,
         ..default_args
     });
     assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
@@ -1062,7 +1062,10 @@ fn test_actual_fee_gt_resource_bounds(
     let execution_result = invalid_tx.execute(state, block_context, true, true).unwrap();
     let execution_error = execution_result.revert_error.unwrap();
     // Test error.
-    assert!(execution_error.starts_with("Insufficient max L1 gas:"));
+    assert!(
+        execution_error
+            .starts_with(&format!("Insufficient max {resource}", resource = Resource::L1Gas))
+    );
     // Test that fee was charged.
     let minimal_fee = Fee(minimal_l1_gas
         * u128::from(
@@ -1225,7 +1228,7 @@ fn test_declare_tx(
             max_fee: Fee(MAX_FEE),
             sender_address,
             version: tx_version,
-            resource_bounds: max_resource_bounds.clone(),
+            resource_bounds: max_resource_bounds,
             class_hash,
             compiled_class_hash,
             nonce: nonce_manager.next(sender_address),
@@ -1358,7 +1361,7 @@ fn test_deploy_account_tx(
     let account_class_hash = account.get_class_hash();
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
     let deploy_account = deploy_account_tx(
-        deploy_account_tx_args! { resource_bounds: max_resource_bounds.clone(), class_hash: account_class_hash },
+        deploy_account_tx_args! { resource_bounds: max_resource_bounds, class_hash: account_class_hash },
         &mut nonce_manager,
     );
 
@@ -1816,13 +1819,13 @@ fn test_only_query_flag(
     ];
 
     let expected_resource_bounds = vec![
-        Felt::TWO,                // Length of ResourceBounds array.
-        felt!(L1_GAS),            // Resource.
-        felt!(MAX_L1_GAS_AMOUNT), // Max amount.
-        felt!(MAX_L1_GAS_PRICE),  // Max price per unit.
-        felt!(L2_GAS),            // Resource.
-        Felt::ZERO,               // Max amount.
-        Felt::ZERO,               // Max price per unit.
+        Felt::TWO,                       // Length of ResourceBounds array.
+        felt!(Resource::L1Gas.to_hex()), // Resource.
+        felt!(MAX_L1_GAS_AMOUNT),        // Max amount.
+        felt!(MAX_L1_GAS_PRICE),         // Max price per unit.
+        felt!(Resource::L2Gas.to_hex()), // Resource.
+        Felt::ZERO,                      // Max amount.
+        Felt::ZERO,                      // Max price per unit.
     ];
 
     let expected_unsupported_fields = vec![

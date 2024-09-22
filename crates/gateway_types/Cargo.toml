@@ -7,3 +7,16 @@ repository.workspace = true
 
 [lints]
 workspace = true
+
+[dependencies]
+async-trait.workspace = true
+axum.workspace = true
+enum-assoc.workspace = true
+mockall.workspace = true
+papyrus_rpc.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+starknet_api.workspace = true
+starknet_mempool_infra.workspace = true
+thiserror.workspace = true
+tracing.workspace = true

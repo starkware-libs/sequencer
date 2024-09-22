@@ -136,7 +136,15 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
 
         let l1_da_mode = enum_int_to_l1_data_availability_mode(value.l1_data_availability_mode)?;
 
-        let starknet_version = StarknetVersion(value.protocol_version);
+        let starknet_version = match StarknetVersion::try_from(value.protocol_version.to_owned()) {
+            Ok(version) => version,
+            Err(_) => {
+                return Err(ProtobufConversionError::OutOfRangeValue {
+                    type_description: "starknet version",
+                    value_as_str: value.protocol_version,
+                });
+            }
+        };
 
         let l1_gas_price = GasPricePerToken {
             price_in_fri: GasPrice(
@@ -175,6 +183,24 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
                     .into(),
             ),
         };
+        let l2_gas_price = GasPricePerToken {
+            price_in_fri: GasPrice(
+                value
+                    .l2_gas_price_fri
+                    .ok_or(ProtobufConversionError::MissingField {
+                        field_description: "SignedBlockHeader::l2_gas_price_fri",
+                    })?
+                    .into(),
+            ),
+            price_in_wei: GasPrice(
+                value
+                    .l2_gas_price_wei
+                    .ok_or(ProtobufConversionError::MissingField {
+                        field_description: "SignedBlockHeader::l2_gas_price_wei",
+                    })?
+                    .into(),
+            ),
+        };
 
         let receipt_commitment = value
             .receipts
@@ -198,6 +224,7 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
                 block_number: BlockNumber(value.number),
                 l1_gas_price,
                 l1_data_gas_price,
+                l2_gas_price,
                 state_root,
                 sequencer,
                 timestamp,
@@ -259,11 +286,13 @@ impl From<(BlockHeader, Vec<BlockSignature>)> for protobuf::SignedBlockHeader {
             receipts: header
                 .receipt_commitment
                 .map(|receipt_commitment| receipt_commitment.0.into()),
-            protocol_version: header.starknet_version.0,
+            protocol_version: header.starknet_version.to_string(),
             gas_price_wei: Some(header.l1_gas_price.price_in_wei.0.into()),
             gas_price_fri: Some(header.l1_gas_price.price_in_fri.0.into()),
             data_gas_price_wei: Some(header.l1_data_gas_price.price_in_wei.0.into()),
             data_gas_price_fri: Some(header.l1_data_gas_price.price_in_fri.0.into()),
+            l2_gas_price_wei: Some(header.l2_gas_price.price_in_wei.0.into()),
+            l2_gas_price_fri: Some(header.l2_gas_price.price_in_fri.0.into()),
             l1_data_availability_mode: l1_data_availability_mode_to_enum_int(header.l1_da_mode),
             signatures: signatures.iter().map(|signature| (*signature).into()).collect(),
         }

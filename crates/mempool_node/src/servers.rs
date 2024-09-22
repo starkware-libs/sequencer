@@ -8,6 +8,7 @@ use starknet_consensus_manager::communication::{
     LocalConsensusManagerServer,
 };
 use starknet_gateway::communication::{create_gateway_server, GatewayServer};
+use starknet_http_server::communication::{create_http_server, HttpServer};
 use starknet_mempool::communication::{create_mempool_server, MempoolServer};
 use starknet_mempool_infra::component_server::ComponentServerStarter;
 use tracing::error;
@@ -20,6 +21,7 @@ pub struct Servers {
     pub batcher: Option<Box<LocalBatcherServer>>,
     pub consensus_manager: Option<Box<LocalConsensusManagerServer>>,
     pub gateway: Option<Box<GatewayServer>>,
+    pub http_server: Option<Box<HttpServer>>,
     pub mempool: Option<Box<MempoolServer>>,
 }
 
@@ -47,11 +49,18 @@ pub fn create_servers(
     let gateway_server = if config.components.gateway.execute {
         Some(Box::new(create_gateway_server(
             components.gateway.expect("Gateway is not initialized."),
+            communication.take_gateway_rx(),
         )))
     } else {
         None
     };
-
+    let http_server = if config.components.http_server.execute {
+        Some(Box::new(create_http_server(
+            components.http_server.expect("Http Server is not initialized."),
+        )))
+    } else {
+        None
+    };
     let mempool_server = if config.components.mempool.execute {
         Some(Box::new(create_mempool_server(
             components.mempool.expect("Mempool is not initialized."),
@@ -65,6 +74,7 @@ pub fn create_servers(
         batcher: batcher_server,
         consensus_manager: consensus_manager_server,
         gateway: gateway_server,
+        http_server,
         mempool: mempool_server,
     }
 }
@@ -88,6 +98,10 @@ pub async fn run_component_servers(
     let gateway_future =
         get_server_future("Gateway", config.components.gateway.execute, servers.gateway);
 
+    // HttpServer server.
+    let http_server_future =
+        get_server_future("HttpServer", config.components.http_server.execute, servers.http_server);
+
     // Mempool server.
     let mempool_future =
         get_server_future("Mempool", config.components.mempool.execute, servers.mempool);
@@ -96,6 +110,7 @@ pub async fn run_component_servers(
     let batcher_handle = tokio::spawn(batcher_future);
     let consensus_manager_handle = tokio::spawn(consensus_manager_future);
     let gateway_handle = tokio::spawn(gateway_future);
+    let http_server_handle = tokio::spawn(http_server_future);
     let mempool_handle = tokio::spawn(mempool_future);
 
     tokio::select! {
@@ -109,6 +124,10 @@ pub async fn run_component_servers(
         }
         res = gateway_handle => {
             error!("Gateway Server stopped.");
+            res?
+        }
+        res = http_server_handle => {
+            error!("Http Server stopped.");
             res?
         }
         res = mempool_handle => {

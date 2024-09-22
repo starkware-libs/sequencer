@@ -141,7 +141,7 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<
 }
 
 // Can't use auto_impl_into_and_try_from_vec_u8!(StreamMessage, protobuf::StreamMessage);
-// because it doesn't seem to work with generics
+// because it doesn't seem to work with generics.
 // TODO(guyn): consider expanding the macro to support generics
 impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<StreamMessage<T>>
     for Vec<u8>

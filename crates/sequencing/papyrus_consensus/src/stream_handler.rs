@@ -23,14 +23,14 @@ type MessageId = u64;
 
 #[derive(Default)]
 struct StreamStats {
-    // the next message_id that is expected
+    // The next message_id that is expected.
     next_message_id: MessageId,
-    // the message_id of the message that is marked as "fin" (the last message)
+    // The message_id of the message that is marked as "fin" (the last message),
     // if None, it means we have not yet gotten to it.
     fin_message_id: Option<MessageId>,
-    // the highest message_id that was received
+    // The highest message_id that was received.
     max_message_id: MessageId,
-    // the number of messages that are currently buffered
+    // The number of messages that are currently buffered.
     num_buffered: u64,
 }
 
@@ -46,7 +46,7 @@ pub struct StreamHandler<
     /// An end of a channel used to receive messages.
     pub receiver: mpsc::Receiver<StreamMessage<T>>,
 
-    // some statistics about each stream
+    // Some statistics about each stream.
     stats_per_stream: BTreeMap<StreamId, StreamStats>,
 
     /// A separate message buffer for each stream_id. For each stream_id there's a nested BTreeMap.

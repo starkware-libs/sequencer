@@ -172,8 +172,8 @@ async fn starknet_version() {
         reader.begin_ro_txn().unwrap().get_starknet_version(BlockNumber(1)).unwrap();
     assert!(non_existing_block_starknet_version.is_none());
 
-    let second_version = StarknetVersion("second_version".to_string());
-    let yet_another_version = StarknetVersion("yet_another_version".to_string());
+    let second_version = StarknetVersion(vec![2]);
+    let yet_another_version = StarknetVersion(vec![3]);
 
     writer
         .begin_rw_txn()

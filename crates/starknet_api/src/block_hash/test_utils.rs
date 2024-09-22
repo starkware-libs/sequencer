@@ -24,7 +24,7 @@ pub(crate) fn get_transaction_output() -> TransactionOutputForHash {
         messages_sent: vec![generate_message_to_l1(34), generate_message_to_l1(56)],
         events: vec![],
         execution_status,
-        gas_consumed: GasVector { l1_gas: 16580, l1_data_gas: 32 },
+        gas_consumed: GasVector { l1_gas: 16580, l2_gas: 0, l1_data_gas: 32 },
     }
 }
 

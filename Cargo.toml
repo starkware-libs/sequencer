@@ -13,10 +13,12 @@ members = [
   "crates/gateway",
   "crates/gateway_types",
   "crates/http_server",
+  "crates/l1-provider",
   "crates/mempool",
   "crates/mempool_infra",
   "crates/mempool_node",
   "crates/mempool_p2p",
+  "crates/mempool_p2p_types",
   "crates/mempool_test_utils",
   "crates/mempool_types",
   "crates/native_blockifier",
@@ -57,6 +59,14 @@ license-file = "LICENSE"
 [workspace.dependencies]
 # fixating the version of parity-scale-codec and parity-scale-codec-derive due to an error in udeps.
 # TODO: Remove this once udeps is fixed.
+alloy-contract = "0.3.5"
+alloy-dyn-abi = "0.8.3"
+alloy-json-rpc = "0.3.5"
+alloy-primitives = "0.8.3"
+alloy-provider = "0.3.5"
+alloy-sol-types = "0.8.3"
+alloy-transport = "0.3.5"
+alloy-transport-http = "0.3.5"
 anyhow = "1.0.44"
 ark-ec = "0.4.2"
 ark-ff = "0.4.0-alpha.7"
@@ -174,6 +184,7 @@ reqwest = "0.11"
 rstest = "0.17.0"
 rustc-hex = "2.1.0"
 schemars = "0.8.12"
+semver = "1.0.23"
 serde = "1.0.197"
 serde_json = "1.0.116"
 serde_repr = "0.1.19"
@@ -192,9 +203,13 @@ starknet_committer = { path = "crates/starknet_committer", version = "0.0.0" }
 starknet_consensus_manager = { path = "crates/consensus_manager", version = "0.0.0" }
 starknet_consensus_manager_types = { path = "crates/consensus_manager_types", version = "0.0.0" }
 starknet_gateway = { path = "crates/gateway", version = "0.0.0" }
+starknet_gateway_types = { path = "crates/gateway_types", version = "0.0.0" }
+starknet_http_server = { path = "crates/http_server", version = "0.0.0" }
 starknet_mempool = { path = "crates/mempool", version = "0.0.0" }
 starknet_mempool_infra = { path = "crates/mempool_infra", version = "0.0.0" }
 starknet_mempool_node = { path = "crates/mempool_node", version = "0.0.0" }
+starknet_mempool_p2p = { path = "crates/mempool_p2p", version = "0.0.0" }
+starknet_mempool_p2p_types = { path = "crates/mempool_p2p_types", version = "0.0.0" }
 starknet_mempool_types = { path = "crates/mempool_types", version = "0.0.0" }
 starknet_patricia = { path = "crates/starknet_patricia", version = "0.0.0" }
 starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.0.0" }

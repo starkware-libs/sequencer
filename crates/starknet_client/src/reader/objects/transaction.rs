@@ -717,6 +717,7 @@ impl From<ExecutionResources> for starknet_api::execution_resources::ExecutionRe
                     // It's hardcoded that this field is 0 for pre-v0.13.2 blocks (this field is
                     // only used in calculating the receipt hash)
                     l1_gas: 0,
+                    l2_gas: 0,
                     l1_data_gas: da_gas_consumed.l1_data_gas,
                 },
             },

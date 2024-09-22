@@ -7,7 +7,7 @@ use std::rc::Rc;
 use std::sync::OnceLock;
 
 use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::{create_trivial_calldata, CairoVersion, NonceManager};
+use blockifier::test_utils::{create_trivial_calldata, CairoVersion};
 use serde_json::to_string_pretty;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -19,6 +19,7 @@ use starknet_api::rpc_transaction::{
     RpcInvokeTransactionV3,
     RpcTransaction,
 };
+use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -47,7 +48,7 @@ use crate::{
 
 pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
-pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 203484;
+pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 500000;
 pub const VALID_L2_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 pub const VALID_L1_DATA_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
@@ -132,6 +133,10 @@ pub fn test_resource_bounds_mapping() -> AllResourceBounds {
     )
 }
 
+pub fn test_valid_resource_bounds() -> ValidResourceBounds {
+    ValidResourceBounds::AllResources(test_resource_bounds_mapping())
+}
+
 /// Get the contract class used for testing.
 pub fn contract_class() -> ContractClass {
     env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Couldn't set working dir.");
@@ -173,6 +178,14 @@ pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
     MultiAccountTransactionGenerator::new_for_account_contracts([default_account])
         .account_with_id(0)
         .generate_default_invoke()
+}
+
+pub fn executable_invoke_tx(cairo_version: CairoVersion) -> Transaction {
+    let default_account = FeatureContract::AccountWithoutValidations(cairo_version);
+
+    MultiAccountTransactionGenerator::new_for_account_contracts([default_account])
+        .account_with_id(0)
+        .generate_default_executable_invoke()
 }
 
 //  TODO(Yael 18/6/2024): Get a final decision from product whether to support Cairo0.
@@ -281,6 +294,17 @@ impl AccountTransactionGenerator {
             calldata: create_trivial_calldata(self.test_contract_address()),
         );
         rpc_invoke_tx(invoke_args)
+    }
+
+    pub fn generate_default_executable_invoke(&mut self) -> Transaction {
+        let invoke_args = starknet_api::invoke_tx_args!(
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            nonce: self.next_nonce(),
+            calldata: create_trivial_calldata(self.test_contract_address()),
+        );
+
+        Transaction::Invoke(starknet_api::test_utils::invoke::executable_invoke_tx(invoke_args))
     }
 
     pub fn generate_default_deploy_account(&mut self) -> RpcTransaction {

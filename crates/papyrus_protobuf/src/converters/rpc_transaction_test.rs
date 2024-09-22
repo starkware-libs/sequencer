@@ -17,7 +17,7 @@ use crate::mempool::RpcTransactionWrapper;
 fn convert_declare_transaction_v3_to_vec_u8_and_back() {
     let mut rng = get_rng();
     let mut rpc_transaction = RpcDeclareTransactionV3::get_test_instance(&mut rng);
-    rpc_transaction.resource_bounds = RESOURCE_BOUNDS_MAPPING.clone();
+    rpc_transaction.resource_bounds = *RESOURCE_BOUNDS_MAPPING;
     let rpc_transaction = RpcTransaction::Declare(RpcDeclareTransaction::V3(rpc_transaction));
 
     assert_transaction_to_vec_u8_and_back(rpc_transaction);
@@ -28,7 +28,7 @@ fn convert_invoke_transaction_v3_to_vec_u8_and_back() {
     let mut rng = get_rng();
     let mut rpc_transaction = RpcInvokeTransactionV3::get_test_instance(&mut rng);
 
-    rpc_transaction.resource_bounds = RESOURCE_BOUNDS_MAPPING.clone();
+    rpc_transaction.resource_bounds = *RESOURCE_BOUNDS_MAPPING;
     let rpc_transaction = RpcTransaction::Invoke(RpcInvokeTransaction::V3(rpc_transaction));
 
     assert_transaction_to_vec_u8_and_back(rpc_transaction);
@@ -38,7 +38,7 @@ fn convert_invoke_transaction_v3_to_vec_u8_and_back() {
 fn convert_deploy_account_transaction_v3_to_vec_u8_and_back() {
     let mut rng = get_rng();
     let mut rpc_transaction = RpcDeployAccountTransactionV3::get_test_instance(&mut rng);
-    rpc_transaction.resource_bounds = RESOURCE_BOUNDS_MAPPING.clone();
+    rpc_transaction.resource_bounds = *RESOURCE_BOUNDS_MAPPING;
     let rpc_transaction =
         RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(rpc_transaction));
 

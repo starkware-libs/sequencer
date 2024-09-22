@@ -354,7 +354,7 @@ impl TryFrom<(CallInfo, GasVector)> for FunctionInvocation {
 // Can't implement `TryFrom` because both types are from external crates.
 fn vm_resources_to_execution_resources(
     vm_resources: VmExecutionResources,
-    GasVector { l1_gas, l1_data_gas, .. }: GasVector,
+    GasVector { l1_gas, l1_data_gas, l2_gas }: GasVector,
 ) -> ExecutionResult<ExecutionResources> {
     let mut builtin_instance_counter = HashMap::new();
     for (builtin_name, count) in vm_resources.builtin_instance_counter {
@@ -389,6 +389,7 @@ fn vm_resources_to_execution_resources(
         memory_holes: vm_resources.n_memory_holes as u64,
         da_gas_consumed: StarknetApiGasVector {
             l1_gas: l1_gas.try_into().map_err(|_| ExecutionError::GasConsumedOutOfRange)?,
+            l2_gas: l2_gas.try_into().map_err(|_| ExecutionError::GasConsumedOutOfRange)?,
             l1_data_gas: l1_data_gas
                 .try_into()
                 .map_err(|_| ExecutionError::GasConsumedOutOfRange)?,

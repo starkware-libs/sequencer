@@ -25,7 +25,6 @@ use crate::abi::constants as abi_constants;
 use crate::blockifier::block::BlockInfo;
 use crate::context::TransactionContext;
 use crate::execution::call_info::{CallInfo, ExecutionSummary, MessageL1CostInfo, OrderedEvent};
-use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::eth_gas_constants;
 use crate::fee::fee_utils::{get_fee_by_gas_vector, get_vm_resources_cost};
 use crate::fee::gas_usage::{
@@ -34,6 +33,7 @@ use crate::fee::gas_usage::{
     get_log_message_to_l1_emissions_cost,
     get_onchain_data_segment_length,
 };
+use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::StateChangesCount;
 use crate::transaction::constants;
 use crate::transaction::errors::{

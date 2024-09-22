@@ -9,7 +9,7 @@
         "max_contract_bytecode_size": 81920
     },
     "invoke_tx_max_n_steps": 4000000,
-    "l2_resource_gas_costs": {
+    "archival_data_gas_costs": {
         "gas_per_data_felt": [
             5120,
             1
@@ -25,6 +25,8 @@
     },
     "max_recursion_depth": 50,
     "segment_arena_cells": true,
+    "disable_cairo0_redeclaration": false,
+    "enable_reverts": false, 
     "os_constants": {
         "nop_entry_point_offset": -1,
         "entry_point_type_external": 0,
@@ -553,6 +555,7 @@
         }
     },
     "validate_max_n_steps": 1000000,
+    "min_compiler_version_for_sierra_gas": "2.8.0",
     "vm_resource_fee_cost": {
         "add_mod_builtin": [
             0,

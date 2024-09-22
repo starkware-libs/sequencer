@@ -154,7 +154,8 @@ async fn test_get_compiled_contract_class() {
     let mut server = run_rpc_server().await;
     let config = RpcStateReaderConfig { url: server.url(), ..Default::default() };
 
-    let expected_result = CasmContractClass::default();
+    let expected_result =
+        CasmContractClass { compiler_version: "0.0.0".to_string(), ..Default::default() };
 
     let mock = mock_rpc_interaction(
         &mut server,
@@ -165,7 +166,8 @@ async fn test_get_compiled_contract_class() {
             class_hash: class_hash!("0x1"),
         },
         &RpcResponse::Success(RpcSuccessResponse {
-            result: serde_json::to_value(CompiledContractClass::V1(expected_result)).unwrap(),
+            result: serde_json::to_value(CompiledContractClass::V1(expected_result.clone()))
+                .unwrap(),
             ..Default::default()
         }),
     );
@@ -176,7 +178,7 @@ async fn test_get_compiled_contract_class() {
             .await
             .unwrap()
             .unwrap();
-    assert_eq!(result, ContractClass::V1(CasmContractClass::default().try_into().unwrap()));
+    assert_eq!(result, ContractClass::V1(expected_result.try_into().unwrap()));
     mock.assert_async().await;
 }
 

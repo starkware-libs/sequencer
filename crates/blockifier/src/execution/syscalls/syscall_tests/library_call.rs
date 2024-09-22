@@ -82,7 +82,7 @@ fn test_library_call_assert_fails(test_contract: FeatureContract) {
     assert!(err.to_string().contains("x != y"));
 }
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 472710; "VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 478110; "VM")]
 fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
@@ -113,7 +113,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: 9999601320,
+        initial_gas: 9999597720,
         ..trivial_external_entry_point_new(test_contract)
     };
     let library_entry_point = CallEntryPoint {
@@ -128,17 +128,17 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: 9999751700,
+        initial_gas: 9999749900,
         ..trivial_external_entry_point_new(test_contract)
     };
     let storage_entry_point = CallEntryPoint {
         calldata: calldata![felt!(key), felt!(value)],
-        initial_gas: 9999451180,
+        initial_gas: 9999445780,
         ..nested_storage_entry_point
     };
 
     let storage_entry_point_resources = ExecutionResources {
-        n_steps: 249,
+        n_steps: 247,
         n_memory_holes: 0,
         builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 7)]),
     };
@@ -157,7 +157,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
 
     let library_call_resources = &get_syscall_resources(SyscallSelector::LibraryCall)
         + &ExecutionResources {
-            n_steps: 394,
+            n_steps: 392,
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 15)]),
         };
@@ -188,7 +188,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
 
     let main_call_resources = &(&get_syscall_resources(SyscallSelector::LibraryCall) * 3)
         + &ExecutionResources {
-            n_steps: 761,
+            n_steps: 757,
             n_memory_holes: 2,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 27)]),
         };

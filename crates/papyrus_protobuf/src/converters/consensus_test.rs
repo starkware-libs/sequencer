@@ -69,7 +69,7 @@ impl GetTestInstance for StreamMessage<ConsensusMessage> {
 fn convert_stream_message_to_vec_u8_and_back() {
     let mut rng = get_rng();
 
-    // test that we can convert a StreamMessage with a ConsensusMessage message to bytes and back
+    // Test that we can convert a StreamMessage with a ConsensusMessage message to bytes and back.
     let stream_message: StreamMessage<ConsensusMessage> =
         StreamMessage::get_test_instance(&mut rng);
 
@@ -82,7 +82,7 @@ fn convert_stream_message_to_vec_u8_and_back() {
 fn convert_consensus_message_to_vec_u8_and_back() {
     let mut rng = get_rng();
 
-    // test that we can convert a ConsensusMessage  to bytes and back
+    // Test that we can convert a ConsensusMessage to bytes and back.
     let message = ConsensusMessage::get_test_instance(&mut rng);
 
     let bytes_data: Vec<u8> = message.clone().into();

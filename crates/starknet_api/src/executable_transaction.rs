@@ -58,6 +58,10 @@ impl Transaction {
         }
     }
 
+    pub fn sender_address(&self) -> ContractAddress {
+        self.contract_address()
+    }
+
     pub fn nonce(&self) -> Nonce {
         match self {
             Transaction::Declare(tx_data) => tx_data.tx.nonce(),
@@ -123,9 +127,7 @@ impl Transaction {
                     sender_address,
                     tip: *rpc_tx.tip(),
                     nonce: *rpc_tx.nonce(),
-                    resource_bounds: ValidResourceBounds::AllResources(
-                        rpc_tx.resource_bounds().clone(),
-                    ),
+                    resource_bounds: ValidResourceBounds::AllResources(*rpc_tx.resource_bounds()),
                     signature: TransactionSignature::default(),
                     calldata: Calldata::default(),
                     nonce_data_availability_mode: DataAvailabilityMode::L1,
