@@ -86,6 +86,20 @@ jobs:
       - name: Run Machete (detect unused dependencies)
         uses: bnjbvr/cargo-machete@main
 
+  cargo-modules:
+    runs-on: starkware-ubuntu-20-04-medium
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/install_rust
+        with:
+          components: cargo-modules
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v0-rust-ubuntu-20.04"
+        run: |
+          python3 -m venv ci
+          ci/bin/pip install -r scripts/requirements.txt
+          ci/bin/python scripts/run_orphan_test.py
 
   run-workspace-tests:
     runs-on: starkware-ubuntu-latest-small
