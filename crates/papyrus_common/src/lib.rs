@@ -8,7 +8,6 @@ pub mod metrics;
 pub mod pending_classes;
 pub mod state;
 pub mod storage_query;
-pub mod transaction_hash;
 
 #[derive(Copy, Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct BlockHashAndNumber {
