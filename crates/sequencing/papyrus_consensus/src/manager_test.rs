@@ -1,3 +1,4 @@
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use std::vec;
 
@@ -320,5 +321,74 @@ async fn test_timeouts() {
     send(&mut sender, precommit(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_2)).await;
     send(&mut sender, precommit(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_3)).await;
 
+    manager_handle.await.unwrap();
+}
+
+#[tokio::test]
+async fn test_valid_proposal() {
+    let (mut sender, mut broadcast_client) = create_test_broadcast_client_channels();
+    // Got prevote quroum.
+    send(&mut sender, proposal(Felt::ONE, 1, 0, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(Felt::ONE), 1, 0, *VALIDATOR_ID_2)).await;
+    send(&mut sender, prevote(Some(Felt::ONE), 1, 0, *VALIDATOR_ID_3)).await;
+    // Advnce to next round.
+    send(&mut sender, precommit(None, 1, 0, *VALIDATOR_ID_2)).await;
+    send(&mut sender, precommit(None, 1, 0, *VALIDATOR_ID_3)).await;
+    send(&mut sender, precommit(None, 1, 0, *VALIDATOR_ID)).await;
+    // Got precommit quorum.
+    send(&mut sender, precommit(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_2)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_3)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), 1, 1, *VALIDATOR_ID)).await;
+
+    let mut context = MockTestContext::new();
+    context
+        .expect_validators()
+        .returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2, *VALIDATOR_ID_3]);
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+
+    context.expect_build_proposal().times(1).returning(move |_| {
+        let (_, content_receiver) = mpsc::channel(1);
+        let (block_sender, block_receiver) = oneshot::channel();
+        block_sender.send(BlockHash(Felt::ONE)).unwrap();
+        (content_receiver, block_receiver)
+    });
+
+    let fin_receiver = Arc::new(OnceLock::new());
+    let fin_receiver_clone = Arc::clone(&fin_receiver);
+    context.expect_propose().times(2).returning(move |init, _, fin_receiver| {
+        // Ignore content receiver, since this is the context's responsibility.
+        assert_eq!(init.height, BlockNumber(1));
+        assert_eq!(init.proposer, *PROPOSER_ID);
+        // Only set the OnceLock if it hasn't been set yet.
+        if fin_receiver_clone.get().is_none() {
+            fin_receiver_clone.set(fin_receiver).unwrap();
+        }
+        Ok(())
+    });
+
+    context
+        .expect_broadcast()
+        .times(1)
+        .withf(move |msg: &ConsensusMessage| msg == &prevote(Some(Felt::ONE), 1, 0, *PROPOSER_ID))
+        .returning(move |_| Ok(()));
+    context
+        .expect_broadcast()
+        .times(1)
+        .withf(move |msg: &ConsensusMessage| msg == &precommit(Some(Felt::ONE), 1, 0, *PROPOSER_ID))
+        .returning(move |_| Ok(()));
+
+    // locked_value is set, so we can use previous proposal.
+    context.expect_get_proposal().returning(move |_, _| {
+        let (_content_sender, content_receiver) = mpsc::channel(1);
+        content_receiver
+    });
+    context.expect_broadcast().returning(move |_| Ok(()));
+
+    let mut manager = MultiHeightManager::new(*PROPOSER_ID, TIMEOUTS.clone());
+    let manager_handle = tokio::spawn(async move {
+        let decision =
+            manager.run_height(&mut context, BlockNumber(1), &mut broadcast_client).await.unwrap();
+        assert_eq!(decision.block, BlockHash(Felt::ONE));
+    });
     manager_handle.await.unwrap();
 }
