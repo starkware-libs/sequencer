@@ -47,7 +47,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
@@ -66,7 +65,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
@@ -103,7 +101,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
@@ -120,42 +117,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
       - uses: Noelware/setup-protoc@1.1.0
 
       - run: |
           cargo test -p papyrus_node --no-default-features
         env:
           SEED: 0
-
-  codecov:
-    runs-on: starkware-ubuntu-latest-medium
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - name: Set-Up
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang llvm libudev-dev
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
-
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-      - uses: Swatinem/rust-cache@v2
-      - run: npm install -g ganache
-      - name: Coverage
-        run: cargo llvm-cov --codecov -r --output-path codecov.json
-        env:
-          SEED: 0
-      - name: Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          verbose: true
-          fail_ci_if_error: true
-          version: "v0.1.15"
 
   check-starknet_api-dependency:
     runs-on: starkware-ubuntu-latest-small
@@ -197,7 +164,6 @@ jobs:
             target_directory:
               - 'crates/papyrus_storage/src/db/**'
       - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
       # repeat this job 32 times. this is a random test for part of the code that may cause a corrupted database.
       - run: for run in {1..32}; do cargo test -r -p papyrus_storage -- --include-ignored common_prefix_compare_with_simple_table_random; done
         if: steps.changes.outputs.target_directory == 'true'

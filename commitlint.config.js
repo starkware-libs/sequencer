@@ -33,6 +33,8 @@ const Configuration = {
             'execution',
             'fee',
             'gateway',
+            'helm',
+            'infra',
             'JSON-RPC',
             'l1-provider',
             'load_test',
