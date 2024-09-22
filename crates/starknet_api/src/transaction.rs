@@ -98,6 +98,15 @@ impl Transaction {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
+pub struct TransactionOptions {
+    /// Transaction that shouldn't be broadcasted to StarkNet. For example, users that want to
+    /// test the execution result of a transaction without the risk of it being rebroadcasted (the
+    /// signature will be different while the execution remain the same). Using this flag will
+    /// modify the transaction version by setting the 128-th bit to 1.
+    pub only_query: bool,
+}
+
 /// A transaction output.
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub enum TransactionOutput {
@@ -756,6 +765,22 @@ impl TransactionVersion {
 
     /// [TransactionVersion] constant that's equal to 3.
     pub const THREE: Self = { Self(Felt::THREE) };
+}
+
+// Returns the transaction version taking into account the transaction options.
+pub fn get_tx_version(
+    tx: &Transaction,
+    transaction_options: &TransactionOptions,
+) -> TransactionVersion {
+    let mut version = tx.version();
+
+    // If only_query is true, set the 128-th bit.
+    if transaction_options.only_query {
+        let query_only_bit: Felt = Felt::from_hex_unchecked("0x100000000000000000000000000000000");
+        let fe: Felt = version.0;
+        version = TransactionVersion(fe + query_only_bit);
+    }
+    version
 }
 
 /// The calldata of a transaction.
