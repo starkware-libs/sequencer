@@ -11,9 +11,10 @@ use libp2p::{identify, kad, Multiaddr, Swarm};
 use libp2p_swarm_test::SwarmExt;
 use starknet_api::core::ChainId;
 
-use super::Behaviour;
+use super::{Behaviour, DiscoveryConfig};
 use crate::mixed_behaviour;
 use crate::mixed_behaviour::{BridgedBehaviour, MixedBehaviour};
+use crate::peer_manager::PeerManagerConfig;
 use crate::utils::StreamHashMap;
 
 #[derive(NetworkBehaviour)]
@@ -31,6 +32,8 @@ impl DiscoveryMixedBehaviour {
             Default::default(),
             ChainId::Mainnet,
             None,
+            DiscoveryConfig::default(),
+            PeerManagerConfig::default(),
         );
         Self {
             identify: mixed_behaviour.identify,

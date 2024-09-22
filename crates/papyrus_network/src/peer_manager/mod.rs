@@ -7,6 +7,7 @@ use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::ToSwarm;
 use libp2p::PeerId;
 use peer::Peer;
+use serde::{Deserialize, Serialize};
 use tracing::info;
 
 pub use self::behaviour_impl::ToOtherBehaviourEvent;
@@ -41,7 +42,7 @@ pub struct PeerManager {
     sleep_waiting_for_unblocked_peer: Option<BoxFuture<'static, ()>>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct PeerManagerConfig {
     malicious_timeout: Duration,
     unstable_timeout: Duration,
