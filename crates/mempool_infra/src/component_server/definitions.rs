@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use tokio::sync::mpsc::Receiver;
 use tracing::{error, info};
 
+use crate::bounds::ComponentBounds;
 use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
 use crate::component_runner::ComponentStarter;
 
@@ -30,7 +31,7 @@ pub async fn request_response_loop<Request, Response, Component>(
     rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     component: &mut Component,
 ) where
-    Component: ComponentRequestHandler<Request, Response> + Send + Sync,
+    Component: ComponentBounds<Request, Response>,
     Request: Send + Sync,
     Response: Send + Sync,
 {

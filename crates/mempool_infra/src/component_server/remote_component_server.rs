@@ -6,27 +6,11 @@ use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server, StatusCode};
-use serde::de::DeserializeOwned;
-use serde::Serialize;
 
 use super::definitions::ComponentServerStarter;
+use crate::bounds::{RequestBounds, ResponseBounds};
 use crate::component_client::LocalComponentClient;
 use crate::component_definitions::{ServerError, APPLICATION_OCTET_STREAM};
-
-pub trait ComponentTraitBounds<Request, Response>:
-    ComponentRequestHandler<Request, Response> + Send + 'static
-{
-}
-impl<T, Request, Response> ComponentTraitBounds<Request, Response> for T where
-    T: ComponentRequestHandler<Request, Response> + Send + 'static
-{
-}
-
-pub trait RequestTraitBounds: DeserializeOwned + Send + Sync + 'static {}
-impl<T> RequestTraitBounds for T where T: DeserializeOwned + Send + Sync + 'static {}
-
-pub trait ResponseTraitBounds: Serialize + Send + Sync + 'static {}
-impl<T> ResponseTraitBounds for T where T: Serialize + Send + Sync + 'static {}
 
 /// The `RemoteComponentServer` struct is a generic server that handles requests and responses for a
 /// specified component. It receives requests, processes them using the provided component, and
@@ -114,8 +98,8 @@ impl<T> ResponseTraitBounds for T where T: Serialize + Send + Sync + 'static {}
 /// ```
 pub struct RemoteComponentServer<Request, Response>
 where
-    Request: DeserializeOwned + Send + Sync + 'static,
-    Response: Serialize + Send + Sync + 'static,
+    Request: RequestBounds,
+    Response: ResponseBounds,
 {
     socket: SocketAddr,
     local_client: LocalComponentClient<Request, Response>,
@@ -123,8 +107,8 @@ where
 
 impl<Request, Response> RemoteComponentServer<Request, Response>
 where
-    Request: DeserializeOwned + Send + Sync + 'static,
-    Response: Serialize + Send + Sync + 'static,
+    Request: RequestBounds,
+    Response: ResponseBounds,
 {
     pub fn new(
         local_client: LocalComponentClient<Request, Response>,
@@ -165,8 +149,8 @@ where
 #[async_trait]
 impl<Request, Response> ComponentServerStarter for RemoteComponentServer<Request, Response>
 where
-Request: DeserializeOwned + Send + Sync + 'static,
-    Response: Serialize + Send + Sync + 'static,s in remote server
+    Request: RequestBounds,
+    Response: ResponseBounds,
 {
     async fn start(&mut self) {
         let make_svc = make_service_fn(|_conn| {

@@ -22,6 +22,7 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Request, Response, Server, StatusCode, Uri};
 use rstest::rstest;
 use serde::Serialize;
+use starknet_mempool_infra::bounds::ResponseBounds;
 use starknet_mempool_infra::component_client::{
     ClientError,
     ClientResult,
@@ -138,7 +139,7 @@ fn assert_error_contains_keywords(error: String, expected_error_contained_keywor
 
 async fn create_client_and_faulty_server<T>(port: u16, body: T) -> ComponentAClient
 where
-    T: Serialize + Send + Sync + 'static + Clone,
+    T: ResponseBounds + Clone,
 {
     task::spawn(async move {
         async fn handler<T: Serialize>(
