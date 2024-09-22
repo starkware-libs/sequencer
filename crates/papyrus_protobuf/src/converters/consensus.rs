@@ -119,7 +119,7 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
         Ok(Self {
             message: T::try_from(value.message)?,
             stream_id: value.stream_id,
-            chunk_id: value.chunk_id,
+            message_id: value.message_id,
             fin: value.fin,
         })
     }
@@ -132,7 +132,7 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<
         Self {
             message: value.message.into(),
             stream_id: value.stream_id,
-            chunk_id: value.chunk_id,
+            message_id: value.message_id,
             fin: value.fin,
         }
     }
