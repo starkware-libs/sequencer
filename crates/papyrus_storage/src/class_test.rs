@@ -1,12 +1,12 @@
 use assert_matches::assert_matches;
 use indexmap::indexmap;
-use papyrus_test_utils::read_json_file;
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{ContractClass, StateNumber, ThinStateDiff};
+use starknet_api::test_utils::read_json_file;
 
 use super::{ClassStorageReader, ClassStorageWriter};
 use crate::state::{StateStorageReader, StateStorageWriter};
