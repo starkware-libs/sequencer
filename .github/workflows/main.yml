@@ -89,18 +89,57 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
+<<<<<<< HEAD
       - uses: Swatinem/rust-cache@v2
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
       - run: cargo doc --workspace -r --document-private-items --no-deps
+||||||| 9e02307ff
+        with:
+          components: rustfmt, clippy
+
+      # Run tests.
+      - name: "Run rustfmt and clippy"
+        run: scripts/rust_fmt.sh --check
+      - name: "Run clippy"
+        run: scripts/clippy.sh
+      - name: "Run cargo doc"
+        run: cargo doc --workspace -r --document-private-items --no-deps
+      - name: "Run taplo"
+        run: scripts/taplo.sh
+      - name: "Run cargo check"
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+        run: cargo check --workspace -r --all-features
+      - name: Run Machete (detect unused dependencies)
+        uses: bnjbvr/cargo-machete@main
+
+=======
+
+      # Run tests.
+      - name: "Run rustfmt and clippy"
+        run: scripts/rust_fmt.sh --check
+      - name: "Run clippy"
+        run: scripts/clippy.sh
+      - name: "Run cargo doc"
+        run: cargo doc --workspace -r --document-private-items --no-deps
+      - name: "Run taplo"
+        run: scripts/taplo.sh
+      - name: "Run cargo check"
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+        run: cargo check --workspace -r --all-features
+      - name: Run Machete (detect unused dependencies)
+        uses: bnjbvr/cargo-machete@main
+
+>>>>>>> origin/main-v0.13.2
 
   run-workspace-tests:
     runs-on: starkware-ubuntu-latest-small
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
       - run: cargo test -p workspace_tests
 
   run-tests:
@@ -112,9 +151,6 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/install_rust
       - uses: Noelware/setup-protoc@1.1.0
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust-ubuntu-20.04"
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
@@ -222,9 +258,6 @@ jobs:
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust-ubuntu-20.04"
       - run: npm install -g ganache@7.4.3
 
       # Setup pypy and link to the location expected by .cargo/config.toml.

@@ -38,7 +38,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
 
       - run: mkdir data
 
@@ -58,7 +57,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
       - run: npm install -g ganache@7.4.3
 
       - run: brew install protobuf@$PROTOC_VERSION
@@ -74,7 +72,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
       - run: cargo build -r -p papyrus_load_test
 
   integration-test:
@@ -83,7 +80,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
       - run: >
           cargo test -r
           --test latency_histogram
@@ -99,5 +95,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
       - run: for run in {1..100}; do cargo test -r -p papyrus_storage -- --include-ignored common_prefix_compare_with_simple_table_random; done
