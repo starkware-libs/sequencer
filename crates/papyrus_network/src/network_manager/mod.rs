@@ -843,6 +843,12 @@ pub struct BroadcastedMessageManager {
     peer_id: PeerId,
 }
 
+impl BroadcastedMessageManager {
+    pub fn peer_id(&self) -> &PeerId {
+        &self.peer_id
+    }
+}
+
 pub type BroadcastTopicReceiver<T> =
     Map<Receiver<(Bytes, BroadcastedMessageManager)>, BroadcastReceivedMessagesConverterFn<T>>;
 
