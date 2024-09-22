@@ -38,7 +38,6 @@ use papyrus_test_utils::{
     auto_impl_get_test_instance,
     get_number_of_variants,
     get_rng,
-    read_json_file,
     GetTestInstance,
 };
 use pretty_assertions::assert_eq;
@@ -69,6 +68,7 @@ use starknet_api::deprecated_contract_class::{
 };
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{StorageKey, ThinStateDiff as StarknetApiStateDiff};
+use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::{
     Calldata,
     Fee,
