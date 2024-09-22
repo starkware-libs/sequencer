@@ -62,11 +62,16 @@ impl MempoolCommunicationWrapper {
 
     async fn add_tx(&mut self, mempool_wrapper_input: MempoolWrapperInput) -> MempoolResult<()> {
         let result = self.mempool.add_tx(mempool_wrapper_input.mempool_input.clone());
-        self.send_tx_to_p2p(
-            mempool_wrapper_input.message_metadata,
-            mempool_wrapper_input.mempool_input.tx,
-        )
-        .await;
+        match mempool_wrapper_input.mempool_input.tx {
+            Transaction::Declare(_) => {}
+            _ => {
+                self.send_tx_to_p2p(
+                    mempool_wrapper_input.message_metadata,
+                    mempool_wrapper_input.mempool_input.tx,
+                )
+                .await;
+            }
+        }
         result
     }
 
