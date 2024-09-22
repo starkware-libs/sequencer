@@ -94,6 +94,7 @@ pub struct VersionedConstants {
     // Limits.
     pub tx_event_limits: EventLimits,
     pub invoke_tx_max_n_steps: u32,
+    pub deprecated_l2_resource_gas_costs: ArchivalDataGasCosts,
     pub archival_data_gas_costs: ArchivalDataGasCosts,
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
