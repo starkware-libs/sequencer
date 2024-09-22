@@ -8,6 +8,7 @@ use starknet_api::core::{calculate_contract_address, ChainId, ContractAddress};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::{
+    get_tx_version,
     DeclareTransaction,
     DeclareTransactionV0V1,
     DeclareTransactionV2,
@@ -23,14 +24,13 @@ use starknet_api::transaction::{
     L1HandlerTransaction,
     Transaction,
     TransactionHash,
+    TransactionOptions,
     TransactionVersion,
 };
 use starknet_api::transaction_hash::get_tip_resource_bounds_hash;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, Poseidon, StarkHash as CoreStarkHash};
-
-use crate::TransactionOptions;
 
 const DATA_AVAILABILITY_MODE_BITS: usize = 32;
 
@@ -625,26 +625,4 @@ fn get_deploy_account_transaction_v3_hash(
             .chain(&transaction.contract_address_salt.0)
             .get_poseidon_hash(),
     ))
-}
-
-// Returns the transaction version taking into account the transaction options.
-fn get_tx_version(
-    tx: &Transaction,
-    transaction_options: &TransactionOptions,
-) -> TransactionVersion {
-    let mut version = match tx {
-        Transaction::Declare(tx) => tx.version(),
-        Transaction::Deploy(tx) => tx.version,
-        Transaction::DeployAccount(tx) => tx.version(),
-        Transaction::Invoke(tx) => tx.version(),
-        Transaction::L1Handler(tx) => tx.version,
-    };
-
-    // If only_query is true, set the 128-th bit.
-    if transaction_options.only_query {
-        let query_only_bit: Felt = Felt::from_hex_unchecked("0x100000000000000000000000000000000");
-        let fe: Felt = version.0;
-        version = TransactionVersion(fe + query_only_bit);
-    }
-    version
 }
