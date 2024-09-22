@@ -376,3 +376,98 @@ async fn rebroadcast_votes() {
         Ok(ShcReturn::Tasks(vec![precommit_task(Some(BLOCK.id.0), 0),]))
     );
 }
+
+#[tokio::test]
+async fn repropose() {
+    let mut context = MockTestContext::new();
+
+    let mut shc = SingleHeightConsensus::new(
+        BlockNumber(0),
+        *PROPOSER_ID,
+        VALIDATORS.to_vec(),
+        TIMEOUTS.clone(),
+    );
+
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_build_proposal().times(1).returning(move |_| {
+        let (_, content_receiver) = mpsc::channel(1);
+        let (block_sender, block_receiver) = oneshot::channel();
+        block_sender.send(BLOCK.id).unwrap();
+        (content_receiver, block_receiver)
+    });
+    let fin_receiver = Arc::new(OnceLock::new());
+    let fin_receiver_clone = Arc::clone(&fin_receiver);
+    context.expect_propose().times(2).returning(move |init, _, fin_receiver| {
+        // Ignore content receiver, since this is the context's responsibility.
+        assert_eq!(init.height, BlockNumber(0));
+        assert_eq!(init.proposer, *PROPOSER_ID);
+        // Only set the OnceLock if it hasn't been set yet.
+        if fin_receiver_clone.get().is_none() {
+            fin_receiver_clone.set(fin_receiver).unwrap();
+        }
+        Ok(())
+    });
+    context
+        .expect_broadcast()
+        .times(1)
+        .withf(move |msg: &ConsensusMessage| msg == &prevote(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID))
+        .returning(move |_| Ok(()));
+    // Sends proposal and prevote.
+    shc.start(&mut context).await.unwrap();
+    shc.handle_message(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1))
+        .await
+        .unwrap();
+    context
+        .expect_broadcast()
+        .times(1)
+        .withf(move |msg: &ConsensusMessage| {
+            msg == &precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID)
+        })
+        .returning(move |_| Ok(()));
+    // The Node got a Prevote quorum, and set valid proposal.
+    assert_eq!(
+        shc.handle_message(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).await,
+        Ok(ShcReturn::Tasks(vec![timeout_prevote_task(0), precommit_task(Some(BLOCK.id.0), 0),]))
+    );
+    // Advance to the next round.
+    let precommits = vec![
+        precommit(None, 0, 0, *VALIDATOR_ID_1),
+        precommit(None, 0, 0, *VALIDATOR_ID_2),
+        precommit(None, 0, 0, *VALIDATOR_ID_3),
+    ];
+    shc.handle_message(&mut context, precommits[0].clone()).await.unwrap();
+    shc.handle_message(&mut context, precommits[1].clone()).await.unwrap();
+    // After NIL precommits, the proposer should re-propose.
+    context.expect_get_proposal().returning(move |height, id| {
+        assert!(height == BlockNumber(0));
+        assert_eq!(id, BLOCK.id);
+        let (_content_sender, content_receiver) = mpsc::channel(1);
+        content_receiver
+    });
+    context
+        .expect_broadcast()
+        .times(1)
+        .withf(move |msg: &ConsensusMessage| msg == &prevote(Some(BLOCK.id.0), 0, 1, *PROPOSER_ID))
+        .returning(move |_| Ok(()));
+    shc.handle_message(&mut context, precommits[2].clone()).await.unwrap();
+
+    let precommits = vec![
+        precommit(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_1),
+        precommit(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_2),
+        precommit(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_3),
+    ];
+    shc.handle_message(&mut context, precommits[0].clone()).await.unwrap();
+    shc.handle_message(&mut context, precommits[1].clone()).await.unwrap();
+    let ShcReturn::Decision(decision) =
+        shc.handle_message(&mut context, precommits[2].clone()).await.unwrap()
+    else {
+        panic!("Expected decision");
+    };
+    assert_eq!(decision.block, BLOCK.id);
+    assert!(
+        decision
+            .precommits
+            .into_iter()
+            .all(|item| precommits.contains(&ConsensusMessage::Vote(item)))
+    );
+}
