@@ -6,7 +6,8 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
+use starknet_mempool_infra::component_runner::ComponentStarter;
+use starknet_mempool_infra::errors::ComponentError;
 use starknet_mempool_types::communication::{MempoolWrapperInput, SharedMempoolClient};
 use starknet_mempool_types::mempool_types::{AccountState, MempoolInput};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
@@ -153,7 +154,7 @@ pub fn create_gateway(
 
 #[async_trait]
 impl ComponentStarter for Gateway {
-    async fn start(&mut self) -> Result<(), ComponentStartError> {
+    async fn start(&mut self) -> Result<(), ComponentError> {
         info!("Gateway::start()");
         Ok(())
     }

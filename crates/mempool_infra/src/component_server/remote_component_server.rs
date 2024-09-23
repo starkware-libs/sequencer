@@ -13,6 +13,7 @@ use serde::Serialize;
 use super::definitions::ComponentServerStarter;
 use crate::component_client::{ClientError, LocalComponentClient};
 use crate::component_definitions::{ServerError, APPLICATION_OCTET_STREAM};
+use crate::errors::ComponentServerError;
 use crate::serde_utils::BincodeSerdeWrapper;
 
 /// The `RemoteComponentServer` struct is a generic server that handles requests and responses for a
@@ -40,7 +41,8 @@ use crate::serde_utils::BincodeSerdeWrapper;
 /// // Example usage of the RemoteComponentServer
 /// use async_trait::async_trait;
 /// use serde::{Deserialize, Serialize};
-/// use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
+/// use starknet_mempool_infra::component_runner::ComponentStarter;
+/// use starknet_mempool_infra::errors::ComponentError;
 /// use tokio::task;
 ///
 /// use crate::starknet_mempool_infra::component_client::LocalComponentClient;
@@ -55,7 +57,7 @@ use crate::serde_utils::BincodeSerdeWrapper;
 ///
 /// #[async_trait]
 /// impl ComponentStarter for MyComponent {
-///     async fn start(&mut self) -> Result<(), ComponentStartError> {
+///     async fn start(&mut self) -> Result<(), ComponentError> {
 ///         Ok(())
 ///     }
 /// }
@@ -162,7 +164,7 @@ where
     Request: Serialize + DeserializeOwned + Send + Sync + Debug + 'static,
     Response: Serialize + DeserializeOwned + Send + Sync + Debug + 'static,
 {
-    async fn start(&mut self) {
+    async fn start(&mut self) -> Result<(), ComponentServerError> {
         let make_svc = make_service_fn(|_conn| {
             let local_client = self.local_client.clone();
             async {
@@ -172,6 +174,10 @@ where
             }
         });
 
-        Server::bind(&self.socket.clone()).serve(make_svc).await.unwrap();
+        Server::bind(&self.socket.clone())
+            .serve(make_svc)
+            .await
+            .map_err(|err| ComponentServerError::HttpServerStartError(err.to_string()))?;
+        Ok(())
     }
 }

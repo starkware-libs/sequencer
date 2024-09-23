@@ -196,18 +196,18 @@ async fn setup_for_tests(setup_value: ValueB, a_port: u16, b_port: u16) {
         RemoteComponentServer::new(b_local_client, LOCAL_IP, b_port);
 
     task::spawn(async move {
-        component_a_local_server.start().await;
+        let _ = component_a_local_server.start().await;
     });
     task::spawn(async move {
-        component_b_local_server.start().await;
-    });
-
-    task::spawn(async move {
-        component_a_remote_server.start().await;
+        let _ = component_b_local_server.start().await;
     });
 
     task::spawn(async move {
-        component_b_remote_server.start().await;
+        let _ = component_a_remote_server.start().await;
+    });
+
+    task::spawn(async move {
+        let _ = component_b_remote_server.start().await;
     });
 
     // Todo(uriel): Get rid of this
