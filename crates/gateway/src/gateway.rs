@@ -1,17 +1,17 @@
 use std::clone::Clone;
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_infra::component_runner::ComponentStarter;
 use starknet_mempool_infra::errors::ComponentError;
+use starknet_mempool_infra::starters::DefaultComponentStarter;
 use starknet_mempool_types::communication::{MempoolWrapperInput, SharedMempoolClient};
 use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
-use tracing::{error, info, instrument};
+use tracing::{error, instrument};
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{GatewayConfig, RpcStateReaderConfig};
@@ -155,10 +155,4 @@ pub fn create_gateway(
     Gateway::new(config, state_reader_factory, gateway_compiler, mempool_client)
 }
 
-#[async_trait]
-impl ComponentStarter for Gateway {
-    async fn start(&mut self) -> Result<(), ComponentError> {
-        info!("Gateway::start()");
-        Ok(())
-    }
-}
+impl DefaultComponentStarter for Gateway {}
