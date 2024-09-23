@@ -385,7 +385,7 @@ fn add_kzg_da_resources_to_resources_mapping(
         validate_gas_consumed: 4740, // The gas consumption results from parsing the input
             // arguments.
         execute_gas_consumed: 163280,
-        inner_call_initial_gas: 9999631980,
+        inner_call_initial_gas: 9999205189,
     },
     CairoVersion::Cairo1)]
 fn test_invoke_tx(
