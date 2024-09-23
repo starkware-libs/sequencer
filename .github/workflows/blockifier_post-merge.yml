@@ -15,7 +15,7 @@ jobs:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
+      - uses: ./.github/actions/bootstrap
       - uses: Noelware/setup-protoc@1.1.0
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
