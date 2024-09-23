@@ -314,6 +314,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
 // TODO(Aner, 21/01/24) modify for 4844 (taking blob_gas into account).
 // TODO(Nimrod, 1/5/2024): Test regression w.r.t. all resources (including VM). (Only starknet
 // resources are taken into account).
+// ASK_IN_PR: Should the above TODO be deleted?
 #[rstest]
 fn test_calculate_tx_gas_usage(
     max_resource_bounds: ValidResourceBounds,
