@@ -8,17 +8,17 @@ use blockifier::state::cached_state::CachedState;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::versioned_constants::{StarknetVersion, VersionedConstants};
-use starknet_api::block::BlockNumber;
+use serde_json::to_value;
+use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_gateway::config::RpcStateReaderConfig;
 use starknet_gateway::errors::serde_err_to_state_err;
-use starknet_gateway::rpc_objects::GetBlockWithTxHashesParams;
+use starknet_gateway::rpc_objects::{BlockHeader, GetBlockWithTxHashesParams, ResourcePrice};
 use starknet_gateway::rpc_state_reader::RpcStateReader;
-use starknet_gateway::state_reader::MempoolStateReader;
 use starknet_types_core::felt::Felt;
 
-use crate::utils::{get_chain_info, get_rpc_state_reader_config};
+use crate::state_reader::utils::{get_chain_info, get_rpc_state_reader_config};
 
 pub struct TestStateReader(RpcStateReader);
 
@@ -57,8 +57,31 @@ impl TestStateReader {
         TestStateReader::new(&get_rpc_state_reader_config(), block_number)
     }
 
+    /// Get the block info of the current block.
+    /// If l2_gas_price is not present in the block header, it will be set to 1.
     pub fn get_block_info(&self) -> StateResult<BlockInfo> {
-        self.0.get_block_info()
+        let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
+        let default_l2_price =
+            ResourcePrice { price_in_wei: GasPrice(1), price_in_fri: GasPrice(1) };
+
+        let mut json =
+            self.0.send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)?;
+
+        let block_header_map = json.as_object_mut().ok_or(StateError::StateReadError(
+            "starknet_getBlockWithTxHashes should return JSON value of type Object".to_string(),
+        ))?;
+
+        if block_header_map.get("l2_gas_price").is_none() {
+            // In old blocks, the l2_gas_price field is not present.
+            block_header_map.insert(
+                "l2_gas_price".to_string(),
+                to_value(default_l2_price).map_err(serde_err_to_state_err)?,
+            );
+        }
+
+        Ok(serde_json::from_value::<BlockHeader>(json)
+            .map_err(serde_err_to_state_err)?
+            .try_into()?)
     }
 
     pub fn get_starknet_version(&self) -> StateResult<StarknetVersion> {
