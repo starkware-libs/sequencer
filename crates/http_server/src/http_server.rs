@@ -1,7 +1,6 @@
 use std::clone::Clone;
 use std::net::SocketAddr;
 
-use async_trait::async_trait;
 use axum::extract::State;
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -11,8 +10,7 @@ use starknet_gateway::errors::GatewayRunError;
 use starknet_gateway_types::communication::SharedGatewayClient;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_gateway_types::gateway_types::GatewayInput;
-use starknet_mempool_infra::component_runner::ComponentStarter;
-use starknet_mempool_infra::errors::ComponentError;
+use starknet_mempool_infra::starters::DefaultComponentStarter;
 use tracing::{error, info, instrument};
 
 use crate::config::HttpServerConfig;
@@ -95,10 +93,4 @@ pub fn create_http_server(
     HttpServer::new(config, gateway_client)
 }
 
-#[async_trait]
-impl ComponentStarter for HttpServer {
-    async fn start(&mut self) -> Result<(), ComponentError> {
-        info!("HttpServer::start()");
-        self.run().await.map_err(|_| ComponentError::InternalComponentError)
-    }
-}
+impl DefaultComponentStarter for HttpServer {}
