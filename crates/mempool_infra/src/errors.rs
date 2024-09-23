@@ -6,12 +6,14 @@ pub enum ComponentError {
     ComponentConfigError,
     #[error("An internal component error.")]
     InternalComponentError,
+    #[error("Component has already been started.")]
+    AlreadyStarted,
 }
 
 #[derive(Error, Debug, PartialEq, Clone)]
 pub enum ComponentServerError {
     #[error("Server has already been started.")]
-    ServerAlreadyStarted,
+    AlreadyStarted,
     #[error("Http server has failed: {0}.")]
     HttpServerStartError(String),
     #[error(transparent)]
