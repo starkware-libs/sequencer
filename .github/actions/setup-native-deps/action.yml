@@ -11,8 +11,7 @@ runs:
   steps:
     - name: Make scripts executable
       shell: bash
-      run: chmod +x ./scripts/install_native_deps.sh
-      run: chmod +x ./scripts/set_native_env_vars.sh
+      run: chmod +x ./scripts/install_native_deps.sh ./scripts/set_native_env_vars.sh
 
     - name: Install Cairo Native Runtime Dependencies
       id: set-runtime-deps
