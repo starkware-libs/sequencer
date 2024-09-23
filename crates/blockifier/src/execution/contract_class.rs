@@ -6,13 +6,8 @@ use cairo_lang_casm;
 use cairo_lang_casm::hints::Hint;
 use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use cairo_lang_starknet_classes::NestedIntList;
-#[allow(unused_imports)]
-use cairo_native::executor::AotNativeExecutor;
 use cairo_vm::serde::deserialize_program::{
-    ApTracking,
-    FlowTrackingData,
-    HintParams,
-    ReferenceManager,
+    ApTracking, FlowTrackingData, HintParams, ReferenceManager,
 };
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::errors::program_errors::ProgramError;
@@ -25,10 +20,7 @@ use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
-    ContractClass as DeprecatedContractClass,
-    EntryPoint,
-    EntryPointOffset,
-    EntryPointType,
+    ContractClass as DeprecatedContractClass, EntryPoint, EntryPointOffset, EntryPointType,
     Program as DeprecatedProgram,
 };
 use starknet_types_core::felt::Felt;
@@ -156,7 +148,7 @@ impl ContractClassV0 {
             + self.n_builtins()
             + self.bytecode_length()
             + 1; // Hinted class hash.
-        // The hashed data size is approximately the number of hashes (invoked in hash chains).
+                 // The hashed data size is approximately the number of hashes (invoked in hash chains).
         let n_steps = constants::N_STEPS_PER_PEDERSEN * hashed_data_size;
 
         ExecutionResources {
