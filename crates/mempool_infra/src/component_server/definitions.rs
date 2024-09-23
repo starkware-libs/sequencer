@@ -12,20 +12,6 @@ pub trait ComponentServerStarter: Send + Sync {
     async fn start(&mut self);
 }
 
-pub async fn start_component<Component>(component: &mut Component) -> bool
-where
-    Component: ComponentStarter + Sync + Send,
-{
-    info!("ComponentServer of type {} is starting", type_name::<Component>());
-    if let Err(err) = component.start().await {
-        error!("ComponentServer::start() failed: {:?}", err);
-        return false;
-    }
-
-    info!("ComponentServer::start() completed.");
-    true
-}
-
 pub async fn request_response_loop<Request, Response, Component>(
     rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     component: &mut Component,

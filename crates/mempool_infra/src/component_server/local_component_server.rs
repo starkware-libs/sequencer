@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use tokio::sync::mpsc::Receiver;
 use tracing::error;
 
-use super::definitions::{request_response_loop, start_component, ComponentServerStarter};
+use super::definitions::{request_response_loop, ComponentServerStarter};
 use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
 use crate::component_runner::ComponentStarter;
 
@@ -121,11 +121,9 @@ where
     Response: Send + Sync,
 {
     async fn start(&mut self) {
-        // TODO(Tsabary/Lev): Find a better mechanism than the if condition to determine what to
-        // run.
-        if start_component(&mut self.component).await {
-            request_response_loop(&mut self.rx, &mut self.component).await;
-        }
+        // TODO(Tsabary/Lev): return an error if component.start() fails.
+        let _ = self.component.start().await;
+        request_response_loop(&mut self.rx, &mut self.component).await;
     }
 }
 
