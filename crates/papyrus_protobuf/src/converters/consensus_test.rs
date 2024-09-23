@@ -34,6 +34,7 @@ auto_impl_get_test_instance! {
         pub proposer: ContractAddress,
         pub transactions: Vec<Transaction>,
         pub block_hash: BlockHash,
+        pub valid_round: Option<u32>,
     }
 }
 
@@ -59,7 +60,7 @@ impl GetTestInstance for StreamMessage<ConsensusMessage> {
         Self {
             message: ConsensusMessage::Proposal(Proposal::default()),
             stream_id: rng.gen_range(0..100),
-            chunk_id: rng.gen_range(0..1000),
+            message_id: rng.gen_range(0..1000),
             fin: rng.gen_bool(0.5),
         }
     }

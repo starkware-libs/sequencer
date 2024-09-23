@@ -2,16 +2,16 @@ name: Papyrus-CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
-      - '.github/workflows/papyrus_ci.yml'
-      - 'Dockerfile'
-      - 'papyrus_utilities.Dockerfile'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'crates/papyrus**/**'
-      - 'crates/sequencing/**'
-      - 'crates/starknet_client/**'
+      - ".github/workflows/papyrus_ci.yml"
+      - "Dockerfile"
+      - "papyrus_utilities.Dockerfile"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/papyrus**/**"
+      - "crates/sequencing/**"
+      - "crates/starknet_client/**"
 
   pull_request:
     types:
@@ -21,17 +21,17 @@ on:
       - auto_merge_enabled
       - edited # for when the PR title is edited
     paths:
-      - '.github/workflows/papyrus_ci.yml'
-      - 'Dockerfile'
-      - 'papyrus_utilities.Dockerfile'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'crates/papyrus**/**'
-      - 'crates/sequencing/**'
-      - 'crates/starknet_client/**'
+      - ".github/workflows/papyrus_ci.yml"
+      - "Dockerfile"
+      - "papyrus_utilities.Dockerfile"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/papyrus**/**"
+      - "crates/sequencing/**"
+      - "crates/starknet_client/**"
 
   merge_group:
-    types: [ checks_requested ]
+    types: [checks_requested]
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
@@ -112,7 +112,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
@@ -132,7 +131,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
       - uses: Noelware/setup-protoc@1.1.0
       - name: Set up Native Dependencies
         uses: ./.github/actions/setup-native-deps
@@ -142,37 +140,6 @@ jobs:
           cargo test -p papyrus_node --no-default-features
         env:
           SEED: 0
-
-  codecov:
-    runs-on: starkware-ubuntu-latest-medium
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - name: Set-Up
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang llvm libudev-dev
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
-      - name: Set up Native Dependencies
-        uses: ./.github/actions/setup-native-deps
-        id: native-deps
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-      - uses: Swatinem/rust-cache@v2
-      - run: npm install -g ganache
-      - name: Coverage
-        run: cargo llvm-cov --codecov -r --output-path codecov.json
-        env:
-          SEED: 0
-      - name: Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          verbose: true
-          fail_ci_if_error: true
-          version: "v0.1.15"
 
   check-starknet_api-dependency:
     runs-on: starkware-ubuntu-latest-small

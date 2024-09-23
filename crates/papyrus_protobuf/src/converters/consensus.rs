@@ -33,8 +33,9 @@ impl TryFrom<protobuf::Proposal> for Proposal {
             .ok_or(ProtobufConversionError::MissingField { field_description: "block_hash" })?
             .try_into()?;
         let block_hash = BlockHash(block_hash);
+        let valid_round = value.valid_round;
 
-        Ok(Proposal { height, round, proposer, transactions, block_hash })
+        Ok(Proposal { height, round, proposer, transactions, block_hash, valid_round })
     }
 }
 
@@ -48,6 +49,7 @@ impl From<Proposal> for protobuf::Proposal {
             proposer: Some(value.proposer.into()),
             transactions,
             block_hash: Some(value.block_hash.0.into()),
+            valid_round: value.valid_round,
         }
     }
 }
@@ -121,7 +123,7 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
         Ok(Self {
             message: T::try_from(value.message)?,
             stream_id: value.stream_id,
-            chunk_id: value.chunk_id,
+            message_id: value.message_id,
             fin: value.fin,
         })
     }
@@ -134,7 +136,7 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<
         Self {
             message: value.message.into(),
             stream_id: value.stream_id,
-            chunk_id: value.chunk_id,
+            message_id: value.message_id,
             fin: value.fin,
         }
     }

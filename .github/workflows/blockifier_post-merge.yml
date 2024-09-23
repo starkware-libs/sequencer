@@ -17,9 +17,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install_rust
       - uses: Noelware/setup-protoc@1.1.0
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust-ubuntu-20.04"
 
       - name: Set up Native Dependencies
         uses: ./.github/actions/setup-native-deps

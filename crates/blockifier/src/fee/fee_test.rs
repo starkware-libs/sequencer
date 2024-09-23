@@ -10,9 +10,9 @@ use starknet_api::transaction::{Fee, Resource, ValidResourceBounds};
 use crate::abi::constants::N_STEPS_RESOURCE;
 use crate::blockifier::block::GasPrices;
 use crate::context::BlockContext;
-use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::fee_checks::{FeeCheckError, FeeCheckReportFields, PostExecutionReport};
 use crate::fee::fee_utils::get_vm_resources_cost;
+use crate::fee::receipt::TransactionReceipt;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{

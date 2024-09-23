@@ -1,6 +1,6 @@
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
-use papyrus_consensus::types::{ConsensusBlock, ConsensusContext, ProposalInit};
+use papyrus_consensus::types::{ConsensusContext, ProposalInit};
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
@@ -12,7 +12,6 @@ use papyrus_storage::test_utils::get_test_storage;
 use papyrus_test_utils::get_test_block;
 use starknet_api::block::Block;
 use starknet_api::core::ContractAddress;
-use starknet_api::transaction::Transaction;
 
 use crate::papyrus_consensus_context::{PapyrusConsensusBlock, PapyrusConsensusContext};
 
@@ -35,8 +34,7 @@ async fn build_proposal() {
     assert_eq!(transactions, block.body.transactions);
 
     let fin = fin_receiver.await.unwrap();
-    assert_eq!(fin.id(), block.header.block_hash);
-    assert_eq!(fin.proposal_iter().collect::<Vec::<Transaction>>(), block.body.transactions);
+    assert_eq!(fin, block.header.block_hash);
 }
 
 #[tokio::test]
@@ -53,8 +51,7 @@ async fn validate_proposal_success() {
     let fin =
         papyrus_context.validate_proposal(block_number, validate_receiver).await.await.unwrap();
 
-    assert_eq!(fin.id(), block.header.block_hash);
-    assert_eq!(fin.proposal_iter().collect::<Vec::<Transaction>>(), block.body.transactions);
+    assert_eq!(fin, block.header.block_hash);
 }
 
 #[tokio::test]
@@ -87,8 +84,12 @@ async fn propose() {
     let (fin_sender, fin_receiver) = oneshot::channel();
     fin_sender.send(block.header.block_hash).unwrap();
 
-    let proposal_init =
-        ProposalInit { height: block_number, round: 0, proposer: ContractAddress::default() };
+    let proposal_init = ProposalInit {
+        height: block_number,
+        round: 0,
+        proposer: ContractAddress::default(),
+        valid_round: None,
+    };
     papyrus_context.propose(proposal_init.clone(), content_receiver, fin_receiver).await.unwrap();
 
     let expected_message = ConsensusMessage::Proposal(Proposal {
@@ -97,6 +98,7 @@ async fn propose() {
         proposer: proposal_init.proposer,
         transactions: block.body.transactions,
         block_hash: block.header.block_hash,
+        valid_round: None,
     });
 
     assert_eq!(mock_network.messages_to_broadcast_receiver.next().await.unwrap(), expected_message);
@@ -107,7 +109,7 @@ async fn decision() {
     let (_, mut papyrus_context, _, mut sync_network) = test_setup();
     let block = PapyrusConsensusBlock::default();
     let precommit = Vote::default();
-    papyrus_context.decision_reached(block, vec![precommit.clone()]).await.unwrap();
+    papyrus_context.decision_reached(block.id, vec![precommit.clone()]).await.unwrap();
     assert_eq!(sync_network.messages_to_broadcast_receiver.next().await.unwrap(), precommit);
 }
 

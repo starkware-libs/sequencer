@@ -31,6 +31,7 @@ use crate::execution::execution_utils::{
     felt_from_ptr,
     felt_range_from_ptr,
     max_fee_for_execution_info,
+    update_remaining_gas,
     write_maybe_relocatable,
     ReadOnlySegment,
     ReadOnlySegments,
@@ -56,7 +57,6 @@ use crate::execution::syscalls::{
     get_execution_info,
     keccak,
     library_call,
-    library_call_l1_handler,
     replace_class,
     send_message_to_l1,
     sha_256_process_block,
@@ -74,7 +74,6 @@ use crate::execution::syscalls::{
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
 use crate::transaction::objects::{CurrentTransactionInfo, TransactionInfo};
-use crate::transaction::transaction_utils::update_remaining_gas;
 
 pub type SyscallCounter = HashMap<SyscallSelector, usize>;
 
@@ -356,11 +355,6 @@ impl<'a> SyscallHintProcessor<'a> {
             SyscallSelector::LibraryCall => self.execute_syscall(
                 vm,
                 library_call,
-                self.context.gas_costs().library_call_gas_cost,
-            ),
-            SyscallSelector::LibraryCallL1Handler => self.execute_syscall(
-                vm,
-                library_call_l1_handler,
                 self.context.gas_costs().library_call_gas_cost,
             ),
             SyscallSelector::ReplaceClass => self.execute_syscall(

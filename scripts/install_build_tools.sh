@@ -4,7 +4,7 @@ set -e
 
 function install_pypy() {
   pushd /opt
-  $USE_SUDO bash -c '
+  $SUDO bash -c '
   curl -Lo pypy3.9-v7.3.11-linux64.tar.bz2 https://downloads.python.org/pypy/pypy3.9-v7.3.11-linux64.tar.bz2
   tar -xf pypy3.9-v7.3.11-linux64.tar.bz2
   rm pypy3.9-v7.3.11-linux64.tar.bz2
@@ -28,7 +28,7 @@ function install_pypy() {
 }
 
 function install_rust () {
-    curl https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path
+    curl https://sh.rustup.rs -sSf | sh -s -- -y
 }
 
 function install_llvm() {
@@ -41,6 +41,10 @@ function install_llvm() {
 }
 
 install_llvm
+
+if [ "$(id -u)" -ne 0 ]; then
+    SUDO=sudo
+fi
 
 install_pypy &
 install_rust &

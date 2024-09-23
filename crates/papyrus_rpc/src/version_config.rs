@@ -32,7 +32,5 @@ impl fmt::Display for VersionId {
 }
 
 /// latest version must be set as supported
-pub const VERSION_CONFIG: &[(VersionId, VersionState)] =
-    &[(VERSION_0_6, VersionState::Supported), (VERSION_0_7, VersionState::Supported)];
-pub const VERSION_0_6: VersionId = VersionId { name: "V0_6", patch: 0 };
-pub const VERSION_0_7: VersionId = VersionId { name: "V0_7", patch: 0 };
+pub const VERSION_CONFIG: &[(VersionId, VersionState)] = &[(VERSION_0_8, VersionState::Supported)];
+pub const VERSION_0_8: VersionId = VersionId { name: "V0_8", patch: 0 };

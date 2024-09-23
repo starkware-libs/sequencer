@@ -5484,6 +5484,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "l1-provider"
+version = "0.0.0"
+dependencies = [
+ "papyrus_base_layer",
+ "starknet_api",
+ "thiserror",
+]
+
+[[package]]
 name = "lalrpop"
 version = "0.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7082,7 +7091,6 @@ version = "0.0.0"
 dependencies = [
  "alloy-contract",
  "alloy-dyn-abi",
- "alloy-json-abi",
  "alloy-json-rpc",
  "alloy-primitives",
  "alloy-provider",
@@ -9973,9 +9981,9 @@ dependencies = [
 
 [[package]]
 name = "starknet-types-core"
-version = "0.1.5"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce6bacf0ba19bc721e518bc4bf389ff13daa8a7c5db5fd320600473b8aa9fcbd"
+checksum = "9b889ee5734db8b3c8a6551135c16764bf4ce1ab4955fffbb2ac5b6706542b64"
 dependencies = [
  "lambdaworks-crypto",
  "lambdaworks-math",
@@ -10034,9 +10042,12 @@ name = "starknet_batcher_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "mockall",
  "papyrus_proc_macros",
  "serde",
+ "starknet_api",
+ "starknet_consensus_manager_types",
  "starknet_mempool_infra",
  "thiserror",
 ]
@@ -10111,6 +10122,7 @@ name = "starknet_consensus_manager_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "derive_more 0.99.17",
  "mockall",
  "papyrus_proc_macros",
  "serde",
@@ -11399,6 +11411,7 @@ dependencies = [
  "form_urlencoded",
  "idna 0.5.0",
  "percent-encoding",
+ "serde",
 ]
 
 [[package]]

@@ -174,7 +174,7 @@ pub(crate) fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {
 }
 
 // An implementation of the SNIP: https://github.com/EvyatarO/SNIPs/blob/snip-8/SNIPS/snip-8.md
-fn get_tip_resource_bounds_hash(
+pub fn get_tip_resource_bounds_hash(
     resource_bounds: &ValidResourceBounds,
     tip: &Tip,
 ) -> Result<Felt, StarknetApiError> {

@@ -24,6 +24,7 @@
         ]
     },
     "disable_cairo0_redeclaration": true,
+    "enable_reverts": false,
     "max_recursion_depth": 50,
     "segment_arena_cells": false,
     "os_constants": {

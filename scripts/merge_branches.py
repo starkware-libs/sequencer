@@ -17,7 +17,7 @@ from utils import run_command
 
 FINAL_BRANCH = "main"
 MERGE_PATHS_FILE = "scripts/merge_paths.json"
-FILES_TO_PRESERVE = {".github/actions/install_rust/rust_version.txt"}
+FILES_TO_PRESERVE = {"rust-toolchain.toml"}
 
 
 def load_merge_paths() -> Dict[str, str]:
