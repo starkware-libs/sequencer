@@ -8,7 +8,7 @@ use blockifier::state::cached_state::CachedState;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::versioned_constants::{StarknetVersion, VersionedConstants};
-use starknet_api::block::{BlockHeader, BlockNumber};
+use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_gateway::config::RpcStateReaderConfig;
@@ -62,17 +62,18 @@ impl TestStateReader {
 
     pub fn get_starknet_version(&self) -> StateResult<StarknetVersion> {
         let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
-        let block_header: BlockHeader = serde_json::from_value(
-            self.0.send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)?,
+        let raw_version: String = serde_json::from_value(
+            self.0.send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)?
+                ["starknet_version"]
+                .clone(),
         )
         .map_err(serde_err_to_state_err)?;
-        let raw_version = block_header.starknet_version.0.as_slice();
-        match raw_version {
-            [0, 13, 0] => Ok(StarknetVersion::V0_13_0),
-            [0, 13, 1] => Ok(StarknetVersion::V0_13_1),
-            [0, 13, 1, 1] => Ok(StarknetVersion::V0_13_1_1),
-            [0, 13, 2] => Ok(StarknetVersion::V0_13_2),
-            [0, 13, 2, 1] => Ok(StarknetVersion::V0_13_2_1),
+        match raw_version.as_str() {
+            "0.13.0" => Ok(StarknetVersion::V0_13_0),
+            "0.13.1" => Ok(StarknetVersion::V0_13_1),
+            "0.13.1.1" => Ok(StarknetVersion::V0_13_1_1),
+            "0.13.2" => Ok(StarknetVersion::V0_13_2),
+            "0.13.2.1" => Ok(StarknetVersion::V0_13_2_1),
             _ => Err(StateError::StateReadError("Failed to match starknet version".to_string())),
         }
     }
@@ -101,5 +102,36 @@ impl TestStateReader {
             block_context,
             TransactionExecutorConfig::default(),
         ))
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use assert_matches::assert_matches;
+    use blockifier::blockifier::block::BlockInfo;
+    use blockifier::versioned_constants::StarknetVersion;
+    use rstest::*;
+    use starknet_api::block::BlockNumber;
+
+    use super::TestStateReader;
+
+    #[fixture]
+    pub fn test_state_reader() -> TestStateReader {
+        TestStateReader::new(None, BlockNumber(700000))
+    }
+
+    #[fixture]
+    pub fn test_block_number() -> BlockNumber {
+        BlockNumber(700000)
+    }
+
+    #[rstest]
+    pub fn test_get_block_info(test_state_reader: TestStateReader, test_block_number: BlockNumber) {
+        assert_matches!(test_state_reader.get_block_info() ,  Ok(BlockInfo{block_number, .. }) if block_number==test_block_number);
+    }
+
+    #[rstest]
+    pub fn test_get_starknet_version(test_state_reader: TestStateReader) {
+        assert!(test_state_reader.get_starknet_version().unwrap() == StarknetVersion::V0_13_2_1)
     }
 }

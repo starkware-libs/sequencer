@@ -16,3 +16,7 @@ starknet_gateway = { workspace = true }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+assert_matches.workspace = true
+rstest.workspace = true
