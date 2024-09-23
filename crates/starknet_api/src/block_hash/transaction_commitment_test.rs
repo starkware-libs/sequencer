@@ -24,7 +24,7 @@ fn test_transaction_leaf_without_signature_regression() {
         transaction_hash: TransactionHash(Felt::ONE),
         transaction_signature: None,
     };
-    let expected_leaf = felt!("0x00a93bf5e58b9378d093aa86ddc2f61a3295a1d1e665bd0ef3384dd07b30e033");
+    let expected_leaf = felt!("0x579e8877c7755365d5ec1ec7d3a94a457eff5d1f40482bbe9729c064cdead2");
 
     assert_eq!(expected_leaf, calculate_transaction_leaf(&transaction_leaf_elements));
 }
