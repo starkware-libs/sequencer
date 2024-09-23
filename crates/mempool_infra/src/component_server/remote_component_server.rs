@@ -39,8 +39,8 @@ use crate::errors::ComponentServerError;
 /// // Example usage of the RemoteComponentServer
 /// use async_trait::async_trait;
 /// use serde::{Deserialize, Serialize};
-/// use starknet_mempool_infra::component_runner::ComponentStarter;
 /// use starknet_mempool_infra::errors::ComponentError;
+/// use starknet_mempool_infra::starters::DefaultComponentStarter;
 /// use tokio::task;
 ///
 /// use crate::starknet_mempool_infra::component_client::LocalComponentClient;
@@ -53,12 +53,7 @@ use crate::errors::ComponentServerError;
 /// // Define your component
 /// struct MyComponent {}
 ///
-/// #[async_trait]
-/// impl ComponentStarter for MyComponent {
-///     async fn start(&mut self) -> Result<(), ComponentError> {
-///         Ok(())
-///     }
-/// }
+/// impl DefaultComponentStarter for MyComponent {}
 ///
 /// // Define your request and response types
 /// #[derive(Deserialize)]
