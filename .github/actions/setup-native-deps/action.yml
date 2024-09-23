@@ -9,9 +9,10 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Make script executable
+    - name: Make scripts executable
       shell: bash
-      run: chmod +x ./scripts/setup_native_deps.sh
+      run: chmod +x ./scripts/install_native_deps.sh
+      run: chmod +x ./scripts/set_native_env_vars.sh
 
     - name: Install Cairo Native Runtime Dependencies
       id: set-runtime-deps
