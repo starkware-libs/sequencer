@@ -9810,7 +9810,6 @@ dependencies = [
  "starknet_consensus_manager_types",
  "starknet_mempool_infra",
  "tokio",
- "tracing",
  "validator",
 ]
 
@@ -9884,7 +9883,6 @@ dependencies = [
 name = "starknet_http_server"
 version = "0.0.0"
 dependencies = [
- "async-trait",
  "axum",
  "papyrus_config",
  "serde",
