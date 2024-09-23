@@ -156,10 +156,10 @@ impl VersionedConstants {
             * self.vm_resource_fee_cost()["n_steps"]
     }
 
-    /// Returns the initial gas of any transaction to run with.
-    pub fn tx_initial_gas(&self) -> u64 {
+    /// Returns the default initial gas of any transaction to run with.
+    pub fn tx_default_initial_gas(&self) -> u64 {
         let os_consts = &self.os_constants;
-        os_consts.gas_costs.initial_gas_cost - os_consts.gas_costs.transaction_gas_cost
+        os_consts.gas_costs.default_initial_gas_cost - os_consts.gas_costs.transaction_gas_cost
     }
 
     pub fn vm_resource_fee_cost(&self) -> &HashMap<String, ResourceCost> {
@@ -472,7 +472,7 @@ pub struct GasCosts {
     pub mul_mod_gas_cost: u64,
     // An estimation of the initial gas for a transaction to run with. This solution is
     // temporary and this value will be deduced from the transaction's fields.
-    pub initial_gas_cost: u64,
+    pub default_initial_gas_cost: u64,
     // Compiler gas costs.
     pub entry_point_initial_budget: u64,
     pub syscall_base_gas_cost: u64,
