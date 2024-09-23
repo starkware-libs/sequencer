@@ -45,7 +45,7 @@ fn calculate_transaction_leaf(transaction_leaf_elements: &TransactionLeafElement
             transaction_leaf_elements
                 .transaction_signature
                 .as_ref()
-                .unwrap_or(&TransactionSignature(vec![Felt::ZERO]))
+                .unwrap_or(&TransactionSignature(vec![]))
                 .0
                 .iter(),
         )
