@@ -81,6 +81,25 @@ impl RpcStateReader {
             },
         }
     }
+
+    #[allow(dead_code)]
+    pub fn get_block_with_txs(&self) -> serde_json::Value {
+        let get_block_params = GetBlockWithTxHashesParams { block_id: self.block_id };
+        let tx_hash = self.send_rpc_request("starknet_getBlockWithTxHashes", &get_block_params).unwrap()["transactions"].clone();
+        println!("tx_hash: {:?}", tx_hash);
+        tx_hash
+    }
+
+    #[allow(dead_code)]
+    pub fn get_txs_by_hash(&self, tx_hash: &str) -> serde_json::Value {
+         let method = "starknet_getTransactionByHash";
+         let params = json!({
+            "transaction_hash": tx_hash,
+        });
+        let tx = self.send_rpc_request(method, params).unwrap();
+        println!("tx: {:?}", tx);
+        tx
+    }
 }
 
 impl MempoolStateReader for RpcStateReader {
