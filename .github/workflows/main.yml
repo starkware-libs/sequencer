@@ -68,7 +68,7 @@ jobs:
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
       # Install rust components.
-      - uses: ./.github/actions/install_rust
+      - uses: ./.github/actions/bootstrap
 
       # Run tests.
       - name: "Run rustfmt and clippy"
@@ -91,7 +91,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-small
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
+      - uses: ./.github/actions/bootstrap
       - run: cargo test -p workspace_tests
 
   run-tests:
@@ -101,7 +101,7 @@ jobs:
         with:
           # Fetch the entire history.
           fetch-depth: 0
-      - uses: ./.github/actions/install_rust
+      - uses: ./.github/actions/bootstrap
       - uses: Noelware/setup-protoc@1.1.0
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
@@ -166,7 +166,7 @@ jobs:
         with:
           # Fetch the entire history.
           fetch-depth: 0
-      - uses: ./.github/actions/install_rust
+      - uses: ./.github/actions/bootstrap
       - name: Set-Up
         run: |
           sudo apt-get update
