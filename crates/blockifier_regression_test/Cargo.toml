@@ -1,0 +1,16 @@
+[package]
+name = "blockifier_regression_test"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+license-file.workspace = true
+
+[dependencies]
+blockifier.workspace = true
+starknet-types-core.workspace = true
+starknet_api.workspace = true
+starknet_gateway.workspace = true
+
+[lints]
+workspace = true

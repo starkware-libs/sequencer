@@ -1486,6 +1486,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "blockifier_regression_test"
+version = "0.0.0"
+dependencies = [
+ "blockifier",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_gateway",
+]
+
+[[package]]
 name = "blocking"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
