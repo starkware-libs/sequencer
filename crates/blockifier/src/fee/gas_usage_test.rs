@@ -10,23 +10,72 @@ use crate::abi::constants;
 use crate::context::BlockContext;
 use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
 use crate::fee::eth_gas_constants;
-use crate::fee::fee_utils::get_fee_by_gas_vector;
+use crate::fee::fee_utils::{get_fee_by_gas_vector, get_vm_resources_cost};
 use crate::fee::gas_usage::{get_da_gas_cost, get_message_segment_length};
 use crate::state::cached_state::StateChangesCount;
-use crate::test_utils::{DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE};
+use crate::test_utils::{
+    get_vm_resource_usage,
+    DEFAULT_ETH_L1_DATA_GAS_PRICE,
+    DEFAULT_ETH_L1_GAS_PRICE,
+};
 use crate::transaction::objects::GasVectorComputationMode::NoL2Gas;
 use crate::transaction::objects::{
     FeeType,
     GasVector,
     GasVectorComputationMode,
     StarknetResources,
+    TransactionResources,
 };
 use crate::transaction::test_utils::account_invoke_tx;
 use crate::utils::{u128_div_ceil, u128_from_usize};
-use crate::versioned_constants::{ResourceCost, VersionedConstants};
+use crate::versioned_constants::{ResourceCost, StarknetVersion, VersionedConstants};
+
+pub fn create_event_for_testing(keys_size: usize, data_size: usize) -> OrderedEvent {
+    OrderedEvent {
+        order: 0,
+        event: EventContent {
+            keys: vec![EventKey(Felt::ZERO); keys_size],
+            data: EventData(vec![Felt::ZERO; data_size]),
+        },
+    }
+}
+
 #[fixture]
 fn versioned_constants() -> &'static VersionedConstants {
     VersionedConstants::latest_constants()
+}
+
+#[fixture]
+fn starknet_resources() -> StarknetResources {
+    let call_info_1 = CallInfo {
+        execution: CallExecution {
+            events: vec![create_event_for_testing(1, 2), create_event_for_testing(1, 2)],
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let call_info_2 = CallInfo {
+        execution: CallExecution {
+            events: vec![create_event_for_testing(1, 0), create_event_for_testing(0, 1)],
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let call_infos = vec![call_info_1, call_info_2];
+    let state_changes_count = StateChangesCount {
+        n_storage_updates: 7,
+        n_class_hash_updates: 11,
+        n_compiled_class_hash_updates: 13,
+        n_modified_contracts: 17,
+    };
+    StarknetResources::new(
+        2_usize,
+        3_usize,
+        4_usize,
+        state_changes_count,
+        6.into(),
+        call_infos.iter(),
+    )
 }
 
 #[rstest]
@@ -52,31 +101,30 @@ fn test_get_event_gas_cost(
         )
     );
 
-    let create_event = |keys_size: usize, data_size: usize| OrderedEvent {
-        order: 0,
-        event: EventContent {
-            keys: vec![EventKey(Felt::ZERO); keys_size],
-            data: EventData(vec![Felt::ZERO; data_size]),
-        },
-    };
     let call_info_1 = CallInfo {
         execution: CallExecution {
-            events: vec![create_event(1, 2), create_event(1, 2)],
+            events: vec![create_event_for_testing(1, 2), create_event_for_testing(1, 2)],
             ..Default::default()
         },
         ..Default::default()
     };
     let call_info_2 = CallInfo {
         execution: CallExecution {
-            events: vec![create_event(1, 0), create_event(0, 1)],
+            events: vec![create_event_for_testing(1, 0), create_event_for_testing(0, 1)],
             ..Default::default()
         },
         ..Default::default()
     };
     let call_info_3 = CallInfo {
-        execution: CallExecution { events: vec![create_event(0, 1)], ..Default::default() },
+        execution: CallExecution {
+            events: vec![create_event_for_testing(0, 1)],
+            ..Default::default()
+        },
         inner_calls: vec![CallInfo {
-            execution: CallExecution { events: vec![create_event(5, 5)], ..Default::default() },
+            execution: CallExecution {
+                events: vec![create_event_for_testing(5, 5)],
+                ..Default::default()
+            },
             ..Default::default()
         }],
         ..Default::default()
@@ -235,5 +283,88 @@ fn test_discounted_gas_from_gas_vector_computation() {
     assert!(
         get_fee_by_gas_vector(&tx_context.block_context.block_info, gas_usage, &FeeType::Eth)
             <= Fee(actual_result * DEFAULT_ETH_L1_GAS_PRICE)
+    );
+}
+
+#[rstest]
+// Assert gas computation results are as expected. The goal of this test is to prevent unwanted
+// changes to the gas computation.
+fn test_gas_computation_regression_test(
+    starknet_resources: StarknetResources,
+    #[values(false, true)] use_kzg_da: bool,
+    #[values(GasVectorComputationMode::NoL2Gas, GasVectorComputationMode::All)]
+    gas_vector_computation_mode: GasVectorComputationMode,
+) {
+    // Use a constant version of the versioned constants so that version changes do not break this
+    // test. This specific version is arbitrary.
+    let versioned_constants = VersionedConstants::get(StarknetVersion::V0_13_2_1);
+    let n_reverted_steps = 15;
+
+    // Test Starknet resources.
+    let actual_starknet_resources_gas_vector = starknet_resources.to_gas_vector(
+        versioned_constants,
+        use_kzg_da,
+        &gas_vector_computation_mode,
+    );
+    let expected_starknet_resources_gas_vector = match gas_vector_computation_mode {
+        GasVectorComputationMode::NoL2Gas => match use_kzg_da {
+            true => GasVector { l1_gas: 21544, l1_data_gas: 2720, l2_gas: 0 },
+            false => GasVector::from_l1_gas(62835),
+        },
+        GasVectorComputationMode::All => match use_kzg_da {
+            true => GasVector { l1_gas: 21543, l1_data_gas: 2720, l2_gas: 87040 },
+            false => GasVector { l1_gas: 62834, l1_data_gas: 0, l2_gas: 87040 },
+        },
+    };
+    assert_eq!(
+        actual_starknet_resources_gas_vector, expected_starknet_resources_gas_vector,
+        "Unexpected gas computation result for starknet resources. If this is intentional please \
+         fix this test."
+    );
+
+    // Test VM resources.
+    let vm_resources = get_vm_resource_usage();
+    let actual_vm_resources_gas_vector = get_vm_resources_cost(
+        versioned_constants,
+        &vm_resources,
+        n_reverted_steps,
+        &gas_vector_computation_mode,
+    )
+    .unwrap();
+    let expected_vm_resources_gas_vector = match gas_vector_computation_mode {
+        GasVectorComputationMode::NoL2Gas => match use_kzg_da {
+            true => GasVector { l1_gas: 26, l1_data_gas: 0, l2_gas: 0 },
+            false => GasVector { l1_gas: 26, l1_data_gas: 0, l2_gas: 0 },
+        },
+        GasVectorComputationMode::All => match use_kzg_da {
+            true => GasVector { l1_gas: 0, l1_data_gas: 0, l2_gas: 1040000 },
+            false => GasVector { l1_gas: 0, l1_data_gas: 0, l2_gas: 1040000 },
+        },
+    };
+    assert_eq!(
+        actual_vm_resources_gas_vector, expected_vm_resources_gas_vector,
+        "Unexpected gas computation result for VM resources. If this is intentional please fix \
+         this test."
+    );
+
+    // Test transaction resources
+    let tx_resources = TransactionResources { starknet_resources, vm_resources, n_reverted_steps };
+    let actual_gas_vector = tx_resources
+        .to_gas_vector(versioned_constants, use_kzg_da, &gas_vector_computation_mode)
+        .unwrap();
+    let expected_gas_vector = match gas_vector_computation_mode {
+        GasVectorComputationMode::NoL2Gas => match use_kzg_da {
+            true => GasVector { l1_gas: 21570, l1_data_gas: 2720, l2_gas: 0 },
+            false => GasVector { l1_gas: 62861, l1_data_gas: 0, l2_gas: 0 },
+        },
+        GasVectorComputationMode::All => match use_kzg_da {
+            true => GasVector { l1_gas: 21543, l1_data_gas: 2720, l2_gas: 1127040 },
+            false => GasVector { l1_gas: 62834, l1_data_gas: 0, l2_gas: 1127040 },
+        },
+    };
+    assert_eq!(
+        actual_gas_vector, expected_gas_vector,
+        "Unexpected gas computation result for tx resources. If this is intentional please fix \
+         this test."
     );
 }
