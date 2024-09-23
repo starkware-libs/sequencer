@@ -15,6 +15,7 @@ use crate::fee::receipt::TransactionReceipt;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
+    gas_vector_from_vm_usage,
     CairoVersion,
     BALANCE,
     DEFAULT_ETH_L1_DATA_GAS_PRICE,
@@ -43,25 +44,33 @@ fn get_vm_resource_usage() -> ExecutionResources {
     }
 }
 
-#[test]
-fn test_simple_get_vm_resource_usage() {
+#[rstest]
+fn test_simple_get_vm_resource_usage(
+    #[values(GasVectorComputationMode::NoL2Gas, GasVectorComputationMode::All)]
+    gas_vector_computation_mode: GasVectorComputationMode,
+) {
     let versioned_constants = VersionedConstants::create_for_account_testing();
     let mut vm_resource_usage = get_vm_resource_usage();
     let n_reverted_steps = 15;
 
     // Positive flow.
     // Verify calculation - in our case, n_steps is the heaviest resource.
-    let l1_gas_by_vm_usage = (versioned_constants.vm_resource_fee_cost().n_steps
+    let vm_usage_in_l1_gas = (versioned_constants.vm_resource_fee_cost().n_steps
         * (u128_from_usize(vm_resource_usage.n_steps + n_reverted_steps)))
     .ceil()
     .to_integer();
+    let expected_gas_vector = gas_vector_from_vm_usage(
+        vm_usage_in_l1_gas,
+        &gas_vector_computation_mode,
+        &versioned_constants,
+    );
     assert_eq!(
-        GasVector::from_l1_gas(l1_gas_by_vm_usage),
+        expected_gas_vector,
         get_vm_resources_cost(
             &versioned_constants,
             &vm_resource_usage,
             n_reverted_steps,
-            &GasVectorComputationMode::NoL2Gas
+            &gas_vector_computation_mode
         )
         .unwrap()
     );
@@ -70,60 +79,78 @@ fn test_simple_get_vm_resource_usage() {
     let n_reverted_steps = 0;
     vm_resource_usage.n_steps =
         vm_resource_usage.builtin_instance_counter.get(&BuiltinName::range_check).unwrap() - 1;
-    let l1_gas_by_vm_usage =
-        vm_resource_usage.builtin_instance_counter.get(&BuiltinName::range_check).unwrap();
+    let vm_usage_in_l1_gas = u128_from_usize(
+        *vm_resource_usage.builtin_instance_counter.get(&BuiltinName::range_check).unwrap(),
+    );
+    let expected_gas_vector = gas_vector_from_vm_usage(
+        vm_usage_in_l1_gas,
+        &gas_vector_computation_mode,
+        &versioned_constants,
+    );
     assert_eq!(
-        GasVector::from_l1_gas(u128_from_usize(*l1_gas_by_vm_usage)),
+        expected_gas_vector,
         get_vm_resources_cost(
             &versioned_constants,
             &vm_resource_usage,
             n_reverted_steps,
-            &GasVectorComputationMode::NoL2Gas
+            &gas_vector_computation_mode
         )
         .unwrap()
     );
 }
 
-#[test]
-fn test_float_get_vm_resource_usage() {
+#[rstest]
+fn test_float_get_vm_resource_usage(
+    #[values(GasVectorComputationMode::NoL2Gas, GasVectorComputationMode::All)]
+    gas_vector_computation_mode: GasVectorComputationMode,
+) {
     let versioned_constants = VersionedConstants::create_for_testing();
     let mut vm_resource_usage = get_vm_resource_usage();
 
     // Positive flow.
     // Verify calculation - in our case, n_steps is the heaviest resource.
     let n_reverted_steps = 300;
-    let l1_gas_by_vm_usage = (versioned_constants.vm_resource_fee_cost().n_steps
+    let vm_usage_in_l1_gas = (versioned_constants.vm_resource_fee_cost().n_steps
         * u128_from_usize(vm_resource_usage.n_steps + n_reverted_steps))
     .ceil()
     .to_integer();
+    let expected_gas_vector = gas_vector_from_vm_usage(
+        vm_usage_in_l1_gas,
+        &gas_vector_computation_mode,
+        &versioned_constants,
+    );
     assert_eq!(
-        GasVector::from_l1_gas(l1_gas_by_vm_usage),
+        expected_gas_vector,
         get_vm_resources_cost(
             &versioned_constants,
             &vm_resource_usage,
             n_reverted_steps,
-            &GasVectorComputationMode::NoL2Gas
+            &gas_vector_computation_mode
         )
         .unwrap()
     );
 
     // Another positive flow, this time the heaviest resource is ecdsa_builtin.
     vm_resource_usage.n_steps = 200;
-    let l1_gas_by_vm_usage =
+    let vm_usage_in_l1_gas =
         ((*versioned_constants.vm_resource_fee_cost().builtins.get(&BuiltinName::ecdsa).unwrap())
             * u128_from_usize(
                 *vm_resource_usage.builtin_instance_counter.get(&BuiltinName::ecdsa).unwrap(),
             ))
         .ceil()
         .to_integer();
-
+    let expected_gas_vector = gas_vector_from_vm_usage(
+        vm_usage_in_l1_gas,
+        &gas_vector_computation_mode,
+        &versioned_constants,
+    );
     assert_eq!(
-        GasVector::from_l1_gas(l1_gas_by_vm_usage),
+        expected_gas_vector,
         get_vm_resources_cost(
             &versioned_constants,
             &vm_resource_usage,
             n_reverted_steps,
-            &GasVectorComputationMode::NoL2Gas
+            &gas_vector_computation_mode
         )
         .unwrap()
     );
