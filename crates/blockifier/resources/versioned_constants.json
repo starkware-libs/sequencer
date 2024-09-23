@@ -83,7 +83,7 @@
             "step_gas_cost": 100,
             "range_check_gas_cost": 1
         },
-        "initial_gas_cost": {
+        "default_initial_gas_cost": {
             "step_gas_cost": 100000000
         },
         "keccak_gas_cost": {

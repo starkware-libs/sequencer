@@ -95,7 +95,7 @@ const STRK_FEE_CONTRACT_ADDRESS: &str =
     "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
 const ETH_FEE_CONTRACT_ADDRESS: &str =
     "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7";
-const INITIAL_GAS_COST: u64 = 10000000000;
+const DEFAULT_INITIAL_GAS_COST: u64 = 10000000000;
 
 /// Result type for execution functions.
 pub type ExecutionResult<T> = Result<T, ExecutionError>;
@@ -108,7 +108,7 @@ pub struct ExecutionConfig {
     /// The eth address to receive fees
     pub eth_fee_contract_address: ContractAddress,
     /// The initial gas cost for a transaction
-    pub initial_gas_cost: u64,
+    pub default_initial_gas_cost: u64,
 }
 
 impl Default for ExecutionConfig {
@@ -116,7 +116,7 @@ impl Default for ExecutionConfig {
         ExecutionConfig {
             strk_fee_contract_address: contract_address!(STRK_FEE_CONTRACT_ADDRESS),
             eth_fee_contract_address: contract_address!(ETH_FEE_CONTRACT_ADDRESS),
-            initial_gas_cost: INITIAL_GAS_COST,
+            default_initial_gas_cost: DEFAULT_INITIAL_GAS_COST,
         }
     }
 }
@@ -137,8 +137,8 @@ impl SerializeConfig for ExecutionConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "initial_gas_cost",
-                &self.initial_gas_cost,
+                "default_initial_gas_cost",
+                &self.default_initial_gas_cost,
                 "The initial gas cost for a transaction",
                 ParamPrivacyInput::Public,
             ),
@@ -228,7 +228,7 @@ pub fn execute_call(
         caller_address: ContractAddress::default(),
         call_type: BlockifierCallType::Call,
         // TODO(yair): check if this is the correct value.
-        initial_gas: execution_config.initial_gas_cost,
+        initial_gas: execution_config.default_initial_gas_cost,
     };
 
     let mut cached_state = CachedState::new(ExecutionStateReader {
