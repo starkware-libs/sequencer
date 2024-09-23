@@ -78,9 +78,9 @@ impl Mempool {
     /// TODO: check Account nonce and balance.
     pub fn add_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
         self.validate_input(&input)?;
-        let MempoolInput { tx, account_state: AccountState { address, nonce } } = input;
+        let MempoolInput { tx, account_state } = input;
         self.tx_pool.insert(tx)?;
-        self.align_to_account_state(address, nonce);
+        self.align_to_account_state(account_state);
         Ok(())
     }
 
@@ -96,7 +96,8 @@ impl Mempool {
     ) -> MempoolResult<()> {
         for (&address, &nonce) in &state_changes {
             let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
-            self.align_to_account_state(address, next_nonce);
+            let account_state = AccountState { address, nonce: next_nonce };
+            self.align_to_account_state(account_state);
         }
 
         // Rewind nonces of addresses that were not included in block.
@@ -166,9 +167,8 @@ impl Mempool {
         Ok(())
     }
 
-    // TODO: Consider creating an abstraction for the (address, nonce) tuple that is passed
-    // throughout the code.
-    fn align_to_account_state(&mut self, address: ContractAddress, nonce: Nonce) {
+    fn align_to_account_state(&mut self, account_state: AccountState) {
+        let AccountState { address, nonce } = account_state;
         // Maybe remove out-of-date transactions.
         // Note: != is equivalent to > in `add_tx`, as lower nonces are rejected in validation.
         if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| queued_nonce != nonce) {
