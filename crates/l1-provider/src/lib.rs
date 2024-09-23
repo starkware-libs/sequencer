@@ -8,7 +8,10 @@ type L1ProviderResult<T> = Result<T, L1ProviderError>;
 
 // TODO: optimistic proposer support, will add later to keep things simple, but the design here
 // is compatible with it.
-pub struct L1Provider;
+pub struct L1Provider {
+    unconsumed_l1_txs_pending_l2_inclusion: PendingMessagesFromL1,
+    state: ProviderState,
+}
 
 impl L1Provider {
     pub async fn new(_config: L1ProviderConfig) -> L1ProviderResult<Self> {
@@ -18,11 +21,12 @@ impl L1Provider {
         );
     }
 
-    pub fn get_txs(&mut self) -> L1ProviderResult<&[L1HandlerTransaction]> {
-        todo!(
-            "Stage and return references to unconsumed L1 messages that are not in L2 from \
-             internal buffer, to be serialized and sent to batcher. Error if not in Propose state."
-        );
+    pub fn get_txs(&mut self, n_txs: usize) -> L1ProviderResult<&[L1HandlerTransaction]> {
+        match self.state {
+            ProviderState::Propose => Ok(self.unconsumed_l1_txs_pending_l2_inclusion.get(n_txs)),
+            ProviderState::Pending => Err(L1ProviderError::GetTransactionsInPendingState),
+            ProviderState::Validate => Err(L1ProviderError::GetTransactionConsensusBug),
+        }
     }
 
     pub fn validate(&self, _tx: &L1HandlerTransaction) -> L1ProviderResult<bool> {
@@ -73,6 +77,36 @@ impl L1Provider {
              hour,so that the main loop will start collecting from that time gracefully. May hit \
              base layer errors."
         );
+    }
+}
+
+struct PendingMessagesFromL1;
+
+impl PendingMessagesFromL1 {
+    fn get(&self, n_txs: usize) -> &[L1HandlerTransaction] {
+        todo!("stage and return {n_txs} txs")
+    }
+}
+
+#[derive(Debug, Default)]
+pub enum ProviderState {
+    #[default]
+    Pending,
+    Propose,
+    Validate,
+}
+
+impl ProviderState {
+    fn _transition_to_propose(self) -> L1ProviderResult<Self> {
+        todo!()
+    }
+
+    fn _transition_to_validate(self) -> L1ProviderResult<Self> {
+        todo!()
+    }
+
+    fn _transition_to_pending(self) -> L1ProviderResult<Self> {
+        todo!()
     }
 }
 
