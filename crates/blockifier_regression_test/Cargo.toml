@@ -8,6 +8,7 @@ license-file.workspace = true
 
 [dependencies]
 blockifier = { workspace = true }
+papyrus_execution = { workspace = true }
 starknet-types-core.workspace = true
 starknet_api = { workspace = true }
 starknet_gateway = { workspace = true }
