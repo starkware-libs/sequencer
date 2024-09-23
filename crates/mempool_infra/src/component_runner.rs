@@ -1,7 +1,8 @@
 use async_trait::async_trait;
+use thiserror::Error;
 
-#[derive(thiserror::Error, Debug, PartialEq, Clone)]
-pub enum ComponentStartError {
+#[derive(Error, Debug, PartialEq, Clone)]
+pub enum ComponentError {
     #[error("Error in the component configuration.")]
     ComponentConfigError,
     #[error("An internal component error.")]
@@ -12,7 +13,7 @@ pub enum ComponentStartError {
 #[async_trait]
 pub trait ComponentStarter {
     /// Start the component. By default do nothing.
-    async fn start(&mut self) -> Result<(), ComponentStartError> {
+    async fn start(&mut self) -> Result<(), ComponentError> {
         Ok(())
     }
 }
