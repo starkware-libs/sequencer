@@ -320,7 +320,7 @@ fn test_replace_class() {
 )]
 #[case::deploy_to_unavailable_address(
     true, true, false, true,
-    Some("is unavailable for deployment.".to_string())
+    Some("Deployment failed:".to_string())
     // With constructor, nontrivial calldata, address unavailable, deploy from zero; Negative flow.
 )]
 #[case::corrupt_deploy_from_zero(
