@@ -296,7 +296,7 @@ expression: dumped_default_config
     "value": "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
     "privacy": "Public"
   },
-  "rpc.execution_config.initial_gas_cost": {
+  "rpc.execution_config.default_initial_gas_cost": {
     "description": "The initial gas cost for a transaction",
     "value": {
       "$serde_json::private::Number": "10000000000"

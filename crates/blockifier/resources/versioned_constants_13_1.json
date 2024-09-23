@@ -52,7 +52,7 @@
         "add_mod_gas_cost": 0,
         "mul_mod_gas_cost": 0,
         "memory_hole_gas_cost": 10,
-        "initial_gas_cost": {
+        "default_initial_gas_cost": {
             "step_gas_cost": 100000000
         },
         "entry_point_initial_budget": {
