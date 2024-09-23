@@ -98,6 +98,7 @@ impl HashChain {
         felts.fold(self, |current, felt| current.chain(felt))
     }
 
+    #[allow(dead_code)]
     // Chains many felts to the hash chain according the result of a function.
     pub fn chain_iter_if_fn<'a, F, I>(self, f: F) -> Self
     where
