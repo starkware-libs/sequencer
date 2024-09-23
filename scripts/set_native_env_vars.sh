@@ -54,7 +54,8 @@ get_env_vars() {
 # If there is no [env] table defined, it will be created and the new flags added
 # Otherwise if any of the flags is already defined it won't be overriden.
 main () {
-    CONFIG_PATH="crates/blockifier/.cargo"
+    # CONFIG_PATH="crates/blockifier/.cargo"
+    CONFIG_PATH="/.cargo"
     CONFIG_FILE="${CONFIG_PATH}/config.toml"
 
     mkdir -p "$CONFIG_PATH"
