@@ -2,29 +2,14 @@ use std::any::type_name;
 
 use async_trait::async_trait;
 use tokio::sync::mpsc::Receiver;
-use tracing::{error, info};
+use tracing::info;
 
 use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
-use crate::component_runner::ComponentStarter;
 use crate::errors::ComponentServerError;
 
 #[async_trait]
 pub trait ComponentServerStarter: Send + Sync {
     async fn start(&mut self) -> Result<(), ComponentServerError>;
-}
-
-pub async fn start_component<Component>(component: &mut Component) -> bool
-where
-    Component: ComponentStarter + Sync + Send,
-{
-    info!("ComponentServer of type {} is starting", type_name::<Component>());
-    if let Err(err) = component.start().await {
-        error!("ComponentServer::start() failed: {:?}", err);
-        return false;
-    }
-
-    info!("ComponentServer::start() completed.");
-    true
 }
 
 pub async fn request_response_loop<Request, Response, Component>(
