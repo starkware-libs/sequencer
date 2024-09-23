@@ -7,6 +7,7 @@ use tracing::error;
 use super::definitions::{request_response_loop, ComponentServerStarter};
 use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
 use crate::component_runner::ComponentStarter;
+use crate::errors::ComponentServerError;
 
 /// The `LocalComponentServer` struct is a generic server that handles requests and responses for a
 /// specified component. It receives requests, processes them using the provided component, and
@@ -36,7 +37,7 @@ use crate::component_runner::ComponentStarter;
 /// use std::sync::mpsc::{channel, Receiver};
 ///
 /// use async_trait::async_trait;
-/// use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
+/// use starknet_mempool_infra::component_runner::{ComponentError, ComponentStarter};
 /// use tokio::task;
 ///
 /// use crate::starknet_mempool_infra::component_definitions::{
@@ -53,7 +54,7 @@ use crate::component_runner::ComponentStarter;
 ///
 /// #[async_trait]
 /// impl ComponentStarter for MyComponent {
-///     async fn start(&mut self) -> Result<(), ComponentStartError> {
+///     async fn start(&mut self) -> Result<(), ComponentError> {
 ///         Ok(())
 ///     }
 /// }
@@ -112,6 +113,7 @@ use crate::component_runner::ComponentStarter;
 pub type LocalComponentServer<Component, Request, Response> =
     BaseLocalComponentServer<Component, Request, Response, BlockingLocalServerType>;
 pub struct BlockingLocalServerType {}
+
 #[async_trait]
 impl<Component, Request, Response> ComponentServerStarter
     for LocalComponentServer<Component, Request, Response>
@@ -120,10 +122,10 @@ where
     Request: Send + Sync,
     Response: Send + Sync,
 {
-    async fn start(&mut self) {
-        // TODO(Tsabary/Lev): return an error if component.start() fails.
-        let _ = self.component.start().await;
+    async fn start(&mut self) -> Result<(), ComponentServerError> {
+        self.component.start().await?;
         request_response_loop(&mut self.rx, &mut self.component).await;
+        Ok(())
     }
 }
 
@@ -139,7 +141,7 @@ where
     Request: Send + Sync,
     Response: Send + Sync,
 {
-    async fn start(&mut self) {
+    async fn start(&mut self) -> Result<(), ComponentServerError> {
         let mut component = self.component.clone();
         let component_future = async move { component.start().await };
         let request_response_future = request_response_loop(&mut self.rx, &mut self.component);
@@ -153,6 +155,7 @@ where
             }
         };
         error!("Server ended with unexpected Ok.");
+        Err(ComponentServerError::ServerUnexpectedlyStopped)
     }
 }
 

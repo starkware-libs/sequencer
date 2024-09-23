@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use starknet_batcher_types::communication::SharedBatcherClient;
-use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
+use starknet_mempool_infra::component_runner::ComponentStarter;
+use starknet_mempool_infra::errors::ComponentError;
 use tracing::info;
 
 use crate::config::ConsensusManagerConfig;
@@ -28,7 +29,7 @@ pub fn create_consensus_manager(
 
 #[async_trait]
 impl ComponentStarter for ConsensusManager {
-    async fn start(&mut self) -> Result<(), ComponentStartError> {
+    async fn start(&mut self) -> Result<(), ComponentError> {
         info!("ConsensusManager::start()");
         Ok(())
     }
