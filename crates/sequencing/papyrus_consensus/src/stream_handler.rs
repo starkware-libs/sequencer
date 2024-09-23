@@ -2,8 +2,7 @@
 use std::collections::BTreeMap;
 
 use futures::channel::mpsc;
-use papyrus_network::network_manager::GenericReceiver;
-// use papyrus_network::network_manager::BroadcastedMessageManager;
+use futures::StreamExt;
 use papyrus_protobuf::consensus::StreamMessage;
 use papyrus_protobuf::converters::ProtobufConversionError;
 
@@ -46,6 +45,7 @@ struct StreamStats {
     num_buffered: u64,
 }
 
+/// A struct that collects messages from the network and sends them to the appropriate stream.
 pub struct StreamCollector<
     T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
 > {
@@ -53,7 +53,8 @@ pub struct StreamCollector<
     pub config: StreamCollectorConfig,
 
     /// A broadcast client (receiver) that gets messages from the network.
-    pub receiver: GenericReceiver<T>,
+    /// Each message is a tuple of a StreamMessage and a PeerId.
+    pub receiver: mpsc::Receiver<(StreamMessage<T>, PeerId)>,
 
     /// A channel used to send receivers, one for each stream that was opened.
     /// Each channel will be closed once all messages for a stream are transmitted.
@@ -79,7 +80,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     /// Create a new StreamCollector.
     pub fn new(
         config: StreamCollectorConfig,
-        receiver: GenericReceiver<T>,
+        receiver: mpsc::Receiver<(StreamMessage<T>, PeerId)>,
         sender: mpsc::Sender<mpsc::Receiver<StreamMessage<T>>>,
     ) -> Self {
         StreamCollector {
@@ -94,29 +95,14 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     }
 
     /// Listen for messages on the receiver channel, buffering them if necessary.
-    /// Guarntees that messages are sent in order.
+    /// Guarantees that messages are sent in order.
     pub async fn listen(&mut self) {
         loop {
-            if let Ok((message, broadcasted_message_manager)) =
-                self.receiver.next().await.ok_or_else(|| {
-                    ConsensusError::InternalNetworkError(
-                        "NetworkReceiver should never be closed".to_string(),
-                    )
-                })
-            {
-                let message = match message {
-                    Ok(message) => message,
-                    Err(_) => {
-                        // Message is none in case the channel was closed!
-                        break;
-                    }
-                };
-
-                // TODO(guyn): this does not work! need to figure out the right way to get peer_id
-                // let peer_bytes: () = broadcasted_message_manager.peer_id.to_bytes();
-                // let peer_id = StreamId::from_le_bytes(peer_bytes) as PeerId;
-                let peer_id: PeerId = 0; // Placeholder!!! 
-
+            if let Ok((message, peer_id)) = self.receiver.next().await.ok_or_else(|| {
+                ConsensusError::InternalNetworkError(
+                    "NetworkReceiver should never be closed".to_string(),
+                )
+            }) {
                 self.handle_message(message, peer_id);
             }
         }
