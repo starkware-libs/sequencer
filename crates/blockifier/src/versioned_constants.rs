@@ -29,7 +29,7 @@ pub mod test;
 
 /// Auto-generate getters for listed versioned constants versions.
 macro_rules! define_versioned_constants {
-    ($(($variant:ident, $path_to_json:expr)),* $(,)?) => {
+    ($(($variant:ident, $path_to_json:expr, $version_str:expr)),* $(,)?) => {
         /// Enum of all the Starknet versions supporting versioned constants.
         #[derive(Clone, Debug, EnumCount, EnumIter, Hash, Eq, PartialEq)]
         pub enum StarknetVersion {
@@ -61,16 +61,30 @@ macro_rules! define_versioned_constants {
                 }
             }
         }
+
+
+
+        impl TryFrom<&str> for StarknetVersion {
+            type Error = VersionedConstantsError;
+            fn try_from(raw_version: &str) -> Result<Self, Self::Error> {
+                match raw_version {
+                    $(
+                        $version_str => Ok(StarknetVersion::$variant),
+                    )*
+                    _ => Err(VersionedConstantsError::InvalidVersion { version: raw_version.to_string()}),
+                }
+            }
+        }
     };
 }
 
 define_versioned_constants! {
-    (V0_13_0, "../resources/versioned_constants_13_0.json"),
-    (V0_13_1, "../resources/versioned_constants_13_1.json"),
-    (V0_13_1_1, "../resources/versioned_constants_13_1_1.json"),
-    (V0_13_2, "../resources/versioned_constants_13_2.json"),
-    (V0_13_2_1, "../resources/versioned_constants_13_2_1.json"),
-    (Latest, "../resources/versioned_constants.json"),
+    (V0_13_0, "../resources/versioned_constants_13_0.json", "0.13.0"),
+    (V0_13_1, "../resources/versioned_constants_13_1.json", "0.13.1"),
+    (V0_13_1_1, "../resources/versioned_constants_13_1_1.json", "0.13.1.1"),
+    (V0_13_2, "../resources/versioned_constants_13_2.json", "0.13.2"),
+    (V0_13_2_1, "../resources/versioned_constants_13_2_1.json", "0.13.2.1"),
+    (Latest, "../resources/versioned_constants.json", "latest"),
 }
 
 pub type ResourceCost = Ratio<u128>;
@@ -691,6 +705,8 @@ pub enum VersionedConstantsError {
     IoError(#[from] io::Error),
     #[error("JSON file cannot be serialized into VersionedConstants: {0}")]
     ParseError(#[from] serde_json::Error),
+    #[error("Invalid version: {version:?}")]
+    InvalidVersion { version: String },
 }
 
 #[derive(Debug, Error)]
