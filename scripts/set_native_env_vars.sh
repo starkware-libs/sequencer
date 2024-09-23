@@ -6,7 +6,10 @@ add_or_update_var() {
     local value="$3"
 
     if grep -q '^\[env\]' "$file"; then
+        # If [env] table already exists
         if ! grep -q "^\s*$key\s*=" "$file"; then
+            # If the key is not present
+            # Write the key just below the [env] line
             awk -v key="$key" -v value="$value" '
                 /^\[env\]/ {
                     env_section = 1
@@ -19,6 +22,7 @@ add_or_update_var() {
             ' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
         fi
     else 
+        # Otherwise, create the [env] table at the end and the new key
         echo "[env]" >> "$file"
         echo "$key = { value = \"$value\", relative = false }" >> "$file"
     fi
