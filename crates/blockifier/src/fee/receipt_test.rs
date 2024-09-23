@@ -340,8 +340,6 @@ fn test_calculate_tx_gas_usage_basic<'a>(
 
 // Test that we exclude the fee token contract modification and adds the account’s balance change
 // in the state changes.
-// TODO(Nimrod, 1/5/2024): Test regression w.r.t. all resources (including VM). (Only starknet
-// resources are taken into account).
 #[rstest]
 fn test_calculate_tx_gas_usage(
     #[values(false, true)] use_kzg_da: bool,

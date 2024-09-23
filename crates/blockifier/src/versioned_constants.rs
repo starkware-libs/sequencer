@@ -199,11 +199,12 @@ pub struct VersionedConstants {
     // See the struct's docstring for more details.
     pub os_constants: Arc<OsConstants>,
 
+    // Fee related.
+    pub(crate) vm_resource_fee_cost: Arc<VmResourceCosts>,
+
     // Resources.
     os_resources: Arc<OsResources>,
 
-    // Fee related.
-    vm_resource_fee_cost: Arc<VmResourceCosts>,
     // Just to make sure the value exists, but don't use the actual values.
     #[allow(dead_code)]
     gateway: serde::de::IgnoredAny,
