@@ -1,8 +1,12 @@
+use blockifier::blockifier::block::BlockInfo;
 use blockifier::execution::contract_class::ContractClass;
 use blockifier::state::state_api::{StateReader, StateResult};
+use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
+use starknet_gateway::config::RpcStateReaderConfig;
 use starknet_gateway::rpc_state_reader::RpcStateReader;
+use starknet_gateway::state_reader::MempoolStateReader;
 use starknet_types_core::felt::Felt;
 
 pub struct TestStateReader(RpcStateReader);
@@ -30,5 +34,15 @@ impl StateReader for TestStateReader {
 
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         self.0.get_compiled_class_hash(class_hash)
+    }
+}
+
+impl TestStateReader {
+    pub fn new(config: &RpcStateReaderConfig, block_number: BlockNumber) -> Self {
+        Self(RpcStateReader::from_number(config, block_number))
+    }
+
+    pub fn get_block_info(&self) -> StateResult<BlockInfo> {
+        self.0.get_block_info()
     }
 }
