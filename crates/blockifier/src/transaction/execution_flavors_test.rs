@@ -348,20 +348,14 @@ fn test_simulate_validate_charge_fee_pre_validate(
     }
 }
 
-/// Test simulate / validate / charge_fee flag combinations in (fallible) validation stage.
-#[rstest]
-#[case(TransactionVersion::ONE, FeeType::Eth)]
-#[case(TransactionVersion::THREE, FeeType::Strk)]
-fn test_simulate_validate_charge_fee_fail_validate(
-    #[values(true, false)] only_query: bool,
-    #[values(true, false)] validate: bool,
-    #[values(true, false)] charge_fee: bool,
-    // TODO(Dori, 1/1/2024): Add Cairo1 case, after price abstraction is implemented.
-    #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
-    #[case] version: TransactionVersion,
-    #[case] fee_type: FeeType,
+fn execute_fail_validation(
+    only_query: bool,
+    validate: bool,
+    charge_fee: bool,
+    cairo_version: CairoVersion,
+    version: TransactionVersion,
     max_resource_bounds: ValidResourceBounds,
-) {
+) -> Result<TransactionExecutionInfo, TransactionExecutionError> {
     let block_context = BlockContext::create_for_account_testing();
     let max_fee = Fee(MAX_FEE);
 
@@ -374,12 +368,7 @@ fn test_simulate_validate_charge_fee_fail_validate(
     } = create_flavors_test_state(&block_context.chain_info, cairo_version);
 
     // Validation scenario: fallible validation.
-    let (actual_gas_used, actual_fee) = gas_and_fee(
-        u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps + 27231),
-        validate,
-        &fee_type,
-    );
-    let result = account_invoke_tx(invoke_tx_args! {
+    account_invoke_tx(invoke_tx_args! {
         max_fee,
         resource_bounds: max_resource_bounds,
         signature: TransactionSignature(vec![
@@ -392,22 +381,76 @@ fn test_simulate_validate_charge_fee_fail_validate(
         nonce: nonce_manager.next(faulty_account_address),
         only_query,
     })
-    .execute(&mut falliable_state, &block_context, charge_fee, validate);
-    if !validate {
-        // The reported fee should be the actual cost, regardless of whether or not fee is charged.
-        check_gas_and_fee(
-            &block_context,
-            &result.unwrap(),
-            &fee_type,
-            actual_gas_used,
-            actual_fee,
-            actual_fee,
-        );
-    } else {
-        assert!(
-            result.unwrap_err().to_string().contains("An ASSERT_EQ instruction failed: 1 != 0.")
-        );
-    }
+    .execute(&mut falliable_state, &block_context, charge_fee, validate)
+}
+
+/// Test simulate / charge_fee flag combinations in (fallible) validation stage.
+#[rstest]
+fn test_simulate_charge_fee_with_validation_fail_validate(
+    #[values(true, false)] only_query: bool,
+    #[values(true, false)] charge_fee: bool,
+    // TODO(Dori, 1/1/2024): Add Cairo1 case, after price abstraction is implemented.
+    #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
+    #[values(TransactionVersion::ONE, TransactionVersion::THREE)] version: TransactionVersion,
+    max_resource_bounds: ValidResourceBounds,
+) {
+    assert!(
+        execute_fail_validation(
+            only_query,
+            true,
+            charge_fee,
+            cairo_version,
+            version,
+            max_resource_bounds,
+        )
+        .unwrap_err()
+        .to_string()
+        .contains("An ASSERT_EQ instruction failed: 1 != 0.")
+    );
+}
+
+/// Test gas and fee with simulate / charge_fee flag combinations in (fallible) validation stage,
+/// where validation is disabled.
+#[rstest]
+#[case(TransactionVersion::ONE, FeeType::Eth)]
+#[case(TransactionVersion::THREE, FeeType::Strk)]
+fn test_simulate_charge_fee_no_validation_fail_validate(
+    #[values(true, false)] only_query: bool,
+    #[values(true, false)] charge_fee: bool,
+    // TODO(Dori, 1/1/2024): Add Cairo1 case, after price abstraction is implemented.
+    #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
+    #[case] version: TransactionVersion,
+    #[case] fee_type: FeeType,
+    max_resource_bounds: ValidResourceBounds,
+) {
+    let validate = false;
+    let transaction_execution_info = execute_fail_validation(
+        only_query,
+        validate,
+        charge_fee,
+        cairo_version,
+        version,
+        max_resource_bounds,
+    )
+    .unwrap();
+
+    // Validation scenario: fallible validation.
+    let block_context = BlockContext::create_for_account_testing();
+    let (actual_gas_used, actual_fee) = gas_and_fee(
+        u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps + 27231),
+        validate,
+        &fee_type,
+    );
+
+    // The reported fee should be the actual cost, regardless of whether or not fee is charged.
+    check_gas_and_fee(
+        &block_context,
+        &transaction_execution_info,
+        &fee_type,
+        actual_gas_used,
+        actual_fee,
+        actual_fee,
+    );
 }
 
 /// Test simulate / validate / charge_fee flag combinations during execution.
