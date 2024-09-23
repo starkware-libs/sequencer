@@ -178,9 +178,10 @@
             "step_gas_cost": 100
         },
         "transaction_gas_cost": {
-            "entry_point_gas_cost": 2,
-            "fee_transfer_gas_cost": 1,
-            "step_gas_cost": 100
+            "step_gas_cost": 4098,
+            "pedersen_gas_cost": 4,
+            "range_check_gas_cost": 77,
+            "poseidon_gas_cost": 11
         },
         "transfer_entry_point_selector": "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
         "validate_declare_entry_point_selector": "0x289da278a8dc833409cabfdad1581e8e7d40e42dcaed693fa4008dcdb4963b3",
