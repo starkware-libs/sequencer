@@ -12,6 +12,7 @@ use serde::Serialize;
 use super::definitions::ComponentServerStarter;
 use crate::component_client::LocalComponentClient;
 use crate::component_definitions::{ServerError, APPLICATION_OCTET_STREAM};
+use crate::errors::ComponentServerError;
 
 /// The `RemoteComponentServer` struct is a generic server that handles requests and responses for a
 /// specified component. It receives requests, processes them using the provided component, and
@@ -38,7 +39,8 @@ use crate::component_definitions::{ServerError, APPLICATION_OCTET_STREAM};
 /// // Example usage of the RemoteComponentServer
 /// use async_trait::async_trait;
 /// use serde::{Deserialize, Serialize};
-/// use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
+/// use starknet_mempool_infra::component_runner::ComponentStarter;
+/// use starknet_mempool_infra::errors::ComponentError;
 /// use tokio::task;
 ///
 /// use crate::starknet_mempool_infra::component_client::LocalComponentClient;
@@ -53,7 +55,7 @@ use crate::component_definitions::{ServerError, APPLICATION_OCTET_STREAM};
 ///
 /// #[async_trait]
 /// impl ComponentStarter for MyComponent {
-///     async fn start(&mut self) -> Result<(), ComponentStartError> {
+///     async fn start(&mut self) -> Result<(), ComponentError> {
 ///         Ok(())
 ///     }
 /// }
@@ -153,7 +155,7 @@ where
     Request: DeserializeOwned + Send + Sync + 'static,
     Response: Serialize + Send + Sync + 'static,
 {
-    async fn start(&mut self) {
+    async fn start(&mut self) -> Result<(), ComponentServerError> {
         let make_svc = make_service_fn(|_conn| {
             let local_client = self.local_client.clone();
             async {
@@ -163,6 +165,10 @@ where
             }
         });
 
-        Server::bind(&self.socket.clone()).serve(make_svc).await.unwrap();
+        Server::bind(&self.socket.clone())
+            .serve(make_svc)
+            .await
+            .map_err(|err| ComponentServerError::HttpServerStartError(err.to_string()))?;
+        Ok(())
     }
 }

@@ -6,10 +6,11 @@ use tracing::{error, info};
 
 use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
 use crate::component_runner::ComponentStarter;
+use crate::errors::ComponentServerError;
 
 #[async_trait]
 pub trait ComponentServerStarter: Send + Sync {
-    async fn start(&mut self);
+    async fn start(&mut self) -> Result<(), ComponentServerError>;
 }
 
 pub async fn start_component<Component>(component: &mut Component) -> bool

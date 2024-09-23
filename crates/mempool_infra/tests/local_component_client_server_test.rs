@@ -99,11 +99,11 @@ async fn test_setup() {
     let mut component_b_server = LocalComponentServer::new(component_b, rx_b);
 
     task::spawn(async move {
-        component_a_server.start().await;
+        let _ = component_a_server.start().await;
     });
 
     task::spawn(async move {
-        component_b_server.start().await;
+        let _ = component_b_server.start().await;
     });
 
     test_a_b_functionality(a_client, b_client, expected_value).await;
