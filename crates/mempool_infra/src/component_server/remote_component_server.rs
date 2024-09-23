@@ -12,7 +12,7 @@ use serde::Serialize;
 use super::definitions::ComponentServerStarter;
 use crate::component_client::LocalComponentClient;
 use crate::component_definitions::{ServerError, APPLICATION_OCTET_STREAM};
-use crate::component_server::ComponentServerError;
+use crate::errors::ComponentServerError;
 
 /// The `RemoteComponentServer` struct is a generic server that handles requests and responses for a
 /// specified component. It receives requests, processes them using the provided component, and
@@ -39,7 +39,7 @@ use crate::component_server::ComponentServerError;
 /// // Example usage of the RemoteComponentServer
 /// use async_trait::async_trait;
 /// use serde::{Deserialize, Serialize};
-/// use starknet_mempool_infra::component_runner::{ComponentError, ComponentStarter};
+/// use starknet_mempool_infra::errors::ComponentError;
 /// use tokio::task;
 ///
 /// use crate::starknet_mempool_infra::component_client::LocalComponentClient;
@@ -53,11 +53,7 @@ use crate::component_server::ComponentServerError;
 /// struct MyComponent {}
 ///
 /// #[async_trait]
-/// impl ComponentStarter for MyComponent {
-///     async fn start(&mut self) -> Result<(), ComponentError> {
-///         Ok(())
-///     }
-/// }
+/// impl Startable<ComponentError> for MyComponent {}
 ///
 /// // Define your request and response types
 /// #[derive(Deserialize)]

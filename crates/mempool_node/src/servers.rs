@@ -10,7 +10,8 @@ use starknet_consensus_manager::communication::{
 use starknet_gateway::communication::{create_gateway_server, GatewayServer};
 use starknet_http_server::communication::{create_http_server, HttpServer};
 use starknet_mempool::communication::{create_mempool_server, MempoolServer};
-use starknet_mempool_infra::component_server::{ComponentServerError, ComponentServerStarter};
+use starknet_mempool_infra::component_server::ComponentServerStarter;
+use starknet_mempool_infra::errors::ComponentServerError;
 use tracing::error;
 
 use crate::communication::MempoolNodeCommunication;

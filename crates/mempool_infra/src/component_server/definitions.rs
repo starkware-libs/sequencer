@@ -6,19 +6,7 @@ use tokio::sync::mpsc::Receiver;
 use tracing::{error, info};
 
 use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
-use crate::component_runner::ComponentError;
-
-#[derive(Error, Debug, PartialEq, Clone)]
-pub enum ComponentServerError {
-    #[error("Server has already been started.")]
-    ServerAlreadyStarted,
-    #[error("Http server has failed: {0}.")]
-    HttpServerStartError(String),
-    #[error(transparent)]
-    ComponentError(#[from] ComponentError),
-    #[error("Server unexpectedly stopped.")]
-    ServerUnexpectedlyStopped,
-}
+use crate::errors::ComponentServerError;
 
 #[async_trait]
 pub trait ComponentServerStarter: Send + Sync {

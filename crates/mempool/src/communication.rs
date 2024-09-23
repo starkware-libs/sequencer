@@ -1,8 +1,9 @@
 use async_trait::async_trait;
 use starknet_api::executable_transaction::Transaction;
 use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
-use starknet_mempool_infra::component_runner::ComponentStarter;
 use starknet_mempool_infra::component_server::LocalComponentServer;
+use starknet_mempool_infra::errors::ComponentError;
+use starknet_mempool_infra::starters::{DefaultComponentStarter, Startable};
 use starknet_mempool_types::communication::{
     MempoolRequest,
     MempoolRequestAndResponseSender,
@@ -58,5 +59,4 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
     }
 }
 
-#[async_trait]
-impl ComponentStarter for MempoolCommunicationWrapper {}
+impl DefaultComponentStarter for MempoolCommunicationWrapper {}

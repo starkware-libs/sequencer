@@ -1,11 +1,5 @@
-use async_trait::async_trait;
-use starknet_mempool_infra::component_runner::{ComponentError, ComponentStarter};
+use starknet_mempool_infra::starters::DefaultComponentStarter;
 
 pub struct MempoolP2pReceiver;
 
-#[async_trait]
-impl ComponentStarter for MempoolP2pReceiver {
-    async fn start(&mut self) -> Result<(), ComponentError> {
-        unimplemented!()
-    }
-}
+impl DefaultComponentStarter for MempoolP2pReceiver {}

@@ -6,8 +6,8 @@ use tracing::error;
 
 use super::definitions::{request_response_loop, ComponentServerStarter};
 use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
-use crate::component_runner::ComponentStarter;
-use crate::component_server::ComponentServerError;
+use crate::errors::{ComponentError, ComponentServerError};
+use crate::starters::Startable;
 
 /// The `LocalComponentServer` struct is a generic server that handles requests and responses for a
 /// specified component. It receives requests, processes them using the provided component, and
@@ -37,7 +37,7 @@ use crate::component_server::ComponentServerError;
 /// use std::sync::mpsc::{channel, Receiver};
 ///
 /// use async_trait::async_trait;
-/// use starknet_mempool_infra::component_runner::{ComponentError, ComponentStarter};
+/// use starknet_mempool_infra::errors::ComponentError;
 /// use tokio::task;
 ///
 /// use crate::starknet_mempool_infra::component_definitions::{
@@ -53,11 +53,7 @@ use crate::component_server::ComponentServerError;
 /// struct MyComponent {}
 ///
 /// #[async_trait]
-/// impl ComponentStarter for MyComponent {
-///     async fn start(&mut self) -> Result<(), ComponentError> {
-///         Ok(())
-///     }
-/// }
+/// impl Startable<ComponentError> for MyComponent {}
 ///
 /// // Define your request and response types
 /// struct MyRequest {
@@ -118,7 +114,7 @@ pub struct BlockingLocalServerType {}
 impl<Component, Request, Response> ComponentServerStarter
     for LocalComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Send + Sync,
+    Component: ComponentRequestHandler<Request, Response> + Send + Sync,
     Request: Send + Sync,
     Response: Send + Sync,
 {
@@ -136,7 +132,11 @@ pub struct NonBlockingLocalServerType {}
 impl<Component, Request, Response> ComponentServerStarter
     for LocalActiveComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send + Sync,
+    Component: ComponentRequestHandler<Request, Response>
+        + Startable<ComponentError>
+        + Clone
+        + Send
+        + Sync,
     Request: Send + Sync,
     Response: Send + Sync,
 {
@@ -160,7 +160,7 @@ where
 
 pub struct BaseLocalComponentServer<Component, Request, Response, LocalServerType>
 where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter,
+    Component: ComponentRequestHandler<Request, Response>,
     Request: Send + Sync,
     Response: Send + Sync,
 {
@@ -172,7 +172,7 @@ where
 impl<Component, Request, Response, LocalServerType>
     BaseLocalComponentServer<Component, Request, Response, LocalServerType>
 where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter,
+    Component: ComponentRequestHandler<Request, Response>,
     Request: Send + Sync,
     Response: Send + Sync,
 {
