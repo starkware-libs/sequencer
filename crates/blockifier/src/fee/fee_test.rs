@@ -43,8 +43,11 @@ fn get_vm_resource_usage() -> ExecutionResources {
     }
 }
 
-#[test]
-fn test_simple_get_vm_resource_usage() {
+#[rstest]
+fn test_simple_get_vm_resource_usage(
+    #[values(GasVectorComputationMode::NoL2Gas, GasVectorComputationMode::All)]
+    gas_vector_computation_mode: GasVectorComputationMode,
+) {
     let versioned_constants = VersionedConstants::create_for_account_testing();
     let mut vm_resource_usage = get_vm_resource_usage();
     let n_reverted_steps = 15;
@@ -55,13 +58,19 @@ fn test_simple_get_vm_resource_usage() {
         * (u128_from_usize(vm_resource_usage.n_steps + n_reverted_steps)))
     .ceil()
     .to_integer();
+    let expected_gas_vector = match gas_vector_computation_mode {
+        GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(l1_gas_by_vm_usage),
+        GasVectorComputationMode::All => GasVector::from_l2_gas(
+            versioned_constants.convert_l1_to_l2_gas_amount_round_up(l1_gas_by_vm_usage),
+        ),
+    };
     assert_eq!(
-        GasVector::from_l1_gas(l1_gas_by_vm_usage),
+        expected_gas_vector,
         get_vm_resources_cost(
             &versioned_constants,
             &vm_resource_usage,
             n_reverted_steps,
-            &GasVectorComputationMode::NoL2Gas
+            &gas_vector_computation_mode
         )
         .unwrap()
     );
@@ -70,22 +79,32 @@ fn test_simple_get_vm_resource_usage() {
     let n_reverted_steps = 0;
     vm_resource_usage.n_steps =
         vm_resource_usage.builtin_instance_counter.get(&BuiltinName::range_check).unwrap() - 1;
-    let l1_gas_by_vm_usage =
-        vm_resource_usage.builtin_instance_counter.get(&BuiltinName::range_check).unwrap();
+    let l1_gas_by_vm_usage = u128_from_usize(
+        *vm_resource_usage.builtin_instance_counter.get(&BuiltinName::range_check).unwrap(),
+    );
+    let expected_gas_vector = match gas_vector_computation_mode {
+        GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(l1_gas_by_vm_usage),
+        GasVectorComputationMode::All => GasVector::from_l2_gas(
+            versioned_constants.convert_l1_to_l2_gas_amount_round_up(l1_gas_by_vm_usage),
+        ),
+    };
     assert_eq!(
-        GasVector::from_l1_gas(u128_from_usize(*l1_gas_by_vm_usage)),
+        expected_gas_vector,
         get_vm_resources_cost(
             &versioned_constants,
             &vm_resource_usage,
             n_reverted_steps,
-            &GasVectorComputationMode::NoL2Gas
+            &gas_vector_computation_mode
         )
         .unwrap()
     );
 }
 
-#[test]
-fn test_float_get_vm_resource_usage() {
+#[rstest]
+fn test_float_get_vm_resource_usage(
+    #[values(GasVectorComputationMode::NoL2Gas, GasVectorComputationMode::All)]
+    gas_vector_computation_mode: GasVectorComputationMode,
+) {
     let versioned_constants = VersionedConstants::create_for_testing();
     let mut vm_resource_usage = get_vm_resource_usage();
 
@@ -96,13 +115,19 @@ fn test_float_get_vm_resource_usage() {
         * u128_from_usize(vm_resource_usage.n_steps + n_reverted_steps))
     .ceil()
     .to_integer();
+    let expected_gas_vector = match gas_vector_computation_mode {
+        GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(l1_gas_by_vm_usage),
+        GasVectorComputationMode::All => GasVector::from_l2_gas(
+            versioned_constants.convert_l1_to_l2_gas_amount_round_up(l1_gas_by_vm_usage),
+        ),
+    };
     assert_eq!(
-        GasVector::from_l1_gas(l1_gas_by_vm_usage),
+        expected_gas_vector,
         get_vm_resources_cost(
             &versioned_constants,
             &vm_resource_usage,
             n_reverted_steps,
-            &GasVectorComputationMode::NoL2Gas
+            &gas_vector_computation_mode
         )
         .unwrap()
     );
@@ -116,14 +141,19 @@ fn test_float_get_vm_resource_usage() {
             ))
         .ceil()
         .to_integer();
-
+    let expected_gas_vector = match gas_vector_computation_mode {
+        GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(l1_gas_by_vm_usage),
+        GasVectorComputationMode::All => GasVector::from_l2_gas(
+            versioned_constants.convert_l1_to_l2_gas_amount_round_up(l1_gas_by_vm_usage),
+        ),
+    };
     assert_eq!(
-        GasVector::from_l1_gas(l1_gas_by_vm_usage),
+        expected_gas_vector,
         get_vm_resources_cost(
             &versioned_constants,
             &vm_resource_usage,
             n_reverted_steps,
-            &GasVectorComputationMode::NoL2Gas
+            &gas_vector_computation_mode
         )
         .unwrap()
     );
