@@ -478,7 +478,6 @@ pub struct GasCosts {
     pub syscall_base_gas_cost: u64,
     // OS gas costs.
     pub entry_point_gas_cost: u64,
-    pub fee_transfer_gas_cost: u64,
     pub transaction_gas_cost: u64,
     // Syscall gas costs.
     pub call_contract_gas_cost: u64,
