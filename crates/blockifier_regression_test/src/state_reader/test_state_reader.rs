@@ -18,7 +18,7 @@ use starknet_gateway::rpc_state_reader::RpcStateReader;
 use starknet_gateway::state_reader::MempoolStateReader;
 use starknet_types_core::felt::Felt;
 
-use crate::utils::{get_chain_info, get_rpc_state_reader_config};
+use crate::state_reader::utils::{get_chain_info, get_rpc_state_reader_config};
 
 pub struct TestStateReader(RpcStateReader);
 
