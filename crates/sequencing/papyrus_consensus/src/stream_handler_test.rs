@@ -34,7 +34,7 @@ mod tests {
         }
     }
 
-    // check if two vectors are the same
+    // Check if two vectors are the same.
     // ref: https://stackoverflow.com/a/58175659
     fn do_vecs_match<T: PartialEq>(a: &Vec<T>, b: &Vec<T>) -> bool {
         let matching = a.iter().zip(b.iter()).filter(|&(a, b)| a == b).count();
@@ -128,7 +128,7 @@ mod tests {
         let keys = h.message_buffers[&(peer_id, stream_id)].clone().into_keys().collect();
         assert!(do_vecs_match(&keys, &range));
 
-        // now send the last message
+        // Now send the last message.
         external_sender
             .try_send((make_random_message(stream_id, 0, false), peer_id))
             .expect("Send should succeed");
@@ -164,11 +164,11 @@ mod tests {
         let (mut h, mut external_sender, mut internal_receiver) = setup_test();
 
         let peer_id1 = 42;
-        let stream_id1 = 127; // send all messages in order (except the first one)
+        let stream_id1 = 127; // Send all messages in order (except the first one).
         let peer_id2 = 43;
-        let stream_id2 = 10; // send in reverse order (except the first one)
-        let peer_id3 = 44; // notice that stream_id2==stream_id3 but the peer_id is different
-        let stream_id3 = 10; // send in two batches of 5 messages, without the first one, don't send fin
+        let stream_id2 = 10; // Send in reverse order (except the first one).
+        let peer_id3 = 44; // Notice that stream_id2==stream_id3 but the peer_id is different.
+        let stream_id3 = 10; // Send in two batches of 5 messages, without the first one, don't send fin.
 
         for i in 1..10 {
             let message = make_random_message(stream_id1, i, i == 9);
@@ -194,54 +194,53 @@ mod tests {
             h
         });
 
-        // Make sure all the messages were received
+        // Make sure all the messages were received.
         let mut h = join_handle.await.expect("Task should succeed");
 
-        // this receiver should produce messages from stream_id1
+        // This receiver should produce messages from stream_id1.
         let mut first_receiver = internal_receiver
             .try_next()
             .expect("Receive message should succeed")
             .expect("Receive message should succeed");
 
-        // this receiver should produce messages from stream_id2
+        // This receiver should produce messages from stream_id2.
         let mut second_receiver = internal_receiver
             .try_next()
             .expect("Receive message should succeed")
             .expect("Receive message should succeed");
 
-        // this receiver should produce messages from stream_id3
+        // This receiver should produce messages from stream_id3.
         let mut third_receiver = internal_receiver
             .try_next()
             .expect("Receive message should succeed")
             .expect("Receive message should succeed");
 
-        // Check the internal structure of the handler h
+        // Check the internal structure of the handler h.
         assert!(do_vecs_match(
             &h.message_buffers.clone().into_keys().collect(),
             &vec![(42, 127), (43, 10), (44, 10)]
         ));
 
-        // the first case we have all messages from 1 to 9 buffered into one contiguous sequence
+        // The first case we have all messages from 1 to 9 buffered into one contiguous sequence.
         assert!(do_vecs_match(
             &h.message_buffers[&(peer_id1, stream_id1)].clone().into_keys().collect(),
             &(1..2).collect()
         ));
 
-        // the second case we have all messages from 1 to 5 buffered, each into its own vector
-        // (worse case scenario)
+        // The second case we have all messages from 1 to 5 buffered, each into its own vector
+        // (worse case scenario).
         assert!(do_vecs_match(
             &h.message_buffers[&(peer_id2, stream_id2)].clone().into_keys().collect(),
             &(1..6).collect()
         ));
 
-        // the third case we have two vectors, one with messages 1 to 4 and the other with messages
-        // 5 to 9
+        // Third case: two vectors, one with messages 1 to 4 and the other with messages 5 to 9.
         assert!(do_vecs_match(
             &h.message_buffers[&(peer_id3, stream_id3)].clone().into_keys().collect(),
             &vec![1, 5]
         ));
 
-        // send the last message on stream_id1
+        // Send the last message on stream_id1.
         external_sender
             .try_send((make_random_message(stream_id1, 0, false), peer_id1))
             .expect("Send should succeed");
@@ -252,7 +251,7 @@ mod tests {
 
         let mut h = join_handle.await.expect("Task should succeed");
 
-        // should be able to read all the messages for stream_id1
+        // Should be able to read all the messages for stream_id1.
         for i in 0..10 {
             let message = first_receiver
                 .try_next()
@@ -265,13 +264,13 @@ mod tests {
             }
         }
 
-        // stream_id1 should be gone
+        // Stream_id1 should be gone.
         assert!(do_vecs_match(
             &h.message_buffers.clone().into_keys().collect(),
             &vec![(43, 10), (44, 10)]
         ));
 
-        // the other two streams should be the same as before
+        // The other two streams should be the same as before.
         assert!(do_vecs_match(
             &h.message_buffers[&(peer_id2, stream_id2)].clone().into_keys().collect(),
             &(1..6).collect()
@@ -281,7 +280,7 @@ mod tests {
             &vec![1, 5]
         ));
 
-        // send the last message on stream_id2
+        // Send the last message on stream_id2.
         external_sender
             .try_send((make_random_message(stream_id2, 0, false), peer_id2))
             .expect("Send should succeed");
@@ -292,7 +291,7 @@ mod tests {
 
         let mut h = join_handle.await.expect("Task should succeed");
 
-        // should be able to read all the messages for stream_id2
+        // Should be able to read all the messages for stream_id2.
         for i in 0..6 {
             let message = second_receiver
                 .try_next()
@@ -305,16 +304,16 @@ mod tests {
             }
         }
 
-        // stream_id2 should also be gone
+        // Stream_id2 should also be gone.
         assert!(do_vecs_match(&h.message_buffers.clone().into_keys().collect(), &vec![(44, 10)]));
 
-        // the last stream should be the same as before
+        // The last stream should be the same as before.
         assert!(do_vecs_match(
             &h.message_buffers[&(peer_id3, stream_id3)].clone().into_keys().collect(),
             &vec![1, 5]
         ));
 
-        // send the last message on stream_id3
+        // Send the last message on stream_id3.
         external_sender
             .try_send((make_random_message(stream_id3, 0, false), peer_id3))
             .expect("Send should succeed");
@@ -336,10 +335,10 @@ mod tests {
             assert!(!message.fin);
         }
 
-        // stream_id3 should still be there, because we didn't send a fin
+        // Stream_id3 should still be there, because we didn't send a fin.
         assert!(do_vecs_match(&h.message_buffers.clone().into_keys().collect(), &vec![(44, 10)]));
 
-        // but the buffer should be empty, as we've successfully drained it all
+        // ...but the buffer should be empty, as we've successfully drained it all.
         assert!(h.message_buffers[&(peer_id3, stream_id3)].is_empty());
     }
 
@@ -354,7 +353,7 @@ mod tests {
             .try_send((make_random_message(13, 42, false), 12))
             .expect("Send should succeed");
 
-        // this should panic since we are sending the same message twice!
+        // This should panic since we are sending the same message twice!
         let join_handle = tokio::spawn(async move {
             let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
         });
@@ -373,7 +372,7 @@ mod tests {
             .try_send((make_random_message(13, 45, false), 12))
             .expect("Send should succeed");
 
-        // this should panic since the fin was received on message_id 42, but we are sending 45
+        // This should panic since the fin was received on message_id 42, but we are sending 45.
         let join_handle = tokio::spawn(async move {
             let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
         });
@@ -392,7 +391,7 @@ mod tests {
             .try_send((make_random_message(13, 42, true), 12))
             .expect("Send should succeed");
 
-        // this should panic since the fin was received on message_id 42, but we are sending 45
+        // This should panic since the fin was received on message_id 42, but we are sending 45.
         let join_handle = tokio::spawn(async move {
             let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
         });
@@ -405,14 +404,14 @@ mod tests {
     async fn test_stream_handler_max_buffer_fails() {
         let (mut h, mut external_sender, _internal_receiver) = setup_test();
         h.config.max_buffer_size = Some(10);
-        // skip the first message, so the messages all get buffered
+        // Skip the first message, so the messages all get buffered.
         for i in 0..11 {
             external_sender
                 .try_send((make_random_message(13, i + 1, false), 12))
                 .expect("Send should succeed");
         }
 
-        // this should panic since there are too many buffered messages
+        // This should panic since there are too many buffered messages.
         let join_handle = tokio::spawn(async move {
             let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
         });
@@ -425,13 +424,13 @@ mod tests {
     async fn test_stream_handler_max_streams_fails() {
         let (mut h, mut external_sender, _internal_receiver) = setup_test();
         h.config.max_num_streams = Some(10);
-        // skip the first message, so the messages all get buffered
+        // Skip the first message, so the messages all get buffered.
         for i in 0..11 {
             external_sender
                 .try_send((make_random_message(i, 1, false), i))
                 .expect("Send should succeed");
         }
-        // this should panic since there are too many streams at the same time
+        // This should panic since there are too many streams at the same time.
         let join_handle = tokio::spawn(async move {
             let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
         });
