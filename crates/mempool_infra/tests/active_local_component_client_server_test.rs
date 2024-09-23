@@ -8,12 +8,13 @@ use starknet_mempool_infra::component_definitions::{
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
 };
-use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
+use starknet_mempool_infra::component_runner::ComponentStarter;
 use starknet_mempool_infra::component_server::{
     ComponentServerStarter,
     EmptyServer,
     LocalActiveComponentServer,
 };
+use starknet_mempool_infra::errors::ComponentError;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::{Barrier, Mutex};
 use tokio::task;
@@ -41,7 +42,7 @@ impl ComponentC {
 
 #[async_trait]
 impl ComponentStarter for ComponentC {
-    async fn start(&mut self) -> Result<(), ComponentStartError> {
+    async fn start(&mut self) -> Result<(), ComponentError> {
         for _ in 0..self.max_iterations {
             self.c_increment_counter().await;
         }
@@ -99,7 +100,7 @@ impl ComponentD {
 
 #[async_trait]
 impl ComponentStarter for ComponentD {
-    async fn start(&mut self) -> Result<(), ComponentStartError> {
+    async fn start(&mut self) -> Result<(), ComponentError> {
         for _ in 0..self.max_iterations {
             self.d_increment_counter().await;
         }
@@ -177,11 +178,11 @@ async fn test_setup_c_d() {
     let mut component_d_server = EmptyServer::new(component_d);
 
     task::spawn(async move {
-        component_c_server.start().await;
+        let _ = component_c_server.start().await;
     });
 
     task::spawn(async move {
-        component_d_server.start().await;
+        let _ = component_d_server.start().await;
     });
 
     // Wait for the components to finish incrementing of the ComponentC::counter and verify it.

@@ -7,6 +7,7 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
+use starknet_mempool_infra::errors::ComponentServerError;
 use starknet_mempool_infra::trace_util::configure_tracing;
 use starknet_mempool_node::servers::get_server_future;
 use starknet_mempool_node::utils::create_clients_servers_from_config;
@@ -22,9 +23,9 @@ pub struct IntegrationTestSetup {
     pub task_executor: TokioExecutor,
     pub http_test_client: HttpTestClient,
     pub batcher: MockBatcher,
-    pub gateway_handle: JoinHandle<()>,
-    pub http_server_handle: JoinHandle<()>,
-    pub mempool_handle: JoinHandle<()>,
+    pub gateway_handle: JoinHandle<Result<(), ComponentServerError>>,
+    pub http_server_handle: JoinHandle<Result<(), ComponentServerError>>,
+    pub mempool_handle: JoinHandle<Result<(), ComponentServerError>>,
 }
 
 impl IntegrationTestSetup {

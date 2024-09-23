@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 
-use super::definitions::{start_component, ComponentServerStarter};
+use super::definitions::ComponentServerStarter;
 use crate::component_runner::ComponentStarter;
+use crate::errors::ComponentServerError;
 
 pub struct EmptyServer<T: ComponentStarter + Send + Sync> {
     component: T,
@@ -15,8 +16,8 @@ impl<T: ComponentStarter + Send + Sync> EmptyServer<T> {
 
 #[async_trait]
 impl<T: ComponentStarter + Send + Sync> ComponentServerStarter for EmptyServer<T> {
-    async fn start(&mut self) {
-        start_component(&mut self.component).await;
+    async fn start(&mut self) -> Result<(), ComponentServerError> {
+        self.component.start().await.map_err(ComponentServerError::ComponentError)
     }
 }
 

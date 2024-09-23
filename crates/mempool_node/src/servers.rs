@@ -11,6 +11,7 @@ use starknet_gateway::communication::{create_gateway_server, GatewayServer};
 use starknet_http_server::communication::{create_http_server, HttpServer};
 use starknet_mempool::communication::{create_mempool_server, MempoolServer};
 use starknet_mempool_infra::component_server::ComponentServerStarter;
+use starknet_mempool_infra::errors::ComponentServerError;
 use tracing::error;
 
 use crate::communication::MempoolNodeCommunication;
@@ -113,7 +114,7 @@ pub async fn run_component_servers(
     let http_server_handle = tokio::spawn(http_server_future);
     let mempool_handle = tokio::spawn(mempool_future);
 
-    tokio::select! {
+    let result = tokio::select! {
         res = batcher_handle => {
             error!("Batcher Server stopped.");
             res?
@@ -137,14 +138,14 @@ pub async fn run_component_servers(
     };
     error!("Servers ended with unexpected Ok.");
 
-    Ok(())
+    Ok(result?)
 }
 
 pub fn get_server_future(
     name: &str,
     execute_flag: bool,
     server: Option<Box<impl ComponentServerStarter + 'static>>,
-) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+) -> Pin<Box<dyn Future<Output = Result<(), ComponentServerError>> + Send>> {
     let server_future = match execute_flag {
         true => {
             let mut server = match server {
