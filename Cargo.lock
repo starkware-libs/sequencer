@@ -1490,6 +1490,7 @@ name = "blockifier_regression_test"
 version = "0.0.0"
 dependencies = [
  "blockifier",
+ "papyrus_execution",
  "starknet-types-core",
  "starknet_api",
  "starknet_gateway",
