@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
+use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::block::{GasPrice, NonzeroGasPrice};
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
@@ -401,5 +402,19 @@ pub fn gas_vector_from_vm_usage(
         GasVectorComputationMode::All => GasVector::from_l2_gas(
             versioned_constants.convert_l1_to_l2_gas_amount_round_up(vm_usage_in_l1_gas),
         ),
+    }
+}
+
+pub fn get_vm_resource_usage() -> ExecutionResources {
+    ExecutionResources {
+        n_steps: 10000,
+        n_memory_holes: 0,
+        builtin_instance_counter: HashMap::from([
+            (BuiltinName::pedersen, 10),
+            (BuiltinName::range_check, 24),
+            (BuiltinName::ecdsa, 1),
+            (BuiltinName::bitwise, 1),
+            (BuiltinName::poseidon, 1),
+        ]),
     }
 }
