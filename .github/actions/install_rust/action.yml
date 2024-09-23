@@ -1,4 +1,8 @@
+name: Bootsrap rust installation
+description: Bootsrap rust installation
 runs:
   using: "composite"
   steps:
     - uses: moonrepo/setup-rust@v1
+      with:
+        cache-base: (main|main-v0.13.2)
