@@ -8,7 +8,7 @@ use blockifier::state::cached_state::CachedState;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::versioned_constants::{StarknetVersion, VersionedConstants};
-use starknet_api::block::{BlockHeader, BlockNumber};
+use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_gateway::config::RpcStateReaderConfig;
@@ -102,5 +102,38 @@ impl TestStateReader {
             block_context,
             TransactionExecutorConfig::default(),
         ))
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use assert_matches::assert_matches;
+    use blockifier::blockifier::block::BlockInfo;
+    use blockifier::versioned_constants::StarknetVersion;
+    use rstest::*;
+    use starknet_api::block::BlockNumber;
+
+    use super::TestStateReader;
+
+    #[fixture]
+    pub fn test_state_reader() -> TestStateReader {
+        TestStateReader::new(None, BlockNumber(700000))
+    }
+
+    #[fixture]
+    pub fn test_block_number() -> BlockNumber {
+        BlockNumber(700000)
+    }
+
+    #[rstest]
+    #[ignore = "This test using http request, so it should not be run in CI"]
+    pub fn test_get_block_info(test_state_reader: TestStateReader, test_block_number: BlockNumber) {
+        assert_matches!(test_state_reader.get_block_info() ,  Ok(BlockInfo{block_number, .. }) if block_number==test_block_number);
+    }
+
+    #[rstest]
+    #[ignore = "This test using http request, so it should not be run in CI"]
+    pub fn test_get_starknet_version(test_state_reader: TestStateReader) {
+        assert!(test_state_reader.get_starknet_version().unwrap() == StarknetVersion::V0_13_2_1)
     }
 }
