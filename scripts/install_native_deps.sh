@@ -17,16 +17,6 @@ setup_llvm_deps() {
     Darwin)
         brew update
         brew install llvm@18
-    
-        LIBRARY_PATH=/opt/homebrew/lib
-        MLIR_SYS_180_PREFIX="$(brew --prefix llvm@18)"
-        LLVM_SYS_181_PREFIX="$MLIR_SYS_180_PREFIX"
-        TABLEGEN_180_PREFIX="$MLIR_SYS_180_PREFIX"
-    
-        export LIBRARY_PATH
-        export MLIR_SYS_180_PREFIX
-        export LLVM_SYS_181_PREFIX
-        export TABLEGEN_180_PREFIX
         ;;
     Linux)
         export DEBIAN_FRONTEND=noninteractive
@@ -43,14 +33,6 @@ setup_llvm_deps() {
         apt-get install -y zstd
         apt-get install -y llvm-18 llvm-18-dev llvm-18-runtime clang-18 clang-tools-18 lld-18 libpolly-18-dev libmlir-18-dev mlir-18-tools
         apt-get install -y libgmp3-dev
-        
-        MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/
-        LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/
-        TABLEGEN_180_PREFIX=/usr/lib/llvm-18/
-        
-        export MLIR_SYS_180_PREFIX
-        export LLVM_SYS_181_PREFIX
-        export TABLEGEN_180_PREFIX
         ;;
 	*)
 		echo "Error: Unsupported operating system"
