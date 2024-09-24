@@ -17,6 +17,10 @@ use starknet_types_core::felt::Felt;
 
 use crate::mempool::{AccountToNonce, Mempool, MempoolInput, TransactionReference};
 use crate::transaction_pool::TransactionPool;
+use crate::transaction_queue::transaction_queue_test_utils::{
+    TransactionQueueContent,
+    TransactionQueueContentBuilder,
+};
 use crate::transaction_queue::TransactionQueue;
 
 // Utils.
@@ -26,7 +30,7 @@ use crate::transaction_queue::TransactionQueue;
 #[derive(Debug, Default)]
 struct MempoolContent {
     tx_pool: Option<TransactionPool>,
-    tx_queue: Option<TransactionQueue>,
+    tx_queue_content: TransactionQueueContent,
     account_nonces: Option<AccountToNonce>,
 }
 
@@ -41,7 +45,11 @@ impl MempoolContent {
     }
 
     fn assert_eq_tx_queue_content(&self, mempool: &Mempool) {
-        assert_eq!(self.tx_queue.as_ref().unwrap(), &mempool.tx_queue);
+        self.tx_queue_content.assert_eq_priority_queue_content(&mempool.tx_queue);
+    }
+
+    fn _assert_eq_tx_pending_queue_content(&self, mempool: &Mempool) {
+        self.tx_queue_content._assert_eq_pending_queue_content(&mempool.tx_queue);
     }
 
     fn assert_eq_account_nonces(&self, mempool: &Mempool) {
@@ -51,10 +59,11 @@ impl MempoolContent {
 
 impl From<MempoolContent> for Mempool {
     fn from(mempool_content: MempoolContent) -> Mempool {
-        let MempoolContent { tx_pool, tx_queue, account_nonces } = mempool_content;
+        let MempoolContent { tx_pool, tx_queue_content: tx_queue, account_nonces } =
+            mempool_content;
         Mempool {
             tx_pool: tx_pool.unwrap_or_default(),
-            tx_queue: tx_queue.unwrap_or_default(),
+            tx_queue: tx_queue.complete_to_tx_queue(),
             // TODO: Add implementation when needed.
             mempool_state: Default::default(),
             account_nonces: account_nonces.unwrap_or_default(),
@@ -65,7 +74,7 @@ impl From<MempoolContent> for Mempool {
 #[derive(Debug, Default)]
 struct MempoolContentBuilder {
     tx_pool: Option<TransactionPool>,
-    tx_queue: Option<TransactionQueue>,
+    tx_queue_content_builder: TransactionQueueContentBuilder,
     account_nonces: Option<AccountToNonce>,
 }
 
@@ -86,7 +95,15 @@ impl MempoolContentBuilder {
     where
         Q: IntoIterator<Item = TransactionReference>,
     {
-        self.tx_queue = Some(queue_txs.into_iter().collect());
+        self.tx_queue_content_builder = self.tx_queue_content_builder.with_priority(queue_txs);
+        self
+    }
+
+    fn _with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
+    where
+        Q: IntoIterator<Item = TransactionReference>,
+    {
+        self.tx_queue_content_builder = self.tx_queue_content_builder._with_pending(queue_txs);
         self
     }
 
@@ -101,7 +118,7 @@ impl MempoolContentBuilder {
     fn build(self) -> MempoolContent {
         MempoolContent {
             tx_pool: self.tx_pool,
-            tx_queue: self.tx_queue,
+            tx_queue_content: self.tx_queue_content_builder.build(),
             account_nonces: self.account_nonces,
         }
     }
