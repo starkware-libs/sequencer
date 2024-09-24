@@ -352,7 +352,6 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
         get_pre_validate_test_args(cairo_version, version, only_query);
     let account_address = pre_validation_base_args.sender_address;
 
-    // First scenario: minimal fee not covered. Actual fee is precomputed.
     let (actual_gas_used, actual_fee) = gas_and_fee(
         u64_from_usize(
             get_syscall_resources(SyscallSelector::CallContract).n_steps
@@ -363,22 +362,29 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
         &fee_type,
     );
 
-    let tx_execution_info = account_invoke_tx(invoke_tx_args! {
-        max_fee: Fee(10),
-        resource_bounds: l1_resource_bounds(10, 10),
-        nonce: nonce_manager.next(account_address),
-        ..pre_validation_base_args.clone()
-    })
-    .execute(&mut state, &block_context, charge_fee, validate)
-    .unwrap();
-    check_gas_and_fee(
-        &block_context,
-        &tx_execution_info,
-        &fee_type,
-        actual_gas_used,
-        actual_fee,
-        actual_fee,
-    );
+    macro_rules! execute_and_check_gas_and_fee {
+        ($max_fee:expr, $resource_bounds:expr) => {{
+            let tx_execution_info = account_invoke_tx(invoke_tx_args! {
+                max_fee: $max_fee,
+                resource_bounds: $resource_bounds,
+                nonce: nonce_manager.next(account_address),
+                ..pre_validation_base_args.clone()
+            })
+            .execute(&mut state, &block_context, charge_fee, validate)
+            .unwrap();
+            check_gas_and_fee(
+                &block_context,
+                &tx_execution_info,
+                &fee_type,
+                actual_gas_used,
+                actual_fee,
+                actual_fee,
+            );
+        }};
+    }
+
+    // First scenario: minimal fee not covered. Actual fee is precomputed.
+    execute_and_check_gas_and_fee!(Fee(10), l1_resource_bounds(10, 10));
 
     // Second scenario: resource bounds greater than balance.
 
@@ -386,39 +392,16 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
     let gas_price = block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
     let balance_over_gas_price: u64 =
         (BALANCE / gas_price).try_into().expect("Failed to convert u128 to u64.");
-    let tx_execution_info = account_invoke_tx(invoke_tx_args! {
-        max_fee: Fee(BALANCE + 1),
-        resource_bounds: l1_resource_bounds(balance_over_gas_price + 10, gas_price.into()),
-        nonce: nonce_manager.next(account_address),
-        ..pre_validation_base_args.clone()
-    })
-    .execute(&mut state, &block_context, charge_fee, validate)
-    .unwrap();
-    check_gas_and_fee(
-        &block_context,
-        &tx_execution_info,
-        &fee_type,
-        actual_gas_used,
-        actual_fee,
-        actual_fee,
+    execute_and_check_gas_and_fee!(
+        Fee(BALANCE + 1),
+        l1_resource_bounds(balance_over_gas_price + 10, gas_price.into())
     );
 
     // Third scenario: L1 gas price bound lower than the price on the block.
     if !is_deprecated {
-        let tx_execution_info = account_invoke_tx(invoke_tx_args! {
-            resource_bounds: l1_resource_bounds(MAX_L1_GAS_AMOUNT, u128::from(gas_price) - 1),
-            nonce: nonce_manager.next(account_address),
-            ..pre_validation_base_args
-        })
-        .execute(&mut state, &block_context, charge_fee, validate)
-        .unwrap();
-        check_gas_and_fee(
-            &block_context,
-            &tx_execution_info,
-            &fee_type,
-            actual_gas_used,
-            actual_fee,
-            actual_fee,
+        execute_and_check_gas_and_fee!(
+            pre_validation_base_args.max_fee,
+            l1_resource_bounds(MAX_L1_GAS_AMOUNT, u128::from(gas_price) - 1)
         );
     }
 }
