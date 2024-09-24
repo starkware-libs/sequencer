@@ -178,11 +178,6 @@ impl VersionedConstants {
         self.l1_to_l2_gas_price_ratio()
     }
 
-    #[cfg(any(feature = "testing", test))]
-    pub fn get_l1_to_l2_gas_price_ratio(&self) -> ResourceCost {
-        self.l1_to_l2_gas_price_ratio()
-    }
-
     /// Returns the initial gas of any transaction to run with.
     pub fn tx_initial_gas(&self) -> u64 {
         let os_consts = &self.os_constants;
