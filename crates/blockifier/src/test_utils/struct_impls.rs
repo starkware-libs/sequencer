@@ -3,7 +3,7 @@ use std::sync::Arc;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
 use starknet_api::block::{BlockNumber, BlockTimestamp};
-use starknet_api::core::{ChainId, ContractAddress, Nonce, PatriciaKey};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::transaction::{Calldata, Fee, TransactionHash, TransactionVersion};
 use starknet_api::{calldata, contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
@@ -100,6 +100,13 @@ impl CallEntryPoint {
             limit_steps_by_resources,
         );
         self.execute(state, &mut ExecutionResources::default(), &mut context)
+    }
+}
+
+impl CallInfo {
+    pub fn with_some_class_hash(mut self) -> Self {
+        self.call.class_hash = Some(ClassHash::default());
+        self
     }
 }
 
