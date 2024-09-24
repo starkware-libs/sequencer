@@ -4,13 +4,18 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG USERNAME=sequencer
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=America/New_York
 
 RUN apt update && apt -y install \
     build-essential \
     clang \
     curl \
+    gnupg \
+    libzstd-dev \
     python3-dev \
-    sudo
+    sudo \
+    wget
 
 
 RUN groupadd --gid $USER_GID $USERNAME && \
@@ -22,6 +27,10 @@ USER ${USERNAME}
 ENV RUSTUP_HOME=/var/tmp/rust
 ENV CARGO_HOME=${RUSTUP_HOME}
 ENV PATH=$PATH:${RUSTUP_HOME}/bin
+
+ENV MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/
+ENV LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/
+ENV TABLEGEN_180_PREFIX=/usr/lib/llvm-18/
 
 COPY install_build_tools.sh .
 RUN bash install_build_tools.sh

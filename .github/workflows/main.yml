@@ -95,7 +95,7 @@ jobs:
       - run: cargo test -p workspace_tests
 
   run-tests:
-    runs-on: starkware-ubuntu-20-04-medium
+    runs-on: starkware-ubuntu-latest-large
     steps:
       - uses: actions/checkout@v4
         with:
@@ -145,7 +145,7 @@ jobs:
         uses: upsidr/merge-gatekeeper@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          timeout: 1200
+          timeout: 1500
           interval: 30
           ignored: "code-review/reviewable"
 
@@ -155,7 +155,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{github.ref}}
-          timeout: 1200
+          timeout: 1500
           interval: 30
           ignored: "code-review/reviewable"
 
@@ -171,6 +171,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clang llvm libudev-dev
+      - name: Set up Native Dependencies
+        uses: ./.github/actions/setup-native-deps
+        id: native-deps
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}

@@ -7,22 +7,51 @@
 # More info on Cargo Chef: https://github.com/LukeMathWalker/cargo-chef
 
 # We start by creating a base image using 'clux/muslrust' with additional required tools.
-FROM clux/muslrust:1.80.0-stable AS chef
+FROM ubuntu:22.04 AS base
 WORKDIR /app
-RUN apt update && apt install -y clang unzip
+
+RUN apt update -y && apt install -y lsb-release \
+    wget \
+    curl \
+    git \
+    build-essential \
+    libclang-dev \
+    libz-dev \
+    libzstd-dev \
+    libssl-dev \
+    pkg-config \
+    gnupg \
+    unzip
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
 RUN cargo install cargo-chef
+
 ENV PROTOC_VERSION=25.1
 RUN curl -L "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip" -o protoc.zip && unzip ./protoc.zip -d $HOME/.local &&  rm ./protoc.zip
 ENV PROTOC=/root/.local/bin/protoc
-# Add the x86_64-unknown-linux-musl target to rustup for compiling statically linked binaries.
-# This enables the creation of fully self-contained binaries that do not depend on the system's dynamic libraries,
-# resulting in more portable executables that can run on any Linux distribution.
-RUN rustup target add x86_64-unknown-linux-musl
+
+# Install LLVM 18
+RUN echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" > /etc/apt/sources.list.d/llvm-18.list
+RUN echo "deb-src http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" >> /etc/apt/sources.list.d/llvm-18.list
+RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+
+RUN apt update -y && apt install -y --ignore-missing --allow-downgrades \
+    libmlir-18-dev \
+    libpolly-18-dev \
+    llvm-18-dev \
+    mlir-18-tools \
+    clang-18
+
+ENV MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/
+ENV LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/
+ENV TABLEGEN_180_PREFIX=/usr/lib/llvm-18/
 
 #####################
 # Stage 1 (planer): #
 #####################
-FROM chef AS planner
+FROM base AS planner
 COPY . .
 # * Running Cargo Chef prepare that will generate recipe.json which will be used in the next stage.
 RUN cargo chef prepare
@@ -31,43 +60,39 @@ RUN cargo chef prepare
 # Stage 2 (cacher): #
 #####################
 # Compile all the dependecies using Cargo Chef cook.
-FROM chef AS cacher
+FROM base AS cacher
 
 # Copy recipe.json from planner stage
 COPY --from=planner /app/recipe.json recipe.json
 
 # Build dependencies - this is the caching Docker layer!
-RUN cargo chef cook --target x86_64-unknown-linux-musl --release --package papyrus_node
+RUN cargo chef cook --release --package papyrus_node
 
 ######################
 # Stage 3 (builder): #
 ######################
-FROM chef AS builder
+FROM base AS builder
 COPY . .
 COPY --from=cacher /app/target target
 # Disable incremental compilation for a cleaner build.
 ENV CARGO_INCREMENTAL=0
 
 # Compile the papyrus_node crate for the x86_64-unknown-linux-musl target in release mode, ensuring dependencies are locked.
-RUN cargo build --target x86_64-unknown-linux-musl --release --package papyrus_node --locked
+RUN cargo build --release --package papyrus_node --locked
 
 ###########################
 # Stage 4 (papyrus_node): #
 ###########################
-# Uses Alpine Linux to run a lightweight and secure container.
-FROM alpine:3.17.0 AS papyrus_node
+FROM base AS papyrus_node
 ENV ID=1000
 WORKDIR /app
 
 # Copy the node executable and its configuration.
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/papyrus_node /app/target/release/papyrus_node
+COPY --from=builder /app/target/release/papyrus_node /app/target/release/papyrus_node
 COPY config config
 
 # Install tini, a lightweight init system, to call our executable.
-RUN set -ex; \
-    apk update; \
-    apk add --no-cache tini; \
-    mkdir data
+RUN apt install tini
 
 # Create a new user "papyrus".
 RUN set -ex; \
@@ -82,4 +107,4 @@ EXPOSE 8080 8081
 USER ${ID}
 
 # Set the entrypoint to use tini to manage the process.
-ENTRYPOINT ["/sbin/tini", "--", "/app/target/release/papyrus_node"]
+ENTRYPOINT ["tini", "--", "/app/target/release/papyrus_node"]

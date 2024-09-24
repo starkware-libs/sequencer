@@ -18,6 +18,10 @@ jobs:
       - uses: ./.github/actions/bootstrap
       - uses: Noelware/setup-protoc@1.1.0
 
+      - name: Set up Native Dependencies
+        uses: ./.github/actions/setup-native-deps
+        id: native-deps
+
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
         id: setup-pypy
