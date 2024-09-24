@@ -70,7 +70,7 @@ async fn test_add_tx() {
         .with(eq(MempoolWrapperInput {
             mempool_input: MempoolInput {
                 tx: executable_tx,
-                account: AccountState { sender_address, nonce: *rpc_tx.nonce() },
+                account_state: AccountState { sender_address, nonce: *rpc_tx.nonce() },
             },
             message_metadata: None,
         }))

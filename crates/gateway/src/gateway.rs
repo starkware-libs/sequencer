@@ -137,7 +137,7 @@ fn process_tx(
     stateful_tx_validator.run_validate(&executable_tx, nonce, validator)?;
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
-    Ok(MempoolInput { tx: executable_tx, account: AccountState { sender_address, nonce } })
+    Ok(MempoolInput { tx: executable_tx, account_state: AccountState { sender_address, nonce } })
 }
 
 pub fn create_gateway(
