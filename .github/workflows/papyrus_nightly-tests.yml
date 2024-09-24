@@ -42,7 +42,6 @@ jobs:
       - run: mkdir data
 
       - run: brew install protobuf@$PROTOC_VERSION
-
       - name: Build node
         run: cargo build -r -p papyrus_node
 
