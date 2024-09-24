@@ -1,7 +1,8 @@
 //! Stream handler, see StreamManager struct.
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use futures::channel::mpsc;
+use futures::StreamExt;
 use papyrus_protobuf::consensus::StreamMessage;
 use papyrus_protobuf::converters::ProtobufConversionError;
 
@@ -13,16 +14,15 @@ mod stream_handler_test;
 #[derive(Default)]
 pub struct StreamHandlerConfig {
     /// The maximum buffer size for each stream (None -> no limit).
-    pub max_buffer_size: Option<u64>,
+    max_buffer_len: Option<u64>,
     /// The maximum number of streams that can be buffered at the same time (None -> no limit).
-    pub max_num_streams: Option<u64>,
+    max_num_streams: Option<u64>,
 }
 
 type StreamId = u64;
 type MessageId = u64;
 
-#[derive(Default)]
-struct StreamStats {
+struct StreamData<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
     // The next message_id that is expected.
     next_message_id: MessageId,
     // The message_id of the message that is marked as "fin" (the last message),
@@ -32,27 +32,40 @@ struct StreamStats {
     max_message_id: MessageId,
     // The number of messages that are currently buffered.
     num_buffered: u64,
+
+    message_buffer: BTreeMap<MessageId, StreamMessage<T>>,
+}
+
+impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> Default
+    for StreamData<T>
+{
+    fn default() -> Self {
+        StreamData {
+            next_message_id: 0,
+            fin_message_id: None,
+            max_message_id: 0,
+            num_buffered: 0,
+            message_buffer: BTreeMap::new(),
+        }
+    }
 }
 
 /// A StreamHandler is responsible for buffering and sending messages in order.
 pub struct StreamHandler<
     T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
 > {
-    /// Configuration for the StreamHandler (things like max buffer size, etc.).
-    pub config: StreamHandlerConfig,
+    // Configuration for the StreamHandler (things like max buffer size, etc.).
+    config: StreamHandlerConfig,
 
-    /// An end of a channel used to send out the messages in the correct order.
-    pub sender: mpsc::Sender<StreamMessage<T>>,
-    /// An end of a channel used to receive messages.
-    pub receiver: mpsc::Receiver<StreamMessage<T>>,
+    // An end of a channel used to send out the messages in the correct order.
+    sender: mpsc::Sender<StreamMessage<T>>,
+    // An end of a channel used to receive messages.
+    receiver: mpsc::Receiver<StreamMessage<T>>,
 
-    // Some statistics about each stream.
-    stats_per_stream: BTreeMap<StreamId, StreamStats>,
-
-    /// A separate message buffer for each stream_id. For each stream_id there's a nested BTreeMap.
-    /// Each nested map is keyed by the message_id of the first message it contains.
-    /// The messages in each nested map are stored in a contiguous sequence of messages (as a Vec).
-    message_buffers: BTreeMap<StreamId, BTreeMap<MessageId, Vec<StreamMessage<T>>>>,
+    // A map from stream_id to a struct that contains all the information about the stream.
+    // This includes both the message buffer and some metadata (like the latest message_id).
+    stream_data: HashMap<StreamId, StreamData<T>>,
+    // TODO(guyn): perhaps make input_stream_data and output_stream_data?
 }
 
 impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
@@ -64,91 +77,75 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         sender: mpsc::Sender<StreamMessage<T>>,
         receiver: mpsc::Receiver<StreamMessage<T>>,
     ) -> Self {
-        StreamHandler {
-            config,
-            sender,
-            receiver,
-            stats_per_stream: BTreeMap::new(),
-            message_buffers: BTreeMap::new(),
-        }
+        StreamHandler { config, sender, receiver, stream_data: HashMap::new() }
     }
 
     /// Listen for messages on the receiver channel, buffering them if necessary.
-    /// Guarntees that messages are sent in order.
+    /// Guarantees that messages are sent in order.
     pub async fn listen(&mut self) {
         loop {
-            if let Ok(message) = self.receiver.try_next() {
+            if let Some(message) = self.receiver.next().await {
                 if !self.handle_message(message) {
                     break;
                 }
-            } else {
-                // Err comes when the channel is open but no message was received.
-                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
             }
         }
     }
 
     // Handle the message, return true if the channel is still open.
-    fn handle_message(&mut self, message: Option<StreamMessage<T>>) -> bool {
-        let message = match message {
-            Some(message) => message,
-            None => {
-                // Message is none in case the channel was closed!
-                return false;
-            }
-        };
+    fn handle_message(&mut self, message: StreamMessage<T>) -> bool {
         let stream_id = message.stream_id;
         let message_id = message.message_id;
-        if !self.stats_per_stream.contains_key(&stream_id) {
-            self.stats_per_stream.insert(stream_id, StreamStats::default());
+        if !self.stream_data.contains_key(&stream_id) {
+            self.stream_data.insert(stream_id, StreamData::default());
         }
 
         // Check if there are too many streams:
         if let Some(max_streams) = self.config.max_num_streams {
-            let num_streams = self.stats_per_stream.len() as u64;
+            let num_streams = self.stream_data.len() as u64;
             if num_streams > max_streams {
                 // TODO(guyn): replace panics with more graceful error handling
                 panic!("Maximum number of streams reached! {}", max_streams);
             }
         }
 
-        let stats = self.stats_per_stream.get_mut(&stream_id).unwrap();
+        let data = self.stream_data.get_mut(&stream_id).unwrap();
 
-        if stats.max_message_id < message_id {
-            stats.max_message_id = message_id;
+        if data.max_message_id < message_id {
+            data.max_message_id = message_id;
         }
 
         if message.fin {
-            stats.fin_message_id = Some(message_id);
-            if stats.max_message_id > message_id {
+            data.fin_message_id = Some(message_id);
+            if data.max_message_id > message_id {
                 // TODO(guyn): replace panics with more graceful error handling
                 panic!(
                     "Received fin message with id that is smaller than a previous message! \
                      stream_id: {}, fin_message_id: {}, max_message_id: {}",
-                    stream_id, message_id, stats.max_message_id
+                    stream_id, message_id, data.max_message_id
                 );
             }
         }
 
         // Check that message_id is not bigger than the fin_message_id.
-        if message_id > stats.fin_message_id.unwrap_or(u64::MAX) {
+        if message_id > data.fin_message_id.unwrap_or(u64::MAX) {
             // TODO(guyn): replace panics with more graceful error handling
             panic!(
                 "Received message with id that is bigger than the id of the fin message! \
                  stream_id: {}, message_id: {}, fin_message_id: {}",
                 stream_id,
                 message_id,
-                stats.fin_message_id.unwrap_or(u64::MAX)
+                data.fin_message_id.unwrap_or(u64::MAX)
             );
         }
 
         // This means we can just send the message without buffering it.
-        if message_id == stats.next_message_id {
+        if message_id == data.next_message_id {
             self.sender.try_send(message).expect("Send should succeed");
-            stats.next_message_id += 1;
+            data.next_message_id += 1;
             // Try to drain the buffer.
             self.drain_buffer(stream_id);
-        } else if message_id > stats.next_message_id {
+        } else if message_id > data.next_message_id {
             // Save the message in the buffer.
             self.store(message);
         } else {
@@ -156,7 +153,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
             panic!(
                 "Received message with id that is smaller than the next message expected! \
                  stream_id: {}, message_id: {}, next_message_id: {}",
-                stream_id, message_id, stats.next_message_id
+                stream_id, message_id, data.next_message_id
             );
         }
 
@@ -168,79 +165,44 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     fn store(&mut self, message: StreamMessage<T>) {
         let stream_id = message.stream_id;
         let message_id = message.message_id;
-        let stats = self.stats_per_stream.get_mut(&stream_id).unwrap();
-        stats.num_buffered += 1;
+        let data = self.stream_data.get_mut(&stream_id).unwrap();
+        data.num_buffered += 1;
 
-        if let Some(max_buf_size) = self.config.max_buffer_size {
-            if stats.num_buffered > max_buf_size {
+        if let Some(max_buf_size) = self.config.max_buffer_len {
+            if data.num_buffered > max_buf_size {
                 // TODO(guyn): replace panics with more graceful error handling
                 panic!(
                     "Buffer is full! stream_id= {} with {} messages!",
-                    stream_id, stats.num_buffered
+                    stream_id, data.num_buffered
                 );
             }
         }
-        let buffer = self.message_buffers.entry(stream_id).or_insert(BTreeMap::new());
-        let keys = buffer.keys().cloned().collect::<Vec<u64>>();
-        for id in keys {
-            // Go over the keys in order from smallest to largest id.
-            let last_id = buffer[&id].last().unwrap().message_id;
-
-            // We can just add the message to the end of the vector.
-            if last_id == message_id - 1 {
-                buffer.get_mut(&id).unwrap().push(message);
-                return;
-            }
-
-            // No vector with last message_id will match, skip the rest of the loop.
-            if last_id > message_id {
-                break;
-            }
-
-            // This message should already be inside this vector!
-            if message_id >= id || last_id < message_id - 1 {
-                let old_message = buffer[&id].iter().filter(|m| m.message_id == message_id).next();
-                if let Some(old_message) = old_message {
-                    // TODO(guyn): replace panics with more graceful error handling
-                    panic!(
-                        "Two messages with the same message_id in buffer! stream_id: {}, old \
-                         message: {}, new message: {}",
-                        stream_id, old_message, message
-                    );
-                } else if old_message.is_none() {
-                    // TODO(guyn): replace panics with more graceful error handling
-                    panic!(
-                        "Message with this id should be in buffer, but is not! 
-                        stream_id: {}, message_id: {}",
-                        stream_id, message_id
-                    );
-                }
-            }
+        if data.message_buffer.contains_key(&message_id) {
+            // TODO(guyn): replace panics with more graceful error handling
+            panic!(
+                "Two messages with the same message_id in buffer! stream_id: {}, old message: {}, \
+                 new message: {}",
+                stream_id,
+                data.message_buffer.get(&message_id).unwrap(),
+                message
+            );
+        } else {
+            data.message_buffer.insert(message_id, message);
         }
-        buffer.insert(message_id, vec![message]);
     }
 
     // Tries to drain as many messages as possible from the buffer (in order),
     // DOES NOT guarantee that the buffer will be empty after calling this function.
     fn drain_buffer(&mut self, stream_id: u64) {
-        let stats = self.stats_per_stream.get_mut(&stream_id).unwrap();
-        if let Some(buffer) = self.message_buffers.get_mut(&stream_id) {
-            // Drain each vec of messages one by one, if they are in order.
-            // To drain a vector, we must match the first id (the key) with the message_id.
-            // This while loop will keep draining vectors one by one, until message_id doesn't
-            // match.
-            while let Some(messages) = buffer.remove(&stats.next_message_id) {
-                for message in messages {
-                    self.sender.try_send(message).expect("Send should succeed");
-                    stats.next_message_id += 1;
-                    stats.num_buffered -= 1;
-                }
-            }
+        let data = self.stream_data.get_mut(&stream_id).unwrap();
+        while let Some(message) = data.message_buffer.remove(&data.next_message_id) {
+            self.sender.try_send(message).expect("Send should succeed");
+            data.next_message_id += 1;
+            data.num_buffered -= 1;
+        }
 
-            if buffer.is_empty() && stats.fin_message_id.is_some() {
-                self.message_buffers.remove(&stream_id);
-                self.stats_per_stream.remove(&stream_id);
-            }
+        if data.message_buffer.is_empty() && data.fin_message_id.is_some() {
+            self.stream_data.remove(&stream_id);
         }
     }
 }
