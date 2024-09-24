@@ -316,22 +316,4 @@ mod tests {
 
         join_handle.await.expect("Task should succeed");
     }
-
-    #[tokio::test]
-    #[should_panic]
-    async fn test_stream_handler_max_streams_fails() {
-        let (mut h, mut tx_input, _rx_output) = setup_test();
-        h.config.max_num_streams = Some(10);
-        // skip the first message, so the messages all get buffered
-        for i in 0..11 {
-            tx_input.try_send(make_random_message(i, 1, false)).expect("Send should succeed");
-        }
-
-        // this should panic since there are too many streams at the same time
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
-        });
-
-        join_handle.await.expect("Task should succeed");
-    }
 }

@@ -179,11 +179,8 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         if data.message_buffer.contains_key(&message_id) {
             // TODO(guyn): replace panics with more graceful error handling
             panic!(
-                "Two messages with the same message_id in buffer! stream_id: {}, old message: {}, \
-                 new message: {}",
-                stream_id,
-                data.message_buffer.get(&message_id).unwrap(),
-                message
+                "Two messages with the same message_id in buffer! stream_id: {}, message_id: {}",
+                stream_id, message_id
             );
         } else {
             data.message_buffer.insert(message_id, message);

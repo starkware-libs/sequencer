@@ -52,19 +52,6 @@ pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufCon
     pub fin: bool,
 }
 
-impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> std::fmt::Display
-    for StreamMessage<T>
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let message: Vec<u8> = self.message.clone().into();
-        write!(
-            f,
-            "StreamMessage {{ message: {:?}, stream_id: {}, message_id: {}, fin: {} }}",
-            message, self.stream_id, self.message_id, self.fin
-        )
-    }
-}
-
 // TODO(Guy): Remove after implementing broadcast streams.
 #[allow(missing_docs)]
 pub struct ProposalWrapper(pub Proposal);
