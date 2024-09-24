@@ -299,17 +299,23 @@ fn test_get_txs_removes_returned_txs_from_pool() {
     let tx_nonce_1 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1);
     let tx_nonce_2 = tx!(tx_hash: 3, sender_address: "0x0", tx_nonce: 2);
 
+    let account_nonces = [("0x0", 0)];
     let queue_txs = [TransactionReference::new(&tx_nonce_0)];
     let pool_txs = [tx_nonce_0, tx_nonce_1, tx_nonce_2];
     let mut mempool = MempoolContentBuilder::new()
+        .with_account_nonces(account_nonces)
         .with_pool(pool_txs.clone())
         .with_priority_queue(queue_txs)
         .build_into_mempool();
 
     // Test and assert: all transactions are returned.
     get_txs_and_assert_expected(&mut mempool, 3, &pool_txs);
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_pool([]).with_priority_queue([]).build();
+    let expected_mempool_content = MempoolContentBuilder::new()
+        .with_account_nonces([])
+        .with_pool([])
+        .with_priority_queue([])
+        .build();
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
     expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
 }
 
