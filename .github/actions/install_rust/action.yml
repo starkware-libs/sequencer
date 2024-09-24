@@ -1,4 +1,9 @@
+name: Bootsrap rust installation
+description: Setup rust environment and its components, also caching the build results.
+
 runs:
   using: "composite"
   steps:
     - uses: moonrepo/setup-rust@v1
+      with:
+        cache-base: main(-v[0-9].*)?
