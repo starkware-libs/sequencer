@@ -3,6 +3,7 @@ use std::fmt::Display;
 use std::sync::Arc;
 
 use derive_more::{Display, From};
+use num_bigint::BigUint;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
@@ -35,6 +36,10 @@ use crate::transaction_hash::{
     get_l1_handler_transaction_hash,
 };
 use crate::StarknetApiError;
+
+// TODO(Noa, 14/11/2023): Replace QUERY_VERSION_BASE_BIT with a lazy calculation.
+//      pub static QUERY_VERSION_BASE: Lazy<Felt> = ...
+pub const QUERY_VERSION_BASE_BIT: u32 = 128;
 
 pub trait TransactionHasher {
     fn calculate_transaction_hash(
@@ -767,18 +772,36 @@ impl TransactionVersion {
     pub const THREE: Self = { Self(Felt::THREE) };
 }
 
+// TODO: TransactionVersion and SignedTransactionVersion should probably be separate types.
 // Returns the transaction version taking into account the transaction options.
-pub fn get_tx_version(
+pub fn get_signed_tx_version_from_tx(
     tx: &Transaction,
     transaction_options: &TransactionOptions,
 ) -> TransactionVersion {
-    let mut version = tx.version();
+    get_signed_tx_version(&tx.version(), transaction_options)
+}
+
+pub fn get_signed_tx_version(
+    tx_version: &TransactionVersion,
+    transaction_options: &TransactionOptions,
+) -> TransactionVersion {
+    let mut version = *tx_version;
 
     // If only_query is true, set the 128-th bit.
+    let query_only_bit = Felt::TWO.pow(QUERY_VERSION_BASE_BIT);
+    let query_bit_is_set =
+        version.0.to_biguint() & query_only_bit.to_biguint() != BigUint::from(0_u8);
     if transaction_options.only_query {
-        let query_only_bit: Felt = Felt::from_hex_unchecked("0x100000000000000000000000000000000");
-        let fe: Felt = version.0;
-        version = TransactionVersion(fe + query_only_bit);
+        // Check that the query bit isn't set before adding.
+        if !query_bit_is_set {
+            version = TransactionVersion(version.0 + query_only_bit);
+        }
+    } else {
+        // Assert that this method isn't reached with query bit set, but request off in the options.
+        assert!(
+            !query_bit_is_set,
+            "Requested non-query transaction version, with query bit set: {version:?}."
+        );
     }
     version
 }

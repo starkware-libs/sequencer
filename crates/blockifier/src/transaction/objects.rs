@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use num_traits::Pow;
 use serde::Serialize;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::transaction::{
+    get_signed_tx_version,
     AccountDeploymentData,
     AllResourceBounds,
     Fee,
@@ -14,11 +14,11 @@ use starknet_api::transaction::{
     ResourceBounds,
     Tip,
     TransactionHash,
+    TransactionOptions,
     TransactionSignature,
     TransactionVersion,
     ValidResourceBounds,
 };
-use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
 use crate::abi::constants as abi_constants;
@@ -35,7 +35,6 @@ use crate::fee::gas_usage::{
 };
 use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::StateChangesCount;
-use crate::transaction::constants;
 use crate::transaction::errors::{
     TransactionExecutionError,
     TransactionFeeError,
@@ -91,14 +90,10 @@ impl TransactionInfo {
     }
 
     pub fn signed_version(&self) -> TransactionVersion {
-        let version = self.version();
-        if !self.only_query() {
-            return version;
-        }
-
-        let query_version_base = Felt::TWO.pow(constants::QUERY_VERSION_BASE_BIT);
-        let query_version = query_version_base + version.0;
-        TransactionVersion(query_version)
+        get_signed_tx_version(
+            &self.version(),
+            &TransactionOptions { only_query: self.only_query() },
+        )
     }
 
     pub fn enforce_fee(&self) -> bool {
