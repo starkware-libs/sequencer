@@ -6,10 +6,9 @@ use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server, StatusCode};
-use serde::de::DeserializeOwned;
-use serde::Serialize;
 
 use super::definitions::ComponentServerStarter;
+use crate::bounds::{RequestBounds, ResponseBounds};
 use crate::component_client::LocalComponentClient;
 use crate::component_definitions::{ServerError, APPLICATION_OCTET_STREAM};
 
@@ -99,8 +98,8 @@ use crate::component_definitions::{ServerError, APPLICATION_OCTET_STREAM};
 /// ```
 pub struct RemoteComponentServer<Request, Response>
 where
-    Request: DeserializeOwned + Send + Sync + 'static,
-    Response: Serialize + Send + Sync + 'static,
+    Request: RequestBounds,
+    Response: ResponseBounds,
 {
     socket: SocketAddr,
     local_client: LocalComponentClient<Request, Response>,
@@ -108,8 +107,8 @@ where
 
 impl<Request, Response> RemoteComponentServer<Request, Response>
 where
-    Request: DeserializeOwned + Send + Sync + 'static,
-    Response: Serialize + Send + Sync + 'static,
+    Request: RequestBounds,
+    Response: ResponseBounds,
 {
     pub fn new(
         local_client: LocalComponentClient<Request, Response>,
@@ -150,8 +149,8 @@ where
 #[async_trait]
 impl<Request, Response> ComponentServerStarter for RemoteComponentServer<Request, Response>
 where
-    Request: DeserializeOwned + Send + Sync + 'static,
-    Response: Serialize + Send + Sync + 'static,
+    Request: RequestBounds,
+    Response: ResponseBounds,
 {
     async fn start(&mut self) {
         let make_svc = make_service_fn(|_conn| {

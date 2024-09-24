@@ -3,7 +3,8 @@ use tokio::sync::mpsc::Receiver;
 use tracing::error;
 
 use super::definitions::{request_response_loop, start_component, ComponentServerStarter};
-use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
+use crate::bounds::ComponentBounds;
+use crate::component_definitions::ComponentRequestAndResponseSender;
 use crate::component_runner::ComponentStarter;
 
 /// The `LocalComponentServer` struct is a generic server that handles requests and responses for a
@@ -109,7 +110,7 @@ use crate::component_runner::ComponentStarter;
 /// ```
 pub struct LocalComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter,
+    Component: ComponentBounds<Request, Response> + ComponentStarter,
     Request: Send + Sync,
     Response: Send + Sync,
 {
@@ -119,7 +120,7 @@ where
 
 impl<Component, Request, Response> LocalComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter,
+    Component: ComponentBounds<Request, Response>,
     Request: Send + Sync,
     Response: Send + Sync,
 {
@@ -135,7 +136,7 @@ where
 impl<Component, Request, Response> ComponentServerStarter
     for LocalComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Send + Sync,
+    Component: ComponentBounds<Request, Response>,
     Request: Send + Sync,
     Response: Send + Sync,
 {
@@ -150,7 +151,7 @@ where
 
 pub struct LocalActiveComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send + Sync,
+    Component: ComponentBounds<Request, Response> + Clone,
     Request: Send + Sync,
     Response: Send + Sync,
 {
@@ -160,7 +161,7 @@ where
 
 impl<Component, Request, Response> LocalActiveComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send + Sync,
+    Component: ComponentBounds<Request, Response> + Clone,
     Request: Send + Sync,
     Response: Send + Sync,
 {
@@ -176,7 +177,7 @@ where
 impl<Component, Request, Response> ComponentServerStarter
     for LocalActiveComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send + Sync,
+    Component: ComponentBounds<Request, Response> + Clone,
     Request: Send + Sync,
     Response: Send + Sync,
 {
