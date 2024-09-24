@@ -122,6 +122,22 @@ fn gas_and_fee(base_gas: u64, validate_mode: bool, fee_type: &FeeType) -> (u64, 
     )
 }
 
+fn calculate_actual_gas(
+    tx_execution_info: &TransactionExecutionInfo,
+    block_context: &BlockContext,
+) -> u128 {
+    tx_execution_info
+        .receipt
+        .resources
+        .to_gas_vector(
+            &block_context.versioned_constants,
+            block_context.block_info.use_kzg_da,
+            &GasVectorComputationMode::NoL2Gas,
+        )
+        .unwrap()
+        .l1_gas
+}
+
 /// Asserts gas used and reported fee are as expected.
 // TODO(Aner, 21/01/24) modify for 4844 (taking blob_gas into account).
 fn check_gas_and_fee(
@@ -132,19 +148,7 @@ fn check_gas_and_fee(
     expected_actual_fee: Fee,
     expected_cost_of_resources: Fee,
 ) {
-    assert_eq!(
-        tx_execution_info
-            .receipt
-            .resources
-            .to_gas_vector(
-                &block_context.versioned_constants,
-                block_context.block_info.use_kzg_da,
-                &GasVectorComputationMode::NoL2Gas,
-            )
-            .unwrap()
-            .l1_gas,
-        expected_actual_gas.into()
-    );
+    assert_eq!(calculate_actual_gas(tx_execution_info, block_context), expected_actual_gas.into());
 
     assert_eq!(tx_execution_info.receipt.fee, expected_actual_fee);
     // Future compatibility: resources other than the L1 gas usage may affect the fee (currently,
@@ -350,16 +354,22 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
         get_pre_validate_test_args(cairo_version, version, only_query);
     let account_address = pre_validation_base_args.sender_address;
 
-    let (actual_gas_used, actual_fee) = gas_and_fee(
-        u64_from_usize(
-            get_syscall_resources(SyscallSelector::CallContract).n_steps
-                + get_tx_resources(TransactionType::InvokeFunction).n_steps
-                + 1738,
-        ),
-        validate,
-        &fee_type,
+    let tx_execution_info = account_invoke_tx(invoke_tx_args! {
+        nonce: nonce_manager.next(account_address),
+        ..pre_validation_base_args.clone()
+    })
+    .execute(&mut state, &block_context, charge_fee, false)
+    .unwrap();
+    let base_gas = calculate_actual_gas(&tx_execution_info, &block_context).try_into().unwrap();
+    assert!(
+        base_gas
+            > u64_from_usize(
+                get_syscall_resources(SyscallSelector::CallContract).n_steps
+                    + get_tx_resources(TransactionType::InvokeFunction).n_steps
+            )
     );
 
+    let (actual_gas_used, actual_fee) = gas_and_fee(base_gas, validate, &fee_type);
     macro_rules! execute_and_check_gas_and_fee {
         ($max_fee:expr, $resource_bounds:expr) => {{
             let tx_execution_info = account_invoke_tx(invoke_tx_args! {
@@ -492,18 +502,8 @@ fn test_simulate_charge_fee_no_validation_fail_validate(
 
     // Validation scenario: fallible validation.
     let block_context = BlockContext::create_for_account_testing();
-    let base_gas = transaction_execution_info
-        .receipt
-        .resources
-        .to_gas_vector(
-            &block_context.versioned_constants,
-            block_context.block_info.use_kzg_da,
-            &GasVectorComputationMode::NoL2Gas,
-        )
-        .unwrap()
-        .l1_gas
-        .try_into()
-        .unwrap();
+    let base_gas =
+        calculate_actual_gas(&transaction_execution_info, &block_context).try_into().unwrap();
     assert!(base_gas > u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps));
     let (actual_gas_used, actual_fee) = gas_and_fee(base_gas, validate, &fee_type);
 
