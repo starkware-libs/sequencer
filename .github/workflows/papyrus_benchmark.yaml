@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   # TODO: Uncomment and run this automatically when the storage benchmark is fixed.
   # push:
-  # branches: [main]
+  #   branches: [main]
 
 jobs:
   storage-benchmark:
@@ -45,7 +45,7 @@ jobs:
         with:
           name: "Papyrus storage benchmark"
           # What benchmark tool the output.txt came from
-          tool: 'customSmallerIsBetter'
+          tool: "customSmallerIsBetter"
           # Where the output from the benchmark tool is stored
           output-file-path: output.txt
 
