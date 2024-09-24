@@ -1,9 +1,12 @@
 use assert_matches::assert_matches;
 use blockifier::blockifier::block::BlockInfo;
+use blockifier::state::state_api::StateReader;
 use blockifier::versioned_constants::StarknetVersion;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
+use starknet_api::core::ClassHash;
+use starknet_api::{class_hash, felt};
 
 use crate::state_reader::test_state_reader::TestStateReader;
 
@@ -28,4 +31,22 @@ pub fn test_get_block_info(test_state_reader: TestStateReader, test_block_number
 #[rstest]
 pub fn test_get_starknet_version(test_state_reader: TestStateReader) {
     assert_eq!(test_state_reader.get_starknet_version().unwrap(), StarknetVersion::V0_13_2_1)
+}
+
+#[rstest]
+pub fn test_get_contract_class(test_state_reader: TestStateReader) {
+    let class_hash =
+        class_hash!("0x3131fa018d520a037686ce3efddeab8f28895662f019ca3ca18a626650f7d1e");
+    test_state_reader.get_contract_class(&class_hash).unwrap_or_else(|err| {
+        panic!("Error retrieving contract class for class hash {}: {}", class_hash, err);
+    });
+}
+
+#[rstest]
+pub fn test_get_compiled_contract_class(test_state_reader: TestStateReader) {
+    let class_hash =
+        class_hash!("0x3131fa018d520a037686ce3efddeab8f28895662f019ca3ca18a626650f7d1e");
+    test_state_reader.get_compiled_contract_class(class_hash).unwrap_or_else(|err| {
+        panic!("Error retrieving compiled contract class for class hash {}: {}", class_hash, err);
+    });
 }
