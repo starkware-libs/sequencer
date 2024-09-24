@@ -27,7 +27,6 @@ mock! {
 
     #[async_trait]
     impl ConsensusContext for TestContext {
-        type Block = TestBlock;
         type ProposalChunk = u32;
 
         async fn build_proposal(&mut self, height: BlockNumber) -> (

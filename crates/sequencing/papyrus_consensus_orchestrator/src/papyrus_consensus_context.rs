@@ -31,13 +31,6 @@ use tracing::{debug, debug_span, error, info, warn, Instrument};
 
 // TODO: add debug messages and span to the tasks.
 
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
-#[allow(missing_docs)]
-pub struct PapyrusConsensusBlock {
-    content: Vec<Transaction>,
-    id: BlockHash,
-}
-
 type HeightToIdToContent = BTreeMap<BlockNumber, HashMap<ProposalContentId, Vec<Transaction>>>;
 
 pub struct PapyrusConsensusContext {
@@ -72,7 +65,6 @@ const CHANNEL_SIZE: usize = 5000;
 
 #[async_trait]
 impl ConsensusContext for PapyrusConsensusContext {
-    type Block = PapyrusConsensusBlock;
     type ProposalChunk = Transaction;
 
     async fn build_proposal(

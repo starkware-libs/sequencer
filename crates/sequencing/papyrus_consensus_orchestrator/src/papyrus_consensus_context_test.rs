@@ -10,10 +10,10 @@ use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
 use papyrus_test_utils::get_test_block;
-use starknet_api::block::Block;
+use starknet_api::block::{Block, BlockHash};
 use starknet_api::core::ContractAddress;
 
-use crate::papyrus_consensus_context::{PapyrusConsensusBlock, PapyrusConsensusContext};
+use crate::papyrus_consensus_context::PapyrusConsensusContext;
 
 // TODO(dvir): consider adding tests for times, i.e, the calls are returned immediately and nothing
 // happen until it should (for example, not creating a block before we have it in storage).
@@ -107,9 +107,9 @@ async fn propose() {
 #[tokio::test]
 async fn decision() {
     let (_, mut papyrus_context, _, mut sync_network) = test_setup();
-    let block = PapyrusConsensusBlock::default();
+    let block = BlockHash::default();
     let precommit = Vote::default();
-    papyrus_context.decision_reached(block.id, vec![precommit.clone()]).await.unwrap();
+    papyrus_context.decision_reached(block, vec![precommit.clone()]).await.unwrap();
     assert_eq!(sync_network.messages_to_broadcast_receiver.next().await.unwrap(), precommit);
 }
 

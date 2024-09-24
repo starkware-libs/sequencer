@@ -19,10 +19,6 @@ pub type ProposalContentId = BlockHash;
 /// Interface for consensus to call out to the node.
 #[async_trait]
 pub trait ConsensusContext {
-    /// The block type built by `ConsensusContext` from a proposal.
-    // We use an associated type since consensus is indifferent to the actual content of a proposal,
-    // but we cannot use generics due to object safety.
-    type Block;
     /// The chunks of content returned when iterating the proposal.
     // In practice I expect this to match the type sent to the network
     // (papyrus_protobuf::ConsensusMessage), and not to be specific to just the block's content.
