@@ -25,7 +25,7 @@ env:
 
 jobs:
   docker-build-push:
-    runs-on: starkware-ubuntu-latest-medium
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -35,7 +35,13 @@ jobs:
       # Also workaround for: https://github.com/docker/build-push-action/issues/461
       # https://github.com/docker/setup-buildx-action
       - name: Setup Docker buildx
-        uses: docker/setup-buildx-action@v2.2.1
+        uses: docker/setup-buildx-action@v3.6.1
+
+      # Set Rustup and Cargo directories to avoid cross-device issues
+      - name: Set Rustup and Cargo directories
+        run: |
+          export RUSTUP_HOME=/usr/local/rustup
+          export CARGO_HOME=/usr/local/cargo
 
       # Login to a Docker registry except on PR
       # https://github.com/docker/login-action
@@ -52,7 +58,7 @@ jobs:
       # https://github.com/docker/metadata-action
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v4.1.1
+        uses: docker/metadata-action@v5.5.1
         with:
           images: ${{ env.REGISTRY }}/${{ env.REPO_NAME }}/papyrus
           tags: |
@@ -67,7 +73,7 @@ jobs:
       # Build and push Docker image with Buildx
       # https://github.com/docker/build-push-action
       - name: Build and push Docker image
-        uses: docker/build-push-action@v3.2.0
+        uses: docker/build-push-action@v6.7.0
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
