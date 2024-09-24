@@ -8,9 +8,11 @@ use blockifier::state::cached_state::CachedState;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::versioned_constants::{StarknetVersion, VersionedConstants};
+use serde_json::json;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
+use starknet_core::types::ContractClass::{Legacy, Sierra};
 use starknet_gateway::config::RpcStateReaderConfig;
 use starknet_gateway::errors::serde_err_to_state_err;
 use starknet_gateway::rpc_objects::GetBlockWithTxHashesParams;
@@ -18,6 +20,7 @@ use starknet_gateway::rpc_state_reader::RpcStateReader;
 use starknet_gateway::state_reader::MempoolStateReader;
 use starknet_types_core::felt::Felt;
 
+use crate::compile::{legacy_to_contract_class_v0, sierra_to_contact_class_v1};
 use crate::test_utils::{get_chain_info, get_rpc_state_reader_config};
 
 pub struct TestStateReader(RpcStateReader);
@@ -39,8 +42,13 @@ impl StateReader for TestStateReader {
         self.0.get_class_hash_at(contract_address)
     }
 
-    fn get_compiled_contract_class(&self, _class_hash: ClassHash) -> StateResult<ContractClass> {
-        todo!()
+    /// Returns the contract class of the given class hash.
+    /// Compile the contract class if it is Sierra.
+    fn get_compiled_contract_class(&self, class_hash: ClassHash) -> StateResult<ContractClass> {
+        match self.get_contract_class(&class_hash)? {
+            Sierra(sierra) => sierra_to_contact_class_v1(sierra),
+            Legacy(legacy) => legacy_to_contract_class_v0(legacy),
+        }
     }
 
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
@@ -78,6 +86,20 @@ impl TestStateReader {
         }
     }
 
+    pub fn get_contract_class(
+        &self,
+        class_hash: &ClassHash,
+    ) -> StateResult<starknet_core::types::ContractClass> {
+        let params = json!({
+        "block_id": self.0.block_id,
+        "class_hash": class_hash.0.to_string(),
+        });
+        let contract_class: starknet_core::types::ContractClass =
+            serde_json::from_value(self.0.send_rpc_request("starknet_getClass", params.clone())?)
+                .map_err(serde_err_to_state_err)?;
+        Ok(contract_class)
+    }
+
     pub fn get_versioned_constants(&self) -> StateResult<&'static VersionedConstants> {
         let starknet_version = self.get_starknet_version()?;
         let versioned_constants: &'static VersionedConstants = starknet_version.into();
@@ -109,9 +131,12 @@ impl TestStateReader {
 pub mod test {
     use assert_matches::assert_matches;
     use blockifier::blockifier::block::BlockInfo;
+    use blockifier::state::state_api::StateReader;
     use blockifier::versioned_constants::StarknetVersion;
     use rstest::*;
     use starknet_api::block::BlockNumber;
+    use starknet_api::core::ClassHash;
+    use starknet_api::{class_hash, felt};
 
     use super::TestStateReader;
 
@@ -135,5 +160,28 @@ pub mod test {
     #[ignore = "This test using http request, so it should not be run in CI"]
     pub fn test_get_starknet_version(test_state_reader: TestStateReader) {
         assert!(test_state_reader.get_starknet_version().unwrap() == StarknetVersion::V0_13_2_1)
+    }
+
+    #[rstest]
+    #[ignore = "This test uses an HTTP request, so it should not be run in CI."]
+    pub fn test_get_contract_class(test_state_reader: TestStateReader) {
+        let class_hash =
+            class_hash!("0x3131fa018d520a037686ce3efddeab8f28895662f019ca3ca18a626650f7d1e");
+        test_state_reader.get_contract_class(&class_hash).unwrap_or_else(|err| {
+            panic!("Error retrieving contract class for class hash {}: {}", class_hash, err);
+        });
+    }
+
+    #[rstest]
+    #[ignore = "This test uses an HTTP request, so it should not be run in CI."]
+    pub fn test_get_compiled_contract_class(test_state_reader: TestStateReader) {
+        let class_hash =
+            class_hash!("0x3131fa018d520a037686ce3efddeab8f28895662f019ca3ca18a626650f7d1e");
+        test_state_reader.get_compiled_contract_class(class_hash).unwrap_or_else(|err| {
+            panic!(
+                "Error retrieving compiled contract class for class hash {}: {}",
+                class_hash, err
+            );
+        });
     }
 }
