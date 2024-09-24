@@ -42,11 +42,6 @@ jobs:
       - run: mkdir data
 
       - run: brew install protobuf@$PROTOC_VERSION
-
-      - name: Set up Native Dependencies
-        uses: ./.github/actions/setup-native-deps
-        id: native-deps
-
       - name: Build node
         run: cargo build -r -p papyrus_node
 
