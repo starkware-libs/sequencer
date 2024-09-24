@@ -7,7 +7,7 @@ use tracing::info;
 pub trait PeerTrait {
     fn new(peer_id: PeerId, multiaddr: Multiaddr) -> Self;
 
-    fn update_reputation(&mut self, timeout_duration: Duration);
+    fn blacklist_peer(&mut self, timeout_duration: Duration);
 
     fn peer_id(&self) -> PeerId;
 
@@ -23,6 +23,10 @@ pub trait PeerTrait {
     fn add_connection_id(&mut self, connection_id: ConnectionId);
 
     fn remove_connection_id(&mut self, connection_id: ConnectionId);
+
+    fn get_maliciousness(&self) -> f64;
+
+    fn set_maliciousness(&mut self, maliciousness: f64);
 }
 
 #[derive(Clone)]
@@ -31,14 +35,21 @@ pub struct Peer {
     multiaddr: Multiaddr,
     timed_out_until: Instant,
     connection_ids: Vec<ConnectionId>,
+    maliciousness: f64,
 }
 
 impl PeerTrait for Peer {
     fn new(peer_id: PeerId, multiaddr: Multiaddr) -> Self {
-        Self { peer_id, multiaddr, timed_out_until: get_instant_now(), connection_ids: Vec::new() }
+        Self {
+            peer_id,
+            multiaddr,
+            timed_out_until: get_instant_now(),
+            connection_ids: Vec::new(),
+            maliciousness: 0 as f64,
+        }
     }
 
-    fn update_reputation(&mut self, timeout_duration: Duration) {
+    fn blacklist_peer(&mut self, timeout_duration: Duration) {
         self.timed_out_until = get_instant_now() + timeout_duration;
         info!(
             "Peer {:?} misbehaved. Blacklisting it for {:.3} seconds.",
@@ -77,6 +88,14 @@ impl PeerTrait for Peer {
 
     fn remove_connection_id(&mut self, connection_id: ConnectionId) {
         self.connection_ids.retain(|&id| id != connection_id);
+    }
+
+    fn get_maliciousness(&self) -> f64 {
+        self.maliciousness
+    }
+
+    fn set_maliciousness(&mut self, maliciousness: f64) {
+        self.maliciousness = maliciousness;
     }
 }
 

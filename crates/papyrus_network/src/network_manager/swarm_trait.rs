@@ -126,8 +126,10 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
     }
 
     fn report_peer_as_malicious(&mut self, peer_id: PeerId) {
-        let _ =
-            self.behaviour_mut().peer_manager.report_peer(peer_id, ReputationModifier::Malicious);
+        let _ = self
+            .behaviour_mut()
+            .peer_manager
+            .report_peer(peer_id, ReputationModifier::Malicious { maliciousness: 1.0 });
     }
 
     fn add_new_supported_inbound_protocol(&mut self, protocol: StreamProtocol) {

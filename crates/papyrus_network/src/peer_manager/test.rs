@@ -233,7 +233,7 @@ fn report_peer_calls_update_reputation_and_notifies_kad() {
 async fn peer_block_released_after_timeout() {
     const DURATION_IN_MILLIS: u64 = 50;
     let mut peer = Peer::new(PeerId::random(), Multiaddr::empty());
-    peer.update_reputation(Duration::from_millis(DURATION_IN_MILLIS));
+    peer.blacklist_peer(Duration::from_millis(DURATION_IN_MILLIS));
     assert!(peer.is_blocked());
     sleep(time::Duration::from_millis(DURATION_IN_MILLIS)).await;
     assert!(!peer.is_blocked());
@@ -286,7 +286,7 @@ fn report_session_on_unknown_session_id() {
     let outbound_session_id = OutboundSessionId { value: 1 };
 
     peer_manager
-        .report_session(outbound_session_id, ReputationModifier::Malicious {})
+        .report_session(outbound_session_id, ReputationModifier::Malicious { maliciousness: 1.0 })
         .expect_err("report_session on unknown outbound_session_id should return an error");
 }
 
@@ -304,7 +304,9 @@ async fn timed_out_peer_not_assignable_to_queries() {
     peer_manager.add_peer(peer);
 
     // Report the peer as bad
-    peer_manager.report_peer(peer_id, ReputationModifier::Malicious {}).unwrap();
+    peer_manager
+        .report_peer(peer_id, ReputationModifier::Malicious { maliciousness: 1.0 })
+        .unwrap();
 
     // Create a session
     let outbound_session_id = OutboundSessionId { value: 1 };
@@ -328,7 +330,9 @@ fn wrap_around_in_peer_assignment() {
     peer_manager.add_peer(peer1);
 
     // Report the peer as malicious
-    peer_manager.report_peer(peer_id1, ReputationModifier::Malicious {}).unwrap();
+    peer_manager
+        .report_peer(peer_id1, ReputationModifier::Malicious { maliciousness: 1.0 })
+        .unwrap();
 
     // Create a peer
     let peer_id2 = PeerId::random();
@@ -364,7 +368,9 @@ fn block_and_allow_inbound_connection() {
     peer_manager.add_peer(peer1);
     peer_manager.add_peer(peer2);
 
-    peer_manager.report_peer(peer_id1, ReputationModifier::Malicious).unwrap();
+    peer_manager
+        .report_peer(peer_id1, ReputationModifier::Malicious { maliciousness: 1.0 })
+        .unwrap();
 
     // call handle_established_inbound_connection with the blocked peer
     let res = peer_manager.handle_established_inbound_connection(
