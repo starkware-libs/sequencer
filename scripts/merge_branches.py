@@ -118,7 +118,6 @@ def merge_branches(src_branch: str, dst_branch: Optional[str]):
     conflicts = [line.strip() for line in open(conflicts_file).readlines() if line.strip() != ""]
     conflict_line = " ".join(conflicts)
     run_command(f"git add {conflict_line}", allow_error=True)
-    run_command("git add changed_files/*", allow_error=True)
     print("Committing conflicts...")
     if len(conflicts) == 0:
         run_command(
