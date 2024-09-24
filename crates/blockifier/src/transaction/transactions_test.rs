@@ -26,6 +26,7 @@ use starknet_api::transaction::{
     TransactionSignature,
     TransactionVersion,
     ValidResourceBounds,
+    QUERY_VERSION_BASE_BIT,
 };
 use starknet_api::{
     calldata,
@@ -1906,7 +1907,7 @@ fn test_only_query_flag(
     );
     let mut version = Felt::from(3_u8);
     if only_query {
-        let query_version_base = Felt::TWO.pow(constants::QUERY_VERSION_BASE_BIT);
+        let query_version_base = Felt::TWO.pow(QUERY_VERSION_BASE_BIT);
         version += query_version_base;
     }
     let sender_address = account.get_instance_address(0);

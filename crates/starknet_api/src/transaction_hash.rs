@@ -7,7 +7,7 @@ use crate::core::{calculate_contract_address, ChainId, ContractAddress};
 use crate::crypto::utils::HashChain;
 use crate::data_availability::DataAvailabilityMode;
 use crate::transaction::{
-    get_tx_version,
+    signed_tx_version_from_tx,
     DeclareTransaction,
     DeclareTransactionV0V1,
     DeclareTransactionV2,
@@ -57,7 +57,7 @@ pub fn get_transaction_hash(
     chain_id: &ChainId,
     transaction_options: &TransactionOptions,
 ) -> Result<TransactionHash, StarknetApiError> {
-    let transaction_version = &get_tx_version(transaction, transaction_options);
+    let transaction_version = &signed_tx_version_from_tx(transaction, transaction_options);
     match transaction {
         Transaction::Declare(declare) => match declare {
             DeclareTransaction::V0(declare_v0) => {
@@ -120,7 +120,7 @@ fn get_deprecated_transaction_hashes(
     transaction: &Transaction,
     transaction_options: &TransactionOptions,
 ) -> Result<Vec<TransactionHash>, StarknetApiError> {
-    let transaction_version = &get_tx_version(transaction, transaction_options);
+    let transaction_version = &signed_tx_version_from_tx(transaction, transaction_options);
     Ok(if chain_id == &ChainId::Mainnet && block_number > &MAINNET_TRANSACTION_HASH_WITH_VERSION {
         vec![]
     } else {

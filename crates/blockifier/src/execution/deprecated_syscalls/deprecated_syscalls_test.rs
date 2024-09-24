@@ -16,6 +16,7 @@ use starknet_api::transaction::{
     Fee,
     TransactionHash,
     TransactionVersion,
+    QUERY_VERSION_BASE_BIT,
 };
 use starknet_api::{calldata, felt, nonce, storage_key};
 use starknet_types_core::felt::Felt;
@@ -43,7 +44,6 @@ use crate::test_utils::{
     CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
     TEST_SEQUENCER_ADDRESS,
 };
-use crate::transaction::constants::QUERY_VERSION_BASE_BIT;
 use crate::transaction::objects::{
     CommonAccountFields,
     DeprecatedTransactionInfo,
