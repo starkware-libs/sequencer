@@ -3,3 +3,5 @@ runs:
   steps:
     - name: Install rust.
       uses: ./.github/actions/install_rust
+    - name: Install cairo native.
+      uses: ./.github/actions/setup_native_deps
