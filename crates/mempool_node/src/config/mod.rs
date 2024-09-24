@@ -4,17 +4,20 @@ mod config_test;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::Path;
+use std::sync::LazyLock;
 
 use clap::Command;
 use papyrus_config::dumping::{
     append_sub_config_name,
     ser_optional_sub_config,
     ser_param,
+    ser_pointer_target_param,
     SerializeConfig,
 };
 use papyrus_config::loading::load_and_process_config;
 use papyrus_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+use starknet_api::core::ChainId;
 use starknet_batcher::config::BatcherConfig;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
@@ -30,6 +33,15 @@ use crate::version::VERSION_FULL;
 
 // The path of the default configuration file, provided as part of the crate.
 pub const DEFAULT_CONFIG_PATH: &str = "config/mempool/default_config.json";
+
+// Configuration parameters that share the same value across multiple components.
+type ConfigPointers = Vec<((ParamPath, SerializedParam), Vec<ParamPath>)>;
+pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
+    vec![(
+        ser_pointer_target_param("chain_id", &ChainId::Mainnet, "The chain to follow."),
+        vec!["batcher_config.storage.db_config.chain_id".to_owned()],
+    )]
+});
 
 // The configuration of the components.
 
