@@ -10,7 +10,7 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::StarkHash;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
-use starknet_api::{contract_address, felt, invoke_tx_args, patricia_key};
+use starknet_api::{contract_address, felt, invoke_tx_args, nonce, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{Account, AccountState};
 use starknet_types_core::felt::Felt;
@@ -380,10 +380,17 @@ fn test_get_txs_with_holes_multiple_accounts() {
     let tx_address_0_nonce_1 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1_u8);
     let tx_address_1_nonce_0 = tx!(tx_hash: 3, sender_address: "0x1", tx_nonce: 0_u8);
 
+    let account_nonces = [
+        (tx_address_0_nonce_1.sender_address(), nonce!(0)),
+        (tx_address_1_nonce_0.sender_address(), tx_address_1_nonce_0.nonce()),
+    ];
     let queue_txs = [TransactionReference::new(&tx_address_1_nonce_0)];
     let pool_txs = [tx_address_0_nonce_1.clone(), tx_address_1_nonce_0.clone()];
-    let mut mempool =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build_into_mempool();
+    let mut mempool = MempoolContentBuilder::new()
+        .with_account_nonces(account_nonces)
+        .with_queue(queue_txs)
+        .with_pool(pool_txs)
+        .build_into_mempool();
 
     // Test.
     let txs = mempool.get_txs(2).unwrap();
@@ -391,12 +398,15 @@ fn test_get_txs_with_holes_multiple_accounts() {
     // Assert.
     assert_eq!(txs, &[tx_address_1_nonce_0]);
 
-    let expected_pool_txs = [tx_address_0_nonce_1];
+    let expected_account_nonces = [(tx_address_0_nonce_1.sender_address(), nonce!(0))];
     let expected_queue_txs = [];
+    let expected_pool_txs = [tx_address_0_nonce_1];
     let expected_mempool_content = MempoolContentBuilder::new()
-        .with_pool(expected_pool_txs)
+        .with_account_nonces(expected_account_nonces)
         .with_queue(expected_queue_txs)
+        .with_pool(expected_pool_txs)
         .build();
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
     expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
 }
 
