@@ -37,7 +37,7 @@ concurrency:
 
 jobs:
   run-regression-tests:
-    runs-on: starkware-ubuntu-latest-small
+    runs-on: starkware-ubuntu-latest-medium
     if: ${{ github.event_name == 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
@@ -53,7 +53,7 @@ jobs:
       - run: cargo test -p committer_cli --release -- --include-ignored test_regression
 
   benchmarking:
-    runs-on: starkware-ubuntu-latest-small
+    runs-on: starkware-ubuntu-latest-medium
     if: ${{ github.event_name == 'pull_request' }}
     steps:
       # Checkout the base branch to get the old code.
