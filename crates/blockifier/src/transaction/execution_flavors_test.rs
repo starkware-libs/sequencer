@@ -2,6 +2,7 @@ use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::core::ContractAddress;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
     Calldata,
@@ -162,6 +163,64 @@ fn recurse_calldata(contract_address: ContractAddress, fail: bool, depth: u32) -
     )
 }
 
+// Helper function to get the arguments for the pre-validation tests.
+fn get_pre_validate_test_args(
+    cairo_version: CairoVersion,
+    version: TransactionVersion,
+    only_query: bool,
+) -> (BlockContext, CachedState<DictStateReader>, InvokeTxArgs, NonceManager) {
+    let block_context = BlockContext::create_for_account_testing();
+    let max_fee = Fee(MAX_FEE);
+    // The max resource bounds fixture is not used here because this function already has the
+    // maximum number of arguments.
+    let resource_bounds = l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE);
+    let FlavorTestInitialState {
+        state, account_address, test_contract_address, nonce_manager, ..
+    } = create_flavors_test_state(&block_context.chain_info, cairo_version);
+
+    let pre_validation_base_args = invoke_tx_args! {
+        max_fee,
+        resource_bounds,
+        sender_address: account_address,
+        calldata: create_trivial_calldata(test_contract_address),
+        version,
+        only_query,
+    };
+    (block_context, state, pre_validation_base_args, nonce_manager)
+}
+
+// A pre-validation scenario: Invalid nonce.
+#[rstest]
+fn test_invalid_nonce_pre_validate(
+    #[values(true, false)] only_query: bool,
+    #[values(true, false)] validate: bool,
+    #[values(true, false)] charge_fee: bool,
+    // TODO(Dori, 1/1/2024): Add Cairo1 case, after price abstraction is implemented.
+    #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
+    #[values(TransactionVersion::ONE, TransactionVersion::THREE)] version: TransactionVersion,
+) {
+    let (block_context, mut state, pre_validation_base_args, _) =
+        get_pre_validate_test_args(cairo_version, version, only_query);
+    let account_address = pre_validation_base_args.sender_address;
+
+    // First scenario: invalid nonce. Regardless of flags, should fail.
+    let invalid_nonce = nonce!(7_u8);
+    let account_nonce = state.get_nonce_at(account_address).unwrap();
+    let result =
+        account_invoke_tx(invoke_tx_args! {nonce: invalid_nonce, ..pre_validation_base_args})
+            .execute(&mut state, &block_context, charge_fee, validate);
+    assert_matches!(
+        result.unwrap_err(),
+        TransactionExecutionError::TransactionPreValidationError(
+            TransactionPreValidationError::InvalidNonce {
+                address, account_nonce: expected_nonce, incoming_tx_nonce
+            }
+        )
+        if (address, expected_nonce, incoming_tx_nonce) ==
+        (account_address, account_nonce, invalid_nonce)
+    );
+}
+
 /// Test simulate / validate / charge_fee flag combinations in pre-validation stage.
 #[rstest]
 #[case(TransactionVersion::ONE, FeeType::Eth, true)]
@@ -176,54 +235,17 @@ fn test_simulate_validate_charge_fee_pre_validate(
     #[case] fee_type: FeeType,
     #[case] is_deprecated: bool,
 ) {
-    let block_context = BlockContext::create_for_account_testing();
-    let max_fee = Fee(MAX_FEE);
-    // The max resource bounds fixture is not used here because this function already has the
-    // maximum number of arguments.
-    let resource_bounds = l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE);
-    let gas_price = block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
-    let FlavorTestInitialState {
-        mut state,
-        account_address,
-        test_contract_address,
-        mut nonce_manager,
-        ..
-    } = create_flavors_test_state(&block_context.chain_info, cairo_version);
+    let (block_context, mut state, pre_validation_base_args, mut nonce_manager) =
+        get_pre_validate_test_args(cairo_version, version, only_query);
+    let account_address = pre_validation_base_args.sender_address;
 
     // Pre-validation scenarios.
-    // 1. Invalid nonce.
-    // 2. Not enough resource bounds for minimal fee.
-    // 3. Not enough balance for resource bounds.
-    // 4. Max L1 gas price is too low (non-deprecated transactions only).
+    // 1. Not enough resource bounds for minimal fee.
+    // 2. Not enough balance for resource bounds.
+    // 3. Max L1 gas price is too low (non-deprecated transactions only).
     // In all scenarios, no need for balance check - balance shouldn't change regardless of flags.
-    let pre_validation_base_args = invoke_tx_args! {
-        max_fee,
-        resource_bounds,
-        sender_address: account_address,
-        calldata: create_trivial_calldata(test_contract_address),
-        version,
-        only_query,
-    };
 
-    // First scenario: invalid nonce. Regardless of flags, should fail.
-    let invalid_nonce = nonce!(7_u8);
-    let account_nonce = state.get_nonce_at(account_address).unwrap();
-    let result = account_invoke_tx(
-        invoke_tx_args! {nonce: invalid_nonce, ..pre_validation_base_args.clone()},
-    )
-    .execute(&mut state, &block_context, charge_fee, validate);
-    assert_matches!(
-        result.unwrap_err(),
-        TransactionExecutionError::TransactionPreValidationError(
-            TransactionPreValidationError::InvalidNonce {
-                address, account_nonce: expected_nonce, incoming_tx_nonce
-            }
-        )
-        if (address, expected_nonce, incoming_tx_nonce) ==
-        (account_address, account_nonce, invalid_nonce)
-    );
-
-    // Second scenario: minimal fee not covered. Actual fee is precomputed.
+    // First scenario: minimal fee not covered. Actual fee is precomputed.
     let (actual_gas_used, actual_fee) = gas_and_fee(
         u64_from_usize(
             get_syscall_resources(SyscallSelector::CallContract).n_steps
@@ -272,9 +294,10 @@ fn test_simulate_validate_charge_fee_pre_validate(
         }
     }
 
-    // Third scenario: resource bounds greater than balance.
+    // Second scenario: resource bounds greater than balance.
 
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
+    let gas_price = block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
     let balance_over_gas_price: u64 =
         (BALANCE / gas_price).try_into().expect("Failed to convert u128 to u64.");
     let result = account_invoke_tx(invoke_tx_args! {
@@ -317,7 +340,7 @@ fn test_simulate_validate_charge_fee_pre_validate(
         }
     }
 
-    // Fourth scenario: L1 gas price bound lower than the price on the block.
+    // Third scenario: L1 gas price bound lower than the price on the block.
     if !is_deprecated {
         let result = account_invoke_tx(invoke_tx_args! {
             resource_bounds: l1_resource_bounds(MAX_L1_GAS_AMOUNT, u128::from(gas_price) - 1),
