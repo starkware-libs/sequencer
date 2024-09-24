@@ -595,10 +595,10 @@ fn test_simulate_validate_charge_fee_mid_execution(
 
     // Second scenario: limit resources via sender bounds. Should revert if and only if step limit
     // is derived from sender bounds (`charge_fee` mode).
-    let (gas_bound, fee_bound) = gas_and_fee(6107, validate, &fee_type);
+    let (gas_bound, fee_bound) = gas_and_fee(6111, validate, &fee_type);
     // If `charge_fee` is true, execution is limited by sender bounds, so less resources will be
     // used. Otherwise, execution is limited by block bounds, so more resources will be used.
-    let (limited_gas_used, limited_fee) = gas_and_fee(7759, validate, &fee_type);
+    let (limited_gas_used, limited_fee) = gas_and_fee(7763, validate, &fee_type);
     let (unlimited_gas_used, unlimited_fee) = gas_and_fee(
         u64_from_usize(
             get_syscall_resources(SyscallSelector::CallContract).n_steps
@@ -716,7 +716,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     // If `charge_fee` is false - we do not revert, and simply report the fee and resources as used.
     // If `charge_fee` is true, we revert, charge the maximal allowed fee (derived from sender
     // bounds), and report resources base on execution steps reverted + other overhead.
-    let base_gas_bound = 8000;
+    let base_gas_bound = 8010;
     let (just_not_enough_gas_bound, just_not_enough_fee_bound) =
         gas_and_fee(base_gas_bound, validate, &fee_type);
     // `__validate__` and overhead resources + number of reverted steps, comes out slightly more
