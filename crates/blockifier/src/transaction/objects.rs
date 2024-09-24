@@ -338,7 +338,7 @@ impl StarknetResources {
     ) -> GasVector {
         self.get_archival_data_cost(versioned_constants, mode)
             + self.get_state_changes_cost(use_kzg_da)
-            + self.get_messages_cost()
+            + self.get_messages_total_gas_cost()
     }
 
     /// Returns the cost of the transaction's archival data, for example, calldata, signature, code,
@@ -384,7 +384,7 @@ impl StarknetResources {
 
     /// Returns an estimation of the gas usage for processing L1<>L2 messages on L1. Accounts for
     /// Starknet contract only.
-    fn get_messages_gas_usage(&self) -> GasVector {
+    fn get_messages_starknet_gas_cost(&self) -> GasVector {
         let n_l2_to_l1_messages = self.message_cost_info.l2_to_l1_payload_lengths.len();
         let n_l1_to_l2_messages = usize::from(self.l1_handler_payload_size.is_some());
 
@@ -406,8 +406,8 @@ impl StarknetResources {
 
     /// Returns an estimation of the gas usage for processing L1<>L2 messages on L1. Accounts for
     /// both Starknet and SHARP contracts.
-    pub fn get_messages_cost(&self) -> GasVector {
-        let starknet_gas_usage = self.get_messages_gas_usage();
+    pub fn get_messages_total_gas_cost(&self) -> GasVector {
+        let starknet_gas_usage = self.get_messages_starknet_gas_cost();
         let sharp_gas_usage = GasVector::from_l1_gas(u128_from_usize(
             self.message_cost_info.message_segment_length
                 * eth_gas_constants::SHARP_GAS_PER_MEMORY_WORD,
@@ -420,7 +420,7 @@ impl StarknetResources {
     /// Returns the total message segment length and the gas weight.
     pub fn calculate_message_l1_resources(&self) -> (usize, usize) {
         let message_segment_length = self.message_cost_info.message_segment_length;
-        let gas_usage = self.get_messages_gas_usage();
+        let gas_usage = self.get_messages_starknet_gas_cost();
         // TODO(Avi, 30/03/2024): Consider removing "l1_gas_usage" from actual resources.
         let gas_weight = usize_from_u128(gas_usage.l1_gas)
             .expect("This conversion should not fail as the value is a converted usize.");
