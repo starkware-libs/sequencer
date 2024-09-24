@@ -14,7 +14,6 @@ use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::gas_usage::{get_da_gas_cost, get_message_segment_length};
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::{DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE};
-use crate::transaction::objects::GasVectorComputationMode::NoL2Gas;
 use crate::transaction::objects::{
     FeeType,
     GasVector,
@@ -32,13 +31,16 @@ fn versioned_constants() -> &'static VersionedConstants {
 #[rstest]
 fn test_get_event_gas_cost(
     versioned_constants: &VersionedConstants,
-    // TODO!(Aner): add `All` computation mode.
-    #[values(NoL2Gas)] gas_vector_computation_mode: GasVectorComputationMode,
     #[values(false, true)] use_kzg_da: bool,
+    #[values(GasVectorComputationMode::NoL2Gas, GasVectorComputationMode::All)]
+    gas_vector_computation_mode: GasVectorComputationMode,
 ) {
-    let l2_resource_gas_costs = &versioned_constants.deprecated_l2_resource_gas_costs;
+    let archival_gas_costs = match gas_vector_computation_mode {
+        GasVectorComputationMode::All => &versioned_constants.archival_data_gas_costs,
+        GasVectorComputationMode::NoL2Gas => &versioned_constants.deprecated_l2_resource_gas_costs,
+    };
     let (event_key_factor, data_word_cost) =
-        (l2_resource_gas_costs.event_key_factor, l2_resource_gas_costs.gas_per_data_felt);
+        (archival_gas_costs.event_key_factor, archival_gas_costs.gas_per_data_felt);
     let call_infos = vec![CallInfo::default(), CallInfo::default(), CallInfo::default()];
     let call_infos_iter = call_infos.iter();
     let starknet_resources =
@@ -83,10 +85,12 @@ fn test_get_event_gas_cost(
     };
     let call_infos = vec![call_info_1, call_info_2, call_info_3];
     let call_infos_iter = call_infos.iter();
-    let expected = GasVector::from_l1_gas(
-        // 8 keys and 11 data words overall.
-        (data_word_cost * (event_key_factor * 8_u128 + 11_u128)).to_integer(),
-    );
+    // 8 keys and 11 data words overall.
+    let expected = (data_word_cost * (event_key_factor * 8_u128 + 11_u128)).to_integer();
+    let expected_gas_vector = match gas_vector_computation_mode {
+        GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(expected),
+        GasVectorComputationMode::All => GasVector::from_l2_gas(expected),
+    };
     let starknet_resources =
         StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, call_infos_iter);
     let gas_vector = starknet_resources.to_gas_vector(
@@ -94,7 +98,7 @@ fn test_get_event_gas_cost(
         use_kzg_da,
         &gas_vector_computation_mode,
     );
-    assert_eq!(expected, gas_vector);
+    assert_eq!(expected_gas_vector, gas_vector);
     assert_ne!(GasVector::default(), gas_vector)
 }
 
