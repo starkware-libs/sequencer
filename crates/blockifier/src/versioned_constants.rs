@@ -262,12 +262,8 @@ impl VersionedConstants {
             ..Self::latest_constants().clone()
         }
     }
-}
 
-impl TryFrom<&Path> for VersionedConstants {
-    type Error = VersionedConstantsError;
-
-    fn try_from(path: &Path) -> Result<Self, Self::Error> {
+    pub fn from_path(path: &Path) -> Result<Self, VersionedConstantsError> {
         Ok(serde_json::from_reader(std::fs::File::open(path)?)?)
     }
 }
