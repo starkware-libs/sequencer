@@ -38,20 +38,11 @@ lazy_static! {
     static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig::default();
 }
 
-// TODO(matan): Switch to using TestBlock & MockTestContext in `test_utils` once streaming is
-// supported. Streaming should allow us to make the Manager generic over the content.
-#[derive(Debug, PartialEq, Clone)]
-pub struct TestBlock {
-    pub content: Vec<Transaction>,
-    pub id: BlockHash,
-}
-
 mock! {
     pub TestContext {}
 
     #[async_trait]
     impl ConsensusContext for TestContext {
-        type Block = TestBlock;
         type ProposalChunk = Transaction;
 
         async fn build_proposal(&mut self, height: BlockNumber) -> (
