@@ -138,7 +138,10 @@ fn process_tx(
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
     Ok(MempoolInput {
         tx: executable_tx,
-        account: AccountState { sender_address, state: AccountNonce { nonce: account_nonce } },
+        account_state: AccountState {
+            sender_address,
+            state: AccountNonce { nonce: account_nonce },
+        },
     })
 }
 

@@ -20,7 +20,7 @@ pub struct AccountState {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MempoolInput {
     pub tx: Transaction,
-    pub account: AccountState,
+    pub account_state: AccountState,
 }
 
 pub type MempoolResult<T> = Result<T, MempoolError>;

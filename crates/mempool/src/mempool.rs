@@ -85,7 +85,7 @@ impl Mempool {
         self.validate_input(&input)?;
         let MempoolInput {
             tx,
-            account: AccountState { sender_address, state: AccountNonce { nonce } },
+            account_state: AccountState { sender_address, state: AccountNonce { nonce } },
         } = input;
         self.tx_pool.insert(tx)?;
         self.align_to_account_state(sender_address, nonce);
@@ -133,7 +133,7 @@ impl Mempool {
         // Stateless checks.
 
         // Check the input: transaction nonce against given account state.
-        let account_nonce = input.account.state.nonce;
+        let account_nonce = input.account_state.state.nonce;
         if account_nonce > tx_nonce {
             return Err(duplicate_nonce_error);
         }
