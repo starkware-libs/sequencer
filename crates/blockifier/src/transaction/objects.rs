@@ -518,7 +518,6 @@ pub trait ExecutionResourcesTraits {
     fn total_n_steps(&self) -> usize;
     fn to_resources_mapping(&self) -> ResourcesMapping;
     fn prover_builtins(&self) -> HashMap<BuiltinName, usize>;
-    fn prover_builtins_by_name(&self) -> HashMap<String, usize>;
 }
 
 impl ExecutionResourcesTraits for ExecutionResources {
@@ -546,18 +545,15 @@ impl ExecutionResourcesTraits for ExecutionResources {
         builtins
     }
 
-    fn prover_builtins_by_name(&self) -> HashMap<String, usize> {
-        self.prover_builtins()
-            .iter()
-            .map(|(builtin, value)| (builtin.to_str_with_suffix().to_string(), *value))
-            .collect()
-    }
-
     // TODO(Nimrod, 1/5/2024): Delete this function when it's no longer in use.
     fn to_resources_mapping(&self) -> ResourcesMapping {
         let mut map =
             HashMap::from([(abi_constants::N_STEPS_RESOURCE.to_string(), self.total_n_steps())]);
-        map.extend(self.prover_builtins_by_name());
+        map.extend(
+            self.prover_builtins()
+                .iter()
+                .map(|(builtin, value)| (builtin.to_str_with_suffix().to_string(), *value)),
+        );
 
         ResourcesMapping(map)
     }

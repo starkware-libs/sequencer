@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_bigint::BigUint;
 use starknet_api::core::ContractAddress;
@@ -8,7 +9,6 @@ use starknet_api::transaction::{Fee, Resource};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::get_fee_token_var_address;
-use crate::abi::constants;
 use crate::abi::sierra_types::next_storage_key;
 use crate::blockifier::block::BlockInfo;
 use crate::context::{BlockContext, TransactionContext};
@@ -41,31 +41,33 @@ pub fn get_vm_resources_cost(
 ) -> TransactionFeeResult<GasVector> {
     // TODO(Yoni, 1/7/2024): rename vm -> cairo.
     let vm_resource_fee_costs = versioned_constants.vm_resource_fee_cost();
-    let mut vm_resource_usage_for_fee = vm_resource_usage.prover_builtins_by_name();
-    vm_resource_usage_for_fee.insert(
-        constants::N_STEPS_RESOURCE.to_string(),
-        vm_resource_usage.total_n_steps() + n_reverted_steps,
-    );
+    let builtin_usage_for_fee = vm_resource_usage.prover_builtins();
 
-    // Validate used Cairo resources.
-    let used_resource_names = HashSet::<&String>::from_iter(vm_resource_usage_for_fee.keys());
-
+    // Validate used builtin resources.
+    let used_builtins = HashSet::<&BuiltinName>::from_iter(builtin_usage_for_fee.keys());
+    let known_builtins = HashSet::<&BuiltinName>::from_iter(vm_resource_fee_costs.builtins.keys());
     assert!(
-        used_resource_names.is_subset(&HashSet::from_iter(vm_resource_fee_costs.keys())),
+        used_builtins.is_subset(&known_builtins),
         "{:#?} should contain {:#?}",
-        vm_resource_fee_costs.keys(),
-        used_resource_names,
+        known_builtins,
+        used_builtins,
     );
 
-    // Convert Cairo usage to L1 gas usage.
+    // Convert Cairo resource usage to L1 gas usage.
+    // Do so by taking the maximum of the usage of each builtin + step usage.
     let vm_l1_gas_usage = vm_resource_fee_costs
+        .builtins
         .iter()
-        .map(|(key, resource_val)| {
-            ((*resource_val)
-                * u128_from_usize(vm_resource_usage_for_fee.get(key).cloned().unwrap_or_default()))
-            .ceil()
-            .to_integer()
+        // Builtin costs and usage.
+        .map(|(builtin, resource_cost)| {
+            (*resource_cost, builtin_usage_for_fee.get(builtin).cloned().unwrap_or_default())
         })
+        // Step costs and usage.
+        .chain(vec![(
+            vm_resource_fee_costs.n_steps,
+            vm_resource_usage.total_n_steps() + n_reverted_steps,
+        )])
+        .map(|(cost, usage)| (cost * u128_from_usize(usage)).ceil().to_integer())
         .fold(0, u128::max);
 
     match computation_mode {

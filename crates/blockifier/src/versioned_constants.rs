@@ -84,6 +84,25 @@ impl Default for CompilerVersion {
     }
 }
 
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct VmResourceCosts {
+    pub n_steps: ResourceCost,
+    #[serde(deserialize_with = "builtin_map_from_string_map")]
+    pub builtins: HashMap<BuiltinName, ResourceCost>,
+}
+
+// TODO: This (along with the Serialize impl) is implemented in pub(crate) scope in the VM (named
+//   serde_generic_map_impl); use it if and when it's public.
+fn builtin_map_from_string_map<'de, D: Deserializer<'de>>(
+    d: D,
+) -> Result<HashMap<BuiltinName, ResourceCost>, D::Error> {
+    HashMap::<String, ResourceCost>::deserialize(d)?
+        .into_iter()
+        .map(|(k, v)| BuiltinName::from_str_with_suffix(&k).map(|k| (k, v)))
+        .collect::<Option<HashMap<_, _>>>()
+        .ok_or(D::Error::custom("Invalid builtin name"))
+}
+
 /// Contains constants for the Blockifier that may vary between versions.
 /// Additional constants in the JSON file, not used by Blockifier but included for transparency, are
 /// automatically ignored during deserialization.
@@ -119,9 +138,7 @@ pub struct VersionedConstants {
     os_resources: Arc<OsResources>,
 
     // Fee related.
-    // TODO: Consider making this a struct, this will require change the way we access these
-    // values.
-    vm_resource_fee_cost: Arc<HashMap<String, ResourceCost>>,
+    vm_resource_fee_cost: Arc<VmResourceCosts>,
     // Just to make sure the value exists, but don't use the actual values.
     #[allow(dead_code)]
     gateway: serde::de::IgnoredAny,
@@ -153,7 +170,7 @@ impl VersionedConstants {
     /// Returns the following ratio: L2_gas_price/L1_gas_price.
     fn l1_to_l2_gas_price_ratio(&self) -> ResourceCost {
         Ratio::new(1, u128::from(self.os_constants.gas_costs.step_gas_cost))
-            * self.vm_resource_fee_cost()["n_steps"]
+            * self.vm_resource_fee_cost().n_steps
     }
 
     #[cfg(any(feature = "testing", test))]
@@ -167,7 +184,7 @@ impl VersionedConstants {
         os_consts.gas_costs.initial_gas_cost - os_consts.gas_costs.transaction_gas_cost
     }
 
-    pub fn vm_resource_fee_cost(&self) -> &HashMap<String, ResourceCost> {
+    pub fn vm_resource_fee_cost(&self) -> &VmResourceCosts {
         &self.vm_resource_fee_cost
     }
 
@@ -215,29 +232,25 @@ impl VersionedConstants {
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_account_testing() -> Self {
         let step_cost = ResourceCost::from_integer(1);
-        let vm_resource_fee_cost = Arc::new(HashMap::from([
-            (crate::abi::constants::N_STEPS_RESOURCE.to_string(), step_cost),
-            (BuiltinName::pedersen.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (
-                BuiltinName::range_check.to_str_with_suffix().to_string(),
-                ResourceCost::from_integer(1),
-            ),
-            (BuiltinName::ecdsa.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::bitwise.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::poseidon.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::output.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::ec_op.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (
-                BuiltinName::range_check96.to_str_with_suffix().to_string(),
-                ResourceCost::from_integer(1),
-            ),
-            (BuiltinName::add_mod.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::mul_mod.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-        ]));
+        let vm_resource_fee_cost = Arc::new(VmResourceCosts {
+            n_steps: step_cost,
+            builtins: HashMap::from([
+                (BuiltinName::pedersen, ResourceCost::from_integer(1)),
+                (BuiltinName::range_check, ResourceCost::from_integer(1)),
+                (BuiltinName::ecdsa, ResourceCost::from_integer(1)),
+                (BuiltinName::bitwise, ResourceCost::from_integer(1)),
+                (BuiltinName::poseidon, ResourceCost::from_integer(1)),
+                (BuiltinName::output, ResourceCost::from_integer(1)),
+                (BuiltinName::ec_op, ResourceCost::from_integer(1)),
+                (BuiltinName::range_check96, ResourceCost::from_integer(1)),
+                (BuiltinName::add_mod, ResourceCost::from_integer(1)),
+                (BuiltinName::mul_mod, ResourceCost::from_integer(1)),
+            ]),
+        });
 
         // Maintain the ratio between L1 gas price and L2 gas price.
         let latest = Self::create_for_testing();
-        let latest_step_cost = latest.vm_resource_fee_cost["n_steps"];
+        let latest_step_cost = latest.vm_resource_fee_cost.n_steps;
         let mut archival_data_gas_costs = latest.archival_data_gas_costs;
         archival_data_gas_costs.gas_per_code_byte *= latest_step_cost / step_cost;
         archival_data_gas_costs.gas_per_data_felt *= latest_step_cost / step_cost;
