@@ -4,7 +4,7 @@ set -e
 
 function install_pypy() {
   pushd /opt
-  $SUDO bash -c '
+  sudo bash -c '
   curl -Lo pypy3.9-v7.3.11-linux64.tar.bz2 https://downloads.python.org/pypy/pypy3.9-v7.3.11-linux64.tar.bz2
   tar -xf pypy3.9-v7.3.11-linux64.tar.bz2
   rm pypy3.9-v7.3.11-linux64.tar.bz2
@@ -27,14 +27,12 @@ function install_pypy() {
   popd
 }
 
-function install_rust () {
+function install_rust() {
     curl https://sh.rustup.rs -sSf | sh -s -- -y
 }
 
-if [ "$(id -u)" -ne 0 ]; then
-    SUDO=sudo
-fi
 
 install_pypy &
 install_rust &
 wait
+./setup_native_deps.sh
