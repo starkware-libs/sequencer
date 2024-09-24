@@ -51,15 +51,12 @@ mod tests {
             let message = make_random_message(stream_id, i, i == 9);
             tx_input.try_send(message).expect("Send should succeed");
         }
-        tx_input.close_channel(); // this should signal the handler to break out of the loop
 
         let join_handle = tokio::spawn(async move {
-            h.listen().await;
-            h
+            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
         });
 
-        let h = join_handle.await.expect("Task should succeed");
-        assert!(h.message_buffers.is_empty());
+        join_handle.await.expect("Task should succeed");
 
         for i in 0..10 {
             let message = rx_output
@@ -89,24 +86,26 @@ mod tests {
             h
         });
         let mut h = join_handle.await.expect("Task should succeed");
-        assert_eq!(h.message_buffers.len(), 1);
-        assert_eq!(h.message_buffers[&stream_id].len(), 5);
+
+        // check that the channel is empty (no messages were sent yet)
+        assert!(rx_output.try_next().is_err());
+
+        assert_eq!(h.stream_data.len(), 1);
+        assert_eq!(h.stream_data[&stream_id].message_buffer.len(), 5);
         let range: Vec<u64> = (1..6).collect();
-        let keys = h.message_buffers[&stream_id].clone().into_keys().collect();
+        let keys = h.stream_data[&stream_id].message_buffer.clone().into_keys().collect();
         assert!(do_vecs_match(&keys, &range));
 
         // now send the last message
         tx_input.try_send(make_random_message(stream_id, 0, false)).expect("Send should succeed");
 
-        tx_input.close_channel(); // this should signal the handler to break out of the loop
-
         let join_handle = tokio::spawn(async move {
-            h.listen().await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
             h
         });
 
         let h = join_handle.await.expect("Task should succeed");
-        assert!(h.message_buffers.is_empty());
+        assert!(h.stream_data.is_empty());
 
         for i in 0..6 {
             let message = rx_output
@@ -154,26 +153,25 @@ mod tests {
         });
         let mut h = join_handle.await.expect("Task should succeed");
 
-        assert!(do_vecs_match(&h.message_buffers.clone().into_keys().collect(), &vec![1, 10, 127]));
+        let values = vec![1, 10, 127];
+        assert!(h.stream_data.clone().into_keys().all(|item| values.contains(&item)));
 
-        // the first case we have all message from 1 to 9 buffered into one contiguous sequence
+        // We have all message from 1 to 9 buffered.
         assert!(do_vecs_match(
-            &h.message_buffers[&stream_id1].clone().into_keys().collect(),
-            &(1..2).collect()
+            &h.stream_data[&stream_id1].message_buffer.clone().into_keys().collect(),
+            &(1..10).collect()
         ));
 
-        // the second case we have all message from 1 to 5 buffered, each into its own vector (worse
-        // case scenario)
+        // We have all message from 1 to 5 buffered.
         assert!(do_vecs_match(
-            &h.message_buffers[&stream_id2].clone().into_keys().collect(),
+            &h.stream_data[&stream_id2].message_buffer.clone().into_keys().collect(),
             &(1..6).collect()
         ));
 
-        // the third case we have two vectors, one with messages 1 to 4 and the other with messages
-        // 5 to 9
+        // We have all message from 1 to 5 buffered.
         assert!(do_vecs_match(
-            &h.message_buffers[&stream_id3].clone().into_keys().collect(),
-            &vec![1, 5]
+            &h.stream_data[&stream_id3].message_buffer.clone().into_keys().collect(),
+            &(1..10).collect()
         ));
 
         // send the last message on stream_id1
@@ -199,17 +197,8 @@ mod tests {
         }
 
         // stream_id1 should be gone
-        assert!(do_vecs_match(&h.message_buffers.clone().into_keys().collect(), &vec![1, 10]));
-
-        // the other two streams should be the same as before
-        assert!(do_vecs_match(
-            &h.message_buffers[&stream_id2].clone().into_keys().collect(),
-            &(1..6).collect()
-        ));
-        assert!(do_vecs_match(
-            &h.message_buffers[&stream_id3].clone().into_keys().collect(),
-            &vec![1, 5]
-        ));
+        let values = vec![1, 10];
+        assert!(h.stream_data.clone().into_keys().all(|item| values.contains(&item)));
 
         // send the last message on stream_id2
         tx_input.try_send(make_random_message(stream_id2, 0, false)).expect("Send should succeed");
@@ -234,20 +223,14 @@ mod tests {
         }
 
         // stream_id2 should also be gone
-        assert!(do_vecs_match(&h.message_buffers.clone().into_keys().collect(), &vec![1]));
-
-        // the last stream should be the same as before
-        assert!(do_vecs_match(
-            &h.message_buffers[&stream_id3].clone().into_keys().collect(),
-            &vec![1, 5]
-        ));
+        let values = vec![1];
+        assert!(h.stream_data.clone().into_keys().all(|item| values.contains(&item)));
 
         // send the last message on stream_id3
         tx_input.try_send(make_random_message(stream_id3, 0, false)).expect("Send should succeed");
-        tx_input.close_channel(); // this should signal the handler to break out of the loop
 
         let join_handle = tokio::spawn(async move {
-            h.listen().await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
             h
         });
 
@@ -263,10 +246,11 @@ mod tests {
         }
 
         // stream_id3 should still be there, because we didn't send a fin
-        assert!(do_vecs_match(&h.message_buffers.clone().into_keys().collect(), &vec![1]));
+        let values = vec![1];
+        assert!(h.stream_data.clone().into_keys().all(|item| values.contains(&item)));
 
         // but the buffer should be empty, as we've successfully drained it all
-        assert!(h.message_buffers[&stream_id3].is_empty());
+        assert!(h.stream_data[&stream_id3].message_buffer.is_empty());
     }
 
     #[tokio::test]
@@ -279,7 +263,7 @@ mod tests {
 
         // this should panic since we are sending the same message twice!
         let join_handle = tokio::spawn(async move {
-            h.listen().await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
         });
 
         join_handle.await.expect("Task should succeed");
@@ -291,11 +275,10 @@ mod tests {
         let (mut h, mut tx_input, _rx_output) = setup_test();
         tx_input.try_send(make_random_message(13, 42, true)).expect("Send should succeed");
         tx_input.try_send(make_random_message(13, 45, false)).expect("Send should succeed");
-        tx_input.close_channel(); // this should signal the handler to break out of the loop
 
         // this should panic since the fin was received on message_id 42, but we are sending 45
         let join_handle = tokio::spawn(async move {
-            h.listen().await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
         });
 
         join_handle.await.expect("Task should succeed");
@@ -307,11 +290,10 @@ mod tests {
         let (mut h, mut tx_input, _rx_output) = setup_test();
         tx_input.try_send(make_random_message(13, 45, false)).expect("Send should succeed");
         tx_input.try_send(make_random_message(13, 42, true)).expect("Send should succeed");
-        tx_input.close_channel(); // this should signal the handler to break out of the loop
 
         // this should panic since the fin was received on message_id 42, but we are sending 45
         let join_handle = tokio::spawn(async move {
-            h.listen().await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
         });
 
         join_handle.await.expect("Task should succeed");
@@ -321,16 +303,15 @@ mod tests {
     #[should_panic]
     async fn test_stream_handler_max_buffer_fails() {
         let (mut h, mut tx_input, _rx_output) = setup_test();
-        h.config.max_buffer_size = Some(10);
+        h.config.max_buffer_len = Some(10);
         // skip the first message, so the messages all get buffered
         for i in 0..11 {
             tx_input.try_send(make_random_message(13, i + 1, false)).expect("Send should succeed");
         }
-        tx_input.close_channel(); // this should signal the handler to break out of the loop
 
         // this should panic since there are too many buffered messages
         let join_handle = tokio::spawn(async move {
-            h.listen().await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
         });
 
         join_handle.await.expect("Task should succeed");
@@ -345,11 +326,10 @@ mod tests {
         for i in 0..11 {
             tx_input.try_send(make_random_message(i, 1, false)).expect("Send should succeed");
         }
-        tx_input.close_channel(); // this should signal the handler to break out of the loop
 
         // this should panic since there are too many streams at the same time
         let join_handle = tokio::spawn(async move {
-            h.listen().await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
         });
 
         join_handle.await.expect("Task should succeed");

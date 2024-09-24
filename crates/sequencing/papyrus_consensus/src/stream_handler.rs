@@ -22,6 +22,7 @@ pub struct StreamHandlerConfig {
 type StreamId = u64;
 type MessageId = u64;
 
+#[derive(Debug, Clone)]
 struct StreamData<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
     // The next message_id that is expected.
     next_message_id: MessageId,
@@ -85,9 +86,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     pub async fn listen(&mut self) {
         loop {
             if let Some(message) = self.receiver.next().await {
-                if !self.handle_message(message) {
-                    break;
-                }
+                self.handle_message(message);
             }
         }
     }
