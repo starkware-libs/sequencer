@@ -376,16 +376,22 @@ fn test_get_txs_with_holes() {
     let tx_address_0_nonce_1 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1);
     let tx_address_1_nonce_0 = tx!(tx_hash: 3, sender_address: "0x1", tx_nonce: 0);
 
+    let account_nonces = [("0x0", 0), ("0x1", 0)];
     let queue_txs = [TransactionReference::new(&tx_address_1_nonce_0)];
     let pool_txs = [tx_address_0_nonce_1, tx_address_1_nonce_0.clone()];
     let mut mempool = MempoolContentBuilder::new()
+        .with_account_nonces(account_nonces)
         .with_pool(pool_txs)
         .with_priority_queue(queue_txs)
         .build_into_mempool();
 
     // Test and assert.
     get_txs_and_assert_expected(&mut mempool, 2, &[tx_address_1_nonce_0]);
-    let expected_mempool_content = MempoolContentBuilder::new().with_priority_queue([]).build();
+    let expected_mempool_content = MempoolContentBuilder::new()
+        .with_account_nonces([("0x0", 0)])
+        .with_priority_queue([])
+        .build();
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
     expected_mempool_content.assert_eq_tx_priority_queue_content(&mempool);
 }
 
