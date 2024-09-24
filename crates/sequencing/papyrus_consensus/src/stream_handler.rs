@@ -96,16 +96,16 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         let stream_id = message.stream_id;
         let message_id = message.message_id;
         if !self.stream_data.contains_key(&stream_id) {
-            self.stream_data.insert(stream_id, StreamData::default());
-        }
-
-        // Check if there are too many streams:
-        if let Some(max_streams) = self.config.max_num_streams {
-            let num_streams = self.stream_data.len() as u64;
-            if num_streams > max_streams {
-                // TODO(guyn): replace panics with more graceful error handling
-                panic!("Maximum number of streams reached! {}", max_streams);
+            // TODO(guyn): add some sort of error handling here.
+            // Check if there are too many streams:
+            if let Some(max_streams) = self.config.max_num_streams {
+                let num_streams = self.stream_data.len() as u64;
+                if num_streams > max_streams {
+                    // TODO: do something!
+                }
             }
+            // Only save the new stream if there are not too many streams already.
+            self.stream_data.insert(stream_id, StreamData::default());
         }
 
         let data = self.stream_data.get_mut(&stream_id).unwrap();
