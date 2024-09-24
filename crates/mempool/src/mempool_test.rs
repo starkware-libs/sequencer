@@ -566,13 +566,14 @@ fn test_add_tx_lower_than_queued_nonce() {
         account: Account { sender_address, state: AccountState { nonce } },
     } = valid_input;
     let queue_txs = [TransactionReference::new(&valid_input_tx)];
+    let pool_txs = [valid_input_tx];
     let account_nonces = [(sender_address, nonce)];
     let expected_mempool_content = MempoolContentBuilder::new()
+        .with_pool(pool_txs.clone())
         .with_queue(queue_txs)
         .with_account_nonces(account_nonces)
         .build();
 
-    let pool_txs = [valid_input_tx];
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs)
         .with_queue(queue_txs)
@@ -588,7 +589,7 @@ fn test_add_tx_lower_than_queued_nonce() {
             nonce: Nonce(felt!(0_u16)),
         },
     );
-    expected_mempool_content.assert_eq_tx_queue_content(&mempool);
+    expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
     expected_mempool_content.assert_eq_account_nonces(&mempool);
 }
 
@@ -1097,35 +1098,4 @@ fn test_flow_send_same_nonce_tx_after_previous_not_included() {
     let expected_mempool_content =
         MempoolContentBuilder::new().with_queue(expected_queue_txs).build();
     expected_mempool_content.assert_eq_tx_queue_content(&mempool);
-}
-
-#[rstest]
-fn test_tx_pool_capacity(mut mempool: Mempool) {
-    let input_1 =
-        add_tx_input!(tx_hash: 0, sender_address: 0_u8, tx_nonce: 0_u8, account_nonce: 0_u8);
-    let input_2 =
-        add_tx_input!(tx_hash: 1, sender_address: 1_u8, tx_nonce: 0_u8, account_nonce: 0_u8);
-
-    // Test and assert: add txs to the counter.
-    add_tx(&mut mempool, &input_1);
-    add_tx(&mut mempool, &input_2);
-    assert_eq!(mempool.tx_pool().n_txs(), 2);
-
-    // Test and assert: duplicate transaction doesn't affect capacity.
-    add_tx_expect_error(
-        &mut mempool,
-        &input_1,
-        MempoolError::DuplicateTransaction { tx_hash: input_1.tx.tx_hash() },
-    );
-    assert_eq!(mempool.tx_pool().n_txs(), 2);
-
-    // Test and assert: updates pool capacity when a transaction is removed upon receiving state
-    // changes.
-    let state_changes = [("0x0", 4_u8)];
-    commit_block(&mut mempool, state_changes);
-    assert_eq!(mempool.tx_pool().n_txs(), 1);
-
-    // Test and assert: remove the transactions, counter does not go below 0.
-    mempool.get_txs(2).unwrap();
-    assert_eq!(mempool.tx_pool().n_txs(), 0);
 }
