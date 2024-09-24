@@ -227,6 +227,6 @@ fn test_summarize(
     // Compare the actual result with the expected result
     assert_eq!(actual_summary.executed_class_hashes, expected_summary.executed_class_hashes);
     assert_eq!(actual_summary.visited_storage_entries, expected_summary.visited_storage_entries);
-    assert_eq!(actual_summary.event_summary.n_events, expected_summary.event_summary.n_events);
+    assert_eq!(actual_summary.event_summary, expected_summary.event_summary);
     assert_eq!(actual_summary.l2_to_l1_payload_lengths, expected_summary.l2_to_l1_payload_lengths);
 }

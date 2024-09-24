@@ -39,7 +39,11 @@ fn test_get_event_gas_cost(
     let l2_resource_gas_costs = &versioned_constants.deprecated_l2_resource_gas_costs;
     let (event_key_factor, data_word_cost) =
         (l2_resource_gas_costs.event_key_factor, l2_resource_gas_costs.gas_per_data_felt);
-    let call_infos = vec![CallInfo::default(), CallInfo::default(), CallInfo::default()];
+    let call_infos: Vec<CallInfo> =
+        vec![CallInfo::default(), CallInfo::default(), CallInfo::default()]
+            .into_iter()
+            .map(|call_info| call_info.with_some_class_hash())
+            .collect();
     let call_infos_iter = call_infos.iter();
     let starknet_resources =
         StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, call_infos_iter);
@@ -75,13 +79,19 @@ fn test_get_event_gas_cost(
     };
     let call_info_3 = CallInfo {
         execution: CallExecution { events: vec![create_event(0, 1)], ..Default::default() },
-        inner_calls: vec![CallInfo {
-            execution: CallExecution { events: vec![create_event(5, 5)], ..Default::default() },
-            ..Default::default()
-        }],
+        inner_calls: vec![
+            CallInfo {
+                execution: CallExecution { events: vec![create_event(5, 5)], ..Default::default() },
+                ..Default::default()
+            }
+            .with_some_class_hash(),
+        ],
         ..Default::default()
     };
-    let call_infos = vec![call_info_1, call_info_2, call_info_3];
+    let call_infos: Vec<CallInfo> = vec![call_info_1, call_info_2, call_info_3]
+        .into_iter()
+        .map(|call_info| call_info.with_some_class_hash())
+        .collect();
     let call_infos_iter = call_infos.iter();
     let expected = GasVector::from_l1_gas(
         // 8 keys and 11 data words overall.
