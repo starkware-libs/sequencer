@@ -39,7 +39,7 @@ fn test_successful_gas_costs_parsing() {
 /// Assert versioned constants overrides are used when provided.
 #[test]
 fn test_versioned_constants_overrides() {
-    let versioned_constants = VERSIONED_CONSTANTS_LATEST.clone();
+    let versioned_constants = VersionedConstants::latest_constants().clone();
     let updated_invoke_tx_max_n_steps = versioned_constants.invoke_tx_max_n_steps + 1;
     let updated_validate_max_n_steps = versioned_constants.validate_max_n_steps + 1;
     let updated_max_recursion_depth = versioned_constants.max_recursion_depth + 1;
