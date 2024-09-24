@@ -8,7 +8,7 @@ use starknet_api::core::{calculate_contract_address, ChainId, ContractAddress};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::{
-    get_tx_version,
+    get_signed_tx_version_from_tx,
     DeclareTransaction,
     DeclareTransactionV0V1,
     DeclareTransactionV2,
@@ -63,7 +63,7 @@ pub fn get_transaction_hash(
     chain_id: &ChainId,
     transaction_options: &TransactionOptions,
 ) -> Result<TransactionHash, StarknetApiError> {
-    let tx_version = get_tx_version(transaction, transaction_options);
+    let tx_version = get_signed_tx_version_from_tx(transaction, transaction_options);
     match transaction {
         Transaction::Declare(declare) => match declare {
             DeclareTransaction::V0(declare_v0) => {
@@ -116,7 +116,7 @@ fn get_deprecated_transaction_hashes(
     transaction: &Transaction,
     transaction_options: &TransactionOptions,
 ) -> Result<Vec<TransactionHash>, StarknetApiError> {
-    let tx_version = get_tx_version(transaction, transaction_options);
+    let tx_version = get_signed_tx_version_from_tx(transaction, transaction_options);
     Ok(if chain_id == &ChainId::Mainnet && block_number > &MAINNET_TRANSACTION_HASH_WITH_VERSION {
         vec![]
     } else {
