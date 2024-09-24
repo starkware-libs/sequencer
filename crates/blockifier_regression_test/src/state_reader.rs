@@ -1,3 +1,4 @@
+pub mod compile;
 #[cfg(test)]
 #[cfg(feature = "blockifier_regression_https_testing")]
 pub mod rpc_test;
