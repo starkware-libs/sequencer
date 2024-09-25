@@ -73,6 +73,12 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         }
     }
 
+    fn send(data: &mut StreamData<T>, sender: &mut mpsc::Sender<T>, message: StreamMessage<T>) {
+        // TODO(guyn): reconsider the "expect" here.
+        sender.try_send(message.message).expect("Send should succeed");
+        data.next_message_id += 1;
+    }
+
     // Handle the message, return true if the channel is still open.
     #[instrument(skip_all, level = "warn")]
     fn handle_message(&mut self, message: StreamMessage<T>) {
@@ -113,9 +119,8 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
 
         // This means we can just send the message without buffering it.
         if message_id == data.next_message_id {
-            // TODO(guyn): reconsider the "expect" here.
-            self.sender.try_send(message.message).expect("Send should succeed");
-            data.next_message_id += 1;
+            Self::send(data, &mut self.sender, message);
+
             // Try to drain the buffer.
             self.process_buffer(stream_id);
         } else if message_id > data.next_message_id {
@@ -153,8 +158,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     fn process_buffer(&mut self, stream_id: u64) {
         let data = self.stream_data.entry(stream_id).or_default();
         while let Some(message) = data.message_buffer.remove(&data.next_message_id) {
-            self.sender.try_send(message.message).expect("Send should succeed");
-            data.next_message_id += 1;
+            Self::send(data, &mut self.sender, message);
         }
 
         if data.message_buffer.is_empty() && data.fin_message_id.is_some() {
