@@ -4,6 +4,8 @@ mod swarm_trait;
 mod test;
 #[cfg(feature = "testing")]
 pub mod test_utils;
+#[cfg(test)]
+pub mod test_utils;
 
 use std::collections::HashMap;
 use std::pin::Pin;
