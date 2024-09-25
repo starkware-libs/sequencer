@@ -9,16 +9,7 @@ use starknet_api::transaction_hash::get_transaction_hash;
 use starknet_api::TransactionOptions;
 use starknet_types_core::felt::Felt;
 
-use super::{ascii_as_felt, validate_transaction_hash, CONSTRUCTOR_ENTRY_POINT_SELECTOR};
-
-#[test]
-fn test_ascii_as_felt() {
-    let sn_main_id = ChainId::Mainnet;
-    let sn_main_felt = ascii_as_felt(sn_main_id.to_string().as_str()).unwrap();
-    // This is the result of the Python snippet from the Chain-Id documentation.
-    let expected_sn_main = Felt::from(23448594291968334_u128);
-    assert_eq!(sn_main_felt, expected_sn_main);
-}
+use super::{validate_transaction_hash, CONSTRUCTOR_ENTRY_POINT_SELECTOR};
 
 #[test]
 fn test_constructor_selector() {

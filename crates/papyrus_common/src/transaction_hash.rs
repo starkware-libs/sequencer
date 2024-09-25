@@ -4,7 +4,7 @@ mod transaction_hash_test;
 
 use lazy_static::lazy_static;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::ChainId;
+use starknet_api::core::{ascii_as_felt, ChainId};
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_api::transaction_hash::{get_deprecated_transaction_hashes, get_transaction_hash};
 use starknet_api::{StarknetApiError, TransactionOptions};
@@ -53,9 +53,4 @@ pub fn validate_transaction_hash(
     )?;
     possible_hashes.push(get_transaction_hash(transaction, chain_id, transaction_options)?);
     Ok(possible_hashes.contains(&expected_hash))
-}
-
-pub(crate) fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {
-    Felt::from_hex(hex::encode(ascii_str).as_str())
-        .map_err(|_| StarknetApiError::OutOfRange { string: ascii_str.to_string() })
 }
