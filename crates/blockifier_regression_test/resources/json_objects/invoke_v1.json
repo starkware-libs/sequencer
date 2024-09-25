@@ -1,0 +1,23 @@
+{
+    "calldata": [
+        "0x1",
+        "0x422d33a3638dcc4c62e72e1d6942cd31eb643ef596ccac2351e0e21f6cd4bf4",
+        "0xcaffbd1bd76bd7f24a3fa1d69d1b2588a86d1f9d2359b13f6a84b7e1cbd126",
+        "0x5",
+        "0x5265736f6c766552616e646f6d4576656e74",
+        "0x3",
+        "0x0",
+        "0x1",
+        "0x10c3"
+    ],
+    "max_fee": "0x65f2d0057b2",
+    "nonce": "0x4d8",
+    "sender_address": "0x4e6989d518d5eb7e516dc5673f855fe7c5cfece1880a1047d6a8e8465be0d69",
+    "signature": [
+        "0x59b7462ea9566750ab7d7d08acbb6d339bfda921b053f1f8a5fd6b96c3656f9",
+        "0x2f11c36d10a03f21be918a5feeeb9922c11a2713fecd51f5e6bac5167856ecb"
+    ],
+    "transaction_hash": "0x47165a9a9c97e8829a4778f2a4b6fae4366aefc35b51d484bf04c458168351b",
+    "type": "INVOKE",
+    "version": "0x1"
+}

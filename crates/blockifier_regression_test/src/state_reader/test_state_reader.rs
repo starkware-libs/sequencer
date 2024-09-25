@@ -12,6 +12,7 @@ use serde_json::{json, to_value};
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::Transaction;
 use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_core::types::ContractClass::{Legacy, Sierra};
 use starknet_gateway::config::RpcStateReaderConfig;
@@ -21,7 +22,11 @@ use starknet_gateway::rpc_state_reader::RpcStateReader;
 use starknet_types_core::felt::Felt;
 
 use crate::state_reader::compile::{legacy_to_contract_class_v0, sierra_to_contact_class_v1};
-use crate::state_reader::utils::{get_chain_info, get_rpc_state_reader_config};
+use crate::state_reader::utils::{
+    deserialize_transaction_json_to_starknet_api_tx,
+    get_chain_info,
+    get_rpc_state_reader_config,
+};
 
 pub struct TestStateReader(RpcStateReader);
 
@@ -119,12 +124,13 @@ impl TestStateReader {
         serde_json::from_value(raw_tx_hash).map_err(serde_err_to_state_err)
     }
 
-    pub fn get_txs_by_hash(&self, tx_hash: &str) -> StateResult<String> {
+    pub fn get_txs_by_hash(&self, tx_hash: &str) -> StateResult<Transaction> {
         let method = "starknet_getTransactionByHash";
         let params = json!({
             "transaction_hash": tx_hash,
         });
-        serde_json::from_value(self.0.send_rpc_request(method, params)?)
+        println!("{:?}", self.0.send_rpc_request(method, params.clone()));
+        deserialize_transaction_json_to_starknet_api_tx(self.0.send_rpc_request(method, params)?)
             .map_err(serde_err_to_state_err)
     }
 
@@ -137,6 +143,15 @@ impl TestStateReader {
             serde_json::from_value(self.0.send_rpc_request("starknet_getClass", params.clone())?)
                 .map_err(serde_err_to_state_err)?;
         Ok(contract_class)
+    }
+
+    pub fn get_all_txs_in_block(&self) -> StateResult<Vec<Transaction>> {
+        let txs_hash = self.get_txs_hash()?;
+        let mut txs = Vec::new();
+        for tx_hash in txs_hash {
+            txs.push(self.get_txs_by_hash(&tx_hash)?);
+        }
+        Ok(txs)
     }
 
     pub fn get_versioned_constants(&self) -> StateResult<&'static VersionedConstants> {
