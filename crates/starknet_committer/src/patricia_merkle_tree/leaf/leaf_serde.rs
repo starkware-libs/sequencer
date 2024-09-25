@@ -90,7 +90,7 @@ impl Deserializable for ContractState {
             Ok::<String, DeserializationError>(s)
         };
         let class_hash_as_hex = get_leaf_key(&deserialized_map, "contract_hash")?;
-        let nonce_as_hex = get_leaf_key(&deserialized_map, "nonce")?;
+        let nonce_as_hex = get_leaf_key(&deserialized_map, "nonce").unwrap_or("0x0".to_string());
         let root_hash_as_hex =
             get_leaf_key(get_key_from_map(&deserialized_map, "storage_commitment_tree")?, "root")?;
 
