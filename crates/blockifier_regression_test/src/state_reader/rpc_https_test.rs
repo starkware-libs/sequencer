@@ -6,15 +6,24 @@ use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::test_utils::read_json_file;
+use starknet_api::transaction::Transaction;
 use starknet_api::{class_hash, felt};
 use starknet_core::types::ContractClass::{Legacy, Sierra};
 
 use crate::state_reader::compile::legacy_to_contract_class_v0;
 use crate::state_reader::test_state_reader::TestStateReader;
 
+const EXAMPLE_INVOKE_TX_HASH: &str =
+    "0xa7c7db686c7f756ceb7ca85a759caef879d425d156da83d6a836f86851983";
+
+const EXAMPLE_BLOCK_NUMBER: u64 = 700000;
+
+const EXAMPLE_CONTACT_CLASS_HASH: &str =
+    "0x3131fa018d520a037686ce3efddeab8f28895662f019ca3ca18a626650f7d1e";
+
 #[fixture]
 pub fn test_block_number() -> BlockNumber {
-    BlockNumber(700000)
+    BlockNumber(EXAMPLE_BLOCK_NUMBER)
 }
 
 #[fixture]
@@ -38,8 +47,7 @@ pub fn test_get_starknet_version(test_state_reader: TestStateReader) {
 #[rstest]
 pub fn test_get_contract_class(test_state_reader: TestStateReader, test_block_number: BlockNumber) {
     // An example of existing class hash in Mainnet.
-    let class_hash =
-        class_hash!("0x3131fa018d520a037686ce3efddeab8f28895662f019ca3ca18a626650f7d1e");
+    let class_hash = class_hash!(EXAMPLE_CONTACT_CLASS_HASH);
 
     // Test getting the contract class using RPC request.
     let deprecated_contract_class =
@@ -73,4 +81,10 @@ pub fn test_get_tx_hashes(test_state_reader: TestStateReader, test_block_number:
         panic!("Error retrieving txs hash: {}", err);
     });
     assert_eq!(actual_tx_hashes, expected_tx_hashes);
+}
+
+#[rstest]
+pub fn test_get_tx_by_hash(test_state_reader: TestStateReader) {
+    let actual_tx = test_state_reader.get_tx_by_hash(EXAMPLE_INVOKE_TX_HASH).unwrap();
+    assert_matches!(actual_tx, Transaction::Invoke(..));
 }
