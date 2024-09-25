@@ -253,7 +253,7 @@ fn mempool() -> Mempool {
 #[case::test_get_exactly_all_eligible_txs(3)]
 #[case::test_get_more_than_all_eligible_txs(5)]
 #[case::test_get_less_than_all_eligible_txs(2)]
-fn test_get_txs_returns_by_priority_order(#[case] requested_txs: usize) {
+fn test_get_txs_returns_by_priority_order(#[case] n_requested_txs: usize) {
     // Setup.
     let mut txs = [
         tx!(tip: 20, tx_hash: 1, sender_address: "0x0"),
@@ -261,24 +261,18 @@ fn test_get_txs_returns_by_priority_order(#[case] requested_txs: usize) {
         tx!(tip: 10, tx_hash: 3, sender_address: "0x2"),
     ];
 
-    let tx_references_iterator = txs.iter().map(TransactionReference::new);
-    let txs_iterator = txs.iter().cloned();
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool(txs_iterator)
-        .with_queue(tx_references_iterator)
-        .build_into_mempool();
+    let queue_txs = txs.iter().map(TransactionReference::new);
+    let pool_txs = txs.iter().cloned();
+    let mut mempool =
+        MempoolContentBuilder::new().with_pool(pool_txs).with_queue(queue_txs).build_into_mempool();
 
     // Test.
-    let fetched_txs = mempool.get_txs(requested_txs).unwrap();
-
-    txs.sort_by_key(|tx| Reverse(tx.tip()));
-
-    // Ensure we do not exceed the number of transactions available in the mempool.
-    let max_requested_txs = requested_txs.min(txs.len());
+    let fetched_txs = mempool.get_txs(n_requested_txs).unwrap();
 
     // Check that the returned transactions are the ones with the highest priority.
-    let (expected_queue, remaining_txs) = txs.split_at(max_requested_txs);
-    assert_eq!(fetched_txs, expected_queue);
+    txs.sort_by_key(|tx| Reverse(tx.tip()));
+    let (expected_fetched_txs, remaining_txs) = txs.split_at(fetched_txs.len());
+    assert_eq!(fetched_txs, expected_fetched_txs);
 
     // Assert: non-returned transactions are still in the mempool.
     let remaining_tx_references = remaining_txs.iter().map(TransactionReference::new);
