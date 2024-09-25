@@ -9,7 +9,13 @@ use super::receipt_commitment::{calculate_receipt_commitment, ReceiptElement};
 use super::state_diff_hash::calculate_state_diff_hash;
 use super::transaction_commitment::{calculate_transaction_commitment, TransactionLeafElement};
 use crate::block::{BlockHash, BlockHeaderWithoutHash, GasPricePerToken, StarknetVersion};
-use crate::core::{EventCommitment, ReceiptCommitment, StateDiffCommitment, TransactionCommitment};
+use crate::core::{
+    ascii_as_felt,
+    EventCommitment,
+    ReceiptCommitment,
+    StateDiffCommitment,
+    TransactionCommitment,
+};
 use crate::crypto::utils::HashChain;
 use crate::data_availability::L1DataAvailabilityMode;
 use crate::execution_resources::GasVector;
@@ -22,7 +28,6 @@ use crate::transaction::{
     TransactionHash,
     TransactionSignature,
 };
-use crate::transaction_hash::ascii_as_felt;
 
 #[cfg(test)]
 #[path = "block_hash_calculator_test.rs"]
