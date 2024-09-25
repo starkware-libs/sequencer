@@ -11,7 +11,7 @@ use blockifier::test_utils::{create_trivial_calldata, CairoVersion};
 use serde_json::to_string_pretty;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::executable_transaction::{InvokeTransaction, Transaction};
+use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::{
     ContractClass,
     RpcDeclareTransactionV3,
@@ -28,7 +28,6 @@ use starknet_api::transaction::{
     PaymasterData,
     ResourceBounds,
     Tip,
-    TransactionHash,
     TransactionSignature,
     TransactionVersion,
     ValidResourceBounds,
@@ -225,7 +224,7 @@ type SharedNonceManager = Rc<RefCell<NonceManager>>;
 // [blockifier::transaction::test_utils::FaultyAccountTxCreatorArgs] can be made to use this.
 pub struct MultiAccountTransactionGenerator {
     // Invariant: coupled with the nonce manager.
-    account_contracts: HashMap<AccountId, AccountTransactionGenerator>,
+    account_contracts: Vec<AccountTransactionGenerator>,
     // Invariant: nonces managed internally thorugh `generate` API of the account transaction
     // generator.
     // Only used by single account transaction generators, but owning it here is preferable over
@@ -242,19 +241,16 @@ impl MultiAccountTransactionGenerator {
     }
 
     pub fn new_for_account_contracts(accounts: impl IntoIterator<Item = FeatureContract>) -> Self {
-        let mut account_contracts = HashMap::new();
+        let mut account_contracts = vec![];
         let mut account_type_to_n_instances = HashMap::new();
         let nonce_manager = SharedNonceManager::default();
-        for (account_id, account) in accounts.into_iter().enumerate() {
+        for account in accounts {
             let n_current_contract = account_type_to_n_instances.entry(account).or_insert(0);
-            account_contracts.insert(
-                account_id,
-                AccountTransactionGenerator {
-                    account,
-                    contract_instance_id: *n_current_contract,
-                    nonce_manager: nonce_manager.clone(),
-                },
-            );
+            account_contracts.push(AccountTransactionGenerator {
+                account,
+                contract_instance_id: *n_current_contract,
+                nonce_manager: nonce_manager.clone(),
+            });
             *n_current_contract += 1;
         }
 
@@ -262,7 +258,7 @@ impl MultiAccountTransactionGenerator {
     }
 
     pub fn account_with_id(&mut self, account_id: AccountId) -> &mut AccountTransactionGenerator {
-        self.account_contracts.get_mut(&account_id).unwrap_or_else(|| {
+        self.account_contracts.get_mut(account_id).unwrap_or_else(|| {
             panic!(
                 "{account_id:?} not found! This number should be an index of an account in the \
                  initialization array. "
@@ -584,30 +580,4 @@ pub fn rpc_tx_to_json(tx: &RpcTransaction) -> String {
 
     // Serialize back to pretty JSON string
     to_string_pretty(&tx_json).expect("Failed to serialize transaction")
-}
-
-pub fn create_executable_tx(
-    sender_address: ContractAddress,
-    tx_hash: TransactionHash,
-    tip: Tip,
-    nonce: Nonce,
-    resource_bounds: ValidResourceBounds,
-) -> Transaction {
-    Transaction::Invoke(InvokeTransaction {
-        tx: starknet_api::transaction::InvokeTransaction::V3(
-            starknet_api::transaction::InvokeTransactionV3 {
-                sender_address,
-                tip,
-                nonce,
-                resource_bounds,
-                signature: TransactionSignature::default(),
-                calldata: Calldata::default(),
-                nonce_data_availability_mode: DataAvailabilityMode::L1,
-                fee_data_availability_mode: DataAvailabilityMode::L1,
-                paymaster_data: PaymasterData::default(),
-                account_deployment_data: AccountDeploymentData::default(),
-            },
-        ),
-        tx_hash,
-    })
 }

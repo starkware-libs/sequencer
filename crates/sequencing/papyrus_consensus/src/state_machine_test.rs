@@ -45,7 +45,7 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
     }
 
     pub fn send_proposal(&mut self, block_hash: Option<BlockHash>, round: Round) {
-        self.send_event(StateMachineEvent::Proposal(block_hash, round))
+        self.send_event(StateMachineEvent::Proposal(block_hash, round, None))
     }
 
     pub fn send_prevote(&mut self, block_hash: Option<BlockHash>, round: Round) {
@@ -83,7 +83,10 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
     if is_proposer {
         assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::GetProposal(None, ROUND));
         wrapper.send_get_proposal(BLOCK_HASH, ROUND);
-        assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Proposal(BLOCK_HASH, ROUND));
+        assert_eq!(
+            wrapper.next_event().unwrap(),
+            StateMachineEvent::Proposal(BLOCK_HASH, ROUND, None)
+        );
     } else {
         // Waiting for the proposal.
         assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPropose(ROUND));
@@ -166,7 +169,7 @@ fn buffer_events_during_get_proposal(vote: Option<BlockHash>) {
 
     // Node finishes building the proposal.
     wrapper.send_get_proposal(BLOCK_HASH, ROUND);
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Proposal(BLOCK_HASH, ROUND));
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Proposal(BLOCK_HASH, ROUND, None));
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(BLOCK_HASH, ROUND));
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrevote(ROUND));
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Precommit(vote, ROUND));
@@ -329,15 +332,49 @@ fn dont_handle_enqueued_while_awaiting_get_proposal() {
 
     // It now receives the proposal.
     wrapper.send_get_proposal(BLOCK_HASH, ROUND);
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Proposal(BLOCK_HASH, ROUND));
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Proposal(BLOCK_HASH, ROUND, None));
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrecommit(ROUND));
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::GetProposal(None, ROUND + 1));
     assert!(wrapper.next_event().is_none());
 
     // The other votes are only handled after the next GetProposal is received.
     wrapper.send_get_proposal(BLOCK_HASH, ROUND + 1);
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Proposal(BLOCK_HASH, ROUND + 1));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Proposal(BLOCK_HASH, ROUND + 1, None)
+    );
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrecommit(ROUND + 1));
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::GetProposal(None, ROUND + 2));
     assert!(wrapper.next_event().is_none());
+}
+
+#[test]
+fn return_proposal_if_locked_value_is_set() {
+    let mut wrapper = TestWrapper::new(*PROPOSER_ID, 4, |_: Round| *PROPOSER_ID);
+
+    wrapper.start();
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::GetProposal(None, ROUND));
+    assert!(wrapper.next_event().is_none());
+
+    wrapper.send_get_proposal(BLOCK_HASH, ROUND);
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Proposal(BLOCK_HASH, ROUND, None));
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(BLOCK_HASH, ROUND));
+    // locked_value is set after receiving a Prevote quorum.
+    wrapper.send_prevote(BLOCK_HASH, ROUND);
+    wrapper.send_prevote(BLOCK_HASH, ROUND);
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrevote(ROUND));
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Precommit(BLOCK_HASH, ROUND));
+
+    wrapper.send_precommit(None, ROUND);
+    wrapper.send_precommit(None, ROUND);
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrecommit(ROUND));
+
+    wrapper.send_timeout_precommit(ROUND);
+
+    // no need to GetProposal since we already have a locked value.
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Proposal(BLOCK_HASH, ROUND + 1, Some(ROUND))
+    );
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(BLOCK_HASH, ROUND + 1));
 }

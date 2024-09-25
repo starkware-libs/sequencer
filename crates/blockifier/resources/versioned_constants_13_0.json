@@ -13,6 +13,20 @@
         "max_keys_length": 1000000000,
         "max_n_emitted_events": 1000000000
     },
+    "deprecated_l2_resource_gas_costs": {
+        "gas_per_data_felt": [
+            0,
+            1
+        ],
+        "event_key_factor": [
+            0,
+            1
+        ],
+        "gas_per_code_byte": [
+            0,
+            1
+        ]
+    },
     "archival_data_gas_costs": {
         "gas_per_data_felt": [
             0,
@@ -521,53 +535,55 @@
     "validate_max_n_steps": 1000000,
     "min_compiler_version_for_sierra_gas": "2.8.0",
     "vm_resource_fee_cost": {
-        "add_mod_builtin": [
-            0,
-            1
-        ],
-        "bitwise_builtin": [
-            32,
-            100
-        ],
-        "ec_op_builtin": [
-            512,
-            100
-        ],
-        "ecdsa_builtin": [
-            1024,
-            100
-        ],
-        "keccak_builtin": [
-            1024,
-            100
-        ],
-        "mul_mod_builtin": [
-            0,
-            1
-        ],
+        "builtins": {
+            "add_mod_builtin": [
+                0,
+                1
+            ],
+            "bitwise_builtin": [
+                32,
+                100
+            ],
+            "ec_op_builtin": [
+                512,
+                100
+            ],
+            "ecdsa_builtin": [
+                1024,
+                100
+            ],
+            "keccak_builtin": [
+                1024,
+                100
+            ],
+            "mul_mod_builtin": [
+                0,
+                1
+            ],
+            "output_builtin": [
+                0,
+                1
+            ],
+            "pedersen_builtin": [
+                16,
+                100
+            ],
+            "poseidon_builtin": [
+                16,
+                100
+            ],
+            "range_check_builtin": [
+                8,
+                100
+            ],
+            "range_check96_builtin": [
+                0,
+                1
+            ]
+        },
         "n_steps": [
             5,
             1000
-        ],
-        "output_builtin": [
-            0,
-            1
-        ],
-        "pedersen_builtin": [
-            16,
-            100
-        ],
-        "poseidon_builtin": [
-            16,
-            100
-        ],
-        "range_check_builtin": [
-            8,
-            100
-        ],
-        "range_check96_builtin": [
-            0,
-            1
         ]
     }
 }

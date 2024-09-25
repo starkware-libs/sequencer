@@ -3,6 +3,8 @@
 mod papyrus_consensus_context_test;
 
 use core::panic;
+use std::collections::{BTreeMap, HashMap};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -10,9 +12,9 @@ use futures::channel::{mpsc, oneshot};
 use futures::sink::SinkExt;
 use futures::StreamExt;
 use papyrus_consensus::types::{
-    ConsensusBlock,
     ConsensusContext,
     ConsensusError,
+    ProposalContentId,
     ProposalInit,
     Round,
     ValidatorId,
@@ -25,42 +27,24 @@ use papyrus_storage::{StorageError, StorageReader};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
-use tracing::{debug, debug_span, info, warn, Instrument};
+use tracing::{debug, debug_span, error, info, warn, Instrument};
 
 // TODO: add debug messages and span to the tasks.
 
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
-#[allow(missing_docs)]
-pub struct PapyrusConsensusBlock {
-    content: Vec<Transaction>,
-    id: BlockHash,
-}
+type HeightToIdToContent = BTreeMap<BlockNumber, HashMap<ProposalContentId, Vec<Transaction>>>;
 
-impl ConsensusBlock for PapyrusConsensusBlock {
-    type ProposalChunk = Transaction;
-    type ProposalIter = std::vec::IntoIter<Transaction>;
-
-    fn id(&self) -> BlockHash {
-        self.id
-    }
-
-    fn proposal_iter(&self) -> Self::ProposalIter {
-        self.content.clone().into_iter()
-    }
-}
-
-#[allow(missing_docs)]
 pub struct PapyrusConsensusContext {
     storage_reader: StorageReader,
     network_broadcast_sender: BroadcastTopicSender<ConsensusMessage>,
     validators: Vec<ValidatorId>,
     sync_broadcast_sender: Option<BroadcastTopicSender<Vote>>,
+    // Proposal building/validating returns immediately, leaving the actual processing to a spawned
+    // task. The spawned task processes the proposal asynchronously and updates the
+    // valid_proposals map upon completion, ensuring consistency across tasks.
+    valid_proposals: Arc<Mutex<HeightToIdToContent>>,
 }
 
 impl PapyrusConsensusContext {
-    // TODO(dvir): remove the dead code attribute after we will use this function.
-    #[allow(dead_code)]
-    #[allow(missing_docs)]
     pub fn new(
         storage_reader: StorageReader,
         network_broadcast_sender: BroadcastTopicSender<ConsensusMessage>,
@@ -72,6 +56,7 @@ impl PapyrusConsensusContext {
             network_broadcast_sender,
             validators: (0..num_validators).map(ContractAddress::from).collect(),
             sync_broadcast_sender,
+            valid_proposals: Arc::new(Mutex::new(BTreeMap::new())),
         }
     }
 }
@@ -80,16 +65,17 @@ const CHANNEL_SIZE: usize = 5000;
 
 #[async_trait]
 impl ConsensusContext for PapyrusConsensusContext {
-    type Block = PapyrusConsensusBlock;
+    type ProposalChunk = Transaction;
 
     async fn build_proposal(
-        &self,
+        &mut self,
         height: BlockNumber,
-    ) -> (mpsc::Receiver<Transaction>, oneshot::Receiver<PapyrusConsensusBlock>) {
+    ) -> (mpsc::Receiver<Transaction>, oneshot::Receiver<ProposalContentId>) {
         let (mut sender, receiver) = mpsc::channel(CHANNEL_SIZE);
         let (fin_sender, fin_receiver) = oneshot::channel();
 
         let storage_reader = self.storage_reader.clone();
+        let valid_proposals = Arc::clone(&self.valid_proposals);
         tokio::spawn(
             async move {
                 // TODO(dvir): consider fix this for the case of reverts. If between the check that
@@ -117,9 +103,15 @@ impl ConsensusContext for PapyrusConsensusContext {
                         panic!("Block in {height} was not found in storage despite waiting for it")
                     })
                     .block_hash;
-                fin_sender
-                    .send(PapyrusConsensusBlock { content: transactions, id: block_hash })
-                    .expect("Send should succeed");
+
+                let mut proposals = valid_proposals
+                    .lock()
+                    .expect("Lock on active proposals was poisoned due to a previous panic");
+
+                proposals.entry(height).or_default().insert(block_hash, transactions);
+                // Done after inserting the proposal into the map to avoid race conditions between
+                // insertion and calls to `get_proposal`.
+                fin_sender.send(block_hash).expect("Send should succeed");
             }
             .instrument(debug_span!("consensus_build_proposal")),
         );
@@ -128,13 +120,14 @@ impl ConsensusContext for PapyrusConsensusContext {
     }
 
     async fn validate_proposal(
-        &self,
+        &mut self,
         height: BlockNumber,
         mut content: mpsc::Receiver<Transaction>,
-    ) -> oneshot::Receiver<PapyrusConsensusBlock> {
+    ) -> oneshot::Receiver<ProposalContentId> {
         let (fin_sender, fin_receiver) = oneshot::channel();
 
         let storage_reader = self.storage_reader.clone();
+        let valid_proposals = Arc::clone(&self.valid_proposals);
         tokio::spawn(
             async move {
                 // TODO(dvir): consider fix this for the case of reverts. If between the check that
@@ -172,17 +165,52 @@ impl ConsensusContext for PapyrusConsensusContext {
                     })
                     .block_hash;
 
+                let mut proposals = valid_proposals
+                    .lock()
+                    .expect("Lock on active proposals was poisoned due to a previous panic");
+
+                proposals.entry(height).or_default().insert(block_hash, transactions);
+                // Done after inserting the proposal into the map to avoid race conditions between
+                // insertion and calls to `get_proposal`.
                 // This can happen as a result of sync interrupting `run_height`.
-                fin_sender
-                    .send(PapyrusConsensusBlock { content: transactions, id: block_hash })
-                    .unwrap_or_else(|_| {
-                        warn!("Failed to send block to consensus. height={height}");
-                    })
+                fin_sender.send(block_hash).unwrap_or_else(|_| {
+                    warn!("Failed to send block to consensus. height={height}");
+                })
             }
             .instrument(debug_span!("consensus_validate_proposal")),
         );
 
         fin_receiver
+    }
+
+    async fn get_proposal(
+        &self,
+        height: BlockNumber,
+        id: ProposalContentId,
+    ) -> mpsc::Receiver<Transaction> {
+        let (mut sender, receiver) = mpsc::channel(CHANNEL_SIZE);
+        let valid_proposals = Arc::clone(&self.valid_proposals);
+        tokio::spawn(async move {
+            let transactions = {
+                let valid_proposals_lock = valid_proposals
+                    .lock()
+                    .expect("Lock on active proposals was poisoned due to a previous panic");
+                let Some(proposals_at_height) = valid_proposals_lock.get(&height) else {
+                    error!("No proposals found for height {height}");
+                    return;
+                };
+                let Some(transactions) = proposals_at_height.get(&id) else {
+                    error!("No proposal found for height {height} and id {id}");
+                    return;
+                };
+                transactions.clone()
+            };
+            for tx in transactions.clone() {
+                sender.try_send(tx).expect("Send should succeed");
+            }
+            sender.close_channel();
+        });
+        receiver
     }
 
     async fn validators(&self, _height: BlockNumber) -> Vec<ValidatorId> {
@@ -225,6 +253,7 @@ impl ConsensusContext for PapyrusConsensusContext {
                     proposer: init.proposer,
                     transactions,
                     block_hash,
+                    valid_round: init.valid_round,
                 };
                 debug!(
                     "Sending proposal: height={:?} id={:?} num_txs={} block_hash={:?}",
@@ -246,18 +275,20 @@ impl ConsensusContext for PapyrusConsensusContext {
 
     async fn decision_reached(
         &mut self,
-        block: Self::Block,
+        block: ProposalContentId,
         precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError> {
         let height = precommits[0].height;
-        info!(
-            "Finished consensus for height: {height}. Agreed on block with id: {:x}",
-            block.id().0
-        );
+        info!("Finished consensus for height: {height}. Agreed on block: {:}", block);
         if let Some(sender) = &mut self.sync_broadcast_sender {
             sender.send(precommits[0].clone()).await?;
         }
 
+        let mut proposals = self
+            .valid_proposals
+            .lock()
+            .expect("Lock on active proposals was poisoned due to a previous panic");
+        proposals.retain(|&h, _| h > BlockNumber(height));
         Ok(())
     }
 }

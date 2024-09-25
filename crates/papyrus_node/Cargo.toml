@@ -11,11 +11,17 @@ normal = ["clap", "papyrus_base_layer", "reqwest", "tokio"]
 [features]
 default = ["rpc"]
 rpc = ["papyrus_rpc"]
+testing = []
 
 [[bin]]
 name = "central_source_integration_test"
 path = "src/bin/central_source_integration_test.rs"
 required-features = ["futures-util", "tokio-stream"]
+
+[[bin]]
+name = "run_consensus"
+path = "src/bin/run_consensus.rs"
+required-features = ["testing"]
 
 [dependencies]
 anyhow.workspace = true

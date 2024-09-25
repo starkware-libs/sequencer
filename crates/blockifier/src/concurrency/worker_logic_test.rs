@@ -393,7 +393,7 @@ fn test_worker_execute(max_resource_bounds: ValidResourceBounds) {
         ..Default::default()
     };
 
-    assert_eq!(execution_output.writes, writes);
+    assert_eq!(execution_output.writes, writes.diff(&reads));
     assert_eq!(execution_output.reads, reads);
     assert_ne!(execution_output.visited_pcs, HashMap::default());
 

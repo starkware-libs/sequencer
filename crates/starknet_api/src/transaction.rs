@@ -870,6 +870,7 @@ impl From<Tip> for Felt {
     Copy,
     Debug,
     Deserialize,
+    Display,
     EnumIter,
     Eq,
     Hash,
@@ -877,7 +878,6 @@ impl From<Tip> for Felt {
     PartialEq,
     PartialOrd,
     Serialize,
-    Display,
 )]
 pub enum Resource {
     #[serde(rename = "L1_GAS")]
@@ -977,6 +977,24 @@ impl ValidResourceBounds {
             Self::L1Gas(_) => ResourceBounds::default(),
             Self::AllResources(AllResourceBounds { l2_gas, .. }) => *l2_gas,
         }
+    }
+
+    pub fn max_possible_fee(&self) -> Fee {
+        Fee(match self {
+            ValidResourceBounds::L1Gas(l1_bounds) => {
+                let max_amount: u128 = l1_bounds.max_amount.into();
+                max_amount * l1_bounds.max_price_per_unit
+            }
+            ValidResourceBounds::AllResources(AllResourceBounds {
+                l1_gas,
+                l2_gas,
+                l1_data_gas,
+            }) => {
+                u128::from(l1_gas.max_amount) * l1_gas.max_price_per_unit
+                    + u128::from(l2_gas.max_amount) * l2_gas.max_price_per_unit
+                    + u128::from(l1_data_gas.max_amount) * l1_data_gas.max_price_per_unit
+            }
+        })
     }
 
     // TODO(Nimrod): Default testing bounds should probably be AllResourceBounds variant.

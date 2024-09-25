@@ -45,30 +45,17 @@ jobs:
           TITLE: ${{ github.event.pull_request.title }}
         run: echo "$TITLE" | commitlint --verbose
 
-  format:
+  code_style:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master # TODO(Nimrod, 15/8/2024): Use stable toolchain.
-        with:
-          components: rustfmt
-          toolchain: nightly-2024-04-29
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust-ubuntu-20.04"
-      - run: scripts/rust_fmt.sh --check
-
-  clippy:
-    runs-on: starkware-ubuntu-20-04-medium
-    steps:
+      # Enviorment setup.
       - uses: actions/checkout@v4
       - uses: Noelware/setup-protoc@1.1.0
-      - uses: ./.github/actions/install_rust
+      - uses: baptiste0928/cargo-install@v3
         with:
-          components: clippy
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust-ubuntu-20.04"
+          crate: taplo-cli
+          version: '0.9.0'
+          locked: true
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
@@ -80,27 +67,31 @@ jobs:
           LD_LIBRARY_PATH: ${{ steps.setup-pypy.outputs.pythonLocation }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
-      - run: scripts/clippy.sh
+      # Install rust components.
+      - uses: ./.github/actions/bootstrap
 
-  doc:
-    runs-on: starkware-ubuntu-latest-small
-    env:
-      RUSTDOCFLAGS: "-D warnings"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
-      - run: cargo doc --workspace -r --document-private-items --no-deps
+      # Run tests.
+      - name: "Run rustfmt and clippy"
+        run: scripts/rust_fmt.sh --check
+      - name: "Run clippy"
+        run: scripts/clippy.sh
+      - name: "Run cargo doc"
+        run: cargo doc --workspace -r --document-private-items --no-deps
+      - name: "Run taplo"
+        run: scripts/taplo.sh
+      - name: "Run cargo check"
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+        run: cargo check --workspace -r --all-features
+      - name: Run Machete (detect unused dependencies)
+        uses: bnjbvr/cargo-machete@main
+
 
   run-workspace-tests:
-    runs-on: starkware-ubuntu-latest-small
+    runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       - run: cargo test -p workspace_tests
 
   run-tests:
@@ -110,11 +101,8 @@ jobs:
         with:
           # Fetch the entire history.
           fetch-depth: 0
-      - uses: ./.github/actions/install_rust
+      - uses: ./.github/actions/bootstrap
       - uses: Noelware/setup-protoc@1.1.0
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust-ubuntu-20.04"
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
@@ -143,39 +131,6 @@ jobs:
           ci/bin/python scripts/run_tests.py
         env:
           SEED: 0
-
-  taplo:
-    runs-on: starkware-ubuntu-latest-small
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
-      - uses: baptiste0928/cargo-install@v3
-        with:
-          crate: taplo-cli
-          version: "0.9.0"
-          locked: true
-      - run: scripts/taplo.sh
-
-  machete:
-    runs-on: starkware-ubuntu-latest-small
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run Machete (detect unused dependencies)
-        uses: bnjbvr/cargo-machete@main
-
-  check:
-    runs-on: starkware-ubuntu-latest-small
-    env:
-      RUSTDOCFLAGS: "-D warnings"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
-      - run: cargo check --workspace -r --all-features
 
   merge-gatekeeper:
     runs-on: starkware-ubuntu-latest-small
@@ -211,7 +166,7 @@ jobs:
         with:
           # Fetch the entire history.
           fetch-depth: 0
-      - uses: ./.github/actions/install_rust
+      - uses: ./.github/actions/bootstrap
       - name: Set-Up
         run: |
           sudo apt-get update
@@ -222,9 +177,6 @@ jobs:
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust-ubuntu-20.04"
       - run: npm install -g ganache@7.4.3
 
       # Setup pypy and link to the location expected by .cargo/config.toml.

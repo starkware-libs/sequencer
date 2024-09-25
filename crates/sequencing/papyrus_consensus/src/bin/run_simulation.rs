@@ -1,3 +1,7 @@
+//! Simulate papyrus nodes running consensus.
+//!
+//! This runs multiple papyrus nodes communicating with each other to propose and vote on blocks. It
+//! uses the `run_consensus` binary which is able to simulate network issues for consensus messages.
 use std::collections::HashSet;
 use std::fs::{self, File};
 use std::net::TcpListener;
@@ -117,7 +121,7 @@ struct PapyrusArgs {
     prevote_timeout: Option<f64>,
     #[arg(long = "precommit_timeout", help = "The timeout (seconds) for a precommit.")]
     precommit_timeout: Option<f64>,
-    #[arg(long = "cache_size", help = "Cache size for the test simulation.")]
+    #[arg(long = "cache_size", help = "The cache size for the test network receiver.")]
     cache_size: Option<usize>,
     #[arg(long = "random_seed", help = "Random seed for test simulation.")]
     random_seed: Option<u64>,
@@ -142,23 +146,27 @@ struct RunConsensusArgs {
         default_value = "60", value_parser = parse_duration
     )]
     stagnation_threshold: Duration,
-    #[arg(long = "duration", help = "Maximum test duration in seconds.", 
-    default_value = "123456789123456789", 
-    value_parser = parse_duration)]
+    #[arg(
+        long = "duration",
+        help = "Maximum test duration in seconds.",
+        default_value = "123456789123456789",
+        value_parser = parse_duration
+    )]
     max_test_duration: Duration,
 }
 
 struct LockDir {
-    file: File,
+    dirname: String,
+    lockfile: File,
 }
 
 impl LockDir {
-    pub fn new(db_dir: &str) -> std::io::Result<Self> {
-        let lockfile_path = format!("{}/lockfile", db_dir);
-        let file = File::create(&lockfile_path)?;
+    pub fn new(db_dir: String) -> std::io::Result<Self> {
+        let lockfile_path = format!("{}/lockfile", &db_dir);
+        let lockfile = File::create(&lockfile_path)?;
 
-        match file.try_lock_exclusive() {
-            Ok(_) => Ok(LockDir { file }),
+        match lockfile.try_lock_exclusive() {
+            Ok(_) => Ok(LockDir { dirname: db_dir, lockfile }),
             Err(e) => Err(e),
         }
     }
@@ -166,7 +174,7 @@ impl LockDir {
 
 impl Drop for LockDir {
     fn drop(&mut self) {
-        let _ = self.file.unlock();
+        let _ = self.lockfile.unlock();
     }
 }
 
@@ -261,12 +269,11 @@ async fn build_node(data_dir: &str, logs_dir: &str, i: usize, papyrus_args: &Pap
     let data_dir = format!("{}/data{}", data_dir, i);
 
     let mut cmd = format!(
-        "RUST_LOG=papyrus_consensus=debug,papyrus=info target/release/papyrus_node \
+        "RUST_LOG=papyrus_consensus=debug,papyrus=info target/release/run_consensus \
          --network.#is_none false --base_layer.node_url {} --storage.db_config.path_prefix {} \
          --consensus.#is_none false --consensus.validator_id 0x{} --consensus.num_validators {} \
          --network.tcp_port {} --rpc.server_address 127.0.0.1:{} \
-         --monitoring_gateway.server_address 127.0.0.1:{} --consensus.test.#is_none false \
-         --collect_metrics true ",
+         --monitoring_gateway.server_address 127.0.0.1:{} --collect_metrics true ",
         papyrus_args.base_layer_node_url,
         data_dir,
         i,
@@ -280,16 +287,24 @@ async fn build_node(data_dir: &str, logs_dir: &str, i: usize, papyrus_args: &Pap
         ("timeouts.proposal_timeout", papyrus_args.proposal_timeout),
         ("timeouts.prevote_timeout", papyrus_args.prevote_timeout),
         ("timeouts.precommit_timeout", papyrus_args.precommit_timeout),
-        ("test.drop_probability", papyrus_args.drop_probability),
-        ("test.invalid_probability", papyrus_args.invalid_probability),
-        // Convert optional parameters to f64 for consistency in the vector,
-        // types were validated during parsing.
-        ("test.cache_size", papyrus_args.cache_size.map(|v| v as f64)),
-        ("test.random_seed", papyrus_args.random_seed.map(|v| v as f64)),
     ];
-    for (key, value) in conditional_params.iter() {
+    for (key, value) in conditional_params {
         if let Some(v) = value {
             cmd.push_str(&format!("--consensus.{} {} ", key, v));
+        }
+    }
+
+    let conditional_test_params = [
+        ("drop_probability", papyrus_args.drop_probability),
+        ("invalid_probability", papyrus_args.invalid_probability),
+        // Convert optional parameters to f64 for consistency in the vector,
+        // types were validated during parsing.
+        ("cache_size", papyrus_args.cache_size.map(|v| v as f64)),
+        ("random_seed", papyrus_args.random_seed.map(|v| v as f64)),
+    ];
+    for (key, value) in conditional_test_params {
+        if let Some(v) = value {
+            cmd.push_str(&format!("--test.{} {} ", key, v));
         }
     }
 
@@ -330,22 +345,22 @@ async fn build_all_nodes(data_dir: &str, logs_dir: &str, papyrus_args: &PapyrusA
     nodes
 }
 
-#[tokio::main]
-async fn main() {
-    let Cli { papyrus_args, run_consensus_args } = Cli::parse();
-    assert!(
-        papyrus_args.num_validators >= 2,
-        "At least 2 validators are required for the simulation."
-    );
-
+// Setup the directories for storing artifacts from the nodes.
+//
+// For the logs this creates a new temporary directory for storing logs.
+//
+// For the DB files this may optionally reuse an existing directory, if one is passed by the user or
+// create new DB files. This is useful since syncing the DB files can take a long time. We therefore
+// lock the DB directory to make sure other simulations are not also using it.
+fn setup_artifact_dirs(papyrus_args: &PapyrusArgs) -> (String, LockDir) {
     let now_ns = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
     let mut tmpdir = std::env::temp_dir();
     tmpdir.push(format!("run_consensus_{now_ns}"));
 
     let logs_dir = tmpdir.to_str().unwrap().to_string();
-    let db_dir = papyrus_args.db_dir.clone().unwrap_or_else(|| logs_dir.clone());
     fs::create_dir(&logs_dir).unwrap();
 
+    let db_dir = papyrus_args.db_dir.clone().unwrap_or_else(|| logs_dir.clone());
     if db_dir != logs_dir {
         let actual_dirs = fs::read_dir(&db_dir)
             .unwrap()
@@ -361,20 +376,39 @@ async fn main() {
             fs::create_dir_all(format!("{}/data{}", db_dir, i)).unwrap();
         }
     }
+    let db_lock = LockDir::new(db_dir).unwrap();
 
-    // Acquire lock on the db_dir
-    let _lock = LockDir::new(&db_dir).unwrap();
-
-    println!("Running cargo build...");
-    Command::new("cargo")
-        .args(["build", "--release", "--package", "papyrus_node"])
-        .status()
-        .unwrap();
-
-    println!("DB files will be stored in: {db_dir}");
+    println!("DB files will be stored in: {}", &db_lock.dirname);
     println!("Logs will be stored in: {logs_dir}");
+    (logs_dir, db_lock)
+}
 
-    let nodes = build_all_nodes(&db_dir, &logs_dir, &papyrus_args).await;
+#[tokio::main]
+async fn main() {
+    let Cli { papyrus_args, run_consensus_args } = Cli::parse();
+    assert!(
+        papyrus_args.num_validators >= 2,
+        "At least 2 validators are required for the simulation."
+    );
+
+    let (logs_dir, db_lock) = setup_artifact_dirs(&papyrus_args);
+
+    println!("Compiling node binary...");
+    let build_status = Command::new("cargo")
+        .args([
+            "build",
+            "--release",
+            "--package",
+            "papyrus_node",
+            "--bin",
+            "run_consensus",
+            "--features",
+            "testing",
+        ])
+        .status();
+    assert!(build_status.unwrap().success());
+
+    let nodes = build_all_nodes(&db_lock.dirname, &logs_dir, &papyrus_args).await;
 
     println!("Running validators...");
     run_simulation(
@@ -384,7 +418,6 @@ async fn main() {
     )
     .await;
 
-    println!("DB files were stored in: {}", db_dir);
-    println!("Logs were stored in: {}", logs_dir);
-    println!("Simulation complete.");
+    println!("DB files were stored in: {}", &db_lock.dirname);
+    println!("Logs were stored in: {}", &logs_dir);
 }

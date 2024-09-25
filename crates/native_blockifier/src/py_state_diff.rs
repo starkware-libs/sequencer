@@ -162,9 +162,9 @@ impl Default for PyBlockInfo {
             },
             l2_gas_price: PyResourcePrice {
                 price_in_wei: VersionedConstants::latest_constants()
-                    .convert_l1_to_l2_gas(DEFAULT_ETH_L1_GAS_PRICE),
+                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE),
                 price_in_fri: VersionedConstants::latest_constants()
-                    .convert_l1_to_l2_gas(DEFAULT_STRK_L1_GAS_PRICE),
+                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE),
             },
             sequencer_address: PyFelt::default(),
             use_kzg_da: bool::default(),
