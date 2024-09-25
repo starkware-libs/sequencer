@@ -33,10 +33,6 @@ lazy_static! {
     static ref THREE: Felt = Felt::from(3_u8);
 }
 
-// On mainnet, from this block number onwards, there are no deprecated transactions,
-// enabling us to validate against a single hash calculation.
-pub const MAINNET_TRANSACTION_HASH_WITH_VERSION: BlockNumber = BlockNumber(1470);
-
 /// Validates the hash of a starknet transaction.
 /// For transactions on testnet or those with a low block_number, we validate the
 /// transaction hash against all potential historical hash computations. For recent
