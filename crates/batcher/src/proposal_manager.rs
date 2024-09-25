@@ -15,6 +15,7 @@ use tokio::sync::Mutex;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::{debug, error, info, instrument, trace, Instrument};
 
+use crate::batcher::BatcherStorageReaderTrait;
 use crate::block_builder::{BlockBuilderError, BlockBuilderFactoryTrait, BlockBuilderTrait};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -60,15 +61,31 @@ pub enum ProposalManagerError {
         current_generating_proposal_id: ProposalId,
         new_proposal_id: ProposalId,
     },
+    #[error("Can't start new height {new_height} while working on height {active_height}.")]
+    AlreadyWorkingOnHeight { active_height: BlockNumber, new_height: BlockNumber },
+    #[error(
+        "Requested height {requested_height} is lower than the current storage height \
+         {storage_height}."
+    )]
+    HeightAlreadyPassed { storage_height: BlockNumber, requested_height: BlockNumber },
     #[error(transparent)]
     BlockBuilderError(#[from] BlockBuilderError),
     #[error(transparent)]
     MempoolError(#[from] MempoolClientError),
+    #[error("No active height to work on.")]
+    NoActiveHeight,
     #[error("Proposal with ID {proposal_id} already exists.")]
     ProposalAlreadyExists { proposal_id: ProposalId },
+    #[error(transparent)]
+    StorageError(#[from] papyrus_storage::StorageError),
+    #[error(
+        "Storage is not synced. Storage height: {storage_height}, requested height: \
+         {requested_height}."
+    )]
+    StorageNotSynced { storage_height: BlockNumber, requested_height: BlockNumber },
 }
 
-pub type ProposalsManagerResult<T> = Result<T, ProposalManagerError>;
+pub type ProposalManagerResult<T> = Result<T, ProposalManagerError>;
 
 /// Main struct for handling block proposals.
 /// Taking care of:
@@ -80,6 +97,8 @@ pub type ProposalsManagerResult<T> = Result<T, ProposalManagerError>;
 pub(crate) struct ProposalManager {
     config: ProposalManagerConfig,
     mempool_client: SharedMempoolClient,
+    storage_reader: Arc<dyn BatcherStorageReaderTrait>,
+    active_height: Option<BlockNumber>,
     /// The block proposal that is currently being proposed, if any.
     /// At any given time, there can be only one proposal being actively executed (either proposed
     /// or validated).
@@ -91,28 +110,59 @@ pub(crate) struct ProposalManager {
     proposals: Vec<ProposalId>,
 }
 
-type ActiveTaskHandle = tokio::task::JoinHandle<ProposalsManagerResult<()>>;
+type ActiveTaskHandle = tokio::task::JoinHandle<ProposalManagerResult<()>>;
 
 impl ProposalManager {
     pub fn new(
         config: ProposalManagerConfig,
         mempool_client: SharedMempoolClient,
         block_builder_factory: Arc<dyn BlockBuilderFactoryTrait + Send + Sync>,
+        storage_reader: Arc<dyn BatcherStorageReaderTrait>,
     ) -> Self {
         Self {
             config,
             mempool_client,
+            storage_reader,
             active_proposal: Arc::new(Mutex::new(None)),
             block_builder_factory,
             active_proposal_handle: None,
+            active_height: None,
             proposals: Vec::new(),
         }
+    }
+
+    /// Starts working on the given height.
+    #[instrument(skip(self), err)]
+    pub fn start_height(&mut self, height: BlockNumber) -> ProposalManagerResult<()> {
+        // TODO: handle the case when `next_height==height && active_height<next_height` - can
+        // happen if the batcher got out of sync and got re-synced manually.
+        if let Some(active_height) = self.active_height {
+            return Err(ProposalManagerError::AlreadyWorkingOnHeight {
+                active_height,
+                new_height: height,
+            });
+        }
+        let next_height = self.storage_reader.height()?;
+        if next_height < height {
+            return Err(ProposalManagerError::StorageNotSynced {
+                storage_height: next_height,
+                requested_height: height,
+            });
+        }
+        if next_height > height {
+            return Err(ProposalManagerError::HeightAlreadyPassed {
+                storage_height: next_height,
+                requested_height: height,
+            });
+        }
+        self.active_height = Some(height);
+        Ok(())
     }
 
     /// Starts a new block proposal generation task for the given proposal_id and height with
     /// transactions from the mempool.
     /// Requires output_content_sender for sending the generated transactions to the caller.
-    #[instrument(skip(self, output_content_sender), err)]
+    #[instrument(skip(self, output_content_sender), err, fields(self.active_height))]
     pub async fn build_block_proposal(
         &mut self,
         proposal_id: ProposalId,
@@ -120,7 +170,10 @@ impl ProposalManager {
         deadline: tokio::time::Instant,
         // TODO: Should this be an unbounded channel?
         output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
-    ) -> ProposalsManagerResult<()> {
+    ) -> ProposalManagerResult<()> {
+        if self.active_height.is_none() {
+            return Err(ProposalManagerError::NoActiveHeight);
+        }
         if self.proposals.contains(&proposal_id) {
             return Err(ProposalManagerError::ProposalAlreadyExists { proposal_id });
         }
@@ -152,7 +205,7 @@ impl ProposalManager {
 
     // Checks if there is already a proposal being generated, and if not, sets the given proposal_id
     // as the one being generated.
-    async fn set_active_proposal(&mut self, proposal_id: ProposalId) -> ProposalsManagerResult<()> {
+    async fn set_active_proposal(&mut self, proposal_id: ProposalId) -> ProposalManagerResult<()> {
         let mut lock = self.active_proposal.lock().await;
 
         if let Some(active_proposal) = *lock {
@@ -170,7 +223,7 @@ impl ProposalManager {
     // A helper function for testing purposes (to be able to await the active proposal).
     // TODO: Consider making the tests a nested module to allow them to access private members.
     #[cfg(test)]
-    pub async fn await_active_proposal(&mut self) -> Option<ProposalsManagerResult<()>> {
+    pub async fn await_active_proposal(&mut self) -> Option<ProposalManagerResult<()>> {
         match self.active_proposal_handle.take() {
             Some(handle) => Some(handle.await.unwrap()),
             None => None,
@@ -189,7 +242,7 @@ struct BuildProposalTask {
 }
 
 impl BuildProposalTask {
-    async fn run(mut self) -> ProposalsManagerResult<()> {
+    async fn run(mut self) -> ProposalManagerResult<()> {
         // We convert the receiver to a stream and pass it to the block builder while using the
         // sender to feed the stream.
         let (mempool_tx_sender, mempool_tx_receiver) =

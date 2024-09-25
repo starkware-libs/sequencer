@@ -8,6 +8,7 @@ use futures::FutureExt;
 #[cfg(test)]
 use mockall::automock;
 use rstest::{fixture, rstest};
+use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::felt;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
@@ -17,6 +18,7 @@ use starknet_mempool_types::communication::MockMempoolClient;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 
+use crate::batcher::MockBatcherStorageReaderTrait;
 use crate::block_builder::{
     BlockBuilderResult,
     BlockBuilderTrait,
@@ -28,9 +30,12 @@ use crate::proposal_manager::{
     ProposalManager,
     ProposalManagerConfig,
     ProposalManagerError,
+    ProposalManagerResult,
 };
 
 pub type OutputTxStream = ReceiverStream<Transaction>;
+
+const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
 
 #[fixture]
 fn proposal_manager_config() -> ProposalManagerConfig {
@@ -58,6 +63,70 @@ fn output_streaming() -> (tokio::sync::mpsc::Sender<Transaction>, OutputTxStream
     (output_content_sender, stream)
 }
 
+#[fixture]
+fn storage_reader() -> MockBatcherStorageReaderTrait {
+    let mut storage = MockBatcherStorageReaderTrait::new();
+    storage.expect_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage
+}
+
+#[fixture]
+fn proposal_manager(
+    proposal_manager_config: ProposalManagerConfig,
+    mempool_client: MockMempoolClient,
+    block_builder_factory: MockBlockBuilderFactoryTrait,
+    storage_reader: MockBatcherStorageReaderTrait,
+) -> ProposalManager {
+    ProposalManager::new(
+        proposal_manager_config,
+        Arc::new(mempool_client),
+        Arc::new(block_builder_factory),
+        Arc::new(storage_reader),
+    )
+}
+
+#[rstest]
+#[case::height_already_passed(
+    INITIAL_HEIGHT.prev().unwrap(),
+    ProposalManagerResult::Err(ProposalManagerError::HeightAlreadyPassed {
+        storage_height: INITIAL_HEIGHT,
+        requested_height: INITIAL_HEIGHT.prev().unwrap()
+    }
+))]
+#[case::happy(
+    INITIAL_HEIGHT,
+    ProposalManagerResult::Ok(())
+)]
+#[case::storage_not_synced(
+    INITIAL_HEIGHT.unchecked_next(),
+    ProposalManagerResult::Err(ProposalManagerError::StorageNotSynced {
+        storage_height: INITIAL_HEIGHT,
+        requested_height: INITIAL_HEIGHT.unchecked_next()
+    }
+))]
+fn start_height(
+    mut proposal_manager: ProposalManager,
+    #[case] height: BlockNumber,
+    #[case] expected_result: ProposalManagerResult<()>,
+) {
+    let result = proposal_manager.start_height(height);
+    // Unfortunatelly ProposalManagerError doesn't implement PartialEq.
+    assert_eq!(format!("{:?}", result), format!("{:?}", expected_result));
+}
+
+#[rstest]
+#[tokio::test]
+async fn proposal_generation_fails_without_start_height(
+    mut proposal_manager: ProposalManager,
+    output_streaming: (tokio::sync::mpsc::Sender<Transaction>, OutputTxStream),
+) {
+    let (output_content_sender, _stream) = output_streaming;
+    let err = proposal_manager
+        .build_block_proposal(ProposalId(0), None, arbitrary_deadline(), output_content_sender)
+        .await;
+    assert_matches!(err, Err(ProposalManagerError::NoActiveHeight));
+}
+
 #[rstest]
 #[tokio::test]
 async fn proposal_generation_success(
@@ -65,6 +134,7 @@ async fn proposal_generation_success(
     mut block_builder_factory: MockBlockBuilderFactoryTrait,
     mut mempool_client: MockMempoolClient,
     output_streaming: (tokio::sync::mpsc::Sender<Transaction>, OutputTxStream),
+    storage_reader: MockBatcherStorageReaderTrait,
 ) {
     let n_txs = 2 * proposal_manager_config.max_txs_per_mempool_request;
     block_builder_factory
@@ -85,7 +155,10 @@ async fn proposal_generation_success(
         proposal_manager_config.clone(),
         Arc::new(mempool_client),
         Arc::new(block_builder_factory),
+        Arc::new(storage_reader),
     );
+
+    proposal_manager.start_height(INITIAL_HEIGHT).unwrap();
 
     let (output_content_sender, stream) = output_streaming;
     proposal_manager
@@ -104,6 +177,7 @@ async fn consecutive_proposal_generations_success(
     proposal_manager_config: ProposalManagerConfig,
     mut block_builder_factory: MockBlockBuilderFactoryTrait,
     mut mempool_client: MockMempoolClient,
+    storage_reader: MockBatcherStorageReaderTrait,
 ) {
     let n_txs = proposal_manager_config.max_txs_per_mempool_request;
     block_builder_factory
@@ -119,7 +193,10 @@ async fn consecutive_proposal_generations_success(
         proposal_manager_config.clone(),
         Arc::new(mempool_client),
         Arc::new(block_builder_factory),
+        Arc::new(storage_reader),
     );
+
+    proposal_manager.start_height(INITIAL_HEIGHT).unwrap();
 
     let (output_content_sender, stream) = output_streaming();
     proposal_manager
@@ -150,6 +227,7 @@ async fn multiple_proposals_generation_fail(
     proposal_manager_config: ProposalManagerConfig,
     mut block_builder_factory: MockBlockBuilderFactoryTrait,
     mut mempool_client: MockMempoolClient,
+    storage_reader: MockBatcherStorageReaderTrait,
 ) {
     // The block builder will never stop.
     block_builder_factory
@@ -163,7 +241,10 @@ async fn multiple_proposals_generation_fail(
         proposal_manager_config.clone(),
         Arc::new(mempool_client),
         Arc::new(block_builder_factory),
+        Arc::new(storage_reader),
     );
+
+    proposal_manager.start_height(INITIAL_HEIGHT).unwrap();
 
     // A proposal that will never finish.
     let (output_content_sender, _stream) = output_streaming();
