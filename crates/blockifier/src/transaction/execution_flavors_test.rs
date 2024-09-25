@@ -18,6 +18,7 @@ use starknet_types_core::felt::Felt;
 use crate::context::{BlockContext, ChainInfo};
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
+use crate::fee::resources::{GasVector, GasVectorComputationMode};
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
@@ -40,13 +41,7 @@ use crate::transaction::errors::{
     TransactionFeeError,
     TransactionPreValidationError,
 };
-use crate::transaction::objects::{
-    FeeType,
-    GasVector,
-    GasVectorComputationMode,
-    TransactionExecutionInfo,
-    TransactionExecutionResult,
-};
+use crate::transaction::objects::{FeeType, TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     l1_resource_bounds,

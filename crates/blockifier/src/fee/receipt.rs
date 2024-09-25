@@ -7,16 +7,14 @@ use starknet_api::transaction::Fee;
 use crate::abi::constants as abi_constants;
 use crate::context::TransactionContext;
 use crate::execution::call_info::CallInfo;
+use crate::fee::resources::{GasVector, StarknetResources, TransactionResources};
 use crate::state::cached_state::StateChanges;
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::objects::{
     ExecutionResourcesTraits,
-    GasVector,
     HasRelatedFeeType,
     ResourcesMapping,
-    StarknetResources,
     TransactionExecutionResult,
-    TransactionResources,
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::utils::usize_from_u128;

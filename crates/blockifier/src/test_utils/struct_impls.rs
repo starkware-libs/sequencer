@@ -21,6 +21,7 @@ use crate::execution::entry_point::{
     EntryPointExecutionResult,
 };
 use crate::fee::fee_utils::get_fee_by_gas_vector;
+use crate::fee::resources::{GasVectorComputationMode, TransactionFeeResult, TransactionResources};
 use crate::state::state_api::State;
 use crate::test_utils::{
     get_raw_contract_class,
@@ -34,14 +35,7 @@ use crate::test_utils::{
     TEST_ERC20_CONTRACT_ADDRESS2,
     TEST_SEQUENCER_ADDRESS,
 };
-use crate::transaction::objects::{
-    DeprecatedTransactionInfo,
-    FeeType,
-    GasVectorComputationMode,
-    TransactionFeeResult,
-    TransactionInfo,
-    TransactionResources,
-};
+use crate::transaction::objects::{DeprecatedTransactionInfo, FeeType, TransactionInfo};
 use crate::transaction::transactions::L1HandlerTransaction;
 use crate::versioned_constants::{
     GasCosts,

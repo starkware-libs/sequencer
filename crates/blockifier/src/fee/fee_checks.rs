@@ -6,14 +6,10 @@ use thiserror::Error;
 use crate::context::TransactionContext;
 use crate::fee::fee_utils::{get_balance_and_if_covers_fee, get_fee_by_gas_vector};
 use crate::fee::receipt::TransactionReceipt;
+use crate::fee::resources::GasVector;
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
-use crate::transaction::objects::{
-    FeeType,
-    GasVector,
-    TransactionExecutionResult,
-    TransactionInfo,
-};
+use crate::transaction::objects::{FeeType, TransactionExecutionResult, TransactionInfo};
 
 #[derive(Clone, Copy, Debug, Error)]
 pub enum FeeCheckError {

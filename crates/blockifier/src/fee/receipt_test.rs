@@ -11,17 +11,13 @@ use crate::fee::gas_usage::{
     get_log_message_to_l1_emissions_cost,
     get_message_segment_length,
 };
+use crate::fee::resources::{GasVector, GasVectorComputationMode, StarknetResources};
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{create_calldata, create_trivial_calldata, CairoVersion, BALANCE};
 use crate::transaction::constants;
-use crate::transaction::objects::{
-    GasVector,
-    GasVectorComputationMode,
-    HasRelatedFeeType,
-    StarknetResources,
-};
+use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{
     account_invoke_tx,
     calculate_class_info_for_testing,

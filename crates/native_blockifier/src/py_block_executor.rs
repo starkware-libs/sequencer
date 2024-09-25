@@ -6,9 +6,10 @@ use blockifier::blockifier::transaction_executor::{TransactionExecutor, Transact
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::execution::call_info::CallInfo;
+use blockifier::fee::resources::GasVector;
 use blockifier::state::cached_state::CachedState;
 use blockifier::state::global_cache::GlobalContractCache;
-use blockifier::transaction::objects::{GasVector, ResourcesMapping, TransactionExecutionInfo};
+use blockifier::transaction::objects::{ResourcesMapping, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier::versioned_constants::VersionedConstants;
 use pyo3::prelude::*;
