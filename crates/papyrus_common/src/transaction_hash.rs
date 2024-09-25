@@ -26,11 +26,9 @@ use starknet_api::transaction::{
     TransactionVersion,
 };
 use starknet_api::transaction_hash::get_tip_resource_bounds_hash;
-use starknet_api::StarknetApiError;
+use starknet_api::{StarknetApiError, TransactionOptions};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, Poseidon, StarkHash as CoreStarkHash};
-
-use crate::TransactionOptions;
 
 const DATA_AVAILABILITY_MODE_BITS: usize = 32;
 

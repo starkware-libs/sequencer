@@ -4,7 +4,6 @@ use jsonrpsee::core::client::ClientT;
 use jsonrpsee::http_client::{HttpClient, HttpClientBuilder};
 use jsonrpsee::rpc_params;
 use papyrus_common::transaction_hash::get_transaction_hash;
-use papyrus_common::TransactionOptions;
 use papyrus_rpc::{
     AddInvokeOkResultRPC0_8,
     InvokeTransactionRPC0_8,
@@ -13,7 +12,7 @@ use papyrus_rpc::{
 };
 use starknet_api::core::{ChainId, ContractAddress, EntryPointSelector, Nonce, PatriciaKey};
 use starknet_api::transaction::{Calldata, Fee, Transaction, TransactionSignature};
-use starknet_api::{calldata, contract_address, felt, patricia_key};
+use starknet_api::{calldata, contract_address, felt, patricia_key, TransactionOptions};
 use starknet_client::writer::objects::transaction::InvokeTransaction as SNClientInvokeTransaction;
 use starknet_core::crypto::ecdsa_sign;
 use starknet_core::types::FieldElement;

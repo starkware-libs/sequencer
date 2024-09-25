@@ -9,11 +9,11 @@ use papyrus_common::transaction_hash::{
     get_transaction_hash,
     MAINNET_TRANSACTION_HASH_WITH_VERSION,
 };
-use papyrus_common::TransactionOptions;
 use reqwest::Client;
 use serde_json::{json, to_writer_pretty, Map, Value};
 use starknet_api::core::ChainId;
 use starknet_api::transaction::{self, Transaction};
+use starknet_api::TransactionOptions;
 use starknet_client::reader::objects::transaction::TransactionType;
 use strum::IntoEnumIterator;
 
