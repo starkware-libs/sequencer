@@ -9940,7 +9940,6 @@ dependencies = [
  "starknet_mempool_types",
  "starknet_task_executor",
  "strum 0.25.0",
- "tempfile",
  "tokio",
 ]
 
