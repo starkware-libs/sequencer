@@ -5,6 +5,7 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
+use starknet_api::test_utils::read_json_file;
 use starknet_api::{class_hash, felt};
 use starknet_core::types::ContractClass::{Legacy, Sierra};
 
@@ -59,4 +60,17 @@ pub fn test_get_contract_class(test_state_reader: TestStateReader, test_block_nu
         // This contract class is deprecated.
         Sierra(_) => panic!("Expected a legacy contract class"),
     }
+}
+
+#[rstest]
+pub fn test_get_txs_hash(test_state_reader: TestStateReader) {
+    let expected_txs_hash: Vec<String> =
+        serde_json::from_value(read_json_file("block_700000/txs_hash_block_700000.json"))
+            .unwrap_or_else(|err| {
+                panic!("Failed to deserialize txs hash to Vector of String {}", err)
+            });
+    let actual_tx_hash = test_state_reader.get_txs_hash().unwrap_or_else(|err| {
+        panic!("Error retrieving txs hash: {}", err);
+    });
+    assert_eq!(actual_tx_hash, expected_txs_hash);
 }
