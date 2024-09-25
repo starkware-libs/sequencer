@@ -1,3 +1,5 @@
+use std::fs::File;
+
 use assert_matches::assert_matches;
 use blockifier::blockifier::block::BlockInfo;
 use blockifier::state::state_api::StateReader;
@@ -49,4 +51,12 @@ pub fn test_get_compiled_contract_class(test_state_reader: TestStateReader) {
     test_state_reader.get_compiled_contract_class(class_hash).unwrap_or_else(|err| {
         panic!("Error retrieving compiled contract class for class hash {}: {}", class_hash, err);
     });
+}
+
+#[rstest]
+pub fn test_get_txs_hash(test_state_reader: TestStateReader) {
+    let raw_txs_hash = File::open("./src/data/txs_hash_block_700000.json").unwrap();
+    let txs_hash: Vec<String> = serde_json::from_reader(raw_txs_hash).unwrap();
+    let actual_tx_hash = test_state_reader.get_txs_hash().unwrap();
+    assert!(actual_tx_hash == txs_hash);
 }
