@@ -9,7 +9,8 @@ use blockifier::execution::call_info::{
     Retdata as BlockifierRetdata,
 };
 use blockifier::execution::entry_point::CallType as BlockifierCallType;
-use blockifier::transaction::objects::{FeeType, GasVector, TransactionExecutionInfo};
+use blockifier::fee::resources::GasVector;
+use blockifier::transaction::objects::{FeeType, TransactionExecutionInfo};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources as VmExecutionResources;
 use indexmap::IndexMap;

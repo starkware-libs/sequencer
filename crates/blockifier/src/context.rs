@@ -8,9 +8,9 @@ use starknet_api::transaction::ValidResourceBounds;
 
 use crate::blockifier::block::BlockInfo;
 use crate::bouncer::BouncerConfig;
+use crate::fee::resources::GasVectorComputationMode;
 use crate::transaction::objects::{
     FeeType,
-    GasVectorComputationMode,
     HasRelatedFeeType,
     TransactionInfo,
     TransactionInfoCreator,

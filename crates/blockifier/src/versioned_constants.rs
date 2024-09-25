@@ -21,8 +21,8 @@ use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::errors::PostExecutionError;
 use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::execution::syscalls::SyscallSelector;
+use crate::fee::resources::{GasVectorComputationMode, StarknetResources};
 use crate::transaction::errors::TransactionExecutionError;
-use crate::transaction::objects::{GasVectorComputationMode, StarknetResources};
 use crate::transaction::transaction_types::TransactionType;
 
 #[cfg(test)]

@@ -12,6 +12,7 @@ use crate::context::BlockContext;
 use crate::fee::fee_checks::{FeeCheckError, FeeCheckReportFields, PostExecutionReport};
 use crate::fee::fee_utils::get_vm_resources_cost;
 use crate::fee::receipt::TransactionReceipt;
+use crate::fee::resources::{GasVector, GasVectorComputationMode};
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
@@ -24,7 +25,6 @@ use crate::test_utils::{
     DEFAULT_STRK_L1_GAS_PRICE,
     MAX_L1_GAS_AMOUNT,
 };
-use crate::transaction::objects::{GasVector, GasVectorComputationMode};
 use crate::transaction::test_utils::{account_invoke_tx, all_resource_bounds, l1_resource_bounds};
 use crate::utils::u128_from_usize;
 use crate::versioned_constants::VersionedConstants;

@@ -65,6 +65,12 @@ use crate::fee::gas_usage::{
     get_onchain_data_segment_length,
 };
 use crate::fee::receipt::TransactionReceipt;
+use crate::fee::resources::{
+    GasVector,
+    GasVectorComputationMode,
+    StarknetResources,
+    TransactionResources,
+};
 use crate::state::cached_state::{CachedState, StateChangesCount, TransactionalState};
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader};
@@ -102,13 +108,9 @@ use crate::transaction::errors::{
 };
 use crate::transaction::objects::{
     FeeType,
-    GasVector,
-    GasVectorComputationMode,
     HasRelatedFeeType,
-    StarknetResources,
     TransactionExecutionInfo,
     TransactionInfo,
-    TransactionResources,
 };
 use crate::transaction::test_utils::{
     account_invoke_tx,
