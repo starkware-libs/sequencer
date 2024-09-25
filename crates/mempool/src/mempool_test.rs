@@ -10,10 +10,9 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::StarkHash;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
-use starknet_api::{contract_address, felt, invoke_tx_args, patricia_key};
+use starknet_api::{contract_address, felt, invoke_tx_args, nonce, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountNonce, AccountState};
-use starknet_types_core::felt::Felt;
 
 use crate::mempool::{AccountToNonce, Mempool, MempoolInput, TransactionReference};
 use crate::transaction_pool::TransactionPool;
@@ -165,7 +164,7 @@ fn commit_block(
     state_changes: impl IntoIterator<Item = (&'static str, u8)>,
 ) {
     let state_changes = HashMap::from_iter(state_changes.into_iter().map(|(address, nonce)| {
-        (contract_address!(address), AccountNonce { nonce: Nonce(felt!(nonce)) })
+        (contract_address!(address), AccountNonce { nonce: nonce!(nonce) })
     }));
 
     assert_eq!(mempool.commit_block(state_changes), Ok(()));
@@ -181,7 +180,7 @@ macro_rules! tx {
                 sender_address: sender_address,
                 tx_hash: TransactionHash(StarkHash::from($tx_hash)),
                 tip: Tip($tip),
-                nonce: Nonce(felt!($tx_nonce)),
+                nonce: nonce!($tx_nonce),
                 resource_bounds: $resource_bounds,
             }))
     }};
@@ -208,7 +207,7 @@ macro_rules! add_tx_input {
         tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr, resource_bounds: $resource_bounds:expr) => {{
         let tx = tx!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, resource_bounds: $resource_bounds);
         let sender_address = contract_address!($sender_address);
-        let account_nonce = Nonce(felt!($account_nonce));
+        let account_nonce = nonce!($account_nonce);
         let account = AccountState { sender_address, nonce: account_nonce};
 
         MempoolInput { tx, account }
@@ -576,10 +575,7 @@ fn test_add_tx_lower_than_queued_nonce() {
     add_tx_expect_error(
         &mut mempool,
         &lower_nonce_input,
-        MempoolError::DuplicateNonce {
-            address: contract_address!("0x0"),
-            nonce: Nonce(felt!(0_u16)),
-        },
+        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(0) },
     );
     expected_mempool_content.assert_eq_pool_and_queue_content(&mempool);
     expected_mempool_content.assert_eq_account_nonces(&mempool);
@@ -770,10 +766,7 @@ fn test_add_tx_after_get_txs_fails_on_duplicate_nonce() {
     add_tx_expect_error(
         &mut mempool,
         &input_tx_duplicate_nonce,
-        MempoolError::DuplicateNonce {
-            address: contract_address!("0x0"),
-            nonce: Nonce(felt!(0_u16)),
-        },
+        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(0) },
     );
 }
 
@@ -882,8 +875,7 @@ fn test_account_nonces_update_in_add_tx(mut mempool: Mempool) {
 fn test_account_nonce_does_not_decrease_in_add_tx() {
     // Setup.
     let input_with_lower_account_nonce = add_tx_input!(tx_nonce: 0_u8, account_nonce: 0_u8);
-    let account_nonces =
-        [(input_with_lower_account_nonce.account.sender_address, Nonce(felt!(2_u8)))];
+    let account_nonces = [(input_with_lower_account_nonce.account.sender_address, nonce!(2))];
     let mut mempool =
         MempoolContentBuilder::new().with_account_nonces(account_nonces).build_into_mempool();
 
@@ -906,7 +898,7 @@ fn test_account_nonces_update_in_commit_block() {
         .with_pool(pool_txs)
         .with_account_nonces([(sender_address, nonce)])
         .build_into_mempool();
-    let committed_nonce = Nonce(Felt::ZERO);
+    let committed_nonce = nonce!(0);
 
     // Test: update through a commit block.
     let state_changes = HashMap::from([(sender_address, AccountNonce { nonce: committed_nonce })]);
@@ -932,8 +924,7 @@ fn test_account_nonce_does_not_decrease_in_commit_block() {
         .build_into_mempool();
 
     // Test: commits state change of a lower account nonce.
-    let state_changes =
-        HashMap::from([(sender_address, AccountNonce { nonce: Nonce(felt!(0_u8)) })]);
+    let state_changes = HashMap::from([(sender_address, AccountNonce { nonce: nonce!(0) })]);
     assert_eq!(mempool.commit_block(state_changes), Ok(()));
 
     // Assert: the account nonce is not updated.
@@ -1054,10 +1045,7 @@ fn test_flow_commit_block_closes_hole() {
     add_tx_expect_error(
         &mut mempool,
         &tx_input_nonce_4,
-        MempoolError::DuplicateNonce {
-            address: contract_address!("0x0"),
-            nonce: Nonce(felt!(4_u8)),
-        },
+        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(4) },
     );
 }
 
