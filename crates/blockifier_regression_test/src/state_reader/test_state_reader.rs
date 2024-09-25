@@ -82,6 +82,26 @@ impl TestStateReader {
         })
     }
 
+    pub fn get_txs_hash(&self) -> StateResult<Vec<String>> {
+        let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
+        let raw_tx_hash = serde_json::from_value(
+            self.0.send_rpc_request("starknet_getBlockWithTxHashes", &get_block_params)?
+                ["transactions"]
+                .clone(),
+        )
+        .map_err(serde_err_to_state_err)?;
+        serde_json::from_value(raw_tx_hash).map_err(serde_err_to_state_err)
+    }
+
+    pub fn get_txs_by_hash(&self, tx_hash: &str) -> StateResult<String> {
+        let method = "starknet_getTransactionByHash";
+        let params = json!({
+            "transaction_hash": tx_hash,
+        });
+        serde_json::from_value(self.0.send_rpc_request(method, params)?)
+            .map_err(serde_err_to_state_err)
+    }
+
     pub fn get_contract_class(
         &self,
         class_hash: &ClassHash,
