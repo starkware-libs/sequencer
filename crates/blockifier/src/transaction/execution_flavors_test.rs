@@ -104,9 +104,9 @@ fn check_balance<S: StateReader>(
 
 /// Returns the amount of L1 gas and derived fee, given base gas amount and a boolean indicating
 /// if validation is to be done.
-fn gas_and_fee(base_gas: u64, validate_mode: bool, fee_type: &FeeType) -> (u64, Fee) {
+fn gas_and_fee(base_gas: u64, add_validation_overhead: bool, fee_type: &FeeType) -> (u64, Fee) {
     // Validation incurs a constant gas overhead.
-    let gas = base_gas + if validate_mode { VALIDATE_GAS_OVERHEAD } else { 0 };
+    let gas = base_gas + if add_validation_overhead { VALIDATE_GAS_OVERHEAD } else { 0 };
     (
         gas,
         get_fee_by_gas_vector(
@@ -120,6 +120,7 @@ fn gas_and_fee(base_gas: u64, validate_mode: bool, fee_type: &FeeType) -> (u64, 
 fn calculate_actual_gas(
     tx_execution_info: &TransactionExecutionInfo,
     block_context: &BlockContext,
+    remove_validation_overhead: bool,
 ) -> u128 {
     tx_execution_info
         .receipt
@@ -131,6 +132,7 @@ fn calculate_actual_gas(
         )
         .unwrap()
         .l1_gas
+        - if remove_validation_overhead { VALIDATE_GAS_OVERHEAD.into() } else { 0 }
 }
 
 /// Asserts gas used and reported fee are as expected.
@@ -143,7 +145,10 @@ fn check_gas_and_fee(
     expected_actual_fee: Fee,
     expected_cost_of_resources: Fee,
 ) {
-    assert_eq!(calculate_actual_gas(tx_execution_info, block_context), expected_actual_gas.into());
+    assert_eq!(
+        calculate_actual_gas(tx_execution_info, block_context, false),
+        expected_actual_gas.into()
+    );
 
     assert_eq!(tx_execution_info.receipt.fee, expected_actual_fee);
     // Future compatibility: resources other than the L1 gas usage may affect the fee (currently,
@@ -355,7 +360,8 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
     })
     .execute(&mut state, &block_context, charge_fee, false)
     .unwrap();
-    let base_gas = calculate_actual_gas(&tx_execution_info, &block_context).try_into().unwrap();
+    let base_gas =
+        calculate_actual_gas(&tx_execution_info, &block_context, false).try_into().unwrap();
     assert!(
         base_gas
             > u64_from_usize(
@@ -497,8 +503,9 @@ fn test_simulate_charge_fee_no_validation_fail_validate(
 
     // Validation scenario: fallible validation.
     let block_context = BlockContext::create_for_account_testing();
-    let base_gas =
-        calculate_actual_gas(&transaction_execution_info, &block_context).try_into().unwrap();
+    let base_gas = calculate_actual_gas(&transaction_execution_info, &block_context, validate)
+        .try_into()
+        .unwrap();
     assert!(base_gas > u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps));
     let (actual_gas_used, actual_fee) = gas_and_fee(base_gas, validate, &fee_type);
 
@@ -556,11 +563,6 @@ fn test_simulate_validate_charge_fee_mid_execution(
     };
 
     // First scenario: logic error. Should result in revert; actual fee should be shown.
-    let (revert_gas_used, revert_fee) = gas_and_fee(
-        u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps + 1719),
-        validate,
-        &fee_type,
-    );
     let tx_execution_info = account_invoke_tx(invoke_tx_args! {
         calldata: recurse_calldata(test_contract_address, true, 3),
         nonce: nonce_manager.next(account_address),
@@ -568,6 +570,10 @@ fn test_simulate_validate_charge_fee_mid_execution(
     })
     .execute(&mut state, &block_context, charge_fee, validate)
     .unwrap();
+    let base_gas: u64 =
+        calculate_actual_gas(&tx_execution_info, &block_context, validate).try_into().unwrap();
+    let (revert_gas_used, revert_fee) = gas_and_fee(base_gas, validate, &fee_type);
+    assert!(base_gas > u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps));
     assert!(tx_execution_info.is_reverted());
     check_gas_and_fee(
         &block_context,
