@@ -84,7 +84,6 @@ pub async fn spawn_test_rpc_state_reader(
 
     let storage_reader = initialize_papyrus_test_state(
         block_context.chain_info(),
-        BALANCE,
         account_to_n_instances,
         fund_accounts,
     );
@@ -93,16 +92,10 @@ pub async fn spawn_test_rpc_state_reader(
 
 fn initialize_papyrus_test_state(
     chain_info: &ChainInfo,
-    initial_balances: u128,
     contract_instances: IndexMap<FeatureContract, usize>,
     fund_additional_accounts: Vec<ContractAddress>,
 ) -> StorageReader {
-    let state_diff = prepare_state_diff(
-        chain_info,
-        &contract_instances,
-        initial_balances,
-        fund_additional_accounts,
-    );
+    let state_diff = prepare_state_diff(chain_info, &contract_instances, fund_additional_accounts);
 
     let (cairo0_contract_classes, cairo1_contract_classes) =
         prepare_compiled_contract_classes(contract_instances.into_keys());
@@ -113,7 +106,6 @@ fn initialize_papyrus_test_state(
 fn prepare_state_diff(
     chain_info: &ChainInfo,
     contract_instances: &IndexMap<FeatureContract, usize>,
-    initial_balances: u128,
     fund_accounts: Vec<ContractAddress>,
 ) -> ThinStateDiff {
     let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
@@ -142,19 +134,11 @@ fn prepare_state_diff(
             let instance = u16::try_from(instance).unwrap();
             deployed_contracts
                 .insert(contract.get_instance_address(instance), contract.get_class_hash());
-            fund_feature_account_contract(
-                &mut storage_diffs,
-                contract,
-                instance,
-                initial_balances,
-                chain_info,
-            );
+            fund_feature_account_contract(&mut storage_diffs, contract, instance, chain_info);
         }
     }
 
-    fund_accounts.iter().for_each(|address| {
-        fund_account(&mut storage_diffs, address, initial_balances, chain_info)
-    });
+    fund_accounts.iter().for_each(|address| fund_account(&mut storage_diffs, address, chain_info));
 
     ThinStateDiff {
         storage_diffs,
@@ -245,19 +229,13 @@ fn fund_feature_account_contract(
     storage_diffs: &mut IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
     contract: &FeatureContract,
     instance: u16,
-    initial_balances: u128,
     chain_info: &ChainInfo,
 ) {
     match contract {
         FeatureContract::AccountWithLongValidate(_)
         | FeatureContract::AccountWithoutValidations(_)
         | FeatureContract::FaultyAccount(_) => {
-            fund_account(
-                storage_diffs,
-                &contract.get_instance_address(instance),
-                initial_balances,
-                chain_info,
-            );
+            fund_account(storage_diffs, &contract.get_instance_address(instance), chain_info);
         }
         _ => (),
     }
@@ -266,11 +244,10 @@ fn fund_feature_account_contract(
 fn fund_account(
     storage_diffs: &mut IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
     account_address: &ContractAddress,
-    initial_balances: u128,
     chain_info: &ChainInfo,
 ) {
     let key_value = indexmap! {
-        get_fee_token_var_address(*account_address) => felt!(initial_balances),
+        get_fee_token_var_address(*account_address) => felt!(BALANCE),
     };
     for fee_type in FeeType::iter() {
         storage_diffs
