@@ -24,7 +24,7 @@ const DATA: [Felt; 3] = [
 ];
 const N_EMITTED_EVENTS: [Felt; 1] = [Felt::from_hex_unchecked("0x1")];
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Native), 58930; "Native")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Native), 57430; "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 48930; "VM")]
 fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion

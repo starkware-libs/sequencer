@@ -15,7 +15,7 @@ use crate::test_utils::{create_calldata, trivial_external_entry_point_new, Cairo
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Native),
     FeatureContract::TestContract(CairoVersion::Native),
-    188570;
+    185710;
     "Call Contract between two contracts using Native"
 )]
 #[test_case(
@@ -27,7 +27,7 @@ use crate::test_utils::{create_calldata, trivial_external_entry_point_new, Cairo
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1),
     FeatureContract::TestContract(CairoVersion::Native),
-    188570;
+    185710;
     "Call Contract with caller using VM and callee using Native")
 ]
 #[test_case(

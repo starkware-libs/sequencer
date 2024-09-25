@@ -47,7 +47,7 @@ fn cairo0_class_hash(test_contract: FeatureContract) {
     assert!(error.contains("Cannot replace V1 class hash with V0 class hash"));
 }
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Native), 14820; "Native")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Native), 13450; "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 4820; "VM")]
 fn positive_flow(test_contract: FeatureContract, gas_consumed: u64) {
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);

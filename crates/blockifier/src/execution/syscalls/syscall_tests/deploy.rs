@@ -80,7 +80,7 @@ fn no_constructor_nonempty_calldata(deployer_contract: FeatureContract) {
     ));
 }
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Native), 15210;"Native")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Native), 13840;"Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 5210;"VM")]
 fn with_constructor(deployer_contract: FeatureContract, expected_gas: u64) {
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);

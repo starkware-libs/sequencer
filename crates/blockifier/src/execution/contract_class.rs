@@ -13,7 +13,7 @@ use cairo_lang_starknet_classes::contract_class::{
 };
 use cairo_lang_starknet_classes::NestedIntList;
 use cairo_lang_utils::bigint::BigUintAsHex;
-use cairo_native::executor::AotNativeExecutor;
+use cairo_native::executor::contract::ContractExecutor;
 use cairo_vm::serde::deserialize_program::{
     ApTracking,
     FlowTrackingData,
@@ -600,7 +600,7 @@ impl NativeContractClassV1 {
     /// executor must be derived from sierra_program which in turn must be derived from
     /// sierra_contract_class.
     pub fn new(
-        executor: Arc<AotNativeExecutor>,
+        executor: Arc<ContractExecutor>,
         sierra_contract_class: SierraContractClass,
     ) -> Result<NativeContractClassV1, NativeEntryPointError> {
         let contract = NativeContractClassV1Inner::new(executor, sierra_contract_class)?;
@@ -627,7 +627,7 @@ impl NativeContractClassV1 {
 }
 
 pub struct NativeContractClassV1Inner {
-    pub executor: Arc<AotNativeExecutor>,
+    pub executor: Arc<ContractExecutor>,
     entry_points_by_type: NativeContractEntryPoints,
     pub program: cairo_lang_sierra::program::Program, // for sierra emu
     // Used for PartialEq
@@ -643,10 +643,10 @@ impl std::fmt::Debug for NativeContractClassV1Inner {
 impl NativeContractClassV1Inner {
     /// See [NativeContractClassV1::new]
     fn new(
-        executor: Arc<AotNativeExecutor>,
+        executor: Arc<ContractExecutor>,
         sierra_contract_class: SierraContractClass,
     ) -> Result<Self, NativeEntryPointError> {
-        // This exception should never occur as it was also used to create the AotNativeExecutor
+        // This exception should never occur as it was also used to create the ContractExecutor
         let sierra_program =
             sierra_contract_class.extract_sierra_program().expect("can't extract sierra program");
         // Note [Cairo Native ABI]

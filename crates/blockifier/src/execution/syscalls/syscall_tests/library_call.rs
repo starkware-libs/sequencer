@@ -28,7 +28,7 @@ use crate::test_utils::{
     BALANCE,
 };
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Native), 187670; "Native"
+#[test_case(FeatureContract::TestContract(CairoVersion::Native), 184810; "Native"
 )]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), REQUIRED_GAS_LIBRARY_CALL_TEST; "VM"
 )]
@@ -86,7 +86,7 @@ fn test_library_call_assert_fails(test_contract: FeatureContract) {
     assert!(err.to_string().contains("x != y"));
 }
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Native), 512710; "Native")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Native), 507110; "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 472710; "VM")]
 fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
     let chain_info = &ChainInfo::create_for_testing();
@@ -128,7 +128,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: if_native(9999581320, 9999601320),
+        initial_gas: if_native(9999584180, 9999601320),
         ..trivial_external_entry_point_new(test_contract)
     };
     let library_entry_point = CallEntryPoint {
@@ -143,12 +143,12 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: if_native(9999741700, 9999751700),
+        initial_gas: if_native(9999743070, 9999751700),
         ..trivial_external_entry_point_new(test_contract)
     };
     let storage_entry_point = CallEntryPoint {
         calldata: calldata![felt!(key), felt!(value)],
-        initial_gas: if_native(9999421180, 9999451180),
+        initial_gas: if_native(9999425410, 9999451180),
         ..nested_storage_entry_point
     };
 
@@ -171,7 +171,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         call: nested_storage_entry_point,
         execution: CallExecution {
             retdata: retdata![felt!(value + 1)],
-            gas_consumed: if_native(27290, REQUIRED_GAS_STORAGE_READ_WRITE_TEST),
+            gas_consumed: if_native(25920, REQUIRED_GAS_STORAGE_READ_WRITE_TEST),
             ..CallExecution::default()
         },
         resources: storage_entry_point_resources.clone(),
@@ -192,7 +192,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         call: library_entry_point,
         execution: CallExecution {
             retdata: retdata![felt!(value + 1)],
-            gas_consumed: if_native(187670, REQUIRED_GAS_LIBRARY_CALL_TEST),
+            gas_consumed: if_native(184810, REQUIRED_GAS_LIBRARY_CALL_TEST),
             ..CallExecution::default()
         },
         resources: library_call_resources,
@@ -204,7 +204,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         call: storage_entry_point,
         execution: CallExecution {
             retdata: retdata![felt!(value)],
-            gas_consumed: if_native(27290, REQUIRED_GAS_STORAGE_READ_WRITE_TEST),
+            gas_consumed: if_native(25920, REQUIRED_GAS_STORAGE_READ_WRITE_TEST),
             ..CallExecution::default()
         },
         resources: storage_entry_point_resources,

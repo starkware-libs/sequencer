@@ -40,7 +40,7 @@ fn initialize_state(test_contract: FeatureContract) -> (CachedState<DictStateRea
     (state, block_number, block_hash)
 }
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Native), 15220; "Native")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Native), 13850; "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 5220; "VM")]
 fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
     let (mut state, block_number, block_hash) = initialize_state(test_contract);
