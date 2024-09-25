@@ -24,7 +24,8 @@ use papyrus_storage::class::ClassStorageWriter;
 use papyrus_storage::compiled_class::CasmStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
-use papyrus_storage::{open_storage, StorageConfig, StorageReader};
+use papyrus_storage::test_utils::get_test_storage;
+use papyrus_storage::StorageReader;
 use starknet_api::block::{
     BlockBody,
     BlockHeader,
@@ -40,7 +41,6 @@ use starknet_api::{contract_address, felt, patricia_key};
 use starknet_client::reader::PendingData;
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
-use tempfile::tempdir;
 use tokio::sync::RwLock;
 
 use crate::integration_test_utils::get_available_socket;
@@ -196,16 +196,12 @@ fn write_state_to_papyrus_storage(
 ) -> StorageReader {
     let block_number = BlockNumber(0);
     let block_header = test_block_header(block_number);
+    let cairo0_contract_classes: Vec<_> =
+        cairo0_contract_classes.iter().map(|(hash, contract)| (*hash, contract)).collect();
 
-    let mut storage_config = StorageConfig::default();
-    let tempdir = tempdir().unwrap();
-    storage_config.db_config.path_prefix = tempdir.path().to_path_buf();
-    let (storage_reader, mut storage_writer) = open_storage(storage_config).unwrap();
-
-    let cairo0_contract_classes =
-        cairo0_contract_classes.iter().map(|(x, y)| (*x, y)).collect::<Vec<_>>();
-
+    let (storage_reader, mut storage_writer) = get_test_storage().0;
     let mut write_txn = storage_writer.begin_rw_txn().unwrap();
+
     for (class_hash, casm) in cairo1_contract_classes {
         write_txn = write_txn.append_casm(class_hash, casm).unwrap();
     }
@@ -216,7 +212,7 @@ fn write_state_to_papyrus_storage(
         .unwrap()
         .append_state_diff(block_number, state_diff)
         .unwrap()
-        .append_classes(block_number, &[], cairo0_contract_classes.as_slice())
+        .append_classes(block_number, &[], &cairo0_contract_classes)
         .unwrap()
         .commit()
         .unwrap();
