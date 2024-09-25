@@ -4,7 +4,7 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput, MempoolResult};
+use starknet_mempool_types::mempool_types::{Account, AccountNonce, MempoolInput, MempoolResult};
 
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -23,7 +23,7 @@ pub struct Mempool {
     // Transactions eligible for sequencing.
     tx_queue: TransactionQueue,
     // Represents the current state of the mempool during block creation.
-    mempool_state: HashMap<ContractAddress, AccountState>,
+    mempool_state: HashMap<ContractAddress, AccountNonce>,
     // The most recent account nonces received, for all account in the pool.
     account_nonces: AccountToNonce,
 }
@@ -78,7 +78,7 @@ impl Mempool {
     /// TODO: check Account nonce and balance.
     pub fn add_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
         self.validate_input(&input)?;
-        let MempoolInput { tx, account: Account { sender_address, state: AccountState { nonce } } } =
+        let MempoolInput { tx, account: Account { sender_address, state: AccountNonce { nonce } } } =
             input;
         self.tx_pool.insert(tx)?;
         self.align_to_account_state(sender_address, nonce);
@@ -93,9 +93,9 @@ impl Mempool {
     // block.
     pub fn commit_block(
         &mut self,
-        state_changes: HashMap<ContractAddress, AccountState>,
+        state_changes: HashMap<ContractAddress, AccountNonce>,
     ) -> MempoolResult<()> {
-        for (&address, AccountState { nonce }) in &state_changes {
+        for (&address, AccountNonce { nonce }) in &state_changes {
             let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
             self.align_to_account_state(address, next_nonce);
         }
@@ -134,7 +134,7 @@ impl Mempool {
         // Stateful checks.
 
         // Check nonce against mempool state.
-        if let Some(AccountState { nonce: mempool_state_nonce }) =
+        if let Some(AccountNonce { nonce: mempool_state_nonce }) =
             self.mempool_state.get(&sender_address)
         {
             if mempool_state_nonce >= &tx_nonce {
@@ -158,7 +158,7 @@ impl Mempool {
         for tx in txs {
             let current_account_state = Account {
                 sender_address: tx.sender_address,
-                state: AccountState { nonce: tx.nonce },
+                state: AccountNonce { nonce: tx.nonce },
             };
 
             if let Some(next_tx_reference) =
