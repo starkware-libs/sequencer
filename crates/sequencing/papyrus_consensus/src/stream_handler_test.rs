@@ -1,6 +1,6 @@
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, StreamMessage};
 
-use super::{StreamHandler, StreamHandlerConfig};
+use super::StreamHandler;
 
 #[cfg(test)]
 mod tests {
@@ -31,14 +31,12 @@ mod tests {
     fn setup_test() -> (
         StreamHandler<ConsensusMessage>,
         futures::channel::mpsc::Sender<StreamMessage<ConsensusMessage>>,
-        futures::channel::mpsc::Receiver<StreamMessage<ConsensusMessage>>,
+        futures::channel::mpsc::Receiver<ConsensusMessage>,
     ) {
         let (tx_input, rx_input) =
             futures::channel::mpsc::channel::<StreamMessage<ConsensusMessage>>(100);
-        let (tx_output, rx_output) =
-            futures::channel::mpsc::channel::<StreamMessage<ConsensusMessage>>(100);
-        let config = StreamHandlerConfig::default();
-        let handler = StreamHandler::new(config, tx_output, rx_input);
+        let (tx_output, rx_output) = futures::channel::mpsc::channel::<ConsensusMessage>(100);
+        let handler = StreamHandler::new(tx_output, rx_input);
         (handler, tx_input, rx_output)
     }
 
@@ -59,15 +57,10 @@ mod tests {
         join_handle.await.expect("Task should succeed");
 
         for i in 0..10 {
-            let message = rx_output
+            let _ = rx_output
                 .try_next()
                 .expect(&format!("Receive message {i} should succeed"))
                 .expect(&format!("Receive message {i} should succeed"));
-            assert_eq!(message.stream_id, stream_id);
-            assert_eq!(message.message_id, i);
-            if i == 9 {
-                assert_eq!(message.fin, true);
-            }
         }
     }
 
@@ -108,15 +101,10 @@ mod tests {
         assert!(h.stream_data.is_empty());
 
         for i in 0..6 {
-            let message = rx_output
+            let _ = rx_output
                 .try_next()
                 .expect(&format!("Receive message {i} should succeed"))
                 .expect(&format!("Receive message {i} should succeed"));
-            assert_eq!(message.stream_id, stream_id);
-            assert_eq!(message.message_id, i);
-            if i == 5 {
-                assert_eq!(message.fin, true);
-            }
         }
     }
 
@@ -185,15 +173,10 @@ mod tests {
 
         // should be able to read all the messages for stream_id1
         for i in 0..10 {
-            let message = rx_output
+            let _ = rx_output
                 .try_next()
                 .expect(&format!("Receive message {i} should succeed"))
                 .expect(&format!("Receive message {i} should succeed"));
-            assert_eq!(message.stream_id, stream_id1);
-            assert_eq!(message.message_id, i);
-            if i == 9 {
-                assert_eq!(message.fin, true);
-            }
         }
 
         // stream_id1 should be gone
@@ -211,15 +194,10 @@ mod tests {
 
         // should be able to read all the messages for stream_id2
         for i in 0..6 {
-            let message = rx_output
+            let _ = rx_output
                 .try_next()
                 .expect(&format!("Receive message {i} should succeed"))
                 .expect(&format!("Receive message {i} should succeed"));
-            assert_eq!(message.stream_id, stream_id2);
-            assert_eq!(message.message_id, i);
-            if i == 5 {
-                assert_eq!(message.fin, true);
-            }
         }
 
         // stream_id2 should also be gone
@@ -236,13 +214,10 @@ mod tests {
 
         let h = join_handle.await.expect("Task should succeed");
         for i in 0..10 {
-            let message = rx_output
+            let _ = rx_output
                 .try_next()
                 .expect(&format!("Receive message {i} should succeed"))
                 .expect(&format!("Receive message {i} should succeed"));
-            assert_eq!(message.stream_id, stream_id3);
-            assert_eq!(message.message_id, i);
-            assert_eq!(message.fin, false);
         }
 
         // stream_id3 should still be there, because we didn't send a fin
@@ -251,69 +226,5 @@ mod tests {
 
         // but the buffer should be empty, as we've successfully drained it all
         assert!(h.stream_data[&stream_id3].message_buffer.is_empty());
-    }
-
-    #[tokio::test]
-    #[should_panic]
-    async fn test_stream_handler_duplicate_message_fails() {
-        let (mut h, mut tx_input, _rx_output) = setup_test();
-        tx_input.try_send(make_random_message(13, 42, false)).expect("Send should succeed");
-        tx_input.try_send(make_random_message(13, 42, false)).expect("Send should succeed");
-        tx_input.close_channel(); // this should signal the handler to break out of the loop
-
-        // this should panic since we are sending the same message twice!
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
-        });
-
-        join_handle.await.expect("Task should succeed");
-    }
-
-    #[tokio::test]
-    #[should_panic]
-    async fn test_stream_handler_after_fin_message_fails() {
-        let (mut h, mut tx_input, _rx_output) = setup_test();
-        tx_input.try_send(make_random_message(13, 42, true)).expect("Send should succeed");
-        tx_input.try_send(make_random_message(13, 45, false)).expect("Send should succeed");
-
-        // this should panic since the fin was received on message_id 42, but we are sending 45
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
-        });
-
-        join_handle.await.expect("Task should succeed");
-    }
-
-    #[tokio::test]
-    #[should_panic]
-    async fn test_stream_handler_after_fin_message_reverse_fails() {
-        let (mut h, mut tx_input, _rx_output) = setup_test();
-        tx_input.try_send(make_random_message(13, 45, false)).expect("Send should succeed");
-        tx_input.try_send(make_random_message(13, 42, true)).expect("Send should succeed");
-
-        // this should panic since the fin was received on message_id 42, but we are sending 45
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
-        });
-
-        join_handle.await.expect("Task should succeed");
-    }
-
-    #[tokio::test]
-    #[should_panic]
-    async fn test_stream_handler_max_buffer_fails() {
-        let (mut h, mut tx_input, _rx_output) = setup_test();
-        h.config.max_buffer_len = Some(10);
-        // skip the first message, so the messages all get buffered
-        for i in 0..11 {
-            tx_input.try_send(make_random_message(13, i + 1, false)).expect("Send should succeed");
-        }
-
-        // this should panic since there are too many buffered messages
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
-        });
-
-        join_handle.await.expect("Task should succeed");
     }
 }
