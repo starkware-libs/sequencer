@@ -163,8 +163,11 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
     // Any transaction with L2-to-L1 messages.
 
     let mut call_infos = Vec::new();
+    let mut l2_to_l1_payload_lengths = vec![];
     for i in 0..4 {
         let payload_vec = vec![Felt::ZERO; i];
+        l2_to_l1_payload_lengths.push(payload_vec.len());
+
         let call_info = CallInfo {
             execution: CallExecution {
                 l2_to_l1_messages: vec![OrderedL2ToL1Message {
@@ -182,12 +185,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
 
         call_infos.push(call_info);
     }
-    // l2_to_l1_payload_lengths is [0, 1, 2, 3]
     let call_infos_iter = call_infos.iter();
-    let l2_to_l1_payload_lengths: Vec<usize> = call_infos_iter
-        .clone()
-        .flat_map(|call_info| call_info.get_l2_to_l1_payload_lengths())
-        .collect();
 
     let l2_to_l1_state_changes_count = StateChangesCount {
         n_storage_updates: 0,
