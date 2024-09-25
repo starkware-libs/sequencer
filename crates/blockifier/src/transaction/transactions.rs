@@ -190,13 +190,15 @@ impl DeclareTransaction {
         Self::create(declare_tx, tx_hash, class_info, true)
     }
 
+    // TODO(Arni): Consider creaing a version of this function that gets a reference to the
+    // declare_tx.
     fn new_from_executable_tx(
         declare_tx: starknet_api::executable_transaction::DeclareTransaction,
         only_query: bool,
     ) -> Result<Self, TransactionExecutionError> {
         let starknet_api::executable_transaction::DeclareTransaction { tx, tx_hash, class_info } =
             declare_tx;
-        let class_info: ClassInfo = class_info.try_into()?;
+        let class_info = class_info.try_into()?;
 
         Self::create(tx, tx_hash, class_info, only_query)
     }
