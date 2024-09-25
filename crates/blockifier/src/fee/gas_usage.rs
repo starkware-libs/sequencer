@@ -4,13 +4,10 @@ use super::fee_utils::get_vm_resources_cost;
 use crate::abi::constants;
 use crate::context::BlockContext;
 use crate::fee::eth_gas_constants;
+use crate::fee::resources::{GasVector, GasVectorComputationMode};
 use crate::state::cached_state::StateChangesCount;
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::objects::{
-    GasVector,
-    GasVectorComputationMode,
-    TransactionPreValidationResult,
-};
+use crate::transaction::objects::TransactionPreValidationResult;
 use crate::utils::u128_from_usize;
 
 #[cfg(test)]

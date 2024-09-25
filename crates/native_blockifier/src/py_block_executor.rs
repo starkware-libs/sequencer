@@ -8,13 +8,10 @@ use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::execution::call_info::CallInfo;
 use blockifier::fee::receipt::TransactionReceipt;
+use blockifier::fee::resources::GasVector;
 use blockifier::state::cached_state::CachedState;
 use blockifier::state::global_cache::GlobalContractCache;
-use blockifier::transaction::objects::{
-    ExecutionResourcesTraits,
-    GasVector,
-    TransactionExecutionInfo,
-};
+use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier::utils::usize_from_u128;
 use blockifier::versioned_constants::VersionedConstants;

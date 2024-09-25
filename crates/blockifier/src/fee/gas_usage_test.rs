@@ -12,15 +12,11 @@ use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
 use crate::fee::eth_gas_constants;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::gas_usage::{get_da_gas_cost, get_message_segment_length};
+use crate::fee::resources::GasVectorComputationMode::NoL2Gas;
+use crate::fee::resources::{GasVector, GasVectorComputationMode, StarknetResources};
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::{DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE};
-use crate::transaction::objects::GasVectorComputationMode::NoL2Gas;
-use crate::transaction::objects::{
-    FeeType,
-    GasVector,
-    GasVectorComputationMode,
-    StarknetResources,
-};
+use crate::transaction::objects::FeeType;
 use crate::transaction::test_utils::account_invoke_tx;
 use crate::utils::{u128_div_ceil, u128_from_usize};
 use crate::versioned_constants::{ResourceCost, VersionedConstants};

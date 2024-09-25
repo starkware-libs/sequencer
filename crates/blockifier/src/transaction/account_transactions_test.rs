@@ -46,6 +46,7 @@ use crate::execution::entry_point::EntryPointExecutionContext;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::fee_utils::{get_fee_by_gas_vector, get_sequencer_balance_keys};
 use crate::fee::gas_usage::estimate_minimal_gas_vector;
+use crate::fee::resources::{GasVector, GasVectorComputationMode};
 use crate::state::cached_state::{StateChangesCount, TransactionalState};
 use crate::state::state_api::{State, StateReader};
 use crate::test_utils::contracts::FeatureContract;
@@ -65,13 +66,7 @@ use crate::test_utils::{
 };
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
-use crate::transaction::objects::{
-    FeeType,
-    GasVector,
-    GasVectorComputationMode,
-    HasRelatedFeeType,
-    TransactionInfoCreator,
-};
+use crate::transaction::objects::{FeeType, HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     block_context,
