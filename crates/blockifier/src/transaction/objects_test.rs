@@ -8,6 +8,7 @@ use starknet_types_core::felt::Felt;
 use crate::execution::call_info::{
     CallExecution,
     CallInfo,
+    EventSummary,
     ExecutionSummary,
     MessageToL1,
     OrderedEvent,
@@ -128,7 +129,7 @@ fn test_events_counter_in_transaction_execution_info(
     };
 
     assert_eq!(
-        transaction_execution_info.summarize().n_events,
+        transaction_execution_info.summarize().event_summary.n_events,
         n_validate_events + n_execute_events + n_fee_transfer_events + n_inner_calls
     );
 }
@@ -159,7 +160,7 @@ fn test_events_counter_in_transaction_execution_info_with_inner_call_info(
     };
 
     assert_eq!(
-        transaction_execution_info.summarize().n_events,
+        transaction_execution_info.summarize().event_summary.n_events,
         n_execute_events
             + n_fee_transfer_events
             + n_execution_events
@@ -205,15 +206,19 @@ fn test_summarize(
         ]
         .into_iter()
         .collect(),
-        n_events: validate_params.num_of_events
-            + execute_params.num_of_events
-            + fee_transfer_params.num_of_events,
         l2_to_l1_payload_lengths: vec![
             1;
             validate_params.num_of_messages
                 + execute_params.num_of_messages
                 + fee_transfer_params.num_of_messages
         ],
+        event_summary: EventSummary {
+            n_events: validate_params.num_of_events
+                + execute_params.num_of_events
+                + fee_transfer_params.num_of_events,
+            total_event_keys: 0,
+            total_event_data_size: 0,
+        },
     };
 
     // Call the summarize method
@@ -222,6 +227,6 @@ fn test_summarize(
     // Compare the actual result with the expected result
     assert_eq!(actual_summary.executed_class_hashes, expected_summary.executed_class_hashes);
     assert_eq!(actual_summary.visited_storage_entries, expected_summary.visited_storage_entries);
-    assert_eq!(actual_summary.n_events, expected_summary.n_events);
+    assert_eq!(actual_summary.event_summary.n_events, expected_summary.event_summary.n_events);
     assert_eq!(actual_summary.l2_to_l1_payload_lengths, expected_summary.l2_to_l1_payload_lengths);
 }
