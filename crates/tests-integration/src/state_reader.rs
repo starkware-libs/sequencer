@@ -1,5 +1,5 @@
 use std::net::SocketAddr;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use blockifier::abi::abi_utils::get_fee_token_var_address;
 use blockifier::context::{BlockContext, ChainInfo};
@@ -16,7 +16,6 @@ use blockifier::transaction::objects::FeeType;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::{indexmap, IndexMap};
 use itertools::Itertools;
-use mempool_test_utils::starknet_api_test_utils::deploy_account_tx;
 use papyrus_common::pending_classes::PendingClasses;
 use papyrus_rpc::{run_server, RpcConfig};
 use papyrus_storage::body::BodyStorageWriter;
@@ -48,14 +47,6 @@ use crate::integration_test_utils::get_available_socket;
 type ContractClassesMap =
     (Vec<(ClassHash, DeprecatedContractClass)>, Vec<(ClassHash, CasmContractClass)>);
 
-fn deploy_account_tx_contract_address() -> &'static ContractAddress {
-    static DEPLOY_ACCOUNT_TX_CONTRACT_ADDRESS: OnceLock<ContractAddress> = OnceLock::new();
-    DEPLOY_ACCOUNT_TX_CONTRACT_ADDRESS.get_or_init(|| {
-        let deploy_tx = deploy_account_tx();
-        deploy_tx.calculate_sender_address().unwrap()
-    })
-}
-
 /// StateReader for integration tests.
 ///
 /// Creates a papyrus storage reader and spawns a papyrus rpc server for it.
@@ -80,14 +71,8 @@ pub async fn spawn_test_rpc_state_reader(
         *account_to_n_instances.entry(contract).or_default() += 1;
     }
 
-    let fund_accounts = vec![*deploy_account_tx_contract_address()];
-
-    let storage_reader = initialize_papyrus_test_state(
-        block_context.chain_info(),
-        BALANCE,
-        account_to_n_instances,
-        fund_accounts,
-    );
+    let storage_reader =
+        initialize_papyrus_test_state(block_context.chain_info(), BALANCE, account_to_n_instances);
     run_papyrus_rpc_server(storage_reader).await
 }
 
@@ -95,14 +80,8 @@ fn initialize_papyrus_test_state(
     chain_info: &ChainInfo,
     initial_balances: u128,
     contract_instances: IndexMap<FeatureContract, usize>,
-    fund_additional_accounts: Vec<ContractAddress>,
 ) -> StorageReader {
-    let state_diff = prepare_state_diff(
-        chain_info,
-        &contract_instances,
-        initial_balances,
-        fund_additional_accounts,
-    );
+    let state_diff = prepare_state_diff(chain_info, &contract_instances, initial_balances);
 
     let (cairo0_contract_classes, cairo1_contract_classes) =
         prepare_compiled_contract_classes(contract_instances.into_keys());
@@ -114,7 +93,6 @@ fn prepare_state_diff(
     chain_info: &ChainInfo,
     contract_instances: &IndexMap<FeatureContract, usize>,
     initial_balances: u128,
-    fund_accounts: Vec<ContractAddress>,
 ) -> ThinStateDiff {
     let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
     let erc20_class_hash = erc20.get_class_hash();
@@ -151,10 +129,6 @@ fn prepare_state_diff(
             );
         }
     }
-
-    fund_accounts.iter().for_each(|address| {
-        fund_account(&mut storage_diffs, address, initial_balances, chain_info)
-    });
 
     ThinStateDiff {
         storage_diffs,
