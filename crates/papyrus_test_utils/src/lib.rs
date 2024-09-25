@@ -42,6 +42,7 @@ use starknet_api::block::{
     BlockBody,
     BlockHash,
     BlockHeader,
+    BlockHeaderWithoutHash,
     BlockNumber,
     BlockSignature,
     BlockStatus,
@@ -440,6 +441,16 @@ auto_impl_get_test_instance! {
     pub struct BlockHash(pub StarkHash);
     pub struct BlockHeader {
         pub block_hash: BlockHash,
+        pub block_header_without_hash: BlockHeaderWithoutHash,
+        pub state_diff_commitment: Option<StateDiffCommitment>,
+        pub transaction_commitment: Option<TransactionCommitment>,
+        pub event_commitment: Option<EventCommitment>,
+        pub receipt_commitment: Option<ReceiptCommitment>,
+        pub state_diff_length: Option<usize>,
+        pub n_transactions: usize,
+        pub n_events: usize,
+    }
+    pub struct BlockHeaderWithoutHash {
         pub parent_hash: BlockHash,
         pub block_number: BlockNumber,
         pub l1_gas_price: GasPricePerToken,
@@ -449,13 +460,6 @@ auto_impl_get_test_instance! {
         pub sequencer: SequencerContractAddress,
         pub timestamp: BlockTimestamp,
         pub l1_da_mode: L1DataAvailabilityMode,
-        pub state_diff_commitment: Option<StateDiffCommitment>,
-        pub transaction_commitment: Option<TransactionCommitment>,
-        pub event_commitment: Option<EventCommitment>,
-        pub receipt_commitment: Option<ReceiptCommitment>,
-        pub state_diff_length: Option<usize>,
-        pub n_transactions: usize,
-        pub n_events: usize,
         pub starknet_version: StarknetVersion,
     }
     pub struct BlockNumber(pub u64);

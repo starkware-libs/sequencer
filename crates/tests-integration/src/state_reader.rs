@@ -28,6 +28,7 @@ use papyrus_storage::StorageReader;
 use starknet_api::block::{
     BlockBody,
     BlockHeader,
+    BlockHeaderWithoutHash,
     BlockNumber,
     BlockTimestamp,
     GasPrice,
@@ -188,17 +189,20 @@ fn write_state_to_papyrus_storage(
 
 fn test_block_header(block_number: BlockNumber) -> BlockHeader {
     BlockHeader {
-        block_number,
-        sequencer: SequencerContractAddress(contract_address!(TEST_SEQUENCER_ADDRESS)),
-        l1_gas_price: GasPricePerToken {
-            price_in_wei: GasPrice(DEFAULT_ETH_L1_GAS_PRICE),
-            price_in_fri: GasPrice(DEFAULT_STRK_L1_GAS_PRICE),
+        block_header_without_hash: BlockHeaderWithoutHash {
+            block_number,
+            sequencer: SequencerContractAddress(contract_address!(TEST_SEQUENCER_ADDRESS)),
+            l1_gas_price: GasPricePerToken {
+                price_in_wei: GasPrice(DEFAULT_ETH_L1_GAS_PRICE),
+                price_in_fri: GasPrice(DEFAULT_STRK_L1_GAS_PRICE),
+            },
+            l1_data_gas_price: GasPricePerToken {
+                price_in_wei: GasPrice(DEFAULT_ETH_L1_GAS_PRICE),
+                price_in_fri: GasPrice(DEFAULT_STRK_L1_GAS_PRICE),
+            },
+            timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
+            ..Default::default()
         },
-        l1_data_gas_price: GasPricePerToken {
-            price_in_wei: GasPrice(DEFAULT_ETH_L1_GAS_PRICE),
-            price_in_fri: GasPrice(DEFAULT_STRK_L1_GAS_PRICE),
-        },
-        timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
         ..Default::default()
     }
 }

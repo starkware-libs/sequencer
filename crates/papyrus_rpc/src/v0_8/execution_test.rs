@@ -46,6 +46,7 @@ use starknet_api::block::{
     BlockBody,
     BlockHash,
     BlockHeader,
+    BlockHeaderWithoutHash,
     BlockNumber,
     BlockTimestamp,
     GasPrice,
@@ -789,11 +790,14 @@ async fn trace_block_transactions_regular_and_pending() {
         .append_header(
             BlockNumber(3),
             &BlockHeader {
-                l1_gas_price: *GAS_PRICE,
-                sequencer: *SEQUENCER_ADDRESS,
-                timestamp: *BLOCK_TIMESTAMP,
                 block_hash: BlockHash(felt!("0x3")),
-                parent_hash: BlockHash(felt!("0x2")),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    l1_gas_price: *GAS_PRICE,
+                    sequencer: *SEQUENCER_ADDRESS,
+                    timestamp: *BLOCK_TIMESTAMP,
+                    parent_hash: BlockHash(felt!("0x2")),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )
@@ -992,12 +996,15 @@ async fn trace_block_transactions_and_trace_transaction_execution_context() {
         .append_header(
             BlockNumber(3),
             &BlockHeader {
-                block_number: BlockNumber(3),
-                l1_gas_price: *GAS_PRICE,
-                sequencer: *SEQUENCER_ADDRESS,
-                timestamp: *BLOCK_TIMESTAMP,
                 block_hash: BlockHash(felt!("0x3")),
-                parent_hash: BlockHash(felt!("0x2")),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    block_number: BlockNumber(3),
+                    l1_gas_price: *GAS_PRICE,
+                    sequencer: *SEQUENCER_ADDRESS,
+                    timestamp: *BLOCK_TIMESTAMP,
+                    parent_hash: BlockHash(felt!("0x2")),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )
@@ -1658,10 +1665,13 @@ fn prepare_storage_for_execution(mut storage_writer: StorageWriter) -> StorageWr
         .append_header(
             BlockNumber(0),
             &BlockHeader {
-                l1_gas_price: *GAS_PRICE,
-                l1_data_gas_price: *DATA_GAS_PRICE,
-                sequencer: *SEQUENCER_ADDRESS,
-                timestamp: *BLOCK_TIMESTAMP,
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    l1_gas_price: *GAS_PRICE,
+                    l1_data_gas_price: *DATA_GAS_PRICE,
+                    sequencer: *SEQUENCER_ADDRESS,
+                    timestamp: *BLOCK_TIMESTAMP,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )
@@ -1716,11 +1726,14 @@ fn prepare_storage_for_execution(mut storage_writer: StorageWriter) -> StorageWr
         .append_header(
             BlockNumber(1),
             &BlockHeader {
-                l1_gas_price: different_gas_price,
-                sequencer: *SEQUENCER_ADDRESS,
-                timestamp: *BLOCK_TIMESTAMP,
                 block_hash: BlockHash(felt!("0x1")),
-                block_number: BlockNumber(1),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    l1_gas_price: different_gas_price,
+                    sequencer: *SEQUENCER_ADDRESS,
+                    timestamp: *BLOCK_TIMESTAMP,
+                    block_number: BlockNumber(1),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )
@@ -1734,13 +1747,16 @@ fn prepare_storage_for_execution(mut storage_writer: StorageWriter) -> StorageWr
         .append_header(
             BlockNumber(2),
             &BlockHeader {
-                l1_gas_price: *GAS_PRICE,
-                sequencer: *SEQUENCER_ADDRESS,
-                timestamp: *BLOCK_TIMESTAMP,
-                // Test that l1_da_mode affects the fee.
-                l1_da_mode: L1DataAvailabilityMode::Blob,
                 block_hash: BlockHash(felt!("0x2")),
-                block_number: BlockNumber(2),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    l1_gas_price: *GAS_PRICE,
+                    sequencer: *SEQUENCER_ADDRESS,
+                    timestamp: *BLOCK_TIMESTAMP,
+                    // Test that l1_da_mode affects the fee.
+                    l1_da_mode: L1DataAvailabilityMode::Blob,
+                    block_number: BlockNumber(2),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )
@@ -1764,10 +1780,13 @@ fn write_empty_block(mut storage_writer: StorageWriter) {
         .append_header(
             BlockNumber(0),
             &BlockHeader {
-                l1_gas_price: *GAS_PRICE,
-                l1_data_gas_price: *DATA_GAS_PRICE,
-                sequencer: *SEQUENCER_ADDRESS,
-                timestamp: *BLOCK_TIMESTAMP,
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    l1_gas_price: *GAS_PRICE,
+                    l1_data_gas_price: *DATA_GAS_PRICE,
+                    sequencer: *SEQUENCER_ADDRESS,
+                    timestamp: *BLOCK_TIMESTAMP,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )

@@ -25,7 +25,7 @@ fn iter_events_by_key() {
     let ca2 = 2u32.into();
     let from_addresses = vec![ca1, ca2];
     let block = get_test_block(4, Some(3), Some(from_addresses), None);
-    let block_number = block.header.block_number;
+    let block_number = block.header.block_header_without_hash.block_number;
     storage_writer
         .begin_rw_txn()
         .unwrap()
@@ -94,7 +94,7 @@ fn iter_events_by_key() {
 fn iter_events_by_index() {
     let ((storage_reader, mut storage_writer), _temp_dir) = get_test_storage();
     let block = get_test_block(2, Some(5), None, None);
-    let block_number = block.header.block_number;
+    let block_number = block.header.block_header_without_hash.block_number;
     storage_writer
         .begin_rw_txn()
         .unwrap()
@@ -133,7 +133,7 @@ fn iter_events_by_index() {
 fn revert_events() {
     let ((storage_reader, mut storage_writer), _temp_dir) = get_test_storage();
     let block = get_test_block(2, Some(5), None, None);
-    let block_number = block.header.block_number;
+    let block_number = block.header.block_header_without_hash.block_number;
     storage_writer
         .begin_rw_txn()
         .unwrap()

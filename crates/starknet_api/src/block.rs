@@ -87,15 +87,7 @@ pub struct BlockHeader {
     // TODO: Consider removing the block hash from the header (note it can be computed from
     // the rest of the fields.
     pub block_hash: BlockHash,
-    pub parent_hash: BlockHash,
-    pub block_number: BlockNumber,
-    pub l1_gas_price: GasPricePerToken,
-    pub l1_data_gas_price: GasPricePerToken,
-    pub l2_gas_price: GasPricePerToken,
-    pub state_root: GlobalRoot,
-    pub sequencer: SequencerContractAddress,
-    pub timestamp: BlockTimestamp,
-    pub l1_da_mode: L1DataAvailabilityMode,
+    pub block_header_without_hash: BlockHeaderWithoutHash,
     // The optional fields below are not included in older versions of the block.
     // Currently they are not included in any RPC spec, so we skip their serialization.
     // TODO: Once all environments support these fields, remove the Option (make sure to
@@ -114,7 +106,6 @@ pub struct BlockHeader {
     pub n_events: usize,
     #[serde(skip_serializing)]
     pub receipt_commitment: Option<ReceiptCommitment>,
-    pub starknet_version: StarknetVersion,
 }
 
 /// The header of a [Block](`crate::block::Block`) without hashing.
