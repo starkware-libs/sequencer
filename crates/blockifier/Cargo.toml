@@ -13,6 +13,7 @@ workspace = true
 concurrency = []
 jemalloc = ["dep:tikv-jemallocator"]
 testing = ["rand", "rstest"]
+use-sierra-emu = []
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -30,9 +31,11 @@ cairo-lang-sierra.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 cairo-native.workspace = true
+sierra-emu.workspace = true
 cairo-vm.workspace = true
 derive_more.workspace = true
 indexmap.workspace = true
+tracing.workspace = true
 itertools.workspace = true
 keccak.workspace = true
 log.workspace = true
