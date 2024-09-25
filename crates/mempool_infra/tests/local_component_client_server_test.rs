@@ -16,7 +16,8 @@ use starknet_mempool_infra::component_definitions::{
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
 };
-use starknet_mempool_infra::component_server::{ComponentServerStarter, LocalComponentServer};
+use starknet_mempool_infra::component_server::LocalComponentServer;
+use starknet_mempool_infra::starters::Startable;
 use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::channel;
 use tokio::task;

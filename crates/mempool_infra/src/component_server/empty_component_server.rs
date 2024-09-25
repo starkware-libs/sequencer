@@ -3,7 +3,6 @@ use std::any::type_name;
 use async_trait::async_trait;
 use tracing::info;
 
-use super::definitions::ComponentServerStarter;
 use crate::errors::{ComponentError, ComponentServerError};
 use crate::starters::Startable;
 
@@ -18,7 +17,7 @@ impl<Component: Send + Sync> EmptyServer<Component> {
 }
 
 #[async_trait]
-impl<Component: Startable<ComponentError> + Send + Sync> ComponentServerStarter
+impl<Component: Startable<ComponentError> + Send + Sync> Startable<ComponentServerError>
     for EmptyServer<Component>
 {
     async fn start(&mut self) -> Result<(), ComponentServerError> {

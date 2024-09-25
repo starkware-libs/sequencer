@@ -10,11 +10,11 @@ use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server, St
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use super::definitions::ComponentServerStarter;
 use crate::component_client::{ClientError, LocalComponentClient};
 use crate::component_definitions::{ServerError, APPLICATION_OCTET_STREAM};
 use crate::errors::ComponentServerError;
 use crate::serde_utils::BincodeSerdeWrapper;
+use crate::starters::Startable;
 
 /// The `RemoteComponentServer` struct is a generic server that handles requests and responses for a
 /// specified component. It receives requests, processes them using the provided component, and
@@ -47,10 +47,8 @@ use crate::serde_utils::BincodeSerdeWrapper;
 ///
 /// use crate::starknet_mempool_infra::component_client::LocalComponentClient;
 /// use crate::starknet_mempool_infra::component_definitions::ComponentRequestHandler;
-/// use crate::starknet_mempool_infra::component_server::{
-///     ComponentServerStarter,
-///     RemoteComponentServer,
-/// };
+/// use crate::starknet_mempool_infra::component_server::RemoteComponentServer;
+/// use crate::starknet_mempool_infra::starters::Startable;
 ///
 /// // Define your component
 /// struct MyComponent {}
@@ -154,7 +152,7 @@ where
 }
 
 #[async_trait]
-impl<Request, Response> ComponentServerStarter for RemoteComponentServer<Request, Response>
+impl<Request, Response> Startable<ComponentServerError> for RemoteComponentServer<Request, Response>
 where
     Request: Serialize + DeserializeOwned + Send + Sync + Debug + 'static,
     Response: Serialize + DeserializeOwned + Send + Sync + Debug + 'static,
