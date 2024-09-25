@@ -4,7 +4,12 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::{Account, AccountNonce, MempoolInput, MempoolResult};
+use starknet_mempool_types::mempool_types::{
+    AccountNonce,
+    AccountState,
+    MempoolInput,
+    MempoolResult,
+};
 
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -78,8 +83,10 @@ impl Mempool {
     /// TODO: check Account nonce and balance.
     pub fn add_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
         self.validate_input(&input)?;
-        let MempoolInput { tx, account: Account { sender_address, state: AccountNonce { nonce } } } =
-            input;
+        let MempoolInput {
+            tx,
+            account: AccountState { sender_address, state: AccountNonce { nonce } },
+        } = input;
         self.tx_pool.insert(tx)?;
         self.align_to_account_state(sender_address, nonce);
         Ok(())
@@ -156,7 +163,7 @@ impl Mempool {
 
     fn enqueue_next_eligible_txs(&mut self, txs: &[TransactionReference]) -> MempoolResult<()> {
         for tx in txs {
-            let current_account_state = Account {
+            let current_account_state = AccountState {
                 sender_address: tx.sender_address,
                 state: AccountNonce { nonce: tx.nonce },
             };
