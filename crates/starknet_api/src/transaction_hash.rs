@@ -27,7 +27,7 @@ use crate::transaction::{
     TransactionVersion,
     ValidResourceBounds,
 };
-use crate::StarknetApiError;
+use crate::{StarknetApiError, TransactionOptions};
 
 type ResourceName = [u8; 7];
 
@@ -53,55 +53,46 @@ const CONSTRUCTOR_ENTRY_POINT_SELECTOR: Felt =
 pub fn get_transaction_hash(
     transaction: &Transaction,
     chain_id: &ChainId,
-    transaction_version: &TransactionVersion,
+    transaction_options: &TransactionOptions,
 ) -> Result<TransactionHash, StarknetApiError> {
+    let tx_version = get_tx_version(transaction, transaction_options);
     match transaction {
         Transaction::Declare(declare) => match declare {
             DeclareTransaction::V0(declare_v0) => {
-                get_declare_transaction_v0_hash(declare_v0, chain_id, transaction_version)
+                get_declare_transaction_v0_hash(declare_v0, chain_id, &tx_version)
             }
             DeclareTransaction::V1(declare_v1) => {
-                get_declare_transaction_v1_hash(declare_v1, chain_id, transaction_version)
+                get_declare_transaction_v1_hash(declare_v1, chain_id, &tx_version)
             }
             DeclareTransaction::V2(declare_v2) => {
-                get_declare_transaction_v2_hash(declare_v2, chain_id, transaction_version)
+                get_declare_transaction_v2_hash(declare_v2, chain_id, &tx_version)
             }
             DeclareTransaction::V3(declare_v3) => {
-                get_declare_transaction_v3_hash(declare_v3, chain_id, transaction_version)
+                get_declare_transaction_v3_hash(declare_v3, chain_id, &tx_version)
             }
         },
-        Transaction::Deploy(deploy) => {
-            get_deploy_transaction_hash(deploy, chain_id, transaction_version)
-        }
+        Transaction::Deploy(deploy) => get_deploy_transaction_hash(deploy, chain_id, &tx_version),
         Transaction::DeployAccount(deploy_account) => match deploy_account {
             DeployAccountTransaction::V1(deploy_account_v1) => {
-                get_deploy_account_transaction_v1_hash(
-                    deploy_account_v1,
-                    chain_id,
-                    transaction_version,
-                )
+                get_deploy_account_transaction_v1_hash(deploy_account_v1, chain_id, &tx_version)
             }
             DeployAccountTransaction::V3(deploy_account_v3) => {
-                get_deploy_account_transaction_v3_hash(
-                    deploy_account_v3,
-                    chain_id,
-                    transaction_version,
-                )
+                get_deploy_account_transaction_v3_hash(deploy_account_v3, chain_id, &tx_version)
             }
         },
         Transaction::Invoke(invoke) => match invoke {
             InvokeTransaction::V0(invoke_v0) => {
-                get_invoke_transaction_v0_hash(invoke_v0, chain_id, transaction_version)
+                get_invoke_transaction_v0_hash(invoke_v0, chain_id, &tx_version)
             }
             InvokeTransaction::V1(invoke_v1) => {
-                get_invoke_transaction_v1_hash(invoke_v1, chain_id, transaction_version)
+                get_invoke_transaction_v1_hash(invoke_v1, chain_id, &tx_version)
             }
             InvokeTransaction::V3(invoke_v3) => {
-                get_invoke_transaction_v3_hash(invoke_v3, chain_id, transaction_version)
+                get_invoke_transaction_v3_hash(invoke_v3, chain_id, &tx_version)
             }
         },
         Transaction::L1Handler(l1_handler) => {
-            get_l1_handler_transaction_hash(l1_handler, chain_id, transaction_version)
+            get_l1_handler_transaction_hash(l1_handler, chain_id, &tx_version)
         }
     }
 }
@@ -115,15 +106,16 @@ fn get_deprecated_transaction_hashes(
     chain_id: &ChainId,
     block_number: &BlockNumber,
     transaction: &Transaction,
-    transaction_version: &TransactionVersion,
+    transaction_options: &TransactionOptions,
 ) -> Result<Vec<TransactionHash>, StarknetApiError> {
+    let tx_version = get_tx_version(transaction, transaction_options);
     Ok(if chain_id == &ChainId::Mainnet && block_number > &MAINNET_TRANSACTION_HASH_WITH_VERSION {
         vec![]
     } else {
         match transaction {
             Transaction::Declare(_) => vec![],
             Transaction::Deploy(deploy) => {
-                vec![get_deprecated_deploy_transaction_hash(deploy, chain_id, transaction_version)?]
+                vec![get_deprecated_deploy_transaction_hash(deploy, chain_id, &tx_version)?]
             }
             Transaction::DeployAccount(_) => vec![],
             Transaction::Invoke(invoke) => match invoke {
@@ -131,20 +123,19 @@ fn get_deprecated_transaction_hashes(
                     vec![get_deprecated_invoke_transaction_v0_hash(
                         invoke_v0,
                         chain_id,
-                        transaction_version,
+                        &tx_version,
                     )?]
                 }
                 InvokeTransaction::V1(_) | InvokeTransaction::V3(_) => vec![],
             },
-            Transaction::L1Handler(l1_handler) => get_deprecated_l1_handler_transaction_hashes(
-                l1_handler,
-                chain_id,
-                transaction_version,
-            )?,
+            Transaction::L1Handler(l1_handler) => {
+                get_deprecated_l1_handler_transaction_hashes(l1_handler, chain_id, &tx_version)?
+            }
         }
     })
 }
 
+//  TODO(Arni): Delete this function or it's counterpart in papyrus.
 /// Validates the hash of a starknet transaction.
 /// For transactions on testnet or those with a low block_number, we validate the
 /// transaction hash against all potential historical hash computations. For recent
@@ -155,15 +146,15 @@ pub fn validate_transaction_hash(
     block_number: &BlockNumber,
     chain_id: &ChainId,
     expected_hash: TransactionHash,
-    transaction_version: &TransactionVersion,
 ) -> Result<bool, StarknetApiError> {
+    let transaction_options = TransactionOptions { only_query: false };
     let mut possible_hashes = get_deprecated_transaction_hashes(
         chain_id,
         block_number,
         transaction,
-        transaction_version,
+        &transaction_options,
     )?;
-    possible_hashes.push(get_transaction_hash(transaction, chain_id, transaction_version)?);
+    possible_hashes.push(get_transaction_hash(transaction, chain_id, &transaction_options)?);
     Ok(possible_hashes.contains(&expected_hash))
 }
 
@@ -620,4 +611,26 @@ pub(crate) fn get_deploy_account_transaction_v3_hash(
             .chain(&transaction.contract_address_salt.0)
             .get_poseidon_hash(),
     ))
+}
+
+// Returns the transaction version taking into account the transaction options.
+fn get_tx_version(
+    tx: &Transaction,
+    transaction_options: &TransactionOptions,
+) -> TransactionVersion {
+    let mut version = match tx {
+        Transaction::Declare(tx) => tx.version(),
+        Transaction::Deploy(tx) => tx.version,
+        Transaction::DeployAccount(tx) => tx.version(),
+        Transaction::Invoke(tx) => tx.version(),
+        Transaction::L1Handler(tx) => tx.version,
+    };
+
+    // If only_query is true, set the 128-th bit.
+    if transaction_options.only_query {
+        let query_only_bit: Felt = Felt::from_hex_unchecked("0x100000000000000000000000000000000");
+        let fe: Felt = version.0;
+        version = TransactionVersion(fe + query_only_bit);
+    }
+    version
 }
