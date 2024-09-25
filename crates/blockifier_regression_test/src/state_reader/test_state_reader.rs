@@ -108,6 +108,18 @@ impl TestStateReader {
         })
     }
 
+    /// Get all transaction hashes in the current block.
+    pub fn get_tx_hashes(&self) -> StateResult<Vec<String>> {
+        let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
+        let raw_tx_hashes = serde_json::from_value(
+            self.0.send_rpc_request("starknet_getBlockWithTxHashes", &get_block_params)?
+                ["transactions"]
+                .clone(),
+        )
+        .map_err(serde_err_to_state_err)?;
+        serde_json::from_value(raw_tx_hashes).map_err(serde_err_to_state_err)
+    }
+
     pub fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass> {
         let params = json!({
             "block_id": self.0.block_id,
