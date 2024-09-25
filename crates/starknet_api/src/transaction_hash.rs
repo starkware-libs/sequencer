@@ -150,15 +150,15 @@ pub fn validate_transaction_hash(
     block_number: &BlockNumber,
     chain_id: &ChainId,
     expected_hash: TransactionHash,
+    transaction_options: &TransactionOptions,
 ) -> Result<bool, StarknetApiError> {
-    let transaction_options = TransactionOptions { only_query: false };
     let mut possible_hashes = get_deprecated_transaction_hashes(
         chain_id,
         block_number,
         transaction,
-        &transaction_options,
+        transaction_options,
     )?;
-    possible_hashes.push(get_transaction_hash(transaction, chain_id, &transaction_options)?);
+    possible_hashes.push(get_transaction_hash(transaction, chain_id, transaction_options)?);
     Ok(possible_hashes.contains(&expected_hash))
 }
 

@@ -1,13 +1,14 @@
+/// TODO(Arni): Delete this file. Move all tests to
+/// [`transaction_hash_test`](starknet_api::transaction_hash::transaction_hash_test) once the
+/// test util: [`read_json_file`] is shared.
 use papyrus_test_utils::read_json_file;
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use starknet_api::transaction::{Transaction, TransactionHash};
-use starknet_api::transaction_hash::get_transaction_hash;
+use starknet_api::transaction_hash::{get_transaction_hash, validate_transaction_hash};
 use starknet_api::TransactionOptions;
-
-use super::validate_transaction_hash;
 
 #[derive(Deserialize, Serialize)]
 struct TransactionTestData {
