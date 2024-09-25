@@ -6,6 +6,7 @@ use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::test_utils::read_json_file;
+use starknet_api::transaction::Transaction;
 use starknet_api::{class_hash, felt};
 use starknet_core::types::ContractClass::{Legacy, Sierra};
 
@@ -73,4 +74,11 @@ pub fn test_get_tx_hashes(test_state_reader: TestStateReader, test_block_number:
         panic!("Error retrieving txs hash: {}", err);
     });
     assert_eq!(actual_tx_hashes, expected_tx_hashes);
+}
+
+#[rstest]
+pub fn test_get_tx_by_hash(test_state_reader: TestStateReader) {
+    let tx_hash = "0xa7c7db686c7f756ceb7ca85a759caef879d425d156da83d6a836f86851983";
+    let actual_tx = test_state_reader.get_tx_by_hash(tx_hash).unwrap();
+    assert_matches!(actual_tx, Transaction::Invoke(..));
 }
