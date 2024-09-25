@@ -23,8 +23,8 @@ use starknet_api::core::{
 };
 use starknet_api::deprecated_contract_class::{
     ContractClassAbiEntry as DeprecatedContractClassAbiEntry,
-    EntryPoint as DeprecatedEntryPoint,
     EntryPointType as DeprecatedEntryPointType,
+    EntryPointV0 as DeprecatedEntryPoint,
 };
 use starknet_api::state::{EntryPoint, EntryPointType};
 use starknet_api::transaction::{

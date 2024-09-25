@@ -14,7 +14,7 @@ use starknet_api::felt;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
-use crate::execution::contract_class::{ContractClassV1, EntryPointV1};
+use crate::execution::contract_class::{ContractClass, ContractClassV1, EntryPoint, EntryPointV1};
 use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,
@@ -143,6 +143,29 @@ fn register_visited_pcs(
     }
     state.add_visited_pcs(class_hash, &class_visited_pcs);
     Ok(())
+}
+
+pub fn get_entry_point(
+    contract_class: &ContractClass,
+    call: &CallEntryPoint,
+) -> Result<EntryPoint, PreExecutionError> {
+    call.verify_constructor()?;
+
+    let entry_points_of_same_type =
+        &contract_class.entry_points_of_same_type(call.entry_point_type);
+    let filtered_entry_points: Vec<_> = entry_points_of_same_type
+        .iter()
+        .filter(|ep| *ep.selector() == call.entry_point_selector)
+        .collect();
+
+    match &filtered_entry_points[..] {
+        [] => Err(PreExecutionError::EntryPointNotFound(call.entry_point_selector)),
+        [entry_point] => Ok((**entry_point).clone()),
+        _ => Err(PreExecutionError::DuplicatedEntryPointSelector {
+            selector: call.entry_point_selector,
+            typ: call.entry_point_type,
+        }),
+    }
 }
 
 pub fn initialize_execution_context<'a>(
