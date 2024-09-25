@@ -86,6 +86,26 @@ impl TestStateReader {
         }
     }
 
+    pub fn get_txs_hash(&self) -> StateResult<Vec<String>> {
+        let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
+        let raw_tx_hash = serde_json::from_value(
+            self.0.send_rpc_request("starknet_getBlockWithTxHashes", &get_block_params)?
+                ["transactions"]
+                .clone(),
+        )
+        .map_err(serde_err_to_state_err)?;
+        serde_json::from_value(raw_tx_hash).map_err(serde_err_to_state_err)
+    }
+
+    pub fn get_txs_by_hash(&self, tx_hash: &str) -> StateResult<String> {
+        let method = "starknet_getTransactionByHash";
+        let params = json!({
+            "transaction_hash": tx_hash,
+        });
+        serde_json::from_value(self.0.send_rpc_request(method, params)?)
+            .map_err(serde_err_to_state_err)
+    }
+
     pub fn get_contract_class(
         &self,
         class_hash: &ClassHash,
@@ -129,6 +149,8 @@ impl TestStateReader {
 
 #[cfg(test)]
 pub mod test {
+    use std::fs::File;
+
     use assert_matches::assert_matches;
     use blockifier::blockifier::block::BlockInfo;
     use blockifier::state::state_api::StateReader;
@@ -183,5 +205,14 @@ pub mod test {
                 class_hash, err
             );
         });
+    }
+
+    #[rstest]
+    #[ignore = "This test uses an HTTP request, so it should not be run in CI."]
+    pub fn test_get_txs_hash(test_state_reader: TestStateReader) {
+        let raw_txs_hash = File::open("./src/data/txs_hash_block_700000.json").unwrap();
+        let txs_hash: Vec<String> = serde_json::from_reader(raw_txs_hash).unwrap();
+        let actual_tx_hash = test_state_reader.get_txs_hash().unwrap();
+        assert!(actual_tx_hash == txs_hash);
     }
 }
