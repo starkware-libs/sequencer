@@ -281,65 +281,19 @@ impl ResourcesMapping {
     }
 }
 
-/// Contains all the L2 resources consumed by a transaction
 #[cfg_attr(feature = "transaction_serde", derive(Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct StarknetResources {
-    pub calldata_length: usize,
-    pub state_changes_for_fee: StateChangesCount,
-    pub message_cost_info: MessageL1CostInfo,
-    pub l1_handler_payload_size: Option<usize>,
+pub struct ArchivalDataResources {
     pub event_summary: EventSummary,
+    pub calldata_length: usize,
     signature_length: usize,
     code_size: usize,
 }
 
-impl StarknetResources {
-    pub fn new<'a>(
-        calldata_length: usize,
-        signature_length: usize,
-        code_size: usize,
-        state_changes_count: StateChangesCount,
-        l1_handler_payload_size: Option<usize>,
-        call_infos: impl Iterator<Item = &'a CallInfo> + Clone,
-    ) -> Self {
-        // TODO(Yoni): store the entire summary.
-        let execution_summary_without_fee_transfer = CallInfo::summarize_many(call_infos.clone());
-        let l2_to_l1_payload_lengths =
-            execution_summary_without_fee_transfer.l2_to_l1_payload_lengths;
-        let message_segment_length =
-            get_message_segment_length(&l2_to_l1_payload_lengths, l1_handler_payload_size);
-        Self {
-            calldata_length,
-            signature_length,
-            code_size,
-            state_changes_for_fee: state_changes_count,
-            // TODO(Yoni, 1/10/2024): remove.
-            message_cost_info: MessageL1CostInfo {
-                l2_to_l1_payload_lengths,
-                message_segment_length,
-            },
-            l1_handler_payload_size,
-            event_summary: execution_summary_without_fee_transfer.event_summary,
-        }
-    }
-
-    /// Returns the gas cost of the starknet resources, summing all components.
-    /// The L2 gas amount may be converted to L1 gas (depending on the gas vector computation mode).
-    pub fn to_gas_vector(
-        &self,
-        versioned_constants: &VersionedConstants,
-        use_kzg_da: bool,
-        mode: &GasVectorComputationMode,
-    ) -> GasVector {
-        self.get_archival_data_cost(versioned_constants, mode)
-            + self.get_state_changes_cost(use_kzg_da)
-            + self.get_messages_total_gas_cost()
-    }
-
+impl ArchivalDataResources {
     /// Returns the cost of the transaction's archival data, for example, calldata, signature, code,
     /// and events.
-    pub fn get_archival_data_cost(
+    pub fn to_gas_vector(
         &self,
         versioned_constants: &VersionedConstants,
         mode: &GasVectorComputationMode,
@@ -369,13 +323,83 @@ impl StarknetResources {
     /// fixed and configurable amount of gas. This cost represents the cost of storing the
     /// calldata and the signature on L2.  The result is given in L1/L2 gas units, depending on the
     /// mode.
-    pub fn get_calldata_and_signature_gas_cost(
+    fn get_calldata_and_signature_gas_cost(
         &self,
         archival_gas_costs: &ArchivalDataGasCosts,
     ) -> u128 {
         // TODO(Avi, 20/2/2024): Calculate the number of bytes instead of the number of felts.
         let total_data_size = u128_from_usize(self.calldata_length + self.signature_length);
         (archival_gas_costs.gas_per_data_felt * total_data_size).to_integer()
+    }
+
+    /// Returns the cost of declared class codes in L1/L2 gas units, depending on the mode.
+    fn get_code_gas_cost(&self, archival_gas_costs: &ArchivalDataGasCosts) -> u128 {
+        (archival_gas_costs.gas_per_code_byte * u128_from_usize(self.code_size)).to_integer()
+    }
+
+    /// Returns the cost of the transaction's emmited events in L1/L2 gas units, depending on the
+    /// mode.
+    fn get_events_gas_cost(&self, archival_gas_costs: &ArchivalDataGasCosts) -> u128 {
+        (archival_gas_costs.gas_per_data_felt
+            * (archival_gas_costs.event_key_factor * self.event_summary.total_event_keys
+                + self.event_summary.total_event_data_size))
+            .to_integer()
+    }
+}
+
+/// Contains all non-computation Startnet resources consumed by a transaction.
+#[cfg_attr(feature = "transaction_serde", derive(Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct StarknetResources {
+    pub archival_data_resources: ArchivalDataResources,
+    pub state_changes_for_fee: StateChangesCount,
+    pub message_cost_info: MessageL1CostInfo,
+    pub l1_handler_payload_size: Option<usize>,
+}
+
+impl StarknetResources {
+    pub fn new<'a>(
+        calldata_length: usize,
+        signature_length: usize,
+        code_size: usize,
+        state_changes_count: StateChangesCount,
+        l1_handler_payload_size: Option<usize>,
+        call_infos: impl Iterator<Item = &'a CallInfo> + Clone,
+    ) -> Self {
+        // TODO(Yoni): store the entire summary.
+        let execution_summary_without_fee_transfer = CallInfo::summarize_many(call_infos.clone());
+        let l2_to_l1_payload_lengths =
+            execution_summary_without_fee_transfer.l2_to_l1_payload_lengths;
+        let message_segment_length =
+            get_message_segment_length(&l2_to_l1_payload_lengths, l1_handler_payload_size);
+        Self {
+            archival_data_resources: ArchivalDataResources {
+                event_summary: execution_summary_without_fee_transfer.event_summary,
+                calldata_length,
+                signature_length,
+                code_size,
+            },
+            state_changes_for_fee: state_changes_count,
+            // TODO(Yoni, 1/10/2024): remove.
+            message_cost_info: MessageL1CostInfo {
+                l2_to_l1_payload_lengths,
+                message_segment_length,
+            },
+            l1_handler_payload_size,
+        }
+    }
+
+    /// Returns the gas cost of the starknet resources, summing all components.
+    /// The L2 gas amount may be converted to L1 gas (depending on the gas vector computation mode).
+    pub fn to_gas_vector(
+        &self,
+        versioned_constants: &VersionedConstants,
+        use_kzg_da: bool,
+        mode: &GasVectorComputationMode,
+    ) -> GasVector {
+        self.archival_data_resources.to_gas_vector(versioned_constants, mode)
+            + self.get_state_changes_cost(use_kzg_da)
+            + self.get_messages_total_gas_cost()
     }
 
     /// Returns an estimation of the gas usage for processing L1<>L2 messages on L1. Accounts for
@@ -423,24 +447,10 @@ impl StarknetResources {
         (message_segment_length, gas_weight)
     }
 
-    /// Returns the cost of declared class codes in L1/L2 gas units, depending on the mode.
-    pub fn get_code_gas_cost(&self, archival_gas_costs: &ArchivalDataGasCosts) -> u128 {
-        (archival_gas_costs.gas_per_code_byte * u128_from_usize(self.code_size)).to_integer()
-    }
-
     /// Returns the gas cost of the transaction's state changes.
     pub fn get_state_changes_cost(&self, use_kzg_da: bool) -> GasVector {
         // TODO(Nimrod, 29/3/2024): delete `get_da_gas_cost` and move it's logic here.
         get_da_gas_cost(&self.state_changes_for_fee, use_kzg_da)
-    }
-
-    /// Returns the cost of the transaction's emmited events in L1/L2 gas units, depending on the
-    /// mode.
-    pub fn get_events_gas_cost(&self, archival_gas_costs: &ArchivalDataGasCosts) -> u128 {
-        (archival_gas_costs.gas_per_data_felt
-            * (archival_gas_costs.event_key_factor * self.event_summary.total_event_keys
-                + self.event_summary.total_event_data_size))
-            .to_integer()
     }
 
     pub fn get_onchain_data_segment_length(&self) -> usize {
