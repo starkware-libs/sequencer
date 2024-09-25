@@ -3,7 +3,12 @@ use std::sync::Arc;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::executable_transaction::L1HandlerTransaction;
+use starknet_api::executable_transaction::{
+    DeclareTransaction as ExecutableDeclareTx,
+    DeployAccountTransaction as ExecutableDeployAccountTx,
+    InvokeTransaction as ExecutableInvokeTx,
+    L1HandlerTransaction,
+};
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
@@ -42,6 +47,7 @@ use crate::transaction::objects::{
     TransactionExecutionResult,
     TransactionInfo,
     TransactionInfoCreator,
+    TransactionInfoCreatorInner,
 };
 #[cfg(test)]
 #[path = "transactions_test.rs"]
@@ -619,4 +625,248 @@ impl TransactionInfoCreator for L1HandlerTransaction {
             max_fee: Fee::default(),
         })
     }
+}
+
+impl<S: State> Executable<S> for ExecutableDeclareTx {
+    fn run_execute(
+        &self,
+        state: &mut S,
+        _resources: &mut ExecutionResources,
+        context: &mut EntryPointExecutionContext,
+        _remaining_gas: &mut u64,
+    ) -> TransactionExecutionResult<Option<CallInfo>> {
+        let class_hash = self.class_hash();
+        match &self.tx {
+            starknet_api::transaction::DeclareTransaction::V0(_)
+            | starknet_api::transaction::DeclareTransaction::V1(_) => {
+                if context.tx_context.block_context.versioned_constants.disable_cairo0_redeclaration
+                {
+                    try_declare(self, state, class_hash, None)?
+                } else {
+                    // We allow redeclaration of the class for backward compatibility.
+                    // In the past, we allowed redeclaration of Cairo 0 contracts since there was
+                    // no class commitment (so no need to check if the class is already declared).
+                    state.set_contract_class(class_hash, contract_class(self).try_into()?)?;
+                }
+            }
+            starknet_api::transaction::DeclareTransaction::V2(DeclareTransactionV2 {
+                compiled_class_hash,
+                ..
+            })
+            | starknet_api::transaction::DeclareTransaction::V3(DeclareTransactionV3 {
+                compiled_class_hash,
+                ..
+            }) => try_declare(self, state, class_hash, Some(*compiled_class_hash))?,
+        }
+        Ok(None)
+    }
+}
+
+impl TransactionInfoCreatorInner for ExecutableDeclareTx {
+    fn create_tx_info(&self, only_query: bool) -> TransactionInfo {
+        // TODO(Nir, 01/11/2023): Consider to move this (from all get_tx_info methods).
+        let common_fields = CommonAccountFields {
+            transaction_hash: self.tx_hash,
+            version: self.version(),
+            signature: self.signature(),
+            nonce: self.nonce(),
+            sender_address: self.sender_address(),
+            only_query,
+        };
+
+        match &self.tx {
+            starknet_api::transaction::DeclareTransaction::V0(tx)
+            | starknet_api::transaction::DeclareTransaction::V1(tx) => {
+                TransactionInfo::Deprecated(DeprecatedTransactionInfo {
+                    common_fields,
+                    max_fee: tx.max_fee,
+                })
+            }
+            starknet_api::transaction::DeclareTransaction::V2(tx) => {
+                TransactionInfo::Deprecated(DeprecatedTransactionInfo {
+                    common_fields,
+                    max_fee: tx.max_fee,
+                })
+            }
+            starknet_api::transaction::DeclareTransaction::V3(tx) => {
+                TransactionInfo::Current(CurrentTransactionInfo {
+                    common_fields,
+                    resource_bounds: tx.resource_bounds,
+                    tip: tx.tip,
+                    nonce_data_availability_mode: tx.nonce_data_availability_mode,
+                    fee_data_availability_mode: tx.fee_data_availability_mode,
+                    paymaster_data: tx.paymaster_data.clone(),
+                    account_deployment_data: tx.account_deployment_data.clone(),
+                })
+            }
+        }
+    }
+}
+
+impl<S: State> Executable<S> for ExecutableDeployAccountTx {
+    fn run_execute(
+        &self,
+        state: &mut S,
+        resources: &mut ExecutionResources,
+        context: &mut EntryPointExecutionContext,
+        remaining_gas: &mut u64,
+    ) -> TransactionExecutionResult<Option<CallInfo>> {
+        let class_hash = self.class_hash();
+        let ctor_context = ConstructorContext {
+            class_hash,
+            code_address: None,
+            storage_address: self.contract_address(),
+            caller_address: ContractAddress::default(),
+        };
+        let call_info = execute_deployment(
+            state,
+            resources,
+            context,
+            ctor_context,
+            self.constructor_calldata(),
+            remaining_gas,
+        )?;
+
+        Ok(Some(call_info))
+    }
+}
+
+impl TransactionInfoCreatorInner for ExecutableDeployAccountTx {
+    fn create_tx_info(&self, only_query: bool) -> TransactionInfo {
+        let common_fields = CommonAccountFields {
+            transaction_hash: self.tx_hash(),
+            version: self.version(),
+            signature: self.signature(),
+            nonce: self.nonce(),
+            sender_address: self.contract_address(),
+            only_query,
+        };
+
+        match &self.tx {
+            starknet_api::transaction::DeployAccountTransaction::V1(tx) => {
+                TransactionInfo::Deprecated(DeprecatedTransactionInfo {
+                    common_fields,
+                    max_fee: tx.max_fee,
+                })
+            }
+            starknet_api::transaction::DeployAccountTransaction::V3(tx) => {
+                TransactionInfo::Current(CurrentTransactionInfo {
+                    common_fields,
+                    resource_bounds: tx.resource_bounds,
+                    tip: tx.tip,
+                    nonce_data_availability_mode: tx.nonce_data_availability_mode,
+                    fee_data_availability_mode: tx.fee_data_availability_mode,
+                    paymaster_data: tx.paymaster_data.clone(),
+                    account_deployment_data: AccountDeploymentData::default(),
+                })
+            }
+        }
+    }
+}
+
+impl<S: State> Executable<S> for ExecutableInvokeTx {
+    fn run_execute(
+        &self,
+        state: &mut S,
+        resources: &mut ExecutionResources,
+        context: &mut EntryPointExecutionContext,
+        remaining_gas: &mut u64,
+    ) -> TransactionExecutionResult<Option<CallInfo>> {
+        let entry_point_selector = match &self.tx {
+            starknet_api::transaction::InvokeTransaction::V0(tx) => tx.entry_point_selector,
+            starknet_api::transaction::InvokeTransaction::V1(_)
+            | starknet_api::transaction::InvokeTransaction::V3(_) => {
+                selector_from_name(constants::EXECUTE_ENTRY_POINT_NAME)
+            }
+        };
+        let storage_address = context.tx_context.tx_info.sender_address();
+        let class_hash = state.get_class_hash_at(storage_address)?;
+        let execute_call = CallEntryPoint {
+            entry_point_type: EntryPointType::External,
+            entry_point_selector,
+            calldata: self.calldata(),
+            class_hash: None,
+            code_address: None,
+            storage_address,
+            caller_address: ContractAddress::default(),
+            call_type: CallType::Call,
+            initial_gas: *remaining_gas,
+        };
+
+        let call_info = execute_call
+            .non_reverting_execute(state, resources, context, remaining_gas)
+            .map_err(|error| TransactionExecutionError::ExecutionError {
+                error,
+                class_hash,
+                storage_address,
+                selector: entry_point_selector,
+            })?;
+        Ok(Some(call_info))
+    }
+}
+
+impl TransactionInfoCreatorInner for ExecutableInvokeTx {
+    fn create_tx_info(&self, only_query: bool) -> TransactionInfo {
+        let common_fields = CommonAccountFields {
+            transaction_hash: self.tx_hash(),
+            version: self.version(),
+            signature: self.signature(),
+            nonce: self.nonce(),
+            sender_address: self.sender_address(),
+            only_query,
+        };
+
+        match &self.tx() {
+            starknet_api::transaction::InvokeTransaction::V0(tx) => {
+                TransactionInfo::Deprecated(DeprecatedTransactionInfo {
+                    common_fields,
+                    max_fee: tx.max_fee,
+                })
+            }
+            starknet_api::transaction::InvokeTransaction::V1(tx) => {
+                TransactionInfo::Deprecated(DeprecatedTransactionInfo {
+                    common_fields,
+                    max_fee: tx.max_fee,
+                })
+            }
+            starknet_api::transaction::InvokeTransaction::V3(tx) => {
+                TransactionInfo::Current(CurrentTransactionInfo {
+                    common_fields,
+                    resource_bounds: tx.resource_bounds,
+                    tip: tx.tip,
+                    nonce_data_availability_mode: tx.nonce_data_availability_mode,
+                    fee_data_availability_mode: tx.fee_data_availability_mode,
+                    paymaster_data: tx.paymaster_data.clone(),
+                    account_deployment_data: tx.account_deployment_data.clone(),
+                })
+            }
+        }
+    }
+}
+
+fn try_declare<S: State>(
+    tx: &ExecutableDeclareTx,
+    state: &mut S,
+    class_hash: ClassHash,
+    compiled_class_hash: Option<CompiledClassHash>,
+) -> TransactionExecutionResult<()> {
+    match state.get_compiled_contract_class(class_hash) {
+        Err(StateError::UndeclaredClassHash(_)) => {
+            // Class is undeclared; declare it.
+            state.set_contract_class(class_hash, contract_class(tx).try_into()?)?;
+            if let Some(compiled_class_hash) = compiled_class_hash {
+                state.set_compiled_class_hash(class_hash, compiled_class_hash)?;
+            }
+            Ok(())
+        }
+        Err(error) => Err(error)?,
+        Ok(_) => {
+            // Class is already declared, cannot redeclare.
+            Err(TransactionExecutionError::DeclareTransactionError { class_hash })
+        }
+    }
+}
+
+fn contract_class(tx: &ExecutableDeclareTx) -> ContractClass {
+    tx.class_info.contract_class.clone()
 }
