@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use tokio::sync::mpsc::Receiver;
 use tracing::error;
 
-use super::definitions::{request_response_loop, ComponentServerStarter};
+use super::definitions::request_response_loop;
 use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
 use crate::errors::{ComponentError, ComponentServerError};
 use crate::starters::Startable;
@@ -37,18 +37,15 @@ use crate::starters::Startable;
 /// use std::sync::mpsc::{channel, Receiver};
 ///
 /// use async_trait::async_trait;
-/// use starknet_mempool_infra::errors::ComponentError;
-/// use starknet_mempool_infra::starters::DefaultComponentStarter;
+/// use starknet_mempool_infra::errors::{ComponentError, ComponentServerError};
+/// use starknet_mempool_infra::starters::{DefaultComponentStarter, Startable};
 /// use tokio::task;
 ///
 /// use crate::starknet_mempool_infra::component_definitions::{
 ///     ComponentRequestAndResponseSender,
 ///     ComponentRequestHandler,
 /// };
-/// use crate::starknet_mempool_infra::component_server::{
-///     ComponentServerStarter,
-///     LocalComponentServer,
-/// };
+/// use crate::starknet_mempool_infra::component_server::LocalComponentServer;
 ///
 /// // Define your component
 /// struct MyComponent {}
@@ -111,7 +108,7 @@ pub type LocalComponentServer<Component, Request, Response> =
 pub struct BlockingLocalServerType {}
 
 #[async_trait]
-impl<Component, Request, Response> ComponentServerStarter
+impl<Component, Request, Response> Startable<ComponentServerError>
     for LocalComponentServer<Component, Request, Response>
 where
     Component: ComponentRequestHandler<Request, Response> + Send + Sync + Startable<ComponentError>,
@@ -130,7 +127,7 @@ pub type LocalActiveComponentServer<Component, Request, Response> =
 pub struct NonBlockingLocalServerType {}
 
 #[async_trait]
-impl<Component, Request, Response> ComponentServerStarter
+impl<Component, Request, Response> Startable<ComponentServerError>
     for LocalActiveComponentServer<Component, Request, Response>
 where
     Component: ComponentRequestHandler<Request, Response>

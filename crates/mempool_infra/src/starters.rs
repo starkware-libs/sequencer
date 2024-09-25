@@ -13,12 +13,12 @@ pub trait Startable<StartError> {
 pub trait DefaultComponentStarter {}
 
 #[async_trait]
-impl<T: Send + Sync> Startable<ComponentError> for T
+impl<Component: Send + Sync> Startable<ComponentError> for Component
 where
-    T: DefaultComponentStarter,
+    Component: DefaultComponentStarter,
 {
     async fn start(&mut self) -> Result<(), ComponentError> {
-        info!("Starting component {}.", type_name::<T>());
+        info!("Starting component {}.", type_name::<Component>());
         Ok(())
     }
 }

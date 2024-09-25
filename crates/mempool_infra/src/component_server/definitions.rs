@@ -1,16 +1,9 @@
 use std::any::type_name;
 
-use async_trait::async_trait;
 use tokio::sync::mpsc::Receiver;
 use tracing::info;
 
 use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
-use crate::errors::ComponentServerError;
-
-#[async_trait]
-pub trait ComponentServerStarter: Send + Sync {
-    async fn start(&mut self) -> Result<(), ComponentServerError>;
-}
 
 pub async fn request_response_loop<Request, Response, Component>(
     rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
