@@ -105,11 +105,6 @@ impl TransactionPool {
         Ok(self.get_by_address_and_nonce(sender_address, next_nonce))
     }
 
-    #[cfg(test)]
-    pub fn n_txs(&self) -> usize {
-        self.capacity.n_txs
-    }
-
     pub fn contains_account(&self, address: ContractAddress) -> bool {
         self.txs_by_account.contains(address)
     }
