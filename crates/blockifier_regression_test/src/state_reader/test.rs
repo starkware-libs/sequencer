@@ -7,6 +7,7 @@ use blockifier::versioned_constants::StarknetVersion;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
+use starknet_api::transaction::Transaction;
 use starknet_api::{class_hash, felt};
 
 use crate::state_reader::test_state_reader::TestStateReader;
@@ -58,4 +59,11 @@ pub fn test_get_txs_hash(test_state_reader: TestStateReader) {
     let txs_hash: Vec<String> = serde_json::from_reader(raw_txs_hash).unwrap();
     let actual_tx_hash = test_state_reader.get_txs_hash().unwrap();
     assert!(actual_tx_hash == txs_hash);
+}
+
+#[rstest]
+pub fn test_get_tx_by_hash(test_state_reader: TestStateReader) {
+    let tx_hash = "0x47165a9a9c97e8829a4778f2a4b6fae4366aefc35b51d484bf04c458168351b";
+    let actual_tx = test_state_reader.get_txs_by_hash(tx_hash).unwrap();
+    assert_matches!(actual_tx, Transaction::Invoke(..));
 }
