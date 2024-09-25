@@ -12,16 +12,10 @@ use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::abi::sierra_types::next_storage_key;
 use crate::blockifier::block::BlockInfo;
 use crate::context::{BlockContext, TransactionContext};
+use crate::fee::resources::{GasVector, GasVectorComputationMode, TransactionFeeResult};
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionFeeError;
-use crate::transaction::objects::{
-    ExecutionResourcesTraits,
-    FeeType,
-    GasVector,
-    GasVectorComputationMode,
-    TransactionFeeResult,
-    TransactionInfo,
-};
+use crate::transaction::objects::{ExecutionResourcesTraits, FeeType, TransactionInfo};
 use crate::utils::u128_from_usize;
 use crate::versioned_constants::VersionedConstants;
 
