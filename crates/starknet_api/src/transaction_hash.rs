@@ -102,7 +102,7 @@ pub fn get_transaction_hash(
 const MAINNET_TRANSACTION_HASH_WITH_VERSION: BlockNumber = BlockNumber(1470);
 
 // Calculates a list of deprecated hashes for a transaction.
-fn get_deprecated_transaction_hashes(
+pub fn get_deprecated_transaction_hashes(
     chain_id: &ChainId,
     block_number: &BlockNumber,
     transaction: &Transaction,
