@@ -11,6 +11,7 @@ use rstest::{fixture, rstest};
 use starknet_api::block::GasPriceVector;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce};
+use starknet_api::executable_transaction::AccountTransaction as ApiExecutableTransaction;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
@@ -1720,8 +1721,8 @@ fn test_deploy_account_tx(
     // Build expected validate call info.
     // TODO(AvivG): When the AccountTransaction refactor is complete, simplify the creation of
     // `validate_calldata` by accessing the DeployAccountTransaction directly, without match.
-    let validate_calldata = match deploy_account {
-        AccountTransaction::DeployAccount(tx) => Calldata(
+    let validate_calldata = match &deploy_account.tx {
+        ApiExecutableTransaction::DeployAccount(tx) => Calldata(
             [
                 vec![tx.class_hash().0, tx.contract_address_salt().0],
                 (*tx.constructor_calldata().0).clone(),
@@ -1729,7 +1730,7 @@ fn test_deploy_account_tx(
             .concat()
             .into(),
         ),
-        AccountTransaction::Invoke(_) | AccountTransaction::Declare(_) => {
+        ApiExecutableTransaction::Invoke(_) | ApiExecutableTransaction::Declare(_) => {
             panic!("Expected DeployAccount transaction.")
         }
     };
