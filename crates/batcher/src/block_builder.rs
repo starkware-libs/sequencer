@@ -132,7 +132,7 @@ impl BlockBuilderTrait for BlockBuilder {
             let mut executor_input_chunk = vec![];
             for tx in &next_tx_chunk {
                 // TODO(yair): Avoid this clone.
-                executor_input_chunk.push(BlockifierTransaction::try_from(tx.clone())?);
+                executor_input_chunk.push(BlockifierTransaction::from(tx.clone()));
             }
             let results = self.executor.lock().await.add_txs_to_block(&executor_input_chunk);
             trace!("Transaction execution results: {:?}", results);
