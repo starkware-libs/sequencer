@@ -1,4 +1,5 @@
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::executable_transaction::AccountTransaction as Transaction;
 use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::fields::GasVectorComputationMode;
 
@@ -160,24 +161,24 @@ pub fn estimate_minimal_gas_vector(
 ) -> GasVector {
     // TODO(Dori, 1/8/2023): Give names to the constant VM step estimates and regression-test them.
     let BlockContext { block_info, versioned_constants, .. } = block_context;
-    let state_changes_by_account_tx = match tx {
+    let state_changes_by_account_tx = match &tx.tx {
         // We consider the following state changes: sender balance update (storage update) + nonce
         // increment (contract modification) (we exclude the sequencer balance update and the ERC20
         // contract modification since it occurs for every tx).
-        AccountTransaction::Declare(_) => StateChangesCount {
+        Transaction::Declare(_) => StateChangesCount {
             n_storage_updates: 1,
             n_class_hash_updates: 0,
             n_compiled_class_hash_updates: 0,
             n_modified_contracts: 1,
         },
-        AccountTransaction::Invoke(_) => StateChangesCount {
+        Transaction::Invoke(_) => StateChangesCount {
             n_storage_updates: 1,
             n_class_hash_updates: 0,
             n_compiled_class_hash_updates: 0,
             n_modified_contracts: 1,
         },
         // DeployAccount also updates the address -> class hash mapping.
-        AccountTransaction::DeployAccount(_) => StateChangesCount {
+        Transaction::DeployAccount(_) => StateChangesCount {
             n_storage_updates: 1,
             n_class_hash_updates: 1,
             n_compiled_class_hash_updates: 0,
