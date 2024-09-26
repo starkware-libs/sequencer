@@ -9809,7 +9809,6 @@ dependencies = [
  "starknet_batcher_types",
  "starknet_consensus_manager_types",
  "starknet_mempool_infra",
- "tokio",
  "validator",
 ]
 
