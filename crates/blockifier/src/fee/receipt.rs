@@ -3,7 +3,7 @@ use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Fee;
 
 use crate::context::TransactionContext;
-use crate::execution::call_info::CallInfo;
+use crate::execution::call_info::ExecutionSummary;
 use crate::fee::resources::{GasVector, StarknetResources, TransactionResources};
 use crate::state::cached_state::StateChanges;
 use crate::transaction::account_transaction::AccountTransaction;
@@ -15,7 +15,7 @@ use crate::transaction::transaction_types::TransactionType;
 pub mod test;
 
 /// Parameters required to compute actual cost of a transaction.
-struct TransactionReceiptParameters<'a, T: Iterator<Item = &'a CallInfo> + Clone> {
+struct TransactionReceiptParameters<'a> {
     tx_context: &'a TransactionContext,
     calldata_length: usize,
     signature_length: usize,
@@ -23,7 +23,7 @@ struct TransactionReceiptParameters<'a, T: Iterator<Item = &'a CallInfo> + Clone
     state_changes: &'a StateChanges,
     sender_address: Option<ContractAddress>,
     l1_handler_payload_size: Option<usize>,
-    call_infos: T,
+    execution_summary_without_fee_transfer: ExecutionSummary,
     execution_resources: &'a ExecutionResources,
     tx_type: TransactionType,
     reverted_steps: usize,
@@ -41,8 +41,8 @@ pub struct TransactionReceipt {
 }
 
 impl TransactionReceipt {
-    fn from_params<'a, T: Iterator<Item = &'a CallInfo> + Clone>(
-        tx_receipt_params: TransactionReceiptParameters<'a, T>,
+    fn from_params(
+        tx_receipt_params: TransactionReceiptParameters<'_>,
     ) -> TransactionExecutionResult<Self> {
         let TransactionReceiptParameters {
             tx_context,
@@ -52,7 +52,7 @@ impl TransactionReceipt {
             state_changes,
             sender_address,
             l1_handler_payload_size,
-            call_infos,
+            execution_summary_without_fee_transfer,
             execution_resources,
             tx_type,
             reverted_steps,
@@ -64,7 +64,7 @@ impl TransactionReceipt {
             code_size,
             state_changes.count_for_fee_charge(sender_address, tx_context.fee_token_address()),
             l1_handler_payload_size,
-            call_infos,
+            execution_summary_without_fee_transfer,
         );
 
         let cairo_resources = (execution_resources
@@ -104,7 +104,7 @@ impl TransactionReceipt {
     pub fn from_l1_handler<'a>(
         tx_context: &'a TransactionContext,
         l1_handler_payload_size: usize,
-        call_infos: impl Iterator<Item = &'a CallInfo> + Clone,
+        execution_summary_without_fee_transfer: ExecutionSummary,
         state_changes: &'a StateChanges,
         execution_resources: &'a ExecutionResources,
     ) -> TransactionExecutionResult<Self> {
@@ -116,7 +116,7 @@ impl TransactionReceipt {
             state_changes,
             sender_address: None, // L1 handlers have no sender address.
             l1_handler_payload_size: Some(l1_handler_payload_size),
-            call_infos,
+            execution_summary_without_fee_transfer,
             execution_resources,
             tx_type: TransactionType::L1Handler,
             reverted_steps: 0,
@@ -129,7 +129,7 @@ impl TransactionReceipt {
         tx_context: &'a TransactionContext,
         state_changes: &'a StateChanges,
         execution_resources: &'a ExecutionResources,
-        call_infos: impl Iterator<Item = &'a CallInfo> + Clone,
+        execution_summary_without_fee_transfer: ExecutionSummary,
         reverted_steps: usize,
     ) -> TransactionExecutionResult<Self> {
         Self::from_params(TransactionReceiptParameters {
@@ -140,7 +140,7 @@ impl TransactionReceipt {
             state_changes,
             sender_address: Some(tx_context.tx_info.sender_address()),
             l1_handler_payload_size: None,
-            call_infos,
+            execution_summary_without_fee_transfer,
             execution_resources,
             tx_type: account_tx.tx_type(),
             reverted_steps,

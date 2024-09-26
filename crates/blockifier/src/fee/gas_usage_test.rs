@@ -40,9 +40,9 @@ fn test_get_event_gas_cost(
             .into_iter()
             .map(|call_info| call_info.with_some_class_hash())
             .collect();
-    let call_infos_iter = call_infos.iter();
+    let execution_summary = CallInfo::summarize_many(call_infos.iter());
     let starknet_resources =
-        StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, call_infos_iter);
+        StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, execution_summary);
     assert_eq!(
         GasVector::default(),
         starknet_resources.to_gas_vector(
@@ -88,13 +88,13 @@ fn test_get_event_gas_cost(
         .into_iter()
         .map(|call_info| call_info.with_some_class_hash())
         .collect();
-    let call_infos_iter = call_infos.iter();
+    let execution_summary = CallInfo::summarize_many(call_infos.iter());
     let expected = GasVector::from_l1_gas(
         // 8 keys and 11 data words overall.
         (data_word_cost * (event_key_factor * 8_u128 + 11_u128)).to_integer(),
     );
     let starknet_resources =
-        StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, call_infos_iter);
+        StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, execution_summary);
     let gas_vector = starknet_resources.to_gas_vector(
         versioned_constants,
         use_kzg_da,

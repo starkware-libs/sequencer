@@ -20,6 +20,7 @@ use starknet_api::{contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
+use crate::execution::call_info::ExecutionSummary;
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::SyscallSelector;
@@ -291,8 +292,14 @@ pub fn get_syscall_resources(syscall_selector: SyscallSelector) -> ExecutionReso
 
 pub fn get_tx_resources(tx_type: TransactionType) -> ExecutionResources {
     let versioned_constants = VersionedConstants::create_for_testing();
-    let starknet_resources =
-        StarknetResources::new(1, 0, 0, StateChangesCount::default(), None, std::iter::empty());
+    let starknet_resources = StarknetResources::new(
+        1,
+        0,
+        0,
+        StateChangesCount::default(),
+        None,
+        ExecutionSummary::default(),
+    );
 
     versioned_constants.get_additional_os_tx_resources(tx_type, &starknet_resources, false).unwrap()
 }

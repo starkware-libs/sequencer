@@ -6,6 +6,7 @@ use starknet_api::transaction::{Fee, Transaction as StarknetApiTransaction, Tran
 
 use crate::bouncer::verify_tx_weights_in_bounds;
 use crate::context::BlockContext;
+use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::ClassInfo;
 use crate::execution::entry_point::EntryPointExecutionContext;
 use crate::fee::receipt::TransactionReceipt;
@@ -153,7 +154,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         } = TransactionReceipt::from_l1_handler(
             &tx_context,
             l1_handler_payload_size,
-            execute_call_info.iter(),
+            CallInfo::summarize_many(execute_call_info.iter()),
             &state.get_actual_state_changes()?,
             &execution_resources,
         )?;

@@ -599,7 +599,7 @@ impl AccountTransaction {
             &tx_context,
             &state.get_actual_state_changes()?,
             &resources,
-            validate_call_info.iter().chain(execute_call_info.iter()),
+            CallInfo::summarize_many(validate_call_info.iter().chain(execute_call_info.iter())),
             0,
         )?;
 
@@ -666,7 +666,7 @@ impl AccountTransaction {
             &tx_context,
             &validate_state_changes,
             &resources,
-            validate_call_info.iter(),
+            CallInfo::summarize_many(validate_call_info.iter()),
             execution_steps_consumed,
         )?;
 
@@ -682,7 +682,9 @@ impl AccountTransaction {
                         execution_state.get_actual_state_changes()?,
                     ]),
                     &execution_resources,
-                    validate_call_info.iter().chain(execute_call_info.iter()),
+                    CallInfo::summarize_many(
+                        validate_call_info.iter().chain(execute_call_info.iter()),
+                    ),
                     0,
                 )?;
                 // Post-execution checks.

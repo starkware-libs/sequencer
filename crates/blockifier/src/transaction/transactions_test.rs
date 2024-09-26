@@ -54,6 +54,7 @@ use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionCont
 use crate::execution::call_info::{
     CallExecution,
     CallInfo,
+    ExecutionSummary,
     MessageToL1,
     OrderedEvent,
     OrderedL2ToL1Message,
@@ -434,7 +435,7 @@ fn test_invoke_tx(
             ..StateChangesCount::default()
         },
         None,
-        std::iter::empty(),
+        ExecutionSummary::default(),
     );
     let sender_address = invoke_tx.sender_address();
 
@@ -1330,7 +1331,7 @@ fn test_declare_tx(
         class_info.code_size(),
         declare_expected_state_changes_count(tx_version),
         None,
-        std::iter::empty(),
+        ExecutionSummary::default(),
     );
 
     let account_tx = declare_tx(

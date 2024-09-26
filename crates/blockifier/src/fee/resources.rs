@@ -3,7 +3,7 @@ use serde::Serialize;
 use starknet_api::transaction::Fee;
 
 use crate::context::TransactionContext;
-use crate::execution::call_info::{CallInfo, EventSummary, MessageL1CostInfo};
+use crate::execution::call_info::{EventSummary, ExecutionSummary, MessageL1CostInfo};
 use crate::fee::eth_gas_constants;
 use crate::fee::fee_utils::get_vm_resources_cost;
 use crate::fee::gas_usage::{
@@ -63,16 +63,15 @@ pub struct StarknetResources {
 }
 
 impl StarknetResources {
-    pub fn new<'a>(
+    pub fn new(
         calldata_length: usize,
         signature_length: usize,
         code_size: usize,
         state_changes_count: StateChangesCount,
         l1_handler_payload_size: Option<usize>,
-        call_infos: impl Iterator<Item = &'a CallInfo> + Clone,
+        execution_summary_without_fee_transfer: ExecutionSummary,
     ) -> Self {
         // TODO(Yoni): store the entire summary.
-        let execution_summary_without_fee_transfer = CallInfo::summarize_many(call_infos.clone());
         let l2_to_l1_payload_lengths =
             execution_summary_without_fee_transfer.l2_to_l1_payload_lengths;
         let message_segment_length =
