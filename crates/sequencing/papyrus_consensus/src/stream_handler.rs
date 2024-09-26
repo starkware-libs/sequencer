@@ -1,4 +1,5 @@
 //! Stream handler, see StreamManager struct.
+use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, HashMap};
 
 use futures::channel::mpsc;
@@ -24,17 +25,20 @@ struct StreamData<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufCo
     // The highest message_id that was received.
     max_message_id: MessageId,
 
+    // The sender that corresponds to the receiver that was sent out for this stream.
+    sender: mpsc::Sender<T>,
+
+    // A buffer for messages that were received out of order.
     message_buffer: BTreeMap<MessageId, StreamMessage<T>>,
 }
 
-impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> Default
-    for StreamData<T>
-{
-    fn default() -> Self {
+impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> StreamData<T> {
+    fn new(sender: mpsc::Sender<T>) -> Self {
         StreamData {
             next_message_id: 0,
             fin_message_id: None,
             max_message_id: 0,
+            sender,
             message_buffer: BTreeMap::new(),
         }
     }
@@ -44,8 +48,8 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
 pub struct StreamHandler<
     T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
 > {
-    // An end of a channel used to send out the messages in the correct order.
-    sender: mpsc::Sender<T>,
+    // An end of a channel used to send out receivers, one for each stream.
+    sender: mpsc::Sender<mpsc::Receiver<T>>,
     // An end of a channel used to receive messages.
     receiver: mpsc::Receiver<StreamMessage<T>>,
 
@@ -59,7 +63,10 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     StreamHandler<T>
 {
     /// Create a new StreamHandler.
-    pub fn new(sender: mpsc::Sender<T>, receiver: mpsc::Receiver<StreamMessage<T>>) -> Self {
+    pub fn new(
+        sender: mpsc::Sender<mpsc::Receiver<T>>,
+        receiver: mpsc::Receiver<StreamMessage<T>>,
+    ) -> Self {
         StreamHandler { sender, receiver, stream_data: HashMap::new() }
     }
 
@@ -73,8 +80,9 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         }
     }
 
-    fn send(data: &mut StreamData<T>, sender: &mut mpsc::Sender<T>, message: StreamMessage<T>) {
+    fn send(data: &mut StreamData<T>, message: StreamMessage<T>) {
         // TODO(guyn): reconsider the "expect" here.
+        let sender = &mut data.sender;
         sender.try_send(message.message).expect("Send should succeed");
         data.next_message_id += 1;
     }
@@ -85,7 +93,19 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         let stream_id = message.stream_id;
         let message_id = message.message_id;
 
-        let data = self.stream_data.entry(stream_id).or_default();
+        let data = match self.stream_data.entry(stream_id) {
+            Entry::Occupied(entry) => entry.into_mut(),
+            Entry::Vacant(e) => {
+                // If we received a message for a stream that we have not seen before,
+                // we need to create a new receiver for it.
+                let (sender, receiver) = mpsc::channel(100);
+                // TODO(guyn): reconsider the "expect" here.
+                self.sender.try_send(receiver).expect("Send should succeed");
+
+                let data = StreamData::new(sender);
+                e.insert(data)
+            }
+        };
 
         if data.max_message_id < message_id {
             data.max_message_id = message_id;
@@ -119,13 +139,19 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
 
         // This means we can just send the message without buffering it.
         if message_id == data.next_message_id {
-            Self::send(data, &mut self.sender, message);
+            Self::send(data, message);
 
             // Try to drain the buffer.
-            self.process_buffer(stream_id);
+            Self::process_buffer(data);
+
+            // If empty, remove this buffer and close the channel.
+            if data.message_buffer.is_empty() && data.fin_message_id.is_some() {
+                data.sender.close_channel();
+                self.stream_data.remove(&stream_id);
+            }
         } else if message_id > data.next_message_id {
             // Save the message in the buffer.
-            self.store(message);
+            Self::store(data, message);
         } else {
             // TODO(guyn): replace warnings with more graceful error handling
             warn!(
@@ -137,10 +163,9 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         }
     }
 
-    fn store(&mut self, message: StreamMessage<T>) {
+    fn store(data: &mut StreamData<T>, message: StreamMessage<T>) {
         let stream_id = message.stream_id;
         let message_id = message.message_id;
-        let data = self.stream_data.entry(stream_id).or_default();
 
         if data.message_buffer.contains_key(&message_id) {
             // TODO(guyn): replace warnings with more graceful error handling
@@ -155,14 +180,9 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
 
     // Tries to drain as many messages as possible from the buffer (in order),
     // DOES NOT guarantee that the buffer will be empty after calling this function.
-    fn process_buffer(&mut self, stream_id: u64) {
-        let data = self.stream_data.entry(stream_id).or_default();
+    fn process_buffer(data: &mut StreamData<T>) {
         while let Some(message) = data.message_buffer.remove(&data.next_message_id) {
-            Self::send(data, &mut self.sender, message);
-        }
-
-        if data.message_buffer.is_empty() && data.fin_message_id.is_some() {
-            self.stream_data.remove(&stream_id);
+            Self::send(data, message);
         }
     }
 }
