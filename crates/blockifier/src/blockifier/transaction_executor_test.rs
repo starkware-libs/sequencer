@@ -6,6 +6,7 @@ use starknet_api::transaction::{Fee, TransactionVersion};
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 
+use crate::blockifier::block::BlockNumberHashPair;
 use crate::blockifier::config::TransactionExecutorConfig;
 use crate::blockifier::transaction_executor::{
     TransactionExecutor,
@@ -34,15 +35,21 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::L1HandlerTransaction;
-
 fn tx_executor_test_body<S: StateReader>(
     state: CachedState<S>,
     block_context: BlockContext,
     tx: Transaction,
     expected_bouncer_weights: BouncerWeights,
 ) {
-    let mut tx_executor =
-        TransactionExecutor::new(state, block_context, TransactionExecutorConfig::default());
+    let block_number_hash_pair =
+        BlockNumberHashPair::create_dummy_given_current(block_context.block_info().block_number);
+    let mut tx_executor = TransactionExecutor::pre_process_and_create(
+        state,
+        block_context,
+        block_number_hash_pair,
+        TransactionExecutorConfig::default(),
+    )
+    .unwrap();
     // TODO(Arni, 30/03/2024): Consider adding a test for the transaction execution info. If A test
     // should not be added, rename the test to `test_bouncer_info`.
     // TODO(Arni, 30/03/2024): Test all bouncer weights.

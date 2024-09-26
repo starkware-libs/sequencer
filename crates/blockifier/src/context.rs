@@ -17,7 +17,6 @@ use crate::transaction::objects::{
 };
 use crate::versioned_constants::VersionedConstants;
 
-/// Create via [`crate::blockifier::block::pre_process_block`] to ensure correctness.
 #[derive(Clone, Debug)]
 pub struct TransactionContext {
     pub block_context: BlockContext,

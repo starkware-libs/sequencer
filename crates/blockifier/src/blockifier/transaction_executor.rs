@@ -12,6 +12,7 @@ use itertools::Itertools;
 use starknet_api::core::ClassHash;
 use thiserror::Error;
 
+use crate::blockifier::block::{pre_process_block, BlockNumberHashPair};
 use crate::blockifier::config::TransactionExecutorConfig;
 use crate::bouncer::{Bouncer, BouncerWeights};
 #[cfg(feature = "concurrency")]
@@ -19,7 +20,7 @@ use crate::concurrency::worker_logic::WorkerExecutor;
 use crate::context::BlockContext;
 use crate::state::cached_state::{CachedState, CommitmentStateDiff, TransactionalState};
 use crate::state::errors::StateError;
-use crate::state::state_api::StateReader;
+use crate::state::state_api::{StateReader, StateResult};
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::TransactionExecutionInfo;
 use crate::transaction::transaction_execution::Transaction;
@@ -44,7 +45,7 @@ pub enum TransactionExecutorError {
 pub type TransactionExecutorResult<T> = Result<T, TransactionExecutorError>;
 pub type VisitedSegmentsMapping = Vec<(ClassHash, Vec<usize>)>;
 
-// TODO(Gilad): make this hold TransactionContext instead of BlockContext.
+/// A transaction executor, used for building a single block.
 pub struct TransactionExecutor<S: StateReader> {
     pub block_context: BlockContext,
     pub bouncer: Bouncer,
@@ -60,24 +61,37 @@ pub struct TransactionExecutor<S: StateReader> {
 }
 
 impl<S: StateReader> TransactionExecutor<S> {
+    /// Performs pre-processing required for block building before creating the executor.
+    pub fn pre_process_and_create(
+        initial_state_reader: S,
+        block_context: BlockContext,
+        old_block_number_and_hash: Option<BlockNumberHashPair>,
+        config: TransactionExecutorConfig,
+    ) -> StateResult<Self> {
+        let mut block_state = CachedState::new(initial_state_reader);
+        pre_process_block(
+            &mut block_state,
+            old_block_number_and_hash,
+            block_context.block_info().block_number,
+        )?;
+        Ok(Self::new(block_state, block_context, config))
+    }
+
+    // TODO(Yoni): consider making this c-tor private.
     pub fn new(
         block_state: CachedState<S>,
         block_context: BlockContext,
         config: TransactionExecutorConfig,
     ) -> Self {
-        log::debug!("Initializing Transaction Executor...");
         let bouncer_config = block_context.bouncer_config.clone();
         // Note: the state might not be empty even at this point; it is the creator's
         // responsibility to tune the bouncer according to pre and post block process.
-        let tx_executor = Self {
+        Self {
             block_context,
             bouncer: Bouncer::new(bouncer_config),
             config,
             block_state: Some(block_state),
-        };
-        log::debug!("Initialized Transaction Executor.");
-
-        tx_executor
+        }
     }
 
     /// Executes the given transaction on the state maintained by the executor.
