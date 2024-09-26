@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use cairo_native::executor::contract::ContractExecutor;
+use cairo_native::executor::AotContractExecutor;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
 use starknet_api::block::{BlockNumber, BlockTimestamp};
@@ -250,8 +250,8 @@ impl NativeContractClassV1 {
         // memory space.
         fn compile_and_load(
             sierra_program: &cairo_lang_sierra::program::Program,
-        ) -> Result<ContractExecutor, cairo_native::error::Error> {
-            ContractExecutor::new(sierra_program, cairo_native::OptLevel::Default)
+        ) -> Result<AotContractExecutor, cairo_native::error::Error> {
+            AotContractExecutor::new(sierra_program, cairo_native::OptLevel::Default)
         }
 
         let sierra_contract_class: cairo_lang_starknet_classes::contract_class::ContractClass =
