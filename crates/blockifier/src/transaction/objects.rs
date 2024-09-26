@@ -221,7 +221,7 @@ pub struct CommonAccountFields {
 }
 
 /// Contains the information gathered by the execution of a transaction.
-#[cfg_attr(feature = "transaction_serde", derive(Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Default, PartialEq)]
 pub struct TransactionExecutionInfo {
     /// Transaction validation call info; [None] for `L1Handler`.
@@ -260,7 +260,7 @@ impl TransactionExecutionInfo {
 }
 
 /// Contains all the L2 resources consumed by a transaction
-#[cfg_attr(feature = "transaction_serde", derive(Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct StarknetResources {
     pub calldata_length: usize,
@@ -446,7 +446,7 @@ impl StarknetResources {
     }
 }
 
-#[cfg_attr(feature = "transaction_serde", derive(Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Default, Clone, Debug, PartialEq)]
 pub struct TransactionResources {
     pub starknet_resources: StarknetResources,
