@@ -6824,7 +6824,6 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "cairo-lang-starknet-classes",
- "hex",
  "indexmap 2.2.6",
  "lazy_static",
  "papyrus_test_utils",
