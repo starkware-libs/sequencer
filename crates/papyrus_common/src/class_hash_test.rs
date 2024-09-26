@@ -1,6 +1,6 @@
-use papyrus_test_utils::read_json_file;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ContractClass;
+use starknet_api::test_utils::read_json_file;
 use starknet_api::{class_hash, felt};
 
 use crate::class_hash::calculate_class_hash;
