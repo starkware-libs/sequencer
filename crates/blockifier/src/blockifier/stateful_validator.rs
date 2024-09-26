@@ -61,7 +61,7 @@ impl<S: StateReader> StatefulValidator<S> {
         // Deploy account transactions should be fully executed, since the constructor must run
         // before `__validate_deploy__`. The execution already includes all necessary validations,
         // so they are skipped here.
-        if let AccountTransaction::DeployAccount(_) = tx {
+        if let starknet_api::executable_transaction::Transaction::DeployAccount(_) = tx.tx {
             self.execute(tx)?;
             return Ok(());
         }

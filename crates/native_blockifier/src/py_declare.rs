@@ -1,7 +1,6 @@
 use std::convert::TryFrom;
 
 use blockifier::transaction::transaction_types::TransactionType;
-use blockifier::transaction::transactions::DeclareTransaction;
 use pyo3::prelude::*;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -16,6 +15,7 @@ use starknet_api::transaction::{
     TransactionHash,
     TransactionSignature,
 };
+use starknet_api::executable_transaction::DeclareTransaction;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierInputError, NativeBlockifierResult};
@@ -136,5 +136,5 @@ pub fn py_declare(
     }?;
     let tx_hash = TransactionHash(py_attr::<PyFelt>(py_tx, "hash_value")?.0);
     let class_info = PyClassInfo::try_from(py_class_info, &tx)?;
-    Ok(DeclareTransaction::new(tx, tx_hash, class_info)?)
+    Ok(DeclareTransaction{tx, tx_hash, class_info})
 }

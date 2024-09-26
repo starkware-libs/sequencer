@@ -1,9 +1,9 @@
 use starknet_api::core::calculate_contract_address;
+use starknet_api::executable_transaction::DeployAccountTransaction;
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::NonceManager;
 
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::transactions::DeployAccountTransaction;
 
 pub fn deploy_account_tx(
     deploy_tx_args: DeployAccountTxArgs,
@@ -22,9 +22,8 @@ pub fn deploy_account_tx(
         deploy_tx_args,
         nonce_manager.next(contract_address),
     );
-    AccountTransaction::DeployAccount(DeployAccountTransaction::new(
-        deploy_account_tx,
-        tx_hash,
-        contract_address,
+
+    AccountTransaction::new(starknet_api::executable_transaction::Transaction::DeployAccount(
+        DeployAccountTransaction { tx: deploy_account_tx, tx_hash, contract_address },
     ))
 }

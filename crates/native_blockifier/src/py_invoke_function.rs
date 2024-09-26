@@ -2,7 +2,6 @@ use std::convert::TryFrom;
 use std::sync::Arc;
 
 use blockifier::transaction::transaction_types::TransactionType;
-use blockifier::transaction::transactions::InvokeTransaction;
 use pyo3::prelude::*;
 use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -19,6 +18,7 @@ use starknet_api::transaction::{
     TransactionSignature,
 };
 use starknet_types_core::felt::Felt;
+use starknet_api::executable_transaction::InvokeTransaction;
 
 use crate::errors::{NativeBlockifierInputError, NativeBlockifierResult};
 use crate::py_transaction::{PyDataAvailabilityMode, PyResourceBoundsMapping};
@@ -127,5 +127,5 @@ pub fn py_invoke_function(py_tx: &PyAny) -> NativeBlockifierResult<InvokeTransac
     }?;
 
     let tx_hash = TransactionHash(py_attr::<PyFelt>(py_tx, "hash_value")?.0);
-    Ok(InvokeTransaction::new(tx, tx_hash))
+    Ok(InvokeTransaction{tx, tx_hash})
 }

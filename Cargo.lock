@@ -10119,6 +10119,7 @@ dependencies = [
  "bitvec",
  "cairo-lang-runner",
  "cairo-lang-starknet-classes",
+ "cairo-vm",
  "derive_more 0.99.18",
  "hex",
  "indexmap 2.6.0",

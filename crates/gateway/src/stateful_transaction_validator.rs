@@ -75,7 +75,7 @@ impl StatefulTransactionValidator {
         mut validator: V,
     ) -> StatefulTransactionValidatorResult<()> {
         let skip_validate = skip_stateful_validations(executable_tx, account_nonce);
-        let account_tx = AccountTransaction::try_from(executable_tx).map_err(|error| {
+        let account_tx = AccountTransaction::try_from(executable_tx.clone()).map_err(|error| {
             error!("Failed to convert executable transaction into account transaction: {}", error);
             GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
         })?;

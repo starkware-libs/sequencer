@@ -12,6 +12,7 @@ use num_bigint::{BigInt, TryFromBigIntError};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use thiserror::Error;
+// use starknet_api::StarknetApiError;
 
 use crate::execution::entry_point::ConstructorContext;
 use crate::execution::stack_trace::Cairo1RevertStack;
@@ -142,3 +143,19 @@ pub enum ContractClassError {
         sierra_program_length: usize,
     },
 }
+
+// impl From<StarknetApiError> for ContractClassError {
+//     fn from(error: StarknetApiError) -> Self {
+//         match error {
+//             StarknetApiError::ContractClassVersionSierraProgramLengthMismatch(_) => {
+//                 let contract_class_version = error.contract_class_version;
+//                 let sierra_program_length = error.sierra_program_length;
+//                 ContractClassError::ContractClassVersionSierraProgramLengthMismatch {
+//                     contract_class_version,
+//                     sierra_program_length,
+//                 }
+//             }
+//             other => panic!("Unexpected error: {:?}", other),
+//         }
+//     }
+// }

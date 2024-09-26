@@ -23,11 +23,13 @@ use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use starknet_api::contract_class::ClassInfo;
+
 use blockifier::blockifier::block::{pre_process_block, BlockInfo, BlockNumberHashPair, GasPrices};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use blockifier::execution::call_info::CallExecution;
-use blockifier::execution::contract_class::ClassInfo;
+//use blockifier::execution::contract_class::ClassInfo;
 use blockifier::execution::entry_point::{
     CallEntryPoint,
     CallType as BlockifierCallType,
@@ -149,7 +151,8 @@ pub enum ExecutionError {
     BadDeclareTransaction {
         tx: DeclareTransaction,
         #[source]
-        err: blockifier::execution::errors::ContractClassError,
+        err: starknet_api::StarknetApiError,
+        // err: blockifier::execution::errors::ContractClassError,
     },
     #[error("Execution config file does not contain a configuration for all blocks")]
     ConfigContentError,
@@ -779,7 +782,7 @@ fn to_blockifier_tx(
             )
             .map_err(|err| ExecutionError::BadDeclareTransaction {
                 tx: DeclareTransaction::V0(declare_tx.clone()),
-                err,
+                err: err,
             })?;
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V0(declare_tx)),
@@ -804,7 +807,7 @@ fn to_blockifier_tx(
             )
             .map_err(|err| ExecutionError::BadDeclareTransaction {
                 tx: DeclareTransaction::V1(declare_tx.clone()),
-                err,
+                err: err,
             })?;
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V1(declare_tx)),
@@ -830,7 +833,7 @@ fn to_blockifier_tx(
             )
             .map_err(|err| ExecutionError::BadDeclareTransaction {
                 tx: DeclareTransaction::V2(declare_tx.clone()),
-                err,
+                err: err,
             })?;
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V2(declare_tx)),
@@ -856,7 +859,7 @@ fn to_blockifier_tx(
             )
             .map_err(|err| ExecutionError::BadDeclareTransaction {
                 tx: DeclareTransaction::V3(declare_tx.clone()),
-                err,
+                err: err,
             })?;
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V3(declare_tx)),
