@@ -302,7 +302,7 @@ pub fn get_tx_weights<S: StateReader>(
         get_casm_hash_calculation_resources(state_reader, executed_class_hashes)?;
     additional_os_resources += &get_particia_update_resources(n_visited_storage_entries);
 
-    let vm_resources = &additional_os_resources + &tx_resources.vm_resources;
+    let vm_resources = &additional_os_resources + &tx_resources.computation.vm_resources;
 
     Ok(BouncerWeights {
         gas: message_starknet_gas,

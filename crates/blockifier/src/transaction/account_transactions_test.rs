@@ -151,7 +151,7 @@ fn test_rc96_holes(block_context: BlockContext, max_l1_resource_bounds: ValidRes
 
     assert!(!tx_execution_info.is_reverted());
     assert_eq!(
-        tx_execution_info.receipt.resources.vm_resources.builtin_instance_counter
+        tx_execution_info.receipt.resources.computation.vm_resources.builtin_instance_counter
             [&BuiltinName::range_check96],
         24
     );
@@ -571,7 +571,7 @@ fn test_revert_invoke(
     assert_eq!(state.get_nonce_at(account_address).unwrap(), nonce_manager.next(account_address));
 
     // Check that reverted steps are taken into account.
-    assert!(tx_execution_info.receipt.resources.n_reverted_steps > 0);
+    assert!(tx_execution_info.receipt.resources.computation.n_reverted_steps > 0);
 
     // Check that execution state changes were reverted.
     assert_eq!(
@@ -725,7 +725,7 @@ fn test_reverted_reach_steps_limit(
         },
     )
     .unwrap();
-    let n_steps_0 = result.receipt.resources.total_charged_steps();
+    let n_steps_0 = result.receipt.resources.computation.total_charged_steps();
     let actual_fee_0 = result.receipt.fee.0;
     // Ensure the transaction was not reverted.
     assert!(!result.is_reverted());
@@ -741,7 +741,7 @@ fn test_reverted_reach_steps_limit(
         },
     )
     .unwrap();
-    let n_steps_1 = result.receipt.resources.total_charged_steps();
+    let n_steps_1 = result.receipt.resources.computation.total_charged_steps();
     let actual_fee_1 = result.receipt.fee.0;
     // Ensure the transaction was not reverted.
     assert!(!result.is_reverted());
@@ -768,7 +768,7 @@ fn test_reverted_reach_steps_limit(
         },
     )
     .unwrap();
-    let n_steps_fail = result.receipt.resources.total_charged_steps();
+    let n_steps_fail = result.receipt.resources.computation.total_charged_steps();
     let actual_fee_fail: u128 = result.receipt.fee.0;
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
@@ -791,7 +791,7 @@ fn test_reverted_reach_steps_limit(
         },
     )
     .unwrap();
-    let n_steps_fail_next = result.receipt.resources.total_charged_steps();
+    let n_steps_fail_next = result.receipt.resources.computation.total_charged_steps();
     let actual_fee_fail_next: u128 = result.receipt.fee.0;
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
@@ -830,8 +830,8 @@ fn test_n_reverted_steps(
     .unwrap();
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
-    let mut actual_resources_0 = result.receipt.resources.clone();
-    let n_steps_0 = result.receipt.resources.total_charged_steps();
+    let mut actual_resources_0 = result.receipt.resources.computation.clone();
+    let n_steps_0 = result.receipt.resources.computation.total_charged_steps();
     let actual_fee_0 = result.receipt.fee.0;
 
     // Invoke the `recursive_fail` function with 1 iterations. This call should fail.
@@ -847,7 +847,7 @@ fn test_n_reverted_steps(
     .unwrap();
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
-    let actual_resources_1 = result.receipt.resources;
+    let actual_resources_1 = result.receipt.resources.computation;
     let n_steps_1 = actual_resources_1.total_charged_steps();
     let actual_fee_1 = result.receipt.fee.0;
 
@@ -862,7 +862,7 @@ fn test_n_reverted_steps(
         },
     )
     .unwrap();
-    let n_steps_2 = result.receipt.resources.total_charged_steps();
+    let n_steps_2 = result.receipt.resources.computation.total_charged_steps();
     let actual_fee_2 = result.receipt.fee.0;
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
@@ -894,7 +894,7 @@ fn test_n_reverted_steps(
         },
     )
     .unwrap();
-    let n_steps_100 = result.receipt.resources.total_charged_steps();
+    let n_steps_100 = result.receipt.resources.computation.total_charged_steps();
     let actual_fee_100 = result.receipt.fee.0;
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
@@ -942,7 +942,7 @@ fn test_max_fee_to_max_steps_conversion(
     let execution_context1 = EntryPointExecutionContext::new_invoke(tx_context1, true);
     let max_steps_limit1 = execution_context1.vm_run_resources.get_n_steps();
     let tx_execution_info1 = account_tx1.execute(&mut state, &block_context, true, true).unwrap();
-    let n_steps1 = tx_execution_info1.receipt.resources.vm_resources.n_steps;
+    let n_steps1 = tx_execution_info1.receipt.resources.computation.vm_resources.n_steps;
     let gas_used_vector1 = tx_execution_info1
         .receipt
         .resources
@@ -966,7 +966,7 @@ fn test_max_fee_to_max_steps_conversion(
     let execution_context2 = EntryPointExecutionContext::new_invoke(tx_context2, true);
     let max_steps_limit2 = execution_context2.vm_run_resources.get_n_steps();
     let tx_execution_info2 = account_tx2.execute(&mut state, &block_context, true, true).unwrap();
-    let n_steps2 = tx_execution_info2.receipt.resources.vm_resources.n_steps;
+    let n_steps2 = tx_execution_info2.receipt.resources.computation.vm_resources.n_steps;
     let gas_used_vector2 = tx_execution_info2
         .receipt
         .resources

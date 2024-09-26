@@ -4,7 +4,12 @@ use starknet_api::transaction::Fee;
 
 use crate::context::TransactionContext;
 use crate::execution::call_info::ExecutionSummary;
-use crate::fee::resources::{GasVector, StarknetResources, TransactionResources};
+use crate::fee::resources::{
+    ComputationResources,
+    GasVector,
+    StarknetResources,
+    TransactionResources,
+};
 use crate::state::cached_state::StateChanges;
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::objects::{HasRelatedFeeType, TransactionExecutionResult};
@@ -77,8 +82,10 @@ impl TransactionReceipt {
 
         let tx_resources = TransactionResources {
             starknet_resources,
-            vm_resources: cairo_resources,
-            n_reverted_steps: reverted_steps,
+            computation: ComputationResources {
+                vm_resources: cairo_resources,
+                n_reverted_steps: reverted_steps,
+            },
         };
 
         let gas = tx_resources.to_gas_vector(
