@@ -1,7 +1,6 @@
 use std::net::SocketAddr;
 
-use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::CairoVersion;
+use mempool_test_utils::starknet_api_test_utils::FeatureAccount;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -29,21 +28,16 @@ pub struct IntegrationTestSetup {
 }
 
 impl IntegrationTestSetup {
-    pub async fn new(n_accounts: usize) -> Self {
-        let default_account_contract =
-            FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
-        let accounts = std::iter::repeat(default_account_contract).take(n_accounts);
-        Self::new_for_account_contracts(accounts).await
-    }
-
-    pub async fn new_for_account_contracts(
-        accounts: impl IntoIterator<Item = FeatureContract>,
-    ) -> Self {
+    pub async fn new_for_account_contracts(accounts: &[FeatureAccount]) -> Self {
         let handle = Handle::current();
         let task_executor = TokioExecutor::new(handle);
 
         // Configure and start tracing
         configure_tracing();
+
+        // FIXME: will be removed in a subsequent commit, which adds support for `FeatureAccount`
+        // to the state reader.
+        let accounts = accounts.iter().map(|account| account.account);
 
         // Spawn a papyrus rpc server for a papyrus storage reader.
         let rpc_server_addr = spawn_test_rpc_state_reader(accounts).await;

@@ -8,7 +8,7 @@ pub mod declare;
 pub mod deploy_account;
 pub mod invoke;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct NonceManager {
     next_nonce: HashMap<ContractAddress, Felt>,
 }
