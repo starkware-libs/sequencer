@@ -2,15 +2,17 @@ use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
-use starknet_api::block::{BlockNumber, BlockTimestamp};
+use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp};
 use starknet_api::core::{ChainId, ContractAddress, Nonce, PatriciaKey};
+use starknet_api::hash::StarkHash;
 use starknet_api::transaction::{Calldata, Fee, TransactionHash, TransactionVersion};
 use starknet_api::{calldata, contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
 
 use super::update_json_value;
 use crate::abi::abi_utils::selector_from_name;
-use crate::blockifier::block::{BlockInfo, GasPrices};
+use crate::abi::constants;
+use crate::blockifier::block::{BlockInfo, BlockNumberHashPair, GasPrices};
 use crate::bouncer::{BouncerConfig, BouncerWeights};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
@@ -136,6 +138,18 @@ impl GasCosts {
         update_json_value(&mut os_constants, subset_of_os_constants);
         let os_constants: OsConstants = serde_json::from_value(os_constants).unwrap();
         os_constants.gas_costs
+    }
+}
+
+impl BlockNumberHashPair {
+    pub fn create_given_current(block_number: BlockNumber) -> Option<Self> {
+        if block_number.0 < constants::STORED_BLOCK_HASH_BUFFER {
+            return None;
+        }
+        Some(Self {
+            number: BlockNumber(block_number.0 - constants::STORED_BLOCK_HASH_BUFFER),
+            hash: BlockHash(StarkHash::ONE),
+        })
     }
 }
 
