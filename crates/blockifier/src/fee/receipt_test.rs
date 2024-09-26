@@ -177,7 +177,8 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
                 ..Default::default()
             },
             ..Default::default()
-        };
+        }
+        .with_some_class_hash();
 
         call_infos.push(call_info);
     }

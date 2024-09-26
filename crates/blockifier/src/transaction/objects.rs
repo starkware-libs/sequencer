@@ -24,13 +24,14 @@ use strum_macros::EnumIter;
 use crate::abi::constants as abi_constants;
 use crate::blockifier::block::BlockInfo;
 use crate::context::TransactionContext;
-use crate::execution::call_info::{CallInfo, ExecutionSummary, MessageL1CostInfo, OrderedEvent};
+use crate::execution::call_info::{CallInfo, EventSummary, ExecutionSummary, MessageL1CostInfo};
 use crate::fee::eth_gas_constants;
 use crate::fee::fee_utils::{get_fee_by_gas_vector, get_vm_resources_cost};
 use crate::fee::gas_usage::{
     get_consumed_message_to_l2_emissions_cost,
     get_da_gas_cost,
     get_log_message_to_l1_emissions_cost,
+    get_message_segment_length,
     get_onchain_data_segment_length,
 };
 use crate::fee::receipt::TransactionReceipt;
@@ -267,11 +268,9 @@ pub struct StarknetResources {
     pub state_changes_for_fee: StateChangesCount,
     pub message_cost_info: MessageL1CostInfo,
     pub l1_handler_payload_size: Option<usize>,
-    pub n_events: usize,
+    pub event_summary: EventSummary,
     signature_length: usize,
     code_size: usize,
-    total_event_keys: u128,
-    total_event_data_size: u128,
 }
 
 impl StarknetResources {
@@ -283,19 +282,24 @@ impl StarknetResources {
         l1_handler_payload_size: Option<usize>,
         call_infos: impl Iterator<Item = &'a CallInfo> + Clone,
     ) -> Self {
-        let (n_events, total_event_keys, total_event_data_size) =
-            StarknetResources::calculate_events_resources(call_infos.clone());
-
+        // TODO(Yoni): store the entire summary.
+        let execution_summary_without_fee_transfer = CallInfo::summarize_many(call_infos.clone());
+        let l2_to_l1_payload_lengths =
+            execution_summary_without_fee_transfer.l2_to_l1_payload_lengths;
+        let message_segment_length =
+            get_message_segment_length(&l2_to_l1_payload_lengths, l1_handler_payload_size);
         Self {
             calldata_length,
             signature_length,
             code_size,
             state_changes_for_fee: state_changes_count,
+            // TODO(Yoni, 1/10/2024): remove.
+            message_cost_info: MessageL1CostInfo {
+                l2_to_l1_payload_lengths,
+                message_segment_length,
+            },
             l1_handler_payload_size,
-            message_cost_info: MessageL1CostInfo::calculate(call_infos, l1_handler_payload_size),
-            n_events,
-            total_event_keys,
-            total_event_data_size,
+            event_summary: execution_summary_without_fee_transfer.event_summary,
         }
     }
 
@@ -413,36 +417,13 @@ impl StarknetResources {
     /// mode.
     pub fn get_events_gas_cost(&self, archival_gas_costs: &ArchivalDataGasCosts) -> u128 {
         (archival_gas_costs.gas_per_data_felt
-            * (archival_gas_costs.event_key_factor * self.total_event_keys
-                + self.total_event_data_size))
+            * (archival_gas_costs.event_key_factor * self.event_summary.total_event_keys
+                + self.event_summary.total_event_data_size))
             .to_integer()
     }
 
     pub fn get_onchain_data_segment_length(&self) -> usize {
         get_onchain_data_segment_length(&self.state_changes_for_fee)
-    }
-
-    /// Private and static method that calculates the n_events, total_event_keys and
-    /// total_event_data_size fields according to the call_infos of a transaction.
-    fn calculate_events_resources<'a>(
-        call_infos: impl Iterator<Item = &'a CallInfo> + Clone,
-    ) -> (usize, u128, u128) {
-        let mut total_event_keys = 0;
-        let mut total_event_data_size = 0;
-        let mut n_events = 0;
-        for call_info in call_infos.clone() {
-            for inner_call in call_info.iter() {
-                for OrderedEvent { event, .. } in inner_call.execution.events.iter() {
-                    // TODO(barak: 18/03/2024): Once we start charging per byte
-                    // change to num_bytes_keys
-                    // and num_bytes_data.
-                    total_event_data_size += u128_from_usize(event.data.0.len());
-                    total_event_keys += u128_from_usize(event.keys.len());
-                }
-                n_events += inner_call.execution.events.len();
-            }
-        }
-        (n_events, total_event_keys, total_event_data_size)
     }
 }
 

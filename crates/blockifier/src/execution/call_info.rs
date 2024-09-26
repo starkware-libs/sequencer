@@ -10,7 +10,6 @@ use starknet_api::transaction::{EventContent, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
 use crate::execution::entry_point::CallEntryPoint;
-use crate::fee::gas_usage::get_message_segment_length;
 use crate::state::cached_state::StorageEntry;
 use crate::utils::u128_from_usize;
 
@@ -38,23 +37,6 @@ pub struct OrderedEvent {
 pub struct MessageL1CostInfo {
     pub l2_to_l1_payload_lengths: Vec<usize>,
     pub message_segment_length: usize,
-}
-
-impl MessageL1CostInfo {
-    pub fn calculate<'a>(
-        call_infos: impl Iterator<Item = &'a CallInfo>,
-        l1_handler_payload_size: Option<usize>,
-    ) -> Self {
-        let mut l2_to_l1_payload_lengths = Vec::new();
-        for call_info in call_infos {
-            l2_to_l1_payload_lengths.extend(call_info.get_l2_to_l1_payload_lengths());
-        }
-
-        let message_segment_length =
-            get_message_segment_length(&l2_to_l1_payload_lengths, l1_handler_payload_size);
-
-        Self { l2_to_l1_payload_lengths, message_segment_length }
-    }
 }
 
 #[cfg_attr(test, derive(Clone))]
@@ -97,7 +79,7 @@ pub struct EventSummary {
     pub total_event_data_size: u128,
 }
 
-#[derive(Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ExecutionSummary {
     pub executed_class_hashes: HashSet<ClassHash>,
     pub visited_storage_entries: HashSet<StorageEntry>,
