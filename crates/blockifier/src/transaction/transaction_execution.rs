@@ -1,14 +1,20 @@
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::contract_class::ClassInfo;
 use starknet_api::core::{calculate_contract_address, ContractAddress, Nonce};
-use starknet_api::executable_transaction::L1HandlerTransaction;
+use starknet_api::executable_transaction::{
+    DeclareTransaction as ApiExecutableDeclareTransaction,
+    DeployAccountTransaction as ApiExecutableDeployAccountTransaction,
+    InvokeTransaction as ApiExecutableInvokeTransaction,
+    L1HandlerTransaction,
+    Transaction as ApiExecutableTransaction,
+};
 use starknet_api::transaction::{Fee, Transaction as StarknetApiTransaction, TransactionHash};
 
 use crate::bouncer::verify_tx_weights_within_max_capacity;
 use crate::context::BlockContext;
 use crate::execution::call_info::CallInfo;
-use crate::execution::contract_class::ClassInfo;
 use crate::execution::entry_point::EntryPointExecutionContext;
 use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::TransactionalState;
@@ -21,14 +27,7 @@ use crate::transaction::objects::{
     TransactionInfo,
     TransactionInfoCreator,
 };
-use crate::transaction::transactions::{
-    DeclareTransaction,
-    DeployAccountTransaction,
-    Executable,
-    ExecutableTransaction,
-    ExecutionFlags,
-    InvokeTransaction,
-};
+use crate::transaction::transactions::{Executable, ExecutableTransaction, ExecutionFlags};
 
 // TODO: Move into transaction.rs, makes more sense to be defined there.
 #[derive(Clone, Debug, derive_more::From)]
@@ -79,13 +78,17 @@ impl Transaction {
             StarknetApiTransaction::Declare(declare) => {
                 let non_optional_class_info =
                     class_info.expect("Declare should be created with a ClassInfo.");
+                let executable_declare_tx =
+                    ApiExecutableTransaction::Declare(ApiExecutableDeclareTransaction {
+                        tx: declare,
+                        tx_hash,
+                        class_info: non_optional_class_info,
+                    });
                 let declare_tx = match only_query {
-                    true => {
-                        DeclareTransaction::new_for_query(declare, tx_hash, non_optional_class_info)
-                    }
-                    false => DeclareTransaction::new(declare, tx_hash, non_optional_class_info),
+                    true => AccountTransaction::new_for_query(executable_declare_tx),
+                    false => AccountTransaction::new(executable_declare_tx),
                 };
-                Ok(declare_tx?.into())
+                Ok(Self::Account(declare_tx))
             }
             StarknetApiTransaction::DeployAccount(deploy_account) => {
                 let contract_address = match deployed_contract_address {
@@ -97,24 +100,30 @@ impl Transaction {
                         ContractAddress::default(),
                     )?,
                 };
-                let deploy_account_tx = match only_query {
-                    true => DeployAccountTransaction::new_for_query(
-                        deploy_account,
+                let executable_deploy_account_tx = ApiExecutableTransaction::DeployAccount(
+                    ApiExecutableDeployAccountTransaction {
+                        tx: deploy_account,
                         tx_hash,
                         contract_address,
-                    ),
-                    false => {
-                        DeployAccountTransaction::new(deploy_account, tx_hash, contract_address)
-                    }
+                    },
+                );
+                let deploy_account_tx = match only_query {
+                    true => AccountTransaction::new_for_query(executable_deploy_account_tx),
+                    false => AccountTransaction::new(executable_deploy_account_tx),
                 };
-                Ok(deploy_account_tx.into())
+                Ok(Self::Account(deploy_account_tx))
             }
             StarknetApiTransaction::Invoke(invoke) => {
+                let executable_invoke_tx =
+                    ApiExecutableTransaction::Invoke(ApiExecutableInvokeTransaction {
+                        tx: invoke,
+                        tx_hash,
+                    });
                 let invoke_tx = match only_query {
-                    true => InvokeTransaction::new_for_query(invoke, tx_hash),
-                    false => InvokeTransaction::new(invoke, tx_hash),
+                    true => AccountTransaction::new_for_query(executable_invoke_tx),
+                    false => AccountTransaction::new(executable_invoke_tx),
                 };
-                Ok(invoke_tx.into())
+                Ok(Self::Account(invoke_tx))
             }
             _ => unimplemented!(),
         }
@@ -218,23 +227,5 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
         )?;
 
         Ok(tx_execution_info)
-    }
-}
-
-impl From<DeclareTransaction> for Transaction {
-    fn from(value: DeclareTransaction) -> Self {
-        Self::Account(AccountTransaction::Declare(value))
-    }
-}
-
-impl From<DeployAccountTransaction> for Transaction {
-    fn from(value: DeployAccountTransaction) -> Self {
-        Self::Account(AccountTransaction::DeployAccount(value))
-    }
-}
-
-impl From<InvokeTransaction> for Transaction {
-    fn from(value: InvokeTransaction) -> Self {
-        Self::Account(AccountTransaction::Invoke(value))
     }
 }

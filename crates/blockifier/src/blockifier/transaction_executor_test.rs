@@ -142,15 +142,15 @@ fn test_deploy_account(
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let state = test_state(&block_context.chain_info, BALANCE, &[(account_contract, 0)]);
 
-    let tx = deploy_account_tx(
+    let deploy_account_tx = deploy_account_tx(
         deploy_account_tx_args! {
             class_hash: account_contract.get_class_hash(),
             resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
             version,
         },
         &mut NonceManager::default(),
-    )
-    .into();
+    );
+    let tx = Transaction::Account(deploy_account_tx);
     let expected_bouncer_weights = BouncerWeights {
         state_diff_size: 3,
         message_segment_length: 0,

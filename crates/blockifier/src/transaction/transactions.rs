@@ -47,6 +47,7 @@ use crate::transaction::objects::{
     TransactionExecutionResult,
     TransactionInfo,
     TransactionInfoCreator,
+    TransactionInfoCreatorInner,
 };
 #[cfg(test)]
 #[path = "transactions_test.rs"]
@@ -661,8 +662,8 @@ impl<S: State> Executable<S> for ExecutableDeclareTx {
     }
 }
 
-impl TransactionInfoCreator for ExecutableDeclareTx {
-    fn create_tx_info(&self) -> TransactionInfo {
+impl TransactionInfoCreatorInner for ExecutableDeclareTx {
+    fn create_tx_info(&self, only_query: bool) -> TransactionInfo {
         // TODO(Nir, 01/11/2023): Consider to move this (from all get_tx_info methods).
         let common_fields = CommonAccountFields {
             transaction_hash: self.tx_hash,
@@ -670,8 +671,7 @@ impl TransactionInfoCreator for ExecutableDeclareTx {
             signature: self.signature(),
             nonce: self.nonce(),
             sender_address: self.sender_address(),
-            only_query: false, /* Reminder(AvivG remove before PR): override by the AccountTx
-                                * when calling. */
+            only_query,
         };
 
         match &self.tx {
@@ -731,16 +731,15 @@ impl<S: State> Executable<S> for ExecutableDeployAccountTx {
     }
 }
 
-impl TransactionInfoCreator for ExecutableDeployAccountTx {
-    fn create_tx_info(&self) -> TransactionInfo {
+impl TransactionInfoCreatorInner for ExecutableDeployAccountTx {
+    fn create_tx_info(&self, only_query: bool) -> TransactionInfo {
         let common_fields = CommonAccountFields {
             transaction_hash: self.tx_hash(),
             version: self.version(),
             signature: self.signature(),
             nonce: self.nonce(),
             sender_address: self.contract_address(),
-            only_query: false, /* Reminder(AvivG remove before PR): override by the AccountTx
-                                * when calling. */
+            only_query,
         };
 
         match &self.tx {
@@ -806,16 +805,15 @@ impl<S: State> Executable<S> for ExecutableInvokeTx {
     }
 }
 
-impl TransactionInfoCreator for ExecutableInvokeTx {
-    fn create_tx_info(&self) -> TransactionInfo {
+impl TransactionInfoCreatorInner for ExecutableInvokeTx {
+    fn create_tx_info(&self, only_query: bool) -> TransactionInfo {
         let common_fields = CommonAccountFields {
             transaction_hash: self.tx_hash(),
             version: self.version(),
             signature: self.signature(),
             nonce: self.nonce(),
             sender_address: self.sender_address(),
-            only_query: false, /* Reminder(AvivG remove before PR): override by the AccountTx
-                                * when calling. */
+            only_query,
         };
 
         match &self.tx() {
