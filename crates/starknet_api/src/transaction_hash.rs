@@ -7,6 +7,7 @@ use crate::core::{calculate_contract_address, ChainId, ContractAddress};
 use crate::crypto::utils::HashChain;
 use crate::data_availability::DataAvailabilityMode;
 use crate::transaction::{
+    signed_tx_version_from_tx,
     DeclareTransaction,
     DeclareTransactionV0V1,
     DeclareTransactionV2,
@@ -24,6 +25,7 @@ use crate::transaction::{
     Tip,
     Transaction,
     TransactionHash,
+    TransactionOptions,
     TransactionVersion,
     ValidResourceBounds,
 };
@@ -53,8 +55,9 @@ const CONSTRUCTOR_ENTRY_POINT_SELECTOR: Felt =
 pub fn get_transaction_hash(
     transaction: &Transaction,
     chain_id: &ChainId,
-    transaction_version: &TransactionVersion,
+    transaction_options: &TransactionOptions,
 ) -> Result<TransactionHash, StarknetApiError> {
+    let transaction_version = &signed_tx_version_from_tx(transaction, transaction_options);
     match transaction {
         Transaction::Declare(declare) => match declare {
             DeclareTransaction::V0(declare_v0) => {
@@ -115,8 +118,9 @@ fn get_deprecated_transaction_hashes(
     chain_id: &ChainId,
     block_number: &BlockNumber,
     transaction: &Transaction,
-    transaction_version: &TransactionVersion,
+    transaction_options: &TransactionOptions,
 ) -> Result<Vec<TransactionHash>, StarknetApiError> {
+    let transaction_version = &signed_tx_version_from_tx(transaction, transaction_options);
     Ok(if chain_id == &ChainId::Mainnet && block_number > &MAINNET_TRANSACTION_HASH_WITH_VERSION {
         vec![]
     } else {
@@ -155,15 +159,15 @@ pub fn validate_transaction_hash(
     block_number: &BlockNumber,
     chain_id: &ChainId,
     expected_hash: TransactionHash,
-    transaction_version: &TransactionVersion,
+    transaction_options: &TransactionOptions,
 ) -> Result<bool, StarknetApiError> {
     let mut possible_hashes = get_deprecated_transaction_hashes(
         chain_id,
         block_number,
         transaction,
-        transaction_version,
+        transaction_options,
     )?;
-    possible_hashes.push(get_transaction_hash(transaction, chain_id, transaction_version)?);
+    possible_hashes.push(get_transaction_hash(transaction, chain_id, transaction_options)?);
     Ok(possible_hashes.contains(&expected_hash))
 }
 
