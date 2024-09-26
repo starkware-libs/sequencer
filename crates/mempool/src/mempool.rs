@@ -13,7 +13,21 @@ use crate::transaction_queue::TransactionQueue;
 #[path = "mempool_test.rs"]
 pub mod mempool_test;
 
-type AccountToNonce = HashMap<ContractAddress, Nonce>;
+#[derive(Debug, Default, PartialEq)]
+struct AccountToNonce(HashMap<ContractAddress, Nonce>);
+impl AccountToNonce {
+    fn insert(&mut self, address: ContractAddress, nonce: Nonce) {
+        self.0.insert(address, nonce);
+    }
+
+    fn remove(&mut self, address: &ContractAddress) {
+        self.0.remove(address);
+    }
+
+    fn get(&self, address: &ContractAddress) -> Option<&Nonce> {
+        self.0.get(address)
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct Mempool {
