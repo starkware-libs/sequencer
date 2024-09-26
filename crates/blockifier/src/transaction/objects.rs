@@ -259,27 +259,6 @@ impl TransactionExecutionInfo {
     }
 }
 
-/// A mapping from a transaction execution resource to its actual usage.
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
-pub struct ResourcesMapping(pub HashMap<String, usize>);
-
-impl ResourcesMapping {
-    #[cfg(test)]
-    pub fn n_steps(&self) -> usize {
-        *self.0.get(abi_constants::N_STEPS_RESOURCE).unwrap()
-    }
-
-    #[cfg(test)]
-    pub fn gas_usage(&self) -> usize {
-        *self.0.get(abi_constants::L1_GAS_USAGE).unwrap()
-    }
-
-    #[cfg(test)]
-    pub fn blob_gas_usage(&self) -> usize {
-        *self.0.get(abi_constants::BLOB_GAS_USAGE).unwrap()
-    }
-}
-
 /// Contains all the L2 resources consumed by a transaction
 #[cfg_attr(feature = "transaction_serde", derive(Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -506,7 +485,6 @@ impl TransactionResources {
 
 pub trait ExecutionResourcesTraits {
     fn total_n_steps(&self) -> usize;
-    fn to_resources_mapping(&self) -> ResourcesMapping;
     fn prover_builtins(&self) -> HashMap<BuiltinName, usize>;
 }
 
@@ -533,19 +511,6 @@ impl ExecutionResourcesTraits for ExecutionResources {
         // See "total_n_steps" documentation.
         builtins.remove(&BuiltinName::segment_arena);
         builtins
-    }
-
-    // TODO(Nimrod, 1/5/2024): Delete this function when it's no longer in use.
-    fn to_resources_mapping(&self) -> ResourcesMapping {
-        let mut map =
-            HashMap::from([(abi_constants::N_STEPS_RESOURCE.to_string(), self.total_n_steps())]);
-        map.extend(
-            self.prover_builtins()
-                .iter()
-                .map(|(builtin, value)| (builtin.to_str_with_suffix().to_string(), *value)),
-        );
-
-        ResourcesMapping(map)
     }
 }
 

@@ -1,15 +1,22 @@
 use std::collections::HashMap;
 
+use blockifier::abi::constants as abi_constants;
 use blockifier::blockifier::block::pre_process_block;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{TransactionExecutor, TransactionExecutorError};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::execution::call_info::CallInfo;
+use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::cached_state::CachedState;
 use blockifier::state::global_cache::GlobalContractCache;
-use blockifier::transaction::objects::{GasVector, ResourcesMapping, TransactionExecutionInfo};
+use blockifier::transaction::objects::{
+    ExecutionResourcesTraits,
+    GasVector,
+    TransactionExecutionInfo,
+};
 use blockifier::transaction::transaction_execution::Transaction;
+use blockifier::utils::usize_from_u128;
 use blockifier::versioned_constants::VersionedConstants;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyList};
@@ -37,6 +44,10 @@ mod py_block_executor_test;
 
 const RESULT_SERIALIZE_ERR: &str = "Failed serializing execution info.";
 
+/// A mapping from a transaction execution resource to its actual usage.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+pub struct ResourcesMapping(pub HashMap<String, usize>);
+
 /// Stripped down `TransactionExecutionInfo` for Python serialization, containing only the required
 /// fields.
 #[derive(Debug, Serialize)]
@@ -59,13 +70,52 @@ impl ThinTransactionExecutionInfo {
             fee_transfer_call_info: tx_execution_info.fee_transfer_call_info,
             actual_fee: tx_execution_info.receipt.fee,
             da_gas: tx_execution_info.receipt.da_gas,
-            actual_resources: tx_execution_info.receipt.to_resources_mapping(true),
+            actual_resources: ThinTransactionExecutionInfo::receipt_to_resources_mapping(
+                &tx_execution_info.receipt,
+            ),
             revert_error: tx_execution_info.revert_error,
             total_gas: tx_execution_info.receipt.gas,
         }
     }
     pub fn serialize(self) -> RawTransactionExecutionResult {
         serde_json::to_vec(&self).expect(RESULT_SERIALIZE_ERR)
+    }
+
+    pub fn receipt_to_resources_mapping(receipt: &TransactionReceipt) -> ResourcesMapping {
+        let GasVector { l1_gas, l1_data_gas, l2_gas } = receipt.gas;
+        let vm_resources = &receipt.resources.vm_resources;
+        let mut resources = HashMap::from([(
+            abi_constants::N_STEPS_RESOURCE.to_string(),
+            vm_resources.total_n_steps(),
+        )]);
+        resources.extend(
+            vm_resources
+                .prover_builtins()
+                .iter()
+                .map(|(builtin, value)| (builtin.to_str_with_suffix().to_string(), *value)),
+        );
+        // TODO(Yoni) remove these since we pass the gas vector in separate.
+        resources.extend(HashMap::from([
+            (
+                abi_constants::L1_GAS_USAGE.to_string(),
+                usize_from_u128(l1_gas)
+                    .expect("This conversion should not fail as the value is a converted usize."),
+            ),
+            (
+                abi_constants::BLOB_GAS_USAGE.to_string(),
+                usize_from_u128(l1_data_gas)
+                    .expect("This conversion should not fail as the value is a converted usize."),
+            ),
+            (
+                abi_constants::L2_GAS_USAGE.to_string(),
+                usize_from_u128(l2_gas)
+                    .expect("This conversion should not fail as the value is a converted usize."),
+            ),
+        ]));
+        *resources.get_mut(abi_constants::N_STEPS_RESOURCE).unwrap_or(&mut 0) +=
+            receipt.resources.n_reverted_steps;
+
+        ResourcesMapping(resources)
     }
 }
 
