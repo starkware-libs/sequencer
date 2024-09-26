@@ -4,15 +4,10 @@ use starknet_api::transaction::Fee;
 
 use crate::context::TransactionContext;
 use crate::execution::call_info::CallInfo;
+use crate::fee::resources::{GasVector, StarknetResources, TransactionResources};
 use crate::state::cached_state::StateChanges;
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::objects::{
-    GasVector,
-    HasRelatedFeeType,
-    StarknetResources,
-    TransactionExecutionResult,
-    TransactionResources,
-};
+use crate::transaction::objects::{HasRelatedFeeType, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
 
 #[cfg(test)]

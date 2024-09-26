@@ -11,14 +11,11 @@ use crate::blockifier::transaction_executor::{
 };
 use crate::execution::call_info::ExecutionSummary;
 use crate::fee::gas_usage::get_onchain_data_segment_length;
+use crate::fee::resources::TransactionResources;
 use crate::state::cached_state::{StateChangesKeys, StorageEntry};
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
-use crate::transaction::objects::{
-    ExecutionResourcesTraits,
-    TransactionExecutionResult,
-    TransactionResources,
-};
+use crate::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionResult};
 
 #[cfg(test)]
 #[path = "bouncer_test.rs"]
