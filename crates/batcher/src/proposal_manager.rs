@@ -134,15 +134,13 @@ impl ProposalManager {
         info!("Starting generation of a new proposal with id {}.", proposal_id);
         self.set_active_proposal(proposal_id).await?;
 
-        let block_builder = self.block_builder_factory.create_block_builder();
-
         self.active_proposal_handle = Some(tokio::spawn(
             BuildProposalTask {
                 mempool_client: self.mempool_client.clone(),
                 output_content_sender,
                 block_builder_next_txs_buffer_size: self.config.block_builder_next_txs_buffer_size,
                 max_txs_per_mempool_request: self.config.max_txs_per_mempool_request,
-                block_builder,
+                block_builder_factory: self.block_builder_factory.clone(),
                 active_proposal: self.active_proposal.clone(),
                 deadline,
             }
@@ -187,7 +185,7 @@ struct BuildProposalTask {
     output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
     max_txs_per_mempool_request: usize,
     block_builder_next_txs_buffer_size: usize,
-    block_builder: Arc<dyn BlockBuilderTrait>,
+    block_builder_factory: Arc<dyn BlockBuilderFactoryTrait>,
     active_proposal: Arc<Mutex<Option<ProposalId>>>,
     deadline: tokio::time::Instant,
 }
@@ -197,10 +195,11 @@ impl BuildProposalTask {
     async fn run(mut self) -> ProposalsManagerResult<()> {
         // We convert the receiver to a stream and pass it to the block builder while using the
         // sender to feed the stream.
+        let block_builder = self.block_builder_factory.create_block_builder();
         let (mempool_tx_sender, mempool_tx_receiver) =
             tokio::sync::mpsc::channel::<Transaction>(self.block_builder_next_txs_buffer_size);
         let mempool_tx_stream = ReceiverStream::new(mempool_tx_receiver);
-        let building_future = self.block_builder.build_block(
+        let building_future = block_builder.build_block(
             self.deadline,
             mempool_tx_stream,
             self.output_content_sender.clone(),
