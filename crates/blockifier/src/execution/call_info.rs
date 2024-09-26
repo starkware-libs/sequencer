@@ -55,10 +55,6 @@ pub struct OrderedL2ToL1Message {
     pub message: MessageToL1,
 }
 
-pub fn get_payload_lengths(l2_to_l1_messages: &[OrderedL2ToL1Message]) -> Vec<usize> {
-    l2_to_l1_messages.iter().map(|message| message.message.payload.0.len()).collect()
-}
-
 /// Represents the effects of executing a single entry point.
 #[cfg_attr(test, derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -125,13 +121,6 @@ impl CallInfo {
         CallInfoIter { call_infos }
     }
 
-    pub fn get_l2_to_l1_payload_lengths(&self) -> Vec<usize> {
-        self.iter().fold(Vec::new(), |mut acc, call_info| {
-            acc.extend(get_payload_lengths(&call_info.execution.l2_to_l1_messages));
-            acc
-        })
-    }
-
     pub fn summarize(&self) -> ExecutionSummary {
         let mut executed_class_hashes: HashSet<ClassHash> = HashSet::new();
         let mut visited_storage_entries: HashSet<StorageEntry> = HashSet::new();
@@ -152,8 +141,13 @@ impl CallInfo {
             visited_storage_entries.extend(call_storage_entries);
 
             // Messages.
-            l2_to_l1_payload_lengths
-                .extend(get_payload_lengths(&call_info.execution.l2_to_l1_messages));
+            l2_to_l1_payload_lengths.extend(
+                call_info
+                    .execution
+                    .l2_to_l1_messages
+                    .iter()
+                    .map(|message| message.message.payload.0.len()),
+            );
 
             // Events.
             event_summary.n_events += call_info.execution.events.len();
