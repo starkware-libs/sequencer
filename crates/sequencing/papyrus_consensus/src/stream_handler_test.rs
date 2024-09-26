@@ -23,7 +23,7 @@ mod tests {
     }
 
     // Check if two vectors are the same:
-    fn do_vecs_match<T: PartialEq>(a: &Vec<T>, b: &Vec<T>) -> bool {
+    fn do_vecs_match<T: PartialEq>(a: &[T], b: &[T]) -> bool {
         let matching = a.iter().zip(b.iter()).filter(|&(a, b)| a == b).count();
         matching == a.len() && matching == b.len()
     }
@@ -41,7 +41,7 @@ mod tests {
 
     #[tokio::test]
     async fn stream_handler_in_order() {
-        let (mut h, mut tx_input, mut rx_output) = setup_test();
+        let (mut stream_handler, mut tx_input, mut rx_output) = setup_test();
 
         let stream_id = 127;
         for i in 0..10 {
@@ -50,28 +50,22 @@ mod tests {
         }
 
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
         });
 
         join_handle.await.expect("Task should succeed");
 
-        let mut receiver = rx_output
-            .try_next()
-            .expect("Receive a reeciver should succeed")
-            .expect("Receive a reeciver should succeed");
-        for i in 0..10 {
-            let _ = receiver
-                .try_next()
-                .expect(&format!("Receive message {i} should succeed"))
-                .expect(&format!("Receive message {i} should succeed"));
+        let mut receiver = rx_output.try_next().unwrap().unwrap();
+        for _ in 0..10 {
+            let _ = receiver.try_next().unwrap().unwrap();
         }
         // Check that the receiver was closed:
         assert!(matches!(receiver.try_next(), Ok(None)));
     }
 
     #[tokio::test]
-    async fn test_stream_handler_in_reverse() {
-        let (mut h, mut tx_input, mut rx_output) = setup_test();
+    async fn stream_handler_in_reverse() {
+        let (mut stream_handler, mut tx_input, mut rx_output) = setup_test();
 
         let stream_id = 127;
         for i in 0..5 {
@@ -80,50 +74,44 @@ mod tests {
         }
 
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
-            h
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            stream_handler
         });
-        let mut h = join_handle.await.expect("Task should succeed");
+        let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // Get the receiver for the stream.
-        let mut receiver = rx_output
-            .try_next()
-            .expect("Receive a reeciver should succeed")
-            .expect("Receive a reeciver should succeed");
-
+        let mut receiver = rx_output.try_next().unwrap().unwrap();
         // Check that the channel is empty (no messages were sent yet).
         assert!(receiver.try_next().is_err());
 
-        assert_eq!(h.stream_data.len(), 1);
-        assert_eq!(h.stream_data[&stream_id].message_buffer.len(), 5);
+        assert_eq!(stream_handler.stream_data.len(), 1);
+        assert_eq!(stream_handler.stream_data[&stream_id].message_buffer.len(), 5);
         let range: Vec<u64> = (1..6).collect();
-        let keys: Vec<u64> = h.stream_data[&stream_id].message_buffer.clone().into_keys().collect();
+        let keys: Vec<u64> =
+            stream_handler.stream_data[&stream_id].message_buffer.clone().into_keys().collect();
         assert!(do_vecs_match(&keys, &range));
 
         // Now send the last message:
         tx_input.try_send(make_test_message(stream_id, 0, false)).expect("Send should succeed");
 
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
-            h
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            stream_handler
         });
 
-        let h = join_handle.await.expect("Task should succeed");
-        assert!(h.stream_data.is_empty());
+        let stream_handler = join_handle.await.expect("Task should succeed");
+        assert!(stream_handler.stream_data.is_empty());
 
-        for i in 0..6 {
-            let _ = receiver
-                .try_next()
-                .expect(&format!("Receive message {i} should succeed"))
-                .expect(&format!("Receive message {i} should succeed"));
+        for _ in 0..6 {
+            let _ = receiver.try_next().unwrap().unwrap();
         }
         // Check that the receiver was closed:
         assert!(matches!(receiver.try_next(), Ok(None)));
     }
 
     #[tokio::test]
-    async fn test_stream_handler_multiple_streams() {
-        let (mut h, mut tx_input, mut rx_output) = setup_test();
+    async fn stream_handler_multiple_streams() {
+        let (mut stream_handler, mut tx_input, mut rx_output) = setup_test();
 
         let stream_id1 = 127; // Send all messages in order (except the first one).
         let stream_id2 = 10; // Send in reverse order (except the first one).
@@ -149,55 +137,58 @@ mod tests {
         }
 
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
-            h
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            stream_handler
         });
-        let mut h = join_handle.await.expect("Task should succeed");
+        let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         let values = vec![1, 10, 127];
-        assert!(h.stream_data.clone().into_keys().all(|item| values.contains(&item)));
+        assert!(stream_handler.stream_data.clone().into_keys().all(|item| values.contains(&item)));
 
         // We have all message from 1 to 9 buffered.
         assert!(do_vecs_match(
-            &h.stream_data[&stream_id1].message_buffer.clone().into_keys().collect(),
-            &(1..10).collect()
+            &stream_handler.stream_data[&stream_id1]
+                .message_buffer
+                .clone()
+                .into_keys()
+                .collect::<Vec<_>>(),
+            &(1..10).collect::<Vec<_>>()
         ));
 
         // We have all message from 1 to 5 buffered.
         assert!(do_vecs_match(
-            &h.stream_data[&stream_id2].message_buffer.clone().into_keys().collect(),
-            &(1..6).collect()
+            &stream_handler.stream_data[&stream_id2]
+                .message_buffer
+                .clone()
+                .into_keys()
+                .collect::<Vec<_>>(),
+            &(1..6).collect::<Vec<_>>()
         ));
 
         // We have all message from 1 to 5 buffered.
         assert!(do_vecs_match(
-            &h.stream_data[&stream_id3].message_buffer.clone().into_keys().collect(),
-            &(1..10).collect()
+            &stream_handler.stream_data[&stream_id3]
+                .message_buffer
+                .clone()
+                .into_keys()
+                .collect::<Vec<_>>(),
+            &(1..10).collect::<Vec<_>>()
         ));
 
         // Get the receiver for the first stream.
-        let mut receiver1 = rx_output
-            .try_next()
-            .expect("Receive a reeciver should succeed")
-            .expect("Receive a reeciver should succeed");
+        let mut receiver1 = rx_output.try_next().unwrap().unwrap();
 
         // Check that the channel is empty (no messages were sent yet).
         assert!(receiver1.try_next().is_err());
 
         // Get the receiver for the second stream.
-        let mut receiver2 = rx_output
-            .try_next()
-            .expect("Receive a reeciver should succeed")
-            .expect("Receive a reeciver should succeed");
+        let mut receiver2 = rx_output.try_next().unwrap().unwrap();
 
         // Check that the channel is empty (no messages were sent yet).
         assert!(receiver2.try_next().is_err());
 
         // Get the receiver for the third stream.
-        let mut receiver3 = rx_output
-            .try_next()
-            .expect("Receive a reeciver should succeed")
-            .expect("Receive a reeciver should succeed");
+        let mut receiver3 = rx_output.try_next().unwrap().unwrap();
 
         // Check that the channel is empty (no messages were sent yet).
         assert!(receiver3.try_next().is_err());
@@ -205,18 +196,15 @@ mod tests {
         // Send the last message on stream_id1:
         tx_input.try_send(make_test_message(stream_id1, 0, false)).expect("Send should succeed");
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
-            h
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            stream_handler
         });
 
-        let mut h = join_handle.await.expect("Task should succeed");
+        let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // Should be able to read all the messages for stream_id1.
-        for i in 0..10 {
-            let _ = receiver1
-                .try_next()
-                .expect(&format!("Receive message {i} should succeed"))
-                .expect(&format!("Receive message {i} should succeed"));
+        for _ in 0..10 {
+            let _ = receiver1.try_next().unwrap().unwrap();
         }
 
         // Check that the receiver was closed:
@@ -224,23 +212,20 @@ mod tests {
 
         // stream_id1 should be gone
         let values = vec![1, 10];
-        assert!(h.stream_data.clone().into_keys().all(|item| values.contains(&item)));
+        assert!(stream_handler.stream_data.clone().into_keys().all(|item| values.contains(&item)));
 
         // Send the last message on stream_id2:
         tx_input.try_send(make_test_message(stream_id2, 0, false)).expect("Send should succeed");
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
-            h
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            stream_handler
         });
 
-        let mut h = join_handle.await.expect("Task should succeed");
+        let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // Should be able to read all the messages for stream_id2.
-        for i in 0..6 {
-            let _ = receiver2
-                .try_next()
-                .expect(&format!("Receive message {i} should succeed"))
-                .expect(&format!("Receive message {i} should succeed"));
+        for _ in 0..6 {
+            let _ = receiver2.try_next().unwrap().unwrap();
         }
 
         // Check that the receiver was closed:
@@ -248,22 +233,19 @@ mod tests {
 
         // Stream_id2 should also be gone.
         let values = vec![1];
-        assert!(h.stream_data.clone().into_keys().all(|item| values.contains(&item)));
+        assert!(stream_handler.stream_data.clone().into_keys().all(|item| values.contains(&item)));
 
         // Send the last message on stream_id3:
         tx_input.try_send(make_test_message(stream_id3, 0, false)).expect("Send should succeed");
 
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), h.listen()).await;
-            h
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            stream_handler
         });
 
-        let h = join_handle.await.expect("Task should succeed");
-        for i in 0..10 {
-            let _ = receiver3
-                .try_next()
-                .expect(&format!("Receive message {i} should succeed"))
-                .expect(&format!("Receive message {i} should succeed"));
+        let stream_handler = join_handle.await.expect("Task should succeed");
+        for _ in 0..10 {
+            let _ = receiver3.try_next().unwrap().unwrap();
         }
 
         // In this case the receiver is not closed, because we didn't send a fin.
@@ -271,9 +253,9 @@ mod tests {
 
         // Stream_id3 should still be there, because we didn't send a fin.
         let values = vec![1];
-        assert!(h.stream_data.clone().into_keys().all(|item| values.contains(&item)));
+        assert!(stream_handler.stream_data.clone().into_keys().all(|item| values.contains(&item)));
 
         // But the buffer should be empty, as we've successfully drained it all.
-        assert!(h.stream_data[&stream_id3].message_buffer.is_empty());
+        assert!(stream_handler.stream_data[&stream_id3].message_buffer.is_empty());
     }
 }

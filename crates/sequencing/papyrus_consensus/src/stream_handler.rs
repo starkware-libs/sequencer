@@ -15,6 +15,8 @@ mod stream_handler_test;
 type StreamId = u64;
 type MessageId = u64;
 
+const CHANNEL_BUFFER_LENGTH: usize = 100;
+
 #[derive(Debug, Clone)]
 struct StreamData<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
     // The next message_id that is expected.
@@ -98,7 +100,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
             Entry::Vacant(e) => {
                 // If we received a message for a stream that we have not seen before,
                 // we need to create a new receiver for it.
-                let (sender, receiver) = mpsc::channel(100);
+                let (sender, receiver) = mpsc::channel(CHANNEL_BUFFER_LENGTH);
                 // TODO(guyn): reconsider the "expect" here.
                 self.sender.try_send(receiver).expect("Send should succeed");
 
