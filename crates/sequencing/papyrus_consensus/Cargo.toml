@@ -22,7 +22,7 @@ serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = ["full"] }
+tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
