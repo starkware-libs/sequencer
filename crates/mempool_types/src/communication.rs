@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use mockall::predicate::*;
 use mockall::*;
-use papyrus_network::network_manager::BroadcastedMessageManager;
+use papyrus_network_types::network_types::BroadcastedMessageManager;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::executable_transaction::Transaction;

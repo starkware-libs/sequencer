@@ -9,7 +9,8 @@ use std::task::Poll;
 
 use futures::{Stream, StreamExt};
 use lru::LruCache;
-use papyrus_network::network_manager::{BroadcastedMessageManager, GenericReceiver};
+use papyrus_network::network_manager::GenericReceiver;
+use papyrus_network_types::network_types::BroadcastedMessageManager;
 use papyrus_protobuf::consensus::ConsensusMessage;
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::BlockHash;
