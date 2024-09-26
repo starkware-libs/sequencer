@@ -27,7 +27,6 @@ use blockifier::blockifier::block::{pre_process_block, BlockInfo, GasPrices};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use blockifier::execution::call_info::CallExecution;
-use blockifier::execution::contract_class::ClassInfo;
 use blockifier::execution::entry_point::{
     CallEntryPoint,
     CallType as BlockifierCallType,
@@ -54,7 +53,7 @@ use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockNumber, NonzeroGasPrice, StarknetVersion};
-use starknet_api::contract_class::EntryPointType;
+use starknet_api::contract_class::{ClassInfo, EntryPointType};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -165,7 +164,7 @@ pub enum ExecutionError {
     BadDeclareTransaction {
         tx: DeclareTransaction,
         #[source]
-        err: blockifier::execution::errors::ContractClassError,
+        err: StarknetApiError,
     },
     #[error("Execution config file does not contain a configuration for all blocks")]
     ConfigContentError,
