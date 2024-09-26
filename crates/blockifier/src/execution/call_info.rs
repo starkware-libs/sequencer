@@ -32,13 +32,6 @@ pub struct OrderedEvent {
     pub event: EventContent,
 }
 
-#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Default, Eq, PartialEq, Clone)]
-pub struct MessageL1CostInfo {
-    pub l2_to_l1_payload_lengths: Vec<usize>,
-    pub message_segment_length: usize,
-}
-
 #[cfg_attr(test, derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
