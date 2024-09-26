@@ -36,7 +36,7 @@ pub fn get_test_execution_config() -> ExecutionConfig {
     ExecutionConfig {
         strk_fee_contract_address: contract_address!("0x1001"),
         eth_fee_contract_address: contract_address!("0x1001"),
-        initial_gas_cost: 10_u64.pow(10),
+        default_initial_gas_cost: 10_u64.pow(10),
     }
 }
 

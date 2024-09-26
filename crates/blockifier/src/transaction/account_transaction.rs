@@ -469,7 +469,11 @@ impl AccountTransaction {
             caller_address: tx_info.sender_address(),
             call_type: CallType::Call,
             // The fee-token contract is a Cairo 0 contract, hence the initial gas is irrelevant.
-            initial_gas: block_context.versioned_constants.os_constants.gas_costs.initial_gas_cost,
+            initial_gas: block_context
+                .versioned_constants
+                .os_constants
+                .gas_costs
+                .default_initial_gas_cost,
         };
 
         let mut context = EntryPointExecutionContext::new_invoke(tx_context, true);
@@ -765,7 +769,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         )?;
 
         // Run validation and execution.
-        let mut remaining_gas = block_context.versioned_constants.tx_initial_gas();
+        let mut remaining_gas = block_context.versioned_constants.tx_default_initial_gas();
         let ValidateExecuteCallInfo {
             validate_call_info,
             execute_call_info,
