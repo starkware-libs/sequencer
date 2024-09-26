@@ -28,6 +28,7 @@ starknet-types-core = { workspace = true, features = ["hash"] }
 strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
+cairo-vm.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true

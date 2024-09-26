@@ -205,6 +205,8 @@ impl DeclareTransaction {
         (signature, TransactionSignature),
         (version, TransactionVersion)
     );
+
+    implement_getter_calls!((tx_hash, TransactionHash));
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

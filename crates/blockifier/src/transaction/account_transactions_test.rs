@@ -8,6 +8,10 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress, PatriciaKey};
+use starknet_api::executable_transaction::{
+    Transaction as ExecutableTransaction,
+    DeclareTransaction as ExecutableDeclareTransaction
+};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
@@ -17,6 +21,7 @@ use starknet_api::transaction::{
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
+    DeclareTransaction,
     DeclareTransactionV2,
     Fee,
     GasVectorComputationMode,
@@ -87,7 +92,7 @@ use crate::transaction::test_utils::{
     INVALID,
 };
 use crate::transaction::transaction_types::TransactionType;
-use crate::transaction::transactions::{DeclareTransaction, ExecutableTransaction, ExecutionFlags};
+use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
 use crate::utils::u64_from_usize;
 
 #[rstest]
@@ -638,8 +643,8 @@ fn test_fail_deploy_account(
         });
     let fee_token_address = chain_info.fee_token_address(&deploy_account_tx.fee_type());
 
-    let deploy_address = match &deploy_account_tx {
-        AccountTransaction::DeployAccount(deploy_tx) => deploy_tx.contract_address(),
+    let deploy_address = match &deploy_account_tx.tx {
+        ExecutableTransaction::DeployAccount(deploy_tx) => deploy_tx.contract_address(),
         _ => unreachable!("deploy_account_tx is a DeployAccount"),
     };
     fund_account(chain_info, deploy_address, Fee(BALANCE.0 * 2), &mut state.state);
@@ -672,7 +677,7 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
     let next_nonce = nonce_manager.next(account_address);
 
     // Cannot fail executing a declare tx unless it's V2 or above, and already declared.
-    let declare_tx = DeclareTransactionV2 {
+    let declare_tx_v2 = DeclareTransactionV2 {
         max_fee,
         class_hash,
         sender_address: account_address,
@@ -681,17 +686,18 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
     state.set_contract_class(class_hash, contract_class.clone()).unwrap();
     state.set_compiled_class_hash(class_hash, declare_tx.compiled_class_hash).unwrap();
     let class_info = calculate_class_info_for_testing(faulty_account_feature_contract.get_class());
-    let declare_account_tx = AccountTransaction::Declare(
-        DeclareTransaction::new(
-            starknet_api::transaction::DeclareTransaction::V2(DeclareTransactionV2 {
-                nonce: next_nonce,
-                ..declare_tx
-            }),
-            TransactionHash::default(),
-            class_info,
-        )
-        .unwrap(),
-    );
+    let declare_tx = DeclareTransaction::V2(DeclareTransactionV2 {
+        nonce: next_nonce,
+        ..declare_tx_v2
+    });
+    let declare_account_tx =
+        AccountTransaction::new(ExecutableTransaction::Declare(
+            ExecutableDeclareTransaction {
+                tx: decalre_tx,
+                tx_hash: TransactionHash::default(),
+                class_info,
+            },
+        ));
 
     // Fail execution, assert nonce and balance are unchanged.
     let tx_info = declare_account_tx.create_tx_info();

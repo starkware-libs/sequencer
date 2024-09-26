@@ -1,8 +1,13 @@
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use serde::{Deserialize, Serialize};
+use cairo_vm::serde::deserialize_program::deserialize_array_of_bigint_hex;
 
 use crate::core::CompiledClassHash;
 use crate::deprecated_contract_class::ContractClass as DeprecatedContractClass;
+use crate::StarknetApiError;
+
+// Calldata.
+pub const WORD_WIDTH: usize = 32;
 
 #[derive(
     Debug, Default, Clone, Copy, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
@@ -46,4 +51,56 @@ pub struct ClassInfo {
     pub contract_class: ContractClass,
     pub sierra_program_length: usize,
     pub abi_length: usize,
+}
+
+impl ClassInfo {
+    pub fn bytecode_length(&self) -> usize {
+        match &self.contract_class {
+            ContractClass::V0(contract_address) => {
+                let data = deserialize_array_of_bigint_hex(&contract_address.program.data)
+                    .expect("Failed deserializing the program data.");
+                data.len()
+            }
+            ContractClass::V1(contract_address) => contract_address.bytecode.len(),
+        }
+    }
+
+    pub fn contract_class(&self) -> ContractClass {
+        self.contract_class.clone()
+    }
+
+    pub fn sierra_program_length(&self) -> usize {
+        self.sierra_program_length
+    }
+
+    pub fn abi_length(&self) -> usize {
+        self.abi_length
+    }
+
+    pub fn code_size(&self) -> usize {
+        (self.bytecode_length() + self.sierra_program_length())
+            // We assume each felt is a word.
+            * WORD_WIDTH
+            + self.abi_length()
+    }
+
+    pub fn new(
+        contract_class: &ContractClass,
+        sierra_program_length: usize,
+        abi_length: usize,
+    ) -> Result<Self, StarknetApiError> {
+        let (contract_class_version, condition) = match contract_class {
+            ContractClass::V0(_) => (0, sierra_program_length == 0),
+            ContractClass::V1(_) => (1, sierra_program_length > 0),
+        };
+
+        if condition {
+            Ok(Self { contract_class: contract_class.clone(), sierra_program_length, abi_length })
+        } else {
+            Err(StarknetApiError::ContractClassVersionSierraProgramLengthMismatch {
+                contract_class_version,
+                sierra_program_length,
+            })
+        }
+    }
 }

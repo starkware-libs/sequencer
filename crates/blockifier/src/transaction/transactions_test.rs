@@ -438,7 +438,7 @@ fn test_invoke_tx(
 
     // Extract invoke transaction fields for testing, as it is consumed when creating an account
     // transaction.
-    let calldata = Calldata(Arc::clone(&account_tx.calldata().0)); //Aviv how to access?
+    let calldata = Calldata(Arc::clone(&account_tx.calldata().0));
     let calldata_length = account_tx.calldata_length();
     let signature_length = account_tx.signature_length();
     let state_changes_for_fee = StateChangesCount {
@@ -456,7 +456,6 @@ fn test_invoke_tx(
     );
     let sender_address = account_tx.sender_address();
 
-    // let account_tx = AccountTransaction::Invoke(invoke_tx);
     let tx_context = block_context.to_tx_context(&account_tx);
 
     let actual_execution_info = account_tx.execute(state, block_context, true, true).unwrap();

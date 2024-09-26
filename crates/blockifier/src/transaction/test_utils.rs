@@ -1,4 +1,5 @@
 use rstest::fixture;
+use starknet_api::contract_class::ClassInfo;
 use starknet_api::block::GasPrice;
 use starknet_api::contract_class::ContractClass as RawContractClass;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
@@ -26,7 +27,6 @@ use strum::IntoEnumIterator;
 
 use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::context::{BlockContext, ChainInfo};
-use crate::execution::contract_class::ClassInfo;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
 use crate::test_utils::contracts::FeatureContract;
