@@ -1,5 +1,6 @@
 use std::any::type_name;
 
+use thiserror::Error;
 use tokio::sync::mpsc::Receiver;
 use tracing::info;
 
@@ -25,4 +26,14 @@ pub async fn request_response_loop<Request, Response, Component>(
 
         tx.send(res).await.expect("Response connection should be open.");
     }
+}
+
+#[derive(Clone, Debug, Error)]
+pub enum ReplaceComponentError {
+    #[error("Internal error.")]
+    InternalError,
+}
+
+pub trait ComponentReplacer<Component> {
+    fn replace(&mut self, component: Component) -> Result<(), ReplaceComponentError>;
 }
