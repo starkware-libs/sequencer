@@ -1,25 +1,13 @@
 use papyrus_test_utils::read_json_file;
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
-use sha3::{Digest, Keccak256};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_api::transaction_hash::get_transaction_hash;
 use starknet_api::TransactionOptions;
-use starknet_types_core::felt::Felt;
 
-use super::{validate_transaction_hash, CONSTRUCTOR_ENTRY_POINT_SELECTOR};
-
-#[test]
-fn test_constructor_selector() {
-    let mut keccak = Keccak256::default();
-    keccak.update(b"constructor");
-    let mut constructor_bytes: [u8; 32] = keccak.finalize().into();
-    constructor_bytes[0] &= 0b00000011_u8; // Discard the six MSBs.
-    let constructor_felt = Felt::from_bytes_be(&constructor_bytes);
-    assert_eq!(constructor_felt, *CONSTRUCTOR_ENTRY_POINT_SELECTOR);
-}
+use super::validate_transaction_hash;
 
 #[derive(Deserialize, Serialize)]
 struct TransactionTestData {
