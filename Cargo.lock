@@ -6868,6 +6868,7 @@ dependencies = [
  "papyrus_common",
  "papyrus_config",
  "papyrus_network",
+ "papyrus_network_types",
  "papyrus_protobuf",
  "papyrus_storage",
  "papyrus_test_utils",
@@ -6986,6 +6987,7 @@ dependencies = [
  "mockall",
  "papyrus_common",
  "papyrus_config",
+ "papyrus_network_types",
  "pretty_assertions",
  "replace_with",
  "serde",
@@ -6998,6 +7000,17 @@ dependencies = [
  "unsigned-varint 0.8.0",
  "validator",
  "void",
+]
+
+[[package]]
+name = "papyrus_network_types"
+version = "0.0.0"
+dependencies = [
+ "libp2p",
+ "papyrus_test_utils",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "serde",
 ]
 
 [[package]]
@@ -9990,7 +10003,7 @@ name = "starknet_mempool_p2p_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
- "papyrus_network",
+ "papyrus_network_types",
  "papyrus_proc_macros",
  "serde",
  "starknet_api",
@@ -10005,6 +10018,7 @@ dependencies = [
  "async-trait",
  "mockall",
  "papyrus_network",
+ "papyrus_network_types",
  "papyrus_proc_macros",
  "serde",
  "starknet_api",
