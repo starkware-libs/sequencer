@@ -4,4 +4,5 @@ pub mod component_runner;
 pub mod component_server;
 pub mod errors;
 pub mod serde_utils;
+pub mod test_utils;
 pub mod trace_util;
