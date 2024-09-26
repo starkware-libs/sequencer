@@ -27,6 +27,7 @@ use crate::config::MempoolNodeConfig;
 
 pub struct MempoolNodeCommunication {
     batcher_channel: ComponentCommunication<BatcherRequestAndResponseSender>,
+    /// TODO(Tsabary): remove the redundant consensus_manager_channel.
     consensus_manager_channel: ComponentCommunication<ConsensusManagerRequestAndResponseSender>,
     mempool_channel: ComponentCommunication<MempoolRequestAndResponseSender>,
     gateway_channel: ComponentCommunication<GatewayRequestAndResponseSender>,
