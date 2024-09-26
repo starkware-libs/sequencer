@@ -3,7 +3,7 @@ use serde::Serialize;
 use starknet_api::transaction::Fee;
 
 use crate::context::TransactionContext;
-use crate::execution::call_info::{EventSummary, ExecutionSummary, MessageL1CostInfo};
+use crate::execution::call_info::{EventSummary, ExecutionSummary};
 use crate::fee::eth_gas_constants;
 use crate::fee::fee_utils::get_vm_resources_cost;
 use crate::fee::gas_usage::{
@@ -16,7 +16,7 @@ use crate::fee::gas_usage::{
 use crate::state::cached_state::StateChangesCount;
 use crate::transaction::errors::TransactionFeeError;
 use crate::transaction::objects::HasRelatedFeeType;
-use crate::utils::{u128_div_ceil, u128_from_usize, usize_from_u128};
+use crate::utils::{u128_div_ceil, u128_from_usize};
 use crate::versioned_constants::{ArchivalDataGasCosts, VersionedConstants};
 
 pub type TransactionFeeResult<T> = Result<T, TransactionFeeError>;
@@ -56,10 +56,9 @@ impl TransactionResources {
 #[cfg_attr(feature = "transaction_serde", derive(Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct StarknetResources {
-    pub archival_data_resources: ArchivalDataResources,
+    pub archival_data: ArchivalDataResources,
+    pub messages: MessageResources,
     pub state_changes_for_fee: StateChangesCount,
-    pub message_cost_info: MessageL1CostInfo,
-    pub l1_handler_payload_size: Option<usize>,
 }
 
 impl StarknetResources {
@@ -72,24 +71,18 @@ impl StarknetResources {
         execution_summary_without_fee_transfer: ExecutionSummary,
     ) -> Self {
         // TODO(Yoni): store the entire summary.
-        let l2_to_l1_payload_lengths =
-            execution_summary_without_fee_transfer.l2_to_l1_payload_lengths;
-        let message_segment_length =
-            get_message_segment_length(&l2_to_l1_payload_lengths, l1_handler_payload_size);
         Self {
-            archival_data_resources: ArchivalDataResources {
+            archival_data: ArchivalDataResources {
                 event_summary: execution_summary_without_fee_transfer.event_summary,
                 calldata_length,
                 signature_length,
                 code_size,
             },
+            messages: MessageResources::new(
+                execution_summary_without_fee_transfer.l2_to_l1_payload_lengths,
+                l1_handler_payload_size,
+            ),
             state_changes_for_fee: state_changes_count,
-            // TODO(Yoni, 1/10/2024): remove.
-            message_cost_info: MessageL1CostInfo {
-                l2_to_l1_payload_lengths,
-                message_segment_length,
-            },
-            l1_handler_payload_size,
         }
     }
 
@@ -101,54 +94,9 @@ impl StarknetResources {
         use_kzg_da: bool,
         mode: &GasVectorComputationMode,
     ) -> GasVector {
-        self.archival_data_resources.to_gas_vector(versioned_constants, mode)
+        self.archival_data.to_gas_vector(versioned_constants, mode)
             + self.get_state_changes_cost(use_kzg_da)
-            + self.get_messages_total_gas_cost()
-    }
-
-    /// Returns an estimation of the gas usage for processing L1<>L2 messages on L1. Accounts for
-    /// Starknet contract only.
-    fn get_messages_starknet_gas_cost(&self) -> GasVector {
-        let n_l2_to_l1_messages = self.message_cost_info.l2_to_l1_payload_lengths.len();
-        let n_l1_to_l2_messages = usize::from(self.l1_handler_payload_size.is_some());
-
-        GasVector::from_l1_gas(
-            // Starknet's updateState gets the message segment as an argument.
-            u128_from_usize(
-                self.message_cost_info.message_segment_length * eth_gas_constants::GAS_PER_MEMORY_WORD
-                // Starknet's updateState increases a (storage) counter for each L2-to-L1 message.
-                + n_l2_to_l1_messages * eth_gas_constants::GAS_PER_ZERO_TO_NONZERO_STORAGE_SET
-                // Starknet's updateState decreases a (storage) counter for each L1-to-L2 consumed
-                // message (note that we will probably get a refund of 15,000 gas for each consumed
-                // message but we ignore it since refunded gas cannot be used for the current
-                // transaction execution).
-                + n_l1_to_l2_messages * eth_gas_constants::GAS_PER_COUNTER_DECREASE,
-            ),
-        ) + get_consumed_message_to_l2_emissions_cost(self.l1_handler_payload_size)
-            + get_log_message_to_l1_emissions_cost(&self.message_cost_info.l2_to_l1_payload_lengths)
-    }
-
-    /// Returns an estimation of the gas usage for processing L1<>L2 messages on L1. Accounts for
-    /// both Starknet and SHARP contracts.
-    pub fn get_messages_total_gas_cost(&self) -> GasVector {
-        let starknet_gas_usage = self.get_messages_starknet_gas_cost();
-        let sharp_gas_usage = GasVector::from_l1_gas(u128_from_usize(
-            self.message_cost_info.message_segment_length
-                * eth_gas_constants::SHARP_GAS_PER_MEMORY_WORD,
-        ));
-
-        starknet_gas_usage + sharp_gas_usage
-    }
-
-    /// Calculates the L1 resources used by L1<>L2 messages.
-    /// Returns the total message segment length and the gas weight.
-    pub fn calculate_message_l1_resources(&self) -> (usize, usize) {
-        let message_segment_length = self.message_cost_info.message_segment_length;
-        let gas_usage = self.get_messages_starknet_gas_cost();
-        // TODO(Avi, 30/03/2024): Consider removing "l1_gas_usage" from actual resources.
-        let gas_weight = usize_from_u128(gas_usage.l1_gas)
-            .expect("This conversion should not fail as the value is a converted usize.");
-        (message_segment_length, gas_weight)
+            + self.messages.to_gas_vector()
     }
 
     /// Returns the gas cost of the transaction's state changes.
@@ -225,6 +173,58 @@ impl ArchivalDataResources {
             * (archival_gas_costs.event_key_factor * self.event_summary.total_event_keys
                 + self.event_summary.total_event_data_size))
             .to_integer()
+    }
+}
+
+/// Contains L1->L2 and L2->L1 message resources.
+#[cfg_attr(feature = "transaction_serde", derive(Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct MessageResources {
+    pub l2_to_l1_payload_lengths: Vec<usize>,
+    pub message_segment_length: usize,
+    pub l1_handler_payload_size: Option<usize>,
+}
+
+impl MessageResources {
+    pub fn new(
+        l2_to_l1_payload_lengths: Vec<usize>,
+        l1_handler_payload_size: Option<usize>,
+    ) -> Self {
+        let message_segment_length =
+            get_message_segment_length(&l2_to_l1_payload_lengths, l1_handler_payload_size);
+        Self { l2_to_l1_payload_lengths, message_segment_length, l1_handler_payload_size }
+    }
+    /// Returns an estimation of the gas usage for processing L1<>L2 messages on L1. Accounts for
+    /// both Starknet and SHARP contracts.
+    pub fn to_gas_vector(&self) -> GasVector {
+        let starknet_gas_usage = self.get_starknet_gas_cost();
+        let sharp_gas_usage = GasVector::from_l1_gas(u128_from_usize(
+            self.message_segment_length * eth_gas_constants::SHARP_GAS_PER_MEMORY_WORD,
+        ));
+
+        starknet_gas_usage + sharp_gas_usage
+    }
+
+    /// Returns an estimation of the gas usage for processing L1<>L2 messages on L1. Accounts for
+    /// Starknet contract only.
+    pub fn get_starknet_gas_cost(&self) -> GasVector {
+        let n_l2_to_l1_messages = self.l2_to_l1_payload_lengths.len();
+        let n_l1_to_l2_messages = usize::from(self.l1_handler_payload_size.is_some());
+
+        GasVector::from_l1_gas(
+            // Starknet's updateState gets the message segment as an argument.
+            u128_from_usize(
+                self.message_segment_length * eth_gas_constants::GAS_PER_MEMORY_WORD
+                // Starknet's updateState increases a (storage) counter for each L2-to-L1 message.
+                + n_l2_to_l1_messages * eth_gas_constants::GAS_PER_ZERO_TO_NONZERO_STORAGE_SET
+                // Starknet's updateState decreases a (storage) counter for each L1-to-L2 consumed
+                // message (note that we will probably get a refund of 15,000 gas for each consumed
+                // message but we ignore it since refunded gas cannot be used for the current
+                // transaction execution).
+                + n_l1_to_l2_messages * eth_gas_constants::GAS_PER_COUNTER_DECREASE,
+            ),
+        ) + get_consumed_message_to_l2_emissions_cost(self.l1_handler_payload_size)
+            + get_log_message_to_l1_emissions_cost(&self.l2_to_l1_payload_lengths)
     }
 }
 
