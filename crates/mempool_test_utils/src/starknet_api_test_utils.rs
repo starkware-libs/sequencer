@@ -195,13 +195,17 @@ pub fn executable_invoke_tx(cairo_version: CairoVersion) -> Transaction {
         .generate_default_executable_invoke()
 }
 
-//  TODO(Yael 18/6/2024): Get a final decision from product whether to support Cairo0.
-pub fn deploy_account_tx() -> RpcTransaction {
-    let default_account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+pub fn generate_default_deploy_account_with_salt(
+    account: &FeatureContract,
+    contract_address_salt: ContractAddressSalt,
+) -> RpcTransaction {
+    let deploy_account_args = deploy_account_tx_args!(
+        class_hash: account.get_class_hash(),
+        resource_bounds: test_resource_bounds_mapping(),
+        contract_address_salt
+    );
 
-    MultiAccountTransactionGenerator::new_for_account_contracts([default_account])
-        .account_with_id(0)
-        .generate_default_deploy_account()
+    rpc_deploy_account_tx(deploy_account_args)
 }
 
 // TODO: when moving this to Starknet API crate, move this const into a module alongside
@@ -309,18 +313,6 @@ impl AccountTransactionGenerator {
         );
 
         Transaction::Invoke(starknet_api::test_utils::invoke::executable_invoke_tx(invoke_args))
-    }
-
-    pub fn generate_default_deploy_account(&mut self) -> RpcTransaction {
-        let nonce = self.next_nonce();
-        assert_eq!(nonce, Nonce(Felt::ZERO));
-
-        let deploy_account_args = deploy_account_tx_args!(
-            nonce,
-            class_hash: self.account.get_class_hash(),
-            resource_bounds: test_resource_bounds_mapping()
-        );
-        rpc_deploy_account_tx(deploy_account_args)
     }
 
     // TODO: support more contracts, instead of this hardcoded type.
