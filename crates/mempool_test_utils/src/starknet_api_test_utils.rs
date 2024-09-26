@@ -353,17 +353,28 @@ impl AccountTransactionGenerator {
     }
 }
 
-/// Adds state to the feature contract struct, so that its _account_ variants can generate a single
-/// address, thus allowing future transactions generated for the account to share the same address.
-#[derive(Debug, Clone)]
+/// Extends (account) feature contracts with a fixed sender address.
+/// The address is calculated from a deploy account transaction and cached.
+// Note: feature contracts have their own address generating method, but it a mocked address and is
+// not related to an actual deploy account transaction, which is the way real account addresses are
+// calculated.
+#[derive(Clone, Debug)]
 pub struct FeatureAccount {
-    pub class_hash: ClassHash,
     pub account: FeatureContract,
-    deployment_state: InitializationState,
+    pub sender_address: ContractAddress,
 }
 
 impl FeatureAccount {
-    pub fn new(account: FeatureContract) -> Self {
+    pub fn class_hash(&self) -> ClassHash {
+        self.account.get_class_hash()
+    }
+
+    fn _new(account: FeatureContract, deploy_account_tx: &RpcTransaction) -> Self {
+        assert_matches!(
+            deploy_account_tx,
+            RpcTransaction::DeployAccount(_),
+            "An account must be initialized with a deploy account transaction"
+        );
         assert_matches!(
             account,
             FeatureContract::AccountWithLongValidate(_)
@@ -372,51 +383,8 @@ impl FeatureAccount {
             "{account:?} is not an account"
         );
 
-        Self {
-            class_hash: account.get_class_hash(),
-            account,
-            deployment_state: InitializationState::default(),
-        }
+        Self { account, sender_address: deploy_account_tx.calculate_sender_address().unwrap() }
     }
-
-    pub fn build(&mut self, deploy_account_tx: &RpcTransaction) {
-        assert_matches!(
-            deploy_account_tx,
-            RpcTransaction::DeployAccount(_),
-            "An account must be initialized with a deploy account transaction"
-        );
-
-        match self.deployment_state {
-            InitializationState::Uninitialized => {
-                let address = deploy_account_tx.calculate_sender_address().unwrap();
-                self.deployment_state = InitializationState::Initialized(address);
-            }
-            InitializationState::Initialized(_) => panic!("Account is already initialized"),
-        }
-    }
-
-    pub fn sender_address(&self) -> ContractAddress {
-        match self.deployment_state {
-            InitializationState::Initialized(address) => address,
-            InitializationState::Uninitialized => panic!("Uninitialized account"),
-        }
-    }
-
-    // Use for special case testing accounts that don't have an explicit deploy account transaction.
-    pub fn new_with_custom_address(account: FeatureContract, address: ContractAddress) -> Self {
-        Self {
-            account,
-            deployment_state: InitializationState::Initialized(address),
-            class_hash: account.get_class_hash(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-enum InitializationState {
-    #[default]
-    Uninitialized,
-    Initialized(ContractAddress),
 }
 
 // TODO(Ayelet, 28/5/2025): Try unifying the macros.
