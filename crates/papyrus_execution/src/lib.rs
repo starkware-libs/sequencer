@@ -654,6 +654,7 @@ fn execute_transactions(
             _ => None,
         };
         let blockifier_tx = to_blockifier_tx(tx, tx_hash, transaction_index)?;
+        // TODO(Yoni): use the TransactionExecutor instead.
         let tx_execution_info_result =
             blockifier_tx.execute(&mut transactional_state, &block_context, charge_fee, validate);
         let state_diff =

@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use blockifier::abi::constants as abi_constants;
-use blockifier::blockifier::block::pre_process_block;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{TransactionExecutor, TransactionExecutorError};
 use blockifier::bouncer::BouncerConfig;
@@ -9,7 +8,6 @@ use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::execution::call_info::CallInfo;
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::fee::resources::GasVector;
-use blockifier::state::cached_state::CachedState;
 use blockifier::state::global_cache::GlobalContractCache;
 use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction;
@@ -180,18 +178,13 @@ impl PyBlockExecutor {
 
         // Create state reader.
         let papyrus_reader = self.get_aligned_reader(next_block_number);
-        let mut state = CachedState::new(papyrus_reader);
-
-        pre_process_block(
-            &mut state,
+        // Create and set executor.
+        self.tx_executor = Some(TransactionExecutor::pre_process_and_create(
+            papyrus_reader,
+            block_context,
             into_block_number_hash_pair(old_block_number_and_hash),
-            next_block_number,
-        )?;
-
-        let tx_executor =
-            TransactionExecutor::new(state, block_context, self.tx_executor_config.clone());
-        self.tx_executor = Some(tx_executor);
-
+            self.tx_executor_config.clone(),
+        )?);
         Ok(())
     }
 
