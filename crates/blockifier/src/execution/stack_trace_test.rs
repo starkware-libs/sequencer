@@ -9,6 +9,7 @@ use starknet_api::core::{
     EntryPointSelector,
     Nonce,
 };
+use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::{
     ContractAddressSalt,
     Fee,
@@ -35,7 +36,6 @@ use crate::execution::syscalls::hint_processor::ENTRYPOINT_FAILED_ERROR;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::{create_calldata, CairoVersion, BALANCE};
-use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::constants::{
     DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
     EXECUTE_ENTRY_POINT_NAME,
@@ -589,8 +589,8 @@ fn test_validate_trace(
 
     if let TransactionType::DeployAccount = tx_type {
         // Deploy account uses the actual address as the sender address.
-        match &account_tx {
-            AccountTransaction::DeployAccount(tx) => {
+        match &account_tx.tx {
+            Transaction::DeployAccount(tx) => {
                 sender_address = tx.contract_address();
             }
             _ => panic!("Expected DeployAccountTransaction type"),
@@ -658,8 +658,8 @@ fn test_account_ctor_frame_stack_trace(
         });
 
     // Fund the account so it can afford the deployment.
-    let deploy_address = match &deploy_account_tx {
-        AccountTransaction::DeployAccount(deploy_tx) => deploy_tx.contract_address(),
+    let deploy_address = match &deploy_account_tx.tx {
+        Transaction::DeployAccount(deploy_tx) => deploy_tx.contract_address(),
         _ => unreachable!("deploy_account_tx is a DeployAccount"),
     };
     fund_account(chain_info, deploy_address, Fee(BALANCE.0 * 2), &mut state.state);

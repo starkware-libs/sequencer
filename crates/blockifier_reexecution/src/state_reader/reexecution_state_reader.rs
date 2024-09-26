@@ -1,7 +1,7 @@
-use blockifier::execution::contract_class::ClassInfo;
 use blockifier::state::state_api::StateResult;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use papyrus_execution::DEPRECATED_CONTRACT_SIERRA_SIZE;
+use starknet_api::contract_class::ClassInfo;
 use starknet_api::core::ClassHash;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
