@@ -1,6 +1,6 @@
 use futures::channel::mpsc;
 use futures::stream::StreamExt;
-use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, StreamMessage};
+use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, StreamMessage, StreamMessageOption};
 
 use super::StreamHandler;
 
@@ -15,12 +15,11 @@ mod tests {
         message_id: u64,
         fin: bool,
     ) -> StreamMessage<ConsensusMessage> {
-        StreamMessage {
-            message: ConsensusMessage::Proposal(Proposal::default()),
-            stream_id,
-            message_id,
-            fin,
-        }
+        let content = match fin {
+            true => StreamMessageOption::Fin,
+            false => StreamMessageOption::Content(ConsensusMessage::Proposal(Proposal::default())),
+        };
+        StreamMessage { message: content, stream_id, message_id }
     }
 
     // Check if two vectors are the same:
@@ -57,7 +56,8 @@ mod tests {
         join_handle.await.expect("Task should succeed");
 
         let mut receiver = rx_output.next().await.unwrap();
-        for _ in 0..10 {
+        for _ in 0..9 {
+            // message number 9 is Fin, so it will not be sent!
             let _ = receiver.next().await.unwrap();
         }
         // Check that the receiver was closed:
@@ -103,7 +103,8 @@ mod tests {
         let stream_handler = join_handle.await.expect("Task should succeed");
         assert!(stream_handler.stream_data.is_empty());
 
-        for _ in 0..6 {
+        for _ in 0..5 {
+            // message number 5 is Fin, so it will not be sent!
             let _ = receiver.next().await.unwrap();
         }
         // Check that the receiver was closed:
@@ -204,7 +205,8 @@ mod tests {
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // Should be able to read all the messages for stream_id1.
-        for _ in 0..10 {
+        for _ in 0..9 {
+            // message number 9 is Fin, so it will not be sent!
             let _ = receiver1.next().await.unwrap();
         }
 
@@ -225,7 +227,8 @@ mod tests {
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // Should be able to read all the messages for stream_id2.
-        for _ in 0..6 {
+        for _ in 0..5 {
+            // message number 5 is Fin, so it will not be sent!
             let _ = receiver2.next().await.unwrap();
         }
 
@@ -246,6 +249,7 @@ mod tests {
 
         let stream_handler = join_handle.await.expect("Task should succeed");
         for _ in 0..10 {
+            // All messages are received, including number 9 which is not Fin
             let _ = receiver3.next().await.unwrap();
         }
 

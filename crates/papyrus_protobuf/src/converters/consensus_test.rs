@@ -18,7 +18,14 @@ use starknet_api::transaction::{
     ValidResourceBounds,
 };
 
-use crate::consensus::{ConsensusMessage, Proposal, StreamMessage, Vote, VoteType};
+use crate::consensus::{
+    ConsensusMessage,
+    Proposal,
+    StreamMessage,
+    StreamMessageOption,
+    Vote,
+    VoteType,
+};
 
 auto_impl_get_test_instance! {
     pub enum ConsensusMessage {
@@ -57,12 +64,14 @@ auto_impl_get_test_instance! {
 
 impl GetTestInstance for StreamMessage<ConsensusMessage> {
     fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
-        Self {
-            message: ConsensusMessage::Proposal(Proposal::default()),
-            stream_id: rng.gen_range(0..100),
-            message_id: rng.gen_range(0..1000),
-            fin: rng.gen_bool(0.5),
-        }
+        let message = if rng.gen_bool(0.5) {
+            StreamMessageOption::Content(ConsensusMessage::Proposal(Proposal::get_test_instance(
+                rng,
+            )))
+        } else {
+            StreamMessageOption::Fin
+        };
+        Self { message, stream_id: rng.gen_range(0..100), message_id: rng.gen_range(0..1000) }
     }
 }
 

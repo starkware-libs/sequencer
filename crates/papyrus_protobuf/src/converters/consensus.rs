@@ -8,7 +8,14 @@ use starknet_api::block::BlockHash;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::Transaction;
 
-use crate::consensus::{ConsensusMessage, Proposal, StreamMessage, Vote, VoteType};
+use crate::consensus::{
+    ConsensusMessage,
+    Proposal,
+    StreamMessage,
+    StreamMessageOption,
+    Vote,
+    VoteType,
+};
 use crate::converters::ProtobufConversionError;
 use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};
 
@@ -121,10 +128,23 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
 
     fn try_from(value: protobuf::StreamMessage) -> Result<Self, Self::Error> {
         Ok(Self {
-            message: T::try_from(value.message)?,
+            message: match value {
+                protobuf::StreamMessage {
+                    message: Some(protobuf::stream_message::Message::Content(message)),
+                    stream_id: _,
+                    message_id: _,
+                } => StreamMessageOption::Content(message.try_into()?),
+                protobuf::StreamMessage {
+                    message: Some(protobuf::stream_message::Message::Fin(_)),
+                    stream_id: _,
+                    message_id: _,
+                } => StreamMessageOption::Fin,
+                protobuf::StreamMessage { message: None, stream_id: _, message_id: _ } => {
+                    StreamMessageOption::Fin
+                }
+            },
             stream_id: value.stream_id,
             message_id: value.message_id,
-            fin: value.fin,
         })
     }
 }
@@ -134,10 +154,20 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<
 {
     fn from(value: StreamMessage<T>) -> Self {
         Self {
-            message: value.message.into(),
+            message: match value {
+                StreamMessage {
+                    message: StreamMessageOption::Content(message),
+                    stream_id: _,
+                    message_id: _,
+                } => Some(protobuf::stream_message::Message::Content(message.into())),
+                StreamMessage {
+                    message: StreamMessageOption::Fin,
+                    stream_id: _,
+                    message_id: _,
+                } => None,
+            },
             stream_id: value.stream_id,
             message_id: value.message_id,
-            fin: value.fin,
         }
     }
 }

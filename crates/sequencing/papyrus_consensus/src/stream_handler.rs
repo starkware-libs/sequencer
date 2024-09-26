@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use futures::channel::mpsc;
 use futures::StreamExt;
-use papyrus_protobuf::consensus::StreamMessage;
+use papyrus_protobuf::consensus::{StreamMessage, StreamMessageOption};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use tracing::{instrument, warn};
 
@@ -85,8 +85,10 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     fn send(data: &mut StreamData<T>, message: StreamMessage<T>) {
         // TODO(guyn): reconsider the "expect" here.
         let sender = &mut data.sender;
-        sender.try_send(message.message).expect("Send should succeed");
-        data.next_message_id += 1;
+        if let StreamMessageOption::Content(content) = message.message {
+            sender.try_send(content).expect("Send should succeed");
+            data.next_message_id += 1;
+        }
     }
 
     // Handle the message, return true if the channel is still open.
@@ -113,16 +115,20 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
             data.max_message_id = message_id;
         }
 
-        if message.fin {
-            data.fin_message_id = Some(message_id);
-            if data.max_message_id > message_id {
-                // TODO(guyn): replace warnings with more graceful error handling
-                warn!(
-                    "Received fin message with id that is smaller than a previous message! \
-                     stream_id: {}, fin_message_id: {}, max_message_id: {}",
-                    stream_id, message_id, data.max_message_id
-                );
-                return;
+        // Check for Fin type message
+        match message.message {
+            StreamMessageOption::Content(_) => {}
+            StreamMessageOption::Fin => {
+                data.fin_message_id = Some(message_id);
+                if data.max_message_id > message_id {
+                    // TODO(guyn): replace warnings with more graceful error handling
+                    warn!(
+                        "Received fin message with id that is smaller than a previous message! \
+                         stream_id: {}, fin_message_id: {}, max_message_id: {}",
+                        stream_id, message_id, data.max_message_id
+                    );
+                    return;
+                }
             }
         }
 
