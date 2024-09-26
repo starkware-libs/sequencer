@@ -44,6 +44,20 @@ macro_rules! define_versioned_constants {
                     $(StarknetVersion::$variant => $path_to_json,)*
                 }
             }
+
+            pub fn latest() -> Self {
+                StarknetVersion::$latest_variant
+            }
+        }
+
+        impl From<StarknetVersion> for String {
+            fn from(version: StarknetVersion) -> Self {
+                match version {
+                    $(StarknetVersion::$variant => String::from(
+                        stringify!($variant)
+                    ).to_lowercase().replace("_", "."),)*
+                }
+            }
         }
 
         // Static (lazy) instances of the versioned constants.
@@ -76,7 +90,7 @@ macro_rules! define_versioned_constants {
             /// Get the constants that shipped with the current version of the Blockifier.
             /// To use custom constants, initialize the struct from a file using `try_from`.
             pub fn latest_constants() -> &'static Self {
-                Self::get(StarknetVersion::$latest_variant)
+                Self::get(StarknetVersion::latest())
             }
         }
 
