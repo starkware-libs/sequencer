@@ -1,4 +1,5 @@
 use futures::channel::mpsc;
+use futures::stream::StreamExt;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, StreamMessage};
 
 use super::StreamHandler;
@@ -55,9 +56,9 @@ mod tests {
 
         join_handle.await.expect("Task should succeed");
 
-        let mut receiver = rx_output.try_next().unwrap().unwrap();
+        let mut receiver = rx_output.next().await.unwrap();
         for _ in 0..10 {
-            let _ = receiver.try_next().unwrap().unwrap();
+            let _ = receiver.next().await.unwrap();
         }
         // Check that the receiver was closed:
         assert!(matches!(receiver.try_next(), Ok(None)));
@@ -80,7 +81,7 @@ mod tests {
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // Get the receiver for the stream.
-        let mut receiver = rx_output.try_next().unwrap().unwrap();
+        let mut receiver = rx_output.next().await.unwrap();
         // Check that the channel is empty (no messages were sent yet).
         assert!(receiver.try_next().is_err());
 
@@ -103,7 +104,7 @@ mod tests {
         assert!(stream_handler.stream_data.is_empty());
 
         for _ in 0..6 {
-            let _ = receiver.try_next().unwrap().unwrap();
+            let _ = receiver.next().await.unwrap();
         }
         // Check that the receiver was closed:
         assert!(matches!(receiver.try_next(), Ok(None)));
@@ -176,19 +177,19 @@ mod tests {
         ));
 
         // Get the receiver for the first stream.
-        let mut receiver1 = rx_output.try_next().unwrap().unwrap();
+        let mut receiver1 = rx_output.next().await.unwrap();
 
         // Check that the channel is empty (no messages were sent yet).
         assert!(receiver1.try_next().is_err());
 
         // Get the receiver for the second stream.
-        let mut receiver2 = rx_output.try_next().unwrap().unwrap();
+        let mut receiver2 = rx_output.next().await.unwrap();
 
         // Check that the channel is empty (no messages were sent yet).
         assert!(receiver2.try_next().is_err());
 
         // Get the receiver for the third stream.
-        let mut receiver3 = rx_output.try_next().unwrap().unwrap();
+        let mut receiver3 = rx_output.next().await.unwrap();
 
         // Check that the channel is empty (no messages were sent yet).
         assert!(receiver3.try_next().is_err());
@@ -204,7 +205,7 @@ mod tests {
 
         // Should be able to read all the messages for stream_id1.
         for _ in 0..10 {
-            let _ = receiver1.try_next().unwrap().unwrap();
+            let _ = receiver1.next().await.unwrap();
         }
 
         // Check that the receiver was closed:
@@ -225,7 +226,7 @@ mod tests {
 
         // Should be able to read all the messages for stream_id2.
         for _ in 0..6 {
-            let _ = receiver2.try_next().unwrap().unwrap();
+            let _ = receiver2.next().await.unwrap();
         }
 
         // Check that the receiver was closed:
@@ -245,7 +246,7 @@ mod tests {
 
         let stream_handler = join_handle.await.expect("Task should succeed");
         for _ in 0..10 {
-            let _ = receiver3.try_next().unwrap().unwrap();
+            let _ = receiver3.next().await.unwrap();
         }
 
         // In this case the receiver is not closed, because we didn't send a fin.
