@@ -255,7 +255,7 @@ impl TransactionExecutionInfo {
     /// Returns a summary of transaction execution, including executed class hashes, visited storage
     /// entries, L2-to-L1_payload_lengths, and the number of emitted events.
     pub fn summarize(&self) -> ExecutionSummary {
-        self.non_optional_call_infos().map(|call_info| call_info.summarize()).sum()
+        CallInfo::summarize_many(self.non_optional_call_infos())
     }
 }
 
