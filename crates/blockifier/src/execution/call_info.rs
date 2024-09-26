@@ -33,7 +33,7 @@ pub struct OrderedEvent {
     pub event: EventContent,
 }
 
-#[cfg_attr(feature = "transaction_serde", derive(Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Clone)]
 pub struct MessageL1CostInfo {
     pub l2_to_l1_payload_lengths: Vec<usize>,
@@ -89,7 +89,7 @@ pub struct CallExecution {
     pub gas_consumed: u64,
 }
 
-#[cfg_attr(feature = "transaction_serde", derive(Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, derive_more::AddAssign, PartialEq)]
 pub struct EventSummary {
     pub n_events: usize,
