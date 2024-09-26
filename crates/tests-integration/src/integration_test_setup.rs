@@ -51,15 +51,15 @@ impl IntegrationTestSetup {
         // Derive the configuration for the mempool node.
         let config = create_config(rpc_server_addr).await;
 
-        let (clients, servers) = create_clients_servers_from_config(&config);
+        let (clients, mut servers) = create_clients_servers_from_config(&config);
 
         let HttpServerConfig { ip, port } = config.http_server_config;
         let http_test_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
-        let gateway_future = get_server_future("Gateway", true, servers.gateway);
+        let gateway_future = get_server_future("Gateway", true, servers.take_gateway());
         let gateway_handle = task_executor.spawn_with_handle(gateway_future);
 
-        let http_server_future = get_server_future("HttpServer", true, servers.http_server);
+        let http_server_future = get_server_future("HttpServer", true, servers.take_http_server());
         let http_server_handle = task_executor.spawn_with_handle(http_server_future);
 
         // Wait for server to spin up.
@@ -71,7 +71,7 @@ impl IntegrationTestSetup {
         let batcher = MockBatcher::new(clients.get_mempool_client().unwrap());
 
         // Build and run mempool.
-        let mempool_future = get_server_future("Mempool", true, servers.mempool);
+        let mempool_future = get_server_future("Mempool", true, servers.take_mempool());
         let mempool_handle = task_executor.spawn_with_handle(mempool_future);
 
         Self {
