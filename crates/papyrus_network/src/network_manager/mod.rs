@@ -20,7 +20,7 @@ use libp2p::swarm::SwarmEvent;
 use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm};
 use metrics::gauge;
 use papyrus_common::metrics as papyrus_metrics;
-use serde::{Deserialize, Serialize};
+use papyrus_network_types::network_types::{BroadcastedMessageManager, OpaquePeerId};
 use sqmr::Bytes;
 use tracing::{debug, error, info, trace, warn};
 
@@ -231,10 +231,10 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         let broadcasted_messages_receiver =
             broadcasted_messages_receiver.map(broadcasted_messages_fn);
 
-        let reported_messages_sender = self
-            .reported_peers_sender
-            .clone()
-            .with(|manager: BroadcastedMessageManager| ready(Ok(manager.peer_id)));
+        let reported_messages_sender =
+            self.reported_peers_sender.clone().with(|manager: BroadcastedMessageManager| {
+                ready(Ok(manager.originator_id.private_get_peer_id()))
+            });
         let continue_propagation_sender = self.continue_propagation_sender.clone();
         Ok(BroadcastTopicChannels {
             messages_to_broadcast_sender,
@@ -476,7 +476,9 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     fn handle_gossipsub_behaviour_event(&mut self, event: gossipsub_impl::ExternalEvent) {
         let gossipsub_impl::ExternalEvent::Received { originated_peer_id, message, topic_hash } =
             event;
-        let broadcasted_message_manager = BroadcastedMessageManager { peer_id: originated_peer_id };
+        let broadcasted_message_manager = BroadcastedMessageManager {
+            originator_id: OpaquePeerId::private_new(originated_peer_id),
+        };
         let Some(sender) = self.broadcasted_messages_senders.get_mut(&topic_hash) else {
             error!(
                 "Received a message from a topic we're not subscribed to with hash {topic_hash:?}"
@@ -836,12 +838,6 @@ pub type BroadcastTopicSender<T> = With<
     Ready<Result<Bytes, SendError>>,
     fn(T) -> Ready<Result<Bytes, SendError>>,
 >;
-
-// TODO(alonl): remove clone
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct BroadcastedMessageManager {
-    peer_id: PeerId,
-}
 
 pub type BroadcastTopicReceiver<T> =
     Map<Receiver<(Bytes, BroadcastedMessageManager)>, BroadcastReceivedMessagesConverterFn<T>>;

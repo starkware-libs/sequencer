@@ -8,12 +8,13 @@ use lazy_static::lazy_static;
 use mockall::mock;
 use mockall::predicate::eq;
 use papyrus_network::network_manager::test_utils::{
-    create_test_broadcasted_message_manager,
     mock_register_broadcast_topic,
     MockBroadcastedMessagesSender,
     TestSubscriberChannels,
 };
+use papyrus_network_types::network_types::BroadcastedMessageManager;
 use papyrus_protobuf::consensus::{ConsensusMessage, Vote};
+use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::transaction::Transaction;
 use starknet_types_core::felt::Felt;
@@ -84,7 +85,7 @@ mock! {
 }
 
 async fn send(sender: &mut MockBroadcastedMessagesSender<ConsensusMessage>, msg: ConsensusMessage) {
-    let broadcasted_message_manager = create_test_broadcasted_message_manager();
+    let broadcasted_message_manager = BroadcastedMessageManager::get_test_instance(&mut get_rng());
     sender.send((msg, broadcasted_message_manager)).await.unwrap();
 }
 
