@@ -1,18 +1,30 @@
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::CairoVersion;
+use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use rstest::{fixture, rstest};
 use starknet_api::transaction::TransactionHash;
-use starknet_mempool_integration_tests::integration_test_utils::setup_with_tx_generation;
+use starknet_mempool_integration_tests::integration_test_setup::IntegrationTestSetup;
 
+#[fixture]
+fn tx_generator() -> MultiAccountTransactionGenerator {
+    MultiAccountTransactionGenerator::new()
+}
+
+#[rstest]
 #[ignore = "Gilad: There are structural issues with funding new accounts and this need surgery.
             Will fix soon. Once fixed, the test logic also need work, it's stale by now."]
 #[tokio::test]
-async fn test_end_to_end() {
+async fn test_end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
     // Setup.
-    let accounts = [
+    let accounts: Vec<_> = [
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1),
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0),
-    ];
-    let (mock_running_system, mut tx_generator) = setup_with_tx_generation(&accounts).await;
+    ]
+    .into_iter()
+    .map(|account| tx_generator.register_account_for_flow_test(account))
+    .collect();
+
+    let mock_running_system = IntegrationTestSetup::new_for_accounts(&accounts).await;
 
     let account0_deploy_nonce0 = &tx_generator.account_with_id(0).generate_default_deploy_account();
     let account0_invoke_nonce1 = tx_generator.account_with_id(0).generate_default_invoke();
