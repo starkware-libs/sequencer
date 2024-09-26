@@ -4,8 +4,8 @@ use std::pin::Pin;
 use futures::{Future, FutureExt};
 use starknet_batcher::communication::{create_local_batcher_server, LocalBatcherServer};
 use starknet_consensus_manager::communication::{
-    create_local_consensus_manager_server,
-    LocalConsensusManagerServer,
+    create_consensus_manager_server,
+    ConsensusManagerServer,
 };
 use starknet_gateway::communication::{create_gateway_server, GatewayServer};
 use starknet_http_server::communication::{create_http_server, HttpServer};
@@ -20,7 +20,7 @@ use crate::config::MempoolNodeConfig;
 
 pub struct Servers {
     pub batcher: Option<Box<LocalBatcherServer>>,
-    pub consensus_manager: Option<Box<LocalConsensusManagerServer>>,
+    pub consensus_manager: Option<Box<ConsensusManagerServer>>,
     pub gateway: Option<Box<GatewayServer>>,
     pub http_server: Option<Box<HttpServer>>,
     pub mempool: Option<Box<MempoolServer>>,
@@ -40,9 +40,8 @@ pub fn create_servers(
         None
     };
     let consensus_manager_server = if config.components.consensus_manager.execute {
-        Some(Box::new(create_local_consensus_manager_server(
+        Some(Box::new(create_consensus_manager_server(
             components.consensus_manager.expect("Consensus Manager is not initialized."),
-            communication.take_consensus_manager_rx(),
         )))
     } else {
         None
