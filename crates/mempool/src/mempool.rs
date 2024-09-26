@@ -78,7 +78,7 @@ impl Mempool {
     /// TODO: check Account nonce and balance.
     pub fn add_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
         self.validate_input(&input)?;
-        let MempoolInput { tx, account: AccountState { sender_address, nonce } } = input;
+        let MempoolInput { tx, account_state: AccountState { sender_address, nonce } } = input;
         self.tx_pool.insert(tx)?;
         self.align_to_account_state(sender_address, nonce);
         Ok(())
@@ -125,7 +125,7 @@ impl Mempool {
         // Stateless checks.
 
         // Check the input: transaction nonce against given account state.
-        let account_nonce = input.account.nonce;
+        let account_nonce = input.account_state.nonce;
         if account_nonce > tx_nonce {
             return Err(duplicate_nonce_error);
         }
