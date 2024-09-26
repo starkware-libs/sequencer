@@ -170,14 +170,21 @@ pub fn declare_tx() -> RpcTransaction {
     ))
 }
 
-// Convenience method for generating a single invoke transaction with trivial fields.
-// For multiple, nonce-incrementing transactions, use the transaction generator directly.
+/// Convenience method for generating a single invoke transaction with trivial fields.
+/// For multiple, nonce-incrementing transactions under a single account address, use the
+/// transaction generator..
 pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
-    let default_account = FeatureContract::AccountWithoutValidations(cairo_version);
+    let test_contract = FeatureContract::TestContract(cairo_version);
+    let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
+    let sender_address = account_contract.get_instance_address(0);
+    let mut nonce_manager = NonceManager::default();
 
-    MultiAccountTransactionGenerator::new_for_account_contracts([default_account])
-        .account_with_id(0)
-        .generate_default_invoke()
+    rpc_invoke_tx(invoke_tx_args!(
+        resource_bounds: test_resource_bounds_mapping(),
+        nonce : nonce_manager.next(sender_address),
+        sender_address,
+        calldata: create_trivial_calldata(test_contract.get_instance_address(0))
+    ))
 }
 
 pub fn executable_invoke_tx(cairo_version: CairoVersion) -> Transaction {
