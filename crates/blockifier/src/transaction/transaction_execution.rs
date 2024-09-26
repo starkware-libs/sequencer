@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use starknet_api::core::{calculate_contract_address, ContractAddress};
+use starknet_api::core::{calculate_contract_address, ContractAddress, Nonce};
 use starknet_api::transaction::{Fee, Transaction as StarknetApiTransaction, TransactionHash};
 
 use crate::bouncer::verify_tx_weights_in_bounds;
@@ -37,6 +37,27 @@ pub enum Transaction {
 }
 
 impl Transaction {
+    pub fn nonce(&self) -> Nonce {
+        match self {
+            Self::AccountTransaction(tx) => tx.nonce(),
+            Self::L1HandlerTransaction(tx) => tx.tx.nonce,
+        }
+    }
+
+    pub fn sender_address(&self) -> ContractAddress {
+        match self {
+            Self::AccountTransaction(tx) => tx.sender_address(),
+            Self::L1HandlerTransaction(tx) => tx.tx.contract_address,
+        }
+    }
+
+    pub fn tx_hash(tx: &Transaction) -> TransactionHash {
+        match tx {
+            Transaction::AccountTransaction(tx) => tx.tx_hash(),
+            Transaction::L1HandlerTransaction(tx) => tx.tx_hash,
+        }
+    }
+
     pub fn from_api(
         tx: StarknetApiTransaction,
         tx_hash: TransactionHash,
