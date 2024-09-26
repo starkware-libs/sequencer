@@ -1,9 +1,12 @@
 use starknet_api::core::calculate_contract_address;
+use starknet_api::executable_transaction::{
+    AccountTransaction as Transaction,
+    DeployAccountTransaction,
+};
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::NonceManager;
 
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::transactions::DeployAccountTransaction;
 
 pub fn deploy_account_tx(
     deploy_tx_args: DeployAccountTxArgs,
@@ -24,8 +27,11 @@ pub fn deploy_account_tx(
     );
     // TODO(AvivG): use starknet_api::test_utils::deploy_account::executable_deploy_account_tx to
     // create executable_deploy_account_tx instead of code above.
-    let executable_deploy_account_tx =
-        DeployAccountTransaction::new(deploy_account_tx, tx_hash, contract_address);
+    let executable_tx = Transaction::DeployAccount(DeployAccountTransaction {
+        tx: deploy_account_tx,
+        tx_hash,
+        contract_address,
+    });
 
-    executable_deploy_account_tx.into()
+    executable_tx.into()
 }
