@@ -3,6 +3,7 @@ use std::any::type_name;
 use async_trait::async_trait;
 use tracing::info;
 
+use crate::component_server::{ComponentReplacer, ReplaceComponentError};
 use crate::errors::{ComponentError, ComponentServerError};
 use crate::starters::Startable;
 
@@ -28,4 +29,11 @@ impl<Component: Startable<ComponentError> + Send + Sync> Startable<ComponentServ
 
 pub fn create_empty_server<Component: Send + Sync>(component: Component) -> EmptyServer<Component> {
     EmptyServer::new(component)
+}
+
+impl<Component> ComponentReplacer<Component> for EmptyServer<Component> {
+    fn replace(&mut self, component: Component) -> Result<(), ReplaceComponentError> {
+        self.component = component;
+        Ok(())
+    }
 }

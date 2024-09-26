@@ -6,6 +6,7 @@ use tracing::error;
 
 use super::definitions::request_response_loop;
 use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
+use crate::component_server::{ComponentReplacer, ReplaceComponentError};
 use crate::errors::{ComponentError, ComponentServerError};
 use crate::starters::Startable;
 
@@ -179,5 +180,18 @@ where
         rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     ) -> Self {
         Self { component, rx, _local_server_type: PhantomData }
+    }
+}
+
+impl<Component, Request, Response, LocalServerType> ComponentReplacer<Component>
+    for BaseLocalComponentServer<Component, Request, Response, LocalServerType>
+where
+    Component: ComponentRequestHandler<Request, Response>,
+    Request: Send + Sync,
+    Response: Send + Sync,
+{
+    fn replace(&mut self, component: Component) -> Result<(), ReplaceComponentError> {
+        self.component = component;
+        Ok(())
     }
 }
