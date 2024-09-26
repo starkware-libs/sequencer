@@ -1,11 +1,7 @@
 use std::net::SocketAddr;
 
 use axum::body::Body;
-use blockifier::test_utils::contracts::FeatureContract;
-use mempool_test_utils::starknet_api_test_utils::{
-    rpc_tx_to_json,
-    MultiAccountTransactionGenerator,
-};
+use mempool_test_utils::starknet_api_test_utils::rpc_tx_to_json;
 use reqwest::{Client, Response};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -19,8 +15,6 @@ use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_node::config::MempoolNodeConfig;
 use tokio::net::TcpListener;
-
-use crate::integration_test_setup::IntegrationTestSetup;
 
 async fn create_gateway_config() -> GatewayConfig {
     let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
@@ -112,16 +106,4 @@ pub async fn get_available_socket() -> SocketAddr {
         // Then, resolve to the actual selected port.
         .local_addr()
         .expect("Failed to get local address")
-}
-
-/// Use to create a tx generator with _pre-funded_ accounts, alongside a mocked test setup.
-pub async fn setup_with_tx_generation(
-    accounts: &[FeatureContract],
-) -> (IntegrationTestSetup, MultiAccountTransactionGenerator) {
-    let integration_test_setup =
-        IntegrationTestSetup::new_for_account_contracts(accounts.iter().copied()).await;
-    let tx_generator =
-        MultiAccountTransactionGenerator::new_for_account_contracts(accounts.iter().copied());
-
-    (integration_test_setup, tx_generator)
 }
