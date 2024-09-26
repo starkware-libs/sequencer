@@ -309,7 +309,7 @@ pub fn get_tx_weights<S: StateReader>(
     Ok(BouncerWeights {
         gas: gas_usage,
         message_segment_length,
-        n_events: tx_resources.starknet_resources.event_summary.n_events,
+        n_events: tx_resources.starknet_resources.archival_data_resources.event_summary.n_events,
         n_steps: vm_resources.total_n_steps(),
         builtin_count: BuiltinCount::from(vm_resources.prover_builtins()),
         state_diff_size: get_onchain_data_segment_length(&state_changes_keys.count()),
