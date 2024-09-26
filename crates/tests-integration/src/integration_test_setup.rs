@@ -5,8 +5,9 @@ use blockifier::test_utils::CairoVersion;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_gateway::config::GatewayNetworkConfig;
-use starknet_gateway::errors::GatewaySpecError;
+use starknet_gateway_types::errors::GatewaySpecError;
+use starknet_http_server::config::HttpServerConfig;
+use starknet_mempool_infra::errors::ComponentServerError;
 use starknet_mempool_infra::trace_util::configure_tracing;
 use starknet_mempool_node::servers::get_server_future;
 use starknet_mempool_node::utils::create_clients_servers_from_config;
@@ -14,16 +15,17 @@ use starknet_task_executor::tokio_executor::TokioExecutor;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
-use crate::integration_test_utils::{create_config, GatewayClient};
+use crate::integration_test_utils::{create_config, HttpTestClient};
 use crate::mock_batcher::MockBatcher;
 use crate::state_reader::spawn_test_rpc_state_reader;
 
 pub struct IntegrationTestSetup {
     pub task_executor: TokioExecutor,
-    pub gateway_client: GatewayClient,
+    pub http_test_client: HttpTestClient,
     pub batcher: MockBatcher,
-    pub gateway_handle: JoinHandle<()>,
-    pub mempool_handle: JoinHandle<()>,
+    pub gateway_handle: JoinHandle<Result<(), ComponentServerError>>,
+    pub http_server_handle: JoinHandle<Result<(), ComponentServerError>>,
+    pub mempool_handle: JoinHandle<Result<(), ComponentServerError>>,
 }
 
 impl IntegrationTestSetup {
@@ -51,11 +53,14 @@ impl IntegrationTestSetup {
 
         let (clients, servers) = create_clients_servers_from_config(&config);
 
-        let GatewayNetworkConfig { ip, port } = config.gateway_config.network_config;
-        let gateway_client = GatewayClient::new(SocketAddr::from((ip, port)));
+        let HttpServerConfig { ip, port } = config.http_server_config;
+        let http_test_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
         let gateway_future = get_server_future("Gateway", true, servers.gateway);
         let gateway_handle = task_executor.spawn_with_handle(gateway_future);
+
+        let http_server_future = get_server_future("HttpServer", true, servers.http_server);
+        let http_server_handle = task_executor.spawn_with_handle(http_server_future);
 
         // Wait for server to spin up.
         // TODO(Gilad): Replace with a persistant Client with a built-in retry mechanism,
@@ -69,15 +74,22 @@ impl IntegrationTestSetup {
         let mempool_future = get_server_future("Mempool", true, servers.mempool);
         let mempool_handle = task_executor.spawn_with_handle(mempool_future);
 
-        Self { task_executor, gateway_client, batcher, gateway_handle, mempool_handle }
+        Self {
+            task_executor,
+            http_test_client,
+            batcher,
+            gateway_handle,
+            http_server_handle,
+            mempool_handle,
+        }
     }
 
     pub async fn assert_add_tx_success(&self, tx: &RpcTransaction) -> TransactionHash {
-        self.gateway_client.assert_add_tx_success(tx).await
+        self.http_test_client.assert_add_tx_success(tx).await
     }
 
     pub async fn assert_add_tx_error(&self, tx: &RpcTransaction) -> GatewaySpecError {
-        self.gateway_client.assert_add_tx_error(tx).await
+        self.http_test_client.assert_add_tx_error(tx).await
     }
 
     pub async fn get_txs(&self, n_txs: usize) -> Vec<Transaction> {

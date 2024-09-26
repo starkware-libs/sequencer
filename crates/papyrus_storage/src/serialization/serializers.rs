@@ -160,6 +160,7 @@ auto_storage_serde! {
         pub block_number: BlockNumber,
         pub l1_gas_price: GasPricePerToken,
         pub l1_data_gas_price: GasPricePerToken,
+        pub l2_gas_price: GasPricePerToken,
         pub state_root: GlobalRoot,
         pub sequencer: SequencerContractAddress,
         pub timestamp: BlockTimestamp,
@@ -290,6 +291,7 @@ auto_storage_serde! {
     pub struct GasVector {
         pub l1_gas: u64,
         pub l1_data_gas: u64,
+        pub l2_gas: u64,
     }
     pub struct GlobalRoot(pub StarkHash);
     pub struct H160(pub [u8; 20]);
@@ -386,7 +388,7 @@ auto_storage_serde! {
     pub enum StructType {
         Struct = 0,
     }
-    pub struct StarknetVersion(pub String);
+    pub struct StarknetVersion(pub Vec<u8>);
     pub struct StateDiffCommitment(pub PoseidonHash);
     pub struct Tip(pub u64);
     pub struct TransactionCommitment(pub StarkHash);

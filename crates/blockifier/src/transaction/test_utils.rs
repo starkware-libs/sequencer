@@ -2,7 +2,9 @@ use rstest::fixture;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
+use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
+    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     Fee,
@@ -33,8 +35,12 @@ use crate::test_utils::invoke::invoke_tx;
 use crate::test_utils::{
     create_calldata,
     CairoVersion,
-    NonceManager,
     BALANCE,
+    DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+    DEFAULT_L2_GAS_MAX_AMOUNT,
+    DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE,
+    DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
     MAX_L1_GAS_AMOUNT,
     MAX_L1_GAS_PRICE,
@@ -234,7 +240,7 @@ pub fn create_account_tx_for_validate_test(
             declare_tx(
                 declare_tx_args! {
                     max_fee,
-                    resource_bounds: resource_bounds.clone(),
+                    resource_bounds,
                     signature,
                     sender_address,
                     version: tx_version,
@@ -255,7 +261,7 @@ pub fn create_account_tx_for_validate_test(
             let deploy_account_tx = deploy_account_tx(
                 deploy_account_tx_args! {
                     max_fee,
-                    resource_bounds: resource_bounds.clone(),
+                    resource_bounds,
                     signature,
                     version: tx_version,
                     class_hash,
@@ -299,6 +305,25 @@ pub fn run_invoke_tx(
 /// No guarantees on the values of the other resources bounds.
 pub fn l1_resource_bounds(max_amount: u64, max_price: u128) -> ValidResourceBounds {
     ValidResourceBounds::L1Gas(ResourceBounds { max_amount, max_price_per_unit: max_price })
+}
+
+#[fixture]
+pub fn all_resource_bounds(
+    #[default(MAX_L1_GAS_AMOUNT)] l1_max_amount: u64,
+    #[default(DEFAULT_STRK_L1_GAS_PRICE)] l1_max_price: u128,
+    #[default(DEFAULT_L2_GAS_MAX_AMOUNT)] l2_max_amount: u64,
+    #[default(DEFAULT_STRK_L2_GAS_PRICE)] l2_max_price: u128,
+    #[default(DEFAULT_L1_DATA_GAS_MAX_AMOUNT)] l1_data_max_amount: u64,
+    #[default(DEFAULT_STRK_L1_DATA_GAS_PRICE)] l1_data_max_price: u128,
+) -> ValidResourceBounds {
+    ValidResourceBounds::AllResources(AllResourceBounds {
+        l1_gas: ResourceBounds { max_amount: l1_max_amount, max_price_per_unit: l1_max_price },
+        l2_gas: ResourceBounds { max_amount: l2_max_amount, max_price_per_unit: l2_max_price },
+        l1_data_gas: ResourceBounds {
+            max_amount: l1_data_max_amount,
+            max_price_per_unit: l1_data_max_price,
+        },
+    })
 }
 
 pub fn calculate_class_info_for_testing(contract_class: ContractClass) -> ClassInfo {

@@ -303,6 +303,7 @@ fn create_block_context(
         block_timestamp,
         l1_gas_price,
         l1_data_gas_price,
+        l2_gas_price,
         sequencer_address,
         l1_da_mode,
     ) = match maybe_pending_data {
@@ -311,6 +312,7 @@ fn create_block_context(
             pending_data.timestamp,
             pending_data.l1_gas_price,
             pending_data.l1_data_gas_price,
+            pending_data.l2_gas_price,
             pending_data.sequencer,
             pending_data.l1_da_mode,
         ),
@@ -318,12 +320,14 @@ fn create_block_context(
             let header = storage_reader
                 .begin_ro_txn()?
                 .get_block_header(block_context_number)?
-                .expect("Should have block header.");
+                .expect("Should have block header.")
+                .block_header_without_hash;
             (
                 header.block_number,
                 header.timestamp,
                 header.l1_gas_price,
                 header.l1_data_gas_price,
+                header.l2_gas_price,
                 header.sequencer,
                 header.l1_da_mode,
             )
@@ -351,9 +355,8 @@ fn create_block_context(
             NonZeroU128::new(l1_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
             NonZeroU128::new(l1_data_gas_price.price_in_wei.0).unwrap_or(NonZeroU128::MIN),
             NonZeroU128::new(l1_data_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
-            // TODO(Aner - Shahak): fix to come from pending_data/block_header.
-            NonZeroU128::MIN,
-            NonZeroU128::MIN,
+            NonZeroU128::new(l2_gas_price.price_in_wei.0).unwrap_or(NonZeroU128::MIN),
+            NonZeroU128::new(l2_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
         ),
     };
     let chain_info = ChainInfo {
@@ -696,7 +699,7 @@ fn get_10_blocks_ago(
         return Ok(None);
     };
     Ok(Some(BlockNumberHashPair {
-        number: header_10_blocks_ago.block_number,
+        number: header_10_blocks_ago.block_header_without_hash.block_number,
         hash: header_10_blocks_ago.block_hash,
     }))
 }

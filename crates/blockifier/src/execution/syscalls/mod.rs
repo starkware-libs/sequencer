@@ -43,12 +43,12 @@ use crate::execution::entry_point::{CallEntryPoint, CallType, ConstructorContext
 use crate::execution::execution_utils::{
     execute_deployment,
     felt_from_ptr,
+    update_remaining_gas,
     write_felt,
     write_maybe_relocatable,
     ReadOnlySegment,
 };
 use crate::execution::syscalls::hint_processor::{INVALID_INPUT_LENGTH_ERROR, OUT_OF_GAS_ERROR};
-use crate::transaction::transaction_utils::update_remaining_gas;
 use crate::versioned_constants::{EventLimits, VersionedConstants};
 
 pub mod hint_processor;
@@ -478,28 +478,6 @@ pub fn library_call(
     remaining_gas: &mut u64,
 ) -> SyscallResult<LibraryCallResponse> {
     let call_to_external = true;
-    let retdata_segment = execute_library_call(
-        syscall_handler,
-        vm,
-        request.class_hash,
-        call_to_external,
-        request.function_selector,
-        request.calldata,
-        remaining_gas,
-    )?;
-
-    Ok(LibraryCallResponse { segment: retdata_segment })
-}
-
-// LibraryCallL1Handler syscall.
-
-pub fn library_call_l1_handler(
-    request: LibraryCallRequest,
-    vm: &mut VirtualMachine,
-    syscall_handler: &mut SyscallHintProcessor<'_>,
-    remaining_gas: &mut u64,
-) -> SyscallResult<LibraryCallResponse> {
-    let call_to_external = false;
     let retdata_segment = execute_library_call(
         syscall_handler,
         vm,

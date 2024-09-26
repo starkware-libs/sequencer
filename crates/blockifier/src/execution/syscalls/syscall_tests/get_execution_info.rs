@@ -2,18 +2,19 @@ use cairo_vm::Felt252;
 use num_traits::Pow;
 use starknet_api::core::ChainId;
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::felt;
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
     Fee,
     PaymasterData,
+    Resource,
     ResourceBounds,
     Tip,
     TransactionHash,
     TransactionVersion,
     ValidResourceBounds,
 };
+use starknet_api::{felt, nonce};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
@@ -21,8 +22,6 @@ use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::syscalls::hint_processor::{L1_DATA, L1_GAS, L2_GAS};
-use crate::nonce;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
@@ -153,13 +152,13 @@ fn test_get_execution_info(
             felt!(0_u16), // Length of resource bounds array.
         ],
         (_, _) => vec![
-            Felt::from(2u32),            // Length of ResourceBounds array.
-            felt!(L1_GAS),               // Resource.
-            felt!(max_amount.0),         // Max amount.
-            felt!(max_price_per_unit.0), // Max price per unit.
-            felt!(L2_GAS),               // Resource.
-            Felt::ZERO,                  // Max amount.
-            Felt::ZERO,                  // Max price per unit.
+            Felt::from(2u32),                // Length of ResourceBounds array.
+            felt!(Resource::L1Gas.to_hex()), // Resource.
+            felt!(max_amount.0),             // Max amount.
+            felt!(max_price_per_unit.0),     // Max price per unit.
+            felt!(Resource::L2Gas.to_hex()), // Resource.
+            Felt::ZERO,                      // Max amount.
+            Felt::ZERO,                      // Max price per unit.
         ],
     };
 
@@ -257,9 +256,9 @@ fn test_get_execution_info(
 
 #[test]
 fn test_gas_types_constants() {
-    assert_eq!(str_to_32_bytes_in_hex("L1_GAS"), L1_GAS);
-    assert_eq!(str_to_32_bytes_in_hex("L2_GAS"), L2_GAS);
-    assert_eq!(str_to_32_bytes_in_hex("L1_DATA"), L1_DATA);
+    assert_eq!(str_to_32_bytes_in_hex("L1_GAS"), Resource::L1Gas.to_hex());
+    assert_eq!(str_to_32_bytes_in_hex("L2_GAS"), Resource::L2Gas.to_hex());
+    assert_eq!(str_to_32_bytes_in_hex("L1_DATA"), Resource::L1DataGas.to_hex());
 }
 
 fn str_to_32_bytes_in_hex(s: &str) -> String {

@@ -6,12 +6,13 @@ use std::path::Path;
 use std::rc::Rc;
 use std::sync::OnceLock;
 
+use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::{create_trivial_calldata, CairoVersion, NonceManager};
+use blockifier::test_utils::{create_trivial_calldata, CairoVersion};
 use serde_json::to_string_pretty;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::executable_transaction::{InvokeTransaction, Transaction};
+use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::{
     ContractClass,
     RpcDeclareTransactionV3,
@@ -19,6 +20,7 @@ use starknet_api::rpc_transaction::{
     RpcInvokeTransactionV3,
     RpcTransaction,
 };
+use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -27,7 +29,6 @@ use starknet_api::transaction::{
     PaymasterData,
     ResourceBounds,
     Tip,
-    TransactionHash,
     TransactionSignature,
     TransactionVersion,
     ValidResourceBounds,
@@ -47,7 +48,7 @@ use crate::{
 
 pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
-pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 203484;
+pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 500000;
 pub const VALID_L2_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 pub const VALID_L1_DATA_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
@@ -132,6 +133,10 @@ pub fn test_resource_bounds_mapping() -> AllResourceBounds {
     )
 }
 
+pub fn test_valid_resource_bounds() -> ValidResourceBounds {
+    ValidResourceBounds::AllResources(test_resource_bounds_mapping())
+}
+
 /// Get the contract class used for testing.
 pub fn contract_class() -> ContractClass {
     env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Couldn't set working dir.");
@@ -165,14 +170,29 @@ pub fn declare_tx() -> RpcTransaction {
     ))
 }
 
-// Convenience method for generating a single invoke transaction with trivial fields.
-// For multiple, nonce-incrementing transactions, use the transaction generator directly.
+/// Convenience method for generating a single invoke transaction with trivial fields.
+/// For multiple, nonce-incrementing transactions under a single account address, use the
+/// transaction generator..
 pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
+    let test_contract = FeatureContract::TestContract(cairo_version);
+    let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
+    let sender_address = account_contract.get_instance_address(0);
+    let mut nonce_manager = NonceManager::default();
+
+    rpc_invoke_tx(invoke_tx_args!(
+        resource_bounds: test_resource_bounds_mapping(),
+        nonce : nonce_manager.next(sender_address),
+        sender_address,
+        calldata: create_trivial_calldata(test_contract.get_instance_address(0))
+    ))
+}
+
+pub fn executable_invoke_tx(cairo_version: CairoVersion) -> Transaction {
     let default_account = FeatureContract::AccountWithoutValidations(cairo_version);
 
     MultiAccountTransactionGenerator::new_for_account_contracts([default_account])
         .account_with_id(0)
-        .generate_default_invoke()
+        .generate_default_executable_invoke()
 }
 
 //  TODO(Yael 18/6/2024): Get a final decision from product whether to support Cairo0.
@@ -212,7 +232,7 @@ type SharedNonceManager = Rc<RefCell<NonceManager>>;
 // [blockifier::transaction::test_utils::FaultyAccountTxCreatorArgs] can be made to use this.
 pub struct MultiAccountTransactionGenerator {
     // Invariant: coupled with the nonce manager.
-    account_contracts: HashMap<AccountId, AccountTransactionGenerator>,
+    account_contracts: Vec<AccountTransactionGenerator>,
     // Invariant: nonces managed internally thorugh `generate` API of the account transaction
     // generator.
     // Only used by single account transaction generators, but owning it here is preferable over
@@ -229,19 +249,16 @@ impl MultiAccountTransactionGenerator {
     }
 
     pub fn new_for_account_contracts(accounts: impl IntoIterator<Item = FeatureContract>) -> Self {
-        let mut account_contracts = HashMap::new();
+        let mut account_contracts = vec![];
         let mut account_type_to_n_instances = HashMap::new();
         let nonce_manager = SharedNonceManager::default();
-        for (account_id, account) in accounts.into_iter().enumerate() {
+        for account in accounts {
             let n_current_contract = account_type_to_n_instances.entry(account).or_insert(0);
-            account_contracts.insert(
-                account_id,
-                AccountTransactionGenerator {
-                    account,
-                    contract_instance_id: *n_current_contract,
-                    nonce_manager: nonce_manager.clone(),
-                },
-            );
+            account_contracts.push(AccountTransactionGenerator {
+                account,
+                contract_instance_id: *n_current_contract,
+                nonce_manager: nonce_manager.clone(),
+            });
             *n_current_contract += 1;
         }
 
@@ -249,7 +266,7 @@ impl MultiAccountTransactionGenerator {
     }
 
     pub fn account_with_id(&mut self, account_id: AccountId) -> &mut AccountTransactionGenerator {
-        self.account_contracts.get_mut(&account_id).unwrap_or_else(|| {
+        self.account_contracts.get_mut(account_id).unwrap_or_else(|| {
             panic!(
                 "{account_id:?} not found! This number should be an index of an account in the \
                  initialization array. "
@@ -281,6 +298,17 @@ impl AccountTransactionGenerator {
             calldata: create_trivial_calldata(self.test_contract_address()),
         );
         rpc_invoke_tx(invoke_args)
+    }
+
+    pub fn generate_default_executable_invoke(&mut self) -> Transaction {
+        let invoke_args = starknet_api::invoke_tx_args!(
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            nonce: self.next_nonce(),
+            calldata: create_trivial_calldata(self.test_contract_address()),
+        );
+
+        Transaction::Invoke(starknet_api::test_utils::invoke::executable_invoke_tx(invoke_args))
     }
 
     pub fn generate_default_deploy_account(&mut self) -> RpcTransaction {
@@ -323,6 +351,72 @@ impl AccountTransactionGenerator {
         let sender_address = self.sender_address();
         self.nonce_manager.borrow_mut().next(sender_address)
     }
+}
+
+/// Adds state to the feature contract struct, so that its _account_ variants can generate a single
+/// address, thus allowing future transactions generated for the account to share the same address.
+#[derive(Debug, Clone)]
+pub struct FeatureAccount {
+    pub class_hash: ClassHash,
+    pub account: FeatureContract,
+    deployment_state: InitializationState,
+}
+
+impl FeatureAccount {
+    pub fn new(account: FeatureContract) -> Self {
+        assert_matches!(
+            account,
+            FeatureContract::AccountWithLongValidate(_)
+                | FeatureContract::AccountWithoutValidations(_)
+                | FeatureContract::FaultyAccount(_),
+            "{account:?} is not an account"
+        );
+
+        Self {
+            class_hash: account.get_class_hash(),
+            account,
+            deployment_state: InitializationState::default(),
+        }
+    }
+
+    pub fn build(&mut self, deploy_account_tx: &RpcTransaction) {
+        assert_matches!(
+            deploy_account_tx,
+            RpcTransaction::DeployAccount(_),
+            "An account must be initialized with a deploy account transaction"
+        );
+
+        match self.deployment_state {
+            InitializationState::Uninitialized => {
+                let address = deploy_account_tx.calculate_sender_address().unwrap();
+                self.deployment_state = InitializationState::Initialized(address);
+            }
+            InitializationState::Initialized(_) => panic!("Account is already initialized"),
+        }
+    }
+
+    pub fn sender_address(&self) -> ContractAddress {
+        match self.deployment_state {
+            InitializationState::Initialized(address) => address,
+            InitializationState::Uninitialized => panic!("Uninitialized account"),
+        }
+    }
+
+    // Use for special case testing accounts that don't have an explicit deploy account transaction.
+    pub fn new_with_custom_address(account: FeatureContract, address: ContractAddress) -> Self {
+        Self {
+            account,
+            deployment_state: InitializationState::Initialized(address),
+            class_hash: account.get_class_hash(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+enum InitializationState {
+    #[default]
+    Uninitialized,
+    Initialized(ContractAddress),
 }
 
 // TODO(Ayelet, 28/5/2025): Try unifying the macros.
@@ -560,30 +654,4 @@ pub fn rpc_tx_to_json(tx: &RpcTransaction) -> String {
 
     // Serialize back to pretty JSON string
     to_string_pretty(&tx_json).expect("Failed to serialize transaction")
-}
-
-pub fn create_executable_tx(
-    sender_address: ContractAddress,
-    tx_hash: TransactionHash,
-    tip: Tip,
-    nonce: Nonce,
-    resource_bounds: ValidResourceBounds,
-) -> Transaction {
-    Transaction::Invoke(InvokeTransaction {
-        tx: starknet_api::transaction::InvokeTransaction::V3(
-            starknet_api::transaction::InvokeTransactionV3 {
-                sender_address,
-                tip,
-                nonce,
-                resource_bounds,
-                signature: TransactionSignature::default(),
-                calldata: Calldata::default(),
-                nonce_data_availability_mode: DataAvailabilityMode::L1,
-                fee_data_availability_mode: DataAvailabilityMode::L1,
-                paymaster_data: PaymasterData::default(),
-                account_deployment_data: AccountDeploymentData::default(),
-            },
-        ),
-        tx_hash,
-    })
 }

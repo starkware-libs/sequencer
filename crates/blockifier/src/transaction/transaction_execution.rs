@@ -8,7 +8,7 @@ use crate::bouncer::verify_tx_weights_in_bounds;
 use crate::context::BlockContext;
 use crate::execution::contract_class::ClassInfo;
 use crate::execution::entry_point::EntryPointExecutionContext;
-use crate::fee::actual_cost::TransactionReceipt;
+use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::TransactionalState;
 use crate::state::state_api::UpdatableState;
 use crate::transaction::account_transaction::AccountTransaction;

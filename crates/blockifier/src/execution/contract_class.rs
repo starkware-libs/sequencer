@@ -4,8 +4,13 @@ use std::sync::Arc;
 
 use cairo_lang_casm;
 use cairo_lang_casm::hints::Hint;
-use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
+use cairo_lang_starknet_classes::casm_contract_class::{
+    CasmContractClass,
+    CasmContractEntryPoint,
+    CasmContractEntryPoints,
+};
 use cairo_lang_starknet_classes::NestedIntList;
+use cairo_lang_utils::bigint::BigUintAsHex;
 use cairo_vm::serde::deserialize_program::{
     ApTracking,
     FlowTrackingData,
@@ -18,8 +23,9 @@ use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use itertools::Itertools;
+use semver::Version;
 use serde::de::Error as DeserializationError;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
@@ -38,6 +44,7 @@ use crate::execution::errors::{ContractClassError, PreExecutionError};
 use crate::execution::execution_utils::sn_api_to_cairo_vm_program;
 use crate::fee::eth_gas_constants;
 use crate::transaction::errors::TransactionExecutionError;
+use crate::versioned_constants::CompilerVersion;
 
 #[cfg(test)]
 #[path = "contract_class_test.rs"]
@@ -45,11 +52,27 @@ pub mod test;
 
 pub type ContractClassResult<T> = Result<T, ContractClassError>;
 
+/// The resource used to run a contract function.
+#[derive(Clone, Copy, Default, Debug, Eq, PartialEq, Serialize)]
+pub enum TrackingResource {
+    #[default]
+    CairoSteps, // AKA VM mode.
+    SierraGas, // AKA Sierra mode.
+}
+
 /// Represents a runnable Starknet contract class (meaning, the program is runnable by the VM).
 #[derive(Clone, Debug, Eq, PartialEq, derive_more::From)]
 pub enum ContractClass {
     V0(ContractClassV0),
     V1(ContractClassV1),
+}
+
+impl TryFrom<&CasmContractClass> for ContractClass {
+    type Error = ProgramError;
+
+    fn try_from(contract_class: &CasmContractClass) -> Result<Self, Self::Error> {
+        Ok(ContractClass::V1(contract_class.try_into()?))
+    }
 }
 
 impl TryFrom<CasmContractClass> for ContractClass {
@@ -93,11 +116,21 @@ impl ContractClass {
             ContractClass::V1(class) => class.bytecode_length(),
         }
     }
+
+    /// Returns whether this contract should run using Cairo steps or Sierra gas.
+    pub fn tracking_resource(&self, min_sierra_version: &CompilerVersion) -> TrackingResource {
+        match self {
+            ContractClass::V0(_) => TrackingResource::CairoSteps,
+            ContractClass::V1(contract_class) => {
+                contract_class.tracking_resource(min_sierra_version)
+            }
+        }
+    }
 }
 
 // V0.
 
-/// Represents a runnable Cario 0 Starknet contract class (meaning, the program is runnable by the
+/// Represents a runnable Cairo 0 Starknet contract class (meaning, the program is runnable by the
 /// VM). We wrap the actual class in an Arc to avoid cloning the program when cloning the
 /// class.
 // Note: when deserializing from a SN API class JSON string, the ABI field is ignored
@@ -142,6 +175,10 @@ impl ContractClassV0 {
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, hashed_data_size)]),
         }
+    }
+
+    pub fn tracking_resource(&self) -> TrackingResource {
+        TrackingResource::CairoSteps
     }
 
     pub fn try_from_json_string(raw_contract_class: &str) -> Result<ContractClassV0, ProgramError> {
@@ -222,6 +259,15 @@ impl ContractClassV1 {
         }
     }
 
+    /// Returns whether this contract should run using Cairo steps or Sierra gas.
+    pub fn tracking_resource(&self, min_sierra_version: &CompilerVersion) -> TrackingResource {
+        if *min_sierra_version <= self.compiler_version {
+            TrackingResource::SierraGas
+        } else {
+            TrackingResource::CairoSteps
+        }
+    }
+
     /// Returns the estimated VM resources required for computing Casm hash.
     /// This is an empiric measurement of several bytecode lengths, which constitutes as the
     /// dominant factor in it.
@@ -241,7 +287,7 @@ impl ContractClassV1 {
 
     pub fn try_from_json_string(raw_contract_class: &str) -> Result<ContractClassV1, ProgramError> {
         let casm_contract_class: CasmContractClass = serde_json::from_str(raw_contract_class)?;
-        let contract_class: ContractClassV1 = casm_contract_class.try_into()?;
+        let contract_class = ContractClassV1::try_from(&casm_contract_class)?;
 
         Ok(contract_class)
     }
@@ -355,7 +401,7 @@ pub struct ContractClassV1Inner {
     pub program: Program,
     pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPointV1>>,
     pub hints: HashMap<String, Hint>,
-    pub compiler_version: String,
+    pub compiler_version: CompilerVersion,
     bytecode_segment_lengths: NestedIntList,
 }
 
@@ -376,71 +422,27 @@ impl TryFrom<CasmContractClass> for ContractClassV1 {
     type Error = ProgramError;
 
     fn try_from(class: CasmContractClass) -> Result<Self, Self::Error> {
-        let data: Vec<MaybeRelocatable> = class
-            .bytecode
-            .into_iter()
-            .map(|x| MaybeRelocatable::from(Felt::from(x.value)))
-            .collect();
+        try_from_casm_contrcat_class_internal(
+            &class.bytecode,
+            &class.hints,
+            &class.entry_points_by_type,
+            class.bytecode_segment_lengths,
+            &class.compiler_version,
+        )
+    }
+}
 
-        let mut hints: HashMap<usize, Vec<HintParams>> = HashMap::new();
-        for (i, hint_list) in class.hints.iter() {
-            let hint_params: Result<Vec<HintParams>, ProgramError> =
-                hint_list.iter().map(hint_to_hint_params).collect();
-            hints.insert(*i, hint_params?);
-        }
+impl TryFrom<&CasmContractClass> for ContractClassV1 {
+    type Error = ProgramError;
 
-        // Collect a sting to hint map so that the hint processor can fetch the correct [Hint]
-        // for each instruction.
-        let mut string_to_hint: HashMap<String, Hint> = HashMap::new();
-        for (_, hint_list) in class.hints.iter() {
-            for hint in hint_list.iter() {
-                string_to_hint.insert(serde_json::to_string(hint)?, hint.clone());
-            }
-        }
-
-        let builtins = vec![]; // The builtins are initialize later.
-        let main = Some(0);
-        let reference_manager = ReferenceManager { references: Vec::new() };
-        let identifiers = HashMap::new();
-        let error_message_attributes = vec![];
-        let instruction_locations = None;
-
-        let program = Program::new(
-            builtins,
-            data,
-            main,
-            hints,
-            reference_manager,
-            identifiers,
-            error_message_attributes,
-            instruction_locations,
-        )?;
-
-        let mut entry_points_by_type = HashMap::new();
-        entry_points_by_type.insert(
-            EntryPointType::Constructor,
-            convert_entry_points_v1(class.entry_points_by_type.constructor),
-        );
-        entry_points_by_type.insert(
-            EntryPointType::External,
-            convert_entry_points_v1(class.entry_points_by_type.external),
-        );
-        entry_points_by_type.insert(
-            EntryPointType::L1Handler,
-            convert_entry_points_v1(class.entry_points_by_type.l1_handler),
-        );
-
-        let bytecode_segment_lengths = class
-            .bytecode_segment_lengths
-            .unwrap_or_else(|| NestedIntList::Leaf(program.data_len()));
-
-        Ok(Self(Arc::new(ContractClassV1Inner {
-            program,
-            entry_points_by_type,
-            hints: string_to_hint,
-            compiler_version: class.compiler_version,
-            bytecode_segment_lengths,
-        })))
+    fn try_from(class: &CasmContractClass) -> Result<Self, Self::Error> {
+        try_from_casm_contrcat_class_internal(
+            &class.bytecode,
+            &class.hints,
+            &class.entry_points_by_type,
+            class.bytecode_segment_lengths.clone(),
+            &class.compiler_version,
+        )
     }
 }
 
@@ -457,6 +459,78 @@ pub fn deserialize_program<'de, D: Deserializer<'de>>(
 
 // V1 utilities.
 
+fn try_from_casm_contrcat_class_internal(
+    bytecode: &[BigUintAsHex],
+    casm_class_hints: &[(usize, Vec<Hint>)],
+    casm_class_entry_points_by_type: &CasmContractEntryPoints,
+    bytecode_segment_lengths: Option<NestedIntList>,
+    compiler_version: &str,
+) -> Result<ContractClassV1, ProgramError> {
+    let data: Vec<MaybeRelocatable> =
+        bytecode.iter().map(|x| MaybeRelocatable::from(Felt::from(&x.value))).collect();
+
+    let mut hints: HashMap<usize, Vec<HintParams>> = HashMap::new();
+    for (i, hint_list) in casm_class_hints.iter() {
+        let hint_params: Result<Vec<HintParams>, ProgramError> =
+            hint_list.iter().map(hint_to_hint_params).collect();
+        hints.insert(*i, hint_params?);
+    }
+
+    // Collect a sting to hint map so that the hint processor can fetch the correct [Hint]
+    // for each instruction.
+    let mut string_to_hint: HashMap<String, Hint> = HashMap::new();
+    for (_, hint_list) in casm_class_hints.iter() {
+        for hint in hint_list.iter() {
+            string_to_hint.insert(serde_json::to_string(hint)?, hint.clone());
+        }
+    }
+
+    let builtins = vec![]; // The builtins are initialize later.
+    let main = Some(0);
+    let reference_manager = ReferenceManager { references: Vec::new() };
+    let identifiers = HashMap::new();
+    let error_message_attributes = vec![];
+    let instruction_locations = None;
+
+    let program = Program::new(
+        builtins,
+        data,
+        main,
+        hints,
+        reference_manager,
+        identifiers,
+        error_message_attributes,
+        instruction_locations,
+    )?;
+
+    let mut entry_points_by_type = HashMap::new();
+    entry_points_by_type.insert(
+        EntryPointType::Constructor,
+        convert_entry_points_v1(&casm_class_entry_points_by_type.constructor),
+    );
+    entry_points_by_type.insert(
+        EntryPointType::External,
+        convert_entry_points_v1(&casm_class_entry_points_by_type.external),
+    );
+    entry_points_by_type.insert(
+        EntryPointType::L1Handler,
+        convert_entry_points_v1(&casm_class_entry_points_by_type.l1_handler),
+    );
+    let bytecode_segment_lengths =
+        bytecode_segment_lengths.unwrap_or_else(|| NestedIntList::Leaf(program.data_len()));
+    let compiler_version = CompilerVersion(
+        Version::parse(compiler_version)
+            .unwrap_or_else(|_| panic!("Invalid version: '{}'", compiler_version)),
+    );
+    Ok(ContractClassV1(Arc::new(ContractClassV1Inner {
+        program,
+        entry_points_by_type,
+        hints: string_to_hint,
+        compiler_version,
+        bytecode_segment_lengths,
+    })))
+}
+
 // TODO(spapini): Share with cairo-lang-runner.
 fn hint_to_hint_params(hint: &cairo_lang_casm::hints::Hint) -> Result<HintParams, ProgramError> {
     Ok(HintParams {
@@ -469,16 +543,16 @@ fn hint_to_hint_params(hint: &cairo_lang_casm::hints::Hint) -> Result<HintParams
     })
 }
 
-fn convert_entry_points_v1(external: Vec<CasmContractEntryPoint>) -> Vec<EntryPointV1> {
+fn convert_entry_points_v1(external: &[CasmContractEntryPoint]) -> Vec<EntryPointV1> {
     external
-        .into_iter()
+        .iter()
         .map(|ep| EntryPointV1 {
-            selector: EntryPointSelector(Felt::from(ep.selector)),
+            selector: EntryPointSelector(Felt::from(&ep.selector)),
             offset: EntryPointOffset(ep.offset),
             builtins: ep
                 .builtins
-                .into_iter()
-                .map(|builtin| BuiltinName::from_str(&builtin).expect("Unrecognized builtin."))
+                .iter()
+                .map(|builtin| BuiltinName::from_str(builtin).expect("Unrecognized builtin."))
                 .collect(),
         })
         .collect()
@@ -490,6 +564,24 @@ pub struct ClassInfo {
     contract_class: ContractClass,
     sierra_program_length: usize,
     abi_length: usize,
+}
+
+impl TryFrom<&starknet_api::contract_class::ClassInfo> for ClassInfo {
+    type Error = ProgramError;
+
+    fn try_from(class_info: &starknet_api::contract_class::ClassInfo) -> Result<Self, Self::Error> {
+        let starknet_api::contract_class::ClassInfo {
+            casm_contract_class,
+            sierra_program_length,
+            abi_length,
+        } = class_info;
+
+        Ok(Self {
+            contract_class: casm_contract_class.try_into()?,
+            sierra_program_length: *sierra_program_length,
+            abi_length: *abi_length,
+        })
+    }
 }
 
 impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {

@@ -1,3 +1,4 @@
+use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
 use super::concat_counts;
@@ -8,11 +9,11 @@ use crate::block::{
     BlockTimestamp,
     GasPrice,
     GasPricePerToken,
-    StarknetVersion,
 };
 use crate::block_hash::block_hash_calculator::{
     calculate_block_commitments,
     calculate_block_hash,
+    BlockHashVersion,
     BlockHeaderCommitments,
     TransactionHashingData,
 };
@@ -37,31 +38,44 @@ use crate::transaction::{TransactionHash, TransactionSignature};
 /// The macro clones the original header and commitments, modifies each specified field,
 /// and asserts that the block hash changes as a result.
 macro_rules! test_hash_changes {
-    ($header:expr, $commitments:expr, header_fields => { $($header_field:ident),* }, commitments_fields => { $($commitments_field:ident),* }) => {
+    (
+        BlockHeaderWithoutHash { $($header_field:ident: $header_value:expr),* },
+        BlockHeaderCommitments { $($commitments_field:ident: $commitments_value:expr),* }
+    ) => {
         {
-            let original_hash = calculate_block_hash($header.clone(), $commitments.clone());
+            let header = BlockHeaderWithoutHash {
+                l1_da_mode: L1DataAvailabilityMode::Blob,
+                $($header_field: $header_value),*
+            };
+            let commitments = BlockHeaderCommitments {
+                $($commitments_field: $commitments_value),*
+            };
+            let original_hash = calculate_block_hash(header.clone(), commitments.clone());
 
             $(
                 // Test changing the field in the header.
-                let mut modified_header = $header.clone();
+                let mut modified_header = header.clone();
                 modified_header.$header_field = Default::default();
-                let new_hash = calculate_block_hash(modified_header, $commitments.clone());
+                let new_hash = calculate_block_hash(modified_header, commitments.clone());
                 assert_ne!(original_hash, new_hash, concat!("Hash should change when ", stringify!($header_field), " is modified"));
             )*
 
             $(
                 // Test changing the field in the commitments.
-                let mut modified_commitments = $commitments.clone();
+                let mut modified_commitments = commitments.clone();
                 modified_commitments.$commitments_field = Default::default();
-                let new_hash = calculate_block_hash($header.clone(), modified_commitments);
+                let new_hash = calculate_block_hash(header.clone(), modified_commitments);
                 assert_ne!(original_hash, new_hash, concat!("Hash should change when ", stringify!($commitments_field), " is modified"));
             )*
         }
     };
 }
 
-#[test]
-fn test_block_hash_regression() {
+#[rstest]
+fn test_block_hash_regression(
+    #[values(BlockHashVersion::VO_13_2, BlockHashVersion::VO_13_3)]
+    block_hash_version: BlockHashVersion,
+) {
     let block_header = BlockHeaderWithoutHash {
         block_number: BlockNumber(1_u64),
         state_root: GlobalRoot(Felt::from(2_u8)),
@@ -73,7 +87,8 @@ fn test_block_hash_regression() {
             price_in_fri: GasPrice(10),
             price_in_wei: GasPrice(9),
         },
-        starknet_version: StarknetVersion("10".to_owned()),
+        l2_gas_price: GasPricePerToken { price_in_fri: GasPrice(11), price_in_wei: GasPrice(12) },
+        starknet_version: block_hash_version.to_owned().into(),
         parent_hash: BlockHash(Felt::from(11_u8)),
     };
     let transactions_data = vec![TransactionHashingData {
@@ -86,9 +101,35 @@ fn test_block_hash_regression() {
     let block_commitments =
         calculate_block_commitments(&transactions_data, &state_diff, block_header.l1_da_mode);
 
-    let expected_hash = felt!("0x061e4998d51a248f1d0288d7e17f6287757b0e5e6c5e1e58ddf740616e312134");
+    let expected_hash = match block_hash_version {
+        BlockHashVersion::VO_13_2 => {
+            felt!("0xe248d6ce583f8fa48d1d401d4beb9ceced3733e38d8eacb0d8d3669a7d901c")
+        }
+        BlockHashVersion::VO_13_3 => {
+            felt!("0x17c0dc0b67fa9bcf74197b758a6b48eb412cae14397a51a6393f1e0305fe585")
+        }
+    };
 
     assert_eq!(BlockHash(expected_hash), calculate_block_hash(block_header, block_commitments),);
+}
+
+#[test]
+fn l2_gas_price_pre_v0_13_3() {
+    let block_header = {
+        |l2_gas_price| BlockHeaderWithoutHash {
+            l2_gas_price: GasPricePerToken {
+                price_in_fri: GasPrice(l2_gas_price),
+                price_in_wei: GasPrice(l2_gas_price),
+            },
+            starknet_version: BlockHashVersion::VO_13_2.into(),
+            ..Default::default()
+        }
+    };
+
+    assert_eq!(
+        calculate_block_hash(block_header(1), BlockHeaderCommitments::default()),
+        calculate_block_hash(block_header(2), BlockHeaderCommitments::default())
+    );
 }
 
 #[test]
@@ -101,49 +142,29 @@ fn concat_counts_test() {
 /// Test that if one of the input to block hash changes, the hash changes.
 #[test]
 fn change_field_of_hash_input() {
-    let header = BlockHeaderWithoutHash {
-        parent_hash: BlockHash(Felt::ONE),
-        block_number: BlockNumber(1),
-        l1_gas_price: GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) },
-        l1_data_gas_price: GasPricePerToken {
-            price_in_fri: GasPrice(1),
-            price_in_wei: GasPrice(1),
-        },
-        state_root: GlobalRoot(Felt::ONE),
-        sequencer: SequencerContractAddress(ContractAddress::from(1_u128)),
-        timestamp: BlockTimestamp(1),
-        l1_da_mode: L1DataAvailabilityMode::Blob,
-        starknet_version: StarknetVersion("0.1.0".to_string()),
-    };
-
-    let block_commitments = BlockHeaderCommitments {
-        transaction_commitment: TransactionCommitment(Felt::ONE),
-        event_commitment: EventCommitment(Felt::ONE),
-        receipt_commitment: ReceiptCommitment(Felt::ONE),
-        state_diff_commitment: StateDiffCommitment(PoseidonHash(Felt::ONE)),
-        concatenated_counts: Felt::ONE,
-    };
-
-    // Test that changing any of the fields in the header or the commitments changes the hash.
+    // Set non-default values for the header and the commitments fields. Test that changing any of
+    // these fields changes the hash.
     test_hash_changes!(
-        header,
-        block_commitments,
-        header_fields => {
-            parent_hash,
-            block_number,
-            l1_gas_price,
-            l1_data_gas_price,
-            state_root,
-            sequencer,
-            timestamp,
-            starknet_version
+        BlockHeaderWithoutHash {
+            parent_hash: BlockHash(Felt::ONE),
+            block_number: BlockNumber(1),
+            l1_gas_price: GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) },
+            l1_data_gas_price: GasPricePerToken {
+                price_in_fri: GasPrice(1),
+                price_in_wei: GasPrice(1),
+            },
+            l2_gas_price: GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) },
+            state_root: GlobalRoot(Felt::ONE),
+            sequencer: SequencerContractAddress(ContractAddress::from(1_u128)),
+            timestamp: BlockTimestamp(1),
+            starknet_version: BlockHashVersion::VO_13_3.into()
         },
-        commitments_fields => {
-            transaction_commitment,
-            event_commitment,
-            receipt_commitment,
-            state_diff_commitment,
-            concatenated_counts
+        BlockHeaderCommitments {
+            transaction_commitment: TransactionCommitment(Felt::ONE),
+            event_commitment: EventCommitment(Felt::ONE),
+            receipt_commitment: ReceiptCommitment(Felt::ONE),
+            state_diff_commitment: StateDiffCommitment(PoseidonHash(Felt::ONE)),
+            concatenated_counts: Felt::ONE
         }
     );
     // TODO(Aviv, 10/06/2024): add tests that changes the first hash input, and the const zero.

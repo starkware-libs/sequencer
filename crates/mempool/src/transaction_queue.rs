@@ -12,6 +12,10 @@ use starknet_api::transaction::{
 
 use crate::mempool::TransactionReference;
 
+#[cfg(test)]
+#[path = "transaction_queue_test_utils.rs"]
+pub mod transaction_queue_test_utils;
+
 // A queue holding the transaction that with nonces that match account nonces.
 // Note: the derived comparison functionality considers the order guaranteed by the data structures
 // used.
@@ -31,7 +35,7 @@ impl TransactionQueue {
     /// Panics: if given a duplicate tx.
     pub fn insert(&mut self, tx_reference: TransactionReference) {
         assert_eq!(
-            self.address_to_tx.insert(tx_reference.sender_address, tx_reference.clone()),
+            self.address_to_tx.insert(tx_reference.sender_address, tx_reference),
             None,
             "Only a single transaction from the same contract class can be in the mempool at a \
              time."
@@ -77,7 +81,7 @@ impl TransactionQueue {
             return false;
         };
 
-        self.priority_queue.remove(&tx_reference.clone().into())
+        self.priority_queue.remove(&tx_reference.into())
             || self.pending_queue.remove(&tx_reference.into())
     }
 
@@ -114,28 +118,28 @@ impl TransactionQueue {
         // `tmp_split_tx`.
         // Note: extend will reorder transactions by `Tip` during insertion, despite them being
         // initially ordered by fee.
-        self.priority_queue.extend(txs_over_threshold.map(|tx| tx.0.into()));
+        self.priority_queue.extend(txs_over_threshold.map(|tx| PriorityTransaction::from(tx.0)));
     }
 
     fn _demote_txs_to_pending(&mut self, threshold: u128) {
-        let mut to_remove = Vec::new();
+        let mut txs_to_remove = Vec::new();
 
         // Remove all transactions from the priority queue that are below the threshold.
         for priority_tx in &self.priority_queue {
             if priority_tx.get_l2_gas_price() < threshold {
-                to_remove.push(priority_tx.clone());
+                txs_to_remove.push(*priority_tx);
             }
         }
 
-        for tx in &to_remove {
+        for tx in &txs_to_remove {
             self.priority_queue.remove(tx);
         }
-        self.pending_queue.extend(to_remove.into_iter().map(|tx| tx.0.into()));
+        self.pending_queue.extend(txs_to_remove.iter().map(|tx| PendingTransaction::from(tx.0)));
     }
 }
 
 /// Encapsulates a transaction reference to assess its order (i.e., gas price).
-#[derive(Clone, Debug, derive_more::Deref, derive_more::From)]
+#[derive(Clone, Copy, Debug, derive_more::Deref, derive_more::From)]
 struct PendingTransaction(pub TransactionReference);
 
 /// Compare transactions based only on their gas price, using the Eq trait. It ensures that
@@ -167,7 +171,7 @@ impl PartialOrd for PendingTransaction {
 
 /// This struct behaves similarly to `PendingTransaction`, encapsulating a transaction reference
 /// to assess its order (i.e., tip); see its documentation for more details.
-#[derive(Clone, Debug, derive_more::Deref, derive_more::From)]
+#[derive(Clone, Copy, Debug, derive_more::Deref, derive_more::From)]
 struct PriorityTransaction(pub TransactionReference);
 
 impl PartialEq for PriorityTransaction {

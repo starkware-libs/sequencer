@@ -8,6 +8,7 @@ message Proposal {
     Address              proposer     = 3;
     repeated Transaction transactions = 4;
     Hash                 block_hash   = 5;
+    optional uint32      valid_round  = 6;
 }
 
 message Vote {
@@ -38,7 +39,7 @@ message ConsensusMessage {
 message StreamMessage {
     bytes message = 1;
     uint64 stream_id = 2;
-    uint64 chunk_id = 3;
+    uint64 message_id = 3;
     bool fin = 4;
 }
 

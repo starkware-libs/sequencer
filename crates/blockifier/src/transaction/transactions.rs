@@ -25,7 +25,7 @@ use crate::execution::entry_point::{
     ConstructorContext,
     EntryPointExecutionContext,
 };
-use crate::execution::execution_utils::execute_deployment;
+use crate::execution::execution_utils::{execute_deployment, update_remaining_gas};
 use crate::state::cached_state::TransactionalState;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, UpdatableState};
@@ -41,8 +41,6 @@ use crate::transaction::objects::{
     TransactionInfo,
     TransactionInfoCreator,
 };
-use crate::transaction::transaction_utils::{update_remaining_gas, verify_contract_class_version};
-
 #[cfg(test)]
 #[path = "transactions_test.rs"]
 mod test;
@@ -135,6 +133,18 @@ pub struct DeclareTransaction {
     pub class_info: ClassInfo,
 }
 
+/// This implementation of try_from clones the base transaction struct. This method's advantage is
+/// that it does not clone the Casm contract class code.
+impl TryFrom<&starknet_api::executable_transaction::DeclareTransaction> for DeclareTransaction {
+    type Error = TransactionExecutionError;
+
+    fn try_from(
+        declare_tx: &starknet_api::executable_transaction::DeclareTransaction,
+    ) -> Result<Self, Self::Error> {
+        Self::new_from_ref_to_executable_tx(declare_tx, false)
+    }
+}
+
 impl TryFrom<starknet_api::executable_transaction::DeclareTransaction> for DeclareTransaction {
     type Error = TransactionExecutionError;
 
@@ -153,7 +163,26 @@ impl DeclareTransaction {
         only_query: bool,
     ) -> TransactionExecutionResult<Self> {
         let declare_version = declare_tx.version();
-        verify_contract_class_version(&class_info.contract_class(), declare_version)?;
+        // Verify contract class version.
+        match &class_info.contract_class() {
+            // TODO: Make TransactionVersion an enum and use match here.
+            ContractClass::V0(_) => {
+                if declare_version > TransactionVersion::ONE {
+                    Err(TransactionExecutionError::ContractClassVersionMismatch {
+                        declare_version,
+                        cairo_version: 0,
+                    })?
+                }
+            }
+            ContractClass::V1(_) => {
+                if declare_version <= TransactionVersion::ONE {
+                    Err(TransactionExecutionError::ContractClassVersionMismatch {
+                        declare_version,
+                        cairo_version: 1,
+                    })?
+                }
+            }
+        }
         Ok(Self { tx: declare_tx, tx_hash, class_info, only_query })
     }
 
@@ -173,13 +202,24 @@ impl DeclareTransaction {
         Self::create(declare_tx, tx_hash, class_info, true)
     }
 
+    fn new_from_ref_to_executable_tx(
+        declare_tx: &starknet_api::executable_transaction::DeclareTransaction,
+        only_query: bool,
+    ) -> Result<Self, TransactionExecutionError> {
+        let starknet_api::executable_transaction::DeclareTransaction { tx, tx_hash, class_info } =
+            declare_tx;
+        let class_info = class_info.try_into()?;
+
+        Self::create(tx.clone(), *tx_hash, class_info, only_query)
+    }
+
     fn new_from_executable_tx(
         declare_tx: starknet_api::executable_transaction::DeclareTransaction,
         only_query: bool,
     ) -> Result<Self, TransactionExecutionError> {
         let starknet_api::executable_transaction::DeclareTransaction { tx, tx_hash, class_info } =
             declare_tx;
-        let class_info: ClassInfo = class_info.try_into()?;
+        let class_info = class_info.try_into()?;
 
         Self::create(tx, tx_hash, class_info, only_query)
     }
@@ -296,7 +336,7 @@ impl TransactionInfoCreator for DeclareTransaction {
             starknet_api::transaction::DeclareTransaction::V3(tx) => {
                 TransactionInfo::Current(CurrentTransactionInfo {
                     common_fields,
-                    resource_bounds: tx.resource_bounds.clone(),
+                    resource_bounds: tx.resource_bounds,
                     tip: tx.tip,
                     nonce_data_availability_mode: tx.nonce_data_availability_mode,
                     fee_data_availability_mode: tx.fee_data_availability_mode,
@@ -411,7 +451,7 @@ impl TransactionInfoCreator for DeployAccountTransaction {
             starknet_api::transaction::DeployAccountTransaction::V3(tx) => {
                 TransactionInfo::Current(CurrentTransactionInfo {
                     common_fields,
-                    resource_bounds: tx.resource_bounds.clone(),
+                    resource_bounds: tx.resource_bounds,
                     tip: tx.tip,
                     nonce_data_availability_mode: tx.nonce_data_availability_mode,
                     fee_data_availability_mode: tx.fee_data_availability_mode,
@@ -535,7 +575,7 @@ impl TransactionInfoCreator for InvokeTransaction {
             starknet_api::transaction::InvokeTransaction::V3(tx) => {
                 TransactionInfo::Current(CurrentTransactionInfo {
                     common_fields,
-                    resource_bounds: tx.resource_bounds.clone(),
+                    resource_bounds: tx.resource_bounds,
                     tip: tx.tip,
                     nonce_data_availability_mode: tx.nonce_data_availability_mode,
                     fee_data_availability_mode: tx.fee_data_availability_mode,

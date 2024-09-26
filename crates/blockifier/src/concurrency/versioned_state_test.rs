@@ -11,14 +11,18 @@ use starknet_api::core::{
     Nonce,
     PatriciaKey,
 };
+use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{Calldata, ContractAddressSalt, ValidResourceBounds};
 use starknet_api::{
     calldata,
     class_hash,
+    compiled_class_hash,
     contract_address,
     deploy_account_tx_args,
     felt,
+    nonce,
     patricia_key,
+    storage_key,
 };
 
 use crate::abi::abi_utils::{get_fee_token_var_address, get_storage_var_address};
@@ -46,12 +50,11 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{CairoVersion, NonceManager, BALANCE, DEFAULT_STRK_L1_GAS_PRICE};
+use crate::test_utils::{CairoVersion, BALANCE, DEFAULT_STRK_L1_GAS_PRICE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{l1_resource_bounds, max_resource_bounds};
 use crate::transaction::transactions::ExecutableTransaction;
-use crate::{compiled_class_hash, nonce, storage_key};
 
 #[fixture]
 pub fn safe_versioned_state(

@@ -8,7 +8,7 @@ use super::event_commitment::{calculate_event_commitment, EventLeafElement};
 use super::receipt_commitment::{calculate_receipt_commitment, ReceiptElement};
 use super::state_diff_hash::calculate_state_diff_hash;
 use super::transaction_commitment::{calculate_transaction_commitment, TransactionLeafElement};
-use crate::block::{BlockHash, BlockHeaderWithoutHash};
+use crate::block::{BlockHash, BlockHeaderWithoutHash, GasPricePerToken, StarknetVersion};
 use crate::core::{EventCommitment, ReceiptCommitment, StateDiffCommitment, TransactionCommitment};
 use crate::crypto::utils::HashChain;
 use crate::data_availability::L1DataAvailabilityMode;
@@ -32,6 +32,22 @@ static STARKNET_BLOCK_HASH0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_BLOCK_HASH0").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH0'")
 });
 
+#[allow(non_camel_case_types)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum BlockHashVersion {
+    VO_13_2,
+    VO_13_3,
+}
+
+impl From<BlockHashVersion> for StarknetVersion {
+    fn from(value: BlockHashVersion) -> Self {
+        match value {
+            BlockHashVersion::VO_13_2 => Self(vec![0, 13, 2]),
+            BlockHashVersion::VO_13_3 => Self(vec![0, 13, 3]),
+        }
+    }
+}
+
 /// The common fields of transaction output types.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 pub struct TransactionOutputForHash {
@@ -50,7 +66,7 @@ pub struct TransactionHashingData {
 }
 
 /// Commitments of a block.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct BlockHeaderCommitments {
     pub transaction_commitment: TransactionCommitment,
     pub event_commitment: EventCommitment,
@@ -62,8 +78,7 @@ pub struct BlockHeaderCommitments {
 /// Poseidon (
 ///     “STARKNET_BLOCK_HASH0”, block_number, global_state_root, sequencer_address,
 ///     block_timestamp, concat_counts, state_diff_hash, transaction_commitment,
-///     event_commitment, receipt_commitment, gas_price_wei, gas_price_fri,
-///     data_gas_price_wei, data_gas_price_fri, starknet_version, 0, parent_block_hash
+///     event_commitment, receipt_commitment, gas_prices, starknet_version, 0, parent_block_hash
 /// ).
 pub fn calculate_block_hash(
     header: BlockHeaderWithoutHash,
@@ -81,11 +96,18 @@ pub fn calculate_block_hash(
             .chain(&block_commitments.transaction_commitment.0)
             .chain(&block_commitments.event_commitment.0)
             .chain(&block_commitments.receipt_commitment.0)
-            .chain(&header.l1_gas_price.price_in_wei.0.into())
-            .chain(&header.l1_gas_price.price_in_fri.0.into())
-            .chain(&header.l1_data_gas_price.price_in_wei.0.into())
-            .chain(&header.l1_data_gas_price.price_in_fri.0.into())
-            .chain(&ascii_as_felt(&header.starknet_version.0).expect("Expect ASCII version"))
+            .chain_iter(
+                gas_prices_to_hash(
+                    &header.l1_gas_price,
+                    &header.l1_data_gas_price,
+                    &header.l2_gas_price,
+                    &header.starknet_version,
+                )
+                .iter(),
+            )
+            .chain(
+                &ascii_as_felt(&header.starknet_version.to_string()).expect("Expect ASCII version"),
+            )
             .chain(&Felt::ZERO)
             .chain(&header.parent_hash.0)
             .get_poseidon_hash(),
@@ -161,4 +183,38 @@ fn concat_counts(
 fn to_64_bits(num: usize) -> [u8; 8] {
     let sized_transaction_count: u64 = num.try_into().expect("Expect usize is at most 8 bytes");
     sized_transaction_count.to_be_bytes()
+}
+
+// For starknet version >= 0.13.3, returns:
+// [Poseidon (
+//     gas_price_wei, gas_price_fri, data_gas_price_wei, data_gas_price_fri,
+//     l2_gas_price_wei, l2_gas_price_fri
+// )].
+// Otherwise, returns:
+// [gas_price_wei, gas_price_fri, data_gas_price_wei, data_gas_price_fri].
+fn gas_prices_to_hash(
+    l1_gas_price: &GasPricePerToken,
+    l1_data_gas_price: &GasPricePerToken,
+    l2_gas_price: &GasPricePerToken,
+    starknet_version: &StarknetVersion,
+) -> Vec<Felt> {
+    if *starknet_version >= BlockHashVersion::VO_13_3.into() {
+        vec![
+            HashChain::new()
+                .chain(&l1_gas_price.price_in_wei.0.into())
+                .chain(&l1_gas_price.price_in_fri.0.into())
+                .chain(&l1_data_gas_price.price_in_wei.0.into())
+                .chain(&l1_data_gas_price.price_in_fri.0.into())
+                .chain(&l2_gas_price.price_in_wei.0.into())
+                .chain(&l2_gas_price.price_in_fri.0.into())
+                .get_poseidon_hash(),
+        ]
+    } else {
+        vec![
+            l1_gas_price.price_in_wei.0.into(),
+            l1_gas_price.price_in_fri.0.into(),
+            l1_data_gas_price.price_in_wei.0.into(),
+            l1_data_gas_price.price_in_fri.0.into(),
+        ]
+    }
 }

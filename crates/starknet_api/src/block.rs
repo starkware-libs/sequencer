@@ -5,6 +5,7 @@ mod block_test;
 use std::fmt::Display;
 
 use derive_more::Display;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
 
@@ -22,6 +23,7 @@ use crate::data_availability::L1DataAvailabilityMode;
 use crate::hash::StarkHash;
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
 use crate::transaction::{Transaction, TransactionHash, TransactionOutput};
+use crate::StarknetApiError;
 
 /// A block.
 #[derive(Debug, Default, Clone, Eq, PartialEq, Deserialize, Serialize)]
@@ -33,18 +35,49 @@ pub struct Block {
 }
 
 /// A version of the Starknet protocol used when creating a block.
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
-pub struct StarknetVersion(pub String);
+#[derive(Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
+pub struct StarknetVersion(pub Vec<u8>);
 
 impl Default for StarknetVersion {
     fn default() -> Self {
-        Self("0.0.0".to_string())
+        Self(vec![0, 0, 0])
     }
 }
 
 impl Display for StarknetVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "{}", self.0.iter().map(|x| x.to_string()).join("."))
+    }
+}
+
+impl TryFrom<String> for StarknetVersion {
+    type Error = StarknetApiError;
+
+    /// Parses a string separated by dots into a StarknetVersion.
+    fn try_from(starknet_version: String) -> Result<Self, StarknetApiError> {
+        Ok(Self(starknet_version.split('.').map(|x| x.parse::<u8>()).try_collect()?))
+    }
+}
+
+impl Serialize for StarknetVersion {
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> Result<<S as serde::Serializer>::Ok, <S as serde::Serializer>::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.to_string().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for StarknetVersion {
+    fn deserialize<D>(deserializer: D) -> Result<Self, <D as serde::Deserializer<'de>>::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let version = String::deserialize(deserializer)?;
+        StarknetVersion::try_from(version).map_err(serde::de::Error::custom)
     }
 }
 
@@ -54,14 +87,7 @@ pub struct BlockHeader {
     // TODO: Consider removing the block hash from the header (note it can be computed from
     // the rest of the fields.
     pub block_hash: BlockHash,
-    pub parent_hash: BlockHash,
-    pub block_number: BlockNumber,
-    pub l1_gas_price: GasPricePerToken,
-    pub l1_data_gas_price: GasPricePerToken,
-    pub state_root: GlobalRoot,
-    pub sequencer: SequencerContractAddress,
-    pub timestamp: BlockTimestamp,
-    pub l1_da_mode: L1DataAvailabilityMode,
+    pub block_header_without_hash: BlockHeaderWithoutHash,
     // The optional fields below are not included in older versions of the block.
     // Currently they are not included in any RPC spec, so we skip their serialization.
     // TODO: Once all environments support these fields, remove the Option (make sure to
@@ -80,7 +106,6 @@ pub struct BlockHeader {
     pub n_events: usize,
     #[serde(skip_serializing)]
     pub receipt_commitment: Option<ReceiptCommitment>,
-    pub starknet_version: StarknetVersion,
 }
 
 /// The header of a [Block](`crate::block::Block`) without hashing.
@@ -90,6 +115,7 @@ pub struct BlockHeaderWithoutHash {
     pub block_number: BlockNumber,
     pub l1_gas_price: GasPricePerToken,
     pub l1_data_gas_price: GasPricePerToken,
+    pub l2_gas_price: GasPricePerToken,
     pub state_root: GlobalRoot,
     pub sequencer: SequencerContractAddress,
     pub timestamp: BlockTimestamp,

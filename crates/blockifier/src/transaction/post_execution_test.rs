@@ -2,7 +2,7 @@ use assert_matches::assert_matches;
 use rstest::rstest;
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{Calldata, Fee, TransactionVersion, ValidResourceBounds};
+use starknet_api::transaction::{Calldata, Fee, Resource, TransactionVersion, ValidResourceBounds};
 use starknet_api::{felt, invoke_tx_args, patricia_key};
 use starknet_types_core::felt::Felt;
 
@@ -113,7 +113,7 @@ fn test_revert_on_overdraft(
         sender_address: account_address,
         calldata: approve_calldata,
         version,
-        resource_bounds: max_resource_bounds.clone(),
+        resource_bounds: max_resource_bounds,
         nonce: nonce_manager.next(account_address),
     });
     let tx_info = approve_tx.create_tx_info();
@@ -138,7 +138,7 @@ fn test_revert_on_overdraft(
                 fee_token_address
             ),
             version,
-            resource_bounds: max_resource_bounds.clone(),
+            resource_bounds: max_resource_bounds,
             nonce: nonce_manager.next(account_address),
         },
     )
@@ -213,7 +213,7 @@ fn test_revert_on_overdraft(
 #[rstest]
 #[case(TransactionVersion::ZERO, "", false)]
 #[case(TransactionVersion::ONE, "Insufficient max fee", true)]
-#[case(TransactionVersion::THREE, "Insufficient max L1 gas", true)]
+#[case(TransactionVersion::THREE,  &format!("Insufficient max {resource}", resource=Resource::L1Gas), true)]
 fn test_revert_on_resource_overuse(
     max_fee: Fee,
     max_resource_bounds: ValidResourceBounds,

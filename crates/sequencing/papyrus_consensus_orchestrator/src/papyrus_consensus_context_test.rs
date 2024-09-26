@@ -1,6 +1,6 @@
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
-use papyrus_consensus::types::{ConsensusBlock, ConsensusContext, ProposalInit};
+use papyrus_consensus::types::{ConsensusContext, ProposalInit};
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
@@ -10,11 +10,10 @@ use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
 use papyrus_test_utils::get_test_block;
-use starknet_api::block::Block;
+use starknet_api::block::{Block, BlockHash};
 use starknet_api::core::ContractAddress;
-use starknet_api::transaction::Transaction;
 
-use crate::papyrus_consensus_context::{PapyrusConsensusBlock, PapyrusConsensusContext};
+use crate::papyrus_consensus_context::PapyrusConsensusContext;
 
 // TODO(dvir): consider adding tests for times, i.e, the calls are returned immediately and nothing
 // happen until it should (for example, not creating a block before we have it in storage).
@@ -23,8 +22,8 @@ const TEST_CHANNEL_SIZE: usize = 10;
 
 #[tokio::test]
 async fn build_proposal() {
-    let (block, papyrus_context, _mock_network, _) = test_setup();
-    let block_number = block.header.block_number;
+    let (block, mut papyrus_context, _mock_network, _) = test_setup();
+    let block_number = block.header.block_header_without_hash.block_number;
 
     let (mut proposal_receiver, fin_receiver) = papyrus_context.build_proposal(block_number).await;
 
@@ -35,14 +34,13 @@ async fn build_proposal() {
     assert_eq!(transactions, block.body.transactions);
 
     let fin = fin_receiver.await.unwrap();
-    assert_eq!(fin.id(), block.header.block_hash);
-    assert_eq!(fin.proposal_iter().collect::<Vec::<Transaction>>(), block.body.transactions);
+    assert_eq!(fin, block.header.block_hash);
 }
 
 #[tokio::test]
 async fn validate_proposal_success() {
-    let (block, papyrus_context, _mock_network, _) = test_setup();
-    let block_number = block.header.block_number;
+    let (block, mut papyrus_context, _mock_network, _) = test_setup();
+    let block_number = block.header.block_header_without_hash.block_number;
 
     let (mut validate_sender, validate_receiver) = mpsc::channel(TEST_CHANNEL_SIZE);
     for tx in block.body.transactions.clone() {
@@ -53,14 +51,13 @@ async fn validate_proposal_success() {
     let fin =
         papyrus_context.validate_proposal(block_number, validate_receiver).await.await.unwrap();
 
-    assert_eq!(fin.id(), block.header.block_hash);
-    assert_eq!(fin.proposal_iter().collect::<Vec::<Transaction>>(), block.body.transactions);
+    assert_eq!(fin, block.header.block_hash);
 }
 
 #[tokio::test]
 async fn validate_proposal_fail() {
-    let (block, papyrus_context, _mock_network, _) = test_setup();
-    let block_number = block.header.block_number;
+    let (block, mut papyrus_context, _mock_network, _) = test_setup();
+    let block_number = block.header.block_header_without_hash.block_number;
 
     let different_block = get_test_block(4, None, None, None);
     let (mut validate_sender, validate_receiver) = mpsc::channel(5000);
@@ -76,7 +73,7 @@ async fn validate_proposal_fail() {
 #[tokio::test]
 async fn propose() {
     let (block, papyrus_context, mut mock_network, _) = test_setup();
-    let block_number = block.header.block_number;
+    let block_number = block.header.block_header_without_hash.block_number;
 
     let (mut content_sender, content_receiver) = mpsc::channel(TEST_CHANNEL_SIZE);
     for tx in block.body.transactions.clone() {
@@ -87,8 +84,12 @@ async fn propose() {
     let (fin_sender, fin_receiver) = oneshot::channel();
     fin_sender.send(block.header.block_hash).unwrap();
 
-    let proposal_init =
-        ProposalInit { height: block_number, round: 0, proposer: ContractAddress::default() };
+    let proposal_init = ProposalInit {
+        height: block_number,
+        round: 0,
+        proposer: ContractAddress::default(),
+        valid_round: None,
+    };
     papyrus_context.propose(proposal_init.clone(), content_receiver, fin_receiver).await.unwrap();
 
     let expected_message = ConsensusMessage::Proposal(Proposal {
@@ -97,6 +98,7 @@ async fn propose() {
         proposer: proposal_init.proposer,
         transactions: block.body.transactions,
         block_hash: block.header.block_hash,
+        valid_round: None,
     });
 
     assert_eq!(mock_network.messages_to_broadcast_receiver.next().await.unwrap(), expected_message);
@@ -105,7 +107,7 @@ async fn propose() {
 #[tokio::test]
 async fn decision() {
     let (_, mut papyrus_context, _, mut sync_network) = test_setup();
-    let block = PapyrusConsensusBlock::default();
+    let block = BlockHash::default();
     let precommit = Vote::default();
     papyrus_context.decision_reached(block, vec![precommit.clone()]).await.unwrap();
     assert_eq!(sync_network.messages_to_broadcast_receiver.next().await.unwrap(), precommit);
@@ -119,7 +121,7 @@ fn test_setup() -> (
 ) {
     let ((storage_reader, mut storage_writer), _temp_dir) = get_test_storage();
     let block = get_test_block(5, None, None, None);
-    let block_number = block.header.block_number;
+    let block_number = block.header.block_header_without_hash.block_number;
     storage_writer
         .begin_rw_txn()
         .unwrap()

@@ -4,22 +4,25 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::calldata;
 use starknet_api::core::{ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::EntryPointType;
+use starknet_api::transaction::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::{
+    AllResourceBounds,
     Calldata,
     Fee,
-    Resource,
     ResourceBounds,
     TransactionHash,
     TransactionVersion,
+    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
+use crate::blockifier::block::GasPricesForFeeType;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::{CallInfo, Retdata};
 use crate::execution::contract_class::ContractClass;
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
-use crate::fee::actual_cost::TransactionReceipt;
+use crate::execution::execution_utils::update_remaining_gas;
 use crate::fee::fee_checks::{FeeCheckReportFields, PostExecutionReport};
 use crate::fee::fee_utils::{
     get_fee_by_gas_vector,
@@ -27,6 +30,7 @@ use crate::fee::fee_utils::{
     verify_can_pay_committed_bounds,
 };
 use crate::fee::gas_usage::estimate_minimal_gas_vector;
+use crate::fee::receipt::TransactionReceipt;
 use crate::retdata;
 use crate::state::cached_state::{StateChanges, TransactionalState};
 use crate::state::state_api::{State, StateReader, UpdatableState};
@@ -46,7 +50,6 @@ use crate::transaction::objects::{
     TransactionPreValidationResult,
 };
 use crate::transaction::transaction_types::TransactionType;
-use crate::transaction::transaction_utils::update_remaining_gas;
 use crate::transaction::transactions::{
     DeclareTransaction,
     DeployAccountTransaction,
@@ -75,6 +78,31 @@ pub enum AccountTransaction {
     Declare(DeclareTransaction),
     DeployAccount(DeployAccountTransaction),
     Invoke(InvokeTransaction),
+}
+
+/// This implementation of try_from clones the base transaction struct. This method's advantage is
+/// that it does not clone the Casm contract class code.
+impl TryFrom<&starknet_api::executable_transaction::Transaction> for AccountTransaction {
+    type Error = TransactionExecutionError;
+
+    fn try_from(
+        value: &starknet_api::executable_transaction::Transaction,
+    ) -> Result<Self, Self::Error> {
+        match value {
+            starknet_api::executable_transaction::Transaction::Declare(declare_tx) => {
+                Ok(Self::Declare(declare_tx.try_into()?))
+            }
+            starknet_api::executable_transaction::Transaction::DeployAccount(deploy_account_tx) => {
+                Ok(Self::DeployAccount(DeployAccountTransaction {
+                    tx: deploy_account_tx.clone(),
+                    only_query: false,
+                }))
+            }
+            starknet_api::executable_transaction::Transaction::Invoke(invoke_tx) => {
+                Ok(Self::Invoke(InvokeTransaction { tx: invoke_tx.clone(), only_query: false }))
+            }
+        }
+    }
 }
 
 impl TryFrom<starknet_api::executable_transaction::Transaction> for AccountTransaction {
@@ -241,35 +269,74 @@ impl AccountTransaction {
         let block_info = &block_context.block_info;
         let fee_type = &tx_info.fee_type();
         match tx_info {
-            TransactionInfo::Current(context) => {
-                let ResourceBounds {
+            TransactionInfo::Current(context) => match &context.resource_bounds {
+                ValidResourceBounds::L1Gas(ResourceBounds {
                     max_amount: max_l1_gas_amount,
                     max_price_per_unit: max_l1_gas_price,
-                } = context.l1_resource_bounds();
+                }) => {
+                    let max_l1_gas_amount_as_u128: u128 = (*max_l1_gas_amount).into();
+                    if max_l1_gas_amount_as_u128 < minimal_l1_gas_amount {
+                        return Err(TransactionFeeError::MaxGasAmountTooLow {
+                            resource: L1Gas,
+                            max_gas_amount: *max_l1_gas_amount,
+                            // TODO(Ori, 1/2/2024): Write an indicative expect message
+                            // explaining why the conversion
+                            // works.
+                            minimal_gas_amount: (minimal_l1_gas_amount
+                                .try_into()
+                                .expect("Failed to convert u128 to u64.")),
+                        })?;
+                    }
 
-                let max_l1_gas_amount_as_u128: u128 = max_l1_gas_amount.into();
-                if max_l1_gas_amount_as_u128 < minimal_l1_gas_amount {
-                    return Err(TransactionFeeError::MaxGasAmountTooLow {
-                        resource: Resource::L1Gas,
-                        max_gas_amount: max_l1_gas_amount,
-                        // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why
-                        // the convertion works.
-                        minimal_gas_amount: (minimal_l1_gas_amount
-                            .try_into()
-                            .expect("Failed to convert u128 to u64.")),
-                    })?;
+                    let actual_l1_gas_price =
+                        block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type);
+                    if *max_l1_gas_price < actual_l1_gas_price.into() {
+                        return Err(TransactionFeeError::MaxGasPriceTooLow {
+                            resource: L1Gas,
+                            max_gas_price: *max_l1_gas_price,
+                            actual_gas_price: actual_l1_gas_price.into(),
+                        })?;
+                    }
                 }
+                ValidResourceBounds::AllResources(AllResourceBounds {
+                    l1_gas,
+                    l2_gas,
+                    l1_data_gas,
+                }) => {
+                    let max_l1_gas_amount_as_u128: u128 = l1_gas.max_amount.into();
+                    if max_l1_gas_amount_as_u128 < minimal_l1_gas_amount {
+                        return Err(TransactionFeeError::MaxGasAmountTooLow {
+                            resource: L1Gas,
+                            max_gas_amount: l1_gas.max_amount,
+                            // TODO(Ori, 1/2/2024): Write an indicative expect message
+                            // explaining why the conversion
+                            // works.
+                            minimal_gas_amount: (minimal_l1_gas_amount
+                                .try_into()
+                                .expect("Failed to convert u128 to u64.")),
+                        })?;
+                    }
+                    // TODO(Aner): Add checks for minimal_l1_data_gas and minimal_l2_gas.
 
-                let actual_l1_gas_price =
-                    block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type);
-                if max_l1_gas_price < actual_l1_gas_price.into() {
-                    return Err(TransactionFeeError::MaxGasPriceTooLow {
-                        resource: Resource::L1Gas,
-                        max_gas_price: max_l1_gas_price,
-                        actual_gas_price: actual_l1_gas_price.into(),
-                    })?;
+                    let GasPricesForFeeType { l1_gas_price, l1_data_gas_price, l2_gas_price } =
+                        block_info.gas_prices.get_gas_prices_by_fee_type(fee_type);
+                    // TODO!(Aner): Add tests for l1_data_gas_price and l2_gas_price.
+                    for (resource, max_gas_price, actual_gas_price) in [
+                        (L1Gas, l1_gas.max_price_per_unit, l1_gas_price.into()),
+                        (L1DataGas, l1_data_gas.max_price_per_unit, l1_data_gas_price.into()),
+                        (L2Gas, l2_gas.max_price_per_unit, l2_gas_price.into()),
+                    ] {
+                        // TODO(Aner): refactor to return all prices that are too low.
+                        if max_gas_price < actual_gas_price {
+                            return Err(TransactionFeeError::MaxGasPriceTooLow {
+                                resource,
+                                max_gas_price,
+                                actual_gas_price,
+                            })?;
+                        }
+                    }
                 }
-            }
+            },
             TransactionInfo::Deprecated(context) => {
                 let max_fee = context.max_fee;
                 let min_fee =
@@ -829,6 +896,14 @@ impl ValidatableTransaction for AccountTransaction {
             // The account contract class is a Cairo 1.0 contract; the `validate` entry point should
             // return `VALID`.
             let expected_retdata = retdata![Felt::from_hex(constants::VALIDATE_RETDATA)?];
+
+            if validate_call_info.execution.failed {
+                // TODO(ilya): Add a test for this case.
+                return Err(TransactionExecutionError::PanicInValidate {
+                    panic_reason: validate_call_info.execution.retdata,
+                });
+            }
+
             if validate_call_info.execution.retdata != expected_retdata {
                 return Err(TransactionExecutionError::InvalidValidateReturnData {
                     actual: validate_call_info.execution.retdata,

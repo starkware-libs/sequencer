@@ -8,6 +8,7 @@ use thiserror::Error;
 
 use crate::execution::call_info::Retdata;
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
+use crate::execution::execution_utils::format_panic_data;
 use crate::execution::stack_trace::gen_transaction_execution_error_trace;
 use crate::fee::fee_checks::FeeCheckError;
 use crate::state::errors::StateError;
@@ -24,7 +25,7 @@ pub enum TransactionFeeError {
     #[error("Actual fee ({}) exceeded paid fee on L1 ({}).", actual_fee.0, paid_fee.0)]
     InsufficientFee { paid_fee: Fee, actual_fee: Fee },
     #[error(
-        "Resource {resource} Gas bounds (max amount: {max_amount}, max price: {max_price}) exceed \
+        "Resource {resource} bounds (max amount: {max_amount}, max price: {max_price}) exceed \
          balance ({balance})."
     )]
     GasBoundsExceedBalance {
@@ -38,12 +39,12 @@ pub enum TransactionFeeError {
     #[error("Max fee ({}) is too low. Minimum fee: {}.", max_fee.0, min_fee.0)]
     MaxFeeTooLow { min_fee: Fee, max_fee: Fee },
     #[error(
-        "Resource {resource} max gas price ({max_gas_price}) is lower than the actual gas price: \
+        "Max {resource} price ({max_gas_price}) is lower than the actual gas price: \
          {actual_gas_price}."
     )]
     MaxGasPriceTooLow { resource: Resource, max_gas_price: u128, actual_gas_price: u128 },
     #[error(
-        "Max {resource} gas amount ({max_gas_amount}) is lower than the minimal gas amount: \
+        "Max {resource} amount ({max_gas_amount}) is lower than the minimal gas amount: \
          {minimal_gas_amount}."
     )]
     MaxGasAmountTooLow { resource: Resource, max_gas_amount: u64, minimal_gas_amount: u64 },
@@ -81,6 +82,8 @@ pub enum TransactionExecutionError {
     FeeCheckError(#[from] FeeCheckError),
     #[error(transparent)]
     FromStr(#[from] FromStrError),
+    #[error("The `validate` entry point panicked with {}.", format_panic_data(&panic_reason.0))]
+    PanicInValidate { panic_reason: Retdata },
     #[error("The `validate` entry point should return `VALID`. Got {actual:?}.")]
     InvalidValidateReturnData { actual: Retdata },
     #[error(

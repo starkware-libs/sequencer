@@ -16,12 +16,12 @@ fn config_validation() {
     config.max_size = config.growth_step - 1;
     assert!(config.validate().is_err());
     config.max_size = 1 << 27;
-    assert!(config.validate().is_ok());
+    assert_eq!(config.validate(), Ok(()));
 
     config.growth_step = config.max_object_size - 1;
     assert!(config.validate().is_err());
     config.growth_step = 1 << 20;
-    assert!(config.validate().is_ok());
+    assert_eq!(config.validate(), Ok(()));
 }
 
 #[test]

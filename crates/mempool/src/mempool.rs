@@ -4,7 +4,7 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput, MempoolResult};
+use starknet_mempool_types::mempool_types::{AccountState, MempoolInput, MempoolResult};
 
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -22,8 +22,8 @@ pub struct Mempool {
     tx_pool: TransactionPool,
     // Transactions eligible for sequencing.
     tx_queue: TransactionQueue,
-    // Represents the current state of the mempool during block creation.
-    mempool_state: HashMap<ContractAddress, AccountState>,
+    // Represents the state of the mempool during block creation.
+    mempool_state: HashMap<ContractAddress, Nonce>,
     // The most recent account nonces received, for all account in the pool.
     account_nonces: AccountToNonce,
 }
@@ -66,8 +66,8 @@ impl Mempool {
         }
 
         // Update the mempool state with the given transactions' nonces.
-        for tx in &eligible_txs {
-            self.mempool_state.entry(tx.contract_address()).or_default().nonce = tx.nonce();
+        for tx_ref in &eligible_tx_references {
+            self.mempool_state.insert(tx_ref.sender_address, tx_ref.nonce);
         }
 
         Ok(eligible_txs)
@@ -78,8 +78,7 @@ impl Mempool {
     /// TODO: check Account nonce and balance.
     pub fn add_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
         self.validate_input(&input)?;
-        let MempoolInput { tx, account: Account { sender_address, state: AccountState { nonce } } } =
-            input;
+        let MempoolInput { tx, account: AccountState { sender_address, nonce } } = input;
         self.tx_pool.insert(tx)?;
         self.align_to_account_state(sender_address, nonce);
         Ok(())
@@ -93,9 +92,9 @@ impl Mempool {
     // block.
     pub fn commit_block(
         &mut self,
-        state_changes: HashMap<ContractAddress, AccountState>,
+        state_changes: HashMap<ContractAddress, Nonce>,
     ) -> MempoolResult<()> {
-        for (&address, AccountState { nonce }) in &state_changes {
+        for (&address, &nonce) in &state_changes {
             let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
             self.align_to_account_state(address, next_nonce);
         }
@@ -126,7 +125,7 @@ impl Mempool {
         // Stateless checks.
 
         // Check the input: transaction nonce against given account state.
-        let account_nonce = input.account.state.nonce;
+        let account_nonce = input.account.nonce;
         if account_nonce > tx_nonce {
             return Err(duplicate_nonce_error);
         }
@@ -134,9 +133,7 @@ impl Mempool {
         // Stateful checks.
 
         // Check nonce against mempool state.
-        if let Some(AccountState { nonce: mempool_state_nonce }) =
-            self.mempool_state.get(&sender_address)
-        {
+        if let Some(mempool_state_nonce) = self.mempool_state.get(&sender_address) {
             if mempool_state_nonce >= &tx_nonce {
                 return Err(duplicate_nonce_error);
             }
@@ -156,15 +153,13 @@ impl Mempool {
 
     fn enqueue_next_eligible_txs(&mut self, txs: &[TransactionReference]) -> MempoolResult<()> {
         for tx in txs {
-            let current_account_state = Account {
-                sender_address: tx.sender_address,
-                state: AccountState { nonce: tx.nonce },
-            };
+            let current_account_state =
+                AccountState { sender_address: tx.sender_address, nonce: tx.nonce };
 
             if let Some(next_tx_reference) =
                 self.tx_pool.get_next_eligible_tx(current_account_state)?
             {
-                self.tx_queue.insert(next_tx_reference.clone());
+                self.tx_queue.insert(*next_tx_reference);
             }
         }
 
@@ -199,14 +194,9 @@ impl Mempool {
         // Maybe close nonce gap.
         if self.tx_queue.get_nonce(address).is_none() {
             if let Some(tx_reference) = self.tx_pool.get_by_address_and_nonce(address, nonce) {
-                self.tx_queue.insert(tx_reference.clone());
+                self.tx_queue.insert(*tx_reference);
             }
         }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn tx_pool(&self) -> &TransactionPool {
-        &self.tx_pool
     }
 }
 
@@ -214,8 +204,7 @@ impl Mempool {
 /// execution fields).
 /// TODO(Mohammad): rename this struct to `ThinTransaction` once that name
 /// becomes available, to better reflect its purpose and usage.
-/// TODO(Mohammad): restore the Copy once ResourceBoundsMapping implements it.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TransactionReference {
     pub sender_address: ContractAddress,
     pub nonce: Nonce,
@@ -231,10 +220,9 @@ impl TransactionReference {
             nonce: tx.nonce(),
             tx_hash: tx.tx_hash(),
             tip: tx.tip().expect("Expected a valid tip value."),
-            resource_bounds: tx
+            resource_bounds: *tx
                 .resource_bounds()
-                .expect("Expected a valid resource bounds value.")
-                .clone(),
+                .expect("Expected a valid resource bounds value."),
         }
     }
 

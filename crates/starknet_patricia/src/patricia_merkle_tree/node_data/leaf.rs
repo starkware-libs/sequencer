@@ -4,6 +4,8 @@ use std::future::Future;
 
 use crate::felt::Felt;
 use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
+use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::db_object::{DBObject, Deserializable};
 
@@ -34,6 +36,18 @@ pub trait Leaf: Clone + Sync + Send + DBObject + Deserializable + Default + Debu
             .ok_or(LeafError::MissingLeafModificationData(*index))?
             .clone();
         Ok(leaf_data)
+    }
+
+    /// Compares the previous leaf to the modified and returns true if they are equal.
+    fn compare(
+        leaf_modifications: &LeafModifications<Self>,
+        index: &NodeIndex,
+        previous_leaf: &Self,
+    ) -> OriginalSkeletonTreeResult<bool> {
+        let new_leaf = leaf_modifications
+            .get(index)
+            .ok_or(OriginalSkeletonTreeError::ReadModificationsError(*index))?;
+        Ok(new_leaf == previous_leaf)
     }
 }
 

@@ -19,6 +19,7 @@ use crate::config::{
     ComponentExecutionConfig,
     LocationType,
     MempoolNodeConfig,
+    CONFIG_POINTERS,
     DEFAULT_CONFIG_PATH,
 };
 
@@ -116,7 +117,7 @@ fn test_valid_component_execution_config(#[case] location: LocationType) {
         remote_config,
         ..ComponentExecutionConfig::default()
     };
-    assert!(component_exe_config.validate().is_ok());
+    assert_eq!(component_exe_config.validate(), Ok(()));
 }
 
 #[test]
@@ -129,6 +130,10 @@ fn test_invalid_components_config() {
             ..ComponentExecutionConfig::default()
         },
         gateway: ComponentExecutionConfig { execute: false, ..ComponentExecutionConfig::default() },
+        http_server: ComponentExecutionConfig {
+            execute: false,
+            ..ComponentExecutionConfig::default()
+        },
         mempool: ComponentExecutionConfig { execute: false, ..ComponentExecutionConfig::default() },
     };
 
@@ -142,14 +147,16 @@ fn test_invalid_components_config() {
 /// Test the validation of the struct ComponentConfig.
 /// The validation validates at least one of the components is set with execute: true.
 #[rstest]
-#[case(true, false, false, false)]
-#[case(false, true, false, false)]
-#[case(false, false, true, false)]
-#[case(false, false, false, true)]
+#[case(true, false, false, false, false)]
+#[case(false, true, false, false, false)]
+#[case(false, false, true, false, false)]
+#[case(false, false, false, true, false)]
+#[case(false, false, false, false, true)]
 fn test_valid_components_config(
     #[case] batcher_component_execute: bool,
     #[case] consensus_manager_component_execute: bool,
     #[case] gateway_component_execute: bool,
+    #[case] http_server_component_execute: bool,
     #[case] mempool_component_execute: bool,
 ) {
     // Initialize an invalid config and check that the validator finds an error.
@@ -166,6 +173,10 @@ fn test_valid_components_config(
             execute: gateway_component_execute,
             ..ComponentExecutionConfig::default()
         },
+        http_server: ComponentExecutionConfig {
+            execute: http_server_component_execute,
+            ..ComponentExecutionConfig::default()
+        },
         mempool: ComponentExecutionConfig {
             execute: mempool_component_execute,
             ..ComponentExecutionConfig::default()
@@ -180,13 +191,21 @@ fn test_valid_components_config(
 /// cargo run --bin mempool_dump_config -q
 #[test]
 fn default_config_file_is_up_to_date() {
-    let default_config = MempoolNodeConfig::default();
-    assert_matches!(default_config.validate(), Ok(()));
-    let from_code: serde_json::Value = serde_json::to_value(default_config.dump()).unwrap();
-
     env::set_current_dir(get_absolute_path("")).expect("Couldn't set working dir.");
     let from_default_config_file: serde_json::Value =
         serde_json::from_reader(File::open(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
+
+    let default_config = MempoolNodeConfig::default();
+    assert_matches!(default_config.validate(), Ok(()));
+
+    // Create a temporary file and dump the default config to it.
+    let mut tmp_file_path = env::temp_dir();
+    tmp_file_path.push("cfg.json");
+    default_config.dump_to_file(&CONFIG_POINTERS, tmp_file_path.to_str().unwrap()).unwrap();
+
+    // Read the dumped config from the file.
+    let from_code: serde_json::Value =
+        serde_json::from_reader(File::open(tmp_file_path).unwrap()).unwrap();
 
     println!(
         "{}",
@@ -195,6 +214,6 @@ fn default_config_file_is_up_to_date() {
             .purple()
             .bold()
     );
-    println!("Diffs shown below.");
+    println!("Diffs shown below (default config file <<>> dump of MempoolNodeConfig::default()).");
     assert_json_eq!(from_default_config_file, from_code)
 }

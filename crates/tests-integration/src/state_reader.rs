@@ -1,5 +1,5 @@
 use std::net::SocketAddr;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use blockifier::abi::abi_utils::get_fee_token_var_address;
 use blockifier::context::{BlockContext, ChainInfo};
@@ -16,7 +16,6 @@ use blockifier::transaction::objects::FeeType;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::{indexmap, IndexMap};
 use itertools::Itertools;
-use mempool_test_utils::starknet_api_test_utils::deploy_account_tx;
 use papyrus_common::pending_classes::PendingClasses;
 use papyrus_rpc::{run_server, RpcConfig};
 use papyrus_storage::body::BodyStorageWriter;
@@ -24,10 +23,12 @@ use papyrus_storage::class::ClassStorageWriter;
 use papyrus_storage::compiled_class::CasmStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
-use papyrus_storage::{open_storage, StorageConfig, StorageReader};
+use papyrus_storage::test_utils::get_test_storage;
+use papyrus_storage::StorageReader;
 use starknet_api::block::{
     BlockBody,
     BlockHeader,
+    BlockHeaderWithoutHash,
     BlockNumber,
     BlockTimestamp,
     GasPrice,
@@ -40,21 +41,12 @@ use starknet_api::{contract_address, felt, patricia_key};
 use starknet_client::reader::PendingData;
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
-use tempfile::tempdir;
 use tokio::sync::RwLock;
 
 use crate::integration_test_utils::get_available_socket;
 
 type ContractClassesMap =
     (Vec<(ClassHash, DeprecatedContractClass)>, Vec<(ClassHash, CasmContractClass)>);
-
-fn deploy_account_tx_contract_address() -> &'static ContractAddress {
-    static DEPLOY_ACCOUNT_TX_CONTRACT_ADDRESS: OnceLock<ContractAddress> = OnceLock::new();
-    DEPLOY_ACCOUNT_TX_CONTRACT_ADDRESS.get_or_init(|| {
-        let deploy_tx = deploy_account_tx();
-        deploy_tx.calculate_sender_address().unwrap()
-    })
-}
 
 /// StateReader for integration tests.
 ///
@@ -80,29 +72,16 @@ pub async fn spawn_test_rpc_state_reader(
         *account_to_n_instances.entry(contract).or_default() += 1;
     }
 
-    let fund_accounts = vec![*deploy_account_tx_contract_address()];
-
-    let storage_reader = initialize_papyrus_test_state(
-        block_context.chain_info(),
-        BALANCE,
-        account_to_n_instances,
-        fund_accounts,
-    );
+    let storage_reader =
+        initialize_papyrus_test_state(block_context.chain_info(), account_to_n_instances);
     run_papyrus_rpc_server(storage_reader).await
 }
 
 fn initialize_papyrus_test_state(
     chain_info: &ChainInfo,
-    initial_balances: u128,
     contract_instances: IndexMap<FeatureContract, usize>,
-    fund_additional_accounts: Vec<ContractAddress>,
 ) -> StorageReader {
-    let state_diff = prepare_state_diff(
-        chain_info,
-        &contract_instances,
-        initial_balances,
-        fund_additional_accounts,
-    );
+    let state_diff = prepare_state_diff(chain_info, &contract_instances);
 
     let (cairo0_contract_classes, cairo1_contract_classes) =
         prepare_compiled_contract_classes(contract_instances.into_keys());
@@ -113,8 +92,6 @@ fn initialize_papyrus_test_state(
 fn prepare_state_diff(
     chain_info: &ChainInfo,
     contract_instances: &IndexMap<FeatureContract, usize>,
-    initial_balances: u128,
-    fund_accounts: Vec<ContractAddress>,
 ) -> ThinStateDiff {
     let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
     let erc20_class_hash = erc20.get_class_hash();
@@ -142,19 +119,9 @@ fn prepare_state_diff(
             let instance = u16::try_from(instance).unwrap();
             deployed_contracts
                 .insert(contract.get_instance_address(instance), contract.get_class_hash());
-            fund_feature_account_contract(
-                &mut storage_diffs,
-                contract,
-                instance,
-                initial_balances,
-                chain_info,
-            );
+            fund_feature_account_contract(&mut storage_diffs, contract, instance, chain_info);
         }
     }
-
-    fund_accounts.iter().for_each(|address| {
-        fund_account(&mut storage_diffs, address, initial_balances, chain_info)
-    });
 
     ThinStateDiff {
         storage_diffs,
@@ -196,16 +163,12 @@ fn write_state_to_papyrus_storage(
 ) -> StorageReader {
     let block_number = BlockNumber(0);
     let block_header = test_block_header(block_number);
+    let cairo0_contract_classes: Vec<_> =
+        cairo0_contract_classes.iter().map(|(hash, contract)| (*hash, contract)).collect();
 
-    let mut storage_config = StorageConfig::default();
-    let tempdir = tempdir().unwrap();
-    storage_config.db_config.path_prefix = tempdir.path().to_path_buf();
-    let (storage_reader, mut storage_writer) = open_storage(storage_config).unwrap();
-
-    let cairo0_contract_classes =
-        cairo0_contract_classes.iter().map(|(x, y)| (*x, y)).collect::<Vec<_>>();
-
+    let (storage_reader, mut storage_writer) = get_test_storage().0;
     let mut write_txn = storage_writer.begin_rw_txn().unwrap();
+
     for (class_hash, casm) in cairo1_contract_classes {
         write_txn = write_txn.append_casm(class_hash, casm).unwrap();
     }
@@ -216,7 +179,7 @@ fn write_state_to_papyrus_storage(
         .unwrap()
         .append_state_diff(block_number, state_diff)
         .unwrap()
-        .append_classes(block_number, &[], cairo0_contract_classes.as_slice())
+        .append_classes(block_number, &[], &cairo0_contract_classes)
         .unwrap()
         .commit()
         .unwrap();
@@ -226,17 +189,20 @@ fn write_state_to_papyrus_storage(
 
 fn test_block_header(block_number: BlockNumber) -> BlockHeader {
     BlockHeader {
-        block_number,
-        sequencer: SequencerContractAddress(contract_address!(TEST_SEQUENCER_ADDRESS)),
-        l1_gas_price: GasPricePerToken {
-            price_in_wei: GasPrice(DEFAULT_ETH_L1_GAS_PRICE),
-            price_in_fri: GasPrice(DEFAULT_STRK_L1_GAS_PRICE),
+        block_header_without_hash: BlockHeaderWithoutHash {
+            block_number,
+            sequencer: SequencerContractAddress(contract_address!(TEST_SEQUENCER_ADDRESS)),
+            l1_gas_price: GasPricePerToken {
+                price_in_wei: GasPrice(DEFAULT_ETH_L1_GAS_PRICE),
+                price_in_fri: GasPrice(DEFAULT_STRK_L1_GAS_PRICE),
+            },
+            l1_data_gas_price: GasPricePerToken {
+                price_in_wei: GasPrice(DEFAULT_ETH_L1_GAS_PRICE),
+                price_in_fri: GasPrice(DEFAULT_STRK_L1_GAS_PRICE),
+            },
+            timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
+            ..Default::default()
         },
-        l1_data_gas_price: GasPricePerToken {
-            price_in_wei: GasPrice(DEFAULT_ETH_L1_GAS_PRICE),
-            price_in_fri: GasPrice(DEFAULT_STRK_L1_GAS_PRICE),
-        },
-        timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
         ..Default::default()
     }
 }
@@ -245,19 +211,13 @@ fn fund_feature_account_contract(
     storage_diffs: &mut IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
     contract: &FeatureContract,
     instance: u16,
-    initial_balances: u128,
     chain_info: &ChainInfo,
 ) {
     match contract {
         FeatureContract::AccountWithLongValidate(_)
         | FeatureContract::AccountWithoutValidations(_)
         | FeatureContract::FaultyAccount(_) => {
-            fund_account(
-                storage_diffs,
-                &contract.get_instance_address(instance),
-                initial_balances,
-                chain_info,
-            );
+            fund_account(storage_diffs, &contract.get_instance_address(instance), chain_info);
         }
         _ => (),
     }
@@ -266,11 +226,10 @@ fn fund_feature_account_contract(
 fn fund_account(
     storage_diffs: &mut IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
     account_address: &ContractAddress,
-    initial_balances: u128,
     chain_info: &ChainInfo,
 ) {
     let key_value = indexmap! {
-        get_fee_token_var_address(*account_address) => felt!(initial_balances),
+        get_fee_token_var_address(*account_address) => felt!(BALANCE),
     };
     for fee_type in FeeType::iter() {
         storage_diffs

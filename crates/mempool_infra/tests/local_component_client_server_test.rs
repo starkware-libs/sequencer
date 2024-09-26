@@ -17,6 +17,7 @@ use starknet_mempool_infra::component_definitions::{
     ComponentRequestHandler,
 };
 use starknet_mempool_infra::component_server::{ComponentServerStarter, LocalComponentServer};
+use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::channel;
 use tokio::task;
 
@@ -81,8 +82,8 @@ impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for Componen
 
 #[tokio::test]
 async fn test_setup() {
-    let setup_value: ValueB = 30;
-    let expected_value: ValueA = setup_value.into();
+    let setup_value: ValueB = Felt::from(30);
+    let expected_value: ValueA = setup_value;
 
     let (tx_a, rx_a) =
         channel::<ComponentRequestAndResponseSender<ComponentARequest, ComponentAResponse>>(32);
@@ -99,11 +100,11 @@ async fn test_setup() {
     let mut component_b_server = LocalComponentServer::new(component_b, rx_b);
 
     task::spawn(async move {
-        component_a_server.start().await;
+        let _ = component_a_server.start().await;
     });
 
     task::spawn(async move {
-        component_b_server.start().await;
+        let _ = component_b_server.start().await;
     });
 
     test_a_b_functionality(a_client, b_client, expected_value).await;

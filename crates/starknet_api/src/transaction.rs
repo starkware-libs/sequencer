@@ -870,6 +870,7 @@ impl From<Tip> for Felt {
     Copy,
     Debug,
     Deserialize,
+    Display,
     EnumIter,
     Eq,
     Hash,
@@ -877,7 +878,6 @@ impl From<Tip> for Felt {
     PartialEq,
     PartialOrd,
     Serialize,
-    Display,
 )]
 pub enum Resource {
     #[serde(rename = "L1_GAS")]
@@ -886,6 +886,18 @@ pub enum Resource {
     L2Gas,
     #[serde(rename = "L1_DATA")]
     L1DataGas,
+}
+
+impl Resource {
+    pub fn to_hex(&self) -> &'static str {
+        match self {
+            Resource::L1Gas => "0x00000000000000000000000000000000000000000000000000004c315f474153",
+            Resource::L2Gas => "0x00000000000000000000000000000000000000000000000000004c325f474153",
+            Resource::L1DataGas => {
+                "0x000000000000000000000000000000000000000000000000004c315f44415441"
+            }
+        }
+    }
 }
 
 /// Fee bounds for an execution resource.
@@ -946,7 +958,7 @@ where
 // TODO(Nimrod): Remove this struct definition.
 pub struct DeprecatedResourceBoundsMapping(pub BTreeMap<Resource, ResourceBounds>);
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum ValidResourceBounds {
     L1Gas(ResourceBounds), // Pre 0.13.3. Only L1 gas. L2 bounds are signed but never used.
     AllResources(AllResourceBounds),
@@ -967,6 +979,24 @@ impl ValidResourceBounds {
         }
     }
 
+    pub fn max_possible_fee(&self) -> Fee {
+        Fee(match self {
+            ValidResourceBounds::L1Gas(l1_bounds) => {
+                let max_amount: u128 = l1_bounds.max_amount.into();
+                max_amount * l1_bounds.max_price_per_unit
+            }
+            ValidResourceBounds::AllResources(AllResourceBounds {
+                l1_gas,
+                l2_gas,
+                l1_data_gas,
+            }) => {
+                u128::from(l1_gas.max_amount) * l1_gas.max_price_per_unit
+                    + u128::from(l2_gas.max_amount) * l2_gas.max_price_per_unit
+                    + u128::from(l1_data_gas.max_amount) * l1_data_gas.max_price_per_unit
+            }
+        })
+    }
+
     // TODO(Nimrod): Default testing bounds should probably be AllResourceBounds variant.
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_testing() -> Self {
@@ -974,7 +1004,9 @@ impl ValidResourceBounds {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize)]
+#[derive(
+    Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize,
+)]
 pub struct AllResourceBounds {
     pub l1_gas: ResourceBounds,
     pub l2_gas: ResourceBounds,

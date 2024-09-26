@@ -14,7 +14,7 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{calldata_for_deploy_test, trivial_external_entry_point_new, CairoVersion};
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 204260;"VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 206800;"VM")]
 fn no_constructor(deployer_contract: FeatureContract, expected_gas: u64) {
     // TODO(Yoni): share the init code of the tests in this file.
 
@@ -88,7 +88,7 @@ fn no_constructor_nonempty_calldata(deployer_contract: FeatureContract) {
     ));
 }
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1),214210, 5210;"VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1),216750, 5210;"VM")]
 fn with_constructor(
     deployer_contract: FeatureContract,
     expected_gas: u64,
@@ -176,5 +176,5 @@ fn to_unavailable_address(deployer_contract: FeatureContract) {
     entry_point_call.clone().execute_directly(&mut state).unwrap();
     let error = entry_point_call.execute_directly(&mut state).unwrap_err().to_string();
 
-    assert!(error.contains("is unavailable for deployment."));
+    assert!(error.contains("Deployment failed:"));
 }

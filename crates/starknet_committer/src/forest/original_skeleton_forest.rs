@@ -77,6 +77,7 @@ impl<'a> OriginalSkeletonForest<'a> {
             contracts_trie_root_hash,
             contracts_trie_sorted_indices,
             &OriginalSkeletonContractsTrieConfig::new(),
+            &HashMap::new(),
         )?)
     }
 
@@ -95,16 +96,15 @@ impl<'a> OriginalSkeletonForest<'a> {
             let contract_state = original_contracts_trie_leaves
                 .get(&address.into())
                 .ok_or(ForestError::MissingContractCurrentState(*address))?;
-            let config = OriginalSkeletonStorageTrieConfig::new(
-                updates,
-                config.warn_on_trivial_modifications(),
-            );
+            let config =
+                OriginalSkeletonStorageTrieConfig::new(config.warn_on_trivial_modifications());
 
             let original_skeleton = OriginalSkeletonTreeImpl::create(
                 storage,
                 contract_state.storage_root_hash,
                 *sorted_leaf_indices,
                 &config,
+                updates,
             )?;
             storage_tries.insert(*address, original_skeleton);
         }
@@ -118,16 +118,14 @@ impl<'a> OriginalSkeletonForest<'a> {
         config: &impl Config,
         contracts_trie_sorted_indices: SortedLeafIndices<'a>,
     ) -> ForestResult<OriginalSkeletonTreeImpl<'a>> {
-        let config = OriginalSkeletonClassesTrieConfig::new(
-            actual_classes_updates,
-            config.warn_on_trivial_modifications(),
-        );
+        let config = OriginalSkeletonClassesTrieConfig::new(config.warn_on_trivial_modifications());
 
         Ok(OriginalSkeletonTreeImpl::create(
             storage,
             classes_trie_root_hash,
             contracts_trie_sorted_indices,
             &config,
+            actual_classes_updates,
         )?)
     }
 }

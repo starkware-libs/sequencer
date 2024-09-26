@@ -9,11 +9,13 @@ use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress,
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
+use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
     DeclareTransactionV2,
     Fee,
+    Resource,
     TransactionHash,
     TransactionVersion,
     ValidResourceBounds,
@@ -26,7 +28,9 @@ use starknet_api::{
     deploy_account_tx_args,
     felt,
     invoke_tx_args,
+    nonce,
     patricia_key,
+    storage_key,
 };
 use starknet_types_core::felt::Felt;
 
@@ -35,6 +39,7 @@ use crate::abi::abi_utils::{
     get_storage_var_address,
     selector_from_name,
 };
+use crate::check_transaction_execution_error_for_invalid_scenario;
 use crate::context::BlockContext;
 use crate::execution::contract_class::{ContractClass, ContractClassV1};
 use crate::execution::entry_point::EntryPointExecutionContext;
@@ -54,7 +59,6 @@ use crate::test_utils::{
     get_tx_resources,
     u64_from_usize,
     CairoVersion,
-    NonceManager,
     BALANCE,
     DEFAULT_STRK_L1_GAS_PRICE,
     MAX_FEE,
@@ -85,7 +89,6 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{DeclareTransaction, ExecutableTransaction, ExecutionFlags};
-use crate::{check_transaction_execution_error_for_invalid_scenario, nonce, storage_key};
 
 #[rstest]
 fn test_circuit(block_context: BlockContext, max_resource_bounds: ValidResourceBounds) {
@@ -118,7 +121,7 @@ fn test_circuit(block_context: BlockContext, max_resource_bounds: ValidResourceB
     .unwrap();
 
     assert!(tx_execution_info.revert_error.is_none());
-    assert_eq!(tx_execution_info.receipt.gas, GasVector::from_l1_gas(6806));
+    assert_eq!(tx_execution_info.receipt.gas, GasVector::from_l1_gas(6866));
 }
 
 #[rstest]
@@ -157,7 +160,7 @@ fn test_rc96_holes(block_context: BlockContext, max_resource_bounds: ValidResour
             [&BuiltinName::range_check96],
         24
     );
-    assert_eq!(tx_execution_info.receipt.gas, GasVector::from_l1_gas(6722));
+    assert_eq!(tx_execution_info.receipt.gas, GasVector::from_l1_gas(6782));
 }
 
 #[rstest]
@@ -364,7 +367,7 @@ fn test_max_fee_limit_validate(
         declare_tx_args! {
             class_hash: grindy_class_hash,
             sender_address: account_address,
-            resource_bounds: max_resource_bounds.clone(),
+            resource_bounds: max_resource_bounds,
             nonce: nonce_manager.next(account_address),
         },
         class_info,
@@ -381,7 +384,7 @@ fn test_max_fee_limit_validate(
         chain_info,
         deploy_account_tx_args! {
             class_hash: grindy_class_hash,
-            resource_bounds: max_resource_bounds.clone(),
+            resource_bounds: max_resource_bounds,
             constructor_calldata: calldata![ctor_grind_arg, ctor_storage_arg],
         },
     );
@@ -397,7 +400,7 @@ fn test_max_fee_limit_validate(
         chain_info,
         deploy_account_tx_args! {
             class_hash: grindy_class_hash,
-            resource_bounds: max_resource_bounds.clone(),
+            resource_bounds: max_resource_bounds,
             constructor_calldata: calldata![ctor_grind_arg, ctor_storage_arg],
         },
     );
@@ -1042,7 +1045,12 @@ fn test_insufficient_max_fee_reverts(
     .unwrap();
     assert!(tx_execution_info2.is_reverted());
     assert!(tx_execution_info2.receipt.fee == actual_fee_depth1);
-    assert!(tx_execution_info2.revert_error.unwrap().starts_with("Insufficient max L1 gas:"));
+    assert!(
+        tx_execution_info2
+            .revert_error
+            .unwrap()
+            .starts_with(&format!("Insufficient max {resource}", resource = Resource::L1Gas))
+    );
 
     // Invoke the `recurse` function with depth of 824 and the actual fee of depth 1 as max_fee.
     // This call should fail due to no remaining steps (execution steps based on max_fee are bounded
@@ -1311,7 +1319,7 @@ fn test_concurrency_execute_fee_transfer(
     sender_address: account.get_instance_address(0),
     max_fee,
     calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
-    resource_bounds: max_resource_bounds.clone(),
+    resource_bounds: max_resource_bounds,
     version
     });
     let fee_type = &account_tx.fee_type();
@@ -1427,4 +1435,32 @@ fn test_concurrent_fee_transfer_when_sender_is_sequencer(
     {
         assert_eq!(state.get_storage_at(fee_token_address, seq_key).unwrap(), felt!(seq_value));
     }
+}
+
+#[rstest]
+fn test_revert_in_execute(block_context: BlockContext, max_resource_bounds: ValidResourceBounds) {
+    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+    let chain_info = &block_context.chain_info;
+    let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
+    let account_address = account.get_instance_address(0);
+    let mut nonce_manager = NonceManager::default();
+
+    // Invoke a function that changes the state and reverts.
+    let tx_args = invoke_tx_args! {
+        sender_address: account_address,
+        calldata: Calldata(vec![].into()),
+        nonce: nonce_manager.next(account_address)
+    };
+
+    // Skip validate phase, as we want to test the revert in the execute phase.
+    let validate = false;
+    let tx_execution_info = account_invoke_tx(invoke_tx_args! {
+        resource_bounds: max_resource_bounds,
+        ..tx_args
+    })
+    .execute(state, &block_context, true, validate)
+    .unwrap();
+
+    assert!(tx_execution_info.is_reverted());
+    assert!(tx_execution_info.revert_error.unwrap().contains("Failed to deserialize param #1"));
 }

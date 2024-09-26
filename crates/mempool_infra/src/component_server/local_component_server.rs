@@ -1,10 +1,13 @@
+use std::marker::PhantomData;
+
 use async_trait::async_trait;
 use tokio::sync::mpsc::Receiver;
 use tracing::error;
 
-use super::definitions::{request_response_loop, start_component, ComponentServerStarter};
+use super::definitions::{request_response_loop, ComponentServerStarter};
 use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
 use crate::component_runner::ComponentStarter;
+use crate::errors::ComponentServerError;
 
 /// The `LocalComponentServer` struct is a generic server that handles requests and responses for a
 /// specified component. It receives requests, processes them using the provided component, and
@@ -34,7 +37,8 @@ use crate::component_runner::ComponentStarter;
 /// use std::sync::mpsc::{channel, Receiver};
 ///
 /// use async_trait::async_trait;
-/// use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
+/// use starknet_mempool_infra::component_runner::ComponentStarter;
+/// use starknet_mempool_infra::errors::ComponentError;
 /// use tokio::task;
 ///
 /// use crate::starknet_mempool_infra::component_definitions::{
@@ -51,7 +55,7 @@ use crate::component_runner::ComponentStarter;
 ///
 /// #[async_trait]
 /// impl ComponentStarter for MyComponent {
-///     async fn start(&mut self) -> Result<(), ComponentStartError> {
+///     async fn start(&mut self) -> Result<(), ComponentError> {
 ///         Ok(())
 ///     }
 /// }
@@ -107,29 +111,9 @@ use crate::component_runner::ComponentStarter;
 ///     assert!(response.content == "request example processed".to_string(), "Unexpected response");
 /// }
 /// ```
-pub struct LocalComponentServer<Component, Request, Response>
-where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter,
-    Request: Send + Sync,
-    Response: Send + Sync,
-{
-    component: Component,
-    rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
-}
-
-impl<Component, Request, Response> LocalComponentServer<Component, Request, Response>
-where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter,
-    Request: Send + Sync,
-    Response: Send + Sync,
-{
-    pub fn new(
-        component: Component,
-        rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
-    ) -> Self {
-        Self { component, rx }
-    }
-}
+pub type LocalComponentServer<Component, Request, Response> =
+    BaseLocalComponentServer<Component, Request, Response, BlockingLocalServerType>;
+pub struct BlockingLocalServerType {}
 
 #[async_trait]
 impl<Component, Request, Response> ComponentServerStarter
@@ -139,36 +123,16 @@ where
     Request: Send + Sync,
     Response: Send + Sync,
 {
-    async fn start(&mut self) {
-        if start_component(&mut self.component).await {
-            request_response_loop(&mut self.rx, &mut self.component).await;
-        }
+    async fn start(&mut self) -> Result<(), ComponentServerError> {
+        self.component.start().await?;
+        request_response_loop(&mut self.rx, &mut self.component).await;
+        Ok(())
     }
 }
 
-pub struct LocalActiveComponentServer<Component, Request, Response>
-where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send + Sync,
-    Request: Send + Sync,
-    Response: Send + Sync,
-{
-    component: Component,
-    rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
-}
-
-impl<Component, Request, Response> LocalActiveComponentServer<Component, Request, Response>
-where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send + Sync,
-    Request: Send + Sync,
-    Response: Send + Sync,
-{
-    pub fn new(
-        component: Component,
-        rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
-    ) -> Self {
-        Self { component, rx }
-    }
-}
+pub type LocalActiveComponentServer<Component, Request, Response> =
+    BaseLocalComponentServer<Component, Request, Response, NonBlockingLocalServerType>;
+pub struct NonBlockingLocalServerType {}
 
 #[async_trait]
 impl<Component, Request, Response> ComponentServerStarter
@@ -178,7 +142,7 @@ where
     Request: Send + Sync,
     Response: Send + Sync,
 {
-    async fn start(&mut self) {
+    async fn start(&mut self) -> Result<(), ComponentServerError> {
         let mut component = self.component.clone();
         let component_future = async move { component.start().await };
         let request_response_future = request_response_loop(&mut self.rx, &mut self.component);
@@ -192,5 +156,32 @@ where
             }
         };
         error!("Server ended with unexpected Ok.");
+        Err(ComponentServerError::ServerUnexpectedlyStopped)
+    }
+}
+
+pub struct BaseLocalComponentServer<Component, Request, Response, LocalServerType>
+where
+    Component: ComponentRequestHandler<Request, Response> + ComponentStarter,
+    Request: Send + Sync,
+    Response: Send + Sync,
+{
+    component: Component,
+    rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    _local_server_type: PhantomData<LocalServerType>,
+}
+
+impl<Component, Request, Response, LocalServerType>
+    BaseLocalComponentServer<Component, Request, Response, LocalServerType>
+where
+    Component: ComponentRequestHandler<Request, Response> + ComponentStarter,
+    Request: Send + Sync,
+    Response: Send + Sync,
+{
+    pub fn new(
+        component: Component,
+        rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    ) -> Self {
+        Self { component, rx, _local_server_type: PhantomData }
     }
 }

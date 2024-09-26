@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::net::IpAddr;
 
 use blockifier::context::ChainInfo;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
@@ -13,7 +12,6 @@ use crate::compiler_version::VersionId;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct GatewayConfig {
-    pub network_config: GatewayNetworkConfig,
     pub stateless_tx_validator_config: StatelessTransactionValidatorConfig,
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
 }
@@ -21,7 +19,6 @@ pub struct GatewayConfig {
 impl SerializeConfig for GatewayConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         vec![
-            append_sub_config_name(self.network_config.dump(), "network_config"),
             append_sub_config_name(
                 self.stateless_tx_validator_config.dump(),
                 "stateless_tx_validator_config",
@@ -34,33 +31,6 @@ impl SerializeConfig for GatewayConfig {
         .into_iter()
         .flatten()
         .collect()
-    }
-}
-
-/// The gateway network connection related configuration.
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct GatewayNetworkConfig {
-    pub ip: IpAddr,
-    pub port: u16,
-}
-
-impl SerializeConfig for GatewayNetworkConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "ip",
-                &self.ip.to_string(),
-                "The gateway server ip.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param("port", &self.port, "The gateway server port.", ParamPrivacyInput::Public),
-        ])
-    }
-}
-
-impl Default for GatewayNetworkConfig {
-    fn default() -> Self {
-        Self { ip: "0.0.0.0".parse().unwrap(), port: 8080 }
     }
 }
 
@@ -169,6 +139,8 @@ pub struct StatefulTransactionValidatorConfig {
     pub max_nonce_for_validation_skip: Nonce,
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
+    // TODO(Arni): Move this member out of the stateful transaction validator config. Move it into
+    // the gateway config. This is used during the transalation from external_tx to executable_tx.
     pub chain_info: ChainInfo,
 }
 

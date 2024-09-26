@@ -42,6 +42,7 @@ use starknet_api::block::{
     BlockBody,
     BlockHash,
     BlockHeader,
+    BlockHeaderWithoutHash,
     BlockNumber,
     BlockSignature,
     BlockStatus,
@@ -440,14 +441,7 @@ auto_impl_get_test_instance! {
     pub struct BlockHash(pub StarkHash);
     pub struct BlockHeader {
         pub block_hash: BlockHash,
-        pub parent_hash: BlockHash,
-        pub block_number: BlockNumber,
-        pub l1_gas_price: GasPricePerToken,
-        pub l1_data_gas_price: GasPricePerToken,
-        pub state_root: GlobalRoot,
-        pub sequencer: SequencerContractAddress,
-        pub timestamp: BlockTimestamp,
-        pub l1_da_mode: L1DataAvailabilityMode,
+        pub block_header_without_hash: BlockHeaderWithoutHash,
         pub state_diff_commitment: Option<StateDiffCommitment>,
         pub transaction_commitment: Option<TransactionCommitment>,
         pub event_commitment: Option<EventCommitment>,
@@ -455,6 +449,17 @@ auto_impl_get_test_instance! {
         pub state_diff_length: Option<usize>,
         pub n_transactions: usize,
         pub n_events: usize,
+    }
+    pub struct BlockHeaderWithoutHash {
+        pub parent_hash: BlockHash,
+        pub block_number: BlockNumber,
+        pub l1_gas_price: GasPricePerToken,
+        pub l1_data_gas_price: GasPricePerToken,
+        pub l2_gas_price: GasPricePerToken,
+        pub state_root: GlobalRoot,
+        pub sequencer: SequencerContractAddress,
+        pub timestamp: BlockTimestamp,
+        pub l1_da_mode: L1DataAvailabilityMode,
         pub starknet_version: StarknetVersion,
     }
     pub struct BlockNumber(pub u64);
@@ -479,7 +484,7 @@ auto_impl_get_test_instance! {
         MulMod = 9,
         RangeCheck96 = 10,
     }
-    pub struct StarknetVersion(pub String);
+    pub struct StarknetVersion(pub Vec<u8>);
     pub struct Calldata(pub Arc<Vec<Felt>>);
     pub struct ClassHash(pub StarkHash);
     pub struct CompiledClassHash(pub StarkHash);
@@ -1134,7 +1139,7 @@ impl GetTestInstance for ExecutionResources {
 
 impl GetTestInstance for GasVector {
     fn get_test_instance(rng: &mut ChaCha8Rng) -> Self {
-        Self { l1_gas: rng.next_u64(), l1_data_gas: rng.next_u64() }
+        Self { l1_gas: rng.next_u64(), l2_gas: rng.next_u64(), l1_data_gas: rng.next_u64() }
     }
 }
 
