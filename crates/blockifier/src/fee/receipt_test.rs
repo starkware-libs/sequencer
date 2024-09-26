@@ -21,7 +21,7 @@ use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{
     account_invoke_tx,
     calculate_class_info_for_testing,
-    max_resource_bounds,
+    max_l1_resource_bounds,
 };
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::utils::{u128_from_usize, usize_from_u128};
@@ -311,7 +311,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
 // resources are taken into account).
 #[rstest]
 fn test_calculate_tx_gas_usage(
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
     #[values(false, true)] use_kzg_da: bool,
 ) {
     let account_cairo_version = CairoVersion::Cairo0;
@@ -327,7 +327,7 @@ fn test_calculate_tx_gas_usage(
     let account_tx = account_invoke_tx(invoke_tx_args! {
             sender_address: account_contract_address,
             calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
-            resource_bounds: max_resource_bounds,
+            resource_bounds: max_l1_resource_bounds,
     });
     let calldata_length = account_tx.calldata_length();
     let signature_length = account_tx.signature_length();
@@ -377,7 +377,7 @@ fn test_calculate_tx_gas_usage(
     );
 
     let account_tx = account_invoke_tx(invoke_tx_args! {
-        resource_bounds: max_resource_bounds,
+        resource_bounds: max_l1_resource_bounds,
         sender_address: account_contract_address,
         calldata: execute_calldata,
         nonce: nonce!(1_u8),

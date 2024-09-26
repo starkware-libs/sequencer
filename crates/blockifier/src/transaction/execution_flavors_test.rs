@@ -45,7 +45,7 @@ use crate::transaction::objects::{FeeType, TransactionExecutionInfo, Transaction
 use crate::transaction::test_utils::{
     account_invoke_tx,
     l1_resource_bounds,
-    max_resource_bounds,
+    max_l1_resource_bounds,
     INVALID,
 };
 use crate::transaction::transaction_types::TransactionType;
@@ -442,7 +442,7 @@ fn test_simulate_charge_fee_with_validation_fail_validate(
     // TODO(Dori, 1/1/2024): Add Cairo1 case, after price abstraction is implemented.
     #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
     #[values(TransactionVersion::ONE, TransactionVersion::THREE)] version: TransactionVersion,
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
 ) {
     let validate = true;
     assert!(
@@ -452,7 +452,7 @@ fn test_simulate_charge_fee_with_validation_fail_validate(
             charge_fee,
             cairo_version,
             version,
-            max_resource_bounds,
+            max_l1_resource_bounds,
         )
         .unwrap_err()
         .to_string()
@@ -472,7 +472,7 @@ fn test_simulate_charge_fee_no_validation_fail_validate(
     #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
 ) {
     let validate = false;
     let transaction_execution_info = execute_fail_validation(
@@ -481,7 +481,7 @@ fn test_simulate_charge_fee_no_validation_fail_validate(
         charge_fee,
         cairo_version,
         version,
-        max_resource_bounds,
+        max_l1_resource_bounds,
     )
     .unwrap();
 
@@ -525,7 +525,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
 ) {
     let block_context = BlockContext::create_for_account_testing();
     let chain_info = &block_context.chain_info;
@@ -549,7 +549,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     // 3. Execution fails due to out-of-resources error, due to max block bounds, mid-run.
     let execution_base_args = invoke_tx_args! {
         max_fee: Fee(MAX_FEE),
-        resource_bounds: max_resource_bounds,
+        resource_bounds: max_l1_resource_bounds,
         sender_address: account_address,
         version,
         only_query,

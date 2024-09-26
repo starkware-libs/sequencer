@@ -88,7 +88,7 @@ pub fn max_fee() -> Fee {
 }
 
 #[fixture]
-pub fn max_resource_bounds() -> ValidResourceBounds {
+pub fn max_l1_resource_bounds() -> ValidResourceBounds {
     l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE)
 }
 
