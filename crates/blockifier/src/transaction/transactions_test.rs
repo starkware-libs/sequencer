@@ -76,6 +76,7 @@ use crate::fee::resources::{
     GasVector,
     GasVectorComputationMode,
     StarknetResources,
+    StateResources,
     TransactionResources,
 };
 use crate::state::cached_state::{CachedState, StateChangesCount, TransactionalState};
@@ -429,10 +430,12 @@ fn test_invoke_tx(
         calldata_length,
         signature_length,
         0,
-        StateChangesCount {
-            n_storage_updates: 1,
-            n_modified_contracts: 1,
-            ..StateChangesCount::default()
+        StateResources {
+            state_changes_for_fee: StateChangesCount {
+                n_storage_updates: 1,
+                n_modified_contracts: 1,
+                ..StateChangesCount::default()
+            },
         },
         None,
         ExecutionSummary::default(),
@@ -502,7 +505,7 @@ fn test_invoke_tx(
         FeatureContract::ERC20(CairoVersion::Cairo0).get_class_hash(),
     );
 
-    let da_gas = starknet_resources.get_state_changes_cost(use_kzg_da);
+    let da_gas = starknet_resources.state.to_gas_vector(use_kzg_da);
 
     let expected_cairo_resources = get_expected_cairo_resources(
         versioned_constants,
@@ -510,7 +513,7 @@ fn test_invoke_tx(
         &starknet_resources,
         vec![&expected_validate_call_info, &expected_execute_call_info],
     );
-    let state_changes_count = starknet_resources.state_changes_for_fee;
+    let state_changes_count = starknet_resources.state.state_changes_for_fee;
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
@@ -1325,7 +1328,7 @@ fn test_declare_tx(
         0,
         0,
         class_info.code_size(),
-        declare_expected_state_changes_count(tx_version),
+        StateResources { state_changes_for_fee: declare_expected_state_changes_count(tx_version) },
         None,
         ExecutionSummary::default(),
     );
@@ -1372,14 +1375,14 @@ fn test_declare_tx(
         FeatureContract::ERC20(CairoVersion::Cairo0).get_class_hash(),
     );
 
-    let da_gas = starknet_resources.get_state_changes_cost(use_kzg_da);
+    let da_gas = starknet_resources.state.to_gas_vector(use_kzg_da);
     let expected_cairo_resources = get_expected_cairo_resources(
         versioned_constants,
         TransactionType::Declare,
         &starknet_resources,
         vec![&expected_validate_call_info],
     );
-    let state_changes_count = starknet_resources.state_changes_for_fee;
+    let state_changes_count = starknet_resources.state.state_changes_for_fee;
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {

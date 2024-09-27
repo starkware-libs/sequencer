@@ -13,7 +13,12 @@ use crate::fee::eth_gas_constants;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::gas_usage::{get_da_gas_cost, get_message_segment_length};
 use crate::fee::resources::GasVectorComputationMode::NoL2Gas;
-use crate::fee::resources::{GasVector, GasVectorComputationMode, StarknetResources};
+use crate::fee::resources::{
+    GasVector,
+    GasVectorComputationMode,
+    StarknetResources,
+    StateResources,
+};
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::{DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE};
 use crate::transaction::objects::FeeType;
@@ -42,7 +47,7 @@ fn test_get_event_gas_cost(
             .collect();
     let execution_summary = CallInfo::summarize_many(call_infos.iter());
     let starknet_resources =
-        StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, execution_summary);
+        StarknetResources::new(0, 0, 0, StateResources::default(), None, execution_summary);
     assert_eq!(
         GasVector::default(),
         starknet_resources.to_gas_vector(
@@ -94,7 +99,7 @@ fn test_get_event_gas_cost(
         (data_word_cost * (event_key_factor * 8_u128 + 11_u128)).to_integer(),
     );
     let starknet_resources =
-        StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, execution_summary);
+        StarknetResources::new(0, 0, 0, StateResources::default(), None, execution_summary);
     let gas_vector = starknet_resources.to_gas_vector(
         versioned_constants,
         use_kzg_da,

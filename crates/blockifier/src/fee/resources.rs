@@ -1,5 +1,6 @@
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::Serialize;
+use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Fee;
 
 use crate::context::TransactionContext;
@@ -13,7 +14,7 @@ use crate::fee::gas_usage::{
     get_message_segment_length,
     get_onchain_data_segment_length,
 };
-use crate::state::cached_state::StateChangesCount;
+use crate::state::cached_state::{StateChanges, StateChangesCount};
 use crate::transaction::errors::TransactionFeeError;
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::utils::{u128_div_ceil, u128_from_usize};
@@ -77,7 +78,7 @@ impl ComputationResources {
 pub struct StarknetResources {
     pub archival_data: ArchivalDataResources,
     pub messages: MessageResources,
-    pub state_changes_for_fee: StateChangesCount,
+    pub state: StateResources,
 }
 
 impl StarknetResources {
@@ -85,7 +86,7 @@ impl StarknetResources {
         calldata_length: usize,
         signature_length: usize,
         code_size: usize,
-        state_changes_count: StateChangesCount,
+        state_resources: StateResources,
         l1_handler_payload_size: Option<usize>,
         execution_summary_without_fee_transfer: ExecutionSummary,
     ) -> Self {
@@ -101,7 +102,7 @@ impl StarknetResources {
                 execution_summary_without_fee_transfer.l2_to_l1_payload_lengths,
                 l1_handler_payload_size,
             ),
-            state_changes_for_fee: state_changes_count,
+            state: state_resources,
         }
     }
 
@@ -114,12 +115,31 @@ impl StarknetResources {
         mode: &GasVectorComputationMode,
     ) -> GasVector {
         self.archival_data.to_gas_vector(versioned_constants, mode)
-            + self.get_state_changes_cost(use_kzg_da)
+            + self.state.to_gas_vector(use_kzg_da)
             + self.messages.to_gas_vector()
+    }
+}
+
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct StateResources {
+    pub state_changes_for_fee: StateChangesCount,
+}
+
+impl StateResources {
+    pub fn new(
+        state_changes: &StateChanges,
+        sender_address: Option<ContractAddress>,
+        fee_token_address: ContractAddress,
+    ) -> Self {
+        Self {
+            state_changes_for_fee: state_changes
+                .count_for_fee_charge(sender_address, fee_token_address),
+        }
     }
 
     /// Returns the gas cost of the transaction's state changes.
-    pub fn get_state_changes_cost(&self, use_kzg_da: bool) -> GasVector {
+    pub fn to_gas_vector(&self, use_kzg_da: bool) -> GasVector {
         // TODO(Nimrod, 29/3/2024): delete `get_da_gas_cost` and move it's logic here.
         get_da_gas_cost(&self.state_changes_for_fee, use_kzg_da)
     }
