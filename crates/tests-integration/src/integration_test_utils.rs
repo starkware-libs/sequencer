@@ -5,6 +5,7 @@ use mempool_test_utils::starknet_api_test_utils::rpc_tx_to_json;
 use reqwest::{Client, Response};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_batcher::config::BatcherConfig;
 use starknet_gateway::config::{
     GatewayConfig,
     RpcStateReaderConfig,
@@ -35,10 +36,12 @@ async fn create_http_server_config() -> HttpServerConfig {
 }
 
 pub async fn create_config(rpc_server_addr: SocketAddr) -> MempoolNodeConfig {
+    let batcher_config = create_batcher_config();
     let gateway_config = create_gateway_config().await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
     MempoolNodeConfig {
+        batcher_config,
         gateway_config,
         http_server_config,
         rpc_state_reader_config,
@@ -91,6 +94,11 @@ fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderCo
         url: format!("http://{rpc_server_addr:?}/rpc/{RPC_SPEC_VERION}"),
         json_rpc_version: JSON_RPC_VERSION.to_string(),
     }
+}
+
+fn create_batcher_config() -> BatcherConfig {
+    let storage_test_config = papyrus_storage::test_utils::get_test_config(None).0;
+    BatcherConfig { storage: storage_test_config }
 }
 
 /// Returns a unique IP address and port for testing purposes.
