@@ -281,8 +281,8 @@ impl MultiAccountTransactionGenerator {
         self.register_account(account_contract);
     }
 
-    pub fn accounts(&self) -> Vec<&FeatureAccount> {
-        self.account_tx_generators.iter().map(|tx_gen| &tx_gen.account).collect()
+    pub fn accounts(&self) -> Vec<FeatureAccount> {
+        self.account_tx_generators.iter().map(|tx_gen| &tx_gen.account).copied().collect()
     }
 }
 
@@ -376,7 +376,7 @@ impl AccountTransactionGenerator {
 // Note: feature contracts have their own address generating method, but it a mocked address and is
 // not related to an actual deploy account transaction, which is the way real account addresses are
 // calculated.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct FeatureAccount {
     pub account: FeatureContract,
     pub sender_address: ContractAddress,
@@ -385,6 +385,10 @@ pub struct FeatureAccount {
 impl FeatureAccount {
     pub fn class_hash(&self) -> ClassHash {
         self.account.get_class_hash()
+    }
+
+    pub fn cairo_version(&self) -> CairoVersion {
+        self.account.cairo_version()
     }
 
     fn new(account: FeatureContract, deploy_account_tx: &RpcTransaction) -> Self {
