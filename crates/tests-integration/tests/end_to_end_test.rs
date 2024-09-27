@@ -24,7 +24,7 @@ async fn test_end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
     .map(|account| tx_generator.register_account_for_flow_test(account))
     .collect();
 
-    let mock_running_system = IntegrationTestSetup::new_for_accounts(&accounts).await;
+    let mock_running_system = IntegrationTestSetup::new_for_accounts(accounts).await;
 
     let account0_invoke_nonce1 = tx_generator.account_with_id(0).generate_default_invoke();
     let account1_invoke_nonce0 = tx_generator.account_with_id(1).generate_default_invoke();

@@ -28,16 +28,12 @@ pub struct IntegrationTestSetup {
 }
 
 impl IntegrationTestSetup {
-    pub async fn new_for_accounts(accounts: &[FeatureAccount]) -> Self {
+    pub async fn new_for_accounts(accounts: Vec<FeatureAccount>) -> Self {
         let handle = Handle::current();
         let task_executor = TokioExecutor::new(handle);
 
         // Configure and start tracing.
         configure_tracing();
-
-        // FIXME: will be removed in a subsequent commit, which adds support for `FeatureAccount`
-        // to the state reader.
-        let accounts = accounts.iter().map(|account| account.account);
 
         // Spawn a papyrus rpc server for a papyrus storage reader.
         let rpc_server_addr = spawn_test_rpc_state_reader(accounts).await;
