@@ -9944,6 +9944,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
+ "starknet_batcher",
  "starknet_client",
  "starknet_gateway",
  "starknet_gateway_types",
