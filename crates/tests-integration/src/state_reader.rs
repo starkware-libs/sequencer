@@ -108,54 +108,23 @@ fn prepare_state_diff(
     default_test_contracts: &[FeatureAccount],
     erc20_contract: &FeatureAccount,
 ) -> ThinStateDiff {
-    // Declare and deploy ERC20 contracts.
-    let erc20_class_hash = erc20_contract.class_hash();
-    let mut deployed_contracts = indexmap! {
-        chain_info.fee_token_address(&FeeType::Eth) => erc20_class_hash,
-        chain_info.fee_token_address(&FeeType::Strk) => erc20_class_hash
-    };
-    let mut deprecated_declared_classes = Vec::from([erc20_class_hash]);
+    let mut state_diff_builder = ThinStateDiffBuilder::new(chain_info);
 
-    let mut storage_diffs = IndexMap::new();
-    let mut declared_classes = IndexMap::new();
+    // Setup the common test contracts that are used by default in all test invokes.
+    // TODO(batcher): this does nothing until we actually start excuting stuff in the batcher.
+    state_diff_builder.set_accounts(default_test_contracts).declare().deploy();
 
-    // TODO: will soon be extracted to a function, kept like this for easier diff.
-    let mut declare = |account: &FeatureAccount| match account.cairo_version() {
-        CairoVersion::Cairo0 => {
-            deprecated_declared_classes.push(account.class_hash());
-        }
-        CairoVersion::Cairo1 => {
-            declared_classes.insert(account.class_hash(), Default::default());
-        }
-    };
+    // Declare and deploy and the ERC20 contract, so that transfers from it can be made.
+    state_diff_builder.set_accounts(std::slice::from_ref(erc20_contract)).declare().deploy();
 
-    // TODO: will soon be extracted to a function, kept like this for easier diff.
-    let mut deploy = |account: &FeatureAccount| {
-        deployed_contracts.insert(account.sender_address, account.class_hash())
-    };
-    // TODO: will soon be extracted to a function, kept like this for easier diff.
-    let mut fund = |account| fund_feature_account_contract(&mut storage_diffs, account, chain_info);
+    // TODO(deploy_account_support): once we have batcher with execution, replace with:
+    // ```
+    // state_diff_builder.set_contracts(accounts_defined_in_the_test).declare().fund();
+    // ```
+    // or use declare txs and transfers for both.
+    state_diff_builder.inject_accounts_into_state(test_defined_accounts);
 
-    // Inject deploy accounts into state. Once we stop doing this it'll only declare and fund, or
-    // even only declare in case we want to fund via transfer.
-    for account in test_defined_accounts {
-        declare(account);
-        deploy(account);
-        fund(account);
-    }
-
-    for contract in default_test_contracts.iter().chain([erc20_contract]) {
-        declare(contract);
-        deploy(contract);
-    }
-
-    ThinStateDiff {
-        storage_diffs,
-        deployed_contracts,
-        declared_classes,
-        deprecated_declared_classes,
-        ..Default::default()
-    }
+    state_diff_builder.build()
 }
 
 fn prepare_compiled_contract_classes(
@@ -234,38 +203,6 @@ fn test_block_header(block_number: BlockNumber) -> BlockHeader {
     }
 }
 
-fn fund_feature_account_contract(
-    storage_diffs: &mut IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
-    account: &FeatureAccount,
-    chain_info: &ChainInfo,
-) {
-    assert_matches!(
-        account.account,
-        FeatureContract::AccountWithLongValidate(_)
-            | FeatureContract::AccountWithoutValidations(_)
-            | FeatureContract::FaultyAccount(_),
-        "Only Accounts can be funded, {account:?} is not an account",
-    );
-
-    fund_account(storage_diffs, &account.sender_address, chain_info);
-}
-
-fn fund_account(
-    storage_diffs: &mut IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
-    account_address: &ContractAddress,
-    chain_info: &ChainInfo,
-) {
-    let key_value = indexmap! {
-        get_fee_token_var_address(*account_address) => felt!(BALANCE),
-    };
-    for fee_type in FeeType::iter() {
-        storage_diffs
-            .entry(chain_info.fee_token_address(&fee_type))
-            .or_default()
-            .extend(key_value.clone());
-    }
-}
-
 async fn run_papyrus_rpc_server(storage_reader: StorageReader) -> SocketAddr {
     let rpc_config = RpcConfig {
         server_address: get_available_socket().await.to_string(),
@@ -285,4 +222,96 @@ async fn run_papyrus_rpc_server(storage_reader: StorageReader) -> SocketAddr {
     // handler is out of scope.
     tokio::spawn(handle.stopped());
     addr
+}
+
+#[derive(Default)]
+struct ThinStateDiffBuilder<'a> {
+    accounts: &'a [FeatureAccount],
+    deprecated_declared_classes: Vec<ClassHash>,
+    declared_classes: IndexMap<ClassHash, starknet_api::core::CompiledClassHash>,
+    deployed_contracts: IndexMap<ContractAddress, ClassHash>,
+    storage_diffs: IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
+    chain_info: ChainInfo,
+    initial_account_balance: Felt,
+}
+
+impl<'a> ThinStateDiffBuilder<'a> {
+    fn new(chain_info: &ChainInfo) -> Self {
+        const TEST_INITIAL_ACCOUNT_BALANCE: u128 = BALANCE;
+        let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
+        let erc20_class_hash = erc20.get_class_hash();
+
+        let deployed_contracts: IndexMap<ContractAddress, ClassHash> = FeeType::iter()
+            .map(|fee_type| (chain_info.fee_token_address(&fee_type), erc20_class_hash))
+            .collect();
+
+        Self {
+            chain_info: chain_info.clone(),
+            initial_account_balance: felt!(TEST_INITIAL_ACCOUNT_BALANCE),
+            deployed_contracts,
+            ..Default::default()
+        }
+    }
+
+    fn set_accounts(&mut self, accounts: &'a [FeatureAccount]) -> &mut Self {
+        self.accounts = accounts;
+        self
+    }
+
+    fn declare(&mut self) -> &mut Self {
+        for account in self.accounts {
+            match account.cairo_version() {
+                CairoVersion::Cairo0 => self.deprecated_declared_classes.push(account.class_hash()),
+                CairoVersion::Cairo1 => {
+                    self.declared_classes.insert(account.class_hash(), Default::default());
+                }
+            }
+        }
+        self
+    }
+
+    fn deploy(&mut self) -> &mut Self {
+        for account in self.accounts {
+            self.deployed_contracts.insert(account.sender_address, account.class_hash());
+        }
+        self
+    }
+
+    fn fund(&mut self) -> &mut Self {
+        for account in self.accounts {
+            assert_matches!(
+                account.account,
+                FeatureContract::AccountWithLongValidate(_)
+                    | FeatureContract::AccountWithoutValidations(_)
+                    | FeatureContract::FaultyAccount(_),
+                "Only Accounts can be funded, {account:?} is not an account",
+            );
+
+            let fee_token_address = get_fee_token_var_address(account.sender_address);
+            for fee_type in FeeType::iter() {
+                self.storage_diffs
+                    .entry(self.chain_info.fee_token_address(&fee_type))
+                    .or_default()
+                    .insert(fee_token_address, self.initial_account_balance);
+            }
+        }
+
+        self
+    }
+
+    // TODO(deploy_account_support): delete method once we have batcher with execution.
+    fn inject_accounts_into_state(&mut self, accounts_defined_in_the_test: &'a [FeatureAccount]) {
+        self.set_accounts(accounts_defined_in_the_test).declare().deploy().fund();
+        todo!("bump nonce of account to 1, since we just injected it into state.")
+    }
+
+    fn build(self) -> ThinStateDiff {
+        ThinStateDiff {
+            storage_diffs: self.storage_diffs,
+            deployed_contracts: self.deployed_contracts,
+            declared_classes: self.declared_classes,
+            deprecated_declared_classes: self.deprecated_declared_classes,
+            ..Default::default()
+        }
+    }
 }
