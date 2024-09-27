@@ -2,9 +2,12 @@ use std::net::SocketAddr;
 
 use axum::body::Body;
 use mempool_test_utils::starknet_api_test_utils::rpc_tx_to_json;
+use papyrus_storage::test_utils::get_test_config;
+use papyrus_storage::StorageScope::StateOnly;
 use reqwest::{Client, Response};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_batcher::config::BatcherConfig;
 use starknet_gateway::config::{
     GatewayConfig,
     RpcStateReaderConfig,
@@ -14,6 +17,7 @@ use starknet_gateway::config::{
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_node::config::MempoolNodeConfig;
+use tempfile::TempDir;
 use tokio::net::TcpListener;
 
 async fn create_gateway_config() -> GatewayConfig {
@@ -34,16 +38,20 @@ async fn create_http_server_config() -> HttpServerConfig {
     HttpServerConfig { ip: socket.ip(), port: socket.port() }
 }
 
-pub async fn create_config(rpc_server_addr: SocketAddr) -> MempoolNodeConfig {
+pub async fn create_config(rpc_server_addr: SocketAddr) -> (MempoolNodeConfig, TempDir) {
+    let (batcher_config, storage_file_handle) = create_batcher_config();
     let gateway_config = create_gateway_config().await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
-    MempoolNodeConfig {
+    let mempool_node_config = MempoolNodeConfig {
+        batcher_config,
         gateway_config,
         http_server_config,
         rpc_state_reader_config,
         ..MempoolNodeConfig::default()
-    }
+    };
+
+    (mempool_node_config, storage_file_handle)
 }
 
 /// A test utility client for interacting with an http server.
@@ -91,6 +99,13 @@ fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderCo
         url: format!("http://{rpc_server_addr:?}/rpc/{RPC_SPEC_VERION}"),
         json_rpc_version: JSON_RPC_VERSION.to_string(),
     }
+}
+
+fn create_batcher_config() -> (BatcherConfig, TempDir) {
+    let storage_scope = Some(StateOnly);
+    // Need to keep the file handle alive to prevent the tempdir from being deleted.
+    let (storage_test_config, tempdir_file_handle) = get_test_config(storage_scope);
+    (BatcherConfig { storage: storage_test_config }, tempdir_file_handle)
 }
 
 /// Returns a unique IP address and port for testing purposes.
