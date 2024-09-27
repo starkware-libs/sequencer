@@ -387,6 +387,10 @@ impl FeatureAccount {
         self.account.get_class_hash()
     }
 
+    pub fn cairo_version(&self) -> CairoVersion {
+        self.account.cairo_version()
+    }
+
     fn new(account: FeatureContract, deploy_account_tx: &RpcTransaction) -> Self {
         assert_matches!(
             deploy_account_tx,
