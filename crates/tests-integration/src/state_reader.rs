@@ -35,7 +35,13 @@ use starknet_api::block::{
     GasPrice,
     GasPricePerToken,
 };
-use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey, SequencerContractAddress};
+use starknet_api::core::{
+    ClassHash,
+    ContractAddress,
+    Nonce,
+    PatriciaKey,
+    SequencerContractAddress,
+};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_api::{contract_address, felt, patricia_key};
@@ -237,6 +243,8 @@ struct ThinStateDiffBuilder<'a> {
     declared_classes: IndexMap<ClassHash, starknet_api::core::CompiledClassHash>,
     deployed_contracts: IndexMap<ContractAddress, ClassHash>,
     storage_diffs: IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
+    // TODO(deploy_account_support): delete field once we have batcher with execution.
+    nonces: IndexMap<ContractAddress, Nonce>,
     chain_info: ChainInfo,
     initial_balances: Felt,
 }
@@ -312,7 +320,13 @@ impl<'a> ThinStateDiffBuilder<'a> {
     // TODO(deploy_account_support): delete method once we have batcher with execution.
     fn inject_accounts_into_state(&mut self, accounts_defined_in_the_test: &'a [FeatureAccount]) {
         self.set_contracts(accounts_defined_in_the_test).declare().deploy().fund();
-        todo!("bump nonce of account to 1, since we just injected it into state.")
+
+        // Set nonces as 1 in the state so that subsequent invokes can pass validation.
+        self.nonces = self
+            .deployed_contracts
+            .iter()
+            .map(|(&address, _)| (address, Nonce(Felt::ONE)))
+            .collect();
     }
 
     fn build(self) -> ThinStateDiff {
@@ -321,6 +335,7 @@ impl<'a> ThinStateDiffBuilder<'a> {
             deployed_contracts: self.deployed_contracts,
             declared_classes: self.declared_classes,
             deprecated_declared_classes: self.deprecated_declared_classes,
+            nonces: self.nonces,
             ..Default::default()
         }
     }
