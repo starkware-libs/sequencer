@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use assert_matches::assert_matches;
 use blockifier::abi::abi_utils::get_fee_token_var_address;
 use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::test_utils::contracts::FeatureContract;
@@ -53,60 +54,99 @@ type ContractClassesMap =
 /// Creates a papyrus storage reader and spawns a papyrus rpc server for it.
 /// Returns the address of the rpc server.
 /// A variable number of identical accounts and test contracts are initialized and funded.
-pub async fn spawn_test_rpc_state_reader(accounts: Vec<FeatureAccount>) -> SocketAddr {
+pub async fn spawn_test_rpc_state_reader(test_defined_accounts: Vec<FeatureAccount>) -> SocketAddr {
     let block_context = BlockContext::create_for_testing();
 
-    let accounts: Vec<FeatureAccount> = [
+    let into_dummy_feature_account = |account: FeatureContract| FeatureAccount {
+        account,
+        sender_address: account.get_instance_address(0),
+    };
+    let default_test_contracts = [
         FeatureContract::TestContract(CairoVersion::Cairo0),
         FeatureContract::TestContract(CairoVersion::Cairo1),
-        FeatureContract::ERC20(CairoVersion::Cairo0),
     ]
     .into_iter()
-    .map(|account| FeatureAccount { account, sender_address: account.get_instance_address(0) })
-    .chain(accounts)
+    .map(into_dummy_feature_account)
     .collect();
 
-    let storage_reader = initialize_papyrus_test_state(block_context.chain_info(), accounts);
+    let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo0);
+    let erc20_contract = into_dummy_feature_account(erc20_contract);
+
+    let storage_reader = initialize_papyrus_test_state(
+        block_context.chain_info(),
+        test_defined_accounts,
+        default_test_contracts,
+        erc20_contract,
+    );
     run_papyrus_rpc_server(storage_reader).await
 }
 
 fn initialize_papyrus_test_state(
     chain_info: &ChainInfo,
-    accounts: Vec<FeatureAccount>,
+    test_defined_accounts: Vec<FeatureAccount>,
+    default_test_contracts: Vec<FeatureAccount>,
+    erc20_contract: FeatureAccount,
 ) -> StorageReader {
-    let state_diff = prepare_state_diff(chain_info, &accounts);
+    let state_diff = prepare_state_diff(
+        chain_info,
+        &test_defined_accounts,
+        &default_test_contracts,
+        &erc20_contract,
+    );
 
+    let contract_classes_to_retrieve =
+        test_defined_accounts.into_iter().chain(default_test_contracts).chain([erc20_contract]);
     let (cairo0_contract_classes, cairo1_contract_classes) =
-        prepare_compiled_contract_classes(&accounts);
+        prepare_compiled_contract_classes(contract_classes_to_retrieve);
 
     write_state_to_papyrus_storage(state_diff, &cairo0_contract_classes, &cairo1_contract_classes)
 }
 
-fn prepare_state_diff(chain_info: &ChainInfo, accounts: &[FeatureAccount]) -> ThinStateDiff {
-    let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
-    let erc20_class_hash = erc20.get_class_hash();
-
+fn prepare_state_diff(
+    chain_info: &ChainInfo,
+    test_defined_accounts: &[FeatureAccount],
+    default_test_contracts: &[FeatureAccount],
+    erc20_contract: &FeatureAccount,
+) -> ThinStateDiff {
     // Declare and deploy ERC20 contracts.
+    let erc20_class_hash = erc20_contract.class_hash();
     let mut deployed_contracts = indexmap! {
         chain_info.fee_token_address(&FeeType::Eth) => erc20_class_hash,
         chain_info.fee_token_address(&FeeType::Strk) => erc20_class_hash
     };
-    let mut deprecated_declared_classes = Vec::from([erc20.get_class_hash()]);
+    let mut deprecated_declared_classes = Vec::from([erc20_class_hash]);
 
     let mut storage_diffs = IndexMap::new();
     let mut declared_classes = IndexMap::new();
-    for account in accounts {
-        // Declare and deploy the contracts
-        match account.cairo_version() {
-            CairoVersion::Cairo0 => {
-                deprecated_declared_classes.push(account.class_hash());
-            }
-            CairoVersion::Cairo1 => {
-                declared_classes.insert(account.class_hash(), Default::default());
-            }
+
+    // TODO: will soon be extracted to a function, kept like this for easier diff.
+    let mut declare = |account: &FeatureAccount| match account.cairo_version() {
+        CairoVersion::Cairo0 => {
+            deprecated_declared_classes.push(account.class_hash());
         }
-        deployed_contracts.insert(account.sender_address, account.class_hash());
-        fund_feature_account_contract(&mut storage_diffs, account, chain_info);
+        CairoVersion::Cairo1 => {
+            declared_classes.insert(account.class_hash(), Default::default());
+        }
+    };
+
+    // TODO: will soon be extracted to a function, kept like this for easier diff.
+    let mut deploy = |account: &FeatureAccount| {
+        deployed_contracts.insert(account.sender_address, account.class_hash())
+    };
+    // TODO: will soon be extracted to a function, kept like this for easier diff.
+    let mut fund = |account| fund_feature_account_contract(&mut storage_diffs, account, chain_info);
+
+    // Inject deploy accounts into state. Once we stop doing this it'll only declare and fund, or
+    // even only declare in case we want to fund via transfer.
+    for account in test_defined_accounts {
+        declare(account);
+        deploy(account);
+        fund(account);
+    }
+
+    for contract in default_test_contracts.iter().chain([erc20_contract]) {
+        declare(contract);
+        deploy(contract);
     }
 
     ThinStateDiff {
@@ -118,11 +158,13 @@ fn prepare_state_diff(chain_info: &ChainInfo, accounts: &[FeatureAccount]) -> Th
     }
 }
 
-fn prepare_compiled_contract_classes(accounts: &[FeatureAccount]) -> ContractClassesMap {
+fn prepare_compiled_contract_classes(
+    contract_classes_to_retrieve: impl Iterator<Item = FeatureAccount>,
+) -> ContractClassesMap {
     let mut cairo0_contract_classes = Vec::new();
     let mut cairo1_contract_classes = Vec::new();
-    for account in accounts {
-        match account.cairo_version() {
+    for account in contract_classes_to_retrieve {
+        match account.account.cairo_version() {
             CairoVersion::Cairo0 => {
                 cairo0_contract_classes.push((
                     account.class_hash(),
@@ -137,6 +179,7 @@ fn prepare_compiled_contract_classes(accounts: &[FeatureAccount]) -> ContractCla
             }
         }
     }
+
     (cairo0_contract_classes, cairo1_contract_classes)
 }
 
@@ -196,14 +239,15 @@ fn fund_feature_account_contract(
     account: &FeatureAccount,
     chain_info: &ChainInfo,
 ) {
-    match account.account {
+    assert_matches!(
+        account.account,
         FeatureContract::AccountWithLongValidate(_)
-        | FeatureContract::AccountWithoutValidations(_)
-        | FeatureContract::FaultyAccount(_) => {
-            fund_account(storage_diffs, &account.sender_address, chain_info);
-        }
-        _ => (),
-    }
+            | FeatureContract::AccountWithoutValidations(_)
+            | FeatureContract::FaultyAccount(_),
+        "Only Accounts can be funded, {account:?} is not an account",
+    );
+
+    fund_account(storage_diffs, &account.sender_address, chain_info);
 }
 
 fn fund_account(
