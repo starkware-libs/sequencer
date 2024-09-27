@@ -17,7 +17,12 @@ use crate::fee::gas_usage::{
     get_log_message_to_l1_emissions_cost,
     get_message_segment_length,
 };
-use crate::fee::resources::{GasVector, GasVectorComputationMode, StarknetResources};
+use crate::fee::resources::{
+    GasVector,
+    GasVectorComputationMode,
+    StarknetResources,
+    StateResources,
+};
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
@@ -70,7 +75,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
             0,
             0,
             class_info.code_size(),
-            StateChangesCount::default(),
+            StateResources::default(),
             None,
             ExecutionSummary::default(),
         );
@@ -107,7 +112,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
         calldata_length,
         signature_length,
         0,
-        deploy_account_state_changes_count,
+        StateResources::new_for_testing(deploy_account_state_changes_count),
         None,
         ExecutionSummary::default(),
     );
@@ -117,7 +122,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
             * u128_from_usize(calldata_length + signature_length);
     let manual_starknet_gas_usage = calldata_and_signature_gas_cost.to_integer();
     let manual_gas_vector = GasVector { l1_gas: manual_starknet_gas_usage, ..Default::default() }
-        + deploy_account_tx_starknet_resources.get_state_changes_cost(use_kzg_da);
+        + deploy_account_tx_starknet_resources.state.to_gas_vector(use_kzg_da);
 
     let deploy_account_gas_usage_vector = deploy_account_tx_starknet_resources.to_gas_vector(
         &versioned_constants,
@@ -133,7 +138,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
         l1_handler_payload_size,
         signature_length,
         0,
-        StateChangesCount::default(),
+        StateResources::default(),
         Some(l1_handler_payload_size),
         ExecutionSummary::default(),
     );
@@ -199,7 +204,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
         0,
         0,
         0,
-        l2_to_l1_state_changes_count,
+        StateResources::new_for_testing(l2_to_l1_state_changes_count),
         None,
         execution_summary.clone(),
     );
@@ -219,10 +224,10 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
             .unwrap();
     let manual_sharp_gas_usage = message_segment_length
         * eth_gas_constants::SHARP_GAS_PER_MEMORY_WORD
-        + usize_from_u128(l2_to_l1_starknet_resources.get_state_changes_cost(use_kzg_da).l1_gas)
+        + usize_from_u128(l2_to_l1_starknet_resources.state.to_gas_vector(use_kzg_da).l1_gas)
             .unwrap();
     let manual_sharp_blob_gas_usage =
-        l2_to_l1_starknet_resources.get_state_changes_cost(use_kzg_da).l1_data_gas;
+        l2_to_l1_starknet_resources.state.to_gas_vector(use_kzg_da).l1_data_gas;
     let manual_gas_computation = GasVector {
         l1_gas: u128_from_usize(manual_starknet_gas_usage + manual_sharp_gas_usage),
         l1_data_gas: manual_sharp_blob_gas_usage,
@@ -245,7 +250,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
         0,
         0,
         0,
-        storage_writes_state_changes_count,
+        StateResources::new_for_testing(storage_writes_state_changes_count),
         None,
         ExecutionSummary::default(),
     );
@@ -257,8 +262,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
     );
 
     // Manual calculation.
-    let manual_gas_computation =
-        storage_writes_starknet_resources.get_state_changes_cost(use_kzg_da);
+    let manual_gas_computation = storage_writes_starknet_resources.state.to_gas_vector(use_kzg_da);
 
     assert_eq!(manual_gas_computation, storage_writings_gas_usage_vector);
 
@@ -274,7 +278,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
         l1_handler_payload_size,
         signature_length,
         0,
-        combined_state_changes_count,
+        StateResources::new_for_testing(combined_state_changes_count),
         Some(l1_handler_payload_size),
         execution_summary.clone(),
     );
@@ -301,9 +305,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
         // the combined calculation got it once.
         + u128_from_usize(fee_balance_discount),
         // Expected blob gas usage is from data availability only.
-        l1_data_gas: combined_cases_starknet_resources
-            .get_state_changes_cost(use_kzg_da)
-            .l1_data_gas,
+        l1_data_gas: combined_cases_starknet_resources.state.to_gas_vector(use_kzg_da).l1_data_gas,
         ..Default::default()
     };
 
@@ -352,7 +354,7 @@ fn test_calculate_tx_gas_usage(
         calldata_length,
         signature_length,
         0,
-        state_changes_count,
+        StateResources::new_for_testing(state_changes_count),
         None,
         ExecutionSummary::default(),
     );
@@ -407,7 +409,7 @@ fn test_calculate_tx_gas_usage(
         calldata_length,
         signature_length,
         0,
-        state_changes_count,
+        StateResources::new_for_testing(state_changes_count),
         None,
         ExecutionSummary::default(),
     );

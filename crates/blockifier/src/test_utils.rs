@@ -24,8 +24,7 @@ use crate::execution::call_info::ExecutionSummary;
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::SyscallSelector;
-use crate::fee::resources::StarknetResources;
-use crate::state::cached_state::StateChangesCount;
+use crate::fee::resources::{StarknetResources, StateResources};
 use crate::test_utils::contracts::FeatureContract;
 use crate::transaction::transaction_types::TransactionType;
 use crate::utils::{const_max, u128_from_usize};
@@ -296,7 +295,7 @@ pub fn get_tx_resources(tx_type: TransactionType) -> ExecutionResources {
         1,
         0,
         0,
-        StateChangesCount::default(),
+        StateResources::default(),
         None,
         ExecutionSummary::default(),
     );

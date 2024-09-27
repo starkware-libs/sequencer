@@ -8,6 +8,7 @@ use crate::fee::resources::{
     ComputationResources,
     GasVector,
     StarknetResources,
+    StateResources,
     TransactionResources,
 };
 use crate::state::cached_state::StateChanges;
@@ -65,7 +66,7 @@ impl TransactionReceipt {
             calldata_length,
             signature_length,
             code_size,
-            state_changes.count_for_fee_charge(sender_address, tx_context.fee_token_address()),
+            StateResources::new(state_changes, sender_address, tx_context.fee_token_address()),
             l1_handler_payload_size,
             execution_summary_without_fee_transfer,
         );
@@ -100,7 +101,8 @@ impl TransactionReceipt {
         };
         let da_gas = tx_resources
             .starknet_resources
-            .get_state_changes_cost(tx_context.block_context.block_info.use_kzg_da);
+            .state
+            .to_gas_vector(tx_context.block_context.block_info.use_kzg_da);
 
         Self { resources: tx_resources, gas, da_gas, fee }
     }

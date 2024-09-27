@@ -241,7 +241,7 @@ impl VersionedConstants {
         self.os_resources.get_additional_os_tx_resources(
             tx_type,
             starknet_resources.archival_data.calldata_length,
-            starknet_resources.get_onchain_data_segment_length(),
+            starknet_resources.state.get_onchain_data_segment_length(),
             use_kzg_da,
         )
     }
