@@ -14,7 +14,6 @@ axum.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 indexmap.workspace = true
-itertools.workspace = true
 mempool_test_utils.workspace = true
 papyrus_common.workspace = true
 papyrus_rpc.workspace = true
