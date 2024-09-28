@@ -3,6 +3,7 @@ mod common;
 use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use common::{
@@ -53,6 +54,8 @@ type ComponentBClient = RemoteComponentClient<ComponentBRequest, ComponentBRespo
 use crate::common::{test_a_b_functionality, ComponentA, ComponentB, ValueB};
 
 const MAX_RETRIES: usize = 0;
+const MAX_IDLE_CONNECTION: usize = usize::MAX;
+const IDLE_TIMEOUT: Duration = Duration::from_secs(90);
 const MOCK_SERVER_ERROR: &str = "mock server error";
 const ARBITRARY_DATA: &str = "arbitrary data";
 // ServerError::RequestDeserializationFailure error message.
@@ -161,12 +164,30 @@ where
     // Ensure the server starts running.
     task::yield_now().await;
 
-    ComponentAClient::new(socket.ip(), socket.port(), MAX_RETRIES)
+    ComponentAClient::new(
+        socket.ip(),
+        socket.port(),
+        MAX_RETRIES,
+        MAX_IDLE_CONNECTION,
+        IDLE_TIMEOUT,
+    )
 }
 
 async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: SocketAddr) {
-    let a_remote_client = ComponentAClient::new(a_socket.ip(), a_socket.port(), MAX_RETRIES);
-    let b_remote_client = ComponentBClient::new(b_socket.ip(), b_socket.port(), MAX_RETRIES);
+    let a_remote_client = ComponentAClient::new(
+        a_socket.ip(),
+        a_socket.port(),
+        MAX_RETRIES,
+        MAX_IDLE_CONNECTION,
+        IDLE_TIMEOUT,
+    );
+    let b_remote_client = ComponentBClient::new(
+        b_socket.ip(),
+        b_socket.port(),
+        MAX_RETRIES,
+        MAX_IDLE_CONNECTION,
+        IDLE_TIMEOUT,
+    );
 
     let component_a = ComponentA::new(Box::new(b_remote_client));
     let component_b = ComponentB::new(setup_value, Box::new(a_remote_client.clone()));
@@ -213,8 +234,20 @@ async fn test_proper_setup() {
     let b_socket = get_available_socket().await;
 
     setup_for_tests(setup_value, a_socket, b_socket).await;
-    let a_remote_client = ComponentAClient::new(a_socket.ip(), a_socket.port(), MAX_RETRIES);
-    let b_remote_client = ComponentBClient::new(b_socket.ip(), b_socket.port(), MAX_RETRIES);
+    let a_remote_client = ComponentAClient::new(
+        a_socket.ip(),
+        a_socket.port(),
+        MAX_RETRIES,
+        MAX_IDLE_CONNECTION,
+        IDLE_TIMEOUT,
+    );
+    let b_remote_client = ComponentBClient::new(
+        b_socket.ip(),
+        b_socket.port(),
+        MAX_RETRIES,
+        MAX_IDLE_CONNECTION,
+        IDLE_TIMEOUT,
+    );
     test_a_b_functionality(a_remote_client, b_remote_client, setup_value).await;
 }
 
@@ -256,7 +289,13 @@ async fn test_faulty_client_setup() {
 #[tokio::test]
 async fn test_unconnected_server() {
     let socket = get_available_socket().await;
-    let client = ComponentAClient::new(socket.ip(), socket.port(), MAX_RETRIES);
+    let client = ComponentAClient::new(
+        socket.ip(),
+        socket.port(),
+        MAX_RETRIES,
+        MAX_IDLE_CONNECTION,
+        IDLE_TIMEOUT,
+    );
 
     let expected_error_contained_keywords = ["Connection refused"];
     verify_error(client, &expected_error_contained_keywords).await;
@@ -325,11 +364,13 @@ async fn test_retry_request() {
     // The initial server state is 'false', hence the first attempt returns an error and
     // sets the server state to 'true'. The second attempt (first retry) therefore returns a
     // 'success', while setting the server state to 'false' yet again.
-    let a_client_retry = ComponentAClient::new(socket.ip(), socket.port(), 1);
+    let a_client_retry =
+        ComponentAClient::new(socket.ip(), socket.port(), 1, MAX_IDLE_CONNECTION, IDLE_TIMEOUT);
     assert_eq!(a_client_retry.a_get_value().await.unwrap(), VALID_VALUE_A);
 
     // The current server state is 'false', hence the first and only attempt returns an error.
-    let a_client_no_retry = ComponentAClient::new(socket.ip(), socket.port(), 0);
+    let a_client_no_retry =
+        ComponentAClient::new(socket.ip(), socket.port(), 0, MAX_IDLE_CONNECTION, IDLE_TIMEOUT);
     let expected_error_contained_keywords = [StatusCode::IM_A_TEAPOT.as_str()];
     verify_error(a_client_no_retry.clone(), &expected_error_contained_keywords).await;
 }
