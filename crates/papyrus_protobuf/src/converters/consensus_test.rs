@@ -22,7 +22,7 @@ use crate::consensus::{
     ConsensusMessage,
     Proposal,
     StreamMessage,
-    StreamMessageOption,
+    StreamMessageBody,
     Vote,
     VoteType,
 };
@@ -62,14 +62,14 @@ auto_impl_get_test_instance! {
     }
 }
 
+// The auto_impl_get_test_instance macro does not work for StreamMessage because it has
+// a generic type. TODO(guyn): try to make the macro work with generic types.
 impl GetTestInstance for StreamMessage<ConsensusMessage> {
     fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
         let message = if rng.gen_bool(0.5) {
-            StreamMessageOption::Content(ConsensusMessage::Proposal(Proposal::get_test_instance(
-                rng,
-            )))
+            StreamMessageBody::Content(ConsensusMessage::Proposal(Proposal::get_test_instance(rng)))
         } else {
-            StreamMessageOption::Fin
+            StreamMessageBody::Fin
         };
         Self { message, stream_id: rng.gen_range(0..100), message_id: rng.gen_range(0..1000) }
     }

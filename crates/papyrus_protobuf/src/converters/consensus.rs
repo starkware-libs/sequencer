@@ -12,7 +12,7 @@ use crate::consensus::{
     ConsensusMessage,
     Proposal,
     StreamMessage,
-    StreamMessageOption,
+    StreamMessageBody,
     Vote,
     VoteType,
 };
@@ -133,14 +133,14 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
                     message: Some(protobuf::stream_message::Message::Content(message)),
                     stream_id: _,
                     message_id: _,
-                } => StreamMessageOption::Content(message.try_into()?),
+                } => StreamMessageBody::Content(message.try_into()?),
                 protobuf::StreamMessage {
                     message: Some(protobuf::stream_message::Message::Fin(_)),
                     stream_id: _,
                     message_id: _,
-                } => StreamMessageOption::Fin,
+                } => StreamMessageBody::Fin,
                 protobuf::StreamMessage { message: None, stream_id: _, message_id: _ } => {
-                    StreamMessageOption::Fin
+                    StreamMessageBody::Fin
                 }
             },
             stream_id: value.stream_id,
@@ -156,15 +156,13 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<
         Self {
             message: match value {
                 StreamMessage {
-                    message: StreamMessageOption::Content(message),
+                    message: StreamMessageBody::Content(message),
                     stream_id: _,
                     message_id: _,
                 } => Some(protobuf::stream_message::Message::Content(message.into())),
-                StreamMessage {
-                    message: StreamMessageOption::Fin,
-                    stream_id: _,
-                    message_id: _,
-                } => None,
+                StreamMessage { message: StreamMessageBody::Fin, stream_id: _, message_id: _ } => {
+                    None
+                }
             },
             stream_id: value.stream_id,
             message_id: value.message_id,
