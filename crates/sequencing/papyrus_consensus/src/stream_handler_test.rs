@@ -95,13 +95,13 @@ mod tests {
     #[tokio::test]
     async fn stream_handler_in_reverse() {
         let (mut stream_handler, mut network_sender, mut rx_output) = setup_test();
+        let peer_id = 0_u64; // This is a placeholder until we can extract the peer_id from the message.
 
         let stream_id = 127;
         for i in 0..5 {
             let message = make_test_message(stream_id, 5 - i, i == 0);
             send(&mut network_sender, message).await;
         }
-
         let join_handle = tokio::spawn(async move {
             let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
             stream_handler
@@ -114,10 +114,13 @@ mod tests {
         assert!(receiver.try_next().is_err());
 
         assert_eq!(stream_handler.stream_data.len(), 1);
-        assert_eq!(stream_handler.stream_data[&stream_id].message_buffer.len(), 5);
+        assert_eq!(stream_handler.stream_data[&(peer_id, stream_id)].message_buffer.len(), 5);
         let range: Vec<u64> = (1..6).collect();
-        let keys: Vec<u64> =
-            stream_handler.stream_data[&stream_id].message_buffer.clone().into_keys().collect();
+        let keys: Vec<u64> = stream_handler.stream_data[&(peer_id, stream_id)]
+            .message_buffer
+            .clone()
+            .into_keys()
+            .collect();
         assert!(do_vecs_match(&keys, &range));
 
         // Now send the last message:
@@ -140,6 +143,7 @@ mod tests {
     #[tokio::test]
     async fn stream_handler_multiple_streams() {
         let (mut stream_handler, mut network_sender, mut rx_output) = setup_test();
+        let peer_id = 0_u64; // This is a placeholder until we can extract the peer_id from the message.
 
         let stream_id1 = 127; // Send all messages in order (except the first one).
         let stream_id2 = 10; // Send in reverse order (except the first one).
@@ -170,12 +174,12 @@ mod tests {
         });
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
-        let values = vec![1, 10, 127];
+        let values = vec![(peer_id, 1), (peer_id, 10), (peer_id, 127)];
         assert!(stream_handler.stream_data.clone().into_keys().all(|item| values.contains(&item)));
 
         // We have all message from 1 to 9 buffered.
         assert!(do_vecs_match(
-            &stream_handler.stream_data[&stream_id1]
+            &stream_handler.stream_data[&(peer_id, stream_id1)]
                 .message_buffer
                 .clone()
                 .into_keys()
@@ -185,7 +189,7 @@ mod tests {
 
         // We have all message from 1 to 5 buffered.
         assert!(do_vecs_match(
-            &stream_handler.stream_data[&stream_id2]
+            &stream_handler.stream_data[&(peer_id, stream_id2)]
                 .message_buffer
                 .clone()
                 .into_keys()
@@ -195,7 +199,7 @@ mod tests {
 
         // We have all message from 1 to 5 buffered.
         assert!(do_vecs_match(
-            &stream_handler.stream_data[&stream_id3]
+            &stream_handler.stream_data[&(peer_id, stream_id3)]
                 .message_buffer
                 .clone()
                 .into_keys()
@@ -239,7 +243,7 @@ mod tests {
         assert!(matches!(receiver1.try_next(), Ok(None)));
 
         // stream_id1 should be gone
-        let values = vec![1, 10];
+        let values = vec![(peer_id, 1), (peer_id, 10)];
         assert!(stream_handler.stream_data.clone().into_keys().all(|item| values.contains(&item)));
 
         // Send the last message on stream_id2:
@@ -260,7 +264,7 @@ mod tests {
         assert!(matches!(receiver2.try_next(), Ok(None)));
 
         // Stream_id2 should also be gone.
-        let values = vec![1];
+        let values = vec![(peer_id, 1)];
         assert!(stream_handler.stream_data.clone().into_keys().all(|item| values.contains(&item)));
 
         // Send the last message on stream_id3:
@@ -280,10 +284,10 @@ mod tests {
         assert!(matches!(receiver3.try_next(), Err(_)));
 
         // Stream_id3 should still be there, because we didn't send a fin.
-        let values = vec![1];
+        let values = vec![(peer_id, 1)];
         assert!(stream_handler.stream_data.clone().into_keys().all(|item| values.contains(&item)));
 
         // But the buffer should be empty, as we've successfully drained it all.
-        assert!(stream_handler.stream_data[&stream_id3].message_buffer.is_empty());
+        assert!(stream_handler.stream_data[&(peer_id, stream_id3)].message_buffer.is_empty());
     }
 }
