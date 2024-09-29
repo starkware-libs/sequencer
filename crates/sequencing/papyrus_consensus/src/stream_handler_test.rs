@@ -20,6 +20,7 @@ mod tests {
     use papyrus_network_types::network_types::BroadcastedMessageManager;
 
     use super::*;
+    use crate::stream_handler;
 
     fn make_test_message(
         stream_id: u64,
@@ -80,7 +81,7 @@ mod tests {
         }
 
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
         });
 
         join_handle.await.expect("Task should succeed");
@@ -105,13 +106,13 @@ mod tests {
             send(&mut network_sender, &metadata, message).await;
         }
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
         });
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // Get the receiver for the stream.
-        let mut receiver = rx_output.next().await.unwrap();
+        let mut receiver = listen_channel_receiver.next().await.unwrap();
         // Check that the channel is empty (no messages were sent yet).
         assert!(receiver.try_next().is_err());
 
@@ -131,12 +132,12 @@ mod tests {
         // Now send the last message:
         send(&mut network_sender, &metadata, make_test_message(stream_id, 0, false)).await;
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
         });
 
         let stream_handler = join_handle.await.expect("Task should succeed");
-        assert!(stream_handler.stream_data.is_empty());
+        assert!(stream_handler.listen_stream_data.is_empty());
 
         for _ in 0..5 {
             // message number 5 is Fin, so it will not be sent!
@@ -175,7 +176,7 @@ mod tests {
         }
 
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
         });
         let mut stream_handler = join_handle.await.expect("Task should succeed");
@@ -214,19 +215,19 @@ mod tests {
         ));
 
         // Get the receiver for the first stream.
-        let mut receiver1 = rx_output.next().await.unwrap();
+        let mut receiver1 = listen_channel_receiver.next().await.unwrap();
 
         // Check that the channel is empty (no messages were sent yet).
         assert!(receiver1.try_next().is_err());
 
         // Get the receiver for the second stream.
-        let mut receiver2 = rx_output.next().await.unwrap();
+        let mut receiver2 = listen_channel_receiver.next().await.unwrap();
 
         // Check that the channel is empty (no messages were sent yet).
         assert!(receiver2.try_next().is_err());
 
         // Get the receiver for the third stream.
-        let mut receiver3 = rx_output.next().await.unwrap();
+        let mut receiver3 = listen_channel_receiver.next().await.unwrap();
 
         // Check that the channel is empty (no messages were sent yet).
         assert!(receiver3.try_next().is_err());
@@ -234,7 +235,7 @@ mod tests {
         // Send the last message on stream_id1:
         send(&mut network_sender, &metadata, make_test_message(stream_id1, 0, false)).await;
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
         });
 
@@ -256,7 +257,7 @@ mod tests {
         // Send the last message on stream_id2:
         send(&mut network_sender, &metadata, make_test_message(stream_id2, 0, false)).await;
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
         });
 
@@ -279,7 +280,7 @@ mod tests {
         send(&mut network_sender, &metadata, make_test_message(stream_id3, 0, false)).await;
 
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
         });
 

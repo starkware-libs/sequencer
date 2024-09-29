@@ -1090,6 +1090,12 @@ pub enum GasVectorComputationMode {
     NoL2Gas,
 }
 
+#[derive(Debug, PartialEq)]
+pub enum GasVectorComputationMode {
+    All,
+    NoL2Gas,
+}
+
 /// A mapping from execution resources to their corresponding fee bounds..
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 // TODO(Nimrod): Remove this struct definition.

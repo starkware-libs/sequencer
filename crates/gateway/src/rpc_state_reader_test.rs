@@ -78,6 +78,10 @@ async fn test_get_block_info() {
                     price_in_wei: 1_u8.into(),
                     price_in_fri: 1_u8.into(),
                 },
+                l2_gas_price: ResourcePrice {
+                    price_in_wei: GasPrice(1),
+                    price_in_fri: GasPrice(1),
+                },
                 ..Default::default()
             })
             .unwrap(),

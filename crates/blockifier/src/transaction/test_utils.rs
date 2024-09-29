@@ -96,6 +96,7 @@ pub fn max_l1_resource_bounds() -> ValidResourceBounds {
     create_resource_bounds(&GasVectorComputationMode::NoL2Gas)
 }
 
+// TODO(Amos, 1/10/2024): Delete this fixture and use `create_resource_bounds`
 #[fixture]
 pub fn default_all_resource_bounds() -> ValidResourceBounds {
     create_resource_bounds(&GasVectorComputationMode::All)
@@ -365,6 +366,24 @@ pub fn create_all_resource_bounds(
     l2_max_price: GasPrice,
     l1_data_max_amount: GasAmount,
     l1_data_max_price: GasPrice,
+) -> ValidResourceBounds {
+    create_all_resource_bounds(
+        l1_max_amount,
+        l1_max_price,
+        l2_max_amount,
+        l2_max_price,
+        l1_data_max_amount,
+        l1_data_max_price,
+    )
+}
+
+fn create_all_resource_bounds(
+    l1_max_amount: u64,
+    l1_max_price: u128,
+    l2_max_amount: u64,
+    l2_max_price: u128,
+    l1_data_max_amount: u64,
+    l1_data_max_price: u128,
 ) -> ValidResourceBounds {
     ValidResourceBounds::AllResources(AllResourceBounds {
         l1_gas: ResourceBounds { max_amount: l1_max_amount, max_price_per_unit: l1_max_price },

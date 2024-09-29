@@ -337,10 +337,12 @@ fn test_add_tx(mut mempool: Mempool) {
     add_tx_inputs.sort_by_key(|input| std::cmp::Reverse(input.tx.tip().unwrap()));
 
     // Assert: transactions are ordered by priority.
+    let expected_account_nonces = [("0x0", 0), ("0x1", 1), ("0x2", 2)];
     let expected_queue_txs: Vec<TransactionReference> =
         add_tx_inputs.iter().map(|input| TransactionReference::new(&input.tx)).collect();
     let expected_pool_txs = add_tx_inputs.into_iter().map(|input| input.tx);
     let expected_mempool_content = MempoolContentBuilder::new()
+        .with_account_nonces(expected_account_nonces)
         .with_pool(expected_pool_txs)
         .with_priority_queue(expected_queue_txs)
         .build();

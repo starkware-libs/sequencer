@@ -51,7 +51,8 @@ pub fn get_vm_resources_cost(
 
     // Convert Cairo resource usage to L1 gas usage.
     // Do so by taking the maximum of the usage of each builtin + step usage.
-    let vm_l1_gas_usage = vm_resource_fee_costs
+    let vm_l1_gas_usage = GasAmount(
+        vm_resource_fee_costs
         .builtins
         .iter()
         // Builtin costs and usage.

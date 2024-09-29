@@ -71,6 +71,41 @@ mod TestContract {
             .span()
     }
 
+
+    #[external(v0)]
+    fn test_call_contract_revert(
+        ref self: ContractState,
+        contract_address: ContractAddress,
+        entry_point_selector: felt252,
+        calldata: Array::<felt252>
+    ) {
+         match syscalls::call_contract_syscall(
+            contract_address, entry_point_selector, calldata.span())
+        {
+            Result::Ok(_) => panic!("Expected revert"),
+            Result::Err(errors) => {
+                let mut error_span = errors.span();
+                assert(
+                    *error_span.pop_back().unwrap() == 'ENTRYPOINT_FAILED',
+                    'Unexpected error',
+                );
+            },
+        };
+        // TODO(Yoni, 1/12/2024): test replace class once get_class_hash_at syscall is supported.
+        assert(self.my_storage_var.read() == 0, 'values should not change.');
+    }
+
+
+    #[external(v0)]
+    fn test_revert_helper(ref self: ContractState, class_hash: ClassHash) {
+        let dummy_span = array![0].span();
+        syscalls::emit_event_syscall(dummy_span, dummy_span).unwrap_syscall();
+        syscalls::replace_class_syscall(class_hash).unwrap_syscall();
+        syscalls::send_message_to_l1_syscall(17.try_into().unwrap(), dummy_span).unwrap_syscall();
+        self.my_storage_var.write(17);
+        panic!("test_revert_helper");
+    }
+
     #[external(v0)]
     fn test_call_two_contracts(
         self: @ContractState,

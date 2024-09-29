@@ -161,6 +161,30 @@ impl StateResources {
     pub fn new_for_testing(state_changes_for_fee: StateChangesCount) -> Self {
         Self { state_changes_for_fee }
     }
+}
+
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct StateResources {
+    state_changes_for_fee: StateChangesCount,
+}
+
+impl StateResources {
+    pub fn new(
+        state_changes: &StateChanges,
+        sender_address: Option<ContractAddress>,
+        fee_token_address: ContractAddress,
+    ) -> Self {
+        Self {
+            state_changes_for_fee: state_changes
+                .count_for_fee_charge(sender_address, fee_token_address),
+        }
+    }
+
+    #[cfg(any(test, feature = "testing"))]
+    pub fn new_for_testing(state_changes_for_fee: StateChangesCount) -> Self {
+        Self { state_changes_for_fee }
+    }
 
     /// Returns the gas cost of the transaction's state changes.
     pub fn to_gas_vector(&self, use_kzg_da: bool) -> GasVector {

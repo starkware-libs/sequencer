@@ -232,6 +232,10 @@ fn test_block_header(block_number: BlockNumber) -> BlockHeader {
                 price_in_wei: DEFAULT_ETH_L1_GAS_PRICE.into(),
                 price_in_fri: DEFAULT_STRK_L2_GAS_PRICE.into(),
             },
+            l2_gas_price: GasPricePerToken {
+                price_in_wei: GasPrice(DEFAULT_ETH_L1_GAS_PRICE),
+                price_in_fri: GasPrice(DEFAULT_STRK_L2_GAS_PRICE),
+            },
             timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
             ..Default::default()
         },

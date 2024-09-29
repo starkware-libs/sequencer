@@ -139,6 +139,11 @@
     "privacy": "Public",
     "value": "Local"
   },
+  "components.consensus_manager.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Local"
+  },
   "components.consensus_manager.local_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
