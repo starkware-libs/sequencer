@@ -72,6 +72,7 @@ use crate::fee::gas_usage::{
 };
 use crate::fee::receipt::TransactionReceipt;
 use crate::fee::resources::{
+    ComputationResources,
     GasVector,
     GasVectorComputationMode,
     StarknetResources,
@@ -513,12 +514,14 @@ fn test_invoke_tx(
     let state_changes_count = starknet_resources.state_changes_for_fee;
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
-        vm_resources: expected_cairo_resources,
-        ..Default::default()
+        computation: ComputationResources {
+            vm_resources: expected_cairo_resources,
+            ..Default::default()
+        },
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut expected_actual_resources.vm_resources,
+        &mut expected_actual_resources.computation.vm_resources,
         &state_changes_count,
         versioned_constants,
         use_kzg_da,
@@ -1386,12 +1389,14 @@ fn test_declare_tx(
     let state_changes_count = starknet_resources.state_changes_for_fee;
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
-        vm_resources: expected_cairo_resources,
-        ..Default::default()
+        computation: ComputationResources {
+            vm_resources: expected_cairo_resources,
+            ..Default::default()
+        },
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut expected_actual_resources.vm_resources,
+        &mut expected_actual_resources.computation.vm_resources,
         &state_changes_count,
         versioned_constants,
         use_kzg_da,
@@ -1555,12 +1560,14 @@ fn test_deploy_account_tx(
 
     let mut actual_resources = TransactionResources {
         starknet_resources,
-        vm_resources: expected_cairo_resources,
-        ..Default::default()
+        computation: ComputationResources {
+            vm_resources: expected_cairo_resources,
+            ..Default::default()
+        },
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut actual_resources.vm_resources,
+        &mut actual_resources.computation.vm_resources,
         &state_changes_count,
         versioned_constants,
         use_kzg_da,
@@ -2081,8 +2088,10 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // Copy StarknetResources from actual resources and assert gas usage calculation is correct.
     let expected_tx_resources = TransactionResources {
         starknet_resources: actual_execution_info.receipt.resources.starknet_resources.clone(),
-        vm_resources: expected_execution_resources,
-        ..Default::default()
+        computation: ComputationResources {
+            vm_resources: expected_execution_resources,
+            ..Default::default()
+        },
     };
     assert_eq!(
         expected_gas,

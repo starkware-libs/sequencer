@@ -25,8 +25,7 @@ pub type TransactionFeeResult<T> = Result<T, TransactionFeeError>;
 #[derive(Default, Clone, Debug, PartialEq)]
 pub struct TransactionResources {
     pub starknet_resources: StarknetResources,
-    pub vm_resources: ExecutionResources,
-    pub n_reverted_steps: usize,
+    pub computation: ComputationResources,
 }
 
 impl TransactionResources {
@@ -39,21 +38,41 @@ impl TransactionResources {
         computation_mode: &GasVectorComputationMode,
     ) -> TransactionFeeResult<GasVector> {
         Ok(self.starknet_resources.to_gas_vector(versioned_constants, use_kzg_da, computation_mode)
-            + get_vm_resources_cost(
-                versioned_constants,
-                &self.vm_resources,
-                self.n_reverted_steps,
-                computation_mode,
-            )?)
+            + self.computation.to_gas_vector(versioned_constants, computation_mode)?)
+    }
+}
+
+/// Contains all computation resources consumed by a transaction.
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ComputationResources {
+    pub vm_resources: ExecutionResources,
+    pub n_reverted_steps: usize,
+    // TODO(Tzahi): add sierra_gas here.
+}
+
+impl ComputationResources {
+    pub fn to_gas_vector(
+        &self,
+        versioned_constants: &VersionedConstants,
+        computation_mode: &GasVectorComputationMode,
+    ) -> TransactionFeeResult<GasVector> {
+        get_vm_resources_cost(
+            versioned_constants,
+            &self.vm_resources,
+            self.n_reverted_steps,
+            computation_mode,
+        )
     }
 
+    #[cfg(test)]
     pub fn total_charged_steps(&self) -> usize {
         self.n_reverted_steps + self.vm_resources.n_steps
     }
 }
 
 /// Contains all non-computation Starknet resources consumed by a transaction.
-#[cfg_attr(feature = "transaction_serde", derive(Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct StarknetResources {
     pub archival_data: ArchivalDataResources,
@@ -110,7 +129,7 @@ impl StarknetResources {
     }
 }
 
-#[cfg_attr(feature = "transaction_serde", derive(Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ArchivalDataResources {
     pub event_summary: EventSummary,
@@ -177,7 +196,7 @@ impl ArchivalDataResources {
 }
 
 /// Contains L1->L2 and L2->L1 message resources.
-#[cfg_attr(feature = "transaction_serde", derive(Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct MessageResources {
     pub l2_to_l1_payload_lengths: Vec<usize>,

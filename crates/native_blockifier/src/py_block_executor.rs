@@ -78,7 +78,7 @@ impl ThinTransactionExecutionInfo {
 
     pub fn receipt_to_resources_mapping(receipt: &TransactionReceipt) -> ResourcesMapping {
         let GasVector { l1_gas, l1_data_gas, l2_gas } = receipt.gas;
-        let vm_resources = &receipt.resources.vm_resources;
+        let vm_resources = &receipt.resources.computation.vm_resources;
         let mut resources = HashMap::from([(
             abi_constants::N_STEPS_RESOURCE.to_string(),
             vm_resources.total_n_steps(),
@@ -108,7 +108,7 @@ impl ThinTransactionExecutionInfo {
             ),
         ]));
         *resources.get_mut(abi_constants::N_STEPS_RESOURCE).unwrap_or(&mut 0) +=
-            receipt.resources.n_reverted_steps;
+            receipt.resources.computation.n_reverted_steps;
 
         ResourcesMapping(resources)
     }
