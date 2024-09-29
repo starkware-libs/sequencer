@@ -193,7 +193,7 @@ pub enum ExecutionError {
 pub type OnlyQuery = bool;
 
 /// Gathers all the possible errors that can be returned from the blockifier.
-type BlockifierError = anyhow::Error;
+pub type BlockifierError = anyhow::Error;
 
 /// Executes a StarkNet call and returns the execution result.
 #[allow(clippy::too_many_arguments)]

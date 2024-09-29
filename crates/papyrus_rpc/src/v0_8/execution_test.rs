@@ -285,7 +285,6 @@ async fn execution_call() {
         )
         .await
         .unwrap_err();
-
     const CONTRACT_ERROR_CODE: i32 = 40;
     assert_matches!(err, Error::Call(err) if err.code() == CONTRACT_ERROR_CODE);
 
