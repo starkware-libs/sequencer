@@ -36,6 +36,9 @@ mod block_hash_calculator_test;
 static STARKNET_BLOCK_HASH0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_BLOCK_HASH0").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH0'")
 });
+static STARKNET_BLOCK_HASH1: LazyLock<Felt> = LazyLock::new(|| {
+    ascii_as_felt("STARKNET_BLOCK_HASH1").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH1'")
+});
 static STARKNET_GAS_PRICES0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_GAS_PRICES0").expect("ascii_as_felt failed for 'STARKNET_GAS_PRICES0'")
 });
@@ -94,7 +97,7 @@ pub fn calculate_block_hash(
 ) -> BlockHash {
     BlockHash(
         HashChain::new()
-            .chain(&STARKNET_BLOCK_HASH0)
+            .chain(block_hash_constant(&header.starknet_version))
             .chain(&header.block_number.0.into())
             .chain(&header.state_root.0)
             .chain(&header.sequencer.0)
@@ -191,6 +194,15 @@ fn concat_counts(
 fn to_64_bits(num: usize) -> [u8; 8] {
     let sized_transaction_count: u64 = num.try_into().expect("Expect usize is at most 8 bytes");
     sized_transaction_count.to_be_bytes()
+}
+
+// The prefix constant for the block hash calculation.
+fn block_hash_constant(starknet_version: &StarknetVersion) -> &LazyLock<Felt> {
+    if starknet_version < &BlockHashVersion::VO_13_3.into() {
+        &STARKNET_BLOCK_HASH0
+    } else {
+        &STARKNET_BLOCK_HASH1
+    }
 }
 
 // For starknet version >= 0.13.3, returns:

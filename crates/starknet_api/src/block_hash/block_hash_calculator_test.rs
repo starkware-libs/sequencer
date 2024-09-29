@@ -105,7 +105,7 @@ fn test_block_hash_regression(
             felt!("0xe248d6ce583f8fa48d1d401d4beb9ceced3733e38d8eacb0d8d3669a7d901c")
         }
         BlockHashVersion::VO_13_3 => {
-            felt!("0x65b653f5bc0939cdc39f98230affc8fbd1a01ea801e025271a4cfba912ba59a")
+            felt!("0x566c0aaa2bb5fbd7957224108f089100d58f1d8767dd2b53698e27efbf2a28b")
         }
     };
 
