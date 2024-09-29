@@ -3,11 +3,12 @@ use std::fs::File;
 use assert_matches::assert_matches;
 use blockifier::blockifier::block::BlockInfo;
 use blockifier::state::state_api::StateReader;
+use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::StarknetVersion;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
-use starknet_api::transaction::Transaction;
+use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_api::{class_hash, felt};
 
 use crate::state_reader::test_state_reader::TestStateReader;
@@ -20,6 +21,24 @@ pub fn test_state_reader(test_block_number: BlockNumber) -> TestStateReader {
 #[fixture]
 pub fn test_block_number() -> BlockNumber {
     BlockNumber(700000)
+}
+
+#[fixture]
+pub fn tx(test_state_reader: TestStateReader) -> BlockifierTransaction {
+    let tx_hash = "0x518d8ad0393e8895fefc0f05660f57208c3b743a7ca55e94729f21f4f182c34";
+    let actual_tx = test_state_reader.get_txs_by_hash(tx_hash).unwrap();
+
+    BlockifierTransaction::from_api(
+        actual_tx,
+        TransactionHash(felt!(tx_hash)),
+        None,
+        None,
+        None,
+        false,
+    )
+    .unwrap_or_else(|err| {
+        panic!("Error converting transaction to blockifier transaction: {}", err);
+    })
 }
 
 #[rstest]
