@@ -485,7 +485,7 @@ fn test_simulate_charge_fee_no_validation_fail_validate(
     max_l1_resource_bounds: ValidResourceBounds,
 ) {
     let validate = false;
-    let transaction_execution_info = execute_fail_validation(
+    let tx_execution_info = execute_fail_validation(
         only_query,
         validate,
         charge_fee,
@@ -497,15 +497,14 @@ fn test_simulate_charge_fee_no_validation_fail_validate(
 
     // Validation scenario: fallible validation.
     let block_context = BlockContext::create_for_account_testing();
-    let base_gas =
-        calculate_actual_gas(&transaction_execution_info, &block_context).try_into().unwrap();
+    let base_gas = calculate_actual_gas(&tx_execution_info, &block_context).try_into().unwrap();
     assert!(base_gas > u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps));
     let (actual_gas_used, actual_fee) = gas_and_fee(base_gas, validate, &fee_type);
 
     // The reported fee should be the actual cost, regardless of whether or not fee is charged.
     check_gas_and_fee(
         &block_context,
-        &transaction_execution_info,
+        &tx_execution_info,
         &fee_type,
         actual_gas_used,
         actual_fee,

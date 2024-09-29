@@ -9,7 +9,7 @@ use thiserror::Error;
 use crate::execution::call_info::Retdata;
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::execution_utils::format_panic_data;
-use crate::execution::stack_trace::gen_transaction_execution_error_trace;
+use crate::execution::stack_trace::gen_tx_execution_error_trace;
 use crate::fee::fee_checks::FeeCheckError;
 use crate::state::errors::StateError;
 
@@ -63,14 +63,14 @@ pub enum TransactionExecutionError {
     ContractClassVersionMismatch { declare_version: TransactionVersion, cairo_version: u64 },
     #[error(
         "Contract constructor execution has failed:\n{}",
-        String::from(gen_transaction_execution_error_trace(self))
+        String::from(gen_tx_execution_error_trace(self))
     )]
     ContractConstructorExecutionFailed(#[from] ConstructorEntryPointExecutionError),
     #[error("Class with hash {:#064x} is already declared.", **class_hash)]
     DeclareTransactionError { class_hash: ClassHash },
     #[error(
         "Transaction execution has failed:\n{}",
-        String::from(gen_transaction_execution_error_trace(self))
+        String::from(gen_tx_execution_error_trace(self))
     )]
     ExecutionError {
         error: EntryPointExecutionError,
@@ -105,7 +105,7 @@ pub enum TransactionExecutionError {
     TransactionTooLarge,
     #[error(
         "Transaction validation has failed:\n{}",
-        String::from(gen_transaction_execution_error_trace(self))
+        String::from(gen_tx_execution_error_trace(self))
     )]
     ValidateTransactionError {
         error: EntryPointExecutionError,
