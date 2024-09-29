@@ -41,8 +41,8 @@ use crate::starters::Startable;
 /// // Example usage of the RemoteComponentServer
 /// use async_trait::async_trait;
 /// use serde::{Deserialize, Serialize};
+/// use starknet_mempool_infra::component_definitions::ComponentStarter;
 /// use starknet_mempool_infra::errors::ComponentError;
-/// use starknet_mempool_infra::starters::DefaultComponentStarter;
 /// use tokio::task;
 ///
 /// use crate::starknet_mempool_infra::component_client::LocalComponentClient;
@@ -53,7 +53,7 @@ use crate::starters::Startable;
 /// // Define your component
 /// struct MyComponent {}
 ///
-/// impl DefaultComponentStarter for MyComponent {}
+/// impl ComponentStarter for MyComponent {}
 ///
 /// // Define your request and response types
 /// #[derive(Serialize, Deserialize, Debug)]

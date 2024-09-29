@@ -11,8 +11,8 @@ use starknet_gateway::errors::GatewayRunError;
 use starknet_gateway_types::communication::SharedGatewayClient;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_gateway_types::gateway_types::GatewayInput;
+use starknet_mempool_infra::component_definitions::ComponentStarter;
 use starknet_mempool_infra::errors::ComponentError;
-use starknet_mempool_infra::starters::Startable;
 use tracing::{error, info, instrument};
 
 use crate::config::HttpServerConfig;
@@ -96,7 +96,7 @@ pub fn create_http_server(
 }
 
 #[async_trait]
-impl Startable<ComponentError> for HttpServer {
+impl ComponentStarter for HttpServer {
     async fn start(&mut self) -> Result<(), ComponentError> {
         info!("Starting component {}.", type_name::<Self>());
         self.run().await.map_err(|_| ComponentError::InternalComponentError)
