@@ -1,5 +1,6 @@
 use std::ops::Range;
 use std::sync::Arc;
+use std::vec;
 
 use assert_matches::assert_matches;
 use async_trait::async_trait;
@@ -13,9 +14,8 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::felt;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::TransactionHash;
-use starknet_batcher_types::batcher_types::ProposalId;
+use starknet_batcher_types::batcher_types::{GetProposalContent, ProposalCommitment, ProposalId};
 use starknet_mempool_types::communication::MockMempoolClient;
-use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 
 use crate::batcher::MockBatcherStorageReaderTrait;
@@ -23,15 +23,15 @@ use crate::proposal_manager::{
     BlockBuilderTrait,
     InputTxStream,
     MockBlockBuilderFactoryTrait,
+    ProposalContentStream,
     ProposalManager,
     ProposalManagerConfig,
     ProposalManagerError,
     ProposalManagerResult,
 };
 
-pub type OutputTxStream = ReceiverStream<Transaction>;
-
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
+const STREAMING_CHUNK_SIZE: usize = 3;
 
 #[fixture]
 fn proposal_manager_config() -> ProposalManagerConfig {
@@ -51,11 +51,13 @@ fn mempool_client() -> MockMempoolClient {
 }
 
 #[fixture]
-fn output_streaming() -> (tokio::sync::mpsc::Sender<Transaction>, OutputTxStream) {
+fn output_streaming() -> (tokio::sync::mpsc::Sender<GetProposalContent>, ProposalContentStream) {
     const OUTPUT_CONTENT_BUFFER_SIZE: usize = 100;
     let (output_content_sender, output_content_receiver) =
         tokio::sync::mpsc::channel(OUTPUT_CONTENT_BUFFER_SIZE);
-    let stream = tokio_stream::wrappers::ReceiverStream::new(output_content_receiver);
+    let stream = ProposalContentStream::BuildProposal(tokio_stream::wrappers::ReceiverStream::new(
+        output_content_receiver,
+    ));
     (output_content_sender, stream)
 }
 
@@ -112,14 +114,8 @@ fn start_height(
 
 #[rstest]
 #[tokio::test]
-async fn proposal_generation_fails_without_start_height(
-    mut proposal_manager: ProposalManager,
-    output_streaming: (tokio::sync::mpsc::Sender<Transaction>, OutputTxStream),
-) {
-    let (output_content_sender, _stream) = output_streaming;
-    let err = proposal_manager
-        .build_block_proposal(ProposalId(0), arbitrary_deadline(), output_content_sender)
-        .await;
+async fn proposal_generation_fails_without_start_height(mut proposal_manager: ProposalManager) {
+    let err = proposal_manager.build_block_proposal(ProposalId(0), arbitrary_deadline()).await;
     assert_matches!(err, Err(ProposalManagerError::NoActiveHeight));
 }
 
@@ -129,7 +125,6 @@ async fn proposal_generation_success(
     proposal_manager_config: ProposalManagerConfig,
     mut block_builder_factory: MockBlockBuilderFactoryTrait,
     mut mempool_client: MockMempoolClient,
-    output_streaming: (tokio::sync::mpsc::Sender<Transaction>, OutputTxStream),
     storage_reader: MockBatcherStorageReaderTrait,
 ) {
     let n_txs = 2 * proposal_manager_config.max_txs_per_mempool_request;
@@ -156,15 +151,9 @@ async fn proposal_generation_success(
 
     proposal_manager.start_height(INITIAL_HEIGHT).unwrap();
 
-    let (output_content_sender, stream) = output_streaming;
-    proposal_manager
-        .build_block_proposal(ProposalId(0), arbitrary_deadline(), output_content_sender)
-        .await
-        .unwrap();
+    proposal_manager.build_block_proposal(ProposalId(0), arbitrary_deadline()).await.unwrap();
 
     assert_matches!(proposal_manager.await_active_proposal().await, Some(Ok(())));
-    let proposal_content: Vec<_> = stream.collect().await;
-    assert_eq!(proposal_content, test_txs(0..n_txs));
 }
 
 #[rstest]
@@ -194,27 +183,15 @@ async fn consecutive_proposal_generations_success(
 
     proposal_manager.start_height(INITIAL_HEIGHT).unwrap();
 
-    let (output_content_sender, stream) = output_streaming();
-    proposal_manager
-        .build_block_proposal(ProposalId(0), arbitrary_deadline(), output_content_sender)
-        .await
-        .unwrap();
+    proposal_manager.build_block_proposal(ProposalId(0), arbitrary_deadline()).await.unwrap();
 
     // Make sure the first proposal generated successfully.
     assert_matches!(proposal_manager.await_active_proposal().await, Some(Ok(())));
-    let v: Vec<_> = stream.collect().await;
-    assert_eq!(v, expected_txs);
 
-    let (output_content_sender, stream) = output_streaming();
-    proposal_manager
-        .build_block_proposal(ProposalId(1), arbitrary_deadline(), output_content_sender)
-        .await
-        .unwrap();
+    proposal_manager.build_block_proposal(ProposalId(1), arbitrary_deadline()).await.unwrap();
 
     // Make sure the proposal generated successfully.
     assert_matches!(proposal_manager.await_active_proposal().await, Some(Ok(())));
-    let proposal_content: Vec<_> = stream.collect().await;
-    assert_eq!(proposal_content, expected_txs);
 }
 
 #[rstest]
@@ -243,17 +220,11 @@ async fn multiple_proposals_generation_fail(
     proposal_manager.start_height(INITIAL_HEIGHT).unwrap();
 
     // A proposal that will never finish.
-    let (output_content_sender, _stream) = output_streaming();
-    proposal_manager
-        .build_block_proposal(ProposalId(0), arbitrary_deadline(), output_content_sender)
-        .await
-        .unwrap();
+    proposal_manager.build_block_proposal(ProposalId(0), arbitrary_deadline()).await.unwrap();
 
     // Try to generate another proposal while the first one is still being generated.
-    let (another_output_content_sender, _another_stream) = output_streaming();
-    let another_generate_request = proposal_manager
-        .build_block_proposal(ProposalId(1), arbitrary_deadline(), another_output_content_sender)
-        .await;
+    let another_generate_request =
+        proposal_manager.build_block_proposal(ProposalId(1), arbitrary_deadline()).await;
     assert_matches!(
         another_generate_request,
         Err(ProposalManagerError::AlreadyGeneratingProposal {
@@ -261,6 +232,52 @@ async fn multiple_proposals_generation_fail(
             new_proposal_id
         }) if current_generating_proposal_id == ProposalId(0) && new_proposal_id == ProposalId(1)
     );
+}
+
+#[rstest]
+#[tokio::test]
+async fn get_stream_content(
+    proposal_manager_config: ProposalManagerConfig,
+    mut block_builder_factory: MockBlockBuilderFactoryTrait,
+    mut mempool_client: MockMempoolClient,
+    storage_reader: MockBatcherStorageReaderTrait,
+) {
+    const PROPOSAL_ID: ProposalId = ProposalId(0);
+    let n_txs = 2 * proposal_manager_config.max_txs_per_mempool_request;
+    block_builder_factory
+        .expect_create_block_builder()
+        .once()
+        .returning(move || simulate_build_block(Some(n_txs)));
+
+    mempool_client.expect_get_txs().once().returning(|max_n_txs| Ok(test_txs(0..max_n_txs)));
+
+    mempool_client
+        .expect_get_txs()
+        .once()
+        .returning(|max_n_txs| Ok(test_txs(max_n_txs..2 * max_n_txs)));
+
+    mempool_client.expect_get_txs().returning(|_| Ok(vec![]));
+
+    let mut proposal_manager = ProposalManager::new(
+        proposal_manager_config.clone(),
+        Arc::new(mempool_client),
+        Arc::new(block_builder_factory),
+        Arc::new(storage_reader),
+    );
+
+    proposal_manager.start_height(INITIAL_HEIGHT).unwrap();
+
+    proposal_manager.build_block_proposal(PROPOSAL_ID, arbitrary_deadline()).await.unwrap();
+
+    let n_chunks = n_txs.div_ceil(STREAMING_CHUNK_SIZE);
+    for _ in 0..n_chunks {
+        let content = proposal_manager.get_proposal_content(PROPOSAL_ID).await;
+        assert_matches!(content, Ok(GetProposalContent::Txs(_)));
+    }
+    let finished = proposal_manager.get_proposal_content(PROPOSAL_ID).await;
+    assert_matches!(finished, Ok(GetProposalContent::Finished(_)));
+    let exhausted = proposal_manager.get_proposal_content(PROPOSAL_ID).await;
+    assert_matches!(exhausted, Err(ProposalManagerError::StreamExhausted));
 }
 
 fn arbitrary_deadline() -> tokio::time::Instant {
@@ -293,13 +310,20 @@ fn simulate_build_block(n_txs: Option<usize>) -> Arc<dyn BlockBuilderTrait> {
 async fn simulate_block_builder(
     _deadline: tokio::time::Instant,
     mempool_tx_stream: InputTxStream,
-    output_sender: tokio::sync::mpsc::Sender<Transaction>,
+    output_sender: tokio::sync::mpsc::Sender<GetProposalContent>,
     n_txs_to_take: Option<usize>,
 ) {
     let mut mempool_tx_stream = mempool_tx_stream.take(n_txs_to_take.unwrap_or(usize::MAX));
+    let mut to_stream = vec![];
     while let Some(tx) = mempool_tx_stream.next().await {
-        output_sender.send(tx).await.unwrap();
+        to_stream.push(tx);
     }
+    let streaming_chunks = to_stream.chunks(STREAMING_CHUNK_SIZE);
+    for chunk in streaming_chunks {
+        let content = GetProposalContent::Txs(chunk.to_vec());
+        output_sender.send(content).await.unwrap();
+    }
+    output_sender.send(GetProposalContent::Finished(ProposalCommitment::default())).await.unwrap();
 }
 
 // A wrapper trait to allow mocking the BlockBuilderTrait in tests.
@@ -310,7 +334,7 @@ trait BlockBuilderTraitWrapper: Send + Sync {
         &self,
         deadline: tokio::time::Instant,
         tx_stream: InputTxStream,
-        output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
+        output_content_sender: tokio::sync::mpsc::Sender<GetProposalContent>,
     ) -> BoxFuture<'_, ()>;
 }
 
@@ -320,7 +344,7 @@ impl<T: BlockBuilderTraitWrapper> BlockBuilderTrait for T {
         &self,
         deadline: tokio::time::Instant,
         tx_stream: InputTxStream,
-        output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
+        output_content_sender: tokio::sync::mpsc::Sender<GetProposalContent>,
     ) {
         self.build_block(deadline, tx_stream, output_content_sender).await
     }
