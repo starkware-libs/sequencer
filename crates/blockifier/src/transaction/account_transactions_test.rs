@@ -422,8 +422,7 @@ fn test_max_fee_limit_validate(
         &block_context,
         &account_tx,
         &GasVectorComputationMode::NoL2Gas,
-    )
-    .unwrap();
+    );
     let estimated_min_l1_gas = estimated_min_gas_usage_vector.l1_gas;
     let estimated_min_fee =
         get_fee_by_gas_vector(block_info, estimated_min_gas_usage_vector, &account_tx.fee_type());
@@ -943,15 +942,11 @@ fn test_max_fee_to_max_steps_conversion(
     let max_steps_limit1 = execution_context1.vm_run_resources.get_n_steps();
     let tx_execution_info1 = account_tx1.execute(&mut state, &block_context, true, true).unwrap();
     let n_steps1 = tx_execution_info1.receipt.resources.computation.vm_resources.n_steps;
-    let gas_used_vector1 = tx_execution_info1
-        .receipt
-        .resources
-        .to_gas_vector(
-            &block_context.versioned_constants,
-            block_context.block_info.use_kzg_da,
-            &GasVectorComputationMode::NoL2Gas,
-        )
-        .unwrap();
+    let gas_used_vector1 = tx_execution_info1.receipt.resources.to_gas_vector(
+        &block_context.versioned_constants,
+        block_context.block_info.use_kzg_da,
+        &GasVectorComputationMode::NoL2Gas,
+    );
 
     // Second invocation of `with_arg` gets twice the pre-calculated actual fee as max_fee.
     let account_tx2 = account_invoke_tx(invoke_tx_args! {
@@ -967,15 +962,11 @@ fn test_max_fee_to_max_steps_conversion(
     let max_steps_limit2 = execution_context2.vm_run_resources.get_n_steps();
     let tx_execution_info2 = account_tx2.execute(&mut state, &block_context, true, true).unwrap();
     let n_steps2 = tx_execution_info2.receipt.resources.computation.vm_resources.n_steps;
-    let gas_used_vector2 = tx_execution_info2
-        .receipt
-        .resources
-        .to_gas_vector(
-            &block_context.versioned_constants,
-            block_context.block_info.use_kzg_da,
-            &GasVectorComputationMode::NoL2Gas,
-        )
-        .unwrap();
+    let gas_used_vector2 = tx_execution_info2.receipt.resources.to_gas_vector(
+        &block_context.versioned_constants,
+        block_context.block_info.use_kzg_da,
+        &GasVectorComputationMode::NoL2Gas,
+    );
 
     // Test that steps limit doubles as max_fee doubles, but actual consumed steps and fee remains.
     assert_eq!(max_steps_limit2.unwrap(), 2 * max_steps_limit1.unwrap());

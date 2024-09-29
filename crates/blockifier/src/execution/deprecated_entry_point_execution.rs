@@ -265,8 +265,8 @@ pub fn finalize_execution(
     }
     *syscall_handler.resources += &vm_resources_without_inner_calls;
     // Take into account the syscall resources of the current call.
-    *syscall_handler.resources += &versioned_constants
-        .get_additional_os_syscall_resources(&syscall_handler.syscall_counter)?;
+    *syscall_handler.resources +=
+        &versioned_constants.get_additional_os_syscall_resources(&syscall_handler.syscall_counter);
 
     let full_call_resources = &*syscall_handler.resources - &previous_resources;
     Ok(CallInfo {

@@ -287,7 +287,7 @@ macro_rules! check_transaction_execution_error_for_invalid_scenario {
 pub fn get_syscall_resources(syscall_selector: SyscallSelector) -> ExecutionResources {
     let versioned_constants = VersionedConstants::create_for_testing();
     let syscall_counter: SyscallCounter = HashMap::from([(syscall_selector, 1)]);
-    versioned_constants.get_additional_os_syscall_resources(&syscall_counter).unwrap()
+    versioned_constants.get_additional_os_syscall_resources(&syscall_counter)
 }
 
 pub fn get_tx_resources(tx_type: TransactionType) -> ExecutionResources {
@@ -301,7 +301,7 @@ pub fn get_tx_resources(tx_type: TransactionType) -> ExecutionResources {
         ExecutionSummary::default(),
     );
 
-    versioned_constants.get_additional_os_tx_resources(tx_type, &starknet_resources, false).unwrap()
+    versioned_constants.get_additional_os_tx_resources(tx_type, &starknet_resources, false)
 }
 
 /// Creates the calldata for the Cairo function "test_deploy" in the featured contract TestContract.
