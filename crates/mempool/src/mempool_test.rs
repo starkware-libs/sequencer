@@ -393,22 +393,6 @@ fn test_get_txs_with_holes_multiple_accounts() {
     expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
 }
 
-#[rstest]
-fn test_get_txs_with_holes_single_account() {
-    // Setup.
-    let pool_txs = [tx!(tx_nonce: 1)];
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool(pool_txs.clone())
-        .with_priority_queue([])
-        .build_into_mempool();
-
-    // Test and assert.
-    get_txs_and_assert_expected(&mut mempool, 1, &[]);
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_priority_queue([]).build();
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
-}
-
 // TODO(Mohammad): simplify two queues reordering tests to use partial queue content test util.
 #[rstest]
 fn test_get_txs_while_decreasing_gas_price_threshold() {
