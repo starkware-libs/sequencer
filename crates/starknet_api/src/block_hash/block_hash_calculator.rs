@@ -31,6 +31,9 @@ mod block_hash_calculator_test;
 static STARKNET_BLOCK_HASH0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_BLOCK_HASH0").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH0'")
 });
+static STARKNET_GAS_PRICES0: LazyLock<Felt> = LazyLock::new(|| {
+    ascii_as_felt("STARKNET_GAS_PRICES0").expect("ascii_as_felt failed for 'STARKNET_GAS_PRICES0'")
+});
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -187,7 +190,7 @@ fn to_64_bits(num: usize) -> [u8; 8] {
 
 // For starknet version >= 0.13.3, returns:
 // [Poseidon (
-//     gas_price_wei, gas_price_fri, data_gas_price_wei, data_gas_price_fri,
+//     "STARKNET_GAS_PRICES0", gas_price_wei, gas_price_fri, data_gas_price_wei, data_gas_price_fri,
 //     l2_gas_price_wei, l2_gas_price_fri
 // )].
 // Otherwise, returns:
@@ -201,6 +204,7 @@ fn gas_prices_to_hash(
     if *starknet_version >= BlockHashVersion::VO_13_3.into() {
         vec![
             HashChain::new()
+                .chain(&STARKNET_GAS_PRICES0)
                 .chain(&l1_gas_price.price_in_wei.0.into())
                 .chain(&l1_gas_price.price_in_fri.0.into())
                 .chain(&l1_data_gas_price.price_in_wei.0.into())
