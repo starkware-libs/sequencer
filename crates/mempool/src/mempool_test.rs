@@ -1,11 +1,10 @@
 use std::cmp::Reverse;
-use std::collections::HashMap;
 
 use assert_matches::assert_matches;
 use mempool_test_utils::starknet_api_test_utils::test_resource_bounds_mapping;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::core::{ContractAddress, Nonce, PatriciaKey};
+use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::StarkHash;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
@@ -14,13 +13,15 @@ use starknet_api::{contract_address, felt, invoke_tx_args, nonce, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::AccountState;
 
-use crate::mempool::{AccountToNonce, Mempool, MempoolInput, TransactionReference};
+use crate::mempool::{AccountToNonce, AddTransactionArgs, Mempool, TransactionReference};
+use crate::test_utils::{add_tx, add_tx_expect_error, commit_block, get_txs_and_assert_expected};
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::transaction_queue_test_utils::{
     TransactionQueueContent,
     TransactionQueueContentBuilder,
 };
 use crate::transaction_queue::TransactionQueue;
+use crate::{add_tx_input, tx};
 
 // Utils.
 
@@ -34,25 +35,18 @@ struct MempoolContent {
 }
 
 impl MempoolContent {
-    fn assert_eq_pool_and_priority_queue_content(&self, mempool: &Mempool) {
-        self.assert_eq_tx_pool_content(mempool);
-        self.assert_eq_tx_priority_queue_content(mempool);
-    }
+    fn assert_eq(&self, mempool: &Mempool) {
+        if let Some(tx_pool) = &self.tx_pool {
+            assert_eq!(&mempool.tx_pool, tx_pool);
+        }
 
-    fn assert_eq_tx_pool_content(&self, mempool: &Mempool) {
-        assert_eq!(self.tx_pool.as_ref().unwrap(), &mempool.tx_pool);
-    }
+        if let Some(tx_queue_content) = &self.tx_queue_content {
+            tx_queue_content.assert_eq(&mempool.tx_queue);
+        }
 
-    fn assert_eq_tx_priority_queue_content(&self, mempool: &Mempool) {
-        self.tx_queue_content.as_ref().unwrap().assert_eq_priority_queue_content(&mempool.tx_queue);
-    }
-
-    fn _assert_eq_tx_pending_queue_content(&self, mempool: &Mempool) {
-        self.tx_queue_content.as_ref().unwrap()._assert_eq_pending_queue_content(&mempool.tx_queue);
-    }
-
-    fn assert_eq_account_nonces(&self, mempool: &Mempool) {
-        assert_eq!(self.account_nonces.as_ref().unwrap(), &mempool.account_nonces);
+        if let Some(account_nonces) = &self.account_nonces {
+            assert_eq!(&mempool.account_nonces, account_nonces);
+        }
     }
 }
 
@@ -109,9 +103,14 @@ impl MempoolContentBuilder {
 
     fn with_account_nonces<A>(mut self, account_nonce_pairs: A) -> Self
     where
-        A: IntoIterator<Item = (ContractAddress, Nonce)>,
+        A: IntoIterator<Item = (&'static str, u8)>,
     {
-        self.account_nonces = Some(account_nonce_pairs.into_iter().collect());
+        self.account_nonces = Some(
+            account_nonce_pairs
+                .into_iter()
+                .map(|(address, nonce)| (contract_address!(address), nonce!(nonce)))
+                .collect(),
+        );
         self
     }
 
@@ -146,101 +145,6 @@ impl FromIterator<TransactionReference> for TransactionQueue {
         }
         queue
     }
-}
-
-#[track_caller]
-fn add_tx(mempool: &mut Mempool, input: &MempoolInput) {
-    assert_eq!(mempool.add_tx(input.clone()), Ok(()));
-}
-
-#[track_caller]
-fn add_tx_expect_error(mempool: &mut Mempool, input: &MempoolInput, expected_error: MempoolError) {
-    assert_eq!(mempool.add_tx(input.clone()), Err(expected_error));
-}
-
-#[track_caller]
-fn commit_block(
-    mempool: &mut Mempool,
-    state_changes: impl IntoIterator<Item = (&'static str, u8)>,
-) {
-    let state_changes = HashMap::from_iter(
-        state_changes
-            .into_iter()
-            .map(|(address, nonce)| (contract_address!(address), nonce!(nonce))),
-    );
-    assert_eq!(mempool.commit_block(state_changes), Ok(()));
-}
-
-#[track_caller]
-fn get_txs_and_assert_expected(mempool: &mut Mempool, n_txs: usize, expected_txs: &[Transaction]) {
-    let txs = mempool.get_txs(n_txs).unwrap();
-    assert_eq!(txs, expected_txs);
-}
-
-/// Creates an executable invoke transaction with the given field subset (the rest receive default
-/// values).
-macro_rules! tx {
-    (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
-        tx_nonce: $tx_nonce:expr, resource_bounds: $resource_bounds:expr) => {{
-            let sender_address = contract_address!($sender_address);
-            Transaction::Invoke(executable_invoke_tx(invoke_tx_args!{
-                sender_address: sender_address,
-                tx_hash: TransactionHash(StarkHash::from($tx_hash)),
-                tip: Tip($tip),
-                nonce: nonce!($tx_nonce),
-                resource_bounds: $resource_bounds,
-            }))
-    }};
-    (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, tx_nonce: $tx_nonce:expr) => {
-        tx!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, resource_bounds: ValidResourceBounds::AllResources(test_resource_bounds_mapping()))
-    };
-    (tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, tx_nonce: $tx_nonce:expr) => {
-        tx!(tip: 0, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce)
-    };
-    (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr) => {
-        tx!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: 0)
-    };
-    (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr) => {
-        tx!(tip: 0, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce)
-    };
-    (tx_nonce: $tx_nonce:expr) => {
-        tx!(tip: 0, tx_hash: 0, sender_address: "0x0", tx_nonce: $tx_nonce)
-    };
-}
-
-/// Creates an input for `add_tx` with the given field subset (the rest receive default values).
-macro_rules! add_tx_input {
-    (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
-        tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr, resource_bounds: $resource_bounds:expr) => {{
-        let tx = tx!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, resource_bounds: $resource_bounds);
-        let sender_address = contract_address!($sender_address);
-        let account_nonce = nonce!($account_nonce);
-        let account_state = AccountState { sender_address, nonce: account_nonce};
-
-        MempoolInput { tx, account_state }
-    }};
-    (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
-        tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {{
-            add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, account_nonce: $account_nonce, resource_bounds: ValidResourceBounds::AllResources(test_resource_bounds_mapping()))
-    }};
-    (tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
-        add_tx_input!(tip: 0, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, account_nonce: $account_nonce)
-    };
-    (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr) => {
-        add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: 0, account_nonce: 0)
-    };
-    (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
-        add_tx_input!(tip: 1, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce, account_nonce: $account_nonce)
-    };
-    (tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
-        add_tx_input!(tip: 1, tx_hash: 0, sender_address: "0x0", tx_nonce: $tx_nonce, account_nonce: $account_nonce)
-    };
-    (tip: $tip:expr, tx_hash: $tx_hash:expr) => {
-        add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: 0, account_nonce: 0)
-    };
-    (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr) => {
-        add_tx_input!(tip: 0, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce, account_nonce: 0)
-    };
 }
 
 // Fixtures.
@@ -282,15 +186,13 @@ fn test_get_txs_returns_by_priority_order(#[case] n_requested_txs: usize) {
 
     // Assert: non-returned transactions are still in the mempool.
     let remaining_tx_references = remaining_txs.iter().map(TransactionReference::new);
-    let mempool_content = MempoolContentBuilder::new()
-        .with_pool(remaining_txs.to_vec())
-        .with_priority_queue(remaining_tx_references)
-        .build();
-    mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
+    let mempool_content =
+        MempoolContentBuilder::new().with_priority_queue(remaining_tx_references).build();
+    mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
-fn test_get_txs_multi_nonce() {
+fn test_get_txs_removes_returned_txs_from_pool() {
     // Setup.
     let tx_nonce_0 = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0);
     let tx_nonce_1 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1);
@@ -307,7 +209,7 @@ fn test_get_txs_multi_nonce() {
     get_txs_and_assert_expected(&mut mempool, 3, &pool_txs);
     let expected_mempool_content =
         MempoolContentBuilder::new().with_pool([]).with_priority_queue([]).build();
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
@@ -333,9 +235,8 @@ fn test_get_txs_replenishes_queue_only_between_chunks() {
         3,
         &[tx_address_0_nonce_0, tx_address_1_nonce_0, tx_address_0_nonce_1],
     );
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_pool([]).with_priority_queue([]).build();
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
+    let expected_mempool_content = MempoolContentBuilder::new().with_priority_queue([]).build();
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
@@ -363,22 +264,19 @@ fn test_get_txs_replenishes_queue_multi_account_between_chunks() {
     get_txs_and_assert_expected(&mut mempool, 2, &[tx_address_0_nonce_0, tx_address_1_nonce_0]);
     let expected_queue_txs =
         [&tx_address_0_nonce_1, &tx_address_1_nonce_1].map(TransactionReference::new);
-    let expected_pool_txs = [tx_address_0_nonce_1, tx_address_1_nonce_1];
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_pool(expected_pool_txs)
-        .with_priority_queue(expected_queue_txs)
-        .build();
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
+    let expected_mempool_content =
+        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
-fn test_get_txs_with_holes_multiple_accounts() {
+fn test_get_txs_with_nonce_gap() {
     // Setup.
     let tx_address_0_nonce_1 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1);
     let tx_address_1_nonce_0 = tx!(tx_hash: 3, sender_address: "0x1", tx_nonce: 0);
 
     let queue_txs = [TransactionReference::new(&tx_address_1_nonce_0)];
-    let pool_txs = [&tx_address_0_nonce_1, &tx_address_1_nonce_0].map(|tx| tx.clone());
+    let pool_txs = [tx_address_0_nonce_1, tx_address_1_nonce_0.clone()];
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs)
         .with_priority_queue(queue_txs)
@@ -386,27 +284,8 @@ fn test_get_txs_with_holes_multiple_accounts() {
 
     // Test and assert.
     get_txs_and_assert_expected(&mut mempool, 2, &[tx_address_1_nonce_0]);
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_pool([tx_address_0_nonce_1])
-        .with_priority_queue([])
-        .build();
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
-}
-
-#[rstest]
-fn test_get_txs_with_holes_single_account() {
-    // Setup.
-    let pool_txs = [tx!(tx_nonce: 1)];
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool(pool_txs.clone())
-        .with_priority_queue([])
-        .build_into_mempool();
-
-    // Test and assert.
-    get_txs_and_assert_expected(&mut mempool, 1, &[]);
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_priority_queue([]).build();
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
+    let expected_mempool_content = MempoolContentBuilder::new().with_priority_queue([]).build();
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 // TODO(Mohammad): simplify two queues reordering tests to use partial queue content test util.
@@ -424,10 +303,6 @@ fn test_get_txs_while_decreasing_gas_price_threshold() {
     // High gas price threshold, no transactions should be returned.
     mempool._update_gas_price_threshold(1000000000000);
     get_txs_and_assert_expected(&mut mempool, 1, &[]);
-
-    // Updating the gas price threshold should happen in a new block creation.
-    let state_changes = [];
-    commit_block(&mut mempool, state_changes);
 
     // Low gas price threshold, the transaction should be returned.
     mempool._update_gas_price_threshold(100);
@@ -451,10 +326,6 @@ fn test_get_txs_while_increasing_gas_price_threshold() {
     mempool._update_gas_price_threshold(100);
     get_txs_and_assert_expected(&mut mempool, 1, &[tx_nonce_0]);
 
-    // Updating the gas price threshold should happen in a new block creation.
-    let state_changes = [];
-    commit_block(&mut mempool, state_changes);
-
     // High gas price threshold, no transactions should be returned.
     mempool._update_gas_price_threshold(1000000000000);
     get_txs_and_assert_expected(&mut mempool, 1, &[]);
@@ -466,9 +337,9 @@ fn test_get_txs_while_increasing_gas_price_threshold() {
 fn test_add_tx(mut mempool: Mempool) {
     // Setup.
     let mut add_tx_inputs = [
-        add_tx_input!(tip: 50, tx_hash: 1, sender_address: "0x0"),
-        add_tx_input!(tip: 100, tx_hash: 2, sender_address: "0x1"),
-        add_tx_input!(tip: 80, tx_hash: 3, sender_address: "0x2"),
+        add_tx_input!(tip: 50, tx_hash: 1, sender_address: "0x0", tx_nonce: 0, account_nonce: 0),
+        add_tx_input!(tip: 100, tx_hash: 2, sender_address: "0x1", tx_nonce: 1, account_nonce: 1),
+        add_tx_input!(tip: 80, tx_hash: 3, sender_address: "0x2", tx_nonce: 2, account_nonce: 2),
     ];
 
     // Test.
@@ -481,14 +352,16 @@ fn test_add_tx(mut mempool: Mempool) {
     add_tx_inputs.sort_by_key(|input| std::cmp::Reverse(input.tx.tip().unwrap()));
 
     // Assert: transactions are ordered by priority.
+    let expected_account_nonces = [("0x0", 0), ("0x1", 1), ("0x2", 2)];
     let expected_queue_txs: Vec<TransactionReference> =
         add_tx_inputs.iter().map(|input| TransactionReference::new(&input.tx)).collect();
     let expected_pool_txs = add_tx_inputs.into_iter().map(|input| input.tx);
     let expected_mempool_content = MempoolContentBuilder::new()
+        .with_account_nonces(expected_account_nonces)
         .with_pool(expected_pool_txs)
         .with_priority_queue(expected_queue_txs)
         .build();
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
@@ -515,7 +388,7 @@ fn test_add_tx_multi_nonce_success(mut mempool: Mempool) {
         .with_pool(expected_pool_txs)
         .with_priority_queue(expected_queue_txs)
         .build();
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
@@ -533,7 +406,7 @@ fn test_add_tx_with_duplicate_tx(mut mempool: Mempool) {
 
     // Assert: the original transaction remains.
     let expected_mempool_content = MempoolContentBuilder::new().with_pool([input.tx]).build();
-    expected_mempool_content.assert_eq_tx_pool_content(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
@@ -544,11 +417,10 @@ fn test_add_tx_lower_than_queued_nonce() {
     let lower_nonce_input =
         add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 0, account_nonce: 0);
 
-    let MempoolInput { tx: valid_input_tx, account_state: AccountState { sender_address, nonce } } =
-        valid_input;
+    let AddTransactionArgs { tx: valid_input_tx, .. } = valid_input;
     let queue_txs = [TransactionReference::new(&valid_input_tx)];
     let pool_txs = [valid_input_tx];
-    let account_nonces = [(sender_address, nonce)];
+    let account_nonces = [("0x0", 1)];
     let expected_mempool_content = MempoolContentBuilder::new()
         .with_pool(pool_txs.clone())
         .with_priority_queue(queue_txs)
@@ -567,8 +439,7 @@ fn test_add_tx_lower_than_queued_nonce() {
         &lower_nonce_input,
         MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(0) },
     );
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
-    expected_mempool_content.assert_eq_account_nonces(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
@@ -589,7 +460,7 @@ fn test_add_tx_updates_queue_with_higher_account_nonce() {
     let expected_queue_txs = [TransactionReference::new(&higher_account_nonce_input.tx)];
     let expected_mempool_content =
         MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
-    expected_mempool_content.assert_eq_tx_priority_queue_content(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
@@ -615,7 +486,7 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
 
     // TODO: currently hash comparison tie-breaks the two. Once more robust tie-breaks are added
     // replace this assertion with a dedicated test.
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
@@ -643,7 +514,7 @@ fn test_add_tx_delete_tx_with_lower_nonce_than_account_nonce() {
         .with_pool(expected_pool_txs)
         .with_priority_queue(expected_queue_txs)
         .build();
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
@@ -663,11 +534,11 @@ fn test_add_tx_tip_priority_over_tx_hash(mut mempool: Mempool) {
         [&input_big_tip_small_hash.tx, &input_small_tip_big_hash.tx].map(TransactionReference::new);
     let expected_mempool_content =
         MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
-    expected_mempool_content.assert_eq_tx_priority_queue_content(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
-fn test_add_tx_account_state_fills_hole(mut mempool: Mempool) {
+fn test_add_tx_account_state_fills_nonce_gap(mut mempool: Mempool) {
     // Setup.
     let tx_input_nonce_1 = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0);
     // Input that increments the account state.
@@ -678,14 +549,14 @@ fn test_add_tx_account_state_fills_hole(mut mempool: Mempool) {
     // First, with gap.
     add_tx(&mut mempool, &tx_input_nonce_1);
     let expected_mempool_content = MempoolContentBuilder::new().with_priority_queue([]).build();
-    expected_mempool_content.assert_eq_tx_priority_queue_content(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 
     // Then, fill it.
     add_tx(&mut mempool, &tx_input_nonce_2);
     let expected_queue_txs = [&tx_input_nonce_1.tx].map(TransactionReference::new);
     let expected_mempool_content =
         MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
-    expected_mempool_content.assert_eq_tx_priority_queue_content(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
@@ -705,12 +576,11 @@ fn test_add_tx_sequential_nonces(mut mempool: Mempool) {
         .with_pool(expected_pool_txs)
         .with_priority_queue(expected_queue_txs)
         .build();
-
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
-fn test_add_tx_filling_hole(mut mempool: Mempool) {
+fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
     // Setup.
     let input_nonce_0 = add_tx_input!(tx_hash: 1, tx_nonce: 0, account_nonce: 0);
     let input_nonce_1 = add_tx_input!(tx_hash: 2, tx_nonce: 1, account_nonce: 0);
@@ -722,7 +592,7 @@ fn test_add_tx_filling_hole(mut mempool: Mempool) {
     let expected_pool_txs = [input_nonce_1.tx.clone()];
     let expected_mempool_content =
         MempoolContentBuilder::new().with_pool(expected_pool_txs).with_priority_queue([]).build();
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 
     // Test: add the first transaction, which fills the hole.
     add_tx(&mut mempool, &input_nonce_0);
@@ -734,7 +604,7 @@ fn test_add_tx_filling_hole(mut mempool: Mempool) {
         .with_pool(expected_pool_txs)
         .with_priority_queue(expected_queue_txs)
         .build();
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 // `commit_block` tests.
@@ -779,13 +649,13 @@ fn test_commit_block_includes_all_txs() {
         .build_into_mempool();
 
     // Test.
-    let state_changes = [("0x0", 3), ("0x1", 2)];
-    commit_block(&mut mempool, state_changes);
+    let nonces = [("0x0", 3), ("0x1", 2)];
+    commit_block(&mut mempool, nonces);
 
     // Assert.
     let expected_mempool_content =
         MempoolContentBuilder::new().with_pool(pool_txs).with_priority_queue(queue_txs).build();
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
@@ -801,12 +671,12 @@ fn test_commit_block_rewinds_queued_nonce() {
         .build_into_mempool();
 
     // Test.
-    let state_changes = [("0x0", 3), ("0x1", 3)];
-    commit_block(&mut mempool, state_changes);
+    let nonces = [("0x0", 3), ("0x1", 3)];
+    commit_block(&mut mempool, nonces);
 
     // Assert.
     let expected_mempool_content = MempoolContentBuilder::new().with_priority_queue([]).build();
-    expected_mempool_content.assert_eq_tx_priority_queue_content(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
@@ -830,43 +700,28 @@ fn test_commit_block_from_different_leader() {
         .build_into_mempool();
 
     // Test.
-    let state_changes = [
+    let nonces = [
         ("0x0", 5),
         // A hole, missing nonce 1 for address "0x1".
         ("0x1", 0),
         ("0x2", 1),
     ];
-    commit_block(&mut mempool, state_changes);
+    commit_block(&mut mempool, nonces);
 
     // Assert.
     let expected_queue_txs = [&tx_address_0_nonce_6].map(TransactionReference::new);
     let expected_mempool_content =
         MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
-    expected_mempool_content.assert_eq_tx_priority_queue_content(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 // `account_nonces` tests.
 
 #[rstest]
-fn test_account_nonces_update_in_add_tx(mut mempool: Mempool) {
-    // Setup.
-    let input = add_tx_input!(tx_nonce: 1, account_nonce: 1);
-
-    // Test: update through new input.
-    add_tx(&mut mempool, &input);
-
-    // Assert.
-    let AccountState { sender_address, nonce } = input.account_state;
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_account_nonces([(sender_address, nonce)]).build();
-    expected_mempool_content.assert_eq_account_nonces(&mempool);
-}
-
-#[rstest]
 fn test_account_nonce_does_not_decrease_in_add_tx() {
     // Setup.
     let input_with_lower_account_nonce = add_tx_input!(tx_nonce: 0, account_nonce: 0);
-    let account_nonces = [(input_with_lower_account_nonce.account_state.sender_address, nonce!(2))];
+    let account_nonces = [("0x0", 2)];
     let mut mempool =
         MempoolContentBuilder::new().with_account_nonces(account_nonces).build_into_mempool();
 
@@ -876,138 +731,64 @@ fn test_account_nonce_does_not_decrease_in_add_tx() {
     // Assert: the account nonce is not updated.
     let expected_mempool_content =
         MempoolContentBuilder::new().with_account_nonces(account_nonces).build();
-    expected_mempool_content.assert_eq_account_nonces(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
 fn test_account_nonces_update_in_commit_block() {
     // Setup.
-    let input = add_tx_input!(tx_nonce: 2, account_nonce: 0);
-    let AccountState { sender_address, nonce } = input.account_state;
-    let pool_txs = [input.tx];
+    let pool_txs = [tx!(tx_nonce: 2)];
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs)
-        .with_account_nonces([(sender_address, nonce)])
+        .with_account_nonces([("0x0", 0)])
         .build_into_mempool();
-    let committed_nonce = nonce!(0);
 
     // Test: update through a commit block.
-    let state_changes = HashMap::from([(sender_address, committed_nonce)]);
-    assert_eq!(mempool.commit_block(state_changes), Ok(()));
+    let nonces = [("0x0", 0)];
+    commit_block(&mut mempool, nonces);
 
     // Assert.
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_account_nonces([(sender_address, committed_nonce.try_increment().unwrap())])
-        .build();
-    expected_mempool_content.assert_eq_account_nonces(&mempool);
+    let expected_account_nonces = [("0x0", 1)]; // Account nonce advanced.
+    let expected_mempool_content =
+        MempoolContentBuilder::new().with_account_nonces(expected_account_nonces).build();
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
 fn test_account_nonce_does_not_decrease_in_commit_block() {
     // Setup.
-    let input_account_nonce_2 = add_tx_input!(tx_nonce: 3, account_nonce: 2);
-    let AccountState { sender_address, nonce } = input_account_nonce_2.account_state;
-    let account_nonces = [(sender_address, nonce)];
-    let pool_txs = [input_account_nonce_2.tx];
+    let account_nonces = [("0x0", 2)];
+    let pool_txs = [tx!(tx_nonce: 3)];
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs)
         .with_account_nonces(account_nonces)
         .build_into_mempool();
 
     // Test: commits state change of a lower account nonce.
-    let state_changes = HashMap::from([(sender_address, nonce!(0))]);
-    assert_eq!(mempool.commit_block(state_changes), Ok(()));
+    let nonces = [("0x0", 0)];
+    commit_block(&mut mempool, nonces);
 
     // Assert: the account nonce is not updated.
     let expected_mempool_content =
         MempoolContentBuilder::new().with_account_nonces(account_nonces).build();
-    expected_mempool_content.assert_eq_account_nonces(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
 fn test_account_nonces_removal_in_commit_block(mut mempool: Mempool) {
     // Test: commit block returns information about account that is not in the mempool.
-    let state_changes = [("0x0", 0)];
-    commit_block(&mut mempool, state_changes);
+    let nonces = [("0x0", 0)];
+    commit_block(&mut mempool, nonces);
 
     // Assert: account is not added to the mempool.
     let expected_mempool_content = MempoolContentBuilder::new().with_account_nonces([]).build();
-    expected_mempool_content.assert_eq_account_nonces(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 // Flow tests.
 
 #[rstest]
-fn test_flow_filling_holes(mut mempool: Mempool) {
-    // Setup.
-    let input_address_0_nonce_0 =
-        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0, account_nonce: 0);
-    let input_address_0_nonce_1 =
-        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1, account_nonce: 0);
-    let input_address_1_nonce_0 =
-        add_tx_input!(tx_hash: 3, sender_address: "0x1", tx_nonce: 0, account_nonce: 0);
-
-    add_tx(&mut mempool, &input_address_0_nonce_1);
-    add_tx(&mut mempool, &input_address_1_nonce_0);
-
-    // Test and assert: only the eligible transaction is returned.
-    get_txs_and_assert_expected(&mut mempool, 2, &[input_address_1_nonce_0.tx]);
-
-    add_tx(&mut mempool, &input_address_0_nonce_0);
-
-    // Test and assert: all remaining transactions are returned.
-    get_txs_and_assert_expected(
-        &mut mempool,
-        2,
-        &[input_address_0_nonce_0.tx, input_address_0_nonce_1.tx],
-    );
-}
-
-#[rstest]
-fn test_flow_partial_commit_block() {
-    // Setup.
-    let tx_address_0_nonce_3 = tx!(tip: 10, tx_hash: 1, sender_address: "0x0", tx_nonce: 3);
-    let tx_address_0_nonce_5 = tx!(tip: 11, tx_hash: 2, sender_address: "0x0", tx_nonce: 5);
-    let tx_address_0_nonce_6 = tx!(tip: 12, tx_hash: 3, sender_address: "0x0", tx_nonce: 6);
-    let tx_address_1_nonce_0 = tx!(tip: 20, tx_hash: 4, sender_address: "0x1", tx_nonce: 0);
-    let tx_address_1_nonce_1 = tx!(tip: 21, tx_hash: 5, sender_address: "0x1", tx_nonce: 1);
-    let tx_address_1_nonce_2 = tx!(tip: 22, tx_hash: 6, sender_address: "0x1", tx_nonce: 2);
-    let tx_address_2_nonce_2 = tx!(tip: 0, tx_hash: 7, sender_address: "0x2", tx_nonce: 2);
-
-    let queue_txs = [&tx_address_0_nonce_3, &tx_address_1_nonce_0, &tx_address_2_nonce_2]
-        .map(TransactionReference::new);
-    let pool_txs = [
-        &tx_address_0_nonce_3,
-        &tx_address_0_nonce_5,
-        &tx_address_0_nonce_6,
-        &tx_address_1_nonce_0,
-        &tx_address_1_nonce_1,
-        &tx_address_1_nonce_2,
-        &tx_address_2_nonce_2,
-    ]
-    .map(|tx| tx.clone());
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool(pool_txs)
-        .with_priority_queue(queue_txs)
-        .build_into_mempool();
-
-    // Test.
-    get_txs_and_assert_expected(&mut mempool, 2, &[tx_address_1_nonce_0, tx_address_0_nonce_3]);
-    get_txs_and_assert_expected(&mut mempool, 2, &[tx_address_1_nonce_1, tx_address_2_nonce_2]);
-
-    // Not included in block: address "0x2" nonce 2, address "0x1" nonce 1.
-    let state_changes = [("0x0", 3), ("0x1", 0)];
-    commit_block(&mut mempool, state_changes);
-
-    // Assert.
-    let expected_pool_txs = [tx_address_0_nonce_5, tx_address_0_nonce_6, tx_address_1_nonce_2];
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_pool(expected_pool_txs).with_priority_queue([]).build();
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
-}
-
-#[rstest]
-fn test_flow_commit_block_closes_hole() {
+fn test_flow_commit_block_fills_nonce_gap() {
     // Setup.
     let tx_nonce_3 = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 3);
     let tx_input_nonce_4 =
@@ -1022,14 +803,14 @@ fn test_flow_commit_block_closes_hole() {
         .build_into_mempool();
 
     // Test.
-    let state_changes = [("0x0", 4)];
-    commit_block(&mut mempool, state_changes);
+    let nonces = [("0x0", 4)];
+    commit_block(&mut mempool, nonces);
 
     // Assert: hole was indeed closed.
     let expected_queue_txs = [&tx_nonce_5].map(TransactionReference::new);
     let expected_mempool_content =
         MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
-    expected_mempool_content.assert_eq_tx_priority_queue_content(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 
     add_tx_expect_error(
         &mut mempool,
@@ -1056,8 +837,8 @@ fn test_flow_send_same_nonce_tx_after_previous_not_included() {
     // Test.
     get_txs_and_assert_expected(&mut mempool, 2, &[tx_nonce_3, tx_input_nonce_4.tx.clone()]);
 
-    let state_changes = [("0x0", 3)]; // Transaction with nonce 4 is not included in the block.
-    commit_block(&mut mempool, state_changes);
+    let nonces = [("0x0", 3)]; // Transaction with nonce 4 is not included in the block.
+    commit_block(&mut mempool, nonces);
 
     add_tx(&mut mempool, &tx_input_nonce_4);
 
@@ -1067,5 +848,5 @@ fn test_flow_send_same_nonce_tx_after_previous_not_included() {
     let expected_queue_txs = [TransactionReference::new(&tx_nonce_5)];
     let expected_mempool_content =
         MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
-    expected_mempool_content.assert_eq_tx_priority_queue_content(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }

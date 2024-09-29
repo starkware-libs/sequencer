@@ -22,6 +22,7 @@ pub struct BlockHeader {
     pub timestamp: BlockTimestamp,
     pub l1_gas_price: ResourcePrice,
     pub l1_data_gas_price: ResourcePrice,
+    pub l2_gas_price: ResourcePrice,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub starknet_version: String,
 }
@@ -34,6 +35,7 @@ pub struct PendingBlockHeader {
     pub timestamp: BlockTimestamp,
     pub l1_gas_price: ResourcePrice,
     pub l1_data_gas_price: ResourcePrice,
+    pub l2_gas_price: ResourcePrice,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub starknet_version: String,
 }
@@ -61,6 +63,10 @@ impl From<starknet_api::block::BlockHeader> for BlockHeader {
             l1_data_gas_price: ResourcePrice {
                 price_in_wei: header.block_header_without_hash.l1_data_gas_price.price_in_wei,
                 price_in_fri: header.block_header_without_hash.l1_data_gas_price.price_in_fri,
+            },
+            l2_gas_price: ResourcePrice {
+                price_in_wei: header.block_header_without_hash.l2_gas_price.price_in_wei,
+                price_in_fri: header.block_header_without_hash.l2_gas_price.price_in_fri,
             },
             l1_da_mode: header.block_header_without_hash.l1_da_mode,
             starknet_version: header.block_header_without_hash.starknet_version.to_string(),

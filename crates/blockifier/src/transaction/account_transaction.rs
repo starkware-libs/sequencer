@@ -2,14 +2,17 @@ use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::calldata;
-use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce};
+use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
+use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::transaction::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::{
+    AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     Fee,
-    ResourceBounds,
+    PaymasterData,
+    Tip,
     TransactionHash,
     TransactionSignature,
     TransactionVersion,
@@ -74,7 +77,7 @@ mod flavors_test;
 mod post_execution_test;
 
 /// Represents a paid Starknet transaction.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, derive_more::From)]
 pub enum AccountTransaction {
     Declare(DeclareTransaction),
     DeployAccount(DeployAccountTransaction),
@@ -156,13 +159,37 @@ impl HasRelatedFeeType for AccountTransaction {
 }
 
 impl AccountTransaction {
-    implement_account_tx_inner_getters!((signature, TransactionSignature), (nonce, Nonce));
+    implement_account_tx_inner_getters!(
+        (signature, TransactionSignature),
+        (nonce, Nonce),
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData)
+    );
 
     pub fn sender_address(&self) -> ContractAddress {
         match self {
             Self::Declare(tx) => tx.tx.sender_address(),
             Self::DeployAccount(tx) => tx.tx.contract_address(),
             Self::Invoke(tx) => tx.tx.sender_address(),
+        }
+    }
+
+    pub fn class_hash(&self) -> Option<ClassHash> {
+        match self {
+            Self::Declare(tx) => Some(tx.tx.class_hash()),
+            Self::DeployAccount(tx) => Some(tx.tx.class_hash()),
+            Self::Invoke(_) => None,
+        }
+    }
+
+    pub fn account_deployment_data(&self) -> Option<AccountDeploymentData> {
+        match self {
+            Self::Declare(tx) => Some(tx.tx.account_deployment_data().clone()),
+            Self::DeployAccount(_) => None,
+            Self::Invoke(tx) => Some(tx.tx.account_deployment_data().clone()),
         }
     }
 
@@ -280,90 +307,79 @@ impl AccountTransaction {
         &self,
         tx_context: &TransactionContext,
     ) -> TransactionPreValidationResult<()> {
-        let minimal_l1_gas_amount_vector = estimate_minimal_gas_vector(
+        // TODO(Aner): seprate to cases based on context.resource_bounds type
+        let minimal_gas_amount_vector = estimate_minimal_gas_vector(
             &tx_context.block_context,
             self,
             &tx_context.get_gas_vector_computation_mode(),
-        )?;
-        // TODO(Aner, 30/01/24): modify once data gas limit is enforced.
-        let minimal_l1_gas_amount = minimal_l1_gas_amount_vector.to_discounted_l1_gas(tx_context);
-
+        );
         let TransactionContext { block_context, tx_info } = tx_context;
         let block_info = &block_context.block_info;
         let fee_type = &tx_info.fee_type();
         match tx_info {
-            TransactionInfo::Current(context) => match &context.resource_bounds {
-                ValidResourceBounds::L1Gas(ResourceBounds {
-                    max_amount: max_l1_gas_amount,
-                    max_price_per_unit: max_l1_gas_price,
-                }) => {
-                    let max_l1_gas_amount_as_u128: u128 = (*max_l1_gas_amount).into();
-                    if max_l1_gas_amount_as_u128 < minimal_l1_gas_amount {
+            TransactionInfo::Current(context) => {
+                let resources_amount_tuple = match &context.resource_bounds {
+                    ValidResourceBounds::L1Gas(l1_gas_resource_bounds) => vec![(
+                        L1Gas,
+                        l1_gas_resource_bounds,
+                        minimal_gas_amount_vector.to_discounted_l1_gas(tx_context),
+                        u128::from(block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type)),
+                    )],
+                    ValidResourceBounds::AllResources(AllResourceBounds {
+                        l1_gas: l1_gas_resource_bounds,
+                        l2_gas: l2_gas_resource_bounds,
+                        l1_data_gas: l1_data_gas_resource_bounds,
+                    }) => {
+                        let GasPricesForFeeType { l1_gas_price, l1_data_gas_price, l2_gas_price } =
+                            block_info.gas_prices.get_gas_prices_by_fee_type(fee_type);
+                        vec![
+                            (
+                                L1Gas,
+                                l1_gas_resource_bounds,
+                                minimal_gas_amount_vector.l1_gas,
+                                l1_gas_price.into(),
+                            ),
+                            (
+                                L1DataGas,
+                                l1_data_gas_resource_bounds,
+                                minimal_gas_amount_vector.l1_data_gas,
+                                l1_data_gas_price.into(),
+                            ),
+                            (
+                                L2Gas,
+                                l2_gas_resource_bounds,
+                                minimal_gas_amount_vector.l2_gas,
+                                l2_gas_price.into(),
+                            ),
+                        ]
+                    }
+                };
+                for (resource, resource_bounds, minimal_gas_amount, actual_gas_price) in
+                    resources_amount_tuple
+                {
+                    // TODO(Aner): refactor to indicate both amount and price are too low.
+                    // TODO(Aner): refactor to return all amounts that are too low.
+                    if minimal_gas_amount > resource_bounds.max_amount.into() {
                         return Err(TransactionFeeError::MaxGasAmountTooLow {
-                            resource: L1Gas,
-                            max_gas_amount: *max_l1_gas_amount,
-                            // TODO(Ori, 1/2/2024): Write an indicative expect message
-                            // explaining why the conversion
-                            // works.
-                            minimal_gas_amount: (minimal_l1_gas_amount
-                                .try_into()
-                                .expect("Failed to convert u128 to u64.")),
+                            resource,
+                            max_gas_amount: resource_bounds.max_amount.into(),
+                            minimal_gas_amount,
                         })?;
                     }
-
-                    let actual_l1_gas_price =
-                        block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type);
-                    if *max_l1_gas_price < actual_l1_gas_price.into() {
+                    // TODO(Aner): refactor to return all prices that are too low.
+                    if resource_bounds.max_price_per_unit < actual_gas_price {
                         return Err(TransactionFeeError::MaxGasPriceTooLow {
-                            resource: L1Gas,
-                            max_gas_price: *max_l1_gas_price,
-                            actual_gas_price: actual_l1_gas_price.into(),
+                            resource,
+                            max_gas_price: resource_bounds.max_price_per_unit,
+                            actual_gas_price,
                         })?;
                     }
                 }
-                ValidResourceBounds::AllResources(AllResourceBounds {
-                    l1_gas,
-                    l2_gas,
-                    l1_data_gas,
-                }) => {
-                    let max_l1_gas_amount_as_u128: u128 = l1_gas.max_amount.into();
-                    if max_l1_gas_amount_as_u128 < minimal_l1_gas_amount {
-                        return Err(TransactionFeeError::MaxGasAmountTooLow {
-                            resource: L1Gas,
-                            max_gas_amount: l1_gas.max_amount,
-                            // TODO(Ori, 1/2/2024): Write an indicative expect message
-                            // explaining why the conversion
-                            // works.
-                            minimal_gas_amount: (minimal_l1_gas_amount
-                                .try_into()
-                                .expect("Failed to convert u128 to u64.")),
-                        })?;
-                    }
-                    // TODO(Aner): Add checks for minimal_l1_data_gas and minimal_l2_gas.
-
-                    let GasPricesForFeeType { l1_gas_price, l1_data_gas_price, l2_gas_price } =
-                        block_info.gas_prices.get_gas_prices_by_fee_type(fee_type);
-                    // TODO!(Aner): Add tests for l1_data_gas_price and l2_gas_price.
-                    for (resource, max_gas_price, actual_gas_price) in [
-                        (L1Gas, l1_gas.max_price_per_unit, l1_gas_price.into()),
-                        (L1DataGas, l1_data_gas.max_price_per_unit, l1_data_gas_price.into()),
-                        (L2Gas, l2_gas.max_price_per_unit, l2_gas_price.into()),
-                    ] {
-                        // TODO(Aner): refactor to return all prices that are too low.
-                        if max_gas_price < actual_gas_price {
-                            return Err(TransactionFeeError::MaxGasPriceTooLow {
-                                resource,
-                                max_gas_price,
-                                actual_gas_price,
-                            })?;
-                        }
-                    }
-                }
-            },
+            }
             TransactionInfo::Deprecated(context) => {
                 let max_fee = context.max_fee;
                 let min_fee =
-                    get_fee_by_gas_vector(block_info, minimal_l1_gas_amount_vector, fee_type);
+                    get_fee_by_gas_vector(block_info, minimal_gas_amount_vector, fee_type);
                 if max_fee < min_fee {
                     return Err(TransactionFeeError::MaxFeeTooLow { min_fee, max_fee })?;
                 }
@@ -418,15 +434,12 @@ impl AccountTransaction {
     fn assert_actual_fee_in_bounds(tx_context: &Arc<TransactionContext>, actual_fee: Fee) {
         match &tx_context.tx_info {
             TransactionInfo::Current(context) => {
-                let ResourceBounds {
-                    max_amount: max_l1_gas_amount,
-                    max_price_per_unit: max_l1_gas_price,
-                } = context.l1_resource_bounds();
-                if actual_fee > Fee(u128::from(max_l1_gas_amount) * max_l1_gas_price) {
+                let max_fee = context.resource_bounds.max_possible_fee();
+                if actual_fee > max_fee {
                     panic!(
-                        "Actual fee {:#?} exceeded bounds; max amount is {:#?}, max price is
-                         {:#?}.",
-                        actual_fee, max_l1_gas_amount, max_l1_gas_price
+                        "Actual fee {:#?} exceeded bounds; max possible fee is {:#?} (computed \
+                         from {:#?}).",
+                        actual_fee, max_fee, context.resource_bounds
                     );
                 }
             }
@@ -442,7 +455,6 @@ impl AccountTransaction {
     }
 
     fn handle_fee<S: StateReader>(
-        &self,
         state: &mut TransactionalState<'_, S>,
         tx_context: Arc<TransactionContext>,
         actual_fee: Fee,
@@ -454,7 +466,6 @@ impl AccountTransaction {
             return Ok(None);
         }
 
-        // TODO(Amos, 8/04/2024): Add test for this assert.
         Self::assert_actual_fee_in_bounds(&tx_context, actual_fee);
 
         let fee_transfer_call_info = if concurrency_mode && !tx_context.is_sequencer_the_sender() {
@@ -601,7 +612,7 @@ impl AccountTransaction {
             &resources,
             CallInfo::summarize_many(validate_call_info.iter().chain(execute_call_info.iter())),
             0,
-        )?;
+        );
 
         let post_execution_report =
             PostExecutionReport::new(state, &tx_context, &tx_receipt, charge_fee)?;
@@ -668,7 +679,7 @@ impl AccountTransaction {
             &resources,
             CallInfo::summarize_many(validate_call_info.iter()),
             execution_steps_consumed,
-        )?;
+        );
 
         match execution_result {
             Ok(execute_call_info) => {
@@ -686,7 +697,7 @@ impl AccountTransaction {
                         validate_call_info.iter().chain(execute_call_info.iter()),
                     ),
                     0,
-                )?;
+                );
                 // Post-execution checks.
                 let post_execution_report = PostExecutionReport::new(
                     &mut execution_state,
@@ -813,7 +824,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
             execution_flags.validate,
             execution_flags.charge_fee,
         )?;
-        let fee_transfer_call_info = self.handle_fee(
+        let fee_transfer_call_info = Self::handle_fee(
             state,
             tx_context,
             final_fee,
@@ -909,6 +920,7 @@ impl ValidatableTransaction for AccountTransaction {
             initial_gas: *remaining_gas,
         };
 
+        // Note that we allow a revert here and we handle it bellow to get a better error message.
         let validate_call_info =
             validate_call.execute(state, resources, &mut context).map_err(|error| {
                 TransactionExecutionError::ValidateTransactionError {
@@ -927,7 +939,6 @@ impl ValidatableTransaction for AccountTransaction {
             let expected_retdata = retdata![Felt::from_hex(constants::VALIDATE_RETDATA)?];
 
             if validate_call_info.execution.failed {
-                // TODO(ilya): Add a test for this case.
                 return Err(TransactionExecutionError::PanicInValidate {
                     panic_reason: validate_call_info.execution.retdata,
                 });

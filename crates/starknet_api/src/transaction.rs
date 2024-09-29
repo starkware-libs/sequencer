@@ -112,6 +112,17 @@ pub struct TransactionOptions {
     pub only_query: bool,
 }
 
+macro_rules! implement_v3_tx_getters {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            match self {
+                Self::V3(tx) => tx.$field.clone(),
+                _ => panic!("{:?} do not support the field {}; they are only available for V3 transactions.", self.version(), stringify!($field)),
+            }
+        })*
+    };
+}
+
 /// A transaction output.
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub enum TransactionOutput {
@@ -281,6 +292,25 @@ impl DeclareTransaction {
         (signature, TransactionSignature)
     );
 
+    implement_v3_tx_getters!(
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData),
+        (account_deployment_data, AccountDeploymentData)
+    );
+
+    pub fn compiled_class_hash(&self) -> CompiledClassHash {
+        match self {
+            DeclareTransaction::V0(_) | DeclareTransaction::V1(_) => {
+                panic!("Cairo0 DeclareTransaction (V0, V1) doesn't have compiled_class_hash.")
+            }
+            DeclareTransaction::V2(tx) => tx.compiled_class_hash,
+            DeclareTransaction::V3(tx) => tx.compiled_class_hash,
+        }
+    }
+
     pub fn version(&self) -> TransactionVersion {
         match self {
             DeclareTransaction::V0(_) => TransactionVersion::ZERO,
@@ -386,6 +416,14 @@ impl DeployAccountTransaction {
         (contract_address_salt, ContractAddressSalt),
         (nonce, Nonce),
         (signature, TransactionSignature)
+    );
+
+    implement_v3_tx_getters!(
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData)
     );
 
     pub fn version(&self) -> TransactionVersion {
@@ -518,6 +556,15 @@ macro_rules! implement_invoke_tx_getters {
 
 impl InvokeTransaction {
     implement_invoke_tx_getters!((calldata, Calldata), (signature, TransactionSignature));
+
+    implement_v3_tx_getters!(
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData),
+        (account_deployment_data, AccountDeploymentData)
+    );
 
     pub fn nonce(&self) -> Nonce {
         match self {
@@ -992,6 +1039,12 @@ where
 {
     let s: String = Deserialize::deserialize(deserializer)?;
     u128::from_str_radix(s.trim_start_matches("0x"), 16).map_err(serde::de::Error::custom)
+}
+
+#[derive(Debug, PartialEq)]
+pub enum GasVectorComputationMode {
+    All,
+    NoL2Gas,
 }
 
 /// A mapping from execution resources to their corresponding fee bounds..

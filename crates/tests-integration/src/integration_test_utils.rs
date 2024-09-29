@@ -1,14 +1,17 @@
 use std::net::SocketAddr;
+use std::path::Path;
 
 use axum::body::Body;
-use blockifier::test_utils::contracts::FeatureContract;
-use mempool_test_utils::starknet_api_test_utils::{
-    rpc_tx_to_json,
-    MultiAccountTransactionGenerator,
-};
+use mempool_test_utils::starknet_api_test_utils::rpc_tx_to_json;
+use papyrus_storage::db::DbConfig;
+use papyrus_storage::test_utils::get_mmap_file_test_config;
+use papyrus_storage::StorageConfig;
+use papyrus_storage::StorageScope::StateOnly;
 use reqwest::{Client, Response};
+use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_batcher::config::BatcherConfig;
 use starknet_gateway::config::{
     GatewayConfig,
     RpcStateReaderConfig,
@@ -17,10 +20,10 @@ use starknet_gateway::config::{
 };
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
-use starknet_mempool_node::config::MempoolNodeConfig;
+use starknet_mempool_node::config::SequencerNodeConfig;
+use tempfile::{tempdir, TempDir};
+use tokio::fs;
 use tokio::net::TcpListener;
-
-use crate::integration_test_setup::IntegrationTestSetup;
 
 async fn create_gateway_config() -> GatewayConfig {
     let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
@@ -40,16 +43,30 @@ async fn create_http_server_config() -> HttpServerConfig {
     HttpServerConfig { ip: socket.ip(), port: socket.port() }
 }
 
-pub async fn create_config(rpc_server_addr: SocketAddr) -> MempoolNodeConfig {
+pub async fn create_config(
+    rpc_server_addr: SocketAddr,
+    initialized_storage_path: &TempDir,
+) -> (SequencerNodeConfig, TempDir) {
+    let batcher_storage_path = tempdir().unwrap();
+    fs::copy(
+        initialized_storage_path.path().join("mdbx.dat"),
+        &batcher_storage_path.path().join("mdbx.dat"),
+    )
+    .await
+    .unwrap();
+    let batcher_config = create_batcher_config(batcher_storage_path.path());
     let gateway_config = create_gateway_config().await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
-    MempoolNodeConfig {
+    let sequencer_node_config = SequencerNodeConfig {
+        batcher_config,
         gateway_config,
         http_server_config,
         rpc_state_reader_config,
-        ..MempoolNodeConfig::default()
-    }
+        ..SequencerNodeConfig::default()
+    };
+
+    (sequencer_node_config, batcher_storage_path)
 }
 
 /// A test utility client for interacting with an http server.
@@ -99,6 +116,22 @@ fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderCo
     }
 }
 
+fn create_batcher_config(batcher_storage_path: &Path) -> BatcherConfig {
+    let storage_config = StorageConfig {
+        db_config: DbConfig {
+            path_prefix: batcher_storage_path.to_path_buf(),
+            chain_id: ChainId::Other("".to_owned()),
+            enforce_file_exists: true,
+            min_size: 1 << 20,    // 1MB
+            max_size: 1 << 35,    // 32GB
+            growth_step: 1 << 26, // 64MB
+        },
+        scope: StateOnly,
+        mmap_file_config: get_mmap_file_test_config(),
+    };
+    BatcherConfig { storage: storage_config }
+}
+
 /// Returns a unique IP address and port for testing purposes.
 ///
 /// Tests run in parallel, so servers (like RPC or web) running on separate tests must have
@@ -112,16 +145,4 @@ pub async fn get_available_socket() -> SocketAddr {
         // Then, resolve to the actual selected port.
         .local_addr()
         .expect("Failed to get local address")
-}
-
-/// Use to create a tx generator with _pre-funded_ accounts, alongside a mocked test setup.
-pub async fn setup_with_tx_generation(
-    accounts: &[FeatureContract],
-) -> (IntegrationTestSetup, MultiAccountTransactionGenerator) {
-    let integration_test_setup =
-        IntegrationTestSetup::new_for_account_contracts(accounts.iter().copied()).await;
-    let tx_generator =
-        MultiAccountTransactionGenerator::new_for_account_contracts(accounts.iter().copied());
-
-    (integration_test_setup, tx_generator)
 }

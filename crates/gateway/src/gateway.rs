@@ -1,17 +1,15 @@
 use std::clone::Clone;
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_mempool_infra::component_runner::ComponentStarter;
-use starknet_mempool_infra::errors::ComponentError;
-use starknet_mempool_types::communication::{MempoolWrapperInput, SharedMempoolClient};
-use starknet_mempool_types::mempool_types::{AccountState, MempoolInput};
+use starknet_mempool_infra::component_definitions::ComponentStarter;
+use starknet_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
+use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
-use tracing::{error, info, instrument};
+use tracing::{error, instrument};
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{GatewayConfig, RpcStateReaderConfig};
@@ -76,7 +74,7 @@ async fn internal_add_tx(
     app_state: AppState,
     tx: RpcTransaction,
 ) -> GatewayResult<TransactionHash> {
-    let mempool_input = tokio::task::spawn_blocking(move || {
+    let add_tx_args = tokio::task::spawn_blocking(move || {
         process_tx(
             app_state.stateless_tx_validator,
             app_state.stateful_tx_validator.as_ref(),
@@ -91,10 +89,10 @@ async fn internal_add_tx(
         GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
     })??;
 
-    let tx_hash = mempool_input.tx.tx_hash();
+    let tx_hash = add_tx_args.tx.tx_hash();
 
-    let mempool_wrapper_input = MempoolWrapperInput { mempool_input, message_metadata: None };
-    app_state.mempool_client.add_tx(mempool_wrapper_input).await.map_err(|e| {
+    let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata: None };
+    app_state.mempool_client.add_tx(add_tx_args).await.map_err(|e| {
         error!("Failed to send tx to mempool: {}", e);
         GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
     })?;
@@ -108,7 +106,7 @@ fn process_tx(
     state_reader_factory: &dyn StateReaderFactory,
     gateway_compiler: GatewayCompiler,
     tx: RpcTransaction,
-) -> GatewayResult<MempoolInput> {
+) -> GatewayResult<AddTransactionArgs> {
     // TODO(Arni, 1/5/2024): Perform congestion control.
 
     // Perform stateless validations.
@@ -128,16 +126,16 @@ fn process_tx(
     }
 
     let mut validator = stateful_tx_validator.instantiate_validator(state_reader_factory)?;
-    let sender_address = executable_tx.contract_address();
-    let nonce = validator.get_nonce(sender_address).map_err(|e| {
-        error!("Failed to get nonce for sender address {}: {}", sender_address, e);
+    let address = executable_tx.contract_address();
+    let nonce = validator.get_nonce(address).map_err(|e| {
+        error!("Failed to get nonce for sender address {}: {}", address, e);
         GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
     })?;
 
     stateful_tx_validator.run_validate(&executable_tx, nonce, validator)?;
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
-    Ok(MempoolInput { tx: executable_tx, account_state: AccountState { sender_address, nonce } })
+    Ok(AddTransactionArgs { tx: executable_tx, account_state: AccountState { address, nonce } })
 }
 
 pub fn create_gateway(
@@ -152,10 +150,4 @@ pub fn create_gateway(
     Gateway::new(config, state_reader_factory, gateway_compiler, mempool_client)
 }
 
-#[async_trait]
-impl ComponentStarter for Gateway {
-    async fn start(&mut self) -> Result<(), ComponentError> {
-        info!("Gateway::start()");
-        Ok(())
-    }
-}
+impl ComponentStarter for Gateway {}

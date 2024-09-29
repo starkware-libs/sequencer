@@ -39,7 +39,7 @@ pub struct TransfersGeneratorConfig {
     pub n_txs: usize,
     pub randomization_seed: u64,
     pub cairo_version: CairoVersion,
-    pub transaction_version: TransactionVersion,
+    pub tx_version: TransactionVersion,
     pub recipient_generator_type: RecipientGeneratorType,
     pub concurrency_config: ConcurrencyConfig,
 }
@@ -53,7 +53,7 @@ impl Default for TransfersGeneratorConfig {
             n_txs: N_TXS,
             randomization_seed: RANDOMIZATION_SEED,
             cairo_version: CAIRO_VERSION,
-            transaction_version: TRANSACTION_VERSION,
+            tx_version: TRANSACTION_VERSION,
             recipient_generator_type: RECIPIENT_GENERATOR_TYPE,
             concurrency_config: ConcurrencyConfig {
                 enabled: CONCURRENCY_MODE,
@@ -153,7 +153,7 @@ impl TransfersGenerator {
             self.sender_index = (self.sender_index + 1) % self.account_addresses.len();
 
             let account_tx = self.generate_transfer(sender_address, recipient_address);
-            txs.push(Transaction::AccountTransaction(account_tx));
+            txs.push(Transaction::Account(account_tx));
         }
         let results = self.executor.execute_txs(&txs);
         assert_eq!(results.len(), self.config.n_txs);
@@ -172,12 +172,12 @@ impl TransfersGenerator {
         let nonce = self.nonce_manager.next(sender_address);
 
         let entry_point_selector = selector_from_name(TRANSFER_ENTRY_POINT_NAME);
-        let contract_address = if self.config.transaction_version == TransactionVersion::ONE {
+        let contract_address = if self.config.tx_version == TransactionVersion::ONE {
             *self.chain_info.fee_token_addresses.eth_fee_token_address.0.key()
-        } else if self.config.transaction_version == TransactionVersion::THREE {
+        } else if self.config.tx_version == TransactionVersion::THREE {
             *self.chain_info.fee_token_addresses.strk_fee_token_address.0.key()
         } else {
-            panic!("Unsupported transaction version: {:?}", self.config.transaction_version)
+            panic!("Unsupported transaction version: {:?}", self.config.tx_version)
         };
 
         let execute_calldata = calldata![
@@ -193,7 +193,7 @@ impl TransfersGenerator {
             max_fee: Fee(self.config.max_fee),
             sender_address,
             calldata: execute_calldata,
-            version: self.config.transaction_version,
+            version: self.config.tx_version,
             nonce,
         });
         AccountTransaction::Invoke(tx)

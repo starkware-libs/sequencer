@@ -91,9 +91,11 @@ use crate::objects::{tx_execution_output_to_fee_estimation, FeeEstimation, Pendi
 const STARKNET_VERSION_O_13_0: &str = "0.13.0";
 const STARKNET_VERSION_O_13_1: &str = "0.13.1";
 const STARKNET_VERSION_O_13_2: &str = "0.13.2";
-const STRK_FEE_CONTRACT_ADDRESS: &str =
+/// The address of the STRK fee contract on Starknet.
+pub const STRK_FEE_CONTRACT_ADDRESS: &str =
     "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
-const ETH_FEE_CONTRACT_ADDRESS: &str =
+/// The address of the ETH fee contract on Starknet.
+pub const ETH_FEE_CONTRACT_ADDRESS: &str =
     "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7";
 const DEFAULT_INITIAL_GAS_COST: u64 = 10000000000;
 
@@ -872,7 +874,7 @@ fn get_versioned_constants(
             } else if version == STARKNET_VERSION_O_13_2 {
                 BlockifierStarknetVersion::V0_13_2
             } else {
-                BlockifierStarknetVersion::Latest
+                BlockifierStarknetVersion::V0_13_3
             };
             VersionedConstants::get(blockifier_starknet_version)
         }

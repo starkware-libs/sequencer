@@ -534,14 +534,15 @@ impl<S: State> Executable<S> for InvokeTransaction {
             initial_gas: *remaining_gas,
         };
 
-        let call_info = execute_call.execute(state, resources, context).map_err(|error| {
-            TransactionExecutionError::ExecutionError {
-                error,
-                class_hash,
-                storage_address,
-                selector: entry_point_selector,
-            }
-        })?;
+        let call_info =
+            execute_call.non_reverting_execute(state, resources, context).map_err(|error| {
+                TransactionExecutionError::ExecutionError {
+                    error,
+                    class_hash,
+                    storage_address,
+                    selector: entry_point_selector,
+                }
+            })?;
         update_remaining_gas(remaining_gas, &call_info);
 
         Ok(Some(call_info))
@@ -635,7 +636,7 @@ impl<S: State> Executable<S> for L1HandlerTransaction {
             initial_gas: *remaining_gas,
         };
 
-        execute_call.execute(state, resources, context).map(Some).map_err(|error| {
+        execute_call.non_reverting_execute(state, resources, context).map(Some).map_err(|error| {
             TransactionExecutionError::ExecutionError {
                 error,
                 class_hash,

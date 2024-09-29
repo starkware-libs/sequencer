@@ -9,9 +9,9 @@ use std::time::Duration;
 
 use futures::channel::{mpsc, oneshot};
 use futures::stream::FuturesUnordered;
-use futures::{SinkExt, Stream, StreamExt};
+use futures::{Stream, StreamExt};
 use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
-use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_network::network_manager::BroadcastTopicClientTrait;
 use papyrus_protobuf::consensus::{ConsensusMessage, ProposalWrapper};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
@@ -19,7 +19,13 @@ use tracing::{debug, info, instrument};
 
 use crate::config::TimeoutsConfig;
 use crate::single_height_consensus::{ShcReturn, ShcTask, SingleHeightConsensus};
-use crate::types::{ConsensusContext, ConsensusError, Decision, ValidatorId};
+use crate::types::{
+    BroadcastConsensusMessageChannel,
+    ConsensusContext,
+    ConsensusError,
+    Decision,
+    ValidatorId,
+};
 
 // TODO(dvir): add test for this.
 #[instrument(skip_all, level = "info")]
@@ -30,7 +36,7 @@ pub async fn run_consensus<ContextT, SyncReceiverT>(
     validator_id: ValidatorId,
     consensus_delay: Duration,
     timeouts: TimeoutsConfig,
-    mut broadcast_channels: BroadcastTopicChannels<ConsensusMessage>,
+    mut broadcast_channels: BroadcastConsensusMessageChannel,
     mut sync_receiver: SyncReceiverT,
 ) -> Result<(), ConsensusError>
 where
@@ -101,7 +107,7 @@ impl MultiHeightManager {
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
-        broadcast_channels: &mut BroadcastTopicChannels<ConsensusMessage>,
+        broadcast_channels: &mut BroadcastConsensusMessageChannel,
     ) -> Result<Decision, ConsensusError>
     where
         ContextT: ConsensusContext,
@@ -219,16 +225,12 @@ impl MultiHeightManager {
 
 async fn next_message(
     cached_messages: &mut Vec<ConsensusMessage>,
-    broadcast_channels: &mut BroadcastTopicChannels<ConsensusMessage>,
+    broadcast_channels: &mut BroadcastConsensusMessageChannel,
 ) -> Result<ConsensusMessage, ConsensusError>
 where
 {
-    let BroadcastTopicChannels {
-        continue_propagation_sender,
-        broadcasted_messages_receiver,
-        reported_messages_sender,
-        ..
-    } = broadcast_channels;
+    let BroadcastConsensusMessageChannel { broadcasted_messages_receiver, broadcast_topic_client } =
+        broadcast_channels;
     if let Some(msg) = cached_messages.pop() {
         return Ok(msg);
     }
@@ -242,12 +244,12 @@ where
     match msg {
         // TODO(matan): Return report_sender for use in later errors by SHC.
         Ok(msg) => {
-            let _ = continue_propagation_sender.send(broadcasted_message_manager).await;
+            let _ = broadcast_topic_client.continue_propagation(&broadcasted_message_manager).await;
             Ok(msg)
         }
         Err(e) => {
             // Failed to parse consensus message
-            let _ = reported_messages_sender.send(broadcasted_message_manager).await;
+            let _ = broadcast_topic_client.report_peer(broadcasted_message_manager).await;
             Err(e.into())
         }
     }

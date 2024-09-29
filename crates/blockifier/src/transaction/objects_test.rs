@@ -114,14 +114,14 @@ fn call_info_with_deep_inner_calls(
 #[case(0, 2)]
 #[case(1, 3)]
 #[case(2, 0)]
-fn test_events_counter_in_transaction_execution_info(
+fn test_events_counter_in_tx_execution_info(
     #[case] n_execute_events: usize,
     #[case] n_inner_calls: usize,
 ) {
     let n_validate_events = 2;
     let n_fee_transfer_events = 1;
 
-    let transaction_execution_info = TransactionExecutionInfo {
+    let tx_execution_info = TransactionExecutionInfo {
         validate_call_info: Some(call_info_with_x_events(n_validate_events, 0)),
         execute_call_info: Some(call_info_with_x_events(n_execute_events, n_inner_calls)),
         fee_transfer_call_info: Some(call_info_with_x_events(n_fee_transfer_events, 0)),
@@ -129,7 +129,7 @@ fn test_events_counter_in_transaction_execution_info(
     };
 
     assert_eq!(
-        transaction_execution_info.summarize().event_summary.n_events,
+        tx_execution_info.summarize().event_summary.n_events,
         n_validate_events + n_execute_events + n_fee_transfer_events + n_inner_calls
     );
 }
@@ -138,16 +138,14 @@ fn test_events_counter_in_transaction_execution_info(
 #[case(0)]
 #[case(1)]
 #[case(20)]
-fn test_events_counter_in_transaction_execution_info_with_inner_call_info(
-    #[case] n_execute_events: usize,
-) {
+fn test_events_counter_in_tx_execution_info_with_inner_call_info(#[case] n_execute_events: usize) {
     let n_fee_transfer_events = 2;
     let n_inner_calls = 3;
     let n_execution_events = 1;
     let n_events_for_each_inner_call = 2;
     let n_inner_calls_of_each_inner_call = 1;
 
-    let transaction_execution_info = TransactionExecutionInfo {
+    let tx_execution_info = TransactionExecutionInfo {
         validate_call_info: Some(call_info_with_deep_inner_calls(
             n_execution_events,
             n_inner_calls,
@@ -160,7 +158,7 @@ fn test_events_counter_in_transaction_execution_info_with_inner_call_info(
     };
 
     assert_eq!(
-        transaction_execution_info.summarize().event_summary.n_events,
+        tx_execution_info.summarize().event_summary.n_events,
         n_execute_events
             + n_fee_transfer_events
             + n_execution_events
@@ -184,7 +182,7 @@ fn test_summarize(
     let execute_call_info = execute_params.to_call_info();
     let fee_transfer_call_info = fee_transfer_params.to_call_info();
 
-    let transaction_execution_info = TransactionExecutionInfo {
+    let tx_execution_info = TransactionExecutionInfo {
         validate_call_info: Some(validate_call_info),
         execute_call_info: Some(execute_call_info),
         fee_transfer_call_info: Some(fee_transfer_call_info),
@@ -222,7 +220,7 @@ fn test_summarize(
     };
 
     // Call the summarize method
-    let actual_summary = transaction_execution_info.summarize();
+    let actual_summary = tx_execution_info.summarize();
 
     // Compare the actual result with the expected result
     assert_eq!(actual_summary.executed_class_hashes, expected_summary.executed_class_hashes);

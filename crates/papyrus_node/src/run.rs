@@ -188,7 +188,7 @@ fn spawn_consensus(
         .register_broadcast_topic(Topic::new(config.network_topic.clone()), BUFFER_SIZE)?;
     let context = PapyrusConsensusContext::new(
         storage_reader.clone(),
-        network_channels.messages_to_broadcast_sender.clone(),
+        network_channels.broadcast_topic_client.clone(),
         config.num_validators,
         None,
     );
@@ -199,7 +199,7 @@ fn spawn_consensus(
             config.validator_id,
             config.consensus_delay,
             config.timeouts.clone(),
-            network_channels,
+            network_channels.into(),
             futures::stream::pending(),
         )
         .await?)

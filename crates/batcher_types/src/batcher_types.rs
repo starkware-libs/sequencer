@@ -9,7 +9,7 @@ pub use starknet_consensus_manager_types::consensus_manager_types::ProposalId;
 use crate::errors::BatcherError;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
-pub struct ProposalContentId {
+pub struct ProposalCommitment {
     pub tx_commitment: TransactionCommitment,
     pub state_diff: ThinStateDiff,
 }
@@ -36,7 +36,7 @@ pub struct GetProposalContentResponse {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum GetProposalContent {
     Txs(Vec<Transaction>),
-    Finished(ProposalContentId),
+    Finished(ProposalCommitment),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -68,7 +68,7 @@ pub struct SendProposalContentResponse {
 pub enum ProposalStatus {
     Processing,
     // Only sent in response to `Finish`.
-    Finished(ProposalContentId),
+    Finished(ProposalCommitment),
     // May be caused due to handling of a previous item of the new proposal.
     // In this case, the propsal is aborted and no additional content will be processed.
     InvalidProposal,

@@ -74,6 +74,7 @@ pub struct BlockHeader {
     pub timestamp: BlockTimestamp,
     pub l1_gas_price: ResourcePrice,
     pub l1_data_gas_price: ResourcePrice,
+    pub l2_gas_price: ResourcePrice,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub starknet_version: String,
 }
@@ -90,9 +91,8 @@ impl TryInto<BlockInfo> for BlockHeader {
                 parse_gas_price(self.l1_gas_price.price_in_fri)?,
                 parse_gas_price(self.l1_data_gas_price.price_in_wei)?,
                 parse_gas_price(self.l1_data_gas_price.price_in_fri)?,
-                // TODO(Aner): add to BlockHeader and take the value from it.
-                NonZeroU128::MIN,
-                NonZeroU128::MIN,
+                parse_gas_price(self.l2_gas_price.price_in_wei)?,
+                parse_gas_price(self.l2_gas_price.price_in_fri)?,
             ),
             use_kzg_da: matches!(self.l1_da_mode, L1DataAvailabilityMode::Blob),
         })

@@ -16,6 +16,4 @@ serde.workspace = true
 starknet_batcher_types.workspace = true
 starknet_consensus_manager_types.workspace = true
 starknet_mempool_infra.workspace = true
-tokio.workspace = true
-tracing.workspace = true
 validator.workspace = true

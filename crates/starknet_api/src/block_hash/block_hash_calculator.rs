@@ -9,7 +9,13 @@ use super::receipt_commitment::{calculate_receipt_commitment, ReceiptElement};
 use super::state_diff_hash::calculate_state_diff_hash;
 use super::transaction_commitment::{calculate_transaction_commitment, TransactionLeafElement};
 use crate::block::{BlockHash, BlockHeaderWithoutHash, GasPricePerToken, StarknetVersion};
-use crate::core::{EventCommitment, ReceiptCommitment, StateDiffCommitment, TransactionCommitment};
+use crate::core::{
+    ascii_as_felt,
+    EventCommitment,
+    ReceiptCommitment,
+    StateDiffCommitment,
+    TransactionCommitment,
+};
 use crate::crypto::utils::HashChain;
 use crate::data_availability::L1DataAvailabilityMode;
 use crate::execution_resources::GasVector;
@@ -22,7 +28,6 @@ use crate::transaction::{
     TransactionHash,
     TransactionSignature,
 };
-use crate::transaction_hash::ascii_as_felt;
 
 #[cfg(test)]
 #[path = "block_hash_calculator_test.rs"]
@@ -30,6 +35,9 @@ mod block_hash_calculator_test;
 
 static STARKNET_BLOCK_HASH0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_BLOCK_HASH0").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH0'")
+});
+static STARKNET_GAS_PRICES0: LazyLock<Felt> = LazyLock::new(|| {
+    ascii_as_felt("STARKNET_GAS_PRICES0").expect("ascii_as_felt failed for 'STARKNET_GAS_PRICES0'")
 });
 
 #[allow(non_camel_case_types)]
@@ -60,7 +68,7 @@ pub struct TransactionOutputForHash {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct TransactionHashingData {
-    pub transaction_signature: Option<TransactionSignature>,
+    pub transaction_signature: TransactionSignature,
     pub transaction_output: TransactionOutputForHash,
     pub transaction_hash: TransactionHash,
 }
@@ -187,7 +195,7 @@ fn to_64_bits(num: usize) -> [u8; 8] {
 
 // For starknet version >= 0.13.3, returns:
 // [Poseidon (
-//     gas_price_wei, gas_price_fri, data_gas_price_wei, data_gas_price_fri,
+//     "STARKNET_GAS_PRICES0", gas_price_wei, gas_price_fri, data_gas_price_wei, data_gas_price_fri,
 //     l2_gas_price_wei, l2_gas_price_fri
 // )].
 // Otherwise, returns:
@@ -201,6 +209,7 @@ fn gas_prices_to_hash(
     if *starknet_version >= BlockHashVersion::VO_13_3.into() {
         vec![
             HashChain::new()
+                .chain(&STARKNET_GAS_PRICES0)
                 .chain(&l1_gas_price.price_in_wei.0.into())
                 .chain(&l1_gas_price.price_in_fri.0.into())
                 .chain(&l1_data_gas_price.price_in_wei.0.into())

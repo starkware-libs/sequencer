@@ -25,7 +25,7 @@ use starknet_types_core::felt::Felt;
 use super::entry_point::ConstructorEntryPointExecutionResult;
 use super::errors::ConstructorEntryPointExecutionError;
 use crate::execution::call_info::{CallInfo, Retdata};
-use crate::execution::contract_class::ContractClass;
+use crate::execution::contract_class::{ContractClass, TrackedResource};
 use crate::execution::entry_point::{
     execute_constructor_entry_point,
     CallEntryPoint,
@@ -42,6 +42,31 @@ use crate::transaction::objects::TransactionInfo;
 pub type Args = Vec<CairoArg>;
 
 pub const SEGMENT_ARENA_BUILTIN_SIZE: usize = 3;
+
+/// A wrapper for execute_entry_point_call that performs pre and post-processing.
+pub fn execute_entry_point_call_wrapper(
+    call: CallEntryPoint,
+    contract_class: ContractClass,
+    state: &mut dyn State,
+    resources: &mut ExecutionResources,
+    context: &mut EntryPointExecutionContext,
+) -> EntryPointExecutionResult<CallInfo> {
+    let tracked_resource = contract_class
+        .tracked_resource(&context.versioned_constants().min_compiler_version_for_sierra_gas);
+    // Note: no return statements (explicit or implicit) should be added between the push and the
+    // pop commands.
+
+    // Once we ran with CairoSteps, we will continue to run using it for all nested calls.
+    if context.tracked_resource_stack.last().is_some_and(|x| *x == TrackedResource::CairoSteps) {
+        context.tracked_resource_stack.push(TrackedResource::CairoSteps);
+    } else {
+        context.tracked_resource_stack.push(tracked_resource);
+    }
+
+    let res = execute_entry_point_call(call, contract_class, state, resources, context);
+    context.tracked_resource_stack.pop();
+    res
+}
 
 /// Executes a specific call to a contract entry point and returns its output.
 pub fn execute_entry_point_call(

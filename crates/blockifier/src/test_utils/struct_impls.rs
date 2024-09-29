@@ -5,7 +5,13 @@ use serde_json::Value;
 use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::{Calldata, Fee, TransactionHash, TransactionVersion};
+use starknet_api::transaction::{
+    Calldata,
+    Fee,
+    GasVectorComputationMode,
+    TransactionHash,
+    TransactionVersion,
+};
 use starknet_api::{calldata, contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
 
@@ -23,7 +29,7 @@ use crate::execution::entry_point::{
     EntryPointExecutionResult,
 };
 use crate::fee::fee_utils::get_fee_by_gas_vector;
-use crate::fee::resources::{GasVectorComputationMode, TransactionFeeResult, TransactionResources};
+use crate::fee::resources::TransactionResources;
 use crate::state::state_api::State;
 use crate::test_utils::{
     get_raw_contract_class,
@@ -113,17 +119,13 @@ impl VersionedConstants {
 }
 
 impl TransactionResources {
-    pub fn calculate_tx_fee(
-        &self,
-        block_context: &BlockContext,
-        fee_type: &FeeType,
-    ) -> TransactionFeeResult<Fee> {
+    pub fn calculate_tx_fee(&self, block_context: &BlockContext, fee_type: &FeeType) -> Fee {
         let gas_vector = self.to_gas_vector(
             &block_context.versioned_constants,
             block_context.block_info.use_kzg_da,
             &GasVectorComputationMode::NoL2Gas,
-        )?;
-        Ok(get_fee_by_gas_vector(&block_context.block_info, gas_vector, fee_type))
+        );
+        get_fee_by_gas_vector(&block_context.block_info, gas_vector, fee_type)
     }
 }
 
@@ -131,7 +133,7 @@ impl GasCosts {
     pub fn create_for_testing_from_subset(subset_of_os_constants: &str) -> Self {
         let subset_of_os_constants: Value = serde_json::from_str(subset_of_os_constants).unwrap();
         let mut os_constants: Value =
-            serde_json::from_str::<Value>(VERSIONED_CONSTANTS_LATEST_JSON)
+            serde_json::from_str::<Value>(VERSIONED_CONSTANTS_LATEST_JSON.as_str())
                 .unwrap()
                 .get("os_constants")
                 .unwrap()

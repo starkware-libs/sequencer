@@ -17,8 +17,8 @@ use validator::{Validate, ValidationErrors};
 use crate::config::{
     ComponentConfig,
     ComponentExecutionConfig,
-    LocationType,
-    MempoolNodeConfig,
+    ComponentExecutionMode,
+    SequencerNodeConfig,
     CONFIG_POINTERS,
     DEFAULT_CONFIG_PATH,
 };
@@ -46,43 +46,43 @@ fn check_validation_error(
 }
 
 /// Test the validation of the struct ComponentExecutionConfig.
-/// The validation validates that location of the component and the local/remote config are at sync.
+/// Validates that execution mode of the component and the local/remote config are at sync.
 #[rstest]
 #[case(
-    LocationType::Local,
+    ComponentExecutionMode::Local,
     Some(LocalComponentCommunicationConfig::default()),
     Some(RemoteComponentCommunicationConfig::default()),
     "Local config and Remote config are mutually exclusive, can't be both active."
 )]
 #[case(
-    LocationType::Local,
+    ComponentExecutionMode::Local,
     None,
     Some(RemoteComponentCommunicationConfig::default()),
     "Local communication config is missing."
 )]
-#[case(LocationType::Local, None, None, "Local communication config is missing.")]
+#[case(ComponentExecutionMode::Local, None, None, "Local communication config is missing.")]
 #[case(
-    LocationType::Remote,
+    ComponentExecutionMode::Remote,
     Some(LocalComponentCommunicationConfig::default()),
     Some(RemoteComponentCommunicationConfig::default()),
     "Local config and Remote config are mutually exclusive, can't be both active."
 )]
 #[case(
-    LocationType::Remote,
+    ComponentExecutionMode::Remote,
     Some(LocalComponentCommunicationConfig::default()),
     None,
     "Remote communication config is missing."
 )]
-#[case(LocationType::Remote, None, None, "Remote communication config is missing.")]
+#[case(ComponentExecutionMode::Remote, None, None, "Remote communication config is missing.")]
 fn test_invalid_component_execution_config(
-    #[case] location: LocationType,
+    #[case] execution_mode: ComponentExecutionMode,
     #[case] local_config: Option<LocalComponentCommunicationConfig>,
     #[case] remote_config: Option<RemoteComponentCommunicationConfig>,
     #[case] expected_error_message: &str,
 ) {
     // Initialize an invalid config and check that the validator finds an error.
     let component_exe_config = ComponentExecutionConfig {
-        location,
+        execution_mode,
         local_config,
         remote_config,
         ..ComponentExecutionConfig::default()
@@ -95,24 +95,24 @@ fn test_invalid_component_execution_config(
 }
 
 /// Test the validation of the struct ComponentExecutionConfig.
-/// The validation validates that location of the component and the local/remote config are at sync.
+/// Validates that execution mode of the component and the local/remote config are at sync.
 #[rstest]
-#[case::local(LocationType::Local)]
-#[case::remote(LocationType::Remote)]
-fn test_valid_component_execution_config(#[case] location: LocationType) {
+#[case::local(ComponentExecutionMode::Local)]
+#[case::remote(ComponentExecutionMode::Remote)]
+fn test_valid_component_execution_config(#[case] execution_mode: ComponentExecutionMode) {
     // Initialize a valid config and check that the validator returns Ok.
-    let local_config = if location == LocationType::Local {
+    let local_config = if execution_mode == ComponentExecutionMode::Local {
         Some(LocalComponentCommunicationConfig::default())
     } else {
         None
     };
-    let remote_config = if location == LocationType::Remote {
+    let remote_config = if execution_mode == ComponentExecutionMode::Remote {
         Some(RemoteComponentCommunicationConfig::default())
     } else {
         None
     };
     let component_exe_config = ComponentExecutionConfig {
-        location,
+        execution_mode,
         local_config,
         remote_config,
         ..ComponentExecutionConfig::default()
@@ -186,16 +186,16 @@ fn test_valid_components_config(
     assert_matches!(component_config.validate(), Ok(()));
 }
 
-/// Test the validation of the struct MempoolNodeConfig and that the default config file is up to
+/// Test the validation of the struct SequencerNodeConfig and that the default config file is up to
 /// date. To update the default config file, run:
-/// cargo run --bin mempool_dump_config -q
+/// cargo run --bin sequencer_dump_config -q
 #[test]
 fn default_config_file_is_up_to_date() {
     env::set_current_dir(get_absolute_path("")).expect("Couldn't set working dir.");
     let from_default_config_file: serde_json::Value =
         serde_json::from_reader(File::open(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
 
-    let default_config = MempoolNodeConfig::default();
+    let default_config = SequencerNodeConfig::default();
     assert_matches!(default_config.validate(), Ok(()));
 
     // Create a temporary file and dump the default config to it.
@@ -210,10 +210,12 @@ fn default_config_file_is_up_to_date() {
     println!(
         "{}",
         "Default config file doesn't match the default NodeConfig implementation. Please update \
-         it using the mempool_dump_config binary."
+         it using the sequencer_dump_config binary."
             .purple()
             .bold()
     );
-    println!("Diffs shown below (default config file <<>> dump of MempoolNodeConfig::default()).");
+    println!(
+        "Diffs shown below (default config file <<>> dump of SequencerNodeConfig::default())."
+    );
     assert_json_eq!(from_default_config_file, from_code)
 }

@@ -9,7 +9,6 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
-use futures::sink::SinkExt;
 use futures::StreamExt;
 use papyrus_consensus::types::{
     ConsensusContext,
@@ -19,7 +18,7 @@ use papyrus_consensus::types::{
     Round,
     ValidatorId,
 };
-use papyrus_network::network_manager::BroadcastTopicSender;
+use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, Vote};
 use papyrus_storage::body::BodyStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
@@ -35,9 +34,9 @@ type HeightToIdToContent = BTreeMap<BlockNumber, HashMap<ProposalContentId, Vec<
 
 pub struct PapyrusConsensusContext {
     storage_reader: StorageReader,
-    network_broadcast_sender: BroadcastTopicSender<ConsensusMessage>,
+    network_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
     validators: Vec<ValidatorId>,
-    sync_broadcast_sender: Option<BroadcastTopicSender<Vote>>,
+    sync_broadcast_sender: Option<BroadcastTopicClient<Vote>>,
     // Proposal building/validating returns immediately, leaving the actual processing to a spawned
     // task. The spawned task processes the proposal asynchronously and updates the
     // valid_proposals map upon completion, ensuring consistency across tasks.
@@ -47,13 +46,13 @@ pub struct PapyrusConsensusContext {
 impl PapyrusConsensusContext {
     pub fn new(
         storage_reader: StorageReader,
-        network_broadcast_sender: BroadcastTopicSender<ConsensusMessage>,
+        network_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
         num_validators: u64,
-        sync_broadcast_sender: Option<BroadcastTopicSender<Vote>>,
+        sync_broadcast_sender: Option<BroadcastTopicClient<Vote>>,
     ) -> Self {
         Self {
             storage_reader,
-            network_broadcast_sender,
+            network_broadcast_client,
             validators: (0..num_validators).map(ContractAddress::from).collect(),
             sync_broadcast_sender,
             valid_proposals: Arc::new(Mutex::new(BTreeMap::new())),
@@ -223,7 +222,7 @@ impl ConsensusContext for PapyrusConsensusContext {
 
     async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
         debug!("Broadcasting message: {message:?}");
-        self.network_broadcast_sender.send(message).await?;
+        self.network_broadcast_client.broadcast_message(message).await?;
         Ok(())
     }
 
@@ -233,7 +232,7 @@ impl ConsensusContext for PapyrusConsensusContext {
         mut content_receiver: mpsc::Receiver<Transaction>,
         fin_receiver: oneshot::Receiver<BlockHash>,
     ) -> Result<(), ConsensusError> {
-        let mut network_broadcast_sender = self.network_broadcast_sender.clone();
+        let mut network_broadcast_sender = self.network_broadcast_client.clone();
 
         tokio::spawn(
             async move {
@@ -264,7 +263,7 @@ impl ConsensusContext for PapyrusConsensusContext {
                 );
 
                 network_broadcast_sender
-                    .send(ConsensusMessage::Proposal(proposal))
+                    .broadcast_message(ConsensusMessage::Proposal(proposal))
                     .await
                     .expect("Failed to send proposal");
             }
@@ -281,7 +280,7 @@ impl ConsensusContext for PapyrusConsensusContext {
         let height = precommits[0].height;
         info!("Finished consensus for height: {height}. Agreed on block: {:}", block);
         if let Some(sender) = &mut self.sync_broadcast_sender {
-            sender.send(precommits[0].clone()).await?;
+            sender.broadcast_message(precommits[0].clone()).await?;
         }
 
         let mut proposals = self

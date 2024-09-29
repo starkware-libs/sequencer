@@ -1,12 +1,17 @@
 //! Run a papyrus node with consensus enabled and the ability to simulate network issues for
 //! consensus.
+//!
+//! Expects to receive 2 groupings of arguments:
+//! 1. TestConfig - these are prefixed with `--test.` in the command.
+//! 2. NodeConfig - any argument lacking the above prefix is assumed to be in NodeConfig.
 use clap::Parser;
 use futures::stream::StreamExt;
 use papyrus_consensus::config::ConsensusConfig;
 use papyrus_consensus::simulation_network_receiver::NetworkReceiver;
+use papyrus_consensus::types::BroadcastConsensusMessageChannel;
 use papyrus_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use papyrus_network::gossipsub_impl::Topic;
-use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
+use papyrus_network::network_manager::NetworkManager;
 use papyrus_node::bin_utils::build_configs;
 use papyrus_node::run::{run, PapyrusResources, PapyrusTaskHandles};
 use papyrus_p2p_sync::BUFFER_SIZE;
@@ -59,9 +64,9 @@ fn build_consensus(
         .register_broadcast_topic(Topic::new(test_config.sync_topic.clone()), BUFFER_SIZE)?;
     let context = PapyrusConsensusContext::new(
         storage_reader.clone(),
-        network_channels.messages_to_broadcast_sender.clone(),
+        network_channels.broadcast_topic_client.clone(),
         consensus_config.num_validators,
-        Some(sync_channels.messages_to_broadcast_sender),
+        Some(sync_channels.broadcast_topic_client),
     );
     let sync_receiver =
         sync_channels.broadcasted_messages_receiver.map(|(vote, _report_sender)| {
@@ -74,11 +79,9 @@ fn build_consensus(
         test_config.drop_probability,
         test_config.invalid_probability,
     );
-    let broadcast_channels = BroadcastTopicChannels {
-        messages_to_broadcast_sender: network_channels.messages_to_broadcast_sender,
+    let broadcast_channels = BroadcastConsensusMessageChannel {
         broadcasted_messages_receiver: Box::new(network_receiver),
-        reported_messages_sender: network_channels.reported_messages_sender,
-        continue_propagation_sender: network_channels.continue_propagation_sender,
+        broadcast_topic_client: network_channels.broadcast_topic_client,
     };
 
     Ok(Some(tokio::spawn(async move {
@@ -97,7 +100,7 @@ fn build_consensus(
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let (test_config, node_config) = build_configs::<TestConfig>()?;
+    let (test_config, node_config) = build_configs::<TestConfig>("--test.")?;
 
     let mut resources = PapyrusResources::new(&node_config)?;
 

@@ -28,7 +28,7 @@ use crate::transaction::transaction_types::TransactionType;
 #[case::validate_deploy_version_3(TransactionType::DeployAccount, false, TransactionVersion::THREE)]
 #[case::constructor_version_1(TransactionType::DeployAccount, true, TransactionVersion::ONE)]
 #[case::constructor_version_3(TransactionType::DeployAccount, true, TransactionVersion::THREE)]
-fn test_transaction_validator(
+fn test_tx_validator(
     #[case] tx_type: TransactionType,
     #[case] validate_constructor: bool,
     #[case] tx_version: TransactionVersion,
@@ -46,7 +46,7 @@ fn test_transaction_validator(
 
     let mut state = test_state(chain_info, account_balance, &[(faulty_account, 1)]);
 
-    let transaction_args = FaultyAccountTxCreatorArgs {
+    let tx_args = FaultyAccountTxCreatorArgs {
         tx_type,
         tx_version,
         sender_address,
@@ -61,7 +61,7 @@ fn test_transaction_validator(
     // Positive flow.
     let tx = create_account_tx_for_validate_test_nonce_0(FaultyAccountTxCreatorArgs {
         scenario: VALID,
-        ..transaction_args
+        ..tx_args
     });
     if let AccountTransaction::DeployAccount(deploy_tx) = &tx {
         fund_account(chain_info, deploy_tx.contract_address(), BALANCE, &mut state.state);
@@ -75,7 +75,7 @@ fn test_transaction_validator(
 }
 
 #[rstest]
-fn test_transaction_validator_skip_validate(max_l1_resource_bounds: ValidResourceBounds) {
+fn test_tx_validator_skip_validate(max_l1_resource_bounds: ValidResourceBounds) {
     let block_context = BlockContext::create_for_testing();
     let faulty_account = FeatureContract::FaultyAccount(CairoVersion::Cairo1);
     let state = test_state(&block_context.chain_info, BALANCE, &[(faulty_account, 1)]);

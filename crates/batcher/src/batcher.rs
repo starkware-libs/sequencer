@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
-use starknet_mempool_infra::component_runner::ComponentStarter;
+use starknet_mempool_infra::component_definitions::ComponentStarter;
 use starknet_mempool_types::communication::SharedMempoolClient;
 
 use crate::config::BatcherConfig;
@@ -31,10 +30,8 @@ pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient
     Batcher::new(config, mempool_client, Arc::new(storage_reader))
 }
 
-#[async_trait]
-impl ComponentStarter for Batcher {}
-
 #[cfg_attr(test, automock)]
 pub trait BatcherStorageReaderTrait: Send + Sync {}
 
 impl BatcherStorageReaderTrait for papyrus_storage::StorageReader {}
+impl ComponentStarter for Batcher {}

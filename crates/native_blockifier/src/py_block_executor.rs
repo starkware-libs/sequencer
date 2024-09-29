@@ -93,17 +93,17 @@ impl ThinTransactionExecutionInfo {
         resources.extend(HashMap::from([
             (
                 abi_constants::L1_GAS_USAGE.to_string(),
-                usize_from_u128(l1_gas)
+                usize_from_u128(l1_gas.0)
                     .expect("This conversion should not fail as the value is a converted usize."),
             ),
             (
                 abi_constants::BLOB_GAS_USAGE.to_string(),
-                usize_from_u128(l1_data_gas)
+                usize_from_u128(l1_data_gas.0)
                     .expect("This conversion should not fail as the value is a converted usize."),
             ),
             (
                 abi_constants::L2_GAS_USAGE.to_string(),
-                usize_from_u128(l2_gas)
+                usize_from_u128(l2_gas.0)
                     .expect("This conversion should not fail as the value is a converted usize."),
             ),
         ]));

@@ -10,7 +10,7 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
-papyrus_network.workspace = true
+papyrus_network_types.workspace = true
 papyrus_proc_macros.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true

@@ -5,6 +5,7 @@ use test_case::test_case;
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::execution_utils::format_panic_data;
 use crate::execution::syscalls::syscall_tests::constants::REQUIRED_GAS_STORAGE_READ_WRITE_TEST;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
@@ -24,6 +25,10 @@ fn test_out_of_gas(test_contract: FeatureContract) {
         initial_gas: REQUIRED_GAS_STORAGE_READ_WRITE_TEST - 1,
         ..trivial_external_entry_point_new(test_contract)
     };
-    let error = entry_point_call.execute_directly(&mut state).unwrap_err().to_string();
-    assert!(error.contains("Out of gas"));
+    let call_info = entry_point_call.execute_directly(&mut state).unwrap();
+    assert!(call_info.execution.failed);
+    assert_eq!(
+        format_panic_data(&call_info.execution.retdata.0),
+        "0x4f7574206f6620676173 ('Out of gas')"
+    );
 }

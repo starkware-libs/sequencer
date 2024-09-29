@@ -111,7 +111,7 @@ pub fn test_commit_tx() {
         trivial_calldata_invoke_tx(account_address, test_contract_address, nonce!(10_u8)),
     ]
     .into_iter()
-    .map(Transaction::AccountTransaction)
+    .map(Transaction::Account)
     .collect::<Vec<Transaction>>();
     let mut bouncer = Bouncer::new(block_context.bouncer_config.clone());
     let cached_state =
@@ -207,7 +207,7 @@ fn test_commit_tx_when_sender_is_sequencer() {
     let (sequencer_balance_key_low, sequencer_balance_key_high) =
         get_sequencer_balance_keys(&block_context);
 
-    let sequencer_tx = [Transaction::AccountTransaction(trivial_calldata_invoke_tx(
+    let sequencer_tx = [Transaction::Account(trivial_calldata_invoke_tx(
         account_address,
         test_contract_address,
         nonce!(0_u8),
@@ -320,7 +320,7 @@ fn test_worker_execute(max_l1_resource_bounds: ValidResourceBounds) {
 
     let txs = [tx_success, tx_failure, tx_revert]
         .into_iter()
-        .map(Transaction::AccountTransaction)
+        .map(Transaction::Account)
         .collect::<Vec<Transaction>>();
 
     let mut bouncer = Bouncer::new(block_context.bouncer_config.clone());
@@ -482,7 +482,7 @@ fn test_worker_validate(max_l1_resource_bounds: ValidResourceBounds) {
 
     let txs = [account_tx0, account_tx1]
         .into_iter()
-        .map(Transaction::AccountTransaction)
+        .map(Transaction::Account)
         .collect::<Vec<Transaction>>();
 
     let mut bouncer = Bouncer::new(block_context.bouncer_config.clone());
@@ -593,10 +593,8 @@ fn test_deploy_before_declare(
         nonce: nonce!(0_u8)
     });
 
-    let txs = [declare_tx, invoke_tx]
-        .into_iter()
-        .map(Transaction::AccountTransaction)
-        .collect::<Vec<Transaction>>();
+    let txs =
+        [declare_tx, invoke_tx].into_iter().map(Transaction::Account).collect::<Vec<Transaction>>();
 
     let mut bouncer = Bouncer::new(block_context.bouncer_config.clone());
     let worker_executor =
@@ -661,7 +659,7 @@ fn test_worker_commit_phase(max_l1_resource_bounds: ValidResourceBounds) {
 
     let txs = (0..3)
         .map(|_| {
-            Transaction::AccountTransaction(account_invoke_tx(invoke_tx_args! {
+            Transaction::Account(account_invoke_tx(invoke_tx_args! {
                 sender_address,
                 calldata: calldata.clone(),
                 resource_bounds: max_l1_resource_bounds,
@@ -751,7 +749,7 @@ fn test_worker_commit_phase_with_halt() {
 
     let txs = (0..2)
         .map(|_| {
-            Transaction::AccountTransaction(emit_n_events_tx(
+            Transaction::Account(emit_n_events_tx(
                 n_events,
                 sender_address,
                 test_contract_address,

@@ -86,10 +86,10 @@ pub(crate) fn get_thin_state_diff() -> ThinStateDiff {
 
 pub(crate) fn get_tx_data(execution_status: &TransactionExecutionStatus) -> TransactionHashingData {
     TransactionHashingData {
-        transaction_signature: Some(TransactionSignature(vec![
+        transaction_signature: TransactionSignature(vec![
             Felt::from_bytes_be_slice(&[1_u8]),
             Felt::from_bytes_be_slice(&[2_u8]),
-        ])),
+        ]),
         transaction_output: get_transaction_output_for_hash(execution_status),
         transaction_hash: TransactionHash(Felt::from_bytes_be_slice(&[3_u8])),
     }

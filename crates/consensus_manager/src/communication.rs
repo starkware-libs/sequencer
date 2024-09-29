@@ -1,23 +1,19 @@
 use async_trait::async_trait;
 use starknet_consensus_manager_types::communication::{
     ConsensusManagerRequest,
-    ConsensusManagerRequestAndResponseSender,
     ConsensusManagerResponse,
 };
 use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
-use starknet_mempool_infra::component_server::LocalActiveComponentServer;
-use tokio::sync::mpsc::Receiver;
+use starknet_mempool_infra::component_server::WrapperServer;
 
 use crate::consensus_manager::ConsensusManager;
 
-pub type LocalConsensusManagerServer =
-    LocalActiveComponentServer<ConsensusManager, ConsensusManagerRequest, ConsensusManagerResponse>;
+pub type ConsensusManagerServer = WrapperServer<ConsensusManager>;
 
-pub fn create_local_consensus_manager_server(
+pub fn create_consensus_manager_server(
     consensus_manager: ConsensusManager,
-    rx_consensus_manager: Receiver<ConsensusManagerRequestAndResponseSender>,
-) -> LocalConsensusManagerServer {
-    LocalActiveComponentServer::new(consensus_manager, rx_consensus_manager)
+) -> ConsensusManagerServer {
+    WrapperServer::new(consensus_manager)
 }
 
 #[async_trait]

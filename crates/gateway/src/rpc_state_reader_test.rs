@@ -74,6 +74,10 @@ async fn test_get_block_info() {
                     price_in_wei: GasPrice(1),
                     price_in_fri: GasPrice(1),
                 },
+                l2_gas_price: ResourcePrice {
+                    price_in_wei: GasPrice(1),
+                    price_in_fri: GasPrice(1),
+                },
                 ..Default::default()
             })
             .unwrap(),

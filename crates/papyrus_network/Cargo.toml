@@ -10,6 +10,7 @@ testing = []
 
 [dependencies]
 async-stream.workspace = true
+async-trait.workspace = true
 bytes.workspace = true
 derive_more.workspace = true
 futures.workspace = true
@@ -30,6 +31,7 @@ libp2p = { workspace = true, features = [
 metrics.workspace = true
 papyrus_common.workspace = true
 papyrus_config.workspace = true
+papyrus_network_types.workspace = true
 replace_with.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true

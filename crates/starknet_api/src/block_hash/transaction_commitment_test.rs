@@ -22,7 +22,7 @@ fn test_transaction_leaf_regression() {
 fn test_transaction_leaf_without_signature_regression() {
     let transaction_leaf_elements = TransactionLeafElement {
         transaction_hash: TransactionHash(Felt::ONE),
-        transaction_signature: None,
+        transaction_signature: TransactionSignature(vec![]),
     };
     let expected_leaf = felt!("0x579e8877c7755365d5ec1ec7d3a94a457eff5d1f40482bbe9729c064cdead2");
 
@@ -46,5 +46,5 @@ fn test_transaction_commitment_regression() {
 fn get_transaction_leaf_element() -> TransactionLeafElement {
     let transaction_hash = TransactionHash(Felt::ONE);
     let transaction_signature = TransactionSignature(vec![Felt::TWO, Felt::THREE]);
-    TransactionLeafElement { transaction_hash, transaction_signature: Some(transaction_signature) }
+    TransactionLeafElement { transaction_hash, transaction_signature }
 }

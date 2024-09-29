@@ -1,0 +1,15 @@
+[package]
+name = "papyrus_network_types"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[features]
+testing = ["papyrus_test_utils", "rand_chacha"]
+
+[dependencies]
+libp2p = { workspace = true, features = ["serde"] }
+papyrus_test_utils = { workspace = true, optional = true }
+rand_chacha = { workspace = true, optional = true }
+serde = { workspace = true, features = ["derive"] }

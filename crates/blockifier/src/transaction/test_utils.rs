@@ -1,5 +1,6 @@
 use rstest::fixture;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
@@ -8,6 +9,7 @@ use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
     Fee,
+    GasVectorComputationMode,
     InvokeTransactionV0,
     InvokeTransactionV1,
     InvokeTransactionV3,
@@ -87,9 +89,26 @@ pub fn max_fee() -> Fee {
     Fee(MAX_FEE)
 }
 
+// TODO(Amos, 1/10/2024): Delete this fixture and use `create_resource_bounds`
 #[fixture]
 pub fn max_l1_resource_bounds() -> ValidResourceBounds {
-    l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE)
+    create_resource_bounds(&GasVectorComputationMode::NoL2Gas)
+}
+
+pub fn create_resource_bounds(computation_mode: &GasVectorComputationMode) -> ValidResourceBounds {
+    match computation_mode {
+        GasVectorComputationMode::NoL2Gas => {
+            l1_resource_bounds(MAX_L1_GAS_AMOUNT.into(), MAX_L1_GAS_PRICE)
+        }
+        GasVectorComputationMode::All => create_all_resource_bounds(
+            MAX_L1_GAS_AMOUNT,
+            MAX_L1_GAS_PRICE,
+            DEFAULT_L2_GAS_MAX_AMOUNT,
+            DEFAULT_STRK_L2_GAS_PRICE,
+            DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+            DEFAULT_STRK_L1_DATA_GAS_PRICE,
+        ),
+    }
 }
 
 #[fixture]
@@ -303,8 +322,11 @@ pub fn run_invoke_tx(
 
 /// Creates a `ResourceBoundsMapping` with the given `max_amount` and `max_price` for L1 gas limits.
 /// No guarantees on the values of the other resources bounds.
-pub fn l1_resource_bounds(max_amount: u64, max_price: u128) -> ValidResourceBounds {
-    ValidResourceBounds::L1Gas(ResourceBounds { max_amount, max_price_per_unit: max_price })
+pub fn l1_resource_bounds(max_amount: GasAmount, max_price: u128) -> ValidResourceBounds {
+    ValidResourceBounds::L1Gas(ResourceBounds {
+        max_amount: max_amount.0.try_into().unwrap(),
+        max_price_per_unit: max_price,
+    })
 }
 
 #[fixture]
@@ -315,6 +337,24 @@ pub fn all_resource_bounds(
     #[default(DEFAULT_STRK_L2_GAS_PRICE)] l2_max_price: u128,
     #[default(DEFAULT_L1_DATA_GAS_MAX_AMOUNT)] l1_data_max_amount: u64,
     #[default(DEFAULT_STRK_L1_DATA_GAS_PRICE)] l1_data_max_price: u128,
+) -> ValidResourceBounds {
+    create_all_resource_bounds(
+        l1_max_amount,
+        l1_max_price,
+        l2_max_amount,
+        l2_max_price,
+        l1_data_max_amount,
+        l1_data_max_price,
+    )
+}
+
+fn create_all_resource_bounds(
+    l1_max_amount: u64,
+    l1_max_price: u128,
+    l2_max_amount: u64,
+    l2_max_price: u128,
+    l1_data_max_amount: u64,
+    l1_data_max_price: u128,
 ) -> ValidResourceBounds {
     ValidResourceBounds::AllResources(AllResourceBounds {
         l1_gas: ResourceBounds { max_amount: l1_max_amount, max_price_per_unit: l1_max_price },

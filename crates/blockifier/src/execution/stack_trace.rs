@@ -148,7 +148,7 @@ impl ErrorStack {
 }
 
 /// Extracts the error trace from a `TransactionExecutionError`. This is a top level function.
-pub fn gen_transaction_execution_error_trace(error: &TransactionExecutionError) -> ErrorStack {
+pub fn gen_tx_execution_error_trace(error: &TransactionExecutionError) -> ErrorStack {
     match error {
         TransactionExecutionError::ExecutionError {
             error,

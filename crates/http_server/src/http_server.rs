@@ -1,17 +1,17 @@
+use std::any::type_name;
 use std::clone::Clone;
 use std::net::SocketAddr;
 
-use async_trait::async_trait;
 use axum::extract::State;
 use axum::routing::{get, post};
-use axum::{Json, Router};
+use axum::{async_trait, Json, Router};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway::errors::GatewayRunError;
 use starknet_gateway_types::communication::SharedGatewayClient;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_gateway_types::gateway_types::GatewayInput;
-use starknet_mempool_infra::component_runner::ComponentStarter;
+use starknet_mempool_infra::component_definitions::ComponentStarter;
 use starknet_mempool_infra::errors::ComponentError;
 use tracing::{error, info, instrument};
 
@@ -98,7 +98,7 @@ pub fn create_http_server(
 #[async_trait]
 impl ComponentStarter for HttpServer {
     async fn start(&mut self) -> Result<(), ComponentError> {
-        info!("HttpServer::start()");
+        info!("Starting component {}.", type_name::<Self>());
         self.run().await.map_err(|_| ComponentError::InternalComponentError)
     }
 }

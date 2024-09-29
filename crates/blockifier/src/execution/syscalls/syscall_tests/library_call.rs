@@ -13,6 +13,7 @@ use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::entry_point::{CallEntryPoint, CallType};
+use crate::execution::execution_utils::format_panic_data;
 use crate::execution::syscalls::syscall_tests::constants::{
     REQUIRED_GAS_LIBRARY_CALL_TEST,
     REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
@@ -27,6 +28,7 @@ use crate::test_utils::{
     CairoVersion,
     BALANCE,
 };
+use crate::versioned_constants::VersionedConstants;
 
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), REQUIRED_GAS_LIBRARY_CALL_TEST; "VM")]
 fn test_library_call(test_contract: FeatureContract, expected_gas: u64) {
@@ -78,8 +80,12 @@ fn test_library_call_assert_fails(test_contract: FeatureContract) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    let err = entry_point_call.execute_directly(&mut state).unwrap_err();
-    assert!(err.to_string().contains("x != y"));
+    let call_info = entry_point_call.execute_directly(&mut state).unwrap();
+    assert!(call_info.execution.failed);
+    assert_eq!(
+        format_panic_data(&call_info.execution.retdata.0),
+        "(0x7820213d2079 ('x != y'), 0x454e545259504f494e545f4641494c4544 ('ENTRYPOINT_FAILED'))"
+    );
 }
 
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 478110; "VM")]
@@ -142,6 +148,12 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         n_memory_holes: 0,
         builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 7)]),
     };
+
+    // The default VersionedConstants is used in the execute_directly call bellow.
+    let tracked_resource = test_contract.get_class().tracked_resource(
+        &VersionedConstants::create_for_testing().min_compiler_version_for_sierra_gas,
+    );
+
     let nested_storage_call_info = CallInfo {
         call: nested_storage_entry_point,
         execution: CallExecution {
@@ -150,6 +162,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
             ..CallExecution::default()
         },
         resources: storage_entry_point_resources.clone(),
+        tracked_resource,
         storage_read_values: vec![felt!(value + 1)],
         accessed_storage_keys: HashSet::from([StorageKey(patricia_key!(key + 1))]),
         ..Default::default()
@@ -161,6 +174,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 15)]),
         };
+
     let library_call_info = CallInfo {
         call: library_entry_point,
         execution: CallExecution {
@@ -170,6 +184,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         },
         resources: library_call_resources,
         inner_calls: vec![nested_storage_call_info],
+        tracked_resource,
         ..Default::default()
     };
 
@@ -183,6 +198,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         resources: storage_entry_point_resources,
         storage_read_values: vec![felt!(value)],
         accessed_storage_keys: HashSet::from([StorageKey(patricia_key!(key))]),
+        tracked_resource,
         ..Default::default()
     };
 
@@ -201,6 +217,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         },
         resources: main_call_resources,
         inner_calls: vec![library_call_info, storage_call_info],
+        tracked_resource,
         ..Default::default()
     };
 

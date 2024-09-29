@@ -30,6 +30,7 @@ members = [
   "crates/papyrus_load_test",
   "crates/papyrus_monitoring_gateway",
   "crates/papyrus_network",
+  "crates/papyrus_network_types",
   "crates/papyrus_node",
   "crates/papyrus_p2p_sync",
   "crates/papyrus_proc_macros",
@@ -95,6 +96,8 @@ cairo-lang-sierra = "=2.8.2"
 cairo-lang-sierra-to-casm = "2.8.2"
 cairo-lang-starknet-classes = "2.8.2"
 cairo-lang-utils = "2.8.2"
+# This is a temporary dependency, will be removed once the new version of cairo-native is released to main.
+cairo-native = { git = "https://github.com/lambdaclass/cairo_native", rev = "2be717cba74c63628cb68b619ff2022c70d0cdd2" }
 cairo-vm = "=1.0.1"
 camelpaste = "0.1.0"
 chrono = "0.4.26"
@@ -111,6 +114,7 @@ ethers = "2.0.3"
 ethers-core = "2.0.3"
 ethnum = "1.5.0"
 flate2 = "1.0.24"
+fs2 = "0.4"
 futures = "0.3.21"
 futures-channel = "0.3.21"
 futures-util = "0.3.21"
@@ -128,7 +132,7 @@ itertools = "0.12.1"
 jsonrpsee = "0.20.3"
 jsonschema = "0.17.0"
 keccak = "0.1.3"
-lazy_static = "1.4.0"
+lazy_static = "1.5.0"
 libmdbx = "0.3.5"
 libp2p = "0.53.2"
 libp2p-swarm-test = "0.3.0"
@@ -141,6 +145,7 @@ metrics-exporter-prometheus = "0.12.1"
 metrics-process = "1.0.11"
 mockall = "0.12.1"
 mockito = "1.4.0"
+nix = "0.20.0"
 num-bigint = "0.4"
 num-integer = "0.1.45"
 num-rational = "0.4"
@@ -156,6 +161,7 @@ papyrus_consensus_orchestrator = { path = "crates/sequencing/papyrus_consensus_o
 papyrus_execution = { path = "crates/papyrus_execution", version = "0.0.0" }
 papyrus_monitoring_gateway = { path = "crates/papyrus_monitoring_gateway", version = "0.0.0" }
 papyrus_network = { path = "crates/papyrus_network", version = "0.0.0" }
+papyrus_network_types = { path = "crates/papyrus_network_types", version = "0.0.0" }
 papyrus_p2p_sync = { path = "crates/papyrus_p2p_sync", version = "0.0.0" }
 papyrus_proc_macros = { path = "crates/papyrus_proc_macros", version = "0.0.0" }
 papyrus_protobuf = { path = "crates/papyrus_protobuf", version = "0.0.0" }

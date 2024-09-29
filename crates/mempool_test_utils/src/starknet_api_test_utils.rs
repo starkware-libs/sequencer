@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::path::Path;
@@ -9,6 +8,7 @@ use std::sync::OnceLock;
 use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion};
+use pretty_assertions::assert_ne;
 use serde_json::to_string_pretty;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -33,7 +33,7 @@ use starknet_api::transaction::{
     TransactionVersion,
     ValidResourceBounds,
 };
-use starknet_api::{calldata, felt};
+use starknet_api::{calldata, felt, nonce};
 use starknet_types_core::felt::Felt;
 
 use crate::{
@@ -190,24 +190,27 @@ pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
 pub fn executable_invoke_tx(cairo_version: CairoVersion) -> Transaction {
     let default_account = FeatureContract::AccountWithoutValidations(cairo_version);
 
-    MultiAccountTransactionGenerator::new_for_account_contracts([default_account])
-        .account_with_id(0)
-        .generate_default_executable_invoke()
+    let mut tx_generator = MultiAccountTransactionGenerator::new();
+    tx_generator.register_account(default_account);
+    tx_generator.account_with_id(0).generate_executable_invoke()
 }
 
-//  TODO(Yael 18/6/2024): Get a final decision from product whether to support Cairo0.
-pub fn deploy_account_tx() -> RpcTransaction {
-    let default_account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+pub fn generate_deploy_account_with_salt(
+    account: &FeatureContract,
+    contract_address_salt: ContractAddressSalt,
+) -> RpcTransaction {
+    let deploy_account_args = deploy_account_tx_args!(
+        class_hash: account.get_class_hash(),
+        resource_bounds: test_resource_bounds_mapping(),
+        contract_address_salt
+    );
 
-    MultiAccountTransactionGenerator::new_for_account_contracts([default_account])
-        .account_with_id(0)
-        .generate_default_deploy_account()
+    rpc_deploy_account_tx(deploy_account_args)
 }
 
 // TODO: when moving this to Starknet API crate, move this const into a module alongside
 // MultiAcconutTransactionGenerator.
 type AccountId = usize;
-type ContractInstanceId = u16;
 
 type SharedNonceManager = Rc<RefCell<NonceManager>>;
 
@@ -221,48 +224,46 @@ type SharedNonceManager = Rc<RefCell<NonceManager>>;
 /// # Example
 ///
 /// ```
+/// use blockifier::test_utils::contracts::FeatureContract;
+/// use blockifier::test_utils::CairoVersion;
 /// use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 ///
-/// let mut tx_generator = MultiAccountTransactionGenerator::new(2); // Initialize with 2 accounts.
-/// let account_0_tx_with_nonce_0 = tx_generator.account_with_id(0).generate_default_invoke();
-/// let account_1_tx_with_nonce_0 = tx_generator.account_with_id(1).generate_default_invoke();
-/// let account_0_tx_with_nonce_1 = tx_generator.account_with_id(0).generate_default_invoke();
+/// let mut tx_generator = MultiAccountTransactionGenerator::new();
+/// let some_account_type = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+/// // Initialize multiple accounts, these can be any account type in `FeatureContract`.
+/// tx_generator.register_account_for_flow_test(some_account_type.clone());
+/// tx_generator.register_account_for_flow_test(some_account_type);
+///
+/// let account_0_tx_with_nonce_0 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
+/// let account_1_tx_with_nonce_0 = tx_generator.account_with_id(1).generate_invoke_with_tip(3);
+/// let account_0_tx_with_nonce_1 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
 /// ```
 // Note: when moving this to starknet api crate, see if blockifier's
 // [blockifier::transaction::test_utils::FaultyAccountTxCreatorArgs] can be made to use this.
+#[derive(Default)]
 pub struct MultiAccountTransactionGenerator {
     // Invariant: coupled with the nonce manager.
     account_tx_generators: Vec<AccountTransactionGenerator>,
     // Invariant: nonces managed internally thorugh `generate` API of the account transaction
     // generator.
-    // Only used by single account transaction generators, but owning it here is preferable over
-    // only distributing the ownership among the account generators.
-    _nonce_manager: SharedNonceManager,
+    nonce_manager: SharedNonceManager,
 }
 
 impl MultiAccountTransactionGenerator {
-    pub fn new(n_accounts: usize) -> Self {
-        let default_account_contract =
-            FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
-        let accounts = std::iter::repeat(default_account_contract).take(n_accounts);
-        Self::new_for_account_contracts(accounts)
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    pub fn new_for_account_contracts(accounts: impl IntoIterator<Item = FeatureContract>) -> Self {
-        let mut account_tx_generators = vec![];
-        let mut account_type_to_n_instances = HashMap::new();
-        let nonce_manager = SharedNonceManager::default();
-        for account in accounts {
-            let n_current_contract = account_type_to_n_instances.entry(account).or_insert(0);
-            account_tx_generators.push(AccountTransactionGenerator {
-                account,
-                contract_instance_id: *n_current_contract,
-                nonce_manager: nonce_manager.clone(),
-            });
-            *n_current_contract += 1;
-        }
+    pub fn register_account(&mut self, account_contract: FeatureContract) -> RpcTransaction {
+        let new_account_id = self.account_tx_generators.len();
+        let (account_tx_generator, default_deploy_account_tx) = AccountTransactionGenerator::new(
+            new_account_id,
+            account_contract,
+            self.nonce_manager.clone(),
+        );
+        self.account_tx_generators.push(account_tx_generator);
 
-        Self { account_tx_generators, _nonce_manager: nonce_manager }
+        default_deploy_account_tx
     }
 
     pub fn account_with_id(&mut self, account_id: AccountId) -> &mut AccountTransactionGenerator {
@@ -273,6 +274,17 @@ impl MultiAccountTransactionGenerator {
             )
         })
     }
+
+    // TODO(deploy_account_support): once we support deploy account in tests, remove this method and
+    // only use new_account_default in tests. In particular, deploy account txs must be then sent to
+    // the GW via the add tx endpoint just like other txs.
+    pub fn register_account_for_flow_test(&mut self, account_contract: FeatureContract) {
+        self.register_account(account_contract);
+    }
+
+    pub fn accounts(&self) -> Vec<Contract> {
+        self.account_tx_generators.iter().map(|tx_gen| &tx_gen.account).copied().collect()
+    }
 }
 
 /// Manages transaction generation for a single account.
@@ -282,68 +294,66 @@ impl MultiAccountTransactionGenerator {
 /// with room for future extensions.
 ///
 /// TODO: add more transaction generation methods as needed.
+#[derive(Debug)]
 pub struct AccountTransactionGenerator {
-    account: FeatureContract,
-    contract_instance_id: ContractInstanceId,
+    account: Contract,
     nonce_manager: SharedNonceManager,
 }
 
 impl AccountTransactionGenerator {
     /// Generate a valid `RpcTransaction` with default parameters.
-    pub fn generate_default_invoke(&mut self) -> RpcTransaction {
+    pub fn generate_invoke_with_tip(&mut self, tip: u64) -> RpcTransaction {
+        let nonce = self.next_nonce();
+        assert_ne!(
+            nonce,
+            nonce!(0),
+            "Cannot invoke on behalf of an undeployed account: the first transaction of every \
+             account must be a deploy account transaction."
+        );
         let invoke_args = invoke_tx_args!(
+            nonce,
+            tip : Tip(tip),
             sender_address: self.sender_address(),
             resource_bounds: test_resource_bounds_mapping(),
-            nonce: self.next_nonce(),
-            calldata: create_trivial_calldata(self.test_contract_address()),
+            calldata: create_trivial_calldata(self.sender_address()),
         );
         rpc_invoke_tx(invoke_args)
     }
 
-    pub fn generate_default_executable_invoke(&mut self) -> Transaction {
+    pub fn generate_executable_invoke(&mut self) -> Transaction {
+        let nonce = self.next_nonce();
+        assert_ne!(
+            nonce,
+            nonce!(0),
+            "Cannot invoke on behalf of an undeployed account: the first transaction of every \
+             account must be a deploy account transaction."
+        );
+
         let invoke_args = starknet_api::invoke_tx_args!(
             sender_address: self.sender_address(),
             resource_bounds: test_valid_resource_bounds(),
-            nonce: self.next_nonce(),
-            calldata: create_trivial_calldata(self.test_contract_address()),
+            nonce,
+            calldata: create_trivial_calldata(self.sender_address()),
         );
 
         Transaction::Invoke(starknet_api::test_utils::invoke::executable_invoke_tx(invoke_args))
-    }
-
-    pub fn generate_default_deploy_account(&mut self) -> RpcTransaction {
-        let nonce = self.next_nonce();
-        assert_eq!(nonce, Nonce(Felt::ZERO));
-
-        let deploy_account_args = deploy_account_tx_args!(
-            nonce,
-            class_hash: self.account.get_class_hash(),
-            resource_bounds: test_resource_bounds_mapping()
-        );
-        rpc_deploy_account_tx(deploy_account_args)
-    }
-
-    // TODO: support more contracts, instead of this hardcoded type.
-    pub fn test_contract_address(&mut self) -> ContractAddress {
-        let cairo_version = self.account.cairo_version();
-        FeatureContract::TestContract(cairo_version).get_instance_address(0)
     }
 
     /// Generates an `RpcTransaction` with fully custom parameters.
     ///
     /// Caller must manually handle bumping nonce and fetching the correct sender address via
     /// [AccountTransactionGenerator::next_nonce] and [AccountTransactionGenerator::sender_address].
-    /// See [AccountTransactionGenerator::generate_default_invoke] to have these filled up by
+    /// See [AccountTransactionGenerator::generate_invoke_with_tip] to have these filled up by
     /// default.
     ///
     /// Note: This is a best effort attempt to make the API more useful; amend or add new methods
     /// as needed.
-    pub fn generate_raw(&mut self, invoke_tx_args: InvokeTxArgs) -> RpcTransaction {
+    pub fn generate_raw_invoke(&mut self, invoke_tx_args: InvokeTxArgs) -> RpcTransaction {
         rpc_invoke_tx(invoke_tx_args)
     }
 
     pub fn sender_address(&mut self) -> ContractAddress {
-        self.account.get_instance_address(self.contract_instance_id)
+        self.account.sender_address
     }
 
     /// Retrieves the nonce for the current account, and __increments__ it internally.
@@ -351,19 +361,63 @@ impl AccountTransactionGenerator {
         let sender_address = self.sender_address();
         self.nonce_manager.borrow_mut().next(sender_address)
     }
+
+    /// Private constructor, since only the multi-account transaction generator should create this
+    /// struct.
+    // TODO: add a version that doesn't rely on the default deploy account constructor, but takes
+    // deploy account args.
+    fn new(
+        account_id: usize,
+        account: FeatureContract,
+        nonce_manager: SharedNonceManager,
+    ) -> (Self, RpcTransaction) {
+        let contract_address_salt = ContractAddressSalt(account_id.into());
+        // A deploy account transaction must be created now in order to affix an address to it.
+        // If this doesn't happen now it'll be difficult to fund the account during test setup.
+        let default_deploy_account_tx =
+            generate_deploy_account_with_salt(&account, contract_address_salt);
+
+        let mut account_tx_generator = Self {
+            account: Contract::new_for_account(account, &default_deploy_account_tx),
+            nonce_manager,
+        };
+        // Bump the account nonce after transaction creation.
+        account_tx_generator.next_nonce();
+
+        (account_tx_generator, default_deploy_account_tx)
+    }
 }
 
-/// Adds state to the feature contract struct, so that its _account_ variants can generate a single
-/// address, thus allowing future transactions generated for the account to share the same address.
-#[derive(Debug, Clone)]
-pub struct FeatureAccount {
-    pub class_hash: ClassHash,
-    pub account: FeatureContract,
-    deployment_state: InitializationState,
+/// Extends (account) feature contracts with a fixed sender address.
+/// The address is calculated from a deploy account transaction and cached.
+// Note: feature contracts have their own address generating method, but it a mocked address and is
+// not related to an actual deploy account transaction, which is the way real account addresses are
+// calculated.
+#[derive(Clone, Copy, Debug)]
+pub struct Contract {
+    pub contract: FeatureContract,
+    pub sender_address: ContractAddress,
 }
 
-impl FeatureAccount {
-    pub fn new(account: FeatureContract) -> Self {
+impl Contract {
+    pub fn class_hash(&self) -> ClassHash {
+        self.contract.get_class_hash()
+    }
+
+    pub fn cairo_version(&self) -> CairoVersion {
+        self.contract.cairo_version()
+    }
+
+    pub fn raw_class(&self) -> String {
+        self.contract.get_raw_class()
+    }
+
+    fn new_for_account(account: FeatureContract, deploy_account_tx: &RpcTransaction) -> Self {
+        assert_matches!(
+            deploy_account_tx,
+            RpcTransaction::DeployAccount(_),
+            "An account must be initialized with a deploy account transaction"
+        );
         assert_matches!(
             account,
             FeatureContract::AccountWithLongValidate(_)
@@ -373,50 +427,10 @@ impl FeatureAccount {
         );
 
         Self {
-            class_hash: account.get_class_hash(),
-            account,
-            deployment_state: InitializationState::default(),
+            contract: account,
+            sender_address: deploy_account_tx.calculate_sender_address().unwrap(),
         }
     }
-
-    pub fn build(&mut self, deploy_account_tx: &RpcTransaction) {
-        assert_matches!(
-            deploy_account_tx,
-            RpcTransaction::DeployAccount(_),
-            "An account must be initialized with a deploy account transaction"
-        );
-
-        match self.deployment_state {
-            InitializationState::Uninitialized => {
-                let address = deploy_account_tx.calculate_sender_address().unwrap();
-                self.deployment_state = InitializationState::Initialized(address);
-            }
-            InitializationState::Initialized(_) => panic!("Account is already initialized"),
-        }
-    }
-
-    pub fn sender_address(&self) -> ContractAddress {
-        match self.deployment_state {
-            InitializationState::Initialized(address) => address,
-            InitializationState::Uninitialized => panic!("Uninitialized account"),
-        }
-    }
-
-    // Use for special case testing accounts that don't have an explicit deploy account transaction.
-    pub fn new_with_custom_address(account: FeatureContract, address: ContractAddress) -> Self {
-        Self {
-            account,
-            deployment_state: InitializationState::Initialized(address),
-            class_hash: account.get_class_hash(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-enum InitializationState {
-    #[default]
-    Uninitialized,
-    Initialized(ContractAddress),
 }
 
 // TODO(Ayelet, 28/5/2025): Try unifying the macros.

@@ -4,7 +4,12 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::{AccountState, MempoolInput, MempoolResult};
+use starknet_mempool_types::mempool_types::{
+    AccountState,
+    AddTransactionArgs,
+    CommitBlockArgs,
+    MempoolResult,
+};
 
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -76,11 +81,13 @@ impl Mempool {
     /// Adds a new transaction to the mempool.
     /// TODO: support fee escalation and transactions with future nonces.
     /// TODO: check Account nonce and balance.
-    pub fn add_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
-        self.validate_input(&input)?;
-        let MempoolInput { tx, account_state: AccountState { sender_address, nonce } } = input;
+    pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
+        self.validate_input(&args)?;
+
+        let AddTransactionArgs { tx, account_state } = args;
         self.tx_pool.insert(tx)?;
-        self.align_to_account_state(sender_address, nonce);
+        self.align_to_account_state(account_state);
+
         Ok(())
     }
 
@@ -88,20 +95,16 @@ impl Mempool {
     /// updates account balances).
     // TODO: the part about resolving nonce gaps is incorrect if we delete txs in get_txs and then
     // push back.
-    // state_changes: a map that associates each account address with the state of the committed
-    // block.
-    pub fn commit_block(
-        &mut self,
-        state_changes: HashMap<ContractAddress, Nonce>,
-    ) -> MempoolResult<()> {
-        for (&address, &nonce) in &state_changes {
+    pub fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
+        for (&address, &nonce) in &args.nonces {
             let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
-            self.align_to_account_state(address, next_nonce);
+            let account_state = AccountState { address, nonce: next_nonce };
+            self.align_to_account_state(account_state);
         }
 
         // Rewind nonces of addresses that were not included in block.
         let addresses_not_included_in_block =
-            self.mempool_state.keys().filter(|&key| !state_changes.contains_key(key));
+            self.mempool_state.keys().filter(|&key| !args.nonces.contains_key(key));
         for address in addresses_not_included_in_block {
             self.tx_queue.remove(*address);
         }
@@ -116,16 +119,16 @@ impl Mempool {
         self.tx_queue._update_gas_price_threshold(threshold);
     }
 
-    fn validate_input(&self, input: &MempoolInput) -> MempoolResult<()> {
-        let sender_address = input.tx.contract_address();
-        let tx_nonce = input.tx.nonce();
+    fn validate_input(&self, args: &AddTransactionArgs) -> MempoolResult<()> {
+        let sender_address = args.tx.contract_address();
+        let tx_nonce = args.tx.nonce();
         let duplicate_nonce_error =
             MempoolError::DuplicateNonce { address: sender_address, nonce: tx_nonce };
 
         // Stateless checks.
 
         // Check the input: transaction nonce against given account state.
-        let account_nonce = input.account_state.nonce;
+        let account_nonce = args.account_state.nonce;
         if account_nonce > tx_nonce {
             return Err(duplicate_nonce_error);
         }
@@ -154,7 +157,7 @@ impl Mempool {
     fn enqueue_next_eligible_txs(&mut self, txs: &[TransactionReference]) -> MempoolResult<()> {
         for tx in txs {
             let current_account_state =
-                AccountState { sender_address: tx.sender_address, nonce: tx.nonce };
+                AccountState { address: tx.sender_address, nonce: tx.nonce };
 
             if let Some(next_tx_reference) =
                 self.tx_pool.get_next_eligible_tx(current_account_state)?
@@ -166,9 +169,8 @@ impl Mempool {
         Ok(())
     }
 
-    // TODO: Consider creating an abstraction for the (address, nonce) tuple that is passed
-    // throughout the code.
-    fn align_to_account_state(&mut self, address: ContractAddress, nonce: Nonce) {
+    fn align_to_account_state(&mut self, account_state: AccountState) {
+        let AccountState { address, nonce } = account_state;
         // Maybe remove out-of-date transactions.
         // Note: != is equivalent to > in `add_tx`, as lower nonces are rejected in validation.
         if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| queued_nonce != nonce) {
