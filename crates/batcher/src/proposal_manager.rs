@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -9,12 +9,13 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::Transaction;
-use starknet_batcher_types::batcher_types::ProposalId;
+use starknet_batcher_types::batcher_types::{GetProposalContent, ProposalId};
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
 use tokio::select;
 use tokio::sync::Mutex;
 use tokio_stream::wrappers::ReceiverStream;
+use tokio_stream::StreamExt;
 use tracing::{debug, error, info, instrument, trace, Instrument};
 
 use crate::batcher::BatcherStorageReaderTrait;
@@ -23,12 +24,17 @@ use crate::batcher::BatcherStorageReaderTrait;
 pub struct ProposalManagerConfig {
     pub block_builder_next_txs_buffer_size: usize,
     pub max_txs_per_mempool_request: usize,
+    pub outstream_content_buffer_size: usize,
 }
 
 impl Default for ProposalManagerConfig {
     fn default() -> Self {
         // TODO: Get correct default values.
-        Self { block_builder_next_txs_buffer_size: 100, max_txs_per_mempool_request: 10 }
+        Self {
+            block_builder_next_txs_buffer_size: 100,
+            max_txs_per_mempool_request: 10,
+            outstream_content_buffer_size: 100,
+        }
     }
 }
 
@@ -49,6 +55,13 @@ impl SerializeConfig for ProposalManagerConfig {
                  generation.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "outstream_content_buffer_size",
+                &self.outstream_content_buffer_size,
+                "Maximum items to add to the outstream buffer before blocking further filling of \
+                 the stream",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -65,6 +78,8 @@ pub enum ProposalManagerError {
     },
     #[error("Can't start new height {new_height} while working on height {active_height}.")]
     AlreadyWorkingOnHeight { active_height: BlockNumber, new_height: BlockNumber },
+    #[error("Can't get content for proposal with ID {proposal_id} as it is not a build proposal.")]
+    GetContentOnNonBuildProposal { proposal_id: ProposalId },
     #[error(
         "Requested height {requested_height} is lower than the current storage height \
          {storage_height}."
@@ -76,6 +91,8 @@ pub enum ProposalManagerError {
     NoActiveHeight,
     #[error("Proposal with ID {proposal_id} already exists.")]
     ProposalAlreadyExists { proposal_id: ProposalId },
+    #[error("Proposal with ID {proposal_id} not found.")]
+    ProposalNotFound { proposal_id: ProposalId },
     #[error(transparent)]
     StorageError(#[from] papyrus_storage::StorageError),
     #[error(
@@ -83,6 +100,8 @@ pub enum ProposalManagerError {
          {requested_height}."
     )]
     StorageNotSynced { storage_height: BlockNumber, requested_height: BlockNumber },
+    #[error("Stream exhausted.")]
+    StreamExhausted,
 }
 
 pub type ProposalManagerResult<T> = Result<T, ProposalManagerError>;
@@ -106,8 +125,12 @@ pub(crate) struct ProposalManager {
     active_proposal_handle: Option<ActiveTaskHandle>,
     // Use a factory object, to be able to mock BlockBuilder in tests.
     block_builder_factory: Arc<dyn BlockBuilderFactoryTrait>,
-    // The list of all proposals that were generated.
-    proposals: Vec<ProposalId>,
+    // The proposals that were created for the current height.
+    proposals: HashMap<ProposalId, Proposal>,
+}
+
+pub struct Proposal {
+    content_stream: ProposalContentStream,
 }
 
 type ActiveTaskHandle = tokio::task::JoinHandle<ProposalManagerResult<()>>;
@@ -127,7 +150,7 @@ impl ProposalManager {
             block_builder_factory,
             active_proposal_handle: None,
             active_height: None,
-            proposals: Vec::new(),
+            proposals: HashMap::new(),
         }
     }
 
@@ -140,6 +163,7 @@ impl ProposalManager {
                 new_height: height,
             });
         }
+        self.proposals.clear();
         let next_height = self.storage_reader.height()?;
         if next_height < height {
             return Err(ProposalManagerError::StorageNotSynced {
@@ -160,23 +184,27 @@ impl ProposalManager {
     /// Starts a new block proposal generation task for the given proposal_id and height with
     /// transactions from the mempool.
     /// Requires output_content_sender for sending the generated transactions to the caller.
-    #[instrument(skip(self, output_content_sender), err, fields(self.active_height))]
+    #[instrument(skip(self), err, fields(self.active_height))]
     pub async fn build_block_proposal(
         &mut self,
         proposal_id: ProposalId,
         deadline: tokio::time::Instant,
-        // TODO: Should this be an unbounded channel?
-        output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
     ) -> ProposalManagerResult<()> {
         if self.active_height.is_none() {
             return Err(ProposalManagerError::NoActiveHeight);
         }
-        if self.proposals.contains(&proposal_id) {
+        if self.proposals.contains_key(&proposal_id) {
             return Err(ProposalManagerError::ProposalAlreadyExists { proposal_id });
         }
         info!("Starting generation of a new proposal with id {}.", proposal_id);
+        // TODO: Should this be an unbounded channel?
+        let (output_content_sender, output_content_receiver) =
+            tokio::sync::mpsc::channel(self.config.outstream_content_buffer_size);
+        let content_stream =
+            ProposalContentStream::BuildProposal(OutputStream::new(output_content_receiver));
+
         self.set_active_proposal(proposal_id).await?;
-        self.proposals.push(proposal_id);
+        self.proposals.insert(proposal_id, Proposal { content_stream });
 
         let block_builder = self.block_builder_factory.create_block_builder();
 
@@ -195,6 +223,22 @@ impl ProposalManager {
         ));
 
         Ok(())
+    }
+
+    #[instrument(skip(self), err)]
+    pub async fn get_proposal_content(
+        &mut self,
+        proposal_id: ProposalId,
+    ) -> ProposalManagerResult<GetProposalContent> {
+        let proposal = self
+            .proposals
+            .get_mut(&proposal_id)
+            .ok_or(ProposalManagerError::ProposalNotFound { proposal_id })?;
+        let ProposalContentStream::BuildProposal(content_stream) = &mut proposal.content_stream
+        else {
+            return Err(ProposalManagerError::GetContentOnNonBuildProposal { proposal_id });
+        };
+        content_stream.next().await.ok_or(ProposalManagerError::StreamExhausted)
     }
 
     // Checks if there is already a proposal being generated, and if not, sets the given proposal_id
@@ -225,9 +269,18 @@ impl ProposalManager {
     }
 }
 
+pub(crate) enum ProposalContentStream {
+    BuildProposal(OutputStream),
+    // TODO: Add stream.
+    #[allow(dead_code)]
+    ValidateProposal,
+}
+// TODO: Make this a fuse stream to make sure it always returns None when exhausted.
+type OutputStream = tokio_stream::wrappers::ReceiverStream<GetProposalContent>;
+
 struct BuildProposalTask {
     mempool_client: SharedMempoolClient,
-    output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
+    output_content_sender: tokio::sync::mpsc::Sender<GetProposalContent>,
     max_txs_per_mempool_request: usize,
     block_builder_next_txs_buffer_size: usize,
     block_builder: Arc<dyn BlockBuilderTrait>,
@@ -320,7 +373,7 @@ pub trait BlockBuilderTrait: Send + Sync {
         &self,
         deadline: tokio::time::Instant,
         tx_stream: InputTxStream,
-        output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
+        output_content_sender: tokio::sync::mpsc::Sender<GetProposalContent>,
     );
 }
 

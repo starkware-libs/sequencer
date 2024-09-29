@@ -4,7 +4,13 @@ use std::sync::Arc;
 use mockall::automock;
 use papyrus_storage::state::StateStorageReader;
 use starknet_api::block::BlockNumber;
-use starknet_batcher_types::batcher_types::{BatcherResult, BuildProposalInput, StartHeightInput};
+use starknet_batcher_types::batcher_types::{
+    BatcherResult,
+    BuildProposalInput,
+    GetProposalContentInput,
+    GetProposalContentResponse,
+    StartHeightInput,
+};
 use starknet_batcher_types::errors::BatcherError;
 use starknet_mempool_infra::starters::DefaultComponentStarter;
 use starknet_mempool_types::communication::SharedMempoolClient;
@@ -56,9 +62,12 @@ impl Batcher {
                 BatcherError::StorageNotSynced { storage_height, requested_height }
             }
             ProposalManagerError::AlreadyGeneratingProposal { .. }
+            | ProposalManagerError::GetContentOnNonBuildProposal { .. }
             | ProposalManagerError::MempoolError { .. }
             | ProposalManagerError::NoActiveHeight
-            | ProposalManagerError::ProposalAlreadyExists { .. } => {
+            | ProposalManagerError::ProposalAlreadyExists { .. }
+            | ProposalManagerError::ProposalNotFound { .. }
+            | ProposalManagerError::StreamExhausted => {
                 unreachable!("Shouldn't happen here: {}", err)
             }
         })
@@ -68,15 +77,12 @@ impl Batcher {
         &mut self,
         build_proposal_input: BuildProposalInput,
     ) -> BatcherResult<()> {
-        // TODO: Save the receiver as a stream for later use.
-        let (content_sender, _content_receiver) =
-            tokio::sync::mpsc::channel(self.config.outstream_content_buffer_size);
         let deadline =
             tokio::time::Instant::from_std(build_proposal_input.deadline_as_instant().map_err(
                 |_| BatcherError::TimeToDeadlineError { deadline: build_proposal_input.deadline },
             )?);
         self.proposal_manager
-            .build_block_proposal(build_proposal_input.proposal_id, deadline, content_sender)
+            .build_block_proposal(build_proposal_input.proposal_id, deadline)
             .await
             .map_err(|err| match err {
                 ProposalManagerError::AlreadyGeneratingProposal {
@@ -95,13 +101,46 @@ impl Batcher {
                 }
                 ProposalManagerError::NoActiveHeight => BatcherError::NoActiveHeight,
                 ProposalManagerError::AlreadyWorkingOnHeight { .. }
+                | ProposalManagerError::GetContentOnNonBuildProposal { .. }
                 | ProposalManagerError::HeightAlreadyPassed { .. }
+                | ProposalManagerError::ProposalNotFound { .. }
+                | ProposalManagerError::StorageError(..)
+                | ProposalManagerError::StorageNotSynced { .. }
+                | ProposalManagerError::StreamExhausted => {
+                    unreachable!("Shouldn't happen here: {}", err)
+                }
+            })?;
+        Ok(())
+    }
+
+    pub async fn get_proposal_content(
+        &mut self,
+        get_proposal_content_input: GetProposalContentInput,
+    ) -> BatcherResult<GetProposalContentResponse> {
+        let content = self
+            .proposal_manager
+            .get_proposal_content(get_proposal_content_input.proposal_id)
+            .await
+            .map_err(|err| match err {
+                ProposalManagerError::StreamExhausted => BatcherError::StreamExhausted,
+                ProposalManagerError::GetContentOnNonBuildProposal { proposal_id } => {
+                    BatcherError::GetContentOnNonBuildProposal { proposal_id }
+                }
+                ProposalManagerError::ProposalNotFound { proposal_id } => {
+                    BatcherError::ProposalNotFound { proposal_id }
+                }
+                ProposalManagerError::AlreadyGeneratingProposal { .. }
+                | ProposalManagerError::AlreadyWorkingOnHeight { .. }
+                | ProposalManagerError::HeightAlreadyPassed { .. }
+                | ProposalManagerError::MempoolError(..)
+                | ProposalManagerError::NoActiveHeight
+                | ProposalManagerError::ProposalAlreadyExists { .. }
                 | ProposalManagerError::StorageError(..)
                 | ProposalManagerError::StorageNotSynced { .. } => {
                     unreachable!("Shouldn't happen here: {}", err)
                 }
             })?;
-        Ok(())
+        Ok(GetProposalContentResponse { content })
     }
 }
 
