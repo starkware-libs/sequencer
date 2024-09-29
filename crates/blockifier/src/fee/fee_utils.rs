@@ -32,7 +32,7 @@ pub fn get_vm_resources_cost(
     vm_resource_usage: &ExecutionResources,
     n_reverted_steps: usize,
     computation_mode: &GasVectorComputationMode,
-) -> TransactionFeeResult<GasVector> {
+) -> GasVector {
     // TODO(Yoni, 1/7/2024): rename vm -> cairo.
     let vm_resource_fee_costs = versioned_constants.vm_resource_fee_cost();
     let builtin_usage_for_fee = vm_resource_usage.prover_builtins();
@@ -65,10 +65,10 @@ pub fn get_vm_resources_cost(
         .fold(0, u128::max);
 
     match computation_mode {
-        GasVectorComputationMode::NoL2Gas => Ok(GasVector::from_l1_gas(vm_l1_gas_usage)),
-        GasVectorComputationMode::All => Ok(GasVector::from_l2_gas(
+        GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(vm_l1_gas_usage),
+        GasVectorComputationMode::All => GasVector::from_l2_gas(
             versioned_constants.convert_l1_to_l2_gas_amount_round_up(vm_l1_gas_usage),
-        )),
+        ),
     }
 }
 

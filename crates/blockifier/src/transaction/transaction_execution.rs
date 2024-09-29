@@ -157,7 +157,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
             CallInfo::summarize_many(execute_call_info.iter()),
             &state.get_actual_state_changes()?,
             &execution_resources,
-        )?;
+        );
 
         let paid_fee = self.paid_fee_on_l1;
         // For now, assert only that any amount of fee was paid.

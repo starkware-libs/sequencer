@@ -18,11 +18,9 @@ use strum_macros::{EnumCount, EnumIter};
 use thiserror::Error;
 
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
-use crate::execution::errors::PostExecutionError;
 use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::resources::{GasVectorComputationMode, StarknetResources};
-use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::transaction_types::TransactionType;
 
 #[cfg(test)]
@@ -205,7 +203,7 @@ impl VersionedConstants {
         tx_type: TransactionType,
         starknet_resources: &StarknetResources,
         use_kzg_da: bool,
-    ) -> Result<ExecutionResources, TransactionExecutionError> {
+    ) -> ExecutionResources {
         self.os_resources.get_additional_os_tx_resources(
             tx_type,
             starknet_resources.archival_data.calldata_length,
@@ -217,7 +215,7 @@ impl VersionedConstants {
     pub fn get_additional_os_syscall_resources(
         &self,
         syscall_counter: &SyscallCounter,
-    ) -> Result<ExecutionResources, PostExecutionError> {
+    ) -> ExecutionResources {
         self.os_resources.get_additional_os_syscall_resources(syscall_counter)
     }
 
@@ -406,14 +404,14 @@ impl OsResources {
         calldata_length: usize,
         data_segment_length: usize,
         use_kzg_da: bool,
-    ) -> Result<ExecutionResources, TransactionExecutionError> {
+    ) -> ExecutionResources {
         let mut os_additional_vm_resources = self.resources_for_tx_type(&tx_type, calldata_length);
 
         if use_kzg_da {
             os_additional_vm_resources += &self.os_kzg_da_resources(data_segment_length);
         }
 
-        Ok(os_additional_vm_resources)
+        os_additional_vm_resources
     }
 
     /// Calculates the additional resources needed for the OS to run the given syscalls;
@@ -421,7 +419,7 @@ impl OsResources {
     fn get_additional_os_syscall_resources(
         &self,
         syscall_counter: &SyscallCounter,
-    ) -> Result<ExecutionResources, PostExecutionError> {
+    ) -> ExecutionResources {
         let mut os_additional_resources = ExecutionResources::default();
         for (syscall_selector, count) in syscall_counter {
             let syscall_resources =
@@ -431,7 +429,7 @@ impl OsResources {
             os_additional_resources += &(syscall_resources * *count);
         }
 
-        Ok(os_additional_resources)
+        os_additional_resources
     }
 
     fn resources_params_for_tx_type(&self, tx_type: &TransactionType) -> &ResourcesParams {

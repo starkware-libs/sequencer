@@ -284,7 +284,7 @@ impl AccountTransaction {
             &tx_context.block_context,
             self,
             &tx_context.get_gas_vector_computation_mode(),
-        )?;
+        );
         // TODO(Aner, 30/01/24): modify once data gas limit is enforced.
         let minimal_l1_gas_amount = minimal_l1_gas_amount_vector.to_discounted_l1_gas(tx_context);
 
@@ -601,7 +601,7 @@ impl AccountTransaction {
             &resources,
             CallInfo::summarize_many(validate_call_info.iter().chain(execute_call_info.iter())),
             0,
-        )?;
+        );
 
         let post_execution_report =
             PostExecutionReport::new(state, &tx_context, &tx_receipt, charge_fee)?;
@@ -668,7 +668,7 @@ impl AccountTransaction {
             &resources,
             CallInfo::summarize_many(validate_call_info.iter()),
             execution_steps_consumed,
-        )?;
+        );
 
         match execution_result {
             Ok(execute_call_info) => {
@@ -686,7 +686,7 @@ impl AccountTransaction {
                         validate_call_info.iter().chain(execute_call_info.iter()),
                     ),
                     0,
-                )?;
+                );
                 // Post-execution checks.
                 let post_execution_report = PostExecutionReport::new(
                     &mut execution_state,

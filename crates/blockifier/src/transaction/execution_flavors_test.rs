@@ -129,7 +129,6 @@ fn calculate_actual_gas(
             block_context.block_info.use_kzg_da,
             &GasVectorComputationMode::NoL2Gas,
         )
-        .unwrap()
         .l1_gas
 }
 
@@ -149,7 +148,7 @@ fn check_gas_and_fee(
     // Future compatibility: resources other than the L1 gas usage may affect the fee (currently,
     // `calculate_tx_fee` is simply the result of `calculate_tx_gas_usage_vector` times gas price).
     assert_eq!(
-        tx_execution_info.receipt.resources.calculate_tx_fee(block_context, fee_type).unwrap(),
+        tx_execution_info.receipt.resources.calculate_tx_fee(block_context, fee_type),
         expected_cost_of_resources
     );
 }
