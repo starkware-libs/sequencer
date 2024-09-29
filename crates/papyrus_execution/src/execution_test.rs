@@ -6,7 +6,7 @@ use assert_matches::assert_matches;
 use blockifier::abi::abi_utils::get_storage_var_address;
 use blockifier::execution::call_info::Retdata;
 use blockifier::execution::errors::ConstructorEntryPointExecutionError;
-use blockifier::execution::stack_trace::gen_transaction_execution_error_trace;
+use blockifier::execution::stack_trace::gen_tx_execution_error_trace;
 use blockifier::transaction::errors::TransactionExecutionError as BlockifierTransactionExecutionError;
 use indexmap::indexmap;
 use papyrus_storage::test_utils::get_test_storage;
@@ -817,7 +817,7 @@ fn blockifier_error_mapping() {
     let expected = format!(
         "Transaction execution has failed:\n{}",
         // TODO: consider adding ErrorStack display instead.
-        String::from(gen_transaction_execution_error_trace(&blockifier_err))
+        String::from(gen_tx_execution_error_trace(&blockifier_err))
     );
     let err = ExecutionError::from((0, blockifier_err));
     let ExecutionError::TransactionExecutionError { transaction_index, execution_error } = err
@@ -836,7 +836,7 @@ fn blockifier_error_mapping() {
     };
     let expected = format!(
         "Transaction validation has failed:\n{}",
-        String::from(gen_transaction_execution_error_trace(&blockifier_err))
+        String::from(gen_tx_execution_error_trace(&blockifier_err))
     );
     let err = ExecutionError::from((0, blockifier_err));
     let ExecutionError::TransactionExecutionError { transaction_index, execution_error } = err

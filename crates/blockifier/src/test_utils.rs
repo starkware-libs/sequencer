@@ -217,7 +217,7 @@ macro_rules! check_entry_point_execution_error_for_custom_hint {
 }
 
 #[macro_export]
-macro_rules! check_transaction_execution_error_inner {
+macro_rules! check_tx_execution_error_inner {
     ($error:expr, $expected_hint:expr, $validate_constructor:expr $(,)?) => {
         if $validate_constructor {
             match $error {
@@ -246,9 +246,9 @@ macro_rules! check_transaction_execution_error_inner {
 }
 
 #[macro_export]
-macro_rules! check_transaction_execution_error_for_custom_hint {
+macro_rules! check_tx_execution_error_for_custom_hint {
     ($error:expr, $expected_hint:expr, $validate_constructor:expr $(,)?) => {
-        $crate::check_transaction_execution_error_inner!(
+        $crate::check_tx_execution_error_inner!(
             $error,
             Some($expected_hint),
             $validate_constructor,
@@ -259,11 +259,11 @@ macro_rules! check_transaction_execution_error_for_custom_hint {
 /// Checks that a given error is an assertion error with the expected message.
 /// Formatted for test_validate_accounts_tx.
 #[macro_export]
-macro_rules! check_transaction_execution_error_for_invalid_scenario {
+macro_rules! check_tx_execution_error_for_invalid_scenario {
     ($cairo_version:expr, $error:expr, $validate_constructor:expr $(,)?) => {
         match $cairo_version {
             CairoVersion::Cairo0 => {
-                $crate::check_transaction_execution_error_inner!(
+                $crate::check_tx_execution_error_inner!(
                     $error,
                     None::<&str>,
                     $validate_constructor,

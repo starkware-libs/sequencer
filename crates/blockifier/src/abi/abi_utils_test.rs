@@ -6,7 +6,7 @@ use starknet_types_core::felt::Felt;
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants as abi_constants;
 use crate::abi::sierra_types::felt_to_u128;
-use crate::transaction::constants as transaction_constants;
+use crate::transaction::constants as tx_constants;
 
 #[test]
 fn test_selector_from_name() {
@@ -27,7 +27,7 @@ fn test_selector_from_name() {
         "0x15d40a3d6ca2ac30f4031e42be28da9b056fef9bb7357ac5e85627ee876e5ad";
     let expected_execute_selector = EntryPointSelector(felt!(expected_execute_selector));
     assert_eq!(
-        selector_from_name(transaction_constants::EXECUTE_ENTRY_POINT_NAME),
+        selector_from_name(tx_constants::EXECUTE_ENTRY_POINT_NAME),
         expected_execute_selector
     );
 

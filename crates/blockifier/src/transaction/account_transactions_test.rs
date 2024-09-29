@@ -39,7 +39,7 @@ use crate::abi::abi_utils::{
     get_storage_var_address,
     selector_from_name,
 };
-use crate::check_transaction_execution_error_for_invalid_scenario;
+use crate::check_tx_execution_error_for_invalid_scenario;
 use crate::context::BlockContext;
 use crate::execution::contract_class::{ContractClass, ContractClassV1};
 use crate::execution::entry_point::EntryPointExecutionContext;
@@ -614,7 +614,7 @@ fn test_fail_deploy_account(
 
     let error = deploy_account_tx.execute(state, &block_context, true, true).unwrap_err();
     // Check the error is as expected. Assure the error message is not nonce or fee related.
-    check_transaction_execution_error_for_invalid_scenario!(cairo_version, error, false);
+    check_tx_execution_error_for_invalid_scenario!(cairo_version, error, false);
 
     // Assert nonce and balance are unchanged, and that no contract was deployed at the address.
     assert_eq!(state.get_nonce_at(deploy_address).unwrap(), nonce!(0_u8));

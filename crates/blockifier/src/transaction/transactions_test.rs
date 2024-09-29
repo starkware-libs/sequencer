@@ -141,8 +141,8 @@ use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{ExecutableTransaction, L1HandlerTransaction};
 use crate::versioned_constants::VersionedConstants;
 use crate::{
-    check_transaction_execution_error_for_custom_hint,
-    check_transaction_execution_error_for_invalid_scenario,
+    check_tx_execution_error_for_custom_hint,
+    check_tx_execution_error_for_invalid_scenario,
     retdata,
 };
 
@@ -1718,11 +1718,7 @@ fn test_validate_accounts_tx(
         ..default_args
     });
     let error = account_tx.execute(state, block_context, true, true).unwrap_err();
-    check_transaction_execution_error_for_invalid_scenario!(
-        cairo_version,
-        error,
-        validate_constructor,
-    );
+    check_tx_execution_error_for_invalid_scenario!(cairo_version, error, validate_constructor,);
 
     // Try to call another contract (forbidden).
     let account_tx = create_account_tx_for_validate_test_nonce_0(FaultyAccountTxCreatorArgs {
@@ -1735,7 +1731,7 @@ fn test_validate_accounts_tx(
         ..default_args
     });
     let error = account_tx.execute(state, block_context, true, true).unwrap_err();
-    check_transaction_execution_error_for_custom_hint!(
+    check_tx_execution_error_for_custom_hint!(
         &error,
         "Unauthorized syscall call_contract in execution mode Validate.",
         validate_constructor,
@@ -1751,7 +1747,7 @@ fn test_validate_accounts_tx(
             ..default_args
         });
         let error = account_tx.execute(state, block_context, true, true).unwrap_err();
-        check_transaction_execution_error_for_custom_hint!(
+        check_tx_execution_error_for_custom_hint!(
             &error,
             "Unauthorized syscall get_block_hash in execution mode Validate.",
             validate_constructor,
@@ -1766,7 +1762,7 @@ fn test_validate_accounts_tx(
             ..default_args
         });
         let error = account_tx.execute(state, block_context, true, true).unwrap_err();
-        check_transaction_execution_error_for_custom_hint!(
+        check_tx_execution_error_for_custom_hint!(
             &error,
             "Unauthorized syscall get_sequencer_address in execution mode Validate.",
             validate_constructor,
@@ -2143,7 +2139,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
 }
 
 #[rstest]
-fn test_execute_tx_with_invalid_transaction_version(
+fn test_execute_tx_with_invalid_tx_version(
     block_context: BlockContext,
     max_l1_resource_bounds: ValidResourceBounds,
 ) {
