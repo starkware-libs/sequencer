@@ -10,9 +10,8 @@ use crate::component_definitions::{
     ComponentRequestHandler,
     ComponentStarter,
 };
-use crate::component_server::{ComponentReplacer, ReplaceComponentError};
+use crate::component_server::{ComponentReplacer, ComponentServerStarter, ReplaceComponentError};
 use crate::errors::ComponentServerError;
-use crate::starters::Startable;
 
 /// The `LocalComponentServer` struct is a generic server that handles requests and responses for a
 /// specified component. It receives requests, processes them using the provided component, and
@@ -42,16 +41,18 @@ use crate::starters::Startable;
 /// use std::sync::mpsc::{channel, Receiver};
 ///
 /// use async_trait::async_trait;
-/// use starknet_mempool_infra::component_definitions::ComponentStarter;
-/// use starknet_mempool_infra::errors::ComponentServerError;
-/// use starknet_mempool_infra::starters::Startable;
 /// use tokio::task;
 ///
 /// use crate::starknet_mempool_infra::component_definitions::{
 ///     ComponentRequestAndResponseSender,
 ///     ComponentRequestHandler,
+///     ComponentStarter,
 /// };
-/// use crate::starknet_mempool_infra::component_server::LocalComponentServer;
+/// use crate::starknet_mempool_infra::component_server::{
+///     ComponentServerStarter,
+///     LocalComponentServer,
+/// };
+/// use crate::starknet_mempool_infra::errors::ComponentServerError;
 ///
 /// // Define your component
 /// struct MyComponent {}
@@ -114,7 +115,7 @@ pub type LocalComponentServer<Component, Request, Response> =
 pub struct BlockingLocalServerType {}
 
 #[async_trait]
-impl<Component, Request, Response> Startable<ComponentServerError>
+impl<Component, Request, Response> ComponentServerStarter
     for LocalComponentServer<Component, Request, Response>
 where
     Component: ComponentRequestHandler<Request, Response> + Send + Sync + ComponentStarter,
@@ -133,7 +134,7 @@ pub type LocalActiveComponentServer<Component, Request, Response> =
 pub struct NonBlockingLocalServerType {}
 
 #[async_trait]
-impl<Component, Request, Response> Startable<ComponentServerError>
+impl<Component, Request, Response> ComponentServerStarter
     for LocalActiveComponentServer<Component, Request, Response>
 where
     Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send + Sync,
