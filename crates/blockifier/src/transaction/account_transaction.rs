@@ -2,11 +2,12 @@ use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::calldata;
-use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce};
+use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::transaction::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::{
+    AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     Fee,
@@ -175,6 +176,22 @@ impl AccountTransaction {
             Self::Declare(tx) => tx.tx.sender_address(),
             Self::DeployAccount(tx) => tx.tx.contract_address(),
             Self::Invoke(tx) => tx.tx.sender_address(),
+        }
+    }
+
+    pub fn class_hash(&self) -> Option<ClassHash> {
+        match self {
+            Self::Declare(tx) => Some(tx.tx.class_hash()),
+            Self::DeployAccount(tx) => Some(tx.tx.class_hash()),
+            Self::Invoke(_) => None,
+        }
+    }
+
+    pub fn account_deployment_data(&self) -> Option<AccountDeploymentData> {
+        match self {
+            Self::Declare(tx) => Some(tx.tx.account_deployment_data().clone()),
+            Self::DeployAccount(_) => None,
+            Self::Invoke(tx) => Some(tx.tx.account_deployment_data().clone()),
         }
     }
 
