@@ -10,8 +10,8 @@ use starknet_consensus_manager::communication::{
 use starknet_gateway::communication::{create_gateway_server, LocalGatewayServer};
 use starknet_http_server::communication::{create_http_server, HttpServer};
 use starknet_mempool::communication::{create_mempool_server, LocalMempoolServer};
+use starknet_mempool_infra::component_server::ComponentServerStarter;
 use starknet_mempool_infra::errors::ComponentServerError;
-use starknet_mempool_infra::starters::Startable;
 use tracing::error;
 
 use crate::communication::MempoolNodeCommunication;
@@ -168,7 +168,7 @@ pub async fn run_component_servers(
 pub fn get_server_future(
     name: &str,
     execute_flag: bool,
-    server: Option<Box<impl Startable<ComponentServerError> + Send + 'static>>,
+    server: Option<Box<impl ComponentServerStarter + Send + 'static>>,
 ) -> Pin<Box<dyn Future<Output = Result<(), ComponentServerError>> + Send>> {
     let server_future = match execute_flag {
         true => {

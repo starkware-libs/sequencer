@@ -9,9 +9,12 @@ use starknet_mempool_infra::component_definitions::{
     ComponentRequestHandler,
     ComponentStarter,
 };
-use starknet_mempool_infra::component_server::{EmptyServer, LocalActiveComponentServer};
+use starknet_mempool_infra::component_server::{
+    ComponentServerStarter,
+    EmptyServer,
+    LocalActiveComponentServer,
+};
 use starknet_mempool_infra::errors::ComponentError;
-use starknet_mempool_infra::starters::Startable;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::{Barrier, Mutex};
 use tokio::task;
