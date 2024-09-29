@@ -4,6 +4,7 @@
 //! A consensus implementation for a [`Starknet`](https://www.starknet.io/) node.
 
 pub mod config;
+pub mod experiment_;
 pub mod manager;
 #[allow(missing_docs)]
 pub mod simulation_network_receiver;
@@ -16,5 +17,4 @@ pub mod stream_handler;
 pub(crate) mod test_utils;
 #[allow(missing_docs)]
 pub mod types;
-
 pub use manager::run_consensus;
