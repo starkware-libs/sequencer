@@ -302,9 +302,8 @@ fn get_expected_cairo_resources(
     starknet_resources: &StarknetResources,
     call_infos: Vec<&Option<CallInfo>>,
 ) -> ExecutionResources {
-    let mut expected_cairo_resources = versioned_constants
-        .get_additional_os_tx_resources(tx_type, starknet_resources, false)
-        .unwrap();
+    let mut expected_cairo_resources =
+        versioned_constants.get_additional_os_tx_resources(tx_type, starknet_resources, false);
     for call_info in call_infos {
         if let Some(call_info) = &call_info {
             expected_cairo_resources += &call_info.resources
@@ -495,7 +494,7 @@ fn test_invoke_tx(
     // Build expected fee transfer call info.
     let fee_type = &tx_context.tx_info.fee_type();
     let expected_actual_fee =
-        actual_execution_info.receipt.resources.calculate_tx_fee(block_context, fee_type).unwrap();
+        actual_execution_info.receipt.resources.calculate_tx_fee(block_context, fee_type);
     let expected_fee_transfer_call_info = expected_fee_transfer_call_info(
         &tx_context,
         sender_address,
@@ -527,13 +526,11 @@ fn test_invoke_tx(
         use_kzg_da,
     );
 
-    let total_gas = expected_actual_resources
-        .to_gas_vector(
-            &block_context.versioned_constants,
-            block_context.block_info.use_kzg_da,
-            &GasVectorComputationMode::NoL2Gas,
-        )
-        .unwrap();
+    let total_gas = expected_actual_resources.to_gas_vector(
+        &block_context.versioned_constants,
+        block_context.block_info.use_kzg_da,
+        &GasVectorComputationMode::NoL2Gas,
+    );
 
     let expected_execution_info = TransactionExecutionInfo {
         validate_call_info: expected_validate_call_info,
@@ -862,7 +859,7 @@ fn test_estimate_minimal_gas_vector(
     // The minimal gas estimate does not depend on tx version.
     let tx = &account_invoke_tx(valid_invoke_tx_args);
     let minimal_gas_vector =
-        estimate_minimal_gas_vector(block_context, tx, &gas_vector_computation_mode).unwrap();
+        estimate_minimal_gas_vector(block_context, tx, &gas_vector_computation_mode);
     let minimal_l1_gas = minimal_gas_vector.l1_gas;
     let minimal_l2_gas = minimal_gas_vector.l2_gas;
     let minimal_l1_data_gas = minimal_gas_vector.l1_data_gas;
@@ -969,7 +966,7 @@ fn test_insufficient_new_resource_bounds(
     } = block_context.block_info.gas_prices.get_gas_prices_by_fee_type(&FeeType::Strk);
 
     let minimal_gas_vector =
-        estimate_minimal_gas_vector(block_context, tx, &GasVectorComputationMode::All).unwrap();
+        estimate_minimal_gas_vector(block_context, tx, &GasVectorComputationMode::All);
 
     let default_resource_bounds = AllResourceBounds {
         l1_gas: ResourceBounds {
@@ -1069,9 +1066,7 @@ fn test_insufficient_resource_bounds(
     // The minimal gas estimate does not depend on tx version.
     let tx = &account_invoke_tx(valid_invoke_tx_args.clone());
     let minimal_l1_gas =
-        estimate_minimal_gas_vector(block_context, tx, &GasVectorComputationMode::NoL2Gas)
-            .unwrap()
-            .l1_gas;
+        estimate_minimal_gas_vector(block_context, tx, &GasVectorComputationMode::NoL2Gas).l1_gas;
 
     // Test V1 transaction.
 
@@ -1162,9 +1157,7 @@ fn test_actual_fee_gt_resource_bounds(
     };
     let tx = &account_invoke_tx(invoke_tx_args.clone());
     let minimal_l1_gas =
-        estimate_minimal_gas_vector(block_context, tx, &GasVectorComputationMode::NoL2Gas)
-            .unwrap()
-            .l1_gas;
+        estimate_minimal_gas_vector(block_context, tx, &GasVectorComputationMode::NoL2Gas).l1_gas;
     let minimal_resource_bounds = l1_resource_bounds(
         u64::try_from(minimal_l1_gas).unwrap(),
         u128::from(
@@ -1371,7 +1364,7 @@ fn test_declare_tx(
 
     // Build expected fee transfer call info.
     let expected_actual_fee =
-        actual_execution_info.receipt.resources.calculate_tx_fee(block_context, fee_type).unwrap();
+        actual_execution_info.receipt.resources.calculate_tx_fee(block_context, fee_type);
     let expected_fee_transfer_call_info = expected_fee_transfer_call_info(
         tx_context,
         sender_address,
@@ -1402,9 +1395,11 @@ fn test_declare_tx(
         use_kzg_da,
     );
 
-    let expected_total_gas = expected_actual_resources
-        .to_gas_vector(versioned_constants, use_kzg_da, &GasVectorComputationMode::NoL2Gas)
-        .unwrap();
+    let expected_total_gas = expected_actual_resources.to_gas_vector(
+        versioned_constants,
+        use_kzg_da,
+        &GasVectorComputationMode::NoL2Gas,
+    );
 
     let expected_execution_info = TransactionExecutionInfo {
         validate_call_info: expected_validate_call_info,
@@ -1535,7 +1530,7 @@ fn test_deploy_account_tx(
 
     // Build expected fee transfer call info.
     let expected_actual_fee =
-        actual_execution_info.receipt.resources.calculate_tx_fee(block_context, fee_type).unwrap();
+        actual_execution_info.receipt.resources.calculate_tx_fee(block_context, fee_type);
     let expected_fee_transfer_call_info = expected_fee_transfer_call_info(
         tx_context,
         deployed_account_address,
@@ -1573,13 +1568,11 @@ fn test_deploy_account_tx(
         use_kzg_da,
     );
 
-    let expected_total_gas = actual_resources
-        .to_gas_vector(
-            &block_context.versioned_constants,
-            block_context.block_info.use_kzg_da,
-            &GasVectorComputationMode::NoL2Gas,
-        )
-        .unwrap();
+    let expected_total_gas = actual_resources.to_gas_vector(
+        &block_context.versioned_constants,
+        block_context.block_info.use_kzg_da,
+        &GasVectorComputationMode::NoL2Gas,
+    );
 
     let expected_execution_info = TransactionExecutionInfo {
         validate_call_info: expected_validate_call_info,
@@ -2102,13 +2095,11 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         )
     );
 
-    let total_gas = expected_tx_resources
-        .to_gas_vector(
-            versioned_constants,
-            block_context.block_info.use_kzg_da,
-            &GasVectorComputationMode::NoL2Gas,
-        )
-        .unwrap();
+    let total_gas = expected_tx_resources.to_gas_vector(
+        versioned_constants,
+        block_context.block_info.use_kzg_da,
+        &GasVectorComputationMode::NoL2Gas,
+    );
 
     // Build the expected execution info.
     let expected_execution_info = TransactionExecutionInfo {
@@ -2142,8 +2133,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     let error = tx_no_fee.execute(state, block_context, true, true).unwrap_err();
     // Today, we check that the paid_fee is positive, no matter what was the actual fee.
     let expected_actual_fee =
-        (expected_execution_info.receipt.resources.calculate_tx_fee(block_context, &FeeType::Eth))
-            .unwrap();
+        expected_execution_info.receipt.resources.calculate_tx_fee(block_context, &FeeType::Eth);
     assert_matches!(
         error,
         TransactionExecutionError::TransactionFeeError(

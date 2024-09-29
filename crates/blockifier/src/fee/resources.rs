@@ -36,9 +36,9 @@ impl TransactionResources {
         versioned_constants: &VersionedConstants,
         use_kzg_da: bool,
         computation_mode: &GasVectorComputationMode,
-    ) -> TransactionFeeResult<GasVector> {
-        Ok(self.starknet_resources.to_gas_vector(versioned_constants, use_kzg_da, computation_mode)
-            + self.computation.to_gas_vector(versioned_constants, computation_mode)?)
+    ) -> GasVector {
+        self.starknet_resources.to_gas_vector(versioned_constants, use_kzg_da, computation_mode)
+            + self.computation.to_gas_vector(versioned_constants, computation_mode)
     }
 }
 
@@ -56,7 +56,7 @@ impl ComputationResources {
         &self,
         versioned_constants: &VersionedConstants,
         computation_mode: &GasVectorComputationMode,
-    ) -> TransactionFeeResult<GasVector> {
+    ) -> GasVector {
         get_vm_resources_cost(
             versioned_constants,
             &self.vm_resources,
