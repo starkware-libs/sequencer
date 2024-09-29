@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use blockifier::execution::errors::EntryPointExecutionError;
 use jsonrpsee::core::RpcResult;
 use jsonrpsee::types::ErrorObjectOwned;
 use jsonrpsee::RpcModule;
@@ -12,8 +13,10 @@ use papyrus_execution::{
     execute_call,
     execution_utils,
     simulate_transactions as exec_simulate_transactions,
+    BlockifierError,
     ExecutableTransactionInput,
     ExecutionConfig,
+    ExecutionError,
 };
 use papyrus_storage::body::events::{EventIndex, EventsReader};
 use papyrus_storage::body::{BodyStorageReader, TransactionIndex};
@@ -900,6 +903,14 @@ impl JsonRpcServer for JsonRpcServerImpl {
         .await
         .map_err(internal_server_error)?
         .map_err(execution_error_to_error_object_owned)?;
+
+        if res.failed {
+            return Err(execution_error_to_error_object_owned(ExecutionError::ContractError(
+                BlockifierError::new(EntryPointExecutionError::ExecutionFailed {
+                    error_data: res.retdata.0,
+                }),
+            )));
+        }
 
         block_not_reverted_validator.validate(&self.storage_reader)?;
 

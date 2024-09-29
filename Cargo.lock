@@ -7540,6 +7540,7 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "base64 0.13.1",
+ "blockifier",
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",
  "camelpaste",

@@ -11,6 +11,7 @@ use crate::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::execution_utils::format_panic_data;
 use crate::retdata;
 use crate::state::cached_state::CachedState;
 use crate::test_utils::contracts::FeatureContract;
@@ -164,10 +165,11 @@ fn test_entry_point_not_found_in_contract() {
     let entry_point_selector = EntryPointSelector(felt!(2_u8));
     let entry_point_call =
         CallEntryPoint { entry_point_selector, ..trivial_external_entry_point_new(test_contract) };
-    let error = entry_point_call.execute_directly(&mut state).unwrap_err();
+    let call_info = entry_point_call.execute_directly(&mut state).unwrap();
+    assert!(call_info.execution.failed);
     assert_eq!(
-        format!("Entry point {entry_point_selector:?} not found in contract."),
-        format!("{error}")
+        format_panic_data(&call_info.execution.retdata.0),
+        "0x454e545259504f494e545f4e4f545f464f554e44 ('ENTRYPOINT_NOT_FOUND')"
     );
 }
 
@@ -394,13 +396,6 @@ fn test_syscall_execution_security_failures() {
         security_contract,
         "Expected relocatable",
         "test_bad_syscall_request_arg_type",
-        calldata![],
-    );
-    run_security_test(
-        state,
-        security_contract,
-        "Entry point EntryPointSelector(0x19) not found in contract",
-        "test_bad_call_selector",
         calldata![],
     );
     run_security_test(
