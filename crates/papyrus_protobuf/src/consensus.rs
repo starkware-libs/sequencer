@@ -53,15 +53,20 @@ pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufCon
     pub fin: bool,
 }
 
-impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> std::fmt::Display
-    for StreamMessage<T>
+impl<T> std::fmt::Display for StreamMessage<T>
+where
+    T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let message: Vec<u8> = self.message.clone().into();
+        // TODO(guyn): add option to display when message is Fin and doesn't have content (PR #1048)
         write!(
             f,
-            "StreamMessage {{ message: {:?}, stream_id: {}, message_id: {}, fin: {} }}",
-            message, self.stream_id, self.message_id, self.fin
+            "StreamMessage {{ stream_id: {}, message_id: {}, message length: {:?}, fin: {} }}",
+            self.stream_id,
+            self.message_id,
+            message.len(),
+            self.fin
         )
     }
 }
