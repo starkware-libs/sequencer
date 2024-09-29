@@ -12,6 +12,8 @@ use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Calldata, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
+use super::call_info::{CallExecution, Retdata};
+use super::syscalls::hint_processor::ENTRYPOINT_NOT_FOUND_ERROR;
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants;
 use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
@@ -150,7 +152,27 @@ impl CallEntryPoint {
             context.n_sent_messages_to_l1,
         ));
 
-        execute_entry_point_call_wrapper(self, contract_class, state, resources, context)
+        let orig_call = self.clone();
+        match execute_entry_point_call_wrapper(self, contract_class, state, resources, context) {
+            Err(EntryPointExecutionError::PreExecutionError(
+                PreExecutionError::EntryPointNotFound(_),
+            )) if context.versioned_constants().enable_reverts => Ok(CallInfo {
+                call: orig_call,
+                execution: CallExecution {
+                    retdata: Retdata(vec![Felt::from_hex(ENTRYPOINT_NOT_FOUND_ERROR).unwrap()]),
+                    events: Default::default(),
+                    l2_to_l1_messages: Default::default(),
+                    failed: true,
+                    gas_consumed: 0,
+                },
+                resources: Default::default(),
+                inner_calls: vec![],
+                tracked_resource: TrackedResource::SierraGas,
+                storage_read_values: vec![],
+                accessed_storage_keys: Default::default(),
+            }),
+            res => res,
+        }
     }
 
     /// Similar to `execute`, but returns an error if the outer call is reverted.
