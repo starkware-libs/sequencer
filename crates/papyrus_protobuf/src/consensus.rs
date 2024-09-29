@@ -62,7 +62,7 @@ where
         // TODO(guyn): add option to display when message is Fin and doesn't have content (PR #1048)
         write!(
             f,
-            "StreamMessage {{ stream_id: {}, message_id: {}, message length: {:?}, fin: {} }}",
+            "StreamMessage {{ stream_id: {}, message_id: {}, message_length: {}, fin: {} }}",
             self.stream_id,
             self.message_id,
             message.len(),
