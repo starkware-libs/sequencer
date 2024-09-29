@@ -46,8 +46,8 @@ mod tests {
     // TODO(guyn): should I make this a public function in `manager_test.rs` or just have a copy
     // here?
     async fn send(
-        sender: &mut MockBroadcastedMessagesSender<ConsensusMessage>,
-        msg: ConsensusMessage,
+        sender: &mut MockBroadcastedMessagesSender<StreamMessage<ConsensusMessage>>,
+        msg: StreamMessage<ConsensusMessage>,
     ) {
         let broadcasted_message_manager = create_test_broadcasted_message_manager();
         sender.send((msg, broadcasted_message_manager)).await.unwrap();
@@ -77,12 +77,13 @@ mod tests {
 
     #[tokio::test]
     async fn stream_handler_in_order() {
-        let (mut stream_handler, mut tx_input, mut rx_output) = setup_test();
+        let (mut stream_handler, mut network_sender, mut rx_output) = setup_test();
 
         let stream_id = 127;
         for i in 0..10 {
             let message = make_test_message(stream_id, i, i == 9);
-            tx_input.try_send(message).expect("Send should succeed");
+            // tx_input.try_send(message).expect("Send should succeed");
+            send(&mut network_sender, message).await;
         }
 
         let join_handle = tokio::spawn(async move {
