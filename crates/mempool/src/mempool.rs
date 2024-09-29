@@ -78,9 +78,9 @@ impl Mempool {
     /// TODO: check Account nonce and balance.
     pub fn add_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
         self.validate_input(&input)?;
-        let MempoolInput { tx, account_state: AccountState { sender_address, nonce } } = input;
+        let MempoolInput { tx, account_state: AccountState { address, nonce } } = input;
         self.tx_pool.insert(tx)?;
-        self.align_to_account_state(sender_address, nonce);
+        self.align_to_account_state(address, nonce);
         Ok(())
     }
 
@@ -154,7 +154,7 @@ impl Mempool {
     fn enqueue_next_eligible_txs(&mut self, txs: &[TransactionReference]) -> MempoolResult<()> {
         for tx in txs {
             let current_account_state =
-                AccountState { sender_address: tx.sender_address, nonce: tx.nonce };
+                AccountState { address: tx.sender_address, nonce: tx.nonce };
 
             if let Some(next_tx_reference) =
                 self.tx_pool.get_next_eligible_tx(current_account_state)?

@@ -54,7 +54,7 @@ fn create_tx() -> (RpcTransaction, SenderAddress) {
 // TODO: add test with Some broadcasted message metadata
 #[tokio::test]
 async fn test_add_tx() {
-    let (rpc_tx, sender_address) = create_tx();
+    let (rpc_tx, address) = create_tx();
     let rpc_invoke_tx =
         assert_matches!(rpc_tx.clone(), RpcTransaction::Invoke(rpc_invoke_tx) => rpc_invoke_tx);
     let executable_tx = Transaction::Invoke(
@@ -70,7 +70,7 @@ async fn test_add_tx() {
         .with(eq(MempoolWrapperInput {
             mempool_input: MempoolInput {
                 tx: executable_tx,
-                account_state: AccountState { sender_address, nonce: *rpc_tx.nonce() },
+                account_state: AccountState { address, nonce: *rpc_tx.nonce() },
             },
             message_metadata: None,
         }))

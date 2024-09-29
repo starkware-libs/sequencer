@@ -128,16 +128,16 @@ fn process_tx(
     }
 
     let mut validator = stateful_tx_validator.instantiate_validator(state_reader_factory)?;
-    let sender_address = executable_tx.contract_address();
-    let nonce = validator.get_nonce(sender_address).map_err(|e| {
-        error!("Failed to get nonce for sender address {}: {}", sender_address, e);
+    let address = executable_tx.contract_address();
+    let nonce = validator.get_nonce(address).map_err(|e| {
+        error!("Failed to get nonce for sender address {}: {}", address, e);
         GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
     })?;
 
     stateful_tx_validator.run_validate(&executable_tx, nonce, validator)?;
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
-    Ok(MempoolInput { tx: executable_tx, account_state: AccountState { sender_address, nonce } })
+    Ok(MempoolInput { tx: executable_tx, account_state: AccountState { address, nonce } })
 }
 
 pub fn create_gateway(
