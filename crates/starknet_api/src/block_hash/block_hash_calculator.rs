@@ -36,22 +36,40 @@ mod block_hash_calculator_test;
 static STARKNET_BLOCK_HASH0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_BLOCK_HASH0").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH0'")
 });
+static STARKNET_BLOCK_HASH1: LazyLock<Felt> = LazyLock::new(|| {
+    ascii_as_felt("STARKNET_BLOCK_HASH1").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH1'")
+});
 static STARKNET_GAS_PRICES0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_GAS_PRICES0").expect("ascii_as_felt failed for 'STARKNET_GAS_PRICES0'")
 });
 
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub enum BlockHashVersion {
     VO_13_2,
     VO_13_3,
 }
 
-impl From<BlockHashVersion> for StarknetVersion {
-    fn from(value: BlockHashVersion) -> Self {
-        match value {
-            BlockHashVersion::VO_13_2 => Self(vec![0, 13, 2]),
-            BlockHashVersion::VO_13_3 => Self(vec![0, 13, 3]),
+impl From<StarknetVersion> for BlockHashVersion {
+    fn from(value: StarknetVersion) -> Self {
+        if value < StarknetVersion(vec![0, 13, 2]) {
+            panic!("Starknet version {} is too low for block hash calculation", value);
+        } else if value < StarknetVersion(vec![0, 13, 3]) {
+            BlockHashVersion::VO_13_2
+        } else {
+            BlockHashVersion::VO_13_3
+        }
+    }
+}
+
+// The prefix constant for the block hash calculation.
+type BlockHashConstant = Felt;
+
+impl From<BlockHashVersion> for BlockHashConstant {
+    fn from(block_hash_version: BlockHashVersion) -> Self {
+        match block_hash_version {
+            BlockHashVersion::VO_13_2 => *STARKNET_BLOCK_HASH0,
+            BlockHashVersion::VO_13_3 => *STARKNET_BLOCK_HASH1,
         }
     }
 }
@@ -84,7 +102,7 @@ pub struct BlockHeaderCommitments {
 }
 
 /// Poseidon (
-///     “STARKNET_BLOCK_HASH0”, block_number, global_state_root, sequencer_address,
+///     block_hash_constant, block_number, global_state_root, sequencer_address,
 ///     block_timestamp, concat_counts, state_diff_hash, transaction_commitment,
 ///     event_commitment, receipt_commitment, gas_prices, starknet_version, 0, parent_block_hash
 /// ).
@@ -92,9 +110,10 @@ pub fn calculate_block_hash(
     header: BlockHeaderWithoutHash,
     block_commitments: BlockHeaderCommitments,
 ) -> BlockHash {
+    let block_hash_version: BlockHashVersion = header.starknet_version.clone().into();
     BlockHash(
         HashChain::new()
-            .chain(&STARKNET_BLOCK_HASH0)
+            .chain(&block_hash_version.clone().into())
             .chain(&header.block_number.0.into())
             .chain(&header.state_root.0)
             .chain(&header.sequencer.0)
@@ -109,7 +128,7 @@ pub fn calculate_block_hash(
                     &header.l1_gas_price,
                     &header.l1_data_gas_price,
                     &header.l2_gas_price,
-                    &header.starknet_version,
+                    &block_hash_version,
                 )
                 .iter(),
             )
@@ -204,9 +223,9 @@ fn gas_prices_to_hash(
     l1_gas_price: &GasPricePerToken,
     l1_data_gas_price: &GasPricePerToken,
     l2_gas_price: &GasPricePerToken,
-    starknet_version: &StarknetVersion,
+    block_hash_version: &BlockHashVersion,
 ) -> Vec<Felt> {
-    if *starknet_version >= BlockHashVersion::VO_13_3.into() {
+    if block_hash_version >= &BlockHashVersion::VO_13_3 {
         vec![
             HashChain::new()
                 .chain(&STARKNET_GAS_PRICES0)
