@@ -272,8 +272,8 @@ async fn execution_call() {
 
     assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
 
-    // Calling a non-existent function (contract error).
-    let err = module
+    // Calling a non-existent entry point.
+    let call = module
         .call::<_, Vec<Felt>>(
             "starknet_V0_8_call",
             (
@@ -286,10 +286,11 @@ async fn execution_call() {
             ),
         )
         .await
-        .unwrap_err();
+        .unwrap();
 
-    const CONTRACT_ERROR_CODE: i32 = 40;
-    assert_matches!(err, Error::Call(err) if err.code() == CONTRACT_ERROR_CODE);
+    let entry_point_not_found_error =
+        felt!("0x000000000000000000000000454e545259504f494e545f4e4f545f464f554e44");
+    assert_eq!(call, [entry_point_not_found_error]);
 
     // Test that the block context is passed correctly to blockifier.
     let mut calldata = get_calldata_for_test_execution_info(

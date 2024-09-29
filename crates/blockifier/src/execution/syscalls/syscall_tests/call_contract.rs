@@ -43,7 +43,10 @@ fn test_call_contract_that_panics() {
     };
     // The inner call should have failed.
     assert!(inner_call.execution.failed);
-    assert_eq!(format_panic_data(&inner_call.execution.retdata.0), "\"test_revert_helper\"");
+    assert_eq!(
+        format_panic_data(&inner_call.execution.retdata.0),
+        "0x746573745f7265766572745f68656c706572 ('test_revert_helper')"
+    );
     assert!(inner_call.execution.events.is_empty());
     assert!(inner_call.execution.l2_to_l1_messages.is_empty());
     assert_eq!(

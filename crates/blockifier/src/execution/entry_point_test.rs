@@ -164,11 +164,8 @@ fn test_entry_point_not_found_in_contract() {
     let entry_point_selector = EntryPointSelector(felt!(2_u8));
     let entry_point_call =
         CallEntryPoint { entry_point_selector, ..trivial_external_entry_point_new(test_contract) };
-    let error = entry_point_call.execute_directly(&mut state).unwrap_err();
-    assert_eq!(
-        format!("Entry point {entry_point_selector:?} not found in contract."),
-        format!("{error}")
-    );
+    let call_info = entry_point_call.execute_directly(&mut state).unwrap();
+    assert!(call_info.execution.failed);
 }
 
 #[test]
@@ -394,13 +391,6 @@ fn test_syscall_execution_security_failures() {
         security_contract,
         "Expected relocatable",
         "test_bad_syscall_request_arg_type",
-        calldata![],
-    );
-    run_security_test(
-        state,
-        security_contract,
-        "Entry point EntryPointSelector(0x19) not found in contract",
-        "test_bad_call_selector",
         calldata![],
     );
     run_security_test(
