@@ -21,6 +21,7 @@ starknet-core.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_gateway.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true

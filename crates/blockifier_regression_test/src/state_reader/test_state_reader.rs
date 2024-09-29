@@ -145,13 +145,13 @@ impl TestStateReader {
         Ok(contract_class)
     }
 
-    pub fn get_all_txs_in_block(&self) -> StateResult<Vec<Transaction>> {
+    pub fn get_all_txs_in_block(&self) -> StateResult<(Vec<Transaction>, Vec<String>)> {
         let txs_hash = self.get_tx_hashes()?;
         let mut txs = Vec::new();
-        for tx_hash in txs_hash {
-            txs.push(self.get_tx_by_hash(&tx_hash)?);
+        for tx_hash in &txs_hash {
+            txs.push(self.get_tx_by_hash(tx_hash)?);
         }
-        Ok(txs)
+        Ok((txs, txs_hash))
     }
 
     pub fn get_versioned_constants(&self) -> StateResult<&'static VersionedConstants> {
@@ -168,11 +168,14 @@ impl TestStateReader {
     }
 
     pub fn get_transaction_executor(
-        test_state_reader: TestStateReader,
+        prev_block_state_reader: TestStateReader,
+        cur_block_state_reader: TestStateReader,
     ) -> StateResult<TransactionExecutor<TestStateReader>> {
-        let block_context = test_state_reader.get_block_context()?;
+        // The block context should be of the current block.
+        let block_context = cur_block_state_reader.get_block_context()?;
+        // The State should be of the previous block.
         Ok(TransactionExecutor::<TestStateReader>::new(
-            CachedState::new(test_state_reader),
+            CachedState::new(prev_block_state_reader),
             block_context,
             TransactionExecutorConfig::default(),
         ))
