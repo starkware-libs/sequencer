@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
-use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
+use std::{fs, io};
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -29,11 +29,19 @@ pub mod test;
 
 /// Auto-generate getters for listed versioned constants versions.
 macro_rules! define_versioned_constants {
-    ($(($variant:ident, $path_to_json:expr)),* $(,)?) => {
+    ($(($variant:ident, $path_to_json:expr)),*, $latest_variant:ident) => {
         /// Enum of all the Starknet versions supporting versioned constants.
         #[derive(Clone, Debug, EnumCount, EnumIter, Hash, Eq, PartialEq)]
         pub enum StarknetVersion {
             $($variant,)*
+        }
+
+        impl StarknetVersion {
+            pub fn path_to_versioned_constants_json(&self) -> &'static str {
+                match self {
+                    $(StarknetVersion::$variant => $path_to_json,)*
+                }
+            }
         }
 
         // Static (lazy) instances of the versioned constants.
@@ -61,16 +69,34 @@ macro_rules! define_versioned_constants {
                 }
             }
         }
+
+        impl VersionedConstants {
+            /// Get the constants that shipped with the current version of the Blockifier.
+            /// To use custom constants, initialize the struct from a file using `try_from`.
+            pub fn latest_constants() -> &'static Self {
+                Self::get(StarknetVersion::$latest_variant)
+            }
+        }
+
+        pub static VERSIONED_CONSTANTS_LATEST_JSON: LazyLock<String> = LazyLock::new(|| {
+            let latest_variant = StarknetVersion::$latest_variant;
+            let path_to_json: PathBuf = [
+                env!("CARGO_MANIFEST_DIR"), "src", latest_variant.path_to_versioned_constants_json()
+            ].iter().collect();
+            fs::read_to_string(path_to_json.clone())
+                .expect(&format!("Failed to read file {}.", path_to_json.display()))
+        });
     };
 }
 
 define_versioned_constants! {
-    (V0_13_0, "../resources/versioned_constants_13_0.json"),
-    (V0_13_1, "../resources/versioned_constants_13_1.json"),
-    (V0_13_1_1, "../resources/versioned_constants_13_1_1.json"),
-    (V0_13_2, "../resources/versioned_constants_13_2.json"),
-    (V0_13_2_1, "../resources/versioned_constants_13_2_1.json"),
-    (Latest, "../resources/versioned_constants.json"),
+    (V0_13_0, "../resources/versioned_constants_0_13_0.json"),
+    (V0_13_1, "../resources/versioned_constants_0_13_1.json"),
+    (V0_13_1_1, "../resources/versioned_constants_0_13_1_1.json"),
+    (V0_13_2, "../resources/versioned_constants_0_13_2.json"),
+    (V0_13_2_1, "../resources/versioned_constants_0_13_2_1.json"),
+    (V0_13_3, "../resources/versioned_constants_0_13_3.json"),
+    V0_13_3
 }
 
 pub type ResourceCost = Ratio<u128>;
@@ -146,12 +172,6 @@ impl VersionedConstants {
     /// Get the constants for the specified Starknet version.
     pub fn get(version: StarknetVersion) -> &'static Self {
         version.into()
-    }
-
-    /// Get the constants that shipped with the current version of the Blockifier.
-    /// To use custom constants, initialize the struct from a file using `try_from`.
-    pub fn latest_constants() -> &'static Self {
-        Self::get(StarknetVersion::Latest)
     }
 
     /// Converts from L1 gas price to L2 gas price with **upward rounding**.

@@ -874,7 +874,7 @@ fn get_versioned_constants(
             } else if version == STARKNET_VERSION_O_13_2 {
                 BlockifierStarknetVersion::V0_13_2
             } else {
-                BlockifierStarknetVersion::Latest
+                BlockifierStarknetVersion::V0_13_3
             };
             VersionedConstants::get(blockifier_starknet_version)
         }

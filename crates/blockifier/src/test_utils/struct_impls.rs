@@ -127,7 +127,7 @@ impl GasCosts {
     pub fn create_for_testing_from_subset(subset_of_os_constants: &str) -> Self {
         let subset_of_os_constants: Value = serde_json::from_str(subset_of_os_constants).unwrap();
         let mut os_constants: Value =
-            serde_json::from_str::<Value>(VERSIONED_CONSTANTS_LATEST_JSON)
+            serde_json::from_str::<Value>(VERSIONED_CONSTANTS_LATEST_JSON.as_str())
                 .unwrap()
                 .get("os_constants")
                 .unwrap()
