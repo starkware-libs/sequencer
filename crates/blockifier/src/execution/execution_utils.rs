@@ -21,8 +21,14 @@ use starknet_api::deprecated_contract_class::Program as DeprecatedProgram;
 use starknet_api::transaction::Calldata;
 use starknet_types_core::felt::Felt;
 
+use super::call_info::CallExecution;
 use super::entry_point::ConstructorEntryPointExecutionResult;
-use super::errors::ConstructorEntryPointExecutionError;
+use super::errors::{
+    ConstructorEntryPointExecutionError,
+    EntryPointExecutionError,
+    PreExecutionError,
+};
+use super::syscalls::hint_processor::ENTRYPOINT_NOT_FOUND_ERROR;
 use crate::execution::call_info::{CallInfo, Retdata};
 use crate::execution::contract_class::{ContractClass, TrackedResource};
 use crate::execution::entry_point::{
@@ -62,9 +68,26 @@ pub fn execute_entry_point_call_wrapper(
         context.tracked_resource_stack.push(tracked_resource);
     }
 
-    let res = execute_entry_point_call(call, contract_class, state, resources, context);
-    context.tracked_resource_stack.pop();
-    res
+    let orig_call = call.clone();
+    match execute_entry_point_call(call, contract_class, state, resources, context) {
+        Err(EntryPointExecutionError::PreExecutionError(
+            PreExecutionError::EntryPointNotFound(_),
+        )) if context.versioned_constants().enable_reverts => Ok(CallInfo {
+            call: orig_call,
+            execution: CallExecution {
+                retdata: Retdata(vec![Felt::from_hex(ENTRYPOINT_NOT_FOUND_ERROR).unwrap()]),
+                failed: true,
+                gas_consumed: 0,
+                ..CallExecution::default()
+            },
+            tracked_resource: context.tracked_resource_stack.pop().unwrap(),
+            ..CallInfo::default()
+        }),
+        res => {
+            context.tracked_resource_stack.pop();
+            res
+        }
+    }
 }
 
 /// Executes a specific call to a contract entry point and returns its output.
