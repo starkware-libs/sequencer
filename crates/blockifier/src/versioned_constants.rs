@@ -84,14 +84,6 @@ macro_rules! define_versioned_constants {
             }
         }
 
-        impl VersionedConstants {
-            /// Get the constants that shipped with the current version of the Blockifier.
-            /// To use custom constants, initialize the struct from a file using `try_from`.
-            pub fn latest_constants() -> &'static Self {
-                Self::get(StarknetVersion::latest())
-            }
-        }
-
         pub static VERSIONED_CONSTANTS_LATEST_JSON: LazyLock<String> = LazyLock::new(|| {
             let latest_variant = StarknetVersion::$latest_variant;
             let path_to_json: PathBuf = [
@@ -186,6 +178,12 @@ impl VersionedConstants {
     /// Get the constants for the specified Starknet version.
     pub fn get(version: StarknetVersion) -> &'static Self {
         version.into()
+    }
+
+    /// Get the constants that shipped with the current version of the Blockifier.
+    /// To use custom constants, initialize the struct from a file using `from_path`.
+    pub fn latest_constants() -> &'static Self {
+        Self::get(StarknetVersion::latest())
     }
 
     /// Converts from L1 gas price to L2 gas price with **upward rounding**.
