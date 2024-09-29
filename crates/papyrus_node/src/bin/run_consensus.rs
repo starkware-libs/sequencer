@@ -1,5 +1,9 @@
 //! Run a papyrus node with consensus enabled and the ability to simulate network issues for
 //! consensus.
+//!
+//! Expects to receive 2 groupings of arguments:
+//! 1. TestConfig - these are prefixed with `--test.` in the command.
+//! 2. NodeConfig - any argument lacking the above prefix is assumed to be in NodeConfig.
 use clap::Parser;
 use futures::stream::StreamExt;
 use papyrus_consensus::config::ConsensusConfig;
@@ -97,7 +101,7 @@ fn build_consensus(
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let (test_config, node_config) = build_configs::<TestConfig>()?;
+    let (test_config, node_config) = build_configs::<TestConfig>("--test.")?;
 
     let mut resources = PapyrusResources::new(&node_config)?;
 
