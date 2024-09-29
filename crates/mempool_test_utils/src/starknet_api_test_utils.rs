@@ -192,10 +192,10 @@ pub fn executable_invoke_tx(cairo_version: CairoVersion) -> Transaction {
 
     let mut tx_generator = MultiAccountTransactionGenerator::new();
     tx_generator.register_account(default_account);
-    tx_generator.account_with_id(0).generate_default_executable_invoke()
+    tx_generator.account_with_id(0).generate_executable_invoke()
 }
 
-pub fn generate_default_deploy_account_with_salt(
+pub fn generate_deploy_account_with_salt(
     account: &FeatureContract,
     contract_address_salt: ContractAddressSalt,
 ) -> RpcTransaction {
@@ -234,9 +234,9 @@ type SharedNonceManager = Rc<RefCell<NonceManager>>;
 /// tx_generator.register_account_for_flow_test(some_account_type.clone());
 /// tx_generator.register_account_for_flow_test(some_account_type);
 ///
-/// let account_0_tx_with_nonce_0 = tx_generator.account_with_id(0).generate_default_invoke();
-/// let account_1_tx_with_nonce_0 = tx_generator.account_with_id(1).generate_default_invoke();
-/// let account_0_tx_with_nonce_1 = tx_generator.account_with_id(0).generate_default_invoke();
+/// let account_0_tx_with_nonce_0 = tx_generator.account_with_id(0).generate_invoke();
+/// let account_1_tx_with_nonce_0 = tx_generator.account_with_id(1).generate_invoke();
+/// let account_0_tx_with_nonce_1 = tx_generator.account_with_id(0).generate_invoke();
 /// ```
 // Note: when moving this to starknet api crate, see if blockifier's
 // [blockifier::transaction::test_utils::FaultyAccountTxCreatorArgs] can be made to use this.
@@ -305,7 +305,7 @@ pub struct AccountTransactionGenerator {
 
 impl AccountTransactionGenerator {
     /// Generate a valid `RpcTransaction` with default parameters.
-    pub fn generate_default_invoke(&mut self) -> RpcTransaction {
+    pub fn generate_invoke(&mut self) -> RpcTransaction {
         let nonce = self.next_nonce();
         assert_ne!(
             nonce,
@@ -323,7 +323,7 @@ impl AccountTransactionGenerator {
         rpc_invoke_tx(invoke_args)
     }
 
-    pub fn generate_default_executable_invoke(&mut self) -> Transaction {
+    pub fn generate_executable_invoke(&mut self) -> Transaction {
         let nonce = self.next_nonce();
         assert_ne!(
             nonce,
@@ -346,12 +346,12 @@ impl AccountTransactionGenerator {
     ///
     /// Caller must manually handle bumping nonce and fetching the correct sender address via
     /// [AccountTransactionGenerator::next_nonce] and [AccountTransactionGenerator::sender_address].
-    /// See [AccountTransactionGenerator::generate_default_invoke] to have these filled up by
+    /// See [AccountTransactionGenerator::generate_invoke] to have these filled up by
     /// default.
     ///
     /// Note: This is a best effort attempt to make the API more useful; amend or add new methods
     /// as needed.
-    pub fn generate_raw(&mut self, invoke_tx_args: InvokeTxArgs) -> RpcTransaction {
+    pub fn generate_raw_invoke(&mut self, invoke_tx_args: InvokeTxArgs) -> RpcTransaction {
         rpc_invoke_tx(invoke_tx_args)
     }
 
@@ -378,7 +378,7 @@ impl AccountTransactionGenerator {
         // A DeployAccount tx must be created now in order to affix an address to it.
         // If this doesn't happen now it'll be difficult to fund the account during test setup.
         let default_deploy_account_tx =
-            generate_default_deploy_account_with_salt(&account, contract_address_salt);
+            generate_deploy_account_with_salt(&account, contract_address_salt);
 
         let mut account_tx_generator = Self {
             account: FeatureAccount::new(account, &default_deploy_account_tx),
