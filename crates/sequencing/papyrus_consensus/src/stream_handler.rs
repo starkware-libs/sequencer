@@ -4,13 +4,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use futures::channel::mpsc;
 use futures::StreamExt;
-use papyrus_network::network_manager::{
-    BroadcastTopicChannels,
-    BroadcastTopicReceiver,
-    BroadcastTopicSender,
-    BroadcastedMessageManager,
-    GenericReceiver,
-};
+use papyrus_network::network_manager::{BroadcastedMessageManager, GenericReceiver};
 use papyrus_protobuf::consensus::StreamMessage;
 use papyrus_protobuf::converters::ProtobufConversionError;
 use tracing::{instrument, warn};
@@ -25,7 +19,7 @@ type MessageId = u64;
 
 const CHANNEL_BUFFER_LENGTH: usize = 100;
 
-fn get_metadata_peer_id_as_u64(metadata: BroadcastedMessageManager) -> PeerId {
+fn get_metadata_peer_id_as_u64(_metadata: BroadcastedMessageManager) -> PeerId {
     // TODO(guyn): need to make this a public field or something!
     // TODO(guyn): need to convert a Multiaddr to a PeerId (u64)
     // metadata.peer_id
