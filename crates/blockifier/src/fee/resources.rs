@@ -249,7 +249,16 @@ impl MessageResources {
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(
-    derive_more::Add, derive_more::Sum, Clone, Copy, Debug, Default, Eq, PartialEq, Serialize,
+    derive_more::Add,
+    derive_more::Sum,
+    derive_more::AddAssign,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    Serialize,
 )]
 pub struct GasVector {
     pub l1_gas: u128,
