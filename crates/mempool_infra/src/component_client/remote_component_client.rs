@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::net::IpAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
@@ -31,6 +32,8 @@ use crate::serde_utils::BincodeSerdeWrapper;
 /// ```rust
 /// // Example usage of the RemoteComponentClient
 ///
+/// use std::time::Duration;
+///
 /// use serde::{Deserialize, Serialize};
 ///
 /// use crate::starknet_mempool_infra::component_client::RemoteComponentClient;
@@ -52,7 +55,13 @@ use crate::serde_utils::BincodeSerdeWrapper;
 ///     // Instantiate the client.
 ///     let ip_address = std::net::IpAddr::V6(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
 ///     let port: u16 = 8080;
-///     let client = RemoteComponentClient::<MyRequest, MyResponse>::new(ip_address, port, 2);
+///     let client = RemoteComponentClient::<MyRequest, MyResponse>::new(
+///         ip_address,
+///         port,
+///         2,
+///         usize::MAX,
+///         Duration::from_secs(60),
+///     );
 ///
 ///     // Instantiate a request.
 ///     let request = MyRequest { content: "Hello, world!".to_string() };
@@ -74,6 +83,8 @@ where
     uri: Uri,
     client: Client<hyper::client::HttpConnector>,
     max_retries: usize,
+    max_idle_connection: usize,
+    idle_timeout: Duration,
     _req: PhantomData<Request>,
     _res: PhantomData<Response>,
 }
@@ -83,16 +94,31 @@ where
     Request: Serialize + DeserializeOwned + Debug + Clone,
     Response: Serialize + DeserializeOwned + Debug,
 {
-    pub fn new(ip_address: IpAddr, port: u16, max_retries: usize) -> Self {
+    pub fn new(
+        ip_address: IpAddr,
+        port: u16,
+        max_retries: usize,
+        max_idle_connection: usize,
+        idle_timeout: Duration,
+    ) -> Self {
         let uri = match ip_address {
             IpAddr::V4(ip_address) => format!("http://{}:{}/", ip_address, port).parse().unwrap(),
             IpAddr::V6(ip_address) => format!("http://[{}]:{}/", ip_address, port).parse().unwrap(),
         };
-        // TODO(Tsabary): Add a configuration for the maximum number of idle connections.
-        // TODO(Tsabary): Add a configuration for "keep-alive" time of idle connections.
-        let client =
-            Client::builder().http2_only(true).pool_max_idle_per_host(usize::MAX).build_http();
-        Self { uri, client, max_retries, _req: PhantomData, _res: PhantomData }
+        let client = Client::builder()
+            .http2_only(true)
+            .pool_max_idle_per_host(max_idle_connection)
+            .pool_idle_timeout(idle_timeout)
+            .build_http();
+        Self {
+            uri,
+            client,
+            max_retries,
+            max_idle_connection,
+            idle_timeout,
+            _req: PhantomData,
+            _res: PhantomData,
+        }
     }
 
     pub async fn send(&self, component_request: Request) -> ClientResult<Response> {
@@ -163,6 +189,8 @@ where
             uri: self.uri.clone(),
             client: self.client.clone(),
             max_retries: self.max_retries,
+            max_idle_connection: self.max_idle_connection,
+            idle_timeout: self.idle_timeout,
             _req: PhantomData,
             _res: PhantomData,
         }
