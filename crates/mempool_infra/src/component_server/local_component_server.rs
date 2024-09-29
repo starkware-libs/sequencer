@@ -5,9 +5,13 @@ use tokio::sync::mpsc::Receiver;
 use tracing::error;
 
 use super::definitions::request_response_loop;
-use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
+use crate::component_definitions::{
+    ComponentRequestAndResponseSender,
+    ComponentRequestHandler,
+    ComponentStarter,
+};
 use crate::component_server::{ComponentReplacer, ReplaceComponentError};
-use crate::errors::{ComponentError, ComponentServerError};
+use crate::errors::ComponentServerError;
 use crate::starters::Startable;
 
 /// The `LocalComponentServer` struct is a generic server that handles requests and responses for a
@@ -38,8 +42,9 @@ use crate::starters::Startable;
 /// use std::sync::mpsc::{channel, Receiver};
 ///
 /// use async_trait::async_trait;
-/// use starknet_mempool_infra::errors::{ComponentError, ComponentServerError};
-/// use starknet_mempool_infra::starters::{DefaultComponentStarter, Startable};
+/// use starknet_mempool_infra::component_definitions::ComponentStarter;
+/// use starknet_mempool_infra::errors::ComponentServerError;
+/// use starknet_mempool_infra::starters::Startable;
 /// use tokio::task;
 ///
 /// use crate::starknet_mempool_infra::component_definitions::{
@@ -51,7 +56,7 @@ use crate::starters::Startable;
 /// // Define your component
 /// struct MyComponent {}
 ///
-/// impl DefaultComponentStarter for MyComponent {}
+/// impl ComponentStarter for MyComponent {}
 ///
 /// // Define your request and response types
 /// struct MyRequest {
@@ -112,7 +117,7 @@ pub struct BlockingLocalServerType {}
 impl<Component, Request, Response> Startable<ComponentServerError>
     for LocalComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + Send + Sync + Startable<ComponentError>,
+    Component: ComponentRequestHandler<Request, Response> + Send + Sync + ComponentStarter,
     Request: Send + Sync,
     Response: Send + Sync,
 {
@@ -131,11 +136,7 @@ pub struct NonBlockingLocalServerType {}
 impl<Component, Request, Response> Startable<ComponentServerError>
     for LocalActiveComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response>
-        + Startable<ComponentError>
-        + Clone
-        + Send
-        + Sync,
+    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send + Sync,
     Request: Send + Sync,
     Response: Send + Sync,
 {
