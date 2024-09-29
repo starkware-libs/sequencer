@@ -159,8 +159,8 @@ impl StateResources {
 pub struct ArchivalDataResources {
     pub event_summary: EventSummary,
     pub calldata_length: usize,
-    signature_length: usize,
-    code_size: usize,
+    pub signature_length: usize,
+    pub code_size: usize,
 }
 
 impl ArchivalDataResources {

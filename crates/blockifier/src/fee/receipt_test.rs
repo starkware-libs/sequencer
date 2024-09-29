@@ -7,6 +7,7 @@ use crate::context::BlockContext;
 use crate::execution::call_info::{
     CallExecution,
     CallInfo,
+    EventSummary,
     ExecutionSummary,
     MessageToL1,
     OrderedL2ToL1Message,
@@ -14,14 +15,17 @@ use crate::execution::call_info::{
 use crate::fee::eth_gas_constants;
 use crate::fee::gas_usage::{
     get_consumed_message_to_l2_emissions_cost,
+    get_da_gas_cost,
     get_log_message_to_l1_emissions_cost,
     get_message_segment_length,
 };
 use crate::fee::resources::{
+    ArchivalDataResources,
     GasVector,
     GasVectorComputationMode,
     StarknetResources,
     StateResources,
+    TransactionResources,
 };
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::contracts::FeatureContract;
@@ -59,26 +63,27 @@ fn versioned_constants() -> &'static VersionedConstants {
 fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool) {
     // An empty transaction (a theoretical case for sanity check).
     let versioned_constants = VersionedConstants::create_for_account_testing();
-    let empty_tx_starknet_resources = StarknetResources::default();
-    let empty_tx_gas_usage_vector = empty_tx_starknet_resources.to_gas_vector(
+    let empty_tx_resources = TransactionResources::default();
+    let empty_tx_gas_vector = empty_tx_resources.to_gas_vector(
         &versioned_constants,
         use_kzg_da,
         &GasVectorComputationMode::NoL2Gas,
     );
-    assert_eq!(empty_tx_gas_usage_vector, GasVector::default());
+    assert_eq!(empty_tx_gas_vector, GasVector::default());
 
     // Declare.
     for cairo_version in [CairoVersion::Cairo0, CairoVersion::Cairo1] {
         let empty_contract = FeatureContract::Empty(cairo_version).get_class();
         let class_info = calculate_class_info_for_testing(empty_contract);
-        let declare_tx_starknet_resources = StarknetResources::new(
-            0,
-            0,
-            class_info.code_size(),
-            StateResources::default(),
-            None,
-            ExecutionSummary::default(),
-        );
+        let declare_tx_resources = ArchivalDataResources {
+            event_summary: EventSummary::default(),
+            calldata_length: 0,
+            signature_length: 0,
+            code_size: class_info.code_size(),
+        };
+        let declare_tx_gas_vector = declare_tx_resources
+            .to_gas_vector(&versioned_constants, &GasVectorComputationMode::NoL2Gas);
+
         let code_gas_cost = versioned_constants.archival_data_gas_costs.gas_per_code_byte
             * versioned_constants.get_l1_to_l2_gas_price_ratio()
             * u128_from_usize(
@@ -88,12 +93,8 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
             );
         let manual_gas_vector =
             GasVector { l1_gas: code_gas_cost.to_integer(), ..Default::default() };
-        let declare_gas_usage_vector = declare_tx_starknet_resources.to_gas_vector(
-            &versioned_constants,
-            use_kzg_da,
-            &GasVectorComputationMode::NoL2Gas,
-        );
-        assert_eq!(manual_gas_vector, declare_gas_usage_vector);
+
+        assert_eq!(manual_gas_vector, declare_tx_gas_vector);
     }
 
     // DeployAccount.
@@ -236,7 +237,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
 
     assert_eq!(l2_to_l1_messages_gas_usage_vector, manual_gas_computation);
 
-    // Any calculation with storage writings.t
+    // Any calculation with storage writes.
 
     let n_modified_contracts = 7;
     let n_storage_updates = 11;
@@ -246,25 +247,14 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
         n_compiled_class_hash_updates: 0,
         n_modified_contracts,
     };
-    let storage_writes_starknet_resources = StarknetResources::new(
-        0,
-        0,
-        0,
-        StateResources::new_for_testing(storage_writes_state_changes_count),
-        None,
-        ExecutionSummary::default(),
-    );
-
-    let storage_writings_gas_usage_vector = storage_writes_starknet_resources.to_gas_vector(
-        &versioned_constants,
-        use_kzg_da,
-        &GasVectorComputationMode::NoL2Gas,
-    );
+    let storage_writes_resources =
+        StateResources::new_for_testing(storage_writes_state_changes_count);
+    let storage_writes_gas_usage_vector = storage_writes_resources.to_gas_vector(use_kzg_da);
 
     // Manual calculation.
-    let manual_gas_computation = storage_writes_starknet_resources.state.to_gas_vector(use_kzg_da);
+    let manual_gas_computation = get_da_gas_cost(&storage_writes_state_changes_count, use_kzg_da);
 
-    assert_eq!(manual_gas_computation, storage_writings_gas_usage_vector);
+    assert_eq!(manual_gas_computation, storage_writes_gas_usage_vector);
 
     // Combined case of an L1 handler, L2-to-L1 messages and storage writes.
     let combined_state_changes_count = StateChangesCount {
@@ -300,7 +290,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(#[values(false, true)] use_kzg_da: bool
     let expected_gas_vector = GasVector {
         l1_gas: l1_handler_gas_usage_vector.l1_gas
         + l2_to_l1_messages_gas_usage_vector.l1_gas
-        + storage_writings_gas_usage_vector.l1_gas
+        + storage_writes_gas_usage_vector.l1_gas
         // l2_to_l1_messages_gas_usage and storage_writings_gas_usage got a discount each, while
         // the combined calculation got it once.
         + u128_from_usize(fee_balance_discount),
