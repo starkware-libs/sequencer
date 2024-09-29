@@ -38,7 +38,7 @@ message ConsensusMessage {
 message StreamMessage {
     oneof message {
         bytes content = 1;
-        bool fin = 2;
+        Fin fin = 2;
     }
     uint64 stream_id = 3;
     uint64 message_id = 4;

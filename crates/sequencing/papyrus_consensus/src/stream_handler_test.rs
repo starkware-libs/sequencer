@@ -1,6 +1,6 @@
 use futures::channel::mpsc;
 use futures::stream::StreamExt;
-use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, StreamMessage, StreamMessageOption};
+use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, StreamMessage, StreamMessageBody};
 
 use super::StreamHandler;
 
@@ -16,8 +16,8 @@ mod tests {
         fin: bool,
     ) -> StreamMessage<ConsensusMessage> {
         let content = match fin {
-            true => StreamMessageOption::Fin,
-            false => StreamMessageOption::Content(ConsensusMessage::Proposal(Proposal::default())),
+            true => StreamMessageBody::Fin,
+            false => StreamMessageBody::Content(ConsensusMessage::Proposal(Proposal::default())),
         };
         StreamMessage { message: content, stream_id, message_id }
     }

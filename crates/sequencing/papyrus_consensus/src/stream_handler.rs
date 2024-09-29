@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use futures::channel::mpsc;
 use futures::StreamExt;
-use papyrus_protobuf::consensus::{StreamMessage, StreamMessageOption};
+use papyrus_protobuf::consensus::{StreamMessage, StreamMessageBody};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use tracing::{instrument, warn};
 
@@ -85,7 +85,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     fn send(data: &mut StreamData<T>, message: StreamMessage<T>) {
         // TODO(guyn): reconsider the "expect" here.
         let sender = &mut data.sender;
-        if let StreamMessageOption::Content(content) = message.message {
+        if let StreamMessageBody::Content(content) = message.message {
             sender.try_send(content).expect("Send should succeed");
             data.next_message_id += 1;
         }
@@ -117,8 +117,8 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
 
         // Check for Fin type message
         match message.message {
-            StreamMessageOption::Content(_) => {}
-            StreamMessageOption::Fin => {
+            StreamMessageBody::Content(_) => {}
+            StreamMessageBody::Fin => {
                 data.fin_message_id = Some(message_id);
                 if data.max_message_id > message_id {
                     // TODO(guyn): replace warnings with more graceful error handling
