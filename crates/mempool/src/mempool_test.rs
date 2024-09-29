@@ -282,15 +282,13 @@ fn test_get_txs_returns_by_priority_order(#[case] n_requested_txs: usize) {
 
     // Assert: non-returned transactions are still in the mempool.
     let remaining_tx_references = remaining_txs.iter().map(TransactionReference::new);
-    let mempool_content = MempoolContentBuilder::new()
-        .with_pool(remaining_txs.to_vec())
-        .with_priority_queue(remaining_tx_references)
-        .build();
-    mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
+    let mempool_content =
+        MempoolContentBuilder::new().with_priority_queue(remaining_tx_references).build();
+    mempool_content.assert_eq_tx_priority_queue_content(&mempool);
 }
 
 #[rstest]
-fn test_get_txs_multi_nonce() {
+fn test_get_txs_removes_returned_txs_from_pool() {
     // Setup.
     let tx_nonce_0 = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0);
     let tx_nonce_1 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1);
@@ -333,9 +331,8 @@ fn test_get_txs_replenishes_queue_only_between_chunks() {
         3,
         &[tx_address_0_nonce_0, tx_address_1_nonce_0, tx_address_0_nonce_1],
     );
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_pool([]).with_priority_queue([]).build();
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
+    let expected_mempool_content = MempoolContentBuilder::new().with_priority_queue([]).build();
+    expected_mempool_content.assert_eq_tx_priority_queue_content(&mempool);
 }
 
 #[rstest]
@@ -363,22 +360,19 @@ fn test_get_txs_replenishes_queue_multi_account_between_chunks() {
     get_txs_and_assert_expected(&mut mempool, 2, &[tx_address_0_nonce_0, tx_address_1_nonce_0]);
     let expected_queue_txs =
         [&tx_address_0_nonce_1, &tx_address_1_nonce_1].map(TransactionReference::new);
-    let expected_pool_txs = [tx_address_0_nonce_1, tx_address_1_nonce_1];
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_pool(expected_pool_txs)
-        .with_priority_queue(expected_queue_txs)
-        .build();
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
+    let expected_mempool_content =
+        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
+    expected_mempool_content.assert_eq_tx_priority_queue_content(&mempool);
 }
 
 #[rstest]
-fn test_get_txs_with_holes_multiple_accounts() {
+fn test_get_txs_with_holes() {
     // Setup.
     let tx_address_0_nonce_1 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1);
     let tx_address_1_nonce_0 = tx!(tx_hash: 3, sender_address: "0x1", tx_nonce: 0);
 
     let queue_txs = [TransactionReference::new(&tx_address_1_nonce_0)];
-    let pool_txs = [&tx_address_0_nonce_1, &tx_address_1_nonce_0].map(|tx| tx.clone());
+    let pool_txs = [tx_address_0_nonce_1, tx_address_1_nonce_0.clone()];
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs)
         .with_priority_queue(queue_txs)
@@ -386,11 +380,8 @@ fn test_get_txs_with_holes_multiple_accounts() {
 
     // Test and assert.
     get_txs_and_assert_expected(&mut mempool, 2, &[tx_address_1_nonce_0]);
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_pool([tx_address_0_nonce_1])
-        .with_priority_queue([])
-        .build();
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
+    let expected_mempool_content = MempoolContentBuilder::new().with_priority_queue([]).build();
+    expected_mempool_content.assert_eq_tx_priority_queue_content(&mempool);
 }
 
 // TODO(Mohammad): simplify two queues reordering tests to use partial queue content test util.
