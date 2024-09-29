@@ -45,5 +45,37 @@ impl<T: From<Vec<u8>>> Experiment<T> {
         }
     }
 
-    pub async fn run(&mut self) {}
+    pub async fn run(&mut self) {
+        println!("Experiment::run");
+        println!("messages_to_broadcast_sender: {:?}", self.messages_to_broadcast_sender);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use papyrus_protobuf::consensus::ConsensusMessage;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_experiment() {
+        let (messages_to_broadcast_sender, messages_to_broadcast_receiver) =
+            futures::channel::mpsc::channel(100);
+        let (broadcasted_messages_sender, broadcasted_messages_receiver) =
+            futures::channel::mpsc::channel(100);
+        let (reported_messages_sender, reported_messages_receiver) =
+            futures::channel::mpsc::channel(100);
+        let (continue_propagation_sender, continue_propagation_receiver) =
+            futures::channel::mpsc::channel(100);
+
+        let channels = BroadcastTopicChannels {
+            messages_to_broadcast_sender,
+            broadcasted_messages_receiver,
+            reported_messages_sender,
+            continue_propagation_sender,
+        };
+
+        let mut experiment = Experiment::new(channels);
+        experiment.run().await;
+    }
 }

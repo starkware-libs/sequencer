@@ -4,6 +4,13 @@ use std::collections::{BTreeMap, HashMap};
 
 use futures::channel::mpsc;
 use futures::StreamExt;
+use papyrus_network::network_manager::{
+    BroadcastTopicChannels,
+    BroadcastTopicReceiver,
+    BroadcastTopicSender,
+    BroadcastedMessageManager,
+    GenericReceiver,
+};
 use papyrus_protobuf::consensus::StreamMessage;
 use papyrus_protobuf::converters::ProtobufConversionError;
 use tracing::{instrument, warn};
@@ -12,10 +19,21 @@ use tracing::{instrument, warn};
 #[path = "stream_handler_test.rs"]
 mod stream_handler_test;
 
+type PeerId = u64;
 type StreamId = u64;
 type MessageId = u64;
 
 const CHANNEL_BUFFER_LENGTH: usize = 100;
+
+fn get_metadata_peer_id_as_u64(metadata: BroadcastedMessageManager) -> PeerId {
+    // TODO(guyn): need to make this a public field or something!
+    // TODO(guyn): need to convert a Multiaddr to a PeerId (u64)
+    // metadata.peer_id
+    return 0; // placeholder
+}
+
+type ReceivedBroadcastedMessage<Message> =
+    (Result<Message, <Message as TryFrom<Vec<u8>>>::Error>, BroadcastedMessageManager);
 
 #[derive(Debug, Clone)]
 struct StreamData<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
@@ -53,7 +71,7 @@ pub struct StreamHandler<
     // An end of a channel used to send out receivers, one for each stream.
     sender: mpsc::Sender<mpsc::Receiver<T>>,
     // An end of a channel used to receive messages.
-    receiver: mpsc::Receiver<StreamMessage<T>>,
+    receiver: GenericReceiver<ReceivedBroadcastedMessage<StreamMessage<T>>>,
 
     // A map from stream_id to a struct that contains all the information about the stream.
     // This includes both the message buffer and some metadata (like the latest message_id).
@@ -67,7 +85,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     /// Create a new StreamHandler.
     pub fn new(
         sender: mpsc::Sender<mpsc::Receiver<T>>,
-        receiver: mpsc::Receiver<StreamMessage<T>>,
+        receiver: GenericReceiver<ReceivedBroadcastedMessage<StreamMessage<T>>>,
     ) -> Self {
         StreamHandler { sender, receiver, stream_data: HashMap::new() }
     }
@@ -91,9 +109,25 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
 
     // Handle the message, return true if the channel is still open.
     #[instrument(skip_all, level = "warn")]
-    fn handle_message(&mut self, message: StreamMessage<T>) {
+    fn handle_message(
+        &mut self,
+        message: (Result<StreamMessage<T>, ProtobufConversionError>, BroadcastedMessageManager),
+    ) {
+        let (message, metadata) = message;
+        let message = match message {
+            Ok(message) => message,
+            Err(e) => {
+                warn!("Error converting message: {:?}", e);
+                return;
+            }
+        };
+        let peer_id = get_metadata_peer_id_as_u64(metadata);
         let stream_id = message.stream_id;
         let message_id = message.message_id;
+        println!(
+            "handle_message: stream_id: {}, message_id: {}, peer_id: {}",
+            stream_id, message_id, peer_id
+        );
 
         let data = match self.stream_data.entry(stream_id) {
             Entry::Occupied(entry) => entry.into_mut(),
