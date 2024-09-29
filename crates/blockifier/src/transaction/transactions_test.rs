@@ -60,6 +60,7 @@ use crate::execution::call_info::{
     OrderedL2ToL1Message,
     Retdata,
 };
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::syscalls::hint_processor::EmitEventError;
@@ -173,6 +174,7 @@ fn expected_validate_call_info(
     calldata: Calldata,
     storage_address: ContractAddress,
     cairo_version: CairoVersion,
+    tracked_resource: TrackedResource,
 ) -> Option<CallInfo> {
     let retdata = match cairo_version {
         CairoVersion::Cairo0 => Retdata::default(),
@@ -218,6 +220,7 @@ fn expected_validate_call_info(
         // The account contract we use for testing has trivial `validate` functions.
         resources,
         execution: CallExecution { retdata, gas_consumed, ..Default::default() },
+        tracked_resource,
         ..Default::default()
     })
 }
@@ -444,6 +447,10 @@ fn test_invoke_tx(
 
     let actual_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
 
+    let tracked_resource = account_contract
+        .get_class()
+        .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas);
+
     // Build expected validate call info.
     let expected_account_class_hash = account_contract.get_class_hash();
     let expected_validate_call_info = expected_validate_call_info(
@@ -453,6 +460,7 @@ fn test_invoke_tx(
         calldata,
         sender_address,
         account_cairo_version,
+        tracked_resource,
     );
 
     // Build expected execute call info.
@@ -488,6 +496,7 @@ fn test_invoke_tx(
             resources: ExecutionResources { n_steps: 23, n_memory_holes: 0, ..Default::default() },
             ..Default::default()
         }],
+        tracked_resource,
         ..Default::default()
     });
 
@@ -1255,6 +1264,7 @@ fn declare_validate_callinfo(
     declared_class_hash: ClassHash,
     account_class_hash: ClassHash,
     account_address: ContractAddress,
+    tracked_resource: TrackedResource,
 ) -> Option<CallInfo> {
     // V0 transactions do not run validate.
     if version == TransactionVersion::ZERO {
@@ -1267,6 +1277,7 @@ fn declare_validate_callinfo(
             calldata![declared_class_hash.0],
             account_address,
             declared_contract_version,
+            tracked_resource,
         )
     }
 }
@@ -1360,6 +1371,9 @@ fn test_declare_tx(
         class_hash,
         account.get_class_hash(),
         sender_address,
+        account
+            .get_class()
+            .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas),
     );
 
     // Build expected fee transfer call info.
@@ -1512,6 +1526,9 @@ fn test_deploy_account_tx(
         Calldata(validate_calldata.into()),
         deployed_account_address,
         cairo_version,
+        account
+            .get_class()
+            .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas),
     );
 
     // Build expected execute call info.
@@ -2032,6 +2049,9 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 6)]),
         },
         accessed_storage_keys: HashSet::from_iter(vec![accessed_storage_key]),
+        tracked_resource: test_contract
+            .get_class()
+            .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas),
         ..Default::default()
     };
 
