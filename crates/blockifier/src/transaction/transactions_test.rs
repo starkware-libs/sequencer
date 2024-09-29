@@ -77,6 +77,7 @@ use crate::fee::resources::{
     GasVector,
     GasVectorComputationMode,
     StarknetResources,
+    StateResources,
     TransactionResources,
 };
 use crate::state::cached_state::{CachedState, StateChangesCount, TransactionalState};
@@ -428,15 +429,16 @@ fn test_invoke_tx(
     let calldata = Calldata(Arc::clone(&invoke_tx.calldata().0));
     let calldata_length = invoke_tx.calldata().0.len();
     let signature_length = invoke_tx.signature().0.len();
+    let state_changes_for_fee = StateChangesCount {
+        n_storage_updates: 1,
+        n_modified_contracts: 1,
+        ..StateChangesCount::default()
+    };
     let starknet_resources = StarknetResources::new(
         calldata_length,
         signature_length,
         0,
-        StateChangesCount {
-            n_storage_updates: 1,
-            n_modified_contracts: 1,
-            ..StateChangesCount::default()
-        },
+        StateResources::new_for_testing(state_changes_for_fee),
         None,
         ExecutionSummary::default(),
     );
@@ -511,7 +513,7 @@ fn test_invoke_tx(
         FeatureContract::ERC20(CairoVersion::Cairo0).get_class_hash(),
     );
 
-    let da_gas = starknet_resources.get_state_changes_cost(use_kzg_da);
+    let da_gas = starknet_resources.state.to_gas_vector(use_kzg_da);
 
     let expected_cairo_resources = get_expected_cairo_resources(
         versioned_constants,
@@ -519,7 +521,6 @@ fn test_invoke_tx(
         &starknet_resources,
         vec![&expected_validate_call_info, &expected_execute_call_info],
     );
-    let state_changes_count = starknet_resources.state_changes_for_fee;
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
@@ -530,7 +531,7 @@ fn test_invoke_tx(
 
     add_kzg_da_resources_to_resources_mapping(
         &mut expected_actual_resources.computation.vm_resources,
-        &state_changes_count,
+        &state_changes_for_fee,
         versioned_constants,
         use_kzg_da,
     );
@@ -1332,11 +1333,12 @@ fn test_declare_tx(
     let class_info = calculate_class_info_for_testing(empty_contract.get_class());
     let sender_address = account.get_instance_address(0);
     let mut nonce_manager = NonceManager::default();
+    let state_changes_for_fee = declare_expected_state_changes_count(tx_version);
     let starknet_resources = StarknetResources::new(
         0,
         0,
         class_info.code_size(),
-        declare_expected_state_changes_count(tx_version),
+        StateResources::new_for_testing(state_changes_for_fee),
         None,
         ExecutionSummary::default(),
     );
@@ -1386,14 +1388,13 @@ fn test_declare_tx(
         FeatureContract::ERC20(CairoVersion::Cairo0).get_class_hash(),
     );
 
-    let da_gas = starknet_resources.get_state_changes_cost(use_kzg_da);
+    let da_gas = starknet_resources.state.to_gas_vector(use_kzg_da);
     let expected_cairo_resources = get_expected_cairo_resources(
         versioned_constants,
         TransactionType::Declare,
         &starknet_resources,
         vec![&expected_validate_call_info],
     );
-    let state_changes_count = starknet_resources.state_changes_for_fee;
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
@@ -1404,7 +1405,7 @@ fn test_declare_tx(
 
     add_kzg_da_resources_to_resources_mapping(
         &mut expected_actual_resources.computation.vm_resources,
-        &state_changes_count,
+        &state_changes_for_fee,
         versioned_constants,
         use_kzg_da,
     );
