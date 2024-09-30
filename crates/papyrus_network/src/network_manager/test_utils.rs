@@ -5,8 +5,10 @@ use futures::sink::With;
 use futures::stream::Map;
 use futures::{FutureExt, SinkExt, StreamExt};
 use libp2p::gossipsub::SubscriptionError;
+use libp2p::PeerId;
 
 use super::{
+    BroadcastTopicClient,
     BroadcastedMessageManager,
     GenericReceiver,
     ReportReceiver,
@@ -95,15 +97,22 @@ where
 
     let (reported_messages_sender, _mock_reported_messages_receiver) =
         futures::channel::mpsc::channel(CHANNEL_BUFFER_SIZE);
+    let reported_messages_fn: fn(BroadcastedMessageManager) -> Ready<Result<PeerId, SendError>> =
+        |broadcasted_message_manager| {
+            ready(Ok(broadcasted_message_manager.originator_id.private_get_peer_id()))
+        };
+    let reported_messages_sender = reported_messages_sender.with(reported_messages_fn);
 
     let (continue_propagation_sender, _mock_continue_propagation_receiver) =
         futures::channel::mpsc::channel(CHANNEL_BUFFER_SIZE);
 
     let subscriber_channels = BroadcastTopicChannels {
-        messages_to_broadcast_sender,
-        broadcasted_messages_receiver: Box::new(broadcasted_messages_receiver),
-        reported_messages_sender: Box::new(reported_messages_sender),
-        continue_propagation_sender: Box::new(continue_propagation_sender),
+        broadcasted_messages_receiver,
+        broadcast_topic_client: BroadcastTopicClient {
+            messages_to_broadcast_sender,
+            reported_messages_sender,
+            continue_propagation_sender,
+        },
     };
 
     let mock_broadcasted_messages_fn: MockBroadcastedMessagesFn<T> =
