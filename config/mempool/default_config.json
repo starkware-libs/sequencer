@@ -64,6 +64,11 @@
     "privacy": "Public",
     "value": true
   },
+  "components.batcher.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Local"
+  },
   "components.batcher.local_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -73,11 +78,6 @@
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.batcher.location": {
-    "description": "The component location.",
-    "privacy": "Public",
-    "value": "Local"
   },
   "components.batcher.remote_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -104,6 +104,11 @@
     "privacy": "Public",
     "value": true
   },
+  "components.consensus_manager.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Local"
+  },
   "components.consensus_manager.local_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -113,11 +118,6 @@
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.consensus_manager.location": {
-    "description": "The component location.",
-    "privacy": "Public",
-    "value": "Local"
   },
   "components.consensus_manager.remote_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -144,6 +144,11 @@
     "privacy": "Public",
     "value": true
   },
+  "components.gateway.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Local"
+  },
   "components.gateway.local_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -153,11 +158,6 @@
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.gateway.location": {
-    "description": "The component location.",
-    "privacy": "Public",
-    "value": "Local"
   },
   "components.gateway.remote_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -184,6 +184,11 @@
     "privacy": "Public",
     "value": true
   },
+  "components.mempool.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Local"
+  },
   "components.mempool.local_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -193,11 +198,6 @@
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.mempool.location": {
-    "description": "The component location.",
-    "privacy": "Public",
-    "value": "Local"
   },
   "components.mempool.remote_config.#is_none": {
     "description": "Flag for an optional field.",

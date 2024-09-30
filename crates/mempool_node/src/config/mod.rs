@@ -46,7 +46,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
 // The configuration of the components.
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum LocationType {
+pub enum ComponentExecutionMode {
     Local,
     Remote,
 }
@@ -58,7 +58,7 @@ pub enum LocationType {
 #[validate(schema(function = "validate_single_component_config"))]
 pub struct ComponentExecutionConfig {
     pub execute: bool,
-    pub location: LocationType,
+    pub execution_mode: ComponentExecutionMode,
     pub local_config: Option<LocalComponentCommunicationConfig>,
     pub remote_config: Option<RemoteComponentCommunicationConfig>,
 }
@@ -73,9 +73,9 @@ impl SerializeConfig for ComponentExecutionConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "location",
-                &self.location,
-                "The component location.",
+                "execution_mode",
+                &self.execution_mode,
+                "The component execution mode.",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -94,7 +94,7 @@ impl Default for ComponentExecutionConfig {
     fn default() -> Self {
         Self {
             execute: true,
-            location: LocationType::Local,
+            execution_mode: ComponentExecutionMode::Local,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
         }
@@ -106,7 +106,7 @@ impl ComponentExecutionConfig {
     pub fn gateway_default_config() -> Self {
         Self {
             execute: true,
-            location: LocationType::Local,
+            execution_mode: ComponentExecutionMode::Local,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
         }
@@ -118,7 +118,7 @@ impl ComponentExecutionConfig {
     pub fn http_server_default_config() -> Self {
         Self {
             execute: true,
-            location: LocationType::Local,
+            execution_mode: ComponentExecutionMode::Local,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
         }
@@ -127,7 +127,7 @@ impl ComponentExecutionConfig {
     pub fn mempool_default_config() -> Self {
         Self {
             execute: true,
-            location: LocationType::Local,
+            execution_mode: ComponentExecutionMode::Local,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
         }
@@ -136,7 +136,7 @@ impl ComponentExecutionConfig {
     pub fn batcher_default_config() -> Self {
         Self {
             execute: true,
-            location: LocationType::Local,
+            execution_mode: ComponentExecutionMode::Local,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
         }
@@ -145,7 +145,7 @@ impl ComponentExecutionConfig {
     pub fn consensus_manager_default_config() -> Self {
         Self {
             execute: true,
-            location: LocationType::Local,
+            execution_mode: ComponentExecutionMode::Local,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
         }
@@ -158,11 +158,11 @@ pub fn validate_single_component_config(
     let error_message =
         if component_config.local_config.is_some() && component_config.remote_config.is_some() {
             "Local config and Remote config are mutually exclusive, can't be both active."
-        } else if component_config.location == LocationType::Local
+        } else if component_config.execution_mode == ComponentExecutionMode::Local
             && component_config.local_config.is_none()
         {
             "Local communication config is missing."
-        } else if component_config.location == LocationType::Remote
+        } else if component_config.execution_mode == ComponentExecutionMode::Remote
             && component_config.remote_config.is_none()
         {
             "Remote communication config is missing."
