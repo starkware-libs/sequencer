@@ -85,7 +85,7 @@ impl Transaction {
                     }
                     false => DeclareTransaction::new(declare, tx_hash, non_optional_class_info),
                 };
-                Ok(Self::AccountTransaction(AccountTransaction::Declare(declare_tx?)))
+                Ok(declare_tx?.into())
             }
             StarknetApiTransaction::DeployAccount(deploy_account) => {
                 let contract_address = match deployed_contract_address {
@@ -107,14 +107,14 @@ impl Transaction {
                         DeployAccountTransaction::new(deploy_account, tx_hash, contract_address)
                     }
                 };
-                Ok(Self::AccountTransaction(AccountTransaction::DeployAccount(deploy_account_tx)))
+                Ok(deploy_account_tx.into())
             }
             StarknetApiTransaction::Invoke(invoke) => {
                 let invoke_tx = match only_query {
                     true => InvokeTransaction::new_for_query(invoke, tx_hash),
                     false => InvokeTransaction::new(invoke, tx_hash),
                 };
-                Ok(Self::AccountTransaction(AccountTransaction::Invoke(invoke_tx)))
+                Ok(invoke_tx.into())
             }
             _ => unimplemented!(),
         }
@@ -219,5 +219,23 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
         )?;
 
         Ok(tx_execution_info)
+    }
+}
+
+impl From<DeclareTransaction> for Transaction {
+    fn from(value: DeclareTransaction) -> Self {
+        Self::AccountTransaction(AccountTransaction::Declare(value))
+    }
+}
+
+impl From<DeployAccountTransaction> for Transaction {
+    fn from(value: DeployAccountTransaction) -> Self {
+        Self::AccountTransaction(AccountTransaction::DeployAccount(value))
+    }
+}
+
+impl From<InvokeTransaction> for Transaction {
+    fn from(value: InvokeTransaction) -> Self {
+        Self::AccountTransaction(AccountTransaction::Invoke(value))
     }
 }

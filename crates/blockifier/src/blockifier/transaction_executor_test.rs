@@ -22,7 +22,6 @@ use crate::test_utils::declare::declare_tx;
 use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{create_calldata, CairoVersion, BALANCE, DEFAULT_STRK_L1_GAS_PRICE};
-use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::test_utils::{
     account_invoke_tx,
@@ -115,7 +114,7 @@ fn test_declare(
     let declared_contract = FeatureContract::Empty(cairo_version);
     let state = test_state(&block_context.chain_info, BALANCE, &[(account_contract, 1)]);
 
-    let tx = Transaction::AccountTransaction(declare_tx(
+    let tx = declare_tx(
         declare_tx_args! {
             sender_address: account_contract.get_instance_address(0),
             class_hash: declared_contract.get_class_hash(),
@@ -124,7 +123,8 @@ fn test_declare(
             resource_bounds: l1_resource_bounds(0, DEFAULT_STRK_L1_GAS_PRICE),
         },
         calculate_class_info_for_testing(declared_contract.get_class()),
-    ));
+    )
+    .into();
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
 
@@ -137,14 +137,15 @@ fn test_deploy_account(
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let state = test_state(&block_context.chain_info, BALANCE, &[(account_contract, 0)]);
 
-    let tx = Transaction::AccountTransaction(AccountTransaction::DeployAccount(deploy_account_tx(
+    let tx = deploy_account_tx(
         deploy_account_tx_args! {
             class_hash: account_contract.get_class_hash(),
             resource_bounds: l1_resource_bounds(0, DEFAULT_STRK_L1_GAS_PRICE),
             version,
         },
         &mut NonceManager::default(),
-    )));
+    )
+    .into();
     let expected_bouncer_weights = BouncerWeights {
         state_diff_size: 3,
         message_segment_length: 0,
@@ -210,11 +211,12 @@ fn test_invoke(
 
     let calldata =
         create_calldata(test_contract.get_instance_address(0), entry_point_name, &entry_point_args);
-    let tx = Transaction::AccountTransaction(account_invoke_tx(invoke_tx_args! {
+    let tx = account_invoke_tx(invoke_tx_args! {
         sender_address: account_contract.get_instance_address(0),
         calldata,
         version,
-    }));
+    })
+    .into();
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
 
@@ -265,12 +267,15 @@ fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_even
     tx_executor.bouncer.set_accumulated_weights(initial_bouncer_weights);
 
     tx_executor
-        .execute(&Transaction::AccountTransaction(emit_n_events_tx(
-            n_events,
-            account_address,
-            contract_address,
-            nonce_manager.next(account_address),
-        )))
+        .execute(
+            &emit_n_events_tx(
+                n_events,
+                account_address,
+                contract_address,
+                nonce_manager.next(account_address),
+            )
+            .into(),
+        )
         .map_err(|error| panic!("{error:?}: {error}"))
         .unwrap();
 }
