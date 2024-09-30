@@ -75,7 +75,9 @@ use crate::transaction::test_utils::{
     block_context,
     calculate_class_info_for_testing,
     create_account_tx_for_validate_test_nonce_0,
+    create_all_resource_bounds,
     create_test_init_data,
+    default_all_resource_bounds,
     deploy_and_fund_account,
     l1_resource_bounds,
     max_fee,
@@ -396,14 +398,16 @@ fn test_infinite_recursion(
 /// Tests that validation fails on insufficient steps if max fee is too low.
 // TODO(Aner, 21/01/24) modify test for 4844.
 #[rstest]
-#[case(TransactionVersion::ONE)]
-#[case(TransactionVersion::THREE)]
+#[case::v1(TransactionVersion::ONE, max_l1_resource_bounds())]
+#[case::v3_l1_bounds_only(TransactionVersion::THREE, max_l1_resource_bounds())]
+#[case::v3_all_bounds(TransactionVersion::THREE, default_all_resource_bounds())]
 fn test_max_fee_limit_validate(
     block_context: BlockContext,
     #[case] version: TransactionVersion,
-    max_l1_resource_bounds: ValidResourceBounds,
+    #[case] resource_bounds: ValidResourceBounds,
 ) {
     let chain_info = &block_context.chain_info;
+    let gas_computation_mode = resource_bounds.get_gas_vector_computation_mode();
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         create_test_init_data(chain_info, CairoVersion::Cairo1);
     let grindy_validate_account = FeatureContract::AccountWithLongValidate(CairoVersion::Cairo1);
@@ -416,7 +420,7 @@ fn test_max_fee_limit_validate(
         declare_tx_args! {
             class_hash: grindy_class_hash,
             sender_address: account_address,
-            resource_bounds: max_l1_resource_bounds,
+            resource_bounds,
             nonce: nonce_manager.next(account_address),
         },
         class_info,
@@ -433,7 +437,7 @@ fn test_max_fee_limit_validate(
         chain_info,
         deploy_account_tx_args! {
             class_hash: grindy_class_hash,
-            resource_bounds: max_l1_resource_bounds,
+            resource_bounds,
             constructor_calldata: calldata![ctor_grind_arg, ctor_storage_arg],
         },
     );
@@ -449,7 +453,7 @@ fn test_max_fee_limit_validate(
         chain_info,
         deploy_account_tx_args! {
             class_hash: grindy_class_hash,
-            resource_bounds: max_l1_resource_bounds,
+            resource_bounds,
             constructor_calldata: calldata![ctor_grind_arg, ctor_storage_arg],
         },
     );
@@ -469,15 +473,11 @@ fn test_max_fee_limit_validate(
     let account_tx = account_invoke_tx(invoke_tx_args! {
         // Temporary upper bounds; just for gas estimation.
         max_fee: Fee(MAX_FEE),
-        resource_bounds: max_l1_resource_bounds,
+        resource_bounds,
         ..tx_args.clone()
     });
-    let estimated_min_gas_usage_vector = estimate_minimal_gas_vector(
-        &block_context,
-        &account_tx,
-        &GasVectorComputationMode::NoL2Gas,
-    );
-    let estimated_min_l1_gas = estimated_min_gas_usage_vector.l1_gas;
+    let estimated_min_gas_usage_vector =
+        estimate_minimal_gas_vector(&block_context, &account_tx, &gas_computation_mode);
     let estimated_min_fee =
         get_fee_by_gas_vector(block_info, estimated_min_gas_usage_vector, &account_tx.fee_type());
 
@@ -488,10 +488,28 @@ fn test_max_fee_limit_validate(
             max_fee: estimated_min_fee,
             // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
             // works.
-            resource_bounds: l1_resource_bounds(
-                estimated_min_l1_gas.try_into().expect("Failed to convert u128 to u64."),
-                block_info.gas_prices.get_l1_gas_price_by_fee_type(&account_tx.fee_type()).into()
-            ),
+            resource_bounds: match resource_bounds {
+                ValidResourceBounds::L1Gas(_) => l1_resource_bounds(
+                    estimated_min_gas_usage_vector.l1_gas.try_into()
+                        .expect("Failed to convert u128 to u64."),
+                    block_info.gas_prices
+                        .get_l1_gas_price_by_fee_type(&account_tx.fee_type()).into()
+                ),
+                ValidResourceBounds::AllResources(_) => create_all_resource_bounds(
+                    estimated_min_gas_usage_vector.l1_gas.try_into()
+                        .expect("Failed to convert u128 to u64."),
+                    block_info.gas_prices
+                        .get_l1_gas_price_by_fee_type(&account_tx.fee_type()).into(),
+                    estimated_min_gas_usage_vector.l2_gas.try_into()
+                        .expect("Failed to convert u128 to u64."),
+                    block_info.gas_prices
+                        .get_l2_gas_price_by_fee_type(&account_tx.fee_type()).into(),
+                    estimated_min_gas_usage_vector.l1_data_gas.try_into()
+                        .expect("Failed to convert u128 to u64."),
+                    block_info.gas_prices
+                        .get_l1_data_gas_price_by_fee_type(&account_tx.fee_type()).into(),
+                ),
+            },
             ..tx_args
         },
     )
