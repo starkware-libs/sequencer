@@ -1489,8 +1489,11 @@ dependencies = [
 name = "blockifier_regression_test"
 version = "0.0.0"
 dependencies = [
+ "assert_matches",
  "blockifier",
  "papyrus_execution",
+ "pretty_assertions",
+ "rstest",
  "serde_json",
  "starknet-types-core",
  "starknet_api",

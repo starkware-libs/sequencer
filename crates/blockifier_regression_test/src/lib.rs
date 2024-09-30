@@ -1,2 +1,3 @@
-pub mod test_state_reader;
-pub mod utils;
+#[cfg(test)]
+pub mod json_test;
+pub mod state_reader;
