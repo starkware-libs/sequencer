@@ -7,7 +7,7 @@ use starknet_mempool::mempool::Mempool;
 use crate::communication::SequencerNodeClients;
 use crate::config::MempoolNodeConfig;
 
-pub struct Components {
+pub struct SequencerNodeComponents {
     pub batcher: Option<Batcher>,
     pub consensus_manager: Option<ConsensusManager>,
     pub gateway: Option<Gateway>,
@@ -15,7 +15,10 @@ pub struct Components {
     pub mempool: Option<Mempool>,
 }
 
-pub fn create_components(config: &MempoolNodeConfig, clients: &SequencerNodeClients) -> Components {
+pub fn create_components(
+    config: &MempoolNodeConfig,
+    clients: &SequencerNodeClients,
+) -> SequencerNodeComponents {
     let batcher = if config.components.batcher.execute {
         let mempool_client =
             clients.get_mempool_client().expect("Mempool Client should be available");
@@ -57,5 +60,5 @@ pub fn create_components(config: &MempoolNodeConfig, clients: &SequencerNodeClie
 
     let mempool = if config.components.mempool.execute { Some(Mempool::empty()) } else { None };
 
-    Components { batcher, consensus_manager, gateway, http_server, mempool }
+    SequencerNodeComponents { batcher, consensus_manager, gateway, http_server, mempool }
 }
