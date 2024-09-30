@@ -5,7 +5,6 @@ mod precision_test;
 use std::cmp::max;
 use std::collections::{BTreeMap, HashMap};
 use std::env;
-use std::fs::read_to_string;
 use std::hash::Hash;
 use std::net::SocketAddr;
 use std::num::NonZeroU64;
@@ -42,6 +41,7 @@ use starknet_api::block::{
     BlockBody,
     BlockHash,
     BlockHeader,
+    BlockHeaderWithoutHash,
     BlockNumber,
     BlockSignature,
     BlockStatus,
@@ -108,6 +108,7 @@ use starknet_api::state::{
     StorageKey,
     ThinStateDiff,
 };
+use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -184,15 +185,6 @@ pub async fn send_request(
 /// Returns the absolute path from the project root.
 pub fn get_absolute_path(relative_path: &str) -> PathBuf {
     Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("../..").join(relative_path)
-}
-
-/// Reads from the directory containing the manifest at run time, same as current working directory.
-pub fn read_json_file(path_in_resource_dir: &str) -> serde_json::Value {
-    let path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap())
-        .join("resources")
-        .join(path_in_resource_dir);
-    let json_str = read_to_string(path.to_str().unwrap()).unwrap();
-    serde_json::from_str(&json_str).unwrap()
 }
 
 pub fn validate_load_and_dump<T: Serialize + for<'a> Deserialize<'a>>(path_in_resource_dir: &str) {
@@ -440,6 +432,16 @@ auto_impl_get_test_instance! {
     pub struct BlockHash(pub StarkHash);
     pub struct BlockHeader {
         pub block_hash: BlockHash,
+        pub block_header_without_hash: BlockHeaderWithoutHash,
+        pub state_diff_commitment: Option<StateDiffCommitment>,
+        pub transaction_commitment: Option<TransactionCommitment>,
+        pub event_commitment: Option<EventCommitment>,
+        pub receipt_commitment: Option<ReceiptCommitment>,
+        pub state_diff_length: Option<usize>,
+        pub n_transactions: usize,
+        pub n_events: usize,
+    }
+    pub struct BlockHeaderWithoutHash {
         pub parent_hash: BlockHash,
         pub block_number: BlockNumber,
         pub l1_gas_price: GasPricePerToken,
@@ -449,13 +451,6 @@ auto_impl_get_test_instance! {
         pub sequencer: SequencerContractAddress,
         pub timestamp: BlockTimestamp,
         pub l1_da_mode: L1DataAvailabilityMode,
-        pub state_diff_commitment: Option<StateDiffCommitment>,
-        pub transaction_commitment: Option<TransactionCommitment>,
-        pub event_commitment: Option<EventCommitment>,
-        pub receipt_commitment: Option<ReceiptCommitment>,
-        pub state_diff_length: Option<usize>,
-        pub n_transactions: usize,
-        pub n_events: usize,
         pub starknet_version: StarknetVersion,
     }
     pub struct BlockNumber(pub u64);

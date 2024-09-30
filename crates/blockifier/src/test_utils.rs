@@ -20,12 +20,17 @@ use starknet_api::{contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
+use crate::execution::call_info::ExecutionSummary;
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::SyscallSelector;
-use crate::state::cached_state::StateChangesCount;
+use crate::fee::resources::{
+    GasVector,
+    GasVectorComputationMode,
+    StarknetResources,
+    StateResources,
+};
 use crate::test_utils::contracts::FeatureContract;
-use crate::transaction::objects::StarknetResources;
 use crate::transaction::transaction_types::TransactionType;
 use crate::utils::{const_max, u128_from_usize};
 use crate::versioned_constants::VersionedConstants;
@@ -151,7 +156,7 @@ pub fn trivial_external_entry_point_with_address(
         initial_gas: VersionedConstants::create_for_testing()
             .os_constants
             .gas_costs
-            .initial_gas_cost,
+            .default_initial_gas_cost,
         ..Default::default()
     }
 }
@@ -216,7 +221,7 @@ macro_rules! check_entry_point_execution_error_for_custom_hint {
 }
 
 #[macro_export]
-macro_rules! check_transaction_execution_error_inner {
+macro_rules! check_tx_execution_error_inner {
     ($error:expr, $expected_hint:expr, $validate_constructor:expr $(,)?) => {
         if $validate_constructor {
             match $error {
@@ -245,9 +250,9 @@ macro_rules! check_transaction_execution_error_inner {
 }
 
 #[macro_export]
-macro_rules! check_transaction_execution_error_for_custom_hint {
+macro_rules! check_tx_execution_error_for_custom_hint {
     ($error:expr, $expected_hint:expr, $validate_constructor:expr $(,)?) => {
-        $crate::check_transaction_execution_error_inner!(
+        $crate::check_tx_execution_error_inner!(
             $error,
             Some($expected_hint),
             $validate_constructor,
@@ -258,11 +263,11 @@ macro_rules! check_transaction_execution_error_for_custom_hint {
 /// Checks that a given error is an assertion error with the expected message.
 /// Formatted for test_validate_accounts_tx.
 #[macro_export]
-macro_rules! check_transaction_execution_error_for_invalid_scenario {
+macro_rules! check_tx_execution_error_for_invalid_scenario {
     ($cairo_version:expr, $error:expr, $validate_constructor:expr $(,)?) => {
         match $cairo_version {
             CairoVersion::Cairo0 => {
-                $crate::check_transaction_execution_error_inner!(
+                $crate::check_tx_execution_error_inner!(
                     $error,
                     None::<&str>,
                     $validate_constructor,
@@ -286,15 +291,21 @@ macro_rules! check_transaction_execution_error_for_invalid_scenario {
 pub fn get_syscall_resources(syscall_selector: SyscallSelector) -> ExecutionResources {
     let versioned_constants = VersionedConstants::create_for_testing();
     let syscall_counter: SyscallCounter = HashMap::from([(syscall_selector, 1)]);
-    versioned_constants.get_additional_os_syscall_resources(&syscall_counter).unwrap()
+    versioned_constants.get_additional_os_syscall_resources(&syscall_counter)
 }
 
 pub fn get_tx_resources(tx_type: TransactionType) -> ExecutionResources {
     let versioned_constants = VersionedConstants::create_for_testing();
-    let starknet_resources =
-        StarknetResources::new(1, 0, 0, StateChangesCount::default(), None, std::iter::empty());
+    let starknet_resources = StarknetResources::new(
+        1,
+        0,
+        0,
+        StateResources::default(),
+        None,
+        ExecutionSummary::default(),
+    );
 
-    versioned_constants.get_additional_os_tx_resources(tx_type, &starknet_resources, false).unwrap()
+    versioned_constants.get_additional_os_tx_resources(tx_type, &starknet_resources, false)
 }
 
 /// Creates the calldata for the Cairo function "test_deploy" in the featured contract TestContract.
@@ -375,5 +386,18 @@ pub fn update_json_value(base: &mut serde_json::Value, update: serde_json::Value
             base_map.extend(update_map);
         }
         _ => panic!("Both base and update should be of type serde_json::Value::Object."),
+    }
+}
+
+pub fn gas_vector_from_vm_usage(
+    vm_usage_in_l1_gas: u128,
+    computation_mode: &GasVectorComputationMode,
+    versioned_constants: &VersionedConstants,
+) -> GasVector {
+    match computation_mode {
+        GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(vm_usage_in_l1_gas),
+        GasVectorComputationMode::All => GasVector::from_l2_gas(
+            versioned_constants.convert_l1_to_l2_gas_amount_round_up(vm_usage_in_l1_gas),
+        ),
     }
 }

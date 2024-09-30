@@ -22,6 +22,7 @@ pub struct BlockHeader {
     pub timestamp: BlockTimestamp,
     pub l1_gas_price: ResourcePrice,
     pub l1_data_gas_price: ResourcePrice,
+    pub l2_gas_price: ResourcePrice,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub starknet_version: String,
 }
@@ -34,6 +35,7 @@ pub struct PendingBlockHeader {
     pub timestamp: BlockTimestamp,
     pub l1_gas_price: ResourcePrice,
     pub l1_data_gas_price: ResourcePrice,
+    pub l2_gas_price: ResourcePrice,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub starknet_version: String,
 }
@@ -49,21 +51,25 @@ impl From<starknet_api::block::BlockHeader> for BlockHeader {
     fn from(header: starknet_api::block::BlockHeader) -> Self {
         BlockHeader {
             block_hash: header.block_hash,
-            parent_hash: header.parent_hash,
-            block_number: header.block_number,
-            sequencer_address: header.sequencer,
-            new_root: header.state_root,
-            timestamp: header.timestamp,
+            parent_hash: header.block_header_without_hash.parent_hash,
+            block_number: header.block_header_without_hash.block_number,
+            sequencer_address: header.block_header_without_hash.sequencer,
+            new_root: header.block_header_without_hash.state_root,
+            timestamp: header.block_header_without_hash.timestamp,
             l1_gas_price: ResourcePrice {
-                price_in_wei: header.l1_gas_price.price_in_wei,
-                price_in_fri: header.l1_gas_price.price_in_fri,
+                price_in_wei: header.block_header_without_hash.l1_gas_price.price_in_wei,
+                price_in_fri: header.block_header_without_hash.l1_gas_price.price_in_fri,
             },
             l1_data_gas_price: ResourcePrice {
-                price_in_wei: header.l1_data_gas_price.price_in_wei,
-                price_in_fri: header.l1_data_gas_price.price_in_fri,
+                price_in_wei: header.block_header_without_hash.l1_data_gas_price.price_in_wei,
+                price_in_fri: header.block_header_without_hash.l1_data_gas_price.price_in_fri,
             },
-            l1_da_mode: header.l1_da_mode,
-            starknet_version: header.starknet_version.to_string(),
+            l2_gas_price: ResourcePrice {
+                price_in_wei: header.block_header_without_hash.l2_gas_price.price_in_wei,
+                price_in_fri: header.block_header_without_hash.l2_gas_price.price_in_fri,
+            },
+            l1_da_mode: header.block_header_without_hash.l1_da_mode,
+            starknet_version: header.block_header_without_hash.starknet_version.to_string(),
         }
     }
 }

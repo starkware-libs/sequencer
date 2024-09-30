@@ -21,8 +21,7 @@ jobs:
     runs-on: ${{ inputs.os }}
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       - run: sudo apt update; sudo apt -y install libclang-dev
         # Install libclang-dev that is not a part of the ubuntu vm in github actions.
         if: runner.os == 'Linux'

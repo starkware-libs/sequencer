@@ -20,12 +20,35 @@ def packages_to_test_due_to_global_changes(files: List[str]) -> Set[str]:
     return set()
 
 
-def run_test(changes_only: bool, commit_id: Optional[str]):
-    local_changes = get_local_changes(".", commit_id=commit_id)
-    modified_packages = get_modified_packages(local_changes)
+def test_crates(crates: Set[str]):
+    """
+    Runs tests for the given crates.
+    If no crates provided, runs tests for all crates.
+    """
     args = []
+    for package in crates:
+        args.extend(["--package", package])
+
+    # If crates is empty (i.e. changes_only is False), all packages will be tested (no args).
+    cmd = ["cargo", "test"] + args
+
+    print("Running tests...")
+    print(cmd, flush=True)
+    subprocess.run(cmd, check=True)
+    print("Tests complete.")
+
+
+def run_test(changes_only: bool, commit_id: Optional[str]):
+    """
+    Runs tests.
+    If changes_only is True, only tests packages that have been modified; if no packages have been
+    modified, no tests are run. If changes_only is False, tests all packages.
+    If commit_id is provided, compares against that commit; otherwise, compares against HEAD.
+    """
     tested_packages = set()
     if changes_only:
+        local_changes = get_local_changes(".", commit_id=commit_id)
+        modified_packages = get_modified_packages(local_changes)
         for p in modified_packages:
             deps = get_package_dependencies(p)
             tested_packages.update(deps)
@@ -38,17 +61,7 @@ def run_test(changes_only: bool, commit_id: Optional[str]):
             print("No changes detected.")
             return
 
-    for package in tested_packages:
-        args.extend(["--package", package])
-
-    # If tested_packages is empty (i.e. changes_only is False), all packages will be tested (no
-    # args).
-    cmd = ["cargo", "test"] + args
-
-    print("Running tests...")
-    print(cmd, flush=True)
-    subprocess.run(cmd, check=True)
-    print("Tests complete.")
+    test_crates(crates=tested_packages)
 
 
 def parse_args() -> argparse.Namespace:

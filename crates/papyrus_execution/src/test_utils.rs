@@ -10,12 +10,12 @@ use papyrus_storage::compiled_class::CasmStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::{StorageReader, StorageWriter};
-use papyrus_test_utils::read_json_file;
 use serde::de::DeserializeOwned;
 use starknet_api::block::{
     BlockBody,
     BlockHash,
     BlockHeader,
+    BlockHeaderWithoutHash,
     BlockNumber,
     BlockTimestamp,
     GasPrice,
@@ -32,6 +32,7 @@ use starknet_api::core::{
 };
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{ContractClass, StateNumber, ThinStateDiff};
+use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::{
     Calldata,
     DeclareTransactionV0V1,
@@ -113,9 +114,12 @@ pub fn prepare_storage(mut storage_writer: StorageWriter) {
         .append_header(
             BlockNumber(0),
             &BlockHeader {
-                l1_gas_price: *GAS_PRICE,
-                sequencer: *SEQUENCER_ADDRESS,
-                timestamp: *BLOCK_TIMESTAMP,
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    l1_gas_price: *GAS_PRICE,
+                    sequencer: *SEQUENCER_ADDRESS,
+                    timestamp: *BLOCK_TIMESTAMP,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )
@@ -174,11 +178,14 @@ pub fn prepare_storage(mut storage_writer: StorageWriter) {
         .append_header(
             BlockNumber(1),
             &BlockHeader {
-                l1_gas_price: *GAS_PRICE,
-                sequencer: *SEQUENCER_ADDRESS,
-                timestamp: *BLOCK_TIMESTAMP,
                 block_hash: BlockHash(felt!(1_u128)),
-                parent_hash: BlockHash(felt!(0_u128)),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    l1_gas_price: *GAS_PRICE,
+                    sequencer: *SEQUENCER_ADDRESS,
+                    timestamp: *BLOCK_TIMESTAMP,
+                    parent_hash: BlockHash(felt!(0_u128)),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )

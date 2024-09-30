@@ -3,6 +3,7 @@ use std::fmt::Display;
 use std::sync::Arc;
 
 use derive_more::{Display, From};
+use num_bigint::BigUint;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
@@ -35,6 +36,10 @@ use crate::transaction_hash::{
     get_l1_handler_transaction_hash,
 };
 use crate::StarknetApiError;
+
+// TODO(Noa, 14/11/2023): Replace QUERY_VERSION_BASE_BIT with a lazy calculation.
+//      pub static QUERY_VERSION_BASE: Lazy<Felt> = ...
+pub const QUERY_VERSION_BASE_BIT: u32 = 128;
 
 pub trait TransactionHasher {
     fn calculate_transaction_hash(
@@ -96,6 +101,26 @@ impl Transaction {
             }
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
+pub struct TransactionOptions {
+    /// Transaction that shouldn't be broadcasted to StarkNet. For example, users that want to
+    /// test the execution result of a transaction without the risk of it being rebroadcasted (the
+    /// signature will be different while the execution remain the same). Using this flag will
+    /// modify the transaction version by setting the 128-th bit to 1.
+    pub only_query: bool,
+}
+
+macro_rules! implement_v3_tx_getters {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            match self {
+                Self::V3(tx) => tx.$field.clone(),
+                _ => panic!("{:?} do not support the field {}; they are only available for V3 transactions.", self.version(), stringify!($field)),
+            }
+        })*
+    };
 }
 
 /// A transaction output.
@@ -267,6 +292,25 @@ impl DeclareTransaction {
         (signature, TransactionSignature)
     );
 
+    implement_v3_tx_getters!(
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData),
+        (account_deployment_data, AccountDeploymentData)
+    );
+
+    pub fn compiled_class_hash(&self) -> CompiledClassHash {
+        match self {
+            DeclareTransaction::V0(_) | DeclareTransaction::V1(_) => {
+                panic!("Cairo0 DeclareTransaction (V0, V1) doesn't have compiled_class_hash.")
+            }
+            DeclareTransaction::V2(tx) => tx.compiled_class_hash,
+            DeclareTransaction::V3(tx) => tx.compiled_class_hash,
+        }
+    }
+
     pub fn version(&self) -> TransactionVersion {
         match self {
             DeclareTransaction::V0(_) => TransactionVersion::ZERO,
@@ -372,6 +416,14 @@ impl DeployAccountTransaction {
         (contract_address_salt, ContractAddressSalt),
         (nonce, Nonce),
         (signature, TransactionSignature)
+    );
+
+    implement_v3_tx_getters!(
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData)
     );
 
     pub fn version(&self) -> TransactionVersion {
@@ -504,6 +556,15 @@ macro_rules! implement_invoke_tx_getters {
 
 impl InvokeTransaction {
     implement_invoke_tx_getters!((calldata, Calldata), (signature, TransactionSignature));
+
+    implement_v3_tx_getters!(
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData),
+        (account_deployment_data, AccountDeploymentData)
+    );
 
     pub fn nonce(&self) -> Nonce {
         match self {
@@ -758,6 +819,33 @@ impl TransactionVersion {
     pub const THREE: Self = { Self(Felt::THREE) };
 }
 
+// TODO: TransactionVersion and SignedTransactionVersion should probably be separate types.
+// Returns the transaction version taking into account the transaction options.
+pub fn signed_tx_version_from_tx(
+    tx: &Transaction,
+    transaction_options: &TransactionOptions,
+) -> TransactionVersion {
+    signed_tx_version(&tx.version(), transaction_options)
+}
+
+pub fn signed_tx_version(
+    tx_version: &TransactionVersion,
+    transaction_options: &TransactionOptions,
+) -> TransactionVersion {
+    // If only_query is true, set the 128-th bit.
+    let query_only_bit = Felt::TWO.pow(QUERY_VERSION_BASE_BIT);
+    assert_eq!(
+        tx_version.0.to_biguint() & query_only_bit.to_biguint(),
+        BigUint::from(0_u8),
+        "Requested signed tx version with version that already has query bit set: {tx_version:?}."
+    );
+    if transaction_options.only_query {
+        TransactionVersion(tx_version.0 + query_only_bit)
+    } else {
+        *tx_version
+    }
+}
+
 /// The calldata of a transaction.
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct Calldata(pub Arc<Vec<Felt>>);
@@ -870,6 +958,7 @@ impl From<Tip> for Felt {
     Copy,
     Debug,
     Deserialize,
+    Display,
     EnumIter,
     Eq,
     Hash,
@@ -877,7 +966,6 @@ impl From<Tip> for Felt {
     PartialEq,
     PartialOrd,
     Serialize,
-    Display,
 )]
 pub enum Resource {
     #[serde(rename = "L1_GAS")]
@@ -977,6 +1065,24 @@ impl ValidResourceBounds {
             Self::L1Gas(_) => ResourceBounds::default(),
             Self::AllResources(AllResourceBounds { l2_gas, .. }) => *l2_gas,
         }
+    }
+
+    pub fn max_possible_fee(&self) -> Fee {
+        Fee(match self {
+            ValidResourceBounds::L1Gas(l1_bounds) => {
+                let max_amount: u128 = l1_bounds.max_amount.into();
+                max_amount * l1_bounds.max_price_per_unit
+            }
+            ValidResourceBounds::AllResources(AllResourceBounds {
+                l1_gas,
+                l2_gas,
+                l1_data_gas,
+            }) => {
+                u128::from(l1_gas.max_amount) * l1_gas.max_price_per_unit
+                    + u128::from(l2_gas.max_amount) * l2_gas.max_price_per_unit
+                    + u128::from(l1_data_gas.max_amount) * l1_data_gas.max_price_per_unit
+            }
+        })
     }
 
     // TODO(Nimrod): Default testing bounds should probably be AllResourceBounds variant.

@@ -176,5 +176,5 @@ fn to_unavailable_address(deployer_contract: FeatureContract) {
     entry_point_call.clone().execute_directly(&mut state).unwrap();
     let error = entry_point_call.execute_directly(&mut state).unwrap_err().to_string();
 
-    assert!(error.contains("is unavailable for deployment."));
+    assert!(error.contains("Deployment failed:"));
 }

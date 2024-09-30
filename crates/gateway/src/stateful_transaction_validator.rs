@@ -15,7 +15,6 @@ use starknet_api::executable_transaction::{
     InvokeTransaction as ExecutableInvokeTransaction,
     Transaction as ExecutableTransaction,
 };
-use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_types_core::felt::Felt;
 use tracing::error;
@@ -72,28 +71,18 @@ impl StatefulTransactionValidator {
     pub fn run_validate<V: StatefulTransactionValidatorTrait>(
         &self,
         executable_tx: &ExecutableTransaction,
+        account_nonce: Nonce,
         mut validator: V,
-    ) -> StatefulTransactionValidatorResult<ValidateInfo> {
-        let tx_hash = executable_tx.tx_hash();
-        let sender_address = executable_tx.contract_address();
-
-        let account_tx = AccountTransaction::try_from(
-            // TODO(Arni): create a try_from for &ExecutableTransaction.
-            executable_tx.clone(),
-        )
-        .map_err(|error| {
+    ) -> StatefulTransactionValidatorResult<()> {
+        let skip_validate = skip_stateful_validations(executable_tx, account_nonce);
+        let account_tx = AccountTransaction::try_from(executable_tx).map_err(|error| {
             error!("Failed to convert executable transaction into account transaction: {}", error);
             GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
         })?;
-        let account_nonce = validator.get_nonce(sender_address).map_err(|e| {
-            error!("Failed to get nonce for sender address {}: {}", sender_address, e);
-            GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
-        })?;
-        let skip_validate = skip_stateful_validations(executable_tx, account_nonce);
         validator
             .validate(account_tx, skip_validate)
             .map_err(|err| GatewaySpecError::ValidationFailure { data: err.to_string() })?;
-        Ok(ValidateInfo { tx_hash, sender_address, account_nonce })
+        Ok(())
     }
 
     pub fn instantiate_validator(
@@ -147,14 +136,4 @@ pub fn get_latest_block_info(
         error!("Failed to get latest block info: {}", e);
         GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
     })
-}
-
-// TODO(Arni): Remove irrelevant fields.
-/// Holds members created by the stateful transaction validator, needed for
-/// [`MempoolInput`](starknet_mempool_types::mempool_types::MempoolInput).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ValidateInfo {
-    pub tx_hash: TransactionHash,
-    pub sender_address: ContractAddress,
-    pub account_nonce: Nonce,
 }

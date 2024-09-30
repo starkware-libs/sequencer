@@ -75,7 +75,7 @@ impl<S: StateReader> StatefulValidator<S> {
         // `__validate__` call.
         let versioned_constants = &tx_context.block_context.versioned_constants();
         let (_optional_call_info, actual_cost) =
-            self.validate(&tx, versioned_constants.tx_initial_gas())?;
+            self.validate(&tx, versioned_constants.tx_default_initial_gas())?;
 
         // Post validations.
         PostValidationReport::verify(&tx_context, &actual_cost)?;
@@ -84,7 +84,7 @@ impl<S: StateReader> StatefulValidator<S> {
     }
 
     fn execute(&mut self, tx: AccountTransaction) -> StatefulValidatorResult<()> {
-        self.tx_executor.execute(&Transaction::AccountTransaction(tx))?;
+        self.tx_executor.execute(&Transaction::Account(tx))?;
         Ok(())
     }
 
@@ -133,9 +133,9 @@ impl<S: StateReader> StatefulValidator<S> {
                 .expect(BLOCK_STATE_ACCESS_ERR)
                 .get_actual_state_changes()?,
             &execution_resources,
-            validate_call_info.iter(),
+            CallInfo::summarize_many(validate_call_info.iter()),
             0,
-        )?;
+        );
 
         Ok((validate_call_info, tx_receipt))
     }

@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -47,13 +48,13 @@ pub trait ConsensusManagerClient: Send + Sync {
     ) -> ConsensusManagerClientResult<ConsensusManagerFnTwoReturnValue>;
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum ConsensusManagerRequest {
     ConsensusManagerFnOne(ConsensusManagerFnOneInput),
     ConsensusManagerFnTwo(ConsensusManagerFnTwoInput),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum ConsensusManagerResponse {
     ConsensusManagerFnOne(ConsensusManagerResult<ConsensusManagerFnOneReturnValue>),
     ConsensusManagerFnTwo(ConsensusManagerResult<ConsensusManagerFnTwoReturnValue>),

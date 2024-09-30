@@ -8,16 +8,15 @@ use starknet_api::transaction::ValidResourceBounds;
 
 use crate::blockifier::block::BlockInfo;
 use crate::bouncer::BouncerConfig;
+use crate::fee::resources::GasVectorComputationMode;
 use crate::transaction::objects::{
     FeeType,
-    GasVectorComputationMode,
     HasRelatedFeeType,
     TransactionInfo,
     TransactionInfoCreator,
 };
 use crate::versioned_constants::VersionedConstants;
 
-/// Create via [`crate::blockifier::block::pre_process_block`] to ensure correctness.
 #[derive(Clone, Debug)]
 pub struct TransactionContext {
     pub block_context: BlockContext,

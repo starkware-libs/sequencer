@@ -12,6 +12,7 @@ pub struct Proposal {
     pub proposer: ContractAddress,
     pub transactions: Vec<Transaction>,
     pub block_hash: BlockHash,
+    pub valid_round: Option<u32>,
 }
 
 #[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
@@ -48,7 +49,7 @@ impl ConsensusMessage {
 pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
     pub message: T,
     pub stream_id: u64,
-    pub chunk_id: u64,
+    pub message_id: u64,
     pub fin: bool,
 }
 
@@ -58,14 +59,15 @@ pub struct ProposalWrapper(pub Proposal);
 
 impl From<ProposalWrapper>
     for (
-        (BlockNumber, u32, ContractAddress),
+        (BlockNumber, u32, ContractAddress, Option<u32>),
         mpsc::Receiver<Transaction>,
         oneshot::Receiver<BlockHash>,
     )
 {
     fn from(val: ProposalWrapper) -> Self {
         let transactions: Vec<Transaction> = val.0.transactions.into_iter().collect();
-        let proposal_init = (BlockNumber(val.0.height), val.0.round, val.0.proposer);
+        let proposal_init =
+            (BlockNumber(val.0.height), val.0.round, val.0.proposer, val.0.valid_round);
         let (mut content_sender, content_receiver) = mpsc::channel(transactions.len());
         for tx in transactions {
             content_sender.try_send(tx).expect("Send should succeed");

@@ -39,13 +39,14 @@ use crate::abi::abi_utils::{
     get_storage_var_address,
     selector_from_name,
 };
-use crate::check_transaction_execution_error_for_invalid_scenario;
+use crate::check_tx_execution_error_for_invalid_scenario;
 use crate::context::BlockContext;
 use crate::execution::contract_class::{ContractClass, ContractClassV1};
 use crate::execution::entry_point::EntryPointExecutionContext;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::fee_utils::{get_fee_by_gas_vector, get_sequencer_balance_keys};
 use crate::fee::gas_usage::estimate_minimal_gas_vector;
+use crate::fee::resources::{GasVector, GasVectorComputationMode};
 use crate::state::cached_state::{StateChangesCount, TransactionalState};
 use crate::state::state_api::{State, StateReader};
 use crate::test_utils::contracts::FeatureContract;
@@ -65,13 +66,7 @@ use crate::test_utils::{
 };
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
-use crate::transaction::objects::{
-    FeeType,
-    GasVector,
-    GasVectorComputationMode,
-    HasRelatedFeeType,
-    TransactionInfoCreator,
-};
+use crate::transaction::objects::{FeeType, HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     block_context,
@@ -81,7 +76,7 @@ use crate::transaction::test_utils::{
     deploy_and_fund_account,
     l1_resource_bounds,
     max_fee,
-    max_resource_bounds,
+    max_l1_resource_bounds,
     run_invoke_tx,
     FaultyAccountTxCreatorArgs,
     TestInitData,
@@ -91,7 +86,7 @@ use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{DeclareTransaction, ExecutableTransaction, ExecutionFlags};
 
 #[rstest]
-fn test_circuit(block_context: BlockContext, max_resource_bounds: ValidResourceBounds) {
+fn test_circuit(block_context: BlockContext, max_l1_resource_bounds: ValidResourceBounds) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let chain_info = &block_context.chain_info;
@@ -114,7 +109,7 @@ fn test_circuit(block_context: BlockContext, max_resource_bounds: ValidResourceB
         state,
         &block_context,
         invoke_tx_args! {
-            resource_bounds: max_resource_bounds,
+            resource_bounds: max_l1_resource_bounds,
             ..tx_args
         },
     )
@@ -125,7 +120,7 @@ fn test_circuit(block_context: BlockContext, max_resource_bounds: ValidResourceB
 }
 
 #[rstest]
-fn test_rc96_holes(block_context: BlockContext, max_resource_bounds: ValidResourceBounds) {
+fn test_rc96_holes(block_context: BlockContext, max_l1_resource_bounds: ValidResourceBounds) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let chain_info = &block_context.chain_info;
@@ -148,7 +143,7 @@ fn test_rc96_holes(block_context: BlockContext, max_resource_bounds: ValidResour
         state,
         &block_context,
         invoke_tx_args! {
-            resource_bounds: max_resource_bounds,
+            resource_bounds: max_l1_resource_bounds,
             ..tx_args
         },
     )
@@ -156,7 +151,7 @@ fn test_rc96_holes(block_context: BlockContext, max_resource_bounds: ValidResour
 
     assert!(!tx_execution_info.is_reverted());
     assert_eq!(
-        tx_execution_info.receipt.resources.vm_resources.builtin_instance_counter
+        tx_execution_info.receipt.resources.computation.vm_resources.builtin_instance_counter
             [&BuiltinName::range_check96],
         24
     );
@@ -216,7 +211,7 @@ fn test_enforce_fee_false_works(block_context: BlockContext, #[case] version: Tr
 fn test_account_flow_test(
     block_context: BlockContext,
     max_fee: Fee,
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
     #[values(TransactionVersion::ZERO, TransactionVersion::ONE, TransactionVersion::THREE)]
     tx_version: TransactionVersion,
     #[values(true, false)] only_query: bool,
@@ -233,7 +228,7 @@ fn test_account_flow_test(
             sender_address: account_address,
             calldata: create_trivial_calldata(contract_address),
             version: tx_version,
-            resource_bounds: max_resource_bounds,
+            resource_bounds: max_l1_resource_bounds,
             nonce: nonce_manager.next(account_address),
             only_query,
         },
@@ -248,7 +243,7 @@ fn test_account_flow_test(
 fn test_invoke_tx_from_non_deployed_account(
     block_context: BlockContext,
     max_fee: Fee,
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
     #[case] tx_version: TransactionVersion,
 ) {
     let TestInitData { mut state, account_address, contract_address: _, mut nonce_manager } =
@@ -270,7 +265,7 @@ fn test_invoke_tx_from_non_deployed_account(
                 felt!(1_u8),         // Calldata length.
                 felt!(2_u8)          // Calldata: num.
             ],
-            resource_bounds: max_resource_bounds,
+            resource_bounds: max_l1_resource_bounds,
             version: tx_version,
             nonce: nonce_manager.next(account_address),
         },
@@ -297,7 +292,7 @@ fn test_infinite_recursion(
     #[values(true, false)] success: bool,
     #[values(true, false)] normal_recurse: bool,
     mut block_context: BlockContext,
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
 ) {
     // Limit the number of execution steps (so we quickly hit the limit).
     block_context.versioned_constants.invoke_tx_max_n_steps = 4200;
@@ -325,7 +320,7 @@ fn test_infinite_recursion(
         &mut state,
         &block_context,
         invoke_tx_args! {
-            resource_bounds: max_resource_bounds,
+            resource_bounds: max_l1_resource_bounds,
             sender_address: account_address,
             calldata: execute_calldata,
             nonce: nonce_manager.next(account_address),
@@ -352,7 +347,7 @@ fn test_infinite_recursion(
 fn test_max_fee_limit_validate(
     block_context: BlockContext,
     #[case] version: TransactionVersion,
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
 ) {
     let chain_info = &block_context.chain_info;
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
@@ -367,7 +362,7 @@ fn test_max_fee_limit_validate(
         declare_tx_args! {
             class_hash: grindy_class_hash,
             sender_address: account_address,
-            resource_bounds: max_resource_bounds,
+            resource_bounds: max_l1_resource_bounds,
             nonce: nonce_manager.next(account_address),
         },
         class_info,
@@ -384,7 +379,7 @@ fn test_max_fee_limit_validate(
         chain_info,
         deploy_account_tx_args! {
             class_hash: grindy_class_hash,
-            resource_bounds: max_resource_bounds,
+            resource_bounds: max_l1_resource_bounds,
             constructor_calldata: calldata![ctor_grind_arg, ctor_storage_arg],
         },
     );
@@ -400,7 +395,7 @@ fn test_max_fee_limit_validate(
         chain_info,
         deploy_account_tx_args! {
             class_hash: grindy_class_hash,
-            resource_bounds: max_resource_bounds,
+            resource_bounds: max_l1_resource_bounds,
             constructor_calldata: calldata![ctor_grind_arg, ctor_storage_arg],
         },
     );
@@ -420,15 +415,14 @@ fn test_max_fee_limit_validate(
     let account_tx = account_invoke_tx(invoke_tx_args! {
         // Temporary upper bounds; just for gas estimation.
         max_fee: Fee(MAX_FEE),
-        resource_bounds: max_resource_bounds,
+        resource_bounds: max_l1_resource_bounds,
         ..tx_args.clone()
     });
     let estimated_min_gas_usage_vector = estimate_minimal_gas_vector(
         &block_context,
         &account_tx,
         &GasVectorComputationMode::NoL2Gas,
-    )
-    .unwrap();
+    );
     let estimated_min_l1_gas = estimated_min_gas_usage_vector.l1_gas;
     let estimated_min_fee =
         get_fee_by_gas_vector(block_info, estimated_min_gas_usage_vector, &account_tx.fee_type());
@@ -461,7 +455,7 @@ fn test_recursion_depth_exceeded(
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
     block_context: BlockContext,
     max_fee: Fee,
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
 ) {
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         create_test_init_data(&block_context.chain_info, cairo_version);
@@ -495,7 +489,7 @@ fn test_recursion_depth_exceeded(
         calldata,
         version: tx_version,
         nonce: nonce_manager.next(account_address),
-        resource_bounds: max_resource_bounds,
+        resource_bounds: max_l1_resource_bounds,
     };
     let tx_execution_info = run_invoke_tx(&mut state, &block_context, invoke_args.clone());
 
@@ -576,7 +570,7 @@ fn test_revert_invoke(
     assert_eq!(state.get_nonce_at(account_address).unwrap(), nonce_manager.next(account_address));
 
     // Check that reverted steps are taken into account.
-    assert!(tx_execution_info.receipt.resources.n_reverted_steps > 0);
+    assert!(tx_execution_info.receipt.resources.computation.n_reverted_steps > 0);
 
     // Check that execution state changes were reverted.
     assert_eq!(
@@ -620,7 +614,7 @@ fn test_fail_deploy_account(
 
     let error = deploy_account_tx.execute(state, &block_context, true, true).unwrap_err();
     // Check the error is as expected. Assure the error message is not nonce or fee related.
-    check_transaction_execution_error_for_invalid_scenario!(cairo_version, error, false);
+    check_tx_execution_error_for_invalid_scenario!(cairo_version, error, false);
 
     // Assert nonce and balance are unchanged, and that no contract was deployed at the address.
     assert_eq!(state.get_nonce_at(deploy_address).unwrap(), nonce!(0_u8));
@@ -702,7 +696,7 @@ fn recursive_function_calldata(
 #[case(TransactionVersion::THREE)]
 fn test_reverted_reach_steps_limit(
     max_fee: Fee,
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
     mut block_context: BlockContext,
     #[case] version: TransactionVersion,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
@@ -714,7 +708,7 @@ fn test_reverted_reach_steps_limit(
     block_context.versioned_constants.invoke_tx_max_n_steps = 6000;
     let recursion_base_args = invoke_tx_args! {
         max_fee,
-        resource_bounds: max_resource_bounds,
+        resource_bounds: max_l1_resource_bounds,
         sender_address: account_address,
         version,
     };
@@ -730,7 +724,7 @@ fn test_reverted_reach_steps_limit(
         },
     )
     .unwrap();
-    let n_steps_0 = result.receipt.resources.total_charged_steps();
+    let n_steps_0 = result.receipt.resources.computation.total_charged_steps();
     let actual_fee_0 = result.receipt.fee.0;
     // Ensure the transaction was not reverted.
     assert!(!result.is_reverted());
@@ -746,7 +740,7 @@ fn test_reverted_reach_steps_limit(
         },
     )
     .unwrap();
-    let n_steps_1 = result.receipt.resources.total_charged_steps();
+    let n_steps_1 = result.receipt.resources.computation.total_charged_steps();
     let actual_fee_1 = result.receipt.fee.0;
     // Ensure the transaction was not reverted.
     assert!(!result.is_reverted());
@@ -773,7 +767,7 @@ fn test_reverted_reach_steps_limit(
         },
     )
     .unwrap();
-    let n_steps_fail = result.receipt.resources.total_charged_steps();
+    let n_steps_fail = result.receipt.resources.computation.total_charged_steps();
     let actual_fee_fail: u128 = result.receipt.fee.0;
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
@@ -796,7 +790,7 @@ fn test_reverted_reach_steps_limit(
         },
     )
     .unwrap();
-    let n_steps_fail_next = result.receipt.resources.total_charged_steps();
+    let n_steps_fail_next = result.receipt.resources.computation.total_charged_steps();
     let actual_fee_fail_next: u128 = result.receipt.fee.0;
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
@@ -812,13 +806,13 @@ fn test_reverted_reach_steps_limit(
 /// asserts false. We test deltas between consecutive depths, and further depths.
 fn test_n_reverted_steps(
     block_context: BlockContext,
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         create_test_init_data(&block_context.chain_info, cairo_version);
     let recursion_base_args = invoke_tx_args! {
-        resource_bounds: max_resource_bounds,
+        resource_bounds: max_l1_resource_bounds,
         sender_address: account_address,
     };
 
@@ -835,8 +829,8 @@ fn test_n_reverted_steps(
     .unwrap();
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
-    let mut actual_resources_0 = result.receipt.resources.clone();
-    let n_steps_0 = result.receipt.resources.total_charged_steps();
+    let mut actual_resources_0 = result.receipt.resources.computation.clone();
+    let n_steps_0 = result.receipt.resources.computation.total_charged_steps();
     let actual_fee_0 = result.receipt.fee.0;
 
     // Invoke the `recursive_fail` function with 1 iterations. This call should fail.
@@ -852,7 +846,7 @@ fn test_n_reverted_steps(
     .unwrap();
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
-    let actual_resources_1 = result.receipt.resources;
+    let actual_resources_1 = result.receipt.resources.computation;
     let n_steps_1 = actual_resources_1.total_charged_steps();
     let actual_fee_1 = result.receipt.fee.0;
 
@@ -867,7 +861,7 @@ fn test_n_reverted_steps(
         },
     )
     .unwrap();
-    let n_steps_2 = result.receipt.resources.total_charged_steps();
+    let n_steps_2 = result.receipt.resources.computation.total_charged_steps();
     let actual_fee_2 = result.receipt.fee.0;
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
@@ -899,7 +893,7 @@ fn test_n_reverted_steps(
         },
     )
     .unwrap();
-    let n_steps_100 = result.receipt.resources.total_charged_steps();
+    let n_steps_100 = result.receipt.resources.computation.total_charged_steps();
     let actual_fee_100 = result.receipt.fee.0;
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
@@ -947,16 +941,12 @@ fn test_max_fee_to_max_steps_conversion(
     let execution_context1 = EntryPointExecutionContext::new_invoke(tx_context1, true);
     let max_steps_limit1 = execution_context1.vm_run_resources.get_n_steps();
     let tx_execution_info1 = account_tx1.execute(&mut state, &block_context, true, true).unwrap();
-    let n_steps1 = tx_execution_info1.receipt.resources.vm_resources.n_steps;
-    let gas_used_vector1 = tx_execution_info1
-        .receipt
-        .resources
-        .to_gas_vector(
-            &block_context.versioned_constants,
-            block_context.block_info.use_kzg_da,
-            &GasVectorComputationMode::NoL2Gas,
-        )
-        .unwrap();
+    let n_steps1 = tx_execution_info1.receipt.resources.computation.vm_resources.n_steps;
+    let gas_used_vector1 = tx_execution_info1.receipt.resources.to_gas_vector(
+        &block_context.versioned_constants,
+        block_context.block_info.use_kzg_da,
+        &GasVectorComputationMode::NoL2Gas,
+    );
 
     // Second invocation of `with_arg` gets twice the pre-calculated actual fee as max_fee.
     let account_tx2 = account_invoke_tx(invoke_tx_args! {
@@ -971,16 +961,12 @@ fn test_max_fee_to_max_steps_conversion(
     let execution_context2 = EntryPointExecutionContext::new_invoke(tx_context2, true);
     let max_steps_limit2 = execution_context2.vm_run_resources.get_n_steps();
     let tx_execution_info2 = account_tx2.execute(&mut state, &block_context, true, true).unwrap();
-    let n_steps2 = tx_execution_info2.receipt.resources.vm_resources.n_steps;
-    let gas_used_vector2 = tx_execution_info2
-        .receipt
-        .resources
-        .to_gas_vector(
-            &block_context.versioned_constants,
-            block_context.block_info.use_kzg_da,
-            &GasVectorComputationMode::NoL2Gas,
-        )
-        .unwrap();
+    let n_steps2 = tx_execution_info2.receipt.resources.computation.vm_resources.n_steps;
+    let gas_used_vector2 = tx_execution_info2.receipt.resources.to_gas_vector(
+        &block_context.versioned_constants,
+        block_context.block_info.use_kzg_da,
+        &GasVectorComputationMode::NoL2Gas,
+    );
 
     // Test that steps limit doubles as max_fee doubles, but actual consumed steps and fee remains.
     assert_eq!(max_steps_limit2.unwrap(), 2 * max_steps_limit1.unwrap());
@@ -1001,7 +987,7 @@ fn test_max_fee_to_max_steps_conversion(
 /// recorded and max_fee is charged.
 fn test_insufficient_max_fee_reverts(
     block_context: BlockContext,
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
@@ -1015,7 +1001,7 @@ fn test_insufficient_max_fee_reverts(
         &mut state,
         &block_context,
         invoke_tx_args! {
-            resource_bounds: max_resource_bounds,
+            resource_bounds: max_l1_resource_bounds,
             nonce: nonce_manager.next(account_address),
             calldata: recursive_function_calldata(&contract_address, 1, false),
             ..recursion_base_args.clone()
@@ -1075,7 +1061,7 @@ fn test_insufficient_max_fee_reverts(
 
 #[rstest]
 fn test_deploy_account_constructor_storage_write(
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
     block_context: BlockContext,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
@@ -1093,7 +1079,7 @@ fn test_deploy_account_constructor_storage_write(
         chain_info,
         deploy_account_tx_args! {
             class_hash,
-            resource_bounds: max_resource_bounds,
+            resource_bounds: max_l1_resource_bounds,
             constructor_calldata: constructor_calldata.clone(),
         },
     );
@@ -1119,7 +1105,7 @@ fn test_deploy_account_constructor_storage_write(
 fn test_count_actual_storage_changes(
     max_fee: Fee,
     block_context: BlockContext,
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
@@ -1162,7 +1148,7 @@ fn test_count_actual_storage_changes(
     let mut state = TransactionalState::create_transactional(&mut state);
     let invoke_args = invoke_tx_args! {
         max_fee,
-        resource_bounds: max_resource_bounds,
+        resource_bounds: max_l1_resource_bounds,
         version,
         sender_address: account_address,
         calldata: write_1_calldata,
@@ -1300,7 +1286,7 @@ fn test_count_actual_storage_changes(
 #[case::tx_version_3(TransactionVersion::THREE)]
 fn test_concurrency_execute_fee_transfer(
     max_fee: Fee,
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
     #[case] version: TransactionVersion,
 ) {
     // TODO(Meshi, 01/06/2024): make the test so it will include changes in
@@ -1319,7 +1305,7 @@ fn test_concurrency_execute_fee_transfer(
     sender_address: account.get_instance_address(0),
     max_fee,
     calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
-    resource_bounds: max_resource_bounds,
+    resource_bounds: max_l1_resource_bounds,
     version
     });
     let fee_type = &account_tx.fee_type();
@@ -1366,7 +1352,7 @@ fn test_concurrency_execute_fee_transfer(
         sender_address: account.get_instance_address(0),
         calldata: transfer_calldata,
         max_fee,
-        resource_bounds: max_resource_bounds,
+        resource_bounds: max_l1_resource_bounds,
     });
 
     let execution_result =
@@ -1400,7 +1386,7 @@ fn test_concurrency_execute_fee_transfer(
 #[case::tx_version_3(TransactionVersion::THREE)]
 fn test_concurrent_fee_transfer_when_sender_is_sequencer(
     max_fee: Fee,
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
     #[case] version: TransactionVersion,
 ) {
     let mut block_context = BlockContext::create_for_account_testing();
@@ -1417,7 +1403,7 @@ fn test_concurrent_fee_transfer_when_sender_is_sequencer(
         max_fee,
         sender_address: account_address,
         calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
-        resource_bounds: max_resource_bounds,
+        resource_bounds: max_l1_resource_bounds,
         version
     });
     let fee_type = &account_tx.fee_type();
@@ -1438,7 +1424,10 @@ fn test_concurrent_fee_transfer_when_sender_is_sequencer(
 }
 
 #[rstest]
-fn test_revert_in_execute(block_context: BlockContext, max_resource_bounds: ValidResourceBounds) {
+fn test_revert_in_execute(
+    block_context: BlockContext,
+    max_l1_resource_bounds: ValidResourceBounds,
+) {
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let chain_info = &block_context.chain_info;
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
@@ -1455,7 +1444,7 @@ fn test_revert_in_execute(block_context: BlockContext, max_resource_bounds: Vali
     // Skip validate phase, as we want to test the revert in the execute phase.
     let validate = false;
     let tx_execution_info = account_invoke_tx(invoke_tx_args! {
-        resource_bounds: max_resource_bounds,
+        resource_bounds: max_l1_resource_bounds,
         ..tx_args
     })
     .execute(state, &block_context, true, validate)

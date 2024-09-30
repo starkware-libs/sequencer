@@ -39,12 +39,11 @@ concurrency:
 
 jobs:
   run-regression-tests:
-    runs-on: starkware-ubuntu-latest-small
+    runs-on: starkware-ubuntu-latest-medium
     if: ${{ github.event_name == 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
 
       - id: auth
         uses: "google-github-actions/auth@v2"
@@ -56,14 +55,13 @@ jobs:
       - run: cargo test -p committer_cli --release -- --include-ignored test_regression
 
   benchmarking:
-    runs-on: starkware-ubuntu-latest-small
+    runs-on: starkware-ubuntu-latest-medium
     if: ${{ github.event_name == 'pull_request' }}
     steps:
       # Checkout the base branch to get the old code.
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.base_ref }}
-      - uses: Swatinem/rust-cache@v2
 
       # Download the old benchmark inputs.
       - id: auth
@@ -76,7 +74,7 @@ jobs:
 
       # List the existing benchmarks.
       - run: |
-            cargo bench -p committer_cli -- --list | grep ': benchmark$' | sed -e "s/: benchmark$//" > benchmarks_list.txt
+          cargo bench -p committer_cli -- --list | grep ': benchmark$' | sed -e "s/: benchmark$//" > benchmarks_list.txt
 
       # Benchmark the old code.
       - run: cargo bench -p committer_cli
@@ -119,14 +117,14 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: fs.readFileSync('bench_new.txt', 'utf8'),
+              path: 'Commits'
             })
 
   gcs-push:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
 
         # Commit hash on pull request event would be the head commit of the branch.
       - name: Get commit hash prefix for PR update

@@ -36,7 +36,7 @@ pub fn get_test_execution_config() -> ExecutionConfig {
     ExecutionConfig {
         strk_fee_contract_address: contract_address!("0x1001"),
         eth_fee_contract_address: contract_address!("0x1001"),
-        initial_gas_cost: 10_u64.pow(10),
+        default_initial_gas_cost: 10_u64.pow(10),
     }
 }
 
@@ -69,6 +69,7 @@ auto_impl_get_test_instance! {
         pub gas_price: GasPrice,
         pub data_gas_consumed: Felt,
         pub data_gas_price: GasPrice,
+        pub l2_gas_price: GasPrice,
         pub overall_fee: Fee,
         pub unit: PriceUnit,
     }

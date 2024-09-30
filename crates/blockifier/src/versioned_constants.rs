@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
-use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
+use std::{fs, io};
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -18,11 +18,9 @@ use strum_macros::{EnumCount, EnumIter};
 use thiserror::Error;
 
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
-use crate::execution::errors::PostExecutionError;
 use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::execution::syscalls::SyscallSelector;
-use crate::transaction::errors::TransactionExecutionError;
-use crate::transaction::objects::StarknetResources;
+use crate::fee::resources::{GasVectorComputationMode, StarknetResources};
 use crate::transaction::transaction_types::TransactionType;
 
 #[cfg(test)]
@@ -31,11 +29,33 @@ pub mod test;
 
 /// Auto-generate getters for listed versioned constants versions.
 macro_rules! define_versioned_constants {
-    ($(($variant:ident, $path_to_json:expr)),* $(,)?) => {
+    ($(($variant:ident, $path_to_json:expr, $version_str:expr)),*, $latest_variant:ident) => {
         /// Enum of all the Starknet versions supporting versioned constants.
         #[derive(Clone, Debug, EnumCount, EnumIter, Hash, Eq, PartialEq)]
         pub enum StarknetVersion {
             $($variant,)*
+        }
+
+        impl StarknetVersion {
+            pub fn path_to_versioned_constants_json(&self) -> &'static str {
+                match self {
+                    $(StarknetVersion::$variant => $path_to_json,)*
+                }
+            }
+
+            pub fn latest() -> Self {
+                StarknetVersion::$latest_variant
+            }
+        }
+
+        impl From<StarknetVersion> for String {
+            fn from(version: StarknetVersion) -> Self {
+                match version {
+                    $(StarknetVersion::$variant => String::from(
+                        stringify!($variant)
+                    ).to_lowercase().replace("_", "."),)*
+                }
+            }
         }
 
         // Static (lazy) instances of the versioned constants.
@@ -44,7 +64,7 @@ macro_rules! define_versioned_constants {
             $(
                 pub(crate) const [<VERSIONED_CONSTANTS_ $variant:upper _JSON>]: &str =
                     include_str!($path_to_json);
-                static [<VERSIONED_CONSTANTS_ $variant:upper>]: LazyLock<VersionedConstants> = LazyLock::new(|| {
+                pub static [<VERSIONED_CONSTANTS_ $variant:upper>]: LazyLock<VersionedConstants> = LazyLock::new(|| {
                     serde_json::from_str([<VERSIONED_CONSTANTS_ $variant:upper _JSON>])
                         .expect(&format!("Versioned constants {} is malformed.", $path_to_json))
                 });
@@ -63,16 +83,53 @@ macro_rules! define_versioned_constants {
                 }
             }
         }
+
+        pub static VERSIONED_CONSTANTS_LATEST_JSON: LazyLock<String> = LazyLock::new(|| {
+            let latest_variant = StarknetVersion::$latest_variant;
+            let path_to_json: PathBuf = [
+                env!("CARGO_MANIFEST_DIR"), "src", latest_variant.path_to_versioned_constants_json()
+            ].iter().collect();
+            fs::read_to_string(path_to_json.clone())
+                .expect(&format!("Failed to read file {}.", path_to_json.display()))
+        });
+
+        impl TryFrom<&str> for StarknetVersion {
+            type Error = VersionedConstantsError;
+            fn try_from(raw_version: &str) -> Result<Self, Self::Error> {
+                match raw_version {
+                    $(
+                        $version_str => Ok(StarknetVersion::$variant),
+                    )*
+                    _ => Err(VersionedConstantsError::InvalidVersion { version: raw_version.to_string()}),
+                }
+            }
+        }
+
+        #[cfg(test)]
+        mod tests {
+            use crate::versioned_constants::StarknetVersion;
+
+            #[test]
+            fn test_variant_name_string_consistency() {
+                $(
+                    assert_eq!(
+                        "v".to_owned() + $version_str,
+                        String::from(StarknetVersion::$variant)
+                    );
+                )*
+            }
+        }
     };
 }
 
 define_versioned_constants! {
-    (V0_13_0, "../resources/versioned_constants_13_0.json"),
-    (V0_13_1, "../resources/versioned_constants_13_1.json"),
-    (V0_13_1_1, "../resources/versioned_constants_13_1_1.json"),
-    (V0_13_2, "../resources/versioned_constants_13_2.json"),
-    (V0_13_2_1, "../resources/versioned_constants_13_2_1.json"),
-    (Latest, "../resources/versioned_constants.json"),
+    (V0_13_0, "../resources/versioned_constants_0_13_0.json", "0.13.0"),
+    (V0_13_1, "../resources/versioned_constants_0_13_1.json", "0.13.1"),
+    (V0_13_1_1, "../resources/versioned_constants_0_13_1_1.json", "0.13.1.1"),
+    (V0_13_2, "../resources/versioned_constants_0_13_2.json", "0.13.2"),
+    (V0_13_2_1, "../resources/versioned_constants_0_13_2_1.json", "0.13.2.1"),
+    (V0_13_3, "../resources/versioned_constants_0_13_3.json", "0.13.3"),
+    V0_13_3
 }
 
 pub type ResourceCost = Ratio<u128>;
@@ -82,6 +139,25 @@ impl Default for CompilerVersion {
     fn default() -> Self {
         Self(Version::new(0, 0, 0))
     }
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct VmResourceCosts {
+    pub n_steps: ResourceCost,
+    #[serde(deserialize_with = "builtin_map_from_string_map")]
+    pub builtins: HashMap<BuiltinName, ResourceCost>,
+}
+
+// TODO: This (along with the Serialize impl) is implemented in pub(crate) scope in the VM (named
+//   serde_generic_map_impl); use it if and when it's public.
+fn builtin_map_from_string_map<'de, D: Deserializer<'de>>(
+    d: D,
+) -> Result<HashMap<BuiltinName, ResourceCost>, D::Error> {
+    HashMap::<String, ResourceCost>::deserialize(d)?
+        .into_iter()
+        .map(|(k, v)| BuiltinName::from_str_with_suffix(&k).map(|k| (k, v)))
+        .collect::<Option<HashMap<_, _>>>()
+        .ok_or(D::Error::custom("Invalid builtin name"))
 }
 
 /// Contains constants for the Blockifier that may vary between versions.
@@ -94,6 +170,7 @@ pub struct VersionedConstants {
     // Limits.
     pub tx_event_limits: EventLimits,
     pub invoke_tx_max_n_steps: u32,
+    pub deprecated_l2_resource_gas_costs: ArchivalDataGasCosts,
     pub archival_data_gas_costs: ArchivalDataGasCosts,
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
@@ -106,6 +183,9 @@ pub struct VersionedConstants {
     // Transactions settings.
     pub disable_cairo0_redeclaration: bool,
 
+    // Compiler settings.
+    pub enable_reverts: bool,
+
     // Cairo OS constants.
     // Note: if loaded from a json file, there are some assumptions made on its structure.
     // See the struct's docstring for more details.
@@ -115,51 +195,57 @@ pub struct VersionedConstants {
     os_resources: Arc<OsResources>,
 
     // Fee related.
-    // TODO: Consider making this a struct, this will require change the way we access these
-    // values.
-    vm_resource_fee_cost: Arc<HashMap<String, ResourceCost>>,
+    vm_resource_fee_cost: Arc<VmResourceCosts>,
     // Just to make sure the value exists, but don't use the actual values.
     #[allow(dead_code)]
     gateway: serde::de::IgnoredAny,
 }
 
 impl VersionedConstants {
-    /// Get the constants for the specified Starknet version.
+    /// Gets the constants that shipped with the current version of the Blockifier.
+    /// To use custom constants, initialize the struct from a file using `from_path`.
+    pub fn latest_constants() -> &'static Self {
+        Self::get(StarknetVersion::latest())
+    }
+
+    /// Gets the constants for the specified Starknet version.
     pub fn get(version: StarknetVersion) -> &'static Self {
         version.into()
     }
 
-    /// Get the constants that shipped with the current version of the Blockifier.
-    /// To use custom constants, initialize the struct from a file using `try_from`.
-    pub fn latest_constants() -> &'static Self {
-        Self::get(StarknetVersion::Latest)
+    pub fn from_path(path: &Path) -> Result<Self, VersionedConstantsError> {
+        Ok(serde_json::from_reader(std::fs::File::open(path)?)?)
     }
 
-    /// Converts from L1 gas to L2 gas with **upward rounding**.
-    pub fn convert_l1_to_l2_gas(&self, l1_gas: u128) -> u128 {
-        let l1_to_l2_gas_price_ratio = self.l1_to_l2_gas_price_ratio().inv();
-        *(l1_to_l2_gas_price_ratio * l1_gas).ceil().numer()
+    /// Converts from L1 gas price to L2 gas price with **upward rounding**.
+    pub fn convert_l1_to_l2_gas_price_round_up(&self, l1_gas_price: u128) -> u128 {
+        *(self.l1_to_l2_gas_price_ratio() * l1_gas_price).ceil().numer()
     }
 
-    /// Converts from L2 gas to L1 gas **rounding towards zero**.
-    pub fn convert_l2_to_l1_gas(&self, l2_gas: u128) -> u128 {
-        let l2_to_l1_gas_price_ratio = self.l1_to_l2_gas_price_ratio();
-        (l2_to_l1_gas_price_ratio * l2_gas).to_integer()
+    /// Converts from L1 gas amount to L2 gas amount with **upward rounding**.
+    pub fn convert_l1_to_l2_gas_amount_round_up(&self, l1_gas_amount: u128) -> u128 {
+        // The amount ratio is the inverse of the price ratio.
+        *(self.l1_to_l2_gas_price_ratio().inv() * l1_gas_amount).ceil().numer()
     }
 
     /// Returns the following ratio: L2_gas_price/L1_gas_price.
-    pub fn l1_to_l2_gas_price_ratio(&self) -> ResourceCost {
+    fn l1_to_l2_gas_price_ratio(&self) -> ResourceCost {
         Ratio::new(1, u128::from(self.os_constants.gas_costs.step_gas_cost))
-            * self.vm_resource_fee_cost()["n_steps"]
+            * self.vm_resource_fee_cost().n_steps
     }
 
-    /// Returns the initial gas of any transaction to run with.
-    pub fn tx_initial_gas(&self) -> u64 {
+    #[cfg(any(feature = "testing", test))]
+    pub fn get_l1_to_l2_gas_price_ratio(&self) -> ResourceCost {
+        self.l1_to_l2_gas_price_ratio()
+    }
+
+    /// Returns the default initial gas of any transaction to run with.
+    pub fn tx_default_initial_gas(&self) -> u64 {
         let os_consts = &self.os_constants;
-        os_consts.gas_costs.initial_gas_cost - os_consts.gas_costs.transaction_gas_cost
+        os_consts.gas_costs.default_initial_gas_cost - os_consts.gas_costs.transaction_gas_cost
     }
 
-    pub fn vm_resource_fee_cost(&self) -> &HashMap<String, ResourceCost> {
+    pub fn vm_resource_fee_cost(&self) -> &VmResourceCosts {
         &self.vm_resource_fee_cost
     }
 
@@ -180,11 +266,11 @@ impl VersionedConstants {
         tx_type: TransactionType,
         starknet_resources: &StarknetResources,
         use_kzg_da: bool,
-    ) -> Result<ExecutionResources, TransactionExecutionError> {
+    ) -> ExecutionResources {
         self.os_resources.get_additional_os_tx_resources(
             tx_type,
-            starknet_resources.calldata_length,
-            starknet_resources.get_onchain_data_segment_length(),
+            starknet_resources.archival_data.calldata_length,
+            starknet_resources.state.get_onchain_data_segment_length(),
             use_kzg_da,
         )
     }
@@ -192,7 +278,7 @@ impl VersionedConstants {
     pub fn get_additional_os_syscall_resources(
         &self,
         syscall_counter: &SyscallCounter,
-    ) -> Result<ExecutionResources, PostExecutionError> {
+    ) -> ExecutionResources {
         self.os_resources.get_additional_os_syscall_resources(syscall_counter)
     }
 
@@ -207,29 +293,25 @@ impl VersionedConstants {
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_account_testing() -> Self {
         let step_cost = ResourceCost::from_integer(1);
-        let vm_resource_fee_cost = Arc::new(HashMap::from([
-            (crate::abi::constants::N_STEPS_RESOURCE.to_string(), step_cost),
-            (BuiltinName::pedersen.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (
-                BuiltinName::range_check.to_str_with_suffix().to_string(),
-                ResourceCost::from_integer(1),
-            ),
-            (BuiltinName::ecdsa.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::bitwise.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::poseidon.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::output.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::ec_op.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (
-                BuiltinName::range_check96.to_str_with_suffix().to_string(),
-                ResourceCost::from_integer(1),
-            ),
-            (BuiltinName::add_mod.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::mul_mod.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-        ]));
+        let vm_resource_fee_cost = Arc::new(VmResourceCosts {
+            n_steps: step_cost,
+            builtins: HashMap::from([
+                (BuiltinName::pedersen, ResourceCost::from_integer(1)),
+                (BuiltinName::range_check, ResourceCost::from_integer(1)),
+                (BuiltinName::ecdsa, ResourceCost::from_integer(1)),
+                (BuiltinName::bitwise, ResourceCost::from_integer(1)),
+                (BuiltinName::poseidon, ResourceCost::from_integer(1)),
+                (BuiltinName::output, ResourceCost::from_integer(1)),
+                (BuiltinName::ec_op, ResourceCost::from_integer(1)),
+                (BuiltinName::range_check96, ResourceCost::from_integer(1)),
+                (BuiltinName::add_mod, ResourceCost::from_integer(1)),
+                (BuiltinName::mul_mod, ResourceCost::from_integer(1)),
+            ]),
+        });
 
         // Maintain the ratio between L1 gas price and L2 gas price.
         let latest = Self::create_for_testing();
-        let latest_step_cost = latest.vm_resource_fee_cost["n_steps"];
+        let latest_step_cost = latest.vm_resource_fee_cost.n_steps;
         let mut archival_data_gas_costs = latest.archival_data_gas_costs;
         archival_data_gas_costs.gas_per_code_byte *= latest_step_cost / step_cost;
         archival_data_gas_costs.gas_per_data_felt *= latest_step_cost / step_cost;
@@ -259,13 +341,15 @@ impl VersionedConstants {
             ..Self::latest_constants().clone()
         }
     }
-}
 
-impl TryFrom<&Path> for VersionedConstants {
-    type Error = VersionedConstantsError;
-
-    fn try_from(path: &Path) -> Result<Self, Self::Error> {
-        Ok(serde_json::from_reader(std::fs::File::open(path)?)?)
+    pub fn get_archival_data_gas_costs(
+        &self,
+        mode: &GasVectorComputationMode,
+    ) -> &ArchivalDataGasCosts {
+        match mode {
+            GasVectorComputationMode::All => &self.archival_data_gas_costs,
+            GasVectorComputationMode::NoL2Gas => &self.deprecated_l2_resource_gas_costs,
+        }
     }
 }
 
@@ -379,14 +463,14 @@ impl OsResources {
         calldata_length: usize,
         data_segment_length: usize,
         use_kzg_da: bool,
-    ) -> Result<ExecutionResources, TransactionExecutionError> {
+    ) -> ExecutionResources {
         let mut os_additional_vm_resources = self.resources_for_tx_type(&tx_type, calldata_length);
 
         if use_kzg_da {
             os_additional_vm_resources += &self.os_kzg_da_resources(data_segment_length);
         }
 
-        Ok(os_additional_vm_resources)
+        os_additional_vm_resources
     }
 
     /// Calculates the additional resources needed for the OS to run the given syscalls;
@@ -394,7 +478,7 @@ impl OsResources {
     fn get_additional_os_syscall_resources(
         &self,
         syscall_counter: &SyscallCounter,
-    ) -> Result<ExecutionResources, PostExecutionError> {
+    ) -> ExecutionResources {
         let mut os_additional_resources = ExecutionResources::default();
         for (syscall_selector, count) in syscall_counter {
             let syscall_resources =
@@ -404,7 +488,7 @@ impl OsResources {
             os_additional_resources += &(syscall_resources * *count);
         }
 
-        Ok(os_additional_resources)
+        os_additional_resources
     }
 
     fn resources_params_for_tx_type(&self, tx_type: &TransactionType) -> &ResourcesParams {
@@ -469,13 +553,12 @@ pub struct GasCosts {
     pub mul_mod_gas_cost: u64,
     // An estimation of the initial gas for a transaction to run with. This solution is
     // temporary and this value will be deduced from the transaction's fields.
-    pub initial_gas_cost: u64,
+    pub default_initial_gas_cost: u64,
     // Compiler gas costs.
     pub entry_point_initial_budget: u64,
     pub syscall_base_gas_cost: u64,
     // OS gas costs.
     pub entry_point_gas_cost: u64,
-    pub fee_transfer_gas_cost: u64,
     pub transaction_gas_cost: u64,
     // Syscall gas costs.
     pub call_contract_gas_cost: u64,
@@ -667,6 +750,8 @@ pub enum VersionedConstantsError {
     IoError(#[from] io::Error),
     #[error("JSON file cannot be serialized into VersionedConstants: {0}")]
     ParseError(#[from] serde_json::Error),
+    #[error("Invalid version: {version:?}")]
+    InvalidVersion { version: String },
 }
 
 #[derive(Debug, Error)]

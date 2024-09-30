@@ -52,8 +52,6 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use execution_utils::{get_trace_constructor, induced_state_diff};
 use objects::{PriceUnit, TransactionSimulationOutput};
-use papyrus_common::transaction_hash::get_transaction_hash;
-use papyrus_common::TransactionOptions;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::header::HeaderStorageReader;
@@ -80,8 +78,10 @@ use starknet_api::transaction::{
     L1HandlerTransaction,
     Transaction,
     TransactionHash,
+    TransactionOptions,
     TransactionVersion,
 };
+use starknet_api::transaction_hash::get_transaction_hash;
 use starknet_api::{contract_address, felt, patricia_key, StarknetApiError};
 use state_reader::ExecutionStateReader;
 use tracing::trace;
@@ -91,11 +91,13 @@ use crate::objects::{tx_execution_output_to_fee_estimation, FeeEstimation, Pendi
 const STARKNET_VERSION_O_13_0: &str = "0.13.0";
 const STARKNET_VERSION_O_13_1: &str = "0.13.1";
 const STARKNET_VERSION_O_13_2: &str = "0.13.2";
-const STRK_FEE_CONTRACT_ADDRESS: &str =
+/// The address of the STRK fee contract on Starknet.
+pub const STRK_FEE_CONTRACT_ADDRESS: &str =
     "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
-const ETH_FEE_CONTRACT_ADDRESS: &str =
+/// The address of the ETH fee contract on Starknet.
+pub const ETH_FEE_CONTRACT_ADDRESS: &str =
     "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7";
-const INITIAL_GAS_COST: u64 = 10000000000;
+const DEFAULT_INITIAL_GAS_COST: u64 = 10000000000;
 
 /// Result type for execution functions.
 pub type ExecutionResult<T> = Result<T, ExecutionError>;
@@ -108,7 +110,7 @@ pub struct ExecutionConfig {
     /// The eth address to receive fees
     pub eth_fee_contract_address: ContractAddress,
     /// The initial gas cost for a transaction
-    pub initial_gas_cost: u64,
+    pub default_initial_gas_cost: u64,
 }
 
 impl Default for ExecutionConfig {
@@ -116,7 +118,7 @@ impl Default for ExecutionConfig {
         ExecutionConfig {
             strk_fee_contract_address: contract_address!(STRK_FEE_CONTRACT_ADDRESS),
             eth_fee_contract_address: contract_address!(ETH_FEE_CONTRACT_ADDRESS),
-            initial_gas_cost: INITIAL_GAS_COST,
+            default_initial_gas_cost: DEFAULT_INITIAL_GAS_COST,
         }
     }
 }
@@ -137,8 +139,8 @@ impl SerializeConfig for ExecutionConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "initial_gas_cost",
-                &self.initial_gas_cost,
+                "default_initial_gas_cost",
+                &self.default_initial_gas_cost,
                 "The initial gas cost for a transaction",
                 ParamPrivacyInput::Public,
             ),
@@ -228,7 +230,7 @@ pub fn execute_call(
         caller_address: ContractAddress::default(),
         call_type: BlockifierCallType::Call,
         // TODO(yair): check if this is the correct value.
-        initial_gas: execution_config.initial_gas_cost,
+        initial_gas: execution_config.default_initial_gas_cost,
     };
 
     let mut cached_state = CachedState::new(ExecutionStateReader {
@@ -303,6 +305,7 @@ fn create_block_context(
         block_timestamp,
         l1_gas_price,
         l1_data_gas_price,
+        l2_gas_price,
         sequencer_address,
         l1_da_mode,
     ) = match maybe_pending_data {
@@ -311,6 +314,7 @@ fn create_block_context(
             pending_data.timestamp,
             pending_data.l1_gas_price,
             pending_data.l1_data_gas_price,
+            pending_data.l2_gas_price,
             pending_data.sequencer,
             pending_data.l1_da_mode,
         ),
@@ -318,12 +322,14 @@ fn create_block_context(
             let header = storage_reader
                 .begin_ro_txn()?
                 .get_block_header(block_context_number)?
-                .expect("Should have block header.");
+                .expect("Should have block header.")
+                .block_header_without_hash;
             (
                 header.block_number,
                 header.timestamp,
                 header.l1_gas_price,
                 header.l1_data_gas_price,
+                header.l2_gas_price,
                 header.sequencer,
                 header.l1_da_mode,
             )
@@ -351,9 +357,8 @@ fn create_block_context(
             NonZeroU128::new(l1_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
             NonZeroU128::new(l1_data_gas_price.price_in_wei.0).unwrap_or(NonZeroU128::MIN),
             NonZeroU128::new(l1_data_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
-            // TODO(Aner - Shahak): fix to come from pending_data/block_header.
-            NonZeroU128::MIN,
-            NonZeroU128::MIN,
+            NonZeroU128::new(l2_gas_price.price_in_wei.0).unwrap_or(NonZeroU128::MIN),
+            NonZeroU128::new(l2_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
         ),
     };
     let chain_info = ChainInfo {
@@ -651,6 +656,7 @@ fn execute_transactions(
             _ => None,
         };
         let blockifier_tx = to_blockifier_tx(tx, tx_hash, transaction_index)?;
+        // TODO(Yoni): use the TransactionExecutor instead.
         let tx_execution_info_result =
             blockifier_tx.execute(&mut transactional_state, &block_context, charge_fee, validate);
         let state_diff =
@@ -696,7 +702,7 @@ fn get_10_blocks_ago(
         return Ok(None);
     };
     Ok(Some(BlockNumberHashPair {
-        number: header_10_blocks_ago.block_number,
+        number: header_10_blocks_ago.block_header_without_hash.block_number,
         hash: header_10_blocks_ago.block_hash,
     }))
 }
@@ -868,7 +874,7 @@ fn get_versioned_constants(
             } else if version == STARKNET_VERSION_O_13_2 {
                 BlockifierStarknetVersion::V0_13_2
             } else {
-                BlockifierStarknetVersion::Latest
+                BlockifierStarknetVersion::V0_13_3
             };
             VersionedConstants::get(blockifier_starknet_version)
         }

@@ -1,8 +1,8 @@
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use papyrus_test_utils::read_json_file;
 use pretty_assertions::assert_eq;
 use starknet_api::core::ClassHash;
+use starknet_api::test_utils::read_json_file;
 
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::db::{DbError, KeyAlreadyExistsError};

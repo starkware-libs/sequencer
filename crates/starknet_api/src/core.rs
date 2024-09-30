@@ -18,6 +18,12 @@ use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
 use crate::transaction::{Calldata, ContractAddressSalt};
 use crate::{impl_from_through_intermediate, StarknetApiError};
 
+/// Felt.
+pub fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {
+    Felt::from_hex(hex::encode(ascii_str).as_str())
+        .map_err(|_| StarknetApiError::OutOfRange { string: ascii_str.to_string() })
+}
+
 /// A chain id.
 #[derive(Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub enum ChainId {

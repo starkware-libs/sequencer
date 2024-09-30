@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use papyrus_config::dumping::{ser_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use papyrus_config::dumping::{append_sub_config_name, SerializeConfig};
+use papyrus_config::{ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -9,22 +9,28 @@ use validator::Validate;
 /// TODO(Lev/Tsabary/Yael/Dafna): Define actual configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct BatcherConfig {
-    pub batcher_config_param_1: usize,
+    pub storage: papyrus_storage::StorageConfig,
 }
 
 impl SerializeConfig for BatcherConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "batcher_config_param_1",
-            &self.batcher_config_param_1,
-            "The first batcher configuration parameter",
-            ParamPrivacyInput::Public,
-        )])
+        append_sub_config_name(self.storage.dump(), "storage")
     }
 }
 
 impl Default for BatcherConfig {
     fn default() -> Self {
-        Self { batcher_config_param_1: 1 }
+        Self {
+            storage: papyrus_storage::StorageConfig {
+                db_config: papyrus_storage::db::DbConfig {
+                    path_prefix: ".".into(),
+                    // By default we don't want to create the DB if it doesn't exist.
+                    enforce_file_exists: true,
+                    ..Default::default()
+                },
+                scope: papyrus_storage::StorageScope::StateOnly,
+                ..Default::default()
+            },
+        }
     }
 }

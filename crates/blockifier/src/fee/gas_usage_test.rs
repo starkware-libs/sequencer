@@ -12,14 +12,15 @@ use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
 use crate::fee::eth_gas_constants;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::gas_usage::{get_da_gas_cost, get_message_segment_length};
-use crate::state::cached_state::StateChangesCount;
-use crate::test_utils::{DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE};
-use crate::transaction::objects::{
-    FeeType,
+use crate::fee::resources::{
     GasVector,
     GasVectorComputationMode,
     StarknetResources,
+    StateResources,
 };
+use crate::state::cached_state::StateChangesCount;
+use crate::test_utils::{DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE};
+use crate::transaction::objects::FeeType;
 use crate::transaction::test_utils::account_invoke_tx;
 use crate::utils::{u128_div_ceil, u128_from_usize};
 use crate::versioned_constants::{ResourceCost, VersionedConstants};
@@ -32,20 +33,27 @@ fn versioned_constants() -> &'static VersionedConstants {
 fn test_get_event_gas_cost(
     versioned_constants: &VersionedConstants,
     #[values(false, true)] use_kzg_da: bool,
+    #[values(GasVectorComputationMode::NoL2Gas, GasVectorComputationMode::All)]
+    gas_vector_computation_mode: GasVectorComputationMode,
 ) {
-    let archival_data_gas_costs = &versioned_constants.archival_data_gas_costs;
+    let archival_gas_costs =
+        versioned_constants.get_archival_data_gas_costs(&gas_vector_computation_mode);
     let (event_key_factor, data_word_cost) =
-        (archival_data_gas_costs.event_key_factor, archival_data_gas_costs.gas_per_data_felt);
-    let call_infos = vec![CallInfo::default(), CallInfo::default(), CallInfo::default()];
-    let call_infos_iter = call_infos.iter();
+        (archival_gas_costs.event_key_factor, archival_gas_costs.gas_per_data_felt);
+    let call_infos: Vec<CallInfo> =
+        vec![CallInfo::default(), CallInfo::default(), CallInfo::default()]
+            .into_iter()
+            .map(|call_info| call_info.with_some_class_hash())
+            .collect();
+    let execution_summary = CallInfo::summarize_many(call_infos.iter());
     let starknet_resources =
-        StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, call_infos_iter);
+        StarknetResources::new(0, 0, 0, StateResources::default(), None, execution_summary);
     assert_eq!(
         GasVector::default(),
         starknet_resources.to_gas_vector(
             versioned_constants,
             use_kzg_da,
-            &GasVectorComputationMode::NoL2Gas
+            &gas_vector_computation_mode
         )
     );
 
@@ -72,29 +80,34 @@ fn test_get_event_gas_cost(
     };
     let call_info_3 = CallInfo {
         execution: CallExecution { events: vec![create_event(0, 1)], ..Default::default() },
-        inner_calls: vec![CallInfo {
-            execution: CallExecution { events: vec![create_event(5, 5)], ..Default::default() },
-            ..Default::default()
-        }],
+        inner_calls: vec![
+            CallInfo {
+                execution: CallExecution { events: vec![create_event(5, 5)], ..Default::default() },
+                ..Default::default()
+            }
+            .with_some_class_hash(),
+        ],
         ..Default::default()
     };
-    let call_infos = vec![call_info_1, call_info_2, call_info_3];
-    let call_infos_iter = call_infos.iter();
-    let expected = GasVector::from_l1_gas(
-        // 8 keys and 11 data words overall.
-        (data_word_cost
-            * versioned_constants.l1_to_l2_gas_price_ratio()
-            * (event_key_factor * 8_u128 + 11_u128))
-            .to_integer(),
-    );
+    let call_infos: Vec<CallInfo> = vec![call_info_1, call_info_2, call_info_3]
+        .into_iter()
+        .map(|call_info| call_info.with_some_class_hash())
+        .collect();
+    let execution_summary = CallInfo::summarize_many(call_infos.iter());
+    // 8 keys and 11 data words overall.
+    let expected_gas = (data_word_cost * (event_key_factor * 8_u128 + 11_u128)).to_integer();
+    let expected_gas_vector = match gas_vector_computation_mode {
+        GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(expected_gas),
+        GasVectorComputationMode::All => GasVector::from_l2_gas(expected_gas),
+    };
     let starknet_resources =
-        StarknetResources::new(0, 0, 0, StateChangesCount::default(), None, call_infos_iter);
+        StarknetResources::new(0, 0, 0, StateResources::default(), None, execution_summary);
     let gas_vector = starknet_resources.to_gas_vector(
         versioned_constants,
         use_kzg_da,
-        &GasVectorComputationMode::NoL2Gas,
+        &gas_vector_computation_mode,
     );
-    assert_eq!(expected, gas_vector);
+    assert_eq!(expected_gas_vector, gas_vector);
     assert_ne!(GasVector::default(), gas_vector)
 }
 

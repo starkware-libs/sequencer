@@ -1,14 +1,13 @@
 use std::net::SocketAddr;
 
 use axum::body::Body;
-use blockifier::test_utils::contracts::FeatureContract;
-use mempool_test_utils::starknet_api_test_utils::{
-    rpc_tx_to_json,
-    MultiAccountTransactionGenerator,
-};
+use mempool_test_utils::starknet_api_test_utils::rpc_tx_to_json;
+use papyrus_storage::test_utils::get_test_config;
+use papyrus_storage::StorageScope::StateOnly;
 use reqwest::{Client, Response};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_batcher::config::BatcherConfig;
 use starknet_gateway::config::{
     GatewayConfig,
     RpcStateReaderConfig,
@@ -18,9 +17,8 @@ use starknet_gateway::config::{
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_node::config::MempoolNodeConfig;
+use tempfile::TempDir;
 use tokio::net::TcpListener;
-
-use crate::integration_test_setup::IntegrationTestSetup;
 
 async fn create_gateway_config() -> GatewayConfig {
     let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
@@ -40,16 +38,20 @@ async fn create_http_server_config() -> HttpServerConfig {
     HttpServerConfig { ip: socket.ip(), port: socket.port() }
 }
 
-pub async fn create_config(rpc_server_addr: SocketAddr) -> MempoolNodeConfig {
+pub async fn create_config(rpc_server_addr: SocketAddr) -> (MempoolNodeConfig, TempDir) {
+    let (batcher_config, storage_file_handle) = create_batcher_config();
     let gateway_config = create_gateway_config().await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
-    MempoolNodeConfig {
+    let mempool_node_config = MempoolNodeConfig {
+        batcher_config,
         gateway_config,
         http_server_config,
         rpc_state_reader_config,
         ..MempoolNodeConfig::default()
-    }
+    };
+
+    (mempool_node_config, storage_file_handle)
 }
 
 /// A test utility client for interacting with an http server.
@@ -99,6 +101,13 @@ fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderCo
     }
 }
 
+fn create_batcher_config() -> (BatcherConfig, TempDir) {
+    let storage_scope = Some(StateOnly);
+    // Need to keep the file handle alive to prevent the tempdir from being deleted.
+    let (storage_test_config, tempdir_file_handle) = get_test_config(storage_scope);
+    (BatcherConfig { storage: storage_test_config }, tempdir_file_handle)
+}
+
 /// Returns a unique IP address and port for testing purposes.
 ///
 /// Tests run in parallel, so servers (like RPC or web) running on separate tests must have
@@ -112,16 +121,4 @@ pub async fn get_available_socket() -> SocketAddr {
         // Then, resolve to the actual selected port.
         .local_addr()
         .expect("Failed to get local address")
-}
-
-/// Use to create a tx generator with _pre-funded_ accounts, alongside a mocked test setup.
-pub async fn setup_with_tx_generation(
-    accounts: &[FeatureContract],
-) -> (IntegrationTestSetup, MultiAccountTransactionGenerator) {
-    let integration_test_setup =
-        IntegrationTestSetup::new_for_account_contracts(accounts.iter().copied()).await;
-    let tx_generator =
-        MultiAccountTransactionGenerator::new_for_account_contracts(accounts.iter().copied());
-
-    (integration_test_setup, tx_generator)
 }

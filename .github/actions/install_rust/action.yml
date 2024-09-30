@@ -1,27 +1,9 @@
-# Installs rust toolchain with the version defined in .github/actions/install_rust/rust_version.txt.
-inputs:
-  components:
-    description: "Optional: which additional components to install."
-    required: false
-    type: string
-    default: ''
+name: Bootsrap rust installation
+description: Setup rust environment and its components, also caching the build results.
 
 runs:
   using: "composite"
   steps:
-    - name: Define toolchain
-      run: echo "DEFAULT_TOOLCHAIN=$(cat .github/actions/install_rust/rust_version.txt)" >> $GITHUB_ENV
-      shell: bash
-
-    - name: install rust toolchain with given components
-      if: "${{ inputs.components != '' }}"
-      uses: dtolnay/rust-toolchain@master
+    - uses: moonrepo/setup-rust@v1
       with:
-        toolchain: ${{ env.DEFAULT_TOOLCHAIN }}
-        components: ${{ inputs.components }}
-
-    - name: install rust toolchain without given components
-      if: "${{ inputs.components == '' }}"
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: ${{ env.DEFAULT_TOOLCHAIN }}
+        cache-base: main(-v[0-9].*)?

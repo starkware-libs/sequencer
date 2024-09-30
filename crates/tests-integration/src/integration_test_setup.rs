@@ -1,16 +1,17 @@
 use std::net::SocketAddr;
 
-use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::CairoVersion;
+use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
+use starknet_mempool_infra::errors::ComponentServerError;
 use starknet_mempool_infra::trace_util::configure_tracing;
 use starknet_mempool_node::servers::get_server_future;
 use starknet_mempool_node::utils::create_clients_servers_from_config;
 use starknet_task_executor::tokio_executor::TokioExecutor;
+use tempfile::TempDir;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
@@ -21,44 +22,37 @@ use crate::state_reader::spawn_test_rpc_state_reader;
 pub struct IntegrationTestSetup {
     pub task_executor: TokioExecutor,
     pub http_test_client: HttpTestClient,
+    pub storage_file_handle: TempDir,
     pub batcher: MockBatcher,
-    pub gateway_handle: JoinHandle<()>,
-    pub http_server_handle: JoinHandle<()>,
-    pub mempool_handle: JoinHandle<()>,
+    pub gateway_handle: JoinHandle<Result<(), ComponentServerError>>,
+    pub http_server_handle: JoinHandle<Result<(), ComponentServerError>>,
+    pub mempool_handle: JoinHandle<Result<(), ComponentServerError>>,
 }
 
 impl IntegrationTestSetup {
-    pub async fn new(n_accounts: usize) -> Self {
-        let default_account_contract =
-            FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
-        let accounts = std::iter::repeat(default_account_contract).take(n_accounts);
-        Self::new_for_account_contracts(accounts).await
-    }
-
-    pub async fn new_for_account_contracts(
-        accounts: impl IntoIterator<Item = FeatureContract>,
-    ) -> Self {
+    pub async fn new_from_tx_generator(tx_generator: &MultiAccountTransactionGenerator) -> Self {
         let handle = Handle::current();
         let task_executor = TokioExecutor::new(handle);
 
-        // Configure and start tracing
+        // Configure and start tracing.
         configure_tracing();
 
         // Spawn a papyrus rpc server for a papyrus storage reader.
-        let rpc_server_addr = spawn_test_rpc_state_reader(accounts).await;
+        let rpc_server_addr = spawn_test_rpc_state_reader(tx_generator.accounts()).await;
 
         // Derive the configuration for the mempool node.
-        let config = create_config(rpc_server_addr).await;
+        let (config, storage_file_handle) = create_config(rpc_server_addr).await;
 
         let (clients, servers) = create_clients_servers_from_config(&config);
 
         let HttpServerConfig { ip, port } = config.http_server_config;
         let http_test_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
-        let gateway_future = get_server_future("Gateway", true, servers.gateway);
+        let gateway_future = get_server_future("Gateway", true, servers.local_servers.gateway);
         let gateway_handle = task_executor.spawn_with_handle(gateway_future);
 
-        let http_server_future = get_server_future("HttpServer", true, servers.http_server);
+        let http_server_future =
+            get_server_future("HttpServer", true, servers.wrapper_servers.http_server);
         let http_server_handle = task_executor.spawn_with_handle(http_server_future);
 
         // Wait for server to spin up.
@@ -70,7 +64,7 @@ impl IntegrationTestSetup {
         let batcher = MockBatcher::new(clients.get_mempool_client().unwrap());
 
         // Build and run mempool.
-        let mempool_future = get_server_future("Mempool", true, servers.mempool);
+        let mempool_future = get_server_future("Mempool", true, servers.local_servers.mempool);
         let mempool_handle = task_executor.spawn_with_handle(mempool_future);
 
         Self {
@@ -80,6 +74,7 @@ impl IntegrationTestSetup {
             gateway_handle,
             http_server_handle,
             mempool_handle,
+            storage_file_handle,
         }
     }
 

@@ -1,35 +1,19 @@
-use std::net::IpAddr;
-
 use async_trait::async_trait;
 use starknet_consensus_manager_types::communication::{
     ConsensusManagerRequest,
-    ConsensusManagerRequestAndResponseSender,
     ConsensusManagerResponse,
 };
 use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
-use starknet_mempool_infra::component_server::{LocalActiveComponentServer, RemoteComponentServer};
-use tokio::sync::mpsc::Receiver;
+use starknet_mempool_infra::component_server::EmptyServer;
 
 use crate::consensus_manager::ConsensusManager;
 
-pub type LocalConsensusManagerServer =
-    LocalActiveComponentServer<ConsensusManager, ConsensusManagerRequest, ConsensusManagerResponse>;
-pub type RemoteConsensusManagerServer =
-    RemoteComponentServer<ConsensusManager, ConsensusManagerRequest, ConsensusManagerResponse>;
+pub type ConsensusManagerServer = EmptyServer<ConsensusManager>;
 
-pub fn create_local_consensus_manager_server(
+pub fn create_consensus_manager_server(
     consensus_manager: ConsensusManager,
-    rx_consensus_manager: Receiver<ConsensusManagerRequestAndResponseSender>,
-) -> LocalConsensusManagerServer {
-    LocalActiveComponentServer::new(consensus_manager, rx_consensus_manager)
-}
-
-pub fn create_remote_consensus_manager_server(
-    consensus_manager: ConsensusManager,
-    ip_address: IpAddr,
-    port: u16,
-) -> RemoteConsensusManagerServer {
-    RemoteComponentServer::new(consensus_manager, ip_address, port)
+) -> ConsensusManagerServer {
+    EmptyServer::new(consensus_manager)
 }
 
 #[async_trait]

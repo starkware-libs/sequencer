@@ -9,7 +9,7 @@ use starknet_api::executable_transaction::{InvokeTransaction, Transaction};
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::{MempoolWrapperInput, MockMempoolClient};
-use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
+use starknet_mempool_types::mempool_types::{AccountState, MempoolInput};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 
 use crate::compilation::GatewayCompiler;
@@ -54,7 +54,7 @@ fn create_tx() -> (RpcTransaction, SenderAddress) {
 // TODO: add test with Some broadcasted message metadata
 #[tokio::test]
 async fn test_add_tx() {
-    let (rpc_tx, sender_address) = create_tx();
+    let (rpc_tx, address) = create_tx();
     let rpc_invoke_tx =
         assert_matches!(rpc_tx.clone(), RpcTransaction::Invoke(rpc_invoke_tx) => rpc_invoke_tx);
     let executable_tx = Transaction::Invoke(
@@ -70,7 +70,7 @@ async fn test_add_tx() {
         .with(eq(MempoolWrapperInput {
             mempool_input: MempoolInput {
                 tx: executable_tx,
-                account: Account { sender_address, state: AccountState { nonce: *rpc_tx.nonce() } },
+                account_state: AccountState { address, nonce: *rpc_tx.nonce() },
             },
             message_metadata: None,
         }))

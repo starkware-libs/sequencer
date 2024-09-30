@@ -1,29 +1,16 @@
 use std::any::type_name;
 
 use async_trait::async_trait;
+use thiserror::Error;
 use tokio::sync::mpsc::Receiver;
-use tracing::{error, info};
+use tracing::info;
 
 use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
-use crate::component_runner::ComponentStarter;
+use crate::errors::ComponentServerError;
 
 #[async_trait]
-pub trait ComponentServerStarter: Send + Sync {
-    async fn start(&mut self);
-}
-
-pub async fn start_component<Component>(component: &mut Component) -> bool
-where
-    Component: ComponentStarter + Sync + Send,
-{
-    info!("ComponentServer of type {} is starting", type_name::<Component>());
-    if let Err(err) = component.start().await {
-        error!("ComponentServer::start() failed: {:?}", err);
-        return false;
-    }
-
-    info!("ComponentServer::start() completed.");
-    true
+pub trait ComponentServerStarter {
+    async fn start(&mut self) -> Result<(), ComponentServerError>;
 }
 
 pub async fn request_response_loop<Request, Response, Component>(
@@ -36,6 +23,7 @@ pub async fn request_response_loop<Request, Response, Component>(
 {
     // TODO(Tsabary): Make requests and responses implement `std::fmt::Display`, and add the request
     // to the log.
+    // TODO(Tsabary): Move this function to be part of the `local_server` module.
     while let Some(request_and_res_tx) = rx.recv().await {
         info!("Component {} received request", type_name::<Component>());
 
@@ -46,4 +34,15 @@ pub async fn request_response_loop<Request, Response, Component>(
 
         tx.send(res).await.expect("Response connection should be open.");
     }
+}
+
+// TODO(Tsabary): Create an error module and move this error there.
+#[derive(Clone, Debug, Error)]
+pub enum ReplaceComponentError {
+    #[error("Internal error.")]
+    InternalError,
+}
+
+pub trait ComponentReplacer<Component> {
+    fn replace(&mut self, component: Component) -> Result<(), ReplaceComponentError>;
 }

@@ -24,6 +24,7 @@ use strum::IntoEnumIterator;
 use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::context::{BlockContext, ChainInfo};
 use crate::execution::contract_class::{ClassInfo, ContractClass};
+use crate::fee::resources::GasVectorComputationMode;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
 use crate::test_utils::contracts::FeatureContract;
@@ -87,9 +88,26 @@ pub fn max_fee() -> Fee {
     Fee(MAX_FEE)
 }
 
+// TODO(Amos, 1/10/2024): Delete this fixture and use `create_resource_bounds`
 #[fixture]
-pub fn max_resource_bounds() -> ValidResourceBounds {
-    l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE)
+pub fn max_l1_resource_bounds() -> ValidResourceBounds {
+    create_resource_bounds(&GasVectorComputationMode::NoL2Gas)
+}
+
+pub fn create_resource_bounds(computation_mode: &GasVectorComputationMode) -> ValidResourceBounds {
+    match computation_mode {
+        GasVectorComputationMode::NoL2Gas => {
+            l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE)
+        }
+        GasVectorComputationMode::All => create_all_resource_bounds(
+            MAX_L1_GAS_AMOUNT,
+            MAX_L1_GAS_PRICE,
+            DEFAULT_L2_GAS_MAX_AMOUNT,
+            DEFAULT_STRK_L2_GAS_PRICE,
+            DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+            DEFAULT_STRK_L1_DATA_GAS_PRICE,
+        ),
+    }
 }
 
 #[fixture]
@@ -315,6 +333,24 @@ pub fn all_resource_bounds(
     #[default(DEFAULT_STRK_L2_GAS_PRICE)] l2_max_price: u128,
     #[default(DEFAULT_L1_DATA_GAS_MAX_AMOUNT)] l1_data_max_amount: u64,
     #[default(DEFAULT_STRK_L1_DATA_GAS_PRICE)] l1_data_max_price: u128,
+) -> ValidResourceBounds {
+    create_all_resource_bounds(
+        l1_max_amount,
+        l1_max_price,
+        l2_max_amount,
+        l2_max_price,
+        l1_data_max_amount,
+        l1_data_max_price,
+    )
+}
+
+fn create_all_resource_bounds(
+    l1_max_amount: u64,
+    l1_max_price: u128,
+    l2_max_amount: u64,
+    l2_max_price: u128,
+    l1_data_max_amount: u64,
+    l1_data_max_price: u128,
 ) -> ValidResourceBounds {
     ValidResourceBounds::AllResources(AllResourceBounds {
         l1_gas: ResourceBounds { max_amount: l1_max_amount, max_price_per_unit: l1_max_price },

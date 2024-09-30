@@ -6,6 +6,7 @@ use starknet_api::transaction::{Fee, TransactionVersion};
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 
+use crate::blockifier::block::BlockNumberHashPair;
 use crate::blockifier::config::TransactionExecutorConfig;
 use crate::blockifier::transaction_executor::{
     TransactionExecutor,
@@ -34,15 +35,21 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::L1HandlerTransaction;
-
 fn tx_executor_test_body<S: StateReader>(
     state: CachedState<S>,
     block_context: BlockContext,
     tx: Transaction,
     expected_bouncer_weights: BouncerWeights,
 ) {
-    let mut tx_executor =
-        TransactionExecutor::new(state, block_context, TransactionExecutorConfig::default());
+    let block_number_hash_pair =
+        BlockNumberHashPair::create_dummy_given_current(block_context.block_info().block_number);
+    let mut tx_executor = TransactionExecutor::pre_process_and_create(
+        state,
+        block_context,
+        block_number_hash_pair,
+        TransactionExecutorConfig::default(),
+    )
+    .unwrap();
     // TODO(Arni, 30/03/2024): Consider adding a test for the transaction execution info. If A test
     // should not be added, rename the test to `test_bouncer_info`.
     // TODO(Arni, 30/03/2024): Test all bouncer weights.
@@ -57,7 +64,7 @@ fn tx_executor_test_body<S: StateReader>(
 }
 
 #[rstest]
-#[case::transaction_version_0(
+#[case::tx_version_0(
     TransactionVersion::ZERO,
     CairoVersion::Cairo0,
     BouncerWeights {
@@ -67,7 +74,7 @@ fn tx_executor_test_body<S: StateReader>(
         ..Default::default()
     }
 )]
-#[case::transaction_version_1(
+#[case::tx_version_1(
     TransactionVersion::ONE,
     CairoVersion::Cairo0,
     BouncerWeights {
@@ -77,7 +84,7 @@ fn tx_executor_test_body<S: StateReader>(
         ..Default::default()
     }
 )]
-#[case::transaction_version_2(
+#[case::tx_version_2(
     TransactionVersion::TWO,
     CairoVersion::Cairo1,
     BouncerWeights {
@@ -87,7 +94,7 @@ fn tx_executor_test_body<S: StateReader>(
         ..Default::default()
     }
 )]
-#[case::transaction_version_3(
+#[case::tx_version_3(
     TransactionVersion::THREE,
     CairoVersion::Cairo1,
     BouncerWeights {
@@ -100,7 +107,7 @@ fn tx_executor_test_body<S: StateReader>(
 fn test_declare(
     block_context: BlockContext,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
-    #[case] transaction_version: TransactionVersion,
+    #[case] tx_version: TransactionVersion,
     #[case] cairo_version: CairoVersion,
     #[case] expected_bouncer_weights: BouncerWeights,
 ) {
@@ -108,12 +115,12 @@ fn test_declare(
     let declared_contract = FeatureContract::Empty(cairo_version);
     let state = test_state(&block_context.chain_info, BALANCE, &[(account_contract, 1)]);
 
-    let tx = Transaction::AccountTransaction(declare_tx(
+    let tx = Transaction::Account(declare_tx(
         declare_tx_args! {
             sender_address: account_contract.get_instance_address(0),
             class_hash: declared_contract.get_class_hash(),
             compiled_class_hash: declared_contract.get_compiled_class_hash(),
-            version: transaction_version,
+            version: tx_version,
             resource_bounds: l1_resource_bounds(0, DEFAULT_STRK_L1_GAS_PRICE),
         },
         calculate_class_info_for_testing(declared_contract.get_class()),
@@ -130,7 +137,7 @@ fn test_deploy_account(
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let state = test_state(&block_context.chain_info, BALANCE, &[(account_contract, 0)]);
 
-    let tx = Transaction::AccountTransaction(AccountTransaction::DeployAccount(deploy_account_tx(
+    let tx = Transaction::Account(AccountTransaction::DeployAccount(deploy_account_tx(
         deploy_account_tx_args! {
             class_hash: account_contract.get_class_hash(),
             resource_bounds: l1_resource_bounds(0, DEFAULT_STRK_L1_GAS_PRICE),
@@ -203,7 +210,7 @@ fn test_invoke(
 
     let calldata =
         create_calldata(test_contract.get_instance_address(0), entry_point_name, &entry_point_args);
-    let tx = Transaction::AccountTransaction(account_invoke_tx(invoke_tx_args! {
+    let tx = Transaction::Account(account_invoke_tx(invoke_tx_args! {
         sender_address: account_contract.get_instance_address(0),
         calldata,
         version,
@@ -216,7 +223,7 @@ fn test_l1_handler(block_context: BlockContext) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
     let state = test_state(&block_context.chain_info, BALANCE, &[(test_contract, 1)]);
 
-    let tx = Transaction::L1HandlerTransaction(L1HandlerTransaction::create_for_testing(
+    let tx = Transaction::L1Handler(L1HandlerTransaction::create_for_testing(
         Fee(1908000000000000),
         test_contract.get_instance_address(0),
     ));
@@ -258,7 +265,7 @@ fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_even
     tx_executor.bouncer.set_accumulated_weights(initial_bouncer_weights);
 
     tx_executor
-        .execute(&Transaction::AccountTransaction(emit_n_events_tx(
+        .execute(&Transaction::Account(emit_n_events_tx(
             n_events,
             account_address,
             contract_address,
@@ -295,7 +302,7 @@ fn test_execute_txs_bouncing() {
         emit_n_events_tx(1, account_address, contract_address, nonce!(3_u32)),
     ]
     .into_iter()
-    .map(Transaction::AccountTransaction)
+    .map(Transaction::Account)
     .collect();
 
     // Run.

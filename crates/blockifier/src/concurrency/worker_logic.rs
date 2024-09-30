@@ -35,6 +35,7 @@ const EXECUTION_OUTPUTS_UNWRAP_ERROR: &str = "Execution task outputs should not 
 #[derive(Debug)]
 pub struct ExecutionTaskOutput {
     pub reads: StateMaps,
+    // TODO(Yoni): rename to state_diff.
     pub writes: StateMaps,
     pub contract_classes: ContractClassMapping,
     pub visited_pcs: HashMap<ClassHash, HashSet<usize>>,
@@ -109,11 +110,11 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     }
 
     fn commit_while_possible(&self) {
-        if let Some(mut transaction_committer) = self.scheduler.try_enter_commit_phase() {
-            while let Some(tx_index) = transaction_committer.try_commit() {
+        if let Some(mut tx_committer) = self.scheduler.try_enter_commit_phase() {
+            while let Some(tx_index) = tx_committer.try_commit() {
                 let commit_succeeded = self.commit_tx(tx_index);
                 if !commit_succeeded {
-                    transaction_committer.halt_scheduler();
+                    tx_committer.halt_scheduler();
                 }
             }
         }
@@ -138,18 +139,15 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         let execution_output_inner = match execution_result {
             Ok(_) => {
                 let tx_reads_writes = transactional_state.cache.take();
-                let class_hash_to_class = transactional_state.class_hash_to_class.take();
+                let writes = tx_reads_writes.to_state_diff();
+                let contract_classes = transactional_state.class_hash_to_class.take();
                 let visited_pcs = transactional_state.visited_pcs;
-                tx_versioned_state.apply_writes(
-                    &tx_reads_writes.writes,
-                    &class_hash_to_class,
-                    // The versioned state does not carry the visited PCs.
-                    &HashMap::default(),
-                );
+                // The versioned state does not carry the visited PCs.
+                tx_versioned_state.apply_writes(&writes, &contract_classes, &HashMap::default());
                 ExecutionTaskOutput {
                     reads: tx_reads_writes.initial_reads,
-                    writes: tx_reads_writes.writes,
-                    contract_classes: class_hash_to_class,
+                    writes,
+                    contract_classes,
                     visited_pcs,
                     result: execution_result,
                 }
@@ -229,8 +227,8 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         // Execution is final.
         let mut execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
         let writes = &execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).writes;
-        let reads = &execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).reads;
-        let mut tx_state_changes_keys = StateChanges::from(writes.diff(reads)).into_keys();
+        // TODO(Yoni): get rid of this clone.
+        let mut tx_state_changes_keys = StateChanges::from(writes.clone()).into_keys();
         let tx_result =
             &mut execution_output.as_mut().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).result;
 

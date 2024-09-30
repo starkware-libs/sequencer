@@ -2,7 +2,7 @@ name: Papyrus-CI
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
     paths:
       - '.github/workflows/papyrus_ci.yml'
       - 'Dockerfile'
@@ -31,7 +31,7 @@ on:
       - 'crates/starknet_client/**'
 
   merge_group:
-    types: [checks_requested]
+    types: [ checks_requested ]
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
@@ -46,8 +46,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
@@ -65,8 +64,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
@@ -84,26 +82,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
 
       - name: Build node
-        run: |
-          cargo build -r -p papyrus_node
+        run: cargo build -r -p papyrus_node
 
       - name: Run p2p sync end-to-end test
-        run: |
-          scripts/papyrus/p2p_sync_e2e_test/main.sh ${{ secrets.CI_BASE_LAYER_NODE_URL }}
+        run: scripts/papyrus/p2p_sync_e2e_test/main.sh ${{ secrets.CI_BASE_LAYER_NODE_URL }}
 
   integration-test:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
@@ -119,43 +113,12 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       - uses: Noelware/setup-protoc@1.1.0
-
       - run: |
           cargo test -p papyrus_node --no-default-features
         env:
           SEED: 0
-
-  codecov:
-    runs-on: starkware-ubuntu-latest-medium
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - name: Set-Up
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang llvm libudev-dev
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
-
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-      - uses: Swatinem/rust-cache@v2
-      - run: npm install -g ganache
-      - name: Coverage
-        run: cargo llvm-cov --codecov -r --output-path codecov.json
-        env:
-          SEED: 0
-      - name: Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          verbose: true
-          fail_ci_if_error: true
-          version: "v0.1.15"
 
   check-starknet_api-dependency:
     runs-on: starkware-ubuntu-latest-small
@@ -196,8 +159,7 @@ jobs:
           filters: |
             target_directory:
               - 'crates/papyrus_storage/src/db/**'
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       # repeat this job 32 times. this is a random test for part of the code that may cause a corrupted database.
       - run: for run in {1..32}; do cargo test -r -p papyrus_storage -- --include-ignored common_prefix_compare_with_simple_table_random; done
         if: steps.changes.outputs.target_directory == 'true'

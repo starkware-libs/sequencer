@@ -1,4 +1,6 @@
+use std::any::type_name;
 use std::collections::BTreeMap;
+use std::fmt::Debug;
 use std::net::IpAddr;
 
 use async_trait::async_trait;
@@ -7,14 +9,26 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::mpsc::{Receiver, Sender};
+use tracing::{error, info};
 use validator::Validate;
 
+use crate::errors::ComponentError;
+
+pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 const DEFAULT_CHANNEL_BUFFER_SIZE: usize = 32;
 const DEFAULT_RETRIES: usize = 3;
 
 #[async_trait]
 pub trait ComponentRequestHandler<Request, Response> {
     async fn handle_request(&mut self, request: Request) -> Response;
+}
+
+#[async_trait]
+pub trait ComponentStarter {
+    async fn start(&mut self) -> Result<(), ComponentError> {
+        info!("Starting component {}.", type_name::<Self>());
+        Ok(())
+    }
 }
 
 pub struct ComponentCommunication<T: Send + Sync> {
@@ -44,8 +58,6 @@ where
     pub request: Request,
     pub tx: Sender<Response>,
 }
-
-pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 
 #[derive(Debug, Error, Deserialize, Serialize, Clone)]
 pub enum ServerError {

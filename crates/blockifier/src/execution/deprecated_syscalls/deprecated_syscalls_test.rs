@@ -16,6 +16,7 @@ use starknet_api::transaction::{
     Fee,
     TransactionHash,
     TransactionVersion,
+    QUERY_VERSION_BASE_BIT,
 };
 use starknet_api::{calldata, felt, nonce, storage_key};
 use starknet_types_core::felt::Felt;
@@ -43,7 +44,6 @@ use crate::test_utils::{
     CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
     TEST_SEQUENCER_ADDRESS,
 };
-use crate::transaction::constants::QUERY_VERSION_BASE_BIT;
 use crate::transaction::objects::{
     CommonAccountFields,
     DeprecatedTransactionInfo,
@@ -320,7 +320,7 @@ fn test_replace_class() {
 )]
 #[case::deploy_to_unavailable_address(
     true, true, false, true,
-    Some("is unavailable for deployment.".to_string())
+    Some("Deployment failed:".to_string())
     // With constructor, nontrivial calldata, address unavailable, deploy from zero; Negative flow.
 )]
 #[case::corrupt_deploy_from_zero(

@@ -33,7 +33,7 @@ pub fn get_test_rpc_config() -> RpcConfig {
         execution_config: ExecutionConfig {
             eth_fee_contract_address: contract_address!("0x1001"),
             strk_fee_contract_address: contract_address!("0x1001"),
-            initial_gas_cost: 10000000000,
+            default_initial_gas_cost: 10000000000,
         },
         server_address: String::from("127.0.0.1:0"),
         max_events_chunk_size: 10,
