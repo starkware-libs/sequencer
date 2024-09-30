@@ -96,6 +96,11 @@ pub fn max_l1_resource_bounds() -> ValidResourceBounds {
     create_resource_bounds(&GasVectorComputationMode::NoL2Gas)
 }
 
+#[fixture]
+pub fn default_all_resource_bounds() -> ValidResourceBounds {
+    create_resource_bounds(&GasVectorComputationMode::All)
+}
+
 pub fn create_resource_bounds(computation_mode: &GasVectorComputationMode) -> ValidResourceBounds {
     match computation_mode {
         GasVectorComputationMode::NoL2Gas => {
@@ -323,6 +328,7 @@ pub fn run_invoke_tx(
 
 /// Creates a `ResourceBoundsMapping` with the given `max_amount` and `max_price` for L1 gas limits.
 /// No guarantees on the values of the other resources bounds.
+// TODO: Check usages of this function and update to using all gas bounds.
 pub fn l1_resource_bounds(max_amount: GasAmount, max_price: GasPrice) -> ValidResourceBounds {
     ValidResourceBounds::L1Gas(ResourceBounds {
         max_amount: max_amount.0.try_into().unwrap(),
@@ -349,7 +355,7 @@ pub fn all_resource_bounds(
     )
 }
 
-fn create_all_resource_bounds(
+pub fn create_all_resource_bounds(
     l1_max_amount: GasAmount,
     l1_max_price: GasPrice,
     l2_max_amount: GasAmount,

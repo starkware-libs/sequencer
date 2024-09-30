@@ -750,6 +750,10 @@ impl Fee {
         }
         result
     }
+
+    pub fn checked_add(self, rhs: Fee) -> Option<Fee> {
+        self.0.checked_add(rhs.0).map(Fee)
+    }
 }
 
 impl Div<NonzeroGasPrice> for Fee {
@@ -1112,6 +1116,13 @@ impl ValidResourceBounds {
                     + u128::from(l1_data_gas.max_amount) * l1_data_gas.max_price_per_unit
             }
         })
+    }
+
+    pub fn get_gas_vector_computation_mode(&self) -> GasVectorComputationMode {
+        match self {
+            Self::AllResources(_) => GasVectorComputationMode::All,
+            Self::L1Gas(_) => GasVectorComputationMode::NoL2Gas,
+        }
     }
 
     // TODO(Nimrod): Default testing bounds should probably be AllResourceBounds variant.
