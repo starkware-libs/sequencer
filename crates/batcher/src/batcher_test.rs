@@ -21,7 +21,7 @@ use starknet_batcher_types::errors::BatcherError;
 
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait};
 use crate::config::BatcherConfig;
-use crate::proposal_manager::{ProposalManagerResult, ProposalManagerTrait};
+use crate::proposal_manager::{BuildProposalError, ProposalManagerTrait, StartHeightError};
 use crate::test_utils::test_txs;
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
@@ -98,7 +98,7 @@ async fn get_stream_content(
 async fn simulate_build_block_proposal(
     tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     txs: Vec<Transaction>,
-) -> ProposalManagerResult<()> {
+) -> Result<(), BuildProposalError> {
     for tx in txs {
         tx_sender.send(tx).unwrap();
     }
@@ -109,7 +109,7 @@ async fn simulate_build_block_proposal(
 // A wrapper trait to allow mocking the ProposalManagerTrait in tests.
 #[automock]
 trait ProposalManagerTraitWrapper: Send + Sync {
-    fn wrap_start_height(&mut self, height: BlockNumber) -> ProposalManagerResult<()>;
+    fn wrap_start_height(&mut self, height: BlockNumber) -> Result<(), StartHeightError>;
 
     fn wrap_build_block_proposal(
         &mut self,
@@ -117,12 +117,12 @@ trait ProposalManagerTraitWrapper: Send + Sync {
         retrospective_block_hash: Option<BlockNumberHashPair>,
         deadline: tokio::time::Instant,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
-    ) -> BoxFuture<'_, ProposalManagerResult<()>>;
+    ) -> BoxFuture<'_, Result<(), BuildProposalError>>;
 }
 
 #[async_trait]
 impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
-    fn start_height(&mut self, height: BlockNumber) -> ProposalManagerResult<()> {
+    fn start_height(&mut self, height: BlockNumber) -> Result<(), StartHeightError> {
         self.wrap_start_height(height)
     }
 
@@ -132,7 +132,7 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
         retrospective_block_hash: Option<BlockNumberHashPair>,
         deadline: tokio::time::Instant,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
-    ) -> ProposalManagerResult<()> {
+    ) -> Result<(), BuildProposalError> {
         self.wrap_build_block_proposal(
             proposal_id,
             retrospective_block_hash,
