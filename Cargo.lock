@@ -7222,6 +7222,7 @@ name = "papyrus_consensus_orchestrator"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "futures",
  "mockall",
  "papyrus_consensus",
@@ -7230,6 +7231,9 @@ dependencies = [
  "papyrus_storage",
  "papyrus_test_utils",
  "starknet_api",
+ "starknet_batcher",
+ "starknet_batcher_types",
+ "starknet_consensus_manager_types",
  "test-case",
  "tokio",
  "tracing",
