@@ -25,8 +25,6 @@ pub struct LocalServers {
     pub mempool: Option<Box<LocalMempoolServer>>,
 }
 
-/// TODO(Tsabary): rename empty server to wrapper server.
-
 // Component servers that wrap a component without a server.
 pub struct WrapperServers {
     pub consensus_manager: Option<Box<ConsensusManagerServer>>,
