@@ -67,7 +67,25 @@ impl SerializeConfig for ProposalManagerConfig {
 }
 
 #[derive(Debug, Error)]
-pub enum ProposalManagerError {
+pub enum StartHeightError {
+    #[error("Can't start new height {new_height} while working on height {active_height}.")]
+    AlreadyWorkingOnHeight { active_height: BlockNumber, new_height: BlockNumber },
+    #[error(
+        "Requested height {requested_height} is lower than the current storage height \
+         {storage_height}."
+    )]
+    HeightAlreadyPassed { storage_height: BlockNumber, requested_height: BlockNumber },
+    #[error(transparent)]
+    StorageError(#[from] papyrus_storage::StorageError),
+    #[error(
+        "Storage is not synced. Storage height: {storage_height}, requested height: \
+         {requested_height}."
+    )]
+    StorageNotSynced { storage_height: BlockNumber, requested_height: BlockNumber },
+}
+
+#[derive(Debug, Error)]
+pub enum BuildProposalError {
     #[error(
         "Received proposal generation request with id {new_proposal_id} while already generating \
          proposal with id {current_generating_proposal_id}."
@@ -76,35 +94,23 @@ pub enum ProposalManagerError {
         current_generating_proposal_id: ProposalId,
         new_proposal_id: ProposalId,
     },
-    #[error("Can't start new height {new_height} while working on height {active_height}.")]
-    AlreadyWorkingOnHeight { active_height: BlockNumber, new_height: BlockNumber },
-    #[error("Can't get content for proposal with ID {proposal_id} as it is not a build proposal.")]
-    GetContentOnNonBuildProposal { proposal_id: ProposalId },
-    #[error(
-        "Requested height {requested_height} is lower than the current storage height \
-         {storage_height}."
-    )]
-    HeightAlreadyPassed { storage_height: BlockNumber, requested_height: BlockNumber },
     #[error(transparent)]
     MempoolError(#[from] MempoolClientError),
     #[error("No active height to work on.")]
     NoActiveHeight,
     #[error("Proposal with ID {proposal_id} already exists.")]
     ProposalAlreadyExists { proposal_id: ProposalId },
+}
+
+#[derive(Debug, Error)]
+pub enum GetProposalContentError {
+    #[error("Can't get content for proposal with ID {proposal_id} as it is not a build proposal.")]
+    GetContentOnNonBuildProposal { proposal_id: ProposalId },
     #[error("Proposal with ID {proposal_id} not found.")]
     ProposalNotFound { proposal_id: ProposalId },
-    #[error(transparent)]
-    StorageError(#[from] papyrus_storage::StorageError),
-    #[error(
-        "Storage is not synced. Storage height: {storage_height}, requested height: \
-         {requested_height}."
-    )]
-    StorageNotSynced { storage_height: BlockNumber, requested_height: BlockNumber },
     #[error("Stream exhausted.")]
     StreamExhausted,
 }
-
-pub type ProposalManagerResult<T> = Result<T, ProposalManagerError>;
 
 /// Main struct for handling block proposals.
 /// Taking care of:
@@ -133,7 +139,7 @@ pub struct Proposal {
     content_stream: ProposalContentStream,
 }
 
-type ActiveTaskHandle = tokio::task::JoinHandle<ProposalManagerResult<()>>;
+type ActiveTaskHandle = tokio::task::JoinHandle<Result<(), BuildProposalError>>;
 
 impl ProposalManager {
     pub fn new(
@@ -156,9 +162,9 @@ impl ProposalManager {
 
     /// Starts working on the given height.
     #[instrument(skip(self), err)]
-    pub fn start_height(&mut self, height: BlockNumber) -> ProposalManagerResult<()> {
+    pub fn start_height(&mut self, height: BlockNumber) -> Result<(), StartHeightError> {
         if let Some(active_height) = self.active_height {
-            return Err(ProposalManagerError::AlreadyWorkingOnHeight {
+            return Err(StartHeightError::AlreadyWorkingOnHeight {
                 active_height,
                 new_height: height,
             });
@@ -166,13 +172,17 @@ impl ProposalManager {
         self.proposals.clear();
         let next_height = self.storage_reader.height()?;
         if next_height < height {
-            return Err(ProposalManagerError::StorageNotSynced {
+            error!(
+                "Storage is not synced. Storage height: {}, requested height: {}.",
+                next_height, height
+            );
+            return Err(StartHeightError::StorageNotSynced {
                 storage_height: next_height,
                 requested_height: height,
             });
         }
         if next_height > height {
-            return Err(ProposalManagerError::HeightAlreadyPassed {
+            return Err(StartHeightError::HeightAlreadyPassed {
                 storage_height: next_height,
                 requested_height: height,
             });
@@ -189,12 +199,12 @@ impl ProposalManager {
         &mut self,
         proposal_id: ProposalId,
         deadline: tokio::time::Instant,
-    ) -> ProposalManagerResult<()> {
+    ) -> Result<(), BuildProposalError> {
         if self.active_height.is_none() {
-            return Err(ProposalManagerError::NoActiveHeight);
+            return Err(BuildProposalError::NoActiveHeight);
         }
         if self.proposals.contains_key(&proposal_id) {
-            return Err(ProposalManagerError::ProposalAlreadyExists { proposal_id });
+            return Err(BuildProposalError::ProposalAlreadyExists { proposal_id });
         }
         info!("Starting generation of a new proposal with id {}.", proposal_id);
         // TODO: Should this be an unbounded channel?
@@ -229,25 +239,28 @@ impl ProposalManager {
     pub async fn get_proposal_content(
         &mut self,
         proposal_id: ProposalId,
-    ) -> ProposalManagerResult<GetProposalContent> {
+    ) -> Result<GetProposalContent, GetProposalContentError> {
         let proposal = self
             .proposals
             .get_mut(&proposal_id)
-            .ok_or(ProposalManagerError::ProposalNotFound { proposal_id })?;
+            .ok_or(GetProposalContentError::ProposalNotFound { proposal_id })?;
         let ProposalContentStream::BuildProposal(content_stream) = &mut proposal.content_stream
         else {
-            return Err(ProposalManagerError::GetContentOnNonBuildProposal { proposal_id });
+            return Err(GetProposalContentError::GetContentOnNonBuildProposal { proposal_id });
         };
-        content_stream.next().await.ok_or(ProposalManagerError::StreamExhausted)
+        content_stream.next().await.ok_or(GetProposalContentError::StreamExhausted)
     }
 
     // Checks if there is already a proposal being generated, and if not, sets the given proposal_id
     // as the one being generated.
-    async fn set_active_proposal(&mut self, proposal_id: ProposalId) -> ProposalManagerResult<()> {
+    async fn set_active_proposal(
+        &mut self,
+        proposal_id: ProposalId,
+    ) -> Result<(), BuildProposalError> {
         let mut lock = self.active_proposal.lock().await;
 
         if let Some(active_proposal) = *lock {
-            return Err(ProposalManagerError::AlreadyGeneratingProposal {
+            return Err(BuildProposalError::AlreadyGeneratingProposal {
                 current_generating_proposal_id: active_proposal,
                 new_proposal_id: proposal_id,
             });
@@ -261,11 +274,11 @@ impl ProposalManager {
     // A helper function for testing purposes (to be able to await the active proposal).
     // TODO: Consider making the tests a nested module to allow them to access private members.
     #[cfg(test)]
-    pub async fn await_active_proposal(&mut self) -> Option<ProposalManagerResult<()>> {
+    pub async fn await_active_proposal(&mut self) {
         match self.active_proposal_handle.take() {
             Some(handle) => Some(handle.await.unwrap()),
             None => None,
-        }
+        };
     }
 }
 
@@ -289,7 +302,7 @@ struct BuildProposalTask {
 }
 
 impl BuildProposalTask {
-    async fn run(mut self) -> ProposalManagerResult<()> {
+    async fn run(mut self) -> Result<(), BuildProposalError> {
         // We convert the receiver to a stream and pass it to the block builder while using the
         // sender to feed the stream.
         let (mempool_tx_sender, mempool_tx_receiver) =
@@ -333,7 +346,7 @@ impl BuildProposalTask {
         mempool_client: &SharedMempoolClient,
         max_txs_per_mempool_request: usize,
         mempool_tx_sender: &tokio::sync::mpsc::Sender<Transaction>,
-    ) -> ProposalManagerError {
+    ) -> BuildProposalError {
         loop {
             // TODO: Get L1 transactions.
             let mempool_txs = match mempool_client.get_txs(max_txs_per_mempool_request).await {
@@ -343,7 +356,10 @@ impl BuildProposalTask {
                     continue;
                 }
                 Ok(txs) => txs,
-                Err(e) => return e.into(),
+                Err(e) => {
+                    error!("MempoolError: {}", e);
+                    return e.into();
+                }
             };
             trace!(
                 "Feeding {} transactions from the mempool to the block builder.",

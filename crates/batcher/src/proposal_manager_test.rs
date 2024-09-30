@@ -21,13 +21,14 @@ use tokio_stream::StreamExt;
 use crate::batcher::MockBatcherStorageReaderTrait;
 use crate::proposal_manager::{
     BlockBuilderTrait,
+    BuildProposalError,
+    GetProposalContentError,
     InputTxStream,
     MockBlockBuilderFactoryTrait,
     ProposalContentStream,
     ProposalManager,
     ProposalManagerConfig,
-    ProposalManagerError,
-    ProposalManagerResult,
+    StartHeightError,
 };
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
@@ -86,18 +87,18 @@ fn proposal_manager(
 #[rstest]
 #[case::height_already_passed(
     INITIAL_HEIGHT.prev().unwrap(),
-    ProposalManagerResult::Err(ProposalManagerError::HeightAlreadyPassed {
+    Result::Err(StartHeightError::HeightAlreadyPassed {
         storage_height: INITIAL_HEIGHT,
         requested_height: INITIAL_HEIGHT.prev().unwrap()
     }
 ))]
 #[case::happy(
     INITIAL_HEIGHT,
-    ProposalManagerResult::Ok(())
+    Result::Ok(())
 )]
 #[case::storage_not_synced(
     INITIAL_HEIGHT.unchecked_next(),
-    ProposalManagerResult::Err(ProposalManagerError::StorageNotSynced {
+    Result::Err(StartHeightError::StorageNotSynced {
         storage_height: INITIAL_HEIGHT,
         requested_height: INITIAL_HEIGHT.unchecked_next()
     }
@@ -105,7 +106,7 @@ fn proposal_manager(
 fn start_height(
     mut proposal_manager: ProposalManager,
     #[case] height: BlockNumber,
-    #[case] expected_result: ProposalManagerResult<()>,
+    #[case] expected_result: Result<(), StartHeightError>,
 ) {
     let result = proposal_manager.start_height(height);
     // Unfortunatelly ProposalManagerError doesn't implement PartialEq.
@@ -116,7 +117,7 @@ fn start_height(
 #[tokio::test]
 async fn proposal_generation_fails_without_start_height(mut proposal_manager: ProposalManager) {
     let err = proposal_manager.build_block_proposal(ProposalId(0), arbitrary_deadline()).await;
-    assert_matches!(err, Err(ProposalManagerError::NoActiveHeight));
+    assert_matches!(err, Err(BuildProposalError::NoActiveHeight));
 }
 
 #[rstest]
@@ -153,7 +154,7 @@ async fn proposal_generation_success(
 
     proposal_manager.build_block_proposal(ProposalId(0), arbitrary_deadline()).await.unwrap();
 
-    assert_matches!(proposal_manager.await_active_proposal().await, Some(Ok(())));
+    proposal_manager.await_active_proposal().await;
 }
 
 #[rstest]
@@ -186,12 +187,12 @@ async fn consecutive_proposal_generations_success(
     proposal_manager.build_block_proposal(ProposalId(0), arbitrary_deadline()).await.unwrap();
 
     // Make sure the first proposal generated successfully.
-    assert_matches!(proposal_manager.await_active_proposal().await, Some(Ok(())));
+    proposal_manager.await_active_proposal().await;
 
     proposal_manager.build_block_proposal(ProposalId(1), arbitrary_deadline()).await.unwrap();
 
     // Make sure the proposal generated successfully.
-    assert_matches!(proposal_manager.await_active_proposal().await, Some(Ok(())));
+    proposal_manager.await_active_proposal().await;
 }
 
 #[rstest]
@@ -227,7 +228,7 @@ async fn multiple_proposals_generation_fail(
         proposal_manager.build_block_proposal(ProposalId(1), arbitrary_deadline()).await;
     assert_matches!(
         another_generate_request,
-        Err(ProposalManagerError::AlreadyGeneratingProposal {
+        Err(BuildProposalError::AlreadyGeneratingProposal {
             current_generating_proposal_id,
             new_proposal_id
         }) if current_generating_proposal_id == ProposalId(0) && new_proposal_id == ProposalId(1)
@@ -277,7 +278,7 @@ async fn get_stream_content(
     let finished = proposal_manager.get_proposal_content(PROPOSAL_ID).await;
     assert_matches!(finished, Ok(GetProposalContent::Finished(_)));
     let exhausted = proposal_manager.get_proposal_content(PROPOSAL_ID).await;
-    assert_matches!(exhausted, Err(ProposalManagerError::StreamExhausted));
+    assert_matches!(exhausted, Err(GetProposalContentError::StreamExhausted));
 }
 
 fn arbitrary_deadline() -> tokio::time::Instant {
