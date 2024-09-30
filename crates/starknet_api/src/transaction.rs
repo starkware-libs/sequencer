@@ -1091,6 +1091,13 @@ impl ValidResourceBounds {
         })
     }
 
+    pub fn get_gas_vector_computation_mode(&self) -> GasVectorComputationMode {
+        match self {
+            Self::AllResources(_) => GasVectorComputationMode::All,
+            Self::L1Gas(_) => GasVectorComputationMode::NoL2Gas,
+        }
+    }
+
     // TODO(Nimrod): Default testing bounds should probably be AllResourceBounds variant.
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_testing() -> Self {
