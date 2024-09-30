@@ -26,6 +26,7 @@ use itertools::Itertools;
 use semver::Version;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
+use starknet_api::contract_class::ContractClass as RawContractClass;
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
@@ -68,19 +69,28 @@ pub enum ContractClass {
     V1(ContractClassV1),
 }
 
-impl TryFrom<&CasmContractClass> for ContractClass {
+impl TryFrom<&RawContractClass> for ContractClass {
     type Error = ProgramError;
 
-    fn try_from(contract_class: &CasmContractClass) -> Result<Self, Self::Error> {
-        Ok(ContractClass::V1(contract_class.try_into()?))
+    fn try_from(raw_contract_class: &RawContractClass) -> Result<Self, Self::Error> {
+        let contract_class: ContractClass = match raw_contract_class {
+            RawContractClass::V0(raw_contract_class) => {
+                ContractClass::V0(raw_contract_class.clone().try_into()?)
+            }
+            RawContractClass::V1(raw_contract_class) => {
+                ContractClass::V1(raw_contract_class.try_into()?)
+            }
+        };
+
+        Ok(contract_class)
     }
 }
 
-impl TryFrom<CasmContractClass> for ContractClass {
+impl TryFrom<RawContractClass> for ContractClass {
     type Error = ProgramError;
 
-    fn try_from(contract_class: CasmContractClass) -> Result<Self, Self::Error> {
-        Ok(ContractClass::V1(contract_class.try_into()?))
+    fn try_from(raw_contract_class: RawContractClass) -> Result<Self, Self::Error> {
+        Self::try_from(&raw_contract_class)
     }
 }
 
@@ -423,13 +433,7 @@ impl TryFrom<CasmContractClass> for ContractClassV1 {
     type Error = ProgramError;
 
     fn try_from(class: CasmContractClass) -> Result<Self, Self::Error> {
-        try_from_casm_contract_class_internal(
-            &class.bytecode,
-            &class.hints,
-            &class.entry_points_by_type,
-            class.bytecode_segment_lengths,
-            &class.compiler_version,
-        )
+        Self::try_from(&class)
     }
 }
 
@@ -572,13 +576,13 @@ impl TryFrom<&starknet_api::contract_class::ClassInfo> for ClassInfo {
 
     fn try_from(class_info: &starknet_api::contract_class::ClassInfo) -> Result<Self, Self::Error> {
         let starknet_api::contract_class::ClassInfo {
-            casm_contract_class,
+            contract_class,
             sierra_program_length,
             abi_length,
         } = class_info;
 
         Ok(Self {
-            contract_class: casm_contract_class.try_into()?,
+            contract_class: contract_class.try_into()?,
             sierra_program_length: *sierra_program_length,
             abi_length: *abi_length,
         })
@@ -589,17 +593,7 @@ impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
     type Error = ProgramError;
 
     fn try_from(class_info: starknet_api::contract_class::ClassInfo) -> Result<Self, Self::Error> {
-        let starknet_api::contract_class::ClassInfo {
-            casm_contract_class,
-            sierra_program_length,
-            abi_length,
-        } = class_info;
-
-        Ok(Self {
-            contract_class: casm_contract_class.try_into()?,
-            sierra_program_length,
-            abi_length,
-        })
+        Self::try_from(&class_info)
     }
 }
 
