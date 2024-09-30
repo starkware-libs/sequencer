@@ -47,6 +47,15 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ComponentExecutionMode {
+    // An inaccessible component.
+    Inaccessible,
+    // A component that runs remotely.
+    RemoteComponent,
+    // A component that runs locally, and can be accessed locally by other local components.
+    LocallyAccessibleLocalComponent,
+    // A component that runs locally, and can be accessed locally and remotely.
+    RemotelyAccessibleLocalComponent,
+    // TODO(Lev/Tsabary): Remove deprecated modes "Local" and "Remote".
     Local,
     Remote,
 }
@@ -57,6 +66,7 @@ pub enum ComponentExecutionMode {
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 #[validate(schema(function = "validate_single_component_config"))]
 pub struct ComponentExecutionConfig {
+    // TODO(Lev/Tsabary): Remove deprecated "execute" flag.
     pub execute: bool,
     pub execution_mode: ComponentExecutionMode,
     pub local_config: Option<LocalComponentCommunicationConfig>,

@@ -88,6 +88,9 @@ impl Default for LocalComponentCommunicationConfig {
     }
 }
 
+// TODO(Tsabary): Split to client and server configs, for remote and local communication.
+// TODO(Tsabary): Move config-related modules to a designated config file.
+
 // The communication configuration of the remote component.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct RemoteComponentCommunicationConfig {
