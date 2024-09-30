@@ -118,9 +118,9 @@ impl ComponentExecutionConfig {
     pub fn http_server_default_config() -> Self {
         Self {
             execute: true,
-            execution_mode: ComponentExecutionMode::Local,
-            local_config: Some(LocalComponentCommunicationConfig::default()),
-            remote_config: None,
+            execution_mode: ComponentExecutionMode::Remote,
+            local_config: None,
+            remote_config: Some(RemoteComponentCommunicationConfig::default()),
         }
     }
 
@@ -210,6 +210,7 @@ impl SerializeConfig for ComponentConfig {
             append_sub_config_name(self.batcher.dump(), "batcher"),
             append_sub_config_name(self.consensus_manager.dump(), "consensus_manager"),
             append_sub_config_name(self.gateway.dump(), "gateway"),
+            append_sub_config_name(self.http_server.dump(), "http_server"),
             append_sub_config_name(self.mempool.dump(), "mempool"),
         ];
 
