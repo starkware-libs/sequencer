@@ -284,17 +284,21 @@ fn test_post_execution_gas_overdraft_all_resource_bounds(
 }
 
 #[rstest]
-#[case::happy_flow_l1_gas_only(
-    GasVector { l1_gas: 10, ..Default::default() }, 10, 2*10
-)]
+#[case::happy_flow_l1_gas_only(GasVector { l1_gas: 10, ..Default::default() }, 10, 2*10)]
 #[case::happy_flow_no_l2_gas(
     GasVector { l1_gas: 10, l1_data_gas: 20, ..Default::default() }, 10 + 3*20, 2*10 + 4*20
 )]
+#[case::happy_flow_all(
+    GasVector { l1_gas: 10, l1_data_gas: 20, l2_gas: 30 }, 10 + 3*20 + 5*30, 2*10 + 4*20 + 6*30
+)]
 #[case::saturating_l1_gas(
-    GasVector { l1_gas: u128::MAX, l1_data_gas: 1, ..Default::default() }, u128::MAX, u128::MAX
+    GasVector { l1_gas: u128::MAX, l1_data_gas: 1, l2_gas: 1 }, u128::MAX, u128::MAX
 )]
 #[case::saturating_l1_data_gas(
-    GasVector { l1_gas: 1, l1_data_gas: u128::MAX, ..Default::default() }, u128::MAX, u128::MAX
+    GasVector { l1_gas: 1, l1_data_gas: u128::MAX, l2_gas: 1 }, u128::MAX, u128::MAX
+)]
+#[case::saturating_l2_gas(
+    GasVector { l1_gas: 1, l1_data_gas: 1, l2_gas: u128::MAX }, u128::MAX, u128::MAX
 )]
 fn test_get_fee_by_gas_vector_regression(
     #[case] gas_vector: GasVector,
