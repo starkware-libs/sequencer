@@ -67,7 +67,6 @@ message ProposalPart {
     oneof message {
         ProposalInit init = 1;
         ProposalFin fin = 2;
-        TransactionBatch transactions = 3;
-        
+        TransactionBatch transactions = 3;        
     }
 }
