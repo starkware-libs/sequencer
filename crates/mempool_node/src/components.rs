@@ -4,7 +4,7 @@ use starknet_gateway::gateway::{create_gateway, Gateway};
 use starknet_http_server::http_server::{create_http_server, HttpServer};
 use starknet_mempool::mempool::Mempool;
 
-use crate::communication::MempoolNodeClients;
+use crate::communication::SequencerNodeClients;
 use crate::config::MempoolNodeConfig;
 
 pub struct Components {
@@ -15,7 +15,7 @@ pub struct Components {
     pub mempool: Option<Mempool>,
 }
 
-pub fn create_components(config: &MempoolNodeConfig, clients: &MempoolNodeClients) -> Components {
+pub fn create_components(config: &MempoolNodeConfig, clients: &SequencerNodeClients) -> Components {
     let batcher = if config.components.batcher.execute {
         let mempool_client =
             clients.get_mempool_client().expect("Mempool Client should be available");
