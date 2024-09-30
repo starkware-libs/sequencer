@@ -59,15 +59,10 @@ mod tests {
         let TestSubscriberChannels { mock_network, subscriber_channels } =
             mock_register_broadcast_topic().unwrap();
         let network_sender = mock_network.broadcasted_messages_sender;
-        let BroadcastTopicChannels {
-            messages_to_broadcast_sender: _,
-            broadcasted_messages_receiver,
-            reported_messages_sender: _,
-            continue_propagation_sender: _,
-        } = subscriber_channels;
+        let BroadcastTopicChannels { broadcasted_messages_receiver, broadcast_topic_client: _ } =
+            subscriber_channels;
 
-        // TODO(guyn): We should also give the messages_to_broadcast_sender,
-        // reported_messages_sender and continue_propagation_sender to the StreamHandler
+        // TODO(guyn): We should also give the broadcast_topic_client to the StreamHandler
         let (tx_output, rx_output) = mpsc::channel::<mpsc::Receiver<ConsensusMessage>>(100);
         let handler = StreamHandler::new(tx_output, broadcasted_messages_receiver);
         (handler, network_sender, rx_output)
