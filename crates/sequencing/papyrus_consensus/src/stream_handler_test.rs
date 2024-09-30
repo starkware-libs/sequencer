@@ -2,19 +2,22 @@ use futures::channel::mpsc;
 use futures::stream::StreamExt;
 use futures::SinkExt;
 use papyrus_network::network_manager::test_utils::{
-    create_test_broadcasted_message_manager,
+    // create_test_broadcasted_message_manager,
     mock_register_broadcast_topic,
     MockBroadcastedMessagesSender,
     TestSubscriberChannels,
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, StreamMessage};
+use papyrus_test_utils::{get_rng, GetTestInstance};
 
 use super::StreamHandler;
 
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
+
+    use papyrus_network_types::network_types::BroadcastedMessageManager;
 
     use super::*;
 
@@ -43,7 +46,8 @@ mod tests {
         sender: &mut MockBroadcastedMessagesSender<StreamMessage<ConsensusMessage>>,
         msg: StreamMessage<ConsensusMessage>,
     ) {
-        let broadcasted_message_manager = create_test_broadcasted_message_manager();
+        let broadcasted_message_manager =
+            BroadcastedMessageManager::get_test_instance(&mut get_rng());
         sender.send((msg, broadcasted_message_manager)).await.unwrap();
     }
 

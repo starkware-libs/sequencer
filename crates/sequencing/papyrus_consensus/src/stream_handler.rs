@@ -4,7 +4,8 @@ use std::collections::{BTreeMap, HashMap};
 
 use futures::channel::mpsc;
 use futures::StreamExt;
-use papyrus_network::network_manager::{BroadcastedMessageManager, GenericReceiver};
+use papyrus_network::network_manager::GenericReceiver;
+use papyrus_network_types::network_types::{BroadcastedMessageManager, OpaquePeerId};
 use papyrus_protobuf::consensus::StreamMessage;
 use papyrus_protobuf::converters::ProtobufConversionError;
 use tracing::{instrument, warn};
@@ -13,17 +14,17 @@ use tracing::{instrument, warn};
 #[path = "stream_handler_test.rs"]
 mod stream_handler_test;
 
-type PeerId = u64;
+type PeerId = OpaquePeerId;
 type StreamId = u64;
 type MessageId = u64;
 
 const CHANNEL_BUFFER_LENGTH: usize = 100;
 
-fn get_metadata_peer_id_as_u64(_metadata: BroadcastedMessageManager) -> PeerId {
+fn get_metadata_peer_id(metadata: BroadcastedMessageManager) -> PeerId {
     // TODO(guyn): need to make this a public field or something!
     // TODO(guyn): need to convert a Multiaddr to a PeerId (u64)
-    // metadata.peer_id
-    return 0; // placeholder
+    metadata.originator_id
+    // return 0; // placeholder
 }
 
 type ReceivedBroadcastedMessage<Message> =
@@ -115,13 +116,9 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                 return;
             }
         };
-        let peer_id = get_metadata_peer_id_as_u64(metadata);
+        let _peer_id = get_metadata_peer_id(metadata); // TODO(guyn): use peer_id
         let stream_id = message.stream_id;
         let message_id = message.message_id;
-        println!(
-            "handle_message: stream_id: {}, message_id: {}, peer_id: {}",
-            stream_id, message_id, peer_id
-        );
 
         let data = match self.stream_data.entry(stream_id) {
             Entry::Occupied(entry) => entry.into_mut(),
