@@ -4,31 +4,44 @@ use std::pin::Pin;
 use futures::{Future, FutureExt};
 use starknet_batcher::communication::{create_local_batcher_server, LocalBatcherServer};
 use starknet_consensus_manager::communication::{
-    create_local_consensus_manager_server,
-    LocalConsensusManagerServer,
+    create_consensus_manager_server,
+    ConsensusManagerServer,
 };
-use starknet_gateway::communication::{create_gateway_server, GatewayServer};
+use starknet_gateway::communication::{create_gateway_server, LocalGatewayServer};
 use starknet_http_server::communication::{create_http_server, HttpServer};
-use starknet_mempool::communication::{create_mempool_server, MempoolServer};
+use starknet_mempool::communication::{create_mempool_server, LocalMempoolServer};
 use starknet_mempool_infra::component_server::ComponentServerStarter;
 use starknet_mempool_infra::errors::ComponentServerError;
 use tracing::error;
 
-use crate::communication::MempoolNodeCommunication;
+use crate::communication::SequencerNodeCommunication;
 use crate::components::Components;
 use crate::config::MempoolNodeConfig;
 
-pub struct Servers {
+// Component servers that can run locally.
+pub struct LocalServers {
     pub batcher: Option<Box<LocalBatcherServer>>,
-    pub consensus_manager: Option<Box<LocalConsensusManagerServer>>,
-    pub gateway: Option<Box<GatewayServer>>,
+    pub gateway: Option<Box<LocalGatewayServer>>,
+    pub mempool: Option<Box<LocalMempoolServer>>,
+}
+
+/// TODO(Tsabary): rename empty server to wrapper server.
+
+// Component servers that wrap a component without a server.
+pub struct WrapperServers {
+    pub consensus_manager: Option<Box<ConsensusManagerServer>>,
     pub http_server: Option<Box<HttpServer>>,
-    pub mempool: Option<Box<MempoolServer>>,
+}
+
+/// TODO(Tsabary): make these fields private, currently public to support the outdated e2e test.
+pub struct Servers {
+    pub local_servers: LocalServers,
+    pub wrapper_servers: WrapperServers,
 }
 
 pub fn create_servers(
     config: &MempoolNodeConfig,
-    communication: &mut MempoolNodeCommunication,
+    communication: &mut SequencerNodeCommunication,
     components: Components,
 ) -> Servers {
     let batcher_server = if config.components.batcher.execute {
@@ -40,9 +53,8 @@ pub fn create_servers(
         None
     };
     let consensus_manager_server = if config.components.consensus_manager.execute {
-        Some(Box::new(create_local_consensus_manager_server(
+        Some(Box::new(create_consensus_manager_server(
             components.consensus_manager.expect("Consensus Manager is not initialized."),
-            communication.take_consensus_manager_rx(),
         )))
     } else {
         None
@@ -71,13 +83,13 @@ pub fn create_servers(
         None
     };
 
-    Servers {
-        batcher: batcher_server,
-        consensus_manager: consensus_manager_server,
-        gateway: gateway_server,
-        http_server,
-        mempool: mempool_server,
-    }
+    let local_servers =
+        LocalServers { batcher: batcher_server, gateway: gateway_server, mempool: mempool_server };
+
+    let wrapper_servers =
+        WrapperServers { consensus_manager: consensus_manager_server, http_server };
+
+    Servers { local_servers, wrapper_servers }
 }
 
 pub async fn run_component_servers(
@@ -85,27 +97,39 @@ pub async fn run_component_servers(
     servers: Servers,
 ) -> anyhow::Result<()> {
     // Batcher server.
-    let batcher_future =
-        get_server_future("Batcher", config.components.batcher.execute, servers.batcher);
+    let batcher_future = get_server_future(
+        "Batcher",
+        config.components.batcher.execute,
+        servers.local_servers.batcher,
+    );
 
     // Consensus Manager server.
     let consensus_manager_future = get_server_future(
         "Consensus Manager",
         config.components.consensus_manager.execute,
-        servers.consensus_manager,
+        servers.wrapper_servers.consensus_manager,
     );
 
     // Gateway server.
-    let gateway_future =
-        get_server_future("Gateway", config.components.gateway.execute, servers.gateway);
+    let gateway_future = get_server_future(
+        "Gateway",
+        config.components.gateway.execute,
+        servers.local_servers.gateway,
+    );
 
     // HttpServer server.
-    let http_server_future =
-        get_server_future("HttpServer", config.components.http_server.execute, servers.http_server);
+    let http_server_future = get_server_future(
+        "HttpServer",
+        config.components.http_server.execute,
+        servers.wrapper_servers.http_server,
+    );
 
     // Mempool server.
-    let mempool_future =
-        get_server_future("Mempool", config.components.mempool.execute, servers.mempool);
+    let mempool_future = get_server_future(
+        "Mempool",
+        config.components.mempool.execute,
+        servers.local_servers.mempool,
+    );
 
     // Start servers.
     let batcher_handle = tokio::spawn(batcher_future);
@@ -144,7 +168,7 @@ pub async fn run_component_servers(
 pub fn get_server_future(
     name: &str,
     execute_flag: bool,
-    server: Option<Box<impl ComponentServerStarter + 'static>>,
+    server: Option<Box<impl ComponentServerStarter + Send + 'static>>,
 ) -> Pin<Box<dyn Future<Output = Result<(), ComponentServerError>> + Send>> {
     let server_future = match execute_flag {
         true => {

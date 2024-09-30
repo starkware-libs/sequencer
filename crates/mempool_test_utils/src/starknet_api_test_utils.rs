@@ -391,6 +391,10 @@ impl FeatureAccount {
         self.account.cairo_version()
     }
 
+    pub fn raw_class(&self) -> String {
+        self.account.get_raw_class()
+    }
+
     fn new(account: FeatureContract, deploy_account_tx: &RpcTransaction) -> Self {
         assert_matches!(
             deploy_account_tx,

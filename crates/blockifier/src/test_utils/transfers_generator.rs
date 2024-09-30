@@ -153,7 +153,7 @@ impl TransfersGenerator {
             self.sender_index = (self.sender_index + 1) % self.account_addresses.len();
 
             let account_tx = self.generate_transfer(sender_address, recipient_address);
-            txs.push(Transaction::AccountTransaction(account_tx));
+            txs.push(Transaction::Account(account_tx));
         }
         let results = self.executor.execute_txs(&txs);
         assert_eq!(results.len(), self.config.n_txs);

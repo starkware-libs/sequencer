@@ -29,7 +29,7 @@ pub mod test;
 
 /// Auto-generate getters for listed versioned constants versions.
 macro_rules! define_versioned_constants {
-    ($(($variant:ident, $path_to_json:expr)),*, $latest_variant:ident) => {
+    ($(($variant:ident, $path_to_json:expr, $version_str:expr)),*, $latest_variant:ident) => {
         /// Enum of all the Starknet versions supporting versioned constants.
         #[derive(Clone, Debug, EnumCount, EnumIter, Hash, Eq, PartialEq)]
         pub enum StarknetVersion {
@@ -92,16 +92,43 @@ macro_rules! define_versioned_constants {
             fs::read_to_string(path_to_json.clone())
                 .expect(&format!("Failed to read file {}.", path_to_json.display()))
         });
+
+        impl TryFrom<&str> for StarknetVersion {
+            type Error = VersionedConstantsError;
+            fn try_from(raw_version: &str) -> Result<Self, Self::Error> {
+                match raw_version {
+                    $(
+                        $version_str => Ok(StarknetVersion::$variant),
+                    )*
+                    _ => Err(VersionedConstantsError::InvalidVersion { version: raw_version.to_string()}),
+                }
+            }
+        }
+
+        #[cfg(test)]
+        mod tests {
+            use crate::versioned_constants::StarknetVersion;
+
+            #[test]
+            fn test_variant_name_string_consistency() {
+                $(
+                    assert_eq!(
+                        "v".to_owned() + $version_str,
+                        String::from(StarknetVersion::$variant)
+                    );
+                )*
+            }
+        }
     };
 }
 
 define_versioned_constants! {
-    (V0_13_0, "../resources/versioned_constants_0_13_0.json"),
-    (V0_13_1, "../resources/versioned_constants_0_13_1.json"),
-    (V0_13_1_1, "../resources/versioned_constants_0_13_1_1.json"),
-    (V0_13_2, "../resources/versioned_constants_0_13_2.json"),
-    (V0_13_2_1, "../resources/versioned_constants_0_13_2_1.json"),
-    (V0_13_3, "../resources/versioned_constants_0_13_3.json"),
+    (V0_13_0, "../resources/versioned_constants_0_13_0.json", "0.13.0"),
+    (V0_13_1, "../resources/versioned_constants_0_13_1.json", "0.13.1"),
+    (V0_13_1_1, "../resources/versioned_constants_0_13_1_1.json", "0.13.1.1"),
+    (V0_13_2, "../resources/versioned_constants_0_13_2.json", "0.13.2"),
+    (V0_13_2_1, "../resources/versioned_constants_0_13_2_1.json", "0.13.2.1"),
+    (V0_13_3, "../resources/versioned_constants_0_13_3.json", "0.13.3"),
     V0_13_3
 }
 
@@ -723,6 +750,8 @@ pub enum VersionedConstantsError {
     IoError(#[from] io::Error),
     #[error("JSON file cannot be serialized into VersionedConstants: {0}")]
     ParseError(#[from] serde_json::Error),
+    #[error("Invalid version: {version:?}")]
+    InvalidVersion { version: String },
 }
 
 #[derive(Debug, Error)]

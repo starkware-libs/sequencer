@@ -10,9 +10,9 @@ use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server, St
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use super::definitions::ComponentServerStarter;
 use crate::component_client::{ClientError, LocalComponentClient};
 use crate::component_definitions::{ServerError, APPLICATION_OCTET_STREAM};
+use crate::component_server::ComponentServerStarter;
 use crate::errors::ComponentServerError;
 use crate::serde_utils::BincodeSerdeWrapper;
 
@@ -41,21 +41,23 @@ use crate::serde_utils::BincodeSerdeWrapper;
 /// // Example usage of the RemoteComponentServer
 /// use async_trait::async_trait;
 /// use serde::{Deserialize, Serialize};
-/// use starknet_mempool_infra::errors::ComponentError;
-/// use starknet_mempool_infra::starters::DefaultComponentStarter;
 /// use tokio::task;
 ///
 /// use crate::starknet_mempool_infra::component_client::LocalComponentClient;
-/// use crate::starknet_mempool_infra::component_definitions::ComponentRequestHandler;
+/// use crate::starknet_mempool_infra::component_definitions::{
+///     ComponentRequestHandler,
+///     ComponentStarter,
+/// };
 /// use crate::starknet_mempool_infra::component_server::{
 ///     ComponentServerStarter,
 ///     RemoteComponentServer,
 /// };
+/// use crate::starknet_mempool_infra::errors::ComponentError;
 ///
 /// // Define your component
 /// struct MyComponent {}
 ///
-/// impl DefaultComponentStarter for MyComponent {}
+/// impl ComponentStarter for MyComponent {}
 ///
 /// // Define your request and response types
 /// #[derive(Serialize, Deserialize, Debug)]

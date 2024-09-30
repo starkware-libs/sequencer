@@ -1491,6 +1491,7 @@ version = "0.0.0"
 dependencies = [
  "blockifier",
  "papyrus_execution",
+ "serde_json",
  "starknet-types-core",
  "starknet_api",
  "starknet_gateway",
@@ -6986,6 +6987,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "async-stream",
+ "async-trait",
  "bytes",
  "deadqueue",
  "defaultmap",
@@ -9809,7 +9811,6 @@ dependencies = [
  "starknet_batcher_types",
  "starknet_consensus_manager_types",
  "starknet_mempool_infra",
- "tokio",
  "validator",
 ]
 
@@ -9938,6 +9939,7 @@ dependencies = [
 name = "starknet_mempool_integration_tests"
 version = "0.0.0"
 dependencies = [
+ "assert_matches",
  "axum",
  "blockifier",
  "cairo-lang-starknet-classes",

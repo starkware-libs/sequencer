@@ -91,7 +91,7 @@ async fn send(sender: &mut MockBroadcastedMessagesSender<ConsensusMessage>, msg:
 
 #[tokio::test]
 async fn manager_multiple_heights_unordered() {
-    let TestSubscriberChannels { mock_network, mut subscriber_channels } =
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().unwrap();
     let mut sender = mock_network.broadcasted_messages_sender;
     // Send messages for height 2 followed by those for height 1.
@@ -117,6 +117,7 @@ async fn manager_multiple_heights_unordered() {
     context.expect_broadcast().returning(move |_| Ok(()));
 
     let mut manager = MultiHeightManager::new(*VALIDATOR_ID, TIMEOUTS.clone());
+    let mut subscriber_channels = subscriber_channels.into();
     let decision =
         manager.run_height(&mut context, BlockNumber(1), &mut subscriber_channels).await.unwrap();
     assert_eq!(decision.block, BlockHash(Felt::ONE));
@@ -173,7 +174,7 @@ async fn run_consensus_sync() {
             *VALIDATOR_ID,
             Duration::ZERO,
             TIMEOUTS.clone(),
-            subscriber_channels,
+            subscriber_channels.into(),
             &mut sync_receiver,
         )
         .await
@@ -232,7 +233,7 @@ async fn run_consensus_sync_cancellation_safety() {
             *VALIDATOR_ID,
             Duration::ZERO,
             TIMEOUTS.clone(),
-            subscriber_channels,
+            subscriber_channels.into(),
             &mut sync_receiver,
         )
         .await
@@ -260,7 +261,7 @@ async fn run_consensus_sync_cancellation_safety() {
 
 #[tokio::test]
 async fn test_timeouts() {
-    let TestSubscriberChannels { mock_network, mut subscriber_channels } =
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().unwrap();
     let mut sender = mock_network.broadcasted_messages_sender;
     send(&mut sender, proposal(Felt::ONE, 1, 0, *PROPOSER_ID)).await;
@@ -295,7 +296,7 @@ async fn test_timeouts() {
     let mut manager = MultiHeightManager::new(*VALIDATOR_ID, TIMEOUTS.clone());
     let manager_handle = tokio::spawn(async move {
         let decision = manager
-            .run_height(&mut context, BlockNumber(1), &mut subscriber_channels)
+            .run_height(&mut context, BlockNumber(1), &mut subscriber_channels.into())
             .await
             .unwrap();
         assert_eq!(decision.block, BlockHash(Felt::ONE));

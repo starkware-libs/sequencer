@@ -1,5 +1,5 @@
 use starknet_batcher_types::communication::SharedBatcherClient;
-use starknet_mempool_infra::starters::DefaultComponentStarter;
+use starknet_mempool_infra::component_definitions::ComponentStarter;
 
 use crate::config::ConsensusManagerConfig;
 
@@ -24,4 +24,4 @@ pub fn create_consensus_manager(
     ConsensusManager::new(config, batcher_client)
 }
 
-impl DefaultComponentStarter for ConsensusManager {}
+impl ComponentStarter for ConsensusManager {}

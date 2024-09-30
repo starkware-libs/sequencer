@@ -7,6 +7,7 @@ use starknet_mempool_infra::component_client::{ClientError, ClientResult, LocalC
 use starknet_mempool_infra::component_definitions::{
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
+    ComponentStarter,
 };
 use starknet_mempool_infra::component_server::{
     ComponentServerStarter,
@@ -14,7 +15,6 @@ use starknet_mempool_infra::component_server::{
     LocalActiveComponentServer,
 };
 use starknet_mempool_infra::errors::ComponentError;
-use starknet_mempool_infra::starters::Startable;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::{Barrier, Mutex};
 use tokio::task;
@@ -41,7 +41,7 @@ impl ComponentC {
 }
 
 #[async_trait]
-impl Startable<ComponentError> for ComponentC {
+impl ComponentStarter for ComponentC {
     async fn start(&mut self) -> Result<(), ComponentError> {
         for _ in 0..self.max_iterations {
             self.c_increment_counter().await;
@@ -99,7 +99,7 @@ impl ComponentD {
 }
 
 #[async_trait]
-impl Startable<ComponentError> for ComponentD {
+impl ComponentStarter for ComponentD {
     async fn start(&mut self) -> Result<(), ComponentError> {
         for _ in 0..self.max_iterations {
             self.d_increment_counter().await;

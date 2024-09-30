@@ -1,8 +1,7 @@
 use async_trait::async_trait;
 use starknet_api::executable_transaction::Transaction;
-use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
+use starknet_mempool_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use starknet_mempool_infra::component_server::LocalComponentServer;
-use starknet_mempool_infra::starters::DefaultComponentStarter;
 use starknet_mempool_types::communication::{
     MempoolRequest,
     MempoolRequestAndResponseSender,
@@ -14,13 +13,13 @@ use tokio::sync::mpsc::Receiver;
 
 use crate::mempool::Mempool;
 
-pub type MempoolServer =
+pub type LocalMempoolServer =
     LocalComponentServer<MempoolCommunicationWrapper, MempoolRequest, MempoolResponse>;
 
 pub fn create_mempool_server(
     mempool: Mempool,
     rx_mempool: Receiver<MempoolRequestAndResponseSender>,
-) -> MempoolServer {
+) -> LocalMempoolServer {
     let communication_wrapper = MempoolCommunicationWrapper::new(mempool);
     LocalComponentServer::new(communication_wrapper, rx_mempool)
 }
@@ -58,4 +57,4 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
     }
 }
 
-impl DefaultComponentStarter for MempoolCommunicationWrapper {}
+impl ComponentStarter for MempoolCommunicationWrapper {}
