@@ -72,6 +72,35 @@ mod TestContract {
     }
 
     #[external(v0)]
+    fn test_call_two_contracts(
+        self: @ContractState,
+        contract_address_0: ContractAddress,
+        entry_point_selector_0: felt252,
+        calldata_0: Array::<felt252>,
+        contract_address_1: ContractAddress,
+        entry_point_selector_1: felt252,
+        calldata_1: Array::<felt252>,
+    ) -> Span::<felt252> {
+        let res_0 = syscalls::call_contract_syscall(
+            contract_address_0,
+            entry_point_selector_0,
+            calldata_0.span(),
+        )
+            .unwrap_syscall()
+            .snapshot
+            .span();
+        let _res_1 = syscalls::call_contract_syscall(
+            contract_address_1,
+            entry_point_selector_1,
+            calldata_1.span(),
+        )
+            .unwrap_syscall()
+            .snapshot
+            .span();
+        res_0
+    }
+
+    #[external(v0)]
     fn test_emit_events(
         self: @ContractState, events_number: u64, keys: Array::<felt252>, data: Array::<felt252>
     ) {

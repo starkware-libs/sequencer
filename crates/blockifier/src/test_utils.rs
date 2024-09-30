@@ -26,6 +26,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
 use crate::execution::call_info::ExecutionSummary;
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::SyscallSelector;
@@ -61,6 +62,15 @@ pub enum CairoVersion {
 impl Default for CairoVersion {
     fn default() -> Self {
         Self::Cairo0
+    }
+}
+
+impl From<CairoVersion> for TrackedResource {
+    fn from(value: CairoVersion) -> Self {
+        match value {
+            CairoVersion::Cairo0 => TrackedResource::CairoSteps,
+            CairoVersion::Cairo1 => TrackedResource::SierraGas,
+        }
     }
 }
 

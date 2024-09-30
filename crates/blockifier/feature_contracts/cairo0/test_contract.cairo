@@ -166,6 +166,33 @@ func test_call_contract{syscall_ptr: felt*}(
 }
 
 @external
+@raw_output
+func test_call_two_contracts{syscall_ptr: felt*}(
+    contract_address_0: felt,
+    function_selector_0: felt,
+    calldata_0_len: felt,
+    calldata_0: felt*,
+    contract_address_1: felt,
+    function_selector_1: felt,
+    calldata_1_len: felt,
+    calldata_1: felt*,
+) -> (retdata_size: felt, retdata: felt*) {
+    let (retdata_0_len: felt, retdata_0: felt*) = call_contract(
+        contract_address=contract_address_0,
+        function_selector=function_selector_0,
+        calldata_size=calldata_0_len,
+        calldata=calldata_0,
+    );
+    let (retdata_1_len: felt, retdata_1: felt*) = call_contract(
+        contract_address=contract_address_1,
+        function_selector=function_selector_1,
+        calldata_size=calldata_1_len,
+        calldata=calldata_1,
+    );
+    return (retdata_size=retdata_0_len, retdata=retdata_0);
+}
+
+@external
 func test_call_contract_fail_with_attr_error_msg{syscall_ptr: felt*}(
     contract_address: felt, function_selector: felt
 ) -> () {
