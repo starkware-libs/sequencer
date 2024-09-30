@@ -1,21 +1,8 @@
-mod common;
-
 use std::fmt::Debug;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use common::{
-    ComponentAClientTrait,
-    ComponentARequest,
-    ComponentAResponse,
-    ComponentBClientTrait,
-    ComponentBRequest,
-    ComponentBResponse,
-    ResultA,
-    ResultB,
-    ValueA,
-};
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::service::{make_service_fn, service_fn};
@@ -23,33 +10,46 @@ use hyper::{Body, Client, Request, Response, Server, StatusCode, Uri};
 use rstest::rstest;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use starknet_mempool_infra::component_client::{
-    ClientError,
-    ClientResult,
-    LocalComponentClient,
-    RemoteComponentClient,
-};
-use starknet_mempool_infra::component_definitions::{
-    ComponentRequestAndResponseSender,
-    ComponentRequestHandler,
-    ServerError,
-    APPLICATION_OCTET_STREAM,
-};
-use starknet_mempool_infra::component_server::{
-    ComponentServerStarter,
-    LocalComponentServer,
-    RemoteComponentServer,
-};
-use starknet_mempool_infra::serde_utils::BincodeSerdeWrapper;
 use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::channel;
 use tokio::sync::Mutex;
 use tokio::task;
 
+use crate::component_client::{
+    ClientError,
+    ClientResult,
+    LocalComponentClient,
+    RemoteComponentClient,
+};
+use crate::component_definitions::{
+    ComponentRequestAndResponseSender,
+    ServerError,
+    APPLICATION_OCTET_STREAM,
+};
+use crate::component_server::{
+    ComponentServerStarter,
+    LocalComponentServer,
+    RemoteComponentServer,
+};
+use crate::serde_utils::BincodeSerdeWrapper;
+use crate::tests::{
+    test_a_b_functionality,
+    ComponentA,
+    ComponentAClientTrait,
+    ComponentARequest,
+    ComponentAResponse,
+    ComponentB,
+    ComponentBClientTrait,
+    ComponentBRequest,
+    ComponentBResponse,
+    ResultA,
+    ResultB,
+    ValueA,
+    ValueB,
+};
+
 type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentAResponse>;
 type ComponentBClient = RemoteComponentClient<ComponentBRequest, ComponentBResponse>;
-
-use crate::common::{test_a_b_functionality, ComponentA, ComponentB, ValueB};
 
 const LOCAL_IP: IpAddr = IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
 const MAX_RETRIES: usize = 0;
@@ -79,15 +79,6 @@ impl ComponentAClientTrait for RemoteComponentClient<ComponentARequest, Componen
 }
 
 #[async_trait]
-impl ComponentRequestHandler<ComponentARequest, ComponentAResponse> for ComponentA {
-    async fn handle_request(&mut self, request: ComponentARequest) -> ComponentAResponse {
-        match request {
-            ComponentARequest::AGetValue => ComponentAResponse::AGetValue(self.a_get_value().await),
-        }
-    }
-}
-
-#[async_trait]
 impl ComponentBClientTrait for RemoteComponentClient<ComponentBRequest, ComponentBResponse> {
     async fn b_get_value(&self) -> ResultB {
         match self.send(ComponentBRequest::BGetValue).await? {
@@ -103,19 +94,6 @@ impl ComponentBClientTrait for RemoteComponentClient<ComponentBRequest, Componen
             ComponentBResponse::BSetValue => Ok(()),
             unexpected_response => {
                 Err(ClientError::UnexpectedResponse(format!("{unexpected_response:?}")))
-            }
-        }
-    }
-}
-
-#[async_trait]
-impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for ComponentB {
-    async fn handle_request(&mut self, request: ComponentBRequest) -> ComponentBResponse {
-        match request {
-            ComponentBRequest::BGetValue => ComponentBResponse::BGetValue(self.b_get_value()),
-            ComponentBRequest::BSetValue(value) => {
-                self.b_set_value(value);
-                ComponentBResponse::BSetValue
             }
         }
     }
