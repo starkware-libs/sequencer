@@ -2,8 +2,9 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::Serialize;
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::{Fee, GasVectorComputationMode};
+use starknet_api::transaction::{Fee, GasVectorComputationMode, Resource};
 
+use crate::blockifier::block::GasPricesForFeeType;
 use crate::context::TransactionContext;
 use crate::execution::call_info::{EventSummary, ExecutionSummary};
 use crate::fee::eth_gas_constants;
@@ -312,33 +313,35 @@ impl GasVector {
     }
 
     /// Computes the cost (in fee token units) of the gas vector (saturating on overflow).
-    pub fn saturated_cost(&self, gas_price: u128, blob_gas_price: u128) -> Fee {
-        let l1_gas_cost = self.l1_gas.0.checked_mul(gas_price).unwrap_or_else(|| {
-            log::warn!(
-                "L1 gas cost overflowed: multiplication of {} by {} resulted in overflow.",
-                self.l1_gas,
-                gas_price
-            );
-            u128::MAX
-        });
-        let l1_data_gas_cost =
-            self.l1_data_gas.0.checked_mul(blob_gas_price).unwrap_or_else(|| {
+    pub fn saturated_cost(&self, gas_prices: &GasPricesForFeeType) -> Fee {
+        let mut sum = 0_u128;
+        for (gas, price, resource) in [
+            (self.l1_gas, gas_prices.l1_gas_price, Resource::L1Gas),
+            (self.l1_data_gas, gas_prices.l1_data_gas_price, Resource::L1DataGas),
+            (self.l2_gas, gas_prices.l2_gas_price, Resource::L2Gas),
+        ] {
+            let cost = gas.0.checked_mul(price.get()).unwrap_or_else(|| {
                 log::warn!(
-                    "L1 blob gas cost overflowed: multiplication of {} by {} resulted in overflow.",
-                    self.l1_data_gas,
-                    blob_gas_price
+                    "{} cost overflowed: multiplication of gas amount ({}) by price per unit ({}) \
+                     resulted in overflow.",
+                    resource,
+                    gas,
+                    price
                 );
                 u128::MAX
             });
-        let total = l1_gas_cost.checked_add(l1_data_gas_cost).unwrap_or_else(|| {
-            log::warn!(
-                "Total gas cost overflowed: addition of {} and {} resulted in overflow.",
-                l1_gas_cost,
-                l1_data_gas_cost
-            );
-            u128::MAX
-        });
-        Fee(total)
+            sum = sum.checked_add(cost).unwrap_or_else(|| {
+                log::warn!(
+                    "Total cost overflowed: addition of current sum ({}) and cost of {} ({}) \
+                     resulted in overflow.",
+                    sum,
+                    resource,
+                    cost
+                );
+                u128::MAX
+            });
+        }
+        Fee(sum)
     }
 
     /// Compute l1_gas estimation from gas_vector using the following formula:
