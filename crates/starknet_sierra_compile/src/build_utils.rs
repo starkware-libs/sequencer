@@ -8,7 +8,7 @@ fn out_dir() -> PathBuf {
 }
 
 /// Get the crate's `OUT_DIR` and navigate up to reach the `target/BUILD_FLAVOR` directory.
-/// This directory is shared accross all crates in this project.
+/// This directory is shared across all crates in this project.
 fn target_dir() -> PathBuf {
     let out_dir = out_dir();
 
