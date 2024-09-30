@@ -1,27 +1,26 @@
-mod common;
-
 use async_trait::async_trait;
-use common::{
+use starknet_types_core::felt::Felt;
+use tokio::sync::mpsc::channel;
+use tokio::task;
+
+use crate::component_client::{ClientError, ClientResult, LocalComponentClient};
+use crate::component_definitions::ComponentRequestAndResponseSender;
+use crate::component_server::{ComponentServerStarter, LocalComponentServer};
+use crate::tests::{
+    test_a_b_functionality,
+    ComponentA,
     ComponentAClientTrait,
     ComponentARequest,
     ComponentAResponse,
+    ComponentB,
     ComponentBClientTrait,
     ComponentBRequest,
     ComponentBResponse,
     ResultA,
     ResultB,
+    ValueA,
+    ValueB,
 };
-use starknet_mempool_infra::component_client::{ClientError, ClientResult, LocalComponentClient};
-use starknet_mempool_infra::component_definitions::{
-    ComponentRequestAndResponseSender,
-    ComponentRequestHandler,
-};
-use starknet_mempool_infra::component_server::{ComponentServerStarter, LocalComponentServer};
-use starknet_types_core::felt::Felt;
-use tokio::sync::mpsc::channel;
-use tokio::task;
-
-use crate::common::{test_a_b_functionality, ComponentA, ComponentB, ValueA, ValueB};
 
 type ComponentAClient = LocalComponentClient<ComponentARequest, ComponentAResponse>;
 type ComponentBClient = LocalComponentClient<ComponentBRequest, ComponentBResponse>;
@@ -32,15 +31,6 @@ impl ComponentAClientTrait for LocalComponentClient<ComponentARequest, Component
         let res = self.send(ComponentARequest::AGetValue).await;
         match res {
             ComponentAResponse::AGetValue(value) => Ok(value),
-        }
-    }
-}
-
-#[async_trait]
-impl ComponentRequestHandler<ComponentARequest, ComponentAResponse> for ComponentA {
-    async fn handle_request(&mut self, request: ComponentARequest) -> ComponentAResponse {
-        match request {
-            ComponentARequest::AGetValue => ComponentAResponse::AGetValue(self.a_get_value().await),
         }
     }
 }
@@ -62,19 +52,6 @@ impl ComponentBClientTrait for LocalComponentClient<ComponentBRequest, Component
             ComponentBResponse::BSetValue => Ok(()),
             unexpected_response => {
                 Err(ClientError::UnexpectedResponse(format!("{unexpected_response:?}")))
-            }
-        }
-    }
-}
-
-#[async_trait]
-impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for ComponentB {
-    async fn handle_request(&mut self, request: ComponentBRequest) -> ComponentBResponse {
-        match request {
-            ComponentBRequest::BGetValue => ComponentBResponse::BGetValue(self.b_get_value()),
-            ComponentBRequest::BSetValue(value) => {
-                self.b_set_value(value);
-                ComponentBResponse::BSetValue
             }
         }
     }

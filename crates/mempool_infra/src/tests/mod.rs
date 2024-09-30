@@ -1,8 +1,16 @@
+#[cfg(test)]
+mod local_component_client_server_test;
+
+#[cfg(test)]
+mod remote_component_client_server_test;
+
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use starknet_mempool_infra::component_client::ClientResult;
-use starknet_mempool_infra::starters::DefaultComponentStarter;
 use starknet_types_core::felt::Felt;
+
+use crate::component_client::ClientResult;
+use crate::component_definitions::ComponentRequestHandler;
+use crate::starters::DefaultComponentStarter;
 
 pub(crate) type ValueA = Felt;
 pub(crate) type ValueB = Felt;
@@ -93,4 +101,26 @@ pub(crate) async fn test_a_b_functionality(
     assert!(b_client.b_set_value(new_expected_value).await.is_ok());
     // Check the new value in component B through client A.
     assert_eq!(a_client.a_get_value().await.unwrap(), new_expected_value);
+}
+
+#[async_trait]
+impl ComponentRequestHandler<ComponentARequest, ComponentAResponse> for ComponentA {
+    async fn handle_request(&mut self, request: ComponentARequest) -> ComponentAResponse {
+        match request {
+            ComponentARequest::AGetValue => ComponentAResponse::AGetValue(self.a_get_value().await),
+        }
+    }
+}
+
+#[async_trait]
+impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for ComponentB {
+    async fn handle_request(&mut self, request: ComponentBRequest) -> ComponentBResponse {
+        match request {
+            ComponentBRequest::BGetValue => ComponentBResponse::BGetValue(self.b_get_value()),
+            ComponentBRequest::BSetValue(value) => {
+                self.b_set_value(value);
+                ComponentBResponse::BSetValue
+            }
+        }
+    }
 }
