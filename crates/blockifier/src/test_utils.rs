@@ -24,7 +24,12 @@ use crate::execution::call_info::ExecutionSummary;
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::SyscallSelector;
-use crate::fee::resources::{StarknetResources, StateResources};
+use crate::fee::resources::{
+    GasVector,
+    GasVectorComputationMode,
+    StarknetResources,
+    StateResources,
+};
 use crate::test_utils::contracts::FeatureContract;
 use crate::transaction::transaction_types::TransactionType;
 use crate::utils::{const_max, u128_from_usize};
@@ -381,5 +386,18 @@ pub fn update_json_value(base: &mut serde_json::Value, update: serde_json::Value
             base_map.extend(update_map);
         }
         _ => panic!("Both base and update should be of type serde_json::Value::Object."),
+    }
+}
+
+pub fn gas_vector_from_vm_usage(
+    vm_usage_in_l1_gas: u128,
+    computation_mode: &GasVectorComputationMode,
+    versioned_constants: &VersionedConstants,
+) -> GasVector {
+    match computation_mode {
+        GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(vm_usage_in_l1_gas),
+        GasVectorComputationMode::All => GasVector::from_l2_gas(
+            versioned_constants.convert_l1_to_l2_gas_amount_round_up(vm_usage_in_l1_gas),
+        ),
     }
 }
