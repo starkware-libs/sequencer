@@ -4,7 +4,7 @@ use std::process::exit;
 use papyrus_config::validators::config_validate;
 use papyrus_config::ConfigError;
 use starknet_mempool_infra::trace_util::configure_tracing;
-use starknet_mempool_node::config::MempoolNodeConfig;
+use starknet_mempool_node::config::SequencerNodeConfig;
 use starknet_mempool_node::servers::run_component_servers;
 use starknet_mempool_node::utils::create_clients_servers_from_config;
 use tracing::{error, info};
@@ -13,7 +13,7 @@ use tracing::{error, info};
 async fn main() -> anyhow::Result<()> {
     configure_tracing();
 
-    let config = MempoolNodeConfig::load_and_process(args().collect());
+    let config = SequencerNodeConfig::load_and_process(args().collect());
     if let Err(ConfigError::CommandInput(clap_err)) = config {
         clap_err.exit();
     }

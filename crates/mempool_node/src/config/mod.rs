@@ -260,7 +260,7 @@ pub fn validate_components_config(components: &ComponentConfig) -> Result<(), Va
 
 /// The configurations of the various components of the node.
 #[derive(Debug, Deserialize, Default, Serialize, Clone, PartialEq, Validate)]
-pub struct MempoolNodeConfig {
+pub struct SequencerNodeConfig {
     #[validate]
     pub components: ComponentConfig,
     #[validate]
@@ -277,7 +277,7 @@ pub struct MempoolNodeConfig {
     pub compiler_config: SierraToCasmCompilationConfig,
 }
 
-impl SerializeConfig for MempoolNodeConfig {
+impl SerializeConfig for SequencerNodeConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         #[allow(unused_mut)]
         let mut sub_configs = vec![
@@ -297,7 +297,7 @@ impl SerializeConfig for MempoolNodeConfig {
     }
 }
 
-impl MempoolNodeConfig {
+impl SequencerNodeConfig {
     /// Creates a config object. Selects the values from the default file and from resources with
     /// higher priority.
     fn load_and_process_config_file(

@@ -5,7 +5,7 @@ use starknet_http_server::http_server::{create_http_server, HttpServer};
 use starknet_mempool::mempool::Mempool;
 
 use crate::communication::SequencerNodeClients;
-use crate::config::MempoolNodeConfig;
+use crate::config::SequencerNodeConfig;
 
 pub struct SequencerNodeComponents {
     pub batcher: Option<Batcher>,
@@ -16,7 +16,7 @@ pub struct SequencerNodeComponents {
 }
 
 pub fn create_components(
-    config: &MempoolNodeConfig,
+    config: &SequencerNodeConfig,
     clients: &SequencerNodeClients,
 ) -> SequencerNodeComponents {
     let batcher = if config.components.batcher.execute {
