@@ -233,6 +233,7 @@ impl SerializeConfig for ComponentConfig {
             append_sub_config_name(self.batcher.dump(), "batcher"),
             append_sub_config_name(self.consensus_manager.dump(), "consensus_manager"),
             append_sub_config_name(self.gateway.dump(), "gateway"),
+            append_sub_config_name(self.http_server.dump(), "http_server"),
             append_sub_config_name(self.mempool.dump(), "mempool"),
         ];
 
