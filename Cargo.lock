@@ -1490,6 +1490,7 @@ name = "blockifier_regression_test"
 version = "0.0.0"
 dependencies = [
  "blockifier",
+ "papyrus_execution",
  "starknet-types-core",
  "starknet_api",
  "starknet_gateway",
@@ -6878,6 +6879,7 @@ dependencies = [
  "papyrus_common",
  "papyrus_config",
  "papyrus_network",
+ "papyrus_network_types",
  "papyrus_protobuf",
  "papyrus_storage",
  "papyrus_test_utils",
@@ -6996,6 +6998,7 @@ dependencies = [
  "mockall",
  "papyrus_common",
  "papyrus_config",
+ "papyrus_network_types",
  "pretty_assertions",
  "replace_with",
  "serde",
@@ -7008,6 +7011,16 @@ dependencies = [
  "unsigned-varint 0.8.0",
  "validator",
  "void",
+]
+
+[[package]]
+name = "papyrus_network_types"
+version = "0.0.0"
+dependencies = [
+ "libp2p",
+ "papyrus_test_utils",
+ "rand_chacha 0.3.1",
+ "serde",
 ]
 
 [[package]]
@@ -9797,7 +9810,6 @@ dependencies = [
  "starknet_consensus_manager_types",
  "starknet_mempool_infra",
  "tokio",
- "tracing",
  "validator",
 ]
 
@@ -9871,7 +9883,6 @@ dependencies = [
 name = "starknet_http_server"
 version = "0.0.0"
 dependencies = [
- "async-trait",
  "axum",
  "papyrus_config",
  "serde",
@@ -9931,7 +9942,6 @@ dependencies = [
  "blockifier",
  "cairo-lang-starknet-classes",
  "indexmap 2.2.6",
- "itertools 0.12.1",
  "mempool_test_utils",
  "papyrus_common",
  "papyrus_rpc",
@@ -10003,7 +10013,7 @@ name = "starknet_mempool_p2p_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
- "papyrus_network",
+ "papyrus_network_types",
  "papyrus_proc_macros",
  "serde",
  "starknet_api",
@@ -10017,7 +10027,7 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "mockall",
- "papyrus_network",
+ "papyrus_network_types",
  "papyrus_proc_macros",
  "serde",
  "starknet_api",

@@ -3,11 +3,17 @@ use std::sync::LazyLock;
 use indexmap::IndexMap;
 use starknet_types_core::felt::Felt;
 
-use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, StateDiffCommitment};
+use crate::core::{
+    ascii_as_felt,
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    Nonce,
+    StateDiffCommitment,
+};
 use crate::crypto::utils::HashChain;
 use crate::hash::PoseidonHash;
 use crate::state::{StorageKey, ThinStateDiff};
-use crate::transaction_hash::ascii_as_felt;
 
 #[cfg(test)]
 #[path = "state_diff_hash_test.rs"]

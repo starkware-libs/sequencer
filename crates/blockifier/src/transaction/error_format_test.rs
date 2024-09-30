@@ -17,7 +17,7 @@ fn test_contract_class_version_mismatch() {
 }
 
 #[test]
-fn test_declare_transaction_error_format() {
+fn test_declare_tx_error_format() {
     let error = TransactionExecutionError::DeclareTransactionError {
         class_hash: ClassHash(StarkHash::THREE),
     };

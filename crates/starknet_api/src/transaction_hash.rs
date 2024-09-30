@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use starknet_types_core::felt::Felt;
 
 use crate::block::BlockNumber;
-use crate::core::{calculate_contract_address, ChainId, ContractAddress};
+use crate::core::{ascii_as_felt, calculate_contract_address, ChainId, ContractAddress};
 use crate::crypto::utils::HashChain;
 use crate::data_availability::DataAvailabilityMode;
 use crate::transaction::{
@@ -173,12 +173,6 @@ pub fn validate_transaction_hash(
     )?;
     possible_hashes.push(get_transaction_hash(transaction, chain_id, transaction_options)?);
     Ok(possible_hashes.contains(&expected_hash))
-}
-
-// TODO: should be part of core::Felt
-pub(crate) fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {
-    Felt::from_hex(hex::encode(ascii_str).as_str())
-        .map_err(|_| StarknetApiError::OutOfRange { string: ascii_str.to_string() })
 }
 
 // An implementation of the SNIP: https://github.com/EvyatarO/SNIPs/blob/snip-8/SNIPS/snip-8.md

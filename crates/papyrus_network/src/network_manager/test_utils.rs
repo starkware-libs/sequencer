@@ -5,7 +5,6 @@ use futures::sink::With;
 use futures::stream::Map;
 use futures::{FutureExt, SinkExt, StreamExt};
 use libp2p::gossipsub::SubscriptionError;
-use libp2p::PeerId;
 
 use super::{
     BroadcastedMessageManager,
@@ -72,10 +71,6 @@ where
         report_receiver,
         responses_receiver,
     )
-}
-
-pub fn create_test_broadcasted_message_manager() -> BroadcastedMessageManager {
-    BroadcastedMessageManager { peer_id: PeerId::random() }
 }
 
 const CHANNEL_BUFFER_SIZE: usize = 10000;

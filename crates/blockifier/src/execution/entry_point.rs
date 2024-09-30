@@ -15,12 +15,13 @@ use crate::abi::constants;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::errors::{
     ConstructorEntryPointExecutionError,
     EntryPointExecutionError,
     PreExecutionError,
 };
-use crate::execution::execution_utils::execute_entry_point_call;
+use crate::execution::execution_utils::execute_entry_point_call_wrapper;
 use crate::state::state_api::State;
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfo};
 use crate::transaction::transaction_types::TransactionType;
@@ -102,7 +103,7 @@ impl CallEntryPoint {
         self.class_hash = Some(class_hash);
         let contract_class = state.get_compiled_contract_class(class_hash)?;
 
-        execute_entry_point_call(self, contract_class, state, resources, context)
+        execute_entry_point_call_wrapper(self, contract_class, state, resources, context)
     }
 }
 
@@ -130,6 +131,8 @@ pub struct EntryPointExecutionContext {
 
     // The execution mode affects the behavior of the hint processor.
     pub execution_mode: ExecutionMode,
+    // The call stack of tracked resources from the first entry point to the current.
+    pub tracked_resource_stack: Vec<TrackedResource>,
 }
 
 impl EntryPointExecutionContext {
@@ -146,6 +149,7 @@ impl EntryPointExecutionContext {
             tx_context: tx_context.clone(),
             current_recursion_depth: Default::default(),
             execution_mode: mode,
+            tracked_resource_stack: vec![],
         }
     }
 

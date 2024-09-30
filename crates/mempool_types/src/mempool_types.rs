@@ -6,8 +6,8 @@ use crate::errors::MempoolError;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct AccountState {
-    // TODO(Ayelet): Consider removing this field as it is duplicated in ThinTransaction.
-    pub sender_address: ContractAddress,
+    // TODO(Ayelet): Consider removing this field as it is duplicated in Transaction.
+    pub address: ContractAddress,
     pub nonce: Nonce,
 }
 

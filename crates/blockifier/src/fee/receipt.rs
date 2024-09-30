@@ -8,11 +8,12 @@ use crate::fee::resources::{
     ComputationResources,
     GasVector,
     StarknetResources,
+    StateResources,
     TransactionResources,
 };
 use crate::state::cached_state::StateChanges;
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::objects::{HasRelatedFeeType, TransactionExecutionResult};
+use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::transaction_types::TransactionType;
 
 #[cfg(test)]
@@ -46,9 +47,7 @@ pub struct TransactionReceipt {
 }
 
 impl TransactionReceipt {
-    fn from_params(
-        tx_receipt_params: TransactionReceiptParameters<'_>,
-    ) -> TransactionExecutionResult<Self> {
+    fn from_params(tx_receipt_params: TransactionReceiptParameters<'_>) -> Self {
         let TransactionReceiptParameters {
             tx_context,
             calldata_length,
@@ -67,7 +66,7 @@ impl TransactionReceipt {
             calldata_length,
             signature_length,
             code_size,
-            state_changes.count_for_fee_charge(sender_address, tx_context.fee_token_address()),
+            StateResources::new(state_changes, sender_address, tx_context.fee_token_address()),
             l1_handler_payload_size,
             execution_summary_without_fee_transfer,
         );
@@ -77,7 +76,7 @@ impl TransactionReceipt {
                 tx_type,
                 &starknet_resources,
                 tx_context.block_context.block_info.use_kzg_da,
-            )?)
+            ))
             .filter_unused_builtins();
 
         let tx_resources = TransactionResources {
@@ -92,7 +91,7 @@ impl TransactionReceipt {
             &tx_context.block_context.versioned_constants,
             tx_context.block_context.block_info.use_kzg_da,
             &tx_context.get_gas_vector_computation_mode(),
-        )?;
+        );
 
         // L1 handler transactions are not charged an L2 fee but it is compared to the L1 fee.
         let fee = if tx_context.tx_info.enforce_fee() || tx_type == TransactionType::L1Handler {
@@ -102,19 +101,20 @@ impl TransactionReceipt {
         };
         let da_gas = tx_resources
             .starknet_resources
-            .get_state_changes_cost(tx_context.block_context.block_info.use_kzg_da);
+            .state
+            .to_gas_vector(tx_context.block_context.block_info.use_kzg_da);
 
-        Ok(Self { resources: tx_resources, gas, da_gas, fee })
+        Self { resources: tx_resources, gas, da_gas, fee }
     }
 
-    /// Computes actual cost of an L1 handler transaction.
+    /// Computes the receipt of an L1 handler transaction.
     pub fn from_l1_handler<'a>(
         tx_context: &'a TransactionContext,
         l1_handler_payload_size: usize,
         execution_summary_without_fee_transfer: ExecutionSummary,
         state_changes: &'a StateChanges,
         execution_resources: &'a ExecutionResources,
-    ) -> TransactionExecutionResult<Self> {
+    ) -> Self {
         Self::from_params(TransactionReceiptParameters {
             tx_context,
             calldata_length: l1_handler_payload_size,
@@ -130,7 +130,7 @@ impl TransactionReceipt {
         })
     }
 
-    /// Computes actual cost of an account transaction.
+    /// Computes the receipt of an account transaction.
     pub fn from_account_tx<'a>(
         account_tx: &'a AccountTransaction,
         tx_context: &'a TransactionContext,
@@ -138,7 +138,7 @@ impl TransactionReceipt {
         execution_resources: &'a ExecutionResources,
         execution_summary_without_fee_transfer: ExecutionSummary,
         reverted_steps: usize,
-    ) -> TransactionExecutionResult<Self> {
+    ) -> Self {
         Self::from_params(TransactionReceiptParameters {
             tx_context,
             calldata_length: account_tx.calldata_length(),

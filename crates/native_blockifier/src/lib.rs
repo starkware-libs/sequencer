@@ -20,6 +20,7 @@ pub mod state_readers;
 pub mod storage;
 pub mod test_utils;
 
+use blockifier::versioned_constants::StarknetVersion;
 use errors::{add_py_exceptions, UndeclaredClassHashError};
 use py_block_executor::PyBlockExecutor;
 use py_objects::PyExecutionResources;
@@ -51,6 +52,7 @@ fn native_blockifier(py: Python<'_>, py_module: &PyModule) -> PyResult<()> {
     add_py_exceptions(py, py_module)?;
 
     py_module.add_function(wrap_pyfunction!(blockifier_version, py)?)?;
+    py_module.add_function(wrap_pyfunction!(starknet_version, py)?)?;
 
     // TODO(Dori, 1/4/2023): If and when supported in the Python build environment, gate this code
     //   with #[cfg(test)].
@@ -73,4 +75,10 @@ fn native_blockifier(py: Python<'_>, py_module: &PyModule) -> PyResult<()> {
 #[pyfunction]
 pub fn blockifier_version() -> PyResult<String> {
     Ok(env!("CARGO_PKG_VERSION").to_string())
+}
+
+/// Returns the latest Starknet version for versioned constants.
+#[pyfunction]
+pub fn starknet_version() -> PyResult<String> {
+    Ok(StarknetVersion::latest().into())
 }

@@ -24,8 +24,7 @@ use crate::execution::call_info::ExecutionSummary;
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::SyscallSelector;
-use crate::fee::resources::StarknetResources;
-use crate::state::cached_state::StateChangesCount;
+use crate::fee::resources::{StarknetResources, StateResources};
 use crate::test_utils::contracts::FeatureContract;
 use crate::transaction::transaction_types::TransactionType;
 use crate::utils::{const_max, u128_from_usize};
@@ -217,7 +216,7 @@ macro_rules! check_entry_point_execution_error_for_custom_hint {
 }
 
 #[macro_export]
-macro_rules! check_transaction_execution_error_inner {
+macro_rules! check_tx_execution_error_inner {
     ($error:expr, $expected_hint:expr, $validate_constructor:expr $(,)?) => {
         if $validate_constructor {
             match $error {
@@ -246,9 +245,9 @@ macro_rules! check_transaction_execution_error_inner {
 }
 
 #[macro_export]
-macro_rules! check_transaction_execution_error_for_custom_hint {
+macro_rules! check_tx_execution_error_for_custom_hint {
     ($error:expr, $expected_hint:expr, $validate_constructor:expr $(,)?) => {
-        $crate::check_transaction_execution_error_inner!(
+        $crate::check_tx_execution_error_inner!(
             $error,
             Some($expected_hint),
             $validate_constructor,
@@ -259,11 +258,11 @@ macro_rules! check_transaction_execution_error_for_custom_hint {
 /// Checks that a given error is an assertion error with the expected message.
 /// Formatted for test_validate_accounts_tx.
 #[macro_export]
-macro_rules! check_transaction_execution_error_for_invalid_scenario {
+macro_rules! check_tx_execution_error_for_invalid_scenario {
     ($cairo_version:expr, $error:expr, $validate_constructor:expr $(,)?) => {
         match $cairo_version {
             CairoVersion::Cairo0 => {
-                $crate::check_transaction_execution_error_inner!(
+                $crate::check_tx_execution_error_inner!(
                     $error,
                     None::<&str>,
                     $validate_constructor,
@@ -287,7 +286,7 @@ macro_rules! check_transaction_execution_error_for_invalid_scenario {
 pub fn get_syscall_resources(syscall_selector: SyscallSelector) -> ExecutionResources {
     let versioned_constants = VersionedConstants::create_for_testing();
     let syscall_counter: SyscallCounter = HashMap::from([(syscall_selector, 1)]);
-    versioned_constants.get_additional_os_syscall_resources(&syscall_counter).unwrap()
+    versioned_constants.get_additional_os_syscall_resources(&syscall_counter)
 }
 
 pub fn get_tx_resources(tx_type: TransactionType) -> ExecutionResources {
@@ -296,12 +295,12 @@ pub fn get_tx_resources(tx_type: TransactionType) -> ExecutionResources {
         1,
         0,
         0,
-        StateChangesCount::default(),
+        StateResources::default(),
         None,
         ExecutionSummary::default(),
     );
 
-    versioned_constants.get_additional_os_tx_resources(tx_type, &starknet_resources, false).unwrap()
+    versioned_constants.get_additional_os_tx_resources(tx_type, &starknet_resources, false)
 }
 
 /// Creates the calldata for the Cairo function "test_deploy" in the featured contract TestContract.

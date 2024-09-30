@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
-use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
+use std::{fs, io};
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -18,11 +18,9 @@ use strum_macros::{EnumCount, EnumIter};
 use thiserror::Error;
 
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
-use crate::execution::errors::PostExecutionError;
 use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::resources::{GasVectorComputationMode, StarknetResources};
-use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::transaction_types::TransactionType;
 
 #[cfg(test)]
@@ -31,11 +29,33 @@ pub mod test;
 
 /// Auto-generate getters for listed versioned constants versions.
 macro_rules! define_versioned_constants {
-    ($(($variant:ident, $path_to_json:expr)),* $(,)?) => {
+    ($(($variant:ident, $path_to_json:expr)),*, $latest_variant:ident) => {
         /// Enum of all the Starknet versions supporting versioned constants.
         #[derive(Clone, Debug, EnumCount, EnumIter, Hash, Eq, PartialEq)]
         pub enum StarknetVersion {
             $($variant,)*
+        }
+
+        impl StarknetVersion {
+            pub fn path_to_versioned_constants_json(&self) -> &'static str {
+                match self {
+                    $(StarknetVersion::$variant => $path_to_json,)*
+                }
+            }
+
+            pub fn latest() -> Self {
+                StarknetVersion::$latest_variant
+            }
+        }
+
+        impl From<StarknetVersion> for String {
+            fn from(version: StarknetVersion) -> Self {
+                match version {
+                    $(StarknetVersion::$variant => String::from(
+                        stringify!($variant)
+                    ).to_lowercase().replace("_", "."),)*
+                }
+            }
         }
 
         // Static (lazy) instances of the versioned constants.
@@ -63,16 +83,26 @@ macro_rules! define_versioned_constants {
                 }
             }
         }
+
+        pub static VERSIONED_CONSTANTS_LATEST_JSON: LazyLock<String> = LazyLock::new(|| {
+            let latest_variant = StarknetVersion::$latest_variant;
+            let path_to_json: PathBuf = [
+                env!("CARGO_MANIFEST_DIR"), "src", latest_variant.path_to_versioned_constants_json()
+            ].iter().collect();
+            fs::read_to_string(path_to_json.clone())
+                .expect(&format!("Failed to read file {}.", path_to_json.display()))
+        });
     };
 }
 
 define_versioned_constants! {
-    (V0_13_0, "../resources/versioned_constants_13_0.json"),
-    (V0_13_1, "../resources/versioned_constants_13_1.json"),
-    (V0_13_1_1, "../resources/versioned_constants_13_1_1.json"),
-    (V0_13_2, "../resources/versioned_constants_13_2.json"),
-    (V0_13_2_1, "../resources/versioned_constants_13_2_1.json"),
-    (Latest, "../resources/versioned_constants.json"),
+    (V0_13_0, "../resources/versioned_constants_0_13_0.json"),
+    (V0_13_1, "../resources/versioned_constants_0_13_1.json"),
+    (V0_13_1_1, "../resources/versioned_constants_0_13_1_1.json"),
+    (V0_13_2, "../resources/versioned_constants_0_13_2.json"),
+    (V0_13_2_1, "../resources/versioned_constants_0_13_2_1.json"),
+    (V0_13_3, "../resources/versioned_constants_0_13_3.json"),
+    V0_13_3
 }
 
 pub type ResourceCost = Ratio<u128>;
@@ -145,15 +175,19 @@ pub struct VersionedConstants {
 }
 
 impl VersionedConstants {
-    /// Get the constants for the specified Starknet version.
+    /// Gets the constants that shipped with the current version of the Blockifier.
+    /// To use custom constants, initialize the struct from a file using `from_path`.
+    pub fn latest_constants() -> &'static Self {
+        Self::get(StarknetVersion::latest())
+    }
+
+    /// Gets the constants for the specified Starknet version.
     pub fn get(version: StarknetVersion) -> &'static Self {
         version.into()
     }
 
-    /// Get the constants that shipped with the current version of the Blockifier.
-    /// To use custom constants, initialize the struct from a file using `try_from`.
-    pub fn latest_constants() -> &'static Self {
-        Self::get(StarknetVersion::Latest)
+    pub fn from_path(path: &Path) -> Result<Self, VersionedConstantsError> {
+        Ok(serde_json::from_reader(std::fs::File::open(path)?)?)
     }
 
     /// Converts from L1 gas price to L2 gas price with **upward rounding**.
@@ -205,11 +239,11 @@ impl VersionedConstants {
         tx_type: TransactionType,
         starknet_resources: &StarknetResources,
         use_kzg_da: bool,
-    ) -> Result<ExecutionResources, TransactionExecutionError> {
+    ) -> ExecutionResources {
         self.os_resources.get_additional_os_tx_resources(
             tx_type,
             starknet_resources.archival_data.calldata_length,
-            starknet_resources.get_onchain_data_segment_length(),
+            starknet_resources.state.get_onchain_data_segment_length(),
             use_kzg_da,
         )
     }
@@ -217,7 +251,7 @@ impl VersionedConstants {
     pub fn get_additional_os_syscall_resources(
         &self,
         syscall_counter: &SyscallCounter,
-    ) -> Result<ExecutionResources, PostExecutionError> {
+    ) -> ExecutionResources {
         self.os_resources.get_additional_os_syscall_resources(syscall_counter)
     }
 
@@ -289,10 +323,6 @@ impl VersionedConstants {
             GasVectorComputationMode::All => &self.archival_data_gas_costs,
             GasVectorComputationMode::NoL2Gas => &self.deprecated_l2_resource_gas_costs,
         }
-    }
-
-    pub fn from_path(path: &Path) -> Result<Self, VersionedConstantsError> {
-        Ok(serde_json::from_reader(std::fs::File::open(path)?)?)
     }
 }
 
@@ -406,14 +436,14 @@ impl OsResources {
         calldata_length: usize,
         data_segment_length: usize,
         use_kzg_da: bool,
-    ) -> Result<ExecutionResources, TransactionExecutionError> {
+    ) -> ExecutionResources {
         let mut os_additional_vm_resources = self.resources_for_tx_type(&tx_type, calldata_length);
 
         if use_kzg_da {
             os_additional_vm_resources += &self.os_kzg_da_resources(data_segment_length);
         }
 
-        Ok(os_additional_vm_resources)
+        os_additional_vm_resources
     }
 
     /// Calculates the additional resources needed for the OS to run the given syscalls;
@@ -421,7 +451,7 @@ impl OsResources {
     fn get_additional_os_syscall_resources(
         &self,
         syscall_counter: &SyscallCounter,
-    ) -> Result<ExecutionResources, PostExecutionError> {
+    ) -> ExecutionResources {
         let mut os_additional_resources = ExecutionResources::default();
         for (syscall_selector, count) in syscall_counter {
             let syscall_resources =
@@ -431,7 +461,7 @@ impl OsResources {
             os_additional_resources += &(syscall_resources * *count);
         }
 
-        Ok(os_additional_resources)
+        os_additional_resources
     }
 
     fn resources_params_for_tx_type(&self, tx_type: &TransactionType) -> &ResourcesParams {

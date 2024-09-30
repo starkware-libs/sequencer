@@ -63,7 +63,6 @@ fn test_simple_get_vm_resource_usage() {
             n_reverted_steps,
             &GasVectorComputationMode::NoL2Gas
         )
-        .unwrap()
     );
 
     // Another positive flow, this time the heaviest resource is range_check_builtin.
@@ -80,7 +79,6 @@ fn test_simple_get_vm_resource_usage() {
             n_reverted_steps,
             &GasVectorComputationMode::NoL2Gas
         )
-        .unwrap()
     );
 }
 
@@ -104,7 +102,6 @@ fn test_float_get_vm_resource_usage() {
             n_reverted_steps,
             &GasVectorComputationMode::NoL2Gas
         )
-        .unwrap()
     );
 
     // Another positive flow, this time the heaviest resource is ecdsa_builtin.
@@ -125,7 +122,6 @@ fn test_float_get_vm_resource_usage() {
             n_reverted_steps,
             &GasVectorComputationMode::NoL2Gas
         )
-        .unwrap()
     );
 }
 

@@ -7,7 +7,6 @@ use crate::fee::eth_gas_constants;
 use crate::fee::resources::{GasVector, GasVectorComputationMode};
 use crate::state::cached_state::StateChangesCount;
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::objects::TransactionPreValidationResult;
 use crate::utils::u128_from_usize;
 
 #[cfg(test)]
@@ -141,15 +140,15 @@ fn get_event_emission_cost(n_topics: usize, data_length: usize) -> GasVector {
     ))
 }
 
-/// Return an estimated lower bound for the L1 gas on an account transaction.
+/// Returns an estimated lower bound for the gas required by the given account transaction.
 pub fn estimate_minimal_gas_vector(
     block_context: &BlockContext,
     tx: &AccountTransaction,
     gas_usage_vector_computation_mode: &GasVectorComputationMode,
-) -> TransactionPreValidationResult<GasVector> {
+) -> GasVector {
     // TODO(Dori, 1/8/2023): Give names to the constant VM step estimates and regression-test them.
     let BlockContext { block_info, versioned_constants, .. } = block_context;
-    let state_changes_by_account_transaction = match tx {
+    let state_changes_by_account_tx = match tx {
         // We consider the following state changes: sender balance update (storage update) + nonce
         // increment (contract modification) (we exclude the sequencer balance update and the ERC20
         // contract modification since it occurs for every tx).
@@ -174,18 +173,17 @@ pub fn estimate_minimal_gas_vector(
         },
     };
 
-    let data_segment_length =
-        get_onchain_data_segment_length(&state_changes_by_account_transaction);
+    let data_segment_length = get_onchain_data_segment_length(&state_changes_by_account_tx);
     let os_steps_for_type =
         versioned_constants.os_resources_for_tx_type(&tx.tx_type(), tx.calldata_length()).n_steps
             + versioned_constants.os_kzg_da_resources(data_segment_length).n_steps;
 
     let resources = ExecutionResources { n_steps: os_steps_for_type, ..Default::default() };
-    Ok(get_da_gas_cost(&state_changes_by_account_transaction, block_info.use_kzg_da)
+    get_da_gas_cost(&state_changes_by_account_tx, block_info.use_kzg_da)
         + get_vm_resources_cost(
             versioned_constants,
             &resources,
             0,
             gas_usage_vector_computation_mode,
-        )?)
+        )
 }

@@ -261,7 +261,6 @@ fn test_revert_on_resource_overuse(
             block_context.block_info.use_kzg_da,
             &GasVectorComputationMode::NoL2Gas,
         )
-        .unwrap()
         .l1_gas
         .try_into()
         .expect("Failed to convert u128 to u64.");

@@ -64,7 +64,7 @@ fn tx_executor_test_body<S: StateReader>(
 }
 
 #[rstest]
-#[case::transaction_version_0(
+#[case::tx_version_0(
     TransactionVersion::ZERO,
     CairoVersion::Cairo0,
     BouncerWeights {
@@ -74,7 +74,7 @@ fn tx_executor_test_body<S: StateReader>(
         ..Default::default()
     }
 )]
-#[case::transaction_version_1(
+#[case::tx_version_1(
     TransactionVersion::ONE,
     CairoVersion::Cairo0,
     BouncerWeights {
@@ -84,7 +84,7 @@ fn tx_executor_test_body<S: StateReader>(
         ..Default::default()
     }
 )]
-#[case::transaction_version_2(
+#[case::tx_version_2(
     TransactionVersion::TWO,
     CairoVersion::Cairo1,
     BouncerWeights {
@@ -94,7 +94,7 @@ fn tx_executor_test_body<S: StateReader>(
         ..Default::default()
     }
 )]
-#[case::transaction_version_3(
+#[case::tx_version_3(
     TransactionVersion::THREE,
     CairoVersion::Cairo1,
     BouncerWeights {
@@ -107,7 +107,7 @@ fn tx_executor_test_body<S: StateReader>(
 fn test_declare(
     block_context: BlockContext,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
-    #[case] transaction_version: TransactionVersion,
+    #[case] tx_version: TransactionVersion,
     #[case] cairo_version: CairoVersion,
     #[case] expected_bouncer_weights: BouncerWeights,
 ) {
@@ -120,7 +120,7 @@ fn test_declare(
             sender_address: account_contract.get_instance_address(0),
             class_hash: declared_contract.get_class_hash(),
             compiled_class_hash: declared_contract.get_compiled_class_hash(),
-            version: transaction_version,
+            version: tx_version,
             resource_bounds: l1_resource_bounds(0, DEFAULT_STRK_L1_GAS_PRICE),
         },
         calculate_class_info_for_testing(declared_contract.get_class()),

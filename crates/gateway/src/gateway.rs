@@ -1,17 +1,15 @@
 use std::clone::Clone;
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_mempool_infra::component_runner::ComponentStarter;
-use starknet_mempool_infra::errors::ComponentError;
+use starknet_mempool_infra::starters::DefaultComponentStarter;
 use starknet_mempool_types::communication::{MempoolWrapperInput, SharedMempoolClient};
 use starknet_mempool_types::mempool_types::{AccountState, MempoolInput};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
-use tracing::{error, info, instrument};
+use tracing::{error, instrument};
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{GatewayConfig, RpcStateReaderConfig};
@@ -128,16 +126,16 @@ fn process_tx(
     }
 
     let mut validator = stateful_tx_validator.instantiate_validator(state_reader_factory)?;
-    let sender_address = executable_tx.contract_address();
-    let nonce = validator.get_nonce(sender_address).map_err(|e| {
-        error!("Failed to get nonce for sender address {}: {}", sender_address, e);
+    let address = executable_tx.contract_address();
+    let nonce = validator.get_nonce(address).map_err(|e| {
+        error!("Failed to get nonce for sender address {}: {}", address, e);
         GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
     })?;
 
     stateful_tx_validator.run_validate(&executable_tx, nonce, validator)?;
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
-    Ok(MempoolInput { tx: executable_tx, account_state: AccountState { sender_address, nonce } })
+    Ok(MempoolInput { tx: executable_tx, account_state: AccountState { address, nonce } })
 }
 
 pub fn create_gateway(
@@ -152,10 +150,4 @@ pub fn create_gateway(
     Gateway::new(config, state_reader_factory, gateway_compiler, mempool_client)
 }
 
-#[async_trait]
-impl ComponentStarter for Gateway {
-    async fn start(&mut self) -> Result<(), ComponentError> {
-        info!("Gateway::start()");
-        Ok(())
-    }
-}
+impl DefaultComponentStarter for Gateway {}
