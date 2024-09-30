@@ -11,6 +11,7 @@ use starknet_mempool_infra::trace_util::configure_tracing;
 use starknet_mempool_node::servers::get_server_future;
 use starknet_mempool_node::utils::create_clients_servers_from_config;
 use starknet_task_executor::tokio_executor::TokioExecutor;
+use tempfile::TempDir;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
@@ -21,6 +22,7 @@ use crate::state_reader::spawn_test_rpc_state_reader;
 pub struct IntegrationTestSetup {
     pub task_executor: TokioExecutor,
     pub http_test_client: HttpTestClient,
+    pub storage_file_handle: TempDir,
     pub batcher: MockBatcher,
     pub gateway_handle: JoinHandle<Result<(), ComponentServerError>>,
     pub http_server_handle: JoinHandle<Result<(), ComponentServerError>>,
@@ -39,7 +41,7 @@ impl IntegrationTestSetup {
         let rpc_server_addr = spawn_test_rpc_state_reader(tx_generator.accounts()).await;
 
         // Derive the configuration for the mempool node.
-        let config = create_config(rpc_server_addr).await;
+        let (config, storage_file_handle) = create_config(rpc_server_addr).await;
 
         let (clients, servers) = create_clients_servers_from_config(&config);
 
@@ -72,6 +74,7 @@ impl IntegrationTestSetup {
             gateway_handle,
             http_server_handle,
             mempool_handle,
+            storage_file_handle,
         }
     }
 
