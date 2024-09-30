@@ -34,7 +34,7 @@ pub struct WrapperServers {
 }
 
 /// TODO(Tsabary): make these fields private, currently public to support the outdated e2e test.
-pub struct Servers {
+pub struct SequencerNodeServers {
     pub local_servers: LocalServers,
     pub wrapper_servers: WrapperServers,
 }
@@ -43,7 +43,7 @@ pub fn create_servers(
     config: &MempoolNodeConfig,
     communication: &mut SequencerNodeCommunication,
     components: Components,
-) -> Servers {
+) -> SequencerNodeServers {
     let batcher_server = if config.components.batcher.execute {
         Some(Box::new(create_local_batcher_server(
             components.batcher.expect("Batcher is not initialized."),
@@ -89,12 +89,12 @@ pub fn create_servers(
     let wrapper_servers =
         WrapperServers { consensus_manager: consensus_manager_server, http_server };
 
-    Servers { local_servers, wrapper_servers }
+    SequencerNodeServers { local_servers, wrapper_servers }
 }
 
 pub async fn run_component_servers(
     config: &MempoolNodeConfig,
-    servers: Servers,
+    servers: SequencerNodeServers,
 ) -> anyhow::Result<()> {
     // Batcher server.
     let batcher_future = get_server_future(
