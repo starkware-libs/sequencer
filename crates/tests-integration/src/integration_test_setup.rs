@@ -9,7 +9,7 @@ use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_infra::errors::ComponentServerError;
 use starknet_mempool_infra::trace_util::configure_tracing;
 use starknet_mempool_node::servers::get_server_future;
-use starknet_mempool_node::utils::create_clients_servers_from_config;
+use starknet_mempool_node::utils::create_node_modules;
 use starknet_task_executor::tokio_executor::TokioExecutor;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
@@ -41,7 +41,7 @@ impl IntegrationTestSetup {
         // Derive the configuration for the mempool node.
         let config = create_config(rpc_server_addr).await;
 
-        let (clients, servers) = create_clients_servers_from_config(&config);
+        let (clients, servers) = create_node_modules(&config);
 
         let HttpServerConfig { ip, port } = config.http_server_config;
         let http_test_client = HttpTestClient::new(SocketAddr::from((ip, port)));

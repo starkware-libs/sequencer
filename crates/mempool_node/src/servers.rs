@@ -37,7 +37,7 @@ pub struct SequencerNodeServers {
     pub wrapper_servers: WrapperServers,
 }
 
-pub fn create_servers(
+pub fn create_node_servers(
     config: &SequencerNodeConfig,
     communication: &mut SequencerNodeCommunication,
     components: SequencerNodeComponents,
