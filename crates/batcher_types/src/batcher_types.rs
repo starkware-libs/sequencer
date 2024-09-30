@@ -2,7 +2,6 @@ use blockifier::blockifier::block::BlockNumberHashPair;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
-
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::executable_transaction::Transaction;
 pub use starknet_consensus_manager_types::consensus_manager_types::ProposalId;
