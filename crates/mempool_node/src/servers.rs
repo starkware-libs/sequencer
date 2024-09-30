@@ -15,7 +15,7 @@ use starknet_mempool_infra::errors::ComponentServerError;
 use tracing::error;
 
 use crate::communication::SequencerNodeCommunication;
-use crate::components::Components;
+use crate::components::SequencerNodeComponents;
 use crate::config::MempoolNodeConfig;
 
 // Component servers that can run locally.
@@ -42,7 +42,7 @@ pub struct SequencerNodeServers {
 pub fn create_servers(
     config: &MempoolNodeConfig,
     communication: &mut SequencerNodeCommunication,
-    components: Components,
+    components: SequencerNodeComponents,
 ) -> SequencerNodeServers {
     let batcher_server = if config.components.batcher.execute {
         Some(Box::new(create_local_batcher_server(
