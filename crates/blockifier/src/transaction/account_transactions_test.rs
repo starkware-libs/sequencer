@@ -11,11 +11,13 @@ use starknet_api::state::StorageKey;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
+    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     DeclareTransactionV2,
     Fee,
     Resource,
+    ResourceBounds,
     TransactionHash,
     TransactionVersion,
     ValidResourceBounds,
@@ -180,6 +182,51 @@ fn test_fee_enforcement(
     let enforce_fee = account_tx.create_tx_info().enforce_fee();
     let result = account_tx.execute(state, &block_context, true, true);
     assert_eq!(result.is_err(), enforce_fee);
+}
+
+#[rstest]
+#[case::positive_case_deprecated_tx(true, true)]
+#[case::positive_case_new_tx(true, false)]
+#[should_panic]
+#[case::negative_case_deprecated_tx(false, true)]
+#[should_panic]
+#[case::negative_case_new_tx(false, false)]
+fn test_assert_actual_fee_in_bounds(
+    block_context: BlockContext,
+    #[case] positive_flow: bool,
+    #[case] deprecated_tx: bool,
+) {
+    let actual_fee_offset = if positive_flow { 0 } else { 1 };
+    if deprecated_tx {
+        let tx = account_invoke_tx(invoke_tx_args! {
+            max_fee: Fee(100),
+            version: TransactionVersion::ONE,
+        });
+        let context = Arc::new(block_context.to_tx_context(&tx));
+        AccountTransaction::assert_actual_fee_in_bounds(&context, Fee(100 + actual_fee_offset));
+    } else {
+        for (bounds, actual_fee) in [
+            (
+                ValidResourceBounds::AllResources(AllResourceBounds {
+                    l1_gas: ResourceBounds { max_amount: 2, max_price_per_unit: 3 },
+                    l2_gas: ResourceBounds { max_amount: 4, max_price_per_unit: 5 },
+                    l1_data_gas: ResourceBounds { max_amount: 6, max_price_per_unit: 7 },
+                }),
+                2 * 3 + 4 * 5 + 6 * 7 + actual_fee_offset,
+            ),
+            (
+                ValidResourceBounds::L1Gas(ResourceBounds { max_amount: 2, max_price_per_unit: 3 }),
+                2 * 3 + actual_fee_offset,
+            ),
+        ] {
+            let tx = account_invoke_tx(invoke_tx_args! {
+                resource_bounds: bounds,
+                version: TransactionVersion::THREE,
+            });
+            let context = Arc::new(block_context.to_tx_context(&tx));
+            AccountTransaction::assert_actual_fee_in_bounds(&context, Fee(actual_fee));
+        }
+    }
 }
 
 #[rstest]
