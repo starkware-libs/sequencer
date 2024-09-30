@@ -53,15 +53,7 @@ impl SerializeConfig for ProposalManagerConfig {
 }
 
 #[derive(Debug, Error)]
-pub enum ProposalManagerError {
-    #[error(
-        "Received proposal generation request with id {new_proposal_id} while already generating \
-         proposal with id {current_generating_proposal_id}."
-    )]
-    AlreadyGeneratingProposal {
-        current_generating_proposal_id: ProposalId,
-        new_proposal_id: ProposalId,
-    },
+pub enum StartHeightError {
     #[error("Can't start new height {new_height} while working on height {active_height}.")]
     AlreadyWorkingOnHeight { active_height: BlockNumber, new_height: BlockNumber },
     #[error(
@@ -69,10 +61,6 @@ pub enum ProposalManagerError {
          {storage_height}."
     )]
     HeightAlreadyPassed { storage_height: BlockNumber, requested_height: BlockNumber },
-    #[error(transparent)]
-    MempoolError(#[from] MempoolClientError),
-    #[error("No active height to work on.")]
-    NoActiveHeight,
     #[error(transparent)]
     StorageError(#[from] papyrus_storage::StorageError),
     #[error(
@@ -82,18 +70,32 @@ pub enum ProposalManagerError {
     StorageNotSynced { storage_height: BlockNumber, requested_height: BlockNumber },
 }
 
-pub type ProposalManagerResult<T> = Result<T, ProposalManagerError>;
+#[derive(Debug, Error)]
+pub enum BuildProposalError {
+    #[error(
+        "Received proposal generation request with id {new_proposal_id} while already generating \
+         proposal with id {current_generating_proposal_id}."
+    )]
+    AlreadyGeneratingProposal {
+        current_generating_proposal_id: ProposalId,
+        new_proposal_id: ProposalId,
+    },
+    #[error(transparent)]
+    MempoolError(#[from] MempoolClientError),
+    #[error("No active height to work on.")]
+    NoActiveHeight,
+}
 
 #[async_trait]
 pub trait ProposalManagerTrait: Send + Sync {
-    fn start_height(&mut self, height: BlockNumber) -> ProposalManagerResult<()>;
+    fn start_height(&mut self, height: BlockNumber) -> Result<(), StartHeightError>;
 
     async fn build_block_proposal(
         &mut self,
         proposal_id: ProposalId,
         deadline: tokio::time::Instant,
         tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
-    ) -> ProposalManagerResult<()>;
+    ) -> Result<(), BuildProposalError>;
 }
 
 /// Main struct for handling block proposals.
@@ -117,28 +119,32 @@ pub(crate) struct ProposalManager {
     block_builder_factory: Arc<dyn BlockBuilderFactoryTrait>,
 }
 
-type ActiveTaskHandle = tokio::task::JoinHandle<ProposalManagerResult<()>>;
+type ActiveTaskHandle = tokio::task::JoinHandle<Result<(), BuildProposalError>>;
 
 #[async_trait]
 impl ProposalManagerTrait for ProposalManager {
     /// Starts working on the given height.
     #[instrument(skip(self), err)]
-    fn start_height(&mut self, height: BlockNumber) -> ProposalManagerResult<()> {
+    fn start_height(&mut self, height: BlockNumber) -> Result<(), StartHeightError> {
         if let Some(active_height) = self.active_height {
-            return Err(ProposalManagerError::AlreadyWorkingOnHeight {
+            return Err(StartHeightError::AlreadyWorkingOnHeight {
                 active_height,
                 new_height: height,
             });
         }
         let next_height = self.storage_reader.height()?;
         if next_height < height {
-            return Err(ProposalManagerError::StorageNotSynced {
+            error!(
+                "Storage is not synced. Storage height: {}, requested height: {}.",
+                next_height, height
+            );
+            return Err(StartHeightError::StorageNotSynced {
                 storage_height: next_height,
                 requested_height: height,
             });
         }
         if next_height > height {
-            return Err(ProposalManagerError::HeightAlreadyPassed {
+            return Err(StartHeightError::HeightAlreadyPassed {
                 storage_height: next_height,
                 requested_height: height,
             });
@@ -156,16 +162,13 @@ impl ProposalManagerTrait for ProposalManager {
         proposal_id: ProposalId,
         deadline: tokio::time::Instant,
         tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
-    ) -> ProposalManagerResult<()> {
+    ) -> Result<(), BuildProposalError> {
         if self.active_height.is_none() {
-            return Err(ProposalManagerError::NoActiveHeight);
+            return Err(BuildProposalError::NoActiveHeight);
         }
         info!("Starting generation of a new proposal with id {}.", proposal_id);
-
         self.set_active_proposal(proposal_id).await?;
-
         let block_builder = self.block_builder_factory.create_block_builder();
-
         self.active_proposal_handle = Some(tokio::spawn(
             BuildProposalTask {
                 mempool_client: self.mempool_client.clone(),
@@ -204,11 +207,14 @@ impl ProposalManager {
 
     // Checks if there is already a proposal being generated, and if not, sets the given proposal_id
     // as the one being generated.
-    async fn set_active_proposal(&mut self, proposal_id: ProposalId) -> ProposalManagerResult<()> {
+    async fn set_active_proposal(
+        &mut self,
+        proposal_id: ProposalId,
+    ) -> Result<(), BuildProposalError> {
         let mut lock = self.active_proposal.lock().await;
 
         if let Some(active_proposal) = *lock {
-            return Err(ProposalManagerError::AlreadyGeneratingProposal {
+            return Err(BuildProposalError::AlreadyGeneratingProposal {
                 current_generating_proposal_id: active_proposal,
                 new_proposal_id: proposal_id,
             });
@@ -222,11 +228,11 @@ impl ProposalManager {
     // A helper function for testing purposes (to be able to await the active proposal).
     // TODO: Consider making the tests a nested module to allow them to access private members.
     #[cfg(test)]
-    pub async fn await_active_proposal(&mut self) -> Option<ProposalManagerResult<()>> {
+    pub async fn await_active_proposal(&mut self) {
         match self.active_proposal_handle.take() {
             Some(handle) => Some(handle.await.unwrap()),
             None => None,
-        }
+        };
     }
 }
 
@@ -241,7 +247,7 @@ struct BuildProposalTask {
 }
 
 impl BuildProposalTask {
-    async fn run(mut self) -> ProposalManagerResult<()> {
+    async fn run(mut self) -> Result<(), BuildProposalError> {
         // We convert the receiver to a stream and pass it to the block builder while using the
         // sender to feed the stream.
         let (mempool_tx_sender, mempool_tx_receiver) =
@@ -285,7 +291,7 @@ impl BuildProposalTask {
         mempool_client: &SharedMempoolClient,
         max_txs_per_mempool_request: usize,
         mempool_tx_sender: &tokio::sync::mpsc::Sender<Transaction>,
-    ) -> ProposalManagerError {
+    ) -> BuildProposalError {
         loop {
             // TODO: Get L1 transactions.
             let mempool_txs = match mempool_client.get_txs(max_txs_per_mempool_request).await {
@@ -295,7 +301,10 @@ impl BuildProposalTask {
                     continue;
                 }
                 Ok(txs) => txs,
-                Err(e) => return e.into(),
+                Err(e) => {
+                    error!("MempoolError: {}", e);
+                    return e.into();
+                }
             };
             trace!(
                 "Feeding {} transactions from the mempool to the block builder.",
