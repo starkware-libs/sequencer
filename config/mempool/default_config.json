@@ -59,11 +59,6 @@
     "privacy": "Public",
     "value": 81920
   },
-  "components.batcher.component_type": {
-    "description": "The component type.",
-    "privacy": "Public",
-    "value": "Reactive"
-  },
   "components.batcher.execute": {
     "description": "The component execution flag.",
     "privacy": "Public",
@@ -103,11 +98,6 @@
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
-  },
-  "components.consensus_manager.component_type": {
-    "description": "The component type.",
-    "privacy": "Public",
-    "value": "Reactive"
   },
   "components.consensus_manager.execute": {
     "description": "The component execution flag.",
@@ -149,11 +139,6 @@
     "privacy": "Public",
     "value": 3
   },
-  "components.gateway.component_type": {
-    "description": "The component type.",
-    "privacy": "Public",
-    "value": "Autonomous"
-  },
   "components.gateway.execute": {
     "description": "The component execution flag.",
     "privacy": "Public",
@@ -193,11 +178,6 @@
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
-  },
-  "components.mempool.component_type": {
-    "description": "The component type.",
-    "privacy": "Public",
-    "value": "Reactive"
   },
   "components.mempool.execute": {
     "description": "The component execution flag.",

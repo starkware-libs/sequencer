@@ -53,22 +53,11 @@ pub enum LocationType {
 // TODO(Lev/Tsabary): When papyrus_config will support it, change to include communication config in
 // the enum.
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum ComponentType {
-    // A component that perpetually runs upon start up, and does not receive requests from other
-    // components. Example: an http server that listens to external requests.
-    Autonomous,
-    // A component that runs upon receiving a request from another component. It cannot invoke
-    // itself. Example: a mempool that receives transactions from the gateway.
-    Reactive,
-}
-
 /// The single component configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 #[validate(schema(function = "validate_single_component_config"))]
 pub struct ComponentExecutionConfig {
     pub execute: bool,
-    pub component_type: ComponentType,
     pub location: LocationType,
     pub local_config: Option<LocalComponentCommunicationConfig>,
     pub remote_config: Option<RemoteComponentCommunicationConfig>,
@@ -89,12 +78,6 @@ impl SerializeConfig for ComponentExecutionConfig {
                 "The component location.",
                 ParamPrivacyInput::Public,
             ),
-            ser_param(
-                "component_type",
-                &self.component_type,
-                "The component type.",
-                ParamPrivacyInput::Public,
-            ),
         ]);
         vec![
             config,
@@ -112,7 +95,6 @@ impl Default for ComponentExecutionConfig {
         Self {
             execute: true,
             location: LocationType::Local,
-            component_type: ComponentType::Reactive,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
         }
@@ -125,7 +107,6 @@ impl ComponentExecutionConfig {
         Self {
             execute: true,
             location: LocationType::Local,
-            component_type: ComponentType::Autonomous,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
         }
@@ -138,7 +119,6 @@ impl ComponentExecutionConfig {
         Self {
             execute: true,
             location: LocationType::Local,
-            component_type: ComponentType::Autonomous,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
         }
@@ -148,7 +128,6 @@ impl ComponentExecutionConfig {
         Self {
             execute: true,
             location: LocationType::Local,
-            component_type: ComponentType::Reactive,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
         }
@@ -158,7 +137,6 @@ impl ComponentExecutionConfig {
         Self {
             execute: true,
             location: LocationType::Local,
-            component_type: ComponentType::Reactive,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
         }
@@ -168,7 +146,6 @@ impl ComponentExecutionConfig {
         Self {
             execute: true,
             location: LocationType::Local,
-            component_type: ComponentType::Reactive,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
         }
@@ -323,6 +300,8 @@ impl SequencerNodeConfig {
         Self::load_and_process_config_file(args, Some(config_file_name))
     }
 }
+
+// TODO(Tsabary): Rename the cli function.
 
 /// The command line interface of this node.
 pub fn node_command() -> Command {
