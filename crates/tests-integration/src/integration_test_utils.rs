@@ -16,7 +16,7 @@ use starknet_gateway::config::{
 };
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
-use starknet_mempool_node::config::MempoolNodeConfig;
+use starknet_mempool_node::config::SequencerNodeConfig;
 use tempfile::TempDir;
 use tokio::net::TcpListener;
 
@@ -38,20 +38,20 @@ async fn create_http_server_config() -> HttpServerConfig {
     HttpServerConfig { ip: socket.ip(), port: socket.port() }
 }
 
-pub async fn create_config(rpc_server_addr: SocketAddr) -> (MempoolNodeConfig, TempDir) {
+pub async fn create_config(rpc_server_addr: SocketAddr) -> (SequencerNodeConfig, TempDir) {
     let (batcher_config, storage_file_handle) = create_batcher_config();
     let gateway_config = create_gateway_config().await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
-    let mempool_node_config = MempoolNodeConfig {
+    let sequencer_node_config = SequencerNodeConfig {
         batcher_config,
         gateway_config,
         http_server_config,
         rpc_state_reader_config,
-        ..MempoolNodeConfig::default()
+        ..SequencerNodeConfig::default()
     };
 
-    (mempool_node_config, storage_file_handle)
+    (sequencer_node_config, storage_file_handle)
 }
 
 /// A test utility client for interacting with an http server.

@@ -23,7 +23,7 @@ use starknet_mempool_types::communication::{
 };
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
-use crate::config::MempoolNodeConfig;
+use crate::config::SequencerNodeConfig;
 
 pub struct SequencerNodeCommunication {
     batcher_channel: ComponentCommunication<BatcherRequestAndResponseSender>,
@@ -123,7 +123,7 @@ impl SequencerNodeClients {
 }
 
 pub fn create_node_clients(
-    config: &MempoolNodeConfig,
+    config: &SequencerNodeConfig,
     channels: &mut SequencerNodeCommunication,
 ) -> SequencerNodeClients {
     let batcher_client: Option<SharedBatcherClient> = match config.components.batcher.execute {

@@ -16,7 +16,7 @@ use tracing::error;
 
 use crate::communication::SequencerNodeCommunication;
 use crate::components::SequencerNodeComponents;
-use crate::config::MempoolNodeConfig;
+use crate::config::SequencerNodeConfig;
 
 // Component servers that can run locally.
 pub struct LocalServers {
@@ -40,7 +40,7 @@ pub struct SequencerNodeServers {
 }
 
 pub fn create_servers(
-    config: &MempoolNodeConfig,
+    config: &SequencerNodeConfig,
     communication: &mut SequencerNodeCommunication,
     components: SequencerNodeComponents,
 ) -> SequencerNodeServers {
@@ -93,7 +93,7 @@ pub fn create_servers(
 }
 
 pub async fn run_component_servers(
-    config: &MempoolNodeConfig,
+    config: &SequencerNodeConfig,
     servers: SequencerNodeServers,
 ) -> anyhow::Result<()> {
     // Batcher server.

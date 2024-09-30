@@ -18,7 +18,7 @@ use crate::config::{
     ComponentConfig,
     ComponentExecutionConfig,
     LocationType,
-    MempoolNodeConfig,
+    SequencerNodeConfig,
     CONFIG_POINTERS,
     DEFAULT_CONFIG_PATH,
 };
@@ -186,7 +186,7 @@ fn test_valid_components_config(
     assert_matches!(component_config.validate(), Ok(()));
 }
 
-/// Test the validation of the struct MempoolNodeConfig and that the default config file is up to
+/// Test the validation of the struct SequencerNodeConfig and that the default config file is up to
 /// date. To update the default config file, run:
 /// cargo run --bin mempool_dump_config -q
 #[test]
@@ -195,7 +195,7 @@ fn default_config_file_is_up_to_date() {
     let from_default_config_file: serde_json::Value =
         serde_json::from_reader(File::open(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
 
-    let default_config = MempoolNodeConfig::default();
+    let default_config = SequencerNodeConfig::default();
     assert_matches!(default_config.validate(), Ok(()));
 
     // Create a temporary file and dump the default config to it.
@@ -214,6 +214,8 @@ fn default_config_file_is_up_to_date() {
             .purple()
             .bold()
     );
-    println!("Diffs shown below (default config file <<>> dump of MempoolNodeConfig::default()).");
+    println!(
+        "Diffs shown below (default config file <<>> dump of SequencerNodeConfig::default())."
+    );
     assert_json_eq!(from_default_config_file, from_code)
 }
