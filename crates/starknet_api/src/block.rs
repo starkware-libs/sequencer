@@ -202,6 +202,14 @@ impl BlockNumber {
         }
     }
 
+    /// Returns the previous block number, or None if the previous block number is out of range.
+    pub fn prev_n(&self, n: u64) -> Option<BlockNumber> {
+        if self.0 < n {
+            return None;
+        }
+        Some(BlockNumber(self.0 - n))
+    }
+
     /// Returns an iterator over the block numbers from self to up_to (exclusive).
     pub fn iter_up_to(&self, up_to: Self) -> impl Iterator<Item = BlockNumber> {
         let range = self.0..up_to.0;

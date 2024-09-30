@@ -46,14 +46,14 @@ mock! {
     impl ConsensusContext for TestContext {
         type ProposalChunk = Transaction;
 
-        async fn build_proposal(&mut self, height: BlockNumber) -> (
-            mpsc::Receiver<Transaction>,
-            oneshot::Receiver<ProposalContentId>
+        async fn build_proposal(&mut self, height: BlockNumber, timeout: Duration) -> (
+            mpsc::Receiver<Transaction>, oneshot::Receiver<ProposalContentId>
         );
 
         async fn validate_proposal(
             &mut self,
             height: BlockNumber,
+            timeout: Duration,
             content: mpsc::Receiver<Transaction>
         ) -> oneshot::Receiver<ProposalContentId>;
 
@@ -106,7 +106,7 @@ async fn manager_multiple_heights_unordered() {
     // Run the manager for height 1.
     context
         .expect_validate_proposal()
-        .return_once(move |_, _| {
+        .return_once(move |_, _, _| {
             let (block_sender, block_receiver) = oneshot::channel();
             block_sender.send(BlockHash(Felt::ONE)).unwrap();
             block_receiver
@@ -125,7 +125,7 @@ async fn manager_multiple_heights_unordered() {
     // Run the manager for height 2.
     context
         .expect_validate_proposal()
-        .return_once(move |_, _| {
+        .return_once(move |_, _, _| {
             let (block_sender, block_receiver) = oneshot::channel();
             block_sender.send(BlockHash(Felt::TWO)).unwrap();
             block_receiver
@@ -142,7 +142,7 @@ async fn run_consensus_sync() {
     let mut context = MockTestContext::new();
     let (decision_tx, decision_rx) = oneshot::channel();
 
-    context.expect_validate_proposal().return_once(move |_, _| {
+    context.expect_validate_proposal().return_once(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BlockHash(Felt::TWO)).unwrap();
         block_receiver
@@ -201,7 +201,7 @@ async fn run_consensus_sync_cancellation_safety() {
     let (proposal_handled_tx, proposal_handled_rx) = oneshot::channel();
     let (decision_tx, decision_rx) = oneshot::channel();
 
-    context.expect_validate_proposal().return_once(move |_, _| {
+    context.expect_validate_proposal().return_once(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BlockHash(Felt::ONE)).unwrap();
         block_receiver
@@ -271,7 +271,7 @@ async fn test_timeouts() {
     send(&mut sender, precommit(None, 1, 0, *VALIDATOR_ID_3)).await;
 
     let mut context = MockTestContext::new();
-    context.expect_validate_proposal().returning(move |_, _| {
+    context.expect_validate_proposal().returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BlockHash(Felt::ONE)).unwrap();
         block_receiver
