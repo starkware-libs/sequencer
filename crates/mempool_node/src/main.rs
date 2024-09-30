@@ -6,7 +6,7 @@ use papyrus_config::ConfigError;
 use starknet_mempool_infra::trace_util::configure_tracing;
 use starknet_mempool_node::config::SequencerNodeConfig;
 use starknet_mempool_node::servers::run_component_servers;
-use starknet_mempool_node::utils::create_clients_servers_from_config;
+use starknet_mempool_node::utils::create_node_modules;
 use tracing::{error, info};
 
 #[tokio::main]
@@ -24,7 +24,7 @@ async fn main() -> anyhow::Result<()> {
         exit(1);
     }
 
-    let (_, servers) = create_clients_servers_from_config(&config);
+    let (_, servers) = create_node_modules(&config);
 
     info!("Starting components!");
     run_component_servers(&config, servers).await?;

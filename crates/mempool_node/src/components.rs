@@ -15,7 +15,7 @@ pub struct SequencerNodeComponents {
     pub mempool: Option<Mempool>,
 }
 
-pub fn create_components(
+pub fn create_node_components(
     config: &SequencerNodeConfig,
     clients: &SequencerNodeClients,
 ) -> SequencerNodeComponents {
