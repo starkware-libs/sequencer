@@ -17,7 +17,13 @@ use starknet_mempool_types::communication::SharedMempoolClient;
 use tracing::error;
 
 use crate::config::BatcherConfig;
-use crate::proposal_manager::{BlockBuilderFactory, ProposalManager, ProposalManagerError};
+use crate::proposal_manager::{
+    BlockBuilderFactory,
+    BuildProposalError,
+    GetProposalContentError,
+    ProposalManager,
+    StartHeightError,
+};
 
 pub struct Batcher {
     pub config: BatcherConfig,
@@ -46,31 +52,7 @@ impl Batcher {
     }
 
     pub fn start_height(&mut self, input: StartHeightInput) -> BatcherResult<()> {
-        self.proposal_manager.start_height(input.height).map_err(|err| match err {
-            ProposalManagerError::AlreadyWorkingOnHeight { active_height, new_height } => {
-                BatcherError::AlreadyWorkingOnHeight { active_height, new_height }
-            }
-            ProposalManagerError::HeightAlreadyPassed { storage_height, requested_height } => {
-                BatcherError::HeightAlreadyPassed { storage_height, requested_height }
-            }
-            ProposalManagerError::StorageError(err) => {
-                error!("{}", err);
-                BatcherError::InternalError
-            }
-            ProposalManagerError::StorageNotSynced { storage_height, requested_height } => {
-                error!("{}", err);
-                BatcherError::StorageNotSynced { storage_height, requested_height }
-            }
-            ProposalManagerError::AlreadyGeneratingProposal { .. }
-            | ProposalManagerError::GetContentOnNonBuildProposal { .. }
-            | ProposalManagerError::MempoolError { .. }
-            | ProposalManagerError::NoActiveHeight
-            | ProposalManagerError::ProposalAlreadyExists { .. }
-            | ProposalManagerError::ProposalNotFound { .. }
-            | ProposalManagerError::StreamExhausted => {
-                unreachable!("Shouldn't happen here: {}", err)
-            }
-        })
+        self.proposal_manager.start_height(input.height).map_err(BatcherError::from)
     }
 
     pub async fn build_proposal(
@@ -84,33 +66,7 @@ impl Batcher {
         self.proposal_manager
             .build_block_proposal(build_proposal_input.proposal_id, deadline)
             .await
-            .map_err(|err| match err {
-                ProposalManagerError::AlreadyGeneratingProposal {
-                    current_generating_proposal_id,
-                    new_proposal_id,
-                } => BatcherError::ServerBusy {
-                    active_proposal_id: current_generating_proposal_id,
-                    new_proposal_id,
-                },
-                ProposalManagerError::ProposalAlreadyExists { proposal_id } => {
-                    BatcherError::ProposalAlreadyExists { proposal_id }
-                }
-                ProposalManagerError::MempoolError(..) => {
-                    error!("MempoolError: {}", err);
-                    BatcherError::InternalError
-                }
-                ProposalManagerError::NoActiveHeight => BatcherError::NoActiveHeight,
-                ProposalManagerError::AlreadyWorkingOnHeight { .. }
-                | ProposalManagerError::GetContentOnNonBuildProposal { .. }
-                | ProposalManagerError::HeightAlreadyPassed { .. }
-                | ProposalManagerError::ProposalNotFound { .. }
-                | ProposalManagerError::StorageError(..)
-                | ProposalManagerError::StorageNotSynced { .. }
-                | ProposalManagerError::StreamExhausted => {
-                    unreachable!("Shouldn't happen here: {}", err)
-                }
-            })?;
-        Ok(())
+            .map_err(BatcherError::from)
     }
 
     pub async fn get_proposal_content(
@@ -121,25 +77,7 @@ impl Batcher {
             .proposal_manager
             .get_proposal_content(get_proposal_content_input.proposal_id)
             .await
-            .map_err(|err| match err {
-                ProposalManagerError::StreamExhausted => BatcherError::StreamExhausted,
-                ProposalManagerError::GetContentOnNonBuildProposal { proposal_id } => {
-                    BatcherError::GetContentOnNonBuildProposal { proposal_id }
-                }
-                ProposalManagerError::ProposalNotFound { proposal_id } => {
-                    BatcherError::ProposalNotFound { proposal_id }
-                }
-                ProposalManagerError::AlreadyGeneratingProposal { .. }
-                | ProposalManagerError::AlreadyWorkingOnHeight { .. }
-                | ProposalManagerError::HeightAlreadyPassed { .. }
-                | ProposalManagerError::MempoolError(..)
-                | ProposalManagerError::NoActiveHeight
-                | ProposalManagerError::ProposalAlreadyExists { .. }
-                | ProposalManagerError::StorageError(..)
-                | ProposalManagerError::StorageNotSynced { .. } => {
-                    unreachable!("Shouldn't happen here: {}", err)
-                }
-            })?;
+            .map_err(BatcherError::from)?;
         Ok(GetProposalContentResponse { content })
     }
 }
@@ -158,6 +96,59 @@ pub trait BatcherStorageReaderTrait: Send + Sync {
 impl BatcherStorageReaderTrait for papyrus_storage::StorageReader {
     fn height(&self) -> papyrus_storage::StorageResult<BlockNumber> {
         self.begin_ro_txn()?.get_state_marker()
+    }
+}
+
+impl From<StartHeightError> for BatcherError {
+    fn from(err: StartHeightError) -> Self {
+        match err {
+            StartHeightError::AlreadyWorkingOnHeight { active_height, new_height } => {
+                BatcherError::AlreadyWorkingOnHeight { active_height, new_height }
+            }
+            StartHeightError::HeightAlreadyPassed { storage_height, requested_height } => {
+                BatcherError::HeightAlreadyPassed { storage_height, requested_height }
+            }
+            StartHeightError::StorageError(err) => {
+                error!("{}", err);
+                BatcherError::InternalError
+            }
+            StartHeightError::StorageNotSynced { storage_height, requested_height } => {
+                BatcherError::StorageNotSynced { storage_height, requested_height }
+            }
+        }
+    }
+}
+
+impl From<BuildProposalError> for BatcherError {
+    fn from(err: BuildProposalError) -> Self {
+        match err {
+            BuildProposalError::AlreadyGeneratingProposal {
+                current_generating_proposal_id,
+                new_proposal_id,
+            } => BatcherError::ServerBusy {
+                active_proposal_id: current_generating_proposal_id,
+                new_proposal_id,
+            },
+            BuildProposalError::MempoolError(..) => BatcherError::InternalError,
+            BuildProposalError::NoActiveHeight => BatcherError::NoActiveHeight,
+            BuildProposalError::ProposalAlreadyExists { proposal_id } => {
+                BatcherError::ProposalAlreadyExists { proposal_id }
+            }
+        }
+    }
+}
+
+impl From<GetProposalContentError> for BatcherError {
+    fn from(err: GetProposalContentError) -> Self {
+        match err {
+            GetProposalContentError::GetContentOnNonBuildProposal { proposal_id } => {
+                BatcherError::GetContentOnNonBuildProposal { proposal_id }
+            }
+            GetProposalContentError::ProposalNotFound { proposal_id } => {
+                BatcherError::ProposalNotFound { proposal_id }
+            }
+            GetProposalContentError::StreamExhausted => BatcherError::StreamExhausted,
+        }
     }
 }
 
