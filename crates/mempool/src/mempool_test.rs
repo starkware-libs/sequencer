@@ -860,30 +860,28 @@ fn test_account_nonce_does_not_decrease_in_add_tx() {
 #[rstest]
 fn test_account_nonces_update_in_commit_block() {
     // Setup.
-    let input = add_tx_input!(tx_nonce: 2, account_nonce: 0);
-    let pool_txs = [input.tx];
+    let pool_txs = [tx!(tx_nonce: 2)];
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs)
         .with_account_nonces([("0x0", 0)])
         .build_into_mempool();
-    let committed_nonce = 0;
 
     // Test: update through a commit block.
-    let state_changes = [("0x0", committed_nonce)];
+    let state_changes = [("0x0", 0)];
     commit_block(&mut mempool, state_changes);
 
     // Assert.
+    let expected_account_nonces = [("0x0", 1)]; // Account nonce advanced.
     let expected_mempool_content =
-        MempoolContentBuilder::new().with_account_nonces([("0x0", committed_nonce + 1)]).build();
+        MempoolContentBuilder::new().with_account_nonces(expected_account_nonces).build();
     expected_mempool_content.assert_eq_account_nonces(&mempool);
 }
 
 #[rstest]
 fn test_account_nonce_does_not_decrease_in_commit_block() {
     // Setup.
-    let input_account_nonce_2 = add_tx_input!(tx_nonce: 3, account_nonce: 2);
     let account_nonces = [("0x0", 2)];
-    let pool_txs = [input_account_nonce_2.tx];
+    let pool_txs = [tx!(tx_nonce: 3)];
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs)
         .with_account_nonces(account_nonces)
