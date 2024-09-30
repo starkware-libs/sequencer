@@ -9938,6 +9938,7 @@ dependencies = [
 name = "starknet_mempool_integration_tests"
 version = "0.0.0"
 dependencies = [
+ "assert_matches",
  "axum",
  "blockifier",
  "cairo-lang-starknet-classes",
