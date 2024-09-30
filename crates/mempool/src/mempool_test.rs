@@ -446,9 +446,9 @@ fn test_get_txs_while_increasing_gas_price_threshold() {
 fn test_add_tx(mut mempool: Mempool) {
     // Setup.
     let mut add_tx_inputs = [
-        add_tx_input!(tip: 50, tx_hash: 1, sender_address: "0x0"),
-        add_tx_input!(tip: 100, tx_hash: 2, sender_address: "0x1"),
-        add_tx_input!(tip: 80, tx_hash: 3, sender_address: "0x2"),
+        add_tx_input!(tip: 50, tx_hash: 1, sender_address: "0x0", tx_nonce: 0, account_nonce: 0),
+        add_tx_input!(tip: 100, tx_hash: 2, sender_address: "0x1", tx_nonce: 1, account_nonce: 1),
+        add_tx_input!(tip: 80, tx_hash: 3, sender_address: "0x2", tx_nonce: 2, account_nonce: 2),
     ];
 
     // Test.
@@ -461,14 +461,17 @@ fn test_add_tx(mut mempool: Mempool) {
     add_tx_inputs.sort_by_key(|input| std::cmp::Reverse(input.tx.tip().unwrap()));
 
     // Assert: transactions are ordered by priority.
+    let expected_account_nonces = [("0x0", 0), ("0x1", 1), ("0x2", 2)];
     let expected_queue_txs: Vec<TransactionReference> =
         add_tx_inputs.iter().map(|input| TransactionReference::new(&input.tx)).collect();
     let expected_pool_txs = add_tx_inputs.into_iter().map(|input| input.tx);
     let expected_mempool_content = MempoolContentBuilder::new()
+        .with_account_nonces(expected_account_nonces)
         .with_pool(expected_pool_txs)
         .with_priority_queue(expected_queue_txs)
         .build();
     expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
+    expected_mempool_content.assert_eq_account_nonces(&mempool);
 }
 
 #[rstest]
@@ -825,20 +828,6 @@ fn test_commit_block_from_different_leader() {
 }
 
 // `account_nonces` tests.
-
-#[rstest]
-fn test_account_nonces_update_in_add_tx(mut mempool: Mempool) {
-    // Setup.
-    let input = add_tx_input!(tx_nonce: 1, account_nonce: 1);
-
-    // Test: update through new input.
-    add_tx(&mut mempool, &input);
-
-    // Assert.
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_account_nonces([("0x0", 1)]).build();
-    expected_mempool_content.assert_eq_account_nonces(&mempool);
-}
 
 #[rstest]
 fn test_account_nonce_does_not_decrease_in_add_tx() {
