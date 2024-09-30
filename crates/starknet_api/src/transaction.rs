@@ -304,7 +304,7 @@ impl DeclareTransaction {
     pub fn compiled_class_hash(&self) -> CompiledClassHash {
         match self {
             DeclareTransaction::V0(_) | DeclareTransaction::V1(_) => {
-                panic!("Cairo0 DeclareTransaction (V0, V1) doesn't have compiled_class_hash.")
+                panic!("Cairo0 DeclareTransaction (V0, V1) doesn't have compiled class hash.")
             }
             DeclareTransaction::V2(tx) => tx.compiled_class_hash,
             DeclareTransaction::V3(tx) => tx.compiled_class_hash,

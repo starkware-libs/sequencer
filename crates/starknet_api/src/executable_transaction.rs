@@ -1,14 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::contract_class::ClassInfo;
-use crate::core::{
-    calculate_contract_address,
-    ChainId,
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    Nonce,
-};
+use crate::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::rpc_transaction::{RpcDeployAccountTransaction, RpcInvokeTransaction, RpcTransaction};
 use crate::transaction::{
@@ -170,8 +163,8 @@ impl DeclareTransaction {
             | crate::transaction::DeclareTransaction::V0(_) => return true,
         };
 
-        let casm_contract_class = &self.class_info.casm_contract_class;
-        let compiled_class_hash = CompiledClassHash(casm_contract_class.compiled_class_hash());
+        let contract_class = &self.class_info.contract_class;
+        let compiled_class_hash = contract_class.compiled_class_hash();
 
         compiled_class_hash == supplied_compiled_class_hash
     }
