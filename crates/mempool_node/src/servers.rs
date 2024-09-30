@@ -14,7 +14,7 @@ use starknet_mempool_infra::component_server::ComponentServerStarter;
 use starknet_mempool_infra::errors::ComponentServerError;
 use tracing::error;
 
-use crate::communication::MempoolNodeCommunication;
+use crate::communication::SequencerNodeCommunication;
 use crate::components::Components;
 use crate::config::MempoolNodeConfig;
 
@@ -41,7 +41,7 @@ pub struct Servers {
 
 pub fn create_servers(
     config: &MempoolNodeConfig,
-    communication: &mut MempoolNodeCommunication,
+    communication: &mut SequencerNodeCommunication,
     components: Components,
 ) -> Servers {
     let batcher_server = if config.components.batcher.execute {
