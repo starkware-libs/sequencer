@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
@@ -40,6 +41,7 @@ pub trait ConsensusContext {
     /// Params:
     /// - `height`: The height of the block to be built. Specifically this indicates the initial
     ///   state of the block.
+    /// - `duration`: The maximum time to wait for the block to be built.
     ///
     /// Returns:
     /// - A receiver for the stream of the block's content.
@@ -49,6 +51,7 @@ pub trait ConsensusContext {
     async fn build_proposal(
         &mut self,
         height: BlockNumber,
+        timeout: Duration,
     ) -> (mpsc::Receiver<Self::ProposalChunk>, oneshot::Receiver<ProposalContentId>);
 
     /// This function is called by consensus to validate a block. It expects that this call will
@@ -66,6 +69,7 @@ pub trait ConsensusContext {
     async fn validate_proposal(
         &mut self,
         height: BlockNumber,
+        timeout: Duration,
         content: mpsc::Receiver<Self::ProposalChunk>,
     ) -> oneshot::Receiver<ProposalContentId>;
 

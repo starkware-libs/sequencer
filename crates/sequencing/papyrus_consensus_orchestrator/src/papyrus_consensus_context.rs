@@ -1,3 +1,8 @@
+//! Implementation of the ConsensusContext interface for Papyrus.
+//!
+//! It connects to papyrus storage and runs consensus on actual blocks that already exist on the
+//! network. Useful for testing the consensus algorithm without the need to actually build new
+//! blocks.
 #[cfg(test)]
 #[path = "papyrus_consensus_context_test.rs"]
 mod papyrus_consensus_context_test;
@@ -69,6 +74,7 @@ impl ConsensusContext for PapyrusConsensusContext {
     async fn build_proposal(
         &mut self,
         height: BlockNumber,
+        timeout: Duration,
     ) -> (mpsc::Receiver<Transaction>, oneshot::Receiver<ProposalContentId>) {
         let (mut sender, receiver) = mpsc::channel(CHANNEL_SIZE);
         let (fin_sender, fin_receiver) = oneshot::channel();
@@ -80,7 +86,12 @@ impl ConsensusContext for PapyrusConsensusContext {
                 // TODO(dvir): consider fix this for the case of reverts. If between the check that
                 // the block in storage and to getting the transaction was a revert
                 // this flow will fail.
-                wait_for_block(&storage_reader, height).await.expect("Failed to wait to block");
+                if let Err(e) =
+                    tokio::time::timeout(timeout, wait_for_block(&storage_reader, height)).await
+                {
+                    error!("Failed to wait for block: {e}");
+                    return;
+                }
 
                 let txn = storage_reader.begin_ro_txn().expect("Failed to begin ro txn");
                 let transactions = txn
@@ -121,6 +132,7 @@ impl ConsensusContext for PapyrusConsensusContext {
     async fn validate_proposal(
         &mut self,
         height: BlockNumber,
+        _timeout: Duration,
         mut content: mpsc::Receiver<Transaction>,
     ) -> oneshot::Receiver<ProposalContentId> {
         let (fin_sender, fin_receiver) = oneshot::channel();
