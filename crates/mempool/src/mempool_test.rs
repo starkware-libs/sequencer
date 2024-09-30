@@ -405,10 +405,6 @@ fn test_get_txs_while_decreasing_gas_price_threshold() {
     mempool._update_gas_price_threshold(1000000000000);
     get_txs_and_assert_expected(&mut mempool, 1, &[]);
 
-    // Updating the gas price threshold should happen in a new block creation.
-    let state_changes = [];
-    commit_block(&mut mempool, state_changes);
-
     // Low gas price threshold, the transaction should be returned.
     mempool._update_gas_price_threshold(100);
     get_txs_and_assert_expected(&mut mempool, 1, &[tx]);
@@ -430,10 +426,6 @@ fn test_get_txs_while_increasing_gas_price_threshold() {
     // Low gas price threshold, the transaction should be returned.
     mempool._update_gas_price_threshold(100);
     get_txs_and_assert_expected(&mut mempool, 1, &[tx_nonce_0]);
-
-    // Updating the gas price threshold should happen in a new block creation.
-    let state_changes = [];
-    commit_block(&mut mempool, state_changes);
 
     // High gas price threshold, no transactions should be returned.
     mempool._update_gas_price_threshold(1000000000000);
