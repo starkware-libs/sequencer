@@ -115,7 +115,7 @@ fn test_declare(
     let declared_contract = FeatureContract::Empty(cairo_version);
     let state = test_state(&block_context.chain_info, BALANCE, &[(account_contract, 1)]);
 
-    let tx = Transaction::AccountTransaction(declare_tx(
+    let tx = Transaction::Account(declare_tx(
         declare_tx_args! {
             sender_address: account_contract.get_instance_address(0),
             class_hash: declared_contract.get_class_hash(),
@@ -137,7 +137,7 @@ fn test_deploy_account(
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let state = test_state(&block_context.chain_info, BALANCE, &[(account_contract, 0)]);
 
-    let tx = Transaction::AccountTransaction(AccountTransaction::DeployAccount(deploy_account_tx(
+    let tx = Transaction::Account(AccountTransaction::DeployAccount(deploy_account_tx(
         deploy_account_tx_args! {
             class_hash: account_contract.get_class_hash(),
             resource_bounds: l1_resource_bounds(0, DEFAULT_STRK_L1_GAS_PRICE),
@@ -210,7 +210,7 @@ fn test_invoke(
 
     let calldata =
         create_calldata(test_contract.get_instance_address(0), entry_point_name, &entry_point_args);
-    let tx = Transaction::AccountTransaction(account_invoke_tx(invoke_tx_args! {
+    let tx = Transaction::Account(account_invoke_tx(invoke_tx_args! {
         sender_address: account_contract.get_instance_address(0),
         calldata,
         version,
@@ -223,7 +223,7 @@ fn test_l1_handler(block_context: BlockContext) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
     let state = test_state(&block_context.chain_info, BALANCE, &[(test_contract, 1)]);
 
-    let tx = Transaction::L1HandlerTransaction(L1HandlerTransaction::create_for_testing(
+    let tx = Transaction::L1Handler(L1HandlerTransaction::create_for_testing(
         Fee(1908000000000000),
         test_contract.get_instance_address(0),
     ));
@@ -265,7 +265,7 @@ fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_even
     tx_executor.bouncer.set_accumulated_weights(initial_bouncer_weights);
 
     tx_executor
-        .execute(&Transaction::AccountTransaction(emit_n_events_tx(
+        .execute(&Transaction::Account(emit_n_events_tx(
             n_events,
             account_address,
             contract_address,
@@ -302,7 +302,7 @@ fn test_execute_txs_bouncing() {
         emit_n_events_tx(1, account_address, contract_address, nonce!(3_u32)),
     ]
     .into_iter()
-    .map(Transaction::AccountTransaction)
+    .map(Transaction::Account)
     .collect();
 
     // Run.
