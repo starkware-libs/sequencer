@@ -63,6 +63,7 @@ toml.workspace = true
 assert_matches.workspace = true
 criterion = { workspace = true, features = ["html_reports"] }
 glob.workspace = true
+itertools.workspace = true
 pretty_assertions.workspace = true
 rand.workspace = true
 regex.workspace = true
