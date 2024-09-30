@@ -9942,7 +9942,6 @@ dependencies = [
  "blockifier",
  "cairo-lang-starknet-classes",
  "indexmap 2.2.6",
- "itertools 0.12.1",
  "mempool_test_utils",
  "papyrus_common",
  "papyrus_rpc",

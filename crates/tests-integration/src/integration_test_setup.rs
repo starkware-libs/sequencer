@@ -35,12 +35,8 @@ impl IntegrationTestSetup {
         // Configure and start tracing.
         configure_tracing();
 
-        // FIXME: will be removed in a subsequent commit, which adds support for `FeatureAccount`
-        // to the state reader.
-        let accounts = tx_generator.accounts().into_iter().map(|account| account.account);
-
         // Spawn a papyrus rpc server for a papyrus storage reader.
-        let rpc_server_addr = spawn_test_rpc_state_reader(accounts).await;
+        let rpc_server_addr = spawn_test_rpc_state_reader(tx_generator.accounts()).await;
 
         // Derive the configuration for the mempool node.
         let config = create_config(rpc_server_addr).await;
