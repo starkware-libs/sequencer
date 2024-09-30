@@ -1491,6 +1491,7 @@ version = "0.0.0"
 dependencies = [
  "blockifier",
  "papyrus_execution",
+ "serde_json",
  "starknet-types-core",
  "starknet_api",
  "starknet_gateway",
