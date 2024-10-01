@@ -31,6 +31,8 @@ use crate::serde_utils::BincodeSerdeWrapper;
 /// ```rust
 /// // Example usage of the RemoteComponentClient
 ///
+/// use std::time::Duration;
+///
 /// use serde::{Deserialize, Serialize};
 ///
 /// use crate::starknet_mempool_infra::component_client::RemoteComponentClient;
@@ -54,7 +56,8 @@ use crate::serde_utils::BincodeSerdeWrapper;
 ///     let ip_address = std::net::IpAddr::V6(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
 ///     let port: u16 = 8080;
 ///     let socket = std::net::SocketAddr::new(ip_address, port);
-///     let communication_config = RemoteComponentCommunicationConfig::new(socket, 3);
+///     let communication_config =
+///         RemoteComponentCommunicationConfig::new(socket, 3, usize::MAX, Duration::from_secs(90));
 ///     let client = RemoteComponentClient::<MyRequest, MyResponse>::new(communication_config);
 ///
 ///     // Instantiate a request.

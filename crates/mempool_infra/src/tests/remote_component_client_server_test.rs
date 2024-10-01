@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use hyper::body::to_bytes;
@@ -54,6 +55,8 @@ type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentARespo
 type ComponentBClient = RemoteComponentClient<ComponentBRequest, ComponentBResponse>;
 
 const MAX_RETRIES: usize = 0;
+const MAX_IDLE_CONNECTION: usize = usize::MAX;
+const IDLE_TIMEOUT: Duration = Duration::from_secs(90);
 const MOCK_SERVER_ERROR: &str = "mock server error";
 const ARBITRARY_DATA: &str = "arbitrary data";
 // ServerError::RequestDeserializationFailure error message.
@@ -140,14 +143,29 @@ where
     // Ensure the server starts running.
     task::yield_now().await;
 
-    let communication_config = RemoteComponentCommunicationConfig::new(socket, MAX_RETRIES);
+    let communication_config = RemoteComponentCommunicationConfig::new(
+        socket,
+        MAX_RETRIES,
+        MAX_IDLE_CONNECTION,
+        IDLE_TIMEOUT,
+    );
 
     ComponentAClient::new(communication_config)
 }
 
 async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: SocketAddr) {
-    let a_communication_config = RemoteComponentCommunicationConfig::new(a_socket, MAX_RETRIES);
-    let b_communication_config = RemoteComponentCommunicationConfig::new(b_socket, MAX_RETRIES);
+    let a_communication_config = RemoteComponentCommunicationConfig::new(
+        a_socket,
+        MAX_RETRIES,
+        MAX_IDLE_CONNECTION,
+        IDLE_TIMEOUT,
+    );
+    let b_communication_config = RemoteComponentCommunicationConfig::new(
+        b_socket,
+        MAX_RETRIES,
+        MAX_IDLE_CONNECTION,
+        IDLE_TIMEOUT,
+    );
 
     let a_remote_client = ComponentAClient::new(a_communication_config);
     let b_remote_client = ComponentBClient::new(b_communication_config);
@@ -198,8 +216,18 @@ async fn test_proper_setup() {
 
     setup_for_tests(setup_value, a_socket, b_socket).await;
 
-    let a_communication_config = RemoteComponentCommunicationConfig::new(a_socket, MAX_RETRIES);
-    let b_communication_config = RemoteComponentCommunicationConfig::new(b_socket, MAX_RETRIES);
+    let a_communication_config = RemoteComponentCommunicationConfig::new(
+        a_socket,
+        MAX_RETRIES,
+        MAX_IDLE_CONNECTION,
+        IDLE_TIMEOUT,
+    );
+    let b_communication_config = RemoteComponentCommunicationConfig::new(
+        b_socket,
+        MAX_RETRIES,
+        MAX_IDLE_CONNECTION,
+        IDLE_TIMEOUT,
+    );
 
     let a_remote_client = ComponentAClient::new(a_communication_config);
     let b_remote_client = ComponentBClient::new(b_communication_config);
@@ -244,7 +272,12 @@ async fn test_faulty_client_setup() {
 #[tokio::test]
 async fn test_unconnected_server() {
     let socket = get_available_socket().await;
-    let communication_config = RemoteComponentCommunicationConfig::new(socket, MAX_RETRIES);
+    let communication_config = RemoteComponentCommunicationConfig::new(
+        socket,
+        MAX_RETRIES,
+        MAX_IDLE_CONNECTION,
+        IDLE_TIMEOUT,
+    );
     let client = ComponentAClient::new(communication_config);
 
     let expected_error_contained_keywords = ["Connection refused"];
@@ -314,12 +347,14 @@ async fn test_retry_request() {
     // The initial server state is 'false', hence the first attempt returns an error and
     // sets the server state to 'true'. The second attempt (first retry) therefore returns a
     // 'success', while setting the server state to 'false' yet again.
-    let retry_communication_config = RemoteComponentCommunicationConfig::new(socket, 1);
+    let retry_communication_config =
+        RemoteComponentCommunicationConfig::new(socket, 1, MAX_IDLE_CONNECTION, IDLE_TIMEOUT);
     let a_client_retry = ComponentAClient::new(retry_communication_config);
     assert_eq!(a_client_retry.a_get_value().await.unwrap(), VALID_VALUE_A);
 
     // The current server state is 'false', hence the first and only attempt returns an error.
-    let no_retry_communication_config = RemoteComponentCommunicationConfig::new(socket, 0);
+    let no_retry_communication_config =
+        RemoteComponentCommunicationConfig::new(socket, 0, MAX_IDLE_CONNECTION, IDLE_TIMEOUT);
     let a_client_no_retry = ComponentAClient::new(no_retry_communication_config);
     let expected_error_contained_keywords = [StatusCode::IM_A_TEAPOT.as_str()];
     verify_error(a_client_no_retry.clone(), &expected_error_contained_keywords).await;
