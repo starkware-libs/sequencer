@@ -1,7 +1,7 @@
 use std::any::type_name;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 
 use async_trait::async_trait;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
@@ -124,5 +124,11 @@ impl SerializeConfig for RemoteComponentCommunicationConfig {
 impl Default for RemoteComponentCommunicationConfig {
     fn default() -> Self {
         Self { ip: "0.0.0.0".parse().unwrap(), port: 8080, retries: DEFAULT_RETRIES }
+    }
+}
+
+impl RemoteComponentCommunicationConfig {
+    pub fn new(socket: SocketAddr, retries: usize) -> Self {
+        Self { ip: socket.ip(), port: socket.port(), retries }
     }
 }

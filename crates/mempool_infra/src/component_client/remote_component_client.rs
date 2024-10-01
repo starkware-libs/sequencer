@@ -10,7 +10,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use super::definitions::{ClientError, ClientResult};
-use crate::component_definitions::APPLICATION_OCTET_STREAM;
+use crate::component_definitions::{RemoteComponentCommunicationConfig, APPLICATION_OCTET_STREAM};
 use crate::serde_utils::BincodeSerdeWrapper;
 
 /// The `RemoteComponentClient` struct is a generic client for sending component requests and
@@ -34,6 +34,7 @@ use crate::serde_utils::BincodeSerdeWrapper;
 /// use serde::{Deserialize, Serialize};
 ///
 /// use crate::starknet_mempool_infra::component_client::RemoteComponentClient;
+/// use crate::starknet_mempool_infra::component_definitions::RemoteComponentCommunicationConfig;
 ///
 /// // Define your request and response types
 /// #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -52,7 +53,9 @@ use crate::serde_utils::BincodeSerdeWrapper;
 ///     // Instantiate the client.
 ///     let ip_address = std::net::IpAddr::V6(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
 ///     let port: u16 = 8080;
-///     let client = RemoteComponentClient::<MyRequest, MyResponse>::new(ip_address, port, 2);
+///     let socket = std::net::SocketAddr::new(ip_address, port);
+///     let communication_config = RemoteComponentCommunicationConfig::new(socket, 3);
+///     let client = RemoteComponentClient::<MyRequest, MyResponse>::new(communication_config);
 ///
 ///     // Instantiate a request.
 ///     let request = MyRequest { content: "Hello, world!".to_string() };
@@ -73,7 +76,7 @@ where
 {
     uri: Uri,
     client: Client<hyper::client::HttpConnector>,
-    max_retries: usize,
+    communication_config: RemoteComponentCommunicationConfig,
     _req: PhantomData<Request>,
     _res: PhantomData<Response>,
 }
@@ -83,7 +86,9 @@ where
     Request: Serialize + DeserializeOwned + Debug + Clone,
     Response: Serialize + DeserializeOwned + Debug,
 {
-    pub fn new(ip_address: IpAddr, port: u16, max_retries: usize) -> Self {
+    pub fn new(communication_config: RemoteComponentCommunicationConfig) -> Self {
+        let ip_address = communication_config.ip;
+        let port = communication_config.port;
         let uri = match ip_address {
             IpAddr::V4(ip_address) => format!("http://{}:{}/", ip_address, port).parse().unwrap(),
             IpAddr::V6(ip_address) => format!("http://[{}]:{}/", ip_address, port).parse().unwrap(),
@@ -92,13 +97,13 @@ where
         // TODO(Tsabary): Add a configuration for "keep-alive" time of idle connections.
         let client =
             Client::builder().http2_only(true).pool_max_idle_per_host(usize::MAX).build_http();
-        Self { uri, client, max_retries, _req: PhantomData, _res: PhantomData }
+        Self { uri, client, communication_config, _req: PhantomData, _res: PhantomData }
     }
 
     pub async fn send(&self, component_request: Request) -> ClientResult<Response> {
         // Construct and request, and send it up to 'max_retries' times. Return if received a
         // successful response.
-        for _ in 0..self.max_retries {
+        for _ in 0..self.communication_config.retries {
             let http_request = self.construct_http_request(component_request.clone());
             let res = self.try_send(http_request).await;
             if res.is_ok() {
@@ -162,7 +167,7 @@ where
         Self {
             uri: self.uri.clone(),
             client: self.client.clone(),
-            max_retries: self.max_retries,
+            communication_config: self.communication_config.clone(),
             _req: PhantomData,
             _res: PhantomData,
         }
