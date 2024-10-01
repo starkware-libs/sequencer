@@ -12,7 +12,7 @@ use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
 use starknet_api::{contract_address, felt, invoke_tx_args, nonce, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::AccountState;
+use starknet_mempool_types::mempool_types::{AccountState, CommitBlockArgs};
 
 use crate::mempool::{AccountToNonce, Mempool, MempoolInput, TransactionReference};
 use crate::transaction_pool::TransactionPool;
@@ -173,7 +173,8 @@ fn commit_block(
             .into_iter()
             .map(|(address, nonce)| (contract_address!(address), nonce!(nonce))),
     );
-    assert_eq!(mempool.commit_block(state_changes), Ok(()));
+    let args = CommitBlockArgs { nonces: state_changes };
+    assert_eq!(mempool.commit_block(args), Ok(()));
 }
 
 #[track_caller]
