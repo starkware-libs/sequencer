@@ -42,6 +42,7 @@ const Configuration = {
             'mempool_infra',
             'mempool_node',
             'mempool_test_utils',
+            'mempool_types',
             'monitoring',
             'native_blockifier',
             'network',

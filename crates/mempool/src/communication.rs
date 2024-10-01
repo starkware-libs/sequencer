@@ -8,7 +8,7 @@ use starknet_mempool_types::communication::{
     MempoolResponse,
     MempoolWrapperInput,
 };
-use starknet_mempool_types::mempool_types::MempoolResult;
+use starknet_mempool_types::mempool_types::{CommitBlockArgs, MempoolResult};
 use tokio::sync::mpsc::Receiver;
 
 use crate::mempool::Mempool;
@@ -38,6 +38,10 @@ impl MempoolCommunicationWrapper {
         self.mempool.add_tx(mempool_wrapper_input.mempool_input)
     }
 
+    fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
+        self.mempool.commit_block(args)
+    }
+
     fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<Transaction>> {
         self.mempool.get_txs(n_txs)
     }
@@ -49,6 +53,9 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
         match request {
             MempoolRequest::AddTransaction(mempool_wrapper_input) => {
                 MempoolResponse::AddTransaction(self.add_tx(mempool_wrapper_input))
+            }
+            MempoolRequest::CommitBlock(args) => {
+                MempoolResponse::CommitBlock(self.commit_block(args))
             }
             MempoolRequest::GetTransactions(n_txs) => {
                 MempoolResponse::GetTransactions(self.get_txs(n_txs))
