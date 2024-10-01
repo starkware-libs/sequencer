@@ -16,7 +16,7 @@ use starknet_mempool_infra::component_definitions::ComponentRequestAndResponseSe
 use thiserror::Error;
 
 use crate::errors::MempoolError;
-use crate::mempool_types::{CommitBlockArgs, MempoolInput};
+use crate::mempool_types::{AddTransactionArgs, CommitBlockArgs};
 
 pub type LocalMempoolClientImpl = LocalComponentClient<MempoolRequest, MempoolResponse>;
 pub type RemoteMempoolClientImpl = RemoteComponentClient<MempoolRequest, MempoolResponse>;
@@ -27,9 +27,9 @@ pub type MempoolRequestAndResponseSender =
 pub type SharedMempoolClient = Arc<dyn MempoolClient>;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct MempoolWrapperInput {
-    pub mempool_input: MempoolInput,
-    pub message_metadata: Option<BroadcastedMessageManager>,
+pub struct AddTransactionArgsWrapper {
+    pub args: AddTransactionArgs,
+    pub p2p_message_metadata: Option<BroadcastedMessageManager>,
 }
 
 /// Serves as the mempool's shared interface. Requires `Send + Sync` to allow transferring and
@@ -39,14 +39,14 @@ pub struct MempoolWrapperInput {
 pub trait MempoolClient: Send + Sync {
     // TODO: Add Option<BroadcastedMessageManager> as an argument for add_transaction
     // TODO: Rename tx to transaction
-    async fn add_tx(&self, mempool_input: MempoolWrapperInput) -> MempoolClientResult<()>;
+    async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()>;
     async fn commit_block(&self, args: CommitBlockArgs) -> MempoolClientResult<()>;
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<Transaction>>;
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum MempoolRequest {
-    AddTransaction(MempoolWrapperInput),
+    AddTransaction(AddTransactionArgsWrapper),
     CommitBlock(CommitBlockArgs),
     GetTransactions(usize),
 }
@@ -68,8 +68,8 @@ pub enum MempoolClientError {
 
 #[async_trait]
 impl MempoolClient for LocalMempoolClientImpl {
-    async fn add_tx(&self, mempool_wrapper_input: MempoolWrapperInput) -> MempoolClientResult<()> {
-        let request = MempoolRequest::AddTransaction(mempool_wrapper_input);
+    async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()> {
+        let request = MempoolRequest::AddTransaction(args);
         let response = self.send(request).await;
         handle_response_variants!(MempoolResponse, AddTransaction, MempoolClientError, MempoolError)
     }
@@ -94,8 +94,8 @@ impl MempoolClient for LocalMempoolClientImpl {
 
 #[async_trait]
 impl MempoolClient for RemoteMempoolClientImpl {
-    async fn add_tx(&self, mempool_wrapper_input: MempoolWrapperInput) -> MempoolClientResult<()> {
-        let request = MempoolRequest::AddTransaction(mempool_wrapper_input);
+    async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()> {
+        let request = MempoolRequest::AddTransaction(args);
         let response = self.send(request).await?;
         handle_response_variants!(MempoolResponse, AddTransaction, MempoolClientError, MempoolError)
     }
