@@ -5,7 +5,8 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_bigint::BigUint;
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{Fee, Resource};
+use starknet_api::transaction::ValidResourceBounds::{AllResources, L1Gas};
+use starknet_api::transaction::{AllResourceBounds, Fee, Resource};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::get_fee_token_var_address;
@@ -111,11 +112,24 @@ pub fn verify_can_pay_committed_bounds(
     let tx_info = &tx_context.tx_info;
     let committed_fee = match tx_info {
         TransactionInfo::Current(context) => {
-            let l1_bounds = context.l1_resource_bounds();
-            let max_amount: u128 = l1_bounds.max_amount.into();
-            // Sender will not be charged by `max_price_per_unit`, but this check should not depend
-            // on the current gas price.
-            Fee(max_amount * l1_bounds.max_price_per_unit)
+            match &context.resource_bounds {
+                L1Gas(l1_gas) =>
+                // Sender will not be charged by `max_price_per_unit`, but this check should not
+                // depend on the current gas price.
+                {
+                    Fee(u128::from(l1_gas.max_amount) * l1_gas.max_price_per_unit)
+                }
+                // TODO!(Aner): add tests
+                AllResources(AllResourceBounds { l1_gas, l2_gas, l1_data_gas }) => {
+                    // Committed fee is sum of products (resource_max_amount * resource_max_price)
+                    // of the different resources.
+                    // The Sender will not be charged by`max_price_per_unit`, but this check should
+                    // not depend on the current gas price
+                    Fee(u128::from(l1_gas.max_amount) * l1_gas.max_price_per_unit
+                        + u128::from(l1_data_gas.max_amount) * l1_data_gas.max_price_per_unit
+                        + u128::from(l2_gas.max_amount) * l2_gas.max_price_per_unit)
+                }
+            }
         }
         TransactionInfo::Deprecated(context) => context.max_fee,
     };
@@ -125,15 +139,25 @@ pub fn verify_can_pay_committed_bounds(
         Ok(())
     } else {
         Err(match tx_info {
-            TransactionInfo::Current(context) => {
-                let l1_bounds = context.l1_resource_bounds();
-                TransactionFeeError::GasBoundsExceedBalance {
+            TransactionInfo::Current(context) => match &context.resource_bounds {
+                L1Gas(l1_gas) => TransactionFeeError::GasBoundsExceedBalance {
                     resource: Resource::L1Gas,
-                    max_amount: l1_bounds.max_amount,
-                    max_price: l1_bounds.max_price_per_unit,
+                    max_amount: l1_gas.max_amount,
+                    max_price: l1_gas.max_price_per_unit,
                     balance: balance_to_big_uint(&balance_low, &balance_high),
+                },
+                AllResources(AllResourceBounds { l1_gas, l2_gas, l1_data_gas }) => {
+                    TransactionFeeError::ResourcesBoundsExceedBalance {
+                        balance: balance_to_big_uint(&balance_low, &balance_high),
+                        l1_max_amount: l1_gas.max_amount,
+                        l1_max_price: l1_gas.max_price_per_unit,
+                        l1_data_max_amount: l1_data_gas.max_amount,
+                        l1_data_max_price: l1_data_gas.max_price_per_unit,
+                        l2_max_amount: l2_gas.max_amount,
+                        l2_max_price: l2_gas.max_price_per_unit,
+                    }
                 }
-            }
+            },
             TransactionInfo::Deprecated(context) => TransactionFeeError::MaxFeeExceedsBalance {
                 max_fee: context.max_fee,
                 balance: balance_to_big_uint(&balance_low, &balance_high),

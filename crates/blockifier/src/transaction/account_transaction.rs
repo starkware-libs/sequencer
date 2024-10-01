@@ -334,78 +334,66 @@ impl AccountTransaction {
         match tx_info {
             TransactionInfo::Current(context) => {
                 let resources_amount_tuple = match &context.resource_bounds {
-                    ValidResourceBounds::L1Gas(ResourceBounds {
-                        max_amount: max_l1_gas_amount,
-                        max_price_per_unit: max_l1_gas_price,
-                    }) => vec![(
+                    ValidResourceBounds::L1Gas(l1_gas_resource_bounds) => vec![(
                         L1Gas,
-                        *max_l1_gas_amount,
+                        l1_gas_resource_bounds,
                         minimal_l1_gas_amount,
-                        *max_l1_gas_price,
                         u128::from(block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type)),
                     )],
                     ValidResourceBounds::AllResources(AllResourceBounds {
-                        l1_gas,
-                        l2_gas,
-                        l1_data_gas,
+                        l1_gas: l1_gas_resource_bounds,
+                        l2_gas: l2_gas_resource_bounds,
+                        l1_data_gas: l1_data_gas_resource_bounds,
                     }) => {
                         let GasPricesForFeeType { l1_gas_price, l1_data_gas_price, l2_gas_price } =
                             block_info.gas_prices.get_gas_prices_by_fee_type(fee_type);
                         vec![
                             (
                                 L1Gas,
-                                l1_gas.max_amount,
+                                l1_gas_resource_bounds,
                                 minimal_l1_gas_amount,
-                                l1_gas.max_price_per_unit,
                                 l1_gas_price.into(),
                             ),
                             (
                                 L1DataGas,
-                                l1_data_gas.max_amount,
+                                l1_data_gas_resource_bounds,
                                 minimal_gas_amount_vector
                                     .l1_data_gas
                                     .try_into()
                                     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
                                     .expect("Failed to convert u128 to u64."),
-                                l1_data_gas.max_price_per_unit,
                                 l1_data_gas_price.into(),
                             ),
                             (
                                 L2Gas,
-                                l2_gas.max_amount,
+                                l2_gas_resource_bounds,
                                 minimal_gas_amount_vector
                                     .l2_gas
                                     .try_into()
                                     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
                                     .expect("Failed to convert u128 to u64."),
-                                l2_gas.max_price_per_unit,
                                 l2_gas_price.into(),
                             ),
                         ]
                     }
                 };
-                for (
-                    resource,
-                    max_gas_amount,
-                    minimal_gas_amount,
-                    max_gas_price,
-                    actual_gas_price,
-                ) in resources_amount_tuple
+                for (resource, resource_bounds, minimal_gas_amount, actual_gas_price) in
+                    resources_amount_tuple
                 {
                     // TODO(Aner): refactor to indicate both amount and price are too low.
                     // TODO(Aner): refactor to return all amounts that are too low.
-                    if max_gas_amount < minimal_gas_amount {
+                    if resource_bounds.max_amount < minimal_gas_amount {
                         return Err(TransactionFeeError::MaxGasAmountTooLow {
                             resource,
-                            max_gas_amount,
+                            max_gas_amount: resource_bounds.max_amount,
                             minimal_gas_amount,
                         })?;
                     }
                     // TODO(Aner): refactor to return all prices that are too low.
-                    if max_gas_price < actual_gas_price {
+                    if resource_bounds.max_price_per_unit < actual_gas_price {
                         return Err(TransactionFeeError::MaxGasPriceTooLow {
                             resource,
-                            max_gas_price,
+                            max_gas_price: resource_bounds.max_price_per_unit,
                             actual_gas_price,
                         })?;
                     }
