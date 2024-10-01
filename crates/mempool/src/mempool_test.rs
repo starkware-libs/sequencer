@@ -14,7 +14,7 @@ use starknet_api::{contract_address, felt, invoke_tx_args, nonce, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, CommitBlockArgs};
 
-use crate::mempool::{AccountToNonce, Mempool, MempoolInput, TransactionReference};
+use crate::mempool::{AccountToNonce, AddTransactionArgs, Mempool, TransactionReference};
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::transaction_queue_test_utils::{
     TransactionQueueContent,
@@ -154,12 +154,16 @@ impl FromIterator<TransactionReference> for TransactionQueue {
 }
 
 #[track_caller]
-fn add_tx(mempool: &mut Mempool, input: &MempoolInput) {
+fn add_tx(mempool: &mut Mempool, input: &AddTransactionArgs) {
     assert_eq!(mempool.add_tx(input.clone()), Ok(()));
 }
 
 #[track_caller]
-fn add_tx_expect_error(mempool: &mut Mempool, input: &MempoolInput, expected_error: MempoolError) {
+fn add_tx_expect_error(
+    mempool: &mut Mempool,
+    input: &AddTransactionArgs,
+    expected_error: MempoolError,
+) {
     assert_eq!(mempool.add_tx(input.clone()), Err(expected_error));
 }
 
@@ -223,7 +227,7 @@ macro_rules! add_tx_input {
         let account_nonce = nonce!($account_nonce);
         let account_state = AccountState { address, nonce: account_nonce};
 
-        MempoolInput { tx, account_state }
+        AddTransactionArgs { tx, account_state }
     }};
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
         tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {{
@@ -520,7 +524,7 @@ fn test_add_tx_lower_than_queued_nonce() {
     let lower_nonce_input =
         add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 0, account_nonce: 0);
 
-    let MempoolInput { tx: valid_input_tx, .. } = valid_input;
+    let AddTransactionArgs { tx: valid_input_tx, .. } = valid_input;
     let queue_txs = [TransactionReference::new(&valid_input_tx)];
     let pool_txs = [valid_input_tx];
     let account_nonces = [("0x0", 1)];
