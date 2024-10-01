@@ -8,7 +8,7 @@ members = [
   "crates/batcher_types",
   "crates/blockifier",
   "crates/blockifier_regression_test",
-  "crates/committer",
+  "crates/committer_cli",
   "crates/gateway_types",
   "crates/http_server",
   "crates/l1-provider",
