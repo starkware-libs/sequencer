@@ -15,6 +15,7 @@ on:
       - 'crates/starknet_api/**'
       - 'crates/starknet_committer/**'
       - 'crates/starknet_patricia/**'
+      - 'scripts/dependencies.sh'
 
   pull_request:
     types:
@@ -31,6 +32,7 @@ on:
       - 'crates/starknet_api/**'
       - 'crates/starknet_committer/**'
       - 'crates/starknet_patricia/**'
+      - 'scripts/dependencies.sh'
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:

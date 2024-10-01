@@ -27,11 +27,6 @@ function setup_llvm_deps() {
     Darwin)
         brew update
         brew install llvm@18
-
-        export LIBRARY_PATH=/opt/homebrew/lib
-        export MLIR_SYS_180_PREFIX="$(brew --prefix llvm@18)"
-        export LLVM_SYS_181_PREFIX="$MLIR_SYS_180_PREFIX"
-        export TABLEGEN_180_PREFIX="$MLIR_SYS_180_PREFIX"
         ;;
     Linux)
         $SUDO bash -c 'curl https://apt.llvm.org/llvm.sh -Lo llvm.sh

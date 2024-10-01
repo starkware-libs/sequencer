@@ -29,6 +29,7 @@ on:
       - 'crates/blockifier/**'
       - 'crates/native_blockifier/**'
       - 'scripts/build_native_blockifier.sh'
+      - 'scripts/dependencies.sh'
       - 'scripts/install_build_tools.sh'
       - 'scripts/sequencer-ci.Dockerfile'
 
