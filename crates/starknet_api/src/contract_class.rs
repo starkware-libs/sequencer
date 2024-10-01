@@ -9,3 +9,13 @@ pub struct ClassInfo {
     pub sierra_program_length: usize,
     pub abi_length: usize,
 }
+
+impl ClassInfo {
+    pub fn sierra_program_length(&self) -> usize {
+        self.sierra_program_length
+    }
+
+    pub fn abi_length(&self) -> usize {
+        self.abi_length
+    }
+}
