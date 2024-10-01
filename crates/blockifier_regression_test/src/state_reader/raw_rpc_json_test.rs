@@ -10,13 +10,13 @@ use crate::state_reader::compile::legacy_to_contract_class_v0;
 
 #[fixture]
 fn block_header() -> BlockHeader {
-    serde_json::from_value(read_json_file("json_objects/block_header.json"))
+    serde_json::from_value(read_json_file("raw_rpc_json_objects/block_header.json"))
         .expect("Failed to deserialize block header")
 }
 
 #[fixture]
 fn deprecated_contract_class() -> ContractClass {
-    serde_json::from_value(read_json_file("json_objects/deprecated_contract_class.json"))
+    serde_json::from_value(read_json_file("raw_rpc_json_objects/deprecated_contract_class.json"))
         .expect("Failed to deserialize deprecated contact class")
 }
 
