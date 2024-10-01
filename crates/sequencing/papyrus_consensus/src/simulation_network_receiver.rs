@@ -10,7 +10,7 @@ use std::task::Poll;
 use futures::{Stream, StreamExt};
 use lru::LruCache;
 use papyrus_network::network_manager::GenericReceiver;
-use papyrus_network_types::network_types::BroadcastedMessageManager;
+use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::ConsensusMessage;
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::BlockHash;
@@ -33,7 +33,7 @@ use tracing::{debug, instrument};
 pub struct NetworkReceiver {
     pub broadcasted_messages_receiver: GenericReceiver<(
         Result<ConsensusMessage, ProtobufConversionError>,
-        BroadcastedMessageManager,
+        BroadcastedMessageMetadata,
     )>,
     // Cache is used so that repeat sends of a message can be processed differently. For example,
     // if a message is dropped resending it should result in a new decision.
@@ -49,7 +49,7 @@ impl NetworkReceiver {
     pub fn new(
         broadcasted_messages_receiver: GenericReceiver<(
             Result<ConsensusMessage, ProtobufConversionError>,
-            BroadcastedMessageManager,
+            BroadcastedMessageMetadata,
         )>,
         cache_size: usize,
         seed: u64,
@@ -128,7 +128,7 @@ impl NetworkReceiver {
 }
 
 impl Stream for NetworkReceiver {
-    type Item = (Result<ConsensusMessage, ProtobufConversionError>, BroadcastedMessageManager);
+    type Item = (Result<ConsensusMessage, ProtobufConversionError>, BroadcastedMessageMetadata);
 
     fn poll_next(
         mut self: std::pin::Pin<&mut Self>,
