@@ -1,8 +1,7 @@
 use std::any::Any;
 use std::collections::{HashMap, HashSet};
 
-use cairo_lang_casm::hints::{Hint, StarknetHint};
-use cairo_lang_casm::operand::{BinOpOperand, DerefOrImmediate, Operation, Register, ResOperand};
+use cairo_lang_casm::hints::Hint;
 use cairo_lang_runner::casm_run::execute_core_hint_base;
 use cairo_vm::hint_processor::hint_processor_definition::{HintProcessorLogic, HintReference};
 use cairo_vm::serde::deserialize_program::ApTracking;
@@ -301,19 +300,7 @@ impl<'a> SyscallHintProcessor<'a> {
 
     /// Infers and executes the next syscall.
     /// Must comply with the API of a hint function, as defined by the `HintProcessor`.
-    pub fn execute_next_syscall(
-        &mut self,
-        vm: &mut VirtualMachine,
-        hint: &StarknetHint,
-    ) -> HintExecutionResult {
-        let StarknetHint::SystemCall { system: syscall } = hint else {
-            return Err(HintError::Internal(VirtualMachineError::Other(anyhow::anyhow!(
-                "Test functions are unsupported on starknet."
-            ))));
-        };
-        let initial_syscall_ptr = get_ptr_from_res_operand_unchecked(vm, syscall);
-        self.verify_syscall_ptr(initial_syscall_ptr)?;
-
+    pub fn execute_next_syscall(&mut self, vm: &mut VirtualMachine) -> HintExecutionResult {
         let selector = SyscallSelector::try_from(self.read_next_syscall_selector(vm)?)?;
 
         // Keccak resource usage depends on the input length, so we increment the syscall count
@@ -696,26 +683,6 @@ impl<'a> SyscallHintProcessor<'a> {
     }
 }
 
-/// Retrieves a [Relocatable] from the VM given a [ResOperand].
-/// A [ResOperand] represents a CASM result expression, and is deserialized with the hint.
-fn get_ptr_from_res_operand_unchecked(vm: &mut VirtualMachine, res: &ResOperand) -> Relocatable {
-    let (cell, base_offset) = match res {
-        ResOperand::Deref(cell) => (cell, Felt::from(0)),
-        ResOperand::BinOp(BinOpOperand {
-            op: Operation::Add,
-            a,
-            b: DerefOrImmediate::Immediate(b),
-        }) => (a, Felt::from(b.clone().value)),
-        _ => panic!("Illegal argument for a buffer."),
-    };
-    let base = match cell.register {
-        Register::AP => vm.get_ap(),
-        Register::FP => vm.get_fp(),
-    };
-    let cell_reloc = (base + (i32::from(cell.offset))).unwrap();
-    (vm.get_relocatable(cell_reloc).unwrap() + &base_offset).unwrap()
-}
-
 impl ResourceTracker for SyscallHintProcessor<'_> {
     fn consumed(&self) -> bool {
         self.context.vm_run_resources.consumed()
@@ -745,7 +712,7 @@ impl HintProcessorLogic for SyscallHintProcessor<'_> {
         let hint = hint_data.downcast_ref::<Hint>().ok_or(HintError::WrongHintData)?;
         match hint {
             Hint::Core(hint) => execute_core_hint_base(vm, exec_scopes, hint),
-            Hint::Starknet(hint) => self.execute_next_syscall(vm, hint),
+            Hint::Starknet(_) => self.execute_next_syscall(vm),
         }
     }
 
