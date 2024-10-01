@@ -21,6 +21,10 @@ pub enum BatcherError {
     InternalError,
     #[error("Attempt to start proposal with no active height.")]
     NoActiveHeight,
+    #[error("Proposal with ID {proposal_id} was aborted.")]
+    ProposalAborted { proposal_id: ProposalId },
+    #[error("Proposal with ID {proposal_id} is still being generated.")]
+    ProposalNotDone { proposal_id: ProposalId },
     #[error(
         "There is already an active proposal {}, can't start proposal {}.",
         active_proposal_id,

@@ -4,22 +4,27 @@ use std::vec;
 
 use assert_matches::assert_matches;
 use async_trait::async_trait;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 #[cfg(test)]
 use mockall::automock;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
+use starknet_api::core::ClassHash;
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::felt;
+use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::TransactionHash;
+use starknet_api::{class_hash, felt};
 use starknet_batcher_types::batcher_types::{GetProposalContent, ProposalCommitment, ProposalId};
 use starknet_mempool_types::communication::MockMempoolClient;
+use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 
-use crate::batcher::MockBatcherStorageReaderTrait;
+use crate::batcher::{MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
 use crate::proposal_manager::{
+    BlockBuilderOutput,
     BlockBuilderTrait,
     BuildProposalError,
     GetProposalContentError,
@@ -62,11 +67,16 @@ fn output_streaming() -> (tokio::sync::mpsc::Sender<GetProposalContent>, Proposa
     (output_content_sender, stream)
 }
 
+type CurrentHeight = Arc<Mutex<BlockNumber>>;
+
 #[fixture]
-fn storage_reader() -> MockBatcherStorageReaderTrait {
-    let mut storage = MockBatcherStorageReaderTrait::new();
-    storage.expect_height().returning(|| Ok(INITIAL_HEIGHT));
-    storage
+fn storage() -> (MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait, CurrentHeight) {
+    let current_height = Arc::new(Mutex::new(INITIAL_HEIGHT));
+    let cloned = current_height.clone();
+    let mut storage_reader = MockBatcherStorageReaderTrait::new();
+    storage_reader.expect_height().returning(move || Ok(*cloned.try_lock().unwrap()));
+    let storage_writer = MockBatcherStorageWriterTrait::new();
+    (storage_reader, storage_writer, current_height)
 }
 
 #[fixture]
@@ -74,13 +84,14 @@ fn proposal_manager(
     proposal_manager_config: ProposalManagerConfig,
     mempool_client: MockMempoolClient,
     block_builder_factory: MockBlockBuilderFactoryTrait,
-    storage_reader: MockBatcherStorageReaderTrait,
+    storage: (MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait, CurrentHeight),
 ) -> ProposalManager {
     ProposalManager::new(
         proposal_manager_config,
         Arc::new(mempool_client),
         Arc::new(block_builder_factory),
-        Arc::new(storage_reader),
+        Arc::new(storage.0),
+        Box::new(storage.1),
     )
 }
 
@@ -126,13 +137,13 @@ async fn proposal_generation_success(
     proposal_manager_config: ProposalManagerConfig,
     mut block_builder_factory: MockBlockBuilderFactoryTrait,
     mut mempool_client: MockMempoolClient,
-    storage_reader: MockBatcherStorageReaderTrait,
+    storage: (MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait, CurrentHeight),
 ) {
     let n_txs = 2 * proposal_manager_config.max_txs_per_mempool_request;
     block_builder_factory
         .expect_create_block_builder()
         .once()
-        .returning(move || simulate_build_block(Some(n_txs)));
+        .returning(move || simulate_build_block(Some(n_txs), BlockBuilderOutput::default()));
 
     mempool_client.expect_get_txs().once().returning(|max_n_txs| Ok(test_txs(0..max_n_txs)));
 
@@ -147,14 +158,16 @@ async fn proposal_generation_success(
         proposal_manager_config.clone(),
         Arc::new(mempool_client),
         Arc::new(block_builder_factory),
-        Arc::new(storage_reader),
+        Arc::new(storage.0),
+        Box::new(storage.1),
     );
 
     proposal_manager.start_height(INITIAL_HEIGHT).unwrap();
 
-    proposal_manager.build_block_proposal(ProposalId(0), arbitrary_deadline()).await.unwrap();
+    let proposal_id = ProposalId(0);
+    proposal_manager.build_block_proposal(proposal_id, arbitrary_deadline()).await.unwrap();
 
-    proposal_manager.await_active_proposal().await;
+    await_proposal(proposal_id, &mut proposal_manager).await;
 }
 
 #[rstest]
@@ -163,13 +176,13 @@ async fn consecutive_proposal_generations_success(
     proposal_manager_config: ProposalManagerConfig,
     mut block_builder_factory: MockBlockBuilderFactoryTrait,
     mut mempool_client: MockMempoolClient,
-    storage_reader: MockBatcherStorageReaderTrait,
+    storage: (MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait, CurrentHeight),
 ) {
     let n_txs = proposal_manager_config.max_txs_per_mempool_request;
     block_builder_factory
         .expect_create_block_builder()
         .times(2)
-        .returning(move || simulate_build_block(Some(n_txs)));
+        .returning(move || simulate_build_block(Some(n_txs), BlockBuilderOutput::default()));
 
     let expected_txs = test_txs(0..proposal_manager_config.max_txs_per_mempool_request);
     let mempool_txs = expected_txs.clone();
@@ -179,7 +192,8 @@ async fn consecutive_proposal_generations_success(
         proposal_manager_config.clone(),
         Arc::new(mempool_client),
         Arc::new(block_builder_factory),
-        Arc::new(storage_reader),
+        Arc::new(storage.0),
+        Box::new(storage.1),
     );
 
     proposal_manager.start_height(INITIAL_HEIGHT).unwrap();
@@ -187,12 +201,12 @@ async fn consecutive_proposal_generations_success(
     proposal_manager.build_block_proposal(ProposalId(0), arbitrary_deadline()).await.unwrap();
 
     // Make sure the first proposal generated successfully.
-    proposal_manager.await_active_proposal().await;
+    await_proposal(ProposalId(0), &mut proposal_manager).await;
 
     proposal_manager.build_block_proposal(ProposalId(1), arbitrary_deadline()).await.unwrap();
 
     // Make sure the proposal generated successfully.
-    proposal_manager.await_active_proposal().await;
+    await_proposal(ProposalId(1), &mut proposal_manager).await;
 }
 
 #[rstest]
@@ -201,13 +215,13 @@ async fn multiple_proposals_generation_fail(
     proposal_manager_config: ProposalManagerConfig,
     mut block_builder_factory: MockBlockBuilderFactoryTrait,
     mut mempool_client: MockMempoolClient,
-    storage_reader: MockBatcherStorageReaderTrait,
+    storage: (MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait, CurrentHeight),
 ) {
     // The block builder will never stop.
     block_builder_factory
         .expect_create_block_builder()
         .once()
-        .returning(|| simulate_build_block(None));
+        .returning(|| simulate_build_block(None, BlockBuilderOutput::default()));
 
     mempool_client.expect_get_txs().returning(|_| Ok(vec![]));
 
@@ -215,7 +229,8 @@ async fn multiple_proposals_generation_fail(
         proposal_manager_config.clone(),
         Arc::new(mempool_client),
         Arc::new(block_builder_factory),
-        Arc::new(storage_reader),
+        Arc::new(storage.0),
+        Box::new(storage.1),
     );
 
     proposal_manager.start_height(INITIAL_HEIGHT).unwrap();
@@ -241,14 +256,14 @@ async fn get_stream_content(
     proposal_manager_config: ProposalManagerConfig,
     mut block_builder_factory: MockBlockBuilderFactoryTrait,
     mut mempool_client: MockMempoolClient,
-    storage_reader: MockBatcherStorageReaderTrait,
+    storage: (MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait, CurrentHeight),
 ) {
     const PROPOSAL_ID: ProposalId = ProposalId(0);
     let n_txs = 2 * proposal_manager_config.max_txs_per_mempool_request;
     block_builder_factory
         .expect_create_block_builder()
         .once()
-        .returning(move || simulate_build_block(Some(n_txs)));
+        .returning(move || simulate_build_block(Some(n_txs), BlockBuilderOutput::default()));
 
     mempool_client.expect_get_txs().once().returning(|max_n_txs| Ok(test_txs(0..max_n_txs)));
 
@@ -263,7 +278,8 @@ async fn get_stream_content(
         proposal_manager_config.clone(),
         Arc::new(mempool_client),
         Arc::new(block_builder_factory),
-        Arc::new(storage_reader),
+        Arc::new(storage.0),
+        Box::new(storage.1),
     );
 
     proposal_manager.start_height(INITIAL_HEIGHT).unwrap();
@@ -279,6 +295,141 @@ async fn get_stream_content(
     assert_matches!(finished, Ok(GetProposalContent::Finished(_)));
     let exhausted = proposal_manager.get_proposal_content(PROPOSAL_ID).await;
     assert_matches!(exhausted, Err(GetProposalContentError::StreamExhausted));
+}
+
+#[rstest]
+#[tokio::test]
+async fn decision_reached_no_active_proposal(
+    proposal_manager_config: ProposalManagerConfig,
+    mut block_builder_factory: MockBlockBuilderFactoryTrait,
+    mut mempool_client: MockMempoolClient,
+    storage: (MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait, CurrentHeight),
+) {
+    let n_txs = proposal_manager_config.max_txs_per_mempool_request;
+    let proposal_0_output = BlockBuilderOutput::Done {
+        state_diff: ThinStateDiff::default(),
+        casms: vec![(class_hash!("0x0"), CasmContractClass::default())],
+    };
+    let proposal_1_output = BlockBuilderOutput::Done {
+        state_diff: ThinStateDiff::default(),
+        casms: vec![(class_hash!("0x1"), CasmContractClass::default())],
+    };
+    block_builder_factory
+        .expect_create_block_builder()
+        .once()
+        .returning(move || simulate_build_block(Some(n_txs), proposal_0_output.clone()));
+
+    block_builder_factory
+        .expect_create_block_builder()
+        .once()
+        .returning(move || simulate_build_block(Some(n_txs), proposal_1_output.clone()));
+
+    let expected_txs = test_txs(0..proposal_manager_config.max_txs_per_mempool_request);
+    let mempool_txs = expected_txs.clone();
+    mempool_client.expect_get_txs().returning(move |_max_n_txs| Ok(mempool_txs.clone()));
+
+    let (storage_reader, mut storage_writer, current_height) = storage;
+
+    storage_writer
+        .expect_commit_proposal()
+        .once()
+        .withf(|height, _state_diff, casms| {
+            *height == INITIAL_HEIGHT && casms.first().unwrap().0 == class_hash!("0x0")
+        })
+        .returning(move |_, _, _| {
+            advance_current_height(&current_height);
+            Ok(())
+        });
+
+    let mut proposal_manager = ProposalManager::new(
+        proposal_manager_config.clone(),
+        Arc::new(mempool_client),
+        Arc::new(block_builder_factory),
+        Arc::new(storage_reader),
+        Box::new(storage_writer),
+    );
+
+    proposal_manager.start_height(INITIAL_HEIGHT).unwrap();
+
+    proposal_manager.build_block_proposal(ProposalId(0), arbitrary_deadline()).await.unwrap();
+
+    // Make sure the first proposal generated successfully.
+    await_proposal(ProposalId(0), &mut proposal_manager).await;
+
+    proposal_manager.build_block_proposal(ProposalId(1), arbitrary_deadline()).await.unwrap();
+
+    // Make sure the proposal generated successfully.
+    await_proposal(ProposalId(1), &mut proposal_manager).await;
+
+    proposal_manager.decision_reached(ProposalId(0)).await.unwrap();
+
+    // Now start height should pass.
+    proposal_manager.start_height(INITIAL_HEIGHT.unchecked_next()).unwrap();
+}
+
+#[rstest]
+#[tokio::test]
+async fn decision_reached_aborting_active_proposal(
+    proposal_manager_config: ProposalManagerConfig,
+    mut block_builder_factory: MockBlockBuilderFactoryTrait,
+    mut mempool_client: MockMempoolClient,
+    storage: (MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait, CurrentHeight),
+) {
+    let n_txs = proposal_manager_config.max_txs_per_mempool_request;
+    let proposal_0_output = BlockBuilderOutput::Done {
+        state_diff: ThinStateDiff::default(),
+        casms: vec![(class_hash!("0x0"), CasmContractClass::default())],
+    };
+
+    block_builder_factory
+        .expect_create_block_builder()
+        .once()
+        .returning(move || simulate_build_block(Some(n_txs), proposal_0_output.clone()));
+
+    block_builder_factory
+        .expect_create_block_builder()
+        .once()
+        .returning(move || simulate_aborted_build_block(ProposalId(1)));
+
+    let expected_txs = test_txs(0..proposal_manager_config.max_txs_per_mempool_request);
+    let mempool_txs = expected_txs.clone();
+    mempool_client.expect_get_txs().returning(move |_max_n_txs| Ok(mempool_txs.clone()));
+
+    let (storage_reader, mut storage_writer, current_height) = storage;
+
+    storage_writer
+        .expect_commit_proposal()
+        .once()
+        .withf(|height, _state_diff, casms| {
+            *height == INITIAL_HEIGHT && casms.first().unwrap().0 == class_hash!("0x0")
+        })
+        .returning(move |_, _, _| {
+            advance_current_height(&current_height);
+            Ok(())
+        });
+
+    let mut proposal_manager = ProposalManager::new(
+        proposal_manager_config.clone(),
+        Arc::new(mempool_client),
+        Arc::new(block_builder_factory),
+        Arc::new(storage_reader),
+        Box::new(storage_writer),
+    );
+
+    proposal_manager.start_height(INITIAL_HEIGHT).unwrap();
+
+    proposal_manager.build_block_proposal(ProposalId(0), arbitrary_deadline()).await.unwrap();
+
+    // Make sure the first proposal generated successfully.
+    await_proposal(ProposalId(0), &mut proposal_manager).await;
+
+    // This proposal should be aborted.
+    proposal_manager.build_block_proposal(ProposalId(1), arbitrary_deadline()).await.unwrap();
+
+    proposal_manager.decision_reached(ProposalId(0)).await.unwrap();
+
+    // Now start height should pass.
+    proposal_manager.start_height(INITIAL_HEIGHT.unchecked_next()).unwrap();
 }
 
 fn arbitrary_deadline() -> tokio::time::Instant {
@@ -297,14 +448,47 @@ fn test_txs(tx_hash_range: Range<usize>) -> Vec<Transaction> {
         .collect()
 }
 
-fn simulate_build_block(n_txs: Option<usize>) -> Arc<dyn BlockBuilderTrait> {
+fn simulate_build_block(
+    n_txs: Option<usize>,
+    returning: BlockBuilderOutput,
+) -> Arc<dyn BlockBuilderTrait> {
     let mut mock_block_builder = MockBlockBuilderTraitWrapper::new();
     mock_block_builder.expect_build_block().return_once(
         move |deadline, mempool_tx_stream, output_content_sender| {
-            simulate_block_builder(deadline, mempool_tx_stream, output_content_sender, n_txs)
-                .boxed()
+            simulate_block_builder(
+                deadline,
+                mempool_tx_stream,
+                output_content_sender,
+                n_txs,
+                returning,
+            )
+            .boxed()
         },
     );
+    Arc::new(mock_block_builder)
+}
+
+fn simulate_aborted_build_block(proposal_id: ProposalId) -> Arc<dyn BlockBuilderTrait> {
+    let mut mock_block_builder = MockBlockBuilderTraitWrapper::new();
+    mock_block_builder.expect_build_block().return_once(
+        move |deadline, mempool_tx_stream, output_content_sender| {
+            simulate_block_builder(
+                deadline,
+                mempool_tx_stream,
+                output_content_sender,
+                None,
+                BlockBuilderOutput::default(),
+            )
+            .boxed()
+        },
+    );
+    mock_block_builder.expect_abort_build().return_once(move || {
+        println!(
+            "<<TEST LOG:`block_builder.abort_build()` has been called for proposal {}.",
+            proposal_id
+        );
+        BlockBuilderOutput::Aborted
+    });
     Arc::new(mock_block_builder)
 }
 
@@ -313,7 +497,8 @@ async fn simulate_block_builder(
     mempool_tx_stream: InputTxStream,
     output_sender: tokio::sync::mpsc::Sender<GetProposalContent>,
     n_txs_to_take: Option<usize>,
-) {
+    returning: BlockBuilderOutput,
+) -> BlockBuilderOutput {
     let mut mempool_tx_stream = mempool_tx_stream.take(n_txs_to_take.unwrap_or(usize::MAX));
     let mut to_stream = vec![];
     while let Some(tx) = mempool_tx_stream.next().await {
@@ -325,6 +510,7 @@ async fn simulate_block_builder(
         output_sender.send(content).await.unwrap();
     }
     output_sender.send(GetProposalContent::Finished(ProposalCommitment::default())).await.unwrap();
+    returning
 }
 
 // A wrapper trait to allow mocking the BlockBuilderTrait in tests.
@@ -336,7 +522,9 @@ trait BlockBuilderTraitWrapper: Send + Sync {
         deadline: tokio::time::Instant,
         tx_stream: InputTxStream,
         output_content_sender: tokio::sync::mpsc::Sender<GetProposalContent>,
-    ) -> BoxFuture<'_, ()>;
+    ) -> BoxFuture<'_, BlockBuilderOutput>;
+
+    fn abort_build(&self) -> BlockBuilderOutput;
 }
 
 #[async_trait]
@@ -346,7 +534,28 @@ impl<T: BlockBuilderTraitWrapper> BlockBuilderTrait for T {
         deadline: tokio::time::Instant,
         tx_stream: InputTxStream,
         output_content_sender: tokio::sync::mpsc::Sender<GetProposalContent>,
-    ) {
+    ) -> BlockBuilderOutput {
         self.build_block(deadline, tx_stream, output_content_sender).await
+    }
+
+    fn abort_build(&self) -> BlockBuilderOutput {
+        self.abort_build()
+    }
+}
+
+fn advance_current_height(current_height: &Arc<Mutex<BlockNumber>>) {
+    println!("<<TEST LOG>>: Advancing current height.");
+    let mut current_height =
+        current_height.try_lock().expect("Current height mutex is already locked.");
+    *current_height = current_height.unchecked_next();
+}
+
+async fn await_proposal(proposal_id: ProposalId, proposal_manager: &mut ProposalManager) {
+    loop {
+        if let GetProposalContent::Finished(_) =
+            proposal_manager.get_proposal_content(proposal_id).await.unwrap()
+        {
+            break;
+        }
     }
 }
