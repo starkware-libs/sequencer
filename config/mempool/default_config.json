@@ -84,6 +84,19 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "components.batcher.remote_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "components.batcher.remote_config.idle_timeout": {
+    "description": "The duration to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": {
+      "nanos": 0,
+      "secs": 90
+    }
+  },
   "components.batcher.remote_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -118,6 +131,19 @@
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
+  },
+  "components.consensus_manager.remote_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "components.consensus_manager.remote_config.idle_timeout": {
+    "description": "The duration to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": {
+      "nanos": 0,
+      "secs": 90
+    }
   },
   "components.consensus_manager.remote_config.retries": {
     "description": "The max number of retries for sending a message.",
@@ -154,6 +180,19 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "components.gateway.remote_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "components.gateway.remote_config.idle_timeout": {
+    "description": "The duration to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": {
+      "nanos": 0,
+      "secs": 90
+    }
+  },
   "components.gateway.remote_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -189,6 +228,19 @@
     "privacy": "TemporaryValue",
     "value": false
   },
+  "components.http_server.remote_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "components.http_server.remote_config.idle_timeout": {
+    "description": "The duration to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": {
+      "nanos": 0,
+      "secs": 90
+    }
+  },
   "components.http_server.remote_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -223,6 +275,19 @@
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
+  },
+  "components.mempool.remote_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "components.mempool.remote_config.idle_timeout": {
+    "description": "The duration to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": {
+      "nanos": 0,
+      "secs": 90
+    }
   },
   "components.mempool.remote_config.retries": {
     "description": "The max number of retries for sending a message.",
