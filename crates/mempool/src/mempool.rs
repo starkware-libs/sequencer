@@ -4,7 +4,12 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::{AccountState, MempoolInput, MempoolResult};
+use starknet_mempool_types::mempool_types::{
+    AccountState,
+    CommitBlockArgs,
+    MempoolInput,
+    MempoolResult,
+};
 
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -88,13 +93,8 @@ impl Mempool {
     /// updates account balances).
     // TODO: the part about resolving nonce gaps is incorrect if we delete txs in get_txs and then
     // push back.
-    // state_changes: a map that associates each account address with the state of the committed
-    // block.
-    pub fn commit_block(
-        &mut self,
-        state_changes: HashMap<ContractAddress, Nonce>,
-    ) -> MempoolResult<()> {
-        for (&address, &nonce) in &state_changes {
+    pub fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
+        for (&address, &nonce) in &args.nonces {
             let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
             let account_state = AccountState { address, nonce: next_nonce };
             self.align_to_account_state(account_state);
@@ -102,7 +102,7 @@ impl Mempool {
 
         // Rewind nonces of addresses that were not included in block.
         let addresses_not_included_in_block =
-            self.mempool_state.keys().filter(|&key| !state_changes.contains_key(key));
+            self.mempool_state.keys().filter(|&key| !args.nonces.contains_key(key));
         for address in addresses_not_included_in_block {
             self.tx_queue.remove(*address);
         }
