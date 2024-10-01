@@ -2,13 +2,19 @@ use assert_matches::assert_matches;
 use rstest::rstest;
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{Calldata, Fee, Resource, TransactionVersion, ValidResourceBounds};
+use starknet_api::transaction::{
+    Calldata,
+    Fee,
+    GasVectorComputationMode,
+    Resource,
+    TransactionVersion,
+    ValidResourceBounds,
+};
 use starknet_api::{felt, invoke_tx_args, patricia_key};
 use starknet_types_core::felt::Felt;
 
 use crate::context::{BlockContext, ChainInfo};
 use crate::fee::fee_checks::FeeCheckError;
-use crate::fee::resources::GasVectorComputationMode;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;

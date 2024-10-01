@@ -13,6 +13,7 @@ use semver::Version;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer};
 use serde_json::{Map, Number, Value};
+use starknet_api::transaction::GasVectorComputationMode;
 use strum::IntoEnumIterator;
 use strum_macros::{EnumCount, EnumIter};
 use thiserror::Error;
@@ -20,7 +21,7 @@ use thiserror::Error;
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::execution::syscalls::SyscallSelector;
-use crate::fee::resources::{GasVectorComputationMode, StarknetResources};
+use crate::fee::resources::StarknetResources;
 use crate::transaction::transaction_types::TransactionType;
 
 #[cfg(test)]

@@ -11,6 +11,7 @@ use starknet_api::transaction::{
     AllResourceBounds,
     Calldata,
     Fee,
+    GasVectorComputationMode,
     PaymasterData,
     Tip,
     TransactionHash,
@@ -35,7 +36,6 @@ use crate::fee::fee_utils::{
 };
 use crate::fee::gas_usage::estimate_minimal_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
-use crate::fee::resources::GasVectorComputationMode::{All, NoL2Gas};
 use crate::retdata;
 use crate::state::cached_state::{StateChanges, TransactionalState};
 use crate::state::state_api::{State, StateReader, UpdatableState};
@@ -315,12 +315,12 @@ impl AccountTransaction {
             &tx_context.get_gas_vector_computation_mode(),
         );
         let minimal_l1_gas_amount: u64 = match &tx_context.get_gas_vector_computation_mode() {
-            All => {
+            GasVectorComputationMode::All => {
                 // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the
                 // conversion works.
                 minimal_gas_amount_vector.l1_gas.try_into().expect("Failed to convert u128 to u64.")
             }
-            NoL2Gas => minimal_gas_amount_vector
+            GasVectorComputationMode::NoL2Gas => minimal_gas_amount_vector
                 .to_discounted_l1_gas(tx_context)
                 .try_into()
                 // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.

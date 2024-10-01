@@ -21,6 +21,7 @@ use starknet_api::transaction::{
     EventData,
     EventKey,
     Fee,
+    GasVectorComputationMode,
     L2ToL1Payload,
     ResourceBounds,
     TransactionSignature,
@@ -75,7 +76,6 @@ use crate::fee::receipt::TransactionReceipt;
 use crate::fee::resources::{
     ComputationResources,
     GasVector,
-    GasVectorComputationMode,
     StarknetResources,
     StateResources,
     TransactionResources,
