@@ -8,7 +8,7 @@ use papyrus_network::network_manager::{
     BroadcastTopicClient,
     GenericReceiver,
 };
-use papyrus_network_types::network_types::BroadcastedMessageManager;
+use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::{ConsensusMessage, Vote};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
@@ -156,7 +156,7 @@ impl From<(BlockNumber, u32, ContractAddress, Option<u32>)> for ProposalInit {
 pub struct BroadcastConsensusMessageChannel {
     pub broadcasted_messages_receiver: GenericReceiver<(
         Result<ConsensusMessage, ProtobufConversionError>,
-        BroadcastedMessageManager,
+        BroadcastedMessageMetadata,
     )>,
     pub broadcast_topic_client: BroadcastTopicClient<ConsensusMessage>,
 }
