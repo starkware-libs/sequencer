@@ -2,6 +2,7 @@ use std::any::type_name;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::time::Duration;
 
 use async_trait::async_trait;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
@@ -17,6 +18,8 @@ use crate::errors::ComponentError;
 pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 const DEFAULT_CHANNEL_BUFFER_SIZE: usize = 32;
 const DEFAULT_RETRIES: usize = 3;
+const DEFAULT_IDLE_CONNECTIONS: usize = usize::MAX;
+const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(90);
 
 #[async_trait]
 pub trait ComponentRequestHandler<Request, Response> {
@@ -93,6 +96,8 @@ impl Default for LocalComponentCommunicationConfig {
 pub struct RemoteComponentCommunicationConfig {
     pub socket: SocketAddr,
     pub retries: usize,
+    pub idle_connections: usize,
+    pub idle_timeout: Duration,
 }
 
 impl SerializeConfig for RemoteComponentCommunicationConfig {
@@ -116,6 +121,18 @@ impl SerializeConfig for RemoteComponentCommunicationConfig {
                 "The max number of retries for sending a message.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "idle_connections",
+                &self.idle_connections,
+                "The maximum number of idle connections to keep alive.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "idle_timeout",
+                &self.idle_timeout,
+                "The duration to keep an idle connection open before closing.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -123,6 +140,11 @@ impl SerializeConfig for RemoteComponentCommunicationConfig {
 impl Default for RemoteComponentCommunicationConfig {
     fn default() -> Self {
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
-        Self { socket, retries: DEFAULT_RETRIES }
+        Self {
+            socket,
+            retries: DEFAULT_RETRIES,
+            idle_connections: DEFAULT_IDLE_CONNECTIONS,
+            idle_timeout: DEFAULT_IDLE_TIMEOUT,
+        }
     }
 }
