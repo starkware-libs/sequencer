@@ -204,7 +204,7 @@ impl SwarmTrait for MockSwarm {
     }
 
     // TODO (shahak): Add test for continue propagation.
-    fn continue_propagation(&mut self, _message_manager: super::BroadcastedMessageManager) {
+    fn continue_propagation(&mut self, _message_manager: super::BroadcastedMessageMetadata) {
         unimplemented!()
     }
 }

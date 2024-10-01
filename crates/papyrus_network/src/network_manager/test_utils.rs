@@ -9,7 +9,7 @@ use libp2p::PeerId;
 
 use super::{
     BroadcastTopicClient,
-    BroadcastedMessageManager,
+    BroadcastedMessageMetadata,
     GenericReceiver,
     ReportReceiver,
     ServerQueryManager,
@@ -97,7 +97,7 @@ where
 
     let (reported_messages_sender, mock_reported_messages_receiver) =
         futures::channel::mpsc::channel(CHANNEL_BUFFER_SIZE);
-    let reported_messages_fn: fn(BroadcastedMessageManager) -> Ready<Result<PeerId, SendError>> =
+    let reported_messages_fn: fn(BroadcastedMessageMetadata) -> Ready<Result<PeerId, SendError>> =
         |broadcasted_message_manager| {
             ready(Ok(broadcasted_message_manager.originator_id.private_get_peer_id()))
         };
@@ -180,17 +180,17 @@ where
 }
 
 pub type MockBroadcastedMessagesSender<T> = With<
-    Sender<(Bytes, BroadcastedMessageManager)>,
-    (Bytes, BroadcastedMessageManager),
-    (T, BroadcastedMessageManager),
-    Ready<Result<(Bytes, BroadcastedMessageManager), SendError>>,
+    Sender<(Bytes, BroadcastedMessageMetadata)>,
+    (Bytes, BroadcastedMessageMetadata),
+    (T, BroadcastedMessageMetadata),
+    Ready<Result<(Bytes, BroadcastedMessageMetadata), SendError>>,
     MockBroadcastedMessagesFn<T>,
 >;
 
 pub(crate) type MockBroadcastedMessagesFn<T> =
     fn(
-        (T, BroadcastedMessageManager),
-    ) -> Ready<Result<(Bytes, BroadcastedMessageManager), SendError>>;
+        (T, BroadcastedMessageMetadata),
+    ) -> Ready<Result<(Bytes, BroadcastedMessageMetadata), SendError>>;
 
 pub type MockMessagesToBroadcastReceiver<T> = Map<Receiver<Bytes>, fn(Bytes) -> T>;
 
@@ -198,7 +198,7 @@ pub struct BroadcastNetworkMock<T: TryFrom<Bytes>> {
     pub broadcasted_messages_sender: MockBroadcastedMessagesSender<T>,
     pub messages_to_broadcast_receiver: MockMessagesToBroadcastReceiver<T>,
     pub reported_messages_receiver: Receiver<PeerId>,
-    pub continue_propagation_receiver: Receiver<BroadcastedMessageManager>,
+    pub continue_propagation_receiver: Receiver<BroadcastedMessageMetadata>,
 }
 
 pub struct TestSubscriberChannels<T: TryFrom<Bytes>> {
