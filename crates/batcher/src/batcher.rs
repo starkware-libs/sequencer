@@ -1,12 +1,17 @@
 use std::sync::Arc;
 
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 #[cfg(test)]
 use mockall::automock;
-use papyrus_storage::state::StateStorageReader;
+use papyrus_storage::compiled_class::CasmStorageWriter;
+use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use starknet_api::block::BlockNumber;
+use starknet_api::core::ClassHash;
+use starknet_api::state::ThinStateDiff;
 use starknet_batcher_types::batcher_types::{
     BatcherResult,
     BuildProposalInput,
+    DecisionReachedInput,
     GetProposalContentInput,
     GetProposalContentResponse,
     StartHeightInput,
@@ -20,6 +25,7 @@ use crate::config::BatcherConfig;
 use crate::proposal_manager::{
     BlockBuilderFactory,
     BuildProposalError,
+    DecisionReachedError,
     GetProposalContentError,
     ProposalManager,
     StartHeightError,
@@ -28,7 +34,7 @@ use crate::proposal_manager::{
 pub struct Batcher {
     pub config: BatcherConfig,
     pub mempool_client: SharedMempoolClient,
-    pub storage: Arc<dyn BatcherStorageReaderTrait>,
+    pub storage_reader: Arc<dyn BatcherStorageReaderTrait>,
     proposal_manager: ProposalManager,
 }
 
@@ -36,22 +42,24 @@ impl Batcher {
     pub fn new(
         config: BatcherConfig,
         mempool_client: SharedMempoolClient,
-        storage: Arc<dyn BatcherStorageReaderTrait>,
+        storage_reader: Arc<dyn BatcherStorageReaderTrait>,
+        storage_writer: Box<dyn BatcherStorageWriterTrait>,
     ) -> Self {
         Self {
             config: config.clone(),
             mempool_client: mempool_client.clone(),
-            storage: storage.clone(),
+            storage_reader: storage_reader.clone(),
             proposal_manager: ProposalManager::new(
                 config.proposal_manager.clone(),
                 mempool_client.clone(),
                 Arc::new(BlockBuilderFactory {}),
-                storage,
+                storage_reader.clone(),
+                storage_writer,
             ),
         }
     }
 
-    pub fn start_height(&mut self, input: StartHeightInput) -> BatcherResult<()> {
+    pub async fn start_height(&mut self, input: StartHeightInput) -> BatcherResult<()> {
         self.proposal_manager.start_height(input.height).map_err(BatcherError::from)
     }
 
@@ -80,12 +88,16 @@ impl Batcher {
             .map_err(BatcherError::from)?;
         Ok(GetProposalContentResponse { content })
     }
+
+    pub async fn decision_reached(&mut self, input: DecisionReachedInput) -> BatcherResult<()> {
+        self.proposal_manager.decision_reached(input.proposal_id).await.map_err(BatcherError::from)
+    }
 }
 
 pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient) -> Batcher {
-    let (storage_reader, _storage_writer) = papyrus_storage::open_storage(config.storage.clone())
+    let (storage_reader, storage_writer) = papyrus_storage::open_storage(config.storage.clone())
         .expect("Failed to open batcher's storage");
-    Batcher::new(config, mempool_client, Arc::new(storage_reader))
+    Batcher::new(config, mempool_client, Arc::new(storage_reader), Box::new(storage_writer))
 }
 
 #[cfg_attr(test, automock)]
@@ -96,6 +108,32 @@ pub trait BatcherStorageReaderTrait: Send + Sync {
 impl BatcherStorageReaderTrait for papyrus_storage::StorageReader {
     fn height(&self) -> papyrus_storage::StorageResult<BlockNumber> {
         self.begin_ro_txn()?.get_state_marker()
+    }
+}
+
+#[cfg_attr(test, automock)]
+pub trait BatcherStorageWriterTrait: Send + Sync {
+    fn commit_proposal(
+        &mut self,
+        height: BlockNumber,
+        state_diff: ThinStateDiff,
+        casms: &[(ClassHash, CasmContractClass)],
+    ) -> papyrus_storage::StorageResult<()>;
+}
+
+impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
+    fn commit_proposal(
+        &mut self,
+        height: BlockNumber,
+        state_diff: ThinStateDiff,
+        casms: &[(ClassHash, CasmContractClass)],
+    ) -> papyrus_storage::StorageResult<()> {
+        let mut txn = self.begin_rw_txn()?;
+        txn = txn.append_state_diff(height, state_diff)?;
+        for (class_hash, casm) in casms {
+            txn = txn.append_casm(class_hash, casm)?;
+        }
+        txn.commit()
     }
 }
 
@@ -148,6 +186,24 @@ impl From<GetProposalContentError> for BatcherError {
                 BatcherError::ProposalNotFound { proposal_id }
             }
             GetProposalContentError::StreamExhausted => BatcherError::StreamExhausted,
+        }
+    }
+}
+
+impl From<DecisionReachedError> for BatcherError {
+    fn from(err: DecisionReachedError) -> Self {
+        match err {
+            DecisionReachedError::BuildProposalError(err) => err.into(),
+            DecisionReachedError::ProposalNotDone { proposal_id } => {
+                BatcherError::ProposalNotDone { proposal_id }
+            }
+            DecisionReachedError::ProposalNotFound { proposal_id } => {
+                BatcherError::ProposalNotFound { proposal_id }
+            }
+            DecisionReachedError::StorageError(storage_error) => {
+                error!("Storage error: {}", storage_error);
+                BatcherError::InternalError
+            }
         }
     }
 }
