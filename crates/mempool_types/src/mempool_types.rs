@@ -14,7 +14,7 @@ pub struct AccountState {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct MempoolInput {
+pub struct AddTransactionArgs {
     pub tx: Transaction,
     pub account_state: AccountState,
 }

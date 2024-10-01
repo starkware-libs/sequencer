@@ -6,8 +6,8 @@ use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{
     AccountState,
+    AddTransactionArgs,
     CommitBlockArgs,
-    MempoolInput,
     MempoolResult,
 };
 
@@ -81,11 +81,13 @@ impl Mempool {
     /// Adds a new transaction to the mempool.
     /// TODO: support fee escalation and transactions with future nonces.
     /// TODO: check Account nonce and balance.
-    pub fn add_tx(&mut self, input: MempoolInput) -> MempoolResult<()> {
-        self.validate_input(&input)?;
-        let MempoolInput { tx, account_state } = input;
+    pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
+        self.validate_input(&args)?;
+
+        let AddTransactionArgs { tx, account_state } = args;
         self.tx_pool.insert(tx)?;
         self.align_to_account_state(account_state);
+
         Ok(())
     }
 
@@ -117,16 +119,16 @@ impl Mempool {
         self.tx_queue._update_gas_price_threshold(threshold);
     }
 
-    fn validate_input(&self, input: &MempoolInput) -> MempoolResult<()> {
-        let sender_address = input.tx.contract_address();
-        let tx_nonce = input.tx.nonce();
+    fn validate_input(&self, args: &AddTransactionArgs) -> MempoolResult<()> {
+        let sender_address = args.tx.contract_address();
+        let tx_nonce = args.tx.nonce();
         let duplicate_nonce_error =
             MempoolError::DuplicateNonce { address: sender_address, nonce: tx_nonce };
 
         // Stateless checks.
 
         // Check the input: transaction nonce against given account state.
-        let account_nonce = input.account_state.nonce;
+        let account_nonce = args.account_state.nonce;
         if account_nonce > tx_nonce {
             return Err(duplicate_nonce_error);
         }
