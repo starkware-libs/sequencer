@@ -1,5 +1,5 @@
 use rstest::{fixture, rstest};
-use starknet_api::transaction::L2ToL1Payload;
+use starknet_api::transaction::{GasVectorComputationMode, L2ToL1Payload};
 use starknet_api::{invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 
@@ -17,12 +17,7 @@ use crate::fee::gas_usage::{
     get_log_message_to_l1_emissions_cost,
     get_message_segment_length,
 };
-use crate::fee::resources::{
-    GasVector,
-    GasVectorComputationMode,
-    StarknetResources,
-    StateResources,
-};
+use crate::fee::resources::{GasVector, StarknetResources, StateResources};
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;

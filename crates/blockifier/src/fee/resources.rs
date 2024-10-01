@@ -1,7 +1,7 @@
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::Serialize;
 use starknet_api::core::ContractAddress;
-use starknet_api::transaction::Fee;
+use starknet_api::transaction::{Fee, GasVectorComputationMode};
 
 use crate::context::TransactionContext;
 use crate::execution::call_info::{EventSummary, ExecutionSummary};
@@ -349,10 +349,4 @@ impl GasVector {
         let data_gas_price = gas_prices.get_l1_data_gas_price_by_fee_type(&fee_type);
         self.l1_gas + u128_div_ceil(self.l1_data_gas * u128::from(data_gas_price), gas_price)
     }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum GasVectorComputationMode {
-    All,
-    NoL2Gas,
 }

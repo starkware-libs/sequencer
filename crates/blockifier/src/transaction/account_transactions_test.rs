@@ -16,6 +16,7 @@ use starknet_api::transaction::{
     ContractAddressSalt,
     DeclareTransactionV2,
     Fee,
+    GasVectorComputationMode,
     Resource,
     ResourceBounds,
     TransactionHash,
@@ -48,7 +49,7 @@ use crate::execution::entry_point::EntryPointExecutionContext;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::fee_utils::{get_fee_by_gas_vector, get_sequencer_balance_keys};
 use crate::fee::gas_usage::estimate_minimal_gas_vector;
-use crate::fee::resources::{GasVector, GasVectorComputationMode};
+use crate::fee::resources::GasVector;
 use crate::state::cached_state::{StateChangesCount, TransactionalState};
 use crate::state::state_api::{State, StateReader};
 use crate::test_utils::contracts::FeatureContract;
