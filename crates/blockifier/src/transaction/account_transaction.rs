@@ -35,7 +35,6 @@ use crate::fee::fee_utils::{
 };
 use crate::fee::gas_usage::estimate_minimal_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
-use crate::fee::resources::GasVectorComputationMode::{All, NoL2Gas};
 use crate::retdata;
 use crate::state::cached_state::{StateChanges, TransactionalState};
 use crate::state::state_api::{State, StateReader, UpdatableState};
@@ -314,19 +313,6 @@ impl AccountTransaction {
             self,
             &tx_context.get_gas_vector_computation_mode(),
         );
-        let minimal_l1_gas_amount: u64 = match &tx_context.get_gas_vector_computation_mode() {
-            All => {
-                // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the
-                // conversion works.
-                minimal_gas_amount_vector.l1_gas.try_into().expect("Failed to convert u128 to u64.")
-            }
-            NoL2Gas => minimal_gas_amount_vector
-                .to_discounted_l1_gas(tx_context)
-                .try_into()
-                // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-                .expect("Failed to convert u128 to u64."),
-        };
-
         let TransactionContext { block_context, tx_info } = tx_context;
         let block_info = &block_context.block_info;
         let fee_type = &tx_info.fee_type();
@@ -336,7 +322,7 @@ impl AccountTransaction {
                     ValidResourceBounds::L1Gas(l1_gas_resource_bounds) => vec![(
                         L1Gas,
                         l1_gas_resource_bounds,
-                        minimal_l1_gas_amount,
+                        minimal_gas_amount_vector.to_discounted_l1_gas(tx_context),
                         u128::from(block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type)),
                     )],
                     ValidResourceBounds::AllResources(AllResourceBounds {
@@ -350,27 +336,19 @@ impl AccountTransaction {
                             (
                                 L1Gas,
                                 l1_gas_resource_bounds,
-                                minimal_l1_gas_amount,
+                                minimal_gas_amount_vector.l1_gas,
                                 l1_gas_price.into(),
                             ),
                             (
                                 L1DataGas,
                                 l1_data_gas_resource_bounds,
-                                minimal_gas_amount_vector
-                                    .l1_data_gas
-                                    .try_into()
-                                    // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-                                    .expect("Failed to convert u128 to u64."),
+                                minimal_gas_amount_vector.l1_data_gas,
                                 l1_data_gas_price.into(),
                             ),
                             (
                                 L2Gas,
                                 l2_gas_resource_bounds,
-                                minimal_gas_amount_vector
-                                    .l2_gas
-                                    .try_into()
-                                    // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-                                    .expect("Failed to convert u128 to u64."),
+                                minimal_gas_amount_vector.l2_gas,
                                 l2_gas_price.into(),
                             ),
                         ]
@@ -381,6 +359,9 @@ impl AccountTransaction {
                 {
                     // TODO(Aner): refactor to indicate both amount and price are too low.
                     // TODO(Aner): refactor to return all amounts that are too low.
+                    let minimal_gas_amount = minimal_gas_amount.try_into()
+                    // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
+                    .expect("Failed to convert u128 to u64.");
                     if resource_bounds.max_amount < minimal_gas_amount {
                         return Err(TransactionFeeError::MaxGasAmountTooLow {
                             resource,
