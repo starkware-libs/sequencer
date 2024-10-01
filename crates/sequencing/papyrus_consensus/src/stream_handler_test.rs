@@ -17,7 +17,7 @@ use super::{get_metadata_peer_id, StreamHandler};
 #[cfg(test)]
 mod tests {
 
-    use papyrus_network_types::network_types::BroadcastedMessageManager;
+    use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 
     use super::*;
 
@@ -44,14 +44,13 @@ mod tests {
         metadata: &BroadcastedMessageManager,
         msg: StreamMessage<ConsensusMessage>,
     ) {
-        sender.send((msg, metadata.clone())).await.unwrap();
     }
 
     fn setup_test() -> (
         StreamHandler<ConsensusMessage>,
         MockBroadcastedMessagesSender<StreamMessage<ConsensusMessage>>,
         mpsc::Receiver<mpsc::Receiver<ConsensusMessage>>,
-        BroadcastedMessageManager,
+        BroadcastedMessageMetadata,
     ) {
         let TestSubscriberChannels { mock_network, subscriber_channels } =
             mock_register_broadcast_topic().unwrap();
@@ -63,10 +62,10 @@ mod tests {
         let (tx_output, rx_output) = mpsc::channel::<mpsc::Receiver<ConsensusMessage>>(100);
         let handler = StreamHandler::new(tx_output, broadcasted_messages_receiver);
 
-        let broadcasted_message_manager =
-            BroadcastedMessageManager::get_test_instance(&mut get_rng());
+        let broadcasted_message_metadata =
+            BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
 
-        (handler, network_sender, rx_output, broadcasted_message_manager)
+        (handler, network_sender, rx_output, broadcasted_message_metadata)
     }
 
     #[tokio::test]
