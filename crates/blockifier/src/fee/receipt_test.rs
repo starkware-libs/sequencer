@@ -439,7 +439,7 @@ fn test_calculate_tx_gas_usage(
         0,
         StateResources::new_for_testing(state_changes_count),
         None,
-        // The transfer entrypoint emits an event - pass the call info to count its resources.
+        // The transfer entrypoint emits an event - pass the call summary to count its resources.
         execution_summary,
     );
 
