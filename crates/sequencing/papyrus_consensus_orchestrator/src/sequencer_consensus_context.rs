@@ -53,10 +53,10 @@ pub struct SequencerConsensusContext {
 }
 
 impl SequencerConsensusContext {
-    pub fn new(batcher: Arc<dyn BatcherClient>, validators: Vec<ValidatorId>) -> Self {
+    pub fn new(batcher: Arc<dyn BatcherClient>, num_validators: u64) -> Self {
         Self {
             batcher,
-            validators,
+            validators: (0..num_validators).map(ValidatorId::from).collect(),
             valid_proposals: Arc::new(Mutex::new(HeightToIdToContent::new())),
             proposal_id: 0,
         }
