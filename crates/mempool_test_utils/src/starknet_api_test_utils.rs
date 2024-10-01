@@ -282,7 +282,7 @@ impl MultiAccountTransactionGenerator {
         self.register_account(account_contract);
     }
 
-    pub fn accounts(&self) -> Vec<FeatureAccount> {
+    pub fn accounts(&self) -> Vec<Contract> {
         self.account_tx_generators.iter().map(|tx_gen| &tx_gen.account).copied().collect()
     }
 }
@@ -296,7 +296,7 @@ impl MultiAccountTransactionGenerator {
 /// TODO: add more transaction generation methods as needed.
 #[derive(Debug)]
 pub struct AccountTransactionGenerator {
-    account: FeatureAccount,
+    account: Contract,
     nonce_manager: SharedNonceManager,
 }
 
@@ -377,10 +377,8 @@ impl AccountTransactionGenerator {
         let default_deploy_account_tx =
             generate_deploy_account_with_salt(&account, contract_address_salt);
 
-        let mut account_tx_generator = Self {
-            account: FeatureAccount::new(account, &default_deploy_account_tx),
-            nonce_manager,
-        };
+        let mut account_tx_generator =
+            Self { account: Contract::new(account, &default_deploy_account_tx), nonce_manager };
         // Bump the account nonce after transaction creation.
         account_tx_generator.next_nonce();
 
@@ -394,22 +392,22 @@ impl AccountTransactionGenerator {
 // not related to an actual deploy account transaction, which is the way real account addresses are
 // calculated.
 #[derive(Clone, Copy, Debug)]
-pub struct FeatureAccount {
-    pub account: FeatureContract,
+pub struct Contract {
+    pub contract: FeatureContract,
     pub sender_address: ContractAddress,
 }
 
-impl FeatureAccount {
+impl Contract {
     pub fn class_hash(&self) -> ClassHash {
-        self.account.get_class_hash()
+        self.contract.get_class_hash()
     }
 
     pub fn cairo_version(&self) -> CairoVersion {
-        self.account.cairo_version()
+        self.contract.cairo_version()
     }
 
     pub fn raw_class(&self) -> String {
-        self.account.get_raw_class()
+        self.contract.get_raw_class()
     }
 
     fn new(account: FeatureContract, deploy_account_tx: &RpcTransaction) -> Self {
@@ -426,7 +424,10 @@ impl FeatureAccount {
             "{account:?} is not an account"
         );
 
-        Self { account, sender_address: deploy_account_tx.calculate_sender_address().unwrap() }
+        Self {
+            contract: account,
+            sender_address: deploy_account_tx.calculate_sender_address().unwrap(),
+        }
     }
 }
 
