@@ -12,7 +12,6 @@ use starknet_api::transaction::{
     Calldata,
     Fee,
     PaymasterData,
-    ResourceBounds,
     Tip,
     TransactionHash,
     TransactionSignature,
