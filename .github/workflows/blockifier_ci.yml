@@ -1,17 +1,8 @@
 name: Blockifier-CI
 
-# TODO(Dori, 15/8/2024): Split this job, so the feature-less build doesn't run on every push to main
-# branches.
-on:
-  push:
-    branches:
-      - main
-      - main-v[0-9].**
-    tags:
-      - v[0-9].**
-    # TODO(Dori, 1/9/2024): Decide when exactly native-blockifier artifacts will be built. Until
-    #   then, keep the 'paths' key empty and build on every push to a release branch / tag.
+# TODO(Noa): Delete this workflow once the concurrency feature is deleted.
 
+on:
   pull_request:
     types:
       - opened
@@ -23,14 +14,10 @@ on:
       # Other than code-related changes, all changes related to the native-blockifier build-and-push
       # process should trigger the build (e.g., changes to the Dockerfile, build scripts, etc.).
       - '.github/workflows/blockifier_ci.yml'
-      - 'build_native_in_docker.sh'
       - 'Cargo.lock'
       - 'Cargo.toml'
       - 'crates/blockifier/**'
-      - 'crates/native_blockifier/**'
-      - 'scripts/build_native_blockifier.sh'
       - 'scripts/dependencies.sh'
-      - 'scripts/install_build_tools.sh'
       - 'scripts/sequencer-ci.Dockerfile'
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
