@@ -259,10 +259,33 @@
     "privacy": "Public",
     "value": 3
   },
-  "consensus_manager_config.consensus_config_param_1": {
-    "description": "The first consensus manager configuration parameter",
+  "consensus_manager_config.consensus_config": {
+    "description": "Parameters for the core consensus crate",
     "privacy": "Public",
-    "value": 1
+    "value": {
+      "consensus_delay": {
+        "nanos": 0,
+        "secs": 5
+      },
+      "network_topic": "consensus",
+      "num_validators": 4,
+      "start_height": 0,
+      "timeouts": {
+        "precommit_timeout": {
+          "nanos": 0,
+          "secs": 1
+        },
+        "prevote_timeout": {
+          "nanos": 0,
+          "secs": 1
+        },
+        "proposal_timeout": {
+          "nanos": 0,
+          "secs": 3
+        }
+      },
+      "validator_id": "0x0"
+    }
   },
   "gateway_config.stateful_tx_validator_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
