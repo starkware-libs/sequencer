@@ -378,7 +378,7 @@ impl AccountTransactionGenerator {
             generate_deploy_account_with_salt(&account, contract_address_salt);
 
         let mut account_tx_generator =
-            Self { account: Contract::new(account, &default_deploy_account_tx), nonce_manager };
+            Self { account: Contract::new_for_account(account, &default_deploy_account_tx), nonce_manager };
         // Bump the account nonce after transaction creation.
         account_tx_generator.next_nonce();
 
@@ -410,7 +410,7 @@ impl Contract {
         self.contract.get_raw_class()
     }
 
-    fn new(account: FeatureContract, deploy_account_tx: &RpcTransaction) -> Self {
+    fn new_for_account(account: FeatureContract, deploy_account_tx: &RpcTransaction) -> Self {
         assert_matches!(
             deploy_account_tx,
             RpcTransaction::DeployAccount(_),
