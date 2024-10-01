@@ -164,16 +164,12 @@ fn add_tx_expect_error(mempool: &mut Mempool, input: &MempoolInput, expected_err
 }
 
 #[track_caller]
-fn commit_block(
-    mempool: &mut Mempool,
-    state_changes: impl IntoIterator<Item = (&'static str, u8)>,
-) {
-    let state_changes = HashMap::from_iter(
-        state_changes
-            .into_iter()
-            .map(|(address, nonce)| (contract_address!(address), nonce!(nonce))),
+fn commit_block(mempool: &mut Mempool, nonces: impl IntoIterator<Item = (&'static str, u8)>) {
+    let nonces = HashMap::from_iter(
+        nonces.into_iter().map(|(address, nonce)| (contract_address!(address), nonce!(nonce))),
     );
-    let args = CommitBlockArgs { nonces: state_changes };
+    let args = CommitBlockArgs { nonces };
+
     assert_eq!(mempool.commit_block(args), Ok(()));
 }
 
@@ -754,8 +750,8 @@ fn test_commit_block_includes_all_txs() {
         .build_into_mempool();
 
     // Test.
-    let state_changes = [("0x0", 3), ("0x1", 2)];
-    commit_block(&mut mempool, state_changes);
+    let nonces = [("0x0", 3), ("0x1", 2)];
+    commit_block(&mut mempool, nonces);
 
     // Assert.
     let expected_mempool_content =
@@ -776,8 +772,8 @@ fn test_commit_block_rewinds_queued_nonce() {
         .build_into_mempool();
 
     // Test.
-    let state_changes = [("0x0", 3), ("0x1", 3)];
-    commit_block(&mut mempool, state_changes);
+    let nonces = [("0x0", 3), ("0x1", 3)];
+    commit_block(&mut mempool, nonces);
 
     // Assert.
     let expected_mempool_content = MempoolContentBuilder::new().with_priority_queue([]).build();
@@ -805,13 +801,13 @@ fn test_commit_block_from_different_leader() {
         .build_into_mempool();
 
     // Test.
-    let state_changes = [
+    let nonces = [
         ("0x0", 5),
         // A hole, missing nonce 1 for address "0x1".
         ("0x1", 0),
         ("0x2", 1),
     ];
-    commit_block(&mut mempool, state_changes);
+    commit_block(&mut mempool, nonces);
 
     // Assert.
     let expected_queue_txs = [&tx_address_0_nonce_6].map(TransactionReference::new);
@@ -849,8 +845,8 @@ fn test_account_nonces_update_in_commit_block() {
         .build_into_mempool();
 
     // Test: update through a commit block.
-    let state_changes = [("0x0", 0)];
-    commit_block(&mut mempool, state_changes);
+    let nonces = [("0x0", 0)];
+    commit_block(&mut mempool, nonces);
 
     // Assert.
     let expected_account_nonces = [("0x0", 1)]; // Account nonce advanced.
@@ -870,8 +866,8 @@ fn test_account_nonce_does_not_decrease_in_commit_block() {
         .build_into_mempool();
 
     // Test: commits state change of a lower account nonce.
-    let state_changes = [("0x0", 0)];
-    commit_block(&mut mempool, state_changes);
+    let nonces = [("0x0", 0)];
+    commit_block(&mut mempool, nonces);
 
     // Assert: the account nonce is not updated.
     let expected_mempool_content =
@@ -882,8 +878,8 @@ fn test_account_nonce_does_not_decrease_in_commit_block() {
 #[rstest]
 fn test_account_nonces_removal_in_commit_block(mut mempool: Mempool) {
     // Test: commit block returns information about account that is not in the mempool.
-    let state_changes = [("0x0", 0)];
-    commit_block(&mut mempool, state_changes);
+    let nonces = [("0x0", 0)];
+    commit_block(&mut mempool, nonces);
 
     // Assert: account is not added to the mempool.
     let expected_mempool_content = MempoolContentBuilder::new().with_account_nonces([]).build();
@@ -951,8 +947,8 @@ fn test_flow_partial_commit_block() {
     get_txs_and_assert_expected(&mut mempool, 2, &[tx_address_1_nonce_1, tx_address_2_nonce_2]);
 
     // Not included in block: address "0x2" nonce 2, address "0x1" nonce 1.
-    let state_changes = [("0x0", 3), ("0x1", 0)];
-    commit_block(&mut mempool, state_changes);
+    let nonces = [("0x0", 3), ("0x1", 0)];
+    commit_block(&mut mempool, nonces);
 
     // Assert.
     let expected_pool_txs = [tx_address_0_nonce_5, tx_address_0_nonce_6, tx_address_1_nonce_2];
@@ -977,8 +973,8 @@ fn test_flow_commit_block_closes_hole() {
         .build_into_mempool();
 
     // Test.
-    let state_changes = [("0x0", 4)];
-    commit_block(&mut mempool, state_changes);
+    let nonces = [("0x0", 4)];
+    commit_block(&mut mempool, nonces);
 
     // Assert: hole was indeed closed.
     let expected_queue_txs = [&tx_nonce_5].map(TransactionReference::new);
@@ -1011,8 +1007,8 @@ fn test_flow_send_same_nonce_tx_after_previous_not_included() {
     // Test.
     get_txs_and_assert_expected(&mut mempool, 2, &[tx_nonce_3, tx_input_nonce_4.tx.clone()]);
 
-    let state_changes = [("0x0", 3)]; // Transaction with nonce 4 is not included in the block.
-    commit_block(&mut mempool, state_changes);
+    let nonces = [("0x0", 3)]; // Transaction with nonce 4 is not included in the block.
+    commit_block(&mut mempool, nonces);
 
     add_tx(&mut mempool, &tx_input_nonce_4);
 
