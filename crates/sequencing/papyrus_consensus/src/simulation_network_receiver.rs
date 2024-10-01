@@ -10,7 +10,7 @@ use std::task::Poll;
 use futures::{Stream, StreamExt};
 use lru::LruCache;
 use papyrus_network::network_manager::BroadcastTopicServer;
-use papyrus_network_types::network_types::BroadcastedMessageManager;
+use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::ConsensusMessage;
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::BlockHash;
@@ -122,7 +122,7 @@ impl NetworkReceiver {
 }
 
 impl Stream for NetworkReceiver {
-    type Item = (Result<ConsensusMessage, ProtobufConversionError>, BroadcastedMessageManager);
+    type Item = (Result<ConsensusMessage, ProtobufConversionError>, BroadcastedMessageMetadata);
 
     fn poll_next(
         mut self: std::pin::Pin<&mut Self>,
