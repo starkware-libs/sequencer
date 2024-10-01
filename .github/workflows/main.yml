@@ -50,7 +50,6 @@ jobs:
     steps:
       # Enviorment setup.
       - uses: actions/checkout@v4
-      - uses: Noelware/setup-protoc@1.1.0
       - uses: baptiste0928/cargo-install@v3
         with:
           crate: taplo-cli
@@ -102,7 +101,6 @@ jobs:
           # Fetch the entire history.
           fetch-depth: 0
       - uses: ./.github/actions/bootstrap
-      - uses: Noelware/setup-protoc@1.1.0
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
@@ -167,9 +165,6 @@ jobs:
           # Fetch the entire history.
           fetch-depth: 0
       - uses: ./.github/actions/bootstrap
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
