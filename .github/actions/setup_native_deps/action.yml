@@ -13,4 +13,4 @@ runs:
       id: set-runtime-deps
       shell: bash
       run: |
-        sudo ./scripts/setup_native_deps.sh
+        sudo ./scripts/dependencies.sh

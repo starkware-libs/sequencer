@@ -11,7 +11,7 @@ FROM ubuntu:22.04 AS base
 WORKDIR /app
 
 COPY scripts/install_build_tools.sh .
-COPY scripts/setup_native_deps.sh .
+COPY scripts/dependencies.sh .
 RUN apt update && apt -y install curl bzip2
 
 

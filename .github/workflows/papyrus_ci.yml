@@ -12,6 +12,7 @@ on:
       - 'crates/papyrus**/**'
       - 'crates/sequencing/**'
       - 'crates/starknet_client/**'
+      - 'scripts/dependencies.sh'
 
   pull_request:
     types:
@@ -29,6 +30,7 @@ on:
       - 'crates/papyrus**/**'
       - 'crates/sequencing/**'
       - 'crates/starknet_client/**'
+      - 'scripts/dependencies.sh'
 
   merge_group:
     types: [ checks_requested ]

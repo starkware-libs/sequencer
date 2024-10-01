@@ -13,6 +13,7 @@ on:
       - 'crates/blockifier/src/test_utils/cairo_compile.rs'
       - 'crates/blockifier/tests/feature_contracts_compatibility_test.rs'
       - 'crates/blockifier/tests/requirements.txt'
+      - 'scripts/dependencies.sh'
   pull_request:
     types:
       - opened
@@ -24,6 +25,7 @@ on:
       - 'crates/blockifier/src/test_utils/cairo_compile.rs'
       - 'crates/blockifier/tests/feature_contracts_compatibility_test.rs'
       - 'crates/blockifier/tests/requirements.txt'
+      - 'scripts/dependencies.sh'
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
