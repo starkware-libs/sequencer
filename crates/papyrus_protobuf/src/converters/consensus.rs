@@ -135,7 +135,7 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
                     message_id: _,
                 } => StreamMessageBody::Content(message.try_into()?),
                 protobuf::StreamMessage {
-                    message: Some(protobuf::stream_message::Message::Fin(_)),
+                    message: Some(protobuf::stream_message::Message::Fin(protobuf::Fin {})),
                     stream_id: _,
                     message_id: _,
                 } => StreamMessageBody::Fin,
@@ -161,7 +161,7 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<
                     message_id: _,
                 } => Some(protobuf::stream_message::Message::Content(message.into())),
                 StreamMessage { message: StreamMessageBody::Fin, stream_id: _, message_id: _ } => {
-                    None
+                    Some(protobuf::stream_message::Message::Fin(protobuf::Fin {}))
                 }
             },
             stream_id: value.stream_id,
