@@ -30,6 +30,8 @@ use crate::serde_utils::BincodeSerdeWrapper;
 /// ```rust
 /// // Example usage of the RemoteComponentClient
 ///
+/// use std::time::Duration;
+///
 /// use serde::{Deserialize, Serialize};
 ///
 /// use crate::starknet_mempool_infra::component_client::RemoteComponentClient;
@@ -53,7 +55,12 @@ use crate::serde_utils::BincodeSerdeWrapper;
 ///     let ip_address = std::net::IpAddr::V6(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
 ///     let port: u16 = 8080;
 ///     let socket = std::net::SocketAddr::new(ip_address, port);
-///     let config = RemoteComponentCommunicationConfig { socket, retries: 3 };
+///     let config = RemoteComponentCommunicationConfig {
+///         socket,
+///         retries: 3,
+///         idle_connections: usize::MAX,
+///         idle_timeout: Duration::from_secs(90),
+///     };
 ///     let client = RemoteComponentClient::<MyRequest, MyResponse>::new(config);
 ///
 ///     // Instantiate a request.
@@ -94,8 +101,11 @@ where
         };
         // TODO(Tsabary): Add a configuration for the maximum number of idle connections.
         // TODO(Tsabary): Add a configuration for "keep-alive" time of idle connections.
-        let client =
-            Client::builder().http2_only(true).pool_max_idle_per_host(usize::MAX).build_http();
+        let client = Client::builder()
+            .http2_only(true)
+            .pool_max_idle_per_host(config.idle_connections)
+            .pool_idle_timeout(config.idle_timeout)
+            .build_http();
         Self { uri, client, config, _req: PhantomData, _res: PhantomData }
     }
 

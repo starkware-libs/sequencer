@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use hyper::body::to_bytes;
@@ -53,7 +54,8 @@ use crate::tests::{
 type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentAResponse>;
 type ComponentBClient = RemoteComponentClient<ComponentBRequest, ComponentBResponse>;
 
-const MAX_RETRIES: usize = 0;
+const MAX_IDLE_CONNECTION: usize = usize::MAX;
+const IDLE_TIMEOUT: Duration = Duration::from_secs(90);
 const MOCK_SERVER_ERROR: &str = "mock server error";
 const ARBITRARY_DATA: &str = "arbitrary data";
 // ServerError::RequestDeserializationFailure error message.
@@ -140,13 +142,13 @@ where
     // Ensure the server starts running.
     task::yield_now().await;
 
-    let config = RemoteComponentCommunicationConfig { socket, retries: MAX_RETRIES };
+    let config = RemoteComponentCommunicationConfig { socket, ..Default::default() };
     ComponentAClient::new(config)
 }
 
 async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: SocketAddr) {
-    let a_config = RemoteComponentCommunicationConfig { socket: a_socket, retries: MAX_RETRIES };
-    let b_config = RemoteComponentCommunicationConfig { socket: b_socket, retries: MAX_RETRIES };
+    let a_config = RemoteComponentCommunicationConfig { socket: a_socket, ..Default::default() };
+    let b_config = RemoteComponentCommunicationConfig { socket: b_socket, ..Default::default() };
 
     let a_remote_client = ComponentAClient::new(a_config);
     let b_remote_client = ComponentBClient::new(b_config);
@@ -196,8 +198,8 @@ async fn test_proper_setup() {
     let b_socket = get_available_socket().await;
 
     setup_for_tests(setup_value, a_socket, b_socket).await;
-    let a_config = RemoteComponentCommunicationConfig { socket: a_socket, retries: MAX_RETRIES };
-    let b_config = RemoteComponentCommunicationConfig { socket: b_socket, retries: MAX_RETRIES };
+    let a_config = RemoteComponentCommunicationConfig { socket: a_socket, ..Default::default() };
+    let b_config = RemoteComponentCommunicationConfig { socket: b_socket, ..Default::default() };
 
     let a_remote_client = ComponentAClient::new(a_config);
     let b_remote_client = ComponentBClient::new(b_config);
@@ -242,7 +244,7 @@ async fn test_faulty_client_setup() {
 #[tokio::test]
 async fn test_unconnected_server() {
     let socket = get_available_socket().await;
-    let config = RemoteComponentCommunicationConfig { socket, retries: MAX_RETRIES };
+    let config = RemoteComponentCommunicationConfig { socket, ..Default::default() };
     let client = ComponentAClient::new(config);
     let expected_error_contained_keywords = ["Connection refused"];
     verify_error(client, &expected_error_contained_keywords).await;
@@ -311,12 +313,22 @@ async fn test_retry_request() {
     // The initial server state is 'false', hence the first attempt returns an error and
     // sets the server state to 'true'. The second attempt (first retry) therefore returns a
     // 'success', while setting the server state to 'false' yet again.
-    let retry_config = RemoteComponentCommunicationConfig { socket, retries: 1 };
+    let retry_config = RemoteComponentCommunicationConfig {
+        socket,
+        retries: 1,
+        idle_connections: MAX_IDLE_CONNECTION,
+        idle_timeout: IDLE_TIMEOUT,
+    };
     let a_client_retry = ComponentAClient::new(retry_config);
     assert_eq!(a_client_retry.a_get_value().await.unwrap(), VALID_VALUE_A);
 
     // The current server state is 'false', hence the first and only attempt returns an error.
-    let no_retry_config = RemoteComponentCommunicationConfig { socket, retries: 0 };
+    let no_retry_config = RemoteComponentCommunicationConfig {
+        socket,
+        retries: 0,
+        idle_connections: MAX_IDLE_CONNECTION,
+        idle_timeout: IDLE_TIMEOUT,
+    };
     let a_client_no_retry = ComponentAClient::new(no_retry_config);
     let expected_error_contained_keywords = [StatusCode::IM_A_TEAPOT.as_str()];
     verify_error(a_client_no_retry.clone(), &expected_error_contained_keywords).await;
