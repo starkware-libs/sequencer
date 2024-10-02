@@ -1,44 +1,55 @@
 use std::collections::HashMap;
 
+use mempool_test_utils::starknet_api_test_utils::test_resource_bounds_mapping;
 use pretty_assertions::assert_eq;
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::transaction::ValidResourceBounds;
 use starknet_api::{contract_address, felt, nonce, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AddTransactionArgs, CommitBlockArgs};
 
 use crate::mempool::Mempool;
 
+pub struct InvokeTxBuilderArgs<'a> {
+    pub sender_address: &'a str,
+    pub tx_hash: u128,
+    pub tip: u64,
+    pub tx_nonce: u128,
+    pub resource_bounds: ValidResourceBounds,
+}
+
+impl Default for InvokeTxBuilderArgs<'_> {
+    fn default() -> Self {
+        Self {
+            sender_address: "0x0",
+            tx_hash: 0,
+            tip: 0,
+            tx_nonce: 0,
+            resource_bounds: ValidResourceBounds::AllResources(test_resource_bounds_mapping()),
+        }
+    }
+}
+
 /// Creates an executable invoke transaction with the given field subset (the rest receive default
 /// values).
 #[macro_export]
 macro_rules! tx {
-    (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
-        tx_nonce: $tx_nonce:expr, resource_bounds: $resource_bounds:expr) => {{
-            let sender_address = contract_address!($sender_address);
+    ($($field:ident $(: $value:expr)?),* $(,)?) => {
+        {
+            let args = $crate::test_utils::InvokeTxBuilderArgs {
+                $($field $(: $value)?),*,
+                ..Default::default()
+            };
             Transaction::Invoke(executable_invoke_tx(invoke_tx_args!{
-                sender_address: sender_address,
-                tx_hash: TransactionHash(StarkHash::from($tx_hash)),
-                tip: Tip($tip),
-                nonce: nonce!($tx_nonce),
-                resource_bounds: $resource_bounds,
+                sender_address: contract_address!(args.sender_address),
+                tx_hash: TransactionHash(StarkHash::from(args.tx_hash)),
+                tip: Tip(args.tip),
+                nonce: nonce!(args.tx_nonce),
+                resource_bounds: args.resource_bounds,
             }))
-    }};
-    (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, tx_nonce: $tx_nonce:expr) => {
-        tx!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, resource_bounds: ValidResourceBounds::AllResources(test_resource_bounds_mapping()))
-    };
-    (tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, tx_nonce: $tx_nonce:expr) => {
-        tx!(tip: 0, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce)
-    };
-    (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr) => {
-        tx!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: 0)
-    };
-    (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr) => {
-        tx!(tip: 0, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce)
-    };
-    (tx_nonce: $tx_nonce:expr) => {
-        tx!(tip: 0, tx_hash: 0, sender_address: "0x0", tx_nonce: $tx_nonce)
-    };
+        }
+    }
 }
 
 /// Creates an input for `add_tx` with the given field subset (the rest receive default values).
