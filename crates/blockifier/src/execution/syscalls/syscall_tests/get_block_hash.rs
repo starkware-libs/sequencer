@@ -17,7 +17,10 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
-    trivial_external_entry_point_new, CairoVersion, BALANCE, CURRENT_BLOCK_NUMBER,
+    trivial_external_entry_point_new,
+    CairoVersion,
+    BALANCE,
+    CURRENT_BLOCK_NUMBER,
 };
 use crate::{check_entry_point_execution_error_for_custom_hint, retdata};
 
