@@ -4,9 +4,14 @@ use std::sync::Arc;
 
 use cairo_lang_casm;
 use cairo_lang_casm::hints::Hint;
+use cairo_lang_sierra::ids::FunctionId;
 use cairo_lang_starknet_classes::casm_contract_class::{
     CasmContractClass, CasmContractEntryPoint, CasmContractEntryPoints,
 };
+use cairo_lang_starknet_classes::contract_class::{
+    ContractClass as SierraContractClass, ContractEntryPoint as SierraContractEntryPoint,
+};
+
 use cairo_lang_starknet_classes::NestedIntList;
 use cairo_lang_utils::bigint::BigUintAsHex;
 #[allow(unused_imports)]
@@ -132,7 +137,7 @@ impl ContractClass {
             ContractClass::V1(contract_class) => {
                 contract_class.tracked_resource(min_sierra_version)
             }
-            ContractClass::V1Native(_) => TrackingResource::SierraGas,
+            ContractClass::V1Native(_) => TrackedResource::SierraGas,
         }
     }
 }
@@ -654,7 +659,7 @@ impl ClassInfo {
 
 // Cairo-native utilities.
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeContractClassV1(pub Arc<NativeContractClassV1Inner>);
 impl Deref for NativeContractClassV1 {
     type Target = NativeContractClassV1Inner;
@@ -729,6 +734,8 @@ impl PartialEq for NativeContractClassV1Inner {
             && self.sierra_program == other.sierra_program
     }
 }
+
+impl Eq for NativeContractClassV1Inner {}
 
 #[derive(Debug, PartialEq)]
 /// Modelled after [SierraContractEntryPoints]
