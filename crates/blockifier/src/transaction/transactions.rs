@@ -4,15 +4,8 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::transaction::{
-    AccountDeploymentData,
-    Calldata,
-    ContractAddressSalt,
-    DeclareTransactionV2,
-    DeclareTransactionV3,
-    Fee,
-    TransactionHash,
-    TransactionSignature,
-    TransactionVersion,
+    AccountDeploymentData, Calldata, ContractAddressSalt, DeclareTransactionV2,
+    DeclareTransactionV3, Fee, TransactionHash, TransactionSignature, TransactionVersion,
 };
 
 use crate::abi::abi_utils::selector_from_name;
@@ -20,10 +13,7 @@ use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::{ClassInfo, ContractClass};
 use crate::execution::entry_point::{
-    CallEntryPoint,
-    CallType,
-    ConstructorContext,
-    EntryPointExecutionContext,
+    CallEntryPoint, CallType, ConstructorContext, EntryPointExecutionContext,
 };
 use crate::execution::execution_utils::{execute_deployment, update_remaining_gas};
 use crate::state::cached_state::TransactionalState;
@@ -32,14 +22,8 @@ use crate::state::state_api::{State, UpdatableState};
 use crate::transaction::constants;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{
-    CommonAccountFields,
-    CurrentTransactionInfo,
-    DeprecatedTransactionInfo,
-    HasRelatedFeeType,
-    TransactionExecutionInfo,
-    TransactionExecutionResult,
-    TransactionInfo,
-    TransactionInfoCreator,
+    CommonAccountFields, CurrentTransactionInfo, DeprecatedTransactionInfo, HasRelatedFeeType,
+    TransactionExecutionInfo, TransactionExecutionResult, TransactionInfo, TransactionInfoCreator,
 };
 #[cfg(test)]
 #[path = "transactions_test.rs"]
@@ -162,7 +146,7 @@ impl DeclareTransaction {
                     })?
                 }
             }
-            ContractClass::V1(_) => {
+            ContractClass::V1(_) | ContractClass::V1Native(_) => {
                 if declare_version <= TransactionVersion::ONE {
                     Err(TransactionExecutionError::ContractClassVersionMismatch {
                         declare_version,
