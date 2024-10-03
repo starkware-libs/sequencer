@@ -10,6 +10,7 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce, PatriciaKey};
 use starknet_api::deprecated_contract_class::EntryPointType;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
@@ -874,10 +875,13 @@ fn test_estimate_minimal_gas_vector(
     let minimal_l2_gas = minimal_gas_vector.l2_gas;
     let minimal_l1_data_gas = minimal_gas_vector.l1_data_gas;
     if gas_vector_computation_mode == GasVectorComputationMode::NoL2Gas || !use_kzg_da {
-        assert!(minimal_l1_gas > 0);
+        assert!(minimal_l1_gas > GasAmount(0));
     }
-    assert_eq!(minimal_l2_gas > 0, gas_vector_computation_mode == GasVectorComputationMode::All);
-    assert_eq!(minimal_l1_data_gas > 0, use_kzg_da);
+    assert_eq!(
+        minimal_l2_gas > GasAmount(0),
+        gas_vector_computation_mode == GasVectorComputationMode::All
+    );
+    assert_eq!(minimal_l1_data_gas > GasAmount(0), use_kzg_da);
 }
 
 #[rstest]
@@ -902,9 +906,9 @@ fn test_max_fee_exceeds_balance(
 
     let invalid_max_fee = Fee(BALANCE + 1);
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-    let balance_over_gas_price: u64 =
-        (BALANCE / MAX_L1_GAS_PRICE).try_into().expect("Failed to convert u128 to u64.");
-    let invalid_resource_bounds = l1_resource_bounds(balance_over_gas_price + 1, MAX_L1_GAS_PRICE);
+    let balance_over_gas_price = BALANCE / MAX_L1_GAS_PRICE;
+    let invalid_resource_bounds =
+        l1_resource_bounds(GasAmount(balance_over_gas_price + 1), MAX_L1_GAS_PRICE);
 
     // V1 Invoke.
     let invalid_tx = account_invoke_tx(invoke_tx_args! {
@@ -980,15 +984,15 @@ fn test_insufficient_new_resource_bounds(
 
     let default_resource_bounds = AllResourceBounds {
         l1_gas: ResourceBounds {
-            max_amount: minimal_gas_vector.l1_gas.try_into().unwrap(),
+            max_amount: minimal_gas_vector.l1_gas.0.try_into().unwrap(),
             max_price_per_unit: actual_strk_l1_gas_price.into(),
         },
         l2_gas: ResourceBounds {
-            max_amount: minimal_gas_vector.l2_gas.try_into().unwrap(),
+            max_amount: minimal_gas_vector.l2_gas.0.try_into().unwrap(),
             max_price_per_unit: actual_strk_l2_gas_price.into(),
         },
         l1_data_gas: ResourceBounds {
-            max_amount: minimal_gas_vector.l1_data_gas.try_into().unwrap(),
+            max_amount: minimal_gas_vector.l1_data_gas.0.try_into().unwrap(),
             max_price_per_unit: actual_strk_l1_data_gas_price.into(),
         },
     };
@@ -1083,7 +1087,7 @@ fn test_insufficient_resource_bounds(
     let gas_prices = &block_context.block_info.gas_prices;
     // TODO(Aner, 21/01/24) change to linear combination.
     let minimal_fee =
-        Fee(minimal_l1_gas * u128::from(gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Eth)));
+        Fee(minimal_l1_gas.0 * u128::from(gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Eth)));
     // Max fee too low (lower than minimal estimated fee).
     let invalid_max_fee = Fee(minimal_fee.0 - 1);
     let invalid_v1_tx = account_invoke_tx(
@@ -1105,16 +1109,12 @@ fn test_insufficient_resource_bounds(
 
     // Max L1 gas amount too low.
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-    let insufficient_max_l1_gas_amount =
-        (minimal_l1_gas - 1).try_into().expect("Failed to convert u128 to u64.");
+    let insufficient_max_l1_gas_amount = GasAmount(minimal_l1_gas.0 - 1);
     let invalid_v3_tx = account_invoke_tx(invoke_tx_args! {
         resource_bounds: l1_resource_bounds(insufficient_max_l1_gas_amount, actual_strk_l1_gas_price.into()),
         ..valid_invoke_tx_args.clone()
     });
     let execution_error = invalid_v3_tx.execute(state, block_context, true, true).unwrap_err();
-    // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-    let minimal_l1_gas_as_u64 =
-        u64::try_from(minimal_l1_gas).expect("Failed to convert u128 to u64.");
     assert_matches!(
         execution_error,
         TransactionExecutionError::TransactionPreValidationError(
@@ -1124,7 +1124,7 @@ fn test_insufficient_resource_bounds(
                     max_gas_amount,
                     minimal_gas_amount}))
         if max_gas_amount == insufficient_max_l1_gas_amount &&
-        minimal_gas_amount == minimal_l1_gas_as_u64 && resource == L1Gas
+        minimal_gas_amount == minimal_l1_gas && resource == L1Gas
     );
 
     // Max L1 gas price too low, old resource bounds.
@@ -1169,7 +1169,7 @@ fn test_actual_fee_gt_resource_bounds(
     let minimal_l1_gas =
         estimate_minimal_gas_vector(block_context, tx, &GasVectorComputationMode::NoL2Gas).l1_gas;
     let minimal_resource_bounds = l1_resource_bounds(
-        u64::try_from(minimal_l1_gas).unwrap(),
+        minimal_l1_gas,
         u128::from(
             block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk),
         ),
@@ -1184,7 +1184,7 @@ fn test_actual_fee_gt_resource_bounds(
     // Test error.
     assert!(execution_error.starts_with(&format!("Insufficient max {resource}", resource = L1Gas)));
     // Test that fee was charged.
-    let minimal_fee = Fee(minimal_l1_gas
+    let minimal_fee = Fee(minimal_l1_gas.0
         * u128::from(
             block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk),
         ));
@@ -2064,16 +2064,20 @@ fn test_l1_handler(
     // TODO(Nimrod, 1/5/2024): Change these hard coded values to match to the transaction resources
     // (currently matches only starknet resources).
     let mut expected_gas = match use_kzg_da {
-        true => GasVector { l1_gas: 16023, l1_data_gas: 128, l2_gas: 0 },
-        false => GasVector::from_l1_gas(17675),
+        true => GasVector {
+            l1_gas: GasAmount(16023),
+            l1_data_gas: GasAmount(128),
+            l2_gas: GasAmount(0),
+        },
+        false => GasVector::from_l1_gas(GasAmount(17675)),
     };
     if gas_vector_computation_mode == GasVectorComputationMode::All {
-        expected_gas += GasVector::from_l2_gas(25);
+        expected_gas += GasVector::from_l2_gas(GasAmount(25));
     }
 
     let expected_da_gas = match use_kzg_da {
-        true => GasVector::from_l1_data_gas(128),
-        false => GasVector::from_l1_gas(1652),
+        true => GasVector::from_l1_data_gas(GasAmount(128)),
+        false => GasVector::from_l1_gas(GasAmount(1652)),
     };
 
     let state_changes_count = StateChangesCount {

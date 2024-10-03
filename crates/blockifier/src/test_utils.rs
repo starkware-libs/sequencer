@@ -14,6 +14,7 @@ use std::path::PathBuf;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Calldata, ContractAddressSalt, TransactionVersion};
 use starknet_api::{contract_address, felt, patricia_key};
@@ -94,10 +95,10 @@ pub fn test_erc20_sequencer_balance_key() -> StorageKey {
 // The max_fee / resource bounds used for txs in this test.
 pub const MAX_L1_GAS_AMOUNT: u64 = 1000000;
 #[allow(clippy::as_conversions)]
-pub const MAX_L1_GAS_AMOUNT_U128: u128 = MAX_L1_GAS_AMOUNT as u128;
+pub const MAX_L1_GAS_AMOUNT_U128: GasAmount = GasAmount(MAX_L1_GAS_AMOUNT as u128);
 pub const MAX_L1_GAS_PRICE: u128 = DEFAULT_STRK_L1_GAS_PRICE;
-pub const MAX_RESOURCE_COMMITMENT: u128 = MAX_L1_GAS_AMOUNT_U128 * MAX_L1_GAS_PRICE;
-pub const MAX_FEE: u128 = MAX_L1_GAS_AMOUNT_U128 * DEFAULT_ETH_L1_GAS_PRICE;
+pub const MAX_RESOURCE_COMMITMENT: u128 = MAX_L1_GAS_AMOUNT_U128.0 * MAX_L1_GAS_PRICE;
+pub const MAX_FEE: u128 = MAX_L1_GAS_AMOUNT_U128.0 * DEFAULT_ETH_L1_GAS_PRICE;
 
 // The amount of test-token allocated to the account in this test, set to a multiple of the max
 // amount deprecated / non-deprecated transactions commit to paying.
@@ -390,7 +391,7 @@ pub fn update_json_value(base: &mut serde_json::Value, update: serde_json::Value
 }
 
 pub fn gas_vector_from_vm_usage(
-    vm_usage_in_l1_gas: u128,
+    vm_usage_in_l1_gas: GasAmount,
     computation_mode: &GasVectorComputationMode,
     versioned_constants: &VersionedConstants,
 ) -> GasVector {
