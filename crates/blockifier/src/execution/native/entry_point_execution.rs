@@ -12,6 +12,7 @@ use crate::execution::entry_point::{
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError};
 use crate::execution::native::contract_class::NativeContractClassV1;
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
+use crate::execution::native::utils::decode_felts_as_str;
 use crate::state::state_api::State;
 
 pub fn execute_entry_point_call(
