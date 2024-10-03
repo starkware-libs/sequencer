@@ -56,12 +56,6 @@ jobs:
           version: "0.9.0"
           locked: true
           components: clippy
-      - name: Set up Native Dependencies
-        uses: ./.github/actions/setup-native-deps
-        id: native-deps
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust-ubuntu-20.04"
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
