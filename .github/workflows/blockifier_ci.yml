@@ -43,6 +43,7 @@ jobs:
   featureless-build:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
+      - run: echo ${{ github.job }}
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
       - run: cargo build -p blockifier

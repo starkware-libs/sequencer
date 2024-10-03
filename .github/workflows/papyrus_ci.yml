@@ -44,6 +44,7 @@ jobs:
   executable-run:
     runs-on: starkware-ubuntu-latest-medium
     steps:
+      - run: echo ${{ github.job }}
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
       - name: Build node
@@ -59,6 +60,7 @@ jobs:
   executable-run-no-rpc:
     runs-on: starkware-ubuntu-latest-medium
     steps:
+      - run: echo ${{ github.job }}
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
       - name: Build node
@@ -74,6 +76,7 @@ jobs:
   p2p-sync-e2e-test:
     runs-on: ubuntu-latest
     steps:
+      - run: echo ${{ github.job }}
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
 
@@ -86,6 +89,7 @@ jobs:
   integration-test:
     runs-on: starkware-ubuntu-latest-medium
     steps:
+      - run: echo ${{ github.job }}
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
       - run: >
@@ -99,6 +103,7 @@ jobs:
   test-no-rpc:
     runs-on: starkware-ubuntu-latest-medium
     steps:
+      - run: echo ${{ github.job }}
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
       - run: |
@@ -110,6 +115,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-small
     if: github.base_ref == 'main' # this step is only run if the pr is to the main branch
     steps:
+      - run: echo ${{ github.job }}
       - uses: actions/checkout@v4
       - run: sudo apt-get install jq
       - run: ./check_starknet_api_version_dependency.sh # this script checks that if the starknet_api dependency is by git rev then this rev (commit) is on main
@@ -117,6 +123,7 @@ jobs:
   build-papyrus-utilities-image:
     runs-on: starkware-ubuntu-latest-medium
     steps:
+      - run: echo ${{ github.job }}
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -133,6 +140,7 @@ jobs:
   random-table-test:
     runs-on: starkware-ubuntu-latest-medium
     steps:
+      - run: echo ${{ github.job }}
       - uses: actions/checkout@v4
       # run this job only if the path 'crates/papyrus_storage/src/db/**' is changed, because it takes around 2 minutes.
       - uses: dorny/paths-filter@v3

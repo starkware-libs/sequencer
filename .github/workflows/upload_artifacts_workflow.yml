@@ -9,6 +9,7 @@ jobs:
   native-blockifier-artifacts-push:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
+      - run: echo ${{ github.job }}
       - name: Check tests status
         if: ${{ github.event.workflow_run.conclusion == 'failure' }}
         run: |

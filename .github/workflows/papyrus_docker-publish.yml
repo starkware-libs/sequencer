@@ -30,6 +30,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-large
 
     steps:
+      - run: echo ${{ github.job }}
       - name: Checkout repository
         uses: actions/checkout@v4
 

@@ -44,6 +44,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     if: ${{ github.event_name == 'pull_request' }}
     steps:
+      - run: echo ${{ github.job }}
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
 
@@ -60,6 +61,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     if: ${{ github.event_name == 'pull_request' }}
     steps:
+      - run: echo ${{ github.job }}
       # Checkout the base branch to get the old code.
       - uses: actions/checkout@v4
         with:
@@ -125,6 +127,7 @@ jobs:
   gcs-push:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
+      - run: echo ${{ github.job }}
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
 

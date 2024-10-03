@@ -39,6 +39,7 @@ jobs:
   merge-paths-test:
     runs-on: starkware-ubuntu-latest-small
     steps:
+      - run: echo ${{ github.job }}
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
