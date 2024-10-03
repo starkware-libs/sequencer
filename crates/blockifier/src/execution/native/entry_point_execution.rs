@@ -5,8 +5,6 @@ use cairo_native::execution_result::ContractExecutionResult;
 use cairo_native::executor::AotNativeExecutor;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 
-use super::utils::decode_felts_as_str;
-// use c::utils::run_native_executor;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{NativeContractClassV1, TrackedResource};
 use crate::execution::entry_point::{
@@ -16,6 +14,7 @@ use crate::execution::entry_point::{
 };
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
+use crate::execution::native::utils::decode_felts_as_str;
 use crate::state::state_api::State;
 
 pub fn execute_entry_point_call(
