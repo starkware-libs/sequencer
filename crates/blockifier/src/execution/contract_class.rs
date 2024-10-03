@@ -6,23 +6,17 @@ use cairo_lang_casm;
 use cairo_lang_casm::hints::Hint;
 use cairo_lang_sierra::ids::FunctionId;
 use cairo_lang_starknet_classes::casm_contract_class::{
-    CasmContractClass,
-    CasmContractEntryPoint,
-    CasmContractEntryPoints,
+    CasmContractClass, CasmContractEntryPoint, CasmContractEntryPoints,
 };
 use cairo_lang_starknet_classes::contract_class::{
-    ContractClass as SierraContractClass,
-    ContractEntryPoint as SierraContractEntryPoint,
+    ContractClass as SierraContractClass, ContractEntryPoint as SierraContractEntryPoint,
 };
 use cairo_lang_starknet_classes::NestedIntList;
 use cairo_lang_utils::bigint::BigUintAsHex;
 #[allow(unused_imports)]
 use cairo_native::executor::AotNativeExecutor;
 use cairo_vm::serde::deserialize_program::{
-    ApTracking,
-    FlowTrackingData,
-    HintParams,
-    ReferenceManager,
+    ApTracking, FlowTrackingData, HintParams, ReferenceManager,
 };
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::errors::program_errors::ProgramError;
@@ -35,10 +29,7 @@ use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
-    ContractClass as DeprecatedContractClass,
-    EntryPoint,
-    EntryPointOffset,
-    EntryPointType,
+    ContractClass as DeprecatedContractClass, EntryPoint, EntryPointOffset, EntryPointType,
     Program as DeprecatedProgram,
 };
 use starknet_types_core::felt::Felt;
@@ -189,7 +180,7 @@ impl ContractClassV0 {
             + self.n_builtins()
             + self.bytecode_length()
             + 1; // Hinted class hash.
-        // The hashed data size is approximately the number of hashes (invoked in hash chains).
+                 // The hashed data size is approximately the number of hashes (invoked in hash chains).
         let n_steps = constants::N_STEPS_PER_PEDERSEN * hashed_data_size;
 
         ExecutionResources {
@@ -746,7 +737,7 @@ impl PartialEq for NativeContractClassV1Inner {
 impl Eq for NativeContractClassV1Inner {}
 
 #[derive(Debug, PartialEq)]
-/// Modelled after [SierraContractEntryPoints]
+/// Modelled after [cairo_lang_starknet_classes::contract_class::ContractEntryPoints]
 /// and enriched with information for the Cairo Native ABI.
 struct NativeContractEntryPoints {
     constructor: Vec<NativeEntryPoint>,
