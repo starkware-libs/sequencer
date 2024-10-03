@@ -6,6 +6,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::execution::native::utils::{
     contract_entrypoint_to_entrypoint_selector,
+    decode_felts_as_str,
     encode_str_as_felts,
 };
 
