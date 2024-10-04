@@ -17,7 +17,11 @@ use strum_macros::EnumIter;
     Serialize,
     Deserialize,
 )]
-pub struct GasAmount(pub u128);
+pub struct GasAmount(pub u64);
+
+impl GasAmount {
+    pub const MAX: Self = Self(u64::MAX);
+}
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 pub struct GasVector {

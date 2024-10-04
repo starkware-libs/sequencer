@@ -240,7 +240,7 @@ fn test_run_parallel_txs(max_l1_resource_bounds: ValidResourceBounds) {
         deploy_account_tx_args! {
             class_hash: account_without_validation.get_class_hash(),
             resource_bounds: l1_resource_bounds(
-                GasAmount(u128::from(!zero_bounds)),
+                GasAmount(u64::from(!zero_bounds)),
                 DEFAULT_STRK_L1_GAS_PRICE.into()
             ),
         },

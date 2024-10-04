@@ -363,10 +363,10 @@ impl AccountTransaction {
                     // TODO(Aner): refactor to return all amounts that are too low.
                     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the
                     // conversion works.
-                    if GasAmount(u128::from(resource_bounds.max_amount)) < minimal_gas_amount {
+                    if GasAmount(resource_bounds.max_amount) < minimal_gas_amount {
                         return Err(TransactionFeeError::MaxGasAmountTooLow {
                             resource,
-                            max_gas_amount: GasAmount(u128::from(resource_bounds.max_amount)),
+                            max_gas_amount: GasAmount(resource_bounds.max_amount),
                             minimal_gas_amount,
                         })?;
                     }

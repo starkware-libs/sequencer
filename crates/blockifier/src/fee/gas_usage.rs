@@ -8,7 +8,7 @@ use crate::fee::eth_gas_constants;
 use crate::fee::resources::{GasVector, GasVectorComputationMode};
 use crate::state::cached_state::StateChangesCount;
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::utils::u128_from_usize;
+use crate::utils::u64_from_usize;
 
 #[cfg(test)]
 #[path = "gas_usage_test.rs"]
@@ -43,7 +43,7 @@ pub fn get_da_gas_cost(state_changes_count: &StateChangesCount, use_kzg_da: bool
     let (l1_gas, blob_gas) = if use_kzg_da {
         (
             GasAmount(0),
-            GasAmount(u128_from_usize(
+            GasAmount(u64_from_usize(
                 onchain_data_segment_length * eth_gas_constants::DATA_GAS_PER_FIELD_ELEMENT,
             )),
         )
@@ -70,7 +70,7 @@ pub fn get_da_gas_cost(state_changes_count: &StateChangesCount, use_kzg_da: bool
             naive_cost - discount
         };
 
-        (GasAmount(u128_from_usize(gas)), GasAmount(0))
+        (GasAmount(u64_from_usize(gas)), GasAmount(0))
     };
 
     GasVector { l1_gas, l1_data_gas: blob_gas, ..Default::default() }
@@ -134,7 +134,7 @@ pub fn get_log_message_to_l1_emissions_cost(l2_to_l1_payload_lengths: &[usize]) 
 }
 
 fn get_event_emission_cost(n_topics: usize, data_length: usize) -> GasVector {
-    GasVector::from_l1_gas(GasAmount(u128_from_usize(
+    GasVector::from_l1_gas(GasAmount(u64_from_usize(
         eth_gas_constants::GAS_PER_LOG
             + (n_topics + constants::N_DEFAULT_TOPICS) * eth_gas_constants::GAS_PER_LOG_TOPIC
             + data_length * eth_gas_constants::GAS_PER_LOG_DATA_WORD,

@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 use std::fmt::Display;
-use std::ops::Div;
 use std::sync::Arc;
 
 use derive_more::{Display, From};
@@ -743,12 +742,22 @@ pub struct RevertedTransactionExecutionStatus {
 pub struct Fee(pub u128);
 
 impl Fee {
-    pub fn div_ceil(self, rhs: NonzeroGasPrice) -> GasAmount {
-        let mut result: GasAmount = self / rhs;
-        if result.0 * rhs.get().0 < self.0 {
-            result = GasAmount(result.0 + 1);
+    pub fn checked_div_ceil(self, rhs: NonzeroGasPrice) -> Option<GasAmount> {
+        match self.checked_div(rhs) {
+            Some(value) => Some(if value.nonzero_saturating_mul(rhs) < self {
+                GasAmount(value.0 + 1)
+            } else {
+                value
+            }),
+            None => None,
         }
-        result
+    }
+
+    pub fn checked_div(self, rhs: NonzeroGasPrice) -> Option<GasAmount> {
+        match u64::try_from(self.0 / rhs.get().0) {
+            Ok(value) => Some(GasAmount(value)),
+            Err(_) => None,
+        }
     }
 }
 
@@ -770,21 +779,14 @@ impl From<Fee> for Felt {
     }
 }
 
-impl Div<NonzeroGasPrice> for Fee {
-    type Output = GasAmount;
-
-    fn div(self, rhs: NonzeroGasPrice) -> Self::Output {
-        GasAmount(self.0 / GasPrice::from(rhs).0)
-    }
-}
-
 impl GasPrice {
     pub const fn saturating_mul(self, rhs: GasAmount) -> Fee {
-        Fee(self.0.saturating_mul(rhs.0))
+        #[allow(clippy::as_conversions)]
+        Fee(self.0.saturating_mul(rhs.0 as u128))
     }
 
     pub fn checked_mul(self, rhs: GasAmount) -> Option<Fee> {
-        self.0.checked_mul(rhs.0).map(Fee)
+        self.0.checked_mul(u128::from(rhs.0)).map(Fee)
     }
 }
 

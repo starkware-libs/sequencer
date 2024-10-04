@@ -29,7 +29,7 @@ use crate::test_utils::{
     MAX_L1_GAS_AMOUNT,
 };
 use crate::transaction::test_utils::{account_invoke_tx, all_resource_bounds, l1_resource_bounds};
-use crate::utils::{u128_from_usize, u64_from_usize};
+use crate::utils::u64_from_usize;
 use crate::versioned_constants::VersionedConstants;
 
 fn get_vm_resource_usage() -> ExecutionResources {
@@ -57,12 +57,12 @@ fn test_simple_get_vm_resource_usage(
 
     // Positive flow.
     // Verify calculation - in our case, n_steps is the heaviest resource.
-    let vm_usage_in_l1_gas = GasAmount(u128::from(
+    let vm_usage_in_l1_gas = GasAmount(
         (versioned_constants.vm_resource_fee_cost().n_steps
-            * (u64_from_usize(vm_resource_usage.n_steps + n_reverted_steps)))
+            * u64_from_usize(vm_resource_usage.n_steps + n_reverted_steps))
         .ceil()
         .to_integer(),
-    ));
+    );
     let expected_gas_vector = gas_vector_from_vm_usage(
         vm_usage_in_l1_gas,
         &gas_vector_computation_mode,
@@ -82,7 +82,7 @@ fn test_simple_get_vm_resource_usage(
     let n_reverted_steps = 0;
     vm_resource_usage.n_steps =
         vm_resource_usage.builtin_instance_counter.get(&BuiltinName::range_check).unwrap() - 1;
-    let vm_usage_in_l1_gas = GasAmount(u128_from_usize(
+    let vm_usage_in_l1_gas = GasAmount(u64_from_usize(
         *vm_resource_usage.builtin_instance_counter.get(&BuiltinName::range_check).unwrap(),
     ));
     let expected_gas_vector = gas_vector_from_vm_usage(
@@ -112,12 +112,12 @@ fn test_float_get_vm_resource_usage(
     // Positive flow.
     // Verify calculation - in our case, n_steps is the heaviest resource.
     let n_reverted_steps = 300;
-    let vm_usage_in_l1_gas = GasAmount(u128::from(
+    let vm_usage_in_l1_gas = GasAmount(
         (versioned_constants.vm_resource_fee_cost().n_steps
             * u64_from_usize(vm_resource_usage.n_steps + n_reverted_steps))
         .ceil()
         .to_integer(),
-    ));
+    );
     let expected_gas_vector = gas_vector_from_vm_usage(
         vm_usage_in_l1_gas,
         &gas_vector_computation_mode,
@@ -135,14 +135,14 @@ fn test_float_get_vm_resource_usage(
 
     // Another positive flow, this time the heaviest resource is ecdsa_builtin.
     vm_resource_usage.n_steps = 200;
-    let vm_usage_in_l1_gas = GasAmount(u128::from(
+    let vm_usage_in_l1_gas = GasAmount(
         ((*versioned_constants.vm_resource_fee_cost().builtins.get(&BuiltinName::ecdsa).unwrap())
             * u64_from_usize(
                 *vm_resource_usage.builtin_instance_counter.get(&BuiltinName::ecdsa).unwrap(),
             ))
         .ceil()
         .to_integer(),
-    ));
+    );
     let expected_gas_vector = gas_vector_from_vm_usage(
         vm_usage_in_l1_gas,
         &gas_vector_computation_mode,
@@ -171,9 +171,9 @@ fn test_float_get_vm_resource_usage(
 fn test_discounted_gas_overdraft(
     #[case] gas_price: u128,
     #[case] data_gas_price: u128,
-    #[case] l1_gas_used: u128,
-    #[case] l1_data_gas_used: u128,
-    #[case] gas_bound: u128,
+    #[case] l1_gas_used: u64,
+    #[case] l1_data_gas_used: u64,
+    #[case] gas_bound: u64,
     #[case] expect_failure: bool,
 ) {
     let (l1_gas_used, l1_data_gas_used, gas_bound) =
@@ -223,7 +223,9 @@ fn test_discounted_gas_overdraft(
     if expect_failure {
         let error = report.error().unwrap();
         let expected_actual_amount = l1_gas_used
-            + (l1_data_gas_used.nonzero_checked_mul(data_gas_price).unwrap()) / gas_price;
+            + (l1_data_gas_used.nonzero_checked_mul(data_gas_price).unwrap())
+                .checked_div(gas_price)
+                .unwrap();
         assert_matches!(
             error, FeeCheckError::MaxGasAmountExceeded { resource, max_amount, actual_amount }
             if max_amount == gas_bound
