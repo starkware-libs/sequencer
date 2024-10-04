@@ -1,19 +1,6 @@
 name: Blockifier-Compiled-Cairo
 
 on:
-  push:
-    branches:
-      - main
-      - main-v[0-9].**
-    tags:
-      - v[0-9].**
-    paths:
-      - '.github/workflows/blockifier_compiled_cairo.yml'
-      - 'crates/blockifier/feature_contracts/**'
-      - 'crates/blockifier/src/test_utils/cairo_compile.rs'
-      - 'crates/blockifier/tests/feature_contracts_compatibility_test.rs'
-      - 'crates/blockifier/tests/requirements.txt'
-      - 'scripts/dependencies.sh'
   pull_request:
     types:
       - opened
