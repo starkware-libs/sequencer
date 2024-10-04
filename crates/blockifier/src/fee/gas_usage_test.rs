@@ -21,7 +21,7 @@ use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::{DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE};
 use crate::transaction::objects::FeeType;
 use crate::transaction::test_utils::account_invoke_tx;
-use crate::utils::u128_from_usize;
+use crate::utils::{u128_from_usize, u64_from_usize};
 use crate::versioned_constants::{ResourceCost, VersionedConstants};
 #[fixture]
 fn versioned_constants() -> &'static VersionedConstants {
@@ -95,7 +95,7 @@ fn test_get_event_gas_cost(
     let execution_summary = CallInfo::summarize_many(call_infos.iter());
     // 8 keys and 11 data words overall.
     let expected_gas =
-        GasAmount((data_word_cost * (event_key_factor * 8_u128 + 11_u128)).to_integer());
+        GasAmount(u128::from((data_word_cost * (event_key_factor * 8_u64 + 11_u64)).to_integer()));
     let expected_gas_vector = match gas_vector_computation_mode {
         GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(expected_gas),
         GasVectorComputationMode::All => GasVector::from_l2_gas(expected_gas),
@@ -200,7 +200,10 @@ fn test_onchain_data_discount() {
 
     let cost_without_discount = (state_changes_count.n_storage_updates * 2) * (512 + 100);
     let actual_cost = get_da_gas_cost(&state_changes_count, use_kzg_da).l1_gas;
-    let cost_ratio = ResourceCost::new(actual_cost.0, u128_from_usize(cost_without_discount));
+    let cost_ratio = ResourceCost::new(
+        u64::try_from(actual_cost.0).unwrap(),
+        u64_from_usize(cost_without_discount),
+    );
     assert!(cost_ratio <= ResourceCost::new(9, 10));
     assert!(cost_ratio >= ResourceCost::new(88, 100));
 }

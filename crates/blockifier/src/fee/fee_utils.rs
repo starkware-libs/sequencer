@@ -18,7 +18,7 @@ use crate::fee::resources::{GasVector, GasVectorComputationMode, TransactionFeeR
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionFeeError;
 use crate::transaction::objects::{ExecutionResourcesTraits, FeeType, TransactionInfo};
-use crate::utils::u128_from_usize;
+use crate::utils::u64_from_usize;
 use crate::versioned_constants::VersionedConstants;
 
 #[cfg(test)]
@@ -51,7 +51,7 @@ pub fn get_vm_resources_cost(
 
     // Convert Cairo resource usage to L1 gas usage.
     // Do so by taking the maximum of the usage of each builtin + step usage.
-    let vm_l1_gas_usage = GasAmount(
+    let vm_l1_gas_usage = GasAmount(u128::from(
         vm_resource_fee_costs
         .builtins
         .iter()
@@ -64,9 +64,9 @@ pub fn get_vm_resources_cost(
             vm_resource_fee_costs.n_steps,
             vm_resource_usage.total_n_steps() + n_reverted_steps,
         )])
-        .map(|(cost, usage)| (cost * u128_from_usize(usage)).ceil().to_integer())
-        .fold(0, u128::max),
-    );
+        .map(|(cost, usage)| (cost * u64_from_usize(usage)).ceil().to_integer())
+        .fold(0, u64::max),
+    ));
 
     match computation_mode {
         GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(vm_l1_gas_usage),

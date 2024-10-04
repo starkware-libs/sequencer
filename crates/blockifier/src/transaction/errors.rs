@@ -166,4 +166,6 @@ pub enum ParseError {
 pub enum NumericConversionError {
     #[error("Conversion of {0} to u128 unsuccessful.")]
     U128ToUsizeError(u128),
+    #[error("Conversion of {0} to u64 unsuccessful.")]
+    U64ToUsizeError(u64),
 }
