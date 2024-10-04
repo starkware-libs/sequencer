@@ -11,7 +11,7 @@ use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce, PatriciaKey};
 use starknet_api::deprecated_contract_class::EntryPointType;
-use starknet_api::execution_resources::GasAmount;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
@@ -76,7 +76,6 @@ use crate::fee::gas_usage::{
 use crate::fee::receipt::TransactionReceipt;
 use crate::fee::resources::{
     ComputationResources,
-    GasVector,
     GasVectorComputationMode,
     StarknetResources,
     StateResources,

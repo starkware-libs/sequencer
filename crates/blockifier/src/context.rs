@@ -4,6 +4,7 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::ValidResourceBounds;
 
 use crate::blockifier::block::BlockInfo;
@@ -38,6 +39,34 @@ impl TransactionContext {
             },
             TransactionInfo::Deprecated(_) => GasVectorComputationMode::NoL2Gas,
         }
+    }
+    /// Compute l1_gas estimation from gas_vector using the following formula:
+    /// One byte of data costs either 1 data gas (in blob mode) or 16 gas (in calldata
+    /// mode). For gas price GP and data gas price DGP, the discount for using blobs
+    /// would be DGP / (16 * GP).
+    /// X non-data-related gas consumption and Y bytes of data, in non-blob mode, would
+    /// cost (X + 16*Y) units of gas. Applying the discount ratio to the data-related
+    /// summand, we get total_gas = (X + Y * DGP / GP).
+    /// If this function is called with kzg_flag==false, then l1_data_gas==0, and this dicount
+    /// function does nothing.
+    pub fn to_discounted_l1_gas(&self, gas_vector: &GasVector) -> GasAmount {
+        let gas_prices = &self.block_context.block_info.gas_prices;
+        let fee_type = self.tx_info.fee_type();
+        let gas_price = gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
+        let data_gas_price = gas_prices.get_l1_data_gas_price_by_fee_type(&fee_type);
+        gas_vector.l1_gas
+            + (gas_vector.l1_data_gas.nonzero_saturating_mul(data_gas_price))
+                .checked_div_ceil(gas_price)
+                .unwrap_or_else(|| {
+                    log::warn!(
+                        "Discounted L1 gas cost overflowed: division of L1 data gas cost ({:?} * \
+                         {:?}) by regular L1 gas price ({:?}) resulted in overflow.",
+                        gas_vector.l1_data_gas,
+                        data_gas_price,
+                        gas_price
+                    );
+                    GasAmount::MAX
+                })
     }
 }
 

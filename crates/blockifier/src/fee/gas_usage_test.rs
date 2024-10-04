@@ -1,6 +1,6 @@
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::execution_resources::GasAmount;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::invoke_tx_args;
 use starknet_api::transaction::{EventContent, EventData, EventKey};
 use starknet_types_core::felt::Felt;
@@ -11,12 +11,7 @@ use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
 use crate::fee::eth_gas_constants;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::gas_usage::{get_da_gas_cost, get_message_segment_length};
-use crate::fee::resources::{
-    GasVector,
-    GasVectorComputationMode,
-    StarknetResources,
-    StateResources,
-};
+use crate::fee::resources::{GasVectorComputationMode, StarknetResources, StateResources};
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::{DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE};
 use crate::transaction::objects::FeeType;
@@ -234,7 +229,7 @@ fn test_discounted_gas_from_gas_vector_computation() {
         BlockContext::create_for_testing().to_tx_context(&account_invoke_tx(invoke_tx_args! {}));
     let gas_usage =
         GasVector { l1_gas: GasAmount(100), l1_data_gas: GasAmount(2), ..Default::default() };
-    let actual_result = gas_usage.to_discounted_l1_gas(&tx_context);
+    let actual_result = tx_context.to_discounted_l1_gas(&gas_usage);
 
     let result_div_ceil = gas_usage.l1_gas
         + (gas_usage.l1_data_gas.nonzero_checked_mul(DEFAULT_ETH_L1_DATA_GAS_PRICE).unwrap())
