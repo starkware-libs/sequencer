@@ -238,6 +238,49 @@ impl From<GasPrice> for PrefixedBytesAsHex<16_usize> {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct NonzeroGasPrice(GasPrice);
+
+impl NonzeroGasPrice {
+    pub const MIN: Self = Self(GasPrice(1));
+
+    pub fn new(price: GasPrice) -> Result<Self, StarknetApiError> {
+        if price.0 == 0 {
+            return Err(StarknetApiError::ZeroGasPrice);
+        }
+        Ok(Self(price))
+    }
+
+    pub const fn get(&self) -> GasPrice {
+        self.0
+    }
+
+    #[cfg(any(test, feature = "testing"))]
+    pub const fn new_unchecked(price: GasPrice) -> Self {
+        Self(price)
+    }
+}
+
+impl Default for NonzeroGasPrice {
+    fn default() -> Self {
+        Self::MIN
+    }
+}
+
+impl From<NonzeroGasPrice> for GasPrice {
+    fn from(val: NonzeroGasPrice) -> Self {
+        val.0
+    }
+}
+
+impl TryFrom<GasPrice> for NonzeroGasPrice {
+    type Error = StarknetApiError;
+
+    fn try_from(price: GasPrice) -> Result<Self, Self::Error> {
+        NonzeroGasPrice::new(price)
+    }
+}
+
 /// The timestamp of a [Block](`crate::block::Block`).
 #[derive(
     Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
