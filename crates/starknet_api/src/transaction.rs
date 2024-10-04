@@ -1,14 +1,16 @@
 use std::collections::BTreeMap;
 use std::fmt::Display;
+use std::ops::Div;
 use std::sync::Arc;
 
 use derive_more::{Display, From};
 use num_bigint::BigUint;
+use num_traits::ops::saturating::SaturatingMul;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
-use crate::block::{BlockHash, BlockNumber};
+use crate::block::{BlockHash, BlockNumber, GasPrice, NonzeroGasPrice};
 use crate::core::{
     ChainId,
     ClassHash,
@@ -19,7 +21,7 @@ use crate::core::{
     Nonce,
 };
 use crate::data_availability::DataAvailabilityMode;
-use crate::execution_resources::ExecutionResources;
+use crate::execution_resources::{ExecutionResources, GasAmount};
 use crate::hash::StarkHash;
 use crate::serde_utils::PrefixedBytesAsHex;
 use crate::transaction_hash::{
@@ -36,6 +38,10 @@ use crate::transaction_hash::{
     get_l1_handler_transaction_hash,
 };
 use crate::StarknetApiError;
+
+#[cfg(test)]
+#[path = "transaction_test.rs"]
+mod transaction_test;
 
 // TODO(Noa, 14/11/2023): Replace QUERY_VERSION_BASE_BIT with a lazy calculation.
 //      pub static QUERY_VERSION_BASE: Lazy<Felt> = ...
@@ -737,6 +743,16 @@ pub struct RevertedTransactionExecutionStatus {
 #[serde(from = "PrefixedBytesAsHex<16_usize>", into = "PrefixedBytesAsHex<16_usize>")]
 pub struct Fee(pub u128);
 
+impl Fee {
+    pub fn div_ceil(self, rhs: NonzeroGasPrice) -> GasAmount {
+        let mut result: GasAmount = self / rhs;
+        if result.0 * rhs.get().0 < self.0 {
+            result = GasAmount(result.0 + 1);
+        }
+        result
+    }
+}
+
 impl From<PrefixedBytesAsHex<16_usize>> for Fee {
     fn from(value: PrefixedBytesAsHex<16_usize>) -> Self {
         Self(u128::from_be_bytes(value.0))
@@ -752,6 +768,60 @@ impl From<Fee> for PrefixedBytesAsHex<16_usize> {
 impl From<Fee> for Felt {
     fn from(fee: Fee) -> Self {
         Self::from(fee.0)
+    }
+}
+
+impl Div<NonzeroGasPrice> for Fee {
+    type Output = GasAmount;
+
+    fn div(self, rhs: NonzeroGasPrice) -> Self::Output {
+        GasAmount(self.0 / GasPrice::from(rhs).0)
+    }
+}
+
+impl Div<NonzeroGasPrice> for GasAmount {
+    type Output = Fee;
+
+    fn div(self, rhs: NonzeroGasPrice) -> Self::Output {
+        Fee(self.0 / GasPrice::from(rhs).0)
+    }
+}
+
+impl GasPrice {
+    pub const fn saturating_mul(self, rhs: GasAmount) -> Fee {
+        Fee(self.0.saturating_mul(rhs.0))
+    }
+
+    pub fn checked_mul(self, rhs: GasAmount) -> Option<Fee> {
+        self.0.checked_mul(rhs.0).map(Fee)
+    }
+}
+
+impl NonzeroGasPrice {
+    pub const fn saturating_mul(self, rhs: GasAmount) -> Fee {
+        Fee(self.get().0.saturating_mul(rhs.0))
+    }
+
+    pub fn checked_mul(self, rhs: GasAmount) -> Option<Fee> {
+        self.get().0.checked_mul(rhs.0).map(Fee)
+    }
+}
+
+impl GasAmount {
+    pub const fn saturating_mul(self, rhs: GasPrice) -> Fee {
+        rhs.saturating_mul(self)
+    }
+
+    pub const fn nonzero_saturating_mul(self, rhs: NonzeroGasPrice) -> Fee {
+        rhs.saturating_mul(self)
+    }
+
+    pub fn checked_mul(self, rhs: GasPrice) -> Option<Fee> {
+        rhs.checked_mul(self)
+    }
+
+    pub fn nonzero_checked_mul(self, rhs: NonzeroGasPrice) -> Option<Fee> {
+        rhs.checked_mul(self)
     }
 }
 

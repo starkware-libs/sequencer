@@ -33,7 +33,6 @@ use starknet_api::block::{
     BlockHeaderWithoutHash,
     BlockNumber,
     BlockTimestamp,
-    GasPrice,
     GasPricePerToken,
 };
 use starknet_api::core::{
@@ -45,6 +44,7 @@ use starknet_api::core::{
 };
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StorageKey, ThinStateDiff};
+use starknet_api::transaction::Fee;
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_client::reader::PendingData;
 use starknet_types_core::felt::Felt;
@@ -196,16 +196,16 @@ fn test_block_header(block_number: BlockNumber) -> BlockHeader {
             block_number,
             sequencer: SequencerContractAddress(contract_address!(TEST_SEQUENCER_ADDRESS)),
             l1_gas_price: GasPricePerToken {
-                price_in_wei: GasPrice(DEFAULT_ETH_L1_GAS_PRICE),
-                price_in_fri: GasPrice(DEFAULT_STRK_L1_GAS_PRICE),
+                price_in_wei: DEFAULT_ETH_L1_GAS_PRICE.into(),
+                price_in_fri: DEFAULT_STRK_L1_GAS_PRICE.into(),
             },
             l1_data_gas_price: GasPricePerToken {
-                price_in_wei: GasPrice(DEFAULT_ETH_L1_GAS_PRICE),
-                price_in_fri: GasPrice(DEFAULT_STRK_L1_GAS_PRICE),
+                price_in_wei: DEFAULT_ETH_L1_GAS_PRICE.into(),
+                price_in_fri: DEFAULT_STRK_L1_GAS_PRICE.into(),
             },
             l2_gas_price: GasPricePerToken {
-                price_in_wei: GasPrice(DEFAULT_ETH_L1_GAS_PRICE),
-                price_in_fri: GasPrice(DEFAULT_STRK_L2_GAS_PRICE),
+                price_in_wei: DEFAULT_ETH_L1_GAS_PRICE.into(),
+                price_in_fri: DEFAULT_STRK_L2_GAS_PRICE.into(),
             },
             timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
             ..Default::default()
@@ -252,7 +252,7 @@ struct ThinStateDiffBuilder<'a> {
 
 impl<'a> ThinStateDiffBuilder<'a> {
     fn new(chain_info: &ChainInfo) -> Self {
-        const TEST_INITIAL_ACCOUNT_BALANCE: u128 = BALANCE;
+        const TEST_INITIAL_ACCOUNT_BALANCE: Fee = BALANCE;
         let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
         let erc20_class_hash = erc20.get_class_hash();
 
@@ -262,7 +262,7 @@ impl<'a> ThinStateDiffBuilder<'a> {
 
         Self {
             chain_info: chain_info.clone(),
-            initial_account_balance: felt!(TEST_INITIAL_ACCOUNT_BALANCE),
+            initial_account_balance: felt!(TEST_INITIAL_ACCOUNT_BALANCE.0),
             deployed_contracts,
             ..Default::default()
         }
