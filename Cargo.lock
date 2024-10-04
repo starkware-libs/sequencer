@@ -10061,6 +10061,7 @@ dependencies = [
  "hex",
  "indexmap 2.2.6",
  "itertools 0.12.1",
+ "log",
  "num-bigint 0.4.5",
  "pretty_assertions",
  "primitive-types",

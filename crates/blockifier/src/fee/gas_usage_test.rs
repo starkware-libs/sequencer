@@ -1,6 +1,6 @@
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::execution_resources::GasAmount;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::invoke_tx_args;
 use starknet_api::transaction::{EventContent, EventData, EventKey};
 use starknet_types_core::felt::Felt;
@@ -11,12 +11,7 @@ use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
 use crate::fee::eth_gas_constants;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::gas_usage::{get_da_gas_cost, get_message_segment_length};
-use crate::fee::resources::{
-    GasVector,
-    GasVectorComputationMode,
-    StarknetResources,
-    StateResources,
-};
+use crate::fee::resources::{GasVectorComputationMode, StarknetResources, StateResources};
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::{DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE};
 use crate::transaction::objects::FeeType;
