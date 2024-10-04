@@ -1,20 +1,6 @@
 name: Merge-paths test
 
 on:
-  push:
-    branches:
-      - main
-      - main-v[0-9].**
-    tags:
-      - v[0-9].**
-    paths:
-      - '.github/workflows/merge_paths_ci.yml'
-      - 'scripts/dependencies.sh'
-      - 'scripts/merge_branches.py'
-      - 'scripts/merge_paths.json'
-      - 'scripts/merge_paths_test.py'
-      - 'scripts/merge_status.py'
-
   pull_request:
     types:
       - opened
