@@ -177,6 +177,8 @@ fn commit_block(mempool: &mut Mempool, nonces: impl IntoIterator<Item = (&'stati
     assert_eq!(mempool.commit_block(args), Ok(()));
 }
 
+// TODO(Elin): consider comparing sets (makes tests more robust, no need to think of the order);
+// it requires Hash on Transaction, maybe not the best option.
 #[track_caller]
 fn get_txs_and_assert_expected(mempool: &mut Mempool, n_txs: usize, expected_txs: &[Transaction]) {
     let txs = mempool.get_txs(n_txs).unwrap();
@@ -919,46 +921,53 @@ fn test_flow_filling_holes(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_flow_partial_commit_block() {
+fn test_flow_commit_block_includes_proposed_txs_subset(mut mempool: Mempool) {
     // Setup.
-    let tx_address_0_nonce_3 = tx!(tip: 10, tx_hash: 1, sender_address: "0x0", tx_nonce: 3);
-    let tx_address_0_nonce_5 = tx!(tip: 11, tx_hash: 2, sender_address: "0x0", tx_nonce: 5);
-    let tx_address_0_nonce_6 = tx!(tip: 12, tx_hash: 3, sender_address: "0x0", tx_nonce: 6);
-    let tx_address_1_nonce_0 = tx!(tip: 20, tx_hash: 4, sender_address: "0x1", tx_nonce: 0);
-    let tx_address_1_nonce_1 = tx!(tip: 21, tx_hash: 5, sender_address: "0x1", tx_nonce: 1);
-    let tx_address_1_nonce_2 = tx!(tip: 22, tx_hash: 6, sender_address: "0x1", tx_nonce: 2);
-    let tx_address_2_nonce_2 = tx!(tip: 0, tx_hash: 7, sender_address: "0x2", tx_nonce: 2);
+    let tx_address_0_nonce_3 =
+        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 3, account_nonce: 3);
+    let tx_address_0_nonce_5 =
+        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 5, account_nonce: 3);
+    let tx_address_0_nonce_6 =
+        add_tx_input!(tx_hash: 3, sender_address: "0x0", tx_nonce: 6, account_nonce: 3);
+    let tx_address_1_nonce_0 =
+        add_tx_input!(tx_hash: 4, sender_address: "0x1", tx_nonce: 0, account_nonce: 0);
+    let tx_address_1_nonce_1 =
+        add_tx_input!(tx_hash: 5, sender_address: "0x1", tx_nonce: 1, account_nonce: 0);
+    let tx_address_1_nonce_2 =
+        add_tx_input!(tx_hash: 6, sender_address: "0x1", tx_nonce: 2, account_nonce: 0);
+    let tx_address_2_nonce_2 =
+        add_tx_input!(tx_hash: 7, sender_address: "0x2", tx_nonce: 2, account_nonce: 2);
 
-    let queue_txs = [&tx_address_0_nonce_3, &tx_address_1_nonce_0, &tx_address_2_nonce_2]
-        .map(TransactionReference::new);
-    let pool_txs = [
-        &tx_address_0_nonce_3,
+    for input in [
         &tx_address_0_nonce_5,
         &tx_address_0_nonce_6,
-        &tx_address_1_nonce_0,
-        &tx_address_1_nonce_1,
+        &tx_address_0_nonce_3,
         &tx_address_1_nonce_2,
+        &tx_address_1_nonce_1,
+        &tx_address_1_nonce_0,
         &tx_address_2_nonce_2,
-    ]
-    .map(|tx| tx.clone());
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool(pool_txs)
-        .with_priority_queue(queue_txs)
-        .build_into_mempool();
+    ] {
+        add_tx(&mut mempool, input);
+    }
 
     // Test.
-    get_txs_and_assert_expected(&mut mempool, 2, &[tx_address_1_nonce_0, tx_address_0_nonce_3]);
-    get_txs_and_assert_expected(&mut mempool, 2, &[tx_address_1_nonce_1, tx_address_2_nonce_2]);
+    get_txs_and_assert_expected(
+        &mut mempool,
+        2,
+        &[tx_address_2_nonce_2.tx, tx_address_1_nonce_0.tx],
+    );
+    get_txs_and_assert_expected(
+        &mut mempool,
+        2,
+        &[tx_address_1_nonce_1.tx, tx_address_0_nonce_3.tx],
+    );
 
     // Not included in block: address "0x2" nonce 2, address "0x1" nonce 1.
     let nonces = [("0x0", 3), ("0x1", 0)];
     commit_block(&mut mempool, nonces);
 
     // Assert.
-    let expected_pool_txs = [tx_address_0_nonce_5, tx_address_0_nonce_6, tx_address_1_nonce_2];
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_pool(expected_pool_txs).with_priority_queue([]).build();
-    expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
+    get_txs_and_assert_expected(&mut mempool, 2, &[]);
 }
 
 #[rstest]
