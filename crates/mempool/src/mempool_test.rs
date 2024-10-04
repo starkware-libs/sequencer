@@ -737,7 +737,7 @@ fn test_add_tx_after_get_txs_fails_on_duplicate_nonce() {
 }
 
 #[rstest]
-fn test_commit_block_includes_all_txs() {
+fn test_commit_block_includes_all_proposed_txs() {
     // Setup.
     let tx_address_0_nonce_4 = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 4);
     let tx_address_0_nonce_5 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 5);
@@ -763,20 +763,24 @@ fn test_commit_block_includes_all_txs() {
     expected_mempool_content.assert_eq_pool_and_priority_queue_content(&mempool);
 }
 
+// TODO(Elin): add a case of a rejected transaction (not the highest nonce of account "0x1"),
+// once transaction hashes are added to `commit_block`.
 #[rstest]
 fn test_commit_block_rewinds_queued_nonce() {
     // Setup.
     let tx_address_0_nonce_5 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 5);
+    let tx_address_0_nonce_6 = tx!(tx_hash: 3, sender_address: "0x0", tx_nonce: 6);
+    let tx_address_1_nonce_2 = tx!(tx_hash: 6, sender_address: "0x1", tx_nonce: 2);
 
-    let queued_txs = [TransactionReference::new(&tx_address_0_nonce_5)];
-    let pool_txs = [tx_address_0_nonce_5];
+    let queue_txs = [TransactionReference::new(&tx_address_1_nonce_2)];
+    let pool_txs = [tx_address_0_nonce_5, tx_address_0_nonce_6, tx_address_1_nonce_2];
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs)
-        .with_priority_queue(queued_txs)
+        .with_priority_queue(queue_txs)
         .build_into_mempool();
 
-    // Test.
-    let nonces = [("0x0", 3), ("0x1", 3)];
+    // Not included in block: address "0x2" nonce 2, address "0x1" nonce 1.
+    let nonces = [("0x0", 3), ("0x1", 0)];
     commit_block(&mut mempool, nonces);
 
     // Assert.
