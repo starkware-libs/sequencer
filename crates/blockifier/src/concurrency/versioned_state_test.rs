@@ -239,7 +239,10 @@ fn test_run_parallel_txs(max_l1_resource_bounds: ValidResourceBounds) {
     let deploy_account_tx_1 = deploy_account_tx(
         deploy_account_tx_args! {
             class_hash: account_without_validation.get_class_hash(),
-            resource_bounds: l1_resource_bounds(GasAmount(u128::from(!zero_bounds)), DEFAULT_STRK_L1_GAS_PRICE),
+            resource_bounds: l1_resource_bounds(
+                GasAmount(u128::from(!zero_bounds)),
+                DEFAULT_STRK_L1_GAS_PRICE.into()
+            ),
         },
         &mut NonceManager::default(),
     );
@@ -265,7 +268,7 @@ fn test_run_parallel_txs(max_l1_resource_bounds: ValidResourceBounds) {
     let deployed_account_balance_key = get_fee_token_var_address(account_address);
     let fee_token_address = chain_info.fee_token_address(&fee_type);
     state_2
-        .set_storage_at(fee_token_address, deployed_account_balance_key, felt!(BALANCE))
+        .set_storage_at(fee_token_address, deployed_account_balance_key, felt!(BALANCE.0))
         .unwrap();
 
     let block_context_1 = block_context.clone();
