@@ -96,8 +96,6 @@ macro_rules! implement_account_tx_inner_getters {
     };
 }
 
-/// This implementation of try_from clones the base transaction struct. This method's advantage is
-/// that it does not clone the Casm contract class code.
 impl TryFrom<&starknet_api::executable_transaction::Transaction> for AccountTransaction {
     type Error = TransactionExecutionError;
 
@@ -106,7 +104,7 @@ impl TryFrom<&starknet_api::executable_transaction::Transaction> for AccountTran
     ) -> Result<Self, Self::Error> {
         match value {
             starknet_api::executable_transaction::Transaction::Declare(declare_tx) => {
-                Ok(Self::Declare(declare_tx.try_into()?))
+                Ok(Self::Declare(declare_tx.clone().try_into()?))
             }
             starknet_api::executable_transaction::Transaction::DeployAccount(deploy_account_tx) => {
                 Ok(Self::DeployAccount(DeployAccountTransaction {
