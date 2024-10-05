@@ -69,24 +69,6 @@ pub enum ContractClass {
     V1(ContractClassV1),
 }
 
-// TODO(Noa): Reconsider the code duplication.
-impl TryFrom<&RawContractClass> for ContractClass {
-    type Error = ProgramError;
-
-    fn try_from(raw_contract_class: &RawContractClass) -> Result<Self, Self::Error> {
-        let contract_class: ContractClass = match raw_contract_class {
-            RawContractClass::V0(_) => {
-                panic!("Cairo 0 does not support conversion by reference.")
-            }
-            RawContractClass::V1(raw_contract_class) => {
-                ContractClass::V1(raw_contract_class.try_into()?)
-            }
-        };
-
-        Ok(contract_class)
-    }
-}
-
 impl TryFrom<RawContractClass> for ContractClass {
     type Error = ProgramError;
 
@@ -308,7 +290,7 @@ impl ContractClassV1 {
 
     pub fn try_from_json_string(raw_contract_class: &str) -> Result<ContractClassV1, ProgramError> {
         let casm_contract_class: CasmContractClass = serde_json::from_str(raw_contract_class)?;
-        let contract_class = ContractClassV1::try_from(&casm_contract_class)?;
+        let contract_class = ContractClassV1::try_from(casm_contract_class)?;
 
         Ok(contract_class)
     }
@@ -453,21 +435,6 @@ impl TryFrom<CasmContractClass> for ContractClassV1 {
     }
 }
 
-// TODO(Noa): Reconsider the code duplication..
-impl TryFrom<&CasmContractClass> for ContractClassV1 {
-    type Error = ProgramError;
-
-    fn try_from(class: &CasmContractClass) -> Result<Self, Self::Error> {
-        try_from_casm_contract_class_internal(
-            &class.bytecode,
-            &class.hints,
-            &class.entry_points_by_type,
-            class.bytecode_segment_lengths.clone(),
-            &class.compiler_version,
-        )
-    }
-}
-
 // V0 utilities.
 
 /// Converts the program type from SN API into a Cairo VM-compatible type.
@@ -586,25 +553,6 @@ pub struct ClassInfo {
     contract_class: ContractClass,
     sierra_program_length: usize,
     abi_length: usize,
-}
-
-// TODO(Noa): Reconsider the code duplication..
-impl TryFrom<&starknet_api::contract_class::ClassInfo> for ClassInfo {
-    type Error = ProgramError;
-
-    fn try_from(class_info: &starknet_api::contract_class::ClassInfo) -> Result<Self, Self::Error> {
-        let starknet_api::contract_class::ClassInfo {
-            contract_class,
-            sierra_program_length,
-            abi_length,
-        } = class_info;
-
-        Ok(Self {
-            contract_class: contract_class.try_into()?,
-            sierra_program_length: *sierra_program_length,
-            abi_length: *abi_length,
-        })
-    }
 }
 
 impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
