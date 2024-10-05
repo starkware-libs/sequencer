@@ -229,6 +229,6 @@ impl TransactionReference {
     }
 
     pub fn get_l2_gas_price(&self) -> u128 {
-        self.resource_bounds.get_l2_bounds().max_price_per_unit
+        self.resource_bounds.get_l2_bounds().max_price_per_unit.0
     }
 }

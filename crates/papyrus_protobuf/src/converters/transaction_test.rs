@@ -1,7 +1,8 @@
 use lazy_static::lazy_static;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use rand::random;
-use starknet_api::execution_resources::{Builtin, ExecutionResources, GasVector};
+use starknet_api::block::GasPrice;
+use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
 use starknet_api::transaction::{
     AllResourceBounds,
     DeclareTransaction,
@@ -198,8 +199,17 @@ lazy_static! {
     };
     static ref RESOURCE_BOUNDS_MAPPING: ValidResourceBounds =
         ValidResourceBounds::AllResources(AllResourceBounds {
-            l1_gas: ResourceBounds { max_amount: 0x5, max_price_per_unit: 0x6 },
-            l2_gas: ResourceBounds { max_amount: 0x500, max_price_per_unit: 0x600 },
-            l1_data_gas: ResourceBounds { max_amount: 0x30, max_price_per_unit: 0x30 }
+            l1_gas: ResourceBounds {
+                max_amount: GasAmount(0x5),
+                max_price_per_unit: GasPrice(0x6)
+            },
+            l2_gas: ResourceBounds {
+                max_amount: GasAmount(0x500),
+                max_price_per_unit: GasPrice(0x600)
+            },
+            l1_data_gas: ResourceBounds {
+                max_amount: GasAmount(0x30),
+                max_price_per_unit: GasPrice(0x30)
+            }
         });
 }

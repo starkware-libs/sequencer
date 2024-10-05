@@ -367,8 +367,8 @@ auto_storage_serde! {
         L1DataGas = 2,
     }
     pub struct ResourceBounds {
-        pub max_amount: u64,
-        pub max_price_per_unit: u128,
+        pub max_amount: GasAmount,
+        pub max_price_per_unit: GasPrice,
     }
     pub struct SequencerContractAddress(pub ContractAddress);
     pub struct Signature {

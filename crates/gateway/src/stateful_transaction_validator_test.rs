@@ -15,8 +15,10 @@ use mockall::predicate::eq;
 use num_bigint::BigUint;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
+use starknet_api::block::GasPrice;
 use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::transaction::Resource;
@@ -36,8 +38,8 @@ pub const STATEFUL_VALIDATOR_FEE_ERROR: BlockifierStatefulValidatorError =
         TransactionPreValidationError::TransactionFeeError(
             TransactionFeeError::GasBoundsExceedBalance {
                 resource: Resource::L1DataGas,
-                max_amount: VALID_L1_GAS_MAX_AMOUNT,
-                max_price: VALID_L1_GAS_MAX_PRICE_PER_UNIT,
+                max_amount: GasAmount(VALID_L1_GAS_MAX_AMOUNT),
+                max_price: GasPrice(VALID_L1_GAS_MAX_PRICE_PER_UNIT),
                 balance: BigUint::ZERO,
             },
         ),

@@ -733,8 +733,8 @@ auto_impl_get_test_instance! {
         L2Gas = 1,
     }
     pub struct ResourceBounds {
-        pub max_amount: u64,
-        pub max_price_per_unit: u128,
+        pub max_amount: GasAmount,
+        pub max_price_per_unit: GasPrice,
     }
     pub struct RpcContractClass {
         pub sierra_program: Vec<Felt>,

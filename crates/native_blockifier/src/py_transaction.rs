@@ -11,6 +11,8 @@ use blockifier::transaction::transaction_execution::Transaction;
 use blockifier::transaction::transaction_types::TransactionType;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use starknet_api::block::GasPrice;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{
     DeprecatedResourceBoundsMapping,
     Resource,
@@ -64,8 +66,8 @@ pub struct PyResourceBounds {
 impl From<PyResourceBounds> for starknet_api::transaction::ResourceBounds {
     fn from(py_resource_bounds: PyResourceBounds) -> Self {
         Self {
-            max_amount: py_resource_bounds.max_amount,
-            max_price_per_unit: py_resource_bounds.max_price_per_unit,
+            max_amount: GasAmount(py_resource_bounds.max_amount),
+            max_price_per_unit: GasPrice(py_resource_bounds.max_price_per_unit),
         }
     }
 }

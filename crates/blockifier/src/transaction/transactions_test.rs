@@ -983,16 +983,16 @@ fn test_insufficient_new_resource_bounds(
 
     let default_resource_bounds = AllResourceBounds {
         l1_gas: ResourceBounds {
-            max_amount: minimal_gas_vector.l1_gas.0,
-            max_price_per_unit: actual_strk_l1_gas_price.get().0,
+            max_amount: minimal_gas_vector.l1_gas,
+            max_price_per_unit: actual_strk_l1_gas_price.get(),
         },
         l2_gas: ResourceBounds {
-            max_amount: minimal_gas_vector.l2_gas.0,
-            max_price_per_unit: actual_strk_l2_gas_price.get().0,
+            max_amount: minimal_gas_vector.l2_gas,
+            max_price_per_unit: actual_strk_l2_gas_price.get(),
         },
         l1_data_gas: ResourceBounds {
-            max_amount: minimal_gas_vector.l1_data_gas.0,
-            max_price_per_unit: actual_strk_l1_data_gas_price.get().0,
+            max_amount: minimal_gas_vector.l1_data_gas,
+            max_price_per_unit: actual_strk_l1_data_gas_price.get(),
         },
     };
 
@@ -1013,7 +1013,7 @@ fn test_insufficient_new_resource_bounds(
             AllResourceBounds {
                 l1_gas: ResourceBounds {
                     max_amount: default_resource_bounds.l1_gas.max_amount,
-                    max_price_per_unit: actual_strk_l1_gas_price.get().0 - 1,
+                    max_price_per_unit: GasPrice(actual_strk_l1_gas_price.get().0 - 1),
                 },
                 ..default_resource_bounds
             },
@@ -1023,7 +1023,7 @@ fn test_insufficient_new_resource_bounds(
             AllResourceBounds {
                 l2_gas: ResourceBounds {
                     max_amount: default_resource_bounds.l2_gas.max_amount,
-                    max_price_per_unit: actual_strk_l2_gas_price.get().0 - 1,
+                    max_price_per_unit: GasPrice(actual_strk_l2_gas_price.get().0 - 1),
                 },
                 ..default_resource_bounds
             },
@@ -1033,7 +1033,7 @@ fn test_insufficient_new_resource_bounds(
             AllResourceBounds {
                 l1_data_gas: ResourceBounds {
                     max_amount: default_resource_bounds.l1_data_gas.max_amount,
-                    max_price_per_unit: actual_strk_l1_data_gas_price.get().0 - 1,
+                    max_price_per_unit: GasPrice(actual_strk_l1_data_gas_price.get().0 - 1),
                 },
                 ..default_resource_bounds
             },
