@@ -69,13 +69,13 @@ pub enum ContractClass {
     V1(ContractClassV1),
 }
 
-impl TryFrom<&RawContractClass> for ContractClass {
+impl TryFrom<RawContractClass> for ContractClass {
     type Error = ProgramError;
 
-    fn try_from(raw_contract_class: &RawContractClass) -> Result<Self, Self::Error> {
+    fn try_from(raw_contract_class: RawContractClass) -> Result<Self, Self::Error> {
         let contract_class: ContractClass = match raw_contract_class {
             RawContractClass::V0(raw_contract_class) => {
-                ContractClass::V0(raw_contract_class.clone().try_into()?)
+                ContractClass::V0(raw_contract_class.try_into()?)
             }
             RawContractClass::V1(raw_contract_class) => {
                 ContractClass::V1(raw_contract_class.try_into()?)
@@ -83,14 +83,6 @@ impl TryFrom<&RawContractClass> for ContractClass {
         };
 
         Ok(contract_class)
-    }
-}
-
-impl TryFrom<RawContractClass> for ContractClass {
-    type Error = ProgramError;
-
-    fn try_from(raw_contract_class: RawContractClass) -> Result<Self, Self::Error> {
-        Self::try_from(&raw_contract_class)
     }
 }
 
@@ -298,7 +290,7 @@ impl ContractClassV1 {
 
     pub fn try_from_json_string(raw_contract_class: &str) -> Result<ContractClassV1, ProgramError> {
         let casm_contract_class: CasmContractClass = serde_json::from_str(raw_contract_class)?;
-        let contract_class = ContractClassV1::try_from(&casm_contract_class)?;
+        let contract_class = ContractClassV1::try_from(casm_contract_class)?;
 
         Ok(contract_class)
     }
@@ -433,19 +425,11 @@ impl TryFrom<CasmContractClass> for ContractClassV1 {
     type Error = ProgramError;
 
     fn try_from(class: CasmContractClass) -> Result<Self, Self::Error> {
-        Self::try_from(&class)
-    }
-}
-
-impl TryFrom<&CasmContractClass> for ContractClassV1 {
-    type Error = ProgramError;
-
-    fn try_from(class: &CasmContractClass) -> Result<Self, Self::Error> {
         try_from_casm_contract_class_internal(
             &class.bytecode,
             &class.hints,
             &class.entry_points_by_type,
-            class.bytecode_segment_lengths.clone(),
+            class.bytecode_segment_lengths,
             &class.compiler_version,
         )
     }
@@ -571,29 +555,17 @@ pub struct ClassInfo {
     abi_length: usize,
 }
 
-impl TryFrom<&starknet_api::contract_class::ClassInfo> for ClassInfo {
+impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
     type Error = ProgramError;
 
-    fn try_from(class_info: &starknet_api::contract_class::ClassInfo) -> Result<Self, Self::Error> {
+    fn try_from(class_info: starknet_api::contract_class::ClassInfo) -> Result<Self, Self::Error> {
         let starknet_api::contract_class::ClassInfo {
             contract_class,
             sierra_program_length,
             abi_length,
         } = class_info;
 
-        Ok(Self {
-            contract_class: contract_class.try_into()?,
-            sierra_program_length: *sierra_program_length,
-            abi_length: *abi_length,
-        })
-    }
-}
-
-impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
-    type Error = ProgramError;
-
-    fn try_from(class_info: starknet_api::contract_class::ClassInfo) -> Result<Self, Self::Error> {
-        Self::try_from(&class_info)
+        Ok(Self { contract_class: contract_class.try_into()?, sierra_program_length, abi_length })
     }
 }
 

@@ -108,7 +108,7 @@ impl TryFrom<&starknet_api::executable_transaction::Transaction> for AccountTran
     ) -> Result<Self, Self::Error> {
         match value {
             starknet_api::executable_transaction::Transaction::Declare(declare_tx) => {
-                Ok(Self::Declare(declare_tx.try_into()?))
+                Ok(Self::Declare(declare_tx.clone().try_into()?))
             }
             starknet_api::executable_transaction::Transaction::DeployAccount(deploy_account_tx) => {
                 Ok(Self::DeployAccount(DeployAccountTransaction {
