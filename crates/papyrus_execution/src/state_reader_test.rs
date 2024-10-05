@@ -49,7 +49,8 @@ fn read_state() {
     // The class is not used in the execution, so it can be default.
     let class0 = ContractClass::default();
     let casm0 = get_test_casm();
-    let blockifier_casm0 = BlockifierContractClass::V1(ContractClassV1::try_from(&casm0).unwrap());
+    let blockifier_casm0 =
+        BlockifierContractClass::V1(ContractClassV1::try_from(casm0.clone()).unwrap());
     let compiled_class_hash0 = CompiledClassHash(StarkHash::default());
 
     let class_hash1 = ClassHash(1u128.into());
@@ -63,7 +64,8 @@ fn read_state() {
     let compiled_class_hash2 = CompiledClassHash(StarkHash::TWO);
     let mut casm1 = get_test_casm();
     casm1.bytecode[0] = BigUintAsHex { value: 12345u32.into() };
-    let blockifier_casm1 = BlockifierContractClass::V1(ContractClassV1::try_from(&casm1).unwrap());
+    let blockifier_casm1 =
+        BlockifierContractClass::V1(ContractClassV1::try_from(casm1.clone()).unwrap());
     let nonce1 = Nonce(felt!(2_u128));
     let class_hash3 = ClassHash(567_u128.into());
     let class_hash4 = ClassHash(89_u128.into());
