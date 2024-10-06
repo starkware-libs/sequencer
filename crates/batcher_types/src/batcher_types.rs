@@ -27,6 +27,8 @@ pub struct BuildProposalInput {
 pub struct GetProposalContentInput {
     // TBD: We don't really need the proposal_id because there is only one proposal at a time.
     pub proposal_id: ProposalId,
+    // If the operation should be canceled.
+    pub abort: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
