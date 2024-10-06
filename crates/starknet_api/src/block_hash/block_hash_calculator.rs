@@ -65,7 +65,7 @@ pub struct TransactionOutputForHash {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct TransactionHashingData {
-    pub transaction_signature: Option<TransactionSignature>,
+    pub transaction_signature: TransactionSignature,
     pub transaction_output: TransactionOutputForHash,
     pub transaction_hash: TransactionHash,
 }

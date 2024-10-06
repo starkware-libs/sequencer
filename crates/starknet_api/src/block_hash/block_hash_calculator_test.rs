@@ -92,7 +92,7 @@ fn test_block_hash_regression(
         parent_hash: BlockHash(Felt::from(11_u8)),
     };
     let transactions_data = vec![TransactionHashingData {
-        transaction_signature: Some(TransactionSignature(vec![Felt::TWO, Felt::THREE])),
+        transaction_signature: TransactionSignature(vec![Felt::TWO, Felt::THREE]),
         transaction_output: get_transaction_output(),
         transaction_hash: TransactionHash(Felt::ONE),
     }];
