@@ -240,8 +240,8 @@ impl StateMachine {
         if round < self.round {
             return self.past_round_upons(round);
         }
-        if round != self.round {
-            return VecDeque::new();
+        if round > self.round {
+            return self.future_round_upons(round, leader_fn);
         }
         self.process_proposal(block_hash, round, leader_fn)
     }
@@ -288,7 +288,10 @@ impl StateMachine {
         if round < self.round {
             return self.past_round_upons(round);
         }
-        if self.step != Step::Prevote || round != self.round {
+        if round > self.round {
+            return self.future_round_upons(round, leader_fn);
+        }
+        if self.step != Step::Prevote {
             return VecDeque::new();
         }
         self.check_prevote_quorum(round, leader_fn)
@@ -318,6 +321,9 @@ impl StateMachine {
         *precommit_count += 1;
         if round < self.round {
             return self.past_round_upons(round);
+        }
+        if round > self.round {
+            return self.future_round_upons(round, leader_fn);
         }
         self.check_precommit_quorum(round, leader_fn)
     }
@@ -488,6 +494,34 @@ impl StateMachine {
         output.append(&mut self.upon_reproposal());
         output.append(&mut self.upon_decision(round));
         output
+    }
+
+    fn future_round_upons<LeaderFn>(
+        &mut self,
+        round: u32,
+        leader_fn: &LeaderFn,
+    ) -> VecDeque<StateMachineEvent>
+    where
+        LeaderFn: Fn(Round) -> ValidatorId,
+    {
+        // LOC 55 in the paper.
+        let num_prevotes = self.prevotes.get(&round).map_or(0, |v| v.values().sum());
+        let num_precommits = self.precommits.get(&round).map_or(0, |v| v.values().sum());
+        if num_prevotes < self.quorum / 2 || num_precommits < self.quorum / 2 {
+            return VecDeque::new();
+        }
+        self.future_round_vote(round, leader_fn)
+    }
+
+    fn future_round_vote<LeaderFn>(
+        &mut self,
+        round: u32,
+        leader_fn: &LeaderFn,
+    ) -> VecDeque<StateMachineEvent>
+    where
+        LeaderFn: Fn(Round) -> ValidatorId,
+    {
+        self.advance_to_round(round, leader_fn)
     }
 
     fn upon_reproposal(&mut self) -> VecDeque<StateMachineEvent> {
