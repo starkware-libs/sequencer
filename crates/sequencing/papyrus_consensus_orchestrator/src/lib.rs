@@ -5,3 +5,5 @@
 #[allow(missing_docs)]
 // TODO: this is test code, rename accordingly.
 pub mod papyrus_consensus_context;
+#[allow(missing_docs)]
+pub mod sequencer_consensus_context;
