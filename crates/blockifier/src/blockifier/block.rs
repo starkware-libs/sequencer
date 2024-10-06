@@ -28,15 +28,11 @@ pub struct BlockInfo {
 
 #[derive(Clone, Debug)]
 pub struct GasPrices {
-    eth_l1_gas_price: NonzeroGasPrice,       // In wei.
-    strk_l1_gas_price: NonzeroGasPrice,      // In fri.
-    eth_l1_data_gas_price: NonzeroGasPrice,  // In wei.
-    strk_l1_data_gas_price: NonzeroGasPrice, // In fri.
-    eth_l2_gas_price: NonzeroGasPrice,       // In wei.
-    strk_l2_gas_price: NonzeroGasPrice,      // In fri.
+    eth_gas_prices: GasPricesForFeeType,  // In wei.
+    strk_gas_prices: GasPricesForFeeType, // In fri.
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct GasPricesForFeeType {
     pub l1_gas_price: NonzeroGasPrice,
     pub l1_data_gas_price: NonzeroGasPrice,
@@ -72,42 +68,36 @@ impl GasPrices {
             )
         }
 
-        GasPrices {
-            eth_l1_gas_price,
-            strk_l1_gas_price,
-            eth_l1_data_gas_price,
-            strk_l1_data_gas_price,
-            eth_l2_gas_price,
-            strk_l2_gas_price,
+        Self {
+            eth_gas_prices: GasPricesForFeeType {
+                l1_gas_price: eth_l1_gas_price,
+                l1_data_gas_price: eth_l1_data_gas_price,
+                l2_gas_price: eth_l2_gas_price,
+            },
+            strk_gas_prices: GasPricesForFeeType {
+                l1_gas_price: strk_l1_gas_price,
+                l1_data_gas_price: strk_l1_data_gas_price,
+                l2_gas_price: strk_l2_gas_price,
+            },
         }
     }
 
     pub fn get_l1_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonzeroGasPrice {
-        match fee_type {
-            FeeType::Strk => self.strk_l1_gas_price,
-            FeeType::Eth => self.eth_l1_gas_price,
-        }
+        self.get_gas_prices_by_fee_type(fee_type).l1_gas_price
     }
 
     pub fn get_l1_data_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonzeroGasPrice {
-        match fee_type {
-            FeeType::Strk => self.strk_l1_data_gas_price,
-            FeeType::Eth => self.eth_l1_data_gas_price,
-        }
+        self.get_gas_prices_by_fee_type(fee_type).l1_data_gas_price
     }
 
     pub fn get_l2_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonzeroGasPrice {
-        match fee_type {
-            FeeType::Strk => self.strk_l2_gas_price,
-            FeeType::Eth => self.eth_l2_gas_price,
-        }
+        self.get_gas_prices_by_fee_type(fee_type).l2_gas_price
     }
 
-    pub fn get_gas_prices_by_fee_type(&self, fee_type: &FeeType) -> GasPricesForFeeType {
-        GasPricesForFeeType {
-            l1_gas_price: self.get_l1_gas_price_by_fee_type(fee_type),
-            l1_data_gas_price: self.get_l1_data_gas_price_by_fee_type(fee_type),
-            l2_gas_price: self.get_l2_gas_price_by_fee_type(fee_type),
+    pub fn get_gas_prices_by_fee_type(&self, fee_type: &FeeType) -> &GasPricesForFeeType {
+        match fee_type {
+            FeeType::Strk => &self.strk_gas_prices,
+            FeeType::Eth => &self.eth_gas_prices,
         }
     }
 }

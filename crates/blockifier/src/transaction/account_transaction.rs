@@ -335,19 +335,19 @@ impl AccountTransaction {
                                 L1Gas,
                                 l1_gas_resource_bounds,
                                 minimal_gas_amount_vector.l1_gas,
-                                l1_gas_price,
+                                *l1_gas_price,
                             ),
                             (
                                 L1DataGas,
                                 l1_data_gas_resource_bounds,
                                 minimal_gas_amount_vector.l1_data_gas,
-                                l1_data_gas_price,
+                                *l1_data_gas_price,
                             ),
                             (
                                 L2Gas,
                                 l2_gas_resource_bounds,
                                 minimal_gas_amount_vector.l2_gas,
-                                l2_gas_price,
+                                *l2_gas_price,
                             ),
                         ]
                     }
