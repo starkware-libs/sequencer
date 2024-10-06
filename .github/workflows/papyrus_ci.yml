@@ -2,7 +2,7 @@ name: Papyrus-CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - '.github/workflows/papyrus_ci.yml'
       - 'Dockerfile'
@@ -33,7 +33,7 @@ on:
       - 'scripts/dependencies.sh'
 
   merge_group:
-    types: [ checks_requested ]
+    types: [checks_requested]
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
