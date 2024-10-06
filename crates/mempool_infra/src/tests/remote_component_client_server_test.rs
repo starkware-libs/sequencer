@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::Duration;
 
 use async_trait::async_trait;
 use hyper::body::to_bytes;
@@ -55,7 +54,7 @@ type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentARespo
 type ComponentBClient = RemoteComponentClient<ComponentBRequest, ComponentBResponse>;
 
 const MAX_IDLE_CONNECTION: usize = usize::MAX;
-const IDLE_TIMEOUT: Duration = Duration::from_secs(90);
+const IDLE_TIMEOUT: u64 = 90;
 const MOCK_SERVER_ERROR: &str = "mock server error";
 const ARBITRARY_DATA: &str = "arbitrary data";
 // ServerError::RequestDeserializationFailure error message.
