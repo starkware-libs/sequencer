@@ -282,7 +282,7 @@ impl EntryPointExecutionContext {
             TransactionInfo::Deprecated(context) => context.max_fee.saturating_div(
                 block_info.gas_prices.get_l1_gas_price_by_fee_type(&tx_info.fee_type()),
             ),
-            TransactionInfo::Current(context) => context.l1_resource_bounds().max_amount.into(),
+            TransactionInfo::Current(context) => context.l1_resource_bounds().max_amount,
         };
 
         // Use saturating upper bound to avoid overflow. This is safe because the upper bound is

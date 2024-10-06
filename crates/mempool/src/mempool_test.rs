@@ -3,6 +3,7 @@ use std::cmp::Reverse;
 use mempool_test_utils::starknet_api_test_utils::test_resource_bounds_mapping;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::StarkHash;
@@ -300,11 +301,11 @@ fn test_get_txs_while_decreasing_gas_price_threshold() {
 
     // Test.
     // High gas price threshold, no transactions should be returned.
-    mempool._update_gas_price_threshold(1000000000000);
+    mempool._update_gas_price_threshold(GasPrice(1000000000000));
     get_txs_and_assert_expected(&mut mempool, 1, &[]);
 
     // Low gas price threshold, the transaction should be returned.
-    mempool._update_gas_price_threshold(100);
+    mempool._update_gas_price_threshold(GasPrice(100));
     get_txs_and_assert_expected(&mut mempool, 1, &[tx]);
 }
 
@@ -322,11 +323,11 @@ fn test_get_txs_while_increasing_gas_price_threshold() {
 
     // Test.
     // Low gas price threshold, the transaction should be returned.
-    mempool._update_gas_price_threshold(100);
+    mempool._update_gas_price_threshold(GasPrice(100));
     get_txs_and_assert_expected(&mut mempool, 1, &[tx_nonce_0]);
 
     // High gas price threshold, no transactions should be returned.
-    mempool._update_gas_price_threshold(1000000000000);
+    mempool._update_gas_price_threshold(GasPrice(1000000000000));
     get_txs_and_assert_expected(&mut mempool, 1, &[]);
 }
 

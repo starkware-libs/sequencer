@@ -329,11 +329,11 @@ pub fn run_invoke_tx(
 /// Creates a `ResourceBoundsMapping` with the given `max_amount` and `max_price` for L1 gas limits.
 /// No guarantees on the values of the other resources bounds.
 // TODO: Check usages of this function and update to using all gas bounds.
-pub fn l1_resource_bounds(max_amount: GasAmount, max_price: GasPrice) -> ValidResourceBounds {
-    ValidResourceBounds::L1Gas(ResourceBounds {
-        max_amount: max_amount.0,
-        max_price_per_unit: max_price.0,
-    })
+pub fn l1_resource_bounds(
+    max_amount: GasAmount,
+    max_price_per_unit: GasPrice,
+) -> ValidResourceBounds {
+    ValidResourceBounds::L1Gas(ResourceBounds { max_amount, max_price_per_unit })
 }
 
 #[fixture]
@@ -364,11 +364,11 @@ pub fn create_all_resource_bounds(
     l1_data_max_price: GasPrice,
 ) -> ValidResourceBounds {
     ValidResourceBounds::AllResources(AllResourceBounds {
-        l1_gas: ResourceBounds { max_amount: l1_max_amount.0, max_price_per_unit: l1_max_price.0 },
-        l2_gas: ResourceBounds { max_amount: l2_max_amount.0, max_price_per_unit: l2_max_price.0 },
+        l1_gas: ResourceBounds { max_amount: l1_max_amount, max_price_per_unit: l1_max_price },
+        l2_gas: ResourceBounds { max_amount: l2_max_amount, max_price_per_unit: l2_max_price },
         l1_data_gas: ResourceBounds {
-            max_amount: l1_data_max_amount.0,
-            max_price_per_unit: l1_data_max_price.0,
+            max_amount: l1_data_max_amount,
+            max_price_per_unit: l1_data_max_price,
         },
     })
 }
