@@ -12,6 +12,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::sink::SinkExt;
+use futures::stream::StreamExt;
 use papyrus_consensus::types::{
     ConsensusContext,
     ConsensusError,
@@ -30,7 +31,7 @@ use starknet_batcher_types::batcher_types::{
 };
 use starknet_batcher_types::communication::BatcherClient;
 use starknet_consensus_manager_types::consensus_manager_types::ProposalId;
-use tracing::{debug, debug_span, warn, Instrument};
+use tracing::{debug, debug_span, info, warn, Instrument};
 
 type HeightToIdToContent = BTreeMap<BlockNumber, HashMap<ProposalContentId, Vec<Transaction>>>;
 
@@ -40,6 +41,7 @@ const CHANNEL_SIZE: usize = 5000;
 
 pub struct SequencerConsensusContext {
     batcher: Arc<dyn BatcherClient>,
+    validators: Vec<ValidatorId>,
     // Proposal building/validating returns immediately, leaving the actual processing to a spawned
     // task. The spawned task processes the proposal asynchronously and updates the
     // valid_proposals map upon completion, ensuring consistency across tasks.
@@ -51,9 +53,10 @@ pub struct SequencerConsensusContext {
 }
 
 impl SequencerConsensusContext {
-    pub fn new(batcher: Arc<dyn BatcherClient>) -> Self {
+    pub fn new(batcher: Arc<dyn BatcherClient>, num_validators: u64) -> Self {
         Self {
             batcher,
+            validators: (0..num_validators).map(ValidatorId::from).collect(),
             valid_proposals: Arc::new(Mutex::new(HeightToIdToContent::new())),
             proposal_id: 0,
         }
@@ -131,32 +134,49 @@ impl ConsensusContext for SequencerConsensusContext {
     }
 
     async fn validators(&self, _height: BlockNumber) -> Vec<ValidatorId> {
-        todo!()
+        self.validators.clone()
     }
 
     fn proposer(&self, _height: BlockNumber, _round: Round) -> ValidatorId {
-        todo!()
+        *self.validators.first().expect("validators should have at least 2 validators")
     }
 
-    async fn broadcast(&mut self, _message: ConsensusMessage) -> Result<(), ConsensusError> {
-        todo!()
+    async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
+        debug!("No-op broadcasting message: {message:?}");
+        Ok(())
     }
 
     async fn propose(
         &self,
-        _init: ProposalInit,
-        _content_receiver: mpsc::Receiver<Self::ProposalChunk>,
-        _fin_receiver: oneshot::Receiver<ProposalContentId>,
+        init: ProposalInit,
+        mut content_receiver: mpsc::Receiver<Self::ProposalChunk>,
+        fin_receiver: oneshot::Receiver<ProposalContentId>,
     ) -> Result<(), ConsensusError> {
-        todo!()
+        // Spawn a task to keep receivers alive.
+        tokio::spawn(async move {
+            while content_receiver.next().await.is_some() {}
+            let fin = fin_receiver.await.expect("Failed to receive fin");
+            debug!("No-op propose message: {init:?} {fin:?}");
+        });
+        Ok(())
     }
 
     async fn decision_reached(
         &mut self,
-        _block: ProposalContentId,
-        _precommits: Vec<Vote>,
+        block: ProposalContentId,
+        precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError> {
-        todo!()
+        let height = precommits[0].height;
+        info!("Finished consensus for height: {height}. Agreed on block: {:}", block);
+
+        // TODO(matan): Broadcast the decision to the network.
+
+        let mut proposals = self
+            .valid_proposals
+            .lock()
+            .expect("Lock on active proposals was poisoned due to a previous panic");
+        proposals.retain(|&h, _| h > BlockNumber(height));
+        Ok(())
     }
 }
 
