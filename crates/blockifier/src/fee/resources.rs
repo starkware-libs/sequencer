@@ -1,5 +1,6 @@
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::Serialize;
+use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{Fee, GasVectorComputationMode};
@@ -18,7 +19,7 @@ use crate::fee::gas_usage::{
 use crate::state::cached_state::{StateChanges, StateChangesCount};
 use crate::transaction::errors::TransactionFeeError;
 use crate::transaction::objects::HasRelatedFeeType;
-use crate::utils::{u128_div_ceil, u128_from_usize};
+use crate::utils::u128_from_usize;
 use crate::versioned_constants::{ArchivalDataGasCosts, VersionedConstants};
 
 pub type TransactionFeeResult<T> = Result<T, TransactionFeeError>;
@@ -310,25 +311,32 @@ impl GasVector {
     }
 
     /// Computes the cost (in fee token units) of the gas vector (saturating on overflow).
-    pub fn saturated_cost(&self, gas_price: u128, blob_gas_price: u128) -> Fee {
-        let l1_gas_cost = self.l1_gas.0.checked_mul(gas_price).unwrap_or_else(|| {
-            log::warn!(
-                "L1 gas cost overflowed: multiplication of {:?} by {} resulted in overflow.",
-                self.l1_gas,
-                gas_price
-            );
-            u128::MAX
-        });
-        let l1_data_gas_cost =
-            self.l1_data_gas.0.checked_mul(blob_gas_price).unwrap_or_else(|| {
+    pub fn saturated_cost(&self, gas_price: GasPrice, blob_gas_price: GasPrice) -> Fee {
+        let l1_gas_cost = self
+            .l1_gas
+            .checked_mul(gas_price)
+            .unwrap_or_else(|| {
                 log::warn!(
-                    "L1 blob gas cost overflowed: multiplication of {:?} by {} resulted in \
+                    "L1 gas cost overflowed: multiplication of {:?} by {:?} resulted in overflow.",
+                    self.l1_gas,
+                    gas_price
+                );
+                Fee(u128::MAX)
+            })
+            .0;
+        let l1_data_gas_cost = self
+            .l1_data_gas
+            .checked_mul(blob_gas_price)
+            .unwrap_or_else(|| {
+                log::warn!(
+                    "L1 blob gas cost overflowed: multiplication of {:?} by {:?} resulted in \
                      overflow.",
                     self.l1_data_gas,
                     blob_gas_price
                 );
-                u128::MAX
-            });
+                Fee(u128::MAX)
+            })
+            .0;
         let total = l1_gas_cost.checked_add(l1_data_gas_cost).unwrap_or_else(|| {
             log::warn!(
                 "Total gas cost overflowed: addition of {} and {} resulted in overflow.",
@@ -354,7 +362,6 @@ impl GasVector {
         let fee_type = tx_context.tx_info.fee_type();
         let gas_price = gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
         let data_gas_price = gas_prices.get_l1_data_gas_price_by_fee_type(&fee_type);
-        self.l1_gas
-            + GasAmount(u128_div_ceil(self.l1_data_gas.0 * u128::from(data_gas_price), gas_price))
+        self.l1_gas + (self.l1_data_gas.nonzero_saturating_mul(data_gas_price)).div_ceil(gas_price)
     }
 }
