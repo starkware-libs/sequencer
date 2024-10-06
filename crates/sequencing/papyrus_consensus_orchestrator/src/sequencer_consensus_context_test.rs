@@ -15,7 +15,6 @@ use starknet_batcher_types::batcher_types::{
     GetProposalContent,
     GetProposalContentResponse,
     ProposalCommitment,
-    ProposalId,
     ProposalStatus,
     SendProposalContent,
     SendProposalContentInput,
@@ -23,12 +22,14 @@ use starknet_batcher_types::batcher_types::{
     ValidateProposalInput,
 };
 use starknet_batcher_types::communication::MockBatcherClient;
+use starknet_consensus_manager_types::consensus_manager_types::ProposalId;
 use starknet_types_core::felt::Felt;
 
 use crate::sequencer_consensus_context::SequencerConsensusContext;
 
 const TIMEOUT: Duration = Duration::from_millis(100);
 const CHANNEL_SIZE: usize = 5000;
+const NUM_VALIDATORS: u64 = 4;
 
 fn generate_invoke_tx(tx_hash: Felt) -> Transaction {
     Transaction::Invoke(executable_invoke_tx(InvokeTxArgs {
@@ -49,9 +50,7 @@ async fn build_proposal() {
     let proposal_id_clone = Arc::clone(&proposal_id);
     batcher.expect_get_proposal_content().times(1).returning(move |input| {
         assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-        Ok(GetProposalContentResponse {
-            content: GetProposalContent::Txs(vec![generate_invoke_tx(Felt::THREE)]),
-        })
+        Ok(GetProposalContentResponse { content: GetProposalContent::Txs(vec![]) })
     });
     let proposal_id_clone = Arc::clone(&proposal_id);
     batcher.expect_get_proposal_content().times(1).returning(move |input| {
@@ -63,10 +62,10 @@ async fn build_proposal() {
             }),
         })
     });
-    let mut context = SequencerConsensusContext::new(Arc::new(batcher));
+    let mut context = SequencerConsensusContext::new(Arc::new(batcher), NUM_VALIDATORS);
     let (mut content_receiver, fin_receiver) =
         context.build_proposal(BlockNumber(0), TIMEOUT).await;
-    assert_eq!(content_receiver.next().await, Some(vec![generate_invoke_tx(Felt::THREE)]));
+    assert_eq!(content_receiver.next().await, Some(vec![]));
     assert!(content_receiver.next().await.is_none());
     assert_eq!(fin_receiver.await.unwrap().0, Felt::ZERO);
 }
@@ -104,7 +103,7 @@ async fn validate_proposal_success() {
             })
         },
     );
-    let mut context = SequencerConsensusContext::new(Arc::new(batcher));
+    let mut context = SequencerConsensusContext::new(Arc::new(batcher), NUM_VALIDATORS);
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
     content_sender.send(vec![generate_invoke_tx(Felt::TWO)]).await.unwrap();
     let fin_receiver = context.validate_proposal(BlockNumber(0), TIMEOUT, content_receiver).await;
@@ -136,7 +135,7 @@ async fn get_proposal() {
         },
     );
 
-    let mut context = SequencerConsensusContext::new(Arc::new(batcher));
+    let mut context = SequencerConsensusContext::new(Arc::new(batcher), NUM_VALIDATORS);
 
     // Receive a valid proposal.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
