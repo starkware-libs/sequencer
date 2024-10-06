@@ -10,6 +10,7 @@ use blockifier::test_utils::{CairoVersion, BALANCE};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::Fee;
 use starknet_types_core::felt::Felt;
 
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
@@ -71,7 +72,7 @@ pub fn local_test_state_reader_factory(
     zero_balance: bool,
 ) -> TestStateReaderFactory {
     let block_context = BlockContext::create_for_testing();
-    let account_balance = if zero_balance { 0 } else { BALANCE };
+    let account_balance = if zero_balance { Fee(0) } else { BALANCE };
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let test_contract = FeatureContract::TestContract(cairo_version);
 

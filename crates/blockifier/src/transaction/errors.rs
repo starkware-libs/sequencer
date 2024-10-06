@@ -1,5 +1,6 @@
 use cairo_vm::types::errors::program_errors::ProgramError;
 use num_bigint::BigUint;
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{Fee, Resource, TransactionVersion};
@@ -58,7 +59,7 @@ pub enum TransactionFeeError {
         "Max {resource} price ({max_gas_price}) is lower than the actual gas price: \
          {actual_gas_price}."
     )]
-    MaxGasPriceTooLow { resource: Resource, max_gas_price: u128, actual_gas_price: u128 },
+    MaxGasPriceTooLow { resource: Resource, max_gas_price: GasPrice, actual_gas_price: GasPrice },
     #[error(
         "Max {resource} amount ({max_gas_amount}) is lower than the minimal gas amount: \
          {minimal_gas_amount}."

@@ -1,7 +1,6 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{Fee, TransactionVersion};
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
@@ -121,7 +120,7 @@ fn test_declare(
             class_hash: declared_contract.get_class_hash(),
             compiled_class_hash: declared_contract.get_compiled_class_hash(),
             version: tx_version,
-            resource_bounds: l1_resource_bounds(GasAmount(0), DEFAULT_STRK_L1_GAS_PRICE),
+            resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
         },
         calculate_class_info_for_testing(declared_contract.get_class()),
     )
@@ -141,7 +140,7 @@ fn test_deploy_account(
     let tx = deploy_account_tx(
         deploy_account_tx_args! {
             class_hash: account_contract.get_class_hash(),
-            resource_bounds: l1_resource_bounds(GasAmount(0), DEFAULT_STRK_L1_GAS_PRICE),
+            resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
             version,
         },
         &mut NonceManager::default(),

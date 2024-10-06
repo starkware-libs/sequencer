@@ -9,7 +9,7 @@ use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::versioned_constants::{StarknetVersion, VersionedConstants};
 use serde_json::{json, to_value};
-use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::Transaction;
@@ -78,7 +78,7 @@ impl TestStateReader {
     pub fn get_block_info(&self) -> StateResult<BlockInfo> {
         let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
         let default_l2_price =
-            ResourcePrice { price_in_wei: GasPrice(1), price_in_fri: GasPrice(1) };
+            ResourcePrice { price_in_wei: 1_u8.into(), price_in_fri: 1_u8.into() };
 
         let mut json =
             self.0.send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)?;
