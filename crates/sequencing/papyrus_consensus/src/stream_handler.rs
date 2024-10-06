@@ -28,15 +28,12 @@ fn get_metadata_peer_id(metadata: &BroadcastedMessageManager) -> PeerId {
 
 #[derive(Debug, Clone)]
 struct StreamData<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
-    // The peer_id this stream is associated with.
     peer_id: PeerId,
 
-    // The next message_id that is expected.
     next_message_id: MessageId,
     // The message_id of the message that is marked as "fin" (the last message),
     // if None, it means we have not yet gotten to it.
     fin_message_id: Option<MessageId>,
-    // The highest message_id that was received.
     max_message_id: MessageId,
 
     // The sender that corresponds to the receiver that was sent out for this stream.
@@ -154,7 +151,6 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
             }
         }
 
-        // Check that message_id is not bigger than the fin_message_id.
         if message_id > data.fin_message_id.unwrap_or(u64::MAX) {
             // TODO(guyn): replace warnings with more graceful error handling
             warn!(
@@ -172,26 +168,20 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         if message_id == data.next_message_id {
             Self::send(data, message);
 
-            // Try to drain the buffer.
             Self::process_buffer(data);
 
-            // If empty, remove this buffer and close the channel.
             if data.message_buffer.is_empty() && data.fin_message_id.is_some() {
                 data.sender.close_channel();
                 self.stream_data.remove(&key);
             }
         } else if message_id > data.next_message_id {
-            // Save the message in the buffer.
             Self::store(data, message);
         } else {
             // TODO(guyn): replace warnings with more graceful error handling
             warn!(
                 "Received message with id that is smaller than the next message expected! \
                  peer_id: {:?}, stream_id: {}, message_id: {}, next_message_id: {}",
-                peer_id.clone(),
-                stream_id,
-                message_id,
-                data.next_message_id
+                peer_id, stream_id, message_id, data.next_message_id
             );
             return;
         }

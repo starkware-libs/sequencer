@@ -76,7 +76,6 @@ mod tests {
         let stream_id = 127;
         for i in 0..10 {
             let message = make_test_message(stream_id, i, i == 9);
-            // tx_input.try_send(message).expect("Send should succeed");
             send(&mut network_sender, &metadata, message).await;
         }
 
@@ -121,9 +120,9 @@ mod tests {
             5
         );
         let range: Vec<u64> = (1..6).collect();
-        let keys: Vec<u64> = stream_handler.stream_data[&(peer_id.clone(), stream_id)]
-            .message_buffer
+        let keys: Vec<u64> = stream_handler.stream_data[&(peer_id, stream_id)]
             .clone()
+            .message_buffer
             .into_keys()
             .collect();
         assert!(do_vecs_match(&keys, &range));
@@ -293,8 +292,6 @@ mod tests {
         assert!(stream_handler.stream_data.clone().into_keys().all(|item| values.contains(&item)));
 
         // But the buffer should be empty, as we've successfully drained it all.
-        assert!(
-            stream_handler.stream_data[&(peer_id.clone(), stream_id3)].message_buffer.is_empty()
-        );
+        assert!(stream_handler.stream_data[&(peer_id, stream_id3)].message_buffer.is_empty());
     }
 }
