@@ -27,7 +27,7 @@ use crate::execution::execution_utils::execute_entry_point_call_wrapper;
 use crate::state::state_api::{State, StateResult};
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfo};
 use crate::transaction::transaction_types::TransactionType;
-use crate::utils::usize_from_u128;
+use crate::utils::usize_from_u64;
 use crate::versioned_constants::{GasCosts, VersionedConstants};
 
 #[cfg(test)]
@@ -278,14 +278,19 @@ impl EntryPointExecutionContext {
         // Use saturating upper bound to avoid overflow. This is safe because the upper bound is
         // bounded above by the block's limit, which is a usize.
 
-        let upper_bound_u128 = if gas_per_step.is_zero() {
-            u128::MAX
+        let upper_bound_u64 = if gas_per_step.is_zero() {
+            u64::MAX
         } else {
-            (gas_per_step.inv() * tx_gas_upper_bound.0).to_integer()
+            // TODO: This panic will disappear once GasAmount is a u64.
+            (gas_per_step.inv()
+                * u64::try_from(tx_gas_upper_bound.0).unwrap_or_else(|_| {
+                    panic!("Gas amounts cannot be more than 64 bits; got {tx_gas_upper_bound:?}.")
+                }))
+            .to_integer()
         };
-        let tx_upper_bound = usize_from_u128(upper_bound_u128).unwrap_or_else(|_| {
+        let tx_upper_bound = usize_from_u64(upper_bound_u64).unwrap_or_else(|_| {
             log::warn!(
-                "Failed to convert u128 to usize: {upper_bound_u128}. Upper bound from tx is \
+                "Failed to convert u64 to usize: {upper_bound_u64}. Upper bound from tx is \
                  {tx_gas_upper_bound}, gas per step is {gas_per_step}."
             );
             usize::MAX
