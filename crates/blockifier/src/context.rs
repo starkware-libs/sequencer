@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::transaction::GasVectorComputationMode;
 
-use crate::blockifier::block::BlockInfo;
+use crate::blockifier::block::{BlockInfo, GasPricesForFeeType};
 use crate::bouncer::BouncerConfig;
 use crate::transaction::objects::{
     FeeType,
@@ -36,6 +36,12 @@ impl TransactionContext {
             }
             TransactionInfo::Deprecated(_) => GasVectorComputationMode::NoL2Gas,
         }
+    }
+    pub fn get_gas_prices(&self) -> &GasPricesForFeeType {
+        self.block_context
+            .block_info
+            .gas_prices
+            .get_gas_prices_by_fee_type(&self.tx_info.fee_type())
     }
 }
 
