@@ -4,15 +4,15 @@ on:
   push:
     branches: [main]
     paths:
-      - ".github/workflows/papyrus_ci.yml"
-      - "Dockerfile"
-      - "papyrus_utilities.Dockerfile"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "crates/papyrus**/**"
-      - "crates/sequencing/**"
-      - "crates/starknet_client/**"
-      - "scripts/dependencies.sh"
+      - '.github/workflows/papyrus_ci.yml'
+      - 'Dockerfile'
+      - 'papyrus_utilities.Dockerfile'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/papyrus**/**'
+      - 'crates/sequencing/**'
+      - 'crates/starknet_client/**'
+      - 'scripts/dependencies.sh'
 
   pull_request:
     types:
@@ -22,15 +22,15 @@ on:
       - auto_merge_enabled
       - edited # for when the PR title is edited
     paths:
-      - ".github/workflows/papyrus_ci.yml"
-      - "Dockerfile"
-      - "papyrus_utilities.Dockerfile"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "crates/papyrus**/**"
-      - "crates/sequencing/**"
-      - "crates/starknet_client/**"
-      - "scripts/dependencies.sh"
+      - '.github/workflows/papyrus_ci.yml'
+      - 'Dockerfile'
+      - 'papyrus_utilities.Dockerfile'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/papyrus**/**'
+      - 'crates/sequencing/**'
+      - 'crates/starknet_client/**'
+      - 'scripts/dependencies.sh'
 
   merge_group:
     types: [checks_requested]
