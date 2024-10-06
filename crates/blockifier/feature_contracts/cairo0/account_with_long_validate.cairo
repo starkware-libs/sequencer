@@ -49,7 +49,7 @@ func __validate_deploy__(
 
 @external
 func __validate__(contract_address, selector: felt, calldata_len: felt, calldata: felt*) {
-    grind();
+    grind_recurse(calldata[0]);
     return ();
 }
 
