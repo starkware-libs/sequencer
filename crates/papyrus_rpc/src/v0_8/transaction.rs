@@ -26,6 +26,7 @@ use starknet_api::core::{
     Nonce,
 };
 use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::serde_utils::bytes_from_hex_str;
 use starknet_api::transaction::{
     AccountDeploymentData,
@@ -902,8 +903,8 @@ pub struct ComputationResources {
 
 #[derive(Debug, Default, Clone, Eq, Hash, PartialEq, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DataAvailabilityResources {
-    pub l1_gas: u64,
-    pub l1_data_gas: u64,
+    pub l1_gas: GasAmount,
+    pub l1_data_gas: GasAmount,
 }
 
 impl Add for ExecutionResources {

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
 use crate::block::{GasPrice, NonzeroGasPrice};
@@ -18,10 +19,18 @@ use crate::transaction::Fee;
     Eq,
     PartialEq,
     PartialOrd,
+    Ord,
     Serialize,
     Deserialize,
+    Hash,
 )]
 pub struct GasAmount(pub u64);
+
+impl From<GasAmount> for Felt {
+    fn from(gas_amount: GasAmount) -> Self {
+        Self::from(gas_amount.0)
+    }
+}
 
 macro_rules! impl_from_uint_for_gas_amount {
     ($($uint:ty),*) => {
@@ -63,10 +72,10 @@ impl GasAmount {
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 pub struct GasVector {
-    pub l1_gas: u64,
-    pub l1_data_gas: u64,
+    pub l1_gas: GasAmount,
+    pub l1_data_gas: GasAmount,
     #[serde(default)]
-    pub l2_gas: u64,
+    pub l2_gas: GasAmount,
 }
 
 /// The execution resources used by a transaction.
