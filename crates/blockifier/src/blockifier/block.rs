@@ -1,7 +1,5 @@
-use std::num::NonZeroU128;
-
 use log::warn;
-use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp};
+use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, GasPrice, NonzeroGasPrice};
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -29,34 +27,34 @@ pub struct BlockInfo {
 
 #[derive(Clone, Debug)]
 pub struct GasPrices {
-    eth_l1_gas_price: NonZeroU128,       // In wei.
-    strk_l1_gas_price: NonZeroU128,      // In fri.
-    eth_l1_data_gas_price: NonZeroU128,  // In wei.
-    strk_l1_data_gas_price: NonZeroU128, // In fri.
-    eth_l2_gas_price: NonZeroU128,       // In wei.
-    strk_l2_gas_price: NonZeroU128,      // In fri.
+    eth_l1_gas_price: NonzeroGasPrice,       // In wei.
+    strk_l1_gas_price: NonzeroGasPrice,      // In fri.
+    eth_l1_data_gas_price: NonzeroGasPrice,  // In wei.
+    strk_l1_data_gas_price: NonzeroGasPrice, // In fri.
+    eth_l2_gas_price: NonzeroGasPrice,       // In wei.
+    strk_l2_gas_price: NonzeroGasPrice,      // In fri.
 }
 
 #[derive(Debug)]
 pub struct GasPricesForFeeType {
-    pub l1_gas_price: NonZeroU128,
-    pub l1_data_gas_price: NonZeroU128,
-    pub l2_gas_price: NonZeroU128,
+    pub l1_gas_price: NonzeroGasPrice,
+    pub l1_data_gas_price: NonzeroGasPrice,
+    pub l2_gas_price: NonzeroGasPrice,
 }
 
 impl GasPrices {
     pub fn new(
-        eth_l1_gas_price: NonZeroU128,
-        strk_l1_gas_price: NonZeroU128,
-        eth_l1_data_gas_price: NonZeroU128,
-        strk_l1_data_gas_price: NonZeroU128,
-        eth_l2_gas_price: NonZeroU128,
-        strk_l2_gas_price: NonZeroU128,
+        eth_l1_gas_price: NonzeroGasPrice,
+        strk_l1_gas_price: NonzeroGasPrice,
+        eth_l1_data_gas_price: NonzeroGasPrice,
+        strk_l1_data_gas_price: NonzeroGasPrice,
+        eth_l2_gas_price: NonzeroGasPrice,
+        strk_l2_gas_price: NonzeroGasPrice,
     ) -> Self {
         // TODO(Aner): fix backwards compatibility.
         let expected_eth_l2_gas_price = VersionedConstants::latest_constants()
             .convert_l1_to_l2_gas_price_round_up(eth_l1_gas_price.into());
-        if u128::from(eth_l2_gas_price) != expected_eth_l2_gas_price {
+        if GasPrice::from(eth_l2_gas_price) != expected_eth_l2_gas_price {
             // TODO!(Aner): change to panic! Requires fixing several tests.
             warn!(
                 "eth_l2_gas_price does not match expected! eth_l2_gas_price:{eth_l2_gas_price}, \
@@ -65,7 +63,7 @@ impl GasPrices {
         }
         let expected_strk_l2_gas_price = VersionedConstants::latest_constants()
             .convert_l1_to_l2_gas_price_round_up(strk_l1_gas_price.into());
-        if u128::from(strk_l2_gas_price) != expected_strk_l2_gas_price {
+        if GasPrice::from(strk_l2_gas_price) != expected_strk_l2_gas_price {
             // TODO!(Aner): change to panic! Requires fixing test_discounted_gas_overdraft
             warn!(
                 "strk_l2_gas_price does not match expected! \
@@ -83,21 +81,21 @@ impl GasPrices {
         }
     }
 
-    pub fn get_l1_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonZeroU128 {
+    pub fn get_l1_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonzeroGasPrice {
         match fee_type {
             FeeType::Strk => self.strk_l1_gas_price,
             FeeType::Eth => self.eth_l1_gas_price,
         }
     }
 
-    pub fn get_l1_data_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonZeroU128 {
+    pub fn get_l1_data_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonzeroGasPrice {
         match fee_type {
             FeeType::Strk => self.strk_l1_data_gas_price,
             FeeType::Eth => self.eth_l1_data_gas_price,
         }
     }
 
-    pub fn get_l2_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonZeroU128 {
+    pub fn get_l2_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonzeroGasPrice {
         match fee_type {
             FeeType::Strk => self.strk_l2_gas_price,
             FeeType::Eth => self.eth_l2_gas_price,

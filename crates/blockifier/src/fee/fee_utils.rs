@@ -4,7 +4,6 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_bigint::BigUint;
 use starknet_api::core::ContractAddress;
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::ValidResourceBounds::{AllResources, L1Gas};
 use starknet_api::transaction::{AllResourceBounds, Fee, GasVectorComputationMode, Resource};
@@ -51,8 +50,7 @@ pub fn get_vm_resources_cost(
 
     // Convert Cairo resource usage to L1 gas usage.
     // Do so by taking the maximum of the usage of each builtin + step usage.
-    let vm_l1_gas_usage = GasAmount(
-        vm_resource_fee_costs
+    let vm_l1_gas_usage = vm_resource_fee_costs
         .builtins
         .iter()
         // Builtin costs and usage.
@@ -65,8 +63,7 @@ pub fn get_vm_resources_cost(
             vm_resource_usage.total_n_steps() + n_reverted_steps,
         )])
         .map(|(cost, usage)| (cost * u128_from_usize(usage)).ceil().to_integer())
-        .fold(0, u128::max),
-    );
+        .fold(0, u128::max).into();
 
     match computation_mode {
         GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(vm_l1_gas_usage),
@@ -83,8 +80,8 @@ pub fn get_fee_by_gas_vector(
     fee_type: &FeeType,
 ) -> Fee {
     gas_vector.saturated_cost(
-        u128::from(block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type)),
-        u128::from(block_info.gas_prices.get_l1_data_gas_price_by_fee_type(fee_type)),
+        block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type).into(),
+        block_info.gas_prices.get_l1_data_gas_price_by_fee_type(fee_type).into(),
     )
 }
 

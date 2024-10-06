@@ -1,6 +1,6 @@
 use assert_matches::assert_matches;
 use rstest::rstest;
-use starknet_api::transaction::{Fee, TransactionVersion, ValidResourceBounds};
+use starknet_api::transaction::{TransactionVersion, ValidResourceBounds};
 
 use crate::blockifier::stateful_validator::StatefulValidator;
 use crate::context::BlockContext;
@@ -53,7 +53,7 @@ fn test_tx_validator(
         class_hash,
         validate_constructor,
         // TODO(Arni, 1/5/2024): Add test for insufficient maximal resources.
-        max_fee: Fee(BALANCE),
+        max_fee: BALANCE,
         resource_bounds: max_l1_resource_bounds,
         ..Default::default()
     };

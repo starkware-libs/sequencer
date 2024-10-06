@@ -7,7 +7,6 @@ use crate::block::{
     BlockHeaderWithoutHash,
     BlockNumber,
     BlockTimestamp,
-    GasPrice,
     GasPricePerToken,
 };
 use crate::block_hash::block_hash_calculator::{
@@ -82,12 +81,12 @@ fn test_block_hash_regression(
         sequencer: SequencerContractAddress(ContractAddress(PatriciaKey::from(3_u8))),
         timestamp: BlockTimestamp(4),
         l1_da_mode: L1DataAvailabilityMode::Blob,
-        l1_gas_price: GasPricePerToken { price_in_fri: GasPrice(6), price_in_wei: GasPrice(7) },
+        l1_gas_price: GasPricePerToken { price_in_fri: 6_u8.into(), price_in_wei: 7_u8.into() },
         l1_data_gas_price: GasPricePerToken {
-            price_in_fri: GasPrice(10),
-            price_in_wei: GasPrice(9),
+            price_in_fri: 10_u8.into(),
+            price_in_wei: 9_u8.into(),
         },
-        l2_gas_price: GasPricePerToken { price_in_fri: GasPrice(11), price_in_wei: GasPrice(12) },
+        l2_gas_price: GasPricePerToken { price_in_fri: 11_u8.into(), price_in_wei: 12_u8.into() },
         starknet_version: block_hash_version.to_owned().into(),
         parent_hash: BlockHash(Felt::from(11_u8)),
     };
@@ -116,10 +115,10 @@ fn test_block_hash_regression(
 #[test]
 fn l2_gas_price_pre_v0_13_3() {
     let block_header = {
-        |l2_gas_price| BlockHeaderWithoutHash {
+        |l2_gas_price: u8| BlockHeaderWithoutHash {
             l2_gas_price: GasPricePerToken {
-                price_in_fri: GasPrice(l2_gas_price),
-                price_in_wei: GasPrice(l2_gas_price),
+                price_in_fri: l2_gas_price.into(),
+                price_in_wei: l2_gas_price.into(),
             },
             starknet_version: BlockHashVersion::VO_13_2.into(),
             ..Default::default()
@@ -148,12 +147,12 @@ fn change_field_of_hash_input() {
         BlockHeaderWithoutHash {
             parent_hash: BlockHash(Felt::ONE),
             block_number: BlockNumber(1),
-            l1_gas_price: GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) },
+            l1_gas_price: GasPricePerToken { price_in_fri: 1_u8.into(), price_in_wei: 1_u8.into() },
             l1_data_gas_price: GasPricePerToken {
-                price_in_fri: GasPrice(1),
-                price_in_wei: GasPrice(1),
+                price_in_fri: 1_u8.into(),
+                price_in_wei: 1_u8.into(),
             },
-            l2_gas_price: GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) },
+            l2_gas_price: GasPricePerToken { price_in_fri: 1_u8.into(), price_in_wei: 1_u8.into() },
             state_root: GlobalRoot(Felt::ONE),
             sequencer: SequencerContractAddress(ContractAddress::from(1_u128)),
             timestamp: BlockTimestamp(1),
