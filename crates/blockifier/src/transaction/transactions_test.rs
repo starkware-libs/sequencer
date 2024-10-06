@@ -905,7 +905,7 @@ fn test_max_fee_exceeds_balance(
 
     let invalid_max_fee = Fee(BALANCE.0 + 1);
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-    let balance_over_gas_price = BALANCE / MAX_L1_GAS_PRICE;
+    let balance_over_gas_price = BALANCE.checked_div(MAX_L1_GAS_PRICE).unwrap();
     let invalid_resource_bounds =
         l1_resource_bounds((balance_over_gas_price.0 + 1).into(), MAX_L1_GAS_PRICE.into());
 
@@ -983,15 +983,15 @@ fn test_insufficient_new_resource_bounds(
 
     let default_resource_bounds = AllResourceBounds {
         l1_gas: ResourceBounds {
-            max_amount: minimal_gas_vector.l1_gas.0.try_into().unwrap(),
+            max_amount: minimal_gas_vector.l1_gas.0,
             max_price_per_unit: actual_strk_l1_gas_price.get().0,
         },
         l2_gas: ResourceBounds {
-            max_amount: minimal_gas_vector.l2_gas.0.try_into().unwrap(),
+            max_amount: minimal_gas_vector.l2_gas.0,
             max_price_per_unit: actual_strk_l2_gas_price.get().0,
         },
         l1_data_gas: ResourceBounds {
-            max_amount: minimal_gas_vector.l1_data_gas.0.try_into().unwrap(),
+            max_amount: minimal_gas_vector.l1_data_gas.0,
             max_price_per_unit: actual_strk_l1_data_gas_price.get().0,
         },
     };
