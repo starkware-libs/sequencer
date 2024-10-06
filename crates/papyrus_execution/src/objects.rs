@@ -175,9 +175,9 @@ pub(crate) fn tx_execution_output_to_fee_estimation(
     let gas_vector = tx_execution_output.execution_info.receipt.gas;
 
     Ok(FeeEstimation {
-        gas_consumed: gas_vector.l1_gas.into(),
+        gas_consumed: gas_vector.l1_gas.0.into(),
         l1_gas_price,
-        data_gas_consumed: gas_vector.l1_data_gas.into(),
+        data_gas_consumed: gas_vector.l1_data_gas.0.into(),
         l1_data_gas_price,
         l2_gas_price,
         overall_fee: tx_execution_output.execution_info.receipt.fee,
@@ -397,9 +397,10 @@ fn vm_resources_to_execution_resources(
         builtin_instance_counter,
         memory_holes: vm_resources.n_memory_holes as u64,
         da_gas_consumed: StarknetApiGasVector {
-            l1_gas: l1_gas.try_into().map_err(|_| ExecutionError::GasConsumedOutOfRange)?,
-            l2_gas: l2_gas.try_into().map_err(|_| ExecutionError::GasConsumedOutOfRange)?,
+            l1_gas: l1_gas.0.try_into().map_err(|_| ExecutionError::GasConsumedOutOfRange)?,
+            l2_gas: l2_gas.0.try_into().map_err(|_| ExecutionError::GasConsumedOutOfRange)?,
             l1_data_gas: l1_data_gas
+                .0
                 .try_into()
                 .map_err(|_| ExecutionError::GasConsumedOutOfRange)?,
         },
