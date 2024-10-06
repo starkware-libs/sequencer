@@ -359,13 +359,10 @@ impl AccountTransaction {
                 {
                     // TODO(Aner): refactor to indicate both amount and price are too low.
                     // TODO(Aner): refactor to return all amounts that are too low.
-                    let minimal_gas_amount = minimal_gas_amount.try_into()
-                    // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-                    .expect("Failed to convert u128 to u64.");
-                    if resource_bounds.max_amount < minimal_gas_amount {
+                    if minimal_gas_amount > resource_bounds.max_amount.into() {
                         return Err(TransactionFeeError::MaxGasAmountTooLow {
                             resource,
-                            max_gas_amount: resource_bounds.max_amount,
+                            max_gas_amount: resource_bounds.max_amount.into(),
                             minimal_gas_amount,
                         })?;
                     }
