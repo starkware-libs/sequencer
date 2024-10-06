@@ -10,7 +10,7 @@ mod state_machine_test;
 use std::collections::{HashMap, VecDeque};
 
 use starknet_api::block::BlockHash;
-use tracing::trace;
+use tracing::{error, trace};
 
 use crate::types::{ProposalContentId, Round, ValidatorId};
 
@@ -56,7 +56,8 @@ pub struct StateMachine {
     round: Round,
     step: Step,
     quorum: u32,
-    proposals: HashMap<Round, Option<BlockHash>>,
+    // {round: (block_hash, valid_round)}
+    proposals: HashMap<Round, (Option<BlockHash>, Option<Round>)>,
     // {round: {block_hash: vote_count}
     prevotes: HashMap<Round, HashMap<Option<BlockHash>, u32>>,
     precommits: HashMap<Round, HashMap<Option<BlockHash>, u32>>,
@@ -188,8 +189,8 @@ impl StateMachine {
             StateMachineEvent::GetProposal(block_hash, round) => {
                 self.handle_get_proposal(block_hash, round)
             }
-            StateMachineEvent::Proposal(block_hash, round, _) => {
-                self.handle_proposal(block_hash, round, leader_fn)
+            StateMachineEvent::Proposal(block_hash, round, valid_round) => {
+                self.handle_proposal(block_hash, round, valid_round, leader_fn)
             }
             StateMachineEvent::Prevote(block_hash, round) => {
                 self.handle_prevote(block_hash, round, leader_fn)
@@ -228,13 +229,17 @@ impl StateMachine {
         &mut self,
         block_hash: Option<BlockHash>,
         round: u32,
+        valid_round: Option<Round>,
         leader_fn: &LeaderFn,
     ) -> VecDeque<StateMachineEvent>
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
-        let old = self.proposals.insert(round, block_hash);
+        let old = self.proposals.insert(round, (block_hash, valid_round));
         assert!(old.is_none(), "SHC should handle conflicts & replays");
+        if round < self.round {
+            return self.past_round_upons(round);
+        }
         if round != self.round {
             return VecDeque::new();
         }
@@ -280,7 +285,9 @@ impl StateMachine {
         let prevote_count = self.prevotes.entry(round).or_default().entry(block_hash).or_insert(0);
         // TODO(matan): Use variable weight.
         *prevote_count += 1;
-
+        if round < self.round {
+            return self.past_round_upons(round);
+        }
         if self.step != Step::Prevote || round != self.round {
             return VecDeque::new();
         }
@@ -309,7 +316,9 @@ impl StateMachine {
             self.precommits.entry(round).or_default().entry(block_hash).or_insert(0);
         // TODO(matan): Use variable weight.
         *precommit_count += 1;
-
+        if round < self.round {
+            return self.past_round_upons(round);
+        }
         self.check_precommit_quorum(round, leader_fn)
     }
 
@@ -368,7 +377,7 @@ impl StateMachine {
             output.append(&mut self.send_precommit(*block_hash, round, leader_fn));
             return output;
         }
-        let Some(proposed_value) = self.proposals.get(&round) else {
+        let Some((proposed_value, _)) = self.proposals.get(&round) else {
             return output;
         };
         if proposed_value != block_hash {
@@ -413,7 +422,7 @@ impl StateMachine {
                 return output;
             }
         }
-        let Some(proposed_value) = self.proposals.get(&round) else {
+        let Some((proposed_value, _)) = self.proposals.get(&round) else {
             return output;
         };
         if proposed_value != block_hash {
@@ -468,10 +477,78 @@ impl StateMachine {
                 }
             }
         }
-        let Some(proposal) = self.proposals.get(&round) else {
+        let Some((proposal, _)) = self.proposals.get(&round) else {
             return VecDeque::from([StateMachineEvent::TimeoutPropose(round)]);
         };
         self.process_proposal(*proposal, round, leader_fn)
+    }
+
+    fn past_round_upons(&mut self, round: u32) -> VecDeque<StateMachineEvent> {
+        let mut output = VecDeque::new();
+        output.append(&mut self.upon_reproposal());
+        output.append(&mut self.upon_decision(round));
+        output
+    }
+
+    // LOC 28 in the paper.
+    fn upon_reproposal(&mut self) -> VecDeque<StateMachineEvent> {
+        if self.step != Step::Propose {
+            return VecDeque::new();
+        }
+        let Some((block_hash, valid_round)) = self.proposals.get(&self.round) else {
+            return VecDeque::new();
+        };
+        let Some(valid_round) = valid_round else {
+            return VecDeque::new();
+        };
+        if valid_round >= &self.round {
+            return VecDeque::new();
+        }
+        let Some(round_prevotes) = self.prevotes.get(valid_round) else {
+            return VecDeque::new();
+        };
+        let Some(count) = round_prevotes.get(block_hash) else { return VecDeque::new() };
+
+        if count < &self.quorum {
+            return VecDeque::new();
+        }
+        let output = if block_hash.is_some_and(|v| {
+            self.locked_value.is_none()
+                || self.locked_value.is_some_and(|(locked_value, locked_round)| {
+                    locked_round <= *valid_round || locked_value == v
+                })
+        }) {
+            VecDeque::from([StateMachineEvent::Prevote(*block_hash, self.round)])
+        } else {
+            VecDeque::from([StateMachineEvent::Prevote(None, self.round)])
+        };
+
+        self.step = Step::Prevote;
+        output
+    }
+
+    // LOC 49 in the paper.
+    fn upon_decision(&mut self, round: u32) -> VecDeque<StateMachineEvent> {
+        let Some((block_hash, count)) = leading_vote(&self.precommits, round) else {
+            return VecDeque::new();
+        };
+        if *count < self.quorum {
+            return VecDeque::new();
+        }
+        let Some(block_hash) = block_hash else {
+            return VecDeque::new();
+        };
+        let Some((proposed_value, _)) = self.proposals.get(&round) else {
+            return VecDeque::new();
+        };
+        if *proposed_value != Some(*block_hash) {
+            // If the proposal is None this could be due to an honest error (crash or network).
+            // If the proposal is valid, this can be caused by a malicious leader double proposing.
+            // We will rely on the sync protocol to catch us up if such a decision is reached.
+            error!("Proposal does not match quorum.");
+            return VecDeque::new();
+        }
+        VecDeque::from([StateMachineEvent::Decision(*block_hash, round)])
     }
 }
 
