@@ -7,7 +7,11 @@ use starknet_types_core::hash::Poseidon;
 use super::event_commitment::{calculate_event_commitment, EventLeafElement};
 use super::receipt_commitment::{calculate_receipt_commitment, ReceiptElement};
 use super::state_diff_hash::calculate_state_diff_hash;
-use super::transaction_commitment::{calculate_transaction_commitment, TransactionLeafElement};
+use super::transaction_commitment::{
+    calculate_transaction_commitment,
+    fill_empty_signatures,
+    TransactionLeafElement,
+};
 use crate::block::{BlockHash, BlockHeaderWithoutHash, GasPricePerToken, StarknetVersion};
 use crate::core::{
     ascii_as_felt,
@@ -127,9 +131,13 @@ pub fn calculate_block_commitments(
     transactions_data: &[TransactionHashingData],
     state_diff: &ThinStateDiff,
     l1_da_mode: L1DataAvailabilityMode,
+    starknet_version: &StarknetVersion,
 ) -> BlockHeaderCommitments {
-    let transaction_leaf_elements: Vec<TransactionLeafElement> =
+    let mut transaction_leaf_elements: Vec<TransactionLeafElement> =
         transactions_data.iter().map(TransactionLeafElement::from).collect();
+    if starknet_version < &BlockHashVersion::VO_13_3.into() {
+        fill_empty_signatures(&mut transaction_leaf_elements);
+    }
     let transaction_commitment =
         calculate_transaction_commitment::<Poseidon>(&transaction_leaf_elements);
 

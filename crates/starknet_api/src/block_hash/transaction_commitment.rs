@@ -44,3 +44,12 @@ fn calculate_transaction_leaf(transaction_leaf_elements: &TransactionLeafElement
         .chain_iter(transaction_leaf_elements.transaction_signature.0.iter())
         .get_poseidon_hash()
 }
+
+// Replaces empty signatures with a single zero.
+pub(crate) fn fill_empty_signatures(transaction_leaf_elements: &mut Vec<TransactionLeafElement>) {
+    transaction_leaf_elements.iter_mut().for_each(|transaction_leaf_element| {
+        if transaction_leaf_element.transaction_signature.0.is_empty() {
+            transaction_leaf_element.transaction_signature.0.push(Felt::ZERO);
+        }
+    });
+}
