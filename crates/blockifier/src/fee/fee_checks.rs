@@ -174,7 +174,8 @@ impl FeeCheckReport {
         gas_vector: &GasVector,
         tx_context: &TransactionContext,
     ) -> FeeCheckResult<()> {
-        let total_discounted_gas_used = gas_vector.to_discounted_l1_gas(tx_context);
+        let total_discounted_gas_used =
+            gas_vector.to_discounted_l1_gas(tx_context.get_gas_prices());
         if total_discounted_gas_used > l1_bounds.max_amount.into() {
             return Err(FeeCheckError::MaxGasAmountExceeded {
                 resource: L1Gas,

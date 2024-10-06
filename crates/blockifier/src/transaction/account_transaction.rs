@@ -320,7 +320,7 @@ impl AccountTransaction {
                     ValidResourceBounds::L1Gas(l1_gas_resource_bounds) => vec![(
                         L1Gas,
                         l1_gas_resource_bounds,
-                        minimal_gas_amount_vector.to_discounted_l1_gas(tx_context),
+                        minimal_gas_amount_vector.to_discounted_l1_gas(tx_context.get_gas_prices()),
                         block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type),
                     )],
                     ValidResourceBounds::AllResources(AllResourceBounds {
