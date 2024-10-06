@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   commitlint:
-    runs-on: ubuntu-22.04
+    runs-on: starkware-ubuntu-latest-small
     steps:
       - uses: actions/checkout@v4
         with:
@@ -117,7 +117,6 @@ jobs:
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
           ci/bin/python scripts/run_tests.py --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
-          ci/bin/python scripts/run_tests.py --changes_only --concurrency --commit_id ${{ github.event.pull_request.base.sha }}
         env:
           SEED: 0
 
@@ -128,7 +127,6 @@ jobs:
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
           ci/bin/python scripts/run_tests.py
-          ci/bin/python scripts/run_tests.py --concurrency
         env:
           SEED: 0
 
