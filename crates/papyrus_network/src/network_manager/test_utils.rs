@@ -108,11 +108,11 @@ where
 
     let subscriber_channels = BroadcastTopicChannels {
         broadcasted_messages_receiver,
-        broadcast_topic_client: BroadcastTopicClient {
+        broadcast_topic_client: BroadcastTopicClient::new(
             messages_to_broadcast_sender,
             reported_messages_sender,
             continue_propagation_sender,
-        },
+        ),
     };
 
     let mock_broadcasted_messages_fn: MockBroadcastedMessagesFn<T> =
