@@ -8,7 +8,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
-use crate::block::{BlockHash, BlockNumber, NonzeroGasPrice};
+use crate::block::{BlockHash, BlockNumber, GasPrice, NonzeroGasPrice};
 use crate::core::{
     ChainId,
     ClassHash,
@@ -736,6 +736,7 @@ pub struct RevertedTransactionExecutionStatus {
     Serialize,
     PartialOrd,
     Ord,
+    derive_more::Add,
     derive_more::Deref,
 )]
 #[serde(from = "PrefixedBytesAsHex<16_usize>", into = "PrefixedBytesAsHex<16_usize>")]
@@ -1028,49 +1029,53 @@ impl Resource {
 // TODO(Nimrod): Consider renaming this struct.
 pub struct ResourceBounds {
     // Specifies the maximum amount of each resource allowed for usage during the execution.
-    #[serde(serialize_with = "u64_to_hex", deserialize_with = "hex_to_u64")]
-    pub max_amount: u64,
+    #[serde(serialize_with = "gas_amount_to_hex", deserialize_with = "hex_to_gas_amount")]
+    pub max_amount: GasAmount,
 
     // Specifies the maximum price the user is willing to pay for each resource unit.
-    #[serde(serialize_with = "u128_to_hex", deserialize_with = "hex_to_u128")]
-    pub max_price_per_unit: u128,
+    #[serde(serialize_with = "gas_price_to_hex", deserialize_with = "hex_to_gas_price")]
+    pub max_price_per_unit: GasPrice,
 }
 
 impl ResourceBounds {
     /// Returns true iff both the max amount and the max amount per unit is zero.
     pub fn is_zero(&self) -> bool {
-        self.max_amount == 0 && self.max_price_per_unit == 0
+        self.max_amount == GasAmount(0) && self.max_price_per_unit == GasPrice(0)
     }
 }
 
-fn u64_to_hex<S>(value: &u64, serializer: S) -> Result<S::Ok, S::Error>
+fn gas_amount_to_hex<S>(value: &GasAmount, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    serializer.serialize_str(&format!("0x{:x}", value))
+    serializer.serialize_str(&format!("0x{:x}", value.0))
 }
 
-fn hex_to_u64<'de, D>(deserializer: D) -> Result<u64, D::Error>
+fn hex_to_gas_amount<'de, D>(deserializer: D) -> Result<GasAmount, D::Error>
 where
     D: Deserializer<'de>,
 {
     let s: String = Deserialize::deserialize(deserializer)?;
-    u64::from_str_radix(s.trim_start_matches("0x"), 16).map_err(serde::de::Error::custom)
+    Ok(GasAmount(
+        u64::from_str_radix(s.trim_start_matches("0x"), 16).map_err(serde::de::Error::custom)?,
+    ))
 }
 
-fn u128_to_hex<S>(value: &u128, serializer: S) -> Result<S::Ok, S::Error>
+fn gas_price_to_hex<S>(value: &GasPrice, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    serializer.serialize_str(&format!("0x{:x}", value))
+    serializer.serialize_str(&format!("0x{:x}", value.0))
 }
 
-fn hex_to_u128<'de, D>(deserializer: D) -> Result<u128, D::Error>
+fn hex_to_gas_price<'de, D>(deserializer: D) -> Result<GasPrice, D::Error>
 where
     D: Deserializer<'de>,
 {
     let s: String = Deserialize::deserialize(deserializer)?;
-    u128::from_str_radix(s.trim_start_matches("0x"), 16).map_err(serde::de::Error::custom)
+    Ok(GasPrice(
+        u128::from_str_radix(s.trim_start_matches("0x"), 16).map_err(serde::de::Error::custom)?,
+    ))
 }
 
 #[derive(Debug, PartialEq)]
@@ -1106,21 +1111,20 @@ impl ValidResourceBounds {
     }
 
     pub fn max_possible_fee(&self) -> Fee {
-        Fee(match self {
+        match self {
             ValidResourceBounds::L1Gas(l1_bounds) => {
-                let max_amount: u128 = l1_bounds.max_amount.into();
-                max_amount * l1_bounds.max_price_per_unit
+                l1_bounds.max_amount.saturating_mul(l1_bounds.max_price_per_unit)
             }
             ValidResourceBounds::AllResources(AllResourceBounds {
                 l1_gas,
                 l2_gas,
                 l1_data_gas,
             }) => {
-                u128::from(l1_gas.max_amount) * l1_gas.max_price_per_unit
-                    + u128::from(l2_gas.max_amount) * l2_gas.max_price_per_unit
-                    + u128::from(l1_data_gas.max_amount) * l1_data_gas.max_price_per_unit
+                l1_gas.max_amount.saturating_mul(l1_gas.max_price_per_unit)
+                    + l2_gas.max_amount.saturating_mul(l2_gas.max_price_per_unit)
+                    + l1_data_gas.max_amount.saturating_mul(l1_data_gas.max_price_per_unit)
             }
-        })
+        }
     }
 
     pub fn get_gas_vector_computation_mode(&self) -> GasVectorComputationMode {
@@ -1133,7 +1137,7 @@ impl ValidResourceBounds {
     // TODO(Nimrod): Default testing bounds should probably be AllResourceBounds variant.
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_testing() -> Self {
-        Self::L1Gas(ResourceBounds { max_amount: 0, max_price_per_unit: 1 })
+        Self::L1Gas(ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(1) })
     }
 }
 

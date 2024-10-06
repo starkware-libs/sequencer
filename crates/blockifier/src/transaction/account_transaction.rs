@@ -357,18 +357,18 @@ impl AccountTransaction {
                 {
                     // TODO(Aner): refactor to indicate both amount and price are too low.
                     // TODO(Aner): refactor to return all amounts that are too low.
-                    if minimal_gas_amount > resource_bounds.max_amount.into() {
+                    if minimal_gas_amount > resource_bounds.max_amount {
                         return Err(TransactionFeeError::MaxGasAmountTooLow {
                             resource,
-                            max_gas_amount: resource_bounds.max_amount.into(),
+                            max_gas_amount: resource_bounds.max_amount,
                             minimal_gas_amount,
                         })?;
                     }
                     // TODO(Aner): refactor to return all prices that are too low.
-                    if resource_bounds.max_price_per_unit < actual_gas_price.get().0 {
+                    if resource_bounds.max_price_per_unit < actual_gas_price.get() {
                         return Err(TransactionFeeError::MaxGasPriceTooLow {
                             resource,
-                            max_gas_price: resource_bounds.max_price_per_unit.into(),
+                            max_gas_price: resource_bounds.max_price_per_unit,
                             actual_gas_price: actual_gas_price.into(),
                         })?;
                     }
