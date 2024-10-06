@@ -99,23 +99,23 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "components.batcher.remote_config.client_config.idle_connections": {
+  "components.batcher.remote_config.client_idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
     "value": 18446744073709551615
   },
-  "components.batcher.remote_config.client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
+  "components.batcher.remote_config.client_idle_timeout": {
+    "description": "The duration to keep an idle connection open before closing.",
     "privacy": "Public",
     "value": 90
   },
-  "components.batcher.remote_config.client_config.retries": {
+  "components.batcher.remote_config.client_retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
   },
-  "components.batcher.remote_config.client_config.socket": {
-    "description": "The remote component socket.",
+  "components.batcher.remote_config.client_socket": {
+    "description": "The remote component client socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
@@ -149,23 +149,23 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "components.consensus_manager.remote_config.client_config.idle_connections": {
+  "components.consensus_manager.remote_config.client_idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
     "value": 18446744073709551615
   },
-  "components.consensus_manager.remote_config.client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
+  "components.consensus_manager.remote_config.client_idle_timeout": {
+    "description": "The duration to keep an idle connection open before closing.",
     "privacy": "Public",
     "value": 90
   },
-  "components.consensus_manager.remote_config.client_config.retries": {
+  "components.consensus_manager.remote_config.client_retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
   },
-  "components.consensus_manager.remote_config.client_config.socket": {
-    "description": "The remote component socket.",
+  "components.consensus_manager.remote_config.client_socket": {
+    "description": "The remote component client socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
@@ -199,23 +199,26 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "components.gateway.remote_config.client_config.idle_connections": {
+  "components.gateway.remote_config.client_idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
     "value": 18446744073709551615
   },
-  "components.gateway.remote_config.client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
+  "components.gateway.remote_config.client_idle_timeout": {
+    "description": "The duration to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": 90
+    "value": {
+      "nanos": 0,
+      "secs": 90
+    }
   },
-  "components.gateway.remote_config.client_config.retries": {
+  "components.gateway.remote_config.client_retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
   },
-  "components.gateway.remote_config.client_config.socket": {
-    "description": "The remote component socket.",
+  "components.gateway.remote_config.client_socket": {
+    "description": "The remote component client socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
@@ -249,23 +252,21 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "components.http_server.remote_config.client_config.idle_connections": {
+  "components.http_server.remote_config.client_idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
     "value": 18446744073709551615
   },
-  "components.http_server.remote_config.client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
-    "privacy": "Public",
     "value": 90
   },
   "components.http_server.remote_config.client_config.retries": {
+  "components.http_server.remote_config.client_retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
   },
-  "components.http_server.remote_config.client_config.socket": {
-    "description": "The remote component socket.",
+  "components.http_server.remote_config.client_socket": {
+    "description": "The remote component client socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
@@ -299,32 +300,33 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "components.mempool.remote_config.client_config.idle_connections": {
+  "components.mempool.remote_config.client_idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
     "value": 18446744073709551615
   },
-  "components.mempool.remote_config.client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
+  "components.mempool.remote_config.client_idle_timeout": {
+    "description": "The duration to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": 90
+    "value": {
+      "nanos": 0,
+      "secs": 90
+    }
   },
-  "components.mempool.remote_config.client_config.retries": {
+  "components.mempool.remote_config.client_retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
   },
-  "components.mempool.remote_config.client_config.socket": {
-    "description": "The remote component socket.",
+  "components.mempool.remote_config.client_socket": {
+    "description": "The remote component client socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
   "components.mempool.remote_config.server_config.socket": {
     "description": "The remote component socket.",
-    "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "consensus_manager_config.consensus_config_param_1": {
     "description": "The first consensus manager configuration parameter",
     "privacy": "Public",
     "value": 1
