@@ -23,7 +23,7 @@ use crate::component_client::{
 };
 use crate::component_definitions::{
     ComponentRequestAndResponseSender,
-    RemoteComponentCommunicationConfig,
+    RemoteConnectionConfig,
     ServerError,
     APPLICATION_OCTET_STREAM,
 };
@@ -141,13 +141,13 @@ where
     // Ensure the server starts running.
     task::yield_now().await;
 
-    let config = RemoteComponentCommunicationConfig { socket, ..Default::default() };
+    let config = RemoteConnectionConfig { socket, ..Default::default() };
     ComponentAClient::new(config)
 }
 
 async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: SocketAddr) {
-    let a_config = RemoteComponentCommunicationConfig { socket: a_socket, ..Default::default() };
-    let b_config = RemoteComponentCommunicationConfig { socket: b_socket, ..Default::default() };
+    let a_config = RemoteConnectionConfig { socket: a_socket, ..Default::default() };
+    let b_config = RemoteConnectionConfig { socket: b_socket, ..Default::default() };
 
     let a_remote_client = ComponentAClient::new(a_config);
     let b_remote_client = ComponentBClient::new(b_config);
@@ -197,8 +197,8 @@ async fn test_proper_setup() {
     let b_socket = get_available_socket().await;
 
     setup_for_tests(setup_value, a_socket, b_socket).await;
-    let a_config = RemoteComponentCommunicationConfig { socket: a_socket, ..Default::default() };
-    let b_config = RemoteComponentCommunicationConfig { socket: b_socket, ..Default::default() };
+    let a_config = RemoteConnectionConfig { socket: a_socket, ..Default::default() };
+    let b_config = RemoteConnectionConfig { socket: b_socket, ..Default::default() };
 
     let a_remote_client = ComponentAClient::new(a_config);
     let b_remote_client = ComponentBClient::new(b_config);
@@ -243,7 +243,7 @@ async fn test_faulty_client_setup() {
 #[tokio::test]
 async fn test_unconnected_server() {
     let socket = get_available_socket().await;
-    let config = RemoteComponentCommunicationConfig { socket, ..Default::default() };
+    let config = RemoteConnectionConfig { socket, ..Default::default() };
     let client = ComponentAClient::new(config);
     let expected_error_contained_keywords = ["Connection refused"];
     verify_error(client, &expected_error_contained_keywords).await;
@@ -312,7 +312,7 @@ async fn test_retry_request() {
     // The initial server state is 'false', hence the first attempt returns an error and
     // sets the server state to 'true'. The second attempt (first retry) therefore returns a
     // 'success', while setting the server state to 'false' yet again.
-    let retry_config = RemoteComponentCommunicationConfig {
+    let retry_config = RemoteConnectionConfig {
         socket,
         retries: 1,
         idle_connections: MAX_IDLE_CONNECTION,
@@ -322,7 +322,7 @@ async fn test_retry_request() {
     assert_eq!(a_client_retry.a_get_value().await.unwrap(), VALID_VALUE_A);
 
     // The current server state is 'false', hence the first and only attempt returns an error.
-    let no_retry_config = RemoteComponentCommunicationConfig {
+    let no_retry_config = RemoteConnectionConfig {
         socket,
         retries: 0,
         idle_connections: MAX_IDLE_CONNECTION,
