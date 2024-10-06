@@ -83,23 +83,11 @@ impl<'state> NativeSyscallHandler<'state> {
             return Err(retdata.0.clone());
         }
 
-        self.update_remaining_gas(remaining_gas, &call_info);
+        native_update_remaining_gas(remaining_gas, &call_info);
 
         self.inner_calls.push(call_info);
 
         Ok(retdata)
-    }
-
-    #[allow(dead_code)]
-    fn update_remaining_gas(&mut self, remaining_gas: &mut u128, call_info: &CallInfo) {
-        // Create a new variable with converted type.
-        let mut remaining_gas_u64 = u64::try_from(*remaining_gas).unwrap();
-
-        // Pass the reference to the function.
-        update_remaining_gas(&mut remaining_gas_u64, call_info);
-
-        // Change the remaining gas value.
-        *remaining_gas = u128::from(remaining_gas_u64);
     }
 
     // Handles gas related logic when executing a syscall. Required because Native calls the
@@ -321,4 +309,19 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
     ) -> SyscallResult<[u32; 8]> {
         todo!("Implement sha256_process_block syscall.");
     }
+}
+
+/// Wrapper function around [update_remaining_gas] which takes a u128 as an input, converts it to
+/// u64 and uses [update_remaining_gas] to withdraw the right amount. Finally, updates the value
+/// to which `remaining_gas` points to.
+#[allow(dead_code)]
+fn native_update_remaining_gas(remaining_gas: &mut u128, call_info: &CallInfo) {
+    // Create a new variable with converted type.
+    let mut remaining_gas_u64 = u64::try_from(*remaining_gas).unwrap();
+
+    // Pass the reference to the function.
+    update_remaining_gas(&mut remaining_gas_u64, call_info);
+
+    // Change the remaining gas value.
+    *remaining_gas = u128::from(remaining_gas_u64);
 }
