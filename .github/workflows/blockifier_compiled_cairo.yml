@@ -7,12 +7,12 @@ on:
       - reopened
       - synchronize
     paths:
-      - ".github/workflows/blockifier_compiled_cairo.yml"
-      - "crates/blockifier/feature_contracts/**"
-      - "crates/blockifier/src/test_utils/cairo_compile.rs"
-      - "crates/blockifier/tests/feature_contracts_compatibility_test.rs"
-      - "crates/blockifier/tests/requirements.txt"
-      - "scripts/dependencies.sh"
+      - '.github/workflows/blockifier_compiled_cairo.yml'
+      - 'crates/blockifier/feature_contracts/**'
+      - 'crates/blockifier/src/test_utils/cairo_compile.rs'
+      - 'crates/blockifier/tests/feature_contracts_compatibility_test.rs'
+      - 'crates/blockifier/tests/requirements.txt'
+      - 'scripts/dependencies.sh'
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
@@ -30,7 +30,7 @@ jobs:
       - uses: actions/setup-python@v5
         id: setup-pypy
         with:
-          python-version: "pypy3.9"
+          python-version: 'pypy3.9'
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
@@ -40,16 +40,16 @@ jobs:
       - name: checkout sequencer into `sequencer` directory.
         uses: actions/checkout@v4
         with:
-          repository: "starkware-libs/sequencer"
-          path: "sequencer"
+          repository: 'starkware-libs/sequencer'
+          path: 'sequencer'
 
       - name: checkout cairo1 repo in order to compile cairo1 contracts.
         uses: actions/checkout@v4
         with:
-          repository: "starkware-libs/cairo"
+          repository: 'starkware-libs/cairo'
           fetch-depth: 0
           fetch-tags: true
-          path: "cairo"
+          path: 'cairo'
 
       - name: install toolchain for legacy contract compilation (old compiler tag)
         uses: actions-rs/toolchain@master
