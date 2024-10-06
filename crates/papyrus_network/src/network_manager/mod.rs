@@ -244,11 +244,11 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
 
         Ok(BroadcastTopicChannels {
             broadcasted_messages_receiver,
-            broadcast_topic_client: BroadcastTopicClient {
+            broadcast_topic_client: BroadcastTopicClient::new(
                 messages_to_broadcast_sender,
                 reported_messages_sender,
                 continue_propagation_sender,
-            },
+            ),
         })
     }
 
@@ -879,6 +879,20 @@ pub struct BroadcastTopicClient<T: TryFrom<Bytes>> {
     messages_to_broadcast_sender: BroadcastTopicSender<T, Bytes>,
     reported_messages_sender: BroadcastTopicSender<BroadcastedMessageManager, PeerId>,
     continue_propagation_sender: Sender<BroadcastedMessageManager>,
+}
+
+impl<T: TryFrom<Bytes>> BroadcastTopicClient<T> {
+    pub fn new(
+        messages_to_broadcast_sender: BroadcastTopicSender<T, Bytes>,
+        reported_messages_sender: BroadcastTopicSender<BroadcastedMessageManager, PeerId>,
+        continue_propagation_sender: Sender<BroadcastedMessageManager>,
+    ) -> Self {
+        BroadcastTopicClient {
+            messages_to_broadcast_sender,
+            reported_messages_sender,
+            continue_propagation_sender,
+        }
+    }
 }
 
 #[async_trait]
