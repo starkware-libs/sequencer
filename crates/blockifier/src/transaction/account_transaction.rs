@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::block::GasPricesForFeeType;
 use starknet_api::calldata;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -21,7 +22,6 @@ use starknet_api::transaction::{
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
-use crate::blockifier::block::GasPricesForFeeType;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::{CallInfo, Retdata};
 use crate::execution::contract_class::ContractClass;
