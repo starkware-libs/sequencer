@@ -16,6 +16,7 @@ derive_more.workspace = true
 hex.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 itertools.workspace = true
+log.workspace = true
 num-bigint.workspace = true
 pretty_assertions.workspace = true
 primitive-types = { workspace = true, features = ["serde"] }

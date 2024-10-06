@@ -1,6 +1,13 @@
 use log::warn;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, GasPrice, NonzeroGasPrice};
+use starknet_api::block::{
+    BlockHash,
+    BlockNumber,
+    BlockTimestamp,
+    GasPrice,
+    GasPricesForFeeType,
+    NonzeroGasPrice,
+};
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -30,13 +37,6 @@ pub struct BlockInfo {
 pub struct GasPrices {
     eth_gas_prices: GasPricesForFeeType,  // In wei.
     strk_gas_prices: GasPricesForFeeType, // In fri.
-}
-
-#[derive(Clone, Debug)]
-pub struct GasPricesForFeeType {
-    pub l1_gas_price: NonzeroGasPrice,
-    pub l1_data_gas_price: NonzeroGasPrice,
-    pub l2_gas_price: NonzeroGasPrice,
 }
 
 impl GasPrices {

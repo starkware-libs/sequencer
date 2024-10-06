@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
-use crate::block::{GasPrice, NonzeroGasPrice};
-use crate::transaction::Fee;
+use crate::block::{GasPrice, GasPricesForFeeType, NonzeroGasPrice};
+use crate::transaction::{Fee, Resource};
 
 #[derive(
     derive_more::Add,
@@ -70,12 +70,94 @@ impl GasAmount {
     }
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
+#[derive(
+    derive_more::Add,
+    derive_more::Sum,
+    derive_more::AddAssign,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    Deserialize,
+    Serialize,
+)]
 pub struct GasVector {
     pub l1_gas: GasAmount,
     pub l1_data_gas: GasAmount,
     #[serde(default)]
     pub l2_gas: GasAmount,
+}
+
+impl GasVector {
+    pub fn from_l1_gas(l1_gas: GasAmount) -> Self {
+        Self { l1_gas, ..Default::default() }
+    }
+
+    pub fn from_l1_data_gas(l1_data_gas: GasAmount) -> Self {
+        Self { l1_data_gas, ..Default::default() }
+    }
+
+    pub fn from_l2_gas(l2_gas: GasAmount) -> Self {
+        Self { l2_gas, ..Default::default() }
+    }
+
+    /// Computes the cost (in fee token units) of the gas vector (saturating on overflow).
+    pub fn saturated_cost(&self, gas_prices: &GasPricesForFeeType) -> Fee {
+        let mut sum = Fee(0);
+        for (gas, price, resource) in [
+            (self.l1_gas, gas_prices.l1_gas_price, Resource::L1Gas),
+            (self.l1_data_gas, gas_prices.l1_data_gas_price, Resource::L1DataGas),
+            (self.l2_gas, gas_prices.l2_gas_price, Resource::L2Gas),
+        ] {
+            let cost = gas.checked_mul(price.get()).unwrap_or_else(|| {
+                log::warn!(
+                    "{} cost overflowed: multiplication of gas amount ({}) by price per unit ({}) \
+                     resulted in overflow.",
+                    resource,
+                    gas,
+                    price
+                );
+                Fee(u128::MAX)
+            });
+            sum = sum.checked_add(cost).unwrap_or_else(|| {
+                log::warn!(
+                    "Total cost overflowed: addition of current sum ({}) and cost of {} ({}) \
+                     resulted in overflow.",
+                    sum,
+                    resource,
+                    cost
+                );
+                Fee(u128::MAX)
+            });
+        }
+        sum
+    }
+
+    /// Compute l1_gas estimation from gas_vector using the following formula:
+    /// One byte of data costs either 1 data gas (in blob mode) or 16 gas (in calldata
+    /// mode). For gas price GP and data gas price DGP, the discount for using blobs
+    /// would be DGP / (16 * GP).
+    /// X non-data-related gas consumption and Y bytes of data, in non-blob mode, would
+    /// cost (X + 16*Y) units of gas. Applying the discount ratio to the data-related
+    /// summand, we get total_gas = (X + Y * DGP / GP).
+    /// If this function is called with kzg_flag==false, then l1_data_gas==0, and this dicount
+    /// function does nothing.
+    pub fn to_discounted_l1_gas(&self, gas_prices: &GasPricesForFeeType) -> GasAmount {
+        let l1_data_gas_fee = self.l1_data_gas.nonzero_saturating_mul(gas_prices.l1_data_gas_price);
+        let l1_data_gas_in_l1_gas_units =
+            l1_data_gas_fee.checked_div_ceil(gas_prices.l1_gas_price).unwrap_or_else(|| {
+                log::warn!(
+                    "Discounted L1 gas cost overflowed: division of L1 data fee {} by regular L1 \
+                     gas price ({}) resulted in overflow.",
+                    l1_data_gas_fee,
+                    gas_prices.l1_gas_price
+                );
+                GasAmount::MAX
+            });
+        self.l1_gas.saturating_add(l1_data_gas_in_l1_gas_units)
+    }
 }
 
 /// The execution resources used by a transaction.

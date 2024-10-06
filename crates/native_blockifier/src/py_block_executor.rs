@@ -7,7 +7,6 @@ use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::execution::call_info::CallInfo;
 use blockifier::fee::receipt::TransactionReceipt;
-use blockifier::fee::resources::GasVector;
 use blockifier::state::global_cache::GlobalContractCache;
 use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction;
@@ -19,6 +18,7 @@ use pyo3::{FromPyObject, PyAny, Python};
 use serde::Serialize;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress};
+use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::Fee;
 use starknet_types_core::felt::Felt;
 
