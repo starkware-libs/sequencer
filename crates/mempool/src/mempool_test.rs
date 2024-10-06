@@ -277,7 +277,7 @@ fn test_get_txs_replenishes_queue_multi_account_between_chunks() {
 }
 
 #[rstest]
-fn test_get_txs_with_holes() {
+fn test_get_txs_with_nonce_gap() {
     // Setup.
     let tx_address_0_nonce_1 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1);
     let tx_address_1_nonce_0 = tx!(tx_hash: 3, sender_address: "0x1", tx_nonce: 0);
@@ -547,7 +547,7 @@ fn test_add_tx_tip_priority_over_tx_hash(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_tx_account_state_fills_hole(mut mempool: Mempool) {
+fn test_add_tx_account_state_fills_nonce_gap(mut mempool: Mempool) {
     // Setup.
     let tx_input_nonce_1 = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0);
     // Input that increments the account state.
@@ -590,7 +590,7 @@ fn test_add_tx_sequential_nonces(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_tx_filling_hole(mut mempool: Mempool) {
+fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
     // Setup.
     let input_nonce_0 = add_tx_input!(tx_hash: 1, tx_nonce: 0, account_nonce: 0);
     let input_nonce_1 = add_tx_input!(tx_hash: 2, tx_nonce: 1, account_nonce: 0);
@@ -798,82 +798,7 @@ fn test_account_nonces_removal_in_commit_block(mut mempool: Mempool) {
 // Flow tests.
 
 #[rstest]
-fn test_flow_filling_holes(mut mempool: Mempool) {
-    // Setup.
-    let input_address_0_nonce_0 =
-        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0, account_nonce: 0);
-    let input_address_0_nonce_1 =
-        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1, account_nonce: 0);
-    let input_address_1_nonce_0 =
-        add_tx_input!(tx_hash: 3, sender_address: "0x1", tx_nonce: 0, account_nonce: 0);
-
-    add_tx(&mut mempool, &input_address_0_nonce_1);
-    add_tx(&mut mempool, &input_address_1_nonce_0);
-
-    // Test and assert: only the eligible transaction is returned.
-    get_txs_and_assert_expected(&mut mempool, 2, &[input_address_1_nonce_0.tx]);
-
-    add_tx(&mut mempool, &input_address_0_nonce_0);
-
-    // Test and assert: all remaining transactions are returned.
-    get_txs_and_assert_expected(
-        &mut mempool,
-        2,
-        &[input_address_0_nonce_0.tx, input_address_0_nonce_1.tx],
-    );
-}
-
-#[rstest]
-fn test_flow_commit_block_includes_proposed_txs_subset(mut mempool: Mempool) {
-    // Setup.
-    let tx_address_0_nonce_3 =
-        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 3, account_nonce: 3);
-    let tx_address_0_nonce_5 =
-        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 5, account_nonce: 3);
-    let tx_address_0_nonce_6 =
-        add_tx_input!(tx_hash: 3, sender_address: "0x0", tx_nonce: 6, account_nonce: 3);
-    let tx_address_1_nonce_0 =
-        add_tx_input!(tx_hash: 4, sender_address: "0x1", tx_nonce: 0, account_nonce: 0);
-    let tx_address_1_nonce_1 =
-        add_tx_input!(tx_hash: 5, sender_address: "0x1", tx_nonce: 1, account_nonce: 0);
-    let tx_address_1_nonce_2 =
-        add_tx_input!(tx_hash: 6, sender_address: "0x1", tx_nonce: 2, account_nonce: 0);
-    let tx_address_2_nonce_2 =
-        add_tx_input!(tx_hash: 7, sender_address: "0x2", tx_nonce: 2, account_nonce: 2);
-
-    for input in [
-        &tx_address_0_nonce_5,
-        &tx_address_0_nonce_6,
-        &tx_address_0_nonce_3,
-        &tx_address_1_nonce_2,
-        &tx_address_1_nonce_1,
-        &tx_address_1_nonce_0,
-        &tx_address_2_nonce_2,
-    ] {
-        add_tx(&mut mempool, input);
-    }
-
-    // Test.
-    get_txs_and_assert_expected(
-        &mut mempool,
-        2,
-        &[tx_address_2_nonce_2.tx, tx_address_1_nonce_0.tx],
-    );
-    get_txs_and_assert_expected(
-        &mut mempool,
-        2,
-        &[tx_address_1_nonce_1.tx, tx_address_0_nonce_3.tx],
-    );
-
-    // Not included in block: address "0x2" nonce 2, address "0x1" nonce 1.
-    let nonces = [("0x0", 3), ("0x1", 0)];
-    commit_block(&mut mempool, nonces);
-
-    get_txs_and_assert_expected(&mut mempool, 2, &[]);
-}
-
-#[rstest]
-fn test_flow_commit_block_closes_hole() {
+fn test_flow_commit_block_fills_nonce_gap() {
     // Setup.
     let tx_nonce_3 = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 3);
     let tx_input_nonce_4 =

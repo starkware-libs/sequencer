@@ -31,6 +31,5 @@ starknet_mempool = { workspace = true, features = ["testing"] }
 [features]
 testing = ["pretty_assertions", "starknet-types-core"]
 
-# TODO(Elin): try to remove this once flow test is added.
 [package.metadata.cargo-machete]
 ignored = ["starknet-types-core"]
