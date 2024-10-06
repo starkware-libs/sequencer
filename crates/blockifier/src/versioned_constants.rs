@@ -604,7 +604,7 @@ impl OsConstants {
     // not used by the blockifier but included for transparency. These constanst will be ignored
     // during the creation of the struct containing the gas costs.
 
-    const ADDITIONAL_FIELDS: [&'static str; 27] = [
+    const ADDITIONAL_FIELDS: [&'static str; 29] = [
         "block_hash_contract_address",
         "constructor_entry_point_selector",
         "default_entry_point_selector",
@@ -614,6 +614,8 @@ impl OsConstants {
         "error_block_number_out_of_range",
         "error_invalid_input_len",
         "error_invalid_argument",
+        "error_entry_point_failed",
+        "error_entry_point_not_found",
         "error_out_of_gas",
         "execute_entry_point_selector",
         "l1_gas",
