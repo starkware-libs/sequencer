@@ -21,17 +21,11 @@ jobs:
 
         # Commit hash on pull request event would be the head commit of the branch.
       - name: Get commit hash prefix for PR update
-        if: ${{ github.event_name == 'pull_request' }}
         env:
           COMMIT_SHA: ${{ github.event.workflow_run.head_commit.id }}
         run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
 
-        # On push event (to main, for example) we should take the commit post-push.
-      - name: Get commit hash prefix for merge
-        if: ${{ github.event_name != 'pull_request' }}
-        env:
-          COMMIT_SHA: ${{ github.event.after }}
-        run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
+      # TODO: Add post merge event to get the commit hash.
 
       # Rename is required; see https://pyo3.rs/v0.19.2/building_and_distribution#manual-builds.
       - name: Rename shared object
