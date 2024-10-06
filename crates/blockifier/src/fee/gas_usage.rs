@@ -1,11 +1,11 @@
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::GasVectorComputationMode;
 
 use super::fee_utils::get_vm_resources_cost;
 use crate::abi::constants;
 use crate::context::BlockContext;
 use crate::fee::eth_gas_constants;
-use crate::fee::resources::GasVector;
 use crate::state::cached_state::StateChangesCount;
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::utils::u64_from_usize;

@@ -3,10 +3,11 @@ use std::collections::BTreeMap;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+use starknet_api::block::GasPriceVector;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::transaction::GasVectorComputationMode;
 
-use crate::blockifier::block::{BlockInfo, GasPricesForFeeType};
+use crate::blockifier::block::BlockInfo;
 use crate::bouncer::BouncerConfig;
 use crate::transaction::objects::{
     FeeType,
@@ -37,7 +38,7 @@ impl TransactionContext {
             TransactionInfo::Deprecated(_) => GasVectorComputationMode::NoL2Gas,
         }
     }
-    pub fn get_gas_prices(&self) -> &GasPricesForFeeType {
+    pub fn get_gas_prices(&self) -> &GasPriceVector {
         self.block_context
             .block_info
             .gas_prices
