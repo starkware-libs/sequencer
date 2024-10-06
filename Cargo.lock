@@ -10273,6 +10273,7 @@ dependencies = [
  "rstest",
  "starknet-types-core",
  "starknet_api",
+ "starknet_mempool",
  "starknet_mempool_infra",
  "starknet_mempool_types",
  "tokio",
