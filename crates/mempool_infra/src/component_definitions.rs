@@ -98,6 +98,13 @@ pub struct RemoteConnectionConfig {
     pub idle_timeout: u64,
 }
 
+// The communication configuration of the remote component.
+#[derive(Clone, Default, Debug, Serialize, Deserialize, Validate, PartialEq)]
+pub struct RemoteComponentCommunicationConfig {
+    pub client_config: RemoteConnectionConfig,
+    pub server_config: RemoteConnectionConfig,
+}
+
 impl Default for RemoteConnectionConfig {
     fn default() -> Self {
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
@@ -108,13 +115,6 @@ impl Default for RemoteConnectionConfig {
             idle_timeout: DEFAULT_IDLE_TIMEOUT,
         }
     }
-}
-
-// The communication configuration of the remote component.
-#[derive(Clone, Default, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct RemoteComponentCommunicationConfig {
-    pub client_config: RemoteConnectionConfig,
-    pub server_config: RemoteConnectionConfig,
 }
 
 impl SerializeConfig for RemoteComponentCommunicationConfig {
@@ -156,3 +156,4 @@ impl SerializeConfig for RemoteConnectionConfig {
         ])
     }
 }
+
