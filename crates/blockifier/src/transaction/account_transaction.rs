@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::block::GasPrice;
 use starknet_api::calldata;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -324,7 +325,7 @@ impl AccountTransaction {
                         L1Gas,
                         l1_gas_resource_bounds,
                         minimal_gas_amount_vector.to_discounted_l1_gas(tx_context),
-                        u128::from(block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type)),
+                        block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type),
                     )],
                     ValidResourceBounds::AllResources(AllResourceBounds {
                         l1_gas: l1_gas_resource_bounds,
@@ -338,19 +339,19 @@ impl AccountTransaction {
                                 L1Gas,
                                 l1_gas_resource_bounds,
                                 minimal_gas_amount_vector.l1_gas,
-                                l1_gas_price.into(),
+                                l1_gas_price,
                             ),
                             (
                                 L1DataGas,
                                 l1_data_gas_resource_bounds,
                                 minimal_gas_amount_vector.l1_data_gas,
-                                l1_data_gas_price.into(),
+                                l1_data_gas_price,
                             ),
                             (
                                 L2Gas,
                                 l2_gas_resource_bounds,
                                 minimal_gas_amount_vector.l2_gas,
-                                l2_gas_price.into(),
+                                l2_gas_price,
                             ),
                         ]
                     }
@@ -370,11 +371,11 @@ impl AccountTransaction {
                         })?;
                     }
                     // TODO(Aner): refactor to return all prices that are too low.
-                    if resource_bounds.max_price_per_unit < actual_gas_price {
+                    if resource_bounds.max_price_per_unit < actual_gas_price.get().0 {
                         return Err(TransactionFeeError::MaxGasPriceTooLow {
                             resource,
-                            max_gas_price: resource_bounds.max_price_per_unit,
-                            actual_gas_price,
+                            max_gas_price: GasPrice(resource_bounds.max_price_per_unit),
+                            actual_gas_price: actual_gas_price.into(),
                         })?;
                     }
                 }

@@ -13,6 +13,7 @@ use semver::Version;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer};
 use serde_json::{Map, Number, Value};
+use starknet_api::block::GasPrice;
 use starknet_api::execution_resources::GasAmount;
 use strum::IntoEnumIterator;
 use strum_macros::{EnumCount, EnumIter};
@@ -219,8 +220,8 @@ impl VersionedConstants {
     }
 
     /// Converts from L1 gas price to L2 gas price with **upward rounding**.
-    pub fn convert_l1_to_l2_gas_price_round_up(&self, l1_gas_price: u128) -> u128 {
-        *(self.l1_to_l2_gas_price_ratio() * l1_gas_price).ceil().numer()
+    pub fn convert_l1_to_l2_gas_price_round_up(&self, l1_gas_price: GasPrice) -> GasPrice {
+        GasPrice(*(self.l1_to_l2_gas_price_ratio() * l1_gas_price.0).ceil().numer())
     }
 
     /// Converts from L1 gas amount to L2 gas amount with **upward rounding**.

@@ -1,10 +1,8 @@
-use std::num::NonZeroU128;
-
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::invoke_tx_args;
-use starknet_api::transaction::{EventContent, EventData, EventKey, Fee};
+use starknet_api::transaction::{EventContent, EventData, EventKey};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::constants;
@@ -23,7 +21,7 @@ use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::{DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE};
 use crate::transaction::objects::FeeType;
 use crate::transaction::test_utils::account_invoke_tx;
-use crate::utils::{u128_div_ceil, u128_from_usize};
+use crate::utils::u128_from_usize;
 use crate::versioned_constants::{ResourceCost, VersionedConstants};
 #[fixture]
 fn versioned_constants() -> &'static VersionedConstants {
@@ -239,19 +237,16 @@ fn test_discounted_gas_from_gas_vector_computation() {
     let actual_result = gas_usage.to_discounted_l1_gas(&tx_context);
 
     let result_div_ceil = gas_usage.l1_gas
-        + GasAmount(u128_div_ceil(
-            gas_usage.l1_data_gas.0 * DEFAULT_ETH_L1_DATA_GAS_PRICE,
-            NonZeroU128::new(DEFAULT_ETH_L1_GAS_PRICE).unwrap(),
-        ));
-    let result_div_floor = GasAmount(
-        gas_usage.l1_gas.0
-            + (gas_usage.l1_data_gas.0 * DEFAULT_ETH_L1_DATA_GAS_PRICE) / DEFAULT_ETH_L1_GAS_PRICE,
-    );
+        + (gas_usage.l1_data_gas.nonzero_checked_mul(DEFAULT_ETH_L1_DATA_GAS_PRICE).unwrap())
+            .div_ceil(DEFAULT_ETH_L1_GAS_PRICE);
+    let result_div_floor = gas_usage.l1_gas
+        + (gas_usage.l1_data_gas.nonzero_checked_mul(DEFAULT_ETH_L1_DATA_GAS_PRICE).unwrap())
+            / DEFAULT_ETH_L1_GAS_PRICE;
 
     assert_eq!(actual_result, result_div_ceil);
     assert_eq!(actual_result, result_div_floor + GasAmount(1));
     assert!(
         get_fee_by_gas_vector(&tx_context.block_context.block_info, gas_usage, &FeeType::Eth)
-            <= Fee(actual_result.0 * DEFAULT_ETH_L1_GAS_PRICE)
+            <= actual_result.nonzero_checked_mul(DEFAULT_ETH_L1_GAS_PRICE).unwrap()
     );
 }
