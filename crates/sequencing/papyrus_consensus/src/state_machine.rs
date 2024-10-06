@@ -56,7 +56,8 @@ pub struct StateMachine {
     round: Round,
     step: Step,
     quorum: u32,
-    proposals: HashMap<Round, Option<BlockHash>>,
+    // {round: (block_hash, valid_round)}
+    proposals: HashMap<Round, (Option<BlockHash>, Option<Round>)>,
     // {round: {block_hash: vote_count}
     prevotes: HashMap<Round, HashMap<Option<BlockHash>, u32>>,
     precommits: HashMap<Round, HashMap<Option<BlockHash>, u32>>,
@@ -233,8 +234,11 @@ impl StateMachine {
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
-        let old = self.proposals.insert(round, block_hash);
+        let old = self.proposals.insert(round, (block_hash, None));
         assert!(old.is_none(), "SHC should handle conflicts & replays");
+        if round < self.round {
+            return self.past_round_upons(round);
+        }
         if round != self.round {
             return VecDeque::new();
         }
@@ -280,7 +284,9 @@ impl StateMachine {
         let prevote_count = self.prevotes.entry(round).or_default().entry(block_hash).or_insert(0);
         // TODO(matan): Use variable weight.
         *prevote_count += 1;
-
+        if round < self.round {
+            return self.past_round_upons(round);
+        }
         if self.step != Step::Prevote || round != self.round {
             return VecDeque::new();
         }
@@ -309,7 +315,9 @@ impl StateMachine {
             self.precommits.entry(round).or_default().entry(block_hash).or_insert(0);
         // TODO(matan): Use variable weight.
         *precommit_count += 1;
-
+        if round < self.round {
+            return self.past_round_upons(round);
+        }
         self.check_precommit_quorum(round, leader_fn)
     }
 
@@ -368,7 +376,7 @@ impl StateMachine {
             output.append(&mut self.send_precommit(*block_hash, round, leader_fn));
             return output;
         }
-        let Some(proposed_value) = self.proposals.get(&round) else {
+        let Some((proposed_value, _)) = self.proposals.get(&round) else {
             return output;
         };
         if proposed_value != block_hash {
@@ -393,6 +401,9 @@ impl StateMachine {
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
+        if round < self.round {
+            return self.past_round_upons(round);
+        }
         let num_votes = self.precommits.get(&round).map_or(0, |v| v.values().sum());
         if num_votes < self.quorum {
             return VecDeque::new();
@@ -413,7 +424,7 @@ impl StateMachine {
                 return output;
             }
         }
-        let Some(proposed_value) = self.proposals.get(&round) else {
+        let Some((proposed_value, _)) = self.proposals.get(&round) else {
             return output;
         };
         if proposed_value != block_hash {
@@ -468,10 +479,79 @@ impl StateMachine {
                 }
             }
         }
-        let Some(proposal) = self.proposals.get(&round) else {
+        let Some((proposal, _)) = self.proposals.get(&round) else {
             return VecDeque::from([StateMachineEvent::TimeoutPropose(round)]);
         };
         self.process_proposal(*proposal, round, leader_fn)
+    }
+
+    fn past_round_upons(&mut self, round: u32) -> VecDeque<StateMachineEvent> {
+        let mut output = VecDeque::new();
+        output.append(&mut self.upon_reproposal());
+        output.append(&mut self.upon_decision(round));
+        output
+    }
+
+    fn upon_reproposal(&mut self) -> VecDeque<StateMachineEvent> {
+        let mut output = VecDeque::new();
+        if self.step != Step::Propose {
+            return output;
+        }
+        let Some((block_hash, valid_round)) = self.proposals.get(&self.round) else {
+            return output;
+        };
+        let Some(valid_round) = valid_round else {
+            return output;
+        };
+        if valid_round >= &self.round {
+            return output;
+        }
+        let Some((valid_round_block_hash, count)) = leading_vote(&self.prevotes, *valid_round)
+        else {
+            return output;
+        };
+        if block_hash != valid_round_block_hash {
+            return output;
+        }
+        if count < &self.quorum {
+            return output;
+        }
+        if let Some((locked_value, locked_round)) = self.locked_value {
+            if *valid_round >= locked_round || *block_hash == Some(locked_value) {
+                output.append(&mut VecDeque::from([StateMachineEvent::Prevote(
+                    *block_hash,
+                    self.round,
+                )]));
+            } else {
+                output.append(&mut VecDeque::from([StateMachineEvent::Prevote(None, self.round)]));
+            }
+        } else {
+            output.append(&mut VecDeque::from([StateMachineEvent::Prevote(None, self.round)]));
+        }
+        self.step = Step::Prevote;
+        output
+    }
+
+    fn upon_decision(&mut self, round: u32) -> VecDeque<StateMachineEvent> {
+        let mut output = VecDeque::new();
+        let Some((block_hash, count)) = leading_vote(&self.precommits, round) else {
+            return output;
+        };
+        if *count < self.quorum {
+            return output;
+        }
+        let Some(block_hash) = block_hash else {
+            return output;
+        };
+        let Some((proposed_value, _)) = self.proposals.get(&round) else {
+            return output;
+        };
+        if *proposed_value != Some(*block_hash) {
+            // TODO(matan): This can be caused by a malicious leader double proposing.
+            panic!("Proposal does not match quorum.");
+        }
+        output.append(&mut VecDeque::from([StateMachineEvent::Decision(*block_hash, round)]));
+        output
     }
 }
 
