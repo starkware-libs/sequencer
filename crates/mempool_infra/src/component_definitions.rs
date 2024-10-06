@@ -29,7 +29,7 @@ pub trait ComponentRequestHandler<Request, Response> {
 #[async_trait]
 pub trait ComponentStarter {
     async fn start(&mut self) -> Result<(), ComponentError> {
-        info!("Starting component {}.", type_name::<Self>());
+        info!("Starting component {} with the default starter.", type_name::<Self>());
         Ok(())
     }
 }

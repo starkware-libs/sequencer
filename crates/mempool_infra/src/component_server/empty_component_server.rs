@@ -22,8 +22,10 @@ impl<Component: ComponentStarter + Send + Sync> ComponentServerStarter
     for WrapperServer<Component>
 {
     async fn start(&mut self) -> Result<(), ComponentServerError> {
-        info!("Starting empty component server for {}.", type_name::<Component>());
-        self.component.start().await.map_err(ComponentServerError::ComponentError)
+        info!("Starting WrapperServer for {}.", type_name::<Component>());
+        let res = self.component.start().await.map_err(ComponentServerError::ComponentError);
+        info!("Finished running WrapperServer for {}.", type_name::<Component>());
+        res
     }
 }
 
