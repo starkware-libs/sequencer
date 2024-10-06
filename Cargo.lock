@@ -10228,6 +10228,7 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "papyrus_config",
+ "papyrus_consensus",
  "serde",
  "starknet_batcher_types",
  "starknet_consensus_manager_types",
