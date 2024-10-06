@@ -85,12 +85,14 @@ jobs:
       - name: Run Machete (detect unused dependencies)
         uses: bnjbvr/cargo-machete@main
 
+
   run-workspace-tests:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
       - run: cargo test -p workspace_tests
+
   run-tests:
     runs-on: starkware-ubuntu-latest-large
     steps:
@@ -99,6 +101,7 @@ jobs:
           # Fetch the entire history.
           fetch-depth: 0
       - uses: ./.github/actions/bootstrap
+
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
         id: setup-pypy
