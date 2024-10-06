@@ -10,7 +10,7 @@ use starknet_api::transaction::{Fee, GasVectorComputationMode, Resource, ValidRe
 use crate::blockifier::block::GasPrices;
 use crate::context::BlockContext;
 use crate::fee::fee_checks::{FeeCheckError, FeeCheckReportFields, PostExecutionReport};
-use crate::fee::fee_utils::get_vm_resources_cost;
+use crate::fee::fee_utils::{get_fee_by_gas_vector, get_vm_resources_cost};
 use crate::fee::receipt::TransactionReceipt;
 use crate::fee::resources::GasVector;
 use crate::test_utils::contracts::FeatureContract;
@@ -26,6 +26,7 @@ use crate::test_utils::{
     DEFAULT_STRK_L1_GAS_PRICE,
     MAX_L1_GAS_AMOUNT,
 };
+use crate::transaction::objects::FeeType;
 use crate::transaction::test_utils::{account_invoke_tx, all_resource_bounds, l1_resource_bounds};
 use crate::utils::u128_from_usize;
 use crate::versioned_constants::VersionedConstants;
@@ -280,4 +281,41 @@ fn test_post_execution_gas_overdraft_all_resource_bounds(
             assert_matches!(report.error(), None);
         }
     }
+}
+
+#[rstest]
+#[case::happy_flow_l1_gas_only(
+    GasVector { l1_gas: 10, ..Default::default() }, 10, 2*10
+)]
+#[case::happy_flow_no_l2_gas(
+    GasVector { l1_gas: 10, l1_data_gas: 20, ..Default::default() }, 10 + 3*20, 2*10 + 4*20
+)]
+#[case::saturating_l1_gas(
+    GasVector { l1_gas: u128::MAX, l1_data_gas: 1, ..Default::default() }, u128::MAX, u128::MAX
+)]
+#[case::saturating_l1_data_gas(
+    GasVector { l1_gas: 1, l1_data_gas: u128::MAX, ..Default::default() }, u128::MAX, u128::MAX
+)]
+fn test_get_fee_by_gas_vector_regression(
+    #[case] gas_vector: GasVector,
+    #[case] expected_fee_eth: u128,
+    #[case] expected_fee_strk: u128,
+) {
+    let mut block_info = BlockContext::create_for_account_testing().block_info;
+    block_info.gas_prices = GasPrices::new(
+        1.try_into().unwrap(),
+        2.try_into().unwrap(),
+        3.try_into().unwrap(),
+        4.try_into().unwrap(),
+        5.try_into().unwrap(),
+        6.try_into().unwrap(),
+    );
+    assert_eq!(
+        get_fee_by_gas_vector(&block_info, gas_vector, &FeeType::Eth),
+        Fee(expected_fee_eth)
+    );
+    assert_eq!(
+        get_fee_by_gas_vector(&block_info, gas_vector, &FeeType::Strk),
+        Fee(expected_fee_strk)
+    );
 }
