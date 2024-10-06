@@ -6,7 +6,7 @@ use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use lazy_static::lazy_static;
 use papyrus_consensus::types::ConsensusContext;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::PoseidonHash;
@@ -123,4 +123,47 @@ async fn validate_proposal_success() {
     let fin_receiver = context.validate_proposal(BlockNumber(0), TIMEOUT, content_receiver).await;
     content_sender.close_channel();
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+}
+
+#[tokio::test]
+async fn get_proposal() {
+    // Receive a proposal. Then re-retrieve it.
+    let mut batcher = MockBatcherClient::new();
+    batcher.expect_validate_proposal().returning(move |_| Ok(()));
+    batcher.expect_start_height().return_once(|input: StartHeightInput| {
+        assert_eq!(input.height, BlockNumber(0));
+        Ok(())
+    });
+    batcher.expect_send_proposal_content().times(1).returning(
+        move |input: SendProposalContentInput| {
+            assert!(matches!(input.content, SendProposalContent::Txs(_)));
+            Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
+        },
+    );
+    batcher.expect_send_proposal_content().times(1).returning(
+        move |input: SendProposalContentInput| {
+            assert!(matches!(input.content, SendProposalContent::Finish));
+            Ok(SendProposalContentResponse {
+                response: ProposalStatus::Finished(ProposalCommitment {
+                    state_diff_commitment: STATE_DIFF_COMMITMENT,
+                }),
+            })
+        },
+    );
+
+    let mut context = SequencerConsensusContext::new(Arc::new(batcher), NUM_VALIDATORS);
+
+    // Receive a valid proposal.
+    let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let txs = vec![generate_invoke_tx(Felt::TWO)];
+    content_sender.send(txs.clone()).await.unwrap();
+    let fin_receiver = context.validate_proposal(BlockNumber(0), TIMEOUT, content_receiver).await;
+    content_sender.close_channel();
+    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+
+    // Re-proposal.
+    let mut reproposal_content =
+        context.get_proposal(BlockNumber(0), BlockHash(STATE_DIFF_COMMITMENT.0.0)).await;
+    assert_eq!(reproposal_content.next().await, Some(txs));
+    assert!(reproposal_content.next().await.is_none());
 }

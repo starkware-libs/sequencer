@@ -47,6 +47,9 @@ type HeightToIdToContent =
 // Channel size for streaming proposal parts.
 // TODO(matan): Consider making this configurable. May want to define `max_proposal_parts`.
 const CHANNEL_SIZE: usize = 5000;
+// TODO(matan): Protobuf limits messages to 2MB. We should use that in the future to determine batch
+// sizes.
+const TX_BATCH_SIZE: usize = 100;
 
 pub struct SequencerConsensusContext {
     batcher: Arc<dyn BatcherClient>,
@@ -169,10 +172,28 @@ impl ConsensusContext for SequencerConsensusContext {
 
     async fn get_proposal(
         &self,
-        _height: BlockNumber,
-        _id: ProposalContentId,
+        height: BlockNumber,
+        id: ProposalContentId,
     ) -> mpsc::Receiver<Self::ProposalChunk> {
-        todo!()
+        debug!("Getting proposal for height: {height} and id: {id}");
+        let valid_proposals_lock = self
+            .valid_proposals
+            .lock()
+            .expect("Lock on active proposals was poisoned due to a previous panic");
+        let proposals_at_height = valid_proposals_lock
+            .get(&height)
+            .unwrap_or_else(|| panic!("No proposals found for height {height}"));
+        let transactions = proposals_at_height
+            .get(&id)
+            .unwrap_or_else(|| panic!("No proposal found for height {height} and id {id}"));
+        let (transactions, _) = transactions.clone();
+        let (mut sender, receiver) = mpsc::channel(CHANNEL_SIZE);
+        tokio::spawn(async move {
+            for tx_batch in transactions.chunks(TX_BATCH_SIZE) {
+                sender.try_send(tx_batch.to_vec()).expect("Send should succeed");
+            }
+        });
+        receiver
     }
 
     async fn validators(&self, _height: BlockNumber) -> Vec<ValidatorId> {
