@@ -9,7 +9,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
-use crate::block::{BlockHash, BlockNumber, GasPrice, NonzeroGasPrice};
+use crate::block::{BlockHash, BlockNumber, NonzeroGasPrice};
 use crate::core::{
     ChainId,
     ClassHash,
@@ -743,12 +743,22 @@ pub struct RevertedTransactionExecutionStatus {
 pub struct Fee(pub u128);
 
 impl Fee {
-    pub fn div_ceil(self, rhs: NonzeroGasPrice) -> GasAmount {
-        let mut result: GasAmount = self / rhs;
-        if result.0 * rhs.get().0 < self.0 {
-            result = GasAmount(result.0 + 1);
+    pub fn checked_div_ceil(self, rhs: NonzeroGasPrice) -> Option<GasAmount> {
+        match self.checked_div(rhs) {
+            Some(value) => Some(if value.nonzero_saturating_mul(rhs) < self {
+                GasAmount(value.0 + 1)
+            } else {
+                value
+            }),
+            None => None,
         }
-        result
+    }
+
+    pub fn checked_div(self, rhs: NonzeroGasPrice) -> Option<GasAmount> {
+        match u64::try_from(self.0 / rhs.get().0) {
+            Ok(value) => Some(GasAmount(value)),
+            Err(_) => None,
+        }
     }
 }
 
@@ -756,7 +766,9 @@ impl Div<NonzeroGasPrice> for Fee {
     type Output = GasAmount;
 
     fn div(self, rhs: NonzeroGasPrice) -> Self::Output {
-        GasAmount(self.0 / GasPrice::from(rhs).0)
+        GasAmount(u64::try_from(self.0 / rhs.get().0).unwrap_or_else(|_| {
+            panic!("Fee ({self}) over gas price ({rhs}) is too large for a gas amount.")
+        }))
     }
 }
 
