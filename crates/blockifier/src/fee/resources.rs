@@ -1,6 +1,7 @@
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::Serialize;
 use starknet_api::core::ContractAddress;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{Fee, GasVectorComputationMode};
 
 use crate::context::TransactionContext;
@@ -199,24 +200,26 @@ impl ArchivalDataResources {
     fn get_calldata_and_signature_gas_cost(
         &self,
         archival_gas_costs: &ArchivalDataGasCosts,
-    ) -> u128 {
+    ) -> GasAmount {
         // TODO(Avi, 20/2/2024): Calculate the number of bytes instead of the number of felts.
         let total_data_size = u128_from_usize(self.calldata_length + self.signature_length);
-        (archival_gas_costs.gas_per_data_felt * total_data_size).to_integer()
+        GasAmount((archival_gas_costs.gas_per_data_felt * total_data_size).to_integer())
     }
 
     /// Returns the cost of declared class codes in L1/L2 gas units, depending on the mode.
-    fn get_code_gas_cost(&self, archival_gas_costs: &ArchivalDataGasCosts) -> u128 {
-        (archival_gas_costs.gas_per_code_byte * u128_from_usize(self.code_size)).to_integer()
+    fn get_code_gas_cost(&self, archival_gas_costs: &ArchivalDataGasCosts) -> GasAmount {
+        (archival_gas_costs.gas_per_code_byte * u128_from_usize(self.code_size)).to_integer().into()
     }
 
     /// Returns the cost of the transaction's emmited events in L1/L2 gas units, depending on the
     /// mode.
-    fn get_events_gas_cost(&self, archival_gas_costs: &ArchivalDataGasCosts) -> u128 {
-        (archival_gas_costs.gas_per_data_felt
-            * (archival_gas_costs.event_key_factor * self.event_summary.total_event_keys
-                + self.event_summary.total_event_data_size))
-            .to_integer()
+    fn get_events_gas_cost(&self, archival_gas_costs: &ArchivalDataGasCosts) -> GasAmount {
+        GasAmount(
+            (archival_gas_costs.gas_per_data_felt
+                * (archival_gas_costs.event_key_factor * self.event_summary.total_event_keys
+                    + self.event_summary.total_event_data_size))
+                .to_integer(),
+        )
     }
 }
 
@@ -242,9 +245,12 @@ impl MessageResources {
     /// both Starknet and SHARP contracts.
     pub fn to_gas_vector(&self) -> GasVector {
         let starknet_gas_usage = self.get_starknet_gas_cost();
-        let sharp_gas_usage = GasVector::from_l1_gas(u128_from_usize(
-            self.message_segment_length * eth_gas_constants::SHARP_GAS_PER_MEMORY_WORD,
-        ));
+        let sharp_gas_usage = GasVector::from_l1_gas(
+            u128_from_usize(
+                self.message_segment_length * eth_gas_constants::SHARP_GAS_PER_MEMORY_WORD,
+            )
+            .into(),
+        );
 
         starknet_gas_usage + sharp_gas_usage
     }
@@ -255,7 +261,7 @@ impl MessageResources {
         let n_l2_to_l1_messages = self.l2_to_l1_payload_lengths.len();
         let n_l1_to_l2_messages = usize::from(self.l1_handler_payload_size.is_some());
 
-        GasVector::from_l1_gas(
+        GasVector::from_l1_gas(GasAmount(
             // Starknet's updateState gets the message segment as an argument.
             u128_from_usize(
                 self.message_segment_length * eth_gas_constants::GAS_PER_MEMORY_WORD
@@ -267,7 +273,7 @@ impl MessageResources {
                 // transaction execution).
                 + n_l1_to_l2_messages * eth_gas_constants::GAS_PER_COUNTER_DECREASE,
             ),
-        ) + get_consumed_message_to_l2_emissions_cost(self.l1_handler_payload_size)
+        )) + get_consumed_message_to_l2_emissions_cost(self.l1_handler_payload_size)
             + get_log_message_to_l1_emissions_cost(&self.l2_to_l1_payload_lengths)
     }
 }
@@ -286,42 +292,44 @@ impl MessageResources {
     Serialize,
 )]
 pub struct GasVector {
-    pub l1_gas: u128,
-    pub l1_data_gas: u128,
-    pub l2_gas: u128,
+    pub l1_gas: GasAmount,
+    pub l1_data_gas: GasAmount,
+    pub l2_gas: GasAmount,
 }
 
 impl GasVector {
-    pub fn from_l1_gas(l1_gas: u128) -> Self {
+    pub fn from_l1_gas(l1_gas: GasAmount) -> Self {
         Self { l1_gas, ..Default::default() }
     }
 
-    pub fn from_l1_data_gas(l1_data_gas: u128) -> Self {
+    pub fn from_l1_data_gas(l1_data_gas: GasAmount) -> Self {
         Self { l1_data_gas, ..Default::default() }
     }
 
-    pub fn from_l2_gas(l2_gas: u128) -> Self {
+    pub fn from_l2_gas(l2_gas: GasAmount) -> Self {
         Self { l2_gas, ..Default::default() }
     }
 
     /// Computes the cost (in fee token units) of the gas vector (saturating on overflow).
     pub fn saturated_cost(&self, gas_price: u128, blob_gas_price: u128) -> Fee {
-        let l1_gas_cost = self.l1_gas.checked_mul(gas_price).unwrap_or_else(|| {
+        let l1_gas_cost = self.l1_gas.0.checked_mul(gas_price).unwrap_or_else(|| {
             log::warn!(
-                "L1 gas cost overflowed: multiplication of {} by {} resulted in overflow.",
+                "L1 gas cost overflowed: multiplication of {:?} by {} resulted in overflow.",
                 self.l1_gas,
                 gas_price
             );
             u128::MAX
         });
-        let l1_data_gas_cost = self.l1_data_gas.checked_mul(blob_gas_price).unwrap_or_else(|| {
-            log::warn!(
-                "L1 blob gas cost overflowed: multiplication of {} by {} resulted in overflow.",
-                self.l1_data_gas,
-                blob_gas_price
-            );
-            u128::MAX
-        });
+        let l1_data_gas_cost =
+            self.l1_data_gas.0.checked_mul(blob_gas_price).unwrap_or_else(|| {
+                log::warn!(
+                    "L1 blob gas cost overflowed: multiplication of {:?} by {} resulted in \
+                     overflow.",
+                    self.l1_data_gas,
+                    blob_gas_price
+                );
+                u128::MAX
+            });
         let total = l1_gas_cost.checked_add(l1_data_gas_cost).unwrap_or_else(|| {
             log::warn!(
                 "Total gas cost overflowed: addition of {} and {} resulted in overflow.",
@@ -342,11 +350,12 @@ impl GasVector {
     /// summand, we get total_gas = (X + Y * DGP / GP).
     /// If this function is called with kzg_flag==false, then l1_data_gas==0, and this dicount
     /// function does nothing.
-    pub fn to_discounted_l1_gas(&self, tx_context: &TransactionContext) -> u128 {
+    pub fn to_discounted_l1_gas(&self, tx_context: &TransactionContext) -> GasAmount {
         let gas_prices = &tx_context.block_context.block_info.gas_prices;
         let fee_type = tx_context.tx_info.fee_type();
         let gas_price = gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
         let data_gas_price = gas_prices.get_l1_data_gas_price_by_fee_type(&fee_type);
-        self.l1_gas + u128_div_ceil(self.l1_data_gas * u128::from(data_gas_price), gas_price)
+        self.l1_gas
+            + u128_div_ceil(self.l1_data_gas.0 * u128::from(data_gas_price), gas_price).into()
     }
 }

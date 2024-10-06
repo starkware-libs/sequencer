@@ -1,7 +1,44 @@
 use std::collections::HashMap;
+use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
+
+#[derive(
+    derive_more::Add,
+    derive_more::AddAssign,
+    derive_more::Sum,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    Deserialize,
+)]
+pub struct GasAmount(pub u128);
+
+macro_rules! impl_from_uint_for_gas_amount {
+    ($($uint:ty),*) => {
+        $(
+            impl From<$uint> for GasAmount {
+                fn from(value: $uint) -> Self {
+                    Self(u128::from(value))
+                }
+            }
+        )*
+    };
+}
+
+impl_from_uint_for_gas_amount!(u8, u16, u32, u64, u128);
+
+impl Display for GasAmount {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 pub struct GasVector {

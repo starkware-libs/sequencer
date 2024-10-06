@@ -1,3 +1,4 @@
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::Resource::{self, L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::{AllResourceBounds, Fee, ResourceBounds, ValidResourceBounds};
 use starknet_types_core::felt::Felt;
@@ -16,7 +17,7 @@ pub enum FeeCheckError {
     #[error(
         "Insufficient max {resource}: max amount: {max_amount}, actual used: {actual_amount}."
     )]
-    MaxGasAmountExceeded { resource: Resource, max_amount: u128, actual_amount: u128 },
+    MaxGasAmountExceeded { resource: Resource, max_amount: GasAmount, actual_amount: GasAmount },
     #[error("Insufficient max fee: max fee: {}, actual fee: {}.", max_fee.0, actual_fee.0)]
     MaxFeeExceeded { max_fee: Fee, actual_fee: Fee },
     #[error(
@@ -75,7 +76,9 @@ impl FeeCheckReport {
                 match &tx_context.tx_info {
                     TransactionInfo::Current(info) => get_fee_by_gas_vector(
                         &tx_context.block_context.block_info,
-                        GasVector::from_l1_gas(info.l1_resource_bounds().max_amount.into()),
+                        GasVector::from_l1_gas(GasAmount(
+                            info.l1_resource_bounds().max_amount.into(),
+                        )),
                         &FeeType::Strk,
                     ),
                     TransactionInfo::Deprecated(context) => context.max_fee,
