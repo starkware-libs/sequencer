@@ -1,7 +1,7 @@
 use std::any::type_name;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use async_trait::async_trait;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
@@ -91,8 +91,7 @@ impl Default for LocalComponentCommunicationConfig {
 // The communication configuration of the remote component.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct RemoteComponentCommunicationConfig {
-    pub ip: IpAddr,
-    pub port: u16,
+    pub socket: SocketAddr,
     pub retries: usize,
 }
 
@@ -100,15 +99,9 @@ impl SerializeConfig for RemoteComponentCommunicationConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
-                "ip",
-                &self.ip.to_string(),
-                "The remote component server ip.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "port",
-                &self.port,
-                "The remote component server port.",
+                "socket",
+                &self.socket.to_string(),
+                "The remote component server socket.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -123,6 +116,7 @@ impl SerializeConfig for RemoteComponentCommunicationConfig {
 
 impl Default for RemoteComponentCommunicationConfig {
     fn default() -> Self {
-        Self { ip: "0.0.0.0".parse().unwrap(), port: 8080, retries: DEFAULT_RETRIES }
+        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
+        Self { socket, retries: DEFAULT_RETRIES }
     }
 }

@@ -84,20 +84,15 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "components.batcher.remote_config.ip": {
-    "description": "The remote component server ip.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
-  },
-  "components.batcher.remote_config.port": {
-    "description": "The remote component server port.",
-    "privacy": "Public",
-    "value": 8080
-  },
   "components.batcher.remote_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
+  },
+  "components.batcher.remote_config.socket": {
+    "description": "The remote component server socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
   },
   "components.consensus_manager.execute": {
     "description": "The component execution flag.",
@@ -124,20 +119,15 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "components.consensus_manager.remote_config.ip": {
-    "description": "The remote component server ip.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
-  },
-  "components.consensus_manager.remote_config.port": {
-    "description": "The remote component server port.",
-    "privacy": "Public",
-    "value": 8080
-  },
   "components.consensus_manager.remote_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
+  },
+  "components.consensus_manager.remote_config.socket": {
+    "description": "The remote component server socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
   },
   "components.gateway.execute": {
     "description": "The component execution flag.",
@@ -164,20 +154,15 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "components.gateway.remote_config.ip": {
-    "description": "The remote component server ip.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
-  },
-  "components.gateway.remote_config.port": {
-    "description": "The remote component server port.",
-    "privacy": "Public",
-    "value": 8080
-  },
   "components.gateway.remote_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
+  },
+  "components.gateway.remote_config.socket": {
+    "description": "The remote component server socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
   },
   "components.http_server.execute": {
     "description": "The component execution flag.",
@@ -204,20 +189,15 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "components.http_server.remote_config.ip": {
-    "description": "The remote component server ip.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
-  },
-  "components.http_server.remote_config.port": {
-    "description": "The remote component server port.",
-    "privacy": "Public",
-    "value": 8080
-  },
   "components.http_server.remote_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
+  },
+  "components.http_server.remote_config.socket": {
+    "description": "The remote component server socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
   },
   "components.mempool.execute": {
     "description": "The component execution flag.",
@@ -244,20 +224,15 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "components.mempool.remote_config.ip": {
-    "description": "The remote component server ip.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
-  },
-  "components.mempool.remote_config.port": {
-    "description": "The remote component server port.",
-    "privacy": "Public",
-    "value": 8080
-  },
   "components.mempool.remote_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
+  },
+  "components.mempool.remote_config.socket": {
+    "description": "The remote component server socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
   },
   "consensus_manager_config.consensus_config_param_1": {
     "description": "The first consensus manager configuration parameter",
