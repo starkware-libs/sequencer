@@ -8,14 +8,14 @@ on:
     tags:
       - v[0-9].**
     paths:
-      - ".github/workflows/committer_ci.yml"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "crates/committer_cli/**"
-      - "crates/starknet_api/**"
-      - "crates/starknet_committer/**"
-      - "crates/starknet_patricia/**"
-      - "scripts/dependencies.sh"
+      - '.github/workflows/committer_ci.yml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/committer_cli/**'
+      - 'crates/starknet_api/**'
+      - 'crates/starknet_committer/**'
+      - 'crates/starknet_patricia/**'
+      - 'scripts/dependencies.sh'
 
   pull_request:
     types:
@@ -25,14 +25,14 @@ on:
       - auto_merge_enabled
       - edited
     paths:
-      - ".github/workflows/committer_ci.yml"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "crates/committer_cli/**"
-      - "crates/starknet_api/**"
-      - "crates/starknet_committer/**"
-      - "crates/starknet_patricia/**"
-      - "scripts/dependencies.sh"
+      - '.github/workflows/committer_ci.yml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/committer_cli/**'
+      - 'crates/starknet_api/**'
+      - 'crates/starknet_committer/**'
+      - 'crates/starknet_patricia/**'
+      - 'scripts/dependencies.sh'
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
@@ -56,7 +56,7 @@ jobs:
         uses: "google-github-actions/auth@v2"
         with:
           credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
-      - uses: "google-github-actions/setup-gcloud@v2"
+      - uses: 'google-github-actions/setup-gcloud@v2'
       - run: echo "BENCH_INPUT_FILES_PREFIX=$(cat ./crates/committer_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
       - run: gcloud storage cp -r gs://committer-testing-artifacts/$BENCH_INPUT_FILES_PREFIX/* ./crates/committer_cli/test_inputs
       - run: cargo test -p committer_cli --release -- --include-ignored test_regression
@@ -75,7 +75,7 @@ jobs:
         uses: "google-github-actions/auth@v2"
         with:
           credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
-      - uses: "google-github-actions/setup-gcloud@v2"
+      - uses: 'google-github-actions/setup-gcloud@v2'
       - run: echo "OLD_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/committer_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
       - run: gcloud storage cp -r gs://committer-testing-artifacts/$OLD_BENCH_INPUT_FILES_PREFIX/* ./crates/committer_cli/test_inputs
 
