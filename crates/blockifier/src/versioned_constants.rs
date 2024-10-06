@@ -137,6 +137,8 @@ define_versioned_constants! {
 
 pub type ResourceCost = Ratio<u64>;
 
+// TODO: Delete this ratio-converter function once event keys / data length are no longer 128 bits
+//   (no other usage is expected).
 pub fn resource_cost_to_u128_ratio(cost: ResourceCost) -> Ratio<u128> {
     Ratio::new((*cost.numer()).into(), (*cost.denom()).into())
 }
@@ -236,10 +238,7 @@ impl VersionedConstants {
     /// Converts from L1 gas amount to L2 gas amount with **upward rounding**.
     pub fn convert_l1_to_l2_gas_amount_round_up(&self, l1_gas_amount: GasAmount) -> GasAmount {
         // The amount ratio is the inverse of the price ratio.
-        (*(resource_cost_to_u128_ratio(self.l1_to_l2_gas_price_ratio().inv()) * l1_gas_amount.0)
-            .ceil()
-            .numer())
-        .into()
+        (*(self.l1_to_l2_gas_price_ratio().inv() * l1_gas_amount.0).ceil().numer()).into()
     }
 
     /// Returns the following ratio: L2_gas_price/L1_gas_price.
