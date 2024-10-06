@@ -12,6 +12,7 @@ workspace = true
 [dependencies]
 async-trait.workspace = true
 papyrus_config.workspace = true
+papyrus_consensus.workspace = true
 serde.workspace = true
 starknet_batcher_types.workspace = true
 starknet_consensus_manager_types.workspace = true
