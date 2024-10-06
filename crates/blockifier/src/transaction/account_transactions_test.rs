@@ -171,7 +171,7 @@ fn test_fee_enforcement(
         deploy_account_tx_args! {
             class_hash: account.get_class_hash(),
             max_fee: Fee(u128::from(!zero_bounds)),
-            resource_bounds: l1_resource_bounds(u8::from(!zero_bounds).into(), DEFAULT_STRK_L1_GAS_PRICE),
+            resource_bounds: l1_resource_bounds(u128::from(!zero_bounds).into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
             version,
         },
         &mut NonceManager::default(),
@@ -246,7 +246,7 @@ fn test_enforce_fee_false_works(block_context: BlockContext, #[case] version: Tr
         &block_context,
         invoke_tx_args! {
             max_fee: Fee(0),
-            resource_bounds: l1_resource_bounds(GasAmount(0), DEFAULT_STRK_L1_GAS_PRICE),
+            resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
             sender_address: account_address,
             calldata: create_trivial_calldata(contract_address),
             version,
@@ -466,7 +466,7 @@ fn test_max_fee_limit_validate(
 
     let account_tx = account_invoke_tx(invoke_tx_args! {
         // Temporary upper bounds; just for gas estimation.
-        max_fee: Fee(MAX_FEE),
+        max_fee: MAX_FEE,
         resource_bounds: max_l1_resource_bounds,
         ..tx_args.clone()
     });
@@ -617,7 +617,7 @@ fn test_revert_invoke(
         state
             .get_fee_token_balance(account_address, chain_info.fee_token_address(&fee_type))
             .unwrap(),
-        (felt!(BALANCE - tx_execution_info.receipt.fee.0), felt!(0_u8))
+        (felt!(BALANCE.0 - tx_execution_info.receipt.fee.0), felt!(0_u8))
     );
     assert_eq!(state.get_nonce_at(account_address).unwrap(), nonce_manager.next(account_address));
 
@@ -651,7 +651,7 @@ fn test_fail_deploy_account(
             tx_version,
             scenario: INVALID,
             class_hash: faulty_account_feature_contract.get_class_hash(),
-            max_fee: Fee(BALANCE),
+            max_fee: BALANCE,
             ..Default::default()
         });
     let fee_token_address = chain_info.fee_token_address(&deploy_account_tx.fee_type());
@@ -660,7 +660,7 @@ fn test_fail_deploy_account(
         AccountTransaction::DeployAccount(deploy_tx) => deploy_tx.contract_address(),
         _ => unreachable!("deploy_account_tx is a DeployAccount"),
     };
-    fund_account(chain_info, deploy_address, BALANCE * 2, &mut state.state);
+    fund_account(chain_info, deploy_address, Fee(BALANCE.0 * 2), &mut state.state);
 
     let initial_balance = state.get_fee_token_balance(deploy_address, fee_token_address).unwrap();
 
@@ -1060,10 +1060,9 @@ fn test_insufficient_max_fee_reverts(
     .unwrap();
     assert!(!tx_execution_info1.is_reverted());
     let actual_fee_depth1 = tx_execution_info1.receipt.fee;
-    let gas_price = u128::from(
-        block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk),
-    );
-    let gas_ammount = GasAmount(actual_fee_depth1.0 / gas_price);
+    let gas_price =
+        block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk);
+    let gas_ammount = actual_fee_depth1 / gas_price;
 
     // Invoke the `recurse` function with depth of 2 and the actual fee of depth 1 as max_fee.
     // This call should fail due to insufficient max fee (steps bound based on max_fee is not so
@@ -1072,7 +1071,7 @@ fn test_insufficient_max_fee_reverts(
         &mut state,
         &block_context,
         invoke_tx_args! {
-            resource_bounds: l1_resource_bounds(gas_ammount, gas_price),
+            resource_bounds: l1_resource_bounds(gas_ammount, gas_price.into()),
             nonce: nonce_manager.next(account_address),
             calldata: recursive_function_calldata(&contract_address, 2, false),
             ..recursion_base_args.clone()
@@ -1095,7 +1094,7 @@ fn test_insufficient_max_fee_reverts(
         &mut state,
         &block_context,
         invoke_tx_args! {
-            resource_bounds: l1_resource_bounds(gas_ammount, gas_price),
+            resource_bounds: l1_resource_bounds(gas_ammount, gas_price.into()),
             nonce: nonce_manager.next(account_address),
             calldata: recursive_function_calldata(&contract_address, 824, false),
             ..recursion_base_args
@@ -1217,7 +1216,7 @@ fn test_count_actual_storage_changes(
     let mut expected_sequencer_total_fee = initial_sequencer_balance + Felt::from(fee_1.0);
     let mut expected_sequencer_fee_update =
         ((fee_token_address, sequencer_fee_token_var_address), expected_sequencer_total_fee);
-    let mut account_balance = BALANCE - fee_1.0;
+    let mut account_balance = BALANCE.0 - fee_1.0;
     let account_balance_storage_change =
         ((fee_token_address, account_fee_token_var_address), felt!(account_balance));
 
@@ -1392,7 +1391,7 @@ fn test_concurrency_execute_fee_transfer(
     fund_account(
         chain_info,
         block_context.block_info.sequencer_address,
-        SEQUENCER_BALANCE_LOW_INITIAL,
+        Fee(SEQUENCER_BALANCE_LOW_INITIAL),
         &mut state.state,
     );
     let mut transactional_state = TransactionalState::create_transactional(state);
@@ -1467,9 +1466,9 @@ fn test_concurrent_fee_transfer_when_sender_is_sequencer(
     assert!(!result.is_reverted());
     // Check that the sequencer balance was updated (in this case, was not changed).
     for (seq_key, seq_value) in
-        [(sequencer_balance_key_low, sender_balance), (sequencer_balance_key_high, 0_u128)]
+        [(sequencer_balance_key_low, sender_balance), (sequencer_balance_key_high, Fee(0))]
     {
-        assert_eq!(state.get_storage_at(fee_token_address, seq_key).unwrap(), felt!(seq_value));
+        assert_eq!(state.get_storage_at(fee_token_address, seq_key).unwrap(), felt!(seq_value.0));
     }
 }
 
