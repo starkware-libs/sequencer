@@ -7,6 +7,7 @@ use num_traits::{Inv, Zero};
 use serde::Serialize;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::EntryPointType;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{Calldata, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
@@ -25,7 +26,7 @@ use crate::execution::execution_utils::execute_entry_point_call_wrapper;
 use crate::state::state_api::State;
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfo};
 use crate::transaction::transaction_types::TransactionType;
-use crate::utils::{u128_from_usize, usize_from_u128};
+use crate::utils::usize_from_u128;
 use crate::versioned_constants::{GasCosts, VersionedConstants};
 
 #[cfg(test)]
@@ -197,25 +198,11 @@ impl EntryPointExecutionContext {
         // transactions derive this value from the `max_fee`.
         let tx_gas_upper_bound = match tx_info {
             TransactionInfo::Deprecated(context) => {
-                let max_cairo_steps = context.max_fee.0
-                    / block_info.gas_prices.get_l1_gas_price_by_fee_type(&tx_info.fee_type());
-                // FIXME: This is saturating in the python bootstrapping test. Fix the value so
-                // that it'll fit in a usize and remove the `as`.
-                usize::try_from(max_cairo_steps).unwrap_or_else(|_| {
-                    log::error!(
-                        "Performed a saturating cast from u128 to usize: {max_cairo_steps:?}"
-                    );
-                    usize::MAX
-                })
+                context.max_fee
+                    / block_info.gas_prices.get_l1_gas_price_by_fee_type(&tx_info.fee_type())
             }
             TransactionInfo::Current(context) => {
-                // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the
-                // convertion works.
-                context
-                    .l1_resource_bounds()
-                    .max_amount
-                    .try_into()
-                    .expect("Failed to convert u64 to usize.")
+                GasAmount(u128::from(context.l1_resource_bounds().max_amount))
             }
         };
 
@@ -225,12 +212,12 @@ impl EntryPointExecutionContext {
         let upper_bound_u128 = if gas_per_step.is_zero() {
             u128::MAX
         } else {
-            (gas_per_step.inv() * u128_from_usize(tx_gas_upper_bound)).to_integer()
+            (gas_per_step.inv() * tx_gas_upper_bound.0).to_integer()
         };
         let tx_upper_bound = usize_from_u128(upper_bound_u128).unwrap_or_else(|_| {
             log::warn!(
                 "Failed to convert u128 to usize: {upper_bound_u128}. Upper bound from tx is \
-                 {tx_gas_upper_bound}, gas per step is {gas_per_step}."
+                 {tx_gas_upper_bound:?}, gas per step is {gas_per_step}."
             );
             usize::MAX
         });

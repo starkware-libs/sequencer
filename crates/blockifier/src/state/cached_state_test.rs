@@ -5,6 +5,7 @@ use indexmap::indexmap;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::core::PatriciaKey;
+use starknet_api::transaction::Fee;
 use starknet_api::{
     class_hash,
     compiled_class_hash,
@@ -172,7 +173,7 @@ fn get_and_increment_nonce() {
 fn get_contract_class() {
     // Positive flow.
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let state = test_state(&ChainInfo::create_for_testing(), 0, &[(test_contract, 0)]);
+    let state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 0)]);
     assert_eq!(
         state.get_compiled_contract_class(test_contract.get_class_hash()).unwrap(),
         test_contract.get_class()

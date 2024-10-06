@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use cairo_vm::types::builtin_name::BuiltinName;
 use rstest::rstest;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
+use starknet_api::transaction::Fee;
 use starknet_api::{class_hash, contract_address, felt, patricia_key, storage_key};
 
 use super::BouncerConfig;
@@ -186,7 +187,8 @@ fn test_bouncer_try_update(
 
     use crate::fee::resources::{ComputationResources, TransactionResources};
 
-    let state = &mut test_state(&BlockContext::create_for_account_testing().chain_info, 0, &[]);
+    let state =
+        &mut test_state(&BlockContext::create_for_account_testing().chain_info, Fee(0), &[]);
     let mut transactional_state = TransactionalState::create_transactional(state);
 
     // Setup the bouncer.

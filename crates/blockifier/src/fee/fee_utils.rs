@@ -83,8 +83,8 @@ pub fn get_fee_by_gas_vector(
     fee_type: &FeeType,
 ) -> Fee {
     gas_vector.saturated_cost(
-        u128::from(block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type)),
-        u128::from(block_info.gas_prices.get_l1_data_gas_price_by_fee_type(fee_type)),
+        block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type).into(),
+        block_info.gas_prices.get_l1_data_gas_price_by_fee_type(fee_type).into(),
     )
 }
 
