@@ -234,9 +234,9 @@ type SharedNonceManager = Rc<RefCell<NonceManager>>;
 /// tx_generator.register_account_for_flow_test(some_account_type.clone());
 /// tx_generator.register_account_for_flow_test(some_account_type);
 ///
-/// let account_0_tx_with_nonce_0 = tx_generator.account_with_id(0).generate_invoke();
-/// let account_1_tx_with_nonce_0 = tx_generator.account_with_id(1).generate_invoke();
-/// let account_0_tx_with_nonce_1 = tx_generator.account_with_id(0).generate_invoke();
+/// let account_0_tx_with_nonce_0 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
+/// let account_1_tx_with_nonce_0 = tx_generator.account_with_id(1).generate_invoke_with_tip(3);
+/// let account_0_tx_with_nonce_1 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
 /// ```
 // Note: when moving this to starknet api crate, see if blockifier's
 // [blockifier::transaction::test_utils::FaultyAccountTxCreatorArgs] can be made to use this.
@@ -302,7 +302,7 @@ pub struct AccountTransactionGenerator {
 
 impl AccountTransactionGenerator {
     /// Generate a valid `RpcTransaction` with default parameters.
-    pub fn generate_invoke(&mut self) -> RpcTransaction {
+    pub fn generate_invoke_with_tip(&mut self, tip: u64) -> RpcTransaction {
         let nonce = self.next_nonce();
         assert_ne!(
             nonce,
@@ -310,11 +310,11 @@ impl AccountTransactionGenerator {
             "Cannot invoke on behalf of an undeployed account: the first transaction of every \
              account must be a deploy account transaction."
         );
-
         let invoke_args = invoke_tx_args!(
+            nonce,
+            tip : Tip(tip),
             sender_address: self.sender_address(),
             resource_bounds: test_resource_bounds_mapping(),
-            nonce,
             calldata: create_trivial_calldata(self.sender_address()),
         );
         rpc_invoke_tx(invoke_args)
@@ -343,7 +343,7 @@ impl AccountTransactionGenerator {
     ///
     /// Caller must manually handle bumping nonce and fetching the correct sender address via
     /// [AccountTransactionGenerator::next_nonce] and [AccountTransactionGenerator::sender_address].
-    /// See [AccountTransactionGenerator::generate_invoke] to have these filled up by
+    /// See [AccountTransactionGenerator::generate_invoke_with_tip] to have these filled up by
     /// default.
     ///
     /// Note: This is a best effort attempt to make the API more useful; amend or add new methods
