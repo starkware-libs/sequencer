@@ -57,6 +57,7 @@ jobs:
           toolchain: nightly-2023-07-05
 
       - name: Verify cairo contract recompilation (both cairo versions).
-        run: cd sequencer &&
+        run:
+          cd sequencer &&
           pip install -r crates/blockifier/tests/requirements.txt &&
           cargo test -p blockifier --test feature_contracts_compatibility_test --features testing -- --include-ignored
