@@ -296,7 +296,7 @@ pub fn get_tx_weights<S: StateReader>(
     state_changes_keys: &StateChangesKeys,
 ) -> TransactionExecutionResult<BouncerWeights> {
     let message_resources = &tx_resources.starknet_resources.messages;
-    let message_starknet_gas = usize_from_u128(message_resources.get_starknet_gas_cost().l1_gas)
+    let message_starknet_gas = usize_from_u128(message_resources.get_starknet_gas_cost().l1_gas.0)
         .expect("This conversion should not fail as the value is a converted usize.");
     let mut additional_os_resources =
         get_casm_hash_calculation_resources(state_reader, executed_class_hashes)?;

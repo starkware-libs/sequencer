@@ -1,6 +1,7 @@
 use assert_matches::assert_matches;
 use rstest::rstest;
 use starknet_api::core::{ContractAddress, PatriciaKey};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
     Calldata,
@@ -259,7 +260,7 @@ fn test_revert_on_resource_overuse(
     assert_eq!(execution_info_measure.revert_error, None);
     let actual_fee = execution_info_measure.receipt.fee;
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-    let actual_gas_usage: u64 = execution_info_measure
+    let actual_gas_usage = execution_info_measure
         .receipt
         .resources
         .to_gas_vector(
@@ -267,9 +268,7 @@ fn test_revert_on_resource_overuse(
             block_context.block_info.use_kzg_da,
             &GasVectorComputationMode::NoL2Gas,
         )
-        .l1_gas
-        .try_into()
-        .expect("Failed to convert u128 to u64.");
+        .l1_gas;
 
     // Run the same function, with a different written value (to keep cost high), with the actual
     // resources used as upper bounds. Make sure execution does not revert.
@@ -297,7 +296,7 @@ fn test_revert_on_resource_overuse(
         &block_context,
         invoke_tx_args! {
             max_fee: low_max_fee,
-            resource_bounds: l1_resource_bounds(actual_gas_usage - 1, MAX_L1_GAS_PRICE),
+            resource_bounds: l1_resource_bounds(GasAmount(actual_gas_usage.0 - 1), MAX_L1_GAS_PRICE),
             nonce: nonce_manager.next(account_address),
             calldata: write_a_lot_calldata(),
             ..base_args

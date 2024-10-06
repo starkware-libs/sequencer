@@ -2,6 +2,7 @@ use std::num::NonZeroU128;
 
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::invoke_tx_args;
 use starknet_api::transaction::{EventContent, EventData, EventKey, Fee, GasVectorComputationMode};
 use starknet_types_core::felt::Felt;
@@ -90,7 +91,8 @@ fn test_get_event_gas_cost(
         .collect();
     let execution_summary = CallInfo::summarize_many(call_infos.iter());
     // 8 keys and 11 data words overall.
-    let expected_gas = (data_word_cost * (event_key_factor * 8_u128 + 11_u128)).to_integer();
+    let expected_gas =
+        GasAmount((data_word_cost * (event_key_factor * 8_u128 + 11_u128)).to_integer());
     let expected_gas_vector = match gas_vector_computation_mode {
         GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(expected_gas),
         GasVectorComputationMode::All => GasVector::from_l2_gas(expected_gas),
@@ -146,7 +148,7 @@ fn test_get_da_gas_cost_basic(#[case] state_changes_count: StateChangesCount) {
 
     let computed_gas_vector = get_da_gas_cost(&state_changes_count, true);
     assert_eq!(
-        GasVector::from_l1_data_gas(u128_from_usize(manual_blob_gas_usage)),
+        GasVector::from_l1_data_gas(u128_from_usize(manual_blob_gas_usage).into()),
         computed_gas_vector
     );
 }
@@ -155,7 +157,7 @@ fn test_get_da_gas_cost_basic(#[case] state_changes_count: StateChangesCount) {
 fn test_onchain_data_discount() {
     let use_kzg_da = false;
     // Check that there's no negative cost.
-    assert_eq!(get_da_gas_cost(&StateChangesCount::default(), use_kzg_da).l1_gas, 0);
+    assert_eq!(get_da_gas_cost(&StateChangesCount::default(), use_kzg_da).l1_gas, GasAmount(0));
 
     // Check discount: modified_contract_felt and fee balance discount.
     let state_changes_count = StateChangesCount {
@@ -186,7 +188,7 @@ fn test_onchain_data_discount() {
 
     assert_eq!(
         get_da_gas_cost(&state_changes_count, use_kzg_da).l1_gas,
-        expected_cost.try_into().unwrap()
+        u64::try_from(expected_cost).unwrap().into()
     );
 
     // Test 10% discount.
@@ -195,7 +197,7 @@ fn test_onchain_data_discount() {
 
     let cost_without_discount = (state_changes_count.n_storage_updates * 2) * (512 + 100);
     let actual_cost = get_da_gas_cost(&state_changes_count, use_kzg_da).l1_gas;
-    let cost_ratio = ResourceCost::new(actual_cost, u128_from_usize(cost_without_discount));
+    let cost_ratio = ResourceCost::new(actual_cost.0, u128_from_usize(cost_without_discount));
     assert!(cost_ratio <= ResourceCost::new(9, 10));
     assert!(cost_ratio >= ResourceCost::new(88, 100));
 }
@@ -227,21 +229,25 @@ fn test_get_message_segment_length(
 fn test_discounted_gas_from_gas_vector_computation() {
     let tx_context =
         BlockContext::create_for_testing().to_tx_context(&account_invoke_tx(invoke_tx_args! {}));
-    let gas_usage = GasVector { l1_gas: 100, l1_data_gas: 2, ..Default::default() };
+    let gas_usage =
+        GasVector { l1_gas: GasAmount(100), l1_data_gas: GasAmount(2), ..Default::default() };
     let actual_result = gas_usage.to_discounted_l1_gas(&tx_context);
 
     let result_div_ceil = gas_usage.l1_gas
         + u128_div_ceil(
-            gas_usage.l1_data_gas * DEFAULT_ETH_L1_DATA_GAS_PRICE,
+            gas_usage.l1_data_gas.0 * DEFAULT_ETH_L1_DATA_GAS_PRICE,
             NonZeroU128::new(DEFAULT_ETH_L1_GAS_PRICE).unwrap(),
-        );
-    let result_div_floor = gas_usage.l1_gas
-        + (gas_usage.l1_data_gas * DEFAULT_ETH_L1_DATA_GAS_PRICE) / DEFAULT_ETH_L1_GAS_PRICE;
+        )
+        .into();
+    let result_div_floor = GasAmount(
+        gas_usage.l1_gas.0
+            + (gas_usage.l1_data_gas.0 * DEFAULT_ETH_L1_DATA_GAS_PRICE) / DEFAULT_ETH_L1_GAS_PRICE,
+    );
 
     assert_eq!(actual_result, result_div_ceil);
-    assert_eq!(actual_result, result_div_floor + 1);
+    assert_eq!(actual_result, result_div_floor + GasAmount(1));
     assert!(
         get_fee_by_gas_vector(&tx_context.block_context.block_info, gas_usage, &FeeType::Eth)
-            <= Fee(actual_result * DEFAULT_ETH_L1_GAS_PRICE)
+            <= Fee(actual_result.0 * DEFAULT_ETH_L1_GAS_PRICE)
     );
 }

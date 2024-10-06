@@ -4,6 +4,7 @@ use assert_matches::assert_matches;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::rstest;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::invoke_tx_args;
 use starknet_api::transaction::{Fee, GasVectorComputationMode, Resource, ValidResourceBounds};
 
@@ -55,10 +56,12 @@ fn test_simple_get_vm_resource_usage(
 
     // Positive flow.
     // Verify calculation - in our case, n_steps is the heaviest resource.
-    let vm_usage_in_l1_gas = (versioned_constants.vm_resource_fee_cost().n_steps
-        * (u128_from_usize(vm_resource_usage.n_steps + n_reverted_steps)))
-    .ceil()
-    .to_integer();
+    let vm_usage_in_l1_gas = GasAmount(
+        (versioned_constants.vm_resource_fee_cost().n_steps
+            * (u128_from_usize(vm_resource_usage.n_steps + n_reverted_steps)))
+        .ceil()
+        .to_integer(),
+    );
     let expected_gas_vector = gas_vector_from_vm_usage(
         vm_usage_in_l1_gas,
         &gas_vector_computation_mode,
@@ -80,7 +83,8 @@ fn test_simple_get_vm_resource_usage(
         vm_resource_usage.builtin_instance_counter.get(&BuiltinName::range_check).unwrap() - 1;
     let vm_usage_in_l1_gas = u128_from_usize(
         *vm_resource_usage.builtin_instance_counter.get(&BuiltinName::range_check).unwrap(),
-    );
+    )
+    .into();
     let expected_gas_vector = gas_vector_from_vm_usage(
         vm_usage_in_l1_gas,
         &gas_vector_computation_mode,
@@ -108,10 +112,12 @@ fn test_float_get_vm_resource_usage(
     // Positive flow.
     // Verify calculation - in our case, n_steps is the heaviest resource.
     let n_reverted_steps = 300;
-    let vm_usage_in_l1_gas = (versioned_constants.vm_resource_fee_cost().n_steps
-        * u128_from_usize(vm_resource_usage.n_steps + n_reverted_steps))
-    .ceil()
-    .to_integer();
+    let vm_usage_in_l1_gas = GasAmount(
+        (versioned_constants.vm_resource_fee_cost().n_steps
+            * u128_from_usize(vm_resource_usage.n_steps + n_reverted_steps))
+        .ceil()
+        .to_integer(),
+    );
     let expected_gas_vector = gas_vector_from_vm_usage(
         vm_usage_in_l1_gas,
         &gas_vector_computation_mode,
@@ -129,13 +135,14 @@ fn test_float_get_vm_resource_usage(
 
     // Another positive flow, this time the heaviest resource is ecdsa_builtin.
     vm_resource_usage.n_steps = 200;
-    let vm_usage_in_l1_gas =
+    let vm_usage_in_l1_gas = GasAmount(
         ((*versioned_constants.vm_resource_fee_cost().builtins.get(&BuiltinName::ecdsa).unwrap())
             * u128_from_usize(
                 *vm_resource_usage.builtin_instance_counter.get(&BuiltinName::ecdsa).unwrap(),
             ))
         .ceil()
-        .to_integer();
+        .to_integer(),
+    );
     let expected_gas_vector = gas_vector_from_vm_usage(
         vm_usage_in_l1_gas,
         &gas_vector_computation_mode,
@@ -166,9 +173,10 @@ fn test_discounted_gas_overdraft(
     #[case] data_gas_price: u128,
     #[case] l1_gas_used: usize,
     #[case] l1_data_gas_used: usize,
-    #[case] gas_bound: u64,
+    #[case] gas_bound: u128,
     #[case] expect_failure: bool,
 ) {
+    let gas_bound = GasAmount(gas_bound);
     let mut block_context = BlockContext::create_for_account_testing();
     block_context.block_info.gas_prices = GasPrices::new(
         DEFAULT_ETH_L1_GAS_PRICE.try_into().unwrap(),
@@ -196,8 +204,8 @@ fn test_discounted_gas_overdraft(
     let tx_receipt = TransactionReceipt {
         fee: Fee(7),
         gas: GasVector {
-            l1_gas: u128_from_usize(l1_gas_used),
-            l1_data_gas: u128_from_usize(l1_data_gas_used),
+            l1_gas: u128_from_usize(l1_gas_used).into(),
+            l1_data_gas: u128_from_usize(l1_data_gas_used).into(),
             ..Default::default()
         },
         ..Default::default()
@@ -213,11 +221,14 @@ fn test_discounted_gas_overdraft(
 
     if expect_failure {
         let error = report.error().unwrap();
-        let expected_actual_amount = u128_from_usize(l1_gas_used)
-            + (u128_from_usize(l1_data_gas_used) * data_gas_price) / gas_price;
+        let expected_actual_amount = (u128_from_usize(l1_gas_used)
+            + (u128_from_usize(l1_data_gas_used) * data_gas_price) / gas_price)
+            .into();
         assert_matches!(
             error, FeeCheckError::MaxGasAmountExceeded { resource, max_amount, actual_amount }
-            if max_amount == u128::from(gas_bound) && actual_amount == expected_actual_amount && resource == Resource::L1Gas
+            if max_amount == gas_bound
+             && actual_amount == expected_actual_amount
+             && resource == Resource::L1Gas
         )
     } else {
         assert_matches!(report.error(), None);
