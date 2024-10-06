@@ -49,6 +49,7 @@ use starknet_api::{contract_address, felt, patricia_key};
 use starknet_client::reader::PendingData;
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
+use tempfile::TempDir;
 use tokio::sync::RwLock;
 
 use crate::integration_test_utils::get_available_socket;
@@ -61,7 +62,9 @@ type ContractClassesMap =
 /// Creates a papyrus storage reader and spawns a papyrus rpc server for it.
 /// Returns the address of the rpc server.
 /// A variable number of identical accounts and test contracts are initialized and funded.
-pub async fn spawn_test_rpc_state_reader(test_defined_accounts: Vec<Contract>) -> SocketAddr {
+pub async fn spawn_test_rpc_state_reader(
+    test_defined_accounts: Vec<Contract>,
+) -> (SocketAddr, TempDir) {
     let block_context = BlockContext::create_for_testing();
 
     let into_contract = |contract: FeatureContract| Contract {
@@ -79,13 +82,13 @@ pub async fn spawn_test_rpc_state_reader(test_defined_accounts: Vec<Contract>) -
     let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo0);
     let erc20_contract = into_contract(erc20_contract);
 
-    let storage_reader = initialize_papyrus_test_state(
+    let (storage_reader, storage_path) = initialize_papyrus_test_state(
         block_context.chain_info(),
         test_defined_accounts,
         default_test_contracts,
         erc20_contract,
     );
-    run_papyrus_rpc_server(storage_reader).await
+    (run_papyrus_rpc_server(storage_reader).await, storage_path)
 }
 
 fn initialize_papyrus_test_state(
@@ -93,7 +96,7 @@ fn initialize_papyrus_test_state(
     test_defined_accounts: Vec<Contract>,
     default_test_contracts: Vec<Contract>,
     erc20_contract: Contract,
-) -> StorageReader {
+) -> (StorageReader, TempDir) {
     let state_diff = prepare_state_diff(
         chain_info,
         &test_defined_accounts,
@@ -163,13 +166,13 @@ fn write_state_to_papyrus_storage(
     state_diff: ThinStateDiff,
     cairo0_contract_classes: &[(ClassHash, DeprecatedContractClass)],
     cairo1_contract_classes: &[(ClassHash, CasmContractClass)],
-) -> StorageReader {
+) -> (StorageReader, TempDir) {
     let block_number = BlockNumber(0);
     let block_header = test_block_header(block_number);
     let cairo0_contract_classes: Vec<_> =
         cairo0_contract_classes.iter().map(|(hash, contract)| (*hash, contract)).collect();
 
-    let (storage_reader, mut storage_writer) = get_test_storage().0;
+    let ((storage_reader, mut storage_writer), storage_path) = get_test_storage();
     let mut write_txn = storage_writer.begin_rw_txn().unwrap();
 
     for (class_hash, casm) in cairo1_contract_classes {
@@ -187,7 +190,7 @@ fn write_state_to_papyrus_storage(
         .commit()
         .unwrap();
 
-    storage_reader
+    (storage_reader, storage_path)
 }
 
 fn test_block_header(block_number: BlockNumber) -> BlockHeader {
