@@ -67,7 +67,8 @@ impl<'state> NativeSyscallHandler<'state> {
         }
     }
 
-    pub fn execute_inner_call(
+    #[allow(dead_code)]
+    fn execute_inner_call(
         &mut self,
         entry_point: CallEntryPoint,
         remaining_gas: &mut u128,
@@ -75,23 +76,22 @@ impl<'state> NativeSyscallHandler<'state> {
         let call_info = entry_point
             .execute(self.state, self.resources, self.context)
             .map_err(|e| encode_str_as_felts(&e.to_string()))?;
-        let retdata = call_info.execution.retdata.0.clone();
+        let retdata = call_info.execution.retdata.clone();
 
         if call_info.execution.failed {
             // In VM it's wrapped into `SyscallExecutionError::SyscallError`.
-            return Err(retdata);
+            return Err(retdata.0.clone());
         }
 
         self.update_remaining_gas(remaining_gas, &call_info);
-
-        let retdata = call_info.execution.retdata.clone();
 
         self.inner_calls.push(call_info);
 
         Ok(retdata)
     }
 
-    pub fn update_remaining_gas(&mut self, remaining_gas: &mut u128, call_info: &CallInfo) {
+    #[allow(dead_code)]
+    fn update_remaining_gas(&mut self, remaining_gas: &mut u128, call_info: &CallInfo) {
         // Create a new variable with converted type.
         let mut remaining_gas_u64 = u64::try_from(*remaining_gas).unwrap();
 
@@ -105,7 +105,8 @@ impl<'state> NativeSyscallHandler<'state> {
     // Handles gas related logic when executing a syscall. Required because Native calls the
     // syscalls directly unlike the VM where the `execute_syscall` method perform this operation
     // first.
-    pub fn substract_syscall_gas_cost(
+    #[allow(dead_code)]
+    fn substract_syscall_gas_cost(
         &mut self,
         remaining_gas: &mut u128,
         syscall_gas_cost: u64,
