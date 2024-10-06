@@ -8,6 +8,7 @@ use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
     Fee,
+    GasVectorComputationMode,
     InvokeTransactionV0,
     InvokeTransactionV1,
     InvokeTransactionV3,
@@ -24,7 +25,6 @@ use strum::IntoEnumIterator;
 use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::context::{BlockContext, ChainInfo};
 use crate::execution::contract_class::{ClassInfo, ContractClass};
-use crate::fee::resources::GasVectorComputationMode;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
 use crate::test_utils::contracts::FeatureContract;

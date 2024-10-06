@@ -5,7 +5,13 @@ use serde_json::Value;
 use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::{Calldata, Fee, TransactionHash, TransactionVersion};
+use starknet_api::transaction::{
+    Calldata,
+    Fee,
+    GasVectorComputationMode,
+    TransactionHash,
+    TransactionVersion,
+};
 use starknet_api::{calldata, contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
 
@@ -23,7 +29,7 @@ use crate::execution::entry_point::{
     EntryPointExecutionResult,
 };
 use crate::fee::fee_utils::get_fee_by_gas_vector;
-use crate::fee::resources::{GasVectorComputationMode, TransactionResources};
+use crate::fee::resources::TransactionResources;
 use crate::state::state_api::State;
 use crate::test_utils::{
     get_raw_contract_class,

@@ -1041,6 +1041,12 @@ where
     u128::from_str_radix(s.trim_start_matches("0x"), 16).map_err(serde::de::Error::custom)
 }
 
+#[derive(Debug, PartialEq)]
+pub enum GasVectorComputationMode {
+    All,
+    NoL2Gas,
+}
+
 /// A mapping from execution resources to their corresponding fee bounds..
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 // TODO(Nimrod): Remove this struct definition.

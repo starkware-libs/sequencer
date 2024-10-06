@@ -7,6 +7,7 @@ use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
     Calldata,
     Fee,
+    GasVectorComputationMode,
     Resource,
     TransactionSignature,
     TransactionVersion,
@@ -18,7 +19,7 @@ use starknet_types_core::felt::Felt;
 use crate::context::{BlockContext, ChainInfo};
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
-use crate::fee::resources::{GasVector, GasVectorComputationMode};
+use crate::fee::resources::GasVector;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;

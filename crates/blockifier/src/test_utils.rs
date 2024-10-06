@@ -15,7 +15,12 @@ use std::path::PathBuf;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{Calldata, ContractAddressSalt, TransactionVersion};
+use starknet_api::transaction::{
+    Calldata,
+    ContractAddressSalt,
+    GasVectorComputationMode,
+    TransactionVersion,
+};
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
 
@@ -24,12 +29,7 @@ use crate::execution::call_info::ExecutionSummary;
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::SyscallSelector;
-use crate::fee::resources::{
-    GasVector,
-    GasVectorComputationMode,
-    StarknetResources,
-    StateResources,
-};
+use crate::fee::resources::{GasVector, StarknetResources, StateResources};
 use crate::test_utils::contracts::FeatureContract;
 use crate::transaction::transaction_types::TransactionType;
 use crate::utils::{const_max, u128_from_usize};

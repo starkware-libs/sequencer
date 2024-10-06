@@ -6,14 +6,14 @@ use num_bigint::BigUint;
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::ValidResourceBounds::{AllResources, L1Gas};
-use starknet_api::transaction::{AllResourceBounds, Fee, Resource};
+use starknet_api::transaction::{AllResourceBounds, Fee, GasVectorComputationMode, Resource};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::abi::sierra_types::next_storage_key;
 use crate::blockifier::block::BlockInfo;
 use crate::context::{BlockContext, TransactionContext};
-use crate::fee::resources::{GasVector, GasVectorComputationMode, TransactionFeeResult};
+use crate::fee::resources::{GasVector, TransactionFeeResult};
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionFeeError;
 use crate::transaction::objects::{ExecutionResourcesTraits, FeeType, TransactionInfo};
