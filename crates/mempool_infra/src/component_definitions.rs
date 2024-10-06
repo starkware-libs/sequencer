@@ -2,7 +2,6 @@ use std::any::type_name;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::time::Duration;
 
 use async_trait::async_trait;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
@@ -19,7 +18,7 @@ pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 const DEFAULT_CHANNEL_BUFFER_SIZE: usize = 32;
 const DEFAULT_RETRIES: usize = 3;
 const DEFAULT_IDLE_CONNECTIONS: usize = usize::MAX;
-const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(90);
+const DEFAULT_IDLE_TIMEOUT: u64 = 90;
 
 #[async_trait]
 pub trait ComponentRequestHandler<Request, Response> {
@@ -97,7 +96,7 @@ pub struct RemoteComponentCommunicationConfig {
     pub socket: SocketAddr,
     pub retries: usize,
     pub idle_connections: usize,
-    pub idle_timeout: Duration,
+    pub idle_timeout: u64,
 }
 
 impl SerializeConfig for RemoteComponentCommunicationConfig {
@@ -124,7 +123,7 @@ impl SerializeConfig for RemoteComponentCommunicationConfig {
             ser_param(
                 "idle_timeout",
                 &self.idle_timeout,
-                "The duration to keep an idle connection open before closing.",
+                "The duration in seconds to keep an idle connection open before closing.",
                 ParamPrivacyInput::Public,
             ),
         ])

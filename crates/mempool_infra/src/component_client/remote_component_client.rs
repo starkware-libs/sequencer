@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::net::IpAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
@@ -30,8 +31,6 @@ use crate::serde_utils::BincodeSerdeWrapper;
 /// ```rust
 /// // Example usage of the RemoteComponentClient
 ///
-/// use std::time::Duration;
-///
 /// use serde::{Deserialize, Serialize};
 ///
 /// use crate::starknet_mempool_infra::component_client::RemoteComponentClient;
@@ -59,7 +58,7 @@ use crate::serde_utils::BincodeSerdeWrapper;
 ///         socket,
 ///         retries: 3,
 ///         idle_connections: usize::MAX,
-///         idle_timeout: Duration::from_secs(90),
+///         idle_timeout: 90,
 ///     };
 ///     let client = RemoteComponentClient::<MyRequest, MyResponse>::new(config);
 ///
@@ -104,7 +103,7 @@ where
         let client = Client::builder()
             .http2_only(true)
             .pool_max_idle_per_host(config.idle_connections)
-            .pool_idle_timeout(config.idle_timeout)
+            .pool_idle_timeout(Duration::from_secs(config.idle_timeout))
             .build_http();
         Self { uri, client, config, _req: PhantomData, _res: PhantomData }
     }
