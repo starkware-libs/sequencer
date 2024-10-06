@@ -102,10 +102,7 @@ impl ContractClass {
             ContractClass::V0(class) => class.estimate_casm_hash_computation_resources(),
             ContractClass::V1(class) => class.estimate_casm_hash_computation_resources(),
             ContractClass::V1Native(_) => {
-                panic!(
-                    "estimate_casm_hash_computation_resources is not supported for native \
-                     contracts."
-                )
+                todo!("Use casm to estimate casm hash computation resources")
             }
         }
     }
@@ -130,7 +127,7 @@ impl ContractClass {
             ContractClass::V0(class) => class.bytecode_length(),
             ContractClass::V1(class) => class.bytecode_length(),
             ContractClass::V1Native(_) => {
-                panic!("bytecode_length is not supported for native contracts.")
+                todo!("implement bytecode_length for native contracts.")
             }
         }
     }
