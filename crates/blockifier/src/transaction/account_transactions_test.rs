@@ -501,10 +501,10 @@ fn test_max_fee_limit_validate(
                         block_context: block_context.clone(),
                         tx_info: account_tx.create_tx_info(),
                     };
+                    let gas_prices = tx_context.get_gas_prices();
                     l1_resource_bounds(
-                        estimated_min_gas_usage_vector.to_discounted_l1_gas(&tx_context),
-                        block_info.gas_prices
-                            .get_l1_gas_price_by_fee_type(&account_tx.fee_type()).into()
+                        estimated_min_gas_usage_vector.to_discounted_l1_gas(gas_prices),
+                        gas_prices.l1_gas_price.into(),
                     )
                 }
                 GasVectorComputationMode::All => create_all_resource_bounds(
