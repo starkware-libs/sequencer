@@ -14,6 +14,7 @@ RUN apt update && apt -y install \
     python3-dev \
     libzstd-dev \
     wget \
+    zstd \
     gnupg
 
 # check installation of zstd
