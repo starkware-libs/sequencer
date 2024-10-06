@@ -1,7 +1,9 @@
 use cairo_vm::Felt252;
 use num_traits::Pow;
+use starknet_api::block::GasPrice;
 use starknet_api::core::ChainId;
 use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
@@ -209,8 +211,10 @@ fn test_get_execution_info(
                 ..Default::default()
             },
             resource_bounds: ValidResourceBounds::L1Gas(ResourceBounds {
-                max_amount: max_amount.0.try_into().expect("Failed to convert u128 to u64."),
-                max_price_per_unit: max_price_per_unit.0,
+                max_amount: GasAmount(
+                    max_amount.0.try_into().expect("Failed to convert u128 to u64."),
+                ),
+                max_price_per_unit: GasPrice(max_price_per_unit.0),
             }),
             tip: Tip::default(),
             nonce_data_availability_mode: DataAvailabilityMode::L1,

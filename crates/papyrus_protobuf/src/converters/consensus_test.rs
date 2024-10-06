@@ -7,6 +7,7 @@ use papyrus_test_utils::{
 use rand::Rng;
 use starknet_api::block::BlockHash;
 use starknet_api::core::ContractAddress;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{
     DeclareTransaction,
     DeclareTransactionV3,
@@ -136,7 +137,7 @@ fn convert_proposal_to_vec_u8_and_back() {
             ..
         })) => {
             if let ValidResourceBounds::AllResources(ref mut bounds) = resource_bounds {
-                bounds.l2_gas.max_amount = 1;
+                bounds.l2_gas.max_amount = GasAmount(1);
             }
         }
         _ => {}

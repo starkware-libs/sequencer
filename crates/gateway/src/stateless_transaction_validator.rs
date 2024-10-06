@@ -1,3 +1,4 @@
+use starknet_api::block::GasPrice;
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcDeployAccountTransaction,
@@ -179,7 +180,9 @@ fn validate_resource_is_non_zero(
     resource: Resource,
 ) -> StatelessTransactionValidatorResult<()> {
     let resource_bounds = all_resource_bounds.get_bound(resource);
-    if resource_bounds.max_amount == 0 || resource_bounds.max_price_per_unit == 0 {
+    if resource_bounds.max_amount == 0_u8.into()
+        || resource_bounds.max_price_per_unit == GasPrice(0)
+    {
         return Err(StatelessTransactionValidatorError::ZeroResourceBounds {
             resource,
             resource_bounds,

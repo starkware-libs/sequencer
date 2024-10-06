@@ -1,5 +1,7 @@
 use lazy_static::lazy_static;
 use papyrus_test_utils::{get_rng, GetTestInstance};
+use starknet_api::block::GasPrice;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcDeclareTransactionV3,
@@ -54,8 +56,11 @@ fn assert_transaction_to_vec_u8_and_back(transaction: RpcTransaction) {
 
 lazy_static! {
     static ref RESOURCE_BOUNDS_MAPPING: AllResourceBounds = AllResourceBounds {
-        l1_gas: ResourceBounds { max_amount: 0x5, max_price_per_unit: 0x6 },
-        l2_gas: ResourceBounds { max_amount: 0x6, max_price_per_unit: 0x7 },
-        l1_data_gas: ResourceBounds { max_amount: 0x7, max_price_per_unit: 0x8 },
+        l1_gas: ResourceBounds { max_amount: GasAmount(0x5), max_price_per_unit: GasPrice(0x6) },
+        l2_gas: ResourceBounds { max_amount: GasAmount(0x6), max_price_per_unit: GasPrice(0x7) },
+        l1_data_gas: ResourceBounds {
+            max_amount: GasAmount(0x7),
+            max_price_per_unit: GasPrice(0x8)
+        },
     };
 }

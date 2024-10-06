@@ -1,7 +1,9 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{
     AllResourceBounds,
     ResourceBounds,
@@ -102,7 +104,10 @@ impl TransactionQueue {
     fn _promote_txs_to_priority(&mut self, threshold: u128) {
         let tmp_split_tx = PendingTransaction(TransactionReference {
             resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
-                l2_gas: ResourceBounds { max_amount: 0, max_price_per_unit: threshold },
+                l2_gas: ResourceBounds {
+                    max_amount: GasAmount(0),
+                    max_price_per_unit: GasPrice(threshold),
+                },
                 ..Default::default()
             }),
             sender_address: ContractAddress::default(),

@@ -200,8 +200,8 @@ fn get_concat_resource(
     resource_bounds: &ResourceBounds,
     resource_name: &ResourceName,
 ) -> Result<Felt, StarknetApiError> {
-    let max_amount = resource_bounds.max_amount.to_be_bytes();
-    let max_price = resource_bounds.max_price_per_unit.to_be_bytes();
+    let max_amount = resource_bounds.max_amount.0.to_be_bytes();
+    let max_price = resource_bounds.max_price_per_unit.0.to_be_bytes();
     let concat_bytes =
         [[0_u8].as_slice(), resource_name.as_slice(), max_amount.as_slice(), max_price.as_slice()]
             .concat();
