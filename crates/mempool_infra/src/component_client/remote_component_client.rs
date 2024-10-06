@@ -11,7 +11,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use super::definitions::{ClientError, ClientResult};
-use crate::component_definitions::{RemoteComponentCommunicationConfig, APPLICATION_OCTET_STREAM};
+use crate::component_definitions::{RemoteClientConnectionConfig, APPLICATION_OCTET_STREAM};
 use crate::serde_utils::BincodeSerdeWrapper;
 
 /// The `RemoteComponentClient` struct is a generic client for sending component requests and
@@ -34,7 +34,7 @@ use crate::serde_utils::BincodeSerdeWrapper;
 /// use serde::{Deserialize, Serialize};
 ///
 /// use crate::starknet_mempool_infra::component_client::RemoteComponentClient;
-/// use crate::starknet_mempool_infra::component_definitions::RemoteComponentCommunicationConfig;
+/// use crate::starknet_mempool_infra::component_definitions::RemoteClientConnectionConfig;
 ///
 /// // Define your request and response types
 /// #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -54,7 +54,7 @@ use crate::serde_utils::BincodeSerdeWrapper;
 ///     let ip_address = std::net::IpAddr::V6(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
 ///     let port: u16 = 8080;
 ///     let socket = std::net::SocketAddr::new(ip_address, port);
-///     let config = RemoteComponentCommunicationConfig {
+///     let config = RemoteClientConnectionConfig {
 ///         socket,
 ///         retries: 3,
 ///         idle_connections: usize::MAX,
@@ -81,7 +81,7 @@ where
 {
     uri: Uri,
     client: Client<hyper::client::HttpConnector>,
-    config: RemoteComponentCommunicationConfig,
+    config: RemoteClientConnectionConfig,
     _req: PhantomData<Request>,
     _res: PhantomData<Response>,
 }
@@ -91,7 +91,7 @@ where
     Request: Serialize + DeserializeOwned + Debug + Clone,
     Response: Serialize + DeserializeOwned + Debug,
 {
-    pub fn new(config: RemoteComponentCommunicationConfig) -> Self {
+    pub fn new(config: RemoteClientConnectionConfig) -> Self {
         let ip_address = config.socket.ip();
         let port = config.socket.port();
         let uri = match ip_address {
