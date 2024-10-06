@@ -536,7 +536,7 @@ impl<'a, U: UpdatableState> TransactionalState<'a, U> {
 type StorageDiff = IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>;
 
 /// Holds uncommitted changes induced on Starknet contracts.
-#[cfg_attr(any(feature = "testing", test), derive(Clone))]
+#[cfg_attr(any(feature = "testing", test), derive(Clone, Default))]
 #[derive(Debug, Eq, PartialEq)]
 pub struct CommitmentStateDiff {
     // Contract instance attributes (per address).

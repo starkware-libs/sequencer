@@ -10081,7 +10081,9 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "async-trait",
+ "blockifier",
  "futures",
+ "indexmap 2.2.6",
  "mempool_test_utils",
  "mockall",
  "papyrus_config",

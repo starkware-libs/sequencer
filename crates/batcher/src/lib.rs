@@ -1,4 +1,5 @@
 pub mod batcher;
+mod block_builder;
 pub mod communication;
 pub mod config;
 pub mod fee_market;

@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::TransactionCommitment;
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::state::ThinStateDiff;
 pub use starknet_consensus_manager_types::consensus_manager_types::ProposalId;
 
 use crate::errors::BatcherError;
@@ -11,7 +10,6 @@ use crate::errors::BatcherError;
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ProposalCommitment {
     pub tx_commitment: TransactionCommitment,
-    pub state_diff: ThinStateDiff,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

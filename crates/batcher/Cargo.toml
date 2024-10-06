@@ -10,6 +10,8 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
+blockifier.workspace = true
+indexmap.workspace = true
 papyrus_config.workspace = true
 papyrus_storage.workspace = true
 serde.workspace = true

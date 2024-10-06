@@ -1,19 +1,21 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::executable_transaction::Transaction;
+use starknet_batcher_types::batcher_types::GetProposalContent;
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
 use tokio::select;
 use tokio::sync::Mutex;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::{debug, error, info, instrument, trace, Instrument};
+
+use crate::block_builder::{BlockBuilderError, BlockBuilderTrait, BlockExecutionArtifacts};
 
 // TODO: Should be defined in SN_API probably (shared with the consensus).
 pub type ProposalId = u64;
@@ -72,6 +74,8 @@ pub enum ProposalManagerError {
         current_generating_proposal_id: ProposalId,
         new_proposal_id: ProposalId,
     },
+    #[error(transparent)]
+    BlockBuilderError(#[from] BlockBuilderError),
     #[error("Internal error.")]
     InternalError,
     #[error(transparent)]
@@ -101,7 +105,7 @@ pub(crate) struct ProposalManager {
     block_builder_factory: Arc<dyn BlockBuilderFactoryTrait>,
 }
 
-type ActiveTaskHandle = tokio::task::JoinHandle<ProposalsManagerResult<()>>;
+type ActiveTaskHandle = tokio::task::JoinHandle<ProposalsManagerResult<BlockExecutionArtifacts>>;
 
 impl ProposalManager {
     // TODO: Remove dead_code attribute.
@@ -129,7 +133,7 @@ impl ProposalManager {
         proposal_id: ProposalId,
         deadline: tokio::time::Instant,
         // TODO: Should this be an unbounded channel?
-        output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
+        output_content_sender: tokio::sync::mpsc::Sender<GetProposalContent>,
     ) -> ProposalsManagerResult<()> {
         info!("Starting generation of a new proposal with id {}.", proposal_id);
         self.set_active_proposal(proposal_id).await?;
@@ -173,7 +177,9 @@ impl ProposalManager {
     // A helper function for testing purposes (to be able to await the active proposal).
     // TODO: Consider making the tests a nested module to allow them to access private members.
     #[cfg(test)]
-    pub async fn await_active_proposal(&mut self) -> Option<ProposalsManagerResult<()>> {
+    pub async fn await_active_proposal(
+        &mut self,
+    ) -> Option<ProposalsManagerResult<BlockExecutionArtifacts>> {
         match self.active_proposal_handle.take() {
             Some(handle) => Some(handle.await.unwrap()),
             None => None,
@@ -184,17 +190,17 @@ impl ProposalManager {
 #[allow(dead_code)]
 struct BuildProposalTask {
     mempool_client: SharedMempoolClient,
-    output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
+    output_content_sender: tokio::sync::mpsc::Sender<GetProposalContent>,
     max_txs_per_mempool_request: usize,
     block_builder_next_txs_buffer_size: usize,
-    block_builder: Arc<dyn BlockBuilderTrait>,
+    block_builder: Box<dyn BlockBuilderTrait>,
     active_proposal: Arc<Mutex<Option<ProposalId>>>,
     deadline: tokio::time::Instant,
 }
 
 #[allow(dead_code)]
 impl BuildProposalTask {
-    async fn run(mut self) -> ProposalsManagerResult<()> {
+    async fn run(mut self) -> ProposalsManagerResult<BlockExecutionArtifacts> {
         // We convert the receiver to a stream and pass it to the block builder while using the
         // sender to feed the stream.
         let (mempool_tx_sender, mempool_tx_receiver) =
@@ -224,7 +230,7 @@ impl BuildProposalTask {
             },
             builder_done = building_future => {
                 info!("Block builder finished.");
-                Ok(builder_done)
+                builder_done.map_err(|e| e.into())
             }
         };
         self.active_proposal_finished().await;
@@ -269,19 +275,9 @@ impl BuildProposalTask {
 }
 
 pub type InputTxStream = ReceiverStream<Transaction>;
-pub type OutputTxStream = ReceiverStream<Transaction>;
-
-#[async_trait]
-pub trait BlockBuilderTrait: Send + Sync {
-    async fn build_block(
-        &self,
-        deadline: tokio::time::Instant,
-        tx_stream: InputTxStream,
-        output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
-    );
-}
+pub type OutputStream = ReceiverStream<GetProposalContent>;
 
 #[cfg_attr(test, automock)]
 pub trait BlockBuilderFactoryTrait: Send + Sync {
-    fn create_block_builder(&self) -> Arc<dyn BlockBuilderTrait>;
+    fn create_block_builder(&self) -> Box<dyn BlockBuilderTrait>;
 }

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use assert_matches::assert_matches;
 use async_trait::async_trait;
 use futures::future::BoxFuture;
-use futures::FutureExt;
+use futures::{FutureExt, StreamExt};
 #[cfg(test)]
 use mockall::automock;
 use rstest::{fixture, rstest};
@@ -12,18 +12,20 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::felt;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::TransactionHash;
+use starknet_batcher_types::batcher_types::{GetProposalContent, ProposalCommitment};
 use starknet_mempool_types::communication::MockMempoolClient;
-use tokio_stream::StreamExt;
 
+use crate::block_builder::{BlockBuilderResult, BlockBuilderTrait, BlockExecutionArtifacts};
 use crate::proposal_manager::{
-    BlockBuilderTrait,
     InputTxStream,
     MockBlockBuilderFactoryTrait,
-    OutputTxStream,
+    OutputStream,
     ProposalManager,
     ProposalManagerConfig,
     ProposalManagerError,
 };
+
+const STREAMING_CHUNK_SIZE: usize = 3;
 
 #[fixture]
 fn proposal_manager_config() -> ProposalManagerConfig {
@@ -45,7 +47,7 @@ fn mempool_client() -> MockMempoolClient {
 #[fixture]
 fn output_streaming(
     proposal_manager_config: ProposalManagerConfig,
-) -> (tokio::sync::mpsc::Sender<Transaction>, OutputTxStream) {
+) -> (tokio::sync::mpsc::Sender<GetProposalContent>, OutputStream) {
     let (output_content_sender, output_content_receiver) =
         tokio::sync::mpsc::channel(proposal_manager_config.outstream_content_buffer_size);
     let stream = tokio_stream::wrappers::ReceiverStream::new(output_content_receiver);
@@ -58,13 +60,12 @@ async fn proposal_generation_success(
     proposal_manager_config: ProposalManagerConfig,
     mut block_builder_factory: MockBlockBuilderFactoryTrait,
     mut mempool_client: MockMempoolClient,
-    output_streaming: (tokio::sync::mpsc::Sender<Transaction>, OutputTxStream),
+    output_streaming: (tokio::sync::mpsc::Sender<GetProposalContent>, OutputStream),
 ) {
     let n_txs = 2 * proposal_manager_config.max_txs_per_mempool_request;
-    block_builder_factory
-        .expect_create_block_builder()
-        .once()
-        .returning(move || simulate_build_block(Some(n_txs)));
+    block_builder_factory.expect_create_block_builder().once().returning(move || {
+        simulate_build_block(Some(n_txs), Ok(BlockExecutionArtifacts::default()))
+    });
 
     mempool_client.expect_get_txs().once().returning(|max_n_txs| Ok(test_txs(0..max_n_txs)));
 
@@ -81,15 +82,13 @@ async fn proposal_generation_success(
         Arc::new(block_builder_factory),
     );
 
-    let (output_content_sender, stream) = output_streaming;
+    let (output_content_sender, _stream) = output_streaming;
     proposal_manager
         .build_block_proposal(0, arbitrary_deadline(), output_content_sender)
         .await
         .unwrap();
 
-    assert_matches!(proposal_manager.await_active_proposal().await, Some(Ok(())));
-    let proposal_content: Vec<_> = stream.collect().await;
-    assert_eq!(proposal_content, test_txs(0..n_txs));
+    assert_matches!(proposal_manager.await_active_proposal().await, Some(Ok(_)));
 }
 
 #[rstest]
@@ -100,10 +99,9 @@ async fn consecutive_proposal_generations_success(
     mut mempool_client: MockMempoolClient,
 ) {
     let n_txs = proposal_manager_config.max_txs_per_mempool_request;
-    block_builder_factory
-        .expect_create_block_builder()
-        .times(2)
-        .returning(move || simulate_build_block(Some(n_txs)));
+    block_builder_factory.expect_create_block_builder().times(2).returning(move || {
+        simulate_build_block(Some(n_txs), Ok(BlockExecutionArtifacts::default()))
+    });
 
     let expected_txs = test_txs(0..proposal_manager_config.max_txs_per_mempool_request);
     let mempool_txs = expected_txs.clone();
@@ -115,27 +113,23 @@ async fn consecutive_proposal_generations_success(
         Arc::new(block_builder_factory),
     );
 
-    let (output_content_sender, stream) = output_streaming(proposal_manager_config.clone());
+    let (output_content_sender, _stream) = output_streaming(proposal_manager_config.clone());
     proposal_manager
         .build_block_proposal(0, arbitrary_deadline(), output_content_sender)
         .await
         .unwrap();
 
     // Make sure the first proposal generated successfully.
-    assert_matches!(proposal_manager.await_active_proposal().await, Some(Ok(())));
-    let v: Vec<_> = stream.collect().await;
-    assert_eq!(v, expected_txs);
+    assert_matches!(proposal_manager.await_active_proposal().await, Some(Ok(_)));
 
-    let (output_content_sender, stream) = output_streaming(proposal_manager_config);
+    let (output_content_sender, _stream) = output_streaming(proposal_manager_config);
     proposal_manager
         .build_block_proposal(1, arbitrary_deadline(), output_content_sender)
         .await
         .unwrap();
 
     // Make sure the proposal generated successfully.
-    assert_matches!(proposal_manager.await_active_proposal().await, Some(Ok(())));
-    let proposal_content: Vec<_> = stream.collect().await;
-    assert_eq!(proposal_content, expected_txs);
+    assert_matches!(proposal_manager.await_active_proposal().await, Some(Ok(_)));
 }
 
 #[rstest]
@@ -149,7 +143,7 @@ async fn multiple_proposals_generation_fail(
     block_builder_factory
         .expect_create_block_builder()
         .once()
-        .returning(|| simulate_build_block(None));
+        .returning(|| simulate_build_block(None, Ok(BlockExecutionArtifacts::default())));
 
     mempool_client.expect_get_txs().returning(|_| Ok(vec![]));
 
@@ -197,49 +191,71 @@ fn test_txs(tx_hash_range: Range<usize>) -> Vec<Transaction> {
         .collect()
 }
 
-fn simulate_build_block(n_txs: Option<usize>) -> Arc<dyn BlockBuilderTrait> {
+fn simulate_build_block(
+    n_txs: Option<usize>,
+    returning: BlockBuilderResult<BlockExecutionArtifacts>,
+) -> Box<dyn BlockBuilderTrait> {
     let mut mock_block_builder = MockBlockBuilderTraitWrapper::new();
-    mock_block_builder.expect_build_block().return_once(
+    mock_block_builder.expect_build_block_future().return_once(
         move |deadline, mempool_tx_stream, output_content_sender| {
-            simulate_block_builder(deadline, mempool_tx_stream, output_content_sender, n_txs)
-                .boxed()
+            simulate_block_builder(
+                deadline,
+                mempool_tx_stream,
+                output_content_sender,
+                n_txs,
+                returning,
+            )
+            .boxed()
         },
     );
-    Arc::new(mock_block_builder)
+    Box::new(mock_block_builder)
 }
 
 async fn simulate_block_builder(
     _deadline: tokio::time::Instant,
     mempool_tx_stream: InputTxStream,
-    output_sender: tokio::sync::mpsc::Sender<Transaction>,
+    output_sender: tokio::sync::mpsc::Sender<GetProposalContent>,
     n_txs_to_take: Option<usize>,
-) {
+    returning: BlockBuilderResult<BlockExecutionArtifacts>,
+) -> BlockBuilderResult<BlockExecutionArtifacts> {
     let mut mempool_tx_stream = mempool_tx_stream.take(n_txs_to_take.unwrap_or(usize::MAX));
+    let mut to_stream = vec![];
     while let Some(tx) = mempool_tx_stream.next().await {
-        output_sender.send(tx).await.unwrap();
+        to_stream.push(tx);
     }
+    let streaming_chunks = to_stream.chunks(STREAMING_CHUNK_SIZE);
+    for chunk in streaming_chunks {
+        let content = GetProposalContent::Txs(chunk.to_vec());
+        output_sender.send(content).await.unwrap();
+    }
+    output_sender.send(GetProposalContent::Finished(ProposalCommitment::default())).await.unwrap();
+    returning
 }
 
 // A wrapper trait to allow mocking the BlockBuilderTrait in tests.
 #[cfg_attr(test, automock)]
 trait BlockBuilderTraitWrapper: Send + Sync {
     // Equivalent to: async fn build_block(&self, deadline: tokio::time::Instant);
-    fn build_block(
+    fn build_block_future(
         &self,
         deadline: tokio::time::Instant,
         tx_stream: InputTxStream,
-        output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
-    ) -> BoxFuture<'_, ()>;
+        output_content_sender: tokio::sync::mpsc::Sender<GetProposalContent>,
+    ) -> BoxFuture<'_, BlockBuilderResult<BlockExecutionArtifacts>>;
 }
 
 #[async_trait]
 impl<T: BlockBuilderTraitWrapper> BlockBuilderTrait for T {
     async fn build_block(
-        &self,
+        &mut self,
         deadline: tokio::time::Instant,
         tx_stream: InputTxStream,
-        output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
-    ) {
-        self.build_block(deadline, tx_stream, output_content_sender).await
+        output_content_sender: tokio::sync::mpsc::Sender<GetProposalContent>,
+    ) -> BlockBuilderResult<BlockExecutionArtifacts> {
+        self.build_block_future(deadline, tx_stream, output_content_sender).await
+    }
+
+    fn abort_build(&self) -> BlockBuilderResult<()> {
+        unimplemented!()
     }
 }
