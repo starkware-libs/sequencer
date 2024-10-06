@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
-use futures::sink::SinkExt;
+use futures::{SinkExt, StreamExt};
 use papyrus_consensus::types::{
     ConsensusContext,
     ConsensusError,
@@ -27,10 +27,14 @@ use starknet_batcher_types::batcher_types::{
     BuildProposalInput,
     GetProposalContent,
     GetProposalContentInput,
+    ProposalStatus,
+    SendProposalContent,
+    SendProposalContentInput,
+    ValidateProposalInput,
 };
 use starknet_batcher_types::communication::BatcherClient;
 use starknet_consensus_manager_types::consensus_manager_types::ProposalId;
-use tracing::{debug, debug_span, warn, Instrument};
+use tracing::{debug, debug_span, error, warn, Instrument};
 
 type HeightToIdToContent = BTreeMap<BlockNumber, HashMap<ProposalContentId, Vec<Transaction>>>;
 
@@ -115,11 +119,40 @@ impl ConsensusContext for SequencerConsensusContext {
 
     async fn validate_proposal(
         &mut self,
-        _height: BlockNumber,
-        _timeout: Duration,
-        _content: mpsc::Receiver<Self::ProposalChunk>,
+        height: BlockNumber,
+        timeout: Duration,
+        content: mpsc::Receiver<Self::ProposalChunk>,
     ) -> oneshot::Receiver<ProposalContentId> {
-        todo!()
+        debug!("Validating proposal for height: {height} with timeout: {timeout:?}");
+        let (fin_sender, fin_receiver) = oneshot::channel();
+        let batcher = Arc::clone(&self.batcher);
+        let valid_proposals = Arc::clone(&self.valid_proposals);
+        let proposal_id = ProposalId(self.proposal_id);
+        self.proposal_id += 1;
+
+        let chrono_timeout =
+            chrono::Duration::from_std(timeout).expect("Can't convert timeout to chrono::Duration");
+        let input =
+            ValidateProposalInput { proposal_id, deadline: chrono::Utc::now() + chrono_timeout };
+        batcher.validate_proposal(input).await.expect("Failed to initiate proposal validation");
+        tokio::spawn(
+            async move {
+                let validate_fut = stream_validate_proposal(
+                    height,
+                    proposal_id,
+                    batcher,
+                    valid_proposals,
+                    content,
+                    fin_sender,
+                );
+                if let Err(e) = tokio::time::timeout(timeout, validate_fut).await {
+                    error!("Validation timed out. {e:?}");
+                }
+            }
+            .instrument(debug_span!("consensus_validate_proposal")),
+        );
+
+        fin_receiver
     }
 
     async fn get_proposal(
@@ -209,5 +242,66 @@ async fn stream_build_proposal(
                 return;
             }
         }
+    }
+}
+
+// Handles receiving a proposal from another node without blocking consensus:
+// 1. Receives the proposal content from the network.
+// 2. Pass this to the batcher.
+// 3. Once finished, receive the commitment from the batcher.
+// 4. Store the proposal for re-proposal.
+// 5. Send the commitment to consensus.
+async fn stream_validate_proposal(
+    height: BlockNumber,
+    proposal_id: ProposalId,
+    batcher: Arc<dyn BatcherClient>,
+    valid_proposals: Arc<Mutex<HeightToIdToContent>>,
+    mut content_receiver: mpsc::Receiver<Vec<Transaction>>,
+    fin_sender: oneshot::Sender<ProposalContentId>,
+) {
+    let mut content = Vec::new();
+    while let Some(txs) = content_receiver.next().await {
+        content.extend_from_slice(&txs[..]);
+        let input =
+            SendProposalContentInput { proposal_id, content: SendProposalContent::Txs(txs) };
+        let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
+            panic!("Failed to send proposal content to batcher: {proposal_id:?}. {e:?}")
+        });
+        match response.response {
+            ProposalStatus::Processing => {}
+            ProposalStatus::Finished(fin) => {
+                panic!("Batcher returned Fin before all content was sent: {proposal_id:?} {fin:?}");
+            }
+            ProposalStatus::InvalidProposal => {
+                warn!("Proposal was invalid: {:?}", proposal_id);
+                return;
+            }
+        }
+    }
+    // TODO: In the future we will receive a Fin from the network instead of the channel closing.
+    // We will just send the network Fin out along with what the batcher calculates.
+    let input = SendProposalContentInput { proposal_id, content: SendProposalContent::Finish };
+    let response = batcher
+        .send_proposal_content(input)
+        .await
+        .unwrap_or_else(|e| panic!("Failed to send Fin to batcher: {proposal_id:?}. {e:?}"));
+    let id = match response.response {
+        ProposalStatus::Finished(id) => id,
+        ProposalStatus::Processing => {
+            panic!("Batcher failed to return Fin after all content was sent: {:?}", proposal_id);
+        }
+        ProposalStatus::InvalidProposal => {
+            warn!("Proposal was invalid: {:?}", proposal_id);
+            return;
+        }
+    };
+    let proposal_content_id = BlockHash(id.tx_commitment.0);
+    // Update valid_proposals before sending fin to avoid a race condition
+    // with `get_proposal` being called before `valid_proposals` is updated.
+    let mut valid_proposals = valid_proposals.lock().unwrap();
+    valid_proposals.entry(height).or_default().insert(proposal_content_id, content);
+    if fin_sender.send(proposal_content_id).is_err() {
+        // Consensus may exit early (e.g. sync).
+        warn!("Failed to send proposal content id");
     }
 }
