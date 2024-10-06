@@ -24,7 +24,8 @@ use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
 use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_infra::component_definitions::{
     LocalComponentCommunicationConfig,
-    RemoteComponentCommunicationConfig,
+    RemoteClientConfig,
+    RemoteServerConfig,
 };
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use validator::{Validate, ValidationError};
@@ -60,7 +61,8 @@ pub struct ComponentExecutionConfig {
     pub execute: bool,
     pub execution_mode: ComponentExecutionMode,
     pub local_config: Option<LocalComponentCommunicationConfig>,
-    pub remote_config: Option<RemoteComponentCommunicationConfig>,
+    pub remote_client_config: Option<RemoteClientConfig>,
+    pub remote_server_config: Option<RemoteServerConfig>,
 }
 
 impl SerializeConfig for ComponentExecutionConfig {
@@ -82,7 +84,8 @@ impl SerializeConfig for ComponentExecutionConfig {
         vec![
             config,
             ser_optional_sub_config(&self.local_config, "local_config"),
-            ser_optional_sub_config(&self.remote_config, "remote_config"),
+            ser_optional_sub_config(&self.remote_client_config, "remote_client_config"),
+            ser_optional_sub_config(&self.remote_server_config, "remote_server_config"),
         ]
         .into_iter()
         .flatten()
@@ -96,7 +99,8 @@ impl Default for ComponentExecutionConfig {
             execute: true,
             execution_mode: ComponentExecutionMode::Local,
             local_config: Some(LocalComponentCommunicationConfig::default()),
-            remote_config: None,
+            remote_client_config: None,
+            remote_server_config: None,
         }
     }
 }
@@ -108,7 +112,8 @@ impl ComponentExecutionConfig {
             execute: true,
             execution_mode: ComponentExecutionMode::Local,
             local_config: Some(LocalComponentCommunicationConfig::default()),
-            remote_config: None,
+            remote_client_config: None,
+            remote_server_config: None,
         }
     }
 
@@ -120,7 +125,8 @@ impl ComponentExecutionConfig {
             execute: true,
             execution_mode: ComponentExecutionMode::Remote,
             local_config: None,
-            remote_config: Some(RemoteComponentCommunicationConfig::default()),
+            remote_client_config: Some(RemoteClientConfig::default()),
+            remote_server_config: None,
         }
     }
 
@@ -129,7 +135,8 @@ impl ComponentExecutionConfig {
             execute: true,
             execution_mode: ComponentExecutionMode::Local,
             local_config: Some(LocalComponentCommunicationConfig::default()),
-            remote_config: None,
+            remote_client_config: None,
+            remote_server_config: None,
         }
     }
 
@@ -138,7 +145,8 @@ impl ComponentExecutionConfig {
             execute: true,
             execution_mode: ComponentExecutionMode::Local,
             local_config: Some(LocalComponentCommunicationConfig::default()),
-            remote_config: None,
+            remote_client_config: None,
+            remote_server_config: None,
         }
     }
 
@@ -147,7 +155,8 @@ impl ComponentExecutionConfig {
             execute: true,
             execution_mode: ComponentExecutionMode::Local,
             local_config: Some(LocalComponentCommunicationConfig::default()),
-            remote_config: None,
+            remote_client_config: None,
+            remote_server_config: None,
         }
     }
 }
@@ -155,20 +164,31 @@ impl ComponentExecutionConfig {
 pub fn validate_single_component_config(
     component_config: &ComponentExecutionConfig,
 ) -> Result<(), ValidationError> {
-    let error_message =
-        if component_config.local_config.is_some() && component_config.remote_config.is_some() {
-            "Local config and Remote config are mutually exclusive, can't be both active."
-        } else if component_config.execution_mode == ComponentExecutionMode::Local
-            && component_config.local_config.is_none()
-        {
-            "Local communication config is missing."
-        } else if component_config.execution_mode == ComponentExecutionMode::Remote
-            && component_config.remote_config.is_none()
-        {
-            "Remote communication config is missing."
-        } else {
-            return Ok(());
-        };
+    let error_message = if component_config.execution_mode == ComponentExecutionMode::Local
+        && component_config.local_config.is_some()
+        && (component_config.remote_server_config.is_some()
+            || component_config.remote_client_config.is_some())
+    {
+        "Local config and Remote config are mutually exclusive in Local mode execution, can't be \
+         both active."
+    } else if component_config.execution_mode == ComponentExecutionMode::Local
+        && component_config.local_config.is_none()
+    {
+        "Local communication config is missing."
+    } else if component_config.execution_mode == ComponentExecutionMode::Remote
+        && component_config.remote_server_config.is_none()
+        && component_config.remote_client_config.is_none()
+    {
+        "Remote communication config is missing."
+    } else if component_config.execution_mode == ComponentExecutionMode::Remote
+        && component_config.remote_server_config.is_some()
+        && component_config.remote_client_config.is_some()
+    {
+        "Remote client and Remote server are mutually exclusive in Remote mode execution, can't be \
+         both active."
+    } else {
+        return Ok(());
+    };
 
     let mut error = ValidationError::new("Invalid component configuration.");
     error.message = Some(error_message.into());
