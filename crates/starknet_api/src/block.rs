@@ -7,6 +7,7 @@ use std::fmt::Display;
 use derive_more::Display;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
 
 use crate::core::{
@@ -261,6 +262,12 @@ impl From<PrefixedBytesAsHex<16_usize>> for GasPrice {
 impl From<GasPrice> for PrefixedBytesAsHex<16_usize> {
     fn from(val: GasPrice) -> Self {
         BytesAsHex(val.0.to_be_bytes())
+    }
+}
+
+impl From<GasPrice> for Felt {
+    fn from(val: GasPrice) -> Self {
+        Felt::from(val.0)
     }
 }
 
