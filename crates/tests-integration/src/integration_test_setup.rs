@@ -22,9 +22,13 @@ use crate::state_reader::spawn_test_rpc_state_reader;
 pub struct IntegrationTestSetup {
     pub task_executor: TokioExecutor,
     pub http_test_client: HttpTestClient,
-    pub storage_file_handle: TempDir,
+
+    pub batcher_storage_file_handle: TempDir,
     pub batcher: MockBatcher,
+
+    pub gateway_storage_file_handle: TempDir,
     pub gateway_handle: JoinHandle<Result<(), ComponentServerError>>,
+
     pub http_server_handle: JoinHandle<Result<(), ComponentServerError>>,
     pub mempool_handle: JoinHandle<Result<(), ComponentServerError>>,
 }
@@ -38,10 +42,12 @@ impl IntegrationTestSetup {
         configure_tracing();
 
         // Spawn a papyrus rpc server for a papyrus storage reader.
-        let rpc_server_addr = spawn_test_rpc_state_reader(tx_generator.accounts()).await;
+        let (rpc_server_addr, gateway_storage_file_handle) =
+            spawn_test_rpc_state_reader(tx_generator.accounts()).await;
 
         // Derive the configuration for the mempool node.
-        let (config, storage_file_handle) = create_config(rpc_server_addr).await;
+        let (config, batcher_storage_file_handle) =
+            create_config(rpc_server_addr, &gateway_storage_file_handle).await;
 
         let (clients, servers) = create_node_modules(&config);
 
@@ -70,11 +76,12 @@ impl IntegrationTestSetup {
         Self {
             task_executor,
             http_test_client,
+            batcher_storage_file_handle,
             batcher,
+            gateway_storage_file_handle,
             gateway_handle,
             http_server_handle,
             mempool_handle,
-            storage_file_handle,
         }
     }
 
