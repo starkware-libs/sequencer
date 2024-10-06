@@ -25,12 +25,12 @@ RUN cargo install cargo-chef
 RUN apt update && apt -y install unzip
 
 
-# # Reinstalling the stable Rust toolchain to ensure a clean environment
+# Reinstalling the stable Rust toolchain to ensure a clean environment
 # RUN rustup toolchain uninstall stable-x86_64-unknown-linux-gnu && rustup toolchain install stable-x86_64-unknown-linux-gnu
 
-# # Add the x86_64-unknown-linux-musl target to rustup for compiling statically linked binaries.
-# # This enables the creation of fully self-contained binaries that do not depend on the system's dynamic libraries,
-# # resulting in more portable executables that can run on any Linux distribution.
+# Add the x86_64-unknown-linux-musl target to rustup for compiling statically linked binaries.
+# This enables the creation of fully self-contained binaries that do not depend on the system's dynamic libraries,
+# resulting in more portable executables that can run on any Linux distribution.
 # RUN rustup target add x86_64-unknown-linux-musl
 
 #####################
