@@ -36,6 +36,9 @@ macro_rules! tx {
     (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr) => {
         tx!(tip: 0, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce)
     };
+    (tx_nonce: $tx_nonce:expr, sender_address: $sender_address:expr) => {
+        tx!(tip: 0, tx_hash: 0, sender_address: $sender_address, tx_nonce: $tx_nonce)
+    };
     (tx_nonce: $tx_nonce:expr) => {
         tx!(tip: 0, tx_hash: 0, sender_address: "0x0", tx_nonce: $tx_nonce)
     };
@@ -68,6 +71,9 @@ macro_rules! add_tx_input {
     };
     (tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
         add_tx_input!(tip: 1, tx_hash: 0, sender_address: "0x0", tx_nonce: $tx_nonce, account_nonce: $account_nonce)
+    };
+    (tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr, sender_address: $sender_address:expr) => {
+        add_tx_input!(tip: 1, tx_hash: 0, sender_address: $sender_address, tx_nonce: $tx_nonce, account_nonce: $account_nonce)
     };
     (tip: $tip:expr, tx_hash: $tx_hash:expr) => {
         add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: 0, account_nonce: 0)
