@@ -19,7 +19,7 @@ jobs:
       - name: Build native blockifier
         run: ./build_native_in_docker.sh scripts/build_native_blockifier.sh
 
-        # Commit hash on pull request event would be the head commit of the branch.
+        # Commit hash on pull request event would be the head commit of the branch. ttt
       - name: Get commit hash prefix for PR update
         env:
           COMMIT_SHA: ${{ github.event.workflow_run.head_commit.id }}
