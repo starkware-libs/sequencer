@@ -30,7 +30,7 @@ use crate::transaction::test_utils::{
     create_resource_bounds,
 };
 use crate::transaction::transactions::ExecutableTransaction;
-use crate::utils::{u128_from_usize, usize_from_u128};
+use crate::utils::{u128_from_usize, u64_from_usize, usize_from_u128};
 use crate::versioned_constants::VersionedConstants;
 
 #[fixture]
@@ -82,7 +82,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
             .get_archival_data_gas_costs(&gas_vector_computation_mode)
             .gas_per_code_byte;
         let code_gas_cost = (gas_per_code_byte
-            * u128_from_usize(
+            * u64_from_usize(
                 (class_info.bytecode_length() + class_info.sierra_program_length())
                     * eth_gas_constants::WORD_WIDTH
                     + class_info.abi_length(),
@@ -124,9 +124,9 @@ fn test_calculate_tx_gas_usage_basic<'a>(
     let gas_per_data_felt = versioned_constants
         .get_archival_data_gas_costs(&gas_vector_computation_mode)
         .gas_per_data_felt;
-    let calldata_and_signature_gas_cost = (gas_per_data_felt
-        * u128_from_usize(calldata_length + signature_length))
-    .to_integer()
+    let calldata_and_signature_gas_cost = u128::from(
+        (gas_per_data_felt * u64_from_usize(calldata_length + signature_length)).to_integer(),
+    )
     .into();
     let manual_starknet_gas_usage_vector = match gas_vector_computation_mode {
         GasVectorComputationMode::NoL2Gas => {
@@ -163,9 +163,10 @@ fn test_calculate_tx_gas_usage_basic<'a>(
 
     // Manual calculation.
     let message_segment_length = get_message_segment_length(&[], Some(l1_handler_payload_size));
-    let calldata_and_signature_gas_cost = (gas_per_data_felt
-        * u128_from_usize(l1_handler_payload_size + signature_length))
-    .to_integer()
+    let calldata_and_signature_gas_cost = u128::from(
+        (gas_per_data_felt * u64_from_usize(l1_handler_payload_size + signature_length))
+            .to_integer(),
+    )
     .into();
     let calldata_and_signature_gas_cost_vector = match gas_vector_computation_mode {
         GasVectorComputationMode::NoL2Gas => {
