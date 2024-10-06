@@ -3,6 +3,22 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
+#[derive(
+    derive_more::Add,
+    derive_more::AddAssign,
+    derive_more::Sum,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    Deserialize,
+)]
+pub struct GasAmount(pub u128);
+
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 pub struct GasVector {
     pub l1_gas: u64,

@@ -5,6 +5,7 @@ use starknet_api::calldata;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::EntryPointType;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::{
     AccountDeploymentData,
@@ -359,13 +360,12 @@ impl AccountTransaction {
                 {
                     // TODO(Aner): refactor to indicate both amount and price are too low.
                     // TODO(Aner): refactor to return all amounts that are too low.
-                    let minimal_gas_amount = minimal_gas_amount.try_into()
-                    // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-                    .expect("Failed to convert u128 to u64.");
-                    if resource_bounds.max_amount < minimal_gas_amount {
+                    // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the
+                    // conversion works.
+                    if GasAmount(u128::from(resource_bounds.max_amount)) < minimal_gas_amount {
                         return Err(TransactionFeeError::MaxGasAmountTooLow {
                             resource,
-                            max_gas_amount: resource_bounds.max_amount,
+                            max_gas_amount: GasAmount(u128::from(resource_bounds.max_amount)),
                             minimal_gas_amount,
                         })?;
                     }

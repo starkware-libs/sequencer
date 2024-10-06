@@ -6,6 +6,7 @@ use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress, PatriciaKey};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
@@ -61,7 +62,6 @@ use crate::test_utils::{
     create_trivial_calldata,
     get_syscall_resources,
     get_tx_resources,
-    u64_from_usize,
     CairoVersion,
     BALANCE,
     DEFAULT_STRK_L1_GAS_PRICE,
@@ -87,6 +87,7 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{DeclareTransaction, ExecutableTransaction, ExecutionFlags};
+use crate::utils::u128_from_usize;
 
 #[rstest]
 fn test_circuit(block_context: BlockContext, max_l1_resource_bounds: ValidResourceBounds) {
@@ -119,7 +120,7 @@ fn test_circuit(block_context: BlockContext, max_l1_resource_bounds: ValidResour
     .unwrap();
 
     assert!(tx_execution_info.revert_error.is_none());
-    assert_eq!(tx_execution_info.receipt.gas, GasVector::from_l1_gas(6866));
+    assert_eq!(tx_execution_info.receipt.gas, GasVector::from_l1_gas(GasAmount(6866)));
 }
 
 #[rstest]
@@ -158,7 +159,7 @@ fn test_rc96_holes(block_context: BlockContext, max_l1_resource_bounds: ValidRes
             [&BuiltinName::range_check96],
         24
     );
-    assert_eq!(tx_execution_info.receipt.gas, GasVector::from_l1_gas(6782));
+    assert_eq!(tx_execution_info.receipt.gas, GasVector::from_l1_gas(GasAmount(6782)));
 }
 
 #[rstest]
@@ -173,7 +174,7 @@ fn test_fee_enforcement(
         deploy_account_tx_args! {
             class_hash: account.get_class_hash(),
             max_fee: Fee(u128::from(!zero_bounds)),
-            resource_bounds: l1_resource_bounds(u64::from(!zero_bounds), DEFAULT_STRK_L1_GAS_PRICE),
+            resource_bounds: l1_resource_bounds(GasAmount(u128::from(!zero_bounds)), DEFAULT_STRK_L1_GAS_PRICE),
             version,
         },
         &mut NonceManager::default(),
@@ -248,7 +249,7 @@ fn test_enforce_fee_false_works(block_context: BlockContext, #[case] version: Tr
         &block_context,
         invoke_tx_args! {
             max_fee: Fee(0),
-            resource_bounds: l1_resource_bounds(0, DEFAULT_STRK_L1_GAS_PRICE),
+            resource_bounds: l1_resource_bounds(GasAmount(0), DEFAULT_STRK_L1_GAS_PRICE),
             sender_address: account_address,
             calldata: create_trivial_calldata(contract_address),
             version,
@@ -489,7 +490,7 @@ fn test_max_fee_limit_validate(
             // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
             // works.
             resource_bounds: l1_resource_bounds(
-                estimated_min_l1_gas.try_into().expect("Failed to convert u128 to u64."),
+                estimated_min_l1_gas,
                 block_info.gas_prices.get_l1_gas_price_by_fee_type(&account_tx.fee_type()).into()
             ),
             ..tx_args
@@ -967,13 +968,12 @@ fn test_max_fee_to_max_steps_conversion(
 ) {
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         create_test_init_data(&block_context.chain_info, CairoVersion::Cairo0);
-    let actual_gas_used: u64 = u64_from_usize(
+    let actual_gas_used = GasAmount(u128_from_usize(
         get_syscall_resources(SyscallSelector::CallContract).n_steps
             + get_tx_resources(TransactionType::InvokeFunction).n_steps
             + 1751,
-    );
-    let actual_gas_used_as_u128: u128 = actual_gas_used.into();
-    let actual_fee = actual_gas_used_as_u128 * 100000000000;
+    ));
+    let actual_fee = actual_gas_used.0 * 100000000000;
     let actual_strk_gas_price =
         block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk);
     let execute_calldata = create_calldata(
@@ -1008,7 +1008,8 @@ fn test_max_fee_to_max_steps_conversion(
         sender_address: account_address,
         calldata: execute_calldata,
         version,
-        resource_bounds: l1_resource_bounds(2 * actual_gas_used, actual_strk_gas_price.into()),
+        resource_bounds:
+            l1_resource_bounds(GasAmount(2 * actual_gas_used.0), actual_strk_gas_price.into()),
         nonce: nonce_manager.next(account_address),
     });
     let tx_context2 = Arc::new(block_context.to_tx_context(&account_tx2));
@@ -1027,10 +1028,7 @@ fn test_max_fee_to_max_steps_conversion(
     assert_eq!(tx_execution_info1.receipt.fee.0, tx_execution_info2.receipt.fee.0);
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
     // TODO(Aner, 21/01/24): verify test compliant with 4844 (or modify accordingly).
-    assert_eq!(
-        actual_gas_used,
-        u64::try_from(gas_used_vector2.l1_gas).expect("Failed to convert u128 to u64.")
-    );
+    assert_eq!(actual_gas_used, gas_used_vector2.l1_gas);
     assert_eq!(actual_fee, tx_execution_info2.receipt.fee.0);
     assert_eq!(n_steps1, n_steps2);
     assert_eq!(gas_used_vector1, gas_used_vector2);
@@ -1067,7 +1065,7 @@ fn test_insufficient_max_fee_reverts(
     let gas_price = u128::from(
         block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk),
     );
-    let gas_ammount = u64::try_from(actual_fee_depth1.0 / gas_price).unwrap();
+    let gas_ammount = GasAmount(actual_fee_depth1.0 / gas_price);
 
     // Invoke the `recurse` function with depth of 2 and the actual fee of depth 1 as max_fee.
     // This call should fail due to insufficient max fee (steps bound based on max_fee is not so
