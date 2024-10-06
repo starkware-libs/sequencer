@@ -167,8 +167,18 @@ impl ConsensusContext for SequencerConsensusContext {
         fin_receiver
     }
 
-    async fn repropose(&mut self, _id: ProposalContentId, _init: ProposalInit) {
-        todo!()
+    async fn repropose(&mut self, id: ProposalContentId, init: ProposalInit) {
+        let height = init.height;
+        debug!("Getting proposal for height: {height} and id: {id}");
+        let (_transactions, _) = self
+            .valid_proposals
+            .lock()
+            .expect("Lock on active proposals was poisoned due to a previous panic")
+            .get(&height)
+            .unwrap_or_else(|| panic!("No proposals found for height {height}"))
+            .get(&id)
+            .unwrap_or_else(|| panic!("No proposal found for height {height} and id {id}"));
+        // TODO: Stream the TXs to the network.
     }
 
     async fn validators(&self, _height: BlockNumber) -> Vec<ValidatorId> {
