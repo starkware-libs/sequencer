@@ -56,6 +56,7 @@ pub struct StateMachine {
     round: Round,
     step: Step,
     quorum: u32,
+    round_skip_threshold: u32,
     // {round: (block_hash, valid_round)}
     proposals: HashMap<Round, (Option<BlockHash>, Option<Round>)>,
     // {round: {block_hash: vote_count}
@@ -76,6 +77,7 @@ impl StateMachine {
             round: 0,
             step: Step::Propose,
             quorum: (2 * total_weight / 3) + 1,
+            round_skip_threshold: total_weight / 3 + 1,
             proposals: HashMap::new(),
             prevotes: HashMap::new(),
             precommits: HashMap::new(),
@@ -237,13 +239,11 @@ impl StateMachine {
     {
         let old = self.proposals.insert(round, (block_hash, valid_round));
         assert!(old.is_none(), "SHC should handle conflicts & replays");
-        if round < self.round {
-            return self.past_round_upons(round);
+        match round.cmp(&self.round) {
+            std::cmp::Ordering::Less => self.past_round_upons(round),
+            std::cmp::Ordering::Greater => self.future_round_upons(round, leader_fn),
+            std::cmp::Ordering::Equal => self.process_proposal(block_hash, round, leader_fn),
         }
-        if round != self.round {
-            return VecDeque::new();
-        }
-        self.process_proposal(block_hash, round, leader_fn)
     }
 
     fn process_proposal<LeaderFn>(
@@ -285,13 +285,16 @@ impl StateMachine {
         let prevote_count = self.prevotes.entry(round).or_default().entry(block_hash).or_insert(0);
         // TODO(matan): Use variable weight.
         *prevote_count += 1;
-        if round < self.round {
-            return self.past_round_upons(round);
+        match round.cmp(&self.round) {
+            std::cmp::Ordering::Less => self.past_round_upons(round),
+            std::cmp::Ordering::Greater => self.future_round_upons(round, leader_fn),
+            std::cmp::Ordering::Equal => {
+                if self.step != Step::Prevote {
+                    return VecDeque::new();
+                }
+                self.check_prevote_quorum(round, leader_fn)
+            }
         }
-        if self.step != Step::Prevote || round != self.round {
-            return VecDeque::new();
-        }
-        self.check_prevote_quorum(round, leader_fn)
     }
 
     fn handle_timeout_prevote(&mut self, round: u32) -> VecDeque<StateMachineEvent> {
@@ -316,10 +319,11 @@ impl StateMachine {
             self.precommits.entry(round).or_default().entry(block_hash).or_insert(0);
         // TODO(matan): Use variable weight.
         *precommit_count += 1;
-        if round < self.round {
-            return self.past_round_upons(round);
+        match round.cmp(&self.round) {
+            std::cmp::Ordering::Less => self.past_round_upons(round),
+            std::cmp::Ordering::Greater => self.future_round_upons(round, leader_fn),
+            std::cmp::Ordering::Equal => self.check_precommit_quorum(round, leader_fn),
         }
-        self.check_precommit_quorum(round, leader_fn)
     }
 
     fn handle_timeout_precommit<LeaderFn>(
@@ -488,6 +492,36 @@ impl StateMachine {
         output.append(&mut self.upon_reproposal());
         output.append(&mut self.upon_decision(round));
         output
+    }
+
+    fn future_round_upons<LeaderFn>(
+        &mut self,
+        round: u32,
+        leader_fn: &LeaderFn,
+    ) -> VecDeque<StateMachineEvent>
+    where
+        LeaderFn: Fn(Round) -> ValidatorId,
+    {
+        let num_prevotes = self.prevotes.get(&round).map_or(0, |v| v.values().sum());
+        let num_precommits = self.precommits.get(&round).map_or(0, |v| v.values().sum());
+        if num_prevotes >= self.round_skip_threshold || num_precommits >= self.round_skip_threshold
+        {
+            self.future_round_vote(round, leader_fn)
+        } else {
+            VecDeque::new()
+        }
+    }
+
+    // LOC 55 in the paper.
+    fn future_round_vote<LeaderFn>(
+        &mut self,
+        round: u32,
+        leader_fn: &LeaderFn,
+    ) -> VecDeque<StateMachineEvent>
+    where
+        LeaderFn: Fn(Round) -> ValidatorId,
+    {
+        self.advance_to_round(round, leader_fn)
     }
 
     // LOC 28 in the paper.
