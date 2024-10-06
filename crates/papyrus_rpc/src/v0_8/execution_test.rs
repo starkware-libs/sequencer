@@ -48,7 +48,6 @@ use starknet_api::block::{
     BlockHeaderWithoutHash,
     BlockNumber,
     BlockTimestamp,
-    GasPrice,
     GasPricePerToken,
 };
 use starknet_api::core::{
@@ -151,17 +150,17 @@ use crate::version_config::VERSION_0_8 as VERSION;
 
 lazy_static! {
     pub static ref GAS_PRICE: GasPricePerToken = GasPricePerToken{
-        price_in_wei: GasPrice(100 * u128::pow(10, 9)),
-        price_in_fri: GasPrice(0),
+        price_in_wei: (100 * u128::pow(10, 9)).into(),
+        price_in_fri: 0_u8.into(),
     };
     //TODO: Tests for data_gas_price and l2_gas_price.
     pub static ref DATA_GAS_PRICE: GasPricePerToken = GasPricePerToken{
-        price_in_wei: GasPrice(1),
-        price_in_fri: GasPrice(0),
+        price_in_wei: 1_u8.into(),
+        price_in_fri: 0_u8.into(),
     };
     pub static ref L2_GAS_PRICE: GasPricePerToken = GasPricePerToken{
-        price_in_wei: GasPrice(1),
-        price_in_fri: GasPrice(0),
+        price_in_wei: 1_u8.into(),
+        price_in_fri: 0_u8.into(),
     };
     pub static ref MAX_FEE: Fee = Fee(1000000 * GAS_PRICE.price_in_wei.0);
     pub static ref BLOCK_TIMESTAMP: BlockTimestamp = BlockTimestamp(1234);
@@ -1663,8 +1662,8 @@ fn prepare_storage_for_execution(mut storage_writer: StorageWriter) -> StorageWr
     let minter_var_address = get_storage_var_address("permitted_minter", &[]);
 
     let different_gas_price = GasPricePerToken {
-        price_in_wei: GasPrice(GAS_PRICE.price_in_wei.0 + 100),
-        price_in_fri: GasPrice(0),
+        price_in_wei: (GAS_PRICE.price_in_wei.0 + 100).into(),
+        price_in_fri: 0_u8.into(),
     };
 
     storage_writer

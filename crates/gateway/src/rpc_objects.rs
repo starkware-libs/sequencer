@@ -1,9 +1,7 @@
-use std::num::NonZeroU128;
-
 use blockifier::blockifier::block::{BlockInfo, GasPrices};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, GasPrice};
+use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, GasPrice, NonzeroGasPrice};
 use starknet_api::core::{ClassHash, ContractAddress, GlobalRoot};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::state::StorageKey;
@@ -99,8 +97,9 @@ impl TryInto<BlockInfo> for BlockHeader {
     }
 }
 
-fn parse_gas_price(gas_price: GasPrice) -> Result<NonZeroU128, RPCStateReaderError> {
-    NonZeroU128::new(gas_price.0).ok_or(RPCStateReaderError::GasPriceParsingFailure(gas_price))
+fn parse_gas_price(gas_price: GasPrice) -> Result<NonzeroGasPrice, RPCStateReaderError> {
+    NonzeroGasPrice::new(gas_price)
+        .map_err(|_| RPCStateReaderError::GasPriceParsingFailure(gas_price))
 }
 
 #[derive(Serialize, Deserialize, Debug)]

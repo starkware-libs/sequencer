@@ -181,10 +181,10 @@ fn get_pre_validate_test_args(
     only_query: bool,
 ) -> (BlockContext, CachedState<DictStateReader>, InvokeTxArgs, NonceManager) {
     let block_context = BlockContext::create_for_account_testing();
-    let max_fee = Fee(MAX_FEE);
+    let max_fee = MAX_FEE;
     // The max resource bounds fixture is not used here because this function already has the
     // maximum number of arguments.
-    let resource_bounds = l1_resource_bounds(MAX_L1_GAS_AMOUNT.into(), MAX_L1_GAS_PRICE);
+    let resource_bounds = l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE.into());
     let FlavorTestInitialState {
         state, account_address, test_contract_address, nonce_manager, ..
     } = create_flavors_test_state(&block_context.chain_info, cairo_version);
@@ -258,7 +258,7 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
     // First scenario: minimal fee not covered. Actual fee is precomputed.
     let err = account_invoke_tx(invoke_tx_args! {
         max_fee: Fee(10),
-        resource_bounds: l1_resource_bounds(GasAmount(10), 10),
+        resource_bounds: l1_resource_bounds(10_u8.into(), 10_u8.into()),
         nonce: nonce_manager.next(account_address),
         ..pre_validation_base_args.clone()
     })
@@ -288,11 +288,13 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
 
     // Second scenario: resource bounds greater than balance.
     let gas_price = block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
-    let balance_over_gas_price: u64 =
-        (BALANCE / gas_price).try_into().expect("Failed to convert u128 to u64.");
+    let balance_over_gas_price = BALANCE / gas_price;
     let result = account_invoke_tx(invoke_tx_args! {
-        max_fee: Fee(BALANCE + 1),
-        resource_bounds: l1_resource_bounds(u128::from(balance_over_gas_price + 10).into(), gas_price.into()),
+        max_fee: Fee(BALANCE.0 + 1),
+        resource_bounds: l1_resource_bounds(
+            (balance_over_gas_price.0 + 10).into(),
+            gas_price.into()
+        ),
         nonce: nonce_manager.next(account_address),
         ..pre_validation_base_args.clone()
     })
@@ -323,7 +325,7 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
     // Third scenario: L1 gas price bound lower than the price on the block.
     if !is_deprecated {
         let err = account_invoke_tx(invoke_tx_args! {
-            resource_bounds: l1_resource_bounds(MAX_L1_GAS_AMOUNT.into(), u128::from(gas_price) - 1),
+            resource_bounds: l1_resource_bounds(MAX_L1_GAS_AMOUNT, (gas_price.get().0 - 1).into()),
             nonce: nonce_manager.next(account_address),
             ..pre_validation_base_args
         })
@@ -400,22 +402,21 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
     }
 
     // First scenario: minimal fee not covered. Actual fee is precomputed.
-    execute_and_check_gas_and_fee!(Fee(10), l1_resource_bounds(GasAmount(10), 10));
+    execute_and_check_gas_and_fee!(Fee(10), l1_resource_bounds(10_u8.into(), 10_u8.into()));
 
     // Second scenario: resource bounds greater than balance.
     let gas_price = block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
-    let balance_over_gas_price: u64 =
-        (BALANCE / gas_price).try_into().expect("Failed to convert u128 to u64.");
+    let balance_over_gas_price = BALANCE / gas_price;
     execute_and_check_gas_and_fee!(
-        Fee(BALANCE + 1),
-        l1_resource_bounds(u128::from(balance_over_gas_price + 10).into(), gas_price.into())
+        Fee(BALANCE.0 + 1),
+        l1_resource_bounds((balance_over_gas_price.0 + 10).into(), gas_price.into())
     );
 
     // Third scenario: L1 gas price bound lower than the price on the block.
     if !is_deprecated {
         execute_and_check_gas_and_fee!(
             pre_validation_base_args.max_fee,
-            l1_resource_bounds(MAX_L1_GAS_AMOUNT.into(), u128::from(gas_price) - 1)
+            l1_resource_bounds(MAX_L1_GAS_AMOUNT, (gas_price.get().0 - 1).into())
         );
     }
 }
@@ -430,7 +431,7 @@ fn execute_fail_validation(
     max_resource_bounds: ValidResourceBounds,
 ) -> TransactionExecutionResult<TransactionExecutionInfo> {
     let block_context = BlockContext::create_for_account_testing();
-    let max_fee = Fee(MAX_FEE);
+    let max_fee = MAX_FEE;
 
     // Create a state with a contract that can fail validation on demand.
     let FlavorTestInitialState {
@@ -563,7 +564,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     // 2. Execution fails due to out-of-resources error, due to max sender bounds, mid-run.
     // 3. Execution fails due to out-of-resources error, due to max block bounds, mid-run.
     let execution_base_args = invoke_tx_args! {
-        max_fee: Fee(MAX_FEE),
+        max_fee: MAX_FEE,
         resource_bounds: max_l1_resource_bounds,
         sender_address: account_address,
         version,

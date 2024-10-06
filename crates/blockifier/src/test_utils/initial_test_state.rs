@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use starknet_api::core::ContractAddress;
 use starknet_api::felt;
+use starknet_api::transaction::Fee;
 use strum::IntoEnumIterator;
 
 use crate::abi::abi_utils::get_fee_token_var_address;
@@ -16,14 +17,16 @@ use crate::transaction::objects::FeeType;
 pub fn fund_account(
     chain_info: &ChainInfo,
     account_address: ContractAddress,
-    initial_balance: u128,
+    initial_balance: Fee,
     state_reader: &mut DictStateReader,
 ) {
     let storage_view = &mut state_reader.storage_view;
     let balance_key = get_fee_token_var_address(account_address);
     for fee_type in FeeType::iter() {
-        storage_view
-            .insert((chain_info.fee_token_address(&fee_type), balance_key), felt!(initial_balance));
+        storage_view.insert(
+            (chain_info.fee_token_address(&fee_type), balance_key),
+            felt!(initial_balance.0),
+        );
     }
 }
 
@@ -37,7 +40,7 @@ pub fn fund_account(
 /// * Makes each input account contract privileged.
 pub fn test_state_inner(
     chain_info: &ChainInfo,
-    initial_balances: u128,
+    initial_balances: Fee,
     contract_instances: &[(FeatureContract, u16)],
     erc20_contract_version: CairoVersion,
 ) -> CachedState<DictStateReader> {
@@ -85,7 +88,7 @@ pub fn test_state_inner(
 
 pub fn test_state(
     chain_info: &ChainInfo,
-    initial_balances: u128,
+    initial_balances: Fee,
     contract_instances: &[(FeatureContract, u16)],
 ) -> CachedState<DictStateReader> {
     test_state_inner(chain_info, initial_balances, contract_instances, CairoVersion::Cairo0)
