@@ -2,7 +2,8 @@ use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use std::vec;
 
-use futures::StreamExt;
+use futures::channel::mpsc;
+use futures::{SinkExt, StreamExt};
 use lazy_static::lazy_static;
 use papyrus_consensus::types::ConsensusContext;
 use starknet_api::block::BlockNumber;
@@ -16,7 +17,13 @@ use starknet_batcher_types::batcher_types::{
     GetProposalContent,
     GetProposalContentResponse,
     ProposalCommitment,
+    ProposalId,
+    ProposalStatus,
+    SendProposalContent,
+    SendProposalContentInput,
+    SendProposalContentResponse,
     StartHeightInput,
+    ValidateProposalInput,
 };
 use starknet_batcher_types::communication::MockBatcherClient;
 use starknet_types_core::felt::Felt;
@@ -24,6 +31,7 @@ use starknet_types_core::felt::Felt;
 use crate::sequencer_consensus_context::SequencerConsensusContext;
 
 const TIMEOUT: Duration = Duration::from_millis(100);
+const CHANNEL_SIZE: usize = 5000;
 const NUM_VALIDATORS: u64 = 4;
 const STATE_DIFF_COMMITMENT: StateDiffCommitment = StateDiffCommitment(PoseidonHash(Felt::ZERO));
 
@@ -70,5 +78,49 @@ async fn build_proposal() {
         context.build_proposal(BlockNumber(0), TIMEOUT).await;
     assert_eq!(content_receiver.next().await, Some(TX_BATCH.clone()));
     assert!(content_receiver.next().await.is_none());
+    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+}
+
+#[tokio::test]
+async fn validate_proposal_success() {
+    let mut batcher = MockBatcherClient::new();
+    let proposal_id: Arc<OnceLock<ProposalId>> = Arc::new(OnceLock::new());
+    let proposal_id_clone = Arc::clone(&proposal_id);
+    batcher.expect_validate_proposal().returning(move |input: ValidateProposalInput| {
+        proposal_id_clone.set(input.proposal_id).unwrap();
+        Ok(())
+    });
+    batcher.expect_start_height().return_once(|input: StartHeightInput| {
+        assert_eq!(input.height, BlockNumber(0));
+        Ok(())
+    });
+    let proposal_id_clone = Arc::clone(&proposal_id);
+    batcher.expect_send_proposal_content().times(1).returning(
+        move |input: SendProposalContentInput| {
+            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
+            let SendProposalContent::Txs(txs) = input.content else {
+                panic!("Expected SendProposalContent::Txs, got {:?}", input.content);
+            };
+            assert_eq!(txs, TX_BATCH.clone());
+            Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
+        },
+    );
+    let proposal_id_clone = Arc::clone(&proposal_id);
+    batcher.expect_send_proposal_content().times(1).returning(
+        move |input: SendProposalContentInput| {
+            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
+            assert!(matches!(input.content, SendProposalContent::Finish));
+            Ok(SendProposalContentResponse {
+                response: ProposalStatus::Finished(ProposalCommitment {
+                    state_diff_commitment: STATE_DIFF_COMMITMENT,
+                }),
+            })
+        },
+    );
+    let mut context = SequencerConsensusContext::new(Arc::new(batcher), NUM_VALIDATORS);
+    let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    content_sender.send(TX_BATCH.clone()).await.unwrap();
+    let fin_receiver = context.validate_proposal(BlockNumber(0), TIMEOUT, content_receiver).await;
+    content_sender.close_channel();
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 }
