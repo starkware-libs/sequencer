@@ -33,45 +33,6 @@ RUN apt update && apt -y install unzip
 # # resulting in more portable executables that can run on any Linux distribution.
 # RUN rustup target add x86_64-unknown-linux-musl
 
-# Install dependencies
-RUN apt update -y && apt install -y lsb-release \
-    wget \
-    curl \
-    git \
-    build-essential \
-    libclang-dev \
-    libz-dev \
-    libzstd-dev \
-    libssl-dev \
-    pkg-config \
-    gnupg \
-    unzip
-
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-
-RUN cargo install cargo-chef
-
-ENV PROTOC_VERSION=25.1
-RUN curl -L "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip" -o protoc.zip && unzip ./protoc.zip -d $HOME/.local &&  rm ./protoc.zip
-ENV PROTOC=/root/.local/bin/protoc
-
-# Install LLVM 18
-RUN echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" > /etc/apt/sources.list.d/llvm-18.list
-RUN echo "deb-src http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" >> /etc/apt/sources.list.d/llvm-18.list
-RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
-
-RUN apt update -y && apt install -y --ignore-missing --allow-downgrades \
-    libmlir-18-dev \
-    libpolly-18-dev \
-    llvm-18-dev \
-    mlir-18-tools \
-    clang-18
-
-ENV MLIR_SYS_180_PREFIX=/usr/lib/llvm-18/
-ENV LLVM_SYS_181_PREFIX=/usr/lib/llvm-18/
-ENV TABLEGEN_180_PREFIX=/usr/lib/llvm-18/
-
 #####################
 # Stage 1 (planer): #
 #####################
