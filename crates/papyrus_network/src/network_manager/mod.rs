@@ -876,9 +876,9 @@ pub trait BroadcastTopicClientTrait<T> {
 
 #[derive(Clone)]
 pub struct BroadcastTopicClient<T: TryFrom<Bytes>> {
-    messages_to_broadcast_sender: BroadcastTopicSender<T, Bytes>,
-    reported_messages_sender: BroadcastTopicSender<BroadcastedMessageManager, PeerId>,
-    continue_propagation_sender: Sender<BroadcastedMessageManager>,
+    pub messages_to_broadcast_sender: BroadcastTopicSender<T, Bytes>,
+    pub reported_messages_sender: BroadcastTopicSender<BroadcastedMessageManager, PeerId>,
+    pub continue_propagation_sender: Sender<BroadcastedMessageManager>,
 }
 
 #[async_trait]

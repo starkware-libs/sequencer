@@ -24,7 +24,7 @@ async fn main() -> anyhow::Result<()> {
         exit(1);
     }
 
-    let (_, servers) = create_node_modules(&config);
+    let (_clients, servers) = create_node_modules(&config);
 
     info!("Starting components!");
     run_component_servers(&config, servers).await?;

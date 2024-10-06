@@ -69,7 +69,7 @@ async fn proposer() {
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
-    context.expect_build_proposal().times(1).returning(move |_| {
+    context.expect_build_proposal().times(1).returning(move |_, _| {
         let (_, content_receiver) = mpsc::channel(1);
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
@@ -162,7 +162,7 @@ async fn validator(repeat_proposal: bool) {
     fin_sender.send(BLOCK.id).unwrap();
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_validate_proposal().times(1).returning(move |_, _| {
+    context.expect_validate_proposal().times(1).returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
         block_receiver
@@ -256,7 +256,7 @@ async fn vote_twice(same_vote: bool) {
     fin_sender.send(BLOCK.id).unwrap();
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
-    context.expect_validate_proposal().times(1).returning(move |_, _| {
+    context.expect_validate_proposal().times(1).returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
         block_receiver
@@ -327,7 +327,7 @@ async fn rebroadcast_votes() {
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
-    context.expect_build_proposal().times(1).returning(move |_| {
+    context.expect_build_proposal().times(1).returning(move |_, _| {
         let (_, content_receiver) = mpsc::channel(1);
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
@@ -389,7 +389,7 @@ async fn repropose() {
     );
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_build_proposal().times(1).returning(move |_| {
+    context.expect_build_proposal().times(1).returning(move |_, _| {
         let (_, content_receiver) = mpsc::channel(1);
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
