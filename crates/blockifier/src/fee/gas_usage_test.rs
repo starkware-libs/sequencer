@@ -3,7 +3,7 @@ use std::sync::Arc;
 use num_rational::Ratio;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::execution_resources::GasAmount;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::invoke_tx_args;
 use starknet_api::transaction::{EventContent, EventData, EventKey, GasVectorComputationMode};
 use starknet_types_core::felt::Felt;
@@ -16,7 +16,6 @@ use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::gas_usage::{get_da_gas_cost, get_message_segment_length};
 use crate::fee::resources::{
     ComputationResources,
-    GasVector,
     StarknetResources,
     StateResources,
     TransactionResources,

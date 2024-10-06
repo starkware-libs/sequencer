@@ -1,6 +1,13 @@
 use log::warn;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, GasPrice, NonzeroGasPrice};
+use starknet_api::block::{
+    BlockHash,
+    BlockNumber,
+    BlockTimestamp,
+    GasPrice,
+    GasPriceVector,
+    NonzeroGasPrice,
+};
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -28,15 +35,8 @@ pub struct BlockInfo {
 
 #[derive(Clone, Debug)]
 pub struct GasPrices {
-    eth_gas_prices: GasPricesForFeeType,  // In wei.
-    strk_gas_prices: GasPricesForFeeType, // In fri.
-}
-
-#[derive(Clone, Debug)]
-pub struct GasPricesForFeeType {
-    pub l1_gas_price: NonzeroGasPrice,
-    pub l1_data_gas_price: NonzeroGasPrice,
-    pub l2_gas_price: NonzeroGasPrice,
+    eth_gas_prices: GasPriceVector,  // In wei.
+    strk_gas_prices: GasPriceVector, // In fri.
 }
 
 impl GasPrices {
@@ -69,12 +69,12 @@ impl GasPrices {
         }
 
         Self {
-            eth_gas_prices: GasPricesForFeeType {
+            eth_gas_prices: GasPriceVector {
                 l1_gas_price: eth_l1_gas_price,
                 l1_data_gas_price: eth_l1_data_gas_price,
                 l2_gas_price: eth_l2_gas_price,
             },
-            strk_gas_prices: GasPricesForFeeType {
+            strk_gas_prices: GasPriceVector {
                 l1_gas_price: strk_l1_gas_price,
                 l1_data_gas_price: strk_l1_data_gas_price,
                 l2_gas_price: strk_l2_gas_price,
@@ -94,7 +94,7 @@ impl GasPrices {
         self.get_gas_prices_by_fee_type(fee_type).l2_gas_price
     }
 
-    pub fn get_gas_prices_by_fee_type(&self, fee_type: &FeeType) -> &GasPricesForFeeType {
+    pub fn get_gas_prices_by_fee_type(&self, fee_type: &FeeType) -> &GasPriceVector {
         match fee_type {
             FeeType::Strk => &self.strk_gas_prices,
             FeeType::Eth => &self.eth_gas_prices,
