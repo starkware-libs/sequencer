@@ -127,9 +127,20 @@ pub fn calculate_block_commitments(
     transactions_data: &[TransactionHashingData],
     state_diff: &ThinStateDiff,
     l1_da_mode: L1DataAvailabilityMode,
+    starknet_version: &StarknetVersion,
 ) -> BlockHeaderCommitments {
-    let transaction_leaf_elements: Vec<TransactionLeafElement> =
-        transactions_data.iter().map(TransactionLeafElement::from).collect();
+    let transaction_leaf_elements: Vec<TransactionLeafElement> = transactions_data
+        .iter()
+        .map(|tx_leaf| {
+            let mut tx_leaf_element = TransactionLeafElement::from(tx_leaf);
+            if starknet_version < &BlockHashVersion::VO_13_3.into()
+                && tx_leaf.transaction_signature.0.is_empty()
+            {
+                tx_leaf_element.transaction_signature.0.push(Felt::ZERO);
+            }
+            tx_leaf_element
+        })
+        .collect();
     let transaction_commitment =
         calculate_transaction_commitment::<Poseidon>(&transaction_leaf_elements);
 

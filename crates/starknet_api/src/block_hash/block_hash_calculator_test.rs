@@ -97,8 +97,12 @@ fn test_block_hash_regression(
     }];
 
     let state_diff = get_state_diff();
-    let block_commitments =
-        calculate_block_commitments(&transactions_data, &state_diff, block_header.l1_da_mode);
+    let block_commitments = calculate_block_commitments(
+        &transactions_data,
+        &state_diff,
+        block_header.l1_da_mode,
+        &block_hash_version.to_owned().into(),
+    );
 
     let expected_hash = match block_hash_version {
         BlockHashVersion::VO_13_2 => {
