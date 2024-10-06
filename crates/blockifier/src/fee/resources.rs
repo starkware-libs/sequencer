@@ -19,7 +19,7 @@ use crate::fee::gas_usage::{
 use crate::state::cached_state::{StateChanges, StateChangesCount};
 use crate::transaction::errors::TransactionFeeError;
 use crate::transaction::objects::HasRelatedFeeType;
-use crate::utils::{u128_from_usize, u64_from_usize};
+use crate::utils::u64_from_usize;
 use crate::versioned_constants::{
     resource_cost_to_u128_ratio,
     ArchivalDataGasCosts,
@@ -219,12 +219,24 @@ impl ArchivalDataResources {
     /// Returns the cost of the transaction's emmited events in L1/L2 gas units, depending on the
     /// mode.
     fn get_events_gas_cost(&self, archival_gas_costs: &ArchivalDataGasCosts) -> GasAmount {
-        (resource_cost_to_u128_ratio(archival_gas_costs.gas_per_data_felt)
-            * (resource_cost_to_u128_ratio(archival_gas_costs.event_key_factor)
-                * self.event_summary.total_event_keys
-                + self.event_summary.total_event_data_size))
-            .to_integer()
-            .into()
+        u64::try_from(
+            (resource_cost_to_u128_ratio(archival_gas_costs.gas_per_data_felt)
+                * (resource_cost_to_u128_ratio(archival_gas_costs.event_key_factor)
+                    * self.event_summary.total_event_keys
+                    + self.event_summary.total_event_data_size))
+                .to_integer(),
+        )
+        .unwrap_or_else(|_| {
+            panic!(
+                "Events gas cost overflowed: {} event keys (factor: {}), data length {} (at {} \
+                 gas per felt).",
+                self.event_summary.total_event_keys,
+                archival_gas_costs.event_key_factor,
+                self.event_summary.total_event_data_size,
+                archival_gas_costs.gas_per_data_felt
+            )
+        })
+        .into()
     }
 }
 
@@ -251,7 +263,7 @@ impl MessageResources {
     pub fn to_gas_vector(&self) -> GasVector {
         let starknet_gas_usage = self.get_starknet_gas_cost();
         let sharp_gas_usage = GasVector::from_l1_gas(
-            u128_from_usize(
+            u64_from_usize(
                 self.message_segment_length * eth_gas_constants::SHARP_GAS_PER_MEMORY_WORD,
             )
             .into(),
@@ -268,7 +280,7 @@ impl MessageResources {
 
         GasVector::from_l1_gas(
             // Starknet's updateState gets the message segment as an argument.
-            u128_from_usize(
+            u64_from_usize(
                 self.message_segment_length * eth_gas_constants::GAS_PER_MEMORY_WORD
                 // Starknet's updateState increases a (storage) counter for each L2-to-L1 message.
                 + n_l2_to_l1_messages * eth_gas_constants::GAS_PER_ZERO_TO_NONZERO_STORAGE_SET
@@ -362,6 +374,18 @@ impl GasVector {
         let fee_type = tx_context.tx_info.fee_type();
         let gas_price = gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
         let data_gas_price = gas_prices.get_l1_data_gas_price_by_fee_type(&fee_type);
-        self.l1_gas + (self.l1_data_gas.nonzero_saturating_mul(data_gas_price)).div_ceil(gas_price)
+        self.l1_gas
+            + (self.l1_data_gas.nonzero_saturating_mul(data_gas_price))
+                .checked_div_ceil(gas_price)
+                .unwrap_or_else(|| {
+                    log::warn!(
+                        "Discounted L1 gas cost overflowed: division of L1 data gas cost ({:?} * \
+                         {:?}) by regular L1 gas price ({:?}) resulted in overflow.",
+                        self.l1_data_gas,
+                        data_gas_price,
+                        gas_price
+                    );
+                    GasAmount::MAX
+                })
     }
 }

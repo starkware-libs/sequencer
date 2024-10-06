@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 use std::fmt::Display;
-use std::ops::Div;
 use std::sync::Arc;
 
 use derive_more::{Display, From};
@@ -9,7 +8,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
-use crate::block::{BlockHash, BlockNumber, GasPrice, NonzeroGasPrice};
+use crate::block::{BlockHash, BlockNumber, NonzeroGasPrice};
 use crate::core::{
     ChainId,
     ClassHash,
@@ -743,24 +742,30 @@ pub struct RevertedTransactionExecutionStatus {
 pub struct Fee(pub u128);
 
 impl Fee {
-    pub fn div_ceil(self, rhs: NonzeroGasPrice) -> GasAmount {
-        let mut result: GasAmount = self / rhs;
-        if result.0 * rhs.get().0 < self.0 {
-            result = (result.0 + 1).into();
-        }
-        result
-    }
-
     pub fn checked_add(self, rhs: Fee) -> Option<Fee> {
         self.0.checked_add(rhs.0).map(Fee)
     }
-}
 
-impl Div<NonzeroGasPrice> for Fee {
-    type Output = GasAmount;
+    pub fn checked_div_ceil(self, rhs: NonzeroGasPrice) -> Option<GasAmount> {
+        match self.checked_div(rhs) {
+            Some(value) => Some(if value.nonzero_saturating_mul(rhs) < self {
+                (value.0 + 1).into()
+            } else {
+                value
+            }),
+            None => None,
+        }
+    }
 
-    fn div(self, rhs: NonzeroGasPrice) -> Self::Output {
-        (self.0 / GasPrice::from(rhs).0).into()
+    pub fn checked_div(self, rhs: NonzeroGasPrice) -> Option<GasAmount> {
+        match u64::try_from(self.0 / rhs.get().0) {
+            Ok(value) => Some(value.into()),
+            Err(_) => None,
+        }
+    }
+
+    pub fn saturating_div(self, rhs: NonzeroGasPrice) -> GasAmount {
+        self.checked_div(rhs).unwrap_or(GasAmount::MAX)
     }
 }
 

@@ -266,11 +266,12 @@ impl From<GasPrice> for PrefixedBytesAsHex<16_usize> {
 
 impl GasPrice {
     pub const fn saturating_mul(self, rhs: GasAmount) -> Fee {
-        Fee(self.0.saturating_mul(rhs.0))
+        #[allow(clippy::as_conversions)]
+        Fee(self.0.saturating_mul(rhs.0 as u128))
     }
 
     pub fn checked_mul(self, rhs: GasAmount) -> Option<Fee> {
-        self.0.checked_mul(rhs.0).map(Fee)
+        self.0.checked_mul(u128::from(rhs.0)).map(Fee)
     }
 }
 

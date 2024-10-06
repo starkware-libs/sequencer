@@ -278,10 +278,10 @@ impl EntryPointExecutionContext {
         // New transactions derive the step limit by the L1 gas resource bounds; deprecated
         // transactions derive this value from the `max_fee`.
         let tx_gas_upper_bound = match tx_info {
-            TransactionInfo::Deprecated(context) => {
-                context.max_fee
-                    / block_info.gas_prices.get_l1_gas_price_by_fee_type(&tx_info.fee_type())
-            }
+            // Fee is a larger uint type than GasAmount, so we need to saturate the division.
+            TransactionInfo::Deprecated(context) => context.max_fee.saturating_div(
+                block_info.gas_prices.get_l1_gas_price_by_fee_type(&tx_info.fee_type()),
+            ),
             TransactionInfo::Current(context) => context.l1_resource_bounds().max_amount.into(),
         };
 
@@ -291,12 +291,7 @@ impl EntryPointExecutionContext {
         let upper_bound_u64 = if gas_per_step.is_zero() {
             u64::MAX
         } else {
-            // TODO: This panic will disappear once GasAmount is a u64.
-            (gas_per_step.inv()
-                * u64::try_from(tx_gas_upper_bound.0).unwrap_or_else(|_| {
-                    panic!("Gas amounts cannot be more than 64 bits; got {tx_gas_upper_bound:?}.")
-                }))
-            .to_integer()
+            (gas_per_step.inv() * tx_gas_upper_bound.0).to_integer()
         };
         let tx_upper_bound = usize_from_u64(upper_bound_u64).unwrap_or_else(|_| {
             log::warn!(

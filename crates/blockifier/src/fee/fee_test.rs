@@ -28,7 +28,7 @@ use crate::test_utils::{
 };
 use crate::transaction::objects::FeeType;
 use crate::transaction::test_utils::{account_invoke_tx, all_resource_bounds, l1_resource_bounds};
-use crate::utils::{u128_from_usize, u64_from_usize};
+use crate::utils::u64_from_usize;
 use crate::versioned_constants::VersionedConstants;
 
 #[rstest]
@@ -66,7 +66,7 @@ fn test_simple_get_vm_resource_usage(
     let n_reverted_steps = 0;
     vm_resource_usage.n_steps =
         vm_resource_usage.builtin_instance_counter.get(&BuiltinName::range_check).unwrap() - 1;
-    let vm_usage_in_l1_gas = u128_from_usize(
+    let vm_usage_in_l1_gas = u64_from_usize(
         *vm_resource_usage.builtin_instance_counter.get(&BuiltinName::range_check).unwrap(),
     )
     .into();
@@ -155,9 +155,9 @@ fn test_float_get_vm_resource_usage(
 fn test_discounted_gas_overdraft(
     #[case] gas_price: u128,
     #[case] data_gas_price: u128,
-    #[case] l1_gas_used: u128,
-    #[case] l1_data_gas_used: u128,
-    #[case] gas_bound: u128,
+    #[case] l1_gas_used: u64,
+    #[case] l1_data_gas_used: u64,
+    #[case] gas_bound: u64,
     #[case] expect_failure: bool,
 ) {
     let (l1_gas_used, l1_data_gas_used, gas_bound) =
@@ -207,7 +207,9 @@ fn test_discounted_gas_overdraft(
     if expect_failure {
         let error = report.error().unwrap();
         let expected_actual_amount = l1_gas_used
-            + (l1_data_gas_used.nonzero_checked_mul(data_gas_price).unwrap()) / gas_price;
+            + (l1_data_gas_used.nonzero_checked_mul(data_gas_price).unwrap())
+                .checked_div(gas_price)
+                .unwrap();
         assert_matches!(
             error, FeeCheckError::MaxGasAmountExceeded { resource, max_amount, actual_amount }
             if max_amount == gas_bound
@@ -292,13 +294,10 @@ fn test_post_execution_gas_overdraft_all_resource_bounds(
 #[case::happy_flow_l1_gas_only(10, 0, 0, 10, 2*10)]
 #[case::happy_flow_no_l2_gas(10, 20, 0, 10 + 3*20, 2*10 + 4*20)]
 #[case::happy_flow_all(10, 20, 30, 10 + 3*20 + 5*30, 2*10 + 4*20 + 6*30)]
-#[case::saturating_l1_gas(u128::MAX, 1, 1, u128::MAX, u128::MAX)]
-#[case::saturating_l1_data_gas(1, u128::MAX, 1, u128::MAX, u128::MAX)]
-#[case::saturating_l2_gas(1, 1, u128::MAX, u128::MAX, u128::MAX)]
 fn test_get_fee_by_gas_vector_regression(
-    #[case] l1_gas: u128,
-    #[case] l1_data_gas: u128,
-    #[case] l2_gas: u128,
+    #[case] l1_gas: u64,
+    #[case] l1_data_gas: u64,
+    #[case] l2_gas: u64,
     #[case] expected_fee_eth: u128,
     #[case] expected_fee_strk: u128,
 ) {
@@ -321,4 +320,29 @@ fn test_get_fee_by_gas_vector_regression(
         get_fee_by_gas_vector(&block_info, gas_vector, &FeeType::Strk),
         Fee(expected_fee_strk)
     );
+}
+
+#[rstest]
+#[case::l1_saturates(u64::MAX, 0, 0)]
+#[case::l1_data_saturates(0, u64::MAX, 0)]
+#[case::l2_gas_saturates(0, 0, u64::MAX)]
+// TODO: Add L2 saturation case once `get_fee_by_gas_vector` implements L2 collection.
+fn test_get_fee_by_gas_vector_saturation(
+    #[case] l1_gas: u64,
+    #[case] l1_data_gas: u64,
+    #[case] l2_gas: u64,
+) {
+    let huge_gas_price = NonzeroGasPrice::try_from(2_u128 * u128::from(u64::MAX)).unwrap();
+    let mut block_info = BlockContext::create_for_account_testing().block_info;
+    block_info.gas_prices = GasPrices::new(
+        huge_gas_price,
+        huge_gas_price,
+        huge_gas_price,
+        huge_gas_price,
+        huge_gas_price,
+        huge_gas_price,
+    );
+    let gas_vector =
+        GasVector { l1_gas: l1_gas.into(), l1_data_gas: l1_data_gas.into(), l2_gas: l2_gas.into() };
+    assert_eq!(get_fee_by_gas_vector(&block_info, gas_vector, &FeeType::Eth), Fee(u128::MAX));
 }
