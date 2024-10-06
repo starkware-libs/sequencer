@@ -90,12 +90,9 @@
     "value": 18446744073709551615
   },
   "components.batcher.remote_config.idle_timeout": {
-    "description": "The duration to keep an idle connection open before closing.",
+    "description": "The duration in seconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": {
-      "nanos": 0,
-      "secs": 90
-    }
+    "value": 90
   },
   "components.batcher.remote_config.retries": {
     "description": "The max number of retries for sending a message.",
@@ -138,12 +135,9 @@
     "value": 18446744073709551615
   },
   "components.consensus_manager.remote_config.idle_timeout": {
-    "description": "The duration to keep an idle connection open before closing.",
+    "description": "The duration in seconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": {
-      "nanos": 0,
-      "secs": 90
-    }
+    "value": 90
   },
   "components.consensus_manager.remote_config.retries": {
     "description": "The max number of retries for sending a message.",
@@ -186,12 +180,9 @@
     "value": 18446744073709551615
   },
   "components.gateway.remote_config.idle_timeout": {
-    "description": "The duration to keep an idle connection open before closing.",
+    "description": "The duration in seconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": {
-      "nanos": 0,
-      "secs": 90
-    }
+    "value": 90
   },
   "components.gateway.remote_config.retries": {
     "description": "The max number of retries for sending a message.",
@@ -234,12 +225,9 @@
     "value": 18446744073709551615
   },
   "components.http_server.remote_config.idle_timeout": {
-    "description": "The duration to keep an idle connection open before closing.",
+    "description": "The duration in seconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": {
-      "nanos": 0,
-      "secs": 90
-    }
+    "value": 90
   },
   "components.http_server.remote_config.retries": {
     "description": "The max number of retries for sending a message.",
@@ -282,12 +270,9 @@
     "value": 18446744073709551615
   },
   "components.mempool.remote_config.idle_timeout": {
-    "description": "The duration to keep an idle connection open before closing.",
+    "description": "The duration in seconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": {
-      "nanos": 0,
-      "secs": 90
-    }
+    "value": 90
   },
   "components.mempool.remote_config.retries": {
     "description": "The max number of retries for sending a message.",
