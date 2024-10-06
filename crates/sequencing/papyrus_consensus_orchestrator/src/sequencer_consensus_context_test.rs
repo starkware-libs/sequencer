@@ -23,6 +23,7 @@ use crate::sequencer_consensus_context::SequencerConsensusContext;
 
 const TIMEOUT: Duration = Duration::from_millis(100);
 const TX_COMMITMENT: TransactionCommitment = TransactionCommitment(Felt::ZERO);
+const NUM_VALIDATORS: u64 = 4;
 
 lazy_static! {
     static ref TX_BATCH: Vec<Transaction> = vec![generate_invoke_tx(Felt::THREE)];
@@ -59,7 +60,7 @@ async fn build_proposal() {
             }),
         })
     });
-    let mut context = SequencerConsensusContext::new(Arc::new(batcher));
+    let mut context = SequencerConsensusContext::new(Arc::new(batcher), NUM_VALIDATORS);
     let (mut content_receiver, fin_receiver) =
         context.build_proposal(BlockNumber(0), TIMEOUT).await;
     assert_eq!(content_receiver.next().await, Some(TX_BATCH.clone()));
