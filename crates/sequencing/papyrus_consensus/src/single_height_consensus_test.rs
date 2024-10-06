@@ -450,6 +450,7 @@ async fn repropose() {
         .withf(move |msg: &ConsensusMessage| msg == &prevote(Some(BLOCK.id.0), 0, 1, *PROPOSER_ID))
         .returning(move |_| Ok(()));
     shc.handle_message(&mut context, precommits[2].clone()).await.unwrap();
+    shc.handle_event(&mut context, StateMachineEvent::TimeoutPrecommit(0)).await.unwrap();
 
     let precommits = vec![
         precommit(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_1),
