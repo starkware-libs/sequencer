@@ -86,7 +86,14 @@ impl Mempool {
 
         let AddTransactionArgs { tx, account_state } = args;
         self.tx_pool.insert(tx)?;
-        self.align_to_account_state(account_state);
+
+        // Align to account nonce, only if it is at least the one stored.
+        match self.account_nonces.get(&account_state.address) {
+            Some(stored_account_nonce) if &account_state.nonce < stored_account_nonce => {}
+            _ => {
+                self.align_to_account_state(account_state);
+            }
+        }
 
         Ok(())
     }
@@ -181,15 +188,8 @@ impl Mempool {
         self.tx_pool.remove_up_to_nonce(address, nonce);
 
         if self.tx_pool.contains_account(address) {
-            match self.account_nonces.get(&address) {
-                // Skip updating the account nonce if it is greater than the received nonce.
-                Some(current_account_nonce) if current_account_nonce > &nonce => {}
-                _ => {
-                    self.account_nonces.insert(address, nonce);
-                }
-            }
+            self.account_nonces.insert(address, nonce);
         } else {
-            // Remove address if no transactions from it left.
             self.account_nonces.remove(&address);
         }
 
