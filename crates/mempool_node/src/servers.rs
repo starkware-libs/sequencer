@@ -168,15 +168,9 @@ pub fn get_server_future(
     execute_flag: bool,
     server: Option<Box<impl ComponentServerStarter + Send + 'static>>,
 ) -> Pin<Box<dyn Future<Output = Result<(), ComponentServerError>> + Send>> {
-    let server_future = match execute_flag {
-        true => {
-            let mut server = match server {
-                Some(server) => server,
-                _ => panic!("{} component is not initialized.", name),
-            };
-            async move { server.start().await }.boxed()
-        }
-        false => pending().boxed(),
-    };
-    server_future
+    if !execute_flag {
+        return pending().boxed();
+    }
+    let mut server = server.unwrap_or_else(|| panic!("{} component is not initialized.", name));
+    async move { server.start().await }.boxed()
 }
