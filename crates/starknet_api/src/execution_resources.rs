@@ -21,23 +21,29 @@ use crate::transaction::Fee;
     Serialize,
     Deserialize,
 )]
-pub struct GasAmount(pub u128);
+pub struct GasAmount(pub u64);
 
 macro_rules! impl_from_uint_for_gas_amount {
     ($($uint:ty),*) => {
         $(
             impl From<$uint> for GasAmount {
                 fn from(value: $uint) -> Self {
-                    Self(u128::from(value))
+                    Self(u64::from(value))
                 }
             }
         )*
     };
 }
 
-impl_from_uint_for_gas_amount!(u8, u16, u32, u64, u128);
+impl_from_uint_for_gas_amount!(u8, u16, u32, u64);
 
 impl GasAmount {
+    pub const MAX: Self = Self(u64::MAX);
+
+    pub fn saturating_add(self, rhs: Self) -> Self {
+        self.0.saturating_add(rhs.0).into()
+    }
+
     pub const fn saturating_mul(self, rhs: GasPrice) -> Fee {
         rhs.saturating_mul(self)
     }

@@ -113,10 +113,10 @@ pub const DEFAULT_ETH_L1_DATA_GAS_PRICE: NonzeroGasPrice =
     NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 6))); // Given in units of Wei.
 pub const DEFAULT_STRK_L1_DATA_GAS_PRICE: NonzeroGasPrice =
     NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9))); // Given in units of STRK.
-pub const DEFAULT_L1_DATA_GAS_MAX_AMOUNT: GasAmount = GasAmount(u128::pow(10, 6));
+pub const DEFAULT_L1_DATA_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
 pub const DEFAULT_STRK_L2_GAS_PRICE: NonzeroGasPrice =
     NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9)));
-pub const DEFAULT_L2_GAS_MAX_AMOUNT: GasAmount = GasAmount(u128::pow(10, 6));
+pub const DEFAULT_L2_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
 
 // The block number of the BlockContext being used for testing.
 pub const CURRENT_BLOCK_NUMBER: u64 = 2001;
