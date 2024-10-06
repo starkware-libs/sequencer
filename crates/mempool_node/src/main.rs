@@ -13,16 +13,22 @@ use tracing::{error, info};
 async fn main() -> anyhow::Result<()> {
     configure_tracing();
 
+
     let config = SequencerNodeConfig::load_and_process(args().collect());
     if let Err(ConfigError::CommandInput(clap_err)) = config {
         clap_err.exit();
     }
+
+    info!("Loaded configuration: {:?}", config);
 
     let config = config?;
     if let Err(error) = config_validate(&config) {
         error!("{}", error);
         exit(1);
     }
+    
+    info!("Validated configuration: {:?}", config);
+
 
     // Clients are currently unused, but should not be dropped.
     let (_clients, servers) = create_node_modules(&config);

@@ -51,6 +51,7 @@ use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use tempfile::TempDir;
 use tokio::sync::RwLock;
+use tracing::info;
 
 use crate::integration_test_utils::get_available_socket;
 
@@ -173,6 +174,7 @@ fn write_state_to_papyrus_storage(
         cairo0_contract_classes.iter().map(|(hash, contract)| (*hash, contract)).collect();
 
     let ((storage_reader, mut storage_writer), storage_path) = get_test_storage();
+    info!("Initializing rpc storage: {:?}", storage_path.path());
     let mut write_txn = storage_writer.begin_rw_txn().unwrap();
 
     for (class_hash, casm) in cairo1_contract_classes {
