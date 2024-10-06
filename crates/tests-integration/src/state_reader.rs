@@ -25,8 +25,7 @@ use papyrus_storage::class::ClassStorageWriter;
 use papyrus_storage::compiled_class::CasmStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
-use papyrus_storage::test_utils::get_test_storage;
-use papyrus_storage::StorageReader;
+use papyrus_storage::{StorageReader, StorageWriter};
 use starknet_api::block::{
     BlockBody,
     BlockHeader,
@@ -49,7 +48,6 @@ use starknet_api::{contract_address, felt, patricia_key};
 use starknet_client::reader::PendingData;
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
-use tempfile::TempDir;
 use tokio::sync::RwLock;
 
 use crate::integration_test_utils::get_available_socket;
@@ -57,14 +55,8 @@ use crate::integration_test_utils::get_available_socket;
 type ContractClassesMap =
     (Vec<(ClassHash, DeprecatedContractClass)>, Vec<(ClassHash, CasmContractClass)>);
 
-/// StateReader for integration tests.
-///
-/// Creates a papyrus storage reader and spawns a papyrus rpc server for it.
-/// Returns the address of the rpc server.
 /// A variable number of identical accounts and test contracts are initialized and funded.
-pub async fn spawn_test_rpc_state_reader(
-    test_defined_accounts: Vec<Contract>,
-) -> (SocketAddr, TempDir) {
+pub fn create_test_state(storage_writer: &mut StorageWriter, test_defined_accounts: Vec<Contract>) {
     let block_context = BlockContext::create_for_testing();
 
     let into_contract = |contract: FeatureContract| Contract {
@@ -82,21 +74,22 @@ pub async fn spawn_test_rpc_state_reader(
     let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo0);
     let erc20_contract = into_contract(erc20_contract);
 
-    let (storage_reader, storage_path) = initialize_papyrus_test_state(
+    initialize_papyrus_test_state(
+        storage_writer,
         block_context.chain_info(),
         test_defined_accounts,
         default_test_contracts,
         erc20_contract,
     );
-    (run_papyrus_rpc_server(storage_reader).await, storage_path)
 }
 
 fn initialize_papyrus_test_state(
+    storage_writer: &mut StorageWriter,
     chain_info: &ChainInfo,
     test_defined_accounts: Vec<Contract>,
     default_test_contracts: Vec<Contract>,
     erc20_contract: Contract,
-) -> (StorageReader, TempDir) {
+) {
     let state_diff = prepare_state_diff(
         chain_info,
         &test_defined_accounts,
@@ -109,7 +102,12 @@ fn initialize_papyrus_test_state(
     let (cairo0_contract_classes, cairo1_contract_classes) =
         prepare_compiled_contract_classes(contract_classes_to_retrieve);
 
-    write_state_to_papyrus_storage(state_diff, &cairo0_contract_classes, &cairo1_contract_classes)
+    write_state_to_papyrus_storage(
+        storage_writer,
+        state_diff,
+        &cairo0_contract_classes,
+        &cairo1_contract_classes,
+    )
 }
 
 fn prepare_state_diff(
@@ -163,16 +161,16 @@ fn prepare_compiled_contract_classes(
 }
 
 fn write_state_to_papyrus_storage(
+    storage_writer: &mut StorageWriter,
     state_diff: ThinStateDiff,
     cairo0_contract_classes: &[(ClassHash, DeprecatedContractClass)],
     cairo1_contract_classes: &[(ClassHash, CasmContractClass)],
-) -> (StorageReader, TempDir) {
+) {
     let block_number = BlockNumber(0);
     let block_header = test_block_header(block_number);
     let cairo0_contract_classes: Vec<_> =
         cairo0_contract_classes.iter().map(|(hash, contract)| (*hash, contract)).collect();
 
-    let ((storage_reader, mut storage_writer), storage_path) = get_test_storage();
     let mut write_txn = storage_writer.begin_rw_txn().unwrap();
 
     for (class_hash, casm) in cairo1_contract_classes {
@@ -189,8 +187,6 @@ fn write_state_to_papyrus_storage(
         .unwrap()
         .commit()
         .unwrap();
-
-    (storage_reader, storage_path)
 }
 
 fn test_block_header(block_number: BlockNumber) -> BlockHeader {
@@ -217,7 +213,9 @@ fn test_block_header(block_number: BlockNumber) -> BlockHeader {
     }
 }
 
-async fn run_papyrus_rpc_server(storage_reader: StorageReader) -> SocketAddr {
+/// Spawns a papyrus rpc server for given state reader.
+/// Returns the address of the rpc server.
+pub async fn spawn_test_rpc_state_reader(storage_reader: StorageReader) -> SocketAddr {
     let rpc_config = RpcConfig {
         server_address: get_available_socket().await.to_string(),
         ..Default::default()

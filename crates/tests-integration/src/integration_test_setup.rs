@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use papyrus_storage::test_utils::{get_test_storage, get_test_storage_with_config_by_scope};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -10,23 +11,24 @@ use starknet_mempool_infra::errors::ComponentServerError;
 use starknet_mempool_infra::trace_util::configure_tracing;
 use starknet_mempool_node::servers::get_server_future;
 use starknet_mempool_node::utils::create_node_modules;
+use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_task_executor::tokio_executor::TokioExecutor;
 use tempfile::TempDir;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
 use crate::integration_test_utils::{create_config, HttpTestClient};
-use crate::mock_batcher::MockBatcher;
-use crate::state_reader::spawn_test_rpc_state_reader;
+use crate::state_reader::{create_test_state, spawn_test_rpc_state_reader};
 
 pub struct IntegrationTestSetup {
     pub task_executor: TokioExecutor,
     pub http_test_client: HttpTestClient,
 
     pub batcher_storage_file_handle: TempDir,
-    pub batcher: MockBatcher,
+    // TODO(Arni): Replace with a batcher server handle and a batcher client.
+    pub mempool_client: SharedMempoolClient,
 
-    pub gateway_storage_file_handle: TempDir,
+    pub rpc_storage_file_handle: TempDir,
     pub gateway_handle: JoinHandle<Result<(), ComponentServerError>>,
 
     pub http_server_handle: JoinHandle<Result<(), ComponentServerError>>,
@@ -41,13 +43,29 @@ impl IntegrationTestSetup {
         // Configure and start tracing.
         configure_tracing();
 
+        let accounts = tx_generator.accounts();
+
+        let ((rpc_storage_reader, mut rpc_storage_writer), rpc_storage_file_handle) =
+            get_test_storage();
+        create_test_state(&mut rpc_storage_writer, accounts.clone());
+
         // Spawn a papyrus rpc server for a papyrus storage reader.
-        let (rpc_server_addr, gateway_storage_file_handle) =
-            spawn_test_rpc_state_reader(tx_generator.accounts()).await;
+        let rpc_server_addr = spawn_test_rpc_state_reader(rpc_storage_reader).await;
+
+        // Create a storage with the initial state for the batcher and drop the storage handles (the
+        // batchers opens the storage independently).
+        let (batcher_storage_config, batcher_storage_file_handle) = {
+            let (
+                (_, mut batcher_storage_writer),
+                batcher_storage_config,
+                batcher_storage_file_handle,
+            ) = get_test_storage_with_config_by_scope(papyrus_storage::StorageScope::StateOnly);
+            create_test_state(&mut batcher_storage_writer, accounts.clone());
+            (batcher_storage_config, batcher_storage_file_handle)
+        };
 
         // Derive the configuration for the mempool node.
-        let (config, batcher_storage_file_handle) =
-            create_config(rpc_server_addr, &gateway_storage_file_handle).await;
+        let config = create_config(rpc_server_addr, batcher_storage_config).await;
 
         let (clients, servers) = create_node_modules(&config);
 
@@ -66,9 +84,6 @@ impl IntegrationTestSetup {
         // to avoid the sleep and to protect against CI flakiness.
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
-        // Build Batcher.
-        let batcher = MockBatcher::new(clients.get_mempool_client().unwrap());
-
         // Build and run mempool.
         let mempool_future = get_server_future("Mempool", true, servers.local_servers.mempool);
         let mempool_handle = task_executor.spawn_with_handle(mempool_future);
@@ -77,8 +92,8 @@ impl IntegrationTestSetup {
             task_executor,
             http_test_client,
             batcher_storage_file_handle,
-            batcher,
-            gateway_storage_file_handle,
+            mempool_client: clients.get_mempool_client().unwrap().clone(),
+            rpc_storage_file_handle,
             gateway_handle,
             http_server_handle,
             mempool_handle,
@@ -94,6 +109,6 @@ impl IntegrationTestSetup {
     }
 
     pub async fn get_txs(&self, n_txs: usize) -> Vec<Transaction> {
-        self.batcher.get_txs(n_txs).await
+        self.mempool_client.get_txs(n_txs).await.unwrap()
     }
 }
