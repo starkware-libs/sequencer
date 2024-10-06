@@ -344,6 +344,13 @@ macro_rules! impl_try_from_uint_for_nonzero_gas_price {
 
 impl_try_from_uint_for_nonzero_gas_price!(u8, u16, u32, u64, u128);
 
+#[derive(Clone, Debug)]
+pub struct GasPricesForFeeType {
+    pub l1_gas_price: NonzeroGasPrice,
+    pub l1_data_gas_price: NonzeroGasPrice,
+    pub l2_gas_price: NonzeroGasPrice,
+}
+
 /// The timestamp of a [Block](`crate::block::Block`).
 #[derive(
     Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
