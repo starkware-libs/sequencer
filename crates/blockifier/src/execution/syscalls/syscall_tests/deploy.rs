@@ -1,6 +1,6 @@
 use pretty_assertions::assert_eq;
 use starknet_api::core::calculate_contract_address;
-use starknet_api::transaction::{Calldata, ContractAddressSalt};
+use starknet_api::transaction::{Calldata, ContractAddressSalt, Fee};
 use starknet_api::{calldata, felt};
 use test_case::test_case;
 
@@ -23,7 +23,7 @@ fn no_constructor(deployer_contract: FeatureContract, expected_gas: u64) {
 
     let mut state = test_state(
         &ChainInfo::create_for_testing(),
-        0,
+        Fee(0),
         &[(deployer_contract, 1), (empty_contract, 0)],
     );
 
@@ -69,7 +69,7 @@ fn no_constructor_nonempty_calldata(deployer_contract: FeatureContract) {
 
     let mut state = test_state(
         &ChainInfo::create_for_testing(),
-        0,
+        Fee(0),
         &[(deployer_contract, 1), (empty_contract, 0)],
     );
 
@@ -97,7 +97,7 @@ fn with_constructor(
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);
     let mut state = test_state(
         &ChainInfo::create_for_testing(),
-        0,
+        Fee(0),
         &[(deployer_contract, 1), (empty_contract, 0)],
     );
 
@@ -155,7 +155,7 @@ fn to_unavailable_address(deployer_contract: FeatureContract) {
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);
     let mut state = test_state(
         &ChainInfo::create_for_testing(),
-        0,
+        Fee(0),
         &[(deployer_contract, 1), (empty_contract, 0)],
     );
 

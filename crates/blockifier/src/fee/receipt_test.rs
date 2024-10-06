@@ -1,5 +1,4 @@
 use rstest::{fixture, rstest};
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{GasVectorComputationMode, L2ToL1Payload};
 use starknet_api::{invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
@@ -82,15 +81,14 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         let gas_per_code_byte = versioned_constants
             .get_archival_data_gas_costs(&gas_vector_computation_mode)
             .gas_per_code_byte;
-        let code_gas_cost = GasAmount(
-            (gas_per_code_byte
-                * u128_from_usize(
-                    (class_info.bytecode_length() + class_info.sierra_program_length())
-                        * eth_gas_constants::WORD_WIDTH
-                        + class_info.abi_length(),
-                ))
-            .to_integer(),
-        );
+        let code_gas_cost = (gas_per_code_byte
+            * u128_from_usize(
+                (class_info.bytecode_length() + class_info.sierra_program_length())
+                    * eth_gas_constants::WORD_WIDTH
+                    + class_info.abi_length(),
+            ))
+        .to_integer()
+        .into();
         let manual_gas_vector = match gas_vector_computation_mode {
             GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(code_gas_cost),
             GasVectorComputationMode::All => GasVector::from_l2_gas(code_gas_cost),

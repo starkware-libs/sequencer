@@ -9,7 +9,6 @@ use starknet_api::block::{
     BlockHeaderWithoutHash,
     BlockNumber,
     BlockSignature,
-    GasPrice,
     GasPricePerToken,
     StarknetVersion,
 };
@@ -148,59 +147,49 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
         };
 
         let l1_gas_price = GasPricePerToken {
-            price_in_fri: GasPrice(
-                value
-                    .gas_price_fri
-                    .ok_or(ProtobufConversionError::MissingField {
-                        field_description: "SignedBlockHeader::gas_price_fri",
-                    })?
-                    .into(),
-            ),
-            price_in_wei: GasPrice(
-                value
-                    .gas_price_wei
-                    .ok_or(ProtobufConversionError::MissingField {
-                        field_description: "SignedBlockHeader::gas_price_wei",
-                    })?
-                    .into(),
-            ),
+            price_in_fri: u128::from(value.gas_price_fri.ok_or(
+                ProtobufConversionError::MissingField {
+                    field_description: "SignedBlockHeader::gas_price_fri",
+                },
+            )?)
+            .into(),
+
+            price_in_wei: u128::from(value.gas_price_wei.ok_or(
+                ProtobufConversionError::MissingField {
+                    field_description: "SignedBlockHeader::gas_price_wei",
+                },
+            )?)
+            .into(),
         };
 
         let l1_data_gas_price = GasPricePerToken {
-            price_in_fri: GasPrice(
-                value
-                    .data_gas_price_fri
-                    .ok_or(ProtobufConversionError::MissingField {
-                        field_description: "SignedBlockHeader::data_gas_price_fri",
-                    })?
-                    .into(),
-            ),
-            price_in_wei: GasPrice(
-                value
-                    .data_gas_price_wei
-                    .ok_or(ProtobufConversionError::MissingField {
-                        field_description: "SignedBlockHeader::data_gas_price_wei",
-                    })?
-                    .into(),
-            ),
+            price_in_fri: u128::from(value.data_gas_price_fri.ok_or(
+                ProtobufConversionError::MissingField {
+                    field_description: "SignedBlockHeader::data_gas_price_fri",
+                },
+            )?)
+            .into(),
+            price_in_wei: u128::from(value.data_gas_price_wei.ok_or(
+                ProtobufConversionError::MissingField {
+                    field_description: "SignedBlockHeader::data_gas_price_wei",
+                },
+            )?)
+            .into(),
         };
         let l2_gas_price = GasPricePerToken {
-            price_in_fri: GasPrice(
-                value
-                    .l2_gas_price_fri
-                    .ok_or(ProtobufConversionError::MissingField {
-                        field_description: "SignedBlockHeader::l2_gas_price_fri",
-                    })?
-                    .into(),
-            ),
-            price_in_wei: GasPrice(
-                value
-                    .l2_gas_price_wei
-                    .ok_or(ProtobufConversionError::MissingField {
-                        field_description: "SignedBlockHeader::l2_gas_price_wei",
-                    })?
-                    .into(),
-            ),
+            price_in_fri: u128::from(value.l2_gas_price_fri.ok_or(
+                ProtobufConversionError::MissingField {
+                    field_description: "SignedBlockHeader::l2_gas_price_fri",
+                },
+            )?)
+            .into(),
+
+            price_in_wei: u128::from(value.l2_gas_price_wei.ok_or(
+                ProtobufConversionError::MissingField {
+                    field_description: "SignedBlockHeader::l2_gas_price_wei",
+                },
+            )?)
+            .into(),
         };
 
         let receipt_commitment = value

@@ -351,7 +351,7 @@ fn test_worker_execute(max_l1_resource_bounds: ValidResourceBounds) {
     let execution_output = worker_executor.execution_outputs[tx_index].lock().unwrap();
     let execution_output = execution_output.as_ref().unwrap();
     let result = execution_output.result.as_ref().unwrap();
-    let account_balance = BALANCE - result.receipt.fee.0;
+    let account_balance = BALANCE.0 - result.receipt.fee.0;
     assert!(!result.is_reverted());
 
     let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
@@ -381,7 +381,7 @@ fn test_worker_execute(max_l1_resource_bounds: ValidResourceBounds) {
         ]),
         storage: HashMap::from([
             ((test_contract_address, storage_key), felt!(0_u8)),
-            ((erc_contract_address, account_balance_key_low), felt!(BALANCE)),
+            ((erc_contract_address, account_balance_key_low), felt!(BALANCE.0)),
             ((erc_contract_address, account_balance_key_high), felt!(0_u8)),
         ]),
         // When running an entry point, we load its contract class.

@@ -34,8 +34,8 @@ const CHUNK_SIZE: usize = 100;
 
 pub struct TransfersGeneratorConfig {
     pub n_accounts: u16,
-    pub balance: u128,
-    pub max_fee: u128,
+    pub balance: Fee,
+    pub max_fee: Fee,
     pub n_txs: usize,
     pub randomization_seed: u64,
     pub cairo_version: CairoVersion,
@@ -48,7 +48,7 @@ impl Default for TransfersGeneratorConfig {
     fn default() -> Self {
         Self {
             n_accounts: N_ACCOUNTS,
-            balance: BALANCE * 1000,
+            balance: Fee(BALANCE.0 * 1000),
             max_fee: MAX_FEE,
             n_txs: N_TXS,
             randomization_seed: RANDOMIZATION_SEED,
@@ -190,7 +190,7 @@ impl TransfersGenerator {
         ];
 
         let tx = invoke_tx(invoke_tx_args! {
-            max_fee: Fee(self.config.max_fee),
+            max_fee: self.config.max_fee,
             sender_address,
             calldata: execute_calldata,
             version: self.config.tx_version,
