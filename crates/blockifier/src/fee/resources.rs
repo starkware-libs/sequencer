@@ -5,7 +5,6 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{Fee, GasVectorComputationMode, Resource};
 
 use crate::blockifier::block::GasPricesForFeeType;
-use crate::context::TransactionContext;
 use crate::execution::call_info::{EventSummary, ExecutionSummary};
 use crate::fee::eth_gas_constants;
 use crate::fee::fee_utils::get_vm_resources_cost;
@@ -18,7 +17,6 @@ use crate::fee::gas_usage::{
 };
 use crate::state::cached_state::{StateChanges, StateChangesCount};
 use crate::transaction::errors::TransactionFeeError;
-use crate::transaction::objects::HasRelatedFeeType;
 use crate::utils::u64_from_usize;
 use crate::versioned_constants::{
     resource_cost_to_u128_ratio,
@@ -369,19 +367,15 @@ impl GasVector {
     /// summand, we get total_gas = (X + Y * DGP / GP).
     /// If this function is called with kzg_flag==false, then l1_data_gas==0, and this dicount
     /// function does nothing.
-    pub fn to_discounted_l1_gas(&self, tx_context: &TransactionContext) -> GasAmount {
-        let gas_prices = &tx_context.block_context.block_info.gas_prices;
-        let fee_type = tx_context.tx_info.fee_type();
-        let l1_gas_price = gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
-        let l1_data_gas_price = gas_prices.get_l1_data_gas_price_by_fee_type(&fee_type);
-        let l1_data_gas_fee = self.l1_data_gas.nonzero_saturating_mul(l1_data_gas_price);
+    pub fn to_discounted_l1_gas(&self, gas_prices: &GasPricesForFeeType) -> GasAmount {
+        let l1_data_gas_fee = self.l1_data_gas.nonzero_saturating_mul(gas_prices.l1_data_gas_price);
         let l1_data_gas_in_l1_gas_units =
-            l1_data_gas_fee.checked_div_ceil(l1_gas_price).unwrap_or_else(|| {
+            l1_data_gas_fee.checked_div_ceil(gas_prices.l1_gas_price).unwrap_or_else(|| {
                 log::warn!(
-                    "Discounted L1 gas cost overflowed: division of L1 data fee {:?} by regular \
-                     L1 gas price ({:?}) resulted in overflow.",
+                    "Discounted L1 gas cost overflowed: division of L1 data fee {} by regular L1 \
+                     gas price ({}) resulted in overflow.",
                     l1_data_gas_fee,
-                    l1_gas_price
+                    gas_prices.l1_gas_price
                 );
                 GasAmount::MAX
             });

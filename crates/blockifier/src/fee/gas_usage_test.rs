@@ -287,7 +287,7 @@ fn test_discounted_gas_from_gas_vector_computation() {
         BlockContext::create_for_testing().to_tx_context(&account_invoke_tx(invoke_tx_args! {}));
     let gas_usage =
         GasVector { l1_gas: 100_u8.into(), l1_data_gas: 2_u8.into(), ..Default::default() };
-    let actual_result = gas_usage.to_discounted_l1_gas(&tx_context);
+    let actual_result = gas_usage.to_discounted_l1_gas(tx_context.get_gas_prices());
 
     let result_div_ceil = gas_usage.l1_gas
         + (gas_usage.l1_data_gas.nonzero_checked_mul(DEFAULT_ETH_L1_DATA_GAS_PRICE).unwrap())
