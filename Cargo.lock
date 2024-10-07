@@ -10425,9 +10425,20 @@ dependencies = [
  "async-trait",
  "futures",
  "papyrus_network",
+<<<<<<< HEAD
  "papyrus_protobuf",
  "starknet_mempool_infra",
  "starknet_mempool_p2p_types",
+=======
+ "papyrus_network_types",
+ "papyrus_proc_macros",
+ "papyrus_protobuf",
+ "serde",
+ "starknet_api",
+ "starknet_mempool_infra",
+ "starknet_mempool_p2p_types",
+ "thiserror",
+>>>>>>> 0cace6651 (feat(mempool_p2p): create init for receiver and sender)
  "tokio",
 ]
 
