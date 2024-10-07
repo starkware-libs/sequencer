@@ -412,33 +412,30 @@ fn test_add_tx_with_duplicate_tx(mut mempool: Mempool) {
 #[rstest]
 fn test_add_tx_lower_than_queued_nonce() {
     // Setup.
-    let valid_input =
-        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 1, account_nonce: 1);
-    let lower_nonce_input =
-        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 0, account_nonce: 0);
-
-    let AddTransactionArgs { tx: valid_input_tx, .. } = valid_input;
-    let queue_txs = [TransactionReference::new(&valid_input_tx)];
-    let pool_txs = [valid_input_tx];
+    let tx = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 1);
+    let queue_txs = [TransactionReference::new(&tx)];
+    let pool_txs = [tx];
     let account_nonces = [("0x0", 1)];
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_pool(pool_txs.clone())
-        .with_priority_queue(queue_txs)
-        .with_account_nonces(account_nonces)
-        .build();
-
     let mut mempool = MempoolContentBuilder::new()
-        .with_pool(pool_txs)
+        .with_pool(pool_txs.clone())
         .with_priority_queue(queue_txs)
         .with_account_nonces(account_nonces)
         .build_into_mempool();
 
-    // Test and assert the original transaction remains.
+    // Test and assert: original transaction remains.
+    let lower_nonce_input =
+        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 0, account_nonce: 0);
     add_tx_expect_error(
         &mut mempool,
         &lower_nonce_input,
         MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(0) },
     );
+
+    let expected_mempool_content = MempoolContentBuilder::new()
+        .with_pool(pool_txs)
+        .with_priority_queue(queue_txs)
+        .with_account_nonces(account_nonces)
+        .build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
