@@ -30,8 +30,9 @@ fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
     let input_address_1_nonce_0 =
         add_tx_input!(tx_hash: 3, sender_address: "0x1", tx_nonce: 0, account_nonce: 0);
 
-    add_tx(&mut mempool, &input_address_0_nonce_1);
-    add_tx(&mut mempool, &input_address_1_nonce_0);
+    for input in [&input_address_0_nonce_1, &input_address_1_nonce_0] {
+        add_tx(&mut mempool, input);
+    }
 
     // Test and assert: only the eligible transaction is returned.
     get_txs_and_assert_expected(&mut mempool, 2, &[input_address_1_nonce_0.tx]);
