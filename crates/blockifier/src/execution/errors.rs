@@ -91,7 +91,7 @@ pub enum EntryPointExecutionError {
     #[error("Native unexpected error: {source}")]
     NativeUnexpectedError {
         #[source]
-        source: NativeRunnerError,
+        source: NativeError,
     },
     #[error(transparent)]
     NativeUnexpectedError(#[from] NativeError),
