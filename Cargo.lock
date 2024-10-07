@@ -10424,6 +10424,7 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "papyrus_network",
+ "papyrus_protobuf",
  "starknet_mempool_infra",
  "starknet_mempool_p2p_types",
 ]
