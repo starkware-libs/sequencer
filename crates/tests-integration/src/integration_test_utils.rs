@@ -41,6 +41,7 @@ pub async fn create_config(
     batcher_storage_config: StorageConfig,
 ) -> SequencerNodeConfig {
     let batcher_config = create_batcher_config(batcher_storage_config);
+
     let gateway_config = create_gateway_config().await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
@@ -91,7 +92,9 @@ impl HttpTestClient {
     }
 }
 
-fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderConfig {
+// TODO(Tsabary): move all public functions to be at the start of this module.
+
+pub fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderConfig {
     const RPC_SPEC_VERION: &str = "V0_8";
     const JSON_RPC_VERSION: &str = "2.0";
     RpcStateReaderConfig {
