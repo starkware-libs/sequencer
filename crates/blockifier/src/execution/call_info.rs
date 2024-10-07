@@ -9,6 +9,7 @@ use starknet_api::state::StorageKey;
 use starknet_api::transaction::{EventContent, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::state::cached_state::StorageEntry;
 use crate::utils::u128_from_usize;
@@ -30,13 +31,6 @@ macro_rules! retdata {
 pub struct OrderedEvent {
     pub order: usize,
     pub event: EventContent,
-}
-
-#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Default, Eq, PartialEq, Clone)]
-pub struct MessageL1CostInfo {
-    pub l2_to_l1_payload_lengths: Vec<usize>,
-    pub message_segment_length: usize,
 }
 
 #[cfg_attr(test, derive(Clone))]
@@ -109,6 +103,7 @@ pub struct CallInfo {
     pub execution: CallExecution,
     pub resources: ExecutionResources,
     pub inner_calls: Vec<CallInfo>,
+    pub tracked_resource: TrackedResource,
 
     // Additional information gathered during execution.
     pub storage_read_values: Vec<Felt>,

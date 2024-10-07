@@ -184,7 +184,7 @@ fn test_bouncer_try_update(
 ) {
     use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 
-    use crate::transaction::objects::TransactionResources;
+    use crate::fee::resources::{ComputationResources, TransactionResources};
 
     let state = &mut test_state(&BlockContext::create_for_account_testing().chain_info, 0, &[]);
     let mut transactional_state = TransactionalState::create_transactional(state);
@@ -245,8 +245,11 @@ fn test_bouncer_try_update(
         (BuiltinName::range_check, 1),
     ]);
     let tx_resources = TransactionResources {
-        vm_resources: ExecutionResources {
-            builtin_instance_counter: builtin_counter,
+        computation: ComputationResources {
+            vm_resources: ExecutionResources {
+                builtin_instance_counter: builtin_counter,
+                ..Default::default()
+            },
             ..Default::default()
         },
         ..Default::default()

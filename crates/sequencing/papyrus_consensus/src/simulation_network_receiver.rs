@@ -9,7 +9,8 @@ use std::task::Poll;
 
 use futures::{Stream, StreamExt};
 use lru::LruCache;
-use papyrus_network::network_manager::{BroadcastedMessageManager, GenericReceiver};
+use papyrus_network::network_manager::BroadcastTopicServer;
+use papyrus_network_types::network_types::BroadcastedMessageManager;
 use papyrus_protobuf::consensus::ConsensusMessage;
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::BlockHash;
@@ -30,10 +31,7 @@ use tracing::{debug, instrument};
 ///       is as opposed to using a stateful RNG where the random number is a function of all the
 ///       previous calls to the RNG.
 pub struct NetworkReceiver {
-    pub broadcasted_messages_receiver: GenericReceiver<(
-        Result<ConsensusMessage, ProtobufConversionError>,
-        BroadcastedMessageManager,
-    )>,
+    pub broadcasted_messages_receiver: BroadcastTopicServer<ConsensusMessage>,
     // Cache is used so that repeat sends of a message can be processed differently. For example,
     // if a message is dropped resending it should result in a new decision.
     pub cache: LruCache<ConsensusMessage, u32>,
@@ -46,10 +44,7 @@ pub struct NetworkReceiver {
 
 impl NetworkReceiver {
     pub fn new(
-        broadcasted_messages_receiver: GenericReceiver<(
-            Result<ConsensusMessage, ProtobufConversionError>,
-            BroadcastedMessageManager,
-        )>,
+        broadcasted_messages_receiver: BroadcastTopicServer<ConsensusMessage>,
         cache_size: usize,
         seed: u64,
         drop_probability: f64,

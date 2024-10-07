@@ -191,7 +191,12 @@ impl DeployAccountTransaction {
         (contract_address_salt, ContractAddressSalt),
         (nonce, Nonce),
         (signature, TransactionSignature),
-        (version, TransactionVersion)
+        (version, TransactionVersion),
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData)
     );
     implement_getter_calls!((tx_hash, TransactionHash), (contract_address, ContractAddress));
 
@@ -235,7 +240,13 @@ impl InvokeTransaction {
         (nonce, Nonce),
         (signature, TransactionSignature),
         (sender_address, ContractAddress),
-        (version, TransactionVersion)
+        (version, TransactionVersion),
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData),
+        (account_deployment_data, AccountDeploymentData)
     );
     implement_getter_calls!((tx_hash, TransactionHash));
 

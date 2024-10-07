@@ -3,16 +3,17 @@ use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Fee;
 
 use crate::context::TransactionContext;
-use crate::execution::call_info::CallInfo;
-use crate::state::cached_state::StateChanges;
-use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::objects::{
+use crate::execution::call_info::ExecutionSummary;
+use crate::fee::resources::{
+    ComputationResources,
     GasVector,
-    HasRelatedFeeType,
     StarknetResources,
-    TransactionExecutionResult,
+    StateResources,
     TransactionResources,
 };
+use crate::state::cached_state::StateChanges;
+use crate::transaction::account_transaction::AccountTransaction;
+use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::transaction_types::TransactionType;
 
 #[cfg(test)]
@@ -20,7 +21,7 @@ use crate::transaction::transaction_types::TransactionType;
 pub mod test;
 
 /// Parameters required to compute actual cost of a transaction.
-struct TransactionReceiptParameters<'a, T: Iterator<Item = &'a CallInfo> + Clone> {
+struct TransactionReceiptParameters<'a> {
     tx_context: &'a TransactionContext,
     calldata_length: usize,
     signature_length: usize,
@@ -28,7 +29,7 @@ struct TransactionReceiptParameters<'a, T: Iterator<Item = &'a CallInfo> + Clone
     state_changes: &'a StateChanges,
     sender_address: Option<ContractAddress>,
     l1_handler_payload_size: Option<usize>,
-    call_infos: T,
+    execution_summary_without_fee_transfer: ExecutionSummary,
     execution_resources: &'a ExecutionResources,
     tx_type: TransactionType,
     reverted_steps: usize,
@@ -46,9 +47,7 @@ pub struct TransactionReceipt {
 }
 
 impl TransactionReceipt {
-    fn from_params<'a, T: Iterator<Item = &'a CallInfo> + Clone>(
-        tx_receipt_params: TransactionReceiptParameters<'a, T>,
-    ) -> TransactionExecutionResult<Self> {
+    fn from_params(tx_receipt_params: TransactionReceiptParameters<'_>) -> Self {
         let TransactionReceiptParameters {
             tx_context,
             calldata_length,
@@ -57,7 +56,7 @@ impl TransactionReceipt {
             state_changes,
             sender_address,
             l1_handler_payload_size,
-            call_infos,
+            execution_summary_without_fee_transfer,
             execution_resources,
             tx_type,
             reverted_steps,
@@ -67,9 +66,9 @@ impl TransactionReceipt {
             calldata_length,
             signature_length,
             code_size,
-            state_changes.count_for_fee_charge(sender_address, tx_context.fee_token_address()),
+            StateResources::new(state_changes, sender_address, tx_context.fee_token_address()),
             l1_handler_payload_size,
-            call_infos,
+            execution_summary_without_fee_transfer,
         );
 
         let cairo_resources = (execution_resources
@@ -77,20 +76,22 @@ impl TransactionReceipt {
                 tx_type,
                 &starknet_resources,
                 tx_context.block_context.block_info.use_kzg_da,
-            )?)
+            ))
             .filter_unused_builtins();
 
         let tx_resources = TransactionResources {
             starknet_resources,
-            vm_resources: cairo_resources,
-            n_reverted_steps: reverted_steps,
+            computation: ComputationResources {
+                vm_resources: cairo_resources,
+                n_reverted_steps: reverted_steps,
+            },
         };
 
         let gas = tx_resources.to_gas_vector(
             &tx_context.block_context.versioned_constants,
             tx_context.block_context.block_info.use_kzg_da,
             &tx_context.get_gas_vector_computation_mode(),
-        )?;
+        );
 
         // L1 handler transactions are not charged an L2 fee but it is compared to the L1 fee.
         let fee = if tx_context.tx_info.enforce_fee() || tx_type == TransactionType::L1Handler {
@@ -100,19 +101,20 @@ impl TransactionReceipt {
         };
         let da_gas = tx_resources
             .starknet_resources
-            .get_state_changes_cost(tx_context.block_context.block_info.use_kzg_da);
+            .state
+            .to_gas_vector(tx_context.block_context.block_info.use_kzg_da);
 
-        Ok(Self { resources: tx_resources, gas, da_gas, fee })
+        Self { resources: tx_resources, gas, da_gas, fee }
     }
 
-    /// Computes actual cost of an L1 handler transaction.
+    /// Computes the receipt of an L1 handler transaction.
     pub fn from_l1_handler<'a>(
         tx_context: &'a TransactionContext,
         l1_handler_payload_size: usize,
-        call_infos: impl Iterator<Item = &'a CallInfo> + Clone,
+        execution_summary_without_fee_transfer: ExecutionSummary,
         state_changes: &'a StateChanges,
         execution_resources: &'a ExecutionResources,
-    ) -> TransactionExecutionResult<Self> {
+    ) -> Self {
         Self::from_params(TransactionReceiptParameters {
             tx_context,
             calldata_length: l1_handler_payload_size,
@@ -121,22 +123,22 @@ impl TransactionReceipt {
             state_changes,
             sender_address: None, // L1 handlers have no sender address.
             l1_handler_payload_size: Some(l1_handler_payload_size),
-            call_infos,
+            execution_summary_without_fee_transfer,
             execution_resources,
             tx_type: TransactionType::L1Handler,
             reverted_steps: 0,
         })
     }
 
-    /// Computes actual cost of an account transaction.
+    /// Computes the receipt of an account transaction.
     pub fn from_account_tx<'a>(
         account_tx: &'a AccountTransaction,
         tx_context: &'a TransactionContext,
         state_changes: &'a StateChanges,
         execution_resources: &'a ExecutionResources,
-        call_infos: impl Iterator<Item = &'a CallInfo> + Clone,
+        execution_summary_without_fee_transfer: ExecutionSummary,
         reverted_steps: usize,
-    ) -> TransactionExecutionResult<Self> {
+    ) -> Self {
         Self::from_params(TransactionReceiptParameters {
             tx_context,
             calldata_length: account_tx.calldata_length(),
@@ -145,7 +147,7 @@ impl TransactionReceipt {
             state_changes,
             sender_address: Some(tx_context.tx_info.sender_address()),
             l1_handler_payload_size: None,
-            call_infos,
+            execution_summary_without_fee_transfer,
             execution_resources,
             tx_type: account_tx.tx_type(),
             reverted_steps,

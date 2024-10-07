@@ -9,7 +9,8 @@ use blockifier::execution::call_info::{
     Retdata as BlockifierRetdata,
 };
 use blockifier::execution::entry_point::CallType as BlockifierCallType;
-use blockifier::transaction::objects::{FeeType, GasVector, TransactionExecutionInfo};
+use blockifier::fee::resources::GasVector;
+use blockifier::transaction::objects::{FeeType, TransactionExecutionInfo};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources as VmExecutionResources;
 use indexmap::IndexMap;
@@ -92,11 +93,15 @@ pub struct FeeEstimation {
     /// Gas consumed by this transaction. This includes gas for DA in calldata mode.
     pub gas_consumed: Felt,
     /// The gas price for execution and calldata DA.
-    pub gas_price: GasPrice,
+    pub l1_gas_price: GasPrice,
     /// Gas consumed by DA in blob mode.
     pub data_gas_consumed: Felt,
     /// The gas price for DA blob.
-    pub data_gas_price: GasPrice,
+    pub l1_data_gas_price: GasPrice,
+    // TODO(Tzahi): Add l2_gas_consumed. Verify overall_fee estimation of l1_gas_price only is
+    // close enough (as there are roundings) to the fee of both l1_gas_price and l2_gas_price.
+    /// The L2 gas price for execution.
+    pub l2_gas_price: GasPrice,
     /// The total amount of fee. This is equal to:
     /// gas_consumed * gas_price + data_gas_consumed * data_gas_price.
     pub overall_fee: Fee,
@@ -153,7 +158,7 @@ pub(crate) fn tx_execution_output_to_fee_estimation(
     block_context: &BlockContext,
 ) -> ExecutionResult<FeeEstimation> {
     let gas_prices = &block_context.block_info().gas_prices;
-    let (gas_price, data_gas_price) = (
+    let (l1_gas_price, l1_data_gas_price, l2_gas_price) = (
         GasPrice(
             gas_prices.get_l1_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
         ),
@@ -162,15 +167,19 @@ pub(crate) fn tx_execution_output_to_fee_estimation(
                 .get_l1_data_gas_price_by_fee_type(&tx_execution_output.price_unit.into())
                 .get(),
         ),
+        GasPrice(
+            gas_prices.get_l2_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
+        ),
     );
 
     let gas_vector = tx_execution_output.execution_info.receipt.gas;
 
     Ok(FeeEstimation {
-        gas_consumed: gas_vector.l1_gas.into(),
-        gas_price,
-        data_gas_consumed: gas_vector.l1_data_gas.into(),
-        data_gas_price,
+        gas_consumed: gas_vector.l1_gas.0.into(),
+        l1_gas_price,
+        data_gas_consumed: gas_vector.l1_data_gas.0.into(),
+        l1_data_gas_price,
+        l2_gas_price,
         overall_fee: tx_execution_output.execution_info.receipt.fee,
         unit: tx_execution_output.price_unit,
     })
@@ -388,9 +397,10 @@ fn vm_resources_to_execution_resources(
         builtin_instance_counter,
         memory_holes: vm_resources.n_memory_holes as u64,
         da_gas_consumed: StarknetApiGasVector {
-            l1_gas: l1_gas.try_into().map_err(|_| ExecutionError::GasConsumedOutOfRange)?,
-            l2_gas: l2_gas.try_into().map_err(|_| ExecutionError::GasConsumedOutOfRange)?,
+            l1_gas: l1_gas.0.try_into().map_err(|_| ExecutionError::GasConsumedOutOfRange)?,
+            l2_gas: l2_gas.0.try_into().map_err(|_| ExecutionError::GasConsumedOutOfRange)?,
             l1_data_gas: l1_data_gas
+                .0
                 .try_into()
                 .map_err(|_| ExecutionError::GasConsumedOutOfRange)?,
         },

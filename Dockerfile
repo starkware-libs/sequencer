@@ -7,26 +7,36 @@
 # More info on Cargo Chef: https://github.com/LukeMathWalker/cargo-chef
 
 # We start by creating a base image using 'clux/muslrust' with additional required tools.
-FROM clux/muslrust:1.80.0-stable AS chef
+FROM ubuntu:22.04 AS base
 WORKDIR /app
-RUN apt update && apt install -y clang unzip
+
+COPY scripts/install_build_tools.sh .
+COPY scripts/dependencies.sh .
+RUN apt update && apt -y install curl bzip2
+
+
+ENV RUSTUP_HOME=/var/tmp/rust
+ENV CARGO_HOME=${RUSTUP_HOME}
+ENV PATH=$PATH:${RUSTUP_HOME}/bin
+
+RUN ./install_build_tools.sh
+
 RUN cargo install cargo-chef
-ENV PROTOC_VERSION=25.1
-RUN curl -L "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip" -o protoc.zip && unzip ./protoc.zip -d $HOME/.local &&  rm ./protoc.zip
-ENV PROTOC=/root/.local/bin/protoc
+RUN apt update && apt -y install unzip
 
-# Reinstalling the stable Rust toolchain to ensure a clean environment
-RUN rustup toolchain uninstall stable-x86_64-unknown-linux-gnu && rustup toolchain install stable-x86_64-unknown-linux-gnu
 
-# Add the x86_64-unknown-linux-musl target to rustup for compiling statically linked binaries.
-# This enables the creation of fully self-contained binaries that do not depend on the system's dynamic libraries,
-# resulting in more portable executables that can run on any Linux distribution.
-RUN rustup target add x86_64-unknown-linux-musl
+# # Reinstalling the stable Rust toolchain to ensure a clean environment
+# RUN rustup toolchain uninstall stable-x86_64-unknown-linux-gnu && rustup toolchain install stable-x86_64-unknown-linux-gnu
+
+# # Add the x86_64-unknown-linux-musl target to rustup for compiling statically linked binaries.
+# # This enables the creation of fully self-contained binaries that do not depend on the system's dynamic libraries,
+# # resulting in more portable executables that can run on any Linux distribution.
+# RUN rustup target add x86_64-unknown-linux-musl
 
 #####################
 # Stage 1 (planer): #
 #####################
-FROM chef AS planner
+FROM base AS planner
 COPY . .
 # * Running Cargo Chef prepare that will generate recipe.json which will be used in the next stage.
 RUN cargo chef prepare
@@ -35,43 +45,39 @@ RUN cargo chef prepare
 # Stage 2 (cacher): #
 #####################
 # Compile all the dependecies using Cargo Chef cook.
-FROM chef AS cacher
+FROM base AS cacher
 
 # Copy recipe.json from planner stage
 COPY --from=planner /app/recipe.json recipe.json
 
 # Build dependencies - this is the caching Docker layer!
-RUN cargo chef cook --target x86_64-unknown-linux-musl --release --package papyrus_node
+RUN cargo chef cook --release --package papyrus_node
 
 ######################
 # Stage 3 (builder): #
 ######################
-FROM chef AS builder
+FROM base AS builder
 COPY . .
 COPY --from=cacher /app/target target
 # Disable incremental compilation for a cleaner build.
 ENV CARGO_INCREMENTAL=0
 
 # Compile the papyrus_node crate for the x86_64-unknown-linux-musl target in release mode, ensuring dependencies are locked.
-RUN cargo build --target x86_64-unknown-linux-musl --release --package papyrus_node --locked
+RUN cargo build --release --package papyrus_node --locked
 
 ###########################
 # Stage 4 (papyrus_node): #
 ###########################
-# Uses Alpine Linux to run a lightweight and secure container.
-FROM alpine:3.17.0 AS papyrus_node
+FROM base AS papyrus_node
 ENV ID=1000
 WORKDIR /app
 
 # Copy the node executable and its configuration.
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/papyrus_node /app/target/release/papyrus_node
+COPY --from=builder /app/target/release/papyrus_node /app/target/release/papyrus_node
 COPY config config
 
 # Install tini, a lightweight init system, to call our executable.
-RUN set -ex; \
-    apk update; \
-    apk add --no-cache tini; \
-    mkdir data
+RUN apt install tini
 
 # Create a new user "papyrus".
 RUN set -ex; \
@@ -86,4 +92,4 @@ EXPOSE 8080 8081
 USER ${ID}
 
 # Set the entrypoint to use tini to manage the process.
-ENTRYPOINT ["/sbin/tini", "--", "/app/target/release/papyrus_node"]
+ENTRYPOINT ["tini", "--", "/app/target/release/papyrus_node"]

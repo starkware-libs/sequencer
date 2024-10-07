@@ -2,15 +2,23 @@ use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
-use starknet_api::block::{BlockNumber, BlockTimestamp};
+use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, PatriciaKey};
-use starknet_api::transaction::{Calldata, Fee, TransactionHash, TransactionVersion};
+use starknet_api::hash::StarkHash;
+use starknet_api::transaction::{
+    Calldata,
+    Fee,
+    GasVectorComputationMode,
+    TransactionHash,
+    TransactionVersion,
+};
 use starknet_api::{calldata, contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
 
 use super::update_json_value;
 use crate::abi::abi_utils::selector_from_name;
-use crate::blockifier::block::{BlockInfo, GasPrices};
+use crate::abi::constants;
+use crate::blockifier::block::{BlockInfo, BlockNumberHashPair, GasPrices};
 use crate::bouncer::{BouncerConfig, BouncerWeights};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
@@ -21,6 +29,7 @@ use crate::execution::entry_point::{
     EntryPointExecutionResult,
 };
 use crate::fee::fee_utils::get_fee_by_gas_vector;
+use crate::fee::resources::TransactionResources;
 use crate::state::state_api::State;
 use crate::test_utils::{
     get_raw_contract_class,
@@ -34,14 +43,7 @@ use crate::test_utils::{
     TEST_ERC20_CONTRACT_ADDRESS2,
     TEST_SEQUENCER_ADDRESS,
 };
-use crate::transaction::objects::{
-    DeprecatedTransactionInfo,
-    FeeType,
-    GasVectorComputationMode,
-    TransactionFeeResult,
-    TransactionInfo,
-    TransactionResources,
-};
+use crate::transaction::objects::{DeprecatedTransactionInfo, FeeType, TransactionInfo};
 use crate::transaction::transactions::L1HandlerTransaction;
 use crate::versioned_constants::{
     GasCosts,
@@ -117,17 +119,13 @@ impl VersionedConstants {
 }
 
 impl TransactionResources {
-    pub fn calculate_tx_fee(
-        &self,
-        block_context: &BlockContext,
-        fee_type: &FeeType,
-    ) -> TransactionFeeResult<Fee> {
+    pub fn calculate_tx_fee(&self, block_context: &BlockContext, fee_type: &FeeType) -> Fee {
         let gas_vector = self.to_gas_vector(
             &block_context.versioned_constants,
             block_context.block_info.use_kzg_da,
             &GasVectorComputationMode::NoL2Gas,
-        )?;
-        Ok(get_fee_by_gas_vector(&block_context.block_info, gas_vector, fee_type))
+        );
+        get_fee_by_gas_vector(&block_context.block_info, gas_vector, fee_type)
     }
 }
 
@@ -135,7 +133,7 @@ impl GasCosts {
     pub fn create_for_testing_from_subset(subset_of_os_constants: &str) -> Self {
         let subset_of_os_constants: Value = serde_json::from_str(subset_of_os_constants).unwrap();
         let mut os_constants: Value =
-            serde_json::from_str::<Value>(VERSIONED_CONSTANTS_LATEST_JSON)
+            serde_json::from_str::<Value>(VERSIONED_CONSTANTS_LATEST_JSON.as_str())
                 .unwrap()
                 .get("os_constants")
                 .unwrap()
@@ -143,6 +141,18 @@ impl GasCosts {
         update_json_value(&mut os_constants, subset_of_os_constants);
         let os_constants: OsConstants = serde_json::from_value(os_constants).unwrap();
         os_constants.gas_costs
+    }
+}
+
+impl BlockNumberHashPair {
+    pub fn create_dummy_given_current(block_number: BlockNumber) -> Option<Self> {
+        if block_number.0 < constants::STORED_BLOCK_HASH_BUFFER {
+            return None;
+        }
+        Some(Self {
+            number: BlockNumber(block_number.0 - constants::STORED_BLOCK_HASH_BUFFER),
+            hash: BlockHash(StarkHash::ONE),
+        })
     }
 }
 

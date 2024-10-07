@@ -23,16 +23,17 @@ use starknet_mempool_types::communication::{
 };
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
-use crate::config::MempoolNodeConfig;
+use crate::config::SequencerNodeConfig;
 
-pub struct MempoolNodeCommunication {
+pub struct SequencerNodeCommunication {
     batcher_channel: ComponentCommunication<BatcherRequestAndResponseSender>,
+    /// TODO(Tsabary): remove the redundant consensus_manager_channel.
     consensus_manager_channel: ComponentCommunication<ConsensusManagerRequestAndResponseSender>,
     mempool_channel: ComponentCommunication<MempoolRequestAndResponseSender>,
     gateway_channel: ComponentCommunication<GatewayRequestAndResponseSender>,
 }
 
-impl MempoolNodeCommunication {
+impl SequencerNodeCommunication {
     pub fn take_batcher_tx(&mut self) -> Sender<BatcherRequestAndResponseSender> {
         self.batcher_channel.take_tx()
     }
@@ -70,7 +71,7 @@ impl MempoolNodeCommunication {
     }
 }
 
-pub fn create_node_channels() -> MempoolNodeCommunication {
+pub fn create_node_channels() -> SequencerNodeCommunication {
     const DEFAULT_INVOCATIONS_QUEUE_SIZE: usize = 32;
     let (tx_mempool, rx_mempool) =
         channel::<MempoolRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
@@ -84,7 +85,7 @@ pub fn create_node_channels() -> MempoolNodeCommunication {
     let (tx_gateway, rx_gateway) =
         channel::<GatewayRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
 
-    MempoolNodeCommunication {
+    SequencerNodeCommunication {
         mempool_channel: ComponentCommunication::new(Some(tx_mempool), Some(rx_mempool)),
         consensus_manager_channel: ComponentCommunication::new(
             Some(tx_consensus_manager),
@@ -95,7 +96,7 @@ pub fn create_node_channels() -> MempoolNodeCommunication {
     }
 }
 
-pub struct MempoolNodeClients {
+pub struct SequencerNodeClients {
     batcher_client: Option<SharedBatcherClient>,
     consensus_manager_client: Option<SharedConsensusManagerClient>,
     mempool_client: Option<SharedMempoolClient>,
@@ -103,7 +104,7 @@ pub struct MempoolNodeClients {
     // TODO (Lev): Change to Option<Box<dyn MemPoolClient>>.
 }
 
-impl MempoolNodeClients {
+impl SequencerNodeClients {
     pub fn get_batcher_client(&self) -> Option<SharedBatcherClient> {
         self.batcher_client.clone()
     }
@@ -122,9 +123,9 @@ impl MempoolNodeClients {
 }
 
 pub fn create_node_clients(
-    config: &MempoolNodeConfig,
-    channels: &mut MempoolNodeCommunication,
-) -> MempoolNodeClients {
+    config: &SequencerNodeConfig,
+    channels: &mut SequencerNodeCommunication,
+) -> SequencerNodeClients {
     let batcher_client: Option<SharedBatcherClient> = match config.components.batcher.execute {
         true => Some(Arc::new(LocalBatcherClientImpl::new(channels.take_batcher_tx()))),
         false => None,
@@ -144,5 +145,10 @@ pub fn create_node_clients(
         true => Some(Arc::new(LocalGatewayClientImpl::new(channels.take_gateway_tx()))),
         false => None,
     };
-    MempoolNodeClients { batcher_client, consensus_manager_client, mempool_client, gateway_client }
+    SequencerNodeClients {
+        batcher_client,
+        consensus_manager_client,
+        mempool_client,
+        gateway_client,
+    }
 }

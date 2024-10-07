@@ -1,0 +1,16 @@
+name: "Setup Cairo Native Dependencies"
+description: "Sets up LLVM and GMP libraries"
+
+outputs:
+  cairo-native-runtime-library:
+    description: "The path to the cairo native runtime library"
+    value: ${{ steps.set-env-vars.outputs.cairo-native-runtime-library }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Cairo Native Runtime Dependencies
+      id: set-runtime-deps
+      shell: bash
+      run: |
+        sudo ./scripts/dependencies.sh

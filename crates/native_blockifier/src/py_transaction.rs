@@ -121,7 +121,7 @@ pub fn py_account_tx(
     tx: &PyAny,
     optional_py_class_info: Option<PyClassInfo>,
 ) -> NativeBlockifierResult<AccountTransaction> {
-    let Transaction::AccountTransaction(account_tx) = py_tx(tx, optional_py_class_info)? else {
+    let Transaction::Account(account_tx) = py_tx(tx, optional_py_class_info)? else {
         panic!("Not an account transaction.");
     };
 

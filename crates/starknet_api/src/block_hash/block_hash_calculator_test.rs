@@ -92,7 +92,7 @@ fn test_block_hash_regression(
         parent_hash: BlockHash(Felt::from(11_u8)),
     };
     let transactions_data = vec![TransactionHashingData {
-        transaction_signature: Some(TransactionSignature(vec![Felt::TWO, Felt::THREE])),
+        transaction_signature: TransactionSignature(vec![Felt::TWO, Felt::THREE]),
         transaction_output: get_transaction_output(),
         transaction_hash: TransactionHash(Felt::ONE),
     }];
@@ -106,7 +106,7 @@ fn test_block_hash_regression(
             felt!("0xe248d6ce583f8fa48d1d401d4beb9ceced3733e38d8eacb0d8d3669a7d901c")
         }
         BlockHashVersion::VO_13_3 => {
-            felt!("0x17c0dc0b67fa9bcf74197b758a6b48eb412cae14397a51a6393f1e0305fe585")
+            felt!("0x65b653f5bc0939cdc39f98230affc8fbd1a01ea801e025271a4cfba912ba59a")
         }
     };
 

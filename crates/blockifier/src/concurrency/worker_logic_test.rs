@@ -52,7 +52,7 @@ use crate::transaction::test_utils::{
     calculate_class_info_for_testing,
     emit_n_events_tx,
     max_fee,
-    max_resource_bounds,
+    max_l1_resource_bounds,
 };
 use crate::transaction::transaction_execution::Transaction;
 
@@ -64,7 +64,7 @@ fn trivial_calldata_invoke_tx(
     account_invoke_tx(invoke_tx_args! {
         sender_address: account_address,
         calldata: create_trivial_calldata(test_contract_address),
-        resource_bounds: max_resource_bounds(),
+        resource_bounds: max_l1_resource_bounds(),
         nonce,
     })
 }
@@ -111,7 +111,7 @@ pub fn test_commit_tx() {
         trivial_calldata_invoke_tx(account_address, test_contract_address, nonce!(10_u8)),
     ]
     .into_iter()
-    .map(Transaction::AccountTransaction)
+    .map(Transaction::Account)
     .collect::<Vec<Transaction>>();
     let mut bouncer = Bouncer::new(block_context.bouncer_config.clone());
     let cached_state =
@@ -207,7 +207,7 @@ fn test_commit_tx_when_sender_is_sequencer() {
     let (sequencer_balance_key_low, sequencer_balance_key_high) =
         get_sequencer_balance_keys(&block_context);
 
-    let sequencer_tx = [Transaction::AccountTransaction(trivial_calldata_invoke_tx(
+    let sequencer_tx = [Transaction::Account(trivial_calldata_invoke_tx(
         account_address,
         test_contract_address,
         nonce!(0_u8),
@@ -263,7 +263,7 @@ fn test_commit_tx_when_sender_is_sequencer() {
 }
 
 #[rstest]
-fn test_worker_execute(max_resource_bounds: ValidResourceBounds) {
+fn test_worker_execute(max_l1_resource_bounds: ValidResourceBounds) {
     // Settings.
     let block_context = BlockContext::create_for_account_testing();
     let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
@@ -288,7 +288,7 @@ fn test_worker_execute(max_resource_bounds: ValidResourceBounds) {
             "test_storage_read_write",
             &[*storage_key.0.key(),storage_value ], // Calldata:  address, value.
         ),
-        resource_bounds: max_resource_bounds,
+        resource_bounds: max_l1_resource_bounds,
         nonce: nonce_manager.next(account_address)
     });
 
@@ -301,7 +301,7 @@ fn test_worker_execute(max_resource_bounds: ValidResourceBounds) {
             "test_storage_read_write",
             &[*storage_key.0.key(),storage_value ], // Calldata:  address, value.
         ),
-        resource_bounds: max_resource_bounds,
+        resource_bounds: max_l1_resource_bounds,
         nonce: nonce_manager.next(account_address)
 
     });
@@ -313,14 +313,14 @@ fn test_worker_execute(max_resource_bounds: ValidResourceBounds) {
             "write_and_revert",
             &[felt!(1991_u16),storage_value ], // Calldata:  address, value.
         ),
-        resource_bounds: max_resource_bounds,
+        resource_bounds: max_l1_resource_bounds,
         nonce: nonce_manager.next(account_address)
 
     });
 
     let txs = [tx_success, tx_failure, tx_revert]
         .into_iter()
-        .map(Transaction::AccountTransaction)
+        .map(Transaction::Account)
         .collect::<Vec<Transaction>>();
 
     let mut bouncer = Bouncer::new(block_context.bouncer_config.clone());
@@ -437,7 +437,7 @@ fn test_worker_execute(max_resource_bounds: ValidResourceBounds) {
 }
 
 #[rstest]
-fn test_worker_validate(max_resource_bounds: ValidResourceBounds) {
+fn test_worker_validate(max_l1_resource_bounds: ValidResourceBounds) {
     // Settings.
     let block_context = BlockContext::create_for_account_testing();
     let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
@@ -464,7 +464,7 @@ fn test_worker_validate(max_resource_bounds: ValidResourceBounds) {
             "test_storage_read_write",
             &[*storage_key.0.key(),storage_value0 ], // Calldata:  address, value.
         ),
-        resource_bounds: max_resource_bounds,
+        resource_bounds: max_l1_resource_bounds,
         nonce: nonce_manager.next(account_address)
     });
 
@@ -475,14 +475,14 @@ fn test_worker_validate(max_resource_bounds: ValidResourceBounds) {
             "test_storage_read_write",
             &[*storage_key.0.key(),storage_value1 ], // Calldata:  address, value.
         ),
-        resource_bounds: max_resource_bounds,
+        resource_bounds: max_l1_resource_bounds,
         nonce: nonce_manager.next(account_address)
 
     });
 
     let txs = [account_tx0, account_tx1]
         .into_iter()
-        .map(Transaction::AccountTransaction)
+        .map(Transaction::Account)
         .collect::<Vec<Transaction>>();
 
     let mut bouncer = Bouncer::new(block_context.bouncer_config.clone());
@@ -544,7 +544,7 @@ fn test_worker_validate(max_resource_bounds: ValidResourceBounds) {
 #[case::declare_cairo1(CairoVersion::Cairo1, TransactionVersion::THREE)]
 fn test_deploy_before_declare(
     max_fee: Fee,
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
     #[case] cairo_version: CairoVersion,
     #[case] version: TransactionVersion,
 ) {
@@ -565,7 +565,7 @@ fn test_deploy_before_declare(
     let declare_tx = declare_tx(
         declare_tx_args! {
             sender_address: account_address_0,
-            resource_bounds: max_resource_bounds,
+            resource_bounds: max_l1_resource_bounds,
             class_hash: test_class_hash,
             compiled_class_hash: test_compiled_class_hash,
             version,
@@ -589,14 +589,12 @@ fn test_deploy_before_declare(
                 felt!(1_u8),                  // Constructor calldata arg2.
             ]
         ),
-        resource_bounds: max_resource_bounds,
+        resource_bounds: max_l1_resource_bounds,
         nonce: nonce!(0_u8)
     });
 
-    let txs = [declare_tx, invoke_tx]
-        .into_iter()
-        .map(Transaction::AccountTransaction)
-        .collect::<Vec<Transaction>>();
+    let txs =
+        [declare_tx, invoke_tx].into_iter().map(Transaction::Account).collect::<Vec<Transaction>>();
 
     let mut bouncer = Bouncer::new(block_context.bouncer_config.clone());
     let worker_executor =
@@ -636,7 +634,7 @@ fn test_deploy_before_declare(
 }
 
 #[rstest]
-fn test_worker_commit_phase(max_resource_bounds: ValidResourceBounds) {
+fn test_worker_commit_phase(max_l1_resource_bounds: ValidResourceBounds) {
     // Settings.
     let block_context = BlockContext::create_for_account_testing();
     let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
@@ -661,10 +659,10 @@ fn test_worker_commit_phase(max_resource_bounds: ValidResourceBounds) {
 
     let txs = (0..3)
         .map(|_| {
-            Transaction::AccountTransaction(account_invoke_tx(invoke_tx_args! {
+            Transaction::Account(account_invoke_tx(invoke_tx_args! {
                 sender_address,
                 calldata: calldata.clone(),
-                resource_bounds: max_resource_bounds,
+                resource_bounds: max_l1_resource_bounds,
                 nonce: nonce_manager.next(sender_address)
             }))
         })
@@ -751,7 +749,7 @@ fn test_worker_commit_phase_with_halt() {
 
     let txs = (0..2)
         .map(|_| {
-            Transaction::AccountTransaction(emit_n_events_tx(
+            Transaction::Account(emit_n_events_tx(
                 n_events,
                 sender_address,
                 test_contract_address,
