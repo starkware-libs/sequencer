@@ -25,14 +25,14 @@ on:
       - auto_merge_enabled
       - edited
     paths:
-      - ".github/workflows/committer_ci.yml"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "crates/committer_cli/**"
-      - "crates/starknet_api/**"
-      - "crates/starknet_committer/**"
-      - "crates/starknet_patricia/**"
-      - "scripts/dependencies.sh"
+      - '.github/workflows/committer_ci.yml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/committer_cli/**'
+      - 'crates/starknet_api/**'
+      - 'crates/starknet_committer/**'
+      - 'crates/starknet_patricia/**'
+      - 'scripts/dependencies.sh'
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
