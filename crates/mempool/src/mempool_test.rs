@@ -392,10 +392,10 @@ fn test_add_tx_multi_nonce_success(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_tx_with_duplicate_tx(mut mempool: Mempool) {
+fn test_add_tx_failure_on_duplicate_tx_hash(mut mempool: Mempool) {
     // Setup.
-    let input = add_tx_input!(tip: 50, tx_hash: 1);
-    let duplicate_input = input.clone();
+    let input = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0);
+    let duplicate_input = input.clone(); // Same hash is possible if signature is different.
 
     // Test.
     add_tx(&mut mempool, &input);
