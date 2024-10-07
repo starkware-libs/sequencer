@@ -1,6 +1,7 @@
 use std::num::NonZeroU128;
 
 use log::warn;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp};
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
@@ -143,6 +144,7 @@ pub fn pre_process_block(
     Ok(())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockNumberHashPair {
     pub number: BlockNumber,
     pub hash: BlockHash,
