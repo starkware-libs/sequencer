@@ -736,7 +736,7 @@ fn to_blockifier_tx(
             abi_length,
             only_query,
         ) => {
-            let class_v0 = deprecated_class.try_into().map_err(
+            let contract_class = deprecated_class.try_into().map_err(
                 |e: cairo_vm::types::errors::program_errors::ProgramError| {
                     ExecutionError::TransactionExecutionError {
                         transaction_index,
@@ -744,7 +744,7 @@ fn to_blockifier_tx(
                     }
                 },
             )?;
-            let class_info = ClassInfo::new_v0(class_v0, abi_length);
+            let class_info = ClassInfo::V0 { contract_class, abi_length };
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V0(declare_tx)),
                 tx_hash,
@@ -761,8 +761,8 @@ fn to_blockifier_tx(
             abi_length,
             only_query,
         ) => {
-            let class_v0 = deprecated_class.try_into().map_err(BlockifierError::new)?;
-            let class_info = ClassInfo::new_v0(class_v0, abi_length);
+            let contract_class = deprecated_class.try_into().map_err(BlockifierError::new)?;
+            let class_info = ClassInfo::V0 { contract_class, abi_length };
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V1(declare_tx)),
                 tx_hash,
@@ -780,8 +780,8 @@ fn to_blockifier_tx(
             abi_length,
             only_query,
         ) => {
-            let class_v1 = compiled_class.try_into().map_err(BlockifierError::new)?;
-            let class_info = ClassInfo::new_v1(class_v1, sierra_program_length, abi_length);
+            let contract_class = compiled_class.try_into().map_err(BlockifierError::new)?;
+            let class_info = ClassInfo::V1 { contract_class, sierra_program_length, abi_length };
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V2(declare_tx)),
                 tx_hash,
@@ -799,8 +799,8 @@ fn to_blockifier_tx(
             abi_length,
             only_query,
         ) => {
-            let class_v1 = compiled_class.try_into().map_err(BlockifierError::new)?;
-            let class_info = ClassInfo::new_v1(class_v1, sierra_program_length, abi_length);
+            let contract_class = compiled_class.try_into().map_err(BlockifierError::new)?;
+            let class_info = ClassInfo::V1 { contract_class, sierra_program_length, abi_length };
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V3(declare_tx)),
                 tx_hash,

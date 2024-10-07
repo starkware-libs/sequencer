@@ -24,9 +24,27 @@ impl ContractClass {
 /// All relevant information about a declared contract class, including the compiled contract class
 /// and other parameters derived from the original declare transaction required for billing.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct ClassInfo {
-    // TODO(Noa): Consider using Arc.
-    pub contract_class: ContractClass,
-    pub sierra_program_length: usize,
-    pub abi_length: usize,
+pub enum ClassInfo {
+    V0 {
+        // TODO(Noa): Consider using Arc.
+        contract_class: DeprecatedContractClass,
+        abi_length: usize,
+    },
+    V1 {
+        // TODO(Noa): Consider using Arc.
+        contract_class: CasmContractClass,
+        sierra_program_length: usize,
+        abi_length: usize,
+    },
+}
+
+impl ClassInfo {
+    pub fn compiled_class_hash(&self) -> CompiledClassHash {
+        match self {
+            ClassInfo::V0 { .. } => panic!("Cairo 0 doesn't have compiled class hash."),
+            ClassInfo::V1 { contract_class, .. } => {
+                CompiledClassHash(contract_class.compiled_class_hash())
+            }
+        }
+    }
 }

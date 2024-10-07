@@ -163,8 +163,7 @@ impl DeclareTransaction {
             | crate::transaction::DeclareTransaction::V0(_) => return true,
         };
 
-        let contract_class = &self.class_info.contract_class;
-        let compiled_class_hash = contract_class.compiled_class_hash();
+        let compiled_class_hash = self.class_info.compiled_class_hash();
 
         compiled_class_hash == supplied_compiled_class_hash
     }

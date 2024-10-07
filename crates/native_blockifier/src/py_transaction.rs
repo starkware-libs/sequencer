@@ -170,18 +170,18 @@ impl PyClassInfo {
                     ContractClassV0::try_from_json_string(&py_class_info.raw_contract_class)?;
                 assert_eq!(py_class_info.sierra_program_length, 0);
 
-                ClassInfo::new_v0(contract_class, py_class_info.abi_length)
+                ClassInfo::V0 { contract_class, abi_length: py_class_info.abi_length }
             }
             starknet_api::transaction::DeclareTransaction::V2(_)
             | starknet_api::transaction::DeclareTransaction::V3(_) => {
                 let contract_class =
                     ContractClassV1::try_from_json_string(&py_class_info.raw_contract_class)?;
 
-                ClassInfo::new_v1(
+                ClassInfo::V1 {
                     contract_class,
-                    py_class_info.sierra_program_length,
-                    py_class_info.abi_length,
-                )
+                    sierra_program_length: py_class_info.sierra_program_length,
+                    abi_length: py_class_info.abi_length,
+                }
             }
         };
         Ok(class_info)
