@@ -99,10 +99,10 @@ impl TransactionPool {
         &self,
         current_account_state: AccountState,
     ) -> MempoolResult<Option<&TransactionReference>> {
-        let AccountState { sender_address, nonce } = current_account_state;
+        let AccountState { address, nonce } = current_account_state;
         // TOOD(Ayelet): Change to StarknetApiError.
         let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
-        Ok(self.get_by_address_and_nonce(sender_address, next_nonce))
+        Ok(self.get_by_address_and_nonce(address, next_nonce))
     }
 
     pub fn contains_account(&self, address: ContractAddress) -> bool {

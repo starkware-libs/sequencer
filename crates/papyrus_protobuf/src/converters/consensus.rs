@@ -15,6 +15,7 @@ use crate::consensus::{
     ProposalInit,
     ProposalPart,
     StreamMessage,
+    StreamMessageBody,
     TransactionBatch,
     Vote,
     VoteType,
@@ -131,10 +132,23 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
 
     fn try_from(value: protobuf::StreamMessage) -> Result<Self, Self::Error> {
         Ok(Self {
-            message: T::try_from(value.message)?,
+            message: match value {
+                protobuf::StreamMessage {
+                    message: Some(protobuf::stream_message::Message::Content(message)),
+                    stream_id: _,
+                    message_id: _,
+                } => StreamMessageBody::Content(message.try_into()?),
+                protobuf::StreamMessage {
+                    message: Some(protobuf::stream_message::Message::Fin(protobuf::Fin {})),
+                    stream_id: _,
+                    message_id: _,
+                } => StreamMessageBody::Fin,
+                protobuf::StreamMessage { message: None, stream_id: _, message_id: _ } => {
+                    StreamMessageBody::Fin
+                }
+            },
             stream_id: value.stream_id,
             message_id: value.message_id,
-            fin: value.fin,
         })
     }
 }
@@ -144,16 +158,24 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<
 {
     fn from(value: StreamMessage<T>) -> Self {
         Self {
-            message: value.message.into(),
+            message: match value {
+                StreamMessage {
+                    message: StreamMessageBody::Content(message),
+                    stream_id: _,
+                    message_id: _,
+                } => Some(protobuf::stream_message::Message::Content(message.into())),
+                StreamMessage { message: StreamMessageBody::Fin, stream_id: _, message_id: _ } => {
+                    Some(protobuf::stream_message::Message::Fin(protobuf::Fin {}))
+                }
+            },
             stream_id: value.stream_id,
             message_id: value.message_id,
-            fin: value.fin,
         }
     }
 }
 
 // Can't use auto_impl_into_and_try_from_vec_u8!(StreamMessage, protobuf::StreamMessage);
-// because it doesn't seem to work with generics
+// because it doesn't seem to work with generics.
 // TODO(guyn): consider expanding the macro to support generics
 impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<StreamMessage<T>>
     for Vec<u8>

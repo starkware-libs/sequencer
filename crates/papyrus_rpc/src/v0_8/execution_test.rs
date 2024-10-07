@@ -38,7 +38,6 @@ use papyrus_test_utils::{
     auto_impl_get_test_instance,
     get_number_of_variants,
     get_rng,
-    read_json_file,
     GetTestInstance,
 };
 use pretty_assertions::assert_eq;
@@ -69,6 +68,7 @@ use starknet_api::deprecated_contract_class::{
 };
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{StorageKey, ThinStateDiff as StarknetApiStateDiff};
+use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::{
     Calldata,
     Fee,
@@ -154,7 +154,12 @@ lazy_static! {
         price_in_wei: GasPrice(100 * u128::pow(10, 9)),
         price_in_fri: GasPrice(0),
     };
+    //TODO: Tests for data_gas_price and l2_gas_price.
     pub static ref DATA_GAS_PRICE: GasPricePerToken = GasPricePerToken{
+        price_in_wei: GasPrice(1),
+        price_in_fri: GasPrice(0),
+    };
+    pub static ref L2_GAS_PRICE: GasPricePerToken = GasPricePerToken{
         price_in_wei: GasPrice(1),
         price_in_fri: GasPrice(0),
     };
@@ -173,18 +178,20 @@ lazy_static! {
     // call.
     pub static ref EXPECTED_FEE_ESTIMATE: FeeEstimation = FeeEstimation {
         gas_consumed: felt!("0x681"),
-        gas_price: GAS_PRICE.price_in_wei,
+        l1_gas_price: GAS_PRICE.price_in_wei,
         data_gas_consumed: Felt::ZERO,
-        data_gas_price: DATA_GAS_PRICE.price_in_wei,
+        l1_data_gas_price: DATA_GAS_PRICE.price_in_wei,
+        l2_gas_price: L2_GAS_PRICE.price_in_wei,
         overall_fee: Fee(166500000000000,),
         unit: PriceUnit::Wei,
     };
 
     pub static ref EXPECTED_FEE_ESTIMATE_SKIP_VALIDATE: FeeEstimation = FeeEstimation {
         gas_consumed: felt!("0x681"),
-        gas_price: GAS_PRICE.price_in_wei,
+        l1_gas_price: GAS_PRICE.price_in_wei,
         data_gas_consumed: Felt::ZERO,
-        data_gas_price: DATA_GAS_PRICE.price_in_wei,
+        l1_data_gas_price: DATA_GAS_PRICE.price_in_wei,
+        l2_gas_price: L2_GAS_PRICE.price_in_wei,
         overall_fee: Fee(166500000000000,),
         unit: PriceUnit::Wei,
     };
@@ -1212,9 +1219,10 @@ async fn call_estimate_message_fee() {
     // is correct.
     let expected_fee_estimate = FeeEstimation {
         gas_consumed: felt!("0x3937"),
-        gas_price: GAS_PRICE.price_in_wei,
+        l1_gas_price: GAS_PRICE.price_in_wei,
         data_gas_consumed: Felt::ZERO,
-        data_gas_price: DATA_GAS_PRICE.price_in_wei,
+        l1_data_gas_price: DATA_GAS_PRICE.price_in_wei,
+        l2_gas_price: L2_GAS_PRICE.price_in_wei,
         overall_fee: Fee(0),
         unit: PriceUnit::default(),
     };

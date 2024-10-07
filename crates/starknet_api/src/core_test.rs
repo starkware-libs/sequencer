@@ -3,7 +3,9 @@ use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash as CoreStarkHash};
 
 use crate::core::{
+    ascii_as_felt,
     calculate_contract_address,
+    ChainId,
     ClassHash,
     ContractAddress,
     EthAddress,
@@ -100,4 +102,13 @@ fn test_contract_address_display() {
         format!("{}", ContractAddress(patricia_key!(16_u8))),
         String::from("0x") + &"0".repeat(62) + "10"
     );
+}
+
+#[test]
+fn test_ascii_as_felt() {
+    let sn_main_id = ChainId::Mainnet;
+    let sn_main_felt = ascii_as_felt(sn_main_id.to_string().as_str()).unwrap();
+    // This is the result of the Python snippet from the Chain-Id documentation.
+    let expected_sn_main = Felt::from(23448594291968334_u128);
+    assert_eq!(sn_main_felt, expected_sn_main);
 }

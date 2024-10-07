@@ -49,12 +49,18 @@ impl ConsensusMessage {
         }
     }
 }
-#[derive(Debug, Default, Clone, Hash, Eq, PartialEq)]
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub enum StreamMessageBody<T> {
+    Content(T),
+    Fin,
+}
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
-    pub message: T,
+    pub message: StreamMessageBody<T>,
     pub stream_id: u64,
     pub message_id: u64,
-    pub fin: bool,
 }
 
 /// This message must be sent first when proposing a new block.
@@ -140,15 +146,17 @@ auto_impl_get_test_instance! {
 
 }
 
+// The auto_impl_get_test_instance macro does not work for StreamMessage because it has
+// a generic type. TODO(guyn): try to make the macro work with generic types.
 #[cfg(any(feature = "testing", test))]
 impl GetTestInstance for StreamMessage<ConsensusMessage> {
     fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
-        Self {
-            message: ConsensusMessage::Proposal(Proposal::default()),
-            stream_id: rng.gen_range(0..100),
-            message_id: rng.gen_range(0..1000),
-            fin: rng.gen_bool(0.5),
-        }
+        let message = if rng.gen_bool(0.5) {
+            StreamMessageBody::Content(ConsensusMessage::Proposal(Proposal::get_test_instance(rng)))
+        } else {
+            StreamMessageBody::Fin
+        };
+        Self { message, stream_id: rng.gen_range(0..100), message_id: rng.gen_range(0..1000) }
     }
 }
 

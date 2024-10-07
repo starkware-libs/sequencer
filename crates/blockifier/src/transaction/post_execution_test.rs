@@ -1,8 +1,16 @@
 use assert_matches::assert_matches;
 use rstest::rstest;
 use starknet_api::core::{ContractAddress, PatriciaKey};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{Calldata, Fee, Resource, TransactionVersion, ValidResourceBounds};
+use starknet_api::transaction::{
+    Calldata,
+    Fee,
+    GasVectorComputationMode,
+    Resource,
+    TransactionVersion,
+    ValidResourceBounds,
+};
 use starknet_api::{felt, invoke_tx_args, patricia_key};
 use starknet_types_core::felt::Felt;
 
@@ -14,18 +22,13 @@ use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{create_calldata, CairoVersion, BALANCE, MAX_L1_GAS_PRICE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
-use crate::transaction::objects::{
-    FeeType,
-    GasVectorComputationMode,
-    HasRelatedFeeType,
-    TransactionInfoCreator,
-};
+use crate::transaction::objects::{FeeType, HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     block_context,
     l1_resource_bounds,
     max_fee,
-    max_resource_bounds,
+    max_l1_resource_bounds,
     run_invoke_tx,
     TestInitData,
 };
@@ -71,7 +74,7 @@ fn calldata_for_write_and_transfer(
 #[case(TransactionVersion::THREE, FeeType::Strk)]
 fn test_revert_on_overdraft(
     max_fee: Fee,
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
     block_context: BlockContext,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
@@ -113,7 +116,7 @@ fn test_revert_on_overdraft(
         sender_address: account_address,
         calldata: approve_calldata,
         version,
-        resource_bounds: max_resource_bounds,
+        resource_bounds: max_l1_resource_bounds,
         nonce: nonce_manager.next(account_address),
     });
     let tx_info = approve_tx.create_tx_info();
@@ -138,7 +141,7 @@ fn test_revert_on_overdraft(
                 fee_token_address
             ),
             version,
-            resource_bounds: max_resource_bounds,
+            resource_bounds: max_l1_resource_bounds,
             nonce: nonce_manager.next(account_address),
         },
     )
@@ -169,7 +172,7 @@ fn test_revert_on_overdraft(
                 fee_token_address
             ),
             version,
-            resource_bounds: max_resource_bounds,
+            resource_bounds: max_l1_resource_bounds,
             nonce: nonce_manager.next(account_address),
         },
     )
@@ -216,7 +219,7 @@ fn test_revert_on_overdraft(
 #[case(TransactionVersion::THREE,  &format!("Insufficient max {resource}", resource=Resource::L1Gas), true)]
 fn test_revert_on_resource_overuse(
     max_fee: Fee,
-    max_resource_bounds: ValidResourceBounds,
+    max_l1_resource_bounds: ValidResourceBounds,
     block_context: BlockContext,
     #[case] version: TransactionVersion,
     #[case] expected_error_prefix: &str,
@@ -247,7 +250,7 @@ fn test_revert_on_resource_overuse(
         &block_context,
         invoke_tx_args! {
             max_fee,
-            resource_bounds: max_resource_bounds,
+            resource_bounds: max_l1_resource_bounds,
             nonce: nonce_manager.next(account_address),
             calldata: write_a_lot_calldata(),
             ..base_args.clone()
@@ -257,7 +260,7 @@ fn test_revert_on_resource_overuse(
     assert_eq!(execution_info_measure.revert_error, None);
     let actual_fee = execution_info_measure.receipt.fee;
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-    let actual_gas_usage: u64 = execution_info_measure
+    let actual_gas_usage = execution_info_measure
         .receipt
         .resources
         .to_gas_vector(
@@ -265,10 +268,7 @@ fn test_revert_on_resource_overuse(
             block_context.block_info.use_kzg_da,
             &GasVectorComputationMode::NoL2Gas,
         )
-        .unwrap()
-        .l1_gas
-        .try_into()
-        .expect("Failed to convert u128 to u64.");
+        .l1_gas;
 
     // Run the same function, with a different written value (to keep cost high), with the actual
     // resources used as upper bounds. Make sure execution does not revert.
@@ -296,7 +296,7 @@ fn test_revert_on_resource_overuse(
         &block_context,
         invoke_tx_args! {
             max_fee: low_max_fee,
-            resource_bounds: l1_resource_bounds(actual_gas_usage - 1, MAX_L1_GAS_PRICE),
+            resource_bounds: l1_resource_bounds(GasAmount(actual_gas_usage.0 - 1), MAX_L1_GAS_PRICE),
             nonce: nonce_manager.next(account_address),
             calldata: write_a_lot_calldata(),
             ..base_args

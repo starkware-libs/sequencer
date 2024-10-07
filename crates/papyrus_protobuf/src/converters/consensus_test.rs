@@ -52,7 +52,7 @@ fn add_gas_values_to_transaction(transactions: &mut Vec<Transaction>) {
 fn convert_stream_message_to_vec_u8_and_back() {
     let mut rng = get_rng();
 
-    // test that we can convert a StreamMessage with a ConsensusMessage message to bytes and back
+    // Test that we can convert a StreamMessage with a ConsensusMessage message to bytes and back.
     let stream_message: StreamMessage<ConsensusMessage> =
         StreamMessage::get_test_instance(&mut rng);
 

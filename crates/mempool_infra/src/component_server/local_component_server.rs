@@ -1,12 +1,17 @@
+use std::any::type_name;
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
 use tokio::sync::mpsc::Receiver;
-use tracing::error;
+use tracing::{error, info};
 
-use super::definitions::{request_response_loop, ComponentServerStarter};
-use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
-use crate::component_runner::ComponentStarter;
+use super::definitions::request_response_loop;
+use crate::component_definitions::{
+    ComponentRequestAndResponseSender,
+    ComponentRequestHandler,
+    ComponentStarter,
+};
+use crate::component_server::{ComponentReplacer, ComponentServerStarter, ReplaceComponentError};
 use crate::errors::ComponentServerError;
 
 /// The `LocalComponentServer` struct is a generic server that handles requests and responses for a
@@ -37,28 +42,23 @@ use crate::errors::ComponentServerError;
 /// use std::sync::mpsc::{channel, Receiver};
 ///
 /// use async_trait::async_trait;
-/// use starknet_mempool_infra::component_runner::ComponentStarter;
-/// use starknet_mempool_infra::errors::ComponentError;
 /// use tokio::task;
 ///
 /// use crate::starknet_mempool_infra::component_definitions::{
 ///     ComponentRequestAndResponseSender,
 ///     ComponentRequestHandler,
+///     ComponentStarter,
 /// };
 /// use crate::starknet_mempool_infra::component_server::{
 ///     ComponentServerStarter,
 ///     LocalComponentServer,
 /// };
+/// use crate::starknet_mempool_infra::errors::ComponentServerError;
 ///
 /// // Define your component
 /// struct MyComponent {}
 ///
-/// #[async_trait]
-/// impl ComponentStarter for MyComponent {
-///     async fn start(&mut self) -> Result<(), ComponentError> {
-///         Ok(())
-///     }
-/// }
+/// impl ComponentStarter for MyComponent {}
 ///
 /// // Define your request and response types
 /// struct MyRequest {
@@ -119,13 +119,15 @@ pub struct BlockingLocalServerType {}
 impl<Component, Request, Response> ComponentServerStarter
     for LocalComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Send + Sync,
+    Component: ComponentRequestHandler<Request, Response> + Send + Sync + ComponentStarter,
     Request: Send + Sync,
     Response: Send + Sync,
 {
     async fn start(&mut self) -> Result<(), ComponentServerError> {
+        info!("Starting LocalComponentServer for {}.", type_name::<Component>());
         self.component.start().await?;
         request_response_loop(&mut self.rx, &mut self.component).await;
+        info!("Finished LocalComponentServer for {}.", type_name::<Component>());
         Ok(())
     }
 }
@@ -162,7 +164,7 @@ where
 
 pub struct BaseLocalComponentServer<Component, Request, Response, LocalServerType>
 where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter,
+    Component: ComponentRequestHandler<Request, Response>,
     Request: Send + Sync,
     Response: Send + Sync,
 {
@@ -174,7 +176,7 @@ where
 impl<Component, Request, Response, LocalServerType>
     BaseLocalComponentServer<Component, Request, Response, LocalServerType>
 where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter,
+    Component: ComponentRequestHandler<Request, Response>,
     Request: Send + Sync,
     Response: Send + Sync,
 {
@@ -183,5 +185,18 @@ where
         rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     ) -> Self {
         Self { component, rx, _local_server_type: PhantomData }
+    }
+}
+
+impl<Component, Request, Response, LocalServerType> ComponentReplacer<Component>
+    for BaseLocalComponentServer<Component, Request, Response, LocalServerType>
+where
+    Component: ComponentRequestHandler<Request, Response>,
+    Request: Send + Sync,
+    Response: Send + Sync,
+{
+    fn replace(&mut self, component: Component) -> Result<(), ReplaceComponentError> {
+        self.component = component;
+        Ok(())
     }
 }

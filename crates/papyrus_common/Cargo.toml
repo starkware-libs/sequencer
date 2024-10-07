@@ -8,7 +8,6 @@ description = "Common utils and objects for a Starknet node."
 
 [dependencies]
 cairo-lang-starknet-classes.workspace = true
-hex.workspace = true
 indexmap.workspace = true
 lazy_static.workspace = true
 rand.workspace = true

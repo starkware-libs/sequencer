@@ -5,6 +5,7 @@
 use std::collections::HashSet;
 use std::fs::{self, File};
 use std::net::TcpListener;
+use std::os::unix::process::CommandExt;
 use std::process::Command;
 use std::str::FromStr;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -12,6 +13,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use clap::Parser;
 use fs2::FileExt;
 use lazy_static::lazy_static;
+use nix::unistd::Pid;
 use tokio::process::Command as TokioCommand;
 
 lazy_static! {
@@ -48,19 +50,22 @@ impl Node {
     }
 
     fn start(&mut self) {
-        self.process = Some(
-            TokioCommand::new("sh")
-                .arg("-c")
-                .arg(&self.cmd)
-                .spawn()
-                .expect("Failed to start process"),
-        );
+        let mut cmd = Command::new("sh");
+        cmd.arg("-c").arg(&self.cmd)
+        // Sets the process group to ensure that when we terminate the process,
+        // all subprocesses (e.g., those spawned via pipes or redirections) are also terminated.
+        .process_group(0);
+
+        let process = TokioCommand::from(cmd).spawn().expect("Failed to start process");
+        self.process = Some(process);
     }
 
     async fn stop(&mut self) {
-        if let Some(process) = self.process.as_mut() {
-            process.kill().await.expect("Failed to kill process");
-        }
+        let process = self.process.as_mut().expect("Process not found");
+        let pid = process.id().unwrap();
+        // Send SIGINT to the entire process group to terminate the process and its subprocesses
+        nix::sys::signal::killpg(Pid::from_raw(pid as i32), nix::sys::signal::Signal::SIGINT)
+            .expect("Failed to kill process group");
     }
 
     async fn get_metric(&self, metric: &str) -> Option<u64> {

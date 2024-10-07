@@ -15,6 +15,7 @@ on:
       - 'crates/starknet_api/**'
       - 'crates/starknet_committer/**'
       - 'crates/starknet_patricia/**'
+      - 'scripts/dependencies.sh'
 
   pull_request:
     types:
@@ -31,10 +32,11 @@ on:
       - 'crates/starknet_api/**'
       - 'crates/starknet_committer/**'
       - 'crates/starknet_patricia/**'
+      - 'scripts/dependencies.sh'
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -74,7 +76,7 @@ jobs:
 
       # List the existing benchmarks.
       - run: |
-            cargo bench -p committer_cli -- --list | grep ': benchmark$' | sed -e "s/: benchmark$//" > benchmarks_list.txt
+          cargo bench -p committer_cli -- --list | grep ': benchmark$' | sed -e "s/: benchmark$//" > benchmarks_list.txt
 
       # Benchmark the old code.
       - run: cargo bench -p committer_cli
@@ -117,6 +119,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: fs.readFileSync('bench_new.txt', 'utf8'),
+              path: 'Commits'
             })
 
   gcs-push:

@@ -11,6 +11,8 @@ use cairo_lang_starknet_classes::casm_contract_class::{
 };
 use cairo_lang_starknet_classes::NestedIntList;
 use cairo_lang_utils::bigint::BigUintAsHex;
+#[allow(unused_imports)]
+use cairo_native::executor::AotNativeExecutor;
 use cairo_vm::serde::deserialize_program::{
     ApTracking,
     FlowTrackingData,
@@ -53,8 +55,9 @@ pub mod test;
 pub type ContractClassResult<T> = Result<T, ContractClassError>;
 
 /// The resource used to run a contract function.
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq, Serialize)]
-pub enum TrackingResource {
+pub enum TrackedResource {
     #[default]
     CairoSteps, // AKA VM mode.
     SierraGas, // AKA Sierra mode.
@@ -118,11 +121,11 @@ impl ContractClass {
     }
 
     /// Returns whether this contract should run using Cairo steps or Sierra gas.
-    pub fn tracking_resource(&self, min_sierra_version: &CompilerVersion) -> TrackingResource {
+    pub fn tracked_resource(&self, min_sierra_version: &CompilerVersion) -> TrackedResource {
         match self {
-            ContractClass::V0(_) => TrackingResource::CairoSteps,
+            ContractClass::V0(_) => TrackedResource::CairoSteps,
             ContractClass::V1(contract_class) => {
-                contract_class.tracking_resource(min_sierra_version)
+                contract_class.tracked_resource(min_sierra_version)
             }
         }
     }
@@ -177,8 +180,8 @@ impl ContractClassV0 {
         }
     }
 
-    pub fn tracking_resource(&self) -> TrackingResource {
-        TrackingResource::CairoSteps
+    pub fn tracked_resource(&self) -> TrackedResource {
+        TrackedResource::CairoSteps
     }
 
     pub fn try_from_json_string(raw_contract_class: &str) -> Result<ContractClassV0, ProgramError> {
@@ -260,11 +263,11 @@ impl ContractClassV1 {
     }
 
     /// Returns whether this contract should run using Cairo steps or Sierra gas.
-    pub fn tracking_resource(&self, min_sierra_version: &CompilerVersion) -> TrackingResource {
+    pub fn tracked_resource(&self, min_sierra_version: &CompilerVersion) -> TrackedResource {
         if *min_sierra_version <= self.compiler_version {
-            TrackingResource::SierraGas
+            TrackedResource::SierraGas
         } else {
-            TrackingResource::CairoSteps
+            TrackedResource::CairoSteps
         }
     }
 
@@ -422,7 +425,7 @@ impl TryFrom<CasmContractClass> for ContractClassV1 {
     type Error = ProgramError;
 
     fn try_from(class: CasmContractClass) -> Result<Self, Self::Error> {
-        try_from_casm_contrcat_class_internal(
+        try_from_casm_contract_class_internal(
             &class.bytecode,
             &class.hints,
             &class.entry_points_by_type,
@@ -436,7 +439,7 @@ impl TryFrom<&CasmContractClass> for ContractClassV1 {
     type Error = ProgramError;
 
     fn try_from(class: &CasmContractClass) -> Result<Self, Self::Error> {
-        try_from_casm_contrcat_class_internal(
+        try_from_casm_contract_class_internal(
             &class.bytecode,
             &class.hints,
             &class.entry_points_by_type,
@@ -459,7 +462,7 @@ pub fn deserialize_program<'de, D: Deserializer<'de>>(
 
 // V1 utilities.
 
-fn try_from_casm_contrcat_class_internal(
+fn try_from_casm_contract_class_internal(
     bytecode: &[BigUintAsHex],
     casm_class_hints: &[(usize, Vec<Hint>)],
     casm_class_entry_points_by_type: &CasmContractEntryPoints,

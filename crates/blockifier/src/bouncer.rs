@@ -11,14 +11,12 @@ use crate::blockifier::transaction_executor::{
 };
 use crate::execution::call_info::ExecutionSummary;
 use crate::fee::gas_usage::get_onchain_data_segment_length;
+use crate::fee::resources::TransactionResources;
 use crate::state::cached_state::{StateChangesKeys, StorageEntry};
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
-use crate::transaction::objects::{
-    ExecutionResourcesTraits,
-    TransactionExecutionResult,
-    TransactionResources,
-};
+use crate::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionResult};
+use crate::utils::usize_from_u128;
 
 #[cfg(test)]
 #[path = "bouncer_test.rs"]
@@ -297,19 +295,19 @@ pub fn get_tx_weights<S: StateReader>(
     tx_resources: &TransactionResources,
     state_changes_keys: &StateChangesKeys,
 ) -> TransactionExecutionResult<BouncerWeights> {
-    let (message_segment_length, gas_usage) =
-        tx_resources.starknet_resources.calculate_message_l1_resources();
-
+    let message_resources = &tx_resources.starknet_resources.messages;
+    let message_starknet_gas = usize_from_u128(message_resources.get_starknet_gas_cost().l1_gas.0)
+        .expect("This conversion should not fail as the value is a converted usize.");
     let mut additional_os_resources =
         get_casm_hash_calculation_resources(state_reader, executed_class_hashes)?;
     additional_os_resources += &get_particia_update_resources(n_visited_storage_entries);
 
-    let vm_resources = &additional_os_resources + &tx_resources.vm_resources;
+    let vm_resources = &additional_os_resources + &tx_resources.computation.vm_resources;
 
     Ok(BouncerWeights {
-        gas: gas_usage,
-        message_segment_length,
-        n_events: tx_resources.starknet_resources.n_events,
+        gas: message_starknet_gas,
+        message_segment_length: message_resources.message_segment_length,
+        n_events: tx_resources.starknet_resources.archival_data.event_summary.n_events,
         n_steps: vm_resources.total_n_steps(),
         builtin_count: BuiltinCount::from(vm_resources.prover_builtins()),
         state_diff_size: get_onchain_data_segment_length(&state_changes_keys.count()),

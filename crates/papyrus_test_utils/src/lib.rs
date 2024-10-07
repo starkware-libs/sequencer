@@ -5,7 +5,6 @@ mod precision_test;
 use std::cmp::max;
 use std::collections::{BTreeMap, HashMap};
 use std::env;
-use std::fs::read_to_string;
 use std::hash::Hash;
 use std::net::SocketAddr;
 use std::num::NonZeroU64;
@@ -109,6 +108,7 @@ use starknet_api::state::{
     StorageKey,
     ThinStateDiff,
 };
+use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -185,15 +185,6 @@ pub async fn send_request(
 /// Returns the absolute path from the project root.
 pub fn get_absolute_path(relative_path: &str) -> PathBuf {
     Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("../..").join(relative_path)
-}
-
-/// Reads from the directory containing the manifest at run time, same as current working directory.
-pub fn read_json_file(path_in_resource_dir: &str) -> serde_json::Value {
-    let path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap())
-        .join("resources")
-        .join(path_in_resource_dir);
-    let json_str = read_to_string(path.to_str().unwrap()).unwrap();
-    serde_json::from_str(&json_str).unwrap()
 }
 
 pub fn validate_load_and_dump<T: Serialize + for<'a> Deserialize<'a>>(path_in_resource_dir: &str) {

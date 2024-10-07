@@ -12,12 +12,12 @@ use tracing::instrument;
 
 use crate::gateway::Gateway;
 
-pub type GatewayServer = LocalComponentServer<Gateway, GatewayRequest, GatewayResponse>;
+pub type LocalGatewayServer = LocalComponentServer<Gateway, GatewayRequest, GatewayResponse>;
 
 pub fn create_gateway_server(
     gateway: Gateway,
     rx_gateway: Receiver<GatewayRequestAndResponseSender>,
-) -> GatewayServer {
+) -> LocalGatewayServer {
     LocalComponentServer::new(gateway, rx_gateway)
 }
 

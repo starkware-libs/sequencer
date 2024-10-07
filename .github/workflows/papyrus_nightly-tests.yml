@@ -6,9 +6,6 @@ on:
     - cron: '30 0 * * *'  # Uses macos runner.
   workflow_dispatch:  # Uses ubuntu runner.
 
-env:
-  PROTOC_VERSION: 25 # homebrew doesn't support minor versions
-
 jobs:
   GW-integration-test-ubuntu:
     uses: ./.github/workflows/papyrus_nightly-tests-call.yml
@@ -41,8 +38,6 @@ jobs:
 
       - run: mkdir data
 
-      - run: brew install protobuf@$PROTOC_VERSION
-
       - name: Build node
         run: cargo build -r -p papyrus_node
 
@@ -59,7 +54,6 @@ jobs:
       - uses: ./.github/actions/bootstrap
       - run: npm install -g ganache@7.4.3
 
-      - run: brew install protobuf@$PROTOC_VERSION
 
       - run: |
           cargo test -r -p papyrus_node

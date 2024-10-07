@@ -4,20 +4,18 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
-use starknet_api::transaction::ValidResourceBounds;
+use starknet_api::transaction::{GasVectorComputationMode, ValidResourceBounds};
 
 use crate::blockifier::block::BlockInfo;
 use crate::bouncer::BouncerConfig;
 use crate::transaction::objects::{
     FeeType,
-    GasVectorComputationMode,
     HasRelatedFeeType,
     TransactionInfo,
     TransactionInfoCreator,
 };
 use crate::versioned_constants::VersionedConstants;
 
-/// Create via [`crate::blockifier::block::pre_process_block`] to ensure correctness.
 #[derive(Clone, Debug)]
 pub struct TransactionContext {
     pub block_context: BlockContext,

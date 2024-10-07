@@ -1,26 +1,43 @@
-use async_trait::async_trait;
+use std::any::type_name;
 
-use super::definitions::ComponentServerStarter;
-use crate::component_runner::ComponentStarter;
+use async_trait::async_trait;
+use tracing::info;
+
+use crate::component_definitions::ComponentStarter;
+use crate::component_server::{ComponentReplacer, ComponentServerStarter, ReplaceComponentError};
 use crate::errors::ComponentServerError;
 
-pub struct EmptyServer<T: ComponentStarter + Send + Sync> {
-    component: T,
+pub struct WrapperServer<Component> {
+    component: Component,
 }
 
-impl<T: ComponentStarter + Send + Sync> EmptyServer<T> {
-    pub fn new(component: T) -> Self {
+impl<Component: Send + Sync> WrapperServer<Component> {
+    pub fn new(component: Component) -> Self {
         Self { component }
     }
 }
 
 #[async_trait]
-impl<T: ComponentStarter + Send + Sync> ComponentServerStarter for EmptyServer<T> {
+impl<Component: ComponentStarter + Send + Sync> ComponentServerStarter
+    for WrapperServer<Component>
+{
     async fn start(&mut self) -> Result<(), ComponentServerError> {
-        self.component.start().await.map_err(ComponentServerError::ComponentError)
+        info!("Starting WrapperServer for {}.", type_name::<Component>());
+        let res = self.component.start().await.map_err(ComponentServerError::ComponentError);
+        info!("Finished running WrapperServer for {}.", type_name::<Component>());
+        res
     }
 }
 
-pub fn create_empty_server<T: ComponentStarter + Send + Sync>(component: T) -> EmptyServer<T> {
-    EmptyServer::new(component)
+pub fn create_empty_server<Component: Send + Sync>(
+    component: Component,
+) -> WrapperServer<Component> {
+    WrapperServer::new(component)
+}
+
+impl<Component> ComponentReplacer<Component> for WrapperServer<Component> {
+    fn replace(&mut self, component: Component) -> Result<(), ReplaceComponentError> {
+        self.component = component;
+        Ok(())
+    }
 }
