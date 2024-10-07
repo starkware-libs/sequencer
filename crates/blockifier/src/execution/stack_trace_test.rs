@@ -544,7 +544,7 @@ fn test_validate_trace(
     let faulty_account = FeatureContract::FaultyAccount(cairo_version);
     let mut sender_address = faulty_account.get_instance_address(0);
     let class_hash = faulty_account.get_class_hash();
-    let state = &mut test_state(&block_context.chain_info, 0, &[(faulty_account, 1)]);
+    let state = &mut test_state(&block_context.chain_info, Fee(0), &[(faulty_account, 1)]);
     let selector = selector_from_name(entry_point_name).0;
 
     // Logic failure.
@@ -616,7 +616,7 @@ fn test_account_ctor_frame_stack_trace(
             tx_type: TransactionType::DeployAccount,
             scenario: INVALID,
             class_hash,
-            max_fee: Fee(BALANCE),
+            max_fee: BALANCE,
             validate_constructor: true,
             ..Default::default()
         });
@@ -626,7 +626,7 @@ fn test_account_ctor_frame_stack_trace(
         AccountTransaction::DeployAccount(deploy_tx) => deploy_tx.contract_address(),
         _ => unreachable!("deploy_account_tx is a DeployAccount"),
     };
-    fund_account(chain_info, deploy_address, BALANCE * 2, &mut state.state);
+    fund_account(chain_info, deploy_address, Fee(BALANCE.0 * 2), &mut state.state);
 
     let expected_selector = selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME).0;
     let expected_address = deploy_address.0.key();

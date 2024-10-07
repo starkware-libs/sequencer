@@ -13,12 +13,14 @@ use std::fs;
 use std::path::PathBuf;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::block::{GasPrice, NonzeroGasPrice};
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
+    Fee,
     GasVectorComputationMode,
     TransactionVersion,
 };
@@ -93,24 +95,27 @@ pub fn test_erc20_sequencer_balance_key() -> StorageKey {
 }
 
 // The max_fee / resource bounds used for txs in this test.
-pub const MAX_L1_GAS_AMOUNT: u64 = 1000000;
-#[allow(clippy::as_conversions)]
-pub const MAX_L1_GAS_AMOUNT_U128: GasAmount = GasAmount(MAX_L1_GAS_AMOUNT as u128);
-pub const MAX_L1_GAS_PRICE: u128 = DEFAULT_STRK_L1_GAS_PRICE;
-pub const MAX_RESOURCE_COMMITMENT: u128 = MAX_L1_GAS_AMOUNT_U128.0 * MAX_L1_GAS_PRICE;
-pub const MAX_FEE: u128 = MAX_L1_GAS_AMOUNT_U128.0 * DEFAULT_ETH_L1_GAS_PRICE;
+pub const MAX_L1_GAS_AMOUNT: GasAmount = GasAmount(1000000);
+pub const MAX_L1_GAS_PRICE: NonzeroGasPrice = DEFAULT_STRK_L1_GAS_PRICE;
+pub const MAX_RESOURCE_COMMITMENT: Fee = MAX_L1_GAS_AMOUNT.nonzero_saturating_mul(MAX_L1_GAS_PRICE);
+pub const MAX_FEE: Fee = MAX_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_ETH_L1_GAS_PRICE);
 
 // The amount of test-token allocated to the account in this test, set to a multiple of the max
 // amount deprecated / non-deprecated transactions commit to paying.
-pub const BALANCE: u128 = 10 * const_max(MAX_FEE, MAX_RESOURCE_COMMITMENT);
+pub const BALANCE: Fee = Fee(10 * const_max(MAX_FEE.0, MAX_RESOURCE_COMMITMENT.0));
 
-pub const DEFAULT_ETH_L1_GAS_PRICE: u128 = 100 * u128::pow(10, 9); // Given in units of Wei.
-pub const DEFAULT_STRK_L1_GAS_PRICE: u128 = 100 * u128::pow(10, 9); // Given in units of STRK.
-pub const DEFAULT_ETH_L1_DATA_GAS_PRICE: u128 = u128::pow(10, 6); // Given in units of Wei.
-pub const DEFAULT_STRK_L1_DATA_GAS_PRICE: u128 = u128::pow(10, 9); // Given in units of STRK.
-pub const DEFAULT_L1_DATA_GAS_MAX_AMOUNT: u64 = u64::pow(10, 6);
-pub const DEFAULT_STRK_L2_GAS_PRICE: u128 = u128::pow(10, 9);
-pub const DEFAULT_L2_GAS_MAX_AMOUNT: u64 = u64::pow(10, 6);
+pub const DEFAULT_ETH_L1_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(100 * u128::pow(10, 9))); // Given in units of Wei.
+pub const DEFAULT_STRK_L1_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(100 * u128::pow(10, 9))); // Given in units of STRK.
+pub const DEFAULT_ETH_L1_DATA_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 6))); // Given in units of Wei.
+pub const DEFAULT_STRK_L1_DATA_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9))); // Given in units of STRK.
+pub const DEFAULT_L1_DATA_GAS_MAX_AMOUNT: GasAmount = GasAmount(u128::pow(10, 6));
+pub const DEFAULT_STRK_L2_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9)));
+pub const DEFAULT_L2_GAS_MAX_AMOUNT: GasAmount = GasAmount(u128::pow(10, 6));
 
 // The block number of the BlockContext being used for testing.
 pub const CURRENT_BLOCK_NUMBER: u64 = 2001;

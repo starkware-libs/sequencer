@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::num::NonZeroU128;
 
 use crate::transaction::errors::NumericConversionError;
 
@@ -59,13 +58,4 @@ pub fn usize_from_u128(val: u128) -> Result<usize, NumericConversionError> {
 /// of address space.
 pub fn u128_from_usize(val: usize) -> u128 {
     val.try_into().expect("Conversion from usize to u128 should not fail.")
-}
-
-/// Returns the ceiling of the division of two u128 numbers.
-pub fn u128_div_ceil(a: u128, b: NonZeroU128) -> u128 {
-    let mut result = a / b;
-    if result * b.get() < a {
-        result += 1;
-    }
-    result
 }

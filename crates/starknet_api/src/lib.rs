@@ -41,4 +41,6 @@ pub enum StarknetApiError {
     /// Missing resource type / duplicated resource type.
     #[error("Missing resource type / duplicated resource type; got {0}.")]
     InvalidResourceMappingInitializer(String),
+    #[error("NonzeroGasPrice cannot be zero.")]
+    ZeroGasPrice,
 }

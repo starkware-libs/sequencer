@@ -3,6 +3,9 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
+use crate::block::{GasPrice, NonzeroGasPrice};
+use crate::transaction::Fee;
+
 #[derive(
     derive_more::Add,
     derive_more::AddAssign,
@@ -33,6 +36,24 @@ macro_rules! impl_from_uint_for_gas_amount {
 }
 
 impl_from_uint_for_gas_amount!(u8, u16, u32, u64, u128);
+
+impl GasAmount {
+    pub const fn saturating_mul(self, rhs: GasPrice) -> Fee {
+        rhs.saturating_mul(self)
+    }
+
+    pub const fn nonzero_saturating_mul(self, rhs: NonzeroGasPrice) -> Fee {
+        rhs.saturating_mul(self)
+    }
+
+    pub fn checked_mul(self, rhs: GasPrice) -> Option<Fee> {
+        rhs.checked_mul(self)
+    }
+
+    pub fn nonzero_checked_mul(self, rhs: NonzeroGasPrice) -> Option<Fee> {
+        rhs.checked_mul(self)
+    }
+}
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 pub struct GasVector {

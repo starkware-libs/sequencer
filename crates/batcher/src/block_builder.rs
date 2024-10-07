@@ -1,5 +1,3 @@
-use std::num::NonZeroU128;
-
 use async_trait::async_trait;
 use blockifier::blockifier::block::{BlockInfo, BlockNumberHashPair, GasPrices};
 use blockifier::blockifier::config::TransactionExecutorConfig;
@@ -21,7 +19,7 @@ use indexmap::IndexMap;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_storage::StorageReader;
-use starknet_api::block::{BlockNumber, BlockTimestamp};
+use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
@@ -121,7 +119,7 @@ impl BlockBuilderFactory {
             sequencer_address: execution_config.sequencer_address,
             // TODO (yael 7/10/2024): add logic to compute gas prices
             gas_prices: {
-                let tmp_val = NonZeroU128::new(1).unwrap();
+                let tmp_val = NonzeroGasPrice::MIN;
                 GasPrices::new(tmp_val, tmp_val, tmp_val, tmp_val, tmp_val, tmp_val)
             },
             use_kzg_da: execution_config.use_kzg_da,

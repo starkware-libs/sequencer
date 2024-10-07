@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
-use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp};
+use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::{
@@ -175,18 +175,20 @@ impl BlockInfo {
             block_timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
             sequencer_address: contract_address!(TEST_SEQUENCER_ADDRESS),
             gas_prices: GasPrices::new(
-                DEFAULT_ETH_L1_GAS_PRICE.try_into().unwrap(),
-                DEFAULT_STRK_L1_GAS_PRICE.try_into().unwrap(),
-                DEFAULT_ETH_L1_DATA_GAS_PRICE.try_into().unwrap(),
-                DEFAULT_STRK_L1_DATA_GAS_PRICE.try_into().unwrap(),
-                VersionedConstants::latest_constants()
-                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE)
-                    .try_into()
-                    .unwrap(),
-                VersionedConstants::latest_constants()
-                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE)
-                    .try_into()
-                    .unwrap(),
+                DEFAULT_ETH_L1_GAS_PRICE,
+                DEFAULT_STRK_L1_GAS_PRICE,
+                DEFAULT_ETH_L1_DATA_GAS_PRICE,
+                DEFAULT_STRK_L1_DATA_GAS_PRICE,
+                NonzeroGasPrice::new(
+                    VersionedConstants::latest_constants()
+                        .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE.into()),
+                )
+                .unwrap(),
+                NonzeroGasPrice::new(
+                    VersionedConstants::latest_constants()
+                        .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE.into()),
+                )
+                .unwrap(),
             ),
             use_kzg_da: false,
         }

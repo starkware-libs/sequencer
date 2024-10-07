@@ -4,7 +4,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use papyrus_rpc::CompiledContractClass;
 use serde::Serialize;
 use serde_json::json;
-use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::{class_hash, contract_address, felt, patricia_key};
 
@@ -67,16 +67,16 @@ async fn test_get_block_info() {
                 block_number: expected_result,
                 // GasPrice must be non-zero.
                 l1_gas_price: ResourcePrice {
-                    price_in_wei: GasPrice(1),
-                    price_in_fri: GasPrice(1),
+                    price_in_wei: 1_u8.into(),
+                    price_in_fri: 1_u8.into(),
                 },
                 l1_data_gas_price: ResourcePrice {
-                    price_in_wei: GasPrice(1),
-                    price_in_fri: GasPrice(1),
+                    price_in_wei: 1_u8.into(),
+                    price_in_fri: 1_u8.into(),
                 },
                 l2_gas_price: ResourcePrice {
-                    price_in_wei: GasPrice(1),
-                    price_in_fri: GasPrice(1),
+                    price_in_wei: 1_u8.into(),
+                    price_in_fri: 1_u8.into(),
                 },
                 ..Default::default()
             })
