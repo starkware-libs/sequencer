@@ -61,20 +61,20 @@ impl Mempool {
             eligible_tx_references.extend(chunk);
         }
 
-        let mut eligible_txs: Vec<Transaction> = Vec::with_capacity(n_txs);
-        for tx_ref in &eligible_tx_references {
-            let tx = self.tx_pool.remove(tx_ref.tx_hash)?;
-            // TODO(clean_account_nonces): remove address from nonce table after a block cycle /
-            // TTL.
-            eligible_txs.push(tx);
-        }
-
         // Update the mempool state with the given transactions' nonces.
         for tx_ref in &eligible_tx_references {
             self.mempool_state.insert(tx_ref.sender_address, tx_ref.nonce);
         }
 
-        Ok(eligible_txs)
+        Ok(eligible_tx_references
+            .iter()
+            .map(|tx_ref| {
+                self.tx_pool
+                    .get_by_tx_hash(tx_ref.tx_hash)
+                    .expect("Transaction hash from queue must appear in pool")
+            })
+            .cloned() // Soft-delete: return without deleting from mempool.
+            .collect())
     }
 
     /// Adds a new transaction to the mempool.
@@ -107,6 +107,17 @@ impl Mempool {
             let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
             let account_state = AccountState { address, nonce: next_nonce };
             self.align_to_account_state(account_state);
+        }
+
+        // Hard-delete: finally, remove committed transactions from the mempool.
+        for tx_hash in args.tx_hashes {
+            let Ok(_tx) = self.tx_pool.remove(tx_hash) else {
+                // Is a block from a different leader possible? If not, propagate error.
+                continue;
+            };
+
+            // TODO(clean_account_nonces): remove address from nonce table after a block cycle /
+            // TTL.
         }
 
         // Rewind nonces of addresses that were not included in block.

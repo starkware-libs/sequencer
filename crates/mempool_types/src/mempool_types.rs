@@ -1,8 +1,9 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::transaction::TransactionHash;
 
 use crate::errors::MempoolError;
 
@@ -22,6 +23,7 @@ pub struct AddTransactionArgs {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CommitBlockArgs {
     pub nonces: HashMap<ContractAddress, Nonce>,
+    pub tx_hashes: HashSet<TransactionHash>,
 }
 
 pub type MempoolResult<T> = Result<T, MempoolError>;

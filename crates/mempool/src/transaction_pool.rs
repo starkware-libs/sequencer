@@ -83,7 +83,7 @@ impl TransactionPool {
         }
     }
 
-    pub fn _get_by_tx_hash(&self, tx_hash: TransactionHash) -> MempoolResult<&Transaction> {
+    pub fn get_by_tx_hash(&self, tx_hash: TransactionHash) -> MempoolResult<&Transaction> {
         self.tx_pool.get(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })
     }
 
