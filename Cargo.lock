@@ -10423,10 +10423,21 @@ name = "starknet_mempool_p2p"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "futures",
  "papyrus_network",
+<<<<<<< HEAD
  "papyrus_protobuf",
+=======
+ "papyrus_network_types",
+ "papyrus_proc_macros",
+ "papyrus_protobuf",
+ "serde",
+ "starknet_api",
+>>>>>>> 71d3253db (feat(mempool_p2p): create init for receiver and sender)
  "starknet_mempool_infra",
  "starknet_mempool_p2p_types",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
