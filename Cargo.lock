@@ -10371,9 +10371,17 @@ name = "starknet_mempool_p2p"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "futures",
  "papyrus_network",
+ "papyrus_network_types",
+ "papyrus_proc_macros",
+ "papyrus_protobuf",
+ "serde",
+ "starknet_api",
  "starknet_mempool_infra",
  "starknet_mempool_p2p_types",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
