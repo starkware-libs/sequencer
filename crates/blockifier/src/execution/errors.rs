@@ -58,7 +58,7 @@ impl From<RunnerError> for PreExecutionError {
 #[derive(Debug, Error)]
 pub enum PostExecutionError {
     #[error(transparent)]
-    MathError(#[from] cairo_vm::types::errors::math_errors::MathError),
+    MathError(#[from] MathError),
     #[error(transparent)]
     MemoryError(#[from] MemoryError),
     #[error(transparent)]

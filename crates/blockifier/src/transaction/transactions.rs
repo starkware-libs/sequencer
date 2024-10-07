@@ -162,7 +162,7 @@ impl DeclareTransaction {
                     })?
                 }
             }
-            ContractClass::V1(_) => {
+            ContractClass::V1(_) | ContractClass::V1Native(_) => {
                 if declare_version <= TransactionVersion::ONE {
                     Err(TransactionExecutionError::ContractClassVersionMismatch {
                         declare_version,

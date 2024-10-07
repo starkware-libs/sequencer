@@ -93,6 +93,9 @@ pub fn execute_entry_point_call(
             resources,
             context,
         ),
+        ContractClass::V1Native(_contract_class) => {
+            unimplemented!("Native contract entry point execution is not yet implemented.")
+        }
     }
 }
 
