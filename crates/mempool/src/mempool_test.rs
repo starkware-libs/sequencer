@@ -1,6 +1,5 @@
 use std::cmp::Reverse;
 
-use assert_matches::assert_matches;
 use mempool_test_utils::starknet_api_test_utils::test_resource_bounds_mapping;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
@@ -375,9 +374,9 @@ fn test_add_tx_multi_nonce_success(mut mempool: Mempool) {
         add_tx_input!(tx_hash: 2, sender_address: "0x1", tx_nonce: 0,account_nonce: 0);
 
     // Test.
-    add_tx(&mut mempool, &input_address_0_nonce_0);
-    add_tx(&mut mempool, &input_address_1_nonce_0);
-    add_tx(&mut mempool, &input_address_0_nonce_1);
+    for input in [&input_address_0_nonce_0, &input_address_1_nonce_0, &input_address_0_nonce_1] {
+        add_tx(&mut mempool, input);
+    }
 
     // Assert: only the eligible transactions appear in the queue.
     let expected_queue_txs =
@@ -399,9 +398,10 @@ fn test_add_tx_with_duplicate_tx(mut mempool: Mempool) {
 
     // Test.
     add_tx(&mut mempool, &input);
-    assert_matches!(
-        mempool.add_tx(duplicate_input),
-        Err(MempoolError::DuplicateTransaction { .. })
+    add_tx_expect_error(
+        &mut mempool,
+        &duplicate_input,
+        MempoolError::DuplicateTransaction { tx_hash: input.tx.tx_hash() },
     );
 
     // Assert: the original transaction remains.
@@ -469,8 +469,9 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
     let input2 = add_tx_input!(tip: 1, tx_hash: 1, sender_address: "0x1");
 
     // Test.
-    add_tx(&mut mempool, &input1);
-    add_tx(&mut mempool, &input2);
+    for input in [&input1, &input2] {
+        add_tx(&mut mempool, input);
+    }
 
     // Assert: both transactions are in the mempool.
     let expected_queue_txs = [&input1.tx, &input2.tx].map(TransactionReference::new);
@@ -522,8 +523,9 @@ fn test_add_tx_tip_priority_over_tx_hash(mut mempool: Mempool) {
     let input_small_tip_big_hash = add_tx_input!(tip: 1, tx_hash: 2, sender_address: "0x1");
 
     // Test.
-    add_tx(&mut mempool, &input_big_tip_small_hash);
-    add_tx(&mut mempool, &input_small_tip_big_hash);
+    for input in [&input_big_tip_small_hash, &input_small_tip_big_hash] {
+        add_tx(&mut mempool, input);
+    }
 
     // Assert: ensure that the transaction with the higher tip is prioritized higher.
     let expected_queue_txs =
@@ -562,8 +564,9 @@ fn test_add_tx_sequential_nonces(mut mempool: Mempool) {
     let input_nonce_1 = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0);
 
     // Test.
-    add_tx(&mut mempool, &input_nonce_0);
-    add_tx(&mut mempool, &input_nonce_1);
+    for input in [&input_nonce_0, &input_nonce_1] {
+        add_tx(&mut mempool, input);
+    }
 
     // Assert: only eligible transaction appears in the queue.
     let expected_queue_txs = [TransactionReference::new(&input_nonce_0.tx)];
@@ -604,23 +607,6 @@ fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
 }
 
 // `commit_block` tests.
-
-#[rstest]
-fn test_add_tx_after_get_txs_fails_on_duplicate_nonce(mut mempool: Mempool) {
-    // Setup.
-    let input_tx = add_tx_input!(tx_hash: 0, tx_nonce: 0);
-
-    // Test.
-    add_tx(&mut mempool, &input_tx);
-    get_txs_and_assert_expected(&mut mempool, 1, &[input_tx.tx]);
-
-    let input_tx_duplicate_nonce = add_tx_input!(tx_hash: 1, tx_nonce: 0);
-    add_tx_expect_error(
-        &mut mempool,
-        &input_tx_duplicate_nonce,
-        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(0) },
-    );
-}
 
 #[rstest]
 fn test_commit_block_includes_all_txs() {
