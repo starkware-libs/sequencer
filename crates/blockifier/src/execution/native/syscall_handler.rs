@@ -317,7 +317,8 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 #[allow(dead_code)]
 fn native_update_remaining_gas(remaining_gas: &mut u128, call_info: &CallInfo) {
     // Create a new variable with converted type.
-    let mut remaining_gas_u64 = u64::try_from(*remaining_gas).unwrap();
+    let mut remaining_gas_u64 =
+        u64::try_from(*remaining_gas).expect("Failed to convert gas to u64.");
 
     // Pass the reference to the function.
     update_remaining_gas(&mut remaining_gas_u64, call_info);
