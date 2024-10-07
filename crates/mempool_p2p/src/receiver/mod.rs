@@ -11,16 +11,8 @@ use starknet_mempool_infra::component_definitions::ComponentStarter;
 use starknet_mempool_infra::errors::ComponentError;
 
 pub struct MempoolP2pReceiver {
-<<<<<<< HEAD
-    #[allow(dead_code)]
-    network_manager: Option<NetworkManager>,
-    #[allow(dead_code)]
-    broadcasted_messages_server: BroadcastTopicServer<RpcTransactionWrapper>,
-    #[allow(dead_code)]
-=======
     network_manager: Option<NetworkManager>,
     broadcasted_messages_server: BroadcastTopicServer<RpcTransactionWrapper>,
->>>>>>> 0cace6651 (feat(mempool_p2p): create init for receiver and sender)
     broadcast_messages_client: BroadcastTopicClient<RpcTransactionWrapper>,
 }
 
