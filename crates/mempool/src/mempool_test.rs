@@ -607,20 +607,15 @@ fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
 // `commit_block` tests.
 
 #[rstest]
-fn test_add_tx_after_get_txs_fails_on_duplicate_nonce() {
+fn test_add_tx_after_get_txs_fails_on_duplicate_nonce(mut mempool: Mempool) {
     // Setup.
     let input_tx = add_tx_input!(tx_hash: 0, tx_nonce: 0);
-    let input_tx_duplicate_nonce = add_tx_input!(tx_hash: 1, tx_nonce: 0);
-
-    let pool_txs = [input_tx.tx.clone()];
-    let queue_txs = [TransactionReference::new(&input_tx.tx)];
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool(pool_txs)
-        .with_priority_queue(queue_txs)
-        .build_into_mempool();
 
     // Test.
-    mempool.get_txs(1).unwrap();
+    add_tx(&mut mempool, &input_tx);
+    get_txs_and_assert_expected(&mut mempool, 1, &[input_tx.tx]);
+
+    let input_tx_duplicate_nonce = add_tx_input!(tx_hash: 1, tx_nonce: 0);
     add_tx_expect_error(
         &mut mempool,
         &input_tx_duplicate_nonce,
