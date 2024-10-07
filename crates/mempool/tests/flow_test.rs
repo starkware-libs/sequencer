@@ -77,7 +77,8 @@ fn test_add_same_nonce_tx_after_previous_not_included_in_block(mut mempool: Memp
     );
 
     let nonces = [("0x0", 3)]; // Transaction with nonce 4 is not included in the block.
-    commit_block(&mut mempool, nonces);
+    let tx_hashes = [1];
+    commit_block(&mut mempool, nonces, tx_hashes);
 
     let tx_nonce_4_account_nonce_4 =
         add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 4, account_nonce: 4);
@@ -134,7 +135,8 @@ fn test_commit_block_includes_proposed_txs_subset(mut mempool: Mempool) {
 
     // Not included in block: address "0x2" nonce 2, address "0x1" nonce 1.
     let nonces = [("0x0", 3), ("0x1", 0)];
-    commit_block(&mut mempool, nonces);
+    let tx_hashes = [1, 4];
+    commit_block(&mut mempool, nonces, tx_hashes);
 
     get_txs_and_assert_expected(&mut mempool, 2, &[]);
 }
@@ -155,7 +157,8 @@ fn test_flow_commit_block_fills_nonce_gap(mut mempool: Mempool) {
     get_txs_and_assert_expected(&mut mempool, 2, &[tx_nonce_3_account_nonce_3.tx]);
 
     let nonces = [("0x0", 4)];
-    commit_block(&mut mempool, nonces);
+    let tx_hashes = [1, 3];
+    commit_block(&mut mempool, nonces, tx_hashes);
 
     // Assert: hole was indeed closed.
     let tx_nonce_4_account_nonce_4 =
