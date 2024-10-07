@@ -79,14 +79,14 @@ fn test_add_same_nonce_tx_after_previous_not_included_in_block(mut mempool: Memp
     let nonces = [("0x0", 3)]; // Transaction with nonce 4 is not included in the block.
     commit_block(&mut mempool, nonces);
 
-    let tx_nonce_4_account_nonce_4 =
-        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 4, account_nonce: 4);
-    add_tx(&mut mempool, &tx_nonce_4_account_nonce_4);
+    let tx_nonce_5_account_nonce_5 =
+        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 5, account_nonce: 5);
+    add_tx(&mut mempool, &tx_nonce_5_account_nonce_5);
 
     get_txs_and_assert_expected(
         &mut mempool,
         2,
-        &[tx_nonce_4_account_nonce_4.tx, tx_nonce_5_account_nonce_3.tx],
+        &[tx_nonce_5_account_nonce_5.tx, tx_nonce_5_account_nonce_3.tx],
     );
 }
 
