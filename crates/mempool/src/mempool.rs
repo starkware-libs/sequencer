@@ -152,7 +152,7 @@ impl Mempool {
         if self
             .tx_queue
             .get_nonce(sender_address)
-            .is_some_and(|queued_nonce| queued_nonce > tx_nonce)
+            .is_some_and(|queued_nonce| queued_nonce >= tx_nonce)
         {
             return Err(duplicate_nonce_error);
         }
