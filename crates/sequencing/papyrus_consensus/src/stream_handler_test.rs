@@ -52,25 +52,63 @@ mod tests {
         MockBroadcastedMessagesSender<StreamMessage<ConsensusMessage>>,
         mpsc::Receiver<mpsc::Receiver<ConsensusMessage>>,
         BroadcastedMessageManager,
+        mpsc::Sender<(u64, mpsc::Receiver<ConsensusMessage>)>,
     ) {
+        // This (network_broadcast_sender) is the network connector for broadcasting messages to the
+        // network.
+        let TestSubscriberChannels { mock_network: _, subscriber_channels } =
+            mock_register_broadcast_topic().unwrap();
+        let BroadcastTopicChannels {
+            broadcasted_messages_receiver: _,
+            broadcast_topic_client: network_broadcast_sender,
+        } = subscriber_channels;
+
+        // This channel is used to feed receivers of messages to StreamHandler for broadcasting.
+        // The receiver goes into the StreamHandler, the sender is used by the test (e.g., as mock
+        // Consensus) Note that each new channel comes in a tuple with (stream_id,
+        // receiver).
+        let (broadcast_channel_sender, broadcast_channel_receiver) =
+            mpsc::channel::<(u64, mpsc::Receiver<ConsensusMessage>)>(100);
+
+        // This is the network connector for listening to messages from the network.
         let TestSubscriberChannels { mock_network, subscriber_channels } =
             mock_register_broadcast_topic().unwrap();
-        let network_sender = mock_network.broadcasted_messages_sender;
+
+        // This sender mocks the messages coming in from the network,
+        // while the broadcasted_messages_receiver is given to StreamHandler to listen.
+        let network_sender_to_listen = mock_network.broadcasted_messages_sender;
         let BroadcastTopicChannels { broadcasted_messages_receiver, broadcast_topic_client: _ } =
             subscriber_channels;
-        let broadcast_channel_receiver = 0;
-        let (tx_output, rx_output) = mpsc::channel::<mpsc::Receiver<ConsensusMessage>>(100);
-        let handler = StreamHandler::new(tx_output, broadcasted_messages_receiver, network_sender);
 
-        let broadcasted_message_manager =
-            BroadcastedMessageManager::get_test_instance(&mut get_rng());
+        // The listen_channel_sender is given to StreamHandler so it can output new channels for
+        // each stream. The listen_channel_receiver is given to the "mock consensus" that
+        // gets new channels and listens to them.
+        let (listen_channel_sender, listen_channel_receiver) =
+            mpsc::channel::<mpsc::Receiver<ConsensusMessage>>(100);
 
-        (handler, network_sender, rx_output, broadcasted_message_manager)
+        // TODO(guyn): We should also give the broadcast_topic_client to the StreamHandler
+        let handler = StreamHandler::new(
+            listen_channel_sender,
+            broadcasted_messages_receiver,
+            network_broadcast_sender,
+            broadcast_channel_receiver,
+        );
+
+        let listen_metadata = BroadcastedMessageManager::get_test_instance(&mut get_rng());
+
+        (
+            handler,
+            network_sender_to_listen,
+            listen_channel_receiver,
+            listen_metadata,
+            broadcast_channel_sender,
+        )
     }
 
     #[tokio::test]
-    async fn stream_handler_in_order() {
-        let (mut stream_handler, mut network_sender, mut rx_output, metadata) = setup_test();
+    async fn stream_handler_listen_in_order() {
+        let (mut stream_handler, mut network_sender, mut listen_channel_receiver, metadata, _) =
+            setup_test();
 
         let stream_id = 127;
         for i in 0..10 {
@@ -79,12 +117,12 @@ mod tests {
         }
 
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
         });
 
         join_handle.await.expect("Task should succeed");
 
-        let mut receiver = rx_output.next().await.unwrap();
+        let mut receiver = listen_channel_receiver.next().await.unwrap();
         for _ in 0..9 {
             // message number 9 is Fin, so it will not be sent!
             let _ = receiver.next().await.unwrap();
@@ -94,33 +132,39 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn stream_handler_in_reverse() {
-        let (mut stream_handler, mut network_sender, mut rx_output, metadata) = setup_test();
-        let peer_id = get_metadata_peer_id(&metadata);
+    async fn stream_handler_listen_in_reverse() {
+        let (
+            mut stream_handler,
+            mut network_sender,
+            mut listen_channel_receiver,
+            listen_metadata,
+            _,
+        ) = setup_test();
+        let peer_id = get_metadata_peer_id(&listen_metadata);
         let stream_id = 127;
 
         for i in 0..5 {
             let message = make_test_message(stream_id, 5 - i, i == 0);
-            send(&mut network_sender, &metadata, message).await;
+            send(&mut network_sender, &listen_metadata, message).await;
         }
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
         });
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // Get the receiver for the stream.
-        let mut receiver = rx_output.next().await.unwrap();
+        let mut receiver = listen_channel_receiver.next().await.unwrap();
         // Check that the channel is empty (no messages were sent yet).
         assert!(receiver.try_next().is_err());
 
-        assert_eq!(stream_handler.stream_data.len(), 1);
+        assert_eq!(stream_handler.listen_stream_data.len(), 1);
         assert_eq!(
-            stream_handler.stream_data[&(peer_id.clone(), stream_id)].message_buffer.len(),
+            stream_handler.listen_stream_data[&(peer_id.clone(), stream_id)].message_buffer.len(),
             5
         );
         let range: Vec<u64> = (1..6).collect();
-        let keys: Vec<u64> = stream_handler.stream_data[&(peer_id, stream_id)]
+        let keys: Vec<u64> = stream_handler.listen_stream_data[&(peer_id, stream_id)]
             .clone()
             .message_buffer
             .into_keys()
@@ -128,14 +172,14 @@ mod tests {
         assert!(do_vecs_match(&keys, &range));
 
         // Now send the last message:
-        send(&mut network_sender, &metadata, make_test_message(stream_id, 0, false)).await;
+        send(&mut network_sender, &listen_metadata, make_test_message(stream_id, 0, false)).await;
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
         });
 
         let stream_handler = join_handle.await.expect("Task should succeed");
-        assert!(stream_handler.stream_data.is_empty());
+        assert!(stream_handler.listen_stream_data.is_empty());
 
         for _ in 0..5 {
             // message number 5 is Fin, so it will not be sent!
@@ -146,9 +190,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn stream_handler_multiple_streams() {
-        let (mut stream_handler, mut network_sender, mut rx_output, metadata) = setup_test();
-        let peer_id = get_metadata_peer_id(&metadata);
+    async fn stream_handler_listen_multiple_streams() {
+        let (
+            mut stream_handler,
+            mut network_sender,
+            mut listen_channel_receiver,
+            listen_metadata,
+            _,
+        ) = setup_test();
+        let peer_id = get_metadata_peer_id(&listen_metadata);
 
         let stream_id1 = 127; // Send all messages in order (except the first one).
         let stream_id2 = 10; // Send in reverse order (except the first one).
@@ -156,35 +206,41 @@ mod tests {
 
         for i in 1..10 {
             let message = make_test_message(stream_id1, i, i == 9);
-            send(&mut network_sender, &metadata, message).await;
+            send(&mut network_sender, &listen_metadata, message).await;
         }
 
         for i in 0..5 {
             let message = make_test_message(stream_id2, 5 - i, i == 0);
-            send(&mut network_sender, &metadata, message).await;
+            send(&mut network_sender, &listen_metadata, message).await;
         }
 
         for i in 5..10 {
             let message = make_test_message(stream_id3, i, false);
-            send(&mut network_sender, &metadata, message).await;
+            send(&mut network_sender, &listen_metadata, message).await;
         }
         for i in 1..5 {
             let message = make_test_message(stream_id3, i, false);
-            send(&mut network_sender, &metadata, message).await;
+            send(&mut network_sender, &listen_metadata, message).await;
         }
 
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
         });
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         let values = vec![(peer_id.clone(), 1), (peer_id.clone(), 10), (peer_id.clone(), 127)];
-        assert!(stream_handler.stream_data.clone().into_keys().all(|item| values.contains(&item)));
+        assert!(
+            stream_handler
+                .listen_stream_data
+                .clone()
+                .into_keys()
+                .all(|item| values.contains(&item))
+        );
 
         // We have all message from 1 to 9 buffered.
         assert!(do_vecs_match(
-            &stream_handler.stream_data[&(peer_id.clone(), stream_id1)]
+            &stream_handler.listen_stream_data[&(peer_id.clone(), stream_id1)]
                 .message_buffer
                 .clone()
                 .into_keys()
@@ -194,7 +250,7 @@ mod tests {
 
         // We have all message from 1 to 5 buffered.
         assert!(do_vecs_match(
-            &stream_handler.stream_data[&(peer_id.clone(), stream_id2)]
+            &stream_handler.listen_stream_data[&(peer_id.clone(), stream_id2)]
                 .message_buffer
                 .clone()
                 .into_keys()
@@ -204,7 +260,7 @@ mod tests {
 
         // We have all message from 1 to 5 buffered.
         assert!(do_vecs_match(
-            &stream_handler.stream_data[&(peer_id.clone(), stream_id3)]
+            &stream_handler.listen_stream_data[&(peer_id.clone(), stream_id3)]
                 .message_buffer
                 .clone()
                 .into_keys()
@@ -213,27 +269,27 @@ mod tests {
         ));
 
         // Get the receiver for the first stream.
-        let mut receiver1 = rx_output.next().await.unwrap();
+        let mut receiver1 = listen_channel_receiver.next().await.unwrap();
 
         // Check that the channel is empty (no messages were sent yet).
         assert!(receiver1.try_next().is_err());
 
         // Get the receiver for the second stream.
-        let mut receiver2 = rx_output.next().await.unwrap();
+        let mut receiver2 = listen_channel_receiver.next().await.unwrap();
 
         // Check that the channel is empty (no messages were sent yet).
         assert!(receiver2.try_next().is_err());
 
         // Get the receiver for the third stream.
-        let mut receiver3 = rx_output.next().await.unwrap();
+        let mut receiver3 = listen_channel_receiver.next().await.unwrap();
 
         // Check that the channel is empty (no messages were sent yet).
         assert!(receiver3.try_next().is_err());
 
         // Send the last message on stream_id1:
-        send(&mut network_sender, &metadata, make_test_message(stream_id1, 0, false)).await;
+        send(&mut network_sender, &listen_metadata, make_test_message(stream_id1, 0, false)).await;
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
         });
 
@@ -250,12 +306,18 @@ mod tests {
 
         // stream_id1 should be gone
         let values = vec![(peer_id.clone(), 1), (peer_id.clone(), 10)];
-        assert!(stream_handler.stream_data.clone().into_keys().all(|item| values.contains(&item)));
+        assert!(
+            stream_handler
+                .listen_stream_data
+                .clone()
+                .into_keys()
+                .all(|item| values.contains(&item))
+        );
 
         // Send the last message on stream_id2:
-        send(&mut network_sender, &metadata, make_test_message(stream_id2, 0, false)).await;
+        send(&mut network_sender, &listen_metadata, make_test_message(stream_id2, 0, false)).await;
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
         });
 
@@ -272,13 +334,19 @@ mod tests {
 
         // Stream_id2 should also be gone.
         let values = vec![(peer_id.clone(), 1)];
-        assert!(stream_handler.stream_data.clone().into_keys().all(|item| values.contains(&item)));
+        assert!(
+            stream_handler
+                .listen_stream_data
+                .clone()
+                .into_keys()
+                .all(|item| values.contains(&item))
+        );
 
         // Send the last message on stream_id3:
-        send(&mut network_sender, &metadata, make_test_message(stream_id3, 0, false)).await;
+        send(&mut network_sender, &listen_metadata, make_test_message(stream_id3, 0, false)).await;
 
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
         });
 
@@ -293,9 +361,17 @@ mod tests {
 
         // Stream_id3 should still be there, because we didn't send a fin.
         let values = vec![(peer_id.clone(), 1)];
-        assert!(stream_handler.stream_data.clone().into_keys().all(|item| values.contains(&item)));
+        assert!(
+            stream_handler
+                .listen_stream_data
+                .clone()
+                .into_keys()
+                .all(|item| values.contains(&item))
+        );
 
         // But the buffer should be empty, as we've successfully drained it all.
-        assert!(stream_handler.stream_data[&(peer_id, stream_id3)].message_buffer.is_empty());
+        assert!(
+            stream_handler.listen_stream_data[&(peer_id, stream_id3)].message_buffer.is_empty()
+        );
     }
 }

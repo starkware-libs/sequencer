@@ -3,8 +3,12 @@ use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, HashMap};
 
 use futures::channel::mpsc;
-use futures::{SinkExt, StreamExt, TryStreamExt};
-use papyrus_network::network_manager::{BroadcastTopicSender, BroadcastTopicServer};
+use futures::StreamExt;
+use papyrus_network::network_manager::{
+    BroadcastTopicClient,
+    BroadcastTopicClientTrait,
+    BroadcastTopicServer,
+};
 use papyrus_network::utils::StreamHashMap;
 use papyrus_network_types::network_types::{BroadcastedMessageManager, OpaquePeerId};
 use papyrus_protobuf::consensus::{StreamMessage, StreamMessageBody};
@@ -64,11 +68,10 @@ pub struct StreamHandler<
     // An end of a channel used to send out receivers, one for each stream.
     listen_channel_sender: mpsc::Sender<mpsc::Receiver<T>>,
     // An end of a channel used to receive messages.
-    // receiver: GenericReceiver<ReceivedBroadcastedMessage<StreamMessage<T>>>,
     listen_receiver: BroadcastTopicServer<StreamMessage<T>>,
 
     // A network sender that allows sending StreamMessages to peers.
-    broadcast_sender: BroadcastTopicSender<StreamMessage<T>, Vec<u8>>,
+    broadcast_sender: BroadcastTopicClient<StreamMessage<T>>,
 
     // A receiver of receivers, one for each stream_id.
     broadcast_channel_receiver: mpsc::Receiver<(StreamId, mpsc::Receiver<T>)>,
@@ -89,7 +92,7 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
     pub fn new(
         listen_channel_sender: mpsc::Sender<mpsc::Receiver<T>>,
         listen_receiver: BroadcastTopicServer<StreamMessage<T>>,
-        broadcast_sender: BroadcastTopicSender<StreamMessage<T>, Vec<u8>>,
+        broadcast_sender: BroadcastTopicClient<StreamMessage<T>>,
         broadcast_channel_receiver: mpsc::Receiver<(StreamId, mpsc::Receiver<T>)>,
     ) -> Self {
         StreamHandler {
@@ -140,7 +143,8 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
             stream_id: key,
             message_id: *self.broadcast_stream_number.get(&key).unwrap_or(&0),
         };
-        self.broadcast_sender.send(message).await.expect("Send should succeed");
+        // TODO(guyn): reconsider the "expect" here.
+        self.broadcast_sender.broadcast_message(message).await.expect("Send should succeed");
         self.broadcast_stream_number
             .insert(key, self.broadcast_stream_number.get(&key).unwrap_or(&0) + 1);
     }
