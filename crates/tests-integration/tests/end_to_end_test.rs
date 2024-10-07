@@ -40,6 +40,8 @@ async fn test_end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
     // Test.
     let mempool_txs = mock_running_system.get_txs(4).await;
 
+    mock_running_system.mock_consensus_manager.run_consensus_for_end_to_end_test().await;
+
     // Assert.
     let expected_tx_hashes_from_get_txs = [
         account1_invoke_nonce1_tx_hash,
