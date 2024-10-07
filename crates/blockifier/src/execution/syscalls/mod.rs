@@ -198,9 +198,11 @@ pub fn call_contract(
         call_type: CallType::Call,
         initial_gas: *remaining_gas,
     };
+
     let retdata_segment = execute_inner_call(entry_point, vm, syscall_handler, remaining_gas)
-        .map_err(|error| {
-            error.as_call_contract_execution_error(class_hash, storage_address, selector)
+        .map_err(|error| match error {
+            SyscallExecutionError::SyscallError { .. } => error,
+            _ => error.as_call_contract_execution_error(class_hash, storage_address, selector),
         })?;
 
     Ok(CallContractResponse { segment: retdata_segment })
