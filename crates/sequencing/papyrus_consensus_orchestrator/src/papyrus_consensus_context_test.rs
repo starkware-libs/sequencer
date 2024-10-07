@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
 use papyrus_consensus::types::{ConsensusContext, ProposalInit};
@@ -25,7 +27,8 @@ async fn build_proposal() {
     let (block, mut papyrus_context, _mock_network, _) = test_setup();
     let block_number = block.header.block_header_without_hash.block_number;
 
-    let (mut proposal_receiver, fin_receiver) = papyrus_context.build_proposal(block_number).await;
+    let (mut proposal_receiver, fin_receiver) =
+        papyrus_context.build_proposal(block_number, Duration::MAX).await;
 
     let mut transactions = Vec::new();
     while let Some(tx) = proposal_receiver.next().await {
@@ -48,8 +51,11 @@ async fn validate_proposal_success() {
     }
     validate_sender.close_channel();
 
-    let fin =
-        papyrus_context.validate_proposal(block_number, validate_receiver).await.await.unwrap();
+    let fin = papyrus_context
+        .validate_proposal(block_number, Duration::MAX, validate_receiver)
+        .await
+        .await
+        .unwrap();
 
     assert_eq!(fin, block.header.block_hash);
 }
@@ -66,7 +72,10 @@ async fn validate_proposal_fail() {
     }
     validate_sender.close_channel();
 
-    let fin = papyrus_context.validate_proposal(block_number, validate_receiver).await.await;
+    let fin = papyrus_context
+        .validate_proposal(block_number, Duration::MAX, validate_receiver)
+        .await
+        .await;
     assert_eq!(fin, Err(oneshot::Canceled));
 }
 
