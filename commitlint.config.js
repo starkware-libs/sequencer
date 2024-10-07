@@ -41,6 +41,8 @@ const Configuration = {
             'mempool',
             'mempool_infra',
             'mempool_node',
+            'mempool_p2p',
+            'mempool_p2p_types',
             'mempool_test_utils',
             'mempool_types',
             'monitoring',
