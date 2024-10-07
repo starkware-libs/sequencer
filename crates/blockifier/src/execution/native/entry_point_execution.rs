@@ -8,7 +8,9 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{NativeContractClassV1, TrackedResource};
 use crate::execution::entry_point::{
-    CallEntryPoint, EntryPointExecutionContext, EntryPointExecutionResult,
+    CallEntryPoint,
+    EntryPointExecutionContext,
+    EntryPointExecutionResult,
 };
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
