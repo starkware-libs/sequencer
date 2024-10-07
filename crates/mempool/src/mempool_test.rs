@@ -473,8 +473,7 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
     add_tx(&mut mempool, &input2);
 
     // Assert: both transactions are in the mempool.
-    let expected_queue_txs =
-        [TransactionReference::new(&input1.tx), TransactionReference::new(&input2.tx)];
+    let expected_queue_txs = [&input1.tx, &input2.tx].map(TransactionReference::new);
     let expected_pool_txs = [input1.tx, input2.tx];
     let expected_mempool_content = MempoolContentBuilder::new()
         .with_pool(expected_pool_txs)
@@ -550,9 +549,9 @@ fn test_add_tx_account_state_fills_nonce_gap(mut mempool: Mempool) {
 
     // Then, fill it.
     add_tx(&mut mempool, &tx_input_nonce_2);
-    let expected_queue_txs = [&tx_input_nonce_1.tx].map(TransactionReference::new);
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
+    let expected_mempool_content = MempoolContentBuilder::new()
+        .with_priority_queue([TransactionReference::new(&tx_input_nonce_1.tx)])
+        .build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
@@ -701,9 +700,9 @@ fn test_commit_block_from_different_leader() {
     commit_block(&mut mempool, nonces);
 
     // Assert.
-    let expected_queue_txs = [&tx_address_0_nonce_6].map(TransactionReference::new);
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
+    let expected_mempool_content = MempoolContentBuilder::new()
+        .with_priority_queue([TransactionReference::new(&tx_address_0_nonce_6)])
+        .build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
