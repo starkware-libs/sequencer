@@ -18,7 +18,6 @@ use starknet_gateway::config::{
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
-use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_node::config::SequencerNodeConfig;
 use tempfile::{tempdir, TempDir};
@@ -88,9 +87,9 @@ impl HttpTestClient {
         response.json().await.unwrap()
     }
 
-    // TODO: implement when usage eventually arises.
-    pub async fn assert_add_tx_error(&self, _tx: &RpcTransaction) -> GatewaySpecError {
-        todo!()
+    pub async fn assert_add_tx_error(&self, tx: &RpcTransaction) {
+        let response = self.add_tx(tx).await;
+        dbg!(response);
     }
 
     // Prefer using assert_add_tx_success or other higher level methods of this client, to ensure

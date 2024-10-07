@@ -4,7 +4,6 @@ use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerato
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_infra::errors::ComponentServerError;
 use starknet_mempool_infra::trace_util::configure_tracing;
@@ -89,8 +88,8 @@ impl IntegrationTestSetup {
         self.http_test_client.assert_add_tx_success(tx).await
     }
 
-    pub async fn assert_add_tx_error(&self, tx: &RpcTransaction) -> GatewaySpecError {
-        self.http_test_client.assert_add_tx_error(tx).await
+    pub async fn assert_add_tx_error(&self, tx: &RpcTransaction) {
+        self.http_test_client.assert_add_tx_error(tx).await;
     }
 
     pub async fn get_txs(&self, n_txs: usize) -> Vec<Transaction> {
