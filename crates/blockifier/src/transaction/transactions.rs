@@ -29,6 +29,7 @@ use crate::execution::execution_utils::{execute_deployment, update_remaining_gas
 use crate::state::cached_state::TransactionalState;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, UpdatableState};
+use crate::state::visited_pcs::VisitedPcs;
 use crate::transaction::constants;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{
@@ -60,7 +61,7 @@ pub struct ExecutionFlags {
     pub concurrency_mode: bool,
 }
 
-pub trait ExecutableTransaction<U: UpdatableState>: Sized {
+pub trait ExecutableTransaction<V: VisitedPcs, U: UpdatableState<Pcs = V>>: Sized {
     /// Executes the transaction in a transactional manner
     /// (if it fails, given state does not modify).
     fn execute(
@@ -96,7 +97,7 @@ pub trait ExecutableTransaction<U: UpdatableState>: Sized {
     /// for automatic handling of such cases.
     fn execute_raw(
         &self,
-        state: &mut TransactionalState<'_, U>,
+        state: &mut TransactionalState<'_, U, V>,
         block_context: &BlockContext,
         execution_flags: ExecutionFlags,
     ) -> TransactionExecutionResult<TransactionExecutionInfo>;

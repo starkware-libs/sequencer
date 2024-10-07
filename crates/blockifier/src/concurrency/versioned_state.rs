@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::marker::PhantomData;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
@@ -11,6 +11,7 @@ use crate::execution::contract_class::ContractClass;
 use crate::state::cached_state::{ContractClassMapping, StateMaps};
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult, UpdatableState};
+use crate::state::visited_pcs::VisitedPcs;
 
 #[cfg(test)]
 #[path = "versioned_state_test.rs"]
@@ -198,11 +199,11 @@ impl<S: StateReader> VersionedState<S> {
     }
 }
 
-impl<U: UpdatableState> VersionedState<U> {
+impl<V: VisitedPcs, U: UpdatableState<Pcs = V>> VersionedState<U> {
     pub fn commit_chunk_and_recover_block_state(
         mut self,
         n_committed_txs: usize,
-        visited_pcs: HashMap<ClassHash, HashSet<usize>>,
+        visited_pcs: V,
     ) -> U {
         if n_committed_txs == 0 {
             return self.into_initial_state();
@@ -229,8 +230,16 @@ impl<S: StateReader> ThreadSafeVersionedState<S> {
         ThreadSafeVersionedState(Arc::new(Mutex::new(versioned_state)))
     }
 
-    pub fn pin_version(&self, tx_index: TxIndex) -> VersionedStateProxy<S> {
-        VersionedStateProxy { tx_index, state: self.0.clone() }
+    pub fn pin_version<V: VisitedPcs>(&self, tx_index: TxIndex) -> VersionedStateProxy<S, V> {
+        VersionedStateProxy { tx_index, state: self.0.clone(), _marker: PhantomData }
+    }
+
+    #[cfg(test)]
+    pub fn pin_version_for_testing(
+        &self,
+        tx_index: TxIndex,
+    ) -> VersionedStateProxy<S, crate::state::visited_pcs::VisitedPcsSet> {
+        VersionedStateProxy { tx_index, state: self.0.clone(), _marker: PhantomData }
     }
 
     pub fn into_inner_state(self) -> VersionedState<S> {
@@ -252,12 +261,13 @@ impl<S: StateReader> Clone for ThreadSafeVersionedState<S> {
     }
 }
 
-pub struct VersionedStateProxy<S: StateReader> {
+pub struct VersionedStateProxy<S: StateReader, V: VisitedPcs> {
     pub tx_index: TxIndex,
     pub state: Arc<Mutex<VersionedState<S>>>,
+    _marker: PhantomData<V>,
 }
 
-impl<S: StateReader> VersionedStateProxy<S> {
+impl<S: StateReader, V: VisitedPcs> VersionedStateProxy<S, V> {
     fn state(&self) -> LockedVersionedState<'_, S> {
         self.state.lock().expect("Failed to acquire state lock.")
     }
@@ -272,18 +282,20 @@ impl<S: StateReader> VersionedStateProxy<S> {
 }
 
 // TODO(Noa, 15/5/24): Consider using visited_pcs.
-impl<S: StateReader> UpdatableState for VersionedStateProxy<S> {
+impl<V: VisitedPcs, S: StateReader> UpdatableState for VersionedStateProxy<S, V> {
+    type Pcs = V;
+
     fn apply_writes(
         &mut self,
         writes: &StateMaps,
         class_hash_to_class: &ContractClassMapping,
-        _visited_pcs: &HashMap<ClassHash, HashSet<usize>>,
+        _visited_pcs: &V,
     ) {
         self.state().apply_writes(self.tx_index, writes, class_hash_to_class)
     }
 }
 
-impl<S: StateReader> StateReader for VersionedStateProxy<S> {
+impl<V: VisitedPcs, S: StateReader> StateReader for VersionedStateProxy<S, V> {
     fn get_storage_at(
         &self,
         contract_address: ContractAddress,

@@ -17,6 +17,7 @@ use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::CachedState;
 use crate::state::errors::StateError;
 use crate::state::state_api::StateReader;
+use crate::state::visited_pcs::VisitedPcs;
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
 use crate::transaction::transaction_execution::Transaction;
@@ -41,12 +42,12 @@ pub enum StatefulValidatorError {
 pub type StatefulValidatorResult<T> = Result<T, StatefulValidatorError>;
 
 /// Manages state related transaction validations for pre-execution flows.
-pub struct StatefulValidator<S: StateReader> {
-    tx_executor: TransactionExecutor<S>,
+pub struct StatefulValidator<S: StateReader, V: VisitedPcs> {
+    tx_executor: TransactionExecutor<S, V>,
 }
 
-impl<S: StateReader> StatefulValidator<S> {
-    pub fn create(state: CachedState<S>, block_context: BlockContext) -> Self {
+impl<S: StateReader, V: VisitedPcs> StatefulValidator<S, V> {
+    pub fn create(state: CachedState<S, V>, block_context: BlockContext) -> Self {
         let tx_executor =
             TransactionExecutor::new(state, block_context, TransactionExecutorConfig::default());
         Self { tx_executor }

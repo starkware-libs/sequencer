@@ -2,6 +2,7 @@ use blockifier::blockifier::stateful_validator::{StatefulValidator, StatefulVali
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
 use blockifier::state::cached_state::CachedState;
+use blockifier::state::visited_pcs::VisitedPcsSet;
 use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::objects::TransactionInfoCreator;
 use blockifier::transaction::transaction_types::TransactionType;
@@ -21,7 +22,7 @@ use crate::state_readers::py_state_reader::PyStateReader;
 
 #[pyclass]
 pub struct PyValidator {
-    pub stateful_validator: StatefulValidator<PyStateReader>,
+    pub stateful_validator: StatefulValidator<PyStateReader, VisitedPcsSet>,
     pub max_nonce_for_validation_skip: Nonce,
 }
 
