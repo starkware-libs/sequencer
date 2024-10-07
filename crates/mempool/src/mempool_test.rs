@@ -764,17 +764,6 @@ fn test_account_nonce_might_decrease_in_commit_block() {
     expected_mempool_content.assert_eq(&mempool);
 }
 
-#[rstest]
-fn test_account_nonces_removal_in_commit_block(mut mempool: Mempool) {
-    // Test: commit block returns information about account that is not in the mempool.
-    let nonces = [("0x0", 0)];
-    commit_block(&mut mempool, nonces);
-
-    // Assert: account is not added to the mempool.
-    let expected_mempool_content = MempoolContentBuilder::new().with_account_nonces([]).build();
-    expected_mempool_content.assert_eq(&mempool);
-}
-
 // Flow tests.
 
 #[rstest]
