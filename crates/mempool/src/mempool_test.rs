@@ -392,10 +392,10 @@ fn test_add_tx_multi_nonce_success(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_tx_with_duplicate_tx(mut mempool: Mempool) {
+fn test_add_tx_failure_on_duplicate_tx_hash(mut mempool: Mempool) {
     // Setup.
-    let input = add_tx_input!(tip: 50, tx_hash: 1);
-    let duplicate_input = input.clone();
+    let input = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0);
+    let duplicate_input = input.clone(); // Same hash is possible if signature is different.
 
     // Test.
     add_tx(&mut mempool, &input);
@@ -786,11 +786,11 @@ fn test_flow_commit_block_fills_nonce_gap(mut mempool: Mempool) {
 
     // Assert: hole was indeed closed.
     let tx_nonce_4_account_nonce_4 =
-        add_tx_input!(tx_hash: 3, sender_address: "0x0", tx_nonce: 4, account_nonce: 4);
+        add_tx_input!(tx_hash: 3, sender_address: "0x0", tx_nonce: 5, account_nonce: 5);
     add_tx_expect_error(
         &mut mempool,
         &tx_nonce_4_account_nonce_4,
-        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(4) },
+        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(5) },
     );
 
     get_txs_and_assert_expected(&mut mempool, 2, &[tx_nonce_5_account_nonce_3.tx]);
