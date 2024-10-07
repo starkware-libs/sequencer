@@ -778,33 +778,31 @@ fn test_account_nonces_removal_in_commit_block(mut mempool: Mempool) {
 // Flow tests.
 
 #[rstest]
-fn test_flow_commit_block_fills_nonce_gap() {
+fn test_flow_commit_block_fills_nonce_gap(mut mempool: Mempool) {
     // Setup.
-    let tx_nonce_3 = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 3);
-    let tx_input_nonce_4 =
-        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 4, account_nonce: 5);
-    let tx_nonce_5 = tx!(tx_hash: 3, sender_address: "0x0", tx_nonce: 5);
-
-    let queued_txs = [TransactionReference::new(&tx_nonce_3)];
-    let pool_txs = [tx_nonce_3, tx_nonce_5.clone()];
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool(pool_txs)
-        .with_priority_queue(queued_txs)
-        .build_into_mempool();
+    let tx_nonce_3_account_nonce_3 =
+        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 3, account_nonce: 3);
+    let tx_nonce_5_account_nonce_3 =
+        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 5, account_nonce: 3);
 
     // Test.
+    for input in [&tx_nonce_3_account_nonce_3, &tx_nonce_5_account_nonce_3] {
+        add_tx(&mut mempool, input);
+    }
+
+    get_txs_and_assert_expected(&mut mempool, 2, &[tx_nonce_3_account_nonce_3.tx]);
+
     let nonces = [("0x0", 4)];
     commit_block(&mut mempool, nonces);
 
     // Assert: hole was indeed closed.
-    let expected_queue_txs = [&tx_nonce_5].map(TransactionReference::new);
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
-    expected_mempool_content.assert_eq(&mempool);
-
+    let tx_nonce_4_account_nonce_4 =
+        add_tx_input!(tx_hash: 3, sender_address: "0x0", tx_nonce: 4, account_nonce: 5);
     add_tx_expect_error(
         &mut mempool,
-        &tx_input_nonce_4,
+        &tx_nonce_4_account_nonce_4,
         MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(4) },
     );
+
+    get_txs_and_assert_expected(&mut mempool, 2, &[tx_nonce_5_account_nonce_3.tx]);
 }
