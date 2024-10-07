@@ -2,7 +2,6 @@ use futures::channel::mpsc;
 use futures::stream::StreamExt;
 use futures::SinkExt;
 use papyrus_network::network_manager::test_utils::{
-    // create_test_broadcasted_message_manager,
     mock_register_broadcast_topic,
     MockBroadcastedMessagesSender,
     TestSubscriberChannels,

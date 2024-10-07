@@ -60,7 +60,6 @@ pub struct StreamHandler<
     // An end of a channel used to send out receivers, one for each stream.
     sender: mpsc::Sender<mpsc::Receiver<T>>,
     // An end of a channel used to receive messages.
-    // receiver: GenericReceiver<ReceivedBroadcastedMessage<StreamMessage<T>>>,
     receiver: BroadcastTopicServer<StreamMessage<T>>,
 
     // A map from stream_id to a struct that contains all the information about the stream.
@@ -97,7 +96,6 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         data.next_message_id += 1;
     }
 
-    // Handle the message, return true if the channel is still open.
     #[instrument(skip_all, level = "warn")]
     fn handle_message(
         &mut self,
