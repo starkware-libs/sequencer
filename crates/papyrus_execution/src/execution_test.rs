@@ -6,7 +6,7 @@ use assert_matches::assert_matches;
 use blockifier::abi::abi_utils::get_storage_var_address;
 use blockifier::execution::call_info::Retdata;
 use blockifier::execution::errors::ConstructorEntryPointExecutionError;
-use blockifier::execution::stack_trace::gen_transaction_execution_error_trace;
+use blockifier::execution::stack_trace::gen_tx_execution_error_trace;
 use blockifier::transaction::errors::TransactionExecutionError as BlockifierTransactionExecutionError;
 use indexmap::indexmap;
 use papyrus_storage::test_utils::get_test_storage;
@@ -180,7 +180,7 @@ fn estimate_fee_invoke() {
     let fees = estimate_fees(tx).expect("Fee estimation should succeed.");
     for fee in fees {
         assert_ne!(fee.overall_fee, Fee(0));
-        assert_eq!(fee.gas_price, GAS_PRICE.price_in_wei);
+        assert_eq!(fee.l1_gas_price, GAS_PRICE.price_in_wei);
     }
 }
 
@@ -191,7 +191,7 @@ fn estimate_fee_declare_deprecated_class() {
     let fees = estimate_fees(tx).expect("Fee estimation should succeed.");
     for fee in fees {
         assert_ne!(fee.overall_fee, Fee(0));
-        assert_eq!(fee.gas_price, GAS_PRICE.price_in_wei);
+        assert_eq!(fee.l1_gas_price, GAS_PRICE.price_in_wei);
     }
 }
 
@@ -202,7 +202,7 @@ fn estimate_fee_declare_class() {
     let fees = estimate_fees(tx).expect("Fee estimation should succeed.");
     for fee in fees {
         assert_ne!(fee.overall_fee, Fee(0));
-        assert_eq!(fee.gas_price, GAS_PRICE.price_in_wei);
+        assert_eq!(fee.l1_gas_price, GAS_PRICE.price_in_wei);
     }
 }
 
@@ -213,7 +213,7 @@ fn estimate_fee_deploy_account() {
     let fees = estimate_fees(tx).expect("Fee estimation should succeed.");
     for fee in fees {
         assert_ne!(fee.overall_fee, Fee(0));
-        assert_eq!(fee.gas_price, GAS_PRICE.price_in_wei);
+        assert_eq!(fee.l1_gas_price, GAS_PRICE.price_in_wei);
     }
 }
 
@@ -229,7 +229,7 @@ fn estimate_fee_combination() {
     let fees = estimate_fees(txs).expect("Fee estimation should succeed.");
     for fee in fees {
         assert_ne!(fee.overall_fee, Fee(0));
-        assert_eq!(fee.gas_price, GAS_PRICE.price_in_wei);
+        assert_eq!(fee.l1_gas_price, GAS_PRICE.price_in_wei);
     }
 }
 
@@ -330,7 +330,7 @@ fn simulate_invoke() {
                 fee_transfer_invocation: Some(_),
             }
         );
-        assert_eq!(charge_fee.fee_estimation.gas_price, GAS_PRICE.price_in_wei);
+        assert_eq!(charge_fee.fee_estimation.l1_gas_price, GAS_PRICE.price_in_wei);
 
         assert_eq!(exec_only_trace.execute_invocation, charge_fee_trace.execute_invocation);
 
@@ -817,7 +817,7 @@ fn blockifier_error_mapping() {
     let expected = format!(
         "Transaction execution has failed:\n{}",
         // TODO: consider adding ErrorStack display instead.
-        String::from(gen_transaction_execution_error_trace(&blockifier_err))
+        String::from(gen_tx_execution_error_trace(&blockifier_err))
     );
     let err = ExecutionError::from((0, blockifier_err));
     let ExecutionError::TransactionExecutionError { transaction_index, execution_error } = err
@@ -836,7 +836,7 @@ fn blockifier_error_mapping() {
     };
     let expected = format!(
         "Transaction validation has failed:\n{}",
-        String::from(gen_transaction_execution_error_trace(&blockifier_err))
+        String::from(gen_tx_execution_error_trace(&blockifier_err))
     );
     let err = ExecutionError::from((0, blockifier_err));
     let ExecutionError::TransactionExecutionError { transaction_index, execution_error } = err

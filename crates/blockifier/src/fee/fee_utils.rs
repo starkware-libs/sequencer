@@ -4,15 +4,17 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_bigint::BigUint;
 use starknet_api::core::ContractAddress;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{Fee, Resource};
+use starknet_api::transaction::ValidResourceBounds::{AllResources, L1Gas};
+use starknet_api::transaction::{AllResourceBounds, Fee, GasVectorComputationMode, Resource};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::abi::sierra_types::next_storage_key;
 use crate::blockifier::block::BlockInfo;
 use crate::context::{BlockContext, TransactionContext};
-use crate::fee::resources::{GasVector, GasVectorComputationMode, TransactionFeeResult};
+use crate::fee::resources::{GasVector, TransactionFeeResult};
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionFeeError;
 use crate::transaction::objects::{ExecutionResourcesTraits, FeeType, TransactionInfo};
@@ -32,7 +34,7 @@ pub fn get_vm_resources_cost(
     vm_resource_usage: &ExecutionResources,
     n_reverted_steps: usize,
     computation_mode: &GasVectorComputationMode,
-) -> TransactionFeeResult<GasVector> {
+) -> GasVector {
     // TODO(Yoni, 1/7/2024): rename vm -> cairo.
     let vm_resource_fee_costs = versioned_constants.vm_resource_fee_cost();
     let builtin_usage_for_fee = vm_resource_usage.prover_builtins();
@@ -49,7 +51,8 @@ pub fn get_vm_resources_cost(
 
     // Convert Cairo resource usage to L1 gas usage.
     // Do so by taking the maximum of the usage of each builtin + step usage.
-    let vm_l1_gas_usage = vm_resource_fee_costs
+    let vm_l1_gas_usage = GasAmount(
+        vm_resource_fee_costs
         .builtins
         .iter()
         // Builtin costs and usage.
@@ -62,13 +65,14 @@ pub fn get_vm_resources_cost(
             vm_resource_usage.total_n_steps() + n_reverted_steps,
         )])
         .map(|(cost, usage)| (cost * u128_from_usize(usage)).ceil().to_integer())
-        .fold(0, u128::max);
+        .fold(0, u128::max),
+    );
 
     match computation_mode {
-        GasVectorComputationMode::NoL2Gas => Ok(GasVector::from_l1_gas(vm_l1_gas_usage)),
-        GasVectorComputationMode::All => Ok(GasVector::from_l2_gas(
+        GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(vm_l1_gas_usage),
+        GasVectorComputationMode::All => GasVector::from_l2_gas(
             versioned_constants.convert_l1_to_l2_gas_amount_round_up(vm_l1_gas_usage),
-        )),
+        ),
     }
 }
 
@@ -111,11 +115,24 @@ pub fn verify_can_pay_committed_bounds(
     let tx_info = &tx_context.tx_info;
     let committed_fee = match tx_info {
         TransactionInfo::Current(context) => {
-            let l1_bounds = context.l1_resource_bounds();
-            let max_amount: u128 = l1_bounds.max_amount.into();
-            // Sender will not be charged by `max_price_per_unit`, but this check should not depend
-            // on the current gas price.
-            Fee(max_amount * l1_bounds.max_price_per_unit)
+            match &context.resource_bounds {
+                L1Gas(l1_gas) =>
+                // Sender will not be charged by `max_price_per_unit`, but this check should not
+                // depend on the current gas price.
+                {
+                    Fee(u128::from(l1_gas.max_amount) * l1_gas.max_price_per_unit)
+                }
+                // TODO!(Aner): add tests
+                AllResources(AllResourceBounds { l1_gas, l2_gas, l1_data_gas }) => {
+                    // Committed fee is sum of products (resource_max_amount * resource_max_price)
+                    // of the different resources.
+                    // The Sender will not be charged by`max_price_per_unit`, but this check should
+                    // not depend on the current gas price
+                    Fee(u128::from(l1_gas.max_amount) * l1_gas.max_price_per_unit
+                        + u128::from(l1_data_gas.max_amount) * l1_data_gas.max_price_per_unit
+                        + u128::from(l2_gas.max_amount) * l2_gas.max_price_per_unit)
+                }
+            }
         }
         TransactionInfo::Deprecated(context) => context.max_fee,
     };
@@ -125,15 +142,25 @@ pub fn verify_can_pay_committed_bounds(
         Ok(())
     } else {
         Err(match tx_info {
-            TransactionInfo::Current(context) => {
-                let l1_bounds = context.l1_resource_bounds();
-                TransactionFeeError::GasBoundsExceedBalance {
+            TransactionInfo::Current(context) => match &context.resource_bounds {
+                L1Gas(l1_gas) => TransactionFeeError::GasBoundsExceedBalance {
                     resource: Resource::L1Gas,
-                    max_amount: l1_bounds.max_amount,
-                    max_price: l1_bounds.max_price_per_unit,
+                    max_amount: l1_gas.max_amount,
+                    max_price: l1_gas.max_price_per_unit,
                     balance: balance_to_big_uint(&balance_low, &balance_high),
+                },
+                AllResources(AllResourceBounds { l1_gas, l2_gas, l1_data_gas }) => {
+                    TransactionFeeError::ResourcesBoundsExceedBalance {
+                        balance: balance_to_big_uint(&balance_low, &balance_high),
+                        l1_max_amount: l1_gas.max_amount,
+                        l1_max_price: l1_gas.max_price_per_unit,
+                        l1_data_max_amount: l1_data_gas.max_amount,
+                        l1_data_max_price: l1_data_gas.max_price_per_unit,
+                        l2_max_amount: l2_gas.max_amount,
+                        l2_max_price: l2_gas.max_price_per_unit,
+                    }
                 }
-            }
+            },
             TransactionInfo::Deprecated(context) => TransactionFeeError::MaxFeeExceedsBalance {
                 max_fee: context.max_fee,
                 balance: balance_to_big_uint(&balance_low, &balance_high),

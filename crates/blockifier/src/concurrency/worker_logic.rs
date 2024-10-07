@@ -110,11 +110,11 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     }
 
     fn commit_while_possible(&self) {
-        if let Some(mut transaction_committer) = self.scheduler.try_enter_commit_phase() {
-            while let Some(tx_index) = transaction_committer.try_commit() {
+        if let Some(mut tx_committer) = self.scheduler.try_enter_commit_phase() {
+            while let Some(tx_index) = tx_committer.try_commit() {
                 let commit_succeeded = self.commit_tx(tx_index);
                 if !commit_succeeded {
-                    transaction_committer.halt_scheduler();
+                    tx_committer.halt_scheduler();
                 }
             }
         }

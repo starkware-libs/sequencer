@@ -14,8 +14,14 @@ use std::path::PathBuf;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{Calldata, ContractAddressSalt, TransactionVersion};
+use starknet_api::transaction::{
+    Calldata,
+    ContractAddressSalt,
+    GasVectorComputationMode,
+    TransactionVersion,
+};
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
 
@@ -24,8 +30,7 @@ use crate::execution::call_info::ExecutionSummary;
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::SyscallSelector;
-use crate::fee::resources::StarknetResources;
-use crate::state::cached_state::StateChangesCount;
+use crate::fee::resources::{GasVector, StarknetResources, StateResources};
 use crate::test_utils::contracts::FeatureContract;
 use crate::transaction::transaction_types::TransactionType;
 use crate::utils::{const_max, u128_from_usize};
@@ -90,10 +95,10 @@ pub fn test_erc20_sequencer_balance_key() -> StorageKey {
 // The max_fee / resource bounds used for txs in this test.
 pub const MAX_L1_GAS_AMOUNT: u64 = 1000000;
 #[allow(clippy::as_conversions)]
-pub const MAX_L1_GAS_AMOUNT_U128: u128 = MAX_L1_GAS_AMOUNT as u128;
+pub const MAX_L1_GAS_AMOUNT_U128: GasAmount = GasAmount(MAX_L1_GAS_AMOUNT as u128);
 pub const MAX_L1_GAS_PRICE: u128 = DEFAULT_STRK_L1_GAS_PRICE;
-pub const MAX_RESOURCE_COMMITMENT: u128 = MAX_L1_GAS_AMOUNT_U128 * MAX_L1_GAS_PRICE;
-pub const MAX_FEE: u128 = MAX_L1_GAS_AMOUNT_U128 * DEFAULT_ETH_L1_GAS_PRICE;
+pub const MAX_RESOURCE_COMMITMENT: u128 = MAX_L1_GAS_AMOUNT_U128.0 * MAX_L1_GAS_PRICE;
+pub const MAX_FEE: u128 = MAX_L1_GAS_AMOUNT_U128.0 * DEFAULT_ETH_L1_GAS_PRICE;
 
 // The amount of test-token allocated to the account in this test, set to a multiple of the max
 // amount deprecated / non-deprecated transactions commit to paying.
@@ -217,7 +222,7 @@ macro_rules! check_entry_point_execution_error_for_custom_hint {
 }
 
 #[macro_export]
-macro_rules! check_transaction_execution_error_inner {
+macro_rules! check_tx_execution_error_inner {
     ($error:expr, $expected_hint:expr, $validate_constructor:expr $(,)?) => {
         if $validate_constructor {
             match $error {
@@ -246,9 +251,9 @@ macro_rules! check_transaction_execution_error_inner {
 }
 
 #[macro_export]
-macro_rules! check_transaction_execution_error_for_custom_hint {
+macro_rules! check_tx_execution_error_for_custom_hint {
     ($error:expr, $expected_hint:expr, $validate_constructor:expr $(,)?) => {
-        $crate::check_transaction_execution_error_inner!(
+        $crate::check_tx_execution_error_inner!(
             $error,
             Some($expected_hint),
             $validate_constructor,
@@ -259,11 +264,11 @@ macro_rules! check_transaction_execution_error_for_custom_hint {
 /// Checks that a given error is an assertion error with the expected message.
 /// Formatted for test_validate_accounts_tx.
 #[macro_export]
-macro_rules! check_transaction_execution_error_for_invalid_scenario {
+macro_rules! check_tx_execution_error_for_invalid_scenario {
     ($cairo_version:expr, $error:expr, $validate_constructor:expr $(,)?) => {
         match $cairo_version {
             CairoVersion::Cairo0 => {
-                $crate::check_transaction_execution_error_inner!(
+                $crate::check_tx_execution_error_inner!(
                     $error,
                     None::<&str>,
                     $validate_constructor,
@@ -287,7 +292,7 @@ macro_rules! check_transaction_execution_error_for_invalid_scenario {
 pub fn get_syscall_resources(syscall_selector: SyscallSelector) -> ExecutionResources {
     let versioned_constants = VersionedConstants::create_for_testing();
     let syscall_counter: SyscallCounter = HashMap::from([(syscall_selector, 1)]);
-    versioned_constants.get_additional_os_syscall_resources(&syscall_counter).unwrap()
+    versioned_constants.get_additional_os_syscall_resources(&syscall_counter)
 }
 
 pub fn get_tx_resources(tx_type: TransactionType) -> ExecutionResources {
@@ -296,12 +301,12 @@ pub fn get_tx_resources(tx_type: TransactionType) -> ExecutionResources {
         1,
         0,
         0,
-        StateChangesCount::default(),
+        StateResources::default(),
         None,
         ExecutionSummary::default(),
     );
 
-    versioned_constants.get_additional_os_tx_resources(tx_type, &starknet_resources, false).unwrap()
+    versioned_constants.get_additional_os_tx_resources(tx_type, &starknet_resources, false)
 }
 
 /// Creates the calldata for the Cairo function "test_deploy" in the featured contract TestContract.
@@ -382,5 +387,18 @@ pub fn update_json_value(base: &mut serde_json::Value, update: serde_json::Value
             base_map.extend(update_map);
         }
         _ => panic!("Both base and update should be of type serde_json::Value::Object."),
+    }
+}
+
+pub fn gas_vector_from_vm_usage(
+    vm_usage_in_l1_gas: GasAmount,
+    computation_mode: &GasVectorComputationMode,
+    versioned_constants: &VersionedConstants,
+) -> GasVector {
+    match computation_mode {
+        GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(vm_usage_in_l1_gas),
+        GasVectorComputationMode::All => GasVector::from_l2_gas(
+            versioned_constants.convert_l1_to_l2_gas_amount_round_up(vm_usage_in_l1_gas),
+        ),
     }
 }

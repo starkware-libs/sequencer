@@ -7,12 +7,12 @@ use starknet_mempool_infra::component_client::{ClientError, ClientResult, LocalC
 use starknet_mempool_infra::component_definitions::{
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
+    ComponentStarter,
 };
-use starknet_mempool_infra::component_runner::ComponentStarter;
 use starknet_mempool_infra::component_server::{
     ComponentServerStarter,
-    EmptyServer,
     LocalActiveComponentServer,
+    WrapperServer,
 };
 use starknet_mempool_infra::errors::ComponentError;
 use tokio::sync::mpsc::{channel, Sender};
@@ -175,7 +175,7 @@ async fn test_setup_c_d() {
     let component_d = ComponentD::new(Box::new(c_client), max_iterations, barrier.clone());
 
     let mut component_c_server = LocalActiveComponentServer::new(component_c, rx_c);
-    let mut component_d_server = EmptyServer::new(component_d);
+    let mut component_d_server = WrapperServer::new(component_d);
 
     task::spawn(async move {
         let _ = component_c_server.start().await;

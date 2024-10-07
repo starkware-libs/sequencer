@@ -33,29 +33,29 @@ use crate::transaction::transactions::{
 // TODO: Move into transaction.rs, makes more sense to be defined there.
 #[derive(Clone, Debug, derive_more::From)]
 pub enum Transaction {
-    AccountTransaction(AccountTransaction),
-    L1HandlerTransaction(L1HandlerTransaction),
+    Account(AccountTransaction),
+    L1Handler(L1HandlerTransaction),
 }
 
 impl Transaction {
     pub fn nonce(&self) -> Nonce {
         match self {
-            Self::AccountTransaction(tx) => tx.nonce(),
-            Self::L1HandlerTransaction(tx) => tx.tx.nonce,
+            Self::Account(tx) => tx.nonce(),
+            Self::L1Handler(tx) => tx.tx.nonce,
         }
     }
 
     pub fn sender_address(&self) -> ContractAddress {
         match self {
-            Self::AccountTransaction(tx) => tx.sender_address(),
-            Self::L1HandlerTransaction(tx) => tx.tx.contract_address,
+            Self::Account(tx) => tx.sender_address(),
+            Self::L1Handler(tx) => tx.tx.contract_address,
         }
     }
 
     pub fn tx_hash(tx: &Transaction) -> TransactionHash {
         match tx {
-            Transaction::AccountTransaction(tx) => tx.tx_hash(),
-            Transaction::L1HandlerTransaction(tx) => tx.tx_hash,
+            Transaction::Account(tx) => tx.tx_hash(),
+            Transaction::L1Handler(tx) => tx.tx_hash,
         }
     }
 
@@ -69,7 +69,7 @@ impl Transaction {
     ) -> TransactionExecutionResult<Self> {
         match tx {
             StarknetApiTransaction::L1Handler(l1_handler) => {
-                Ok(Self::L1HandlerTransaction(L1HandlerTransaction {
+                Ok(Self::L1Handler(L1HandlerTransaction {
                     tx: l1_handler,
                     tx_hash,
                     paid_fee_on_l1: paid_fee_on_l1
@@ -85,7 +85,7 @@ impl Transaction {
                     }
                     false => DeclareTransaction::new(declare, tx_hash, non_optional_class_info),
                 };
-                Ok(Self::AccountTransaction(AccountTransaction::Declare(declare_tx?)))
+                Ok(declare_tx?.into())
             }
             StarknetApiTransaction::DeployAccount(deploy_account) => {
                 let contract_address = match deployed_contract_address {
@@ -107,14 +107,14 @@ impl Transaction {
                         DeployAccountTransaction::new(deploy_account, tx_hash, contract_address)
                     }
                 };
-                Ok(Self::AccountTransaction(AccountTransaction::DeployAccount(deploy_account_tx)))
+                Ok(deploy_account_tx.into())
             }
             StarknetApiTransaction::Invoke(invoke) => {
                 let invoke_tx = match only_query {
                     true => InvokeTransaction::new_for_query(invoke, tx_hash),
                     false => InvokeTransaction::new(invoke, tx_hash),
                 };
-                Ok(Self::AccountTransaction(AccountTransaction::Invoke(invoke_tx)))
+                Ok(invoke_tx.into())
             }
             _ => unimplemented!(),
         }
@@ -124,8 +124,8 @@ impl Transaction {
 impl TransactionInfoCreator for Transaction {
     fn create_tx_info(&self) -> TransactionInfo {
         match self {
-            Self::AccountTransaction(account_tx) => account_tx.create_tx_info(),
-            Self::L1HandlerTransaction(l1_handler_tx) => l1_handler_tx.create_tx_info(),
+            Self::Account(account_tx) => account_tx.create_tx_info(),
+            Self::L1Handler(l1_handler_tx) => l1_handler_tx.create_tx_info(),
         }
     }
 }
@@ -157,7 +157,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
             CallInfo::summarize_many(execute_call_info.iter()),
             &state.get_actual_state_changes()?,
             &execution_resources,
-        )?;
+        );
 
         let paid_fee = self.paid_fee_on_l1;
         // For now, assert only that any amount of fee was paid.
@@ -193,12 +193,10 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
         // AccountTransaction::execute_raw.
         let concurrency_mode = execution_flags.concurrency_mode;
         let tx_execution_info = match self {
-            Self::AccountTransaction(account_tx) => {
+            Self::Account(account_tx) => {
                 account_tx.execute_raw(state, block_context, execution_flags)?
             }
-            Self::L1HandlerTransaction(tx) => {
-                tx.execute_raw(state, block_context, execution_flags)?
-            }
+            Self::L1Handler(tx) => tx.execute_raw(state, block_context, execution_flags)?,
         };
 
         // Check if the transaction is too large to fit any block.
@@ -219,5 +217,23 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
         )?;
 
         Ok(tx_execution_info)
+    }
+}
+
+impl From<DeclareTransaction> for Transaction {
+    fn from(value: DeclareTransaction) -> Self {
+        Self::Account(AccountTransaction::Declare(value))
+    }
+}
+
+impl From<DeployAccountTransaction> for Transaction {
+    fn from(value: DeployAccountTransaction) -> Self {
+        Self::Account(AccountTransaction::DeployAccount(value))
+    }
+}
+
+impl From<InvokeTransaction> for Transaction {
+    fn from(value: InvokeTransaction) -> Self {
+        Self::Account(AccountTransaction::Invoke(value))
     }
 }

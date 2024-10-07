@@ -9,11 +9,11 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+assert_matches.workspace = true
 axum.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 indexmap.workspace = true
-itertools.workspace = true
 mempool_test_utils.workspace = true
 papyrus_common.workspace = true
 papyrus_rpc.workspace = true
@@ -22,6 +22,7 @@ reqwest.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+starknet_batcher.workspace = true
 starknet_client.workspace = true
 starknet_gateway = { workspace = true, features = ["testing"] }
 starknet_gateway_types.workspace = true
@@ -31,6 +32,7 @@ starknet_mempool_node.workspace = true
 starknet_mempool_types.workspace = true
 starknet_task_executor.workspace = true
 strum.workspace = true
+tempfile.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]

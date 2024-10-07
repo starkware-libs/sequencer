@@ -84,7 +84,7 @@ impl<S: StateReader> StatefulValidator<S> {
     }
 
     fn execute(&mut self, tx: AccountTransaction) -> StatefulValidatorResult<()> {
-        self.tx_executor.execute(&Transaction::AccountTransaction(tx))?;
+        self.tx_executor.execute(&Transaction::Account(tx))?;
         Ok(())
     }
 
@@ -135,7 +135,7 @@ impl<S: StateReader> StatefulValidator<S> {
             &execution_resources,
             CallInfo::summarize_many(validate_call_info.iter()),
             0,
-        )?;
+        );
 
         Ok((validate_call_info, tx_receipt))
     }

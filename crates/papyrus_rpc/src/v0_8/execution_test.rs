@@ -178,9 +178,9 @@ lazy_static! {
     // call.
     pub static ref EXPECTED_FEE_ESTIMATE: FeeEstimation = FeeEstimation {
         gas_consumed: felt!("0x681"),
-        gas_price: GAS_PRICE.price_in_wei,
+        l1_gas_price: GAS_PRICE.price_in_wei,
         data_gas_consumed: Felt::ZERO,
-        data_gas_price: DATA_GAS_PRICE.price_in_wei,
+        l1_data_gas_price: DATA_GAS_PRICE.price_in_wei,
         l2_gas_price: L2_GAS_PRICE.price_in_wei,
         overall_fee: Fee(166500000000000,),
         unit: PriceUnit::Wei,
@@ -188,9 +188,9 @@ lazy_static! {
 
     pub static ref EXPECTED_FEE_ESTIMATE_SKIP_VALIDATE: FeeEstimation = FeeEstimation {
         gas_consumed: felt!("0x681"),
-        gas_price: GAS_PRICE.price_in_wei,
+        l1_gas_price: GAS_PRICE.price_in_wei,
         data_gas_consumed: Felt::ZERO,
-        data_gas_price: DATA_GAS_PRICE.price_in_wei,
+        l1_data_gas_price: DATA_GAS_PRICE.price_in_wei,
         l2_gas_price: L2_GAS_PRICE.price_in_wei,
         overall_fee: Fee(166500000000000,),
         unit: PriceUnit::Wei,
@@ -1219,9 +1219,9 @@ async fn call_estimate_message_fee() {
     // is correct.
     let expected_fee_estimate = FeeEstimation {
         gas_consumed: felt!("0x3937"),
-        gas_price: GAS_PRICE.price_in_wei,
+        l1_gas_price: GAS_PRICE.price_in_wei,
         data_gas_consumed: Felt::ZERO,
-        data_gas_price: DATA_GAS_PRICE.price_in_wei,
+        l1_data_gas_price: DATA_GAS_PRICE.price_in_wei,
         l2_gas_price: L2_GAS_PRICE.price_in_wei,
         overall_fee: Fee(0),
         unit: PriceUnit::default(),

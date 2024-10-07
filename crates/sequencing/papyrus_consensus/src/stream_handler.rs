@@ -4,7 +4,9 @@ use std::collections::{BTreeMap, HashMap};
 
 use futures::channel::mpsc;
 use futures::StreamExt;
-use papyrus_protobuf::consensus::StreamMessage;
+use papyrus_network::network_manager::BroadcastTopicServer;
+use papyrus_network_types::network_types::{BroadcastedMessageManager, OpaquePeerId};
+use papyrus_protobuf::consensus::{StreamMessage, StreamMessageBody};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use tracing::{instrument, warn};
 
@@ -12,10 +14,15 @@ use tracing::{instrument, warn};
 #[path = "stream_handler_test.rs"]
 mod stream_handler_test;
 
+type PeerId = OpaquePeerId;
 type StreamId = u64;
 type MessageId = u64;
 
 const CHANNEL_BUFFER_LENGTH: usize = 100;
+
+fn get_metadata_peer_id(metadata: BroadcastedMessageManager) -> PeerId {
+    metadata.originator_id
+}
 
 #[derive(Debug, Clone)]
 struct StreamData<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
@@ -53,7 +60,7 @@ pub struct StreamHandler<
     // An end of a channel used to send out receivers, one for each stream.
     sender: mpsc::Sender<mpsc::Receiver<T>>,
     // An end of a channel used to receive messages.
-    receiver: mpsc::Receiver<StreamMessage<T>>,
+    receiver: BroadcastTopicServer<StreamMessage<T>>,
 
     // A map from stream_id to a struct that contains all the information about the stream.
     // This includes both the message buffer and some metadata (like the latest message_id).
@@ -67,7 +74,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     /// Create a new StreamHandler.
     pub fn new(
         sender: mpsc::Sender<mpsc::Receiver<T>>,
-        receiver: mpsc::Receiver<StreamMessage<T>>,
+        receiver: BroadcastTopicServer<StreamMessage<T>>,
     ) -> Self {
         StreamHandler { sender, receiver, stream_data: HashMap::new() }
     }
@@ -85,13 +92,26 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     fn send(data: &mut StreamData<T>, message: StreamMessage<T>) {
         // TODO(guyn): reconsider the "expect" here.
         let sender = &mut data.sender;
-        sender.try_send(message.message).expect("Send should succeed");
-        data.next_message_id += 1;
+        if let StreamMessageBody::Content(content) = message.message {
+            sender.try_send(content).expect("Send should succeed");
+            data.next_message_id += 1;
+        }
     }
 
-    // Handle the message, return true if the channel is still open.
     #[instrument(skip_all, level = "warn")]
-    fn handle_message(&mut self, message: StreamMessage<T>) {
+    fn handle_message(
+        &mut self,
+        message: (Result<StreamMessage<T>, ProtobufConversionError>, BroadcastedMessageManager),
+    ) {
+        let (message, metadata) = message;
+        let message = match message {
+            Ok(message) => message,
+            Err(e) => {
+                warn!("Error converting message: {:?}", e);
+                return;
+            }
+        };
+        let _peer_id = get_metadata_peer_id(metadata); // TODO(guyn): use peer_id
         let stream_id = message.stream_id;
         let message_id = message.message_id;
 
@@ -113,16 +133,20 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
             data.max_message_id = message_id;
         }
 
-        if message.fin {
-            data.fin_message_id = Some(message_id);
-            if data.max_message_id > message_id {
-                // TODO(guyn): replace warnings with more graceful error handling
-                warn!(
-                    "Received fin message with id that is smaller than a previous message! \
-                     stream_id: {}, fin_message_id: {}, max_message_id: {}",
-                    stream_id, message_id, data.max_message_id
-                );
-                return;
+        // Check for Fin type message
+        match message.message {
+            StreamMessageBody::Content(_) => {}
+            StreamMessageBody::Fin => {
+                data.fin_message_id = Some(message_id);
+                if data.max_message_id > message_id {
+                    // TODO(guyn): replace warnings with more graceful error handling
+                    warn!(
+                        "Received fin message with id that is smaller than a previous message! \
+                         stream_id: {}, fin_message_id: {}, max_message_id: {}",
+                        stream_id, message_id, data.max_message_id
+                    );
+                    return;
+                }
             }
         }
 
