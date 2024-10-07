@@ -58,10 +58,9 @@ mod tests {
         let network_sender = mock_network.broadcasted_messages_sender;
         let BroadcastTopicChannels { broadcasted_messages_receiver, broadcast_topic_client: _ } =
             subscriber_channels;
-
-        // TODO(guyn): We should also give the broadcast_topic_client to the StreamHandler
+        let broadcast_channel_receiver = 0;
         let (tx_output, rx_output) = mpsc::channel::<mpsc::Receiver<ConsensusMessage>>(100);
-        let handler = StreamHandler::new(tx_output, broadcasted_messages_receiver);
+        let handler = StreamHandler::new(tx_output, broadcasted_messages_receiver, network_sender);
 
         let broadcasted_message_manager =
             BroadcastedMessageManager::get_test_instance(&mut get_rng());
