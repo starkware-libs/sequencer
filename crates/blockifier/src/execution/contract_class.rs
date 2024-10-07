@@ -11,6 +11,7 @@ use cairo_lang_starknet_classes::contract_class::{
     ContractEntryPoint as SierraContractEntryPoint,
 };
 use cairo_lang_starknet_classes::NestedIntList;
+use cairo_lang_utils::bigint::BigUintAsHex;
 #[allow(unused_imports)]
 use cairo_native::executor::AotNativeExecutor;
 use cairo_vm::serde::deserialize_program::{
