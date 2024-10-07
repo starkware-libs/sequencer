@@ -45,7 +45,8 @@ impl Mempool {
     }
 
     /// Retrieves up to `n_txs` transactions with the highest priority from the mempool.
-    /// Transactions are guaranteed to be unique across calls until `commit_block` is invoked.
+    /// Transactions are guaranteed to be unique across calls until the block in-progress is
+    /// created.
     // TODO: the last part about commit_block is incorrect if we delete txs in get_txs and then push
     // back. TODO: Consider renaming to `pop_txs` to be more consistent with the standard
     // library.
@@ -115,6 +116,7 @@ impl Mempool {
             self.tx_queue.remove(*address);
         }
 
+        // Commit: clear block creation staged state.
         self.mempool_state.clear();
 
         Ok(())
