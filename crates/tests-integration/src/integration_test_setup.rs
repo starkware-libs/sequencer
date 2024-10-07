@@ -17,6 +17,7 @@ use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
 use crate::integration_test_utils::{create_config, HttpTestClient};
+use crate::mock_consensus_manager::MockConsensusManager;
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 
 pub struct IntegrationTestSetup {
@@ -26,12 +27,14 @@ pub struct IntegrationTestSetup {
     pub batcher_storage_file_handle: TempDir,
     // TODO(Arni): Replace with a batcher server handle and a batcher client.
     pub mempool_client: SharedMempoolClient,
+    pub mock_consensus_manager: MockConsensusManager,
 
     pub rpc_storage_file_handle: TempDir,
     pub gateway_handle: JoinHandle<Result<(), ComponentServerError>>,
 
     pub http_server_handle: JoinHandle<Result<(), ComponentServerError>>,
     pub mempool_handle: JoinHandle<Result<(), ComponentServerError>>,
+    pub batcher_handle: JoinHandle<Result<(), ComponentServerError>>,
 }
 
 impl IntegrationTestSetup {
@@ -69,6 +72,10 @@ impl IntegrationTestSetup {
         // to avoid the sleep and to protect against CI flakiness.
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
+        // Build and run Batcher.
+        let batcher_future = get_server_future("Batcher", true, servers.local_servers.batcher);
+        let batcher_handle = task_executor.spawn_with_handle(batcher_future);
+
         // Build and run mempool.
         let mempool_future = get_server_future("Mempool", true, servers.local_servers.mempool);
         let mempool_handle = task_executor.spawn_with_handle(mempool_future);
@@ -79,9 +86,13 @@ impl IntegrationTestSetup {
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
             mempool_client: clients.get_mempool_client().unwrap().clone(),
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
+            mock_consensus_manager: MockConsensusManager {
+                batcher_client: clients.get_batcher_client().unwrap(),
+            },
             gateway_handle,
             http_server_handle,
             mempool_handle,
+            batcher_handle,
         }
     }
 
@@ -93,6 +104,7 @@ impl IntegrationTestSetup {
         self.http_test_client.assert_add_tx_error(tx).await
     }
 
+    // TODO(Arni): delete function and mempool_client.
     pub async fn get_txs(&self, n_txs: usize) -> Vec<Transaction> {
         self.mempool_client.get_txs(n_txs).await.unwrap()
     }

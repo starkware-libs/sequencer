@@ -10377,6 +10377,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_batcher",
+ "starknet_batcher_types",
  "starknet_client",
  "starknet_gateway",
  "starknet_gateway_types",

@@ -3,6 +3,7 @@ use blockifier::test_utils::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
+use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_integration_tests::integration_test_setup::IntegrationTestSetup;
 
@@ -37,8 +38,11 @@ async fn test_end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
     let account0_invoke_nonce2_tx_hash =
         mock_running_system.assert_add_tx_success(&account0_invoke_nonce2).await;
 
+    let height = BlockNumber(1);
     // Test.
     let mempool_txs = mock_running_system.get_txs(4).await;
+
+    mock_running_system.mock_consensus_manager.run_consensus_for_end_to_end_test(height).await;
 
     // Assert.
     let expected_tx_hashes_from_get_txs = [
