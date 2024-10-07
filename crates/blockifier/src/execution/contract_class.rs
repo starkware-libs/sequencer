@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::num::NonZeroUsize;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -42,7 +43,7 @@ use super::execution_utils::poseidon_hash_many_cost;
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::{self, CONSTRUCTOR_ENTRY_POINT_NAME};
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::errors::{ContractClassError, PreExecutionError};
+use crate::execution::errors::PreExecutionError;
 use crate::execution::execution_utils::sn_api_to_cairo_vm_program;
 use crate::fee::eth_gas_constants;
 use crate::transaction::errors::TransactionExecutionError;
@@ -51,8 +52,6 @@ use crate::versioned_constants::CompilerVersion;
 #[cfg(test)]
 #[path = "contract_class_test.rs"]
 pub mod test;
-
-pub type ContractClassResult<T> = Result<T, ContractClassError>;
 
 /// The resource used to run a contract function.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -629,23 +628,23 @@ impl ClassInfo {
             + self.abi_length()
     }
 
-    pub fn new(
-        contract_class: &ContractClass,
-        sierra_program_length: usize,
+    pub fn new_v1(
+        contract_class: ContractClassV1,
+        sierra_program_length: NonZeroUsize,
         abi_length: usize,
-    ) -> ContractClassResult<Self> {
-        let (contract_class_version, condition) = match contract_class {
-            ContractClass::V0(_) => (0, sierra_program_length == 0),
-            ContractClass::V1(_) => (1, sierra_program_length > 0),
-        };
+    ) -> Self {
+        Self {
+            contract_class: ContractClass::V1(contract_class),
+            sierra_program_length: sierra_program_length.into(),
+            abi_length,
+        }
+    }
 
-        if condition {
-            Ok(Self { contract_class: contract_class.clone(), sierra_program_length, abi_length })
-        } else {
-            Err(ContractClassError::ContractClassVersionSierraProgramLengthMismatch {
-                contract_class_version,
-                sierra_program_length,
-            })
+    pub fn new_v0(contract_class: ContractClassV0, abi_length: usize) -> Self {
+        Self {
+            contract_class: ContractClass::V0(contract_class),
+            sierra_program_length: 0,
+            abi_length,
         }
     }
 }

@@ -21,19 +21,20 @@ pub mod testing_instances;
 pub mod objects;
 use std::cell::Cell;
 use std::collections::BTreeMap;
-use std::num::NonZeroU128;
+use std::num::{NonZeroU128, NonZeroUsize};
 use std::sync::Arc;
 
 use blockifier::blockifier::block::{pre_process_block, BlockInfo, BlockNumberHashPair, GasPrices};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use blockifier::execution::call_info::CallExecution;
-use blockifier::execution::contract_class::{ClassInfo, ContractClass as BlockifierContractClass};
+use blockifier::execution::contract_class::ClassInfo;
 use blockifier::execution::entry_point::{
     CallEntryPoint,
     CallType as BlockifierCallType,
     EntryPointExecutionContext,
 };
+use blockifier::execution::errors::ContractClassError;
 use blockifier::state::cached_state::CachedState;
 use blockifier::transaction::errors::TransactionExecutionError as BlockifierTransactionExecutionError;
 use blockifier::transaction::objects::{
@@ -391,8 +392,6 @@ pub type AbiSize = usize;
 /// The size of the sierra program.
 pub type SierraSize = usize;
 
-const DEPRECATED_CONTRACT_SIERRA_SIZE: SierraSize = 0;
-
 /// The transaction input to be executed.
 // TODO(yair): This should use broadcasted transactions instead of regular transactions, but the
 // blockifier expects regular transactions. Consider changing the blockifier to use broadcasted txs.
@@ -745,19 +744,15 @@ fn to_blockifier_tx(
             abi_length,
             only_query,
         ) => {
-            let class_v0 = BlockifierContractClass::V0(deprecated_class.try_into().map_err(
+            let class_v0 = deprecated_class.try_into().map_err(
                 |e: cairo_vm::types::errors::program_errors::ProgramError| {
                     ExecutionError::TransactionExecutionError {
                         transaction_index,
                         execution_error: e.to_string(),
                     }
                 },
-            )?);
-            let class_info = ClassInfo::new(&class_v0, DEPRECATED_CONTRACT_SIERRA_SIZE, abi_length)
-                .map_err(|err| ExecutionError::BadDeclareTransaction {
-                    tx: DeclareTransaction::V0(declare_tx.clone()),
-                    err,
-                })?;
+            )?;
+            let class_info = ClassInfo::new_v0(class_v0, abi_length);
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V0(declare_tx)),
                 tx_hash,
@@ -774,14 +769,8 @@ fn to_blockifier_tx(
             abi_length,
             only_query,
         ) => {
-            let class_v0 = BlockifierContractClass::V0(
-                deprecated_class.try_into().map_err(BlockifierError::new)?,
-            );
-            let class_info = ClassInfo::new(&class_v0, DEPRECATED_CONTRACT_SIERRA_SIZE, abi_length)
-                .map_err(|err| ExecutionError::BadDeclareTransaction {
-                    tx: DeclareTransaction::V1(declare_tx.clone()),
-                    err,
-                })?;
+            let class_v0 = deprecated_class.try_into().map_err(BlockifierError::new)?;
+            let class_info = ClassInfo::new_v0(class_v0, abi_length);
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V1(declare_tx)),
                 tx_hash,
@@ -799,16 +788,17 @@ fn to_blockifier_tx(
             abi_length,
             only_query,
         ) => {
-            let class_v1 = BlockifierContractClass::V1(
-                compiled_class.try_into().map_err(BlockifierError::new)?,
-            );
-            let class_info =
-                ClassInfo::new(&class_v1, sierra_program_length, abi_length).map_err(|err| {
-                    ExecutionError::BadDeclareTransaction {
-                        tx: DeclareTransaction::V2(declare_tx.clone()),
-                        err,
-                    }
-                })?;
+            let class_v1 = compiled_class.try_into().map_err(BlockifierError::new)?;
+            let sierra_program_length = NonZeroUsize::new(sierra_program_length).ok_or(
+                ExecutionError::BadDeclareTransaction {
+                    tx: DeclareTransaction::V2(declare_tx.clone()),
+                    err: ContractClassError::ContractClassVersionSierraProgramLengthMismatch {
+                        contract_class_version: 1,
+                        sierra_program_length: 0,
+                    },
+                },
+            )?;
+            let class_info = ClassInfo::new_v1(class_v1, sierra_program_length, abi_length);
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V2(declare_tx)),
                 tx_hash,
@@ -826,16 +816,17 @@ fn to_blockifier_tx(
             abi_length,
             only_query,
         ) => {
-            let class_v1 = BlockifierContractClass::V1(
-                compiled_class.try_into().map_err(BlockifierError::new)?,
-            );
-            let class_info =
-                ClassInfo::new(&class_v1, sierra_program_length, abi_length).map_err(|err| {
-                    ExecutionError::BadDeclareTransaction {
-                        tx: DeclareTransaction::V3(declare_tx.clone()),
-                        err,
-                    }
-                })?;
+            let class_v1 = compiled_class.try_into().map_err(BlockifierError::new)?;
+            let sierra_program_length = NonZeroUsize::new(sierra_program_length).ok_or(
+                ExecutionError::BadDeclareTransaction {
+                    tx: DeclareTransaction::V3(declare_tx.clone()),
+                    err: ContractClassError::ContractClassVersionSierraProgramLengthMismatch {
+                        contract_class_version: 1,
+                        sierra_program_length: 0,
+                    },
+                },
+            )?;
+            let class_info = ClassInfo::new_v1(class_v1, sierra_program_length, abi_length);
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V3(declare_tx)),
                 tx_hash,

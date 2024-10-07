@@ -129,6 +129,8 @@ impl ConstructorEntryPointExecutionError {
     }
 }
 
+// TODO(Arni): remove this error variant. Squash this error into other error types. At least
+// simplify it.
 #[derive(Debug, Error)]
 pub enum ContractClassError {
     #[error(
