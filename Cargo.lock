@@ -10303,6 +10303,7 @@ dependencies = [
 name = "starknet_mempool_integration_tests"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "assert_matches",
  "axum",
  "blockifier",
@@ -10310,6 +10311,7 @@ dependencies = [
  "indexmap 2.2.6",
  "mempool_test_utils",
  "papyrus_common",
+ "papyrus_config",
  "papyrus_rpc",
  "papyrus_storage",
  "pretty_assertions",
@@ -10330,6 +10332,7 @@ dependencies = [
  "strum 0.25.0",
  "tempfile",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

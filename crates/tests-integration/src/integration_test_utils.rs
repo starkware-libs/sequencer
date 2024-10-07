@@ -107,7 +107,7 @@ impl HttpTestClient {
     }
 }
 
-fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderConfig {
+pub fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderConfig {
     const RPC_SPEC_VERION: &str = "V0_8";
     const JSON_RPC_VERSION: &str = "2.0";
     RpcStateReaderConfig {
