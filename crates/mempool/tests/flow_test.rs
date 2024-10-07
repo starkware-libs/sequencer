@@ -7,8 +7,14 @@ use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
 use starknet_api::{contract_address, felt, invoke_tx_args, nonce, patricia_key};
 use starknet_mempool::mempool::Mempool;
-use starknet_mempool::test_utils::{add_tx, commit_block, get_txs_and_assert_expected};
+use starknet_mempool::test_utils::{
+    add_tx,
+    add_tx_expect_error,
+    commit_block,
+    get_txs_and_assert_expected,
+};
 use starknet_mempool::{add_tx_input, tx};
+use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 
 // Fixtures.
@@ -131,4 +137,34 @@ fn test_commit_block_includes_proposed_txs_subset(mut mempool: Mempool) {
     commit_block(&mut mempool, nonces);
 
     get_txs_and_assert_expected(&mut mempool, 2, &[]);
+}
+
+#[rstest]
+fn test_flow_commit_block_fills_nonce_gap(mut mempool: Mempool) {
+    // Setup.
+    let tx_nonce_3_account_nonce_3 =
+        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 3, account_nonce: 3);
+    let tx_nonce_5_account_nonce_3 =
+        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 5, account_nonce: 3);
+
+    // Test.
+    for input in [&tx_nonce_3_account_nonce_3, &tx_nonce_5_account_nonce_3] {
+        add_tx(&mut mempool, input);
+    }
+
+    get_txs_and_assert_expected(&mut mempool, 2, &[tx_nonce_3_account_nonce_3.tx]);
+
+    let nonces = [("0x0", 4)];
+    commit_block(&mut mempool, nonces);
+
+    // Assert: hole was indeed closed.
+    let tx_nonce_4_account_nonce_4 =
+        add_tx_input!(tx_hash: 3, sender_address: "0x0", tx_nonce: 4, account_nonce: 4);
+    add_tx_expect_error(
+        &mut mempool,
+        &tx_nonce_4_account_nonce_4,
+        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(4) },
+    );
+
+    get_txs_and_assert_expected(&mut mempool, 2, &[tx_nonce_5_account_nonce_3.tx]);
 }
