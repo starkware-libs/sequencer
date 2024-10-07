@@ -820,33 +820,38 @@ fn test_flow_commit_block_fills_nonce_gap() {
 }
 
 #[rstest]
-fn test_flow_send_same_nonce_tx_after_previous_not_included() {
+fn test_add_same_nonce_tx_after_previous_not_included_in_block(mut mempool: Mempool) {
     // Setup.
-    let tx_nonce_3 = tx!(tip: 10, tx_hash: 1, sender_address: "0x0", tx_nonce: 3);
-    let tx_input_nonce_4 =
-        add_tx_input!(tip: 11, tx_hash: 2, sender_address: "0x0", tx_nonce: 4, account_nonce: 4);
-    let tx_nonce_5 = tx!(tip: 12, tx_hash: 3, sender_address: "0x0", tx_nonce: 5);
+    let tx_nonce_3_account_nonce_3 =
+        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 3, account_nonce: 3);
+    let tx_nonce_4_account_nonce_3 =
+        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 4, account_nonce: 3);
+    let tx_nonce_5_account_nonce_3 =
+        add_tx_input!(tx_hash: 3, sender_address: "0x0", tx_nonce: 5, account_nonce: 3);
 
-    let queue_txs = [TransactionReference::new(&tx_nonce_3)];
-    let pool_txs = [&tx_nonce_3, &tx_input_nonce_4.tx, &tx_nonce_5].map(|tx| tx.clone());
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool(pool_txs)
-        .with_priority_queue(queue_txs)
-        .build_into_mempool();
+    for input in
+        [&tx_nonce_3_account_nonce_3, &tx_nonce_4_account_nonce_3, &tx_nonce_5_account_nonce_3]
+    {
+        add_tx(&mut mempool, input);
+    }
 
     // Test.
-    get_txs_and_assert_expected(&mut mempool, 2, &[tx_nonce_3, tx_input_nonce_4.tx.clone()]);
+    get_txs_and_assert_expected(
+        &mut mempool,
+        2,
+        &[tx_nonce_3_account_nonce_3.tx, tx_nonce_4_account_nonce_3.tx],
+    );
 
     let nonces = [("0x0", 3)]; // Transaction with nonce 4 is not included in the block.
     commit_block(&mut mempool, nonces);
 
-    add_tx(&mut mempool, &tx_input_nonce_4);
+    let tx_nonce_4_account_nonce_4 =
+        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 4, account_nonce: 4);
+    add_tx(&mut mempool, &tx_nonce_4_account_nonce_4);
 
-    get_txs_and_assert_expected(&mut mempool, 1, &[tx_input_nonce_4.tx]);
-
-    // Assert.
-    let expected_queue_txs = [TransactionReference::new(&tx_nonce_5)];
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
-    expected_mempool_content.assert_eq(&mempool);
+    get_txs_and_assert_expected(
+        &mut mempool,
+        2,
+        &[tx_nonce_4_account_nonce_4.tx, tx_nonce_5_account_nonce_3.tx],
+    );
 }
