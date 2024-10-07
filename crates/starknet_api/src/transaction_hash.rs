@@ -6,8 +6,8 @@ use crate::block::BlockNumber;
 use crate::core::{ascii_as_felt, calculate_contract_address, ChainId, ContractAddress};
 use crate::crypto::utils::HashChain;
 use crate::data_availability::DataAvailabilityMode;
+use crate::transaction::fields::signed_tx_version_from_tx;
 use crate::transaction::{
-    signed_tx_version_from_tx,
     DeclareTransaction,
     DeclareTransactionV0V1,
     DeclareTransactionV2,
