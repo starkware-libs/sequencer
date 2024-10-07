@@ -908,7 +908,6 @@ fn test_estimate_minimal_gas_vector(
 #[rstest]
 fn test_max_fee_exceeds_balance(
     mut block_context: BlockContext,
-    max_l1_resource_bounds: ValidResourceBounds,
     #[values(true, false)] use_kzg_da: bool,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
 ) {
@@ -932,8 +931,6 @@ fn test_max_fee_exceeds_balance(
     let max_l1_gas_amount: u64 =
         (BALANCE / MAX_L1_GAS_PRICE).try_into().expect("Failed to convert u128 to u64.");
 
-    let invalid_l1_resource_bounds = l1_resource_bounds(max_l1_gas_amount + 1, MAX_L1_GAS_PRICE);
-
     // V1 Invoke.
     let invalid_tx = account_invoke_tx(invoke_tx_args! {
         max_fee: invalid_max_fee,
@@ -942,55 +939,15 @@ fn test_max_fee_exceeds_balance(
     });
     assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
 
-    // V3 invoke.
-    let invalid_tx = account_invoke_tx(invoke_tx_args! {
-        resource_bounds: invalid_l1_resource_bounds,
-        ..default_args.clone()
-    });
-    assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
-
-    // Deploy.
-    let invalid_tx = AccountTransaction::DeployAccount(deploy_account_tx(
-        deploy_account_tx_args! {
-            resource_bounds: max_l1_resource_bounds,
-            class_hash: test_contract.get_class_hash()
-        },
-        &mut NonceManager::default(),
-    ));
-    assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
-
-    // Declare.
-    let contract_to_declare = FeatureContract::Empty(CairoVersion::Cairo1);
-    let class_info = calculate_class_info_for_testing(contract_to_declare.get_class());
-    let invalid_tx = declare_tx(
-        declare_tx_args! {
-            class_hash: contract_to_declare.get_class_hash(),
-            compiled_class_hash: contract_to_declare.get_compiled_class_hash(),
-            sender_address: account_contract_address,
-            resource_bounds: invalid_l1_resource_bounds,
-        },
-        class_info,
-    );
-    assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
-
-    // Test all resource bounds.
-    // TODO!(Aner): remove magic numbers, use function to calculate minimal amounts.
-    let min_l1_amount = 1652;
-    let min_l2_amount = 445500;
-    let min_l1_data_amount = 128;
-    let max_l2_gas_amount: u64 =
-        (BALANCE / MAX_L2_GAS_PRICE).try_into().expect("Failed to convert u128 to u64.");
-    let max_l1_data_gas_amount: u64 =
-        (BALANCE / MAX_L1_DATA_GAS_PRICE).try_into().expect("Failed to convert u128 to u64.");
-    // In the following cases, the balance is not enough to cover the gas price of the transaction.
-    // Minimal amounts are used to avoid failing the test due to min gas usage not covered.
-    for (l1_max_amount, l2_max_amount, l1_data_max_amount) in [
-        (max_l1_gas_amount + 1, min_l2_amount, min_l1_data_amount),
-        (min_l1_amount, max_l2_gas_amount + 1, min_l1_data_amount),
-        (min_l1_amount, min_l2_amount, max_l1_data_gas_amount + 1),
-        (max_l1_gas_amount / 3 + 1, max_l2_gas_amount / 3 + 1, max_l1_data_gas_amount / 3 + 1),
-    ] {
-        let invalid_resource_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
+    fn get_invalid_resource_bound(
+        l1_max_amount: u64,
+        l2_max_amount: u64,
+        l1_data_max_amount: u64,
+    ) -> ValidResourceBounds {
+        if l2_max_amount == 0 && l1_data_max_amount == 0 {
+            return l1_resource_bounds(l1_max_amount + 1, MAX_L1_GAS_PRICE);
+        }
+        ValidResourceBounds::AllResources(AllResourceBounds {
             l1_gas: ResourceBounds {
                 max_amount: l1_max_amount,
                 max_price_per_unit: MAX_L1_GAS_PRICE,
@@ -1003,11 +960,62 @@ fn test_max_fee_exceeds_balance(
                 max_amount: l1_data_max_amount,
                 max_price_per_unit: MAX_L1_DATA_GAS_PRICE,
             },
-        });
+        })
+    }
+
+    // Test all resource bounds.
+    // TODO!(Aner): remove magic numbers, use function to calculate minimal amounts.
+    let min_l1_amount = 16520;
+    let min_l2_amount = 4455000;
+    let min_l1_data_amount = 1280;
+    let max_l2_gas_amount: u64 =
+        (BALANCE / MAX_L2_GAS_PRICE).try_into().expect("Failed to convert u128 to u64.");
+    let max_l1_data_gas_amount: u64 =
+        (BALANCE / MAX_L1_DATA_GAS_PRICE).try_into().expect("Failed to convert u128 to u64.");
+    // In the following cases, the balance is not enough to cover the gas price of the
+    // transaction. Minimal amounts are used to avoid failing the test due to min gas
+    // usage not covered.
+    for (l1_max_amount, l2_max_amount, l1_data_max_amount) in [
+        (max_l1_gas_amount + 1, min_l2_amount, min_l1_data_amount),
+        (min_l1_amount, max_l2_gas_amount + 1, min_l1_data_amount),
+        (min_l1_amount, min_l2_amount, max_l1_data_gas_amount + 1),
+        (max_l1_gas_amount / 3 + 1, max_l2_gas_amount / 3 + 1, max_l1_data_gas_amount / 3 + 1),
+    ] {
+        let invalid_resource_bounds =
+            get_invalid_resource_bound(l1_max_amount, l2_max_amount, l1_data_max_amount);
+
+        // V3 invoke.
         let invalid_tx = account_invoke_tx(invoke_tx_args! {
             resource_bounds: invalid_resource_bounds,
             ..default_args.clone()
         });
+        assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
+
+        // Deploy.
+        // Deployed contract has no balance, so any amount in resource_bounds that is higher than
+        // the minimal estimated amount (to prevent failing due to this reason) will suffice to
+        // fail on lack of balance.
+        let invalid_tx = AccountTransaction::DeployAccount(deploy_account_tx(
+            deploy_account_tx_args! {
+                resource_bounds: invalid_resource_bounds,
+                class_hash: test_contract.get_class_hash()
+            },
+            &mut NonceManager::default(),
+        ));
+        assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
+
+        // Declare.
+        let contract_to_declare = FeatureContract::Empty(CairoVersion::Cairo1);
+        let class_info = calculate_class_info_for_testing(contract_to_declare.get_class());
+        let invalid_tx = declare_tx(
+            declare_tx_args! {
+                class_hash: contract_to_declare.get_class_hash(),
+                compiled_class_hash: contract_to_declare.get_compiled_class_hash(),
+                sender_address: account_contract_address,
+                resource_bounds: invalid_resource_bounds,
+            },
+            class_info,
+        );
         assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
     }
 }
