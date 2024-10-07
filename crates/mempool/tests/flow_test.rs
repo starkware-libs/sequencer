@@ -7,8 +7,14 @@ use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
 use starknet_api::{contract_address, felt, invoke_tx_args, nonce, patricia_key};
 use starknet_mempool::mempool::Mempool;
-use starknet_mempool::test_utils::{add_tx, commit_block, get_txs_and_assert_expected};
+use starknet_mempool::test_utils::{
+    add_tx,
+    add_tx_expect_error,
+    commit_block,
+    get_txs_and_assert_expected,
+};
 use starknet_mempool::{add_tx_input, tx};
+use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 
 // Fixtures.
@@ -43,6 +49,23 @@ fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
         &mut mempool,
         2,
         &[input_address_0_nonce_0.tx, input_address_0_nonce_1.tx],
+    );
+}
+
+#[rstest]
+fn test_add_tx_after_get_txs_fails_on_duplicate_nonce(mut mempool: Mempool) {
+    // Setup.
+    let input_tx = add_tx_input!(tx_hash: 0, tx_nonce: 0);
+
+    // Test.
+    add_tx(&mut mempool, &input_tx);
+    get_txs_and_assert_expected(&mut mempool, 1, &[input_tx.tx]);
+
+    let input_tx_duplicate_nonce = add_tx_input!(tx_hash: 1, tx_nonce: 0);
+    add_tx_expect_error(
+        &mut mempool,
+        &input_tx_duplicate_nonce,
+        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(0) },
     );
 }
 

@@ -607,23 +607,6 @@ fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
 // `commit_block` tests.
 
 #[rstest]
-fn test_add_tx_after_get_txs_fails_on_duplicate_nonce(mut mempool: Mempool) {
-    // Setup.
-    let input_tx = add_tx_input!(tx_hash: 0, tx_nonce: 0);
-
-    // Test.
-    add_tx(&mut mempool, &input_tx);
-    get_txs_and_assert_expected(&mut mempool, 1, &[input_tx.tx]);
-
-    let input_tx_duplicate_nonce = add_tx_input!(tx_hash: 1, tx_nonce: 0);
-    add_tx_expect_error(
-        &mut mempool,
-        &input_tx_duplicate_nonce,
-        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(0) },
-    );
-}
-
-#[rstest]
 fn test_commit_block_includes_all_txs() {
     // Setup.
     let tx_address_0_nonce_4 = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 4);
