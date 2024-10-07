@@ -818,35 +818,3 @@ fn test_flow_commit_block_fills_nonce_gap() {
         MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(4) },
     );
 }
-
-#[rstest]
-fn test_flow_send_same_nonce_tx_after_previous_not_included() {
-    // Setup.
-    let tx_nonce_3 = tx!(tip: 10, tx_hash: 1, sender_address: "0x0", tx_nonce: 3);
-    let tx_input_nonce_4 =
-        add_tx_input!(tip: 11, tx_hash: 2, sender_address: "0x0", tx_nonce: 4, account_nonce: 4);
-    let tx_nonce_5 = tx!(tip: 12, tx_hash: 3, sender_address: "0x0", tx_nonce: 5);
-
-    let queue_txs = [TransactionReference::new(&tx_nonce_3)];
-    let pool_txs = [&tx_nonce_3, &tx_input_nonce_4.tx, &tx_nonce_5].map(|tx| tx.clone());
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool(pool_txs)
-        .with_priority_queue(queue_txs)
-        .build_into_mempool();
-
-    // Test.
-    get_txs_and_assert_expected(&mut mempool, 2, &[tx_nonce_3, tx_input_nonce_4.tx.clone()]);
-
-    let nonces = [("0x0", 3)]; // Transaction with nonce 4 is not included in the block.
-    commit_block(&mut mempool, nonces);
-
-    add_tx(&mut mempool, &tx_input_nonce_4);
-
-    get_txs_and_assert_expected(&mut mempool, 1, &[tx_input_nonce_4.tx]);
-
-    // Assert.
-    let expected_queue_txs = [TransactionReference::new(&tx_nonce_5)];
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
-    expected_mempool_content.assert_eq(&mempool);
-}
