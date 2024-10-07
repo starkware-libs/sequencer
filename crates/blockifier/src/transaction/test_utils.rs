@@ -374,11 +374,18 @@ fn create_all_resource_bounds(
 }
 
 pub fn calculate_class_info_for_testing(contract_class: ContractClass) -> ClassInfo {
-    let sierra_program_length = match contract_class {
-        ContractClass::V0(_) => 0,
-        ContractClass::V1(_) | ContractClass::V1Native(_) => 100,
-    };
-    ClassInfo::new(&contract_class, sierra_program_length, 100).unwrap()
+    let abi_length = 100;
+    match contract_class {
+        ContractClass::V0(contract_class) => ClassInfo::new_v0(contract_class, abi_length),
+        ContractClass::V1(contract_class) => {
+            let sierra_program_length = 100;
+            ClassInfo::new_v1(contract_class, sierra_program_length, abi_length)
+        }
+        ContractClass::V1Native(contract_class) => {
+            let sierra_program_length = 100;
+            ClassInfo::new_v1_native(contract_class, sierra_program_length, abi_length)
+        }
+    }
 }
 
 pub fn emit_n_events_tx(
