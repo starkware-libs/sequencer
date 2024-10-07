@@ -52,7 +52,7 @@ impl IntegrationTestSetup {
         // Derive the configuration for the mempool node.
         let config = create_config(rpc_server_addr, storage_for_test.batcher_storage_config).await;
 
-        let (clients, servers) = create_node_modules(&config);
+        let (local_clients, _remote_clients, servers) = create_node_modules(&config);
 
         let HttpServerConfig { ip, port } = config.http_server_config;
         let http_test_client = HttpTestClient::new(SocketAddr::from((ip, port)));
@@ -77,7 +77,7 @@ impl IntegrationTestSetup {
             task_executor,
             http_test_client,
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
-            mempool_client: clients.get_mempool_client().unwrap().clone(),
+            mempool_client: local_clients.get_mempool_client().unwrap().clone(),
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
             gateway_handle,
             http_server_handle,

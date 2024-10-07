@@ -3,27 +3,31 @@ use std::sync::Arc;
 use starknet_batcher_types::communication::{
     BatcherRequestAndResponseSender,
     LocalBatcherClientImpl,
+    RemoteBatcherClientImpl,
     SharedBatcherClient,
 };
 use starknet_consensus_manager_types::communication::{
     ConsensusManagerRequestAndResponseSender,
     LocalConsensusManagerClientImpl,
+    RemoteConsensusManagerClientImpl,
     SharedConsensusManagerClient,
 };
 use starknet_gateway_types::communication::{
     GatewayRequestAndResponseSender,
     LocalGatewayClientImpl,
+    RemoteGatewayClientImpl,
     SharedGatewayClient,
 };
 use starknet_mempool_infra::component_definitions::ComponentCommunication;
 use starknet_mempool_types::communication::{
     LocalMempoolClientImpl,
     MempoolRequestAndResponseSender,
+    RemoteMempoolClientImpl,
     SharedMempoolClient,
 };
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
-use crate::config::SequencerNodeConfig;
+use crate::config::{ComponentExecutionMode, SequencerNodeConfig};
 
 pub struct SequencerNodeCommunication {
     batcher_channel: ComponentCommunication<BatcherRequestAndResponseSender>,
@@ -122,33 +126,108 @@ impl SequencerNodeClients {
     }
 }
 
+// TODO(Nadin): Create SequencerNodeLocalClients and SequencerNodeRemoteClients structs, and update
+// the return value accordingly.
 pub fn create_node_clients(
     config: &SequencerNodeConfig,
     channels: &mut SequencerNodeCommunication,
-) -> SequencerNodeClients {
-    let batcher_client: Option<SharedBatcherClient> = match config.components.batcher.execute {
+) -> (SequencerNodeClients, SequencerNodeClients) {
+    let local_batcher_client: Option<SharedBatcherClient> = match config.components.batcher.execute
+    {
         true => Some(Arc::new(LocalBatcherClientImpl::new(channels.take_batcher_tx()))),
         false => None,
     };
-    let consensus_manager_client: Option<SharedConsensusManagerClient> =
+    let local_consensus_manager_client: Option<SharedConsensusManagerClient> =
         match config.components.consensus_manager.execute {
             true => Some(Arc::new(LocalConsensusManagerClientImpl::new(
                 channels.take_consensus_manager_tx(),
             ))),
             false => None,
         };
-    let mempool_client: Option<SharedMempoolClient> = match config.components.mempool.execute {
+    let local_mempool_client: Option<SharedMempoolClient> = match config.components.mempool.execute
+    {
         true => Some(Arc::new(LocalMempoolClientImpl::new(channels.take_mempool_tx()))),
         false => None,
     };
-    let gateway_client: Option<SharedGatewayClient> = match config.components.gateway.execute {
+    let local_gateway_client: Option<SharedGatewayClient> = match config.components.gateway.execute
+    {
         true => Some(Arc::new(LocalGatewayClientImpl::new(channels.take_gateway_tx()))),
         false => None,
     };
-    SequencerNodeClients {
-        batcher_client,
-        consensus_manager_client,
-        mempool_client,
-        gateway_client,
-    }
+    let remote_batcher_client: Option<SharedBatcherClient> =
+        match (config.components.batcher.execute, config.components.batcher.execution_mode) {
+            (true, ComponentExecutionMode::Remote) => Some(Arc::new(RemoteBatcherClientImpl::new(
+                config
+                    .components
+                    .batcher
+                    .remote_config
+                    .as_ref()
+                    .expect("Remote config must be present when execution mode is Remote")
+                    .client_config
+                    .clone(),
+            ))),
+            _ => None,
+        };
+    let remote_consensus_manager_client: Option<SharedConsensusManagerClient> = match (
+        config.components.consensus_manager.execute,
+        config.components.consensus_manager.execution_mode,
+    ) {
+        (true, ComponentExecutionMode::Remote) => {
+            Some(Arc::new(RemoteConsensusManagerClientImpl::new(
+                config
+                    .components
+                    .consensus_manager
+                    .remote_config
+                    .as_ref()
+                    .expect("Remote config must be present when execution mode is Remote")
+                    .client_config
+                    .clone(),
+            )))
+        }
+        _ => None,
+    };
+    let remote_mempool_client: Option<SharedMempoolClient> =
+        match (config.components.mempool.execute, config.components.mempool.execution_mode) {
+            (true, ComponentExecutionMode::Remote) => Some(Arc::new(RemoteMempoolClientImpl::new(
+                config
+                    .components
+                    .mempool
+                    .remote_config
+                    .as_ref()
+                    .expect("Remote config must be present when execution mode is Remote")
+                    .client_config
+                    .clone(),
+            ))),
+            _ => None,
+        };
+    let remote_gateway_client: Option<SharedGatewayClient> =
+        match (config.components.gateway.execute, config.components.gateway.execution_mode) {
+            (true, ComponentExecutionMode::Remote) => Some(Arc::new(RemoteGatewayClientImpl::new(
+                config
+                    .components
+                    .gateway
+                    .remote_config
+                    .as_ref()
+                    .expect("Remote config must be present when execution mode is Remote")
+                    .client_config
+                    .clone(),
+            ))),
+            _ => None,
+        };
+
+    let local_clients = SequencerNodeClients {
+        batcher_client: local_batcher_client,
+        consensus_manager_client: local_consensus_manager_client,
+        mempool_client: local_mempool_client,
+        gateway_client: local_gateway_client,
+    };
+
+    let remote_client = SequencerNodeClients {
+        batcher_client: remote_batcher_client,
+        consensus_manager_client: remote_consensus_manager_client,
+        mempool_client: remote_mempool_client,
+        gateway_client: remote_gateway_client,
+    };
+
+    (local_clients, remote_client)
 }
