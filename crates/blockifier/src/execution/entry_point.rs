@@ -20,7 +20,9 @@ use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::errors::{
-    ConstructorEntryPointExecutionError, EntryPointExecutionError, PreExecutionError,
+    ConstructorEntryPointExecutionError,
+    EntryPointExecutionError,
+    PreExecutionError,
 };
 use crate::execution::execution_utils::execute_entry_point_call_wrapper;
 use crate::state::state_api::{State, StateResult};
