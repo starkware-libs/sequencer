@@ -839,28 +839,6 @@ struct SqmrServerPayload {
     responses_sender: ResponsesSender,
 }
 
-pub type BroadcastTopicSender<T, Message> = With<
-    Sender<Message>,
-    Message,
-    T,
-    Ready<Result<Message, SendError>>,
-    fn(T) -> Ready<Result<Message, SendError>>,
->;
-
-pub type BroadcastTopicServer<T> =
-    Map<Receiver<(Bytes, BroadcastedMessageManager)>, BroadcastReceivedMessagesConverterFn<T>>;
-
-type ReceivedBroadcastedMessage<Message> =
-    (Result<Message, <Message as TryFrom<Bytes>>::Error>, BroadcastedMessageManager);
-
-type BroadcastReceivedMessagesConverterFn<T> =
-    fn((Bytes, BroadcastedMessageManager)) -> ReceivedBroadcastedMessage<T>;
-
-pub struct BroadcastTopicChannels<T: TryFrom<Bytes>> {
-    pub broadcasted_messages_receiver: BroadcastTopicServer<T>,
-    pub broadcast_topic_client: BroadcastTopicClient<T>,
-}
-
 #[async_trait]
 pub trait BroadcastTopicClientTrait<T> {
     async fn broadcast_message(&mut self, message: T) -> Result<(), SendError>;
@@ -900,4 +878,26 @@ impl<T: TryFrom<Bytes> + Send> BroadcastTopicClientTrait<T> for BroadcastTopicCl
     ) -> Result<(), SendError> {
         self.continue_propagation_sender.send(broadcasted_message_manager.clone()).await
     }
+}
+
+pub type BroadcastTopicSender<T, Message> = With<
+    Sender<Message>,
+    Message,
+    T,
+    Ready<Result<Message, SendError>>,
+    fn(T) -> Ready<Result<Message, SendError>>,
+>;
+
+pub type BroadcastTopicServer<T> =
+    Map<Receiver<(Bytes, BroadcastedMessageManager)>, BroadcastReceivedMessagesConverterFn<T>>;
+
+type ReceivedBroadcastedMessage<Message> =
+    (Result<Message, <Message as TryFrom<Bytes>>::Error>, BroadcastedMessageManager);
+
+type BroadcastReceivedMessagesConverterFn<T> =
+    fn((Bytes, BroadcastedMessageManager)) -> ReceivedBroadcastedMessage<T>;
+
+pub struct BroadcastTopicChannels<T: TryFrom<Bytes>> {
+    pub broadcasted_messages_receiver: BroadcastTopicServer<T>,
+    pub broadcast_topic_client: BroadcastTopicClient<T>,
 }
