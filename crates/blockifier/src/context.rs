@@ -4,11 +4,10 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
-use starknet_api::transaction::ValidResourceBounds;
+use starknet_api::transaction::{GasVectorComputationMode, ValidResourceBounds};
 
 use crate::blockifier::block::BlockInfo;
 use crate::bouncer::BouncerConfig;
-use crate::fee::resources::GasVectorComputationMode;
 use crate::transaction::objects::{
     FeeType,
     HasRelatedFeeType,

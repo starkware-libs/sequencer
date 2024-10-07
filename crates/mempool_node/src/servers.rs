@@ -15,8 +15,8 @@ use starknet_mempool_infra::errors::ComponentServerError;
 use tracing::error;
 
 use crate::communication::SequencerNodeCommunication;
-use crate::components::Components;
-use crate::config::MempoolNodeConfig;
+use crate::components::SequencerNodeComponents;
+use crate::config::SequencerNodeConfig;
 
 // Component servers that can run locally.
 pub struct LocalServers {
@@ -25,8 +25,6 @@ pub struct LocalServers {
     pub mempool: Option<Box<LocalMempoolServer>>,
 }
 
-/// TODO(Tsabary): rename empty server to wrapper server.
-
 // Component servers that wrap a component without a server.
 pub struct WrapperServers {
     pub consensus_manager: Option<Box<ConsensusManagerServer>>,
@@ -34,16 +32,16 @@ pub struct WrapperServers {
 }
 
 /// TODO(Tsabary): make these fields private, currently public to support the outdated e2e test.
-pub struct Servers {
+pub struct SequencerNodeServers {
     pub local_servers: LocalServers,
     pub wrapper_servers: WrapperServers,
 }
 
-pub fn create_servers(
-    config: &MempoolNodeConfig,
+pub fn create_node_servers(
+    config: &SequencerNodeConfig,
     communication: &mut SequencerNodeCommunication,
-    components: Components,
-) -> Servers {
+    components: SequencerNodeComponents,
+) -> SequencerNodeServers {
     let batcher_server = if config.components.batcher.execute {
         Some(Box::new(create_local_batcher_server(
             components.batcher.expect("Batcher is not initialized."),
@@ -89,12 +87,12 @@ pub fn create_servers(
     let wrapper_servers =
         WrapperServers { consensus_manager: consensus_manager_server, http_server };
 
-    Servers { local_servers, wrapper_servers }
+    SequencerNodeServers { local_servers, wrapper_servers }
 }
 
 pub async fn run_component_servers(
-    config: &MempoolNodeConfig,
-    servers: Servers,
+    config: &SequencerNodeConfig,
+    servers: SequencerNodeServers,
 ) -> anyhow::Result<()> {
     // Batcher server.
     let batcher_future = get_server_future(
@@ -170,15 +168,9 @@ pub fn get_server_future(
     execute_flag: bool,
     server: Option<Box<impl ComponentServerStarter + Send + 'static>>,
 ) -> Pin<Box<dyn Future<Output = Result<(), ComponentServerError>> + Send>> {
-    let server_future = match execute_flag {
-        true => {
-            let mut server = match server {
-                Some(server) => server,
-                _ => panic!("{} component is not initialized.", name),
-            };
-            async move { server.start().await }.boxed()
-        }
-        false => pending().boxed(),
-    };
-    server_future
+    if !execute_flag {
+        return pending().boxed();
+    }
+    let mut server = server.unwrap_or_else(|| panic!("{} component is not initialized.", name));
+    async move { server.start().await }.boxed()
 }

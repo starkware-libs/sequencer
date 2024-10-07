@@ -1,6 +1,7 @@
 use cairo_vm::types::errors::program_errors::ProgramError;
 use num_bigint::BigUint;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{Fee, Resource, TransactionVersion};
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::FromStrError;
@@ -25,7 +26,22 @@ pub enum TransactionFeeError {
     #[error("Actual fee ({}) exceeded paid fee on L1 ({}).", actual_fee.0, paid_fee.0)]
     InsufficientFee { paid_fee: Fee, actual_fee: Fee },
     #[error(
-        "Resource {resource} bounds (max amount: {max_amount}, max price: {max_price}) exceed \
+        "Resources bounds (l1 gas max amount: {l1_max_amount}, l1 gas max price: {l1_max_price}, \
+         l1 data max amount: {l1_data_max_amount}, l1 data max price: {l1_data_max_price}, l2 gas \
+         max amount: {l2_max_amount}, l2 gas max price: {l2_max_price}) exceed balance \
+         ({balance})."
+    )]
+    ResourcesBoundsExceedBalance {
+        l1_max_amount: u64,
+        l1_max_price: u128,
+        l1_data_max_amount: u64,
+        l1_data_max_price: u128,
+        l2_max_amount: u64,
+        l2_max_price: u128,
+        balance: BigUint,
+    },
+    #[error(
+        "Resource {resource} bounds (max amount: {max_amount}, max price): {max_price}) exceed \
          balance ({balance})."
     )]
     GasBoundsExceedBalance {
@@ -47,7 +63,11 @@ pub enum TransactionFeeError {
         "Max {resource} amount ({max_gas_amount}) is lower than the minimal gas amount: \
          {minimal_gas_amount}."
     )]
-    MaxGasAmountTooLow { resource: Resource, max_gas_amount: u64, minimal_gas_amount: u64 },
+    MaxGasAmountTooLow {
+        resource: Resource,
+        max_gas_amount: GasAmount,
+        minimal_gas_amount: GasAmount,
+    },
     #[error("Missing L1 gas bounds in resource bounds.")]
     MissingL1GasBounds,
     #[error(transparent)]

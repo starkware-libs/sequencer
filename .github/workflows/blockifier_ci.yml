@@ -23,18 +23,20 @@ on:
       # Other than code-related changes, all changes related to the native-blockifier build-and-push
       # process should trigger the build (e.g., changes to the Dockerfile, build scripts, etc.).
       - '.github/workflows/blockifier_ci.yml'
+      - '.github/workflows/upload_artifacts_workflow.yml'
       - 'build_native_in_docker.sh'
       - 'Cargo.lock'
       - 'Cargo.toml'
       - 'crates/blockifier/**'
       - 'crates/native_blockifier/**'
       - 'scripts/build_native_blockifier.sh'
+      - 'scripts/dependencies.sh'
       - 'scripts/install_build_tools.sh'
       - 'scripts/sequencer-ci.Dockerfile'
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -45,60 +47,3 @@ jobs:
       - uses: ./.github/actions/bootstrap
       - run: cargo build -p blockifier
       - run: cargo test -p blockifier
-
-  native-blockifier-artifacts-push:
-    runs-on: starkware-ubuntu-20-04-medium
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/bootstrap
-      - name: Build native blockifier
-        run: ./build_native_in_docker.sh scripts/build_native_blockifier.sh
-
-        # Commit hash on pull request event would be the head commit of the branch.
-      - name: Get commit hash prefix for PR update
-        if: ${{ github.event_name == 'pull_request' }}
-        env:
-          COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
-        run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
-
-        # On push event (to main, for example) we should take the commit post-push.
-      - name: Get commit hash prefix for merge
-        if: ${{ github.event_name != 'pull_request' }}
-        env:
-          COMMIT_SHA: ${{ github.event.after }}
-        run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
-
-      # Rename is required; see https://pyo3.rs/v0.19.2/building_and_distribution#manual-builds.
-      - name: Rename shared object
-        run: |
-          mv \
-            target/release/libnative_blockifier.so \
-            target/release/native_blockifier.pypy39-pp73-x86_64-linux-gnu.so
-
-      # Check if the user has the required permission to upload the artifact.
-      - name: Get User Permission
-        id: checkAccess
-        uses: actions-cool/check-user-permission@v2
-        with:
-          require: write
-          username: ${{ github.triggering_actor }}
-
-      - name: Check User Permission
-        if: steps.checkAccess.outputs.require-result == 'false'
-        run: |
-          echo "${{ github.triggering_actor }} does not have permissions on this repo."
-          echo "Current permission level is ${{ steps.checkAccess.outputs.user-permission }}"
-          echo "Job originally triggered by ${{ github.actor }}"
-          exit 1
-
-      - name: Authenticate with GCS
-        uses: "google-github-actions/auth@v2"
-        with:
-          credentials_json: ${{ secrets.SA_NATIVE_BLOCKIFIER_ARTIFACTS_BUCKET_WRITER_ACCESS_KEY }}
-
-      - name: Upload binary to GCP
-        id: upload_file
-        uses: "google-github-actions/upload-cloud-storage@v2"
-        with:
-          path: "target/release/native_blockifier.pypy39-pp73-x86_64-linux-gnu.so"
-          destination: "native_blockifier_artifacts/${{ env.SHORT_HASH }}/release/"

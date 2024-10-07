@@ -45,12 +45,18 @@ impl ConsensusMessage {
         }
     }
 }
-#[derive(Debug, Default, Clone, Hash, Eq, PartialEq)]
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub enum StreamMessageBody<T> {
+    Content(T),
+    Fin,
+}
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
-    pub message: T,
+    pub message: StreamMessageBody<T>,
     pub stream_id: u64,
     pub message_id: u64,
-    pub fin: bool,
 }
 
 // TODO(Guy): Remove after implementing broadcast streams.

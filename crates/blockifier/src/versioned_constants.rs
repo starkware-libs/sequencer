@@ -13,6 +13,8 @@ use semver::Version;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer};
 use serde_json::{Map, Number, Value};
+use starknet_api::execution_resources::GasAmount;
+use starknet_api::transaction::GasVectorComputationMode;
 use strum::IntoEnumIterator;
 use strum_macros::{EnumCount, EnumIter};
 use thiserror::Error;
@@ -20,7 +22,7 @@ use thiserror::Error;
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::execution::syscalls::SyscallSelector;
-use crate::fee::resources::{GasVectorComputationMode, StarknetResources};
+use crate::fee::resources::StarknetResources;
 use crate::transaction::transaction_types::TransactionType;
 
 #[cfg(test)]
@@ -64,7 +66,7 @@ macro_rules! define_versioned_constants {
             $(
                 pub(crate) const [<VERSIONED_CONSTANTS_ $variant:upper _JSON>]: &str =
                     include_str!($path_to_json);
-                static [<VERSIONED_CONSTANTS_ $variant:upper>]: LazyLock<VersionedConstants> = LazyLock::new(|| {
+                pub static [<VERSIONED_CONSTANTS_ $variant:upper>]: LazyLock<VersionedConstants> = LazyLock::new(|| {
                     serde_json::from_str([<VERSIONED_CONSTANTS_ $variant:upper _JSON>])
                         .expect(&format!("Versioned constants {} is malformed.", $path_to_json))
                 });
@@ -223,9 +225,9 @@ impl VersionedConstants {
     }
 
     /// Converts from L1 gas amount to L2 gas amount with **upward rounding**.
-    pub fn convert_l1_to_l2_gas_amount_round_up(&self, l1_gas_amount: u128) -> u128 {
+    pub fn convert_l1_to_l2_gas_amount_round_up(&self, l1_gas_amount: GasAmount) -> GasAmount {
         // The amount ratio is the inverse of the price ratio.
-        *(self.l1_to_l2_gas_price_ratio().inv() * l1_gas_amount).ceil().numer()
+        GasAmount(*(self.l1_to_l2_gas_price_ratio().inv() * l1_gas_amount.0).ceil().numer())
     }
 
     /// Returns the following ratio: L2_gas_price/L1_gas_price.
@@ -603,7 +605,7 @@ impl OsConstants {
     // not used by the blockifier but included for transparency. These constanst will be ignored
     // during the creation of the struct containing the gas costs.
 
-    const ADDITIONAL_FIELDS: [&'static str; 27] = [
+    const ADDITIONAL_FIELDS: [&'static str; 29] = [
         "block_hash_contract_address",
         "constructor_entry_point_selector",
         "default_entry_point_selector",
@@ -613,6 +615,8 @@ impl OsConstants {
         "error_block_number_out_of_range",
         "error_invalid_input_len",
         "error_invalid_argument",
+        "error_entry_point_failed",
+        "error_entry_point_not_found",
         "error_out_of_gas",
         "execute_entry_point_selector",
         "l1_gas",

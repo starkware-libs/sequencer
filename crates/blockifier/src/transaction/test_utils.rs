@@ -1,5 +1,6 @@
 use rstest::fixture;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
@@ -8,6 +9,7 @@ use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
     Fee,
+    GasVectorComputationMode,
     InvokeTransactionV0,
     InvokeTransactionV1,
     InvokeTransactionV3,
@@ -24,7 +26,6 @@ use strum::IntoEnumIterator;
 use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::context::{BlockContext, ChainInfo};
 use crate::execution::contract_class::{ClassInfo, ContractClass};
-use crate::fee::resources::GasVectorComputationMode;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
 use crate::test_utils::contracts::FeatureContract;
@@ -97,7 +98,7 @@ pub fn max_l1_resource_bounds() -> ValidResourceBounds {
 pub fn create_resource_bounds(computation_mode: &GasVectorComputationMode) -> ValidResourceBounds {
     match computation_mode {
         GasVectorComputationMode::NoL2Gas => {
-            l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE)
+            l1_resource_bounds(MAX_L1_GAS_AMOUNT.into(), MAX_L1_GAS_PRICE)
         }
         GasVectorComputationMode::All => create_all_resource_bounds(
             MAX_L1_GAS_AMOUNT,
@@ -321,8 +322,11 @@ pub fn run_invoke_tx(
 
 /// Creates a `ResourceBoundsMapping` with the given `max_amount` and `max_price` for L1 gas limits.
 /// No guarantees on the values of the other resources bounds.
-pub fn l1_resource_bounds(max_amount: u64, max_price: u128) -> ValidResourceBounds {
-    ValidResourceBounds::L1Gas(ResourceBounds { max_amount, max_price_per_unit: max_price })
+pub fn l1_resource_bounds(max_amount: GasAmount, max_price: u128) -> ValidResourceBounds {
+    ValidResourceBounds::L1Gas(ResourceBounds {
+        max_amount: max_amount.0.try_into().unwrap(),
+        max_price_per_unit: max_price,
+    })
 }
 
 #[fixture]

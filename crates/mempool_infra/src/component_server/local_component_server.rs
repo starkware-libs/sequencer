@@ -1,8 +1,9 @@
+use std::any::type_name;
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
 use tokio::sync::mpsc::Receiver;
-use tracing::error;
+use tracing::{error, info};
 
 use super::definitions::request_response_loop;
 use crate::component_definitions::{
@@ -123,8 +124,10 @@ where
     Response: Send + Sync,
 {
     async fn start(&mut self) -> Result<(), ComponentServerError> {
+        info!("Starting LocalComponentServer for {}.", type_name::<Component>());
         self.component.start().await?;
         request_response_loop(&mut self.rx, &mut self.component).await;
+        info!("Finished LocalComponentServer for {}.", type_name::<Component>());
         Ok(())
     }
 }

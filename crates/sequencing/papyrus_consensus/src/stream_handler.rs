@@ -6,7 +6,7 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use papyrus_network::network_manager::BroadcastTopicServer;
 use papyrus_network_types::network_types::{BroadcastedMessageManager, OpaquePeerId};
-use papyrus_protobuf::consensus::StreamMessage;
+use papyrus_protobuf::consensus::{StreamMessage, StreamMessageBody};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use tracing::{instrument, warn};
 
@@ -95,8 +95,10 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     fn send(data: &mut StreamData<T>, message: StreamMessage<T>) {
         // TODO(guyn): reconsider the "expect" here.
         let sender = &mut data.sender;
-        sender.try_send(message.message).expect("Send should succeed");
-        data.next_message_id += 1;
+        if let StreamMessageBody::Content(content) = message.message {
+            sender.try_send(content).expect("Send should succeed");
+            data.next_message_id += 1;
+        }
     }
 
     #[instrument(skip_all, level = "warn")]
@@ -135,19 +137,20 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
             data.max_message_id = message_id;
         }
 
-        if message.fin {
-            data.fin_message_id = Some(message_id);
-            if data.max_message_id > message_id {
-                // TODO(guyn): replace warnings with more graceful error handling
-                warn!(
-                    "Received fin message with id that is smaller than a previous message! \
-                     peer_id: {:?} stream_id: {}, fin_message_id: {}, max_message_id: {}",
-                    peer_id.clone(),
-                    stream_id,
-                    message_id,
-                    data.max_message_id
-                );
-                return;
+        // Check for Fin type message
+        match message.message {
+            StreamMessageBody::Content(_) => {}
+            StreamMessageBody::Fin => {
+                data.fin_message_id = Some(message_id);
+                if data.max_message_id > message_id {
+                    // TODO(guyn): replace warnings with more graceful error handling
+                    warn!(
+                        "Received fin message with id that is smaller than a previous message! \
+                         stream_id: {}, fin_message_id: {}, max_message_id: {}",
+                        stream_id, message_id, data.max_message_id
+                    );
+                    return;
+                }
             }
         }
 
