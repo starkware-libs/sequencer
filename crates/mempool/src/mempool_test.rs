@@ -191,7 +191,7 @@ fn test_get_txs_returns_by_priority_order(#[case] n_requested_txs: usize) {
 }
 
 #[rstest]
-fn test_get_txs_removes_returned_txs_from_pool() {
+fn test_get_txs_does_not_remove_returned_txs_from_pool() {
     // Setup.
     let tx_nonce_0 = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0);
     let tx_nonce_1 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1);
@@ -207,7 +207,7 @@ fn test_get_txs_removes_returned_txs_from_pool() {
     // Test and assert: all transactions are returned.
     get_txs_and_assert_expected(&mut mempool, 3, &pool_txs);
     let expected_mempool_content =
-        MempoolContentBuilder::new().with_pool([]).with_priority_queue([]).build();
+        MempoolContentBuilder::new().with_pool(pool_txs).with_priority_queue([]).build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
@@ -614,17 +614,25 @@ fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
 // `commit_block` tests.
 
 #[rstest]
-fn test_commit_block_includes_all_txs() {
+fn test_commit_block_includes_all_proposed_txs() {
     // Setup.
-    let tx_address_0_nonce_4 = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 4);
-    let tx_address_0_nonce_5 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 5);
-    let tx_address_1_nonce_3 = tx!(tx_hash: 3, sender_address: "0x1", tx_nonce: 3);
-    let tx_address_2_nonce_1 = tx!(tx_hash: 4, sender_address: "0x2", tx_nonce: 1);
+    let tx_address_0_nonce_3 = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 3);
+    let tx_address_0_nonce_4 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 4);
+    let tx_address_0_nonce_5 = tx!(tx_hash: 3, sender_address: "0x0", tx_nonce: 5);
+    let tx_address_1_nonce_2 = tx!(tx_hash: 4, sender_address: "0x1", tx_nonce: 2);
+    let tx_address_1_nonce_3 = tx!(tx_hash: 5, sender_address: "0x1", tx_nonce: 3);
+    let tx_address_2_nonce_1 = tx!(tx_hash: 6, sender_address: "0x2", tx_nonce: 1);
 
     let queue_txs = [&tx_address_0_nonce_4, &tx_address_1_nonce_3, &tx_address_2_nonce_1]
         .map(TransactionReference::new);
-    let pool_txs =
-        [tx_address_0_nonce_4, tx_address_0_nonce_5, tx_address_1_nonce_3, tx_address_2_nonce_1];
+    let pool_txs = [
+        tx_address_0_nonce_3,
+        tx_address_0_nonce_4.clone(),
+        tx_address_0_nonce_5.clone(),
+        tx_address_1_nonce_2,
+        tx_address_1_nonce_3.clone(),
+        tx_address_2_nonce_1.clone(),
+    ];
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs.clone())
         .with_priority_queue(queue_txs)
@@ -632,9 +640,12 @@ fn test_commit_block_includes_all_txs() {
 
     // Test.
     let nonces = [("0x0", 3), ("0x1", 2)];
-    commit_block(&mut mempool, nonces);
+    let tx_hashes = [1, 4];
+    commit_block(&mut mempool, nonces, tx_hashes);
 
     // Assert.
+    let pool_txs =
+        [tx_address_0_nonce_4, tx_address_0_nonce_5, tx_address_1_nonce_3, tx_address_2_nonce_1];
     let expected_mempool_content =
         MempoolContentBuilder::new().with_pool(pool_txs).with_priority_queue(queue_txs).build();
     expected_mempool_content.assert_eq(&mempool);
@@ -643,21 +654,32 @@ fn test_commit_block_includes_all_txs() {
 #[rstest]
 fn test_commit_block_rewinds_queued_nonce() {
     // Setup.
-    let tx_address_0_nonce_5 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 5);
+    let tx_address_0_nonce_3 = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 3);
+    let tx_address_0_nonce_4 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 4);
+    let tx_address_0_nonce_5 = tx!(tx_hash: 3, sender_address: "0x0", tx_nonce: 5);
+    let tx_address_1_nonce_1 = tx!(tx_hash: 4, sender_address: "0x1", tx_nonce: 1);
 
-    let queued_txs = [TransactionReference::new(&tx_address_0_nonce_5)];
-    let pool_txs = [tx_address_0_nonce_5];
+    let queued_txs = [&tx_address_0_nonce_5, &tx_address_1_nonce_1].map(TransactionReference::new);
+    let pool_txs = [
+        tx_address_0_nonce_3,
+        tx_address_0_nonce_4.clone(),
+        tx_address_0_nonce_5,
+        tx_address_1_nonce_1,
+    ];
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs)
         .with_priority_queue(queued_txs)
         .build_into_mempool();
 
     // Test.
-    let nonces = [("0x0", 3), ("0x1", 3)];
-    commit_block(&mut mempool, nonces);
+    let nonces = [("0x0", 3), ("0x1", 1)];
+    let tx_hashes = [1, 4];
+    commit_block(&mut mempool, nonces, tx_hashes);
 
     // Assert.
-    let expected_mempool_content = MempoolContentBuilder::new().with_priority_queue([]).build();
+    let expected_queue_txs = [TransactionReference::new(&tx_address_0_nonce_4)];
+    let expected_mempool_content =
+        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
@@ -674,7 +696,7 @@ fn test_commit_block_from_different_leader() {
         tx_address_0_nonce_3,
         tx_address_0_nonce_5,
         tx_address_0_nonce_6.clone(),
-        tx_address_1_nonce_2,
+        tx_address_1_nonce_2.clone(),
     ];
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs)
@@ -684,15 +706,21 @@ fn test_commit_block_from_different_leader() {
     // Test.
     let nonces = [
         ("0x0", 5),
-        // A hole, missing nonce 1 for address "0x1".
-        ("0x1", 0),
+        ("0x1", 0), // A hole, missing nonce 1 for address "0x1".
         ("0x2", 1),
     ];
-    commit_block(&mut mempool, nonces);
+    let tx_hashes = [
+        1, 2, // Hashes known to mempool.
+        5, 6, // Hashes unknown to mempool, from a different node.
+    ];
+    commit_block(&mut mempool, nonces, tx_hashes);
 
     // Assert.
+    let expected_queue_txs = [TransactionReference::new(&tx_address_0_nonce_6)];
+    let expected_pool_txs = [tx_address_0_nonce_6, tx_address_1_nonce_2];
     let expected_mempool_content = MempoolContentBuilder::new()
-        .with_priority_queue([TransactionReference::new(&tx_address_0_nonce_6)])
+        .with_pool(expected_pool_txs)
+        .with_priority_queue(expected_queue_txs)
         .build();
     expected_mempool_content.assert_eq(&mempool);
 }
