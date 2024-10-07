@@ -18,7 +18,14 @@ use starknet_api::transaction::{
     ValidResourceBounds,
 };
 
-use crate::consensus::{ConsensusMessage, Proposal, StreamMessage, Vote, VoteType};
+use crate::consensus::{
+    ConsensusMessage,
+    Proposal,
+    StreamMessage,
+    StreamMessageBody,
+    Vote,
+    VoteType,
+};
 
 auto_impl_get_test_instance! {
     pub enum ConsensusMessage {
@@ -55,14 +62,16 @@ auto_impl_get_test_instance! {
     }
 }
 
+// The auto_impl_get_test_instance macro does not work for StreamMessage because it has
+// a generic type. TODO(guyn): try to make the macro work with generic types.
 impl GetTestInstance for StreamMessage<ConsensusMessage> {
     fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
-        Self {
-            message: ConsensusMessage::Proposal(Proposal::default()),
-            stream_id: rng.gen_range(0..100),
-            message_id: rng.gen_range(0..1000),
-            fin: rng.gen_bool(0.5),
-        }
+        let message = if rng.gen_bool(0.5) {
+            StreamMessageBody::Content(ConsensusMessage::Proposal(Proposal::get_test_instance(rng)))
+        } else {
+            StreamMessageBody::Fin
+        };
+        Self { message, stream_id: rng.gen_range(0..100), message_id: rng.gen_range(0..1000) }
     }
 }
 
