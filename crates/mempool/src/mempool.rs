@@ -63,10 +63,8 @@ impl Mempool {
         let mut eligible_txs: Vec<Transaction> = Vec::with_capacity(n_txs);
         for tx_ref in &eligible_tx_references {
             let tx = self.tx_pool.remove(tx_ref.tx_hash)?;
-            let address = tx.contract_address();
-            if !self.tx_pool.contains_account(address) {
-                self.account_nonces.remove(&address);
-            }
+            // TODO(clean_account_nonces): remove address from nonce table after a block cycle /
+            // TTL.
             eligible_txs.push(tx);
         }
 
@@ -187,12 +185,8 @@ impl Mempool {
 
         // Remove from pool.
         self.tx_pool.remove_up_to_nonce(address, nonce);
-
-        if self.tx_pool.contains_account(address) {
-            self.account_nonces.insert(address, nonce);
-        } else {
-            self.account_nonces.remove(&address);
-        }
+        // TODO(clean_account_nonces): remove address from nonce table after a block cycle / TTL.
+        self.account_nonces.insert(address, nonce);
 
         // Maybe close nonce gap.
         if self.tx_queue.get_nonce(address).is_none() {
