@@ -10423,10 +10423,12 @@ name = "starknet_mempool_p2p"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "futures",
  "papyrus_network",
  "papyrus_protobuf",
  "starknet_mempool_infra",
  "starknet_mempool_p2p_types",
+ "tokio",
 ]
 
 [[package]]
