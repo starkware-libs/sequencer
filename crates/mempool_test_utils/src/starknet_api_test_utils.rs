@@ -25,7 +25,7 @@ use starknet_api::rpc_transaction::{
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     Calldata,
@@ -34,9 +34,9 @@ use starknet_api::transaction::{
     ResourceBounds,
     Tip,
     TransactionSignature,
-    TransactionVersion,
     ValidResourceBounds,
 };
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::{deploy_account_tx_args, felt, invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 

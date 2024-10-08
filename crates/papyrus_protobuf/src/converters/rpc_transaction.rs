@@ -15,12 +15,11 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::state::EntryPoint;
+use starknet_api::transaction::fields::{AllResourceBounds, ValidResourceBounds};
 use starknet_api::transaction::{
-    AllResourceBounds,
     DeclareTransactionV3,
     DeployAccountTransactionV3,
     InvokeTransactionV3,
-    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 

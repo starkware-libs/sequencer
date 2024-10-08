@@ -16,7 +16,12 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{AllResourceBounds, Calldata, Resource, ValidResourceBounds};
+use starknet_api::transaction::fields::{
+    AllResourceBounds,
+    Calldata,
+    Resource,
+    ValidResourceBounds,
+};
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;

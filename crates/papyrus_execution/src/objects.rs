@@ -40,7 +40,8 @@ use starknet_api::execution_resources::{
     GasVector as StarknetApiGasVector,
 };
 use starknet_api::state::ThinStateDiff;
-use starknet_api::transaction::{Calldata, EventContent, Fee, MessageToL1};
+use starknet_api::transaction::fields::{Calldata, Fee};
+use starknet_api::transaction::{EventContent, MessageToL1};
 use starknet_types_core::felt::Felt;
 
 use crate::{ExecutionError, ExecutionResult, TransactionExecutionOutput};

@@ -4,7 +4,7 @@ use assert_matches::assert_matches;
 use indexmap::indexmap;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::transaction::Fee;
+use starknet_api::transaction::fields::Fee;
 use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, nonce, storage_key};
 
 use crate::context::{BlockContext, ChainInfo};

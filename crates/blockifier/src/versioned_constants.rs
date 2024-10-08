@@ -17,7 +17,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Number, Value};
 use starknet_api::block::{GasPrice, StarknetVersion};
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::GasVectorComputationMode;
+use starknet_api::transaction::fields::GasVectorComputationMode;
 use strum::IntoEnumIterator;
 use thiserror::Error;
 

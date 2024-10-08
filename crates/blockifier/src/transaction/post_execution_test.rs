@@ -3,16 +3,16 @@ use rstest::rstest;
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AllResourceBounds,
     Calldata,
     Fee,
     GasVectorComputationMode,
     Resource,
     ResourceBounds,
-    TransactionVersion,
     ValidResourceBounds,
 };
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::{contract_address, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 

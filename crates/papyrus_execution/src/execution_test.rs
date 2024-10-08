@@ -15,7 +15,7 @@ use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::core::{ChainId, CompiledClassHash, EntryPointSelector};
 use starknet_api::state::{StateNumber, ThinStateDiff};
-use starknet_api::transaction::{Calldata, Fee};
+use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::{calldata, class_hash, contract_address, felt, nonce};
 use starknet_types_core::felt::Felt;
 

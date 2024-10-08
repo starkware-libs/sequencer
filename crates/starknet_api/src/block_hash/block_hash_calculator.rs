@@ -20,14 +20,8 @@ use crate::crypto::utils::HashChain;
 use crate::data_availability::L1DataAvailabilityMode;
 use crate::execution_resources::GasVector;
 use crate::state::ThinStateDiff;
-use crate::transaction::{
-    Event,
-    Fee,
-    MessageToL1,
-    TransactionExecutionStatus,
-    TransactionHash,
-    TransactionSignature,
-};
+use crate::transaction::fields::{Fee, TransactionSignature};
+use crate::transaction::{Event, MessageToL1, TransactionExecutionStatus, TransactionHash};
 use crate::{StarknetApiError, StarknetApiResult};
 
 #[cfg(test)]

@@ -4,12 +4,8 @@ use std::sync::Mutex;
 use rstest::rstest;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::test_utils::NonceManager;
-use starknet_api::transaction::{
-    ContractAddressSalt,
-    Fee,
-    TransactionVersion,
-    ValidResourceBounds,
-};
+use starknet_api::transaction::fields::{ContractAddressSalt, Fee, ValidResourceBounds};
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::{contract_address, declare_tx_args, felt, invoke_tx_args, nonce, storage_key};
 use starknet_types_core::felt::Felt;
 
