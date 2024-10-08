@@ -26,7 +26,7 @@ function setup_llvm_deps() {
     case "$(uname)" in
     Darwin)
         brew update
-        brew install llvm@18
+        brew install llvm@19
         ;;
     Linux)
         $SUDO bash -c 'curl https://apt.llvm.org/llvm.sh -Lo llvm.sh
