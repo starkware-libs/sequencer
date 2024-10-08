@@ -46,10 +46,24 @@ function setup_llvm_deps() {
     esac
 }
 
+function compile_cairo_native_runtime() {
+    git clone https://github.com/lambdaclass/cairo_native.git
+    pushd ./cairo_native || exit 1
+    git switch v0.2.0-alpha.2 --detach
+    cargo build -p cairo-native-runtime --release --all-features --quiet
+    popd || exit 1
+
+    mv ./cairo_native/target/release/libcairo_native_runtime.a ./libcairo_native_runtime.so
+    rm -rf ./cairo_native
+}
+
 function main() {
     [ "$(uname)" = "Linux" ] && install_essential_deps_linux
     setup_llvm_deps
     echo "LLVM dependencies installed successfully."
+
+    compile_cairo_native_runtime
+    echo "Cairo Native runtime compiled successfully."
 }
 
 main "$@"
