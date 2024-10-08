@@ -16,11 +16,7 @@ use crate::fee::gas_usage::{
 use crate::state::cached_state::{StateChanges, StateChangesCount};
 use crate::transaction::errors::TransactionFeeError;
 use crate::utils::u64_from_usize;
-use crate::versioned_constants::{
-    resource_cost_to_u128_ratio,
-    ArchivalDataGasCosts,
-    VersionedConstants,
-};
+use crate::versioned_constants::{ArchivalDataGasCosts, VersionedConstants};
 
 pub type TransactionFeeResult<T> = Result<T, TransactionFeeError>;
 
@@ -215,24 +211,11 @@ impl ArchivalDataResources {
     /// Returns the cost of the transaction's emmited events in L1/L2 gas units, depending on the
     /// mode.
     fn get_events_gas_cost(&self, archival_gas_costs: &ArchivalDataGasCosts) -> GasAmount {
-        u64::try_from(
-            (resource_cost_to_u128_ratio(archival_gas_costs.gas_per_data_felt)
-                * (resource_cost_to_u128_ratio(archival_gas_costs.event_key_factor)
-                    * self.event_summary.total_event_keys
-                    + self.event_summary.total_event_data_size))
-                .to_integer(),
-        )
-        .unwrap_or_else(|_| {
-            panic!(
-                "Events gas cost overflowed: {} event keys (factor: {}), data length {} (at {} \
-                 gas per felt).",
-                self.event_summary.total_event_keys,
-                archival_gas_costs.event_key_factor,
-                self.event_summary.total_event_data_size,
-                archival_gas_costs.gas_per_data_felt
-            )
-        })
-        .into()
+        (archival_gas_costs.gas_per_data_felt
+            * (archival_gas_costs.event_key_factor * self.event_summary.total_event_keys
+                + self.event_summary.total_event_data_size))
+            .to_integer()
+            .into()
     }
 }
 
