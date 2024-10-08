@@ -15,7 +15,7 @@ use crate::core::{
     L2_ADDRESS_UPPER_BOUND,
 };
 use crate::hash::StarkHash;
-use crate::transaction::{Calldata, ContractAddressSalt};
+use crate::transaction::fields::{Calldata, ContractAddressSalt};
 use crate::{class_hash, felt, patricia_key};
 
 #[test]

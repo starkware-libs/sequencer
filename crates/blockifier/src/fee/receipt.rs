@@ -1,7 +1,7 @@
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::GasVector;
-use starknet_api::transaction::Fee;
+use starknet_api::transaction::fields::Fee;
 
 use crate::context::TransactionContext;
 use crate::execution::call_info::ExecutionSummary;

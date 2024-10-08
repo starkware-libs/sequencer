@@ -59,14 +59,13 @@ use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateNumber, ThinStateDiff};
+use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{
-    Calldata,
     DeclareTransaction,
     DeclareTransactionV0V1,
     DeclareTransactionV2,
     DeclareTransactionV3,
     DeployAccountTransaction,
-    Fee,
     InvokeTransaction,
     L1HandlerTransaction,
     Transaction,

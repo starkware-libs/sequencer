@@ -7,7 +7,7 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::state::EntryPoint;
-use starknet_api::transaction::{AllResourceBounds, Resource};
+use starknet_api::transaction::fields::{AllResourceBounds, Resource};
 use starknet_types_core::felt::Felt;
 use tracing::{instrument, Level};
 

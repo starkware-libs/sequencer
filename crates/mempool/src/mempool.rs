@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction;
-use starknet_api::transaction::{Tip, TransactionHash};
+use starknet_api::transaction::fields::Tip;
+use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{
     AccountState,

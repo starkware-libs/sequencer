@@ -2,19 +2,21 @@ use crate::calldata;
 use crate::core::{ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::executable_transaction::InvokeTransaction as ExecutableInvokeTransaction;
-use crate::transaction::{
+use crate::transaction::fields::{
     AccountDeploymentData,
     Calldata,
     Fee,
+    PaymasterData,
+    Tip,
+    TransactionSignature,
+    ValidResourceBounds,
+};
+use crate::transaction::{
     InvokeTransaction,
     InvokeTransactionV1,
     InvokeTransactionV3,
-    PaymasterData,
-    Tip,
     TransactionHash,
-    TransactionSignature,
     TransactionVersion,
-    ValidResourceBounds,
 };
 
 #[derive(Clone)]

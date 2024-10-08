@@ -9,7 +9,7 @@ use crate::rpc_transaction::{
     RpcInvokeTransaction,
     RpcInvokeTransactionV3,
 };
-use crate::transaction::{
+use crate::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     Calldata,
@@ -17,12 +17,10 @@ use crate::transaction::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionHash,
-    TransactionHasher,
     TransactionSignature,
-    TransactionVersion,
     ValidResourceBounds,
 };
+use crate::transaction::{TransactionHash, TransactionHasher, TransactionVersion};
 use crate::StarknetApiError;
 
 macro_rules! implement_inner_tx_getter_calls {
