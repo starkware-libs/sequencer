@@ -44,18 +44,19 @@ macro_rules! test_hash_changes {
         {
             let header = BlockHeaderWithoutHash {
                 l1_da_mode: L1DataAvailabilityMode::Blob,
+                starknet_version: BlockHashVersion::VO_13_3.into(),
                 $($header_field: $header_value),*
             };
             let commitments = BlockHeaderCommitments {
                 $($commitments_field: $commitments_value),*
             };
-            let original_hash = calculate_block_hash(header.clone(), commitments.clone());
+            let original_hash = calculate_block_hash(header.clone(), commitments.clone()).unwrap();
 
             $(
                 // Test changing the field in the header.
                 let mut modified_header = header.clone();
                 modified_header.$header_field = Default::default();
-                let new_hash = calculate_block_hash(modified_header, commitments.clone());
+                let new_hash = calculate_block_hash(modified_header, commitments.clone()).unwrap();
                 assert_ne!(original_hash, new_hash, concat!("Hash should change when ", stringify!($header_field), " is modified"));
             )*
 
@@ -63,7 +64,7 @@ macro_rules! test_hash_changes {
                 // Test changing the field in the commitments.
                 let mut modified_commitments = commitments.clone();
                 modified_commitments.$commitments_field = Default::default();
-                let new_hash = calculate_block_hash(header.clone(), modified_commitments);
+                let new_hash = calculate_block_hash(header.clone(), modified_commitments).unwrap();
                 assert_ne!(original_hash, new_hash, concat!("Hash should change when ", stringify!($commitments_field), " is modified"));
             )*
         }
@@ -87,7 +88,7 @@ fn test_block_hash_regression(
             price_in_wei: 9_u8.into(),
         },
         l2_gas_price: GasPricePerToken { price_in_fri: 11_u8.into(), price_in_wei: 12_u8.into() },
-        starknet_version: block_hash_version.to_owned().into(),
+        starknet_version: block_hash_version.clone().into(),
         parent_hash: BlockHash(Felt::from(11_u8)),
     };
     let transactions_data = vec![TransactionHashingData {
@@ -109,11 +110,14 @@ fn test_block_hash_regression(
             felt!("0xe248d6ce583f8fa48d1d401d4beb9ceced3733e38d8eacb0d8d3669a7d901c")
         }
         BlockHashVersion::VO_13_3 => {
-            felt!("0x65b653f5bc0939cdc39f98230affc8fbd1a01ea801e025271a4cfba912ba59a")
+            felt!("0x566c0aaa2bb5fbd7957224108f089100d58f1d8767dd2b53698e27efbf2a28b")
         }
     };
 
-    assert_eq!(BlockHash(expected_hash), calculate_block_hash(block_header, block_commitments),);
+    assert_eq!(
+        BlockHash(expected_hash),
+        calculate_block_hash(block_header, block_commitments).unwrap()
+    );
 }
 
 #[test]
@@ -159,8 +163,7 @@ fn change_field_of_hash_input() {
             l2_gas_price: GasPricePerToken { price_in_fri: 1_u8.into(), price_in_wei: 1_u8.into() },
             state_root: GlobalRoot(Felt::ONE),
             sequencer: SequencerContractAddress(ContractAddress::from(1_u128)),
-            timestamp: BlockTimestamp(1),
-            starknet_version: BlockHashVersion::VO_13_3.into()
+            timestamp: BlockTimestamp(1)
         },
         BlockHeaderCommitments {
             transaction_commitment: TransactionCommitment(Felt::ONE),
