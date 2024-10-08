@@ -11,31 +11,27 @@ use starknet_mempool_types::communication::SharedMempoolClient;
 use tracing::error;
 
 use crate::config::BatcherConfig;
-use crate::proposal_manager::{BlockBuilderFactory, ProposalManager, ProposalManagerError};
+use crate::proposal_manager::{BlockBuilderFactory, ProposalManager, ProposalManagerError, ProposalManagerTrait};
 
 pub struct Batcher {
     pub config: BatcherConfig,
     pub mempool_client: SharedMempoolClient,
     pub storage: Arc<dyn BatcherStorageReaderTrait>,
-    proposal_manager: ProposalManager,
+    proposal_manager: Box<dyn ProposalManagerTrait>,
 }
 
 impl Batcher {
-    pub fn new(
+    fn new(
         config: BatcherConfig,
         mempool_client: SharedMempoolClient,
         storage: Arc<dyn BatcherStorageReaderTrait>,
+        proposal_manager: Box<dyn ProposalManagerTrait>,
     ) -> Self {
         Self {
             config: config.clone(),
             mempool_client: mempool_client.clone(),
             storage: storage.clone(),
-            proposal_manager: ProposalManager::new(
-                config.proposal_manager.clone(),
-                mempool_client.clone(),
-                Arc::new(BlockBuilderFactory {}),
-                storage,
-            ),
+            proposal_manager,
         }
     }
 
@@ -108,7 +104,14 @@ impl Batcher {
 pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient) -> Batcher {
     let (storage_reader, _storage_writer) = papyrus_storage::open_storage(config.storage.clone())
         .expect("Failed to open batcher's storage");
-    Batcher::new(config, mempool_client, Arc::new(storage_reader))
+    let storage_reader = Arc::new(storage_reader);
+    let proposal_manager = Box::new(ProposalManager::new(
+        config.proposal_manager.clone(),
+        mempool_client.clone(),
+        Arc::new(BlockBuilderFactory {}),
+        storage_reader.clone(),
+    ));
+    Batcher::new(config, mempool_client, storage_reader, proposal_manager)
 }
 
 #[cfg_attr(test, automock)]

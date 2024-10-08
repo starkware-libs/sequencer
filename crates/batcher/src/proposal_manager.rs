@@ -86,6 +86,18 @@ pub enum ProposalManagerError {
 
 pub type ProposalManagerResult<T> = Result<T, ProposalManagerError>;
 
+#[async_trait]
+pub trait ProposalManagerTrait: Send + Sync {
+    fn start_height(&mut self, height: BlockNumber) -> ProposalManagerResult<()>;
+
+    async fn build_block_proposal(
+        &mut self,
+        proposal_id: ProposalId,
+        deadline: tokio::time::Instant,
+        output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
+    ) -> ProposalManagerResult<()>;
+}
+
 /// Main struct for handling block proposals.
 /// Taking care of:
 /// - Proposing new blocks.
@@ -111,28 +123,11 @@ pub(crate) struct ProposalManager {
 
 type ActiveTaskHandle = tokio::task::JoinHandle<ProposalManagerResult<()>>;
 
-impl ProposalManager {
-    pub fn new(
-        config: ProposalManagerConfig,
-        mempool_client: SharedMempoolClient,
-        block_builder_factory: Arc<dyn BlockBuilderFactoryTrait>,
-        storage_reader: Arc<dyn BatcherStorageReaderTrait>,
-    ) -> Self {
-        Self {
-            config,
-            mempool_client,
-            storage_reader,
-            active_proposal: Arc::new(Mutex::new(None)),
-            block_builder_factory,
-            active_proposal_handle: None,
-            active_height: None,
-            proposals: Vec::new(),
-        }
-    }
-
+#[async_trait]
+impl ProposalManagerTrait for ProposalManager {
     /// Starts working on the given height.
     #[instrument(skip(self), err)]
-    pub fn start_height(&mut self, height: BlockNumber) -> ProposalManagerResult<()> {
+    fn start_height(&mut self, height: BlockNumber) -> ProposalManagerResult<()> {
         if let Some(active_height) = self.active_height {
             return Err(ProposalManagerError::AlreadyWorkingOnHeight {
                 active_height,
@@ -160,7 +155,7 @@ impl ProposalManager {
     /// transactions from the mempool.
     /// Requires output_content_sender for sending the generated transactions to the caller.
     #[instrument(skip(self, output_content_sender), err, fields(self.active_height))]
-    pub async fn build_block_proposal(
+    async fn build_block_proposal(
         &mut self,
         proposal_id: ProposalId,
         deadline: tokio::time::Instant,
@@ -194,6 +189,26 @@ impl ProposalManager {
         ));
 
         Ok(())
+    }
+}
+
+impl ProposalManager {
+    pub fn new(
+        config: ProposalManagerConfig,
+        mempool_client: SharedMempoolClient,
+        block_builder_factory: Arc<dyn BlockBuilderFactoryTrait>,
+        storage_reader: Arc<dyn BatcherStorageReaderTrait>,
+    ) -> Self {
+        Self {
+            config,
+            mempool_client,
+            storage_reader,
+            active_proposal: Arc::new(Mutex::new(None)),
+            block_builder_factory,
+            active_proposal_handle: None,
+            active_height: None,
+            proposals: Vec::new(),
+        }
     }
 
     // Checks if there is already a proposal being generated, and if not, sets the given proposal_id
