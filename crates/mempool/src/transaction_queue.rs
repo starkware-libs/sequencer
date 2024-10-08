@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, HashMap};
 
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::transaction::{Tip, TransactionHash};
+use starknet_api::transaction::fields::{Tip, TransactionHash};
 
 use crate::mempool::TransactionReference;
 

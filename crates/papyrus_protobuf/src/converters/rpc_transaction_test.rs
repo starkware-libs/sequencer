@@ -11,7 +11,7 @@ use starknet_api::rpc_transaction::{
     RpcInvokeTransactionV3,
     RpcTransaction,
 };
-use starknet_api::transaction::{AllResourceBounds, ResourceBounds};
+use starknet_api::transaction::fields::{AllResourceBounds, ResourceBounds};
 
 use crate::mempool::RpcTransactionWrapper;
 

@@ -70,6 +70,7 @@ use starknet_api::deprecated_contract_class::{
 };
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{ContractClass as StarknetApiContractClass, StateDiff, StorageKey};
+use starknet_api::transaction::fields::TransactionHash;
 use starknet_api::transaction::{
     Event as StarknetApiEvent,
     EventContent,
@@ -77,7 +78,6 @@ use starknet_api::transaction::{
     EventIndexInTransactionOutput,
     EventKey,
     Transaction as StarknetApiTransaction,
-    TransactionHash,
     TransactionOffsetInBlock,
     TransactionOutput as StarknetApiTransactionOutput,
 };

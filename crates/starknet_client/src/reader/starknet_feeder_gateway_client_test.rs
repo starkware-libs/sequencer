@@ -30,7 +30,12 @@ use starknet_api::deprecated_contract_class::{
     TypedParameter,
 };
 use starknet_api::state::{EntryPoint, FunctionIndex};
-use starknet_api::transaction::{Fee, TransactionHash, TransactionSignature, TransactionVersion};
+use starknet_api::transaction::fields::{
+    Fee,
+    TransactionHash,
+    TransactionSignature,
+    TransactionVersion,
+};
 use starknet_api::{felt, patricia_key};
 
 use super::objects::state::StateUpdate;

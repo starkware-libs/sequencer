@@ -27,7 +27,7 @@ use starknet_api::deprecated_contract_class::{
     EntryPointV0 as DeprecatedEntryPoint,
 };
 use starknet_api::state::EntryPoint;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,

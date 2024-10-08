@@ -30,7 +30,7 @@ use crate::core::{
 use crate::data_availability::L1DataAvailabilityMode;
 use crate::felt;
 use crate::hash::PoseidonHash;
-use crate::transaction::{TransactionHash, TransactionSignature};
+use crate::transaction::fields::{TransactionHash, TransactionSignature};
 
 /// Macro to test if changing any field in the header or commitments
 /// results a change in the block hash.

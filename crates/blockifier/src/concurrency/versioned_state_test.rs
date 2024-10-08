@@ -12,7 +12,7 @@ use starknet_api::core::{
     PatriciaKey,
 };
 use starknet_api::test_utils::NonceManager;
-use starknet_api::transaction::{ContractAddressSalt, ValidResourceBounds};
+use starknet_api::transaction::fields::{ContractAddressSalt, ValidResourceBounds};
 use starknet_api::{
     calldata,
     class_hash,

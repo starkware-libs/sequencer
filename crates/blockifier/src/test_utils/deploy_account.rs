@@ -1,7 +1,7 @@
 use starknet_api::core::calculate_contract_address;
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::NonceManager;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::TransactionHash;
 
 use crate::transaction::transactions::DeployAccountTransaction;
 
