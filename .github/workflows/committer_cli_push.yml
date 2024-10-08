@@ -36,8 +36,8 @@ on:
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}-${{ github.job }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   gcs-push:
