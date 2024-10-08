@@ -249,8 +249,7 @@ fn test_l1_handler(block_context: BlockContext) {
     },
     7
 )]
-#[should_panic(expected = "TransactionExecutionError(TransactionTooLarge): Transaction size \
-                           exceeds the maximum block capacity.")]
+#[should_panic(expected = "Transaction size exceeds the maximum block capacity.")]
 #[case::transaction_too_large(BouncerWeights::default(), 11)]
 
 fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_events: usize) {
@@ -321,7 +320,7 @@ fn test_execute_txs_bouncing() {
     assert_matches!(
         results[1].as_ref().unwrap_err(),
         TransactionExecutorError::TransactionExecutionError(
-            TransactionExecutionError::TransactionTooLarge
+            TransactionExecutionError::TransactionTooLarge { .. }
         )
     );
     assert!(results[2].is_ok());
