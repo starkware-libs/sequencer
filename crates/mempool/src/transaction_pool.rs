@@ -83,6 +83,13 @@ impl TransactionPool {
         }
     }
 
+    pub fn _account_txs(
+        &self,
+        address: ContractAddress,
+    ) -> impl Iterator<Item = &TransactionReference> {
+        self.txs_by_account._account_txs(address)
+    }
+
     pub fn _get_by_tx_hash(&self, tx_hash: TransactionHash) -> MempoolResult<&Transaction> {
         self.tx_pool.get(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })
     }
@@ -134,6 +141,13 @@ impl AccountTransactionIndex {
 
     fn get(&self, address: ContractAddress, nonce: Nonce) -> Option<&TransactionReference> {
         self.0.get(&address)?.get(&nonce)
+    }
+
+    fn _account_txs(
+        &self,
+        address: ContractAddress,
+    ) -> impl Iterator<Item = &TransactionReference> {
+        self.0.get(&address).into_iter().flat_map(|nonce_to_tx_ref| nonce_to_tx_ref.values())
     }
 
     fn remove_up_to_nonce(
