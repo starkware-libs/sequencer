@@ -723,6 +723,7 @@ pub struct RevertedTransactionExecutionStatus {
 }
 
 /// A fee.
+#[cfg_attr(any(test, feature = "testing"), derive(derive_more::Add, derive_more::Deref))]
 #[derive(
     Debug,
     Copy,
@@ -736,8 +737,6 @@ pub struct RevertedTransactionExecutionStatus {
     Serialize,
     PartialOrd,
     Ord,
-    derive_more::Add,
-    derive_more::Deref,
 )]
 #[serde(from = "PrefixedBytesAsHex<16_usize>", into = "PrefixedBytesAsHex<16_usize>")]
 pub struct Fee(pub u128);
@@ -745,6 +744,10 @@ pub struct Fee(pub u128);
 impl Fee {
     pub fn checked_add(self, rhs: Fee) -> Option<Fee> {
         self.0.checked_add(rhs.0).map(Fee)
+    }
+
+    pub fn saturating_add(self, rhs: Self) -> Self {
+        Self(self.0.saturating_add(rhs.0))
     }
 
     pub fn checked_div_ceil(self, rhs: NonzeroGasPrice) -> Option<GasAmount> {
@@ -1119,11 +1122,13 @@ impl ValidResourceBounds {
                 l1_gas,
                 l2_gas,
                 l1_data_gas,
-            }) => {
-                l1_gas.max_amount.saturating_mul(l1_gas.max_price_per_unit)
-                    + l2_gas.max_amount.saturating_mul(l2_gas.max_price_per_unit)
-                    + l1_data_gas.max_amount.saturating_mul(l1_data_gas.max_price_per_unit)
-            }
+            }) => l1_gas
+                .max_amount
+                .saturating_mul(l1_gas.max_price_per_unit)
+                .saturating_add(l2_gas.max_amount.saturating_mul(l2_gas.max_price_per_unit))
+                .saturating_add(
+                    l1_data_gas.max_amount.saturating_mul(l1_data_gas.max_price_per_unit),
+                ),
         }
     }
 
