@@ -13,7 +13,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use starknet_api::block::GasPrice;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     DeprecatedResourceBoundsMapping,
     Resource,
     ResourceBounds,
@@ -37,11 +37,11 @@ pub enum PyResource {
     L2Gas,
 }
 
-impl From<PyResource> for starknet_api::transaction::Resource {
+impl From<PyResource> for Resource {
     fn from(py_resource: PyResource) -> Self {
         match py_resource {
-            PyResource::L1Gas => starknet_api::transaction::Resource::L1Gas,
-            PyResource::L2Gas => starknet_api::transaction::Resource::L2Gas,
+            PyResource::L1Gas => Resource::L1Gas,
+            PyResource::L2Gas => Resource::L2Gas,
         }
     }
 }
@@ -63,7 +63,7 @@ pub struct PyResourceBounds {
     pub max_price_per_unit: u128,
 }
 
-impl From<PyResourceBounds> for starknet_api::transaction::ResourceBounds {
+impl From<PyResourceBounds> for ResourceBounds {
     fn from(py_resource_bounds: PyResourceBounds) -> Self {
         Self {
             max_amount: GasAmount(py_resource_bounds.max_amount),

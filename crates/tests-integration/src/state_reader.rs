@@ -45,7 +45,7 @@ use starknet_api::core::{
 };
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StorageKey, ThinStateDiff};
-use starknet_api::transaction::Fee;
+use starknet_api::transaction::fields::Fee;
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_client::reader::PendingData;
 use starknet_types_core::felt::Felt;

@@ -14,7 +14,7 @@ use starknet_api::core::{ContractAddress, Nonce, PatriciaKey, StateDiffCommitmen
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::TransactionHash;
 use starknet_api::{felt, nonce, patricia_key};
 use starknet_batcher_types::batcher_types::{
     BuildProposalInput,

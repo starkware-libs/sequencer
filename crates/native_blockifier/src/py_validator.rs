@@ -8,7 +8,7 @@ use blockifier::transaction::transaction_types::TransactionType;
 use blockifier::versioned_constants::VersionedConstants;
 use pyo3::{pyclass, pymethods, PyAny};
 use starknet_api::core::Nonce;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::TransactionHash;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::NativeBlockifierResult;

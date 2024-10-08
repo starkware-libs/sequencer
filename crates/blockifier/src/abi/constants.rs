@@ -1,4 +1,4 @@
-use starknet_api::transaction::TransactionVersion;
+use starknet_api::transaction::fields::TransactionVersion;
 use starknet_types_core::felt::Felt;
 
 pub const CONSTRUCTOR_ENTRY_POINT_NAME: &str = "constructor";

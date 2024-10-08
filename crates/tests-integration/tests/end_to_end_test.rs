@@ -2,7 +2,7 @@ use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerato
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::TransactionHash;
 use starknet_batcher_types::batcher_types::{BuildProposalInput, ProposalId, StartHeightInput};
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_integration_tests::integration_test_setup::IntegrationTestSetup;

@@ -29,7 +29,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::TransactionHash;
 use thiserror::Error;
 use tokio::sync::Mutex;
 use tokio::{pin, time};

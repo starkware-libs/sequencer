@@ -7,7 +7,7 @@ use starknet_api::deprecated_contract_class::{
     ContractClassAbiEntry as DeprecatedContractClassAbiEntry,
     EntryPointV0 as DeprecatedEntryPoint,
 };
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::TransactionHash;
 
 use crate::writer::objects::response::{
     DeclareResponse,

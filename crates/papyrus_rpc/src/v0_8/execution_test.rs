@@ -66,14 +66,8 @@ use starknet_api::deprecated_contract_class::ContractClass as SN_API_DeprecatedC
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{StorageKey, ThinStateDiff as StarknetApiStateDiff};
 use starknet_api::test_utils::read_json_file;
-use starknet_api::transaction::{
-    Calldata,
-    Fee,
-    L1HandlerTransaction,
-    TransactionHash,
-    TransactionOffsetInBlock,
-    TransactionVersion,
-};
+use starknet_api::transaction::fields::{Calldata, Fee, TransactionHash, TransactionVersion};
+use starknet_api::transaction::{L1HandlerTransaction, TransactionOffsetInBlock};
 use starknet_api::{calldata, class_hash, contract_address, felt, patricia_key};
 use starknet_client::reader::objects::pending_data::{
     PendingBlock,

@@ -8,7 +8,7 @@ use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ChainId, ContractAddress, EntryPointSelector};
-use starknet_api::transaction::Calldata;
+use starknet_api::transaction::fields::Calldata;
 use starknet_client::reader::PendingData;
 use starknet_client::writer::StarknetWriter;
 use tokio::sync::RwLock;

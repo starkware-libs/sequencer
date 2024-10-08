@@ -49,12 +49,8 @@ use papyrus_proc_macros::latency_histogram;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::core::ContractAddress;
-use starknet_api::transaction::{
-    Transaction,
-    TransactionHash,
-    TransactionOffsetInBlock,
-    TransactionOutput,
-};
+use starknet_api::transaction::fields::TransactionHash;
+use starknet_api::transaction::{Transaction, TransactionOffsetInBlock, TransactionOutput};
 use tracing::debug;
 
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};

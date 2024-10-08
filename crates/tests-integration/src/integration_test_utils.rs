@@ -14,7 +14,7 @@ use papyrus_storage::StorageConfig;
 use reqwest::{Client, Response};
 use starknet_api::block::BlockNumber;
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::TransactionHash;
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
 use starknet_consensus_manager::config::ConsensusManagerConfig;

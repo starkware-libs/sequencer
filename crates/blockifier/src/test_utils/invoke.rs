@@ -1,5 +1,6 @@
 use starknet_api::test_utils::invoke::InvokeTxArgs;
-use starknet_api::transaction::{InvokeTransactionV0, TransactionHash, TransactionVersion};
+use starknet_api::transaction::fields::{TransactionHash, TransactionVersion};
+use starknet_api::transaction::InvokeTransactionV0;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::transaction::constants::EXECUTE_ENTRY_POINT_NAME;

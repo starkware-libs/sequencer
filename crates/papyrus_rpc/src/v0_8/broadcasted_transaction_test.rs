@@ -19,7 +19,7 @@ use starknet_api::deprecated_contract_class::{
     StructAbiEntry,
 };
 use starknet_api::state::EntryPoint;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Fee,
     PaymasterData,
