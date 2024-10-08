@@ -1798,13 +1798,13 @@ use crate::transaction::transaction_utils::update_remaining_gas;
 
 impl From<Secp256Point<ark_secp256k1::Config>> for Secp256k1Point {
     fn from(p: Secp256Point<ark_secp256k1::Config>) -> Self {
-        Secp256k1Point { x: p.x, y: p.y }
+        Secp256k1Point { x: p.x, y: p.y, is_infinity: false }
     }
 }
 
 impl From<Secp256Point<ark_secp256r1::Config>> for Secp256r1Point {
     fn from(p: Secp256Point<ark_secp256r1::Config>) -> Self {
-        Secp256r1Point { x: p.x, y: p.y }
+        Secp256r1Point { x: p.x, y: p.y, is_infinity: false }
     }
 }
 
