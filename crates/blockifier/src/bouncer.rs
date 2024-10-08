@@ -55,6 +55,10 @@ impl BouncerConfig {
     pub fn has_room(&self, weights: BouncerWeights) -> bool {
         self.block_max_capacity.has_room(weights)
     }
+
+    pub fn has_room_or_err(&self, weights: BouncerWeights) -> TransactionExecutionResult<()> {
+        self.block_max_capacity.has_room_or_err(weights)
+    }
 }
 
 #[derive(
@@ -93,6 +97,17 @@ impl BouncerWeights {
         self.checked_sub(other).is_some()
     }
 
+    pub fn has_room_or_err(&self, other: Self) -> TransactionExecutionResult<()> {
+        if self.has_room(other) {
+            Ok(())
+        } else {
+            Err(TransactionExecutionError::TransactionTooLarge {
+                max_capacity: Box::new(*self),
+                tx_size: Box::new(other),
+            })
+        }
+    }
+
     pub fn max() -> Self {
         Self {
             gas: usize::MAX,
@@ -102,6 +117,22 @@ impl BouncerWeights {
             n_events: usize::MAX,
             builtin_count: BuiltinCount::max(),
         }
+    }
+}
+
+impl std::fmt::Display for BouncerWeights {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "BouncerWeights {{ gas: {}, n_steps: {}, message_segment_length: {}, n_events: {}, \
+             state_diff_size: {}, builtin_count: {} }}",
+            self.gas,
+            self.n_steps,
+            self.message_segment_length,
+            self.n_events,
+            self.state_diff_size,
+            self.builtin_count
+        )
     }
 }
 
@@ -198,6 +229,26 @@ impl From<HashMapWrapper> for BuiltinCount {
             data.keys()
         );
         builtin_count
+    }
+}
+
+impl std::fmt::Display for BuiltinCount {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "BuiltinCount {{ add_mod: {}, bitwise: {}, ecdsa: {}, ec_op: {}, keccak: {}, mul_mod: \
+             {}, pedersen: {}, poseidon: {}, range_check: {}, range_check96: {} }}",
+            self.add_mod,
+            self.bitwise,
+            self.ecdsa,
+            self.ec_op,
+            self.keccak,
+            self.mul_mod,
+            self.pedersen,
+            self.poseidon,
+            self.range_check,
+            self.range_check96
+        )
     }
 }
 
@@ -363,9 +414,5 @@ pub fn verify_tx_weights_in_bounds<S: StateReader>(
         tx_state_changes_keys,
     )?;
 
-    if !bouncer_config.has_room(tx_weights) {
-        return Err(TransactionExecutionError::TransactionTooLarge);
-    }
-
-    Ok(())
+    bouncer_config.has_room_or_err(tx_weights)
 }

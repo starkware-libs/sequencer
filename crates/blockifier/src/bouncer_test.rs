@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use assert_matches::assert_matches;
 use cairo_vm::types::builtin_name::BuiltinName;
 use rstest::rstest;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
@@ -7,10 +8,7 @@ use starknet_api::transaction::Fee;
 use starknet_api::{class_hash, contract_address, felt, patricia_key, storage_key};
 
 use super::BouncerConfig;
-use crate::blockifier::transaction_executor::{
-    TransactionExecutorError,
-    TransactionExecutorResult,
-};
+use crate::blockifier::transaction_executor::TransactionExecutorError;
 use crate::bouncer::{verify_tx_weights_in_bounds, Bouncer, BouncerWeights, BuiltinCount};
 use crate::context::BlockContext;
 use crate::execution::call_info::ExecutionSummary;
@@ -171,18 +169,10 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
 }
 
 #[rstest]
-#[case::positive_flow(1, Ok(()))]
-#[case::block_full(11, Err(TransactionExecutorError::BlockFull))]
-#[case::transaction_too_large(
-    21,
-    Err(TransactionExecutorError::TransactionExecutionError(
-        TransactionExecutionError::TransactionTooLarge
-    ))
-)]
-fn test_bouncer_try_update(
-    #[case] added_ecdsa: usize,
-    #[case] expected_result: TransactionExecutorResult<()>,
-) {
+#[case::positive_flow(1, "ok")]
+#[case::block_full(11, "block_full")]
+#[case::transaction_too_large(21, "too_large")]
+fn test_bouncer_try_update(#[case] added_ecdsa: usize, #[case] scenario: &'static str) {
     use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 
     use crate::fee::resources::{ComputationResources, TransactionResources};
@@ -280,6 +270,14 @@ fn test_bouncer_try_update(
         );
     }
 
-    // TODO(yael 27/3/24): compare the results without using string comparison.
-    assert_eq!(format!("{:?}", result), format!("{:?}", expected_result));
+    match scenario {
+        "ok" => assert_matches!(result, Ok(())),
+        "block_full" => assert_matches!(result, Err(TransactionExecutorError::BlockFull)),
+        "too_large" => assert_matches!(result, Err(
+                TransactionExecutorError::TransactionExecutionError(
+                    TransactionExecutionError::TransactionTooLarge { max_capacity, .. }
+                )
+            ) if *max_capacity == block_max_capacity),
+        _ => panic!("Unexpected scenario: {}", scenario),
+    }
 }
