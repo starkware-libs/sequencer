@@ -3,7 +3,7 @@ use num_bigint::BigUint;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::{AllResourceBounds, Fee, Resource, TransactionVersion};
+use starknet_api::transaction::fields::{AllResourceBounds, Fee, Resource, TransactionVersion};
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::FromStrError;
 use thiserror::Error;

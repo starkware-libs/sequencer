@@ -3,8 +3,8 @@ use papyrus_test_utils::{get_rng, GetTestInstance};
 use rand::random;
 use starknet_api::block::GasPrice;
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
+use starknet_api::transaction::fields::{AllResourceBounds, ResourceBounds, ValidResourceBounds};
 use starknet_api::transaction::{
-    AllResourceBounds,
     DeclareTransaction,
     DeclareTransactionOutput,
     DeployAccountTransaction,
@@ -14,11 +14,9 @@ use starknet_api::transaction::{
     InvokeTransaction,
     InvokeTransactionOutput,
     L1HandlerTransactionOutput,
-    ResourceBounds,
     Transaction as StarknetApiTransaction,
     TransactionHash,
     TransactionOutput,
-    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 

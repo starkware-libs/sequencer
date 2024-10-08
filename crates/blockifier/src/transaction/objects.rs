@@ -5,20 +5,18 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasVector;
-use starknet_api::transaction::{
-    signed_tx_version,
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     Fee,
     PaymasterData,
     ResourceBounds,
     Tip,
-    TransactionHash,
-    TransactionOptions,
     TransactionSignature,
     TransactionVersion,
     ValidResourceBounds,
 };
+use starknet_api::transaction::{signed_tx_version, TransactionHash, TransactionOptions};
 use strum_macros::EnumIter;
 
 use crate::abi::constants as abi_constants;

@@ -7,17 +7,14 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::core::{calculate_contract_address, ChainId};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     Calldata,
     ContractAddressSalt,
-    EventContent,
-    EventData,
-    EventKey,
     Fee,
-    TransactionHash,
     TransactionVersion,
     QUERY_VERSION_BASE_BIT,
 };
+use starknet_api::transaction::{EventContent, EventData, EventKey, TransactionHash};
 use starknet_api::{calldata, felt, nonce, storage_key};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;

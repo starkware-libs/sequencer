@@ -13,19 +13,18 @@ use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
-    DeclareTransactionV2,
     Fee,
     GasVectorComputationMode,
     Resource,
     ResourceBounds,
-    TransactionHash,
     TransactionVersion,
     ValidResourceBounds,
 };
+use starknet_api::transaction::{DeclareTransactionV2, TransactionHash};
 use starknet_api::{
     calldata,
     class_hash,

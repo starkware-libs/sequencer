@@ -6,19 +6,19 @@ use starknet_api::calldata;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::transaction::Resource::{L1DataGas, L1Gas, L2Gas};
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     Fee,
     PaymasterData,
     Tip,
-    TransactionHash,
     TransactionSignature,
     TransactionVersion,
     ValidResourceBounds,
 };
+use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;

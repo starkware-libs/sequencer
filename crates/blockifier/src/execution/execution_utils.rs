@@ -18,7 +18,7 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::BigUint;
 use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::Program as DeprecatedProgram;
-use starknet_api::transaction::Calldata;
+use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 
 use super::call_info::CallExecution;

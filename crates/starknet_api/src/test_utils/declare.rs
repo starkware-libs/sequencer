@@ -2,19 +2,21 @@ use crate::contract_class::ClassInfo;
 use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::executable_transaction::DeclareTransaction as ExecutableDeclareTransaction;
-use crate::transaction::{
+use crate::transaction::fields::{
     AccountDeploymentData,
+    Fee,
+    PaymasterData,
+    Tip,
+    TransactionSignature,
+    TransactionVersion,
+    ValidResourceBounds,
+};
+use crate::transaction::{
     DeclareTransaction,
     DeclareTransactionV0V1,
     DeclareTransactionV2,
     DeclareTransactionV3,
-    Fee,
-    PaymasterData,
-    Tip,
     TransactionHash,
-    TransactionSignature,
-    TransactionVersion,
-    ValidResourceBounds,
 };
 
 #[derive(Clone)]

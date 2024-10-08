@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use rstest::rstest;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::test_utils::NonceManager;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     TransactionVersion,

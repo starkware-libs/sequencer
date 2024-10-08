@@ -20,7 +20,7 @@ use num_bigint::{BigUint, TryFromBigIntError};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::Calldata;
+use starknet_api::transaction::fields::Calldata;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;

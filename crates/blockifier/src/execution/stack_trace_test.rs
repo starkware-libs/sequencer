@@ -9,7 +9,7 @@ use starknet_api::core::{
     EntryPointSelector,
     Nonce,
 };
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     TransactionSignature,

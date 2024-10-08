@@ -13,21 +13,23 @@ use starknet_api::core::{
 use starknet_api::execution_resources::GasVector;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::EntryPoint;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
-    Event,
     Fee,
-    L1ToL2Payload,
-    L2ToL1Payload,
     PaymasterData,
     Tip,
-    TransactionHash,
-    TransactionOffsetInBlock,
     TransactionSignature,
     TransactionVersion,
     ValidResourceBounds,
+};
+use starknet_api::transaction::{
+    Event,
+    L1ToL2Payload,
+    L2ToL1Payload,
+    TransactionHash,
+    TransactionOffsetInBlock,
 };
 use starknet_types_core::felt::Felt;
 

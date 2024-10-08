@@ -15,18 +15,12 @@ use crate::core::{
 use crate::data_availability::DataAvailabilityMode;
 use crate::execution_resources::ExecutionResources;
 use crate::hash::StarkHash;
-// TODO(Arni): Remove the use of pub use.
-pub use crate::transaction::fields::{
+use crate::transaction::fields::{
     AccountDeploymentData,
-    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
-    DeprecatedResourceBoundsMapping,
     Fee,
-    GasVectorComputationMode,
     PaymasterData,
-    Resource,
-    ResourceBounds,
     Tip,
     TransactionSignature,
     TransactionVersion,

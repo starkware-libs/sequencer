@@ -14,22 +14,24 @@ use crate::core::{
 };
 use crate::data_availability::DataAvailabilityMode;
 use crate::state::EntryPoint;
-use crate::transaction::{
+use crate::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
+    PaymasterData,
+    Tip,
+    TransactionSignature,
+    ValidResourceBounds,
+};
+use crate::transaction::{
     DeclareTransaction,
     DeclareTransactionV3,
     DeployAccountTransaction,
     DeployAccountTransactionV3,
     InvokeTransaction,
     InvokeTransactionV3,
-    PaymasterData,
-    Tip,
     Transaction,
-    TransactionSignature,
-    ValidResourceBounds,
 };
 use crate::StarknetApiError;
 

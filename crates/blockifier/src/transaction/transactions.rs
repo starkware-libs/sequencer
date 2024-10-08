@@ -4,17 +4,15 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::L1HandlerTransaction;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
-    DeclareTransactionV2,
-    DeclareTransactionV3,
     Fee,
-    TransactionHash,
     TransactionSignature,
     TransactionVersion,
 };
+use starknet_api::transaction::{DeclareTransactionV2, DeclareTransactionV3, TransactionHash};
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::{BlockContext, TransactionContext};

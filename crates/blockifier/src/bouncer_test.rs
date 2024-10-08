@@ -4,7 +4,7 @@ use assert_matches::assert_matches;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::rstest;
-use starknet_api::transaction::Fee;
+use starknet_api::transaction::fields::Fee;
 use starknet_api::{class_hash, contract_address, storage_key};
 
 use super::BouncerConfig;

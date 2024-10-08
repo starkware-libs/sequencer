@@ -4,7 +4,7 @@ use starknet_api::block::GasPrice;
 use starknet_api::core::ChainId;
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
     Fee,
@@ -12,11 +12,11 @@ use starknet_api::transaction::{
     Resource,
     ResourceBounds,
     Tip,
-    TransactionHash,
     TransactionVersion,
     ValidResourceBounds,
     QUERY_VERSION_BASE_BIT,
 };
+use starknet_api::transaction::TransactionHash;
 use starknet_api::{felt, nonce};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;

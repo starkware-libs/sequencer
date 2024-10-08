@@ -1,6 +1,6 @@
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::TransactionVersion;
+use starknet_api::transaction::fields::TransactionVersion;
 
 use crate::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
 

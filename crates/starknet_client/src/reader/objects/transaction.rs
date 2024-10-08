@@ -16,30 +16,32 @@ use starknet_api::core::{
 };
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
+    Fee,
+    PaymasterData,
+    Tip,
+    TransactionSignature,
+    TransactionVersion,
+    ValidResourceBounds,
+};
+use starknet_api::transaction::{
     DeclareTransactionOutput,
     DeployAccountTransactionOutput,
     DeployTransactionOutput,
     Event,
-    Fee,
     InvokeTransactionOutput,
     L1HandlerTransactionOutput,
     L1ToL2Payload,
     L2ToL1Payload,
     MessageToL1,
-    PaymasterData,
     RevertedTransactionExecutionStatus as SnApiRevertedTransactionExecutionStatus,
-    Tip,
     TransactionExecutionStatus as SnApiTransactionExecutionStatus,
     TransactionHash,
     TransactionOffsetInBlock,
     TransactionOutput,
-    TransactionSignature,
-    TransactionVersion,
-    ValidResourceBounds,
 };
 use strum_macros::EnumIter;
 use tracing::error;
