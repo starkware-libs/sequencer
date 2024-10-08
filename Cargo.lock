@@ -10449,6 +10449,7 @@ dependencies = [
  "starknet_mempool_infra",
  "starknet_mempool_p2p_types",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
