@@ -1,8 +1,5 @@
-use std::collections::HashMap;
-
 use assert_matches::assert_matches;
 use cairo_vm::types::builtin_name::BuiltinName;
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::rstest;
 use starknet_api::block::NonzeroGasPrice;
 use starknet_api::execution_resources::GasAmount;
@@ -19,6 +16,7 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
     gas_vector_from_vm_usage,
+    get_vm_resource_usage,
     CairoVersion,
     BALANCE,
     DEFAULT_ETH_L1_DATA_GAS_PRICE,
@@ -32,20 +30,6 @@ use crate::transaction::objects::FeeType;
 use crate::transaction::test_utils::{account_invoke_tx, all_resource_bounds, l1_resource_bounds};
 use crate::utils::{u128_from_usize, u64_from_usize};
 use crate::versioned_constants::VersionedConstants;
-
-fn get_vm_resource_usage() -> ExecutionResources {
-    ExecutionResources {
-        n_steps: 10000,
-        n_memory_holes: 0,
-        builtin_instance_counter: HashMap::from([
-            (BuiltinName::pedersen, 10),
-            (BuiltinName::range_check, 24),
-            (BuiltinName::ecdsa, 1),
-            (BuiltinName::bitwise, 1),
-            (BuiltinName::poseidon, 1),
-        ]),
-    }
-}
 
 #[rstest]
 fn test_simple_get_vm_resource_usage(
