@@ -8,6 +8,7 @@ use starknet_api::StarknetApiError;
 use starknet_types_core::felt::FromStrError;
 use thiserror::Error;
 
+use crate::bouncer::BouncerWeights;
 use crate::execution::call_info::Retdata;
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::execution_utils::format_panic_data;
@@ -122,8 +123,11 @@ pub enum TransactionExecutionError {
     TransactionPreValidationError(#[from] TransactionPreValidationError),
     #[error(transparent)]
     TryFromIntError(#[from] std::num::TryFromIntError),
-    #[error("Transaction size exceeds the maximum block capacity.")]
-    TransactionTooLarge,
+    #[error(
+        "Transaction size exceeds the maximum block capacity. Max block capacity: {}, \
+         transaction size: {}.", *max_capacity, *tx_size
+    )]
+    TransactionTooLarge { max_capacity: Box<BouncerWeights>, tx_size: Box<BouncerWeights> },
     #[error(
         "Transaction validation has failed:\n{}",
         String::from(gen_tx_execution_error_trace(self))
