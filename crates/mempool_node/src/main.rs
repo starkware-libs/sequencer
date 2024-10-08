@@ -25,7 +25,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Clients are currently unused, but should not be dropped.
-    let (_clients, servers) = create_node_modules(&config);
+    let (_local_clients, _remote_clients, servers) = create_node_modules(&config);
 
     info!("Starting components!");
     run_component_servers(&config, servers).await?;

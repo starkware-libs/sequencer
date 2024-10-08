@@ -5,11 +5,11 @@ use crate::servers::{create_node_servers, SequencerNodeServers};
 
 pub fn create_node_modules(
     config: &SequencerNodeConfig,
-) -> (SequencerNodeClients, SequencerNodeServers) {
+) -> (SequencerNodeClients, SequencerNodeClients, SequencerNodeServers) {
     let mut channels = create_node_channels();
-    let clients = create_node_clients(config, &mut channels);
-    let components = create_node_components(config, &clients);
+    let (local_clients, remote_clients) = create_node_clients(config, &mut channels);
+    let components = create_node_components(config, &local_clients);
     let servers = create_node_servers(config, &mut channels, components);
 
-    (clients, servers)
+    (local_clients, remote_clients, servers)
 }
