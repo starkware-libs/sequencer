@@ -1,4 +1,5 @@
 [env]
+CAIRO_NATIVE_RUNTIME_LIBRARY = "./libcairo_native_runtime.so"
 LLVM_SYS_191_PREFIX = "/usr/lib/llvm-19/"
 MLIR_SYS_190_PREFIX = "/usr/lib/llvm-19/"
 TABLEGEN_190_PREFIX = "/usr/lib/llvm-19/"
