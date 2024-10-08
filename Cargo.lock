@@ -1402,6 +1402,8 @@ dependencies = [
  "cexpr",
  "clang-sys",
  "itertools 0.13.0",
+ "log",
+ "prettyplease",
  "proc-macro2",
  "quote",
  "regex",
@@ -2230,8 +2232,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
-version = "0.2.0"
-source = "git+https://github.com/lambdaclass/cairo_native?rev=2be717cba74c63628cb68b619ff2022c70d0cdd2#2be717cba74c63628cb68b619ff2022c70d0cdd2"
+version = "0.2.0-alpha.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dde4be6d8ba366c1adc51d0ad728907bac1cffa4f7d2c9c442d4d4f3734565bc"
 dependencies = [
  "anyhow",
  "aquamarine",
@@ -2277,18 +2280,21 @@ dependencies = [
  "thiserror",
  "tracing",
  "tracing-subscriber",
+ "utf8_iter",
 ]
 
 [[package]]
 name = "cairo-native-runtime"
-version = "0.2.0"
-source = "git+https://github.com/lambdaclass/cairo_native?rev=2be717cba74c63628cb68b619ff2022c70d0cdd2#2be717cba74c63628cb68b619ff2022c70d0cdd2"
+version = "0.2.0-alpha.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f61fd24fe792b11ded659bc1868cec3e5e47bd7fc01e0e8f75f3a71c24c74a34"
 dependencies = [
  "cairo-lang-sierra-gas",
+ "itertools 0.13.0",
  "lazy_static",
  "libc",
+ "num-traits 0.2.19",
  "rand 0.8.5",
- "starknet-crypto 0.7.2",
  "starknet-curve 0.5.1",
  "starknet-types-core",
 ]
@@ -2646,9 +2652,9 @@ dependencies = [
 
 [[package]]
 name = "comrak"
-version = "0.27.0"
+version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d061c6d53fe98c25efda0d91b7f6b4b4020a51dad78a3eac5028710aa26f8e7"
+checksum = "c93ab3577cca16b4a1d80a88c2e0cd8b6e969e51696f0bbb0d1dcb0157109832"
 dependencies = [
  "caseless",
  "derive_builder",
@@ -6166,9 +6172,9 @@ checksum = "78b3ae25bc7c8c38cec158d1f2757ee79e9b3740fbc7ccf0e59e4b08d793fa89"
 
 [[package]]
 name = "llvm-sys"
-version = "181.2.0"
+version = "191.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d320f9d2723c97d4b78f9190a61ed25cc7cfbe456668c08e6e7dd8e50ceb8500"
+checksum = "893cddf1adf0354b93411e413553dd4daf5c43195d73f1acfa1e394bdd371456"
 dependencies = [
  "anyhow",
  "cc",
@@ -6283,9 +6289,9 @@ dependencies = [
 
 [[package]]
 name = "melior"
-version = "0.18.6"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c3085c0169aa3b735d8e7df582baee23c2aeb280ea62cc7f71effda28d8e281"
+checksum = "c5d97014786c173a839839e2a068e82516ad1eb94fca1d40013d3c5e224e7c1e"
 dependencies = [
  "dashmap",
  "melior-macro",
@@ -6295,9 +6301,9 @@ dependencies = [
 
 [[package]]
 name = "melior-macro"
-version = "0.11.6"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13d58c356ebaa7855da67aad1306a0d032b68919d3c65b0b5dcecf10d9bdf6a9"
+checksum = "ef7ae0ba2f96784ec407d58374c8477f5b04ec8c57a114cafef0c8f165c4b288"
 dependencies = [
  "comrak",
  "convert_case 0.6.0",
@@ -6480,11 +6486,11 @@ dependencies = [
 
 [[package]]
 name = "mlir-sys"
-version = "0.2.2"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b1b5806a63bc959cd5c4e5db8cadd20e40045d41969d325132748db8af11b7f"
+checksum = "fae0a14b0940736a243fef4a4d96d8cdf8a253272031b63c5e4b1bea207c82b0"
 dependencies = [
- "bindgen 0.69.5",
+ "bindgen 0.70.1",
 ]
 
 [[package]]
@@ -10764,9 +10770,9 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tblgen-alt"
-version = "0.3.6"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ae726d43658a13a9cd479de814be1311fea69236cd821e931a4fb9ca4d70e50"
+checksum = "0ecbc9175dd38627cd01d546e7b41c9a115e5773f4c98f64e2185c81ec5f45ab"
 dependencies = [
  "bindgen 0.69.5",
  "cc",
@@ -11564,6 +11570,12 @@ name = "utf8-width"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "86bd8d4e895da8537e5315b8254664e6b769c4ff3db18321b297a1e7004392e3"
+
+[[package]]
+name = "utf8_iter"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 
 [[package]]
 name = "utf8parse"

@@ -1,7 +1,7 @@
 [env]
-LLVM_SYS_181_PREFIX = "/usr/lib/llvm-18/"
-MLIR_SYS_180_PREFIX = "/usr/lib/llvm-18/"
-TABLEGEN_180_PREFIX = "/usr/lib/llvm-18/"
+LLVM_SYS_191_PREFIX = "/usr/lib/llvm-19/"
+MLIR_SYS_190_PREFIX = "/usr/lib/llvm-19/"
+TABLEGEN_190_PREFIX = "/usr/lib/llvm-19/"
 
 # Limit concurrency to prevent crash during "cargo build" due to excessive memory usage. Should be removed in the future. Slows down performance.
 [build]
