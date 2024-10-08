@@ -281,8 +281,8 @@ fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_even
 }
 
 #[rstest]
-fn test_execute_txs_bouncing() {
-    let config = TransactionExecutorConfig::create_for_testing();
+fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
+    let config = TransactionExecutorConfig::create_for_testing(concurrency_enabled);
     let max_n_events_in_block = 10;
     let block_context = BlockContext::create_for_bouncer_testing(max_n_events_in_block);
 
