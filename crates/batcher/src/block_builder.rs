@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -23,7 +24,10 @@ use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOver
 use indexmap::IndexMap;
 #[cfg(test)]
 use mockall::automock;
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::StorageReader;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction;
@@ -64,7 +68,7 @@ pub enum BlockBuilderError {
 
 pub type BlockBuilderResult<T> = Result<T, BlockBuilderError>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ExecutionConfig {
     // TODO(Yael 1/10/2024): add to config pointers
     pub chain_info: ChainInfo,
@@ -74,6 +78,43 @@ pub struct ExecutionConfig {
     pub use_kzg_da: bool,
     pub tx_chunk_size: usize,
     pub versioned_constants_overrides: VersionedConstantsOverrides,
+}
+
+impl SerializeConfig for ExecutionConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut dump = append_sub_config_name(self.chain_info.dump(), "chain_info");
+        dump.append(&mut append_sub_config_name(self.execute_config.dump(), "execute_config"));
+        dump.append(&mut append_sub_config_name(self.bouncer_config.dump(), "bouncer_config"));
+        dump.append(&mut append_sub_config_name(
+            self.sequencer_address.dump(),
+            "sequencer_address",
+        ));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "use_kzg_da",
+            &self.use_kzg_da,
+            "Defines which data availability mode to use.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut append_sub_config_name(
+            self.versioned_constants_overrides.dump(),
+            "versioned_constants_overrides",
+        ));
+        dump
+    }
+}
+
+impl Default for ExecutionConfig {
+    fn default() -> Self {
+        Self {
+            chain_info: ChainInfo::default(),
+            execute_config: TransactionExecutorConfig::default(),
+            bouncer_config: BouncerConfig::default(),
+            sequencer_address: ContractAddress::default(),
+            use_kzg_da: true,
+            tx_chunk_size: 100,
+            versioned_constants_overrides: VersionedConstantsOverrides::default(),
+        }
+    }
 }
 
 #[async_trait]

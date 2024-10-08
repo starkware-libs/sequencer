@@ -186,10 +186,8 @@ impl StatefulTransactionValidatorConfig {
     #[cfg(any(test, feature = "testing"))]
     pub fn create_for_testing() -> Self {
         StatefulTransactionValidatorConfig {
-            max_nonce_for_validation_skip: Default::default(),
-            validate_max_n_steps: 1000000,
-            max_recursion_depth: 50,
             chain_info: ChainInfo::create_for_testing(),
+            ..Default::default()
         }
     }
 }

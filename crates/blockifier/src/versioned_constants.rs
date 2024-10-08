@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 use std::{fs, io};
@@ -8,10 +8,12 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use indexmap::{IndexMap, IndexSet};
 use num_rational::Ratio;
 use num_traits::Inv;
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use paste::paste;
 use semver::Version;
 use serde::de::Error as DeserializationError;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Number, Value};
 use starknet_api::block::GasPrice;
 use starknet_api::execution_resources::GasAmount;
@@ -842,9 +844,44 @@ pub struct ResourcesByVersion {
     pub deprecated_resources: ResourcesParams,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
     pub invoke_tx_max_n_steps: u32,
+}
+
+impl SerializeConfig for VersionedConstantsOverrides {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "validate_max_n_steps",
+                &self.validate_max_n_steps,
+                "Maximum number of steps the validation function is allowed to run.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_recursion_depth",
+                &self.max_recursion_depth,
+                "Maximum recursion depth for nested calls during blockifier validation.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "invoke_tx_max_n_steps",
+                &self.invoke_tx_max_n_steps,
+                "Maximum number of steps the invoke function is allowed to run.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+impl Default for VersionedConstantsOverrides {
+    fn default() -> Self {
+        Self {
+            validate_max_n_steps: 1000000,
+            max_recursion_depth: 50,
+            invoke_tx_max_n_steps: 10000000,
+        }
+    }
 }
