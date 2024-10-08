@@ -2,27 +2,27 @@ use std::sync::Arc;
 
 use starknet_batcher_types::communication::{
     BatcherRequestAndResponseSender,
-    LocalBatcherClientImpl,
-    RemoteBatcherClientImpl,
+    LocalBatcherClient,
+    RemoteBatcherClient,
     SharedBatcherClient,
 };
 use starknet_consensus_manager_types::communication::{
     ConsensusManagerRequestAndResponseSender,
-    LocalConsensusManagerClientImpl,
-    RemoteConsensusManagerClientImpl,
+    LocalConsensusManagerClient,
+    RemoteConsensusManagerClient,
     SharedConsensusManagerClient,
 };
 use starknet_gateway_types::communication::{
     GatewayRequestAndResponseSender,
-    LocalGatewayClientImpl,
-    RemoteGatewayClientImpl,
+    LocalGatewayClient,
+    RemoteGatewayClient,
     SharedGatewayClient,
 };
 use starknet_mempool_infra::component_definitions::ComponentCommunication;
 use starknet_mempool_types::communication::{
-    LocalMempoolClientImpl,
+    LocalMempoolClient,
     MempoolRequestAndResponseSender,
-    RemoteMempoolClientImpl,
+    RemoteMempoolClient,
     SharedMempoolClient,
 };
 use tokio::sync::mpsc::{channel, Receiver, Sender};
@@ -134,29 +134,29 @@ pub fn create_node_clients(
 ) -> (SequencerNodeClients, SequencerNodeClients) {
     let local_batcher_client: Option<SharedBatcherClient> = match config.components.batcher.execute
     {
-        true => Some(Arc::new(LocalBatcherClientImpl::new(channels.take_batcher_tx()))),
+        true => Some(Arc::new(LocalBatcherClient::new(channels.take_batcher_tx()))),
         false => None,
     };
     let local_consensus_manager_client: Option<SharedConsensusManagerClient> =
         match config.components.consensus_manager.execute {
-            true => Some(Arc::new(LocalConsensusManagerClientImpl::new(
+            true => Some(Arc::new(LocalConsensusManagerClient::new(
                 channels.take_consensus_manager_tx(),
             ))),
             false => None,
         };
     let local_mempool_client: Option<SharedMempoolClient> = match config.components.mempool.execute
     {
-        true => Some(Arc::new(LocalMempoolClientImpl::new(channels.take_mempool_tx()))),
+        true => Some(Arc::new(LocalMempoolClient::new(channels.take_mempool_tx()))),
         false => None,
     };
     let local_gateway_client: Option<SharedGatewayClient> = match config.components.gateway.execute
     {
-        true => Some(Arc::new(LocalGatewayClientImpl::new(channels.take_gateway_tx()))),
+        true => Some(Arc::new(LocalGatewayClient::new(channels.take_gateway_tx()))),
         false => None,
     };
     let remote_batcher_client: Option<SharedBatcherClient> =
         match (config.components.batcher.execute, config.components.batcher.execution_mode) {
-            (true, ComponentExecutionMode::Remote) => Some(Arc::new(RemoteBatcherClientImpl::new(
+            (true, ComponentExecutionMode::Remote) => Some(Arc::new(RemoteBatcherClient::new(
                 config
                     .components
                     .batcher
@@ -173,7 +173,7 @@ pub fn create_node_clients(
         config.components.consensus_manager.execution_mode,
     ) {
         (true, ComponentExecutionMode::Remote) => {
-            Some(Arc::new(RemoteConsensusManagerClientImpl::new(
+            Some(Arc::new(RemoteConsensusManagerClient::new(
                 config
                     .components
                     .consensus_manager
@@ -188,7 +188,7 @@ pub fn create_node_clients(
     };
     let remote_mempool_client: Option<SharedMempoolClient> =
         match (config.components.mempool.execute, config.components.mempool.execution_mode) {
-            (true, ComponentExecutionMode::Remote) => Some(Arc::new(RemoteMempoolClientImpl::new(
+            (true, ComponentExecutionMode::Remote) => Some(Arc::new(RemoteMempoolClient::new(
                 config
                     .components
                     .mempool
@@ -202,7 +202,7 @@ pub fn create_node_clients(
         };
     let remote_gateway_client: Option<SharedGatewayClient> =
         match (config.components.gateway.execute, config.components.gateway.execution_mode) {
-            (true, ComponentExecutionMode::Remote) => Some(Arc::new(RemoteGatewayClientImpl::new(
+            (true, ComponentExecutionMode::Remote) => Some(Arc::new(RemoteGatewayClient::new(
                 config
                     .components
                     .gateway
