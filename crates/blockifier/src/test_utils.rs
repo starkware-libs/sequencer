@@ -18,7 +18,7 @@ use starknet_api::block::{GasPrice, NonzeroGasPrice};
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     Calldata,
     ContractAddressSalt,
     Fee,

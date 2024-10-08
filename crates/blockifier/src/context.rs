@@ -5,7 +5,7 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::GasPriceVector;
 use starknet_api::core::{ChainId, ContractAddress};
-use starknet_api::transaction::GasVectorComputationMode;
+use starknet_api::transaction::fields::GasVectorComputationMode;
 
 use crate::blockifier::block::BlockInfo;
 use crate::bouncer::BouncerConfig;

@@ -7,7 +7,11 @@ use super::{get_transaction_hash, validate_transaction_hash, CONSTRUCTOR_ENTRY_P
 use crate::block::BlockNumber;
 use crate::core::ChainId;
 use crate::test_utils::read_json_file;
-use crate::transaction::{Transaction, TransactionHash, TransactionOptions};
+use crate::transaction::fields::{
+    TransactionHash,
+    TransactionOptions,
+};
+use crate::transaction::Transaction;
 
 #[test]
 fn test_constructor_selector() {

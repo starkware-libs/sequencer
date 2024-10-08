@@ -9,11 +9,8 @@ use starknet_api::core::{
     TransactionCommitment,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
-use starknet_api::transaction::{
-    EventIndexInTransactionOutput,
-    TransactionHash,
-    TransactionOffsetInBlock,
-};
+use starknet_api::transaction::fields::TransactionHash;
+use starknet_api::transaction::{EventIndexInTransactionOutput, TransactionOffsetInBlock};
 
 use crate::body::TransactionIndex;
 use crate::compression_utils::IsCompressed;

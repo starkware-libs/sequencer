@@ -28,23 +28,25 @@ use starknet_api::core::{
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::serde_utils::bytes_from_hex_str;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
-    DeployTransaction,
     Fee,
-    L1HandlerTransaction,
-    MessageToL1,
     PaymasterData,
     Resource,
     ResourceBounds,
     Tip,
-    TransactionExecutionStatus,
     TransactionHash,
     TransactionSignature,
     TransactionVersion,
+};
+use starknet_api::transaction::{
+    DeployTransaction,
+    L1HandlerTransaction,
+    MessageToL1,
+    TransactionExecutionStatus,
 };
 use starknet_client::writer::objects::transaction as client_transaction;
 use starknet_types_core::felt::Felt;

@@ -1,6 +1,7 @@
 pub mod errors;
 
-use starknet_api::transaction::{L1HandlerTransaction, TransactionHash};
+use starknet_api::transaction::fields::TransactionHash;
+use starknet_api::transaction::L1HandlerTransaction;
 
 use crate::errors::L1ProviderError;
 
@@ -41,7 +42,7 @@ impl L1Provider {
     // about to [optimistically-]propose or validate the next block.
     pub fn commit_block(&mut self, _commited_txs: &[TransactionHash]) {
         todo!(
-            "Purges txs from internal buffers, if was proposer clear staging buffer, 
+            "Purges txs from internal buffers, if was proposer clear staging buffer,
             reset state to Pending until we get proposing/validating notice from consensus."
         )
     }

@@ -3,7 +3,8 @@ use starknet_types_core::hash::Poseidon;
 
 use super::{calculate_event_commitment, calculate_event_hash, EventLeafElement};
 use crate::core::{ContractAddress, EventCommitment, PatriciaKey};
-use crate::transaction::{Event, EventContent, EventData, EventKey, TransactionHash};
+use crate::transaction::fields::TransactionHash;
+use crate::transaction::{Event, EventContent, EventData, EventKey};
 use crate::{contract_address, felt, patricia_key};
 
 #[test]

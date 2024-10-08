@@ -4,7 +4,12 @@ use rstest::rstest;
 use starknet_api::block::NonzeroGasPrice;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::invoke_tx_args;
-use starknet_api::transaction::{Fee, GasVectorComputationMode, Resource, ValidResourceBounds};
+use starknet_api::transaction::fields::{
+    Fee,
+    GasVectorComputationMode,
+    Resource,
+    ValidResourceBounds,
+};
 
 use crate::blockifier::block::GasPrices;
 use crate::context::BlockContext;

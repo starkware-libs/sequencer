@@ -6,7 +6,15 @@ use crate::block::BlockNumber;
 use crate::core::{ascii_as_felt, calculate_contract_address, ChainId, ContractAddress};
 use crate::crypto::utils::HashChain;
 use crate::data_availability::DataAvailabilityMode;
-use crate::transaction::fields::signed_tx_version_from_tx;
+use crate::transaction::fields::{
+    signed_tx_version_from_tx,
+    ResourceBounds,
+    Tip,
+    TransactionHash,
+    TransactionOptions,
+    TransactionVersion,
+    ValidResourceBounds,
+};
 use crate::transaction::{
     DeclareTransaction,
     DeclareTransactionV0V1,
@@ -21,13 +29,7 @@ use crate::transaction::{
     InvokeTransactionV1,
     InvokeTransactionV3,
     L1HandlerTransaction,
-    ResourceBounds,
-    Tip,
     Transaction,
-    TransactionHash,
-    TransactionOptions,
-    TransactionVersion,
-    ValidResourceBounds,
 };
 use crate::StarknetApiError;
 

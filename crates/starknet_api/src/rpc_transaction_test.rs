@@ -17,7 +17,7 @@ use crate::rpc_transaction::{
     RpcInvokeTransactionV3,
     RpcTransaction,
 };
-use crate::transaction::{
+use crate::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     Calldata,

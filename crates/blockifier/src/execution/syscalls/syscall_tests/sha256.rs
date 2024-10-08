@@ -1,4 +1,4 @@
-use starknet_api::transaction::Calldata;
+use starknet_api::transaction::fields::Calldata;
 use test_case::test_case;
 
 use crate::abi::abi_utils::selector_from_name;
