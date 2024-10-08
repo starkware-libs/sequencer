@@ -30,14 +30,15 @@ function setup_llvm_deps() {
         ;;
     Linux)
         $SUDO bash -c 'curl https://apt.llvm.org/llvm.sh -Lo llvm.sh
-        bash ./llvm.sh 18 all
-        apt update && apt install -y \
-            libgmp3-dev \
-            libmlir-18-dev \
-            libpolly-18-dev \
-            libzstd-dev \
-            mlir-18-tools
+        bash ./llvm.sh 19 all
         '
+#        apt update && apt install -y \
+#            libgmp3-dev \
+#            libmlir-18-dev \
+#            libpolly-18-dev \
+#            libzstd-dev \
+#            mlir-18-tools
+#        '
         ;;
     *)
         echo "Error: Unsupported operating system"
