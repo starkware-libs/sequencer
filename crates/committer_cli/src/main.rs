@@ -103,6 +103,7 @@ async fn main() {
                 &commitments_input.transactions_data,
                 &commitments_input.state_diff,
                 commitments_input.l1_da_mode,
+                &commitments_input.starknet_version,
             );
             write_to_file(&output_path, &commitments);
             info!("Successfully computed block hash commitment: \n{:?}", commitments);
