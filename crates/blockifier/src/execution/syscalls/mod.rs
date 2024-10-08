@@ -11,14 +11,8 @@ use starknet_api::core::{
     EthAddress,
 };
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{
-    Calldata,
-    ContractAddressSalt,
-    EventContent,
-    EventData,
-    EventKey,
-    L2ToL1Payload,
-};
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
+use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
 use self::hint_processor::{

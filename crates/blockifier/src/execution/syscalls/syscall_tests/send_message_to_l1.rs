@@ -1,7 +1,8 @@
 use itertools::concat;
 use starknet_api::core::EthAddress;
 use starknet_api::felt;
-use starknet_api::transaction::{Calldata, L2ToL1Payload};
+use starknet_api::transaction::fields::Calldata;
+use starknet_api::transaction::L2ToL1Payload;
 use test_case::test_case;
 
 use crate::abi::abi_utils::selector_from_name;

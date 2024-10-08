@@ -5,7 +5,8 @@ use starknet_api::block::BlockHash;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
+use starknet_api::transaction::fields::TransactionHash;
+use starknet_api::transaction::TransactionOffsetInBlock;
 use starknet_api::{felt, patricia_key};
 
 use super::{Block, GlobalRoot, TransactionReceiptsError};

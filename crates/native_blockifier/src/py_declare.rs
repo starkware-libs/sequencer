@@ -5,16 +5,18 @@ use blockifier::transaction::transactions::DeclareTransaction;
 use pyo3::prelude::*;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
-    DeclareTransactionV0V1,
-    DeclareTransactionV2,
-    DeclareTransactionV3,
     Fee,
     PaymasterData,
     Tip,
     TransactionHash,
     TransactionSignature,
+};
+use starknet_api::transaction::{
+    DeclareTransactionV0V1,
+    DeclareTransactionV2,
+    DeclareTransactionV3,
 };
 use starknet_types_core::felt::Felt;
 

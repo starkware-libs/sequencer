@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use starknet_api::core::ContractAddress;
 use starknet_api::felt;
-use starknet_api::transaction::Fee;
+use starknet_api::transaction::fields::Fee;
 use strum::IntoEnumIterator;
 
 use crate::abi::abi_utils::get_fee_token_var_address;

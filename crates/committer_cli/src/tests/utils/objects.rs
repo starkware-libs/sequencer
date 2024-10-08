@@ -13,18 +13,16 @@ use starknet_api::core::{
 };
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::{StorageKey, ThinStateDiff};
+use starknet_api::transaction::fields::{Fee, TransactionHash, TransactionSignature};
 use starknet_api::transaction::{
     Event,
     EventContent,
     EventData,
     EventKey,
-    Fee,
     L2ToL1Payload,
     MessageToL1,
     RevertedTransactionExecutionStatus,
     TransactionExecutionStatus,
-    TransactionHash,
-    TransactionSignature,
 };
 use starknet_types_core::felt::Felt;
 

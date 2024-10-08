@@ -2,7 +2,7 @@ use papyrus_test_utils::{auto_impl_get_test_instance, get_rng, GetTestInstance};
 use serde::Serialize;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::felt;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::TransactionHash;
 use starknet_client::writer::objects::response::{
     DeclareResponse,
     DeployAccountResponse,

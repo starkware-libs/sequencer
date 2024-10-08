@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use pretty_assertions::assert_eq;
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::TransactionHash;
 use starknet_api::{contract_address, felt, nonce, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AddTransactionArgs, CommitBlockArgs};
@@ -21,7 +21,7 @@ macro_rules! tx {
             use starknet_api::executable_transaction::Transaction;
             use starknet_api::hash::StarkHash;
             use starknet_api::test_utils::invoke::executable_invoke_tx;
-            use starknet_api::transaction::{
+            use starknet_api::transaction::fields::{
                 AllResourceBounds,
                 ResourceBounds,
                 Tip,

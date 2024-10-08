@@ -42,13 +42,8 @@ use starknet_api::block::{
 };
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::ContractClass;
-use starknet_api::transaction::{
-    Event,
-    FullTransaction,
-    Transaction,
-    TransactionHash,
-    TransactionOutput,
-};
+use starknet_api::transaction::fields::TransactionHash;
+use starknet_api::transaction::{Event, FullTransaction, Transaction, TransactionOutput};
 
 use super::{split_thin_state_diff, FetchBlockDataFromDb, P2PSyncServer, P2PSyncServerChannels};
 use crate::server::register_query;

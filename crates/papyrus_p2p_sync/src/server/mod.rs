@@ -27,7 +27,8 @@ use papyrus_storage::{db, StorageReader, StorageTxn};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
-use starknet_api::transaction::{Event, FullTransaction, TransactionHash};
+use starknet_api::transaction::fields::TransactionHash;
+use starknet_api::transaction::{Event, FullTransaction};
 use tracing::{error, info};
 
 #[cfg(test)]

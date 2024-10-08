@@ -25,7 +25,8 @@ use starknet_api::deprecated_contract_class::{
     Program,
 };
 use starknet_api::state::{StateNumber, StorageKey};
-use starknet_api::transaction::{EventKey, Fee, TransactionHash, TransactionOffsetInBlock};
+use starknet_api::transaction::fields::{Fee, TransactionHash};
+use starknet_api::transaction::{EventKey, TransactionOffsetInBlock};
 use starknet_types_core::felt::Felt;
 use tracing::debug;
 

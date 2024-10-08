@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ClassHash, ContractAddress};
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::TransactionHash;
 use starknet_client::writer::objects::response::{
     DeclareResponse,
     DeployAccountResponse,
