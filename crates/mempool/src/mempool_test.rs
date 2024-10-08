@@ -391,10 +391,10 @@ fn test_add_tx_multi_nonce_success(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_tx_with_duplicate_tx(mut mempool: Mempool) {
+fn test_add_tx_failure_on_duplicate_tx_hash(mut mempool: Mempool) {
     // Setup.
-    let input = add_tx_input!(tip: 50, tx_hash: 1);
-    let duplicate_input = input.clone();
+    let input = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0);
+    let duplicate_input = input.clone(); // Same hash is possible if signature is different.
 
     // Test.
     add_tx(&mut mempool, &input);
@@ -423,13 +423,18 @@ fn test_add_tx_lower_than_queued_nonce() {
         .build_into_mempool();
 
     // Test and assert: original transaction remains.
-    let lower_nonce_input =
-        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 0, account_nonce: 0);
-    add_tx_expect_error(
-        &mut mempool,
-        &lower_nonce_input,
-        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(0) },
-    );
+    for tx_nonce in [0, 1] {
+        let invalid_input =
+            add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: tx_nonce, account_nonce: 0);
+        add_tx_expect_error(
+            &mut mempool,
+            &invalid_input,
+            MempoolError::DuplicateNonce {
+                address: contract_address!("0x0"),
+                nonce: nonce!(tx_nonce),
+            },
+        );
+    }
 
     let expected_mempool_content = MempoolContentBuilder::new()
         .with_pool(pool_txs)
