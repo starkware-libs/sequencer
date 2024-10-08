@@ -12,8 +12,8 @@ use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::{
     ContractClassAbiEntry as DeprecatedContractClassAbiEntry,
-    EntryPoint as DeprecatedEntryPoint,
     EntryPointType as DeprecatedEntryPointType,
+    EntryPointV0 as DeprecatedEntryPoint,
     EventAbiEntry,
     FunctionAbiEntry,
     StructAbiEntry,
