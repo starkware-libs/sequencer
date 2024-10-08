@@ -23,11 +23,9 @@ pub struct IntegrationTestSetup {
     pub task_executor: TokioExecutor,
     pub http_test_client: HttpTestClient,
 
-    pub batcher_storage_file_handle: TempDir,
     // TODO(Arni): Replace with a batcher server handle and a batcher client.
     pub mempool_client: SharedMempoolClient,
 
-    pub rpc_storage_file_handle: TempDir,
     pub gateway_handle: JoinHandle<Result<(), ComponentServerError>>,
 
     pub http_server_handle: JoinHandle<Result<(), ComponentServerError>>,
@@ -76,9 +74,7 @@ impl IntegrationTestSetup {
         Self {
             task_executor,
             http_test_client,
-            batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
             mempool_client: clients.get_mempool_client().unwrap().clone(),
-            rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
             gateway_handle,
             http_server_handle,
             mempool_handle,
