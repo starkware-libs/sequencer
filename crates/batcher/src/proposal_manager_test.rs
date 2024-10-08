@@ -31,6 +31,7 @@ use crate::proposal_manager::{
     ProposalManagerConfig,
     ProposalManagerError,
     ProposalManagerResult,
+    ProposalManagerTrait,
 };
 
 pub type OutputTxStream = ReceiverStream<Transaction>;

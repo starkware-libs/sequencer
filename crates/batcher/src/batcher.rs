@@ -13,13 +13,13 @@ use tracing::error;
 
 use crate::block_builder::{BlockBuilderFactoryTrait, BlockBuilderResult, BlockBuilderTrait};
 use crate::config::BatcherConfig;
-use crate::proposal_manager::{ProposalManager, ProposalManagerError};
+use crate::proposal_manager::{ProposalManager, ProposalManagerError, ProposalManagerTrait};
 
 pub struct Batcher {
     pub config: BatcherConfig,
     pub mempool_client: SharedMempoolClient,
     pub storage: Arc<dyn BatcherStorageReaderTrait>,
-    proposal_manager: ProposalManager,
+    proposal_manager: Box<dyn ProposalManagerTrait>,
 }
 
 // TODO(Yael 7/10/2024): remove DummyBlockBuilderFactory and pass the real BlockBuilderFactory
@@ -36,22 +36,17 @@ impl BlockBuilderFactoryTrait for DummyBlockBuilderFactory {
 }
 
 impl Batcher {
-    pub fn new(
+    fn new(
         config: BatcherConfig,
         mempool_client: SharedMempoolClient,
         storage: Arc<dyn BatcherStorageReaderTrait>,
+        proposal_manager: Box<dyn ProposalManagerTrait>,
     ) -> Self {
         Self {
             config: config.clone(),
             mempool_client: mempool_client.clone(),
             storage: storage.clone(),
-            proposal_manager: ProposalManager::new(
-                config.proposal_manager.clone(),
-                mempool_client.clone(),
-                // TODO(Yael 7/10/2024) : Pass the real BlockBuilderFactory
-                Arc::new(DummyBlockBuilderFactory {}),
-                storage,
-            ),
+            proposal_manager,
         }
     }
 
@@ -131,7 +126,14 @@ impl Batcher {
 pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient) -> Batcher {
     let (storage_reader, _storage_writer) = papyrus_storage::open_storage(config.storage.clone())
         .expect("Failed to open batcher's storage");
-    Batcher::new(config, mempool_client, Arc::new(storage_reader))
+    let storage_reader = Arc::new(storage_reader);
+    let proposal_manager = Box::new(ProposalManager::new(
+        config.proposal_manager.clone(),
+        mempool_client.clone(),
+        Arc::new(DummyBlockBuilderFactory {}),
+        storage_reader.clone(),
+    ));
+    Batcher::new(config, mempool_client, storage_reader, proposal_manager)
 }
 
 #[cfg_attr(test, automock)]
