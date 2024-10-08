@@ -314,8 +314,7 @@ impl From<StorageView> for IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>
     }
 }
 
-#[cfg_attr(any(feature = "testing", test), derive(Clone))]
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct StateMaps {
     pub nonces: HashMap<ContractAddress, Nonce>,
     pub class_hashes: HashMap<ContractAddress, ClassHash>,

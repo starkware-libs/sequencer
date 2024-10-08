@@ -25,10 +25,7 @@ const RANDOMIZATION_SEED: u64 = 0;
 const CAIRO_VERSION: CairoVersion = CairoVersion::Cairo0;
 const TRANSACTION_VERSION: TransactionVersion = TransactionVersion(Felt::THREE);
 const RECIPIENT_GENERATOR_TYPE: RecipientGeneratorType = RecipientGeneratorType::RoundRobin;
-#[cfg(feature = "concurrency")]
 const CONCURRENCY_MODE: bool = true;
-#[cfg(not(feature = "concurrency"))]
-const CONCURRENCY_MODE: bool = false;
 const N_WORKERS: usize = 4;
 const CHUNK_SIZE: usize = 100;
 
