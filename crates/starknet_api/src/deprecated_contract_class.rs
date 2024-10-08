@@ -23,7 +23,7 @@ pub struct ContractClass {
     /// The selector of each entry point is a unique identifier in the program.
     // TODO: Consider changing to IndexMap, since this is used for computing the
     // class hash.
-    pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPoint>>,
+    pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPointV0>>,
 }
 
 /// A [ContractClass](`crate::deprecated_contract_class::ContractClass`) abi entry.
@@ -167,16 +167,16 @@ where
 
 /// An entry point of a [ContractClass](`crate::deprecated_contract_class::ContractClass`).
 #[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
-pub struct EntryPoint {
+pub struct EntryPointV0 {
     pub selector: EntryPointSelector,
     pub offset: EntryPointOffset,
 }
 
-impl TryFrom<CasmContractEntryPoint> for EntryPoint {
+impl TryFrom<CasmContractEntryPoint> for EntryPointV0 {
     type Error = StarknetApiError;
 
     fn try_from(value: CasmContractEntryPoint) -> Result<Self, Self::Error> {
-        Ok(EntryPoint {
+        Ok(EntryPointV0 {
             selector: EntryPointSelector(StarkHash::from(value.selector)),
             offset: EntryPointOffset(value.offset),
         })
