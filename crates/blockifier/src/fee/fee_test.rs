@@ -291,8 +291,10 @@ fn test_post_execution_gas_overdraft_all_resource_bounds(
 #[rstest]
 #[case::happy_flow_l1_gas_only(10, 0, 0, 10, 2*10)]
 #[case::happy_flow_no_l2_gas(10, 20, 0, 10 + 3*20, 2*10 + 4*20)]
-#[case::saturating_l1_gas(u128::MAX, 1, 0, u128::MAX, u128::MAX)]
-#[case::saturating_l1_data_gas(1, u128::MAX, 0, u128::MAX, u128::MAX)]
+#[case::happy_flow_all(10, 20, 30, 10 + 3*20 + 5*30, 2*10 + 4*20 + 6*30)]
+#[case::saturating_l1_gas(u128::MAX, 1, 1, u128::MAX, u128::MAX)]
+#[case::saturating_l1_data_gas(1, u128::MAX, 1, u128::MAX, u128::MAX)]
+#[case::saturating_l2_gas(1, 1, u128::MAX, u128::MAX, u128::MAX)]
 fn test_get_fee_by_gas_vector_regression(
     #[case] l1_gas: u128,
     #[case] l1_data_gas: u128,
