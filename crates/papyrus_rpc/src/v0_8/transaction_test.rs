@@ -7,18 +7,16 @@ use papyrus_test_utils::{
 use pretty_assertions::assert_eq;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
     Fee,
-    L1HandlerTransaction,
     PaymasterData,
     Tip,
-    Transaction,
     TransactionSignature,
-    TransactionVersion,
 };
+use starknet_api::transaction::{L1HandlerTransaction, Transaction, TransactionVersion};
 use starknet_api::{calldata, contract_address, felt, nonce};
 use starknet_client::writer::objects::transaction as client_transaction;
 

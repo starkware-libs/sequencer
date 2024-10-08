@@ -1,5 +1,5 @@
 use starknet_api::felt;
-use starknet_api::transaction::Calldata;
+use starknet_api::transaction::fields::Calldata;
 
 use crate::test_utils::{create_calldata, CompilerBasedVersion};
 

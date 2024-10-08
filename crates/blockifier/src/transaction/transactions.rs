@@ -9,15 +9,17 @@ use starknet_api::executable_transaction::{
     InvokeTransaction as ExecutableInvokeTx,
     L1HandlerTransaction,
 };
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
+    Fee,
+    TransactionSignature,
+};
+use starknet_api::transaction::{
     DeclareTransactionV2,
     DeclareTransactionV3,
-    Fee,
     TransactionHash,
-    TransactionSignature,
     TransactionVersion,
 };
 

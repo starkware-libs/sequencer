@@ -1,7 +1,8 @@
 use itertools::concat;
 use pretty_assertions::assert_eq;
 use starknet_api::felt;
-use starknet_api::transaction::{Calldata, EventContent, EventData, EventKey};
+use starknet_api::transaction::fields::Calldata;
+use starknet_api::transaction::{EventContent, EventData, EventKey};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 

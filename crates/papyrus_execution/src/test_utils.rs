@@ -32,12 +32,12 @@ use starknet_api::core::{
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{ContractClass, StateNumber, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
+use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{
     DeclareTransactionV0V1,
     DeclareTransactionV2,
     DeployAccountTransaction,
     DeployAccountTransactionV1,
-    Fee,
     InvokeTransaction,
     InvokeTransactionV1,
     TransactionHash,

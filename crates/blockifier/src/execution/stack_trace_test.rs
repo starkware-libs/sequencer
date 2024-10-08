@@ -9,13 +9,13 @@ use starknet_api::core::{
     EntryPointSelector,
     Nonce,
 };
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     TransactionSignature,
-    TransactionVersion,
     ValidResourceBounds,
 };
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::{calldata, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 

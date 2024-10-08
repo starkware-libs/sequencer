@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ContractAddress, EthAddress, PatriciaKey};
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasVector};
+use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{
     DeclareTransactionOutput,
     DeployAccountTransactionOutput,
     DeployTransactionOutput,
-    Fee,
     InvokeTransactionOutput,
     L1HandlerTransactionOutput,
     L2ToL1Payload,

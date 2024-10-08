@@ -1,6 +1,6 @@
 use pretty_assertions::assert_eq;
 use starknet_api::core::calculate_contract_address;
-use starknet_api::transaction::{Calldata, ContractAddressSalt, Fee};
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee};
 use starknet_api::{calldata, felt};
 use test_case::test_case;
 

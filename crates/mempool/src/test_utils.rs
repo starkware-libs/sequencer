@@ -25,13 +25,13 @@ macro_rules! tx {
             use starknet_api::hash::StarkHash;
             use starknet_api::invoke_tx_args;
             use starknet_api::test_utils::invoke::executable_invoke_tx;
-            use starknet_api::transaction::{
+            use starknet_api::transaction::fields::{
                 AllResourceBounds,
                 ResourceBounds,
                 Tip,
-                TransactionHash,
                 ValidResourceBounds,
             };
+            use starknet_api::transaction::TransactionHash;
 
             let resource_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
                 l2_gas: ResourceBounds {

@@ -108,11 +108,20 @@ use starknet_api::state::{
     ThinStateDiff,
 };
 use starknet_api::test_utils::read_json_file;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
+    Fee,
+    PaymasterData,
+    Resource,
+    ResourceBounds,
+    Tip,
+    TransactionSignature,
+    ValidResourceBounds,
+};
+use starknet_api::transaction::{
     DeclareTransaction,
     DeclareTransactionOutput,
     DeclareTransactionV0V1,
@@ -129,7 +138,6 @@ use starknet_api::transaction::{
     EventData,
     EventIndexInTransactionOutput,
     EventKey,
-    Fee,
     InvokeTransaction,
     InvokeTransactionOutput,
     InvokeTransactionV0,
@@ -141,19 +149,13 @@ use starknet_api::transaction::{
     L2ToL1Payload,
     MessageToL1,
     MessageToL2,
-    PaymasterData,
-    Resource,
-    ResourceBounds,
     RevertedTransactionExecutionStatus,
-    Tip,
     Transaction,
     TransactionExecutionStatus,
     TransactionHash,
     TransactionOffsetInBlock,
     TransactionOutput,
-    TransactionSignature,
     TransactionVersion,
-    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 
