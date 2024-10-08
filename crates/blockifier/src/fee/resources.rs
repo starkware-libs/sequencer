@@ -19,8 +19,12 @@ use crate::fee::gas_usage::{
 use crate::state::cached_state::{StateChanges, StateChangesCount};
 use crate::transaction::errors::TransactionFeeError;
 use crate::transaction::objects::HasRelatedFeeType;
-use crate::utils::u128_from_usize;
-use crate::versioned_constants::{ArchivalDataGasCosts, VersionedConstants};
+use crate::utils::{u128_from_usize, u64_from_usize};
+use crate::versioned_constants::{
+    resource_cost_to_u128_ratio,
+    ArchivalDataGasCosts,
+    VersionedConstants,
+};
 
 pub type TransactionFeeResult<T> = Result<T, TransactionFeeError>;
 
@@ -203,20 +207,21 @@ impl ArchivalDataResources {
         archival_gas_costs: &ArchivalDataGasCosts,
     ) -> GasAmount {
         // TODO(Avi, 20/2/2024): Calculate the number of bytes instead of the number of felts.
-        let total_data_size = u128_from_usize(self.calldata_length + self.signature_length);
+        let total_data_size = u64_from_usize(self.calldata_length + self.signature_length);
         (archival_gas_costs.gas_per_data_felt * total_data_size).to_integer().into()
     }
 
     /// Returns the cost of declared class codes in L1/L2 gas units, depending on the mode.
     fn get_code_gas_cost(&self, archival_gas_costs: &ArchivalDataGasCosts) -> GasAmount {
-        (archival_gas_costs.gas_per_code_byte * u128_from_usize(self.code_size)).to_integer().into()
+        (archival_gas_costs.gas_per_code_byte * u64_from_usize(self.code_size)).to_integer().into()
     }
 
     /// Returns the cost of the transaction's emmited events in L1/L2 gas units, depending on the
     /// mode.
     fn get_events_gas_cost(&self, archival_gas_costs: &ArchivalDataGasCosts) -> GasAmount {
-        (archival_gas_costs.gas_per_data_felt
-            * (archival_gas_costs.event_key_factor * self.event_summary.total_event_keys
+        (resource_cost_to_u128_ratio(archival_gas_costs.gas_per_data_felt)
+            * (resource_cost_to_u128_ratio(archival_gas_costs.event_key_factor)
+                * self.event_summary.total_event_keys
                 + self.event_summary.total_event_data_size))
             .to_integer()
             .into()

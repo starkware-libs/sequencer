@@ -30,7 +30,7 @@ use crate::test_utils::{
 };
 use crate::transaction::objects::FeeType;
 use crate::transaction::test_utils::{account_invoke_tx, all_resource_bounds, l1_resource_bounds};
-use crate::utils::u128_from_usize;
+use crate::utils::{u128_from_usize, u64_from_usize};
 use crate::versioned_constants::VersionedConstants;
 
 fn get_vm_resource_usage() -> ExecutionResources {
@@ -59,7 +59,7 @@ fn test_simple_get_vm_resource_usage(
     // Positive flow.
     // Verify calculation - in our case, n_steps is the heaviest resource.
     let vm_usage_in_l1_gas = (versioned_constants.vm_resource_fee_cost().n_steps
-        * (u128_from_usize(vm_resource_usage.n_steps + n_reverted_steps)))
+        * (u64_from_usize(vm_resource_usage.n_steps + n_reverted_steps)))
     .ceil()
     .to_integer()
     .into();
@@ -114,7 +114,7 @@ fn test_float_get_vm_resource_usage(
     // Verify calculation - in our case, n_steps is the heaviest resource.
     let n_reverted_steps = 300;
     let vm_usage_in_l1_gas = (versioned_constants.vm_resource_fee_cost().n_steps
-        * u128_from_usize(vm_resource_usage.n_steps + n_reverted_steps))
+        * u64_from_usize(vm_resource_usage.n_steps + n_reverted_steps))
     .ceil()
     .to_integer()
     .into();
@@ -137,7 +137,7 @@ fn test_float_get_vm_resource_usage(
     vm_resource_usage.n_steps = 200;
     let vm_usage_in_l1_gas =
         ((*versioned_constants.vm_resource_fee_cost().builtins.get(&BuiltinName::ecdsa).unwrap())
-            * u128_from_usize(
+            * u64_from_usize(
                 *vm_resource_usage.builtin_instance_counter.get(&BuiltinName::ecdsa).unwrap(),
             ))
         .ceil()
