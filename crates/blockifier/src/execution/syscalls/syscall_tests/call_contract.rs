@@ -98,7 +98,7 @@ fn test_call_contract(
 
 /// Cairo0 / Cairo1 calls to Cairo0 / Cairo1.
 #[rstest]
-fn test_track_resources(
+fn test_track_resources_pairs(
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] outer_version: CairoVersion,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] inner_version: CairoVersion,
 ) {
@@ -128,12 +128,17 @@ fn test_track_resources(
         CairoVersion::Cairo1 => TrackedResource::SierraGas,
     };
     assert_eq!(execution.tracked_resource, expected_outer_resource);
+    let is_gas_consumed = expected_outer_resource == TrackedResource::SierraGas;
+    assert!(is_gas_consumed == (execution.execution.gas_consumed > 0));
 
+    let inner_call = execution.inner_calls.first().unwrap();
     let expected_inner_resource = match (outer_version, inner_version) {
         (CairoVersion::Cairo1, CairoVersion::Cairo1) => TrackedResource::SierraGas,
         _ => TrackedResource::CairoSteps,
     };
-    assert_eq!(execution.inner_calls.first().unwrap().tracked_resource, expected_inner_resource);
+    assert_eq!(inner_call.tracked_resource, expected_inner_resource);
+    let is_inner_gas_consumed = expected_inner_resource == TrackedResource::SierraGas;
+    assert!(is_inner_gas_consumed == (inner_call.execution.gas_consumed > 0));
 }
 
 /// Sierra-Gas contract calls:
