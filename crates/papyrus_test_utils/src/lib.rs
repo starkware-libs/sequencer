@@ -85,7 +85,7 @@ use starknet_api::deprecated_contract_class::{
     StructType,
     TypedParameter,
 };
-use starknet_api::execution_resources::{Builtin, ExecutionResources, GasVector};
+use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
 use starknet_api::felt;
 use starknet_api::hash::{PoseidonHash, StarkHash};
 use starknet_api::rpc_transaction::{
@@ -637,6 +637,7 @@ auto_impl_get_test_instance! {
     pub enum FunctionType {
         Function = 0,
     }
+    pub struct GasAmount(pub u64);
     pub struct GasPrice(pub u128);
     pub struct GasPricePerToken {
         pub price_in_fri: GasPrice,
@@ -1130,7 +1131,11 @@ impl GetTestInstance for ExecutionResources {
 
 impl GetTestInstance for GasVector {
     fn get_test_instance(rng: &mut ChaCha8Rng) -> Self {
-        Self { l1_gas: rng.next_u64(), l2_gas: rng.next_u64(), l1_data_gas: rng.next_u64() }
+        Self {
+            l1_gas: GasAmount(rng.next_u64()),
+            l2_gas: GasAmount(rng.next_u64()),
+            l1_data_gas: GasAmount(rng.next_u64()),
+        }
     }
 }
 
