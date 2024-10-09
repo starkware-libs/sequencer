@@ -289,11 +289,11 @@ fn test_discounted_gas_from_gas_vector_computation() {
     let actual_result = gas_usage.to_discounted_l1_gas(tx_context.get_gas_prices());
 
     let result_div_ceil = gas_usage.l1_gas
-        + (gas_usage.l1_data_gas.nonzero_checked_mul(DEFAULT_ETH_L1_DATA_GAS_PRICE).unwrap())
+        + (gas_usage.l1_data_gas.checked_mul(DEFAULT_ETH_L1_DATA_GAS_PRICE.into()).unwrap())
             .checked_div_ceil(DEFAULT_ETH_L1_GAS_PRICE)
             .unwrap();
     let result_div_floor = gas_usage.l1_gas
-        + (gas_usage.l1_data_gas.nonzero_checked_mul(DEFAULT_ETH_L1_DATA_GAS_PRICE).unwrap())
+        + (gas_usage.l1_data_gas.checked_mul(DEFAULT_ETH_L1_DATA_GAS_PRICE.into()).unwrap())
             .checked_div(DEFAULT_ETH_L1_GAS_PRICE)
             .unwrap();
 
@@ -301,7 +301,7 @@ fn test_discounted_gas_from_gas_vector_computation() {
     assert_eq!(actual_result, result_div_floor + 1_u8.into());
     assert!(
         get_fee_by_gas_vector(&tx_context.block_context.block_info, gas_usage, &FeeType::Eth)
-            <= actual_result.nonzero_checked_mul(DEFAULT_ETH_L1_GAS_PRICE).unwrap()
+            <= actual_result.checked_mul(DEFAULT_ETH_L1_GAS_PRICE.into()).unwrap()
     );
 }
 
