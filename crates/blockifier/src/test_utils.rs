@@ -36,7 +36,7 @@ use crate::execution::syscalls::SyscallSelector;
 use crate::fee::resources::{StarknetResources, StateResources};
 use crate::test_utils::contracts::FeatureContract;
 use crate::transaction::transaction_types::TransactionType;
-use crate::utils::{const_max, u128_from_usize};
+use crate::utils::{const_max, u64_from_usize};
 use crate::versioned_constants::VersionedConstants;
 // TODO(Dori, 1/2/2024): Remove these constants once all tests use the `contracts` and
 //   `initial_test_state` modules for testing.
@@ -334,7 +334,7 @@ pub fn calldata_for_deploy_test(
             vec![
                 class_hash.0,
                 ContractAddressSalt::default().0,
-                felt!(u128_from_usize(constructor_calldata.len())),
+                felt!(u64_from_usize(constructor_calldata.len())),
             ],
             constructor_calldata.into(),
             vec![felt!(if valid_deploy_from_zero { 0_u8 } else { 2_u8 })],
@@ -365,7 +365,7 @@ pub fn create_calldata(
             vec![
                 *contract_address.0.key(),              // Contract address.
                 selector_from_name(entry_point_name).0, // EP selector name.
-                felt!(u128_from_usize(entry_point_args.len())),
+                felt!(u64_from_usize(entry_point_args.len())),
             ],
             entry_point_args.into(),
         ]
