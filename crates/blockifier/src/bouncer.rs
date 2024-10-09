@@ -38,7 +38,7 @@ macro_rules! impl_checked_sub {
 
 pub type HashMapWrapper = HashMap<BuiltinName, usize>;
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct BouncerConfig {
     pub block_max_capacity: BouncerWeights,
 }
@@ -46,10 +46,6 @@ pub struct BouncerConfig {
 impl BouncerConfig {
     pub fn max() -> Self {
         Self { block_max_capacity: BouncerWeights::max() }
-    }
-
-    pub fn empty() -> Self {
-        Self::default()
     }
 
     pub fn has_room(&self, weights: BouncerWeights) -> bool {
@@ -75,7 +71,6 @@ impl BouncerConfig {
     Clone,
     Copy,
     Debug,
-    Default,
     derive_more::Add,
     derive_more::AddAssign,
     derive_more::Sub,

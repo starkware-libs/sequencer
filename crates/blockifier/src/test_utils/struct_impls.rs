@@ -19,7 +19,7 @@ use super::update_json_value;
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants;
 use crate::blockifier::block::{BlockInfo, BlockNumberHashPair, GasPrices};
-use crate::bouncer::{BouncerConfig, BouncerWeights};
+use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{ContractClassV0, ContractClassV1};
@@ -276,5 +276,24 @@ impl L1HandlerTransaction {
         };
         let tx_hash = TransactionHash::default();
         Self { tx, tx_hash, paid_fee_on_l1: l1_fee }
+    }
+}
+
+impl BouncerConfig {
+    pub fn create_for_testing() -> Self {
+        Self { block_max_capacity: BouncerWeights::create_for_testing() }
+    }
+}
+
+impl BouncerWeights {
+    pub fn create_for_testing() -> Self {
+        Self {
+            n_events: 0,
+            builtin_count: BuiltinCount::default(),
+            gas: 0,
+            message_segment_length: 0,
+            n_steps: 0,
+            state_diff_size: 0,
+        }
     }
 }
