@@ -8,8 +8,10 @@ use num_bigint::BigUint;
 use num_traits::Pow;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
+use starknet_api::block::GasPriceVector;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce, PatriciaKey};
 use starknet_api::deprecated_contract_class::EntryPointType;
+use starknet_api::execution_resources::GasVector;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
@@ -50,7 +52,6 @@ use crate::abi::abi_utils::{
 };
 use crate::abi::constants as abi_constants;
 use crate::abi::sierra_types::next_storage_key;
-use crate::blockifier::block::GasPricesForFeeType;
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{
     CallExecution,
@@ -75,7 +76,6 @@ use crate::fee::gas_usage::{
 use crate::fee::receipt::TransactionReceipt;
 use crate::fee::resources::{
     ComputationResources,
-    GasVector,
     StarknetResources,
     StateResources,
     TransactionResources,
@@ -972,7 +972,7 @@ fn test_insufficient_new_resource_bounds(
     let tx = &account_invoke_tx(valid_invoke_tx_args.clone());
 
     // V3 transaction.
-    let GasPricesForFeeType {
+    let GasPriceVector {
         l1_gas_price: actual_strk_l1_gas_price,
         l1_data_gas_price: actual_strk_l1_data_gas_price,
         l2_gas_price: actual_strk_l2_gas_price,
