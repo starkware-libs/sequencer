@@ -58,11 +58,11 @@ mock! {
             content: mpsc::Receiver<Transaction>
         ) -> oneshot::Receiver<ProposalContentId>;
 
-        async fn get_proposal(
-            &self,
-            height: BlockNumber,
+        async fn repropose(
+            &mut self,
             id: ProposalContentId,
-        ) -> mpsc::Receiver<Transaction>;
+            init: ProposalInit,
+        );
 
         async fn validators(&self, height: BlockNumber) -> Vec<ValidatorId>;
 
