@@ -75,20 +75,12 @@ pub trait ConsensusContext {
     ) -> oneshot::Receiver<ProposalContentId>;
 
     /// This function is called by consensus to retrieve the content of a previously built or
-    /// validated proposal. It expects that this call will return immediately, allowing
-    /// consensus to stream the block's content.
+    /// validated proposal. It broadcasts the proposal to the network.
     ///
     /// Params:
-    /// - `height`: The height of the block that was built or validated.
     /// - `id`: The `ProposalContentId` associated with the block's content.
-    ///
-    /// Returns:
-    /// - A receiver for the stream of the block's content.
-    async fn get_proposal(
-        &self,
-        height: BlockNumber,
-        id: ProposalContentId,
-    ) -> mpsc::Receiver<Self::ProposalChunk>;
+    /// - `init`: The `ProposalInit` that is broadcast to the network.
+    async fn repropose(&self, id: ProposalContentId, init: ProposalInit);
 
     /// Get the set of validators for a given height. These are the nodes that can propose and vote
     /// on blocks.
