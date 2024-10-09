@@ -1,5 +1,6 @@
 use assert_matches::assert_matches;
 use blockifier::blockifier::block::BlockInfo;
+use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::versioned_constants::StarknetVersion;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
@@ -87,4 +88,9 @@ pub fn test_get_tx_hashes(test_state_reader: TestStateReader, test_block_number:
 pub fn test_get_tx_by_hash(test_state_reader: TestStateReader) {
     let actual_tx = test_state_reader.get_tx_by_hash(EXAMPLE_INVOKE_TX_HASH).unwrap();
     assert_matches!(actual_tx, Transaction::Invoke(..));
+}
+
+#[rstest]
+pub fn test_get_statediff_rpc(test_state_reader: TestStateReader) {
+    let _statediff_result: CommitmentStateDiff = test_state_reader.get_state_diff().unwrap();
 }

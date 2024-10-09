@@ -14,6 +14,7 @@ cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 cairo-vm.workspace = true
 flate2.workspace = true
+indexmap = { workspace = true, features = ["serde"] }
 papyrus_execution.workspace = true
 serde.workspace = true
 serde_json.workspace = true
