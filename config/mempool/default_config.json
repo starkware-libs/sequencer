@@ -122,7 +122,7 @@
   "components.consensus_manager.execute": {
     "description": "The component execution flag.",
     "privacy": "Public",
-    "value": true
+    "value": false
   },
   "components.consensus_manager.execution_mode": {
     "description": "The component execution mode.",
@@ -306,8 +306,8 @@
   },
   "gateway_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
-    "privacy": "Public",
-    "value": "0x0"
+    "pointer_target": "chain_id",
+    "privacy": "Public"
   },
   "gateway_config.chain_info.fee_token_addresses.eth_fee_token_address": {
     "description": "Address of the ETH fee token.",
