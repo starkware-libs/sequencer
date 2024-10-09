@@ -146,3 +146,35 @@ fn convert_proposal_to_vec_u8_and_back() {
     let res_data = Proposal::try_from(bytes_data).unwrap();
     assert_eq!(proposal, res_data);
 }
+
+#[test]
+fn stream_message_display() {
+    let mut rng = get_rng();
+    let stream_id = 42;
+    let message_id = 127;
+    let proposal = Proposal::get_test_instance(&mut rng);
+    let proposal_bytes: Vec<u8> = proposal.clone().into();
+    let proposal_length = proposal_bytes.len();
+    let content = StreamMessageBody::Content(proposal);
+    let message = StreamMessage { message: content, stream_id, message_id };
+
+    let txt = message.to_string();
+    assert_eq!(
+        txt,
+        format!(
+            "StreamMessage {{ stream_id: {}, message_id: {}, message_length: {}}}",
+            stream_id, message_id, proposal_length
+        )
+    );
+
+    let content: StreamMessageBody<Proposal> = StreamMessageBody::Fin;
+    let message = StreamMessage { message: content, stream_id, message_id };
+    let txt = message.to_string();
+    assert_eq!(
+        txt,
+        format!(
+            "StreamMessage {{ stream_id: {}, message_id: {}, message is fin }}",
+            stream_id, message_id
+        )
+    );
+}
