@@ -11,7 +11,7 @@ impl TransactionExecutorConfig {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Default, Debug, Deserialize, PartialEq, Serialize)]
 pub struct ConcurrencyConfig {
     pub enabled: bool,
     pub n_workers: usize,
