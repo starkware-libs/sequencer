@@ -15,6 +15,7 @@ use papyrus_config::dumping::{
     SerializeConfig,
 };
 use papyrus_config::loading::load_and_process_config;
+use papyrus_config::validators::validate_ascii;
 use papyrus_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
@@ -36,10 +37,14 @@ pub const DEFAULT_CONFIG_PATH: &str = "config/mempool/default_config.json";
 
 // Configuration parameters that share the same value across multiple components.
 type ConfigPointers = Vec<((ParamPath, SerializedParam), Vec<ParamPath>)>;
+pub const DEFAULT_CHAIN_ID: ChainId = ChainId::Mainnet;
 pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
     vec![(
-        ser_pointer_target_param("chain_id", &ChainId::Mainnet, "The chain to follow."),
-        vec!["batcher_config.storage.db_config.chain_id".to_owned()],
+        ser_pointer_target_param("chain_id", &DEFAULT_CHAIN_ID, "The chain to follow."),
+        vec![
+            "batcher_config.storage.db_config.chain_id".to_owned(),
+            "gateway_config.chain_info.chain_id".to_owned(),
+        ],
     )]
 });
 
@@ -144,7 +149,7 @@ impl ComponentExecutionConfig {
 
     pub fn consensus_manager_default_config() -> Self {
         Self {
-            execute: true,
+            execute: false,
             execution_mode: ComponentExecutionMode::Local,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
@@ -237,8 +242,11 @@ pub fn validate_components_config(components: &ComponentConfig) -> Result<(), Va
 }
 
 /// The configurations of the various components of the node.
-#[derive(Debug, Deserialize, Default, Serialize, Clone, PartialEq, Validate)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct SequencerNodeConfig {
+    /// The [chain id](https://docs.rs/starknet_api/latest/starknet_api/core/struct.ChainId.html) of the Starknet network.
+    #[validate(custom = "validate_ascii")]
+    pub chain_id: ChainId,
     #[validate]
     pub components: ComponentConfig,
     #[validate]
@@ -272,6 +280,21 @@ impl SerializeConfig for SequencerNodeConfig {
         ];
 
         sub_configs.into_iter().flatten().collect()
+    }
+}
+
+impl Default for SequencerNodeConfig {
+    fn default() -> Self {
+        Self {
+            chain_id: DEFAULT_CHAIN_ID,
+            components: Default::default(),
+            batcher_config: Default::default(),
+            consensus_manager_config: Default::default(),
+            gateway_config: Default::default(),
+            http_server_config: Default::default(),
+            rpc_state_reader_config: Default::default(),
+            compiler_config: Default::default(),
+        }
     }
 }
 
