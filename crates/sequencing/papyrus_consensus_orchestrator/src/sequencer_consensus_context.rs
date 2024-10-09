@@ -122,11 +122,7 @@ impl ConsensusContext for SequencerConsensusContext {
         todo!()
     }
 
-    async fn get_proposal(
-        &self,
-        _height: BlockNumber,
-        _id: ProposalContentId,
-    ) -> mpsc::Receiver<Self::ProposalChunk> {
+    async fn repropose(&self, _id: ProposalContentId, _init: ProposalInit) {
         todo!()
     }
 
@@ -199,7 +195,7 @@ async fn stream_build_proposal(
             GetProposalContent::Finished(id) => {
                 let proposal_content_id = BlockHash(id.tx_commitment.0);
                 // Update valid_proposals before sending fin to avoid a race condition
-                // with `get_proposal` being called before `valid_proposals` is updated.
+                // with `repropose` being called before `valid_proposals` is updated.
                 let mut valid_proposals = valid_proposals.lock().unwrap();
                 valid_proposals.entry(height).or_default().insert(proposal_content_id, content);
                 if fin_sender.send(proposal_content_id).is_err() {
