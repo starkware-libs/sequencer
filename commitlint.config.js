@@ -23,6 +23,7 @@ const Configuration = {
             'batcher',
             'block_hash',
             'blockifier',
+            'blockifier_reexecution',
             'ci',
             'committer',
             'common',
