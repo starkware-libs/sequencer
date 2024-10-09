@@ -66,7 +66,7 @@ impl<K: Unpin + Clone + Eq + Hash, V: Stream + Unpin> Stream for StreamHashMap<K
         }
         HashMap::retain(&mut unpinned_self.map, |key, _| !finished_streams.contains(key));
         unpinned_self.wakers_waiting_for_new_stream.push(cx.waker().clone());
-        Poll::Pending
+        if finished_streams.is_empty() { Poll::Pending } else { Poll::Ready(None) }
     }
 }
 
