@@ -5,6 +5,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_api::block::GasPrice;
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
@@ -200,31 +201,29 @@ fn test_assert_actual_fee_in_bounds(
     #[case] positive_flow: bool,
     #[case] deprecated_tx: bool,
 ) {
-    let actual_fee_offset = if positive_flow { 0 } else { 1 };
+    let actual_fee_offset = Fee(if positive_flow { 0 } else { 1 });
     if deprecated_tx {
-        let max_fee = 100;
-        let tx = account_invoke_tx(invoke_tx_args! {
-            max_fee: Fee(max_fee),
-            version: TransactionVersion::ONE,
-        });
+        let max_fee = Fee(100);
+        let tx = account_invoke_tx(invoke_tx_args! { max_fee, version: TransactionVersion::ONE });
         let context = Arc::new(block_context.to_tx_context(&tx));
-        AccountTransaction::assert_actual_fee_in_bounds(&context, Fee(max_fee + actual_fee_offset));
+        AccountTransaction::assert_actual_fee_in_bounds(&context, max_fee + actual_fee_offset);
     } else {
         // All resources.
-        let l1_gas = ResourceBounds { max_amount: 2, max_price_per_unit: 3 };
-        let l2_gas = ResourceBounds { max_amount: 4, max_price_per_unit: 5 };
-        let l1_data_gas = ResourceBounds { max_amount: 6, max_price_per_unit: 7 };
+        let l1_gas = ResourceBounds { max_amount: GasAmount(2), max_price_per_unit: GasPrice(3) };
+        let l2_gas = ResourceBounds { max_amount: GasAmount(4), max_price_per_unit: GasPrice(5) };
+        let l1_data_gas =
+            ResourceBounds { max_amount: GasAmount(6), max_price_per_unit: GasPrice(7) };
         let all_resource_bounds =
             ValidResourceBounds::AllResources(AllResourceBounds { l1_gas, l2_gas, l1_data_gas });
-        let all_resource_fee = u128::from(l1_gas.max_amount) * l1_gas.max_price_per_unit
-            + u128::from(l2_gas.max_amount) * l2_gas.max_price_per_unit
-            + u128::from(l1_data_gas.max_amount) * l1_data_gas.max_price_per_unit
+        let all_resource_fee = l1_gas.max_amount.checked_mul(l1_gas.max_price_per_unit).unwrap()
+            + l2_gas.max_amount.checked_mul(l2_gas.max_price_per_unit).unwrap()
+            + l1_data_gas.max_amount.checked_mul(l1_data_gas.max_price_per_unit).unwrap()
             + actual_fee_offset;
 
         // L1 resources.
         let l1_resource_bounds = ValidResourceBounds::L1Gas(l1_gas);
         let l1_resource_fee =
-            u128::from(l1_gas.max_amount) * l1_gas.max_price_per_unit + actual_fee_offset;
+            l1_gas.max_amount.checked_mul(l1_gas.max_price_per_unit).unwrap() + actual_fee_offset;
 
         for (bounds, actual_fee) in
             [(all_resource_bounds, all_resource_fee), (l1_resource_bounds, l1_resource_fee)]
@@ -234,7 +233,7 @@ fn test_assert_actual_fee_in_bounds(
                 version: TransactionVersion::THREE,
             });
             let context = Arc::new(block_context.to_tx_context(&tx));
-            AccountTransaction::assert_actual_fee_in_bounds(&context, Fee(actual_fee));
+            AccountTransaction::assert_actual_fee_in_bounds(&context, actual_fee);
         }
     }
 }

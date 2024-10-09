@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
@@ -135,7 +136,7 @@ impl Mempool {
     }
 
     // TODO(Mohammad): Rename this method once consensus API is added.
-    fn _update_gas_price_threshold(&mut self, threshold: u128) {
+    fn _update_gas_price_threshold(&mut self, threshold: GasPrice) {
         self.tx_queue._update_gas_price_threshold(threshold);
     }
 
@@ -237,7 +238,7 @@ impl TransactionReference {
         }
     }
 
-    pub fn get_l2_gas_price(&self) -> u128 {
+    pub fn get_l2_gas_price(&self) -> GasPrice {
         self.resource_bounds.get_l2_bounds().max_price_per_unit
     }
 }

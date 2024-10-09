@@ -3,7 +3,9 @@ use std::sync::Arc;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
+use crate::block::GasPrice;
 use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
+use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::{
     ContractClass,
     DataAvailabilityMode,
@@ -29,9 +31,9 @@ use crate::{contract_address, felt, patricia_key};
 
 fn create_resource_bounds_for_testing() -> AllResourceBounds {
     AllResourceBounds {
-        l1_gas: ResourceBounds { max_amount: 100, max_price_per_unit: 12 },
-        l2_gas: ResourceBounds { max_amount: 58, max_price_per_unit: 31 },
-        l1_data_gas: ResourceBounds { max_amount: 66, max_price_per_unit: 25 },
+        l1_gas: ResourceBounds { max_amount: GasAmount(100), max_price_per_unit: GasPrice(12) },
+        l2_gas: ResourceBounds { max_amount: GasAmount(58), max_price_per_unit: GasPrice(31) },
+        l1_data_gas: ResourceBounds { max_amount: GasAmount(66), max_price_per_unit: GasPrice(25) },
     }
 }
 

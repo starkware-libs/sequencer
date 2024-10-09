@@ -75,7 +75,7 @@ impl FeeCheckReport {
                 match &tx_context.tx_info {
                     TransactionInfo::Current(info) => get_fee_by_gas_vector(
                         &tx_context.block_context.block_info,
-                        GasVector::from_l1_gas(info.l1_resource_bounds().max_amount.into()),
+                        GasVector::from_l1_gas(info.l1_resource_bounds().max_amount),
                         &FeeType::Strk,
                     ),
                     TransactionInfo::Deprecated(context) => context.max_fee,
@@ -152,9 +152,9 @@ impl FeeCheckReport {
         gas_vector: &GasVector,
     ) -> FeeCheckResult<()> {
         for (resource, max_amount, actual_amount) in [
-            (L1Gas, all_resource_bounds.l1_gas.max_amount.into(), gas_vector.l1_gas),
-            (L2Gas, all_resource_bounds.l2_gas.max_amount.into(), gas_vector.l2_gas),
-            (L1DataGas, all_resource_bounds.l1_data_gas.max_amount.into(), gas_vector.l1_data_gas),
+            (L1Gas, all_resource_bounds.l1_gas.max_amount, gas_vector.l1_gas),
+            (L2Gas, all_resource_bounds.l2_gas.max_amount, gas_vector.l2_gas),
+            (L1DataGas, all_resource_bounds.l1_data_gas.max_amount, gas_vector.l1_data_gas),
         ] {
             if max_amount < actual_amount {
                 return Err(FeeCheckError::MaxGasAmountExceeded {
@@ -175,10 +175,10 @@ impl FeeCheckReport {
     ) -> FeeCheckResult<()> {
         let total_discounted_gas_used =
             gas_vector.to_discounted_l1_gas(tx_context.get_gas_prices());
-        if total_discounted_gas_used > l1_bounds.max_amount.into() {
+        if total_discounted_gas_used > l1_bounds.max_amount {
             return Err(FeeCheckError::MaxGasAmountExceeded {
                 resource: L1Gas,
-                max_amount: l1_bounds.max_amount.into(),
+                max_amount: l1_bounds.max_amount,
                 actual_amount: total_discounted_gas_used,
             });
         }

@@ -42,7 +42,12 @@ impl TransactionQueueContent {
             }
         }
 
-        TransactionQueue { priority_queue, pending_queue, address_to_tx, gas_price_threshold: 0 }
+        TransactionQueue {
+            priority_queue,
+            pending_queue,
+            address_to_tx,
+            gas_price_threshold: 0_u8.into(),
+        }
     }
 }
 
