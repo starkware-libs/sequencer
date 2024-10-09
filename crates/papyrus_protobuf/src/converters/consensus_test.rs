@@ -150,8 +150,8 @@ fn convert_proposal_to_vec_u8_and_back() {
 #[test]
 fn stream_message_display() {
     let mut rng = get_rng();
-    let stream_id = rng.gen_range(0..100);
-    let message_id = rng.gen_range(0..1000);
+    let stream_id = 42;
+    let message_id = 127;
     let proposal = Proposal::get_test_instance(&mut rng);
     let proposal_bytes: Vec<u8> = proposal.clone().into();
     let proposal_length = proposal_bytes.len();
