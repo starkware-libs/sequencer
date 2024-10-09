@@ -279,6 +279,7 @@ impl EntryPointExecutionContext {
         // transactions derive this value from the `max_fee`.
         let tx_gas_upper_bound = match tx_info {
             // Fee is a larger uint type than GasAmount, so we need to saturate the division.
+            // This is just a computation of an upper bound, so it's safe to saturate.
             TransactionInfo::Deprecated(context) => context.max_fee.saturating_div(
                 block_info.gas_prices.get_l1_gas_price_by_fee_type(&tx_info.fee_type()),
             ),
@@ -287,7 +288,6 @@ impl EntryPointExecutionContext {
 
         // Use saturating upper bound to avoid overflow. This is safe because the upper bound is
         // bounded above by the block's limit, which is a usize.
-
         let upper_bound_u64 = if gas_per_step.is_zero() {
             u64::MAX
         } else {
