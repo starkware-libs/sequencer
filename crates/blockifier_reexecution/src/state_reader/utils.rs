@@ -1,5 +1,8 @@
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
+use blockifier::state::state_api::StateResult;
+use indexmap::IndexMap;
 use papyrus_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
+use serde::Deserialize;
 use serde_json::Value;
 use starknet_api::core::{ChainId, ContractAddress, PatriciaKey};
 use starknet_api::transaction::{
@@ -10,6 +13,7 @@ use starknet_api::transaction::{
 };
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_gateway::config::RpcStateReaderConfig;
+use starknet_gateway::errors::serde_err_to_state_err;
 
 pub const RPC_NODE_URL: &str = "https://free-rpc.nethermind.io/mainnet-juno/";
 pub const JSON_RPC_VERSION: &str = "2.0";
@@ -91,4 +95,99 @@ pub fn deserialize_transaction_json_to_starknet_api_tx(
             "unimplemented transaction type: {tx_type} version: {tx_version}"
         ))),
     }
+}
+
+// TODO(Aner): import the following functions instead, to reduce code duplication.
+pub(crate) fn disjoint_hashmap_union<K: std::hash::Hash + std::cmp::Eq, V>(
+    map1: IndexMap<K, V>,
+    map2: IndexMap<K, V>,
+) -> IndexMap<K, V> {
+    let expected_len = map1.len() + map2.len();
+    let union_map: IndexMap<K, V> = map1.into_iter().chain(map2).collect();
+    // verify union length is sum of lengths (disjoint union)
+    assert_eq!(union_map.len(), expected_len, "Intersection of hashmaps is not empty.");
+    union_map
+}
+
+pub(crate) fn hashmap_from_raw<
+    K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    V: for<'de> Deserialize<'de>,
+>(
+    raw_object: &Value,
+    vec_str: &str,
+    key_str: &str,
+    value_str: &str,
+) -> StateResult<IndexMap<K, V>> {
+    Ok(vec_to_hashmap::<K, V>(
+        serde_json::from_value(raw_object[vec_str].clone()).map_err(serde_err_to_state_err)?,
+        key_str,
+        value_str,
+    ))
+}
+
+pub(crate) fn nested_hashmap_from_raw<
+    K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    VK: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    VV: for<'de> Deserialize<'de>,
+>(
+    raw_object: &Value,
+    vec_str: &str,
+    key_str: &str,
+    value_str: &str,
+    inner_key_str: &str,
+    inner_value_str: &str,
+) -> StateResult<IndexMap<K, IndexMap<VK, VV>>> {
+    Ok(vec_to_nested_hashmap::<K, VK, VV>(
+        serde_json::from_value(raw_object[vec_str].clone()).map_err(serde_err_to_state_err)?,
+        key_str,
+        value_str,
+        inner_key_str,
+        inner_value_str,
+    ))
+}
+
+pub(crate) fn vec_to_hashmap<
+    K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    V: for<'de> Deserialize<'de>,
+>(
+    vec: Vec<Value>,
+    key_str: &str,
+    value_str: &str,
+) -> IndexMap<K, V> {
+    vec.iter()
+        .map(|element| {
+            (
+                serde_json::from_value(element[key_str].clone())
+                    .expect("Key string doesn't match expected."),
+                serde_json::from_value(element[value_str].clone())
+                    .expect("Value string doesn't match expected."),
+            )
+        })
+        .collect()
+}
+
+pub(crate) fn vec_to_nested_hashmap<
+    K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    VK: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    VV: for<'de> Deserialize<'de>,
+>(
+    vec: Vec<Value>,
+    key_str: &str,
+    value_str: &str,
+    inner_key_str: &str,
+    inner_value_str: &str,
+) -> IndexMap<K, IndexMap<VK, VV>> {
+    vec.iter()
+        .map(|element| {
+            (
+                serde_json::from_value(element[key_str].clone()).expect("Couldn't deserialize key"),
+                vec_to_hashmap(
+                    serde_json::from_value(element[value_str].clone())
+                        .expect("Couldn't deserialize value"),
+                    inner_key_str,
+                    inner_value_str,
+                ),
+            )
+        })
+        .collect()
 }
