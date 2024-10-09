@@ -12,7 +12,7 @@ use starknet_api::{contract_address, felt, invoke_tx_args, nonce, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::AccountState;
 
-use crate::mempool::{AccountToNonce, AddTransactionArgs, Mempool, TransactionReference};
+use crate::mempool::{AddTransactionArgs, Mempool, TransactionReference};
 use crate::test_utils::{add_tx, add_tx_expect_error, commit_block, get_txs_and_assert_expected};
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::transaction_queue_test_utils::{
@@ -30,7 +30,6 @@ use crate::{add_tx_input, tx};
 struct MempoolContent {
     tx_pool: Option<TransactionPool>,
     tx_queue_content: Option<TransactionQueueContent>,
-    account_nonces: Option<AccountToNonce>,
 }
 
 impl MempoolContent {
@@ -42,16 +41,12 @@ impl MempoolContent {
         if let Some(tx_queue_content) = &self.tx_queue_content {
             tx_queue_content.assert_eq(&mempool.tx_queue);
         }
-
-        if let Some(account_nonces) = &self.account_nonces {
-            assert_eq!(&mempool.account_nonces, account_nonces);
-        }
     }
 }
 
 impl From<MempoolContent> for Mempool {
     fn from(mempool_content: MempoolContent) -> Mempool {
-        let MempoolContent { tx_pool, tx_queue_content, account_nonces } = mempool_content;
+        let MempoolContent { tx_pool, tx_queue_content } = mempool_content;
         Mempool {
             tx_pool: tx_pool.unwrap_or_default(),
             tx_queue: tx_queue_content
@@ -59,7 +54,7 @@ impl From<MempoolContent> for Mempool {
                 .unwrap_or_default(),
             // TODO: Add implementation when needed.
             mempool_state: Default::default(),
-            account_nonces: account_nonces.unwrap_or_default(),
+            account_nonces: Default::default(),
         }
     }
 }
@@ -68,7 +63,6 @@ impl From<MempoolContent> for Mempool {
 struct MempoolContentBuilder {
     tx_pool: Option<TransactionPool>,
     tx_queue_content_builder: TransactionQueueContentBuilder,
-    account_nonces: Option<AccountToNonce>,
 }
 
 impl MempoolContentBuilder {
@@ -100,24 +94,10 @@ impl MempoolContentBuilder {
         self
     }
 
-    fn with_account_nonces<A>(mut self, account_nonce_pairs: A) -> Self
-    where
-        A: IntoIterator<Item = (&'static str, u8)>,
-    {
-        self.account_nonces = Some(
-            account_nonce_pairs
-                .into_iter()
-                .map(|(address, nonce)| (contract_address!(address), nonce!(nonce)))
-                .collect(),
-        );
-        self
-    }
-
     fn build(self) -> MempoolContent {
         MempoolContent {
             tx_pool: self.tx_pool,
             tx_queue_content: self.tx_queue_content_builder.build(),
-            account_nonces: self.account_nonces,
         }
     }
 
@@ -351,12 +331,10 @@ fn test_add_tx(mut mempool: Mempool) {
     add_tx_inputs.sort_by_key(|input| std::cmp::Reverse(input.tx.tip().unwrap()));
 
     // Assert: transactions are ordered by priority.
-    let expected_account_nonces = [("0x0", 0), ("0x1", 1), ("0x2", 2)];
     let expected_queue_txs: Vec<TransactionReference> =
         add_tx_inputs.iter().map(|input| TransactionReference::new(&input.tx)).collect();
     let expected_pool_txs = add_tx_inputs.into_iter().map(|input| input.tx);
     let expected_mempool_content = MempoolContentBuilder::new()
-        .with_account_nonces(expected_account_nonces)
         .with_pool(expected_pool_txs)
         .with_priority_queue(expected_queue_txs)
         .build();
@@ -415,11 +393,9 @@ fn test_add_tx_lower_than_queued_nonce() {
     let tx = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 1);
     let queue_txs = [TransactionReference::new(&tx)];
     let pool_txs = [tx];
-    let account_nonces = [("0x0", 1)];
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs.clone())
         .with_priority_queue(queue_txs)
-        .with_account_nonces(account_nonces)
         .build_into_mempool();
 
     // Test and assert: original transaction remains.
@@ -436,11 +412,8 @@ fn test_add_tx_lower_than_queued_nonce() {
         );
     }
 
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_pool(pool_txs)
-        .with_priority_queue(queue_txs)
-        .with_account_nonces(account_nonces)
-        .build();
+    let expected_mempool_content =
+        MempoolContentBuilder::new().with_pool(pool_txs).with_priority_queue(queue_txs).build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
