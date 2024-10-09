@@ -67,7 +67,7 @@ pub enum BlockBuilderError {
 pub type BlockBuilderResult<T> = Result<T, BlockBuilderError>;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct ExecutionConfig {
+pub struct BlockBuilderConfig {
     // TODO(Yael 1/10/2024): add to config pointers
     pub chain_info: ChainInfo,
     pub execute_config: TransactionExecutorConfig,
@@ -75,7 +75,23 @@ pub struct ExecutionConfig {
     pub sequencer_address: ContractAddress,
     pub use_kzg_da: bool,
     pub tx_chunk_size: usize,
+    // TODO(Ayelet): Make this field optional.
     pub versioned_constants_overrides: VersionedConstantsOverrides,
+}
+
+impl Default for BlockBuilderConfig {
+    fn default() -> Self {
+        Self {
+            // TODO: update the default values once the actual values are known.
+            chain_info: ChainInfo::default(),
+            execute_config: TransactionExecutorConfig::default(),
+            bouncer_config: BouncerConfig::default(),
+            sequencer_address: ContractAddress::default(),
+            use_kzg_da: true,
+            tx_chunk_size: 100,
+            versioned_constants_overrides: VersionedConstantsOverrides::default(),
+        }
+    }
 }
 
 #[async_trait]
@@ -189,7 +205,7 @@ pub trait BlockBuilderFactoryTrait {
 }
 
 pub struct BlockBuilderFactory {
-    pub execution_config: ExecutionConfig,
+    pub execution_config: BlockBuilderConfig,
     pub storage_reader: StorageReader,
     pub global_class_hash_to_class: GlobalContractCache,
 }

@@ -1,16 +1,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use blockifier::blockifier::config::TransactionExecutorConfig;
-use blockifier::bouncer::BouncerConfig;
-use blockifier::context::ChainInfo;
 use blockifier::state::global_cache::GlobalContractCache;
-use blockifier::versioned_constants::VersionedConstantsOverrides;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_storage::state::StateStorageReader;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
     BatcherResult,
@@ -26,7 +21,7 @@ use starknet_mempool_infra::component_definitions::ComponentStarter;
 use starknet_mempool_types::communication::SharedMempoolClient;
 use tracing::{error, instrument};
 
-use crate::block_builder::{BlockBuilderFactory, ExecutionConfig};
+use crate::block_builder::{BlockBuilderConfig, BlockBuilderFactory};
 use crate::config::BatcherConfig;
 use crate::proposal_manager::{
     BuildProposalError,
@@ -123,19 +118,7 @@ pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient
         .expect("Failed to open batcher's storage");
 
     // TODO(Arni): use real config - add as part of batcher config.
-    let execution_config = ExecutionConfig {
-        chain_info: ChainInfo::default(),
-        execute_config: TransactionExecutorConfig::default(),
-        bouncer_config: BouncerConfig::empty(),
-        sequencer_address: ContractAddress::default(),
-        use_kzg_da: true,
-        tx_chunk_size: 100,
-        versioned_constants_overrides: VersionedConstantsOverrides {
-            validate_max_n_steps: 1000000,
-            max_recursion_depth: 50,
-            invoke_tx_max_n_steps: 4000000,
-        },
-    };
+    let execution_config = BlockBuilderConfig::default();
     let cache_size = 100;
 
     let block_builder_factory = Arc::new(BlockBuilderFactory {
