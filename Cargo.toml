@@ -81,7 +81,7 @@ cairo-lang-sierra-to-casm = "2.8.4"
 cairo-lang-starknet-classes = "2.8.4"
 cairo-lang-utils = "2.8.4"
 # This is a temporary dependency, will be removed once the new version of cairo-native is released to main.
-cairo-native = { git = "https://github.com/lambdaclass/cairo_native", rev = "a06fa327795546236d6a036366bf22ed4e2e0dfb" }
+cairo-native = { git = "https://github.com/lambdaclass/cairo_native", rev = "82c25b377f50904e1253b614c8719388277530e6" }
 sierra-emu = { git = "https://github.com/lambdaclass/sierra-emu.git" }
 cairo-vm = "1.0.1"
 camelpaste = "0.1.0"

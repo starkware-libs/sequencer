@@ -875,10 +875,10 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
     fn sha256_process_block(
         &mut self,
-        prev_state: &[u32; 8],
+        prev_state: &mut [u32; 8],
         current_block: &[u32; 16],
         remaining_gas: &mut u128,
-    ) -> SyscallResult<[u32; 8]> {
+    ) -> SyscallResult<()> {
         const SHA256_STATE_SIZE: usize = 8;
 
         self.pre_execute_syscall(
@@ -895,7 +895,7 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
         );
         let mut state: [u32; SHA256_STATE_SIZE] = *prev_state;
         sha2::compress256(&mut state, &[data_as_bytes]);
-        Ok(state)
+        Ok(())
     }
 }
 
