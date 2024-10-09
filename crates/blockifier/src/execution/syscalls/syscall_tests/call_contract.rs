@@ -139,19 +139,24 @@ fn test_track_resources(
 /// Cairo1 contract (root) calls:
 /// 1) Cairo0 contract (first) that calls Cairo1 (nested) contract.
 /// 2) Cairo1 contract (second).
-#[test]
-fn test_track_resources_nested() {
-    let cairo_0_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let cairo_1_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
+#[rstest]
+fn test_track_resources_nested(
+    #[values(
+        FeatureContract::TestContract(CairoVersion::Cairo0),
+        FeatureContract::CairoStepsTestContract
+    )]
+    cairo_steps_contract: FeatureContract,
+) {
+    let sierra_gas_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
     let chain_info = &ChainInfo::create_for_testing();
     let mut state =
-        test_state(chain_info, BALANCE, &[(cairo_1_contract, 1), (cairo_0_contract, 1)]);
+        test_state(chain_info, BALANCE, &[(sierra_gas_contract, 1), (cairo_steps_contract, 1)]);
 
     let first_calldata = create_calldata(
-        cairo_0_contract.get_instance_address(0),
+        cairo_steps_contract.get_instance_address(0),
         "test_call_contract",
         &[
-            cairo_1_contract.get_instance_address(0).into(),
+            sierra_gas_contract.get_instance_address(0).into(),
             selector_from_name("test_storage_read_write").0,
             felt!(2_u8),    // Calldata length
             felt!(405_u16), // Calldata: address.
@@ -159,7 +164,7 @@ fn test_track_resources_nested() {
         ],
     );
     let second_calldata = create_calldata(
-        cairo_1_contract.get_instance_address(0),
+        sierra_gas_contract.get_instance_address(0),
         "test_storage_read_write",
         &[
             felt!(406_u16), // Calldata: address.
@@ -176,7 +181,7 @@ fn test_track_resources_nested() {
     let entry_point_call = CallEntryPoint {
         entry_point_selector: call_contract_selector,
         calldata: concated_calldata,
-        ..trivial_external_entry_point_new(cairo_1_contract)
+        ..trivial_external_entry_point_new(sierra_gas_contract)
     };
     let execution = entry_point_call.execute_directly(&mut state).unwrap();
 
