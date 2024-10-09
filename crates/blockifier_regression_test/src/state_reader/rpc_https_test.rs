@@ -5,6 +5,7 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
+use starknet_api::state::StateDiff;
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::Transaction;
 use starknet_api::{class_hash, felt};
@@ -87,4 +88,9 @@ pub fn test_get_tx_hashes(test_state_reader: TestStateReader, test_block_number:
 pub fn test_get_tx_by_hash(test_state_reader: TestStateReader) {
     let actual_tx = test_state_reader.get_tx_by_hash(EXAMPLE_INVOKE_TX_HASH).unwrap();
     assert_matches!(actual_tx, Transaction::Invoke(..));
+}
+
+#[rstest]
+pub fn test_get_statediff_rpc(test_state_reader: TestStateReader) {
+    let _statediff_result: StateDiff = test_state_reader.get_state_diff().unwrap();
 }

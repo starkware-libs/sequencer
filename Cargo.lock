@@ -1537,6 +1537,7 @@ dependencies = [
  "cairo-lang-utils",
  "cairo-vm",
  "flate2",
+ "indexmap 2.6.0",
  "papyrus_execution",
  "pretty_assertions",
  "rstest",

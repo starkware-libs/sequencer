@@ -8,10 +8,13 @@ use blockifier::state::cached_state::CachedState;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::versioned_constants::{StarknetVersion, VersionedConstants};
-use serde_json::{json, to_value};
+use indexmap::IndexMap;
+use serde::Deserialize;
+use serde_json::{json, to_value, Value};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::state::StorageKey;
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
+use starknet_api::state::{ContractClass, StateDiff, StorageKey};
 use starknet_api::transaction::Transaction;
 use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_core::types::ContractClass::{Legacy, Sierra};
@@ -168,14 +171,141 @@ impl TestStateReader {
         ))
     }
 
-    pub fn get_transaction_executor(
-        test_state_reader: TestStateReader,
-    ) -> StateResult<TransactionExecutor<TestStateReader>> {
-        let block_context = test_state_reader.get_block_context()?;
+    pub fn get_transaction_executor(self) -> StateResult<TransactionExecutor<TestStateReader>> {
+        let block_context = self.get_block_context()?;
         Ok(TransactionExecutor::<TestStateReader>::new(
-            CachedState::new(test_state_reader),
+            CachedState::new(self),
             block_context,
             TransactionExecutorConfig::default(),
         ))
     }
+
+    pub fn get_state_diff(self) -> StateResult<StateDiff> {
+        let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
+        let raw_statediff =
+            &self.0.send_rpc_request("starknet_getStateUpdate", get_block_params)?["state_diff"];
+        Ok(StateDiff {
+            deployed_contracts: hashmap_from_raw::<ContractAddress, ClassHash>(
+                raw_statediff,
+                "deployed_contracts",
+                "address",
+                "class_hash",
+            )?,
+            storage_diffs: nested_hashmap_from_raw::<ContractAddress, StorageKey, Felt>(
+                raw_statediff,
+                "storage_diffs",
+                "address",
+                "storage_entries",
+                "key",
+                "value",
+            )?,
+            declared_classes: hashmap_from_raw::<ClassHash, (CompiledClassHash, ContractClass)>(
+                raw_statediff,
+                "declared_classes",
+                "class_hash",
+                "compiled_class_hash",
+            )?,
+            deprecated_declared_classes: hashmap_from_raw::<ClassHash, DeprecatedContractClass>(
+                raw_statediff,
+                "deprecated_declared_classes",
+                "", // TODO (need non-empty example)
+                "", // TODO (need non-empty example)
+            )?,
+            nonces: hashmap_from_raw::<ContractAddress, Nonce>(
+                raw_statediff,
+                "nonces",
+                "contract_address",
+                "nonce",
+            )?,
+            replaced_classes: hashmap_from_raw::<ContractAddress, ClassHash>(
+                raw_statediff,
+                "replaced_classes",
+                "class_hash",
+                "contract_address",
+            )?,
+        })
+    }
+}
+
+fn hashmap_from_raw<
+    K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    V: for<'de> Deserialize<'de>,
+>(
+    raw_object: &Value,
+    vec_str: &str,
+    key_str: &str,
+    value_str: &str,
+) -> StateResult<IndexMap<K, V>> {
+    Ok(vec_to_hashmap::<K, V>(
+        serde_json::from_value(raw_object[vec_str].clone()).map_err(serde_err_to_state_err)?,
+        key_str,
+        value_str,
+    ))
+}
+
+fn nested_hashmap_from_raw<
+    K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    VK: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    VV: for<'de> Deserialize<'de>,
+>(
+    raw_object: &Value,
+    vec_str: &str,
+    key_str: &str,
+    value_str: &str,
+    inner_key_str: &str,
+    inner_value_str: &str,
+) -> StateResult<IndexMap<K, IndexMap<VK, VV>>> {
+    Ok(vec_to_nested_hashmap::<K, VK, VV>(
+        serde_json::from_value(raw_object[vec_str].clone()).map_err(serde_err_to_state_err)?,
+        key_str,
+        value_str,
+        inner_key_str,
+        inner_value_str,
+    ))
+}
+
+fn vec_to_hashmap<
+    K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    V: for<'de> Deserialize<'de>,
+>(
+    vec: Vec<Value>,
+    key_str: &str,
+    value_str: &str,
+) -> IndexMap<K, V> {
+    vec.iter()
+        .map(|element| {
+            (
+                serde_json::from_value(element[key_str].clone())
+                    .expect("Key string doesn't match expected."),
+                serde_json::from_value(element[value_str].clone())
+                    .expect("Value string doesn't match expected."),
+            )
+        })
+        .collect()
+}
+
+fn vec_to_nested_hashmap<
+    K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    VK: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    VV: for<'de> Deserialize<'de>,
+>(
+    vec: Vec<Value>,
+    key_str: &str,
+    value_str: &str,
+    inner_key_str: &str,
+    inner_value_str: &str,
+) -> IndexMap<K, IndexMap<VK, VV>> {
+    vec.iter()
+        .map(|element| {
+            (
+                serde_json::from_value(element[key_str].clone()).expect("Couldn't deserialize key"),
+                vec_to_hashmap(
+                    serde_json::from_value(element[value_str].clone())
+                        .expect("Couldn't deserialize value"),
+                    inner_key_str,
+                    inner_value_str,
+                ),
+            )
+        })
+        .collect()
 }
