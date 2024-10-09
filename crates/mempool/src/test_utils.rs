@@ -1,8 +1,9 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use pretty_assertions::assert_eq;
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, felt, nonce, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AddTransactionArgs, CommitBlockArgs};
@@ -38,6 +39,9 @@ macro_rules! tx {
     };
     (tx_nonce: $tx_nonce:expr, sender_address: $sender_address:expr) => {
         tx!(tip: 0, tx_hash: 0, sender_address: $sender_address, tx_nonce: $tx_nonce)
+    };
+    (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr, sender_address: $sender_address:expr) => {
+        tx!(tip: 0, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce)
     };
     (tx_nonce: $tx_nonce:expr) => {
         tx!(tip: 0, tx_hash: 0, sender_address: "0x0", tx_nonce: $tx_nonce)
@@ -98,11 +102,17 @@ pub fn add_tx_expect_error(
 }
 
 #[track_caller]
-pub fn commit_block(mempool: &mut Mempool, nonces: impl IntoIterator<Item = (&'static str, u8)>) {
+pub fn commit_block(
+    mempool: &mut Mempool,
+    nonces: impl IntoIterator<Item = (&'static str, u8)>,
+    tx_hashes: impl IntoIterator<Item = u8>,
+) {
     let nonces = HashMap::from_iter(
         nonces.into_iter().map(|(address, nonce)| (contract_address!(address), nonce!(nonce))),
     );
-    let args = CommitBlockArgs { nonces };
+    let tx_hashes =
+        HashSet::from_iter(tx_hashes.into_iter().map(|tx_hash| TransactionHash(felt!(tx_hash))));
+    let args = CommitBlockArgs { nonces, tx_hashes };
 
     assert_eq!(mempool.commit_block(args), Ok(()));
 }
