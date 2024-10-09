@@ -11,6 +11,7 @@ use papyrus_consensus_orchestrator::sequencer_consensus_context::SequencerConsen
 use papyrus_network::network_manager::BroadcastTopicClient;
 use papyrus_network_types::network_types::BroadcastedMessageManager;
 use papyrus_protobuf::consensus::ConsensusMessage;
+use starknet_batcher_types::batcher_types::StartHeightInput;
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_mempool_infra::component_definitions::ComponentStarter;
 use starknet_mempool_infra::errors::ComponentError;
@@ -32,6 +33,11 @@ impl ConsensusManager {
     }
 
     pub async fn run(&self) -> Result<(), ConsensusError> {
+        // TODO(Matan): Temporary code until we expose `start_height` to SHC.
+        self.batcher_client
+            .start_height(StartHeightInput { height: self.config.consensus_config.start_height })
+            .await
+            .expect("Batcher should be ready to start the initial height");
         let context = SequencerConsensusContext::new(
             Arc::clone(&self.batcher_client),
             self.config.consensus_config.num_validators,

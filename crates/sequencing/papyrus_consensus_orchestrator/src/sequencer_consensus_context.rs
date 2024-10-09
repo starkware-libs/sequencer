@@ -25,18 +25,24 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::executable_transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
     BuildProposalInput,
+    DecisionReachedInput,
     GetProposalContent,
     GetProposalContentInput,
     ProposalStatus,
     SendProposalContent,
     SendProposalContentInput,
+    StartHeightInput,
     ValidateProposalInput,
 };
 use starknet_batcher_types::communication::BatcherClient;
 use starknet_consensus_manager_types::consensus_manager_types::ProposalId;
 use tracing::{debug, debug_span, error, info, warn, Instrument};
 
-type HeightToIdToContent = BTreeMap<BlockNumber, HashMap<ProposalContentId, Vec<Transaction>>>;
+// {height: {proposal_id: (content, [proposal_ids])}}
+// Note that multiple proposals IDs can be associated with the same content, but we only need to
+// store one of them.
+type HeightToIdToContent =
+    BTreeMap<BlockNumber, HashMap<ProposalContentId, (Vec<Transaction>, ProposalId)>>;
 
 // Channel size for streaming proposal parts.
 // TODO(matan): Consider making this configurable. May want to define `max_proposal_parts`.
@@ -173,9 +179,10 @@ impl ConsensusContext for SequencerConsensusContext {
         let proposals_at_height = valid_proposals_lock
             .get(&height)
             .unwrap_or_else(|| panic!("No proposals found for height {height}"));
-        let transactions = proposals_at_height
+        let transactions = &proposals_at_height
             .get(&id)
-            .unwrap_or_else(|| panic!("No proposal found for height {height} and id {id}"));
+            .unwrap_or_else(|| panic!("No proposal found for height {height} and id {id}"))
+            .0;
         let transactions = transactions.clone();
         let (mut sender, receiver) = mpsc::channel(CHANNEL_SIZE);
         tokio::spawn(async move {
@@ -224,11 +231,24 @@ impl ConsensusContext for SequencerConsensusContext {
 
         // TODO(matan): Broadcast the decision to the network.
 
-        let mut proposals = self
-            .valid_proposals
-            .lock()
-            .expect("Lock on active proposals was poisoned due to a previous panic");
-        proposals.retain(|&h, _| h > BlockNumber(height));
+        let proposal_id;
+        {
+            let mut proposals = self
+                .valid_proposals
+                .lock()
+                .expect("Lock on active proposals was poisoned due to a previous panic");
+            proposal_id = proposals.get(&BlockNumber(height)).unwrap().get(&block).unwrap().1;
+            proposals.retain(|&h, _| h > BlockNumber(height));
+        }
+        self.batcher.decision_reached(DecisionReachedInput { proposal_id }).await.unwrap();
+
+        // TODO(matan): This requires changing the context API so that `start_height` is called by
+        // SHC on `start`.
+        self.batcher
+            .start_height(StartHeightInput { height: BlockNumber(height + 1) })
+            .await
+            .expect("Batcher should be ready to start the next height");
+
         Ok(())
     }
 }
@@ -273,8 +293,12 @@ async fn stream_build_proposal(
                 let proposal_content_id = BlockHash(id.tx_commitment.0);
                 // Update valid_proposals before sending fin to avoid a race condition
                 // with `get_proposal` being called before `valid_proposals` is updated.
-                let mut valid_proposals = valid_proposals.lock().unwrap();
-                valid_proposals.entry(height).or_default().insert(proposal_content_id, content);
+                let mut valid_proposals = valid_proposals.lock().expect("Lock was poisoned");
+                valid_proposals
+                    .entry(height)
+                    .or_default()
+                    .insert(proposal_content_id, (content, proposal_id));
+
                 if fin_sender.send(proposal_content_id).is_err() {
                     // Consensus may exit early (e.g. sync).
                     warn!("Failed to send proposal content id");
@@ -337,9 +361,9 @@ async fn stream_validate_proposal(
     };
     let proposal_content_id = BlockHash(id.tx_commitment.0);
     // Update valid_proposals before sending fin to avoid a race condition
-    // with `get_proposal` being called before `valid_proposals` is updated.
-    let mut valid_proposals = valid_proposals.lock().unwrap();
-    valid_proposals.entry(height).or_default().insert(proposal_content_id, content);
+    // with `repropose` being called before `valid_proposals` is updated.
+    let mut valid_proposals = valid_proposals.lock().expect("Lock was poisoned");
+    valid_proposals.entry(height).or_default().insert(proposal_content_id, (content, proposal_id));
     if fin_sender.send(proposal_content_id).is_err() {
         // Consensus may exit early (e.g. sync).
         warn!("Failed to send proposal content id");
