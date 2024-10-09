@@ -88,7 +88,7 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{DeclareTransaction, ExecutableTransaction, ExecutionFlags};
-use crate::utils::u128_from_usize;
+use crate::utils::u64_from_usize;
 
 #[rstest]
 fn test_circuit(block_context: BlockContext, max_l1_resource_bounds: ValidResourceBounds) {
@@ -173,7 +173,10 @@ fn test_fee_enforcement(
         deploy_account_tx_args! {
             class_hash: account.get_class_hash(),
             max_fee: Fee(u128::from(!zero_bounds)),
-            resource_bounds: l1_resource_bounds(u128::from(!zero_bounds).into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
+            resource_bounds: l1_resource_bounds(
+                u8::from(!zero_bounds).into(),
+                DEFAULT_STRK_L1_GAS_PRICE.into()
+            ),
             version,
         },
         &mut NonceManager::default(),
@@ -991,13 +994,13 @@ fn test_max_fee_to_max_steps_conversion(
 ) {
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         create_test_init_data(&block_context.chain_info, CairoVersion::Cairo0);
-    let actual_gas_used: GasAmount = u128_from_usize(
+    let actual_gas_used: GasAmount = u64_from_usize(
         get_syscall_resources(SyscallSelector::CallContract).n_steps
             + get_tx_resources(TransactionType::InvokeFunction).n_steps
             + 1751,
     )
     .into();
-    let actual_fee = actual_gas_used.0 * 100000000000;
+    let actual_fee = u128::from(actual_gas_used.0) * 100000000000;
     let actual_strk_gas_price =
         block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk);
     let execute_calldata = create_calldata(
@@ -1088,7 +1091,7 @@ fn test_insufficient_max_fee_reverts(
     let actual_fee_depth1 = tx_execution_info1.receipt.fee;
     let gas_price =
         block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk);
-    let gas_ammount = actual_fee_depth1 / gas_price;
+    let gas_ammount = actual_fee_depth1.checked_div(gas_price).unwrap();
 
     // Invoke the `recurse` function with depth of 2 and the actual fee of depth 1 as max_fee.
     // This call should fail due to insufficient max fee (steps bound based on max_fee is not so
