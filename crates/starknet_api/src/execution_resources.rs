@@ -7,10 +7,11 @@ use strum_macros::EnumIter;
 use crate::block::{GasPrice, GasPriceVector, NonzeroGasPrice};
 use crate::transaction::{Fee, Resource};
 
+#[cfg_attr(
+    any(test, feature = "testing"),
+    derive(derive_more::Add, derive_more::Sum, derive_more::AddAssign)
+)]
 #[derive(
-    derive_more::Add,
-    derive_more::AddAssign,
-    derive_more::Sum,
     derive_more::Display,
     Clone,
     Copy,
@@ -47,29 +48,18 @@ macro_rules! impl_from_uint_for_gas_amount {
 impl_from_uint_for_gas_amount!(u8, u16, u32, u64);
 
 impl GasAmount {
+    pub const ZERO: Self = Self(0);
     pub const MAX: Self = Self(u64::MAX);
 
     pub fn checked_add(self, rhs: Self) -> Option<Self> {
         self.0.checked_add(rhs.0).map(Self)
     }
 
-    pub fn saturating_add(self, rhs: Self) -> Self {
-        self.0.saturating_add(rhs.0).into()
-    }
-
     pub const fn saturating_mul(self, rhs: GasPrice) -> Fee {
         rhs.saturating_mul(self)
     }
 
-    pub const fn nonzero_saturating_mul(self, rhs: NonzeroGasPrice) -> Fee {
-        rhs.saturating_mul(self)
-    }
-
     pub fn checked_mul(self, rhs: GasPrice) -> Option<Fee> {
-        rhs.checked_mul(self)
-    }
-
-    pub fn nonzero_checked_mul(self, rhs: NonzeroGasPrice) -> Option<Fee> {
         rhs.checked_mul(self)
     }
 }
@@ -152,7 +142,16 @@ impl GasVector {
     /// function does nothing.
     /// Panics on overflow.
     pub fn to_discounted_l1_gas(&self, gas_prices: &GasPriceVector) -> GasAmount {
-        let l1_data_gas_fee = self.l1_data_gas.nonzero_saturating_mul(gas_prices.l1_data_gas_price);
+        let l1_data_gas_fee = self
+            .l1_data_gas
+            .checked_mul(gas_prices.l1_data_gas_price.into())
+            .unwrap_or_else(|| {
+                panic!(
+                    "Discounted L1 gas cost overflowed: multiplication of L1 data gas ({}) by L1 \
+                     data gas price ({}) resulted in overflow.",
+                    self.l1_data_gas, gas_prices.l1_data_gas_price
+                );
+            });
         let l1_data_gas_in_l1_gas_units =
             l1_data_gas_fee.checked_div_ceil(gas_prices.l1_gas_price).unwrap_or_else(|| {
                 panic!(

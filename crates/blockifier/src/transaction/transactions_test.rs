@@ -1111,7 +1111,7 @@ fn test_insufficient_resource_bounds(
     let gas_prices = &block_context.block_info.gas_prices;
     // TODO(Aner, 21/01/24) change to linear combination.
     let minimal_fee = minimal_l1_gas
-        .nonzero_checked_mul(gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Eth))
+        .checked_mul(gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Eth).into())
         .unwrap();
     // Max fee too low (lower than minimal estimated fee).
     let invalid_max_fee = Fee(minimal_fee.0 - 1);

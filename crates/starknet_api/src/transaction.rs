@@ -752,11 +752,17 @@ impl Fee {
 
     pub fn checked_div_ceil(self, rhs: NonzeroGasPrice) -> Option<GasAmount> {
         match self.checked_div(rhs) {
-            Some(value) => Some(if value.nonzero_saturating_mul(rhs) < self {
-                (value.0 + 1).into()
-            } else {
-                value
-            }),
+            Some(value) => Some(
+                if value
+                    .checked_mul(rhs.into())
+                    .expect("Multiplying by denominator of floor division cannot overflow.")
+                    < self
+                {
+                    (value.0 + 1).into()
+                } else {
+                    value
+                },
+            ),
             None => None,
         }
     }
