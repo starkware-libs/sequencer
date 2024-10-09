@@ -397,7 +397,7 @@ async fn repropose() {
     });
     let fin_receiver = Arc::new(OnceLock::new());
     let fin_receiver_clone = Arc::clone(&fin_receiver);
-    context.expect_propose().times(2).returning(move |init, _, fin_receiver| {
+    context.expect_propose().times(1).returning(move |init, _, fin_receiver| {
         // Ignore content receiver, since this is the context's responsibility.
         assert_eq!(init.height, BlockNumber(0));
         assert_eq!(init.proposer, *PROPOSER_ID);
@@ -438,11 +438,10 @@ async fn repropose() {
     shc.handle_message(&mut context, precommits[0].clone()).await.unwrap();
     shc.handle_message(&mut context, precommits[1].clone()).await.unwrap();
     // After NIL precommits, the proposer should re-propose.
-    context.expect_get_proposal().returning(move |height, id| {
-        assert!(height == BlockNumber(0));
+    context.expect_re_propose().returning(move |id, init| {
+        assert_eq!(init.height, BlockNumber(0));
         assert_eq!(id, BLOCK.id);
-        let (_content_sender, content_receiver) = mpsc::channel(1);
-        content_receiver
+        Ok(())
     });
     context
         .expect_broadcast()

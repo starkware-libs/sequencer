@@ -43,11 +43,11 @@ mock! {
             content: mpsc::Receiver<u32>
         ) -> oneshot::Receiver<ProposalContentId>;
 
-        async fn get_proposal(
+        async fn re_propose(
             &self,
-            height: BlockNumber,
             id: ProposalContentId,
-        ) -> mpsc::Receiver<u32>;
+            init: ProposalInit,
+        ) -> Result<(), ConsensusError>;
 
         async fn validators(&self, height: BlockNumber) -> Vec<ValidatorId>;
 
