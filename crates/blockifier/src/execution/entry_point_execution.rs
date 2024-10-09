@@ -106,6 +106,7 @@ pub fn execute_entry_point_call(
         program_extra_data_length,
         tracked_resource,
     )?;
+
     if call_info.execution.failed && !context.versioned_constants().enable_reverts {
         return Err(EntryPointExecutionError::ExecutionFailed {
             error_data: call_info.execution.retdata.0,
