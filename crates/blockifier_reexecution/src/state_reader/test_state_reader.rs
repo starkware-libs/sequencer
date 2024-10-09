@@ -4,11 +4,11 @@ use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::ContractClass as BlockifierContractClass;
-use blockifier::state::cached_state::CachedState;
+use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::versioned_constants::{StarknetVersion, VersionedConstants};
-use serde_json::{json, to_value};
+use serde_json::{json, to_value, Value};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
@@ -25,8 +25,11 @@ use crate::state_reader::compile::{legacy_to_contract_class_v0, sierra_to_contac
 use crate::state_reader::errors::ReexecutionError;
 use crate::state_reader::utils::{
     deserialize_transaction_json_to_starknet_api_tx,
+    disjoint_hashmap_union,
     get_chain_info,
     get_rpc_state_reader_config,
+    hashmap_from_raw,
+    nested_hashmap_from_raw,
 };
 
 pub type ReexecutionResult<T> = Result<T, ReexecutionError>;
@@ -179,5 +182,54 @@ impl TestStateReader {
             block_context,
             TransactionExecutorConfig::default(),
         ))
+    }
+
+    pub fn get_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
+        let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
+        let raw_statediff =
+            &self.0.send_rpc_request("starknet_getStateUpdate", get_block_params)?["state_diff"];
+        let deployed_contracts = hashmap_from_raw::<ContractAddress, ClassHash>(
+            raw_statediff,
+            "deployed_contracts",
+            "address",
+            "class_hash",
+        )?;
+        let storage_diffs = nested_hashmap_from_raw::<ContractAddress, StorageKey, Felt>(
+            raw_statediff,
+            "storage_diffs",
+            "address",
+            "storage_entries",
+            "key",
+            "value",
+        )?;
+        let declared_classes = hashmap_from_raw::<ClassHash, CompiledClassHash>(
+            raw_statediff,
+            "declared_classes",
+            "class_hash",
+            "compiled_class_hash",
+        )?;
+        let nonces = hashmap_from_raw::<ContractAddress, Nonce>(
+            raw_statediff,
+            "nonces",
+            "contract_address",
+            "nonce",
+        )?;
+        let replaced_classes = hashmap_from_raw::<ContractAddress, ClassHash>(
+            raw_statediff,
+            "replaced_classes",
+            "class_hash",
+            "contract_address",
+        )?;
+        let _deprecated_declared_classes: Vec<Value> =
+            serde_json::from_value(raw_statediff["deprecated_declared_classes"].clone())
+                .map_err(serde_err_to_state_err)?;
+        // We expect the deployed_contracts and replaced_classes to have disjoint addresses.
+        let address_to_class_hash = disjoint_hashmap_union(deployed_contracts, replaced_classes);
+        Ok(CommitmentStateDiff {
+            address_to_class_hash,
+            address_to_nonce: nonces,
+            storage_updates: storage_diffs,
+            class_hash_to_compiled_class_hash: declared_classes,
+        })
     }
 }
