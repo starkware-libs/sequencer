@@ -1,5 +1,5 @@
 [package]
-name = "blockifier_regression_test"
+name = "blockifier_reexecution"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true

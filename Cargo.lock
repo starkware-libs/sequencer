@@ -1528,7 +1528,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "blockifier_regression_test"
+name = "blockifier_reexecution"
 version = "0.0.0"
 dependencies = [
  "assert_matches",
