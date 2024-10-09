@@ -1,5 +1,6 @@
 use assert_matches::assert_matches;
 use blockifier::blockifier::block::BlockInfo;
+use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::versioned_constants::StarknetVersion;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
@@ -99,4 +100,34 @@ pub fn test_get_tx_hashes(test_state_reader: TestStateReader, test_block_number:
 pub fn test_get_tx_by_hash(test_state_reader: TestStateReader) {
     let actual_tx = test_state_reader.get_tx_by_hash(EXAMPLE_INVOKE_TX_HASH).unwrap();
     assert_matches!(actual_tx, Transaction::Invoke(..));
+}
+
+#[rstest]
+pub fn test_full_blockifier_via_rpc(
+    test_state_readers_last_and_current_block: ConsecutiveTestStateReaders,
+) {
+    let ConsecutiveTestStateReaders { ref next_block_state_reader, .. } =
+        test_state_readers_last_and_current_block;
+    // 1. Read txs via RPC, convert to blockifier txs
+    let all_txs = next_block_state_reader.get_all_txs_in_block().unwrap();
+    println!("all_txs_api: {:?}", all_txs);
+    let all_txs = from_api_txs_to_blockifier_txs(all_txs).unwrap();
+    println!("all_txs_blockifier: {:?}", all_txs);
+    // 2. Read expected statediff via RPC
+    let expected_state_diff = next_block_state_reader.get_state_diff().unwrap();
+    println!("expected_state_diff: {:?}", expected_state_diff);
+    // 3. Create TransactionExecutor (Read block_header via RPC)
+    let mut transaction_executor =
+        test_state_readers_last_and_current_block.get_transaction_executor(None).unwrap();
+    // 4. Run execute_txs on txs from (1)
+    transaction_executor.execute_txs(all_txs.as_slice());
+    // 5. Run finalize and read statediff
+    let (actual_state_diff, _, _) =
+        transaction_executor.finalize().expect("Couldn't finalize block");
+    // 6. Compare results of (2) (expected) and (5) (actual)
+    assert_eq!(expected_state_diff, actual_state_diff);
+}
+
+pub fn test_get_statediff_rpc(test_state_reader: TestStateReader) {
+    let _statediff_result: CommitmentStateDiff = test_state_reader.get_state_diff().unwrap();
 }
