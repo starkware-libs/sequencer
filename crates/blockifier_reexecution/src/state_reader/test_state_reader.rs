@@ -4,11 +4,13 @@ use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::ContractClass as BlockifierContractClass;
-use blockifier::state::cached_state::CachedState;
+use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::versioned_constants::{StarknetVersion, VersionedConstants};
-use serde_json::{json, to_value};
+use indexmap::IndexMap;
+use serde::Deserialize;
+use serde_json::{json, to_value, Value};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
@@ -180,6 +182,149 @@ impl TestStateReader {
             transaction_executor_config.unwrap_or_default(),
         ))
     }
+
+    pub fn get_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
+        let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
+        let raw_statediff =
+            &self.0.send_rpc_request("starknet_getStateUpdate", get_block_params)?["state_diff"];
+        let deployed_contracts = hashmap_from_raw::<ContractAddress, ClassHash>(
+            raw_statediff,
+            "deployed_contracts",
+            "address",
+            "class_hash",
+        )?;
+        let storage_diffs = nested_hashmap_from_raw::<ContractAddress, StorageKey, Felt>(
+            raw_statediff,
+            "storage_diffs",
+            "address",
+            "storage_entries",
+            "key",
+            "value",
+        )?;
+        let declared_classes = hashmap_from_raw::<ClassHash, CompiledClassHash>(
+            raw_statediff,
+            "declared_classes",
+            "class_hash",
+            "compiled_class_hash",
+        )?;
+        let nonces = hashmap_from_raw::<ContractAddress, Nonce>(
+            raw_statediff,
+            "nonces",
+            "contract_address",
+            "nonce",
+        )?;
+        let replaced_classes = hashmap_from_raw::<ContractAddress, ClassHash>(
+            raw_statediff,
+            "replaced_classes",
+            "class_hash",
+            "contract_address",
+        )?;
+        let _deprecated_declared_classes: Vec<Value> =
+            serde_json::from_value(raw_statediff["deprecated_declared_classes"].clone())
+                .map_err(serde_err_to_state_err)?;
+        // We expect the deployed_contracts and replaced_classes to have disjoint addresses.
+        let address_to_class_hash = disjoint_hashmap_union(deployed_contracts, replaced_classes);
+        Ok(CommitmentStateDiff {
+            address_to_class_hash,
+            address_to_nonce: nonces,
+            storage_updates: storage_diffs,
+            class_hash_to_compiled_class_hash: declared_classes,
+        })
+    }
+}
+
+fn disjoint_hashmap_union<K: std::hash::Hash + std::cmp::Eq, V>(
+    map1: IndexMap<K, V>,
+    map2: IndexMap<K, V>,
+) -> IndexMap<K, V> {
+    let expected_len = map1.len() + map2.len();
+    let union_map: IndexMap<K, V> = map1.into_iter().chain(map2).collect();
+    // verify union length is sum of lengths (disjoint union)
+    assert_eq!(union_map.len(), expected_len, "Intersection of hashmaps is not empty.");
+    union_map
+}
+
+fn hashmap_from_raw<
+    K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    V: for<'de> Deserialize<'de>,
+>(
+    raw_object: &Value,
+    vec_str: &str,
+    key_str: &str,
+    value_str: &str,
+) -> StateResult<IndexMap<K, V>> {
+    Ok(vec_to_hashmap::<K, V>(
+        serde_json::from_value(raw_object[vec_str].clone()).map_err(serde_err_to_state_err)?,
+        key_str,
+        value_str,
+    ))
+}
+
+fn nested_hashmap_from_raw<
+    K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    VK: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    VV: for<'de> Deserialize<'de>,
+>(
+    raw_object: &Value,
+    vec_str: &str,
+    key_str: &str,
+    value_str: &str,
+    inner_key_str: &str,
+    inner_value_str: &str,
+) -> StateResult<IndexMap<K, IndexMap<VK, VV>>> {
+    Ok(vec_to_nested_hashmap::<K, VK, VV>(
+        serde_json::from_value(raw_object[vec_str].clone()).map_err(serde_err_to_state_err)?,
+        key_str,
+        value_str,
+        inner_key_str,
+        inner_value_str,
+    ))
+}
+
+fn vec_to_hashmap<
+    K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    V: for<'de> Deserialize<'de>,
+>(
+    vec: Vec<Value>,
+    key_str: &str,
+    value_str: &str,
+) -> IndexMap<K, V> {
+    vec.iter()
+        .map(|element| {
+            (
+                serde_json::from_value(element[key_str].clone())
+                    .expect("Key string doesn't match expected."),
+                serde_json::from_value(element[value_str].clone())
+                    .expect("Value string doesn't match expected."),
+            )
+        })
+        .collect()
+}
+
+fn vec_to_nested_hashmap<
+    K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    VK: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    VV: for<'de> Deserialize<'de>,
+>(
+    vec: Vec<Value>,
+    key_str: &str,
+    value_str: &str,
+    inner_key_str: &str,
+    inner_value_str: &str,
+) -> IndexMap<K, IndexMap<VK, VV>> {
+    vec.iter()
+        .map(|element| {
+            (
+                serde_json::from_value(element[key_str].clone()).expect("Couldn't deserialize key"),
+                vec_to_hashmap(
+                    serde_json::from_value(element[value_str].clone())
+                        .expect("Couldn't deserialize value"),
+                    inner_key_str,
+                    inner_value_str,
+                ),
+            )
+        })
+        .collect()
 }
 
 pub struct ConsecutiveTestStateReaders {
