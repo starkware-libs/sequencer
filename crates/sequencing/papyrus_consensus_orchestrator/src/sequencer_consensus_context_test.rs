@@ -16,6 +16,7 @@ use starknet_batcher_types::batcher_types::{
     GetProposalContent,
     GetProposalContentResponse,
     ProposalCommitment,
+    StartHeightInput,
 };
 use starknet_batcher_types::communication::MockBatcherClient;
 use starknet_types_core::felt::Felt;
@@ -46,6 +47,10 @@ async fn build_proposal() {
         proposal_id_clone.set(input.proposal_id).unwrap();
         Ok(())
     });
+    batcher.expect_start_height().return_once(|input: StartHeightInput| {
+        assert_eq!(input.height, BlockNumber(0));
+        Ok(())
+    });
     let proposal_id_clone = Arc::clone(&proposal_id);
     batcher.expect_get_proposal_content().times(1).returning(move |input| {
         assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
@@ -57,7 +62,6 @@ async fn build_proposal() {
         Ok(GetProposalContentResponse {
             content: GetProposalContent::Finished(ProposalCommitment {
                 state_diff_commitment: STATE_DIFF_COMMITMENT,
-                ..Default::default()
             }),
         })
     });
