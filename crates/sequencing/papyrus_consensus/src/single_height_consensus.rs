@@ -384,19 +384,13 @@ impl SingleHeightConsensus {
             .expect("proposals should have proposal for valid_round")
             .expect("proposal should not be None");
         assert_eq!(id, block_hash, "proposal should match the stored proposal");
-        let content_receiver = context.get_proposal(self.height, id).await;
         let init = ProposalInit {
             height: self.height,
             round,
             proposer: self.id,
             valid_round: Some(valid_round),
         };
-        let (fin_sender, fin_receiver) = oneshot::channel();
-        fin_sender.send(id).expect("Send should succeed");
-        context
-            .propose(init, content_receiver, fin_receiver)
-            .await
-            .expect("Failed broadcasting Proposal");
+        context.repropose(id, init).await.expect("Failed broadcasting Proposal");
         let old = self.proposals.insert(round, Some(block_hash));
         assert!(old.is_none(), "There should be no entry for this round.");
     }
