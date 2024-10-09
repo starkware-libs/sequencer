@@ -17,11 +17,14 @@ use super::{get_metadata_peer_id, StreamHandler};
 #[cfg(test)]
 mod tests {
 
+    use core::net;
+
     use papyrus_network::network_manager::test_utils::BroadcastNetworkMock;
-    use papyrus_network::network_manager::BroadcastTopicServer;
+    use papyrus_network::network_manager::{BroadcastTopicClientTrait, BroadcastTopicServer};
     use papyrus_network_types::network_types::BroadcastedMessageManager;
 
     use super::*;
+    use crate::stream_handler;
 
     fn make_test_message(
         stream_id: u64,
@@ -55,22 +58,26 @@ mod tests {
         mpsc::Receiver<mpsc::Receiver<ConsensusMessage>>,
         BroadcastedMessageManager,
         mpsc::Sender<(u64, mpsc::Receiver<ConsensusMessage>)>,
-        BroadcastTopicServer<StreamMessage<ConsensusMessage>>,
-        BroadcastNetworkMock<StreamMessage<ConsensusMessage>>,
+        futures::stream::Map<
+            mpsc::Receiver<Vec<u8>>,
+            fn(Vec<u8>) -> StreamMessage<ConsensusMessage>,
+        >, /* BroadcastTopicServer<StreamMessage<ConsensusMessage>>,
+            * BroadcastNetworkMock<StreamMessage<ConsensusMessage>>, */
     ) {
         // The network_broadcast_sender is the network connector for broadcasting messages.
         // The broadcasted_messages_receiver is used to catch those messages in the test.
-        let TestSubscriberChannels { mock_network: _mock_broadcast_network, subscriber_channels } =
+        let TestSubscriberChannels { mock_network: mock_broadcast_network, subscriber_channels } =
             mock_register_broadcast_topic().unwrap();
         let BroadcastTopicChannels {
-            broadcasted_messages_receiver: network_broadcast_receiver,
+            broadcasted_messages_receiver: _, // network_broadcast_receiver,
             broadcast_topic_client: network_broadcast_sender,
         } = subscriber_channels;
 
-        // This channel is used to feed receivers of messages to StreamHandler for broadcasting.
-        // The receiver goes into the StreamHandler, the sender is used by the test (as mock
-        // Consensus). Note that each new channel comes in a tuple with (stream_id,
-        // receiver).
+        let network_broadcast_receiver = mock_broadcast_network.messages_to_broadcast_receiver;
+
+        // This is used to feed receivers of messages to StreamHandler for broadcasting.
+        // The receiver goes into StreamHandler, sender is used by the test (as mock Consensus).
+        // Note that each new channel comes in a tuple with (stream_id, receiver).
         let (broadcast_channel_sender, broadcast_channel_receiver) =
             mpsc::channel::<(u64, mpsc::Receiver<ConsensusMessage>)>(100);
 
@@ -109,43 +116,13 @@ mod tests {
             listen_metadata,
             broadcast_channel_sender,
             network_broadcast_receiver,
-            _mock_broadcast_network,
         )
-    }
-
-    fn setup_test_broadcast() -> (
-        mpsc::Sender<(u64, mpsc::Receiver<ConsensusMessage>)>,
-        BroadcastTopicServer<StreamMessage<ConsensusMessage>>,
-        BroadcastNetworkMock<StreamMessage<ConsensusMessage>>,
-    ) {
-        // The network_broadcast_sender is the network connector for broadcasting messages.
-        // The broadcasted_messages_receiver is used to catch those messages in the test.
-        let TestSubscriberChannels { mock_network: _mock_broadcast_network, subscriber_channels } =
-            mock_register_broadcast_topic().unwrap();
-        let BroadcastTopicChannels {
-            broadcasted_messages_receiver: network_broadcast_receiver,
-            broadcast_topic_client: network_broadcast_sender,
-        } = subscriber_channels;
-
-        // This channel is used to feed receivers of messages to StreamHandler for broadcasting.
-        // The receiver goes into the StreamHandler, the sender is used by the test (as mock
-        // Consensus). Note that each new channel comes in a tuple with (stream_id,
-        // receiver).
-        let (broadcast_channel_sender, broadcast_channel_receiver) =
-            mpsc::channel::<(u64, mpsc::Receiver<ConsensusMessage>)>(100);
     }
 
     #[tokio::test]
     async fn stream_handler_listen_in_order() {
-        let (
-            mut stream_handler,
-            mut network_sender,
-            mut listen_channel_receiver,
-            metadata,
-            _,
-            _,
-            _,
-        ) = setup_test();
+        let (mut stream_handler, mut network_sender, mut listen_channel_receiver, metadata, _, _) =
+            setup_test();
 
         let stream_id = 127;
         for i in 0..10 {
@@ -175,7 +152,6 @@ mod tests {
             mut network_sender,
             mut listen_channel_receiver,
             listen_metadata,
-            _,
             _,
             _,
         ) = setup_test();
@@ -235,7 +211,6 @@ mod tests {
             mut network_sender,
             mut listen_channel_receiver,
             listen_metadata,
-            _,
             _,
             _,
         ) = setup_test();
@@ -425,44 +400,107 @@ mod tests {
             _,
             mut broadcast_channel_sender,
             mut broadcasted_messages_receiver,
-            _mock_network,
         ) = setup_test();
 
         let stream_id1 = 42_u64;
         let stream_id2 = 127_u64;
 
-        println!("start");
         let join_handle = tokio::spawn(async move {
             let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
         });
-        println!("end");
 
         // Start a new stream by sending the (stream_id, receiver).
         let (mut sender1, receiver1) = mpsc::channel(100);
         broadcast_channel_sender.send((stream_id1, receiver1)).await.unwrap();
-        println!("sent a receiver");
 
         // Send a message on the stream.
         let message1 = ConsensusMessage::Proposal(Proposal::default());
         sender1.send(message1.clone()).await.unwrap();
-        println!("sent a message");
 
         // Wait for an incoming message.
         let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
-        println!("broadcasted_message= {:?}", broadcasted_message);
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
-        println!(
-            "stream_handler.broadcast_stream_receivers.keys()= {:?}",
-            stream_handler.broadcast_stream_receivers.keys()
+        // Check that message was broadcasted.
+        assert_eq!(broadcasted_message.message, StreamMessageBody::Content(message1));
+        assert_eq!(broadcasted_message.stream_id, stream_id1);
+        assert_eq!(broadcasted_message.message_id, 0);
+
+        // Check that internally, stream_handler holds this receiver.
+        assert_eq!(
+            stream_handler.broadcast_stream_receivers.keys().collect::<Vec<&u64>>(),
+            vec![&stream_id1]
         );
-        println!(
-            "stream_handler.broadcast_stream_number= {:?}",
-            stream_handler.broadcast_stream_number
-        );
+        // Check that the number of messages sent on this stream is 1.
+        assert_eq!(stream_handler.broadcast_stream_number[&stream_id1], 1);
+
+        // Send another message on the same stream.
+        let join_handle = tokio::spawn(async move {
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
+            stream_handler
+        });
+
+        let message2 = ConsensusMessage::Proposal(Proposal::default());
+        sender1.send(message2.clone()).await.unwrap();
+
+        // Wait for an incoming message.
+        let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
+
+        let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // Check that message was broadcasted.
-        // assert_eq!(broadcasted_message.0.unwrap().message, StreamMessageBody::Content(message1));
+        assert_eq!(broadcasted_message.message, StreamMessageBody::Content(message2));
+        assert_eq!(broadcasted_message.stream_id, stream_id1);
+        assert_eq!(broadcasted_message.message_id, 1);
+        assert_eq!(stream_handler.broadcast_stream_number[&stream_id1], 2);
+
+        // Start a new stream by sending the (stream_id, receiver).
+        let (mut sender2, receiver2) = mpsc::channel(100);
+        broadcast_channel_sender.send((stream_id2, receiver2)).await.unwrap();
+
+        let join_handle = tokio::spawn(async move {
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
+            stream_handler
+        });
+
+        // Send a message on the stream.
+        let message3 = ConsensusMessage::Proposal(Proposal::default());
+        sender2.send(message3.clone()).await.unwrap();
+
+        // Wait for an incoming message.
+        let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
+
+        let mut stream_handler = join_handle.await.expect("Task should succeed");
+
+        // Check that message was broadcasted.
+        assert_eq!(broadcasted_message.message, StreamMessageBody::Content(message3));
+        assert_eq!(broadcasted_message.stream_id, stream_id2);
+        assert_eq!(broadcasted_message.message_id, 0);
+        assert_eq!(
+            stream_handler.broadcast_stream_receivers.keys().collect::<Vec<&u64>>().sort(),
+            vec![&stream_id1, &stream_id2].sort()
+        );
+        assert_eq!(stream_handler.broadcast_stream_number[&stream_id2], 1);
+
+        // Close the first channel.
+
+        let join_handle = tokio::spawn(async move {
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
+            stream_handler
+        });
+
+        sender1.close_channel();
+
+        // Check that we got a fin message.
+        // let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
+        // assert_eq!(broadcasted_message.message, StreamMessageBody::Fin);
+
+        let mut stream_handler = join_handle.await.expect("Task should succeed");
+        println!("{:?}", stream_handler.broadcast_stream_receivers.keys().collect::<Vec<&u64>>());
+
+        // Check that the information about this stream is gone.
+        // assert_eq!(stream_handler.broadcast_stream_receivers.keys().collect::<Vec<&u64>>(),
+        // vec![&stream_id2]);
     }
 }

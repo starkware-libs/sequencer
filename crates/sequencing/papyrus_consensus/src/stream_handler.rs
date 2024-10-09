@@ -1,6 +1,6 @@
 //! Stream handler, see StreamManager struct.
 use std::collections::hash_map::Entry;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use futures::channel::mpsc;
 use futures::StreamExt;
@@ -110,23 +110,33 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
     /// Guarantees that messages are sent in order.
     pub async fn run(&mut self) {
         loop {
+            // The StreamHashMap doesn't report back that some of the channels were closed,
+            // but the relevant keys are removed when that happens. So check before-after:
+            let before: HashSet<_> = self.broadcast_stream_receivers.keys().cloned().collect();
+
             // Go over the broadcast_channel_receiver to see if there is a new receiver,
             // and go over all existing broadcast_receivers to see if there are any messages to
             // send. Finally, check if there is an input message from the network.
             tokio::select!(
                 Some((stream_id, receiver)) = self.broadcast_channel_receiver.next() => {
                     self.broadcast_stream_receivers.insert(stream_id, receiver);
-                    println!("Inserted stream_id: {}", stream_id);
                 }
                 Some((key, message)) = self.broadcast_stream_receivers.next() => {
+                    println!("Got message! ");
                     self.broadcast(key, message).await;
-                    println!("Broadcasted message for stream_id: {}", key);
                 }
                 Some(message) = self.listen_receiver.next() => {
                     self.handle_message(message);
-                    println!("Handled message");
                 }
             );
+            let after: HashSet<_> = self.broadcast_stream_receivers.keys().cloned().collect();
+
+            println!("before: {:?} | after: {:?}", before, after);
+            let diff = before.difference(&after).collect::<HashSet<_>>();
+            for key in diff {
+                println!("Removing key: {:?}", key);
+                self.broadcast_fin(*key).await;
+            }
         }
     }
 
@@ -150,6 +160,17 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
         self.broadcast_sender.broadcast_message(message).await.expect("Send should succeed");
         self.broadcast_stream_number
             .insert(key, self.broadcast_stream_number.get(&key).unwrap_or(&0) + 1);
+    }
+
+    // Send a fin message to the network.
+    async fn broadcast_fin(self: &mut Self, key: StreamId) {
+        let message = StreamMessage {
+            message: StreamMessageBody::Fin,
+            stream_id: key,
+            message_id: *self.broadcast_stream_number.get(&key).unwrap_or(&0),
+        };
+        self.broadcast_sender.broadcast_message(message).await.expect("Send should succeed");
+        self.broadcast_stream_number.remove(&key);
     }
 
     #[instrument(skip_all, level = "warn")]
