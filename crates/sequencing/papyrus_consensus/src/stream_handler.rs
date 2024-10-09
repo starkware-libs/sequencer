@@ -110,18 +110,21 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
     /// Guarantees that messages are sent in order.
     pub async fn run(&mut self) {
         loop {
-            // Go over the broadcast_channel_receiever to see if there is a new receiver,
+            // Go over the broadcast_channel_receiver to see if there is a new receiver,
             // and go over all existing broadcast_receivers to see if there are any messages to
             // send. Finally, check if there is an input message from the network.
             tokio::select!(
                 Some((stream_id, receiver)) = self.broadcast_channel_receiver.next() => {
                     self.broadcast_stream_receivers.insert(stream_id, receiver);
+                    println!("Inserted stream_id: {}", stream_id);
                 }
                 Some((key, message)) = self.broadcast_stream_receivers.next() => {
                     self.broadcast(key, message).await;
+                    println!("Broadcasted message for stream_id: {}", key);
                 }
                 Some(message) = self.listen_receiver.next() => {
                     self.handle_message(message);
+                    println!("Handled message");
                 }
             );
         }
