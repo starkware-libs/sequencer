@@ -1,11 +1,6 @@
-#[cfg(feature = "concurrency")]
 use std::collections::{HashMap, HashSet};
-#[cfg(feature = "concurrency")]
 use std::panic::{self, catch_unwind, AssertUnwindSafe};
-#[cfg(feature = "concurrency")]
-use std::sync::Arc;
-#[cfg(feature = "concurrency")]
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use itertools::FoldWhile::{Continue, Done};
 use itertools::Itertools;
@@ -15,7 +10,6 @@ use thiserror::Error;
 use crate::blockifier::block::{pre_process_block, BlockNumberHashPair};
 use crate::blockifier::config::TransactionExecutorConfig;
 use crate::bouncer::{Bouncer, BouncerWeights};
-#[cfg(feature = "concurrency")]
 use crate::concurrency::worker_logic::WorkerExecutor;
 use crate::context::BlockContext;
 use crate::state::cached_state::{CachedState, CommitmentStateDiff, TransactionalState};
@@ -144,14 +138,6 @@ impl<S: StateReader> TransactionExecutor<S> {
         results
     }
 
-    #[cfg(not(feature = "concurrency"))]
-    pub fn execute_chunk(
-        &mut self,
-        _chunk: &[Transaction],
-    ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
-        unimplemented!()
-    }
-
     /// Returns the state diff, a list of contract class hash with the corresponding list of
     /// visited segment values and the block weights.
     pub fn finalize(
@@ -229,7 +215,6 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         }
     }
 
-    #[cfg(feature = "concurrency")]
     pub fn execute_chunk(
         &mut self,
         chunk: &[Transaction],

@@ -10,7 +10,6 @@ description = "The transaction-executing component in the Starknet sequencer."
 workspace = true
 
 [features]
-concurrency = []
 jemalloc = ["dep:tikv-jemallocator"]
 testing = ["rand", "rstest", "starknet_api/testing"]
 transaction_serde = []
