@@ -57,6 +57,20 @@ pub struct ExecutionConfig {
     pub versioned_constants_overrides: VersionedConstantsOverrides,
 }
 
+impl Default for ExecutionConfig {
+    fn default() -> Self {
+        Self {
+            chain_info: ChainInfo::default(),
+            execute_config: TransactionExecutorConfig::default(),
+            bouncer_config: BouncerConfig::default(),
+            sequencer_address: ContractAddress::default(),
+            use_kzg_da: true,
+            tx_chunk_size: 100,
+            versioned_constants_overrides: VersionedConstantsOverrides::default(),
+        }
+    }
+}
+
 #[async_trait]
 impl BlockBuilderTrait for BlockBuilder {
     async fn build_block(

@@ -38,7 +38,7 @@ macro_rules! impl_checked_sub {
 
 pub type HashMapWrapper = HashMap<BuiltinName, usize>;
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct BouncerConfig {
     pub block_max_capacity: BouncerWeights,
 }
@@ -125,6 +125,19 @@ impl BouncerWeights {
             message_segment_length: 0,
             n_steps: 0,
             state_diff_size: 0,
+        }
+    }
+}
+
+impl Default for BouncerWeights {
+    fn default() -> Self {
+        Self {
+            gas: 2500000,
+            n_steps: 2500000,
+            message_segment_length: 3750,
+            n_events: 5000,
+            state_diff_size: 4000,
+            builtin_count: BuiltinCount::default(),
         }
     }
 }
@@ -272,6 +285,23 @@ impl std::fmt::Display for BuiltinCount {
             self.range_check,
             self.range_check96
         )
+    }
+}
+
+impl Default for BuiltinCount {
+    fn default() -> Self {
+        Self {
+            add_mod: 156250,
+            bitwise: 39062,
+            ecdsa: 1220,
+            ec_op: 2441,
+            keccak: 1220,
+            mul_mod: 156250,
+            pedersen: 78125,
+            poseidon: 78125,
+            range_check: 156250,
+            range_check96: 156250,
+        }
     }
 }
 
