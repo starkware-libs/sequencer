@@ -129,6 +129,19 @@ impl BouncerWeights {
     }
 }
 
+impl Default for BouncerWeights {
+    fn default() -> Self {
+        Self {
+            gas: 4950000,
+            n_steps: 20000000,
+            message_segment_length: 3700,
+            n_events: 5000,
+            state_diff_size: 20000,
+            builtin_count: BuiltinCount::default(),
+        }
+    }
+}
+
 impl std::fmt::Display for BouncerWeights {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

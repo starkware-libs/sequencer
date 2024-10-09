@@ -49,7 +49,7 @@ impl Default for TransfersGeneratorConfig {
             cairo_version: CAIRO_VERSION,
             tx_version: TRANSACTION_VERSION,
             recipient_generator_type: RECIPIENT_GENERATOR_TYPE,
-            concurrency_config: ConcurrencyConfig::default(),
+            concurrency_config: ConcurrencyConfig::create_for_testing(false),
         }
     }
 }

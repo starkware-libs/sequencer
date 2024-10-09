@@ -11,7 +11,7 @@ impl TransactionExecutorConfig {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct ConcurrencyConfig {
     pub enabled: bool,
     pub n_workers: usize,
@@ -24,5 +24,11 @@ impl ConcurrencyConfig {
             return Self { enabled: true, n_workers: 4, chunk_size: 64 };
         }
         Self { enabled: false, n_workers: 0, chunk_size: 0 }
+    }
+}
+
+impl Default for ConcurrencyConfig {
+    fn default() -> Self {
+        Self { enabled: true, n_workers: 28, chunk_size: 100 }
     }
 }
