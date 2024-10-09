@@ -1,15 +1,17 @@
 use assert_matches::assert_matches;
 use blockifier::blockifier::block::BlockInfo;
+use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::StarknetVersion;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::test_utils::read_json_file;
-use starknet_api::transaction::Transaction;
+use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_api::{class_hash, felt};
 use starknet_core::types::ContractClass::{Legacy, Sierra};
 
+use super::utils::starknet_api_tx_to_blockifier_tx;
 use crate::state_reader::compile::legacy_to_contract_class_v0;
 use crate::state_reader::test_state_reader::TestStateReader;
 
@@ -29,6 +31,13 @@ pub fn test_block_number() -> BlockNumber {
 #[fixture]
 pub fn test_state_reader(test_block_number: BlockNumber) -> TestStateReader {
     TestStateReader::new_for_testing(test_block_number)
+}
+
+#[fixture]
+pub fn tx(test_state_reader: TestStateReader) -> BlockifierTransaction {
+    let tx_hash = "0x518d8ad0393e8895fefc0f05660f57208c3b743a7ca55e94729f21f4f182c34";
+    let actual_tx = test_state_reader.get_tx_by_hash(tx_hash).unwrap();
+    starknet_api_tx_to_blockifier_tx(actual_tx, TransactionHash(felt!(tx_hash)))
 }
 
 #[rstest]

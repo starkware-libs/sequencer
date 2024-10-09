@@ -1,4 +1,7 @@
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
+use blockifier::transaction::account_transaction::AccountTransaction;
+use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
+use blockifier::transaction::transactions::InvokeTransaction as BlockifierInvokeTransaction;
 use papyrus_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use serde_json::Value;
 use starknet_api::core::{ChainId, ContractAddress, PatriciaKey};
@@ -7,6 +10,7 @@ use starknet_api::transaction::{
     DeployAccountTransaction,
     InvokeTransaction,
     Transaction,
+    TransactionHash,
 };
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_gateway::config::RpcStateReaderConfig;
@@ -90,5 +94,27 @@ pub fn deserialize_transaction_json_to_starknet_api_tx(
         (tx_type, tx_version) => Err(serde::de::Error::custom(format!(
             "unimplemented transaction type: {tx_type} version: {tx_version}"
         ))),
+    }
+}
+
+pub fn starknet_api_tx_to_blockifier_tx(
+    tx: Transaction,
+    tx_hash: TransactionHash,
+) -> BlockifierTransaction {
+    match tx {
+        Transaction::Declare(_) => todo!(),
+        Transaction::DeployAccount(_) => todo!(),
+        Transaction::Invoke(tx_data) => {
+            let invoke = BlockifierInvokeTransaction {
+                tx: starknet_api::executable_transaction::InvokeTransaction {
+                    tx: tx_data,
+                    tx_hash,
+                },
+                only_query: false,
+            };
+            BlockifierTransaction::Account(AccountTransaction::Invoke(invoke))
+        }
+        Transaction::L1Handler(_) => todo!(),
+        Transaction::Deploy(_) => todo!(),
     }
 }
