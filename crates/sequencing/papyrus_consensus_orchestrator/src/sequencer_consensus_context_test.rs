@@ -21,6 +21,7 @@ use starknet_batcher_types::batcher_types::{
     SendProposalContent,
     SendProposalContentInput,
     SendProposalContentResponse,
+    StartHeightInput,
     ValidateProposalInput,
 };
 use starknet_batcher_types::communication::MockBatcherClient;
@@ -53,6 +54,10 @@ async fn build_proposal() {
         proposal_id_clone.set(input.proposal_id).unwrap();
         Ok(())
     });
+    batcher.expect_start_height().return_once(|input: StartHeightInput| {
+        assert_eq!(input.height, BlockNumber(0));
+        Ok(())
+    });
     let proposal_id_clone = Arc::clone(&proposal_id);
     batcher.expect_get_proposal_content().times(1).returning(move |input| {
         assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
@@ -83,6 +88,10 @@ async fn validate_proposal_success() {
     let proposal_id_clone = Arc::clone(&proposal_id);
     batcher.expect_validate_proposal().returning(move |input: ValidateProposalInput| {
         proposal_id_clone.set(input.proposal_id).unwrap();
+        Ok(())
+    });
+    batcher.expect_start_height().return_once(|input: StartHeightInput| {
+        assert_eq!(input.height, BlockNumber(0));
         Ok(())
     });
     let proposal_id_clone = Arc::clone(&proposal_id);
@@ -123,6 +132,10 @@ async fn get_proposal() {
     // Receive a proposal. Then re-retrieve it.
     let mut batcher = MockBatcherClient::new();
     batcher.expect_validate_proposal().returning(move |_| Ok(()));
+    batcher.expect_start_height().return_once(|input: StartHeightInput| {
+        assert_eq!(input.height, BlockNumber(0));
+        Ok(())
+    });
     batcher.expect_send_proposal_content().times(1).returning(
         move |input: SendProposalContentInput| {
             assert!(matches!(input.content, SendProposalContent::Txs(_)));
