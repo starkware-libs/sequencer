@@ -36,8 +36,18 @@ impl TransactionResources {
         use_kzg_da: bool,
         computation_mode: &GasVectorComputationMode,
     ) -> GasVector {
-        self.starknet_resources.to_gas_vector(versioned_constants, use_kzg_da, computation_mode)
-            + self.computation.to_gas_vector(versioned_constants, computation_mode)
+        let starknet_gas = self.starknet_resources.to_gas_vector(
+            versioned_constants,
+            use_kzg_da,
+            computation_mode,
+        );
+        let computation_gas = self.computation.to_gas_vector(versioned_constants, computation_mode);
+        starknet_gas.checked_add(computation_gas).unwrap_or_else(|| {
+            panic!(
+                "Transaction resources to gas vector overflowed: starknet gas cost is \
+                 {starknet_gas:?}, computation gas is {computation_gas:?}",
+            )
+        })
     }
 }
 
@@ -112,9 +122,20 @@ impl StarknetResources {
         use_kzg_da: bool,
         mode: &GasVectorComputationMode,
     ) -> GasVector {
-        self.archival_data.to_gas_vector(versioned_constants, mode)
-            + self.state.to_gas_vector(use_kzg_da)
-            + self.messages.to_gas_vector()
+        [
+            self.archival_data.to_gas_vector(versioned_constants, mode),
+            self.state.to_gas_vector(use_kzg_da),
+            self.messages.to_gas_vector(),
+        ]
+        .iter()
+        .fold(GasVector::ZERO, |accumulator, cost| {
+            accumulator.checked_add(*cost).unwrap_or_else(|| {
+                panic!(
+                    "Starknet resources to gas vector overflowed: tried to add {accumulator:?} to \
+                     {cost:?}",
+                )
+            })
+        })
     }
 }
 
@@ -248,7 +269,12 @@ impl MessageResources {
             .into(),
         );
 
-        starknet_gas_usage + sharp_gas_usage
+        starknet_gas_usage.checked_add(sharp_gas_usage).unwrap_or_else(|| {
+            panic!(
+                "Message resources to gas vector overflowed: starknet gas cost is \
+                 {starknet_gas_usage:?}, SHARP gas cost is {sharp_gas_usage:?}.",
+            )
+        })
     }
 
     /// Returns an estimation of the gas usage for processing L1<>L2 messages on L1. Accounts for
@@ -257,10 +283,11 @@ impl MessageResources {
         let n_l2_to_l1_messages = self.l2_to_l1_payload_lengths.len();
         let n_l1_to_l2_messages = usize::from(self.l1_handler_payload_size.is_some());
 
-        GasVector::from_l1_gas(
-            // Starknet's updateState gets the message segment as an argument.
-            u64_from_usize(
-                self.message_segment_length * eth_gas_constants::GAS_PER_MEMORY_WORD
+        [
+            GasVector::from_l1_gas(
+                // Starknet's updateState gets the message segment as an argument.
+                u64_from_usize(
+                    self.message_segment_length * eth_gas_constants::GAS_PER_MEMORY_WORD
                 // Starknet's updateState increases a (storage) counter for each L2-to-L1 message.
                 + n_l2_to_l1_messages * eth_gas_constants::GAS_PER_ZERO_TO_NONZERO_STORAGE_SET
                 // Starknet's updateState decreases a (storage) counter for each L1-to-L2 consumed
@@ -268,9 +295,20 @@ impl MessageResources {
                 // message but we ignore it since refunded gas cannot be used for the current
                 // transaction execution).
                 + n_l1_to_l2_messages * eth_gas_constants::GAS_PER_COUNTER_DECREASE,
-            )
-            .into(),
-        ) + get_consumed_message_to_l2_emissions_cost(self.l1_handler_payload_size)
-            + get_log_message_to_l1_emissions_cost(&self.l2_to_l1_payload_lengths)
+                )
+                .into(),
+            ),
+            get_consumed_message_to_l2_emissions_cost(self.l1_handler_payload_size),
+            get_log_message_to_l1_emissions_cost(&self.l2_to_l1_payload_lengths),
+        ]
+        .iter()
+        .fold(GasVector::ZERO, |accumulator, cost| {
+            accumulator.checked_add(*cost).unwrap_or_else(|| {
+                panic!(
+                    "Message resources to starknet gas cost overflowed: tried to add \
+                     {accumulator:?} to {cost:?}"
+                )
+            })
+        })
     }
 }
