@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 
 use axum::body::Body;
+use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::rpc_tx_to_json;
 use papyrus_storage::StorageConfig;
 use reqwest::{Client, Response};
@@ -25,10 +26,10 @@ async fn create_gateway_config() -> GatewayConfig {
         max_signature_length: 2,
         ..Default::default()
     };
+    let stateful_tx_validator_config = StatefulTransactionValidatorConfig::default();
+    let chain_info = ChainInfo::create_for_testing();
 
-    let stateful_tx_validator_config = StatefulTransactionValidatorConfig::create_for_testing();
-
-    GatewayConfig { stateless_tx_validator_config, stateful_tx_validator_config }
+    GatewayConfig { stateless_tx_validator_config, stateful_tx_validator_config, chain_info }
 }
 
 async fn create_http_server_config() -> HttpServerConfig {
