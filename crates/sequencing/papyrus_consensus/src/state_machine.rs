@@ -9,7 +9,6 @@ mod state_machine_test;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use starknet_api::block::BlockHash;
 use tracing::trace;
 
 use crate::types::{ProposalContentId, Round, ValidatorId};
@@ -17,21 +16,22 @@ use crate::types::{ProposalContentId, Round, ValidatorId};
 /// Events which the state machine sends/receives.
 #[derive(Debug, Clone, PartialEq)]
 pub enum StateMachineEvent {
-    /// Sent by the state machine when a block is required to propose (BlockHash is always None).
-    /// While waiting for the response of GetProposal, the state machine will buffer all other
-    /// events. The caller must respond with a valid block hash for this height to the state
-    /// machine, and the same round sent out.
-    GetProposal(Option<BlockHash>, Round),
+    /// Sent by the state machine when a block is required to propose (ProposalContentId is always
+    /// None). While waiting for the response of GetProposal, the state machine will buffer all
+    /// other events. The caller must respond with a valid proposal id for this height to the
+    /// state machine, and the same round sent out.
+    GetProposal(Option<ProposalContentId>, Round),
     /// Consensus message, can be both sent from and to the state machine.
-    Proposal(Option<BlockHash>, Round, Option<Round>), // (block_hash, round, valid_round)
+    // (proposal_id, round, valid_round)
+    Proposal(Option<ProposalContentId>, Round, Option<Round>),
     /// Consensus message, can be both sent from and to the state machine.
-    Prevote(Option<BlockHash>, Round),
+    Prevote(Option<ProposalContentId>, Round),
     /// Consensus message, can be both sent from and to the state machine.
-    Precommit(Option<BlockHash>, Round),
+    Precommit(Option<ProposalContentId>, Round),
     /// The state machine returns this event to the caller when a decision is reached. Not
     /// expected as an inbound message. We presume that the caller is able to recover the set of
     /// precommits which led to this decision from the information returned here.
-    Decision(BlockHash, Round),
+    Decision(ProposalContentId, Round),
     /// Timeout events, can be both sent from and to the state machine.
     TimeoutPropose(Round),
     /// Timeout events, can be both sent from and to the state machine.
@@ -57,11 +57,11 @@ pub struct StateMachine {
     step: Step,
     quorum: u32,
     round_skip_threshold: u32,
-    // {round: (block_hash, valid_round)}
-    proposals: HashMap<Round, (Option<BlockHash>, Option<Round>)>,
-    // {round: {block_hash: vote_count}
-    prevotes: HashMap<Round, HashMap<Option<BlockHash>, u32>>,
-    precommits: HashMap<Round, HashMap<Option<BlockHash>, u32>>,
+    // {round: (proposal_id, valid_round)}
+    proposals: HashMap<Round, (Option<ProposalContentId>, Option<Round>)>,
+    // {round: {proposal_id: vote_count}
+    prevotes: HashMap<Round, HashMap<Option<ProposalContentId>, u32>>,
+    precommits: HashMap<Round, HashMap<Option<ProposalContentId>, u32>>,
     // When true, the state machine will wait for a GetProposal event, buffering all other input
     // events in `events_queue`.
     awaiting_get_proposal: bool,
@@ -196,17 +196,17 @@ impl StateMachine {
         }
 
         match event {
-            StateMachineEvent::GetProposal(block_hash, round) => {
-                self.handle_get_proposal(block_hash, round)
+            StateMachineEvent::GetProposal(proposal_id, round) => {
+                self.handle_get_proposal(proposal_id, round)
             }
-            StateMachineEvent::Proposal(block_hash, round, valid_round) => {
-                self.handle_proposal(block_hash, round, valid_round, leader_fn)
+            StateMachineEvent::Proposal(proposal_id, round, valid_round) => {
+                self.handle_proposal(proposal_id, round, valid_round, leader_fn)
             }
-            StateMachineEvent::Prevote(block_hash, round) => {
-                self.handle_prevote(block_hash, round, leader_fn)
+            StateMachineEvent::Prevote(proposal_id, round) => {
+                self.handle_prevote(proposal_id, round, leader_fn)
             }
-            StateMachineEvent::Precommit(block_hash, round) => {
-                self.handle_precommit(block_hash, round, leader_fn)
+            StateMachineEvent::Precommit(proposal_id, round) => {
+                self.handle_precommit(proposal_id, round, leader_fn)
             }
             StateMachineEvent::Decision(_, _) => {
                 unimplemented!(
@@ -223,21 +223,21 @@ impl StateMachine {
 
     fn handle_get_proposal(
         &mut self,
-        block_hash: Option<BlockHash>,
+        proposal_id: Option<ProposalContentId>,
         round: u32,
     ) -> VecDeque<StateMachineEvent> {
         // TODO(matan): Will we allow other events (timeoutPropose) to exit this state?
         assert!(self.awaiting_get_proposal);
         assert_eq!(round, self.round);
         self.awaiting_get_proposal = false;
-        assert!(block_hash.is_some(), "SHC should pass a valid block hash");
-        VecDeque::from([StateMachineEvent::Proposal(block_hash, round, None)])
+        assert!(proposal_id.is_some(), "SHC should pass a valid proposal content id");
+        VecDeque::from([StateMachineEvent::Proposal(proposal_id, round, None)])
     }
 
     // A proposal from a peer (or self) node.
     fn handle_proposal<LeaderFn>(
         &mut self,
-        block_hash: Option<BlockHash>,
+        proposal_id: Option<ProposalContentId>,
         round: u32,
         valid_round: Option<Round>,
         leader_fn: &LeaderFn,
@@ -245,7 +245,7 @@ impl StateMachine {
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
-        let old = self.proposals.insert(round, (block_hash, valid_round));
+        let old = self.proposals.insert(round, (proposal_id, valid_round));
         assert!(old.is_none(), "SHC should handle conflicts & replays");
         self.map_round_to_upons(round, leader_fn)
     }
@@ -262,14 +262,14 @@ impl StateMachine {
     // A prevote from a peer (or self) node.
     fn handle_prevote<LeaderFn>(
         &mut self,
-        block_hash: Option<BlockHash>,
+        proposal_id: Option<ProposalContentId>,
         round: u32,
         leader_fn: &LeaderFn,
     ) -> VecDeque<StateMachineEvent>
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
-        let prevote_count = self.prevotes.entry(round).or_default().entry(block_hash).or_insert(0);
+        let prevote_count = self.prevotes.entry(round).or_default().entry(proposal_id).or_insert(0);
         // TODO(matan): Use variable weight.
         *prevote_count += 1;
         self.map_round_to_upons(round, leader_fn)
@@ -287,7 +287,7 @@ impl StateMachine {
     // A precommit from a peer (or self) node.
     fn handle_precommit<LeaderFn>(
         &mut self,
-        block_hash: Option<BlockHash>,
+        proposal_id: Option<ProposalContentId>,
         round: u32,
         leader_fn: &LeaderFn,
     ) -> VecDeque<StateMachineEvent>
@@ -295,7 +295,7 @@ impl StateMachine {
         LeaderFn: Fn(Round) -> ValidatorId,
     {
         let precommit_count =
-            self.precommits.entry(round).or_default().entry(block_hash).or_insert(0);
+            self.precommits.entry(round).or_default().entry(proposal_id).or_insert(0);
         // TODO(matan): Use variable weight.
         *precommit_count += 1;
         self.map_round_to_upons(round, leader_fn)
@@ -538,7 +538,7 @@ impl StateMachine {
 }
 
 fn round_has_enough_votes(
-    votes: &HashMap<u32, HashMap<Option<BlockHash>, u32>>,
+    votes: &HashMap<u32, HashMap<Option<ProposalContentId>, u32>>,
     round: u32,
     threshold: u32,
 ) -> bool {
@@ -546,9 +546,9 @@ fn round_has_enough_votes(
 }
 
 fn value_has_enough_votes(
-    votes: &HashMap<u32, HashMap<Option<BlockHash>, u32>>,
+    votes: &HashMap<u32, HashMap<Option<ProposalContentId>, u32>>,
     round: u32,
-    value: &Option<BlockHash>,
+    value: &Option<ProposalContentId>,
     threshold: u32,
 ) -> bool {
     votes.get(&round).map_or(0, |v| *v.get(value).unwrap_or(&0)) >= threshold
