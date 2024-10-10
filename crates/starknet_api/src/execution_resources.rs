@@ -24,6 +24,7 @@ use crate::transaction::{Fee, Resource};
     Deserialize,
     Hash,
 )]
+#[cfg_attr(any(test, feature = "testing"), derive(derive_more::Div))]
 pub struct GasAmount(pub u64);
 
 impl From<GasAmount> for Felt {

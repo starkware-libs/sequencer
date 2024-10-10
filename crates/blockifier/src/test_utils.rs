@@ -100,6 +100,8 @@ pub const MAX_L1_GAS_AMOUNT: GasAmount = GasAmount(1000000);
 pub const MAX_L1_GAS_PRICE: NonzeroGasPrice = DEFAULT_STRK_L1_GAS_PRICE;
 pub const MAX_RESOURCE_COMMITMENT: Fee = MAX_L1_GAS_AMOUNT.nonzero_saturating_mul(MAX_L1_GAS_PRICE);
 pub const MAX_FEE: Fee = MAX_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_ETH_L1_GAS_PRICE);
+pub const MAX_L2_GAS_PRICE: NonzeroGasPrice = DEFAULT_STRK_L2_GAS_PRICE;
+pub const MAX_L1_DATA_GAS_PRICE: NonzeroGasPrice = DEFAULT_STRK_L1_DATA_GAS_PRICE;
 
 // The amount of test-token allocated to the account in this test, set to a multiple of the max
 // amount deprecated / non-deprecated transactions commit to paying.
