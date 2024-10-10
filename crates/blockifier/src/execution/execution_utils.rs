@@ -45,23 +45,32 @@ pub const SEGMENT_ARENA_BUILTIN_SIZE: usize = 3;
 
 /// A wrapper for execute_entry_point_call that performs pre and post-processing.
 pub fn execute_entry_point_call_wrapper(
-    call: CallEntryPoint,
+    mut call: CallEntryPoint,
     contract_class: ContractClass,
     state: &mut dyn State,
     resources: &mut ExecutionResources,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
-    let tracked_resource = contract_class
+    let contract_tracked_resource = contract_class
         .tracked_resource(&context.versioned_constants().min_compiler_version_for_sierra_gas);
     // Note: no return statements (explicit or implicit) should be added between the push and the
     // pop commands.
 
     // Once we ran with CairoSteps, we will continue to run using it for all nested calls.
-    if context.tracked_resource_stack.last().is_some_and(|x| *x == TrackedResource::CairoSteps) {
-        context.tracked_resource_stack.push(TrackedResource::CairoSteps);
-    } else {
-        context.tracked_resource_stack.push(tracked_resource);
-    }
+    match context.tracked_resource_stack.last() {
+        Some(TrackedResource::CairoSteps) => {
+            context.tracked_resource_stack.push(TrackedResource::CairoSteps)
+        }
+        Some(TrackedResource::SierraGas) => {
+            if contract_tracked_resource == TrackedResource::CairoSteps {
+                // Switching from SierraGas to CairoSteps: override initial_gas with a high value so
+                // it won't limit the run.
+                call.initial_gas = context.versioned_constants().default_initial_gas_cost();
+            };
+            context.tracked_resource_stack.push(contract_tracked_resource)
+        }
+        None => context.tracked_resource_stack.push(contract_tracked_resource),
+    };
 
     let res = execute_entry_point_call(call, contract_class, state, resources, context);
     context.tracked_resource_stack.pop();

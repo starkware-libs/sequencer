@@ -253,10 +253,9 @@ impl VersionedConstants {
         self.l1_to_l2_gas_price_ratio()
     }
 
-    /// Returns the default initial gas of any transaction to run with.
-    pub fn tx_default_initial_gas(&self) -> u64 {
-        let os_consts = &self.os_constants;
-        os_consts.gas_costs.default_initial_gas_cost - os_consts.gas_costs.transaction_gas_cost
+    /// Returns the default initial gas for VM mode transactions.
+    pub fn default_initial_gas_cost(&self) -> u64 {
+        self.os_constants.gas_costs.default_initial_gas_cost
     }
 
     pub fn vm_resource_fee_cost(&self) -> &VmResourceCosts {

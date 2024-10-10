@@ -529,8 +529,7 @@ fn test_max_fee_limit_validate(
     .unwrap_err()
     .to_string();
     block_context.versioned_constants.validate_max_n_steps = old_validate_max_n_steps;
-
-    assert!(error_trace.contains("no remaining steps"));
+    assert!(error_trace.contains("no remaining steps"))
 }
 
 #[rstest]
