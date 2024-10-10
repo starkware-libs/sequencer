@@ -75,8 +75,8 @@ function compile_cairo_native_runtime() {
 }
 
 function main() {
-    # [ "$(uname)" = "Linux" ] && install_essential_deps_linux
-    # setup_llvm_deps
+    [ "$(uname)" = "Linux" ] && install_essential_deps_linux
+    setup_llvm_deps
     echo "LLVM dependencies installed successfully."
 
     compile_cairo_native_runtime
