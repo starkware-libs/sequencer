@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
+use num_traits::Inv;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::block::GasPrice;
@@ -987,6 +988,65 @@ fn test_n_reverted_steps(
     // Make sure that n_steps and actual_fee grew as expected.
     assert!(n_steps_100 - n_steps_0 == 100 * single_call_steps_delta);
     assert!(actual_fee_100 - actual_fee_0 == 100 * single_call_fee_delta);
+}
+
+#[rstest]
+fn test_max_fee_computation_from_tx_bounds(block_context: BlockContext) {
+    macro_rules! assert_max_steps_as_expected {
+        ($account_tx:expr, $expected_max_steps:expr $(,)?) => {
+            let tx_context = Arc::new(block_context.to_tx_context(&$account_tx));
+            let execution_context = EntryPointExecutionContext::new_invoke(tx_context, true);
+            let max_steps = execution_context.vm_run_resources.get_n_steps().unwrap();
+            assert_eq!(u64::try_from(max_steps).unwrap(), $expected_max_steps);
+        };
+    }
+
+    // V1 transaction: limit based on max fee.
+    // Convert max fee to L1 gas units, and then to steps.
+    let max_fee = Fee(100);
+    let account_tx_max_fee = account_invoke_tx(invoke_tx_args! {
+        max_fee, version: TransactionVersion::ONE
+    });
+    assert_max_steps_as_expected!(
+        account_tx_max_fee,
+        (block_context.versioned_constants.vm_resource_fee_cost().n_steps.inv()
+            * max_fee
+                .checked_div(
+                    block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Eth),
+                )
+                .unwrap()
+                .0)
+            .to_integer(),
+    );
+
+    // V3 transaction: limit based on L1 gas bounds.
+    // Convert L1 gas units to steps.
+    let l1_gas_bound = 200_u64;
+    let account_tx_l1_bounds = account_invoke_tx(invoke_tx_args! {
+        resource_bounds: l1_resource_bounds(l1_gas_bound.into(), 1_u8.into()),
+        version: TransactionVersion::THREE
+    });
+    assert_max_steps_as_expected!(
+        account_tx_l1_bounds,
+        (block_context.versioned_constants.vm_resource_fee_cost().n_steps.inv() * l1_gas_bound)
+            .to_integer(),
+    );
+
+    // V3 transaction: limit based on L2 gas bounds (all resource_bounds).
+    // Convert L2 gas units to steps.
+    let l2_gas_bound = 300_u64;
+    let account_tx_l2_bounds = account_invoke_tx(invoke_tx_args! {
+        resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
+            l2_gas: ResourceBounds {
+                max_amount: l2_gas_bound.into(), max_price_per_unit: 1_u8.into()
+            }, ..Default::default()
+        }),
+        version: TransactionVersion::THREE
+    });
+    assert_max_steps_as_expected!(
+        account_tx_l2_bounds,
+        l2_gas_bound / block_context.versioned_constants.os_constants.gas_costs.step_gas_cost,
+    );
 }
 
 #[rstest]
