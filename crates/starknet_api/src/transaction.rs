@@ -751,14 +751,9 @@ impl Fee {
     }
 
     pub fn checked_div_ceil(self, rhs: NonzeroGasPrice) -> Option<GasAmount> {
-        match self.checked_div(rhs) {
-            Some(value) => Some(if value.nonzero_saturating_mul(rhs) < self {
-                (value.0 + 1).into()
-            } else {
-                value
-            }),
-            None => None,
-        }
+        self.checked_div(rhs).map(|value| {
+            if value.nonzero_saturating_mul(rhs) < self { (value.0 + 1).into() } else { value }
+        })
     }
 
     pub fn checked_div(self, rhs: NonzeroGasPrice) -> Option<GasAmount> {
