@@ -7,16 +7,17 @@ use blockifier::execution::contract_class::ContractClass as BlockifierContractCl
 use blockifier::state::cached_state::CachedState;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
+use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::{StarknetVersion, VersionedConstants};
 use serde_json::{json, to_value};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::Transaction;
+use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_core::types::ContractClass::{Legacy, Sierra};
 use starknet_gateway::config::RpcStateReaderConfig;
-use starknet_gateway::errors::serde_err_to_state_err;
+use starknet_gateway::errors::{serde_err_to_state_err, transaction_execution_err_to_state_err};
 use starknet_gateway::rpc_objects::{BlockHeader, GetBlockWithTxHashesParams, ResourcePrice};
 use starknet_gateway::rpc_state_reader::RpcStateReader;
 use starknet_types_core::felt::Felt;
@@ -177,5 +178,18 @@ impl TestStateReader {
             block_context,
             TransactionExecutorConfig::default(),
         ))
+    }
+
+    // TODO(Aner): extend/refactor to accomodate all types of transactions.
+    pub fn from_api_txs_to_blockifier_txs(
+        txs_and_hashes: Vec<(Transaction, TransactionHash)>,
+    ) -> StateResult<Vec<BlockifierTransaction>> {
+        txs_and_hashes
+            .into_iter()
+            .map(|(tx, tx_hash)| {
+                BlockifierTransaction::from_api(tx, tx_hash, None, None, None, false)
+                    .map_err(transaction_execution_err_to_state_err)
+            })
+            .collect()
     }
 }
