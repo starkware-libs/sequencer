@@ -235,7 +235,7 @@ impl PostExecutionReport {
         let TransactionReceipt { fee, .. } = tx_receipt;
 
         // If fee is not enforced, no need to check post-execution.
-        if !charge_fee || !tx_context.tx_info.enforce_fee() {
+        if !charge_fee {
             return Ok(Self(FeeCheckReport::success_report(*fee)));
         }
 
