@@ -2,22 +2,22 @@ use std::sync::Arc;
 
 use starknet_batcher_types::communication::{
     BatcherRequestAndResponseSender,
-    LocalBatcherClientImpl,
+    LocalBatcherClient,
     SharedBatcherClient,
 };
 use starknet_consensus_manager_types::communication::{
     ConsensusManagerRequestAndResponseSender,
-    LocalConsensusManagerClientImpl,
+    LocalConsensusManagerClient,
     SharedConsensusManagerClient,
 };
 use starknet_gateway_types::communication::{
     GatewayRequestAndResponseSender,
-    LocalGatewayClientImpl,
+    LocalGatewayClient,
     SharedGatewayClient,
 };
 use starknet_mempool_infra::component_definitions::ComponentCommunication;
 use starknet_mempool_types::communication::{
-    LocalMempoolClientImpl,
+    LocalMempoolClient,
     MempoolRequestAndResponseSender,
     SharedMempoolClient,
 };
@@ -127,22 +127,22 @@ pub fn create_node_clients(
     channels: &mut SequencerNodeCommunication,
 ) -> SequencerNodeClients {
     let batcher_client: Option<SharedBatcherClient> = match config.components.batcher.execute {
-        true => Some(Arc::new(LocalBatcherClientImpl::new(channels.take_batcher_tx()))),
+        true => Some(Arc::new(LocalBatcherClient::new(channels.take_batcher_tx()))),
         false => None,
     };
     let consensus_manager_client: Option<SharedConsensusManagerClient> =
         match config.components.consensus_manager.execute {
-            true => Some(Arc::new(LocalConsensusManagerClientImpl::new(
+            true => Some(Arc::new(LocalConsensusManagerClient::new(
                 channels.take_consensus_manager_tx(),
             ))),
             false => None,
         };
     let mempool_client: Option<SharedMempoolClient> = match config.components.mempool.execute {
-        true => Some(Arc::new(LocalMempoolClientImpl::new(channels.take_mempool_tx()))),
+        true => Some(Arc::new(LocalMempoolClient::new(channels.take_mempool_tx()))),
         false => None,
     };
     let gateway_client: Option<SharedGatewayClient> = match config.components.gateway.execute {
-        true => Some(Arc::new(LocalGatewayClientImpl::new(channels.take_gateway_tx()))),
+        true => Some(Arc::new(LocalGatewayClient::new(channels.take_gateway_tx()))),
         false => None,
     };
     SequencerNodeClients {
