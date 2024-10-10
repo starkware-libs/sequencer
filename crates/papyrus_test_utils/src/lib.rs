@@ -50,6 +50,7 @@ use starknet_api::block::{
     GasPricePerToken,
     StarknetVersion,
 };
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
@@ -72,7 +73,6 @@ use starknet_api::deprecated_contract_class::{
     ContractClassAbiEntry,
     EntryPoint as DeprecatedEntryPoint,
     EntryPointOffset,
-    EntryPointType as DeprecatedEntryPointType,
     EventAbiEntry,
     EventType,
     FunctionAbiEntry,
@@ -102,7 +102,6 @@ use starknet_api::rpc_transaction::{
 use starknet_api::state::{
     ContractClass,
     EntryPoint,
-    EntryPointType,
     FunctionIndex,
     StateDiff,
     StorageKey,
@@ -488,7 +487,7 @@ auto_impl_get_test_instance! {
     pub struct DeprecatedContractClass {
         pub abi: Option<Vec<ContractClassAbiEntry>>,
         pub program: Program,
-        pub entry_points_by_type: HashMap<DeprecatedEntryPointType, Vec<DeprecatedEntryPoint>>,
+        pub entry_points_by_type: HashMap<EntryPointType, Vec<DeprecatedEntryPoint>>,
     }
     pub enum ContractClassAbiEntry {
         Event(EventAbiEntry) = 0,
@@ -591,11 +590,6 @@ auto_impl_get_test_instance! {
     pub struct DeprecatedEntryPoint {
         pub selector: EntryPointSelector,
         pub offset: EntryPointOffset,
-    }
-    pub enum DeprecatedEntryPointType {
-        Constructor = 0,
-        External = 1,
-        L1Handler = 2,
     }
     pub struct EntryPoint {
         pub function_idx: FunctionIndex,

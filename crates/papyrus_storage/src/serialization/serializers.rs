@@ -28,6 +28,7 @@ use starknet_api::block::{
     GasPricePerToken,
     StarknetVersion,
 };
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
@@ -51,7 +52,6 @@ use starknet_api::deprecated_contract_class::{
     ContractClassAbiEntry,
     EntryPoint as DeprecatedEntryPoint,
     EntryPointOffset,
-    EntryPointType as DeprecatedEntryPointType,
     EventAbiEntry,
     EventType,
     FunctionAbiEntry,
@@ -66,14 +66,7 @@ use starknet_api::deprecated_contract_class::{
 };
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
 use starknet_api::hash::{PoseidonHash, StarkHash};
-use starknet_api::state::{
-    ContractClass,
-    EntryPoint,
-    EntryPointType,
-    FunctionIndex,
-    StorageKey,
-    ThinStateDiff,
-};
+use starknet_api::state::{ContractClass, EntryPoint, FunctionIndex, StorageKey, ThinStateDiff};
 use starknet_api::transaction::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -237,11 +230,6 @@ auto_storage_serde! {
     pub struct DeprecatedEntryPoint {
         pub selector: EntryPointSelector,
         pub offset: EntryPointOffset,
-    }
-    pub enum DeprecatedEntryPointType {
-        Constructor = 0,
-        External = 1,
-        L1Handler = 2,
     }
     pub struct EntryPoint {
         pub function_idx: FunctionIndex,
@@ -999,9 +987,7 @@ impl StorageSerde for DeprecatedContractClass {
             abi: Option::<Vec<ContractClassAbiEntry>>::deserialize_from(data)?,
             program: Program::deserialize_from(data)?,
             entry_points_by_type:
-                HashMap::<DeprecatedEntryPointType, Vec<DeprecatedEntryPoint>>::deserialize_from(
-                    bytes,
-                )?,
+                HashMap::<EntryPointType, Vec<DeprecatedEntryPoint>>::deserialize_from(bytes)?,
         })
     }
 }

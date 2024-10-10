@@ -23,6 +23,7 @@ use papyrus_common::state::{
 };
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockTimestamp, GasPrice, GasPricePerToken};
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
     ContractAddress,
@@ -31,7 +32,6 @@ use starknet_api::core::{
     SequencerContractAddress,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
-use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::execution_resources::{
     Builtin,
     ExecutionResources,

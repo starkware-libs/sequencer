@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 
 use crate::block::{BlockHash, BlockNumber};
+use crate::contract_class::EntryPointType;
 use crate::core::{
     ClassHash,
     CompiledClassHash,
@@ -208,23 +209,6 @@ pub struct ContractClass {
     pub sierra_program: Vec<Felt>,
     pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPoint>>,
     pub abi: String,
-}
-
-#[derive(
-    Debug, Default, Clone, Copy, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
-)]
-#[serde(deny_unknown_fields)]
-pub enum EntryPointType {
-    /// A constructor entry point.
-    #[serde(rename = "CONSTRUCTOR")]
-    Constructor,
-    /// An external entry point.
-    #[serde(rename = "EXTERNAL")]
-    #[default]
-    External,
-    /// An L1 handler entry point.
-    #[serde(rename = "L1_HANDLER")]
-    L1Handler,
 }
 
 /// An entry point of a [ContractClass](`crate::state::ContractClass`).

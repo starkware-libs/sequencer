@@ -10,8 +10,9 @@ use std::io::{BufWriter, Write};
 use metrics::{absolute_counter, gauge};
 use serde::Serialize;
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash};
-use starknet_api::state::{EntryPoint, EntryPointType};
+use starknet_api::state::EntryPoint;
 use starknet_types_core::felt::Felt;
 use tracing::debug;
 

@@ -8,6 +8,7 @@ use indexmap::indexmap;
 use mockito::mock;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
     ContractAddress,
@@ -24,12 +25,11 @@ use starknet_api::deprecated_contract_class::{
     ContractClassAbiEntry,
     EntryPoint as DeprecatedEntryPoint,
     EntryPointOffset,
-    EntryPointType as DeprecatedEntryPointType,
     FunctionAbiEntry,
     Program,
     TypedParameter,
 };
-use starknet_api::state::{EntryPoint, EntryPointType, FunctionIndex};
+use starknet_api::state::{EntryPoint, FunctionIndex};
 use starknet_api::transaction::{Fee, TransactionHash, TransactionSignature, TransactionVersion};
 use starknet_api::{felt, patricia_key};
 
@@ -262,9 +262,9 @@ async fn deprecated_contract_class() {
             reference_manager: serde_json::Value::Object(serde_json::Map::new()),
         },
         entry_points_by_type: HashMap::from([
-            (DeprecatedEntryPointType::L1Handler, vec![]),
+            (EntryPointType::L1Handler, vec![]),
             (
-                DeprecatedEntryPointType::Constructor,
+                EntryPointType::Constructor,
                 vec![DeprecatedEntryPoint {
                     selector: EntryPointSelector(felt!(
                         "0x028ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194"
@@ -273,7 +273,7 @@ async fn deprecated_contract_class() {
                 }],
             ),
             (
-                DeprecatedEntryPointType::External,
+                EntryPointType::External,
                 vec![DeprecatedEntryPoint {
                     selector: EntryPointSelector(felt!(
                         "0x0000000000000000000000000000000000000000000000000000000000000000"

@@ -8,8 +8,8 @@ use cairo_vm::vm::errors::runner_errors::RunnerError;
 use cairo_vm::vm::errors::trace_errors::TraceError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use num_bigint::{BigInt, TryFromBigIntError};
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
-use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
