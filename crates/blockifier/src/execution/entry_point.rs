@@ -9,7 +9,13 @@ use serde::Serialize;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{Calldata, TransactionVersion};
+use starknet_api::transaction::{
+    AllResourceBounds,
+    Calldata,
+    ResourceBounds,
+    TransactionVersion,
+    ValidResourceBounds,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
@@ -249,6 +255,7 @@ impl EntryPointExecutionContext {
     /// Returns the maximum number of cairo steps allowed, given the max fee, gas price and the
     /// execution mode.
     /// If fee is disabled, returns the global maximum.
+    /// The bound computation is saturating (no panic on overflow).
     fn max_steps(
         tx_context: &TransactionContext,
         mode: &ExecutionMode,
@@ -270,31 +277,51 @@ impl EntryPointExecutionContext {
             return block_upper_bound;
         }
 
-        let gas_per_step = versioned_constants.vm_resource_fee_cost().n_steps;
+        // Deprecated transactions derive the step limit from the `max_fee`, by computing the L1 gas
+        // limit induced by the max fee and translating into cairo steps.
+        // New transactions with only L1 bounds use the L1 resource bounds directly.
+        // New transactions with L2 bounds use the L2 bounds directly.
+        let l1_gas_per_step = versioned_constants.vm_resource_fee_cost().n_steps;
+        let l2_gas_per_step = versioned_constants.os_constants.gas_costs.step_gas_cost;
 
-        // New transactions derive the step limit by the L1 gas resource bounds; deprecated
-        // transactions derive this value from the `max_fee`.
-        let tx_gas_upper_bound = match tx_info {
+        let tx_upper_bound_u64 = match tx_info {
             // Fee is a larger uint type than GasAmount, so we need to saturate the division.
             // This is just a computation of an upper bound, so it's safe to saturate.
-            TransactionInfo::Deprecated(context) => context.max_fee.saturating_div(
-                block_info.gas_prices.get_l1_gas_price_by_fee_type(&tx_info.fee_type()),
-            ),
-            TransactionInfo::Current(context) => context.l1_resource_bounds().max_amount,
+            TransactionInfo::Deprecated(context) => {
+                if l1_gas_per_step.is_zero() {
+                    u64::MAX
+                } else {
+                    let induced_l1_gas_limit = context.max_fee.saturating_div(
+                        block_info.gas_prices.get_l1_gas_price_by_fee_type(&tx_info.fee_type()),
+                    );
+                    (l1_gas_per_step.inv() * induced_l1_gas_limit.0).to_integer()
+                }
+            }
+            TransactionInfo::Current(context) => match context.resource_bounds {
+                ValidResourceBounds::L1Gas(ResourceBounds { max_amount, .. }) => {
+                    if l1_gas_per_step.is_zero() {
+                        u64::MAX
+                    } else {
+                        (l1_gas_per_step.inv() * max_amount.0).to_integer()
+                    }
+                }
+                ValidResourceBounds::AllResources(AllResourceBounds {
+                    l2_gas: ResourceBounds { max_amount, .. },
+                    ..
+                }) => {
+                    if l2_gas_per_step.is_zero() {
+                        u64::MAX
+                    } else {
+                        max_amount.0.saturating_div(l2_gas_per_step)
+                    }
+                }
+            },
         };
 
         // Use saturating upper bound to avoid overflow. This is safe because the upper bound is
         // bounded above by the block's limit, which is a usize.
-        let upper_bound_u64 = if gas_per_step.is_zero() {
-            u64::MAX
-        } else {
-            (gas_per_step.inv() * tx_gas_upper_bound.0).to_integer()
-        };
-        let tx_upper_bound = usize_from_u64(upper_bound_u64).unwrap_or_else(|_| {
-            log::warn!(
-                "Failed to convert u64 to usize: {upper_bound_u64}. Upper bound from tx is \
-                 {tx_gas_upper_bound}, gas per step is {gas_per_step}."
-            );
+        let tx_upper_bound = usize_from_u64(tx_upper_bound_u64).unwrap_or_else(|_| {
+            log::warn!("Failed to convert u64 to usize: {tx_upper_bound_u64}.");
             usize::MAX
         });
         min(tx_upper_bound, block_upper_bound)
