@@ -529,8 +529,11 @@ fn test_max_fee_limit_validate(
     .unwrap_err()
     .to_string();
     block_context.versioned_constants.validate_max_n_steps = old_validate_max_n_steps;
-
-    assert!(error_trace.contains("no remaining steps"));
+    if resource_bounds.get_gas_vector_computation_mode() == GasVectorComputationMode::NoL2Gas {
+        assert!(error_trace.contains("no remaining steps"));
+    } else {
+        assert!(error_trace.contains("no remaining steps") | error_trace.contains("Out of gas"));
+    }
 }
 
 #[rstest]
