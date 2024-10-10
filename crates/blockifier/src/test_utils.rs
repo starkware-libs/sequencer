@@ -96,14 +96,10 @@ pub fn test_erc20_sequencer_balance_key() -> StorageKey {
 }
 
 // The max_fee / resource bounds used for txs in this test.
-pub const MAX_L1_GAS_AMOUNT: GasAmount = GasAmount(1000000);
-pub const MAX_L1_GAS_PRICE: NonzeroGasPrice = DEFAULT_STRK_L1_GAS_PRICE;
-pub const MAX_RESOURCE_COMMITMENT: Fee = MAX_L1_GAS_AMOUNT.nonzero_saturating_mul(MAX_L1_GAS_PRICE);
-pub const MAX_FEE: Fee = MAX_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_ETH_L1_GAS_PRICE);
-
-// The amount of test-token allocated to the account in this test, set to a multiple of the max
-// amount deprecated / non-deprecated transactions commit to paying.
-pub const BALANCE: Fee = Fee(10 * const_max(MAX_FEE.0, MAX_RESOURCE_COMMITMENT.0));
+// V3 transactions:
+pub const DEFAULT_L1_GAS_AMOUNT: GasAmount = GasAmount(1000000);
+pub const DEFAULT_L1_DATA_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
+pub const DEFAULT_L2_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 9));
 
 pub const DEFAULT_ETH_L1_GAS_PRICE: NonzeroGasPrice =
     NonzeroGasPrice::new_unchecked(GasPrice(100 * u128::pow(10, 9))); // Given in units of Wei.
@@ -113,10 +109,26 @@ pub const DEFAULT_ETH_L1_DATA_GAS_PRICE: NonzeroGasPrice =
     NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 6))); // Given in units of Wei.
 pub const DEFAULT_STRK_L1_DATA_GAS_PRICE: NonzeroGasPrice =
     NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9))); // Given in units of STRK.
-pub const DEFAULT_L1_DATA_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
 pub const DEFAULT_STRK_L2_GAS_PRICE: NonzeroGasPrice =
     NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9)));
-pub const DEFAULT_L2_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
+
+// Deprecated transactions:
+pub const MAX_FEE: Fee = DEFAULT_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_ETH_L1_GAS_PRICE);
+
+// The amount of test-token allocated to the account in this test, set to a multiple of the max
+// amount deprecated / non-deprecated transactions commit to paying.
+pub const BALANCE: Fee = Fee(10
+    * const_max(
+        const_max(DEFAULT_ALL_BOUNDS_COMMITTED_FEE.0, DEFAULT_L1_BOUNDS_COMMITTED_FEE.0),
+        MAX_FEE.0,
+    ));
+const DEFAULT_L1_BOUNDS_COMMITTED_FEE: Fee =
+    DEFAULT_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_STRK_L1_GAS_PRICE);
+const DEFAULT_ALL_BOUNDS_COMMITTED_FEE: Fee = DEFAULT_L1_BOUNDS_COMMITTED_FEE
+    .saturating_add(DEFAULT_L2_GAS_MAX_AMOUNT.nonzero_saturating_mul(DEFAULT_STRK_L2_GAS_PRICE))
+    .saturating_add(
+        DEFAULT_L1_DATA_GAS_MAX_AMOUNT.nonzero_saturating_mul(DEFAULT_STRK_L1_DATA_GAS_PRICE),
+    );
 
 // The block number of the BlockContext being used for testing.
 pub const CURRENT_BLOCK_NUMBER: u64 = 2001;
