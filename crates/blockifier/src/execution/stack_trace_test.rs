@@ -221,6 +221,7 @@ Execution failed. Failure reason: (0x6661696c ('fail'), 0x454e545259504f494e545f
     let expected_trace = match cairo_version {
         CairoVersion::Cairo0 => expected_trace_cairo0,
         CairoVersion::Cairo1 => expected_trace_cairo1,
+        CairoVersion::Native => panic!("Cairo Native contracts are not supported"),
     };
 
     assert_eq!(tx_execution_error.to_string(), expected_trace);
@@ -335,6 +336,9 @@ Execution failed. Failure reason: ({expected_error}, 0x454e545259504f494e545f464
                  ('ENTRYPOINT_FAILED')).
 "
             )
+        }
+        CairoVersion::Native => {
+            todo!("Cairo Native is not yet supported here")
         }
     };
 
@@ -485,6 +489,9 @@ Execution failed. Failure reason: ({expected_error}, 0x454e545259504f494e545f464
 "
             )
         }
+        CairoVersion::Native => {
+            todo!("Cairo Native not yet supported here.")
+        }
     };
 
     assert_eq!(tx_execution_error.to_string(), expected_trace);
@@ -581,6 +588,7 @@ An ASSERT_EQ instruction failed: 1 != 0.
         CairoVersion::Cairo1 => "The `validate` entry point panicked with \
                                  0x496e76616c6964207363656e6172696f ('Invalid scenario')."
             .into(),
+        CairoVersion::Native => todo!("Cairo Native is not yet supported here."),
     };
 
     // Clean pc locations from the trace.
@@ -647,6 +655,9 @@ An ASSERT_EQ instruction failed: 1 != 0.
             "Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f ('Invalid \
              scenario').
 "
+        }
+        CairoVersion::Native => {
+            todo!("Cairo Native not yet supported here.")
         }
     };
 
@@ -779,6 +790,9 @@ Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f ('Invalid s
                 execute_offset + 205,
                 deploy_offset + 194
             )
+        }
+        CairoVersion::Native => {
+            todo!("Cairo Native not yet supported here.")
         }
     };
 
